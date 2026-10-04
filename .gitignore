@@ -1,0 +1,19 @@
+node_modules/
+.svelte-kit/
+build/
+.eval-build/
+dist/
+coverage/
+test-results/
+playwright-report/
+.env
+.env.*
+!.env.example
+!.env.prod.example
+*.log
+.DS_Store
+__pycache__/
+.ruff_cache/
+.pytest_cache/
+# Evaluation runs: rendered documents and reports
+tools/eval/out/

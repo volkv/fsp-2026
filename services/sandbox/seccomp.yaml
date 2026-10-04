@@ -1,0 +1,375 @@
+# System call filter of every program go-judge runs: compilers and solutions alike (-seccomp-conf, set by
+# entrypoint.sh). Format: elastic/go-seccomp-bpf policy, as go-judge built with the seccomp tag reads it; x86_64 only
+# (the names are those of its x86_64 table, an unknown name stops go-judge at start).
+#
+# The container's own profile (seccomp.json) has to allow namespaces and mounts for go-judge itself; this one takes
+# them away from the programs. An allowlist: Docker's default list (moby/profiles seccomp v0.2.3, the calls it allows
+# every container) plus arch_prctl, with no namespace, mount, keyring, bpf, io_uring, userfaultfd, perf or ptrace
+# calls. Anything else fails with EPERM, and so does every call through the 32-bit entry (int 0x80), whose numbers
+# differ and would pass a filter written for 64-bit ones.
+default_action: errno
+syscalls:
+  - action: allow
+    names:
+      - accept
+      - accept4
+      - access
+      - adjtimex
+      - alarm
+      - arch_prctl
+      - bind
+      - brk
+      - cachestat
+      - capget
+      - capset
+      - chdir
+      - chmod
+      - chown
+      - clock_adjtime
+      - clock_getres
+      - clock_gettime
+      - clock_nanosleep
+      - close
+      - close_range
+      - connect
+      - copy_file_range
+      - creat
+      - dup
+      - dup2
+      - dup3
+      - epoll_create
+      - epoll_create1
+      - epoll_ctl
+      - epoll_ctl_old
+      - epoll_pwait
+      - epoll_pwait2
+      - epoll_wait
+      - epoll_wait_old
+      - eventfd
+      - eventfd2
+      - execve
+      - execveat
+      - exit
+      - exit_group
+      - faccessat
+      - faccessat2
+      - fadvise64
+      - fallocate
+      - fanotify_mark
+      - fchdir
+      - fchmod
+      - fchmodat
+      - fchmodat2
+      - fchown
+      - fchownat
+      - fcntl
+      - fdatasync
+      - fgetxattr
+      - flistxattr
+      - flock
+      - fork
+      - fremovexattr
+      - fsetxattr
+      - fstat
+      - fstatfs
+      - fsync
+      - ftruncate
+      - futex
+      - futex_requeue
+      - futex_wait
+      - futex_waitv
+      - futex_wake
+      - futimesat
+      - get_robust_list
+      - get_thread_area
+      - getcpu
+      - getcwd
+      - getdents
+      - getdents64
+      - getegid
+      - geteuid
+      - getgid
+      - getgroups
+      - getitimer
+      - getpeername
+      - getpgid
+      - getpgrp
+      - getpid
+      - getppid
+      - getpriority
+      - getrandom
+      - getresgid
+      - getresuid
+      - getrlimit
+      - getrusage
+      - getsid
+      - getsockname
+      - getsockopt
+      - gettid
+      - gettimeofday
+      - getuid
+      - getxattr
+      - getxattrat
+      - inotify_add_watch
+      - inotify_init
+      - inotify_init1
+      - inotify_rm_watch
+      - io_cancel
+      - io_destroy
+      - io_getevents
+      - io_pgetevents
+      - io_setup
+      - io_submit
+      - ioctl
+      - ioprio_get
+      - ioprio_set
+      - kill
+      - landlock_add_rule
+      - landlock_create_ruleset
+      - landlock_restrict_self
+      - lchown
+      - lgetxattr
+      - link
+      - linkat
+      - listen
+      - listmount
+      - listxattr
+      - listxattrat
+      - llistxattr
+      - lremovexattr
+      - lseek
+      - lsetxattr
+      - lstat
+      - madvise
+      - map_shadow_stack
+      - membarrier
+      - memfd_create
+      - memfd_secret
+      - mincore
+      - mkdir
+      - mkdirat
+      - mknod
+      - mknodat
+      - mlock
+      - mlock2
+      - mlockall
+      - mmap
+      - mprotect
+      - mq_getsetattr
+      - mq_notify
+      - mq_open
+      - mq_timedreceive
+      - mq_timedsend
+      - mq_unlink
+      - mremap
+      - mseal
+      - msgctl
+      - msgget
+      - msgrcv
+      - msgsnd
+      - msync
+      - munlock
+      - munlockall
+      - munmap
+      - name_to_handle_at
+      - nanosleep
+      - newfstatat
+      - open
+      - openat
+      - openat2
+      - pause
+      - pidfd_open
+      - pidfd_send_signal
+      - pipe
+      - pipe2
+      - pkey_alloc
+      - pkey_free
+      - pkey_mprotect
+      - poll
+      - ppoll
+      - prctl
+      - pread64
+      - preadv
+      - preadv2
+      - prlimit64
+      - process_mrelease
+      - pselect6
+      - pwrite64
+      - pwritev
+      - pwritev2
+      - read
+      - readahead
+      - readlink
+      - readlinkat
+      - readv
+      - recvfrom
+      - recvmmsg
+      - recvmsg
+      - remap_file_pages
+      - removexattr
+      - removexattrat
+      - rename
+      - renameat
+      - renameat2
+      - restart_syscall
+      - rmdir
+      - rseq
+      - rt_sigaction
+      - rt_sigpending
+      - rt_sigprocmask
+      - rt_sigqueueinfo
+      - rt_sigreturn
+      - rt_sigsuspend
+      - rt_sigtimedwait
+      - rt_tgsigqueueinfo
+      - sched_get_priority_max
+      - sched_get_priority_min
+      - sched_getaffinity
+      - sched_getattr
+      - sched_getparam
+      - sched_getscheduler
+      - sched_rr_get_interval
+      - sched_setaffinity
+      - sched_setattr
+      - sched_setparam
+      - sched_setscheduler
+      - sched_yield
+      - seccomp
+      - select
+      - semctl
+      - semget
+      - semop
+      - semtimedop
+      - sendfile
+      - sendmmsg
+      - sendmsg
+      - sendto
+      - set_robust_list
+      - set_thread_area
+      - set_tid_address
+      - setfsgid
+      - setfsuid
+      - setgid
+      - setgroups
+      - setitimer
+      - setpgid
+      - setpriority
+      - setregid
+      - setresgid
+      - setresuid
+      - setreuid
+      - setrlimit
+      - setsid
+      - setsockopt
+      - setuid
+      - setxattr
+      - setxattrat
+      - shmat
+      - shmctl
+      - shmdt
+      - shmget
+      - shutdown
+      - sigaltstack
+      - signalfd
+      - signalfd4
+      - socketpair
+      - splice
+      - stat
+      - statfs
+      - statmount
+      - statx
+      - symlink
+      - symlinkat
+      - sync
+      - sync_file_range
+      - syncfs
+      - sysinfo
+      - tee
+      - tgkill
+      - time
+      - timer_create
+      - timer_delete
+      - timer_getoverrun
+      - timer_gettime
+      - timer_settime
+      - timerfd_create
+      - timerfd_gettime
+      - timerfd_settime
+      - times
+      - tkill
+      - truncate
+      - umask
+      - uname
+      - unlink
+      - unlinkat
+      - uretprobe
+      - utime
+      - utimensat
+      - utimes
+      - vfork
+      - vmsplice
+      - wait4
+      - waitid
+      - write
+      - writev
+  # Threads and processes, never with a flag of a new namespace: CLONE_NEWNS, NEWCGROUP, NEWUTS, NEWIPC, NEWUSER,
+  # NEWPID, NEWNET (0x7e020000).
+  - action: allow
+    names_with_args:
+      - name: clone
+        arguments:
+          - argument: 0
+            operation: BitsNotSet
+            value: 2114060288
+  # clone3 passes its flags in memory a filter cannot read, so it is refused as missing (a return to the absent
+  # tracer means ENOSYS): glibc then falls back to clone, which is checked above.
+  - action: trace
+    names:
+      - clone3
+  # Sockets: AF_UNIX (1), AF_INET (2) and AF_INET6 (10) only (the program has no network interface but a loopback that is down); no netlink, packet
+  # or other families.
+  - action: allow
+    names_with_args:
+      - name: socket
+        arguments:
+          - argument: 0
+            operation: Equal
+            value: 1
+      - name: socket
+        arguments:
+          - argument: 0
+            operation: Equal
+            value: 2
+      - name: socket
+        arguments:
+          - argument: 0
+            operation: Equal
+            value: 10
+  # Execution domains Docker allows: PER_LINUX, UNAME26, PER_LINUX32, their combination and the query.
+  - action: allow
+    names_with_args:
+      - name: personality
+        arguments:
+          - argument: 0
+            operation: Equal
+            value: 0
+      - name: personality
+        arguments:
+          - argument: 0
+            operation: Equal
+            value: 8
+      - name: personality
+        arguments:
+          - argument: 0
+            operation: Equal
+            value: 131072
+      - name: personality
+        arguments:
+          - argument: 0
+            operation: Equal
+            value: 131080
+      - name: personality
+        arguments:
+          - argument: 0
+            operation: Equal
+            value: 4294967295

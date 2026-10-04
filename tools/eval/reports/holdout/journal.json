@@ -1,0 +1,312 @@
+{
+	"about": "Журнал обращений к отложенной части (holdout) выборок стенда. Запись о прогоне вносится до него — набор, режим, ревизия продукта (не короче 12 знаков), дата (UTC), кто и зачем; прогон на holdout без своей записи стенд не запускает. После прогона в запись вносятся файл отчёта и что он показал, и она коммитится вместе с отчётом. Записи до 2026-09-26 восстановлены по каталогу прогонов: журнала тогда не было, поля «кто» и часть «зачем» не записаны. Ревизия — коммит сборки; незакоммиченные правки поверх него в прогон входили и названы в note.",
+	"status": {
+		"synthetic-resumes-v1": "выведен: holdout использовался при правках продукта",
+		"synthetic-resumes-v2": "просмотрен: шесть обращений на пяти состояниях продукта, правила соответствия 6 и правка таксономии 2026.09.7 сделаны после просмотра его чисел; его числа — не независимая оценка"
+	},
+	"accesses": [
+		{
+			"dataset_id": "synthetic-resumes-v1",
+			"mode": "rules_only",
+			"product_revision": "00727b0146ea",
+			"date": "2026-09-25",
+			"run_at": "2026-09-25T08:25:55+00:00",
+			"by": null,
+			"purpose": null,
+			"taxonomy": "2026.09.3",
+			"match_ruleset": null,
+			"report": null,
+			"seen": {
+				"resume.skills_f1": 0.9268,
+				"skills.normalization_accuracy": 0.9434,
+				"categorization.role_accuracy": 0.977,
+				"categorization.grade_in_range": 0.9765
+			},
+			"note": "до журнала: кто и зачем запускал, не записано; отчёт в репозиторий не сохранён, числа — из отчёта прогона"
+		},
+		{
+			"dataset_id": "synthetic-resumes-v1",
+			"mode": "rules_only",
+			"product_revision": "e2fe342099f6",
+			"date": "2026-09-25",
+			"run_at": "2026-09-25T08:38:58+00:00",
+			"by": null,
+			"purpose": null,
+			"taxonomy": "2026.09.3",
+			"match_ruleset": null,
+			"report": null,
+			"seen": {
+				"resume.skills_f1": 0.9268,
+				"skills.normalization_accuracy": 0.9434,
+				"categorization.role_accuracy": 0.977,
+				"categorization.grade_in_range": 0.9765
+			},
+			"note": "до журнала: кто и зачем запускал, не записано; отчёт в репозиторий не сохранён, числа — из отчёта прогона"
+		},
+		{
+			"dataset_id": "synthetic-resumes-v1",
+			"mode": "rules_only",
+			"product_revision": "a231d3415349",
+			"date": "2026-09-25",
+			"run_at": "2026-09-25T08:59:42+00:00",
+			"by": null,
+			"purpose": null,
+			"taxonomy": "2026.09.3",
+			"match_ruleset": null,
+			"report": null,
+			"seen": {
+				"resume.skills_f1": 0.9387,
+				"skills.normalization_accuracy": 0.9434,
+				"categorization.role_accuracy": 1.0,
+				"categorization.grade_in_range": 0.9765
+			},
+			"note": "до журнала: кто и зачем запускал, не записано; отчёт в репозиторий не сохранён, числа — из отчёта прогона"
+		},
+		{
+			"dataset_id": "synthetic-resumes-v1",
+			"mode": "rules_only",
+			"product_revision": "2a361b028f5d",
+			"date": "2026-09-25",
+			"run_at": "2026-09-25T09:12:47+00:00",
+			"by": null,
+			"purpose": null,
+			"taxonomy": "2026.09.4",
+			"match_ruleset": null,
+			"report": null,
+			"seen": {
+				"resume.skills_f1": 0.976,
+				"skills.normalization_accuracy": 0.9528,
+				"categorization.role_accuracy": 1.0,
+				"categorization.grade_in_range": 0.9647
+			},
+			"note": "до журнала: кто и зачем запускал, не записано; отчёт в репозиторий не сохранён, числа — из отчёта прогона"
+		},
+		{
+			"dataset_id": "synthetic-resumes-v1",
+			"mode": "rules_only",
+			"product_revision": "f9ffea63df45",
+			"date": "2026-09-25",
+			"run_at": "2026-09-25T11:16:14+00:00",
+			"by": null,
+			"purpose": null,
+			"taxonomy": "2026.09.4",
+			"match_ruleset": null,
+			"report": null,
+			"seen": {
+				"resume.skills_f1": 0.976,
+				"skills.normalization_accuracy": 0.9528,
+				"categorization.role_accuracy": 1.0,
+				"categorization.grade_in_range": 0.9647
+			},
+			"note": "до журнала: кто и зачем запускал, не записано; отчёт в репозиторий не сохранён, числа — из отчёта прогона"
+		},
+		{
+			"dataset_id": "synthetic-resumes-v1",
+			"mode": "model",
+			"product_revision": "17870d9b9535",
+			"date": "2026-09-25",
+			"run_at": "2026-09-25T11:39:35+00:00",
+			"by": null,
+			"purpose": null,
+			"taxonomy": "2026.09.4",
+			"match_ruleset": null,
+			"report": null,
+			"seen": {
+				"resume.skills_f1": 0.7928,
+				"skills.normalization_accuracy": 0.9528,
+				"categorization.role_accuracy": 1.0,
+				"categorization.grade_in_range": 0.0235
+			},
+			"note": "до журнала: кто и зачем запускал, не записано; отчёт в репозиторий не сохранён, числа — из отчёта прогона"
+		},
+		{
+			"dataset_id": "synthetic-resumes-v1",
+			"mode": "model",
+			"product_revision": "f25925cd2a1a",
+			"date": "2026-09-25",
+			"run_at": "2026-09-25T13:37:37+00:00",
+			"by": null,
+			"purpose": null,
+			"taxonomy": "2026.09.5",
+			"match_ruleset": null,
+			"report": null,
+			"seen": {
+				"resume.skills_f1": 0.9394,
+				"skills.normalization_accuracy": 0.9528,
+				"categorization.role_accuracy": 1.0,
+				"categorization.grade_in_range": 0.9529
+			},
+			"note": "до журнала: кто и зачем запускал, не записано; отчёт в репозиторий не сохранён, числа — из отчёта прогона"
+		},
+		{
+			"dataset_id": "synthetic-resumes-v1",
+			"mode": "rules_only",
+			"product_revision": "f25925cd2a1a",
+			"date": "2026-09-25",
+			"run_at": "2026-09-25T13:38:34+00:00",
+			"by": null,
+			"purpose": null,
+			"taxonomy": "2026.09.5",
+			"match_ruleset": null,
+			"report": null,
+			"seen": {
+				"resume.skills_f1": 0.976,
+				"skills.normalization_accuracy": 0.9528,
+				"categorization.role_accuracy": 1.0,
+				"categorization.grade_in_range": 0.9647
+			},
+			"note": "до журнала: кто и зачем запускал, не записано; отчёт в репозиторий не сохранён, числа — из отчёта прогона"
+		},
+		{
+			"dataset_id": "synthetic-resumes-v1",
+			"mode": "model",
+			"product_revision": "786e3fbb3f08",
+			"date": "2026-09-25",
+			"run_at": "2026-09-25T14:51:03+00:00",
+			"by": null,
+			"purpose": null,
+			"taxonomy": "2026.09.5",
+			"match_ruleset": null,
+			"report": null,
+			"seen": {
+				"resume.skills_f1": 0.9199,
+				"skills.normalization_accuracy": 0.9528,
+				"categorization.role_accuracy": 1.0,
+				"categorization.grade_in_range": 0.9294
+			},
+			"note": "до журнала: кто и зачем запускал, не записано; отчёт в репозиторий не сохранён, числа — из отчёта прогона"
+		},
+		{
+			"dataset_id": "synthetic-resumes-v2",
+			"mode": "rules_only",
+			"product_revision": "56001399c249",
+			"date": "2026-09-25",
+			"run_at": "2026-09-25T19:05:50+00:00",
+			"by": null,
+			"purpose": "первый прогон на holdout v2 после фиксации выборки: итоговое измерение для REPORT.md (коммит b0e73bf)",
+			"taxonomy": "2026.09.5",
+			"match_ruleset": "3",
+			"report": "holdout/synthetic-resumes-v2-holdout-rules_only-20260925T190550Z.json",
+			"seen": {
+				"resume.skills_f1": 0.9779,
+				"skills.normalization_accuracy": 0.8598,
+				"categorization.role_accuracy": 0.9815,
+				"categorization.grade_in_range": 0.9688,
+				"matching.ndcg_at_10": 0.8754,
+				"matching.ndcg_at_10.keywords": 0.7548,
+				"matching.ndcg_at_10.resume_only": 0.8498
+			},
+			"note": "до журнала: кто запускал, не записано. незакоммиченная работа коммита b0e73bf поверх 5600139"
+		},
+		{
+			"dataset_id": "synthetic-resumes-v2",
+			"mode": "model",
+			"product_revision": "56001399c249",
+			"date": "2026-09-25",
+			"run_at": "2026-09-25T19:12:29+00:00",
+			"by": null,
+			"purpose": "то же измерение в режиме с моделью (коммит b0e73bf)",
+			"taxonomy": "2026.09.5",
+			"match_ruleset": "3",
+			"report": "holdout/synthetic-resumes-v2-holdout-model-20260925T191229Z.json",
+			"seen": {
+				"resume.skills_f1": 0.9236,
+				"skills.normalization_accuracy": 0.8598,
+				"categorization.role_accuracy": 0.9907,
+				"categorization.grade_in_range": 0.9896,
+				"matching.ndcg_at_10": 0.7133,
+				"matching.ndcg_at_10.keywords": 0.7548,
+				"matching.ndcg_at_10.resume_only": 0.7088
+			},
+			"note": "до журнала: кто запускал, не записано. незакоммиченная работа коммита b0e73bf поверх 5600139; 4 документа модель не приняла, прочитаны правилами (partial)"
+		},
+		{
+			"dataset_id": "synthetic-resumes-v2",
+			"mode": "rules_only",
+			"product_revision": "2b0b489d9649",
+			"date": "2026-09-25",
+			"run_at": "2026-09-25T20:34:46+00:00",
+			"by": null,
+			"purpose": null,
+			"taxonomy": "2026.09.6",
+			"match_ruleset": "4",
+			"report": "holdout/synthetic-resumes-v2-holdout-rules_only-20260925T203446Z.json",
+			"seen": {
+				"resume.skills_f1": 0.9779,
+				"skills.normalization_accuracy": 0.8598,
+				"categorization.role_accuracy": 0.9815,
+				"categorization.grade_in_range": 0.9688,
+				"matching.ndcg_at_10": 0.8597,
+				"matching.ndcg_at_10.keywords": 0.7548,
+				"matching.ndcg_at_10.resume_only": 0.8393
+			},
+			"note": "до журнала: кто запускал, не записано. до журнала: зачем, не записано. Ревизия 2b0b489 (таксономия 2026.09.6, правила соответствия 4), реранкер не настроен"
+		},
+		{
+			"dataset_id": "synthetic-resumes-v2",
+			"mode": "rules_only",
+			"product_revision": "2b0b489d9649",
+			"date": "2026-09-25",
+			"run_at": "2026-09-25T20:50:51+00:00",
+			"by": null,
+			"purpose": null,
+			"taxonomy": "2026.09.7",
+			"match_ruleset": "5",
+			"report": "holdout/synthetic-resumes-v2-holdout-rules_only-20260925T205051Z.json",
+			"seen": {
+				"resume.skills_f1": 0.9337,
+				"skills.normalization_accuracy": 0.8519,
+				"categorization.role_accuracy": 0.9815,
+				"categorization.grade_in_range": 0.9688,
+				"matching.ndcg_at_10": 0.8526,
+				"matching.ndcg_at_10.keywords": 0.7548,
+				"matching.ndcg_at_10.resume_only": 0.8401
+			},
+			"note": "до журнала: кто запускал, не записано. до журнала: зачем, не записано. Незакоммиченная таксономия 2026.09.7 поверх 2b0b489; F1 навыков упал до 0,934"
+		},
+		{
+			"dataset_id": "synthetic-resumes-v2",
+			"mode": "rules_only",
+			"product_revision": "04a4b4046e04",
+			"date": "2026-09-25",
+			"run_at": "2026-09-25T21:03:31+00:00",
+			"by": null,
+			"purpose": null,
+			"taxonomy": "2026.09.7",
+			"match_ruleset": "5",
+			"report": "holdout/synthetic-resumes-v2-holdout-rules_only-20260925T210331Z.json",
+			"seen": {
+				"resume.skills_f1": 0.9705,
+				"skills.normalization_accuracy": 0.8519,
+				"categorization.role_accuracy": 0.9815,
+				"categorization.grade_in_range": 0.9688,
+				"matching.ndcg_at_10": 0.8526,
+				"matching.ndcg_at_10.keywords": 0.7548,
+				"matching.ndcg_at_10.resume_only": 0.8401
+			},
+			"note": "до журнала: кто запускал, не записано. до журнала: зачем, не записано. Незакоммиченная таксономия 2026.09.7 после правки поверх 04a4b40: F1 навыков 0,971; коммит 2ccc4ca пишет «F1 навыков 0,971 на отложенной выборке»"
+		},
+		{
+			"dataset_id": "synthetic-resumes-v2",
+			"mode": "rules_only",
+			"product_revision": "0e91845a1f82",
+			"date": "2026-09-25",
+			"run_at": "2026-09-25T21:36:57+00:00",
+			"by": null,
+			"purpose": "проверка правил соответствия 6 (коммит b67772f: «nDCG@10 0,893 против 0,853 на отложенной выборке»)",
+			"taxonomy": "2026.09.8",
+			"match_ruleset": "6",
+			"report": "holdout/synthetic-resumes-v2-holdout-rules_only-20260925T213657Z.json",
+			"seen": {
+				"resume.skills_f1": 0.9705,
+				"skills.normalization_accuracy": 0.8519,
+				"categorization.role_accuracy": 0.9815,
+				"categorization.grade_in_range": 0.9688,
+				"matching.ndcg_at_10": 0.8931,
+				"matching.ndcg_at_10.keywords": 0.7548,
+				"matching.ndcg_at_10.resume_only": 0.8758
+			},
+			"note": "до журнала: кто запускал, не записано. незакоммиченные правила соответствия 6 и таксономия 2026.09.8 поверх 0e91845; правила 6 сделаны после прогонов с правилами 4 и 5 на этом holdout"
+		}
+	]
+}

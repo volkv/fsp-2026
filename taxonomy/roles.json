@@ -1,0 +1,496 @@
+{
+	"meta": {
+		"version": "2026.09.7",
+		"description": "Роли ИТ-рынка по семействам. coreSkillGroups — группы «любой из», в каждой нужен навык выше порога правил категоризации. Внешние коды — все коды роли в классификаторе источника, основной первым; пустой список — в классификаторе такой роли нет.",
+		"sources": [
+			{
+				"title": "hh.ru API, профессиональные роли",
+				"url": "https://api.hh.ru/professional_roles",
+				"retrievedAt": "2026-09-24",
+				"license": "условия API hh: https://dev.hh.ru/"
+			},
+			{
+				"title": "Хабр Карьера, специализации",
+				"url": "https://career.habr.com/salaries",
+				"retrievedAt": "2026-09-24"
+			},
+			{
+				"title": "Профессиональные стандарты, область 06 «Связь, информационные и коммуникационные технологии»",
+				"url": "https://classinform.ru/profstandarty/06-sviaz-informatcionnye-i-kommunikatcionnye-tekhnologii.html",
+				"retrievedAt": "2026-09-24",
+				"license": "нормативные акты, ГК РФ ст. 1259 п. 6"
+			},
+			{
+				"title": "Stack Overflow Developer Survey 2025, DevType",
+				"url": "https://survey.stackoverflow.co/",
+				"retrievedAt": "2026-09-24",
+				"license": "ODbL 1.0"
+			}
+		]
+	},
+	"families": {
+		"development": "Разработка",
+		"testing": "Тестирование",
+		"analytics": "Аналитика",
+		"ai": "Искусственный интеллект и ML",
+		"infrastructure": "Инфраструктура и эксплуатация",
+		"security": "Информационная безопасность",
+		"management": "Управление",
+		"design": "Дизайн",
+		"support": "Поддержка",
+		"content": "Документация",
+		"sales": "Продажи"
+	},
+	"roles": [
+		{
+			"key": "backend",
+			"family": "development",
+			"nameRu": "Бэкенд-разработчик",
+			"coreSkillGroups": [
+				["python", "java", "go", "csharp", "php", "nodejs", "kotlin", "cpp", "rust", "ruby"],
+				["sql"]
+			],
+			"typicalSkills": ["postgresql", "redis", "docker", "rest", "kafka", "git", "microservices", "linux", "cicd"],
+			"hhRoleIds": ["96"],
+			"habrSpecs": ["backend"],
+			"profStandards": ["06.001"]
+		},
+		{
+			"key": "frontend",
+			"family": "development",
+			"nameRu": "Фронтенд-разработчик",
+			"coreSkillGroups": [["javascript", "typescript"], ["html"], ["css"]],
+			"typicalSkills": ["react", "vue", "angular", "nextjs", "webpack", "vite", "git", "rest", "jest"],
+			"hhRoleIds": ["96"],
+			"habrSpecs": ["frontend", "html_coding"],
+			"profStandards": ["06.001", "06.035"]
+		},
+		{
+			"key": "fullstack",
+			"family": "development",
+			"nameRu": "Фулстек-разработчик",
+			"coreSkillGroups": [["javascript", "typescript"], ["python", "java", "go", "php", "nodejs", "csharp"], ["sql"]],
+			"typicalSkills": ["react", "vue", "postgresql", "docker", "git", "rest"],
+			"hhRoleIds": ["96"],
+			"habrSpecs": ["fullstack", "web_dev"],
+			"profStandards": ["06.001", "06.035"]
+		},
+		{
+			"key": "mobile",
+			"family": "development",
+			"nameRu": "Мобильный разработчик",
+			"coreSkillGroups": [["android", "ios", "flutter", "react_native", "kmp"]],
+			"typicalSkills": ["kotlin", "swift", "jetpack_compose", "swiftui", "git", "rest"],
+			"hhRoleIds": ["96"],
+			"habrSpecs": ["mobileapp_developer"],
+			"profStandards": ["06.001"]
+		},
+		{
+			"key": "gamedev",
+			"family": "development",
+			"nameRu": "Разработчик игр",
+			"coreSkillGroups": [["unity", "unreal", "godot"]],
+			"typicalSkills": ["csharp", "cpp", "threejs", "algorithms", "math_discrete"],
+			"hhRoleIds": ["96"],
+			"habrSpecs": ["gamedev"],
+			"profStandards": ["06.001"]
+		},
+		{
+			"key": "embedded",
+			"family": "development",
+			"nameRu": "Разработчик встраиваемых систем",
+			"coreSkillGroups": [["c", "cpp"], ["embedded_dev"]],
+			"typicalSkills": ["stm32", "rtos", "arduino", "linux", "electronics", "fpga", "assembly"],
+			"hhRoleIds": ["96"],
+			"habrSpecs": ["embedded", "hardware_engineer"],
+			"profStandards": ["06.001", "06.028"]
+		},
+		{
+			"key": "systems_programmer",
+			"family": "development",
+			"nameRu": "Системный программист",
+			"coreSkillGroups": [["c", "cpp", "rust"], ["linux"]],
+			"typicalSkills": ["multithreading", "optimization", "assembly", "networking"],
+			"hhRoleIds": ["96"],
+			"habrSpecs": ["software"],
+			"profStandards": ["06.028"]
+		},
+		{
+			"key": "onec",
+			"family": "development",
+			"nameRu": "Разработчик 1С",
+			"coreSkillGroups": [["onec"]],
+			"typicalSkills": ["sql", "bpmn"],
+			"hhRoleIds": ["96"],
+			"habrSpecs": ["1c_developer", "1c_architect"],
+			"profStandards": ["06.001", "06.015"]
+		},
+		{
+			"key": "algo_engineer",
+			"family": "development",
+			"nameRu": "Алгоритмист / разработчик высоконагруженных вычислений",
+			"coreSkillGroups": [["algorithms"], ["cpp", "python", "java", "go"]],
+			"typicalSkills": ["graph_algorithms", "dynamic_programming", "optimization", "multithreading", "math_discrete"],
+			"hhRoleIds": ["96"],
+			"habrSpecs": ["software", "backend"],
+			"profStandards": ["06.001"]
+		},
+		{
+			"key": "robotics_engineer",
+			"family": "development",
+			"nameRu": "Инженер-программист робототехники",
+			"coreSkillGroups": [
+				["ros", "robotics"],
+				["cpp", "python"]
+			],
+			"typicalSkills": ["control_theory", "slam", "cv", "linux", "embedded_dev"],
+			"hhRoleIds": ["96"],
+			"habrSpecs": ["embedded"],
+			"profStandards": ["06.001"]
+		},
+		{
+			"key": "uav_engineer",
+			"family": "development",
+			"nameRu": "Инженер-программист БПЛА",
+			"coreSkillGroups": [
+				["uav", "px4"],
+				["cpp", "python"]
+			],
+			"typicalSkills": ["control_theory", "slam", "cv", "embedded_dev", "ros"],
+			"hhRoleIds": ["96"],
+			"habrSpecs": ["embedded"],
+			"profStandards": ["06.001"]
+		},
+		{
+			"key": "architect",
+			"family": "development",
+			"nameRu": "Архитектор ПО",
+			"coreSkillGroups": [["system_design"]],
+			"typicalSkills": ["microservices", "kafka", "kubernetes", "uml", "aws", "yandex_cloud"],
+			"hhRoleIds": ["96"],
+			"habrSpecs": ["software_architect"],
+			"profStandards": ["06.003"]
+		},
+		{
+			"key": "qa_manual",
+			"family": "testing",
+			"nameRu": "Тестировщик (ручное тестирование)",
+			"coreSkillGroups": [["manual_testing"]],
+			"typicalSkills": ["sql", "postman", "jira", "rest"],
+			"hhRoleIds": ["124"],
+			"habrSpecs": ["manual_testing", "qa_engineer"],
+			"profStandards": ["06.004"]
+		},
+		{
+			"key": "qa_automation",
+			"family": "testing",
+			"nameRu": "Инженер по автоматизации тестирования",
+			"coreSkillGroups": [["test_automation"], ["python", "java", "javascript", "typescript", "csharp"]],
+			"typicalSkills": ["selenium", "playwright", "pytest", "junit", "cicd", "postman", "jmeter"],
+			"hhRoleIds": ["124"],
+			"habrSpecs": ["test_automation", "qa_engineer"],
+			"profStandards": ["06.004"]
+		},
+		{
+			"key": "systems_analyst",
+			"family": "analytics",
+			"nameRu": "Системный аналитик",
+			"coreSkillGroups": [["requirements"]],
+			"typicalSkills": ["sql", "uml", "bpmn", "rest", "openapi", "kafka"],
+			"hhRoleIds": ["148"],
+			"habrSpecs": ["systems_analyst", "software_analyst"],
+			"profStandards": ["06.022"]
+		},
+		{
+			"key": "business_analyst",
+			"family": "analytics",
+			"nameRu": "Бизнес-аналитик",
+			"coreSkillGroups": [["requirements"], ["bpmn"]],
+			"typicalSkills": ["sql", "excel", "uml"],
+			"hhRoleIds": ["150", "10"],
+			"habrSpecs": ["business_analyst"],
+			"profStandards": ["06.022", "06.015"]
+		},
+		{
+			"key": "data_analyst",
+			"family": "analytics",
+			"nameRu": "Аналитик данных",
+			"coreSkillGroups": [["sql"], ["python", "excel", "r"]],
+			"typicalSkills": ["pandas", "statistics", "powerbi", "tableau", "superset", "clickhouse"],
+			"hhRoleIds": ["156"],
+			"habrSpecs": ["data_analyst", "bi_developer", "web_analyst"],
+			"profStandards": ["06.042"]
+		},
+		{
+			"key": "product_analyst",
+			"family": "analytics",
+			"nameRu": "Продуктовый аналитик",
+			"coreSkillGroups": [["sql"], ["statistics"]],
+			"typicalSkills": ["python", "pandas", "clickhouse", "superset"],
+			"hhRoleIds": ["164"],
+			"habrSpecs": ["product_analyst"],
+			"profStandards": ["06.042"]
+		},
+		{
+			"key": "data_engineer",
+			"family": "analytics",
+			"nameRu": "Дата-инженер",
+			"coreSkillGroups": [["sql"], ["python", "scala", "java"]],
+			"typicalSkills": ["spark", "airflow", "kafka", "clickhouse", "hadoop", "etl", "dbt", "greenplum"],
+			"hhRoleIds": ["156", "96"],
+			"habrSpecs": ["data_engineer"],
+			"profStandards": ["06.042", "06.011"]
+		},
+		{
+			"key": "data_scientist",
+			"family": "ai",
+			"nameRu": "Дата-сайентист",
+			"coreSkillGroups": [["python"], ["ml"]],
+			"typicalSkills": ["pandas", "sklearn", "statistics", "catboost", "xgboost", "sql", "pytorch"],
+			"hhRoleIds": ["165"],
+			"habrSpecs": ["data_scientist"],
+			"profStandards": ["06.042"]
+		},
+		{
+			"key": "ml_engineer",
+			"family": "ai",
+			"nameRu": "ML-инженер",
+			"coreSkillGroups": [["python"], ["ml", "dl"]],
+			"typicalSkills": ["pytorch", "tensorflow", "huggingface", "llm", "mlops_tools", "docker", "sql"],
+			"hhRoleIds": ["165"],
+			"habrSpecs": ["ml-engineer", "nlp_engineer"],
+			"profStandards": ["06.042", "06.001"]
+		},
+		{
+			"key": "cv_engineer",
+			"family": "ai",
+			"nameRu": "Инженер компьютерного зрения",
+			"coreSkillGroups": [["cv"], ["python", "cpp"]],
+			"typicalSkills": ["opencv", "pytorch", "dl"],
+			"hhRoleIds": ["165"],
+			"habrSpecs": ["cv_engineer"],
+			"profStandards": ["06.042", "06.001"]
+		},
+		{
+			"key": "mlops",
+			"family": "ai",
+			"nameRu": "MLOps-инженер",
+			"coreSkillGroups": [["mlops_tools", "kubernetes"], ["python"]],
+			"typicalSkills": ["docker", "cicd", "airflow"],
+			"hhRoleIds": ["160", "165"],
+			"habrSpecs": ["mlops"],
+			"profStandards": ["06.026", "06.042"]
+		},
+		{
+			"key": "devops",
+			"family": "infrastructure",
+			"nameRu": "DevOps-инженер",
+			"coreSkillGroups": [["docker", "kubernetes"], ["cicd"], ["linux"]],
+			"typicalSkills": ["terraform", "ansible", "helm", "prometheus", "gitlab_ci", "bash", "python", "nginx"],
+			"hhRoleIds": ["160"],
+			"habrSpecs": ["devops"],
+			"profStandards": ["06.026", "06.028", "06.017"]
+		},
+		{
+			"key": "sre",
+			"family": "infrastructure",
+			"nameRu": "SRE-инженер",
+			"coreSkillGroups": [["kubernetes"], ["prometheus"], ["linux"]],
+			"typicalSkills": ["go", "python", "terraform", "networking"],
+			"hhRoleIds": ["160"],
+			"habrSpecs": ["sre"],
+			"profStandards": ["06.026"]
+		},
+		{
+			"key": "sysadmin",
+			"family": "infrastructure",
+			"nameRu": "Системный администратор",
+			"coreSkillGroups": [["linux", "windows_server"]],
+			"typicalSkills": [
+				"networking",
+				"bash",
+				"powershell",
+				"virtualization",
+				"ansible",
+				"server_administration",
+				"zabbix"
+			],
+			"hhRoleIds": ["113", "114"],
+			"habrSpecs": ["system_admin", "server_admin"],
+			"profStandards": ["06.026"]
+		},
+		{
+			"key": "sam_specialist",
+			"family": "infrastructure",
+			"nameRu": "Специалист по управлению программными активами (SAM)",
+			"coreSkillGroups": [["software_asset_management"]],
+			"typicalSkills": ["itil", "excel"],
+			"hhRoleIds": [],
+			"habrSpecs": [],
+			"profStandards": []
+		},
+		{
+			"key": "network_engineer",
+			"family": "infrastructure",
+			"nameRu": "Сетевой инженер",
+			"coreSkillGroups": [["networking"]],
+			"typicalSkills": ["linux", "bash"],
+			"hhRoleIds": ["112"],
+			"habrSpecs": ["network_engineer"],
+			"profStandards": ["06.026"]
+		},
+		{
+			"key": "dba",
+			"family": "infrastructure",
+			"nameRu": "Администратор баз данных",
+			"coreSkillGroups": [["postgresql", "oracle_db", "mssql", "mysql"]],
+			"typicalSkills": ["sql", "linux", "bash"],
+			"hhRoleIds": ["96", "113"],
+			"habrSpecs": ["database_admin", "database_architect"],
+			"profStandards": ["06.011"]
+		},
+		{
+			"key": "pentester",
+			"family": "security",
+			"nameRu": "Пентестер",
+			"coreSkillGroups": [["pentest"]],
+			"typicalSkills": ["networking", "linux", "python", "appsec", "ctf"],
+			"hhRoleIds": ["116"],
+			"habrSpecs": ["pentester"],
+			"profStandards": ["06.032"]
+		},
+		{
+			"key": "appsec",
+			"family": "security",
+			"nameRu": "Инженер безопасности приложений",
+			"coreSkillGroups": [["appsec"], ["python", "java", "go"]],
+			"typicalSkills": ["cicd", "ctf", "pentest"],
+			"hhRoleIds": ["116"],
+			"habrSpecs": ["appsec"],
+			"profStandards": ["06.032"]
+		},
+		{
+			"key": "soc_analyst",
+			"family": "security",
+			"nameRu": "Аналитик SOC",
+			"coreSkillGroups": [["soc"]],
+			"typicalSkills": ["networking", "linux", "forensics"],
+			"hhRoleIds": ["116"],
+			"habrSpecs": ["SOC_analyst", "antifraud_analyst"],
+			"profStandards": ["06.033", "06.032"]
+		},
+		{
+			"key": "security_engineer",
+			"family": "security",
+			"nameRu": "Инженер по информационной безопасности",
+			"coreSkillGroups": [["networking", "linux"], ["infosec_compliance"]],
+			"typicalSkills": ["crypto", "soc"],
+			"hhRoleIds": ["116"],
+			"habrSpecs": ["security_engineer", "infosecspec", "security_administrator", "Infosec_architect"],
+			"profStandards": ["06.033", "06.034", "06.030", "06.032"]
+		},
+		{
+			"key": "reverse_engineer",
+			"family": "security",
+			"nameRu": "Реверс-инженер / вирусный аналитик",
+			"coreSkillGroups": [["reverse"], ["assembly", "c", "cpp"]],
+			"typicalSkills": ["crypto", "ctf", "forensics"],
+			"hhRoleIds": ["116"],
+			"habrSpecs": ["reverse_engineer"],
+			"profStandards": ["06.032"]
+		},
+		{
+			"key": "team_lead",
+			"family": "management",
+			"nameRu": "Тимлид / руководитель группы разработки",
+			"coreSkillGroups": [["team_lead"]],
+			"typicalSkills": ["agile", "system_design"],
+			"hhRoleIds": ["104"],
+			"habrSpecs": [],
+			"profStandards": ["06.017"]
+		},
+		{
+			"key": "product_manager",
+			"family": "management",
+			"nameRu": "Менеджер продукта",
+			"coreSkillGroups": [["product_management"]],
+			"typicalSkills": ["statistics", "sql", "agile", "ux"],
+			"hhRoleIds": ["73"],
+			"habrSpecs": ["product_manager"],
+			"profStandards": ["06.012"]
+		},
+		{
+			"key": "project_manager",
+			"family": "management",
+			"nameRu": "Руководитель проектов",
+			"coreSkillGroups": [["project_management", "agile"]],
+			"typicalSkills": ["jira"],
+			"hhRoleIds": ["107"],
+			"habrSpecs": ["project_manager", "scrum_master"],
+			"profStandards": ["06.016"]
+		},
+		{
+			"key": "delivery_manager",
+			"family": "management",
+			"nameRu": "Деливери-менеджер",
+			"coreSkillGroups": [
+				["project_management", "agile"],
+				["cicd", "itil"]
+			],
+			"typicalSkills": ["jira", "team_lead"],
+			"hhRoleIds": [],
+			"habrSpecs": ["delivery_manager"],
+			"profStandards": ["06.016"]
+		},
+		{
+			"key": "cto",
+			"family": "management",
+			"nameRu": "Технический директор (CTO)",
+			"coreSkillGroups": [["team_lead"], ["system_design"]],
+			"typicalSkills": [],
+			"hhRoleIds": ["125", "36"],
+			"habrSpecs": ["cto", "cio"],
+			"profStandards": ["06.017", "06.014"]
+		},
+		{
+			"key": "ui_ux_designer",
+			"family": "design",
+			"nameRu": "UI/UX-дизайнер",
+			"coreSkillGroups": [["figma"], ["ui", "ux"]],
+			"typicalSkills": [],
+			"hhRoleIds": ["34"],
+			"habrSpecs": ["ui_ux_designer", "product_designer", "web_designer"],
+			"profStandards": ["06.025"]
+		},
+		{
+			"key": "tech_support",
+			"family": "support",
+			"nameRu": "Инженер технической поддержки",
+			"coreSkillGroups": [["linux", "networking", "sql"]],
+			"typicalSkills": ["jira", "technical_support", "itil"],
+			"hhRoleIds": ["121"],
+			"habrSpecs": ["technical_support_engineer"],
+			"profStandards": []
+		},
+		{
+			"key": "tech_writer",
+			"family": "content",
+			"nameRu": "Технический писатель",
+			"coreSkillGroups": [["english", "openapi"]],
+			"typicalSkills": ["git"],
+			"hhRoleIds": ["126"],
+			"habrSpecs": ["technical_writer"],
+			"profStandards": ["06.019"]
+		},
+		{
+			"key": "presale",
+			"family": "sales",
+			"nameRu": "Пресейл-инженер",
+			"coreSkillGroups": [["presale"]],
+			"typicalSkills": ["requirements", "system_design"],
+			"hhRoleIds": [],
+			"habrSpecs": ["presale_engineer", "presale_manager"],
+			"profStandards": []
+		}
+	]
+}

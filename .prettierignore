@@ -1,0 +1,11 @@
+pnpm-lock.yaml
+pnpm-workspace.yaml
+build/
+.eval-build/
+.svelte-kit/
+node_modules/
+test-results/
+playwright-report/
+src/lib/server/db/migrations/meta/
+docs/
+static/

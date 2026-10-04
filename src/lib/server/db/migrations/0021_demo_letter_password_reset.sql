@@ -1,0 +1,2 @@
+ALTER TABLE "demo_letters" DROP CONSTRAINT "demo_letters_kind_values";--> statement-breakpoint
+ALTER TABLE "demo_letters" ADD CONSTRAINT "demo_letters_kind_values" CHECK ("demo_letters"."kind" in ('consents', 'disclosure', 'password_reset'));

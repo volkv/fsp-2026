@@ -1,0 +1,413 @@
+{
+	"key": "quiz-javascript",
+	"kind": "quiz",
+	"version": 2,
+	"title": "JavaScript: язык и цикл событий",
+	"summary": "Адаптивный квиз по JavaScript: приведение типов, области видимости, цикл событий, промисы и память.",
+	"skillKeys": ["javascript"],
+	"timeLimitMinutes": 30,
+	"rule": {
+		"model": "irt_3pl",
+		"discrimination": 1.7,
+		"guessing": "one_over_options",
+		"estimator": "eap",
+		"prior": {
+			"mean": 0,
+			"sd": 1
+		},
+		"grid": {
+			"from": -4,
+			"to": 4,
+			"step": 0.05
+		},
+		"selection": "max_information",
+		"stop": {
+			"minItems": 6,
+			"maxItems": 10,
+			"maxStandardError": 0.55
+		}
+	},
+	"levelScale": {
+		"type": "ability",
+		"cuts": [
+			{
+				"level": "junior",
+				"minAbility": -1.0,
+				"levelStrength": 0.45,
+				"gradeKey": "junior"
+			},
+			{
+				"level": "middle",
+				"minAbility": 0.05,
+				"levelStrength": 0.6,
+				"gradeKey": "middle"
+			},
+			{
+				"level": "senior",
+				"minAbility": 1.35,
+				"levelStrength": 0.7,
+				"gradeKey": "senior"
+			}
+		],
+		"below": "not_confirmed"
+	},
+	"coverage": {
+		"skills": [
+			{
+				"skillKey": "javascript",
+				"levels": ["junior", "middle", "senior"]
+			}
+		],
+		"checks": [
+			"приведение типов и сравнения",
+			"области видимости и замыкания",
+			"цикл событий: микро- и макрозадачи, промисы, async/await",
+			"управление памятью и неизменяемость"
+		],
+		"doesNotCheck": [
+			"браузерные API, DOM и фреймворки",
+			"TypeScript и сборку проектов",
+			"умение писать и отлаживать код — для этого есть практические задачи",
+			"коммерческий опыт и работу в команде"
+		],
+		"notes": [
+			"Сложность вопросов задана экспертно и ещё не откалибрована на ответах кандидатов.",
+			"Уровень квиза подтверждает или ограничивает сверху диапазон грейда по опыту, но не поднимает его."
+		]
+	},
+	"items": [
+		{
+			"id": "quiz-javascript-01",
+			"version": 1,
+			"level": "junior",
+			"difficulty": -1.6,
+			"prompt": "Что выведет код?",
+			"code": "console.log('5' + 3, '5' - 3);",
+			"options": [
+				{
+					"id": "a",
+					"text": "8 NaN"
+				},
+				{
+					"id": "b",
+					"text": "53 2"
+				},
+				{
+					"id": "c",
+					"text": "8 2"
+				},
+				{
+					"id": "d",
+					"text": "53 NaN"
+				}
+			],
+			"correct": "b",
+			"explanation": "`+` со строкой — конкатенация, число приводится к строке. `-` определён только для чисел, поэтому `\"5\"` приводится к 5."
+		},
+		{
+			"id": "quiz-javascript-02",
+			"version": 1,
+			"level": "junior",
+			"difficulty": -1.3,
+			"prompt": "Что выведет `typeof null`?",
+			"options": [
+				{
+					"id": "a",
+					"text": "\"object\""
+				},
+				{
+					"id": "b",
+					"text": "\"null\""
+				},
+				{
+					"id": "c",
+					"text": "\"number\""
+				},
+				{
+					"id": "d",
+					"text": "\"undefined\""
+				}
+			],
+			"correct": "a",
+			"explanation": "Историческая особенность языка: `typeof null === \"object\"`. Проверять на null нужно сравнением `value === null`."
+		},
+		{
+			"id": "quiz-javascript-03",
+			"version": 2,
+			"level": "junior",
+			"difficulty": -1.0,
+			"prompt": "Что произойдёт?",
+			"code": "const user = { name: \"Анна\" };\nuser.name = \"Иван\";\nconsole.log(user.name);",
+			"options": [
+				{
+					"id": "a",
+					"text": "Выведет \"Анна\""
+				},
+				{
+					"id": "b",
+					"text": "SyntaxError"
+				},
+				{
+					"id": "c",
+					"text": "TypeError: присваивание константе"
+				},
+				{
+					"id": "d",
+					"text": "Выведет \"Иван\""
+				}
+			],
+			"correct": "d",
+			"explanation": "`const` запрещает переприсвоить саму переменную, но не менять объект, на который она ссылается."
+		},
+		{
+			"id": "quiz-javascript-04",
+			"version": 1,
+			"level": "junior",
+			"difficulty": -0.7,
+			"prompt": "Что выведет код?",
+			"code": "console.log(0 == '', 0 === '');",
+			"options": [
+				{
+					"id": "a",
+					"text": "true true"
+				},
+				{
+					"id": "b",
+					"text": "false true"
+				},
+				{
+					"id": "c",
+					"text": "true false"
+				},
+				{
+					"id": "d",
+					"text": "false false"
+				}
+			],
+			"correct": "c",
+			"explanation": "`==` приводит типы: пустая строка превращается в 0. `===` сравнивает без приведения, а типы разные."
+		},
+		{
+			"id": "quiz-javascript-05",
+			"version": 1,
+			"level": "middle",
+			"difficulty": -0.2,
+			"prompt": "В каком порядке появятся числа?",
+			"code": "console.log(1);\nsetTimeout(() => console.log(2), 0);\nPromise.resolve().then(() => console.log(3));\nconsole.log(4);",
+			"options": [
+				{
+					"id": "a",
+					"text": "1 4 3 2"
+				},
+				{
+					"id": "b",
+					"text": "1 4 2 3"
+				},
+				{
+					"id": "c",
+					"text": "1 2 3 4"
+				},
+				{
+					"id": "d",
+					"text": "1 3 4 2"
+				}
+			],
+			"correct": "a",
+			"explanation": "Сначала выполняется синхронный код (1, 4), затем очередь микрозадач — колбэки промисов (3), и только потом макрозадачи вроде `setTimeout` (2)."
+		},
+		{
+			"id": "quiz-javascript-06",
+			"version": 2,
+			"level": "middle",
+			"difficulty": 0.1,
+			"prompt": "Что выведет код?",
+			"code": "for (var i = 0; i < 3; i++) {\n  setTimeout(() => console.log(i), 0);\n}",
+			"options": [
+				{
+					"id": "a",
+					"text": "0 1 2"
+				},
+				{
+					"id": "b",
+					"text": "2 2 2"
+				},
+				{
+					"id": "c",
+					"text": "undefined трижды"
+				},
+				{
+					"id": "d",
+					"text": "3 3 3"
+				}
+			],
+			"correct": "d",
+			"explanation": "`var` создаёт одну переменную на всю функцию; к моменту срабатывания таймеров цикл завершён и `i` равна 3. С `let` у каждой итерации своя привязка, и вывод был бы `0 1 2`."
+		},
+		{
+			"id": "quiz-javascript-07",
+			"version": 1,
+			"level": "middle",
+			"difficulty": 0.4,
+			"prompt": "Что вернёт `[10, 1, 2].sort()`?",
+			"options": [
+				{
+					"id": "a",
+					"text": "[2, 1, 10]"
+				},
+				{
+					"id": "b",
+					"text": "[10, 2, 1]"
+				},
+				{
+					"id": "c",
+					"text": "[1, 10, 2]"
+				},
+				{
+					"id": "d",
+					"text": "[1, 2, 10]"
+				}
+			],
+			"correct": "c",
+			"explanation": "Без компаратора `sort` сравнивает элементы как строки: \"1\" < \"10\" < \"2\". Для чисел нужен `sort((a, b) => a - b)`."
+		},
+		{
+			"id": "quiz-javascript-08",
+			"version": 1,
+			"level": "middle",
+			"difficulty": 0.7,
+			"prompt": "Что выведет код?",
+			"code": "console.log([NaN].includes(NaN), [NaN].indexOf(NaN));",
+			"options": [
+				{
+					"id": "a",
+					"text": "false 0"
+				},
+				{
+					"id": "b",
+					"text": "true -1"
+				},
+				{
+					"id": "c",
+					"text": "true 0"
+				},
+				{
+					"id": "d",
+					"text": "false -1"
+				}
+			],
+			"correct": "b",
+			"explanation": "`includes` использует алгоритм SameValueZero, для которого NaN равен NaN. `indexOf` сравнивает строго (`===`), а `NaN !== NaN`."
+		},
+		{
+			"id": "quiz-javascript-09",
+			"version": 2,
+			"level": "senior",
+			"difficulty": 1.1,
+			"prompt": "Что произойдёт при выполнении кода в Node.js?",
+			"code": "async function load() {\n  throw new Error('boom');\n}\n\ntry {\n  load();\n} catch {\n  console.log('caught');\n}",
+			"options": [
+				{
+					"id": "a",
+					"text": "'caught' не выведется: ошибка уйдёт в отклонённый промис без обработчика"
+				},
+				{
+					"id": "b",
+					"text": "Выведет 'caught': try/catch ловит исключение из вызова load()"
+				},
+				{
+					"id": "c",
+					"text": "SyntaxError: у catch должен быть параметр ошибки"
+				},
+				{
+					"id": "d",
+					"text": "Ничего не выведется, и ошибка пройдёт без последствий"
+				}
+			],
+			"correct": "a",
+			"explanation": "Асинхронная функция не бросает исключение синхронно — она возвращает отклонённый промис. `try/catch` ловит его только при `await load()`. В Node.js необработанное отклонение по умолчанию завершает процесс."
+		},
+		{
+			"id": "quiz-javascript-10",
+			"version": 2,
+			"level": "senior",
+			"difficulty": 1.4,
+			"prompt": "Зачем для кэша вычислений по объектам-ключам берут `WeakMap`, а не `Map`?",
+			"options": [
+				{
+					"id": "a",
+					"text": "Поиск в WeakMap быстрее: ключи сравниваются по ссылке без хэширования"
+				},
+				{
+					"id": "b",
+					"text": "WeakMap принимает ключи-строки и числа без приведения к объекту"
+				},
+				{
+					"id": "c",
+					"text": "Ключ не удерживается от сборки мусора, и запись исчезает вместе с объектом"
+				},
+				{
+					"id": "d",
+					"text": "WeakMap перебирается в порядке добавления записей, а Map — нет"
+				}
+			],
+			"correct": "c",
+			"explanation": "WeakMap держит ключи слабо, поэтому кэш не превращается в утечку памяти. Плата за это — записи нельзя перебрать и нельзя узнать размер."
+		},
+		{
+			"id": "quiz-javascript-11",
+			"version": 2,
+			"level": "senior",
+			"difficulty": 1.7,
+			"prompt": "Что будет с таймером?",
+			"code": "function loop() {\n  Promise.resolve().then(loop);\n}\nloop();\nsetTimeout(() => console.log('tick'), 0);",
+			"options": [
+				{
+					"id": "a",
+					"text": "'tick' выведется сразу после первой итерации: у таймера нулевая задержка"
+				},
+				{
+					"id": "b",
+					"text": "'tick' не выведется никогда: очередь микрозадач не пустеет"
+				},
+				{
+					"id": "c",
+					"text": "'tick' выведется примерно через 4 мс: минимальная задержка таймера"
+				},
+				{
+					"id": "d",
+					"text": "Программа упадёт с переполнением стека раньше, чем сработает таймер"
+				}
+			],
+			"correct": "b",
+			"explanation": "Каждая микрозадача ставит следующую, а макрозадачи выполняются только после опустошения очереди микрозадач. Стек при этом не растёт — вызовы идут из очереди."
+		},
+		{
+			"id": "quiz-javascript-12",
+			"version": 2,
+			"level": "senior",
+			"difficulty": 2.0,
+			"prompt": "Что выведет код (не строгий режим)?",
+			"code": "const config = Object.freeze({ db: { host: 'a' }, port: 1 });\nconfig.db.host = 'b';\nconfig.port = 2;\nconsole.log(config.db.host, config.port);",
+			"options": [
+				{
+					"id": "a",
+					"text": "TypeError на первой же записи"
+				},
+				{
+					"id": "b",
+					"text": "b 2"
+				},
+				{
+					"id": "c",
+					"text": "a 1"
+				},
+				{
+					"id": "d",
+					"text": "b 1"
+				}
+			],
+			"correct": "d",
+			"explanation": "`Object.freeze` поверхностный: вложенный объект остаётся изменяемым. Запись в замороженное свойство вне строгого режима молча игнорируется, в строгом — выбрасывает TypeError."
+		}
+	]
+}

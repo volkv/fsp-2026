@@ -1,0 +1,2 @@
+ALTER TABLE "resume_documents" DROP CONSTRAINT "resume_documents_parse_error_values";--> statement-breakpoint
+ALTER TABLE "resume_documents" ADD CONSTRAINT "resume_documents_parse_error_values" CHECK ("resume_documents"."parse_error" in ('unsupported_format', 'too_large', 'unpacked_too_large', 'encrypted', 'corrupt', 'no_text', 'timeout', 'memory_exceeded', 'busy', 'internal', 'bad_request', 'unavailable', 'invalid_response', 'cancelled', 'object_missing', 'storage_integrity', 'storage_unavailable', 'input_mismatch', 'no_processing_consent', 'unrecorded'));

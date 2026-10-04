@@ -1,0 +1,6 @@
+# Allowlist: only what the image needs.
+*
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!src/

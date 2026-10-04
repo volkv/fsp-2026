@@ -1,0 +1,18 @@
+{
+	"kind": "market_policy",
+	"source": "docs/domain.md §12.5, §13.8, §20",
+	"versions": [
+		{
+			"version": 1,
+			"effective_from": "2026-09-25T00:00:00Z",
+			"params": {
+				"window_days": 30,
+				"min_sample": 5
+			},
+			"basis": {
+				"window_days": "docs/domain.md §12.5: окно по умолчанию 30 дней",
+				"min_sample": "product_default"
+			}
+		}
+	]
+}

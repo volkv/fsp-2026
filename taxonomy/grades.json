@@ -1,0 +1,51 @@
+{
+	"meta": {
+		"version": "2026.09.1",
+		"description": "Шкала грейдов. Правила вывода грейда — в правилах категоризации, не здесь.",
+		"sources": [
+			{
+				"title": "Хабр Карьера, квалификации Intern/Junior/Middle/Senior/Lead",
+				"url": "https://career.habr.com/vacancies",
+				"retrievedAt": "2026-09-24"
+			},
+			{
+				"title": "GitLab Engineering Career Matrix (уровень Principal)",
+				"url": "https://handbook.gitlab.com/handbook/engineering/careers/matrix/",
+				"retrievedAt": "2026-09-24",
+				"license": "CC BY-SA 4.0"
+			}
+		]
+	},
+	"grades": [
+		{
+			"key": "intern",
+			"ordinal": 0,
+			"name": "Стажёр"
+		},
+		{
+			"key": "junior",
+			"ordinal": 1,
+			"name": "Младший"
+		},
+		{
+			"key": "middle",
+			"ordinal": 2,
+			"name": "Средний"
+		},
+		{
+			"key": "senior",
+			"ordinal": 3,
+			"name": "Старший"
+		},
+		{
+			"key": "lead",
+			"ordinal": 4,
+			"name": "Ведущий / тимлид"
+		},
+		{
+			"key": "principal",
+			"ordinal": 5,
+			"name": "Главный / архитектор"
+		}
+	]
+}

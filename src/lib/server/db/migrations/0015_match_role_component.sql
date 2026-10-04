@@ -1,0 +1,10 @@
+-- The role component of the match decomposition (domain 13.4) is stored last. A row written by an earlier match rule set
+-- had no role component: it gets the letter of an unknown one and no value. Such rows are replaced by match.refresh
+-- under the new rule set, except the rows invitations refer to («why invited»), which keep the scores they were sent
+-- with.
+ALTER TABLE "match_scores" DROP CONSTRAINT "match_scores_component_statuses";--> statement-breakpoint
+ALTER TABLE "match_scores" DROP CONSTRAINT "match_scores_component_values";--> statement-breakpoint
+ALTER TABLE "match_scores" ADD COLUMN "role_value" double precision;--> statement-breakpoint
+UPDATE "match_scores" SET "component_statuses" = "component_statuses" || 'u';--> statement-breakpoint
+ALTER TABLE "match_scores" ADD CONSTRAINT "match_scores_component_statuses" CHECK ("match_scores"."component_statuses" ~ '^[cuan]{8}$');--> statement-breakpoint
+ALTER TABLE "match_scores" ADD CONSTRAINT "match_scores_component_values" CHECK (((substr("match_scores"."component_statuses", 1, 1) = 'c') = ("match_scores"."required_value" is not null)) and ((substr("match_scores"."component_statuses", 2, 1) = 'c') = ("match_scores"."nice_value" is not null)) and ((substr("match_scores"."component_statuses", 3, 1) = 'c') = ("match_scores"."trust_value" is not null)) and ((substr("match_scores"."component_statuses", 4, 1) = 'c') = ("match_scores"."grade_value" is not null)) and ((substr("match_scores"."component_statuses", 5, 1) = 'c') = ("match_scores"."salary_value" is not null)) and ((substr("match_scores"."component_statuses", 6, 1) = 'c') = ("match_scores"."semantic_value" is not null)) and ((substr("match_scores"."component_statuses", 7, 1) = 'c') = ("match_scores"."reranker_value" is not null)) and ((substr("match_scores"."component_statuses", 8, 1) = 'c') = ("match_scores"."role_value" is not null)));

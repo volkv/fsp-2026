@@ -1,0 +1,100 @@
+{
+	"operator": {
+		"legal_name": "[ЗАГЛУШКА] Оператор персональных данных не определён — редакция прототипа",
+		"inn": "[ЗАГЛУШКА] не указан",
+		"ogrn": "[ЗАГЛУШКА] не указан",
+		"address": "[ЗАГЛУШКА] не указан",
+		"contact_email": "[ЗАГЛУШКА] не указан",
+		"valid_from": "2026-09-25"
+	},
+	"processors": [
+		{ "role": "хостинг платформы", "name": "[ЗАГЛУШКА] не определён — редакция прототипа" },
+		{ "role": "языковая модель для разбора резюме и вакансий", "name": "[ЗАГЛУШКА] не определён — редакция прототипа" }
+	],
+	"documents": {
+		"user_agreement": {
+			"title": "Пользовательское соглашение",
+			"purposes": ["use_of_platform"],
+			"data_categories": ["account"],
+			"operations": ["store", "use"],
+			"requires_reconsent": false
+		},
+		"pd_processing": {
+			"title": "Согласие на обработку персональных данных профиля кандидата",
+			"purposes": ["candidate_profile", "categorization", "matching"],
+			"data_categories": ["contacts", "birth_date", "education", "experience", "skills", "achievements"],
+			"operations": ["collect", "record", "systematize", "store", "update", "use", "delete"],
+			"requires_reconsent": false
+		},
+		"catalog_visibility": {
+			"title": "Согласие на показ псевдонимной карточки проверенным работодателям",
+			"purposes": ["catalog"],
+			"data_categories": ["skills", "categories", "achievements_generalized"],
+			"operations": ["provide"],
+			"requires_reconsent": false
+		},
+		"partner_pool": {
+			"title": "Согласие на показ карточки партнёрам соревнования",
+			"purposes": ["partner_pool"],
+			"data_categories": ["skills", "categories", "competition_result"],
+			"operations": ["provide"],
+			"requires_reconsent": false
+		},
+		"telegram_notifications": {
+			"title": "Согласие на уведомления через Telegram",
+			"purposes": ["notifications"],
+			"data_categories": ["telegram_chat_id"],
+			"operations": ["collect", "store", "use", "transfer"],
+			"requires_reconsent": false
+		},
+		"fsp_import": {
+			"title": "Согласие на получение достижений из систем ФСП",
+			"purposes": ["fsp_achievements"],
+			"data_categories": ["competition_results", "qualifications", "national_team", "birth_year"],
+			"operations": ["collect", "record", "store", "update", "use", "delete"],
+			"requires_reconsent": false
+		},
+		"contact_disclosure": {
+			"title": "Согласие на передачу контактов компании по приглашению",
+			"purposes": ["contact_disclosure"],
+			"data_categories": ["full_name", "email", "phone", "resume"],
+			"operations": ["provide"],
+			"requires_reconsent": false
+		},
+		"public_distribution": {
+			"title": "Согласие на распространение данных профиля на публичной странице",
+			"purposes": ["public_profile"],
+			"data_categories": ["chosen_profile_fields"],
+			"operations": ["distribute"],
+			"requires_reconsent": false
+		},
+		"automated_decision_written": {
+			"title": "Согласие на принятие решений на основании исключительно автоматизированной обработки",
+			"purposes": ["automated_decision"],
+			"data_categories": ["profile"],
+			"operations": ["use"],
+			"requires_reconsent": false
+		},
+		"demo_resume_upload": {
+			"title": "Согласие на загрузку своего резюме в демо-сессию",
+			"purposes": ["demo_evaluation"],
+			"data_categories": ["resume", "contacts", "education", "experience", "skills"],
+			"operations": ["collect", "record", "store", "use", "delete"],
+			"requires_reconsent": false
+		},
+		"employer_terms": {
+			"title": "Условия для работодателя",
+			"purposes": ["employer_access"],
+			"data_categories": ["company", "member_account"],
+			"operations": ["store", "use"],
+			"requires_reconsent": false
+		},
+		"minor_employment_terms": {
+			"title": "Обязательства работодателя при вакансиях для несовершеннолетних",
+			"purposes": ["minor_vacancies"],
+			"data_categories": ["company"],
+			"operations": ["store"],
+			"requires_reconsent": false
+		}
+	}
+}

@@ -1,0 +1,437 @@
+// Texts of notifications by type (docs/domain.md, section 3.7; contracts 8.1): a letter may name the recipient's own
+// data — the company and the vacancy of the candidate's invitation, the vacancy of the company's one — but the other
+// side only by pseudonym. A Telegram message carries the kind of the event and the link, nothing else. A letter about
+// an operator's decision names the decision only; its reasons are read in the product. A candidate aged 14–17 learns
+// whether the representative's authority is confirmed, never the operator's notes or the details of the document; the
+// candidate whose birth date the operator checked learns the regime of age, never the date or the document; the
+// annulment of an attempt names the test and whether the attempt still counts toward the limit, never the operator's
+// grounds. The staff learn that an objection's answer is due, never who objected or why.
+import { z } from 'zod';
+import { UNCOUNTED_REASONS } from '$lib/server/assessments/annul';
+import { assessmentAttempts } from '$lib/server/db/schema';
+import type { MailMessage } from '$lib/server/mail/mailer';
+import { render, type Letter } from '$lib/server/mail/templates';
+import type { InvitationFacts, NotificationFacts } from './content';
+import { NOTIFICATION_TYPES, type NotificationType } from './types';
+
+export interface NotificationLinks {
+	/** The notification in the product: it leads to its object. */
+	open: string;
+	/** Notification settings: every letter outside the `account` category links to them (contracts 8.1). */
+	settings: string;
+}
+
+type Payload = Record<string, unknown>;
+
+interface Body {
+	subject: string;
+	paragraphs: string[];
+	action: string;
+}
+
+const decision = z.enum(['accept', 'decline']);
+const flag = z.boolean().optional();
+const hoursLeft = z.int().positive();
+const verificationDecision = z.enum(['approved', 'rejected', 'needs_info']);
+const disputeStatus = z.enum(['resolved_upheld', 'resolved_changed']);
+const authorityResult = z.enum(['verified', 'rejected']);
+const moderationOutcome = z.enum(['published', 'returned', 'rejected']);
+const moderatedStatus = z.enum(['published', 'paused', 'draft', 'closed']);
+const ageRegime = z.enum(['adult', 'minor']);
+const annulReason = z.enum(assessmentAttempts.annulReason.enumValues);
+
+type DecisionType =
+	| 'company.verification_decided'
+	| 'vacancy.moderation_decided'
+	| 'dispute.decided'
+	| 'dispute.due_soon'
+	| 'dispute.overdue'
+	| 'representation.decided'
+	| 'representation.consents_signed'
+	| 'representation.consents_revoked'
+	| 'candidate.age_verified'
+	| 'assessment.annulled'
+	| 'candidate.majority_reached'
+	| 'candidate.inactive_purge_scheduled';
+type InvitationType = Exclude<NotificationType, DecisionType>;
+
+function unsupported(type: NotificationType, facts: NotificationFacts): never {
+	throw new Error(`notification ${type} has no text for the ${facts.side} side of a ${facts.object}`);
+}
+
+function verificationBody(company: string, decided: z.infer<typeof verificationDecision>): Body {
+	switch (decided) {
+		case 'approved':
+			return {
+				subject: 'Компания подтверждена',
+				paragraphs: [
+					`Оператор ФСП подтвердил компанию ${company}.`,
+					'Каталог кандидатов, вакансии и приглашения компании открыты.'
+				],
+				action: 'Открыть профиль компании'
+			};
+		case 'rejected':
+			return {
+				subject: 'Заявка на проверку компании отклонена',
+				paragraphs: [
+					`Оператор ФСП отклонил заявку на проверку компании ${company}.`,
+					'Причина отказа — в профиле компании.'
+				],
+				action: 'Посмотреть причину'
+			};
+		case 'needs_info':
+			return {
+				subject: 'Заявка на проверку компании возвращена на уточнение',
+				paragraphs: [
+					`Оператор ФСП вернул заявку на проверку компании ${company} на уточнение.`,
+					'Что нужно поправить, написано в профиле компании; после правки заявку можно подать снова.'
+				],
+				action: 'Открыть профиль компании'
+			};
+	}
+}
+
+function moderationBody(vacancy: string, payload: Payload): Body {
+	switch (moderationOutcome.parse(payload.decision)) {
+		case 'published': {
+			const paused = moderatedStatus.parse(payload.status) === 'paused';
+			return {
+				subject: 'Вакансия прошла модерацию',
+				paragraphs: [
+					paused
+						? `Оператор ФСП допустил требования вакансии ${vacancy}. Она была приостановлена и остаётся на паузе — вернуть её в каталог можно на странице вакансии.`
+						: `Оператор ФСП допустил требования вакансии ${vacancy}, она опубликована в каталоге.`,
+					'Пока найденные формулировки не меняются, повторная модерация не нужна.'
+				],
+				action: 'Открыть вакансию'
+			};
+		}
+		case 'returned':
+			return {
+				subject: 'Вакансия возвращена на правку',
+				paragraphs: [
+					`Оператор ФСП вернул вакансию ${vacancy} на правку, она сохранена черновиком.`,
+					'Что исправить, оператор написал на странице вакансии. После правки опубликуйте её снова.'
+				],
+				action: 'Посмотреть, что исправить'
+			};
+		case 'rejected':
+			return {
+				subject: 'Вакансия отклонена модерацией',
+				paragraphs: [
+					`Оператор ФСП отклонил вакансию ${vacancy}, она закрыта. Неотвеченные приглашения по ней отозваны.`,
+					'Причина отказа — на странице вакансии.'
+				],
+				action: 'Посмотреть причину'
+			};
+	}
+}
+
+function bodyOf(type: NotificationType, facts: NotificationFacts, payload: Payload): Body {
+	switch (type) {
+		case 'company.verification_decided':
+			if (facts.object !== 'company') unsupported(type, facts);
+			return verificationBody(`«${facts.companyName}»`, verificationDecision.parse(payload.decision));
+		case 'vacancy.moderation_decided':
+			if (facts.object !== 'vacancy') unsupported(type, facts);
+			return moderationBody(`«${facts.vacancyTitle}»`, payload);
+		case 'dispute.decided': {
+			if (facts.object !== 'category_dispute') unsupported(type, facts);
+			const changed = disputeStatus.parse(payload.status) === 'resolved_changed';
+			return {
+				subject: changed ? 'Возражение рассмотрено: категория изменена' : 'Возражение рассмотрено: категория оставлена',
+				paragraphs: [
+					changed
+						? 'Оператор ФСП рассмотрел ваше возражение и заменил категорию своим решением.'
+						: 'Оператор ФСП рассмотрел ваше возражение и оставил категорию без изменений.',
+					'Ответ оператора — на странице категории.'
+				],
+				action: 'Открыть категорию'
+			};
+		}
+		case 'dispute.due_soon':
+		case 'dispute.overdue': {
+			if (facts.object !== 'category_dispute' || facts.side !== 'staff') unsupported(type, facts);
+			const due = facts.dueOn.split('-').reverse().join('.');
+			const overdue = type === 'dispute.overdue';
+			return {
+				subject: overdue ? 'Просрочен ответ на возражение по категории' : 'Скоро истекает срок ответа на возражение',
+				paragraphs: [
+					overdue
+						? `Срок ответа на возражение кандидата по категории истёк ${due}, ответа ещё нет.`
+						: `Срок ответа на возражение кандидата по категории истекает ${due}, ответа ещё нет.`,
+					facts.role === 'operator'
+						? 'Возражение ждёт ответа в очереди возражений кабинета оператора.'
+						: 'Проверьте, что возражением занимается оператор ФСП: при необходимости выдайте роль оператора.'
+				],
+				action: facts.role === 'operator' ? 'Открыть очередь возражений' : 'Открыть управление персоналом'
+			};
+		}
+		case 'representation.decided': {
+			if (facts.object !== 'representation') unsupported(type, facts);
+			const verified = authorityResult.parse(payload.result) === 'verified';
+			return verified
+				? {
+						subject: 'Полномочия представителя подтверждены',
+						paragraphs: [
+							'Оператор ФСП подтвердил полномочия вашего законного представителя.',
+							'Что видят работодатели и какие согласия нужны, показано на странице видимости профиля.'
+						],
+						action: 'Открыть видимость профиля'
+					}
+				: {
+						subject: 'Полномочия представителя не подтверждены',
+						paragraphs: [
+							'Оператор ФСП не подтвердил полномочия указанного вами законного представителя, профиль остаётся закрытым.',
+							'Укажите законного представителя снова — это можно сделать на платформе.'
+						],
+						action: 'Указать представителя'
+					};
+		}
+		case 'representation.consents_signed':
+			if (facts.object !== 'representation') unsupported(type, facts);
+			return {
+				subject: 'Законный представитель подписал согласия',
+				paragraphs: [
+					'Ваш законный представитель подписал согласия по ссылке из письма.',
+					'Какие согласия действуют и что видят работодатели, показано на странице согласий профиля.'
+				],
+				action: 'Открыть согласия'
+			};
+		case 'representation.consents_revoked': {
+			if (facts.object !== 'representation') unsupported(type, facts);
+			const catalog = flag.parse(payload.catalog_visibility) === true;
+			const fsp = flag.parse(payload.fsp_import) === true;
+			return {
+				subject: 'Законный представитель отозвал согласия',
+				paragraphs: [
+					`Ваш законный представитель отозвал согласие ${[
+						...(catalog ? ['на показ профиля работодателям'] : []),
+						...(fsp ? ['на получение достижений из систем ФСП'] : [])
+					].join(' и ')}.`,
+					...(catalog ? ['Профиль больше не показывается работодателям в каталоге.'] : []),
+					...(fsp ? ['Достижения из систем ФСП убраны из профиля, привязка ФСП ID прекращена.'] : []),
+					'Согласие снова начнёт действовать, когда его дадите и вы, и представитель. Что действует сейчас, показано на странице согласий.'
+				],
+				action: 'Открыть согласия'
+			};
+		}
+		case 'candidate.age_verified': {
+			if (facts.object !== 'candidate') unsupported(type, facts);
+			const minor = ageRegime.parse(payload.regime) === 'minor';
+			const hidden = flag.parse(payload.hidden) === true;
+			return {
+				subject: 'Дата рождения проверена',
+				paragraphs: minor
+					? [
+							'Оператор ФСП проверил дату рождения по документу. До 18 лет профиль ведётся в защищённом режиме: согласия действуют вместе с согласием законного представителя.',
+							...(hidden
+								? ['Пока полномочия представителя не подтверждены, профиль не показывается работодателям.']
+								: []),
+							'Какие согласия нужны и от кого, показано на странице согласий.'
+						]
+					: [
+							'Оператор ФСП проверил дату рождения по документу, профиль ведётся как профиль совершеннолетнего.',
+							'Какие согласия действуют, показано на странице согласий.'
+						],
+				action: 'Открыть согласия'
+			};
+		}
+		case 'assessment.annulled': {
+			if (facts.object !== 'assessment_attempt') unsupported(type, facts);
+			const retake = UNCOUNTED_REASONS.includes(annulReason.parse(payload.reason));
+			return {
+				subject: 'Результат теста аннулирован',
+				paragraphs: [
+					`Оператор ФСП аннулировал попытку теста «${facts.title}»: её результат больше не учитывается в профиле.`,
+					retake
+						? 'Попытка не засчитывается в лимит — тест можно пройти снова.'
+						: 'Попытка засчитывается в лимит попыток теста.'
+				],
+				action: 'Открыть попытку'
+			};
+		}
+		case 'candidate.majority_reached':
+			if (facts.object !== 'candidate') unsupported(type, facts);
+			return {
+				subject: 'Вам исполнилось 18: подтвердите согласия сами',
+				paragraphs: [
+					'Согласия, которые вы и ваш законный представитель подписали до совершеннолетия, утратили силу, полномочия представителя завершены. Пока вы не подпишете согласие на обработку персональных данных сами, профиль не ведётся и работодатели его не видят.',
+					'Подписать согласие можно на странице согласий, показ в каталоге включается заново на странице видимости профиля.'
+				],
+				action: 'Подписать согласие'
+			};
+		case 'candidate.inactive_purge_scheduled': {
+			if (facts.object !== 'candidate') unsupported(type, facts);
+			const purgeOn = z.iso.date().parse(payload.purge_on);
+			return {
+				subject: 'Профиль будет удалён за неактивность',
+				paragraphs: [
+					`Вы давно не входили на платформу. По правилам хранения данных профиль неактивного кандидата удаляется: ${purgeOn.split('-').reverse().join('.')} учётная запись, анкета, резюме и достижения будут стёрты.`,
+					'Чтобы сохранить профиль, просто войдите на платформу до этой даты.'
+				],
+				action: 'Войти и сохранить профиль'
+			};
+		}
+		default:
+			if (facts.object !== 'invitation') unsupported(type, facts);
+			return invitationBody(type, facts, payload);
+	}
+}
+
+function invitationBody(type: InvitationType, facts: InvitationFacts, payload: Payload): Body {
+	const company = `«${facts.companyName}»`;
+	const vacancy = `«${facts.vacancyTitle}»`;
+	const candidateSide = facts.side === 'candidate';
+	switch (type) {
+		case 'invitation.received':
+			if (!candidateSide) unsupported(type, facts);
+			return {
+				subject: 'Новое приглашение',
+				paragraphs: [
+					`Компания ${company} приглашает вас на вакансию ${vacancy}.`,
+					'Посмотрите условия и ответьте до окончания срока: принять или отклонить приглашение можно на платформе.'
+				],
+				action: 'Открыть приглашение'
+			};
+		case 'invitation.terms_revised': {
+			if (!candidateSide) unsupported(type, facts);
+			const lowered = flag.parse(payload.salary_lowered) === true;
+			const reopened = flag.parse(payload.reopened) === true;
+			return {
+				subject: reopened ? 'Приглашение предложено снова' : 'Изменились условия приглашения',
+				paragraphs: [
+					reopened
+						? `Компания ${company} снова приглашает вас на вакансию ${vacancy} на новых условиях.`
+						: `Компания ${company} изменила условия приглашения на вакансию ${vacancy}.`,
+					...(lowered ? ['Предложенная зарплата ниже, чем в прошлой версии условий.'] : []),
+					'Сравнить версии и ответить можно на платформе.'
+				],
+				action: 'Посмотреть условия'
+			};
+		}
+		case 'invitation.answered': {
+			if (candidateSide) unsupported(type, facts);
+			const accepted = decision.parse(payload.decision) === 'accept';
+			const byRepresentative = flag.parse(payload.by_representative) === true;
+			if (byRepresentative && !accepted) {
+				return {
+					subject: 'Законный представитель не дал согласия',
+					paragraphs: [
+						`Законный представитель кандидата ${facts.candidatePseudonym} не дал согласия на раскрытие контактов по приглашению на вакансию ${vacancy}. Приглашение отклонено.`
+					],
+					action: 'Открыть приглашение'
+				};
+			}
+			return {
+				subject: accepted ? 'Кандидат принял приглашение' : 'Кандидат отклонил приглашение',
+				paragraphs: [
+					accepted
+						? `Кандидат ${facts.candidatePseudonym} принял приглашение на вакансию ${vacancy}${byRepresentative ? ' с согласия законного представителя' : ''}. Контакты, которые он раскрыл, доступны в карточке приглашения.`
+						: `Кандидат ${facts.candidatePseudonym} отклонил приглашение на вакансию ${vacancy}. Причина — в карточке приглашения.`
+				],
+				action: 'Открыть приглашение'
+			};
+		}
+		case 'invitation.representative_answered': {
+			if (!candidateSide) unsupported(type, facts);
+			const accepted = decision.parse(payload.decision) === 'accept';
+			return accepted
+				? {
+						subject: 'Представитель согласен: приглашение принято',
+						paragraphs: [
+							`Законный представитель согласился на раскрытие контактов компании ${company} по вакансии ${vacancy}. Приглашение принято, компания получила выбранные контакты.`
+						],
+						action: 'Открыть приглашение'
+					}
+				: {
+						subject: 'Представитель не дал согласия',
+						paragraphs: [
+							`Законный представитель не согласился на раскрытие контактов компании ${company} по вакансии ${vacancy}. Приглашение отклонено, контакты компании не переданы.`
+						],
+						action: 'Открыть приглашение'
+					};
+		}
+		case 'invitation.expired':
+			return candidateSide
+				? {
+						subject: 'Срок приглашения истёк',
+						paragraphs: [
+							`Срок ответа на приглашение компании ${company} на вакансию ${vacancy} истёк, приглашение закрыто.`
+						],
+						action: 'Открыть приглашение'
+					}
+				: {
+						subject: 'Кандидат не ответил в срок',
+						paragraphs: [
+							`Кандидат ${facts.candidatePseudonym} не ответил на приглашение на вакансию ${vacancy}, срок истёк.`
+						],
+						action: 'Открыть приглашение'
+					};
+		case 'invitation.withdrawn':
+			if (!candidateSide) unsupported(type, facts);
+			return {
+				subject: 'Приглашение отозвано',
+				paragraphs: [`Приглашение компании ${company} на вакансию ${vacancy} отозвано. Отвечать на него не нужно.`],
+				action: 'Открыть приглашение'
+			};
+		case 'invitation.response_due_soon': {
+			if (!candidateSide) unsupported(type, facts);
+			const hours = hoursLeft.parse(payload.hours_left);
+			return {
+				subject: 'Скоро истекает срок ответа',
+				paragraphs: [
+					`До окончания срока ответа на приглашение компании ${company} на вакансию ${vacancy} осталось около ${hours} ч.`,
+					'Без ответа приглашение закроется.'
+				],
+				action: 'Ответить на приглашение'
+			};
+		}
+		case 'hiring.outcome_requested':
+		case 'hiring.outcome_reminder':
+			return {
+				subject: type === 'hiring.outcome_requested' ? 'Сообщите исход найма' : 'Напоминание: сообщите исход найма',
+				paragraphs: [
+					candidateSide
+						? `Расскажите, чем закончился найм по приглашению компании ${company} на вакансию ${vacancy}.`
+						: `Сообщите, чем закончился найм кандидата ${facts.candidatePseudonym} на вакансию ${vacancy}.`,
+					'Исход найма нужен, чтобы платформа честно показывала, как работают приглашения. Это займёт минуту.'
+				],
+				action: 'Сообщить исход'
+			};
+		case 'hiring.reports_diverged':
+			return {
+				subject: 'Сообщения об исходе найма расходятся',
+				paragraphs: [
+					candidateSide
+						? `Компания ${company} сообщила об исходе найма по вакансии ${vacancy} иначе, чем вы.`
+						: `Кандидат ${facts.candidatePseudonym} сообщил об исходе найма на вакансию ${vacancy} иначе, чем ваша компания.`,
+					'Проверьте своё сообщение и при необходимости уточните его.'
+				],
+				action: 'Открыть процесс найма'
+			};
+	}
+}
+
+/** The letter of a notification to its recipient's address. */
+export function notificationLetter(
+	to: string,
+	type: NotificationType,
+	facts: NotificationFacts,
+	payload: Payload,
+	links: NotificationLinks
+): MailMessage {
+	const body = bodyOf(type, facts, payload);
+	const letter: Letter = {
+		subject: body.subject,
+		paragraphs: ['Здравствуйте!', ...body.paragraphs],
+		action: { label: body.action, href: links.open },
+		footnote: `Какие уведомления приходят на почту и в Telegram, можно выбрать в настройках: ${links.settings}`
+	};
+	return render(to, letter);
+}
+
+/** The Telegram text of a notification: the kind of the event only; the link is added by the channel. */
+export function telegramText(type: NotificationType): string {
+	return `${NOTIFICATION_TYPES[type].title} — ФСП | Карьера`;
+}

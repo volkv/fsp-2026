@@ -1,0 +1,18 @@
+{
+	"kind": "minor_policy",
+	"source": "docs/domain.md §6.4, §7.3, §20",
+	"versions": [
+		{
+			"version": 1,
+			"effective_from": "2026-09-25T00:00:00Z",
+			"params": {
+				"enabled": true,
+				"authority_methods": ["document_upload", "document_presented", "in_person"]
+			},
+			"basis": {
+				"enabled": "docs/domain.md §7.3: 14–17 лет — защищённый режим с представителем",
+				"authority_methods": "docs/domain.md §6.4: esia — дорожная карта, в перечень не входит"
+			}
+		}
+	]
+}

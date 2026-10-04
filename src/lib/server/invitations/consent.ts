@@ -1,0 +1,133 @@
+// `effectiveConsent(candidate, contact_disclosure, invitation, at)` (docs/domain.md, sections 6.3, 13.6): the consent to
+// hand identifying data to the company of one invitation. Grants of other invitations give this company nothing.
+import { and, asc, desc, eq, inArray, isNotNull, isNull, lte } from 'drizzle-orm';
+import { effectiveConsent, type ConsentEventFacts } from '$lib/server/consent/effective';
+import { DISCLOSURE_FIELDS, type DisclosureField } from '$lib/server/consent/kinds';
+import type { Executor } from '$lib/server/db';
+import { candidates, consentEvents, legalDocuments, representations } from '$lib/server/db/schema';
+import { ageBand, isMinorBand } from '$lib/server/visibility/age';
+
+interface DisclosureEvent extends ConsentEventFacts {
+	documentId: string;
+	scopeFields: string[] | null;
+}
+
+export interface EffectiveDisclosure {
+	/** The subject's grant in effect. */
+	consentEventId: string;
+	documentId: string;
+	/**
+	 * Fields the company may receive: the subject's choice; for ages 14–17 only what the verified representative
+	 * granted as well.
+	 */
+	fields: DisclosureField[];
+}
+
+function disclosureFields(event: DisclosureEvent): DisclosureField[] {
+	return (event.scopeFields ?? []).map((field) => {
+		const known = DISCLOSURE_FIELDS.find((allowed) => allowed === field);
+		if (!known) throw new Error(`contact_disclosure event ${event.id} has an unknown field`);
+		return known;
+	});
+}
+
+/** The disclosure consent in effect for the invitation at `at`; `null` — none (never given, revoked, lapsed). */
+export async function effectiveDisclosure(
+	executor: Executor,
+	candidateId: string,
+	invitationId: string,
+	at: Date
+): Promise<EffectiveDisclosure | null> {
+	const [candidate] = await executor
+		.select({
+			birthDate: candidates.birthDate,
+			precision: candidates.birthDatePrecision,
+			status: candidates.birthDateStatus
+		})
+		.from(candidates)
+		.where(eq(candidates.id, candidateId));
+	if (!candidate) return null;
+	const birth = { birthDate: candidate.birthDate, precision: candidate.precision, status: candidate.status };
+
+	const events: DisclosureEvent[] = await executor
+		.select({
+			id: consentEvents.id,
+			action: consentEvents.action,
+			signerKind: consentEvents.signerKind,
+			representationId: consentEvents.representationId,
+			occurredAt: consentEvents.occurredAt,
+			documentVersion: legalDocuments.version,
+			documentId: consentEvents.documentId,
+			scopeFields: consentEvents.scopeFields
+		})
+		.from(consentEvents)
+		.innerJoin(legalDocuments, eq(legalDocuments.id, consentEvents.documentId))
+		.where(
+			and(
+				eq(consentEvents.subjectCandidateId, candidateId),
+				eq(consentEvents.kind, 'contact_disclosure'),
+				eq(consentEvents.scopeInvitationId, invitationId),
+				lte(consentEvents.occurredAt, at)
+			)
+		)
+		.orderBy(asc(consentEvents.occurredAt), asc(consentEvents.id));
+	if (events.length === 0) return null;
+
+	const reconsent = await executor
+		.select({ version: legalDocuments.version })
+		.from(legalDocuments)
+		.where(
+			and(
+				eq(legalDocuments.kind, 'contact_disclosure'),
+				eq(legalDocuments.requiresReconsent, true),
+				isNotNull(legalDocuments.publishedAt),
+				lte(legalDocuments.publishedAt, at)
+			)
+		);
+	const representationIds = [...new Set(events.flatMap((e) => (e.representationId ? [e.representationId] : [])))];
+	const verified =
+		representationIds.length === 0
+			? []
+			: await executor
+					.select({ id: representations.id })
+					.from(representations)
+					.where(and(inArray(representations.id, representationIds), eq(representations.status, 'authority_verified')));
+
+	const grant = effectiveConsent(events, {
+		birth,
+		at,
+		reconsentVersions: reconsent.map((r) => r.version),
+		verifiedRepresentationIds: new Set(verified.map((r) => r.id))
+	});
+	if (!grant) return null;
+	let fields = disclosureFields(grant);
+	if (isMinorBand(ageBand(birth, at))) {
+		const representative = events.filter((e) => e.signerKind === 'representative' && e.action === 'grant').at(-1);
+		if (!representative) throw new Error('an effective consent of a minor has a representative grant');
+		const allowed = new Set(disclosureFields(representative));
+		fields = fields.filter((field) => allowed.has(field));
+	}
+	return { consentEventId: grant.id, documentId: grant.documentId, fields };
+}
+
+/** The current published text of the disclosure consent; the candidate accepts this exact version. */
+export async function currentDisclosureDocument(
+	executor: Executor,
+	at: Date
+): Promise<{ id: string; bodySha256: string } | null> {
+	const [row] = await executor
+		.select({ id: legalDocuments.id, bodySha256: legalDocuments.bodySha256 })
+		.from(legalDocuments)
+		.where(
+			and(
+				eq(legalDocuments.kind, 'contact_disclosure'),
+				eq(legalDocuments.available, true),
+				isNotNull(legalDocuments.publishedAt),
+				lte(legalDocuments.publishedAt, at),
+				isNull(legalDocuments.supersededAt)
+			)
+		)
+		.orderBy(desc(legalDocuments.version))
+		.limit(1);
+	return row ?? null;
+}

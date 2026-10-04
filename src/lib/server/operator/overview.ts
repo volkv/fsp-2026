@@ -1,0 +1,100 @@
+// The first screen of the operator cabinet: how many cases wait in each queue and how many are past or near their due
+// time, so the operator starts with what is late. Counts only; the queues themselves are read by their pages. The
+// operator counts the cases within its reach: a clone operator of a demo session — those of its session only
+// (domain 19.3).
+import { and, count, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { StaffReach } from '$lib/server/access/demo-actor';
+import type { AccessSubject } from '$lib/server/access/permissions';
+import { attemptsForReviewCount } from '$lib/server/assessments/review';
+import { requirePermission } from '$lib/server/companies/context';
+import { REVIEW_DUE_HOURS } from '$lib/server/companies/verification';
+import type { Executor } from '$lib/server/db';
+import {
+	categoryDisputes,
+	companies,
+	companyVerifications,
+	representations,
+	vacancyClaims
+} from '$lib/server/db/schema';
+import { ageConflictCount } from './ages';
+import { pendingVacancyModeration } from './vacancies';
+
+const DISPUTE_WARN_DAYS = 5;
+
+export interface OperatorOverview {
+	companies: { open: number; overdue: number };
+	disputes: { open: number; unassigned: number; overdue: number; dueSoon: number };
+	representatives: { awaiting: number };
+	claims: { pending: number };
+	vacancies: { pending: number };
+	/** Profiles closed by a conflict of the birth date. */
+	ages: { open: number };
+	/**
+	 * Attempts of tests that ask for a person, the whole queue: signals in the journal or a submission stuck without a
+	 * result; `stuck` — the latter.
+	 */
+	attempts: { attention: number; stuck: number };
+}
+
+export async function operatorOverview(
+	executor: Executor,
+	subject: AccessSubject,
+	now: Date
+): Promise<OperatorOverview> {
+	requirePermission(subject, 'company.review', { companyStatus: 'submitted' });
+	requirePermission(subject, 'dispute.manage', null);
+	requirePermission(subject, 'representation.review', null);
+	requirePermission(subject, 'vacancy_claim.review', { status: 'pending_review' });
+	requirePermission(subject, 'vacancy.moderate', null);
+	requirePermission(subject, 'age.review', null);
+	requirePermission(subject, 'assessment.review', null);
+	const reach = await StaffReach.of(executor, subject);
+	const dueCutoff = new Date(now.getTime() - REVIEW_DUE_HOURS * 3600_000);
+	const [verification] = await executor
+		.select({
+			open: count(),
+			overdue: sql<number>`count(*) filter (where ${companyVerifications.createdAt} <= ${dueCutoff.toISOString()}::timestamptz)::int`
+		})
+		.from(companyVerifications)
+		.innerJoin(companies, eq(companies.id, companyVerifications.companyId))
+		.where(
+			and(isNull(companyVerifications.decision), eq(companies.status, 'submitted'), reach.rows(companies.demoSessionId))
+		);
+	const warnAt = new Date(now.getTime() + DISPUTE_WARN_DAYS * 86_400_000);
+	const [disputes] = await executor
+		.select({
+			open: count(),
+			unassigned: sql<number>`count(*) filter (where ${categoryDisputes.assigneeId} is null)::int`,
+			overdue: sql<number>`count(*) filter (where ${categoryDisputes.dueAt} <= ${now.toISOString()}::timestamptz)::int`,
+			dueSoon: sql<number>`count(*) filter (where ${categoryDisputes.dueAt} > ${now.toISOString()}::timestamptz and ${categoryDisputes.dueAt} <= ${warnAt.toISOString()}::timestamptz)::int`
+		})
+		.from(categoryDisputes)
+		.where(and(inArray(categoryDisputes.status, ['open', 'in_review']), reach.candidate(categoryDisputes.candidateId)));
+	const [awaiting] = await executor
+		.select({ n: count() })
+		.from(representations)
+		.where(
+			and(
+				inArray(representations.status, ['contact_confirmed', 'authority_pending']),
+				reach.candidate(representations.candidateId)
+			)
+		);
+	const [claims] = await executor
+		.select({ n: count() })
+		.from(vacancyClaims)
+		.where(and(eq(vacancyClaims.status, 'pending_review'), reach.company(vacancyClaims.companyId)));
+	return {
+		companies: { open: verification?.open ?? 0, overdue: verification?.overdue ?? 0 },
+		disputes: {
+			open: disputes?.open ?? 0,
+			unassigned: disputes?.unassigned ?? 0,
+			overdue: disputes?.overdue ?? 0,
+			dueSoon: disputes?.dueSoon ?? 0
+		},
+		representatives: { awaiting: awaiting?.n ?? 0 },
+		claims: { pending: claims?.n ?? 0 },
+		vacancies: { pending: await pendingVacancyModeration(executor, reach) },
+		ages: { open: await ageConflictCount(executor, subject) },
+		attempts: await attemptsForReviewCount(executor, subject, now)
+	};
+}

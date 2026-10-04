@@ -1,0 +1,411 @@
+{
+	"key": "quiz-sql",
+	"kind": "quiz",
+	"version": 2,
+	"title": "SQL: запросы и транзакции (PostgreSQL)",
+	"summary": "Адаптивный квиз по SQL на диалекте PostgreSQL: NULL и соединения, агрегаты и окна, индексы, изоляция и блокировки.",
+	"skillKeys": ["sql"],
+	"timeLimitMinutes": 30,
+	"rule": {
+		"model": "irt_3pl",
+		"discrimination": 1.7,
+		"guessing": "one_over_options",
+		"estimator": "eap",
+		"prior": {
+			"mean": 0,
+			"sd": 1
+		},
+		"grid": {
+			"from": -4,
+			"to": 4,
+			"step": 0.05
+		},
+		"selection": "max_information",
+		"stop": {
+			"minItems": 6,
+			"maxItems": 10,
+			"maxStandardError": 0.55
+		}
+	},
+	"levelScale": {
+		"type": "ability",
+		"cuts": [
+			{
+				"level": "junior",
+				"minAbility": -1.0,
+				"levelStrength": 0.45,
+				"gradeKey": "junior"
+			},
+			{
+				"level": "middle",
+				"minAbility": 0.05,
+				"levelStrength": 0.6,
+				"gradeKey": "middle"
+			},
+			{
+				"level": "senior",
+				"minAbility": 1.35,
+				"levelStrength": 0.7,
+				"gradeKey": "senior"
+			}
+		],
+		"below": "not_confirmed"
+	},
+	"coverage": {
+		"skills": [
+			{
+				"skillKey": "sql",
+				"levels": ["junior", "middle", "senior"]
+			}
+		],
+		"checks": [
+			"NULL и трёхзначная логика",
+			"соединения, группировка и оконные функции",
+			"использование индексов планировщиком",
+			"изоляция транзакций и блокировки"
+		],
+		"doesNotCheck": [
+			"проектирование схемы и нормализацию",
+			"администрирование, репликацию и настройку сервера",
+			"диалекты, отличные от PostgreSQL",
+			"умение писать и отлаживать код — для этого есть практические задачи",
+			"коммерческий опыт и работу в команде"
+		],
+		"notes": [
+			"Сложность вопросов задана экспертно и ещё не откалибрована на ответах кандидатов.",
+			"Уровень квиза подтверждает или ограничивает сверху диапазон грейда по опыту, но не поднимает его."
+		]
+	},
+	"items": [
+		{
+			"id": "quiz-sql-01",
+			"version": 1,
+			"level": "junior",
+			"difficulty": -1.6,
+			"prompt": "В таблице `t` столбец `x` содержит значения 1, NULL, 3. Что вернёт запрос?",
+			"code": "SELECT COUNT(*), COUNT(x) FROM t;",
+			"options": [
+				{
+					"id": "a",
+					"text": "3, 2"
+				},
+				{
+					"id": "b",
+					"text": "3, 3"
+				},
+				{
+					"id": "c",
+					"text": "2, 2"
+				},
+				{
+					"id": "d",
+					"text": "3, NULL"
+				}
+			],
+			"correct": "a",
+			"explanation": "`COUNT(*)` считает строки, `COUNT(x)` — только непустые значения столбца."
+		},
+		{
+			"id": "quiz-sql-02",
+			"version": 2,
+			"level": "junior",
+			"difficulty": -1.3,
+			"prompt": "Нужно оставить только отделы, где больше 10 сотрудников. Куда поставить условие `COUNT(*) > 10`?",
+			"code": "SELECT department_id, COUNT(*)\nFROM employees\nGROUP BY department_id\n-- ?",
+			"options": [
+				{
+					"id": "a",
+					"text": "В ORDER BY"
+				},
+				{
+					"id": "b",
+					"text": "В HAVING"
+				},
+				{
+					"id": "c",
+					"text": "В ON"
+				},
+				{
+					"id": "d",
+					"text": "В WHERE"
+				}
+			],
+			"correct": "b",
+			"explanation": "WHERE фильтрует строки до группировки и не видит агрегатов; условия на агрегаты пишут в HAVING."
+		},
+		{
+			"id": "quiz-sql-03",
+			"version": 2,
+			"level": "junior",
+			"difficulty": -1.0,
+			"prompt": "Почему запрос не возвращает строки, где `email` пустой (NULL)?",
+			"code": "SELECT * FROM users WHERE email = NULL;",
+			"options": [
+				{
+					"id": "a",
+					"text": "NULL-значения не попадают ни в один результат SELECT"
+				},
+				{
+					"id": "b",
+					"text": "Строку NULL надо писать в кавычках: `email = 'NULL'`"
+				},
+				{
+					"id": "c",
+					"text": "Сравнение `= NULL` даёт UNKNOWN; нужно `email IS NULL`"
+				},
+				{
+					"id": "d",
+					"text": "Без индекса по email строки с NULL в поиске не находятся"
+				}
+			],
+			"correct": "c",
+			"explanation": "В трёхзначной логике SQL любое сравнение с NULL даёт UNKNOWN, и WHERE отбрасывает такие строки. Для проверки на пустоту есть `IS NULL` и `IS NOT NULL`."
+		},
+		{
+			"id": "quiz-sql-04",
+			"version": 2,
+			"level": "junior",
+			"difficulty": -0.7,
+			"prompt": "У клиента 1 два заказа, у клиента 2 — один, у клиента 3 заказов нет. Сколько строк вернёт запрос?",
+			"code": "SELECT c.id, o.id\nFROM customers c\nLEFT JOIN orders o ON o.customer_id = c.id;",
+			"options": [
+				{
+					"id": "a",
+					"text": "2"
+				},
+				{
+					"id": "b",
+					"text": "3"
+				},
+				{
+					"id": "c",
+					"text": "6"
+				},
+				{
+					"id": "d",
+					"text": "4"
+				}
+			],
+			"correct": "d",
+			"explanation": "LEFT JOIN даёт строку на каждую пару «клиент — заказ» (2 + 1) и сохраняет клиента без заказов со значениями NULL справа: всего 4."
+		},
+		{
+			"id": "quiz-sql-05",
+			"version": 2,
+			"level": "middle",
+			"difficulty": -0.2,
+			"prompt": "Что вернёт запрос?",
+			"code": "SELECT 1 WHERE 5 NOT IN (1, NULL);",
+			"options": [
+				{
+					"id": "a",
+					"text": "Одну строку с NULL"
+				},
+				{
+					"id": "b",
+					"text": "Одну строку"
+				},
+				{
+					"id": "c",
+					"text": "Ни одной строки"
+				},
+				{
+					"id": "d",
+					"text": "Ошибку"
+				}
+			],
+			"correct": "c",
+			"explanation": "`5 NOT IN (1, NULL)` — это `5 <> 1 AND 5 <> NULL`, то есть TRUE AND UNKNOWN = UNKNOWN. Поэтому `NOT IN` с подзапросом, где встречается NULL, часто заменяют на `NOT EXISTS`."
+		},
+		{
+			"id": "quiz-sql-06",
+			"version": 1,
+			"level": "middle",
+			"difficulty": 0.1,
+			"prompt": "Баллы участников: 100, 100, 90. Какие значения вернёт `RANK() OVER (ORDER BY score DESC)`?",
+			"options": [
+				{
+					"id": "a",
+					"text": "1, 1, 2"
+				},
+				{
+					"id": "b",
+					"text": "1, 2, 2"
+				},
+				{
+					"id": "c",
+					"text": "1, 2, 3"
+				},
+				{
+					"id": "d",
+					"text": "1, 1, 3"
+				}
+			],
+			"correct": "d",
+			"explanation": "`RANK` даёт равным значениям одинаковый ранг и пропускает следующие номера. `DENSE_RANK` дал бы 1, 1, 2, а `ROW_NUMBER` — 1, 2, 3."
+		},
+		{
+			"id": "quiz-sql-07",
+			"version": 2,
+			"level": "middle",
+			"difficulty": 0.4,
+			"prompt": "Что верно про этот запрос?",
+			"code": "SELECT c.id, o.id\nFROM customers c\nLEFT JOIN orders o ON o.customer_id = c.id\nWHERE o.status = 'paid';",
+			"options": [
+				{
+					"id": "a",
+					"text": "Клиенты без оплаченных заказов пропадут: соединение станет по сути внутренним"
+				},
+				{
+					"id": "b",
+					"text": "Вернутся все клиенты, а у клиентов без оплаченных заказов в столбцах справа будет NULL"
+				},
+				{
+					"id": "c",
+					"text": "Запрос не выполнится: в WHERE нельзя ссылаться на правую таблицу LEFT JOIN"
+				},
+				{
+					"id": "d",
+					"text": "Условие проверится до соединения и на результат не повлияет"
+				}
+			],
+			"correct": "a",
+			"explanation": "Чтобы сохранить всех клиентов, условие на правую таблицу переносят в ON: `LEFT JOIN orders o ON o.customer_id = c.id AND o.status = 'paid'`."
+		},
+		{
+			"id": "quiz-sql-08",
+			"version": 2,
+			"level": "middle",
+			"difficulty": 0.7,
+			"prompt": "На `users(email)` есть обычный B-tree индекс. Почему запрос с `WHERE lower(email) = 'anna@example.com'` читает всю таблицу?",
+			"options": [
+				{
+					"id": "a",
+					"text": "Устарела статистика: после VACUUM ANALYZE планировщик возьмёт индекс"
+				},
+				{
+					"id": "b",
+					"text": "Индекс построен по `email`, а не по `lower(email)`; нужен индекс по выражению"
+				},
+				{
+					"id": "c",
+					"text": "B-tree не поддерживает сравнение строк, нужен индекс типа GIN"
+				},
+				{
+					"id": "d",
+					"text": "Вызов функции в WHERE отключает любые индексы таблицы"
+				}
+			],
+			"correct": "b",
+			"explanation": "Планировщик использует индекс, только если условие совпадает с индексированным выражением. Выход — `CREATE INDEX ON users (lower(email))` или хранение нормализованного значения."
+		},
+		{
+			"id": "quiz-sql-09",
+			"version": 2,
+			"level": "senior",
+			"difficulty": 1.1,
+			"prompt": "Какая аномалия возможна в PostgreSQL на уровне изоляции READ COMMITTED?",
+			"options": [
+				{
+					"id": "a",
+					"text": "Грязное чтение: SELECT видит ещё не зафиксированные изменения других транзакций"
+				},
+				{
+					"id": "b",
+					"text": "Неповторяющееся чтение: повторный SELECT видит чужие фиксации"
+				},
+				{
+					"id": "c",
+					"text": "Потеря зафиксированных данных при откате чужой транзакции"
+				},
+				{
+					"id": "d",
+					"text": "Никаких: в PostgreSQL READ COMMITTED равен SERIALIZABLE"
+				}
+			],
+			"correct": "b",
+			"explanation": "В READ COMMITTED каждый оператор берёт свой снимок, поэтому между запросами видны изменения других зафиксированных транзакций. Грязного чтения в PostgreSQL нет ни на одном уровне."
+		},
+		{
+			"id": "quiz-sql-10",
+			"version": 2,
+			"level": "senior",
+			"difficulty": 1.4,
+			"prompt": "Две транзакции в READ COMMITTED одновременно выполняют `UPDATE accounts SET balance = balance - 100 WHERE id = 1`. Баланс был 500. Каким он станет после фиксации обеих?",
+			"options": [
+				{
+					"id": "a",
+					"text": "Вторая транзакция получит ошибку сериализации и откатится"
+				},
+				{
+					"id": "b",
+					"text": "500: одновременные изменения отменят друг друга"
+				},
+				{
+					"id": "c",
+					"text": "400: вторая транзакция перезапишет результат первой"
+				},
+				{
+					"id": "d",
+					"text": "300: вторая дождётся блокировки строки и спишет с новой версии"
+				}
+			],
+			"correct": "d",
+			"explanation": "UPDATE блокирует строку; вторая транзакция ждёт, а затем перечитывает зафиксированную версию и применяет выражение к ней. Потерянное обновление появляется, когда приложение сначала читает баланс, а потом записывает вычисленное значение."
+		},
+		{
+			"id": "quiz-sql-11",
+			"version": 2,
+			"level": "senior",
+			"difficulty": 1.7,
+			"prompt": "Есть составной индекс `(customer_id, created_at)`. Какое условие он обслуживает лучше всего?",
+			"options": [
+				{
+					"id": "a",
+					"text": "WHERE customer_id = 42 AND created_at > '2026-01-01'"
+				},
+				{
+					"id": "b",
+					"text": "WHERE lower(customer_id::text) = '42'"
+				},
+				{
+					"id": "c",
+					"text": "WHERE created_at > '2026-01-01'"
+				},
+				{
+					"id": "d",
+					"text": "WHERE created_at > '2026-01-01' ORDER BY customer_id"
+				}
+			],
+			"correct": "a",
+			"explanation": "B-tree упорядочен сначала по первому столбцу: равенство по `customer_id` сужает поиск до непрерывного участка, внутри которого диапазон по `created_at` читается по порядку. Условие только на второй столбец так эффективно индекс не использует."
+		},
+		{
+			"id": "quiz-sql-12",
+			"version": 2,
+			"level": "senior",
+			"difficulty": 2.0,
+			"prompt": "Для чего служит `SELECT … FOR UPDATE SKIP LOCKED`?",
+			"options": [
+				{
+					"id": "a",
+					"text": "Чтобы читать строки, не блокируя их и не ожидая чужих транзакций"
+				},
+				{
+					"id": "b",
+					"text": "Чтобы обновлять строки, минуя проверки внешних ключей и триггеры"
+				},
+				{
+					"id": "c",
+					"text": "Чтобы обработчики очереди брали разные строки, не ожидая чужих блокировок"
+				},
+				{
+					"id": "d",
+					"text": "Чтобы пропускать строки, изменённые после начала транзакции"
+				}
+			],
+			"correct": "c",
+			"explanation": "Так строят очереди задач на таблице: каждый обработчик захватывает свободные строки и не ждёт чужих блокировок. Цена — нестрогий порядок выдачи."
+		}
+	]
+}

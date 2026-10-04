@@ -1,0 +1,20 @@
+{
+	"kind": "assessment_policy",
+	"source": "docs/domain.md §10.3, §10.4, §13.8, §20",
+	"versions": [
+		{
+			"version": 1,
+			"effective_from": "2026-09-25T00:00:00Z",
+			"params": {
+				"max_attempts": 3,
+				"retake_interval_days": 1,
+				"artifact_retention_days": 365
+			},
+			"basis": {
+				"max_attempts": "product_default",
+				"retake_interval_days": "product_default",
+				"artifact_retention_days": "product_default"
+			}
+		}
+	]
+}

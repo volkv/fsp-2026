@@ -1,0 +1,117 @@
+{
+	"env": ["PATH=/usr/local/bin:/usr/bin:/bin", "HOME=/w", "LANG=C.UTF-8", "TMPDIR=/tmp"],
+	"languages": [
+		{
+			"key": "python3",
+			"title": "Python 3",
+			"versionCommand": ["python3", "-c", "import platform; print(platform.python_version())"],
+			"sourceFile": "main.py",
+			"compile": {
+				"args": ["/usr/local/bin/python3", "-I", "-m", "py_compile", "main.py"],
+				"tasks": 1,
+				"env": []
+			},
+			"artifacts": [],
+			"run": { "args": ["/usr/local/bin/python3", "-I", "main.py"], "tasks": 1, "env": [] }
+		},
+		{
+			"key": "javascript",
+			"title": "JavaScript (Node.js)",
+			"versionCommand": ["node", "--version"],
+			"sourceFile": "main.js",
+			"compile": { "args": ["/usr/local/bin/node", "--check", "main.js"], "tasks": 16, "env": [] },
+			"artifacts": [],
+			"run": {
+				"args": ["/usr/local/bin/node", "--stack-size=65500", "--v8-pool-size=1", "main.js"],
+				"tasks": 16,
+				"env": ["UV_THREADPOOL_SIZE=1"]
+			}
+		},
+		{
+			"key": "typescript",
+			"title": "TypeScript (Node.js, erasable syntax)",
+			"versionCommand": ["node", "--version"],
+			"sourceFile": "main.ts",
+			"compile": {
+				"args": [
+					"/bin/sh",
+					"-c",
+					"node --disable-warning=ExperimentalWarning /usr/local/lib/sandbox/ts-strip.js main.ts main.js && node --check main.js"
+				],
+				"tasks": 16,
+				"env": []
+			},
+			"artifacts": ["main.js"],
+			"run": {
+				"args": ["/usr/local/bin/node", "--stack-size=65500", "--v8-pool-size=1", "main.js"],
+				"tasks": 16,
+				"env": ["UV_THREADPOOL_SIZE=1"]
+			}
+		},
+		{
+			"key": "go",
+			"title": "Go",
+			"versionCommand": ["go", "env", "GOVERSION"],
+			"sourceFile": "main.go",
+			"compile": {
+				"args": ["/usr/local/go/bin/go", "build", "-o", "main", "main.go"],
+				"tasks": 64,
+				"env": [
+					"PATH=/usr/local/go/bin:/usr/local/bin:/usr/bin:/bin",
+					"GOCACHE=/usr/local/lib/go-cache",
+					"GOPATH=/tmp/go",
+					"GOFLAGS=-trimpath",
+					"GOTOOLCHAIN=local",
+					"CGO_ENABLED=0",
+					"GO111MODULE=off"
+				]
+			},
+			"artifacts": ["main"],
+			"run": { "args": ["/w/main"], "tasks": 8, "env": ["GOMAXPROCS=1"] }
+		},
+		{
+			"key": "cpp17",
+			"title": "C++17 (GNU)",
+			"versionCommand": ["g++", "-dumpfullversion"],
+			"sourceFile": "main.cpp",
+			"compile": {
+				"args": ["/usr/bin/g++", "-std=gnu++17", "-O2", "-pipe", "-o", "main", "main.cpp"],
+				"tasks": 8,
+				"env": []
+			},
+			"artifacts": ["main"],
+			"run": { "args": ["/w/main"], "tasks": 1, "env": [] }
+		},
+		{
+			"key": "java21",
+			"title": "Java 21",
+			"versionCommand": ["javac", "-version"],
+			"sourceFile": "Main.java",
+			"compile": {
+				"args": [
+					"/bin/sh",
+					"-c",
+					"javac -J-XX:+UseSerialGC -J-XX:TieredStopAtLevel=1 -J-XX:-UsePerfData -encoding UTF-8 -d classes Main.java && jar -J-XX:+UseSerialGC -J-XX:TieredStopAtLevel=1 -J-XX:-UsePerfData --create --file main.jar -C classes ."
+				],
+				"tasks": 64,
+				"env": ["PATH=/usr/local/lib/jvm/temurin-21/bin:/usr/local/bin:/usr/bin:/bin"]
+			},
+			"artifacts": ["main.jar"],
+			"run": {
+				"args": [
+					"/usr/local/lib/jvm/temurin-21/bin/java",
+					"-XX:+UseSerialGC",
+					"-XX:ActiveProcessorCount=1",
+					"-XX:-UsePerfData",
+					"-Xmx{memory_mb}m",
+					"-Xss64m",
+					"-cp",
+					"main.jar",
+					"Main"
+				],
+				"tasks": 32,
+				"env": []
+			}
+		}
+	]
+}

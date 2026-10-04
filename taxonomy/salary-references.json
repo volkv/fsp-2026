@@ -1,0 +1,6991 @@
+{
+	"meta": {
+		"version": "2026.09.1",
+		"description": "Внешний зарплатный ориентир (рынок категории, внешний показатель). observed_median — медиана калькулятора по роли × грейду (gradeKey null — все грейды). estimated_stack_adjustment — оценка, не наблюдение: медиана роли × грейда, умноженная на премию стека min(1,3; max(0,8; медиана навыка × грейда / медиана всех ИТ × грейда)); показывается отдельной строкой с подписью «оценка»; sampleSize — меньшая из двух выборок. Роли без собственной специализации в калькуляторе (algo_engineer, robotics_engineer, uav_engineer) ориентира не имеют. Период окна калькулятора источником не указан.",
+		"sources": [
+			{
+				"title": "Хабр Карьера, калькулятор зарплат (медиана, p25, p75, число анкет; зарплата «на руки»)",
+				"url": "https://career.habr.com/salaries",
+				"retrievedAt": "2026-09-24"
+			}
+		]
+	},
+	"source": "habr_career_calculator",
+	"collectedAt": "2026-09-24",
+	"currency": "RUB",
+	"period": "month",
+	"taxBase": "net",
+	"geography": "ru",
+	"references": [
+		{
+			"roleKey": "algo_engineer",
+			"gradeKey": null,
+			"skillKey": null,
+			"median": 247500,
+			"p25": 151666,
+			"p75": 365491,
+			"sampleSize": 7612,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "algo_engineer",
+			"gradeKey": "intern",
+			"skillKey": null,
+			"median": 73133,
+			"p25": 45916,
+			"p75": 99833,
+			"sampleSize": 255,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "algo_engineer",
+			"gradeKey": "junior",
+			"skillKey": null,
+			"median": 98333,
+			"p25": 64283,
+			"p75": 141666,
+			"sampleSize": 924,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "algo_engineer",
+			"gradeKey": "lead",
+			"skillKey": null,
+			"median": 454000,
+			"p25": 344333,
+			"p75": 550000,
+			"sampleSize": 891,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "algo_engineer",
+			"gradeKey": "middle",
+			"skillKey": null,
+			"median": 220833,
+			"p25": 149333,
+			"p75": 290000,
+			"sampleSize": 3418,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "algo_engineer",
+			"gradeKey": "senior",
+			"skillKey": null,
+			"median": 346666,
+			"p25": 273416,
+			"p75": 428166,
+			"sampleSize": 2124,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "appsec",
+			"gradeKey": null,
+			"skillKey": null,
+			"median": 227708,
+			"p25": 146670,
+			"p75": 370000,
+			"sampleSize": 71,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "appsec",
+			"gradeKey": "intern",
+			"skillKey": null,
+			"median": 60000,
+			"p25": 52200,
+			"p75": 80000,
+			"sampleSize": 5,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "appsec",
+			"gradeKey": "junior",
+			"skillKey": null,
+			"median": 141666,
+			"p25": 95750,
+			"p75": 161666,
+			"sampleSize": 18,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "appsec",
+			"gradeKey": "lead",
+			"skillKey": null,
+			"median": 580416,
+			"p25": 419499,
+			"p75": 889116,
+			"sampleSize": 8,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "appsec",
+			"gradeKey": "middle",
+			"skillKey": null,
+			"median": 258166,
+			"p25": 168083,
+			"p75": 316333,
+			"sampleSize": 28,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "appsec",
+			"gradeKey": "senior",
+			"skillKey": null,
+			"median": 380266,
+			"p25": 314166,
+			"p75": 453430,
+			"sampleSize": 12,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "architect",
+			"gradeKey": null,
+			"skillKey": null,
+			"median": 509818,
+			"p25": 387972,
+			"p75": 621666,
+			"sampleSize": 180,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "architect",
+			"gradeKey": "junior",
+			"skillKey": null,
+			"median": 240166,
+			"p25": 116666,
+			"p75": 340833,
+			"sampleSize": 6,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "architect",
+			"gradeKey": "lead",
+			"skillKey": null,
+			"median": 533333,
+			"p25": 404749,
+			"p75": 649000,
+			"sampleSize": 108,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "architect",
+			"gradeKey": "middle",
+			"skillKey": null,
+			"median": 417466,
+			"p25": 347499,
+			"p75": 571666,
+			"sampleSize": 32,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "architect",
+			"gradeKey": "senior",
+			"skillKey": null,
+			"median": 480000,
+			"p25": 395000,
+			"p75": 602916,
+			"sampleSize": 33,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": null,
+			"skillKey": null,
+			"median": 247500,
+			"p25": 151666,
+			"p75": 365491,
+			"sampleSize": 7612,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "intern",
+			"skillKey": null,
+			"median": 73133,
+			"p25": 45916,
+			"p75": 99833,
+			"sampleSize": 255,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "junior",
+			"skillKey": null,
+			"median": 98333,
+			"p25": 64283,
+			"p75": 141666,
+			"sampleSize": 924,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "lead",
+			"skillKey": null,
+			"median": 454000,
+			"p25": 344333,
+			"p75": 550000,
+			"sampleSize": 891,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "middle",
+			"skillKey": null,
+			"median": 220833,
+			"p25": 149333,
+			"p75": 290000,
+			"sampleSize": 3418,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "senior",
+			"skillKey": null,
+			"median": 346666,
+			"p25": 273416,
+			"p75": 428166,
+			"sampleSize": 2124,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "business_analyst",
+			"gradeKey": null,
+			"skillKey": null,
+			"median": 169166,
+			"p25": 109850,
+			"p75": 247500,
+			"sampleSize": 1000,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "business_analyst",
+			"gradeKey": "intern",
+			"skillKey": null,
+			"median": 75833,
+			"p25": 56333,
+			"p75": 107803,
+			"sampleSize": 52,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "business_analyst",
+			"gradeKey": "junior",
+			"skillKey": null,
+			"median": 100041,
+			"p25": 70000,
+			"p75": 140000,
+			"sampleSize": 205,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "business_analyst",
+			"gradeKey": "lead",
+			"skillKey": null,
+			"median": 311666,
+			"p25": 240833,
+			"p75": 429166,
+			"sampleSize": 81,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "business_analyst",
+			"gradeKey": "middle",
+			"skillKey": null,
+			"median": 166666,
+			"p25": 118333,
+			"p75": 230000,
+			"sampleSize": 480,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "business_analyst",
+			"gradeKey": "senior",
+			"skillKey": null,
+			"median": 261666,
+			"p25": 186666,
+			"p75": 333000,
+			"sampleSize": 182,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "cto",
+			"gradeKey": null,
+			"skillKey": null,
+			"median": 563333,
+			"p25": 432000,
+			"p75": 816666,
+			"sampleSize": 194,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "cto",
+			"gradeKey": "junior",
+			"skillKey": null,
+			"median": 691666,
+			"p25": 650000,
+			"p75": 833333,
+			"sampleSize": 5,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "cto",
+			"gradeKey": "lead",
+			"skillKey": null,
+			"median": 583333,
+			"p25": 441666,
+			"p75": 825000,
+			"sampleSize": 136,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "cto",
+			"gradeKey": "middle",
+			"skillKey": null,
+			"median": 469166,
+			"p25": 316666,
+			"p75": 702500,
+			"sampleSize": 24,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "cto",
+			"gradeKey": "senior",
+			"skillKey": null,
+			"median": 490833,
+			"p25": 387500,
+			"p75": 716666,
+			"sampleSize": 29,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "cv_engineer",
+			"gradeKey": null,
+			"skillKey": null,
+			"median": 173333,
+			"p25": 93521,
+			"p75": 310000,
+			"sampleSize": 86,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "cv_engineer",
+			"gradeKey": "intern",
+			"skillKey": null,
+			"median": 57766,
+			"p25": 52499,
+			"p75": 164583,
+			"sampleSize": 10,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "cv_engineer",
+			"gradeKey": "junior",
+			"skillKey": null,
+			"median": 92877,
+			"p25": 62083,
+			"p75": 119937,
+			"sampleSize": 17,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "cv_engineer",
+			"gradeKey": "lead",
+			"skillKey": null,
+			"median": 475000,
+			"p25": 155583,
+			"p75": 671000,
+			"sampleSize": 8,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "cv_engineer",
+			"gradeKey": "middle",
+			"skillKey": null,
+			"median": 170041,
+			"p25": 139166,
+			"p75": 245000,
+			"sampleSize": 33,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "cv_engineer",
+			"gradeKey": "senior",
+			"skillKey": null,
+			"median": 346500,
+			"p25": 216666,
+			"p75": 436000,
+			"sampleSize": 18,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "data_analyst",
+			"gradeKey": null,
+			"skillKey": null,
+			"median": 170000,
+			"p25": 98333,
+			"p75": 257250,
+			"sampleSize": 1112,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "data_analyst",
+			"gradeKey": "intern",
+			"skillKey": null,
+			"median": 64166,
+			"p25": 51666,
+			"p75": 92499,
+			"sampleSize": 94,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "data_analyst",
+			"gradeKey": "junior",
+			"skillKey": null,
+			"median": 105313,
+			"p25": 76666,
+			"p75": 141666,
+			"sampleSize": 268,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "data_analyst",
+			"gradeKey": "lead",
+			"skillKey": null,
+			"median": 403498,
+			"p25": 293333,
+			"p75": 533333,
+			"sampleSize": 65,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "data_analyst",
+			"gradeKey": "middle",
+			"skillKey": null,
+			"median": 185833,
+			"p25": 130000,
+			"p75": 245975,
+			"sampleSize": 533,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "data_analyst",
+			"gradeKey": "senior",
+			"skillKey": null,
+			"median": 288000,
+			"p25": 215000,
+			"p75": 358833,
+			"sampleSize": 152,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "data_engineer",
+			"gradeKey": null,
+			"skillKey": null,
+			"median": 247666,
+			"p25": 166666,
+			"p75": 360000,
+			"sampleSize": 382,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "data_engineer",
+			"gradeKey": "intern",
+			"skillKey": null,
+			"median": 88641,
+			"p25": 66666,
+			"p75": 101666,
+			"sampleSize": 14,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "data_engineer",
+			"gradeKey": "junior",
+			"skillKey": null,
+			"median": 136666,
+			"p25": 94791,
+			"p75": 172083,
+			"sampleSize": 57,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "data_engineer",
+			"gradeKey": "lead",
+			"skillKey": null,
+			"median": 420000,
+			"p25": 352750,
+			"p75": 551333,
+			"sampleSize": 43,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "data_engineer",
+			"gradeKey": "middle",
+			"skillKey": null,
+			"median": 231666,
+			"p25": 185975,
+			"p75": 291666,
+			"sampleSize": 195,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "data_engineer",
+			"gradeKey": "senior",
+			"skillKey": null,
+			"median": 361666,
+			"p25": 315333,
+			"p75": 416666,
+			"sampleSize": 73,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "data_scientist",
+			"gradeKey": null,
+			"skillKey": null,
+			"median": 233333,
+			"p25": 131000,
+			"p75": 362500,
+			"sampleSize": 436,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "data_scientist",
+			"gradeKey": "intern",
+			"skillKey": null,
+			"median": 89500,
+			"p25": 72833,
+			"p75": 140958,
+			"sampleSize": 44,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "data_scientist",
+			"gradeKey": "junior",
+			"skillKey": null,
+			"median": 122500,
+			"p25": 85208,
+			"p75": 186375,
+			"sampleSize": 77,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "data_scientist",
+			"gradeKey": "lead",
+			"skillKey": null,
+			"median": 480000,
+			"p25": 340833,
+			"p75": 625000,
+			"sampleSize": 48,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "data_scientist",
+			"gradeKey": "middle",
+			"skillKey": null,
+			"median": 226666,
+			"p25": 166666,
+			"p75": 304583,
+			"sampleSize": 193,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "data_scientist",
+			"gradeKey": "senior",
+			"skillKey": null,
+			"median": 391708,
+			"p25": 325149,
+			"p75": 470000,
+			"sampleSize": 74,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "dba",
+			"gradeKey": null,
+			"skillKey": null,
+			"median": 215033,
+			"p25": 111000,
+			"p75": 325000,
+			"sampleSize": 92,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "dba",
+			"gradeKey": "intern",
+			"skillKey": null,
+			"median": 66083,
+			"p25": 45624,
+			"p75": 88041,
+			"sampleSize": 6,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "dba",
+			"gradeKey": "junior",
+			"skillKey": null,
+			"median": 101000,
+			"p25": 73166,
+			"p75": 138333,
+			"sampleSize": 14,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "dba",
+			"gradeKey": "lead",
+			"skillKey": null,
+			"median": 505000,
+			"p25": 275166,
+			"p75": 565000,
+			"sampleSize": 12,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "dba",
+			"gradeKey": "middle",
+			"skillKey": null,
+			"median": 236416,
+			"p25": 136249,
+			"p75": 291249,
+			"sampleSize": 40,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "dba",
+			"gradeKey": "senior",
+			"skillKey": null,
+			"median": 290749,
+			"p25": 171666,
+			"p75": 454166,
+			"sampleSize": 20,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "devops",
+			"gradeKey": null,
+			"skillKey": null,
+			"median": 225000,
+			"p25": 138500,
+			"p75": 350000,
+			"sampleSize": 1224,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "devops",
+			"gradeKey": "intern",
+			"skillKey": null,
+			"median": 66874,
+			"p25": 45829,
+			"p75": 82500,
+			"sampleSize": 50,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "devops",
+			"gradeKey": "junior",
+			"skillKey": null,
+			"median": 112916,
+			"p25": 84666,
+			"p75": 167300,
+			"sampleSize": 214,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "devops",
+			"gradeKey": "lead",
+			"skillKey": null,
+			"median": 454166,
+			"p25": 356333,
+			"p75": 560970,
+			"sampleSize": 117,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "devops",
+			"gradeKey": "middle",
+			"skillKey": null,
+			"median": 220833,
+			"p25": 162500,
+			"p75": 287500,
+			"sampleSize": 576,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "devops",
+			"gradeKey": "senior",
+			"skillKey": null,
+			"median": 363407,
+			"p25": 295000,
+			"p75": 465000,
+			"sampleSize": 267,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "embedded",
+			"gradeKey": null,
+			"skillKey": null,
+			"median": 171666,
+			"p25": 113333,
+			"p75": 276333,
+			"sampleSize": 238,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "embedded",
+			"gradeKey": "intern",
+			"skillKey": null,
+			"median": 45666,
+			"p25": 32083,
+			"p75": 76666,
+			"sampleSize": 7,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "embedded",
+			"gradeKey": "junior",
+			"skillKey": null,
+			"median": 111666,
+			"p25": 66666,
+			"p75": 144462,
+			"sampleSize": 45,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "embedded",
+			"gradeKey": "lead",
+			"skillKey": null,
+			"median": 369083,
+			"p25": 285166,
+			"p75": 425000,
+			"sampleSize": 29,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "embedded",
+			"gradeKey": "middle",
+			"skillKey": null,
+			"median": 161250,
+			"p25": 120874,
+			"p75": 218333,
+			"sampleSize": 117,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "embedded",
+			"gradeKey": "senior",
+			"skillKey": null,
+			"median": 253416,
+			"p25": 185000,
+			"p75": 343500,
+			"sampleSize": 40,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "frontend",
+			"gradeKey": null,
+			"skillKey": null,
+			"median": 225000,
+			"p25": 136166,
+			"p75": 350000,
+			"sampleSize": 2845,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "frontend",
+			"gradeKey": "intern",
+			"skillKey": null,
+			"median": 62916,
+			"p25": 36250,
+			"p75": 85000,
+			"sampleSize": 74,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "frontend",
+			"gradeKey": "junior",
+			"skillKey": null,
+			"median": 86666,
+			"p25": 62500,
+			"p75": 113733,
+			"sampleSize": 300,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "frontend",
+			"gradeKey": "lead",
+			"skillKey": null,
+			"median": 408000,
+			"p25": 327916,
+			"p75": 480000,
+			"sampleSize": 305,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "frontend",
+			"gradeKey": "middle",
+			"skillKey": null,
+			"median": 187647,
+			"p25": 128783,
+			"p75": 259448,
+			"sampleSize": 1343,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "frontend",
+			"gradeKey": "senior",
+			"skillKey": null,
+			"median": 333333,
+			"p25": 259000,
+			"p75": 402500,
+			"sampleSize": 823,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": null,
+			"skillKey": null,
+			"median": 196666,
+			"p25": 115666,
+			"p75": 321666,
+			"sampleSize": 1198,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "intern",
+			"skillKey": null,
+			"median": 70000,
+			"p25": 40744,
+			"p75": 92500,
+			"sampleSize": 26,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "junior",
+			"skillKey": null,
+			"median": 85416,
+			"p25": 52874,
+			"p75": 116666,
+			"sampleSize": 120,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "lead",
+			"skillKey": null,
+			"median": 391666,
+			"p25": 294083,
+			"p75": 512333,
+			"sampleSize": 212,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "middle",
+			"skillKey": null,
+			"median": 162500,
+			"p25": 104166,
+			"p75": 225000,
+			"sampleSize": 525,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "senior",
+			"skillKey": null,
+			"median": 273708,
+			"p25": 201833,
+			"p75": 354166,
+			"sampleSize": 315,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "gamedev",
+			"gradeKey": null,
+			"skillKey": null,
+			"median": 177333,
+			"p25": 91291,
+			"p75": 303833,
+			"sampleSize": 154,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "gamedev",
+			"gradeKey": "intern",
+			"skillKey": null,
+			"median": 61083,
+			"p25": 54166,
+			"p75": 88000,
+			"sampleSize": 9,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "gamedev",
+			"gradeKey": "junior",
+			"skillKey": null,
+			"median": 91949,
+			"p25": 57083,
+			"p75": 133782,
+			"sampleSize": 16,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "gamedev",
+			"gradeKey": "lead",
+			"skillKey": null,
+			"median": 332400,
+			"p25": 221666,
+			"p75": 470833,
+			"sampleSize": 23,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "gamedev",
+			"gradeKey": "middle",
+			"skillKey": null,
+			"median": 126833,
+			"p25": 88500,
+			"p75": 187000,
+			"sampleSize": 60,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "gamedev",
+			"gradeKey": "senior",
+			"skillKey": null,
+			"median": 292000,
+			"p25": 223333,
+			"p75": 377916,
+			"sampleSize": 46,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "ml_engineer",
+			"gradeKey": null,
+			"skillKey": null,
+			"median": 227329,
+			"p25": 120000,
+			"p75": 355000,
+			"sampleSize": 566,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "ml_engineer",
+			"gradeKey": "intern",
+			"skillKey": null,
+			"median": 82808,
+			"p25": 62916,
+			"p75": 99166,
+			"sampleSize": 48,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "ml_engineer",
+			"gradeKey": "junior",
+			"skillKey": null,
+			"median": 121966,
+			"p25": 83183,
+			"p75": 166666,
+			"sampleSize": 115,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "ml_engineer",
+			"gradeKey": "lead",
+			"skillKey": null,
+			"median": 485500,
+			"p25": 371666,
+			"p75": 657937,
+			"sampleSize": 56,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "ml_engineer",
+			"gradeKey": "middle",
+			"skillKey": null,
+			"median": 223749,
+			"p25": 157283,
+			"p75": 299312,
+			"sampleSize": 244,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "ml_engineer",
+			"gradeKey": "senior",
+			"skillKey": null,
+			"median": 381466,
+			"p25": 287750,
+			"p75": 487499,
+			"sampleSize": 103,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "mlops",
+			"gradeKey": null,
+			"skillKey": null,
+			"median": 361666,
+			"p25": 245833,
+			"p75": 432883,
+			"sampleSize": 21,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "mlops",
+			"gradeKey": "lead",
+			"skillKey": null,
+			"median": 408333,
+			"p25": 408333,
+			"p75": 439133,
+			"sampleSize": 5,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "mlops",
+			"gradeKey": "middle",
+			"skillKey": null,
+			"median": 276666,
+			"p25": 228333,
+			"p75": 301666,
+			"sampleSize": 6,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "mlops",
+			"gradeKey": "senior",
+			"skillKey": null,
+			"median": 404583,
+			"p25": 353333,
+			"p75": 459416,
+			"sampleSize": 9,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "mobile",
+			"gradeKey": null,
+			"skillKey": null,
+			"median": 297500,
+			"p25": 190833,
+			"p75": 418666,
+			"sampleSize": 737,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "mobile",
+			"gradeKey": "intern",
+			"skillKey": null,
+			"median": 85416,
+			"p25": 60833,
+			"p75": 128000,
+			"sampleSize": 14,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "mobile",
+			"gradeKey": "junior",
+			"skillKey": null,
+			"median": 87583,
+			"p25": 57100,
+			"p75": 115000,
+			"sampleSize": 47,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "mobile",
+			"gradeKey": "lead",
+			"skillKey": null,
+			"median": 472956,
+			"p25": 385678,
+			"p75": 600293,
+			"sampleSize": 99,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "mobile",
+			"gradeKey": "middle",
+			"skillKey": null,
+			"median": 226249,
+			"p25": 166666,
+			"p75": 301166,
+			"sampleSize": 293,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "mobile",
+			"gradeKey": "senior",
+			"skillKey": null,
+			"median": 380000,
+			"p25": 276666,
+			"p75": 456667,
+			"sampleSize": 284,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "network_engineer",
+			"gradeKey": null,
+			"skillKey": null,
+			"median": 146666,
+			"p25": 106833,
+			"p75": 233333,
+			"sampleSize": 132,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "network_engineer",
+			"gradeKey": "junior",
+			"skillKey": null,
+			"median": 116666,
+			"p25": 84166,
+			"p75": 154166,
+			"sampleSize": 23,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "network_engineer",
+			"gradeKey": "lead",
+			"skillKey": null,
+			"median": 211458,
+			"p25": 153408,
+			"p75": 284333,
+			"sampleSize": 17,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "network_engineer",
+			"gradeKey": "middle",
+			"skillKey": null,
+			"median": 134666,
+			"p25": 103333,
+			"p75": 202083,
+			"sampleSize": 64,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "network_engineer",
+			"gradeKey": "senior",
+			"skillKey": null,
+			"median": 235833,
+			"p25": 167666,
+			"p75": 300000,
+			"sampleSize": 25,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "onec",
+			"gradeKey": null,
+			"skillKey": null,
+			"median": 196666,
+			"p25": 108333,
+			"p75": 284999,
+			"sampleSize": 453,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "onec",
+			"gradeKey": "intern",
+			"skillKey": null,
+			"median": 66666,
+			"p25": 41249,
+			"p75": 83333,
+			"sampleSize": 18,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "onec",
+			"gradeKey": "junior",
+			"skillKey": null,
+			"median": 85416,
+			"p25": 61666,
+			"p75": 123666,
+			"sampleSize": 88,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "onec",
+			"gradeKey": "lead",
+			"skillKey": null,
+			"median": 339862,
+			"p25": 286078,
+			"p75": 418333,
+			"sampleSize": 53,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "onec",
+			"gradeKey": "middle",
+			"skillKey": null,
+			"median": 172500,
+			"p25": 126791,
+			"p75": 229999,
+			"sampleSize": 198,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "onec",
+			"gradeKey": "senior",
+			"skillKey": null,
+			"median": 281500,
+			"p25": 212500,
+			"p75": 337500,
+			"sampleSize": 96,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "pentester",
+			"gradeKey": null,
+			"skillKey": null,
+			"median": 166666,
+			"p25": 105000,
+			"p75": 291666,
+			"sampleSize": 125,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "pentester",
+			"gradeKey": "intern",
+			"skillKey": null,
+			"median": 71249,
+			"p25": 46833,
+			"p75": 109999,
+			"sampleSize": 15,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "pentester",
+			"gradeKey": "junior",
+			"skillKey": null,
+			"median": 112500,
+			"p25": 83333,
+			"p75": 170833,
+			"sampleSize": 25,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "pentester",
+			"gradeKey": "lead",
+			"skillKey": null,
+			"median": 480000,
+			"p25": 371666,
+			"p75": 606250,
+			"sampleSize": 14,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "pentester",
+			"gradeKey": "middle",
+			"skillKey": null,
+			"median": 160293,
+			"p25": 102500,
+			"p75": 225416,
+			"sampleSize": 59,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "pentester",
+			"gradeKey": "senior",
+			"skillKey": null,
+			"median": 333333,
+			"p25": 276666,
+			"p75": 455333,
+			"sampleSize": 12,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "product_analyst",
+			"gradeKey": null,
+			"skillKey": null,
+			"median": 262386,
+			"p25": 172666,
+			"p75": 356666,
+			"sampleSize": 294,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "product_analyst",
+			"gradeKey": "intern",
+			"skillKey": null,
+			"median": 78999,
+			"p25": 71424,
+			"p75": 99166,
+			"sampleSize": 23,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "product_analyst",
+			"gradeKey": "junior",
+			"skillKey": null,
+			"median": 142166,
+			"p25": 108333,
+			"p75": 176746,
+			"sampleSize": 45,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "product_analyst",
+			"gradeKey": "lead",
+			"skillKey": null,
+			"median": 445499,
+			"p25": 354083,
+			"p75": 535416,
+			"sampleSize": 33,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "product_analyst",
+			"gradeKey": "middle",
+			"skillKey": null,
+			"median": 245000,
+			"p25": 198333,
+			"p75": 292666,
+			"sampleSize": 138,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "product_analyst",
+			"gradeKey": "senior",
+			"skillKey": null,
+			"median": 384000,
+			"p25": 313500,
+			"p75": 436500,
+			"sampleSize": 55,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "product_manager",
+			"gradeKey": null,
+			"skillKey": null,
+			"median": 291666,
+			"p25": 168416,
+			"p75": 405000,
+			"sampleSize": 748,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "product_manager",
+			"gradeKey": "intern",
+			"skillKey": null,
+			"median": 86633,
+			"p25": 52500,
+			"p75": 116666,
+			"sampleSize": 25,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "product_manager",
+			"gradeKey": "junior",
+			"skillKey": null,
+			"median": 121666,
+			"p25": 100416,
+			"p75": 172916,
+			"sampleSize": 62,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "product_manager",
+			"gradeKey": "lead",
+			"skillKey": null,
+			"median": 466666,
+			"p25": 326666,
+			"p75": 558333,
+			"sampleSize": 123,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "product_manager",
+			"gradeKey": "middle",
+			"skillKey": null,
+			"median": 230000,
+			"p25": 165000,
+			"p75": 310000,
+			"sampleSize": 317,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "product_manager",
+			"gradeKey": "senior",
+			"skillKey": null,
+			"median": 351916,
+			"p25": 275000,
+			"p75": 448833,
+			"sampleSize": 221,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "project_manager",
+			"gradeKey": null,
+			"skillKey": null,
+			"median": 172583,
+			"p25": 109583,
+			"p75": 280000,
+			"sampleSize": 2356,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "project_manager",
+			"gradeKey": "intern",
+			"skillKey": null,
+			"median": 78333,
+			"p25": 54583,
+			"p75": 130416,
+			"sampleSize": 87,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "project_manager",
+			"gradeKey": "junior",
+			"skillKey": null,
+			"median": 112500,
+			"p25": 74166,
+			"p75": 145000,
+			"sampleSize": 333,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "project_manager",
+			"gradeKey": "lead",
+			"skillKey": null,
+			"median": 304601,
+			"p25": 216666,
+			"p75": 430833,
+			"sampleSize": 284,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "project_manager",
+			"gradeKey": "middle",
+			"skillKey": null,
+			"median": 162750,
+			"p25": 108333,
+			"p75": 235833,
+			"sampleSize": 1126,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "project_manager",
+			"gradeKey": "senior",
+			"skillKey": null,
+			"median": 263333,
+			"p25": 190666,
+			"p75": 358333,
+			"sampleSize": 526,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "qa_automation",
+			"gradeKey": null,
+			"skillKey": null,
+			"median": 225000,
+			"p25": 152500,
+			"p75": 322433,
+			"sampleSize": 813,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "qa_automation",
+			"gradeKey": "intern",
+			"skillKey": null,
+			"median": 74166,
+			"p25": 52500,
+			"p75": 92500,
+			"sampleSize": 39,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "qa_automation",
+			"gradeKey": "junior",
+			"skillKey": null,
+			"median": 108333,
+			"p25": 81366,
+			"p75": 156666,
+			"sampleSize": 85,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "qa_automation",
+			"gradeKey": "lead",
+			"skillKey": null,
+			"median": 374583,
+			"p25": 278708,
+			"p75": 466666,
+			"sampleSize": 83,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "qa_automation",
+			"gradeKey": "middle",
+			"skillKey": null,
+			"median": 196666,
+			"p25": 145833,
+			"p75": 249166,
+			"sampleSize": 350,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "qa_automation",
+			"gradeKey": "senior",
+			"skillKey": null,
+			"median": 313500,
+			"p25": 241083,
+			"p75": 370000,
+			"sampleSize": 256,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "qa_manual",
+			"gradeKey": null,
+			"skillKey": null,
+			"median": 132500,
+			"p25": 84166,
+			"p75": 190000,
+			"sampleSize": 1538,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "qa_manual",
+			"gradeKey": "intern",
+			"skillKey": null,
+			"median": 62658,
+			"p25": 41666,
+			"p75": 83333,
+			"sampleSize": 118,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "qa_manual",
+			"gradeKey": "junior",
+			"skillKey": null,
+			"median": 82000,
+			"p25": 59900,
+			"p75": 110500,
+			"sampleSize": 360,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "qa_manual",
+			"gradeKey": "lead",
+			"skillKey": null,
+			"median": 267233,
+			"p25": 179583,
+			"p75": 374166,
+			"sampleSize": 55,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "qa_manual",
+			"gradeKey": "middle",
+			"skillKey": null,
+			"median": 142500,
+			"p25": 105000,
+			"p75": 185000,
+			"sampleSize": 786,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "qa_manual",
+			"gradeKey": "senior",
+			"skillKey": null,
+			"median": 222500,
+			"p25": 176900,
+			"p75": 280416,
+			"sampleSize": 219,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "reverse_engineer",
+			"gradeKey": null,
+			"skillKey": null,
+			"median": 246666,
+			"p25": 137916,
+			"p75": 393166,
+			"sampleSize": 21,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "reverse_engineer",
+			"gradeKey": "middle",
+			"skillKey": null,
+			"median": 162499,
+			"p25": 108333,
+			"p75": 246666,
+			"sampleSize": 9,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "reverse_engineer",
+			"gradeKey": "senior",
+			"skillKey": null,
+			"median": 434333,
+			"p25": 379666,
+			"p75": 457958,
+			"sampleSize": 7,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "robotics_engineer",
+			"gradeKey": null,
+			"skillKey": null,
+			"median": 171666,
+			"p25": 113333,
+			"p75": 276333,
+			"sampleSize": 238,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "robotics_engineer",
+			"gradeKey": "intern",
+			"skillKey": null,
+			"median": 45666,
+			"p25": 32083,
+			"p75": 76666,
+			"sampleSize": 7,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "robotics_engineer",
+			"gradeKey": "junior",
+			"skillKey": null,
+			"median": 111666,
+			"p25": 66666,
+			"p75": 144462,
+			"sampleSize": 45,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "robotics_engineer",
+			"gradeKey": "lead",
+			"skillKey": null,
+			"median": 369083,
+			"p25": 285166,
+			"p75": 425000,
+			"sampleSize": 29,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "robotics_engineer",
+			"gradeKey": "middle",
+			"skillKey": null,
+			"median": 161250,
+			"p25": 120874,
+			"p75": 218333,
+			"sampleSize": 117,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "robotics_engineer",
+			"gradeKey": "senior",
+			"skillKey": null,
+			"median": 253416,
+			"p25": 185000,
+			"p75": 343500,
+			"sampleSize": 40,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "security_engineer",
+			"gradeKey": null,
+			"skillKey": null,
+			"median": 207333,
+			"p25": 116250,
+			"p75": 307500,
+			"sampleSize": 71,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "security_engineer",
+			"gradeKey": "junior",
+			"skillKey": null,
+			"median": 91250,
+			"p25": 64458,
+			"p75": 115850,
+			"sampleSize": 9,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "security_engineer",
+			"gradeKey": "lead",
+			"skillKey": null,
+			"median": 466666,
+			"p25": 268749,
+			"p75": 558000,
+			"sampleSize": 17,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "security_engineer",
+			"gradeKey": "middle",
+			"skillKey": null,
+			"median": 200833,
+			"p25": 132916,
+			"p75": 240833,
+			"sampleSize": 30,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "security_engineer",
+			"gradeKey": "senior",
+			"skillKey": null,
+			"median": 243291,
+			"p25": 201666,
+			"p75": 379333,
+			"sampleSize": 11,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "soc_analyst",
+			"gradeKey": null,
+			"skillKey": null,
+			"median": 133333,
+			"p25": 98333,
+			"p75": 227500,
+			"sampleSize": 71,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "soc_analyst",
+			"gradeKey": "intern",
+			"skillKey": null,
+			"median": 65416,
+			"p25": 52500,
+			"p75": 88333,
+			"sampleSize": 5,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "soc_analyst",
+			"gradeKey": "junior",
+			"skillKey": null,
+			"median": 110916,
+			"p25": 84999,
+			"p75": 137083,
+			"sampleSize": 26,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "soc_analyst",
+			"gradeKey": "middle",
+			"skillKey": null,
+			"median": 177000,
+			"p25": 115000,
+			"p75": 234000,
+			"sampleSize": 32,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "soc_analyst",
+			"gradeKey": "senior",
+			"skillKey": null,
+			"median": 335000,
+			"p25": 277500,
+			"p75": 365625,
+			"sampleSize": 6,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "sre",
+			"gradeKey": null,
+			"skillKey": null,
+			"median": 291666,
+			"p25": 210833,
+			"p75": 445333,
+			"sampleSize": 125,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "sre",
+			"gradeKey": "junior",
+			"skillKey": null,
+			"median": 159999,
+			"p25": 104541,
+			"p75": 221249,
+			"sampleSize": 13,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "sre",
+			"gradeKey": "lead",
+			"skillKey": null,
+			"median": 507499,
+			"p25": 428574,
+			"p75": 622916,
+			"sampleSize": 18,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "sre",
+			"gradeKey": "middle",
+			"skillKey": null,
+			"median": 248083,
+			"p25": 201500,
+			"p75": 300000,
+			"sampleSize": 52,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "sre",
+			"gradeKey": "senior",
+			"skillKey": null,
+			"median": 394833,
+			"p25": 302750,
+			"p75": 468333,
+			"sampleSize": 38,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "sysadmin",
+			"gradeKey": null,
+			"skillKey": null,
+			"median": 110833,
+			"p25": 79166,
+			"p75": 170833,
+			"sampleSize": 974,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "sysadmin",
+			"gradeKey": "intern",
+			"skillKey": null,
+			"median": 55816,
+			"p25": 41666,
+			"p75": 75000,
+			"sampleSize": 60,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "sysadmin",
+			"gradeKey": "junior",
+			"skillKey": null,
+			"median": 79583,
+			"p25": 56250,
+			"p75": 111666,
+			"sampleSize": 219,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "sysadmin",
+			"gradeKey": "lead",
+			"skillKey": null,
+			"median": 225000,
+			"p25": 138333,
+			"p75": 341666,
+			"sampleSize": 77,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "sysadmin",
+			"gradeKey": "middle",
+			"skillKey": null,
+			"median": 121249,
+			"p25": 88166,
+			"p75": 170000,
+			"sampleSize": 479,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "sysadmin",
+			"gradeKey": "senior",
+			"skillKey": null,
+			"median": 178666,
+			"p25": 122916,
+			"p75": 226875,
+			"sampleSize": 139,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "systems_analyst",
+			"gradeKey": null,
+			"skillKey": null,
+			"median": 222416,
+			"p25": 130458,
+			"p75": 301666,
+			"sampleSize": 2452,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "systems_analyst",
+			"gradeKey": "intern",
+			"skillKey": null,
+			"median": 64166,
+			"p25": 49250,
+			"p75": 96666,
+			"sampleSize": 108,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "systems_analyst",
+			"gradeKey": "junior",
+			"skillKey": null,
+			"median": 110000,
+			"p25": 75000,
+			"p75": 145333,
+			"sampleSize": 358,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "systems_analyst",
+			"gradeKey": "lead",
+			"skillKey": null,
+			"median": 364666,
+			"p25": 293333,
+			"p75": 450833,
+			"sampleSize": 225,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "systems_analyst",
+			"gradeKey": "middle",
+			"skillKey": null,
+			"median": 196666,
+			"p25": 148750,
+			"p75": 262000,
+			"sampleSize": 1203,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "systems_analyst",
+			"gradeKey": "senior",
+			"skillKey": null,
+			"median": 299166,
+			"p25": 248333,
+			"p75": 370000,
+			"sampleSize": 558,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "tech_support",
+			"gradeKey": null,
+			"skillKey": null,
+			"median": 98333,
+			"p25": 73166,
+			"p75": 136666,
+			"sampleSize": 944,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "tech_support",
+			"gradeKey": "intern",
+			"skillKey": null,
+			"median": 70833,
+			"p25": 51875,
+			"p75": 93083,
+			"sampleSize": 39,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "tech_support",
+			"gradeKey": "junior",
+			"skillKey": null,
+			"median": 75416,
+			"p25": 56666,
+			"p75": 100000,
+			"sampleSize": 204,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "tech_support",
+			"gradeKey": "lead",
+			"skillKey": null,
+			"median": 136666,
+			"p25": 108333,
+			"p75": 189333,
+			"sampleSize": 50,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "tech_support",
+			"gradeKey": "middle",
+			"skillKey": null,
+			"median": 104333,
+			"p25": 74166,
+			"p75": 136666,
+			"sampleSize": 491,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "tech_support",
+			"gradeKey": "senior",
+			"skillKey": null,
+			"median": 131666,
+			"p25": 92417,
+			"p75": 183333,
+			"sampleSize": 160,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "tech_writer",
+			"gradeKey": null,
+			"skillKey": null,
+			"median": 139499,
+			"p25": 95000,
+			"p75": 186833,
+			"sampleSize": 142,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "tech_writer",
+			"gradeKey": "junior",
+			"skillKey": null,
+			"median": 78333,
+			"p25": 65833,
+			"p75": 102500,
+			"sampleSize": 24,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "tech_writer",
+			"gradeKey": "lead",
+			"skillKey": null,
+			"median": 217031,
+			"p25": 131333,
+			"p75": 297416,
+			"sampleSize": 15,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "tech_writer",
+			"gradeKey": "middle",
+			"skillKey": null,
+			"median": 140666,
+			"p25": 105000,
+			"p75": 171166,
+			"sampleSize": 75,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "tech_writer",
+			"gradeKey": "senior",
+			"skillKey": null,
+			"median": 186150,
+			"p25": 161333,
+			"p75": 220833,
+			"sampleSize": 26,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "uav_engineer",
+			"gradeKey": null,
+			"skillKey": null,
+			"median": 171666,
+			"p25": 113333,
+			"p75": 276333,
+			"sampleSize": 238,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "uav_engineer",
+			"gradeKey": "intern",
+			"skillKey": null,
+			"median": 45666,
+			"p25": 32083,
+			"p75": 76666,
+			"sampleSize": 7,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "uav_engineer",
+			"gradeKey": "junior",
+			"skillKey": null,
+			"median": 111666,
+			"p25": 66666,
+			"p75": 144462,
+			"sampleSize": 45,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "uav_engineer",
+			"gradeKey": "lead",
+			"skillKey": null,
+			"median": 369083,
+			"p25": 285166,
+			"p75": 425000,
+			"sampleSize": 29,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "uav_engineer",
+			"gradeKey": "middle",
+			"skillKey": null,
+			"median": 161250,
+			"p25": 120874,
+			"p75": 218333,
+			"sampleSize": 117,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "uav_engineer",
+			"gradeKey": "senior",
+			"skillKey": null,
+			"median": 253416,
+			"p25": 185000,
+			"p75": 343500,
+			"sampleSize": 40,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "ui_ux_designer",
+			"gradeKey": null,
+			"skillKey": null,
+			"median": 129166,
+			"p25": 84000,
+			"p75": 201666,
+			"sampleSize": 540,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "ui_ux_designer",
+			"gradeKey": "intern",
+			"skillKey": null,
+			"median": 76666,
+			"p25": 57083,
+			"p75": 147499,
+			"sampleSize": 16,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "ui_ux_designer",
+			"gradeKey": "junior",
+			"skillKey": null,
+			"median": 77500,
+			"p25": 59667,
+			"p75": 99500,
+			"sampleSize": 73,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "ui_ux_designer",
+			"gradeKey": "lead",
+			"skillKey": null,
+			"median": 258333,
+			"p25": 201749,
+			"p75": 359583,
+			"sampleSize": 41,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "ui_ux_designer",
+			"gradeKey": "middle",
+			"skillKey": null,
+			"median": 123333,
+			"p25": 82500,
+			"p75": 168000,
+			"sampleSize": 300,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "ui_ux_designer",
+			"gradeKey": "senior",
+			"skillKey": null,
+			"median": 217083,
+			"p25": 158333,
+			"p75": 255000,
+			"sampleSize": 110,
+			"method": "observed_median"
+		},
+		{
+			"roleKey": "algo_engineer",
+			"gradeKey": "intern",
+			"skillKey": "cpp",
+			"median": 95073,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 16,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "algo_engineer",
+			"gradeKey": "intern",
+			"skillKey": "go",
+			"median": 90372,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 33,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "algo_engineer",
+			"gradeKey": "intern",
+			"skillKey": "java",
+			"median": 81881,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 20,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "algo_engineer",
+			"gradeKey": "intern",
+			"skillKey": "python",
+			"median": 84530,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 131,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "algo_engineer",
+			"gradeKey": "junior",
+			"skillKey": "cpp",
+			"median": 127833,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 65,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "algo_engineer",
+			"gradeKey": "junior",
+			"skillKey": "go",
+			"median": 127833,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 88,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "algo_engineer",
+			"gradeKey": "junior",
+			"skillKey": "java",
+			"median": 127833,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 137,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "algo_engineer",
+			"gradeKey": "junior",
+			"skillKey": "python",
+			"median": 127833,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 343,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "algo_engineer",
+			"gradeKey": "lead",
+			"skillKey": "cpp",
+			"median": 547401,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 86,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "algo_engineer",
+			"gradeKey": "lead",
+			"skillKey": "go",
+			"median": 590200,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 178,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "algo_engineer",
+			"gradeKey": "lead",
+			"skillKey": "java",
+			"median": 564560,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 213,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "algo_engineer",
+			"gradeKey": "lead",
+			"skillKey": "python",
+			"median": 558833,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 323,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "algo_engineer",
+			"gradeKey": "middle",
+			"skillKey": "cpp",
+			"median": 287083,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 219,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "algo_engineer",
+			"gradeKey": "middle",
+			"skillKey": "go",
+			"median": 287083,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 425,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "algo_engineer",
+			"gradeKey": "middle",
+			"skillKey": "java",
+			"median": 287083,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 640,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "algo_engineer",
+			"gradeKey": "middle",
+			"skillKey": "python",
+			"median": 287083,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 1289,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "algo_engineer",
+			"gradeKey": "senior",
+			"skillKey": "cpp",
+			"median": 394037,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 137,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "algo_engineer",
+			"gradeKey": "senior",
+			"skillKey": "go",
+			"median": 450666,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 369,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "algo_engineer",
+			"gradeKey": "senior",
+			"skillKey": "java",
+			"median": 432052,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 485,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "algo_engineer",
+			"gradeKey": "senior",
+			"skillKey": "python",
+			"median": 418461,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 671,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "appsec",
+			"gradeKey": "intern",
+			"skillKey": "go",
+			"median": 74143,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 5,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "appsec",
+			"gradeKey": "intern",
+			"skillKey": "java",
+			"median": 67177,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 5,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "appsec",
+			"gradeKey": "intern",
+			"skillKey": "python",
+			"median": 69351,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 5,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "appsec",
+			"gradeKey": "junior",
+			"skillKey": "go",
+			"median": 184166,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 18,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "appsec",
+			"gradeKey": "junior",
+			"skillKey": "java",
+			"median": 184166,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 18,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "appsec",
+			"gradeKey": "junior",
+			"skillKey": "python",
+			"median": 184166,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 18,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "appsec",
+			"gradeKey": "lead",
+			"skillKey": "go",
+			"median": 754541,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 8,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "appsec",
+			"gradeKey": "lead",
+			"skillKey": "java",
+			"median": 721761,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 8,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "appsec",
+			"gradeKey": "lead",
+			"skillKey": "python",
+			"median": 714440,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 8,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "appsec",
+			"gradeKey": "middle",
+			"skillKey": "go",
+			"median": 335616,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 28,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "appsec",
+			"gradeKey": "middle",
+			"skillKey": "java",
+			"median": 335616,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 28,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "appsec",
+			"gradeKey": "middle",
+			"skillKey": "python",
+			"median": 335616,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 28,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "appsec",
+			"gradeKey": "senior",
+			"skillKey": "go",
+			"median": 494346,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 12,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "appsec",
+			"gradeKey": "senior",
+			"skillKey": "java",
+			"median": 473928,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 12,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "appsec",
+			"gradeKey": "senior",
+			"skillKey": "python",
+			"median": 459020,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 12,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "architect",
+			"gradeKey": "junior",
+			"skillKey": "kubernetes",
+			"median": 312216,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 6,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "architect",
+			"gradeKey": "lead",
+			"skillKey": "kubernetes",
+			"median": 693333,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 108,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "architect",
+			"gradeKey": "middle",
+			"skillKey": "kubernetes",
+			"median": 542706,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 32,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "architect",
+			"gradeKey": "senior",
+			"skillKey": "kubernetes",
+			"median": 624000,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 33,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "intern",
+			"skillKey": "cpp",
+			"median": 95073,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 16,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "intern",
+			"skillKey": "csharp",
+			"median": 70949,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 14,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "intern",
+			"skillKey": "docker",
+			"median": 85481,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 18,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "intern",
+			"skillKey": "go",
+			"median": 90372,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 33,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "intern",
+			"skillKey": "java",
+			"median": 81881,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 20,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "intern",
+			"skillKey": "kotlin",
+			"median": 79782,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 5,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "intern",
+			"skillKey": "linux",
+			"median": 80969,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 31,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "intern",
+			"skillKey": "php",
+			"median": 63256,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 8,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "intern",
+			"skillKey": "postgresql",
+			"median": 82346,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 25,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "intern",
+			"skillKey": "python",
+			"median": 84530,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 131,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "intern",
+			"skillKey": "sql",
+			"median": 85481,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 95,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "junior",
+			"skillKey": "cpp",
+			"median": 127833,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 65,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "junior",
+			"skillKey": "csharp",
+			"median": 118103,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 61,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "junior",
+			"skillKey": "docker",
+			"median": 126063,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 83,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "junior",
+			"skillKey": "go",
+			"median": 127833,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 88,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "junior",
+			"skillKey": "java",
+			"median": 127833,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 137,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "junior",
+			"skillKey": "kotlin",
+			"median": 127833,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 36,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "junior",
+			"skillKey": "linux",
+			"median": 122730,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 133,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "junior",
+			"skillKey": "nodejs",
+			"median": 97556,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 18,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "junior",
+			"skillKey": "php",
+			"median": 99962,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 31,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "junior",
+			"skillKey": "postgresql",
+			"median": 127833,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 125,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "junior",
+			"skillKey": "python",
+			"median": 127833,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 343,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "junior",
+			"skillKey": "sql",
+			"median": 127833,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 334,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "lead",
+			"skillKey": "cpp",
+			"median": 547401,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 86,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "lead",
+			"skillKey": "csharp",
+			"median": 534482,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 110,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "lead",
+			"skillKey": "docker",
+			"median": 447809,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 51,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "lead",
+			"skillKey": "go",
+			"median": 590200,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 178,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "lead",
+			"skillKey": "java",
+			"median": 564560,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 213,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "lead",
+			"skillKey": "kotlin",
+			"median": 590200,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 65,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "lead",
+			"skillKey": "linux",
+			"median": 553055,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 91,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "lead",
+			"skillKey": "nodejs",
+			"median": 515497,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 64,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "lead",
+			"skillKey": "php",
+			"median": 490114,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 139,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "lead",
+			"skillKey": "postgresql",
+			"median": 579778,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 172,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "lead",
+			"skillKey": "python",
+			"median": 558833,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 323,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "lead",
+			"skillKey": "rust",
+			"median": 590200,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 8,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "lead",
+			"skillKey": "sql",
+			"median": 513537,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 208,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "middle",
+			"skillKey": "cpp",
+			"median": 287083,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 219,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "middle",
+			"skillKey": "csharp",
+			"median": 267871,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 328,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "middle",
+			"skillKey": "docker",
+			"median": 287083,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 241,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "middle",
+			"skillKey": "go",
+			"median": 287083,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 425,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "middle",
+			"skillKey": "java",
+			"median": 287083,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 640,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "middle",
+			"skillKey": "kotlin",
+			"median": 287083,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 167,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "middle",
+			"skillKey": "linux",
+			"median": 263676,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 375,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "middle",
+			"skillKey": "nodejs",
+			"median": 260583,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 138,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "middle",
+			"skillKey": "php",
+			"median": 253958,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 294,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "middle",
+			"skillKey": "postgresql",
+			"median": 287083,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 621,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "middle",
+			"skillKey": "python",
+			"median": 287083,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 1289,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "middle",
+			"skillKey": "rust",
+			"median": 287083,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 16,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "middle",
+			"skillKey": "sql",
+			"median": 287083,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 1227,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "senior",
+			"skillKey": "cpp",
+			"median": 394037,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 137,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "senior",
+			"skillKey": "csharp",
+			"median": 391861,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 243,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "senior",
+			"skillKey": "docker",
+			"median": 405749,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 94,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "senior",
+			"skillKey": "go",
+			"median": 450666,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 369,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "senior",
+			"skillKey": "java",
+			"median": 432052,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 485,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "senior",
+			"skillKey": "kotlin",
+			"median": 450666,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 165,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "senior",
+			"skillKey": "linux",
+			"median": 396400,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 178,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "senior",
+			"skillKey": "nodejs",
+			"median": 403787,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 100,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "senior",
+			"skillKey": "php",
+			"median": 377000,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 250,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "senior",
+			"skillKey": "postgresql",
+			"median": 427423,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 428,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "senior",
+			"skillKey": "python",
+			"median": 418461,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 671,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "senior",
+			"skillKey": "rust",
+			"median": 450666,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 9,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "backend",
+			"gradeKey": "senior",
+			"skillKey": "sql",
+			"median": 398863,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 563,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "business_analyst",
+			"gradeKey": "intern",
+			"skillKey": "sql",
+			"median": 88637,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 52,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "business_analyst",
+			"gradeKey": "junior",
+			"skillKey": "sql",
+			"median": 130053,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 205,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "business_analyst",
+			"gradeKey": "lead",
+			"skillKey": "sql",
+			"median": 352537,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 81,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "business_analyst",
+			"gradeKey": "middle",
+			"skillKey": "sql",
+			"median": 216666,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 480,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "business_analyst",
+			"gradeKey": "senior",
+			"skillKey": "sql",
+			"median": 301065,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 182,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "cv_engineer",
+			"gradeKey": "intern",
+			"skillKey": "cpp",
+			"median": 75096,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 10,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "cv_engineer",
+			"gradeKey": "intern",
+			"skillKey": "python",
+			"median": 66769,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 10,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "cv_engineer",
+			"gradeKey": "junior",
+			"skillKey": "cpp",
+			"median": 120740,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 17,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "cv_engineer",
+			"gradeKey": "junior",
+			"skillKey": "python",
+			"median": 120740,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 17,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "cv_engineer",
+			"gradeKey": "lead",
+			"skillKey": "cpp",
+			"median": 572721,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 8,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "cv_engineer",
+			"gradeKey": "lead",
+			"skillKey": "python",
+			"median": 584682,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 8,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "cv_engineer",
+			"gradeKey": "middle",
+			"skillKey": "cpp",
+			"median": 221053,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 33,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "cv_engineer",
+			"gradeKey": "middle",
+			"skillKey": "python",
+			"median": 221053,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 33,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "cv_engineer",
+			"gradeKey": "senior",
+			"skillKey": "cpp",
+			"median": 393848,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 18,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "cv_engineer",
+			"gradeKey": "senior",
+			"skillKey": "python",
+			"median": 418261,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 18,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "data_analyst",
+			"gradeKey": "intern",
+			"skillKey": "python",
+			"median": 74166,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 94,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "data_analyst",
+			"gradeKey": "intern",
+			"skillKey": "sql",
+			"median": 75000,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 94,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "data_analyst",
+			"gradeKey": "junior",
+			"skillKey": "clickhouse",
+			"median": 136907,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 15,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "data_analyst",
+			"gradeKey": "junior",
+			"skillKey": "python",
+			"median": 136907,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 268,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "data_analyst",
+			"gradeKey": "junior",
+			"skillKey": "sql",
+			"median": 136907,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 268,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "data_analyst",
+			"gradeKey": "lead",
+			"skillKey": "clickhouse",
+			"median": 453659,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 23,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "data_analyst",
+			"gradeKey": "lead",
+			"skillKey": "python",
+			"median": 496670,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 65,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "data_analyst",
+			"gradeKey": "lead",
+			"skillKey": "sql",
+			"median": 456412,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 65,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "data_analyst",
+			"gradeKey": "middle",
+			"skillKey": "clickhouse",
+			"median": 241583,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 55,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "data_analyst",
+			"gradeKey": "middle",
+			"skillKey": "python",
+			"median": 241583,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 533,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "data_analyst",
+			"gradeKey": "middle",
+			"skillKey": "sql",
+			"median": 241583,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 533,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "data_analyst",
+			"gradeKey": "senior",
+			"skillKey": "clickhouse",
+			"median": 366981,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 32,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "data_analyst",
+			"gradeKey": "senior",
+			"skillKey": "python",
+			"median": 347646,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 152,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "data_analyst",
+			"gradeKey": "senior",
+			"skillKey": "sql",
+			"median": 331364,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 152,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "data_engineer",
+			"gradeKey": "intern",
+			"skillKey": "java",
+			"median": 99243,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 14,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "data_engineer",
+			"gradeKey": "intern",
+			"skillKey": "python",
+			"median": 102455,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 14,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "data_engineer",
+			"gradeKey": "intern",
+			"skillKey": "sql",
+			"median": 103607,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 14,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "data_engineer",
+			"gradeKey": "junior",
+			"skillKey": "clickhouse",
+			"median": 177666,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 15,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "data_engineer",
+			"gradeKey": "junior",
+			"skillKey": "java",
+			"median": 177666,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 57,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "data_engineer",
+			"gradeKey": "junior",
+			"skillKey": "python",
+			"median": 177666,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 57,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "data_engineer",
+			"gradeKey": "junior",
+			"skillKey": "scala",
+			"median": 177666,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 6,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "data_engineer",
+			"gradeKey": "junior",
+			"skillKey": "sql",
+			"median": 177666,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 57,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "data_engineer",
+			"gradeKey": "lead",
+			"skillKey": "clickhouse",
+			"median": 472212,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 23,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "data_engineer",
+			"gradeKey": "lead",
+			"skillKey": "java",
+			"median": 522280,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 43,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "data_engineer",
+			"gradeKey": "lead",
+			"skillKey": "python",
+			"median": 516982,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 43,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "data_engineer",
+			"gradeKey": "lead",
+			"skillKey": "scala",
+			"median": 493309,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 6,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "data_engineer",
+			"gradeKey": "lead",
+			"skillKey": "sql",
+			"median": 475078,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 43,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "data_engineer",
+			"gradeKey": "middle",
+			"skillKey": "clickhouse",
+			"median": 301166,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 55,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "data_engineer",
+			"gradeKey": "middle",
+			"skillKey": "java",
+			"median": 301166,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 195,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "data_engineer",
+			"gradeKey": "middle",
+			"skillKey": "python",
+			"median": 301166,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 195,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "data_engineer",
+			"gradeKey": "middle",
+			"skillKey": "scala",
+			"median": 301166,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 15,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "data_engineer",
+			"gradeKey": "middle",
+			"skillKey": "sql",
+			"median": 301166,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 195,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "data_engineer",
+			"gradeKey": "senior",
+			"skillKey": "clickhouse",
+			"median": 460850,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 32,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "data_engineer",
+			"gradeKey": "senior",
+			"skillKey": "java",
+			"median": 450747,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 73,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "data_engineer",
+			"gradeKey": "senior",
+			"skillKey": "python",
+			"median": 436568,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 73,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "data_engineer",
+			"gradeKey": "senior",
+			"skillKey": "scala",
+			"median": 462358,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 11,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "data_engineer",
+			"gradeKey": "senior",
+			"skillKey": "sql",
+			"median": 416122,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 73,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "data_scientist",
+			"gradeKey": "intern",
+			"skillKey": "python",
+			"median": 103448,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 44,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "data_scientist",
+			"gradeKey": "intern",
+			"skillKey": "sql",
+			"median": 104611,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 44,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "data_scientist",
+			"gradeKey": "junior",
+			"skillKey": "python",
+			"median": 159250,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 77,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "data_scientist",
+			"gradeKey": "junior",
+			"skillKey": "sql",
+			"median": 159250,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 77,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "data_scientist",
+			"gradeKey": "lead",
+			"skillKey": "python",
+			"median": 590837,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 48,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "data_scientist",
+			"gradeKey": "lead",
+			"skillKey": "sql",
+			"median": 542946,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 48,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "data_scientist",
+			"gradeKey": "middle",
+			"skillKey": "python",
+			"median": 294666,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 193,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "data_scientist",
+			"gradeKey": "middle",
+			"skillKey": "sql",
+			"median": 294666,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 193,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "data_scientist",
+			"gradeKey": "senior",
+			"skillKey": "python",
+			"median": 472832,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 74,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "data_scientist",
+			"gradeKey": "senior",
+			"skillKey": "sql",
+			"median": 450687,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 74,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "dba",
+			"gradeKey": "intern",
+			"skillKey": "linux",
+			"median": 73163,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 6,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "dba",
+			"gradeKey": "intern",
+			"skillKey": "postgresql",
+			"median": 74407,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 6,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "dba",
+			"gradeKey": "intern",
+			"skillKey": "sql",
+			"median": 77241,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 6,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "dba",
+			"gradeKey": "junior",
+			"skillKey": "linux",
+			"median": 126059,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 14,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "dba",
+			"gradeKey": "junior",
+			"skillKey": "postgresql",
+			"median": 131300,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 14,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "dba",
+			"gradeKey": "junior",
+			"skillKey": "sql",
+			"median": 131300,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 14,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "dba",
+			"gradeKey": "lead",
+			"skillKey": "linux",
+			"median": 615182,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 12,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "dba",
+			"gradeKey": "lead",
+			"skillKey": "postgresql",
+			"median": 644908,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 12,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "dba",
+			"gradeKey": "lead",
+			"skillKey": "sql",
+			"median": 571225,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 12,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "dba",
+			"gradeKey": "middle",
+			"skillKey": "linux",
+			"median": 282282,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 40,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "dba",
+			"gradeKey": "middle",
+			"skillKey": "postgresql",
+			"median": 307341,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 40,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "dba",
+			"gradeKey": "middle",
+			"skillKey": "sql",
+			"median": 307341,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 40,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "dba",
+			"gradeKey": "senior",
+			"skillKey": "linux",
+			"median": 332461,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 20,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "dba",
+			"gradeKey": "senior",
+			"skillKey": "postgresql",
+			"median": 358480,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 20,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "dba",
+			"gradeKey": "senior",
+			"skillKey": "sql",
+			"median": 334527,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 20,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "devops",
+			"gradeKey": "intern",
+			"skillKey": "docker",
+			"median": 78165,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 18,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "devops",
+			"gradeKey": "intern",
+			"skillKey": "kubernetes",
+			"median": 86936,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 5,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "devops",
+			"gradeKey": "intern",
+			"skillKey": "linux",
+			"median": 74039,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 31,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "devops",
+			"gradeKey": "intern",
+			"skillKey": "python",
+			"median": 77296,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 50,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "devops",
+			"gradeKey": "junior",
+			"skillKey": "docker",
+			"median": 144758,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 83,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "devops",
+			"gradeKey": "junior",
+			"skillKey": "kubernetes",
+			"median": 146791,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 61,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "devops",
+			"gradeKey": "junior",
+			"skillKey": "linux",
+			"median": 140932,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 133,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "devops",
+			"gradeKey": "junior",
+			"skillKey": "python",
+			"median": 146791,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 214,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "devops",
+			"gradeKey": "lead",
+			"skillKey": "docker",
+			"median": 447973,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 51,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "devops",
+			"gradeKey": "lead",
+			"skillKey": "kubernetes",
+			"median": 590416,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 117,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "devops",
+			"gradeKey": "lead",
+			"skillKey": "linux",
+			"median": 553257,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 91,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "devops",
+			"gradeKey": "lead",
+			"skillKey": "python",
+			"median": 559038,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 117,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "devops",
+			"gradeKey": "middle",
+			"skillKey": "docker",
+			"median": 287083,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 241,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "devops",
+			"gradeKey": "middle",
+			"skillKey": "kubernetes",
+			"median": 287083,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 256,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "devops",
+			"gradeKey": "middle",
+			"skillKey": "linux",
+			"median": 263676,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 375,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "devops",
+			"gradeKey": "middle",
+			"skillKey": "python",
+			"median": 287083,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 576,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "devops",
+			"gradeKey": "senior",
+			"skillKey": "docker",
+			"median": 425343,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 94,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "devops",
+			"gradeKey": "senior",
+			"skillKey": "kubernetes",
+			"median": 472429,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 177,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "devops",
+			"gradeKey": "senior",
+			"skillKey": "linux",
+			"median": 415543,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 178,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "devops",
+			"gradeKey": "senior",
+			"skillKey": "python",
+			"median": 438670,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 267,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "embedded",
+			"gradeKey": "intern",
+			"skillKey": "cpp",
+			"median": 59366,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 7,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "embedded",
+			"gradeKey": "intern",
+			"skillKey": "linux",
+			"median": 50559,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 7,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "embedded",
+			"gradeKey": "junior",
+			"skillKey": "c",
+			"median": 123081,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 16,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "embedded",
+			"gradeKey": "junior",
+			"skillKey": "cpp",
+			"median": 145166,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 45,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "embedded",
+			"gradeKey": "junior",
+			"skillKey": "linux",
+			"median": 139372,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 45,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "embedded",
+			"gradeKey": "lead",
+			"skillKey": "c",
+			"median": 390893,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 25,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "embedded",
+			"gradeKey": "lead",
+			"skillKey": "cpp",
+			"median": 445014,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 29,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "embedded",
+			"gradeKey": "lead",
+			"skillKey": "linux",
+			"median": 449610,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 29,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "embedded",
+			"gradeKey": "middle",
+			"skillKey": "c",
+			"median": 186244,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 60,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "embedded",
+			"gradeKey": "middle",
+			"skillKey": "cpp",
+			"median": 209625,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 117,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "embedded",
+			"gradeKey": "middle",
+			"skillKey": "linux",
+			"median": 192533,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 117,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "embedded",
+			"gradeKey": "senior",
+			"skillKey": "c",
+			"median": 269543,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 35,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "embedded",
+			"gradeKey": "senior",
+			"skillKey": "cpp",
+			"median": 288044,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 40,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "embedded",
+			"gradeKey": "senior",
+			"skillKey": "linux",
+			"median": 289772,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 40,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "frontend",
+			"gradeKey": "intern",
+			"skillKey": "javascript",
+			"median": 62508,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 8,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "frontend",
+			"gradeKey": "intern",
+			"skillKey": "react",
+			"median": 74969,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 14,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "frontend",
+			"gradeKey": "intern",
+			"skillKey": "typescript",
+			"median": 69862,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 15,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "frontend",
+			"gradeKey": "junior",
+			"skillKey": "angular",
+			"median": 86470,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 17,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "frontend",
+			"gradeKey": "junior",
+			"skillKey": "javascript",
+			"median": 104009,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 71,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "frontend",
+			"gradeKey": "junior",
+			"skillKey": "react",
+			"median": 104825,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 94,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "frontend",
+			"gradeKey": "junior",
+			"skillKey": "typescript",
+			"median": 105722,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 84,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "frontend",
+			"gradeKey": "junior",
+			"skillKey": "vue",
+			"median": 101317,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 38,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "frontend",
+			"gradeKey": "lead",
+			"skillKey": "angular",
+			"median": 478474,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 50,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "frontend",
+			"gradeKey": "lead",
+			"skillKey": "javascript",
+			"median": 473604,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 168,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "frontend",
+			"gradeKey": "lead",
+			"skillKey": "react",
+			"median": 465770,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 188,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "frontend",
+			"gradeKey": "lead",
+			"skillKey": "typescript",
+			"median": 462246,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 199,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "frontend",
+			"gradeKey": "lead",
+			"skillKey": "vue",
+			"median": 438972,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 91,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "frontend",
+			"gradeKey": "middle",
+			"skillKey": "angular",
+			"median": 243941,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 101,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "frontend",
+			"gradeKey": "middle",
+			"skillKey": "javascript",
+			"median": 230491,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 440,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "frontend",
+			"gradeKey": "middle",
+			"skillKey": "react",
+			"median": 238500,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 607,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "frontend",
+			"gradeKey": "middle",
+			"skillKey": "typescript",
+			"median": 243941,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 543,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "frontend",
+			"gradeKey": "middle",
+			"skillKey": "vue",
+			"median": 237186,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 263,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "frontend",
+			"gradeKey": "senior",
+			"skillKey": "angular",
+			"median": 378788,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 100,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "frontend",
+			"gradeKey": "senior",
+			"skillKey": "javascript",
+			"median": 376041,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 321,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "frontend",
+			"gradeKey": "senior",
+			"skillKey": "react",
+			"median": 390151,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 442,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "frontend",
+			"gradeKey": "senior",
+			"skillKey": "typescript",
+			"median": 383421,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 436,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "frontend",
+			"gradeKey": "senior",
+			"skillKey": "vue",
+			"median": 367897,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 173,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "intern",
+			"skillKey": "csharp",
+			"median": 67910,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 14,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "intern",
+			"skillKey": "docker",
+			"median": 81819,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 18,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "intern",
+			"skillKey": "go",
+			"median": 86500,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 26,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "intern",
+			"skillKey": "java",
+			"median": 78373,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 20,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "intern",
+			"skillKey": "javascript",
+			"median": 69546,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 8,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "intern",
+			"skillKey": "php",
+			"median": 60546,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 8,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "intern",
+			"skillKey": "postgresql",
+			"median": 78818,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 25,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "intern",
+			"skillKey": "python",
+			"median": 80909,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 26,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "intern",
+			"skillKey": "react",
+			"median": 83410,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 14,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "intern",
+			"skillKey": "sql",
+			"median": 81819,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 26,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "intern",
+			"skillKey": "typescript",
+			"median": 77728,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 15,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "junior",
+			"skillKey": "csharp",
+			"median": 102589,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 61,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "junior",
+			"skillKey": "docker",
+			"median": 109503,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 83,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "junior",
+			"skillKey": "go",
+			"median": 111041,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 88,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "junior",
+			"skillKey": "java",
+			"median": 111041,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 120,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "junior",
+			"skillKey": "javascript",
+			"median": 102509,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 71,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "junior",
+			"skillKey": "nodejs",
+			"median": 84741,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 18,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "junior",
+			"skillKey": "php",
+			"median": 86831,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 31,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "junior",
+			"skillKey": "postgresql",
+			"median": 111041,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 120,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "junior",
+			"skillKey": "python",
+			"median": 111041,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 120,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "junior",
+			"skillKey": "react",
+			"median": 103313,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 94,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "junior",
+			"skillKey": "sql",
+			"median": 111041,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 120,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "junior",
+			"skillKey": "typescript",
+			"median": 104198,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 84,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "junior",
+			"skillKey": "vue",
+			"median": 99856,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 38,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "lead",
+			"skillKey": "csharp",
+			"median": 461098,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 110,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "lead",
+			"skillKey": "docker",
+			"median": 386325,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 51,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "lead",
+			"skillKey": "go",
+			"median": 509166,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 178,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "lead",
+			"skillKey": "java",
+			"median": 487046,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 212,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "lead",
+			"skillKey": "javascript",
+			"median": 454644,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 168,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "lead",
+			"skillKey": "nodejs",
+			"median": 444719,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 64,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "lead",
+			"skillKey": "php",
+			"median": 422822,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 139,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "lead",
+			"skillKey": "postgresql",
+			"median": 500175,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 172,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "lead",
+			"skillKey": "python",
+			"median": 482106,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 212,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "lead",
+			"skillKey": "react",
+			"median": 447123,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 188,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "lead",
+			"skillKey": "sql",
+			"median": 443028,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 208,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "lead",
+			"skillKey": "typescript",
+			"median": 443740,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 199,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "lead",
+			"skillKey": "vue",
+			"median": 421398,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 91,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "middle",
+			"skillKey": "csharp",
+			"median": 197113,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 328,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "middle",
+			"skillKey": "docker",
+			"median": 211250,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 241,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "middle",
+			"skillKey": "go",
+			"median": 211250,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 425,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "middle",
+			"skillKey": "java",
+			"median": 211250,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 525,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "middle",
+			"skillKey": "javascript",
+			"median": 199603,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 440,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "middle",
+			"skillKey": "nodejs",
+			"median": 191750,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 138,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "middle",
+			"skillKey": "php",
+			"median": 186875,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 294,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "middle",
+			"skillKey": "postgresql",
+			"median": 211250,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 525,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "middle",
+			"skillKey": "python",
+			"median": 211250,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 525,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "middle",
+			"skillKey": "react",
+			"median": 206538,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 525,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "middle",
+			"skillKey": "sql",
+			"median": 211250,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 525,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "middle",
+			"skillKey": "typescript",
+			"median": 211250,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 525,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "middle",
+			"skillKey": "vue",
+			"median": 205400,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 263,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "senior",
+			"skillKey": "csharp",
+			"median": 309391,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 243,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "senior",
+			"skillKey": "docker",
+			"median": 320356,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 94,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "senior",
+			"skillKey": "go",
+			"median": 355820,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 315,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "senior",
+			"skillKey": "java",
+			"median": 341124,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 315,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "senior",
+			"skillKey": "javascript",
+			"median": 308777,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 315,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "senior",
+			"skillKey": "nodejs",
+			"median": 318807,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 100,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "senior",
+			"skillKey": "php",
+			"median": 297658,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 250,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "senior",
+			"skillKey": "postgresql",
+			"median": 337469,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 315,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "senior",
+			"skillKey": "python",
+			"median": 330394,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 315,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "senior",
+			"skillKey": "react",
+			"median": 320363,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 315,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "senior",
+			"skillKey": "sql",
+			"median": 314920,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 315,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "senior",
+			"skillKey": "typescript",
+			"median": 314836,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 315,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "fullstack",
+			"gradeKey": "senior",
+			"skillKey": "vue",
+			"median": 302089,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 173,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "gamedev",
+			"gradeKey": "intern",
+			"skillKey": "cpp",
+			"median": 79408,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 9,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "gamedev",
+			"gradeKey": "intern",
+			"skillKey": "csharp",
+			"median": 59259,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 9,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "gamedev",
+			"gradeKey": "junior",
+			"skillKey": "cpp",
+			"median": 119534,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 16,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "gamedev",
+			"gradeKey": "junior",
+			"skillKey": "csharp",
+			"median": 110436,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 16,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "gamedev",
+			"gradeKey": "lead",
+			"skillKey": "cpp",
+			"median": 400784,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 23,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "gamedev",
+			"gradeKey": "lead",
+			"skillKey": "csharp",
+			"median": 391326,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 23,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "gamedev",
+			"gradeKey": "middle",
+			"skillKey": "cpp",
+			"median": 164883,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 60,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "gamedev",
+			"gradeKey": "middle",
+			"skillKey": "csharp",
+			"median": 153849,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 60,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "gamedev",
+			"gradeKey": "senior",
+			"skillKey": "cpp",
+			"median": 331901,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 46,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "gamedev",
+			"gradeKey": "senior",
+			"skillKey": "csharp",
+			"median": 330068,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 46,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "ml_engineer",
+			"gradeKey": "intern",
+			"skillKey": "docker",
+			"median": 96790,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 18,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "ml_engineer",
+			"gradeKey": "intern",
+			"skillKey": "python",
+			"median": 95713,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 48,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "ml_engineer",
+			"gradeKey": "intern",
+			"skillKey": "sql",
+			"median": 96790,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 48,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "ml_engineer",
+			"gradeKey": "junior",
+			"skillKey": "docker",
+			"median": 156360,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 83,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "ml_engineer",
+			"gradeKey": "junior",
+			"skillKey": "python",
+			"median": 158556,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 115,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "ml_engineer",
+			"gradeKey": "junior",
+			"skillKey": "sql",
+			"median": 158556,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 115,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "ml_engineer",
+			"gradeKey": "lead",
+			"skillKey": "docker",
+			"median": 478880,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 51,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "ml_engineer",
+			"gradeKey": "lead",
+			"skillKey": "python",
+			"median": 597607,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 56,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "ml_engineer",
+			"gradeKey": "lead",
+			"skillKey": "sql",
+			"median": 549168,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 56,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "ml_engineer",
+			"gradeKey": "middle",
+			"skillKey": "docker",
+			"median": 290874,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 241,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "ml_engineer",
+			"gradeKey": "middle",
+			"skillKey": "python",
+			"median": 290874,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 244,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "ml_engineer",
+			"gradeKey": "middle",
+			"skillKey": "sql",
+			"median": 290874,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 244,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "ml_engineer",
+			"gradeKey": "senior",
+			"skillKey": "docker",
+			"median": 446480,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 94,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "ml_engineer",
+			"gradeKey": "senior",
+			"skillKey": "python",
+			"median": 460469,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 103,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "ml_engineer",
+			"gradeKey": "senior",
+			"skillKey": "sql",
+			"median": 438903,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 103,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "mlops",
+			"gradeKey": "lead",
+			"skillKey": "docker",
+			"median": 402765,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 5,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "mlops",
+			"gradeKey": "lead",
+			"skillKey": "kubernetes",
+			"median": 530833,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 5,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "mlops",
+			"gradeKey": "lead",
+			"skillKey": "python",
+			"median": 502621,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 5,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "mlops",
+			"gradeKey": "middle",
+			"skillKey": "docker",
+			"median": 359666,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 6,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "mlops",
+			"gradeKey": "middle",
+			"skillKey": "kubernetes",
+			"median": 359666,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 6,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "mlops",
+			"gradeKey": "middle",
+			"skillKey": "python",
+			"median": 359666,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 6,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "mlops",
+			"gradeKey": "senior",
+			"skillKey": "docker",
+			"median": 473536,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 9,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "mlops",
+			"gradeKey": "senior",
+			"skillKey": "kubernetes",
+			"median": 525958,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 9,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "mlops",
+			"gradeKey": "senior",
+			"skillKey": "python",
+			"median": 488373,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 9,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "mobile",
+			"gradeKey": "intern",
+			"skillKey": "kotlin",
+			"median": 93182,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 5,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "mobile",
+			"gradeKey": "junior",
+			"skillKey": "kotlin",
+			"median": 113858,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 36,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "mobile",
+			"gradeKey": "lead",
+			"skillKey": "kotlin",
+			"median": 614843,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 65,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "mobile",
+			"gradeKey": "lead",
+			"skillKey": "swift",
+			"median": 614843,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 26,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "mobile",
+			"gradeKey": "middle",
+			"skillKey": "kotlin",
+			"median": 294124,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 167,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "mobile",
+			"gradeKey": "middle",
+			"skillKey": "swift",
+			"median": 294124,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 54,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "mobile",
+			"gradeKey": "senior",
+			"skillKey": "kotlin",
+			"median": 494000,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 165,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "mobile",
+			"gradeKey": "senior",
+			"skillKey": "swift",
+			"median": 494000,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 56,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "network_engineer",
+			"gradeKey": "junior",
+			"skillKey": "linux",
+			"median": 145612,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 23,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "network_engineer",
+			"gradeKey": "lead",
+			"skillKey": "linux",
+			"median": 257594,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 17,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "network_engineer",
+			"gradeKey": "middle",
+			"skillKey": "linux",
+			"median": 160792,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 64,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "network_engineer",
+			"gradeKey": "senior",
+			"skillKey": "linux",
+			"median": 269667,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 25,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "onec",
+			"gradeKey": "intern",
+			"skillKey": "sql",
+			"median": 77922,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 18,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "onec",
+			"gradeKey": "junior",
+			"skillKey": "sql",
+			"median": 111041,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 88,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "onec",
+			"gradeKey": "lead",
+			"skillKey": "sql",
+			"median": 384431,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 53,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "onec",
+			"gradeKey": "middle",
+			"skillKey": "sql",
+			"median": 224250,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 198,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "onec",
+			"gradeKey": "senior",
+			"skillKey": "sql",
+			"median": 323885,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 96,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "pentester",
+			"gradeKey": "intern",
+			"skillKey": "linux",
+			"median": 78883,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 15,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "pentester",
+			"gradeKey": "intern",
+			"skillKey": "python",
+			"median": 82353,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 15,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "pentester",
+			"gradeKey": "junior",
+			"skillKey": "linux",
+			"median": 140412,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 25,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "pentester",
+			"gradeKey": "junior",
+			"skillKey": "python",
+			"median": 146250,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 25,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "pentester",
+			"gradeKey": "lead",
+			"skillKey": "linux",
+			"median": 584727,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 14,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "pentester",
+			"gradeKey": "lead",
+			"skillKey": "python",
+			"median": 590837,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 14,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "pentester",
+			"gradeKey": "middle",
+			"skillKey": "linux",
+			"median": 191391,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 59,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "pentester",
+			"gradeKey": "middle",
+			"skillKey": "python",
+			"median": 208381,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 59,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "pentester",
+			"gradeKey": "senior",
+			"skillKey": "linux",
+			"median": 381155,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 12,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "pentester",
+			"gradeKey": "senior",
+			"skillKey": "python",
+			"median": 402367,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 12,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "product_analyst",
+			"gradeKey": "intern",
+			"skillKey": "python",
+			"median": 91311,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 23,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "product_analyst",
+			"gradeKey": "intern",
+			"skillKey": "sql",
+			"median": 92337,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 23,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "product_analyst",
+			"gradeKey": "junior",
+			"skillKey": "clickhouse",
+			"median": 184816,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 15,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "product_analyst",
+			"gradeKey": "junior",
+			"skillKey": "python",
+			"median": 184816,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 45,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "product_analyst",
+			"gradeKey": "junior",
+			"skillKey": "sql",
+			"median": 184816,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 45,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "product_analyst",
+			"gradeKey": "lead",
+			"skillKey": "clickhouse",
+			"median": 500881,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 23,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "product_analyst",
+			"gradeKey": "lead",
+			"skillKey": "python",
+			"median": 548369,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 33,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "product_analyst",
+			"gradeKey": "lead",
+			"skillKey": "sql",
+			"median": 503921,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 33,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "product_analyst",
+			"gradeKey": "middle",
+			"skillKey": "clickhouse",
+			"median": 318500,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 55,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "product_analyst",
+			"gradeKey": "middle",
+			"skillKey": "python",
+			"median": 318500,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 138,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "product_analyst",
+			"gradeKey": "middle",
+			"skillKey": "sql",
+			"median": 318500,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 138,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "product_analyst",
+			"gradeKey": "senior",
+			"skillKey": "clickhouse",
+			"median": 489309,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 32,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "product_analyst",
+			"gradeKey": "senior",
+			"skillKey": "python",
+			"median": 463527,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 55,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "product_analyst",
+			"gradeKey": "senior",
+			"skillKey": "sql",
+			"median": 441819,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 55,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "product_manager",
+			"gradeKey": "intern",
+			"skillKey": "sql",
+			"median": 101260,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 25,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "product_manager",
+			"gradeKey": "junior",
+			"skillKey": "sql",
+			"median": 158166,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 62,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "product_manager",
+			"gradeKey": "lead",
+			"skillKey": "sql",
+			"median": 527864,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 123,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "product_manager",
+			"gradeKey": "middle",
+			"skillKey": "sql",
+			"median": 299000,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 317,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "product_manager",
+			"gradeKey": "senior",
+			"skillKey": "sql",
+			"median": 404904,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 221,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "qa_automation",
+			"gradeKey": "intern",
+			"skillKey": "csharp",
+			"median": 71951,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 14,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "qa_automation",
+			"gradeKey": "intern",
+			"skillKey": "java",
+			"median": 83037,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 20,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "qa_automation",
+			"gradeKey": "intern",
+			"skillKey": "javascript",
+			"median": 73685,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 8,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "qa_automation",
+			"gradeKey": "intern",
+			"skillKey": "python",
+			"median": 85724,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 39,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "qa_automation",
+			"gradeKey": "intern",
+			"skillKey": "typescript",
+			"median": 82354,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 15,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "qa_automation",
+			"gradeKey": "junior",
+			"skillKey": "csharp",
+			"median": 130114,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 61,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "qa_automation",
+			"gradeKey": "junior",
+			"skillKey": "java",
+			"median": 140833,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 85,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "qa_automation",
+			"gradeKey": "junior",
+			"skillKey": "javascript",
+			"median": 130012,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 71,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "qa_automation",
+			"gradeKey": "junior",
+			"skillKey": "python",
+			"median": 140833,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 85,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "qa_automation",
+			"gradeKey": "junior",
+			"skillKey": "typescript",
+			"median": 132154,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 84,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "qa_automation",
+			"gradeKey": "lead",
+			"skillKey": "csharp",
+			"median": 440986,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 83,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "qa_automation",
+			"gradeKey": "lead",
+			"skillKey": "java",
+			"median": 465803,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 83,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "qa_automation",
+			"gradeKey": "lead",
+			"skillKey": "javascript",
+			"median": 434814,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 83,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "qa_automation",
+			"gradeKey": "lead",
+			"skillKey": "python",
+			"median": 461078,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 83,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "qa_automation",
+			"gradeKey": "lead",
+			"skillKey": "typescript",
+			"median": 424386,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 83,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "qa_automation",
+			"gradeKey": "middle",
+			"skillKey": "csharp",
+			"median": 238556,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 328,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "qa_automation",
+			"gradeKey": "middle",
+			"skillKey": "java",
+			"median": 255666,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 350,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "qa_automation",
+			"gradeKey": "middle",
+			"skillKey": "javascript",
+			"median": 241570,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 350,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "qa_automation",
+			"gradeKey": "middle",
+			"skillKey": "python",
+			"median": 255666,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 350,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "qa_automation",
+			"gradeKey": "middle",
+			"skillKey": "typescript",
+			"median": 255666,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 350,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "qa_automation",
+			"gradeKey": "senior",
+			"skillKey": "csharp",
+			"median": 354371,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 243,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "qa_automation",
+			"gradeKey": "senior",
+			"skillKey": "java",
+			"median": 390717,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 256,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "qa_automation",
+			"gradeKey": "senior",
+			"skillKey": "javascript",
+			"median": 353667,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 256,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "qa_automation",
+			"gradeKey": "senior",
+			"skillKey": "python",
+			"median": 378427,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 256,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "qa_automation",
+			"gradeKey": "senior",
+			"skillKey": "typescript",
+			"median": 360607,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 256,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "qa_manual",
+			"gradeKey": "intern",
+			"skillKey": "sql",
+			"median": 73237,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 95,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "qa_manual",
+			"gradeKey": "junior",
+			"skillKey": "sql",
+			"median": 106600,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 334,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "qa_manual",
+			"gradeKey": "lead",
+			"skillKey": "sql",
+			"median": 302278,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 55,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "qa_manual",
+			"gradeKey": "middle",
+			"skillKey": "sql",
+			"median": 185250,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 786,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "qa_manual",
+			"gradeKey": "senior",
+			"skillKey": "sql",
+			"median": 256002,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 219,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "reverse_engineer",
+			"gradeKey": "middle",
+			"skillKey": "c",
+			"median": 187687,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 9,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "reverse_engineer",
+			"gradeKey": "middle",
+			"skillKey": "cpp",
+			"median": 211249,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 9,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "reverse_engineer",
+			"gradeKey": "senior",
+			"skillKey": "c",
+			"median": 461973,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 7,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "reverse_engineer",
+			"gradeKey": "senior",
+			"skillKey": "cpp",
+			"median": 493683,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 7,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "robotics_engineer",
+			"gradeKey": "intern",
+			"skillKey": "cpp",
+			"median": 59366,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 7,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "robotics_engineer",
+			"gradeKey": "intern",
+			"skillKey": "linux",
+			"median": 50559,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 7,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "robotics_engineer",
+			"gradeKey": "intern",
+			"skillKey": "python",
+			"median": 52783,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 7,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "robotics_engineer",
+			"gradeKey": "junior",
+			"skillKey": "cpp",
+			"median": 145166,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 45,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "robotics_engineer",
+			"gradeKey": "junior",
+			"skillKey": "linux",
+			"median": 139372,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 45,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "robotics_engineer",
+			"gradeKey": "junior",
+			"skillKey": "python",
+			"median": 145166,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 45,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "robotics_engineer",
+			"gradeKey": "lead",
+			"skillKey": "cpp",
+			"median": 445014,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 29,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "robotics_engineer",
+			"gradeKey": "lead",
+			"skillKey": "linux",
+			"median": 449610,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 29,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "robotics_engineer",
+			"gradeKey": "lead",
+			"skillKey": "python",
+			"median": 454308,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 29,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "robotics_engineer",
+			"gradeKey": "middle",
+			"skillKey": "cpp",
+			"median": 209625,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 117,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "robotics_engineer",
+			"gradeKey": "middle",
+			"skillKey": "linux",
+			"median": 192533,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 117,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "robotics_engineer",
+			"gradeKey": "middle",
+			"skillKey": "python",
+			"median": 209625,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 117,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "robotics_engineer",
+			"gradeKey": "senior",
+			"skillKey": "cpp",
+			"median": 288044,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 40,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "robotics_engineer",
+			"gradeKey": "senior",
+			"skillKey": "linux",
+			"median": 289772,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 40,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "robotics_engineer",
+			"gradeKey": "senior",
+			"skillKey": "python",
+			"median": 305899,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 40,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "security_engineer",
+			"gradeKey": "junior",
+			"skillKey": "linux",
+			"median": 113890,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 9,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "security_engineer",
+			"gradeKey": "lead",
+			"skillKey": "linux",
+			"median": 568484,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 17,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "security_engineer",
+			"gradeKey": "middle",
+			"skillKey": "linux",
+			"median": 239796,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 30,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "security_engineer",
+			"gradeKey": "senior",
+			"skillKey": "linux",
+			"median": 278195,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 11,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "soc_analyst",
+			"gradeKey": "intern",
+			"skillKey": "linux",
+			"median": 72425,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 5,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "soc_analyst",
+			"gradeKey": "junior",
+			"skillKey": "linux",
+			"median": 138435,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 26,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "soc_analyst",
+			"gradeKey": "middle",
+			"skillKey": "linux",
+			"median": 211339,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 32,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "soc_analyst",
+			"gradeKey": "senior",
+			"skillKey": "linux",
+			"median": 383061,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 6,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "sre",
+			"gradeKey": "junior",
+			"skillKey": "go",
+			"median": 207999,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 13,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "sre",
+			"gradeKey": "junior",
+			"skillKey": "kubernetes",
+			"median": 207999,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 13,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "sre",
+			"gradeKey": "junior",
+			"skillKey": "linux",
+			"median": 199696,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 13,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "sre",
+			"gradeKey": "junior",
+			"skillKey": "python",
+			"median": 207999,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 13,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "sre",
+			"gradeKey": "lead",
+			"skillKey": "go",
+			"median": 659749,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 18,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "sre",
+			"gradeKey": "lead",
+			"skillKey": "kubernetes",
+			"median": 659749,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 18,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "sre",
+			"gradeKey": "lead",
+			"skillKey": "linux",
+			"median": 618226,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 18,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "sre",
+			"gradeKey": "lead",
+			"skillKey": "python",
+			"median": 624686,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 18,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "sre",
+			"gradeKey": "middle",
+			"skillKey": "go",
+			"median": 322508,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 52,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "sre",
+			"gradeKey": "middle",
+			"skillKey": "kubernetes",
+			"median": 322508,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 52,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "sre",
+			"gradeKey": "middle",
+			"skillKey": "linux",
+			"median": 296212,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 52,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "sre",
+			"gradeKey": "middle",
+			"skillKey": "python",
+			"median": 322508,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 52,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "sre",
+			"gradeKey": "senior",
+			"skillKey": "go",
+			"median": 513283,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 38,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "sre",
+			"gradeKey": "senior",
+			"skillKey": "kubernetes",
+			"median": 513283,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 38,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "sre",
+			"gradeKey": "senior",
+			"skillKey": "linux",
+			"median": 451478,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 38,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "sre",
+			"gradeKey": "senior",
+			"skillKey": "python",
+			"median": 476604,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 38,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "sysadmin",
+			"gradeKey": "intern",
+			"skillKey": "linux",
+			"median": 61796,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 31,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "sysadmin",
+			"gradeKey": "junior",
+			"skillKey": "linux",
+			"median": 99328,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 133,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "sysadmin",
+			"gradeKey": "lead",
+			"skillKey": "linux",
+			"median": 274091,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 77,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "sysadmin",
+			"gradeKey": "middle",
+			"skillKey": "linux",
+			"median": 144772,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 375,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "sysadmin",
+			"gradeKey": "senior",
+			"skillKey": "linux",
+			"median": 204298,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 139,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "systems_analyst",
+			"gradeKey": "intern",
+			"skillKey": "sql",
+			"median": 75000,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 95,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "systems_analyst",
+			"gradeKey": "junior",
+			"skillKey": "sql",
+			"median": 143000,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 334,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "systems_analyst",
+			"gradeKey": "lead",
+			"skillKey": "sql",
+			"median": 412488,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 208,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "systems_analyst",
+			"gradeKey": "middle",
+			"skillKey": "sql",
+			"median": 255666,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 1203,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "systems_analyst",
+			"gradeKey": "senior",
+			"skillKey": "sql",
+			"median": 344211,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 558,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "tech_support",
+			"gradeKey": "intern",
+			"skillKey": "linux",
+			"median": 78422,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 31,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "tech_support",
+			"gradeKey": "intern",
+			"skillKey": "sql",
+			"median": 82793,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 39,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "tech_support",
+			"gradeKey": "junior",
+			"skillKey": "linux",
+			"median": 94128,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 133,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "tech_support",
+			"gradeKey": "junior",
+			"skillKey": "sql",
+			"median": 98041,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 204,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "tech_support",
+			"gradeKey": "lead",
+			"skillKey": "linux",
+			"median": 166484,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 50,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "tech_support",
+			"gradeKey": "lead",
+			"skillKey": "sql",
+			"median": 154588,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 50,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "tech_support",
+			"gradeKey": "middle",
+			"skillKey": "linux",
+			"median": 124574,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 375,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "tech_support",
+			"gradeKey": "middle",
+			"skillKey": "sql",
+			"median": 135633,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 491,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "tech_support",
+			"gradeKey": "senior",
+			"skillKey": "linux",
+			"median": 150555,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 160,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "tech_support",
+			"gradeKey": "senior",
+			"skillKey": "sql",
+			"median": 151491,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 160,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "uav_engineer",
+			"gradeKey": "intern",
+			"skillKey": "cpp",
+			"median": 59366,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 7,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "uav_engineer",
+			"gradeKey": "intern",
+			"skillKey": "python",
+			"median": 52783,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 7,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "uav_engineer",
+			"gradeKey": "junior",
+			"skillKey": "cpp",
+			"median": 145166,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 45,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "uav_engineer",
+			"gradeKey": "junior",
+			"skillKey": "python",
+			"median": 145166,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 45,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "uav_engineer",
+			"gradeKey": "lead",
+			"skillKey": "cpp",
+			"median": 445014,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 29,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "uav_engineer",
+			"gradeKey": "lead",
+			"skillKey": "python",
+			"median": 454308,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 29,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "uav_engineer",
+			"gradeKey": "middle",
+			"skillKey": "cpp",
+			"median": 209625,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 117,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "uav_engineer",
+			"gradeKey": "middle",
+			"skillKey": "python",
+			"median": 209625,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 117,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "uav_engineer",
+			"gradeKey": "senior",
+			"skillKey": "cpp",
+			"median": 288044,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 40,
+			"method": "estimated_stack_adjustment"
+		},
+		{
+			"roleKey": "uav_engineer",
+			"gradeKey": "senior",
+			"skillKey": "python",
+			"median": 305899,
+			"p25": null,
+			"p75": null,
+			"sampleSize": 40,
+			"method": "estimated_stack_adjustment"
+		}
+	]
+}

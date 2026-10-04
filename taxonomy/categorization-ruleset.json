@@ -1,0 +1,195 @@
+{
+	"meta": {
+		"description": "Правила расчёта категории (роль × грейд × ядро стека) и уровня ФСП. Версия правил независима от версии таксономии и неизменяема после записи: изменение параметров — новая версия. Вес доказательства определяется релевантностью факта конкретному утверждению, а не общим приоритетом источников: для навыка — правилом проекции или типом утверждения, для грейда — только производственными сигналами. ФСП — поддерживающее основание роли: навыки из достижений входят в сумму оснований, но ключевые навыки роли засчитываются только по основаниям вне ФСП, а роль, которую устанавливает одна ФСП, не бывает основной при роли, установленной без ФСП. Числа — стартовые, до калибровки. Версия 6: подтверждённые публичные профили — рейтинг Codeforces по порогам подтверждает навыки спортивного программирования, язык публичных репозиториев GitHub (от минимальной доли байтов) — навык языка, слабее теста платформы; доверие такого вклада — «публичный профиль». Версия 7 — параметры версии 6 без изменений, под выпуск таксономии 2026.09.7; версия 8 — те же параметры под выпуск 2026.09.8; версия 9 — те же параметры под выпуск 2026.09.9; версия 10 — те же параметры под выпуск 2026.09.10: версия правил привязана к версии таксономии. Прямое подтверждение публичным профилем остаётся прямым с доверием «публичный профиль»: подтверждённым для доверия к оценке и пула его не считают правила соответствия. Версия 11 — те же параметры под выпуск 2026.09.11.",
+		"sources": [
+			{
+				"title": "Собственная модель категоризации команды",
+				"retrievedAt": "2026-09-24"
+			}
+		]
+	},
+	"version": 11,
+	"params": {
+		"evidence": {
+			"weighting": "relevance_to_claim",
+			"aggregation": {
+				"withinGroup": "max",
+				"acrossGroups": "noisy_or"
+			},
+			"groupKeys": {
+				"fspCompetition": "fsp:competition:{competitionId}",
+				"fspQualificationWithoutBasis": "fsp:qualification:{discipline}:{rank}",
+				"platformAssessment": "test:assessment:{assessmentId}",
+				"externalProfile": "profile:{platform}:{handle}",
+				"resume": "resume:{resumeDocumentId}"
+			},
+			"childToParentFactor": 0.5,
+			"recencyHalfLifeYears": 3,
+			"claimWeights": {
+				"resumeSkillMention": 0.3,
+				"resumeAppliedSkill": 0.45,
+				"resumeRoleExperience": 0.5,
+				"platformTest": 0.9
+			},
+			"publicProfiles": {
+				"codeforces": {
+					"skills": ["competitive_programming", "algorithms"],
+					"weight": 0.8,
+					"attestation": "direct",
+					"minSolved": 10,
+					"ratingStrength": [
+						{ "fromRating": 0, "strength": 0.2 },
+						{ "fromRating": 1200, "strength": 0.35 },
+						{ "fromRating": 1400, "strength": 0.5 },
+						{ "fromRating": 1600, "strength": 0.65 },
+						{ "fromRating": 1900, "strength": 0.8 },
+						{ "fromRating": 2100, "strength": 0.9 },
+						{ "fromRating": 2400, "strength": 1 }
+					]
+				},
+				"github": {
+					"weight": 0.45,
+					"attestation": "direct",
+					"minShare": 0.1,
+					"fullShare": 0.4,
+					"languages": {
+						"Python": "python",
+						"JavaScript": "javascript",
+						"TypeScript": "typescript",
+						"Java": "java",
+						"Kotlin": "kotlin",
+						"Go": "go",
+						"C#": "csharp",
+						"C++": "cpp",
+						"C": "c",
+						"Rust": "rust",
+						"PHP": "php",
+						"Ruby": "ruby",
+						"Swift": "swift",
+						"Objective-C": "objective_c",
+						"Dart": "dart",
+						"Scala": "scala",
+						"Elixir": "elixir",
+						"Erlang": "erlang",
+						"Haskell": "haskell",
+						"Lua": "lua",
+						"R": "r",
+						"Julia": "julia",
+						"MATLAB": "matlab",
+						"Shell": "bash",
+						"PowerShell": "powershell",
+						"PLSQL": "plsql",
+						"TSQL": "tsql",
+						"1C Enterprise": "onec",
+						"Assembly": "assembly",
+						"Solidity": "solidity",
+						"HTML": "html",
+						"CSS": "css",
+						"SCSS": "sass",
+						"Sass": "sass",
+						"Verilog": "verilog",
+						"SystemVerilog": "verilog",
+						"Pascal": "pascal"
+					}
+				}
+			}
+		},
+		"strengthBands": {
+			"moderate": 0.35,
+			"strong": 0.65
+		},
+		"fspTeamRoles": {
+			"athlete": {
+				"contributesSkills": true,
+				"markers": {}
+			},
+			"captain": {
+				"contributesSkills": true,
+				"markers": {
+					"team_lead": 0.5
+				}
+			},
+			"reserve": {
+				"contributesSkills": false,
+				"markers": {}
+			},
+			"trainer": {
+				"contributesSkills": false,
+				"markers": {
+					"mentoring": 0.5
+				}
+			},
+			"unknown": {
+				"contributesSkills": true,
+				"markers": {}
+			}
+		},
+		"role": {
+			"coreSkillMinStrength": 0.3,
+			"typicalSkillsWeight": 0.5,
+			"secondaryMinScoreRatio": 0.7,
+			"maxSecondary": 2,
+			"minScore": 0.4,
+			"coreSkillGrounds": "outside_fsp",
+			"primaryRole": "grounds_outside_fsp_first"
+		},
+		"stack": {
+			"maxSkills": 3,
+			"minBand": "moderate",
+			"excludeKinds": ["practice"]
+		},
+		"grade": {
+			"signals": ["role_experience", "responsibility_markers", "level_test"],
+			"responsibilityMarkerSources": ["resume"],
+			"fspAffectsGrade": false,
+			"experienceScope": "role_family",
+			"experienceBands": [
+				{
+					"fromMonths": 0,
+					"toMonths": 5,
+					"min": "intern",
+					"max": "junior"
+				},
+				{
+					"fromMonths": 6,
+					"toMonths": 11,
+					"min": "junior",
+					"max": "junior"
+				},
+				{
+					"fromMonths": 12,
+					"toMonths": 35,
+					"min": "junior",
+					"max": "middle"
+				},
+				{
+					"fromMonths": 36,
+					"toMonths": 71,
+					"min": "middle",
+					"max": "senior"
+				},
+				{
+					"fromMonths": 72,
+					"toMonths": null,
+					"min": "senior",
+					"max": "senior"
+				}
+			],
+			"responsibilityMarkers": {
+				"markers": ["mentoring", "team_lead", "architecture"],
+				"raiseUpperBy": 1,
+				"requiredFor": ["lead", "principal"]
+			},
+			"levelTest": "confirms_or_caps_upper",
+			"disagreement": "show_each_source",
+			"confidence": {
+				"base": 0.5,
+				"monthPrecision": 0.1,
+				"candidateConfirmed": 0.1,
+				"levelTestConfirms": 0.25,
+				"levelTestDisagrees": 0.2
+			}
+		},
+		"desiredRoleAffectsResult": false
+	}
+}

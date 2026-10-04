@@ -1,0 +1,52 @@
+{
+	"meta": {
+		"version": "2026.09.1",
+		"description": "Шкала фасета «уровень ФСП» по дисциплине: уровень — наивысший, критерий которого выполнен хотя бы одним фактом с доверием fsp_verified. rank — присвоенный разряд (qualification) или расчётный показатель ЕВСК результата (evsk_indicator) не ниже minRank; nationalTeam — состав сборной; participation — официальный результат в дисциплине. Уровень ФСП — отдельный фасет, грейд он не задаёт. Рейтинги платформ в шкалу не входят: их шкала не сверена.",
+		"sources": [
+			{
+				"title": "Приказ Минспорта России от 09.04.2026 № 299, приложение № 77 (разряды и звания вида спорта)",
+				"url": "http://publication.pravo.gov.ru/document/0001202606080012",
+				"retrievedAt": "2026-09-24",
+				"license": "нормативный акт, ГК РФ ст. 1259 п. 6"
+			},
+			{ "title": "Собственная шкала команды (гипотеза до согласования с ФСП)", "retrievedAt": "2026-09-24" }
+		]
+	},
+	"levels": [
+		{
+			"level": "L5",
+			"criteria": {
+				"anyOf": [
+					{ "kind": "rank", "minRank": "MS", "basis": ["qualification", "evsk_indicator"] },
+					{ "kind": "national_team", "squads": ["main"] }
+				]
+			}
+		},
+		{
+			"level": "L4",
+			"criteria": {
+				"anyOf": [
+					{ "kind": "rank", "minRank": "KMS", "basis": ["qualification", "evsk_indicator"] },
+					{ "kind": "national_team", "squads": ["reserve"] }
+				]
+			}
+		},
+		{
+			"level": "L3",
+			"criteria": { "anyOf": [{ "kind": "rank", "minRank": "I", "basis": ["qualification", "evsk_indicator"] }] }
+		},
+		{
+			"level": "L2",
+			"criteria": { "anyOf": [{ "kind": "rank", "minRank": "III", "basis": ["qualification", "evsk_indicator"] }] }
+		},
+		{
+			"level": "L1",
+			"criteria": {
+				"anyOf": [
+					{ "kind": "rank", "minRank": "Y3", "basis": ["qualification", "evsk_indicator"] },
+					{ "kind": "participation", "resultStatuses": ["official"] }
+				]
+			}
+		}
+	]
+}

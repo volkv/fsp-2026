@@ -1,0 +1,441 @@
+{
+	"created_at": "2026-09-25T19:05:50+00:00",
+	"product_revision": "56001399c249",
+	"requested_mode": "rules_only",
+	"timing": {
+		"extract_seconds": 28.0,
+		"seconds_per_document": 0.244,
+		"concurrency": 4
+	},
+	"row": {
+		"dataset_id": "synthetic-resumes-v2",
+		"dataset_size": 115,
+		"dataset_provenance": "synthetic",
+		"split": "holdout-by-profile-and-family",
+		"versions": {
+			"taxonomy": "2026.09.5",
+			"taxonomy_sha256": "24a2f8448efd92a41d7d43115b14d5587b6b533fa8dd094f1f9bc32b52c58e92",
+			"categorization_ruleset": 5,
+			"resume_rules": "resume-rules/2",
+			"resume_schema": "resume-extract/v2",
+			"docparse": "fsp-docparse@1.0.0+2f77590dee2f",
+			"extract_producer": "resume-rules/2",
+			"dataset_generator": 2,
+			"dataset_labels_sha256": "fafea5704a7d201e2d51cfbc74c3c2ed928971437e869233bce0c92bcc206464",
+			"fsp_layer": "fsp-achievements-v2",
+			"fsp_layer_labels_sha256": "a1e84eaa29bbece9592efdce7d687249aa9da3ee8ae23ba1830c99cecc7e92ad",
+			"matching_layer": "synthetic-matching-v1",
+			"matching_layer_labels_sha256": "8282f05774f8c58459436ec9d85a63f8458f4b047c32d2ef3b0fe08a4f021ccd",
+			"match_ruleset": "3",
+			"reranker": "bge-reranker-v2-m3",
+			"embedding_space": "none",
+			"harness": "fsp-eval/2",
+			"thresholds_sha256": "d21297e1b428"
+		},
+		"processing_mode": "rules_only",
+		"thresholds": {
+			"resume.parse_success_rate": {
+				"min": 0.98
+			},
+			"resume.skills_f1": {
+				"min": 0.85
+			},
+			"resume.skills_precision": {
+				"min": 0.85
+			},
+			"resume.skills_recall": {
+				"min": 0.85
+			},
+			"resume.fields_f1": {
+				"min": 0.75
+			},
+			"resume.quote_validity": {
+				"min": 0.98
+			},
+			"skills.normalization_accuracy": {
+				"min": 0.9
+			},
+			"skills.normalization_accuracy.unknown": {
+				"min": 0.9
+			},
+			"categorization.role_accuracy": {
+				"min": 0.8
+			},
+			"categorization.grade_in_range": {
+				"min": 0.75
+			},
+			"categorization.grade_range_width": {
+				"max": 2
+			},
+			"categorization.sufficiency_accuracy.role": {
+				"min": 0.85
+			},
+			"categorization.false_refusal_rate": {
+				"max": 0.1
+			},
+			"matching.ndcg_at_10": {
+				"min": 0.7
+			}
+		},
+		"metrics": {
+			"resume.parse_success_rate": {
+				"value": 1.0,
+				"n": 115
+			},
+			"resume.skills_f1": {
+				"value": 0.9779,
+				"n": 115,
+				"baseline": 0.7578
+			},
+			"resume.skills_precision": {
+				"value": 0.9851,
+				"n": 115,
+				"baseline": 0.9769
+			},
+			"resume.skills_recall": {
+				"value": 0.9707,
+				"n": 115,
+				"baseline": 0.6189
+			},
+			"resume.skills_recall.unfamiliar": {
+				"value": 0.7719,
+				"n": 57,
+				"baseline": 0.5789
+			},
+			"resume.fields_f1": {
+				"value": 0.9787,
+				"n": 115
+			},
+			"resume.fields_f1.period": {
+				"value": 0.9979,
+				"n": 235
+			},
+			"resume.fields_f1.role": {
+				"value": 0.9729,
+				"n": 263
+			},
+			"resume.fields_f1.organization": {
+				"value": 0.9438,
+				"n": 263
+			},
+			"resume.fields_f1.language": {
+				"value": 1.0,
+				"n": 127
+			},
+			"resume.fields_f1.education": {
+				"value": 1.0,
+				"n": 100
+			},
+			"resume.fields_f1.marker": {
+				"value": 1.0,
+				"n": 43
+			},
+			"skills.normalization_accuracy": {
+				"value": 0.8598,
+				"n": 271,
+				"baseline": 0.3727
+			},
+			"skills.normalization_accuracy.variant": {
+				"value": 0.8386,
+				"n": 223,
+				"baseline": 0.3991
+			},
+			"skills.normalization_accuracy.unfamiliar": {
+				"value": 0.2,
+				"n": 45,
+				"baseline": 0.0
+			},
+			"skills.normalization_accuracy.typo": {
+				"value": 0.9444,
+				"n": 36,
+				"baseline": 0.0
+			},
+			"skills.normalization_accuracy.unknown": {
+				"value": 1.0,
+				"n": 12,
+				"baseline": 1.0
+			},
+			"skills.lexicon_overlap": {
+				"value": 0.7982,
+				"n": 223
+			},
+			"categorization.role_accuracy": {
+				"value": 0.9815,
+				"n": 108,
+				"baseline": 0.0833
+			},
+			"categorization.grade_in_range": {
+				"value": 0.9688,
+				"n": 96,
+				"baseline": 0.2292
+			},
+			"categorization.grade_range_width": {
+				"value": 1.8947,
+				"n": 95,
+				"baseline": 1.0
+			},
+			"categorization.sufficiency_accuracy.role": {
+				"value": 0.9826,
+				"n": 115,
+				"baseline": 0.9391
+			},
+			"categorization.sufficiency_accuracy.grade": {
+				"value": 0.9913,
+				"n": 115,
+				"baseline": 0.8348
+			},
+			"categorization.refusal_rate": {
+				"value": 0.0783,
+				"n": 115,
+				"baseline": 0.0
+			},
+			"categorization.false_refusal_rate": {
+				"value": 0.0185,
+				"n": 108,
+				"baseline": 0.0
+			},
+			"categorization.role_established.without_fsp": {
+				"value": 0.8511,
+				"n": 47
+			},
+			"categorization.role_established.with_fsp": {
+				"value": 0.8511,
+				"n": 47,
+				"baseline": 0.8511
+			},
+			"categorization.role_found.without_fsp": {
+				"value": 0.8511,
+				"n": 47
+			},
+			"categorization.role_found.with_fsp": {
+				"value": 0.8511,
+				"n": 47,
+				"baseline": 0.8511
+			},
+			"categorization.role_accuracy.without_fsp": {
+				"value": 0.9756,
+				"n": 41
+			},
+			"categorization.role_accuracy.with_fsp": {
+				"value": 0.9756,
+				"n": 41,
+				"baseline": 0.9756
+			},
+			"categorization.role_wrong_rate.without_fsp": {
+				"value": 0.0,
+				"n": 47
+			},
+			"categorization.role_wrong_rate.with_fsp": {
+				"value": 0.0,
+				"n": 47,
+				"baseline": 0.0
+			},
+			"categorization.refusal_rate.without_fsp": {
+				"value": 0.1489,
+				"n": 47
+			},
+			"categorization.refusal_rate.with_fsp": {
+				"value": 0.1489,
+				"n": 47,
+				"baseline": 0.1489
+			},
+			"categorization.grade_established.without_fsp": {
+				"value": 0.7872,
+				"n": 47
+			},
+			"categorization.grade_established.with_fsp": {
+				"value": 0.7872,
+				"n": 47,
+				"baseline": 0.7872
+			},
+			"categorization.grade_in_range.without_fsp": {
+				"value": 0.973,
+				"n": 37
+			},
+			"categorization.grade_in_range.with_fsp": {
+				"value": 0.973,
+				"n": 37,
+				"baseline": 0.973
+			},
+			"categorization.fsp_level_accuracy": {
+				"value": 1.0,
+				"n": 60
+			},
+			"categorization.fsp_level_coverage": {
+				"value": 0.9787,
+				"n": 47
+			},
+			"matching.ndcg_at_10": {
+				"value": 0.8754,
+				"n": 38,
+				"baseline": 0.7548
+			},
+			"matching.ndcg_at_10.keywords": {
+				"value": 0.7548,
+				"n": 38,
+				"baseline": 0.0737
+			},
+			"matching.ndcg_at_10.random": {
+				"value": 0.0737,
+				"n": 38
+			},
+			"matching.ndcg_at_10.resume_only": {
+				"value": 0.8498,
+				"n": 38,
+				"baseline": 0.7548
+			},
+			"matching.ndcg_at_10.without_fsp": {
+				"value": 0.8659,
+				"n": 38,
+				"baseline": 0.8754
+			},
+			"matching.ndcg_at_10.without_tests": {
+				"value": 0.8594,
+				"n": 38,
+				"baseline": 0.8754
+			},
+			"matching.ndcg_at_10.without_reranker": {
+				"value": 0.8597,
+				"n": 38,
+				"baseline": 0.8754
+			},
+			"matching.ndcg_at_10.with_semantic": {
+				"value": null,
+				"n": 0
+			},
+			"resume.quote_validity": {
+				"value": 1.0,
+				"n": 2769
+			},
+			"resume.quote_validity.offsets": {
+				"value": 1.0,
+				"n": 2769
+			},
+			"resume.quote_refusal_rate": {
+				"value": 0.0,
+				"n": 2772
+			},
+			"performance.extract_ms.p50": {
+				"value": 2,
+				"n": 115
+			},
+			"performance.extract_ms.p95": {
+				"value": 6,
+				"n": 115
+			}
+		}
+	},
+	"threshold_failures": ["skills.normalization_accuracy: 0.8598 outside {'min': 0.9}"],
+	"matching": {
+		"vacancies": 40,
+		"rated_vacancies": 38,
+		"pool": 115,
+		"reranker_used": true,
+		"deltas": {
+			"full_minus_keywords": {
+				"mean": 0.12057151881061265,
+				"ci95": [0.0786145857851381, 0.16484443138860186],
+				"n": 38
+			},
+			"full_minus_random": {
+				"mean": 0.8017314014744409,
+				"ci95": [0.7488466685951265, 0.8444869100070463],
+				"n": 38
+			},
+			"full_minus_resume_only": {
+				"mean": 0.02553537208782467,
+				"ci95": [0.0013215460751563586, 0.05232543582465473],
+				"n": 38
+			},
+			"full_minus_without_fsp": {
+				"mean": 0.009483441353626046,
+				"ci95": [-0.0027732701171831924, 0.024176010877807658],
+				"n": 38
+			},
+			"full_minus_without_tests": {
+				"mean": 0.015992358848643518,
+				"ci95": [-0.002595535535192406, 0.03611069975210307],
+				"n": 38
+			},
+			"full_minus_without_reranker": {
+				"mean": 0.015692903674438576,
+				"ci95": [0.0022765297227790218, 0.03116716605210262],
+				"n": 38
+			}
+		},
+		"role_agnostic": {
+			"keywords": 0.7435951151829748,
+			"random": 0.07495002954800292,
+			"full": 0.8589069866334894,
+			"without_fsp": 0.850958468316625,
+			"without_tests": 0.8472257442132504,
+			"resume_only": 0.8340382277948588,
+			"without_reranker": 0.8425261284805853
+		},
+		"by_kind": {
+			"algorithmic": {
+				"keywords": 0.5719336067720446,
+				"random": 0.09369488338565628,
+				"full": 0.6881440782589273,
+				"without_fsp": 0.649768288190204,
+				"without_tests": 0.6674291722203394,
+				"resume_only": 0.6343479555228763,
+				"without_reranker": 0.6885848057336043
+			},
+			"other": {
+				"keywords": 0.7961080285566049,
+				"random": 0.06912723895916115,
+				"full": 0.9176642999887049,
+				"without_fsp": 0.9147049373771976,
+				"without_tests": 0.9027383227635972,
+				"resume_only": 0.8985103877246733,
+				"without_reranker": 0.8983283183128531
+			}
+		},
+		"bridge": {
+			"reranker": {
+				"full": {
+					"used": 40,
+					"unavailable": {}
+				},
+				"without_fsp": {
+					"used": 40,
+					"unavailable": {}
+				},
+				"without_tests": {
+					"used": 40,
+					"unavailable": {}
+				},
+				"resume_only": {
+					"used": 40,
+					"unavailable": {}
+				},
+				"without_reranker": {
+					"used": 0,
+					"unavailable": {
+						"disabled": 40
+					}
+				}
+			},
+			"semantic": {
+				"no_active_space": 200
+			},
+			"models": {
+				"match_ruleset": "3",
+				"reranker": "bge-reranker-v2-m3",
+				"embedding_space": "none"
+			},
+			"catalog": {
+				"candidates": 460,
+				"categorized": 460,
+				"stale_jobs": 0,
+				"tests": 86,
+				"fsp_facts": 193
+			},
+			"seconds": {
+				"catalog": 4,
+				"ranking": 37.2
+			}
+		}
+	}
+}

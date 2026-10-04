@@ -1,0 +1,128 @@
+{
+	"meta": {
+		"version": "2026.09.1",
+		"description": "Фильтры кандидата и вакансии: формат работы, занятость, тип договора, релокация, статус поиска, уровень языка. Ключи статуса поиска совпадают с candidates.search_status.",
+		"sources": [
+			{
+				"title": "hh.ru API, справочники (work_format, employment_form, relocation_type, language_level)",
+				"url": "https://api.hh.ru/dictionaries",
+				"retrievedAt": "2026-09-24",
+				"license": "условия API hh: https://dev.hh.ru/"
+			}
+		]
+	},
+	"dimensions": {
+		"work_format": [
+			{
+				"key": "office",
+				"name": "Офис"
+			},
+			{
+				"key": "hybrid",
+				"name": "Гибрид"
+			},
+			{
+				"key": "remote",
+				"name": "Удалённо"
+			}
+		],
+		"employment_form": [
+			{
+				"key": "full",
+				"name": "Полная занятость"
+			},
+			{
+				"key": "part",
+				"name": "Частичная занятость"
+			},
+			{
+				"key": "project",
+				"name": "Проектная работа / контракт"
+			},
+			{
+				"key": "internship",
+				"name": "Стажировка"
+			},
+			{
+				"key": "side_job",
+				"name": "Подработка"
+			}
+		],
+		"contract_type": [
+			{
+				"key": "labor",
+				"name": "Трудовой договор (ТК РФ)"
+			},
+			{
+				"key": "gph",
+				"name": "ГПХ"
+			},
+			{
+				"key": "self_employed",
+				"name": "Самозанятость (НПД)"
+			},
+			{
+				"key": "ip",
+				"name": "ИП"
+			}
+		],
+		"relocation": [
+			{
+				"key": "no",
+				"name": "Не готов к переезду"
+			},
+			{
+				"key": "possible",
+				"name": "Готов к переезду"
+			},
+			{
+				"key": "desired",
+				"name": "Хочу переехать"
+			}
+		],
+		"search_status": [
+			{
+				"key": "active",
+				"name": "Активно ищу работу"
+			},
+			{
+				"key": "open_to_offers",
+				"name": "Рассматриваю предложения"
+			},
+			{
+				"key": "not_looking",
+				"name": "Не ищу работу"
+			}
+		],
+		"language_level": [
+			{
+				"key": "a1",
+				"name": "A1 — Начальный"
+			},
+			{
+				"key": "a2",
+				"name": "A2 — Элементарный"
+			},
+			{
+				"key": "b1",
+				"name": "B1 — Средний"
+			},
+			{
+				"key": "b2",
+				"name": "B2 — Средне-продвинутый"
+			},
+			{
+				"key": "c1",
+				"name": "C1 — Продвинутый"
+			},
+			{
+				"key": "c2",
+				"name": "C2 — В совершенстве"
+			},
+			{
+				"key": "l1",
+				"name": "Родной"
+			}
+		]
+	}
+}

@@ -1,0 +1,3 @@
+ALTER TABLE "companies" ADD COLUMN "demo_clone_of" uuid;--> statement-breakpoint
+ALTER TABLE "companies" ADD CONSTRAINT "companies_demo_clone_of_companies_id_fk" FOREIGN KEY ("demo_clone_of") REFERENCES "public"."companies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "companies" ADD CONSTRAINT "companies_demo_clone_of" CHECK ("companies"."demo_clone_of" is null or "companies"."demo_session_id" is not null);

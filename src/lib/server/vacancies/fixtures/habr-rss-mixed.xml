@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Synthetic feed in the template of the Habr Career RSS: IT postings and postings of other industries, with tags
+     written without spaces as the feed writes them. Companies and postings are fictional. -->
+<rss version="2.0">
+  <channel>
+    <title>Вакансии — Хабр Карьера</title>
+    <description>Вакансии — Хабр Карьера</description>
+    <link>https://career.habr.com/vacancies/rss</link>
+    <language>ru</language>
+    <item>
+      <title>Требуется «Go-разработчик» (Москва)</title>
+      <description>Компания «Пример Софт» ищет хорошего специалиста на вакансию «Go-разработчик». Москва (Россия). Полный рабочий день. Можно удалённо. От 250 000 ₽ до 350 000 ₽. Требуемые навыки: #senior, #Golang, #PostgreSQL, #Базыданных.</description>
+      <author>Пример Софт</author>
+      <pubDate>Thu, 24 Sep 2026 10:00:00 +0300</pubDate>
+      <link>https://career.habr.com/vacancies/900001</link>
+      <guid>900001</guid>
+    </item>
+    <item>
+      <title>Требуется «Младший инженер ЦОД» (Москва)</title>
+      <description>Компания «Пример Дата» ищет хорошего специалиста на вакансию «Младший инженер ЦОД». Москва (Россия). Полный рабочий день. Требуемые навыки: #DHCP, #DNS, #АдминистрированиеоборудованияCisco, #Техническаяподдержка.</description>
+      <author>Пример Дата</author>
+      <pubDate>Thu, 24 Sep 2026 11:00:00 +0300</pubDate>
+      <link>https://career.habr.com/vacancies/900002</link>
+      <guid>900002</guid>
+    </item>
+    <item>
+      <title>Требуется «Аналитик данных» (Санкт-Петербург)</title>
+      <description>Компания «Пример Ритейл» ищет хорошего специалиста на вакансию «Аналитик данных». Санкт-Петербург (Россия). Полный рабочий день. От 150 000 ₽. Требуемые навыки: #middle, #MicrosoftExcel, #PowerBI, #SQL.</description>
+      <author>Пример Ритейл</author>
+      <pubDate>Thu, 24 Sep 2026 12:00:00 +0300</pubDate>
+      <link>https://career.habr.com/vacancies/900003</link>
+      <guid>900003</guid>
+    </item>
+    <item>
+      <title>Требуется «Программист 1С» (Казань)</title>
+      <description>Компания «Пример Учёт» ищет хорошего специалиста на вакансию «Программист 1С». Казань (Россия). Полный рабочий день. Требуемые навыки: #Разработкапод1С, #1C:ERP.</description>
+      <author>Пример Учёт</author>
+      <pubDate>Thu, 24 Sep 2026 13:00:00 +0300</pubDate>
+      <link>https://career.habr.com/vacancies/900004</link>
+      <guid>900004</guid>
+    </item>
+    <item>
+      <title>Требуется «SMM маркетолог» (Москва)</title>
+      <description>Компания «Пример Медиа» ищет хорошего специалиста на вакансию «SMM маркетолог». Москва (Россия). Полный рабочий день. Требуемые навыки: #SMM, #Генерацияидей.</description>
+      <author>Пример Медиа</author>
+      <pubDate>Thu, 24 Sep 2026 14:00:00 +0300</pubDate>
+      <link>https://career.habr.com/vacancies/900005</link>
+      <guid>900005</guid>
+    </item>
+    <item>
+      <title>Требуется «Менеджер по маркетингу/Бренд-менеджер» (Москва)</title>
+      <description>Компания «Пример Фарма» ищет хорошего специалиста на вакансию «Менеджер по маркетингу/Бренд-менеджер». Москва (Россия). Полный рабочий день. Требуемые навыки: #Работавкоманде, #Информационныетехнологии.</description>
+      <author>Пример Фарма</author>
+      <pubDate>Thu, 24 Sep 2026 15:00:00 +0300</pubDate>
+      <link>https://career.habr.com/vacancies/900006</link>
+      <guid>900006</guid>
+    </item>
+    <item>
+      <title>Требуется «Senior Product Manager / Старший продакт-менеджер (препараты)» (Москва)</title>
+      <description>Компания «Пример Фарма» ищет хорошего специалиста на вакансию «Senior Product Manager / Старший продакт-менеджер (препараты)». Москва (Россия). Полный рабочий день. Требуемые навыки: #senior, #Работавкоманде, #Информационныетехнологии.</description>
+      <author>Пример Фарма</author>
+      <pubDate>Thu, 24 Sep 2026 16:00:00 +0300</pubDate>
+      <link>https://career.habr.com/vacancies/900007</link>
+      <guid>900007</guid>
+    </item>
+    <item>
+      <title>Требуется «Менеджер по активным продажам» (Москва)</title>
+      <description>Компания «Пример Трейд» ищет хорошего специалиста на вакансию «Менеджер по активным продажам». Москва (Россия). Полный рабочий день. Требуемые навыки: #Управлениепроектами, #Ведениепереговоров, #Управлениелюдьми.</description>
+      <author>Пример Трейд</author>
+      <pubDate>Thu, 24 Sep 2026 17:00:00 +0300</pubDate>
+      <link>https://career.habr.com/vacancies/900008</link>
+      <guid>900008</guid>
+    </item>
+    <item>
+      <title>Требуется «Специалист по лицензированию» (Москва)</title>
+      <description>Компания «Пример Лицензии» ищет хорошего специалиста на вакансию «Специалист по лицензированию». Москва (Россия). Полный рабочий день. Требуемые навыки: #Информационныетехнологии.</description>
+      <author>Пример Лицензии</author>
+      <pubDate>Thu, 24 Sep 2026 18:00:00 +0300</pubDate>
+      <link>https://career.habr.com/vacancies/900009</link>
+      <guid>900009</guid>
+    </item>
+  </channel>
+</rss>

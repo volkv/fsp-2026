@@ -1,0 +1,2393 @@
+{
+	"meta": {
+		"version": "2026.09.7",
+		"description": "Навыки с иерархией (parentKey: фреймворк или библиотека → язык или платформа) и написаниями для нормализации. Внешние ID — ссылки на справочники источников, не их копии.",
+		"sources": [
+			{
+				"title": "Собственная сборка команды по рыночным классификаторам",
+				"retrievedAt": "2026-09-24"
+			},
+			{
+				"title": "Хабр Карьера, подсказки навыков (ID навыков)",
+				"url": "https://career.habr.com/api/frontend/suggestions/skills",
+				"retrievedAt": "2026-09-24",
+				"license": "ссылки на ID, без перепубликации"
+			},
+			{
+				"title": "hh.ru API, подсказки ключевых навыков (ID навыков)",
+				"url": "https://api.hh.ru/suggests/skill_set",
+				"retrievedAt": "2026-09-24",
+				"license": "условия API hh: https://dev.hh.ru/"
+			},
+			{
+				"title": "Stack Exchange API, теги и синонимы тегов Stack Overflow",
+				"url": "https://api.stackexchange.com/docs",
+				"retrievedAt": "2026-09-24",
+				"license": "CC BY-SA 4.0"
+			},
+			{
+				"title": "GitHub Linguist, languages.yml (алиасы языков)",
+				"url": "https://github.com/github-linguist/linguist/blob/main/lib/linguist/languages.yml",
+				"retrievedAt": "2026-09-24",
+				"license": "MIT"
+			},
+			{
+				"title": "Хабр Карьера, теги навыков в ленте вакансий (написания, которые импорт не распознавал)",
+				"url": "https://career.habr.com/vacancies",
+				"retrievedAt": "2026-09-25"
+			},
+			{
+				"title": "hh.ru API, подсказки ключевых навыков (ID навыков, добавленных в выпуске 2026.09.7)",
+				"url": "https://api.hh.ru/suggests/skill_set",
+				"retrievedAt": "2026-09-25",
+				"license": "условия API hh: https://dev.hh.ru/"
+			},
+			{
+				"title": "Stack Exchange API, теги Stack Overflow (навыки, добавленные в выпуске 2026.09.7)",
+				"url": "https://api.stackexchange.com/docs",
+				"retrievedAt": "2026-09-25",
+				"license": "CC BY-SA 4.0"
+			}
+		]
+	},
+	"skills": [
+		{
+			"key": "python",
+			"kind": "language",
+			"parentKey": null,
+			"name": "Python",
+			"hhId": "1114",
+			"habrId": "446",
+			"soTag": "python",
+			"aliases": ["py", "python3", "пайтон", "питон"]
+		},
+		{
+			"key": "javascript",
+			"kind": "language",
+			"parentKey": null,
+			"name": "JavaScript",
+			"hhId": "674",
+			"habrId": "264",
+			"soTag": "javascript",
+			"aliases": ["ecmascript", "es2015", "es5", "es6", "js", "vanilla js", "джаваскрипт"]
+		},
+		{
+			"key": "typescript",
+			"kind": "language",
+			"parentKey": "javascript",
+			"name": "TypeScript",
+			"hhId": "33808",
+			"habrId": "245",
+			"soTag": "typescript",
+			"aliases": ["ts", "тайпскрипт"]
+		},
+		{
+			"key": "java",
+			"kind": "language",
+			"parentKey": null,
+			"name": "Java",
+			"hhId": "3093",
+			"habrId": "1012",
+			"soTag": "java",
+			"aliases": ["jakarta ee", "java ee", "java se", "джава"]
+		},
+		{
+			"key": "kotlin",
+			"kind": "language",
+			"parentKey": null,
+			"name": "Kotlin",
+			"hhId": "990246",
+			"habrId": "239",
+			"soTag": "kotlin",
+			"aliases": ["котлин"]
+		},
+		{
+			"key": "go",
+			"kind": "language",
+			"parentKey": null,
+			"name": "Go",
+			"hhId": "322406",
+			"habrId": "101",
+			"soTag": "go",
+			"aliases": ["Golang", "го"]
+		},
+		{
+			"key": "csharp",
+			"kind": "language",
+			"parentKey": null,
+			"name": "C#",
+			"hhId": "230",
+			"habrId": "706",
+			"soTag": "c#",
+			"aliases": ["c sharp", "csharp", "си шарп", "шарп"]
+		},
+		{
+			"key": "cpp",
+			"kind": "language",
+			"parentKey": null,
+			"name": "C++",
+			"hhId": "231",
+			"habrId": "172",
+			"soTag": "c++",
+			"aliases": ["c plus plus", "cplusplus", "cpp", "cpp17", "cpp20", "плюсы", "си плюс плюс"]
+		},
+		{
+			"key": "c",
+			"kind": "language",
+			"parentKey": null,
+			"name": "C",
+			"hhId": null,
+			"habrId": "849",
+			"soTag": "c",
+			"aliases": ["ansi c", "c11", "c99", "си"]
+		},
+		{
+			"key": "rust",
+			"kind": "language",
+			"parentKey": null,
+			"name": "Rust",
+			"hhId": null,
+			"habrId": "848",
+			"soTag": "rust",
+			"aliases": ["раст"]
+		},
+		{
+			"key": "php",
+			"kind": "language",
+			"parentKey": null,
+			"name": "PHP",
+			"hhId": "3750",
+			"habrId": "1005",
+			"soTag": "php",
+			"aliases": ["пхп"]
+		},
+		{
+			"key": "ruby",
+			"kind": "language",
+			"parentKey": null,
+			"name": "Ruby",
+			"hhId": "6027",
+			"habrId": "1081",
+			"soTag": "ruby",
+			"aliases": ["руби"]
+		},
+		{
+			"key": "swift",
+			"kind": "language",
+			"parentKey": null,
+			"name": "Swift",
+			"hhId": "411200",
+			"habrId": "1030",
+			"soTag": "swift",
+			"aliases": []
+		},
+		{
+			"key": "objective_c",
+			"kind": "language",
+			"parentKey": null,
+			"name": "Objective-C",
+			"hhId": "11766",
+			"habrId": null,
+			"soTag": "objective-c",
+			"aliases": ["obj-c", "objc"]
+		},
+		{
+			"key": "dart",
+			"kind": "language",
+			"parentKey": null,
+			"name": "Dart",
+			"hhId": "40050",
+			"habrId": "84",
+			"soTag": "dart",
+			"aliases": []
+		},
+		{
+			"key": "scala",
+			"kind": "language",
+			"parentKey": null,
+			"name": "Scala",
+			"hhId": "5983969",
+			"habrId": "132",
+			"soTag": "scala",
+			"aliases": []
+		},
+		{
+			"key": "elixir",
+			"kind": "language",
+			"parentKey": null,
+			"name": "Elixir",
+			"hhId": null,
+			"habrId": "1114",
+			"soTag": "elixir",
+			"aliases": []
+		},
+		{
+			"key": "erlang",
+			"kind": "language",
+			"parentKey": null,
+			"name": "Erlang",
+			"hhId": "61395",
+			"habrId": "108",
+			"soTag": "erlang",
+			"aliases": []
+		},
+		{
+			"key": "haskell",
+			"kind": "language",
+			"parentKey": null,
+			"name": "Haskell",
+			"hhId": null,
+			"habrId": "305",
+			"soTag": "haskell",
+			"aliases": []
+		},
+		{
+			"key": "lua",
+			"kind": "language",
+			"parentKey": null,
+			"name": "Lua",
+			"hhId": "19810",
+			"habrId": "170",
+			"soTag": "lua",
+			"aliases": []
+		},
+		{
+			"key": "r",
+			"kind": "language",
+			"parentKey": null,
+			"name": "R",
+			"hhId": null,
+			"habrId": "1112",
+			"soTag": "r",
+			"aliases": ["r language", "rlang"]
+		},
+		{
+			"key": "julia",
+			"kind": "language",
+			"parentKey": null,
+			"name": "Julia",
+			"hhId": null,
+			"habrId": "1492",
+			"soTag": "julia",
+			"aliases": []
+		},
+		{
+			"key": "matlab",
+			"kind": "language",
+			"parentKey": null,
+			"name": "MATLAB",
+			"hhId": "791",
+			"habrId": "326",
+			"soTag": "matlab",
+			"aliases": []
+		},
+		{
+			"key": "bash",
+			"kind": "language",
+			"parentKey": null,
+			"name": "Bash",
+			"hhId": "4070",
+			"habrId": "549",
+			"soTag": "bash",
+			"aliases": ["bash scripting", "sh", "shell", "shell scripting", "zsh"]
+		},
+		{
+			"key": "powershell",
+			"kind": "language",
+			"parentKey": null,
+			"name": "PowerShell",
+			"hhId": "16533",
+			"habrId": "75",
+			"soTag": "powershell",
+			"aliases": []
+		},
+		{
+			"key": "sql",
+			"kind": "language",
+			"parentKey": null,
+			"name": "SQL",
+			"hhId": "1252",
+			"habrId": "322",
+			"soTag": "sql",
+			"aliases": ["structured query language", "язык sql"]
+		},
+		{
+			"key": "plsql",
+			"kind": "language",
+			"parentKey": "sql",
+			"name": "PL/SQL",
+			"hhId": null,
+			"habrId": null,
+			"soTag": "plsql",
+			"aliases": ["pl sql", "plsql"]
+		},
+		{
+			"key": "tsql",
+			"kind": "language",
+			"parentKey": "sql",
+			"name": "T-SQL",
+			"hhId": "102041",
+			"habrId": "1153",
+			"soTag": "t-sql",
+			"aliases": ["Transact-SQL", "tsql"]
+		},
+		{
+			"key": "onec",
+			"kind": "language",
+			"parentKey": null,
+			"name": "1С:Предприятие",
+			"hhId": "1824216",
+			"habrId": null,
+			"soTag": "1c",
+			"aliases": ["1c", "1С", "1с программирование", "1с:предприятие 8", "onec", "встроенный язык 1с"]
+		},
+		{
+			"key": "assembly",
+			"kind": "language",
+			"parentKey": null,
+			"name": "Assembly",
+			"hhId": null,
+			"habrId": "592",
+			"soTag": "assembly",
+			"aliases": ["arm assembly", "asm", "x86 assembly", "ассемблер"]
+		},
+		{
+			"key": "solidity",
+			"kind": "language",
+			"parentKey": null,
+			"name": "Solidity",
+			"hhId": null,
+			"habrId": "1203",
+			"soTag": "solidity",
+			"aliases": []
+		},
+		{
+			"key": "html",
+			"kind": "language",
+			"parentKey": null,
+			"name": "HTML",
+			"hhId": "598",
+			"habrId": "1017",
+			"soTag": "html",
+			"aliases": ["html5", "хтмл"]
+		},
+		{
+			"key": "css",
+			"kind": "language",
+			"parentKey": null,
+			"name": "CSS",
+			"hhId": "351",
+			"habrId": "32",
+			"soTag": "css",
+			"aliases": ["css3"]
+		},
+		{
+			"key": "sass",
+			"kind": "language",
+			"parentKey": "css",
+			"name": "Sass/SCSS",
+			"hhId": "233767",
+			"habrId": "179",
+			"soTag": "sass",
+			"aliases": ["Sass", "scss"]
+		},
+		{
+			"key": "verilog",
+			"kind": "language",
+			"parentKey": null,
+			"name": "Verilog/SystemVerilog",
+			"hhId": "500755",
+			"habrId": "1454",
+			"soTag": "verilog",
+			"aliases": ["systemverilog", "verilog", "Verilog HDL", "vhdl"]
+		},
+		{
+			"key": "pascal",
+			"kind": "language",
+			"parentKey": null,
+			"name": "Pascal",
+			"hhId": "1005",
+			"habrId": "787",
+			"soTag": "delphi",
+			"aliases": ["delphi", "free pascal", "object pascal"]
+		},
+		{
+			"key": "nodejs",
+			"kind": "runtime",
+			"parentKey": "javascript",
+			"name": "Node.js",
+			"hhId": "18315",
+			"habrId": "12",
+			"soTag": "node.js",
+			"aliases": ["node", "node js", "nodejs", "нода"]
+		},
+		{
+			"key": "dotnet",
+			"kind": "runtime",
+			"parentKey": "csharp",
+			"name": ".NET",
+			"hhId": "3967970",
+			"habrId": "434",
+			"soTag": ".net",
+			"aliases": [".NET Core", ".net framework", "dotnet"]
+		},
+		{
+			"key": "jvm",
+			"kind": "runtime",
+			"parentKey": null,
+			"name": "JVM",
+			"hhId": null,
+			"habrId": null,
+			"soTag": "jvm",
+			"aliases": ["java virtual machine"]
+		},
+		{
+			"key": "android",
+			"kind": "platform",
+			"parentKey": "kotlin",
+			"name": "Android",
+			"hhId": "7892",
+			"habrId": "1393",
+			"soTag": "android",
+			"aliases": ["android development", "android sdk"]
+		},
+		{
+			"key": "ios",
+			"kind": "platform",
+			"parentKey": "swift",
+			"name": "iOS",
+			"hhId": "6349",
+			"habrId": null,
+			"soTag": "ios",
+			"aliases": ["ios development", "ios sdk"]
+		},
+		{
+			"key": "linux",
+			"kind": "platform",
+			"parentKey": null,
+			"name": "Linux",
+			"hhId": "730",
+			"habrId": "821",
+			"soTag": "linux",
+			"aliases": ["astra linux", "centos", "debian", "rhel", "ubuntu", "альт линукс", "линукс"]
+		},
+		{
+			"key": "windows_server",
+			"kind": "platform",
+			"parentKey": null,
+			"name": "Windows Server",
+			"hhId": "1439",
+			"habrId": null,
+			"soTag": null,
+			"aliases": []
+		},
+		{
+			"key": "django",
+			"kind": "framework",
+			"parentKey": "python",
+			"name": "Django",
+			"hhId": "416",
+			"habrId": "1075",
+			"soTag": "django",
+			"aliases": ["Django Framework"]
+		},
+		{
+			"key": "fastapi",
+			"kind": "framework",
+			"parentKey": "python",
+			"name": "FastAPI",
+			"hhId": "8941557",
+			"habrId": "1349",
+			"soTag": "fastapi",
+			"aliases": ["fast api"]
+		},
+		{
+			"key": "flask",
+			"kind": "framework",
+			"parentKey": "python",
+			"name": "Flask",
+			"hhId": "25538",
+			"habrId": "321",
+			"soTag": "flask",
+			"aliases": []
+		},
+		{
+			"key": "aiohttp",
+			"kind": "library",
+			"parentKey": "python",
+			"name": "aiohttp",
+			"hhId": null,
+			"habrId": "1350",
+			"soTag": "aiohttp",
+			"aliases": []
+		},
+		{
+			"key": "celery",
+			"kind": "library",
+			"parentKey": "python",
+			"name": "Celery",
+			"hhId": "41228",
+			"habrId": "488",
+			"soTag": "celery",
+			"aliases": []
+		},
+		{
+			"key": "sqlalchemy",
+			"kind": "library",
+			"parentKey": "python",
+			"name": "SQLAlchemy",
+			"hhId": "170859",
+			"habrId": "890",
+			"soTag": "sqlalchemy",
+			"aliases": []
+		},
+		{
+			"key": "pydantic",
+			"kind": "library",
+			"parentKey": "python",
+			"name": "Pydantic",
+			"hhId": null,
+			"habrId": null,
+			"soTag": "pydantic",
+			"aliases": []
+		},
+		{
+			"key": "spring",
+			"kind": "framework",
+			"parentKey": "java",
+			"name": "Spring Framework",
+			"hhId": "1250",
+			"habrId": null,
+			"soTag": "spring",
+			"aliases": ["spring", "spring mvc"]
+		},
+		{
+			"key": "spring_boot",
+			"kind": "framework",
+			"parentKey": "spring",
+			"name": "Spring Boot",
+			"hhId": "3064942",
+			"habrId": "1274",
+			"soTag": "spring-boot",
+			"aliases": ["springboot"]
+		},
+		{
+			"key": "hibernate",
+			"kind": "library",
+			"parentKey": "java",
+			"name": "Hibernate",
+			"hhId": "31772",
+			"habrId": "175",
+			"soTag": "hibernate",
+			"aliases": ["hibernate orm", "jpa"]
+		},
+		{
+			"key": "ktor",
+			"kind": "framework",
+			"parentKey": "kotlin",
+			"name": "Ktor",
+			"hhId": null,
+			"habrId": "1524",
+			"soTag": "ktor",
+			"aliases": []
+		},
+		{
+			"key": "aspnet",
+			"kind": "framework",
+			"parentKey": "dotnet",
+			"name": "ASP.NET Core",
+			"hhId": "4524063",
+			"habrId": "496",
+			"soTag": "asp.net-core",
+			"aliases": ["asp .net", "asp.net", "aspnet", "aspnet core"]
+		},
+		{
+			"key": "efcore",
+			"kind": "library",
+			"parentKey": "dotnet",
+			"name": "Entity Framework",
+			"hhId": "13732",
+			"habrId": "149",
+			"soTag": "entity-framework-core",
+			"aliases": ["ef core", "efcore", "entity framework core"]
+		},
+		{
+			"key": "laravel",
+			"kind": "framework",
+			"parentKey": "php",
+			"name": "Laravel",
+			"hhId": "41646",
+			"habrId": "109",
+			"soTag": "laravel",
+			"aliases": []
+		},
+		{
+			"key": "symfony",
+			"kind": "framework",
+			"parentKey": "php",
+			"name": "Symfony",
+			"hhId": "9130",
+			"habrId": "191",
+			"soTag": "symfony",
+			"aliases": []
+		},
+		{
+			"key": "yii",
+			"kind": "framework",
+			"parentKey": "php",
+			"name": "Yii",
+			"hhId": "7464",
+			"habrId": null,
+			"soTag": "yii2",
+			"aliases": ["yii2"]
+		},
+		{
+			"key": "bitrix",
+			"kind": "framework",
+			"parentKey": "php",
+			"name": "1С-Битрикс",
+			"hhId": "23",
+			"habrId": null,
+			"soTag": "bitrix",
+			"aliases": ["1c-bitrix", "bitrix", "cms 1с-битрикс", "битрикс"]
+		},
+		{
+			"key": "rails",
+			"kind": "framework",
+			"parentKey": "ruby",
+			"name": "Ruby on Rails",
+			"hhId": "1165",
+			"habrId": "1080",
+			"soTag": "ruby-on-rails",
+			"aliases": ["rails", "ror"]
+		},
+		{
+			"key": "express",
+			"kind": "framework",
+			"parentKey": "nodejs",
+			"name": "Express",
+			"hhId": null,
+			"habrId": "313",
+			"soTag": "express",
+			"aliases": ["express.js", "expressjs"]
+		},
+		{
+			"key": "nestjs",
+			"kind": "framework",
+			"parentKey": "nodejs",
+			"name": "NestJS",
+			"hhId": null,
+			"habrId": "1248",
+			"soTag": "nestjs",
+			"aliases": ["nest", "nest.js"]
+		},
+		{
+			"key": "gin",
+			"kind": "framework",
+			"parentKey": "go",
+			"name": "Gin",
+			"hhId": null,
+			"habrId": "1536",
+			"soTag": "go-gin",
+			"aliases": ["gin-gonic", "go-gin"]
+		},
+		{
+			"key": "echo_go",
+			"kind": "framework",
+			"parentKey": "go",
+			"name": "Echo",
+			"hhId": null,
+			"habrId": "1538",
+			"soTag": null,
+			"aliases": ["echo_go"]
+		},
+		{
+			"key": "grpc",
+			"kind": "tool",
+			"parentKey": null,
+			"name": "gRPC",
+			"hhId": "4834620",
+			"habrId": "1263",
+			"soTag": "grpc",
+			"aliases": ["protobuf", "protocol buffers"]
+		},
+		{
+			"key": "graphql",
+			"kind": "tool",
+			"parentKey": null,
+			"name": "GraphQL",
+			"hhId": "3932417",
+			"habrId": "1198",
+			"soTag": "graphql",
+			"aliases": []
+		},
+		{
+			"key": "rest",
+			"kind": "practice",
+			"parentKey": null,
+			"name": "REST API",
+			"hhId": "31432",
+			"habrId": "173",
+			"soTag": "rest",
+			"aliases": ["http api", "rest", "restful", "restful api"]
+		},
+		{
+			"key": "openapi",
+			"kind": "tool",
+			"parentKey": null,
+			"name": "OpenAPI/Swagger",
+			"hhId": "1871319",
+			"habrId": "1610",
+			"soTag": "openapi",
+			"aliases": ["oas", "openapi", "Swagger"]
+		},
+		{
+			"key": "websocket",
+			"kind": "tool",
+			"parentKey": null,
+			"name": "WebSocket",
+			"hhId": null,
+			"habrId": "584",
+			"soTag": "websocket",
+			"aliases": ["websockets"]
+		},
+		{
+			"key": "soap",
+			"kind": "practice",
+			"parentKey": null,
+			"name": "SOAP",
+			"hhId": "8677",
+			"habrId": "10",
+			"soTag": "soap",
+			"aliases": []
+		},
+		{
+			"key": "json",
+			"kind": "practice",
+			"parentKey": null,
+			"name": "JSON",
+			"hhId": "4769",
+			"habrId": "1611",
+			"soTag": "json",
+			"aliases": []
+		},
+		{
+			"key": "xml",
+			"kind": "practice",
+			"parentKey": null,
+			"name": "XML",
+			"hhId": "1460",
+			"habrId": "800",
+			"soTag": "xml",
+			"aliases": []
+		},
+		{
+			"key": "kafka",
+			"kind": "tool",
+			"parentKey": null,
+			"name": "Apache Kafka",
+			"hhId": "1283170",
+			"habrId": "1187",
+			"soTag": "apache-kafka",
+			"aliases": ["kafka", "кафка"]
+		},
+		{
+			"key": "rabbitmq",
+			"kind": "tool",
+			"parentKey": null,
+			"name": "RabbitMQ",
+			"hhId": "11284",
+			"habrId": "184",
+			"soTag": "rabbitmq",
+			"aliases": ["amqp", "rabbit"]
+		},
+		{
+			"key": "nats",
+			"kind": "tool",
+			"parentKey": null,
+			"name": "NATS",
+			"hhId": null,
+			"habrId": "1641",
+			"soTag": "nats.io",
+			"aliases": ["nats.io"]
+		},
+		{
+			"key": "microservices",
+			"kind": "practice",
+			"parentKey": null,
+			"name": "Микросервисная архитектура",
+			"hhId": "5022038",
+			"habrId": "1612",
+			"soTag": "microservices",
+			"aliases": ["microservice architecture", "microservices", "микросервисы"]
+		},
+		{
+			"key": "react",
+			"kind": "framework",
+			"parentKey": "javascript",
+			"name": "React",
+			"hhId": "1086842",
+			"habrId": "1070",
+			"soTag": "reactjs",
+			"aliases": ["react js", "react.js", "reactjs", "реакт"]
+		},
+		{
+			"key": "nextjs",
+			"kind": "framework",
+			"parentKey": "react",
+			"name": "Next.js",
+			"hhId": null,
+			"habrId": "1313",
+			"soTag": "next.js",
+			"aliases": ["next", "nextjs"]
+		},
+		{
+			"key": "redux",
+			"kind": "library",
+			"parentKey": "react",
+			"name": "Redux",
+			"hhId": "4089913",
+			"habrId": "1106",
+			"soTag": "redux",
+			"aliases": ["redux toolkit", "rtk"]
+		},
+		{
+			"key": "mobx",
+			"kind": "library",
+			"parentKey": "javascript",
+			"name": "MobX",
+			"hhId": null,
+			"habrId": "1183",
+			"soTag": "mobx",
+			"aliases": []
+		},
+		{
+			"key": "vue",
+			"kind": "framework",
+			"parentKey": "javascript",
+			"name": "Vue.js",
+			"hhId": "3818485",
+			"habrId": "1118",
+			"soTag": "vue.js",
+			"aliases": ["vue", "vue 3", "VueJS", "вью"]
+		},
+		{
+			"key": "nuxt",
+			"kind": "framework",
+			"parentKey": "vue",
+			"name": "Nuxt",
+			"hhId": null,
+			"habrId": "1289",
+			"soTag": "nuxt.js",
+			"aliases": ["nuxt.js", "nuxtjs"]
+		},
+		{
+			"key": "pinia",
+			"kind": "library",
+			"parentKey": "vue",
+			"name": "Pinia",
+			"hhId": null,
+			"habrId": null,
+			"soTag": "pinia",
+			"aliases": []
+		},
+		{
+			"key": "angular",
+			"kind": "framework",
+			"parentKey": "typescript",
+			"name": "Angular",
+			"hhId": "94050",
+			"habrId": "155",
+			"soTag": "angular",
+			"aliases": ["angular 2+", "angular2", "ангуляр"]
+		},
+		{
+			"key": "angularjs",
+			"kind": "framework",
+			"parentKey": "javascript",
+			"name": "AngularJS",
+			"hhId": "8804",
+			"habrId": "1433",
+			"soTag": "angularjs",
+			"aliases": ["angular 1", "angular.js"]
+		},
+		{
+			"key": "rxjs",
+			"kind": "library",
+			"parentKey": "javascript",
+			"name": "RxJS",
+			"hhId": null,
+			"habrId": null,
+			"soTag": "rxjs",
+			"aliases": []
+		},
+		{
+			"key": "svelte",
+			"kind": "framework",
+			"parentKey": "javascript",
+			"name": "Svelte",
+			"hhId": null,
+			"habrId": null,
+			"soTag": "svelte",
+			"aliases": ["sveltekit"]
+		},
+		{
+			"key": "jquery",
+			"kind": "library",
+			"parentKey": "javascript",
+			"name": "jQuery",
+			"hhId": "687",
+			"habrId": "363",
+			"soTag": "jquery",
+			"aliases": []
+		},
+		{
+			"key": "webpack",
+			"kind": "tool",
+			"parentKey": "javascript",
+			"name": "Webpack",
+			"hhId": "1335607",
+			"habrId": "1094",
+			"soTag": "webpack",
+			"aliases": []
+		},
+		{
+			"key": "vite",
+			"kind": "tool",
+			"parentKey": "javascript",
+			"name": "Vite",
+			"hhId": null,
+			"habrId": "1779",
+			"soTag": "vite",
+			"aliases": []
+		},
+		{
+			"key": "tailwind",
+			"kind": "library",
+			"parentKey": "css",
+			"name": "Tailwind CSS",
+			"hhId": null,
+			"habrId": "1778",
+			"soTag": "tailwind-css",
+			"aliases": ["tailwind", "tailwindcss"]
+		},
+		{
+			"key": "bootstrap",
+			"kind": "library",
+			"parentKey": "css",
+			"name": "Bootstrap",
+			"hhId": "3641",
+			"habrId": null,
+			"soTag": "twitter-bootstrap",
+			"aliases": ["twitter-bootstrap"]
+		},
+		{
+			"key": "threejs",
+			"kind": "library",
+			"parentKey": "javascript",
+			"name": "Three.js",
+			"hhId": null,
+			"habrId": "567",
+			"soTag": "three.js",
+			"aliases": ["threejs", "webgl"]
+		},
+		{
+			"key": "jetpack_compose",
+			"kind": "framework",
+			"parentKey": "android",
+			"name": "Jetpack Compose",
+			"hhId": null,
+			"habrId": "1821",
+			"soTag": "android-jetpack-compose",
+			"aliases": ["android-jetpack-compose", "compose"]
+		},
+		{
+			"key": "swiftui",
+			"kind": "framework",
+			"parentKey": "ios",
+			"name": "SwiftUI",
+			"hhId": null,
+			"habrId": "1427",
+			"soTag": "swiftui",
+			"aliases": []
+		},
+		{
+			"key": "uikit",
+			"kind": "framework",
+			"parentKey": "ios",
+			"name": "UIKit",
+			"hhId": "11768",
+			"habrId": "182",
+			"soTag": "uikit",
+			"aliases": []
+		},
+		{
+			"key": "flutter",
+			"kind": "framework",
+			"parentKey": "dart",
+			"name": "Flutter",
+			"hhId": "6204858",
+			"habrId": "1218",
+			"soTag": "flutter",
+			"aliases": ["флаттер"]
+		},
+		{
+			"key": "react_native",
+			"kind": "framework",
+			"parentKey": "react",
+			"name": "React Native",
+			"hhId": "3452376",
+			"habrId": "1104",
+			"soTag": "react-native",
+			"aliases": ["rn"]
+		},
+		{
+			"key": "kmp",
+			"kind": "framework",
+			"parentKey": "kotlin",
+			"name": "Kotlin Multiplatform",
+			"hhId": null,
+			"habrId": "1675",
+			"soTag": "kotlin-multiplatform",
+			"aliases": ["kmm", "kmp", "kotlin multiplatform mobile"]
+		},
+		{
+			"key": "postgresql",
+			"kind": "database",
+			"parentKey": "sql",
+			"name": "PostgreSQL",
+			"hhId": "1063",
+			"habrId": "537",
+			"soTag": "postgresql",
+			"aliases": ["pg", "postgre", "postgres", "psql", "постгрес"]
+		},
+		{
+			"key": "mysql",
+			"kind": "database",
+			"parentKey": "sql",
+			"name": "MySQL",
+			"hhId": "893",
+			"habrId": "713",
+			"soTag": "mysql",
+			"aliases": ["mariadb"]
+		},
+		{
+			"key": "oracle_db",
+			"kind": "database",
+			"parentKey": "sql",
+			"name": "Oracle Database",
+			"hhId": "959",
+			"habrId": "386",
+			"soTag": "oracle-database",
+			"aliases": ["oracle", "oracle db"]
+		},
+		{
+			"key": "mssql",
+			"kind": "database",
+			"parentKey": "sql",
+			"name": "Microsoft SQL Server",
+			"hhId": "871",
+			"habrId": "26",
+			"soTag": "sql-server",
+			"aliases": ["MS SQL", "mssql", "sql server"]
+		},
+		{
+			"key": "sqlite",
+			"kind": "database",
+			"parentKey": "sql",
+			"name": "SQLite",
+			"hhId": "26255",
+			"habrId": "1019",
+			"soTag": "sqlite",
+			"aliases": []
+		},
+		{
+			"key": "mongodb",
+			"kind": "database",
+			"parentKey": null,
+			"name": "MongoDB",
+			"hhId": "6344",
+			"habrId": "229",
+			"soTag": "mongodb",
+			"aliases": ["mongo", "монго"]
+		},
+		{
+			"key": "redis",
+			"kind": "database",
+			"parentKey": null,
+			"name": "Redis",
+			"hhId": "9112",
+			"habrId": "1",
+			"soTag": "redis",
+			"aliases": ["редис"]
+		},
+		{
+			"key": "clickhouse",
+			"kind": "database",
+			"parentKey": "sql",
+			"name": "ClickHouse",
+			"hhId": "5229608",
+			"habrId": "1235",
+			"soTag": "clickhouse",
+			"aliases": ["click house", "кликхаус"]
+		},
+		{
+			"key": "elasticsearch",
+			"kind": "database",
+			"parentKey": null,
+			"name": "Elasticsearch",
+			"hhId": "500720",
+			"habrId": "482",
+			"soTag": "elasticsearch",
+			"aliases": ["elastic", "opensearch", "эластик"]
+		},
+		{
+			"key": "cassandra",
+			"kind": "database",
+			"parentKey": null,
+			"name": "Apache Cassandra",
+			"hhId": "376785",
+			"habrId": "243",
+			"soTag": "cassandra",
+			"aliases": ["cassandra", "scylladb"]
+		},
+		{
+			"key": "greenplum",
+			"kind": "database",
+			"parentKey": "sql",
+			"name": "Greenplum",
+			"hhId": "269966",
+			"habrId": "1689",
+			"soTag": null,
+			"aliases": []
+		},
+		{
+			"key": "tarantool",
+			"kind": "database",
+			"parentKey": null,
+			"name": "Tarantool",
+			"hhId": null,
+			"habrId": "1113",
+			"soTag": "tarantool",
+			"aliases": []
+		},
+		{
+			"key": "neo4j",
+			"kind": "database",
+			"parentKey": null,
+			"name": "Neo4j",
+			"hhId": null,
+			"habrId": "388",
+			"soTag": "neo4j",
+			"aliases": []
+		},
+		{
+			"key": "vector_db",
+			"kind": "database",
+			"parentKey": null,
+			"name": "Векторные БД",
+			"hhId": null,
+			"habrId": "1860",
+			"soTag": "vector-database",
+			"aliases": ["chroma", "faiss", "milvus", "pgvector", "qdrant", "vector-database", "vector_db", "weaviate"]
+		},
+		{
+			"key": "databases",
+			"kind": "domain",
+			"parentKey": null,
+			"name": "Базы данных",
+			"hhId": "8540",
+			"habrId": "30",
+			"soTag": "database",
+			"aliases": ["субд"]
+		},
+		{
+			"key": "pandas",
+			"kind": "library",
+			"parentKey": "python",
+			"name": "pandas",
+			"hhId": "434393",
+			"habrId": "1401",
+			"soTag": "pandas",
+			"aliases": ["пандас"]
+		},
+		{
+			"key": "numpy",
+			"kind": "library",
+			"parentKey": "python",
+			"name": "NumPy",
+			"hhId": "1425440",
+			"habrId": "688",
+			"soTag": "numpy",
+			"aliases": []
+		},
+		{
+			"key": "scipy",
+			"kind": "library",
+			"parentKey": "python",
+			"name": "SciPy",
+			"hhId": "365297",
+			"habrId": null,
+			"soTag": "scipy",
+			"aliases": []
+		},
+		{
+			"key": "sklearn",
+			"kind": "library",
+			"parentKey": "python",
+			"name": "scikit-learn",
+			"hhId": "406861",
+			"habrId": "1841",
+			"soTag": "scikit-learn",
+			"aliases": ["sklearn"]
+		},
+		{
+			"key": "pytorch",
+			"kind": "framework",
+			"parentKey": "python",
+			"name": "PyTorch",
+			"hhId": "5674907",
+			"habrId": "1241",
+			"soTag": "pytorch",
+			"aliases": ["torch"]
+		},
+		{
+			"key": "tensorflow",
+			"kind": "framework",
+			"parentKey": "python",
+			"name": "TensorFlow",
+			"hhId": "4680684",
+			"habrId": "1169",
+			"soTag": "tensorflow",
+			"aliases": ["keras", "tf"]
+		},
+		{
+			"key": "catboost",
+			"kind": "library",
+			"parentKey": "python",
+			"name": "CatBoost",
+			"hhId": "6148702",
+			"habrId": null,
+			"soTag": "catboost",
+			"aliases": []
+		},
+		{
+			"key": "xgboost",
+			"kind": "library",
+			"parentKey": "python",
+			"name": "XGBoost/LightGBM",
+			"hhId": "4343251",
+			"habrId": null,
+			"soTag": "xgboost",
+			"aliases": ["gradient boosting", "lightgbm", "XGBoost", "градиентный бустинг"]
+		},
+		{
+			"key": "huggingface",
+			"kind": "library",
+			"parentKey": "pytorch",
+			"name": "Hugging Face Transformers",
+			"hhId": null,
+			"habrId": null,
+			"soTag": "huggingface-transformers",
+			"aliases": ["hf", "huggingface", "huggingface-transformers", "transformers"]
+		},
+		{
+			"key": "opencv",
+			"kind": "library",
+			"parentKey": null,
+			"name": "OpenCV",
+			"hhId": "15984",
+			"habrId": "555",
+			"soTag": "opencv",
+			"aliases": ["cv2"]
+		},
+		{
+			"key": "ml",
+			"kind": "domain",
+			"parentKey": null,
+			"name": "Машинное обучение",
+			"hhId": null,
+			"habrId": "137",
+			"soTag": "machine-learning",
+			"aliases": ["machine learning", "ml", "мл"]
+		},
+		{
+			"key": "dl",
+			"kind": "domain",
+			"parentKey": "ml",
+			"name": "Глубокое обучение",
+			"hhId": "1313784",
+			"habrId": "1271",
+			"soTag": "deep-learning",
+			"aliases": ["Deep Learning", "dl", "neural networks", "нейронные сети"]
+		},
+		{
+			"key": "nlp",
+			"kind": "domain",
+			"parentKey": "ml",
+			"name": "NLP",
+			"hhId": "156206",
+			"habrId": "1738",
+			"soTag": "nlp",
+			"aliases": ["Natural Language Processing", "обработка естественного языка"]
+		},
+		{
+			"key": "cv",
+			"kind": "domain",
+			"parentKey": "ml",
+			"name": "Компьютерное зрение",
+			"hhId": "365295",
+			"habrId": "1139",
+			"soTag": "computer-vision",
+			"aliases": ["Computer Vision", "cv"]
+		},
+		{
+			"key": "llm",
+			"kind": "domain",
+			"parentKey": "nlp",
+			"name": "LLM и генеративный ИИ",
+			"hhId": null,
+			"habrId": "1825",
+			"soTag": "large-language-model",
+			"aliases": [
+				"genai",
+				"langchain",
+				"large-language-model",
+				"large language models",
+				"llm",
+				"prompt engineering",
+				"rag",
+				"промпт-инжиниринг"
+			]
+		},
+		{
+			"key": "recsys",
+			"kind": "domain",
+			"parentKey": "ml",
+			"name": "Рекомендательные системы",
+			"hhId": "323576",
+			"habrId": null,
+			"soTag": "recommendation-engine",
+			"aliases": ["recommendation-engine", "recommender systems", "recsys"]
+		},
+		{
+			"key": "statistics",
+			"kind": "domain",
+			"parentKey": null,
+			"name": "Статистика",
+			"hhId": "2190",
+			"habrId": "1343",
+			"soTag": "statistics",
+			"aliases": ["a/b testing", "a/b-тесты", "ab testing", "statistics", "Математическая статистика", "матстатистика"]
+		},
+		{
+			"key": "spark",
+			"kind": "framework",
+			"parentKey": null,
+			"name": "Apache Spark",
+			"hhId": "1683706",
+			"habrId": "1165",
+			"soTag": "apache-spark",
+			"aliases": ["pyspark", "spark"]
+		},
+		{
+			"key": "hadoop",
+			"kind": "platform",
+			"parentKey": null,
+			"name": "Hadoop",
+			"hhId": "7875",
+			"habrId": "1168",
+			"soTag": "hadoop",
+			"aliases": ["apache hadoop", "hdfs", "hive"]
+		},
+		{
+			"key": "airflow",
+			"kind": "tool",
+			"parentKey": "python",
+			"name": "Apache Airflow",
+			"hhId": "5583523",
+			"habrId": "1268",
+			"soTag": "airflow",
+			"aliases": ["airflow"]
+		},
+		{
+			"key": "dbt",
+			"kind": "tool",
+			"parentKey": "sql",
+			"name": "dbt",
+			"hhId": null,
+			"habrId": null,
+			"soTag": "dbt",
+			"aliases": []
+		},
+		{
+			"key": "etl",
+			"kind": "practice",
+			"parentKey": null,
+			"name": "ETL/ELT",
+			"hhId": "29380",
+			"habrId": "702",
+			"soTag": "etl",
+			"aliases": ["data warehouse", "dwh", "elt", "ETL", "хранилища данных"]
+		},
+		{
+			"key": "powerbi",
+			"kind": "tool",
+			"parentKey": null,
+			"name": "Power BI",
+			"hhId": "3661382",
+			"habrId": "1352",
+			"soTag": "powerbi",
+			"aliases": ["powerbi"]
+		},
+		{
+			"key": "tableau",
+			"kind": "tool",
+			"parentKey": null,
+			"name": "Tableau",
+			"hhId": "21686",
+			"habrId": "1353",
+			"soTag": "tableau-api",
+			"aliases": ["tableau-api"]
+		},
+		{
+			"key": "superset",
+			"kind": "tool",
+			"parentKey": null,
+			"name": "Apache Superset",
+			"hhId": null,
+			"habrId": "1688",
+			"soTag": "apache-superset",
+			"aliases": ["datalens", "superset", "yandex datalens"]
+		},
+		{
+			"key": "excel",
+			"kind": "tool",
+			"parentKey": null,
+			"name": "Excel",
+			"hhId": "845",
+			"habrId": null,
+			"soTag": "excel",
+			"aliases": ["google sheets", "MS Excel", "эксель"]
+		},
+		{
+			"key": "jupyter",
+			"kind": "tool",
+			"parentKey": "python",
+			"name": "Jupyter",
+			"hhId": "4869346",
+			"habrId": "1586",
+			"soTag": "jupyter-notebook",
+			"aliases": ["Jupyter Notebook", "jupyterlab"]
+		},
+		{
+			"key": "mlops_tools",
+			"kind": "tool",
+			"parentKey": null,
+			"name": "MLflow/Kubeflow",
+			"hhId": "12096929",
+			"habrId": null,
+			"soTag": "mlflow",
+			"aliases": ["clearml", "dvc", "kubeflow", "MLflow", "mlops_tools"]
+		},
+		{
+			"key": "docker",
+			"kind": "tool",
+			"parentKey": null,
+			"name": "Docker",
+			"hhId": "510338",
+			"habrId": "1067",
+			"soTag": "docker",
+			"aliases": ["containerization", "докер", "контейнеризация"]
+		},
+		{
+			"key": "kubernetes",
+			"kind": "platform",
+			"parentKey": null,
+			"name": "Kubernetes",
+			"hhId": "4001032",
+			"habrId": "1207",
+			"soTag": "kubernetes",
+			"aliases": ["k8s", "openshift", "кубернетес"]
+		},
+		{
+			"key": "helm",
+			"kind": "tool",
+			"parentKey": "kubernetes",
+			"name": "Helm",
+			"hhId": "5779724",
+			"habrId": null,
+			"soTag": "kubernetes-helm",
+			"aliases": ["kubernetes-helm"]
+		},
+		{
+			"key": "terraform",
+			"kind": "tool",
+			"parentKey": null,
+			"name": "Terraform",
+			"hhId": "4585836",
+			"habrId": "1308",
+			"soTag": "terraform",
+			"aliases": ["iac", "opentofu"]
+		},
+		{
+			"key": "ansible",
+			"kind": "tool",
+			"parentKey": null,
+			"name": "Ansible",
+			"hhId": "110106",
+			"habrId": "941",
+			"soTag": "ansible",
+			"aliases": ["ансибл"]
+		},
+		{
+			"key": "cicd",
+			"kind": "practice",
+			"parentKey": null,
+			"name": "CI/CD",
+			"hhId": "2088868",
+			"habrId": "1173",
+			"soTag": "continuous-integration",
+			"aliases": ["ci cd", "cicd", "continuous integration", "непрерывная интеграция"]
+		},
+		{
+			"key": "gitlab_ci",
+			"kind": "tool",
+			"parentKey": "cicd",
+			"name": "GitLab CI",
+			"hhId": "1307260",
+			"habrId": null,
+			"soTag": "gitlab-ci",
+			"aliases": ["gitlab ci/cd"]
+		},
+		{
+			"key": "github_actions",
+			"kind": "tool",
+			"parentKey": "cicd",
+			"name": "GitHub Actions",
+			"hhId": null,
+			"habrId": "1283",
+			"soTag": "github-actions",
+			"aliases": []
+		},
+		{
+			"key": "jenkins",
+			"kind": "tool",
+			"parentKey": "cicd",
+			"name": "Jenkins",
+			"hhId": "10826",
+			"habrId": "335",
+			"soTag": "jenkins",
+			"aliases": []
+		},
+		{
+			"key": "git",
+			"kind": "tool",
+			"parentKey": null,
+			"name": "Git",
+			"hhId": "3215",
+			"habrId": "947",
+			"soTag": "git",
+			"aliases": ["bitbucket", "github", "gitlab", "гит"]
+		},
+		{
+			"key": "nginx",
+			"kind": "tool",
+			"parentKey": null,
+			"name": "Nginx",
+			"hhId": "907",
+			"habrId": "878",
+			"soTag": "nginx",
+			"aliases": []
+		},
+		{
+			"key": "prometheus",
+			"kind": "tool",
+			"parentKey": null,
+			"name": "Prometheus/Grafana",
+			"hhId": "1271828",
+			"habrId": "1306",
+			"soTag": "prometheus",
+			"aliases": ["grafana", "monitoring", "Prometheus", "мониторинг"]
+		},
+		{
+			"key": "elk",
+			"kind": "tool",
+			"parentKey": null,
+			"name": "ELK/логирование",
+			"hhId": "349607",
+			"habrId": null,
+			"soTag": "elk",
+			"aliases": ["elk", "kibana", "Logstash", "loki", "opentelemetry"]
+		},
+		{
+			"key": "zabbix",
+			"kind": "tool",
+			"parentKey": null,
+			"name": "Zabbix",
+			"hhId": "23465",
+			"habrId": "966",
+			"soTag": "zabbix",
+			"aliases": []
+		},
+		{
+			"key": "aws",
+			"kind": "platform",
+			"parentKey": null,
+			"name": "AWS",
+			"hhId": "49508",
+			"habrId": "197",
+			"soTag": "amazon-web-services",
+			"aliases": ["Amazon Web Services"]
+		},
+		{
+			"key": "gcp",
+			"kind": "platform",
+			"parentKey": null,
+			"name": "Google Cloud",
+			"hhId": null,
+			"habrId": "1286",
+			"soTag": "google-cloud-platform",
+			"aliases": ["gcp", "google cloud platform"]
+		},
+		{
+			"key": "azure",
+			"kind": "platform",
+			"parentKey": null,
+			"name": "Azure",
+			"hhId": "67456",
+			"habrId": "642",
+			"soTag": "azure",
+			"aliases": ["microsoft azure"]
+		},
+		{
+			"key": "yandex_cloud",
+			"kind": "platform",
+			"parentKey": null,
+			"name": "Yandex Cloud",
+			"hhId": "8990091",
+			"habrId": "1445",
+			"soTag": null,
+			"aliases": ["yandex.cloud", "яндекс облако"]
+		},
+		{
+			"key": "vk_cloud",
+			"kind": "platform",
+			"parentKey": null,
+			"name": "VK Cloud/Cloud.ru/Selectel",
+			"hhId": null,
+			"habrId": "1862",
+			"soTag": null,
+			"aliases": ["cloud.ru", "sbercloud", "selectel", "vk cloud"]
+		},
+		{
+			"key": "networking",
+			"kind": "domain",
+			"parentKey": null,
+			"name": "Компьютерные сети",
+			"hhId": "1315",
+			"habrId": "544",
+			"soTag": null,
+			"aliases": ["ccna", "cisco", "dns", "networking", "tcp", "TCP/IP", "маршрутизация", "сети"]
+		},
+		{
+			"key": "virtualization",
+			"kind": "domain",
+			"parentKey": null,
+			"name": "Виртуализация",
+			"hhId": "5968",
+			"habrId": "338",
+			"soTag": "virtualization",
+			"aliases": ["hyper-v", "kvm", "proxmox", "virtualization", "vmware"]
+		},
+		{
+			"key": "server_administration",
+			"kind": "practice",
+			"parentKey": null,
+			"name": "Администрирование серверов",
+			"hhId": "1507",
+			"habrId": "183",
+			"soTag": null,
+			"aliases": ["server administration"]
+		},
+		{
+			"key": "technical_support",
+			"kind": "practice",
+			"parentKey": null,
+			"name": "Техническая поддержка",
+			"hhId": "12216",
+			"habrId": "605",
+			"soTag": null,
+			"aliases": ["technical support", "техподдержка"]
+		},
+		{
+			"key": "itil",
+			"kind": "practice",
+			"parentKey": null,
+			"name": "ITIL/ITSM",
+			"hhId": "23051",
+			"habrId": "520",
+			"soTag": "itil",
+			"aliases": ["itil", "itsm"]
+		},
+		{
+			"key": "software_asset_management",
+			"kind": "practice",
+			"parentKey": null,
+			"name": "Управление программными активами (SAM)",
+			"hhId": null,
+			"habrId": null,
+			"soTag": null,
+			"aliases": ["software asset management", "управление лицензиями по", "управление программными активами"]
+		},
+		{
+			"key": "manual_testing",
+			"kind": "practice",
+			"parentKey": null,
+			"name": "Ручное тестирование",
+			"hhId": "53904",
+			"habrId": "261",
+			"soTag": null,
+			"aliases": ["manual qa", "manual testing", "test design", "тест-дизайн"]
+		},
+		{
+			"key": "test_automation",
+			"kind": "practice",
+			"parentKey": null,
+			"name": "Автоматизация тестирования",
+			"hhId": null,
+			"habrId": "435",
+			"soTag": "automated-tests",
+			"aliases": ["aqa", "automated-tests", "test automation", "автотесты"]
+		},
+		{
+			"key": "selenium",
+			"kind": "tool",
+			"parentKey": "test_automation",
+			"name": "Selenium",
+			"hhId": "17308",
+			"habrId": "974",
+			"soTag": "selenium-webdriver",
+			"aliases": ["selenide", "selenium-webdriver", "webdriver"]
+		},
+		{
+			"key": "playwright",
+			"kind": "tool",
+			"parentKey": "test_automation",
+			"name": "Playwright",
+			"hhId": null,
+			"habrId": "1597",
+			"soTag": "playwright",
+			"aliases": []
+		},
+		{
+			"key": "cypress",
+			"kind": "tool",
+			"parentKey": "test_automation",
+			"name": "Cypress",
+			"hhId": null,
+			"habrId": "1255",
+			"soTag": "cypress",
+			"aliases": []
+		},
+		{
+			"key": "pytest",
+			"kind": "library",
+			"parentKey": "python",
+			"name": "pytest",
+			"hhId": "4114811",
+			"habrId": "1791",
+			"soTag": "pytest",
+			"aliases": []
+		},
+		{
+			"key": "junit",
+			"kind": "library",
+			"parentKey": "java",
+			"name": "JUnit",
+			"hhId": "23030",
+			"habrId": "487",
+			"soTag": "junit",
+			"aliases": ["junit5", "testng"]
+		},
+		{
+			"key": "jest",
+			"kind": "library",
+			"parentKey": "javascript",
+			"name": "Jest",
+			"hhId": null,
+			"habrId": "1264",
+			"soTag": "jestjs",
+			"aliases": ["jestjs", "mocha", "vitest"]
+		},
+		{
+			"key": "postman",
+			"kind": "tool",
+			"parentKey": null,
+			"name": "Postman",
+			"hhId": "2649122",
+			"habrId": "1347",
+			"soTag": "postman",
+			"aliases": []
+		},
+		{
+			"key": "jmeter",
+			"kind": "practice",
+			"parentKey": null,
+			"name": "Нагрузочное тестирование",
+			"hhId": "2265",
+			"habrId": "16",
+			"soTag": "jmeter",
+			"aliases": ["gatling", "jmeter", "k6", "load testing", "locust"]
+		},
+		{
+			"key": "jira",
+			"kind": "tool",
+			"parentKey": null,
+			"name": "Jira",
+			"hhId": "142",
+			"habrId": "1045",
+			"soTag": "jira",
+			"aliases": ["Atlassian Jira", "confluence", "youtrack"]
+		},
+		{
+			"key": "bpmn",
+			"kind": "practice",
+			"parentKey": null,
+			"name": "BPMN",
+			"hhId": "197",
+			"habrId": "377",
+			"soTag": "bpmn",
+			"aliases": ["bpmn 2.0", "нотация bpmn"]
+		},
+		{
+			"key": "uml",
+			"kind": "practice",
+			"parentKey": null,
+			"name": "UML",
+			"hhId": "3555",
+			"habrId": "330",
+			"soTag": "uml",
+			"aliases": ["uml diagrams"]
+		},
+		{
+			"key": "requirements",
+			"kind": "practice",
+			"parentKey": null,
+			"name": "Сбор и анализ требований",
+			"hhId": null,
+			"habrId": null,
+			"soTag": null,
+			"aliases": [
+				"requirements",
+				"requirements engineering",
+				"user stories",
+				"бизнес-требования",
+				"техническое задание",
+				"тз"
+			]
+		},
+		{
+			"key": "system_design",
+			"kind": "practice",
+			"parentKey": null,
+			"name": "Проектирование систем",
+			"hhId": null,
+			"habrId": null,
+			"soTag": "system-design",
+			"aliases": ["highload", "software architecture", "system design", "архитектура по", "высоконагруженные системы"]
+		},
+		{
+			"key": "product_management",
+			"kind": "practice",
+			"parentKey": null,
+			"name": "Продуктовый менеджмент",
+			"hhId": "1086",
+			"habrId": "1613",
+			"soTag": null,
+			"aliases": ["cjm", "customer development", "jtbd", "Product Management", "unit-экономика"]
+		},
+		{
+			"key": "project_management",
+			"kind": "practice",
+			"parentKey": null,
+			"name": "Управление проектами",
+			"hhId": "2924",
+			"habrId": "259",
+			"soTag": null,
+			"aliases": ["pmbok", "prince2", "project management"]
+		},
+		{
+			"key": "agile",
+			"kind": "practice",
+			"parentKey": null,
+			"name": "Agile/Scrum",
+			"hhId": "3193",
+			"habrId": "77",
+			"soTag": "agile",
+			"aliases": ["agile", "kanban", "Scrum", "аджайл", "скрам"]
+		},
+		{
+			"key": "team_lead",
+			"kind": "practice",
+			"parentKey": null,
+			"name": "Управление командой",
+			"hhId": "2912",
+			"habrId": null,
+			"soTag": null,
+			"aliases": ["people management", "team_lead", "team leadership", "лидерство", "руководство командой"]
+		},
+		{
+			"key": "presale",
+			"kind": "practice",
+			"parentKey": null,
+			"name": "Пресейл",
+			"hhId": null,
+			"habrId": "1344",
+			"soTag": null,
+			"aliases": ["pre-sale", "presale", "presales", "пресейл"]
+		},
+		{
+			"key": "figma",
+			"kind": "tool",
+			"parentKey": null,
+			"name": "Figma",
+			"hhId": "5321133",
+			"habrId": null,
+			"soTag": "figma",
+			"aliases": ["фигма"]
+		},
+		{
+			"key": "ux",
+			"kind": "practice",
+			"parentKey": null,
+			"name": "UX-исследования",
+			"hhId": "4918027",
+			"habrId": null,
+			"soTag": null,
+			"aliases": ["usability testing", "user research", "ux", "ux research", "юзабилити"]
+		},
+		{
+			"key": "ui",
+			"kind": "practice",
+			"parentKey": null,
+			"name": "UI-дизайн",
+			"hhId": "1877",
+			"habrId": null,
+			"soTag": null,
+			"aliases": ["ui", "ui design", "Дизайн интерфейсов", "интерфейсы"]
+		},
+		{
+			"key": "appsec",
+			"kind": "domain",
+			"parentKey": null,
+			"name": "Безопасность приложений",
+			"hhId": "945685",
+			"habrId": "1414",
+			"soTag": null,
+			"aliases": ["appsec", "dast", "OWASP", "sast", "secure development", "безопасная разработка"]
+		},
+		{
+			"key": "pentest",
+			"kind": "practice",
+			"parentKey": null,
+			"name": "Тестирование на проникновение",
+			"hhId": "948145",
+			"habrId": "1239",
+			"soTag": "penetration-testing",
+			"aliases": ["burp suite", "metasploit", "penetration testing", "pentest", "red team", "пентест"]
+		},
+		{
+			"key": "soc",
+			"kind": "practice",
+			"parentKey": null,
+			"name": "Мониторинг ИБ (SOC)",
+			"hhId": "1931854",
+			"habrId": "1408",
+			"soTag": null,
+			"aliases": ["blue team", "incident response", "siem", "SOC", "реагирование на инциденты"]
+		},
+		{
+			"key": "reverse",
+			"kind": "practice",
+			"parentKey": null,
+			"name": "Реверс-инжиниринг",
+			"hhId": null,
+			"habrId": "1298",
+			"soTag": "reverse-engineering",
+			"aliases": ["ghidra", "ida pro", "malware analysis", "reverse", "reverse engineering", "реверс"]
+		},
+		{
+			"key": "crypto",
+			"kind": "domain",
+			"parentKey": null,
+			"name": "Криптография",
+			"hhId": "117981",
+			"habrId": "937",
+			"soTag": "cryptography",
+			"aliases": ["crypto", "cryptography", "pki"]
+		},
+		{
+			"key": "forensics",
+			"kind": "practice",
+			"parentKey": null,
+			"name": "Цифровая криминалистика",
+			"hhId": null,
+			"habrId": "724",
+			"soTag": null,
+			"aliases": ["dfir", "forensics", "форензика"]
+		},
+		{
+			"key": "ctf",
+			"kind": "practice",
+			"parentKey": null,
+			"name": "CTF",
+			"hhId": null,
+			"habrId": null,
+			"soTag": null,
+			"aliases": ["attack-defense", "capture the flag", "jeopardy"]
+		},
+		{
+			"key": "infosec_compliance",
+			"kind": "domain",
+			"parentKey": null,
+			"name": "Нормативка ИБ",
+			"hhId": "92652",
+			"habrId": null,
+			"soTag": null,
+			"aliases": ["152-ФЗ", "187-фз", "infosec_compliance", "iso 27001", "гост р 57580", "кии", "фстэк"]
+		},
+		{
+			"key": "embedded_dev",
+			"kind": "domain",
+			"parentKey": null,
+			"name": "Встраиваемые системы",
+			"hhId": null,
+			"habrId": null,
+			"soTag": "embedded",
+			"aliases": ["embedded", "embedded_dev", "embedded systems", "mcu", "микроконтроллеры"]
+		},
+		{
+			"key": "arduino",
+			"kind": "platform",
+			"parentKey": "embedded_dev",
+			"name": "Arduino",
+			"hhId": null,
+			"habrId": "473",
+			"soTag": "arduino",
+			"aliases": []
+		},
+		{
+			"key": "stm32",
+			"kind": "platform",
+			"parentKey": "embedded_dev",
+			"name": "STM32",
+			"hhId": null,
+			"habrId": "847",
+			"soTag": "stm32",
+			"aliases": ["arm cortex-m", "stm"]
+		},
+		{
+			"key": "rtos",
+			"kind": "platform",
+			"parentKey": "embedded_dev",
+			"name": "RTOS",
+			"hhId": null,
+			"habrId": null,
+			"soTag": "rtos",
+			"aliases": ["freertos", "zephyr"]
+		},
+		{
+			"key": "ros",
+			"kind": "framework",
+			"parentKey": null,
+			"name": "ROS",
+			"hhId": null,
+			"habrId": null,
+			"soTag": "ros",
+			"aliases": ["robot operating system", "ros2"]
+		},
+		{
+			"key": "robotics",
+			"kind": "domain",
+			"parentKey": null,
+			"name": "Робототехника",
+			"hhId": null,
+			"habrId": null,
+			"soTag": "robotics",
+			"aliases": ["robotics", "роботы"]
+		},
+		{
+			"key": "control_theory",
+			"kind": "domain",
+			"parentKey": null,
+			"name": "Теория управления",
+			"hhId": null,
+			"habrId": null,
+			"soTag": "control-theory",
+			"aliases": ["control theory", "pid", "пид-регулятор", "сау"]
+		},
+		{
+			"key": "slam",
+			"kind": "domain",
+			"parentKey": "robotics",
+			"name": "SLAM/навигация",
+			"hhId": null,
+			"habrId": null,
+			"soTag": "slam",
+			"aliases": ["localization", "path planning", "slam", "навигация"]
+		},
+		{
+			"key": "px4",
+			"kind": "platform",
+			"parentKey": null,
+			"name": "PX4/ArduPilot",
+			"hhId": null,
+			"habrId": null,
+			"soTag": "px4",
+			"aliases": ["ardupilot", "mavlink", "mavsdk", "px4"]
+		},
+		{
+			"key": "uav",
+			"kind": "domain",
+			"parentKey": null,
+			"name": "БПЛА",
+			"hhId": null,
+			"habrId": null,
+			"soTag": null,
+			"aliases": ["drones", "uav", "бас", "беспилотники", "дроны"]
+		},
+		{
+			"key": "fpga",
+			"kind": "platform",
+			"parentKey": null,
+			"name": "FPGA",
+			"hhId": null,
+			"habrId": "307",
+			"soTag": "fpga",
+			"aliases": ["плис"]
+		},
+		{
+			"key": "electronics",
+			"kind": "domain",
+			"parentKey": null,
+			"name": "Электроника/схемотехника",
+			"hhId": "2807",
+			"habrId": "727",
+			"soTag": null,
+			"aliases": ["altium", "electronics", "kicad", "pcb", "схемотехника", "Схемотехника электронного оборудования"]
+		},
+		{
+			"key": "cad3d",
+			"kind": "tool",
+			"parentKey": null,
+			"name": "3D-моделирование/CAD",
+			"hhId": "1238",
+			"habrId": "337",
+			"soTag": null,
+			"aliases": ["cad", "cad3d", "fusion 360", "SolidWorks", "компас-3d"]
+		},
+		{
+			"key": "unity",
+			"kind": "platform",
+			"parentKey": "csharp",
+			"name": "Unity",
+			"hhId": "16717",
+			"habrId": null,
+			"soTag": "unity-game-engine",
+			"aliases": ["unity-game-engine", "unity2d", "unity3d", "unity3d-5", "unity5", "unity5.3", "юнити"]
+		},
+		{
+			"key": "unreal",
+			"kind": "platform",
+			"parentKey": "cpp",
+			"name": "Unreal Engine",
+			"hhId": "177600",
+			"habrId": "1090",
+			"soTag": "unreal-engine5",
+			"aliases": ["ue4", "ue5", "unreal", "unreal-engine5"]
+		},
+		{
+			"key": "godot",
+			"kind": "platform",
+			"parentKey": null,
+			"name": "Godot",
+			"hhId": null,
+			"habrId": "1645",
+			"soTag": "godot",
+			"aliases": ["godot engine"]
+		},
+		{
+			"key": "algorithms",
+			"kind": "domain",
+			"parentKey": null,
+			"name": "Алгоритмы и структуры данных",
+			"hhId": "26814",
+			"habrId": "241",
+			"soTag": "algorithm",
+			"aliases": [
+				"algorithm",
+				"algorithm-design",
+				"algorithms",
+				"data structures",
+				"dsa",
+				"алгоритмы",
+				"асд",
+				"структуры данных"
+			]
+		},
+		{
+			"key": "graph_algorithms",
+			"kind": "domain",
+			"parentKey": "algorithms",
+			"name": "Алгоритмы на графах",
+			"hhId": null,
+			"habrId": null,
+			"soTag": "graph-algorithm",
+			"aliases": ["dijkstra", "graph-algorithm", "graph_algorithms", "graphs", "графы"]
+		},
+		{
+			"key": "dynamic_programming",
+			"kind": "domain",
+			"parentKey": "algorithms",
+			"name": "Динамическое программирование",
+			"hhId": null,
+			"habrId": null,
+			"soTag": "dynamic-programming",
+			"aliases": ["dp", "dynamic-programming", "динамика", "дп"]
+		},
+		{
+			"key": "math_discrete",
+			"kind": "domain",
+			"parentKey": null,
+			"name": "Дискретная математика",
+			"hhId": null,
+			"habrId": null,
+			"soTag": "discrete-mathematics",
+			"aliases": [
+				"discrete math",
+				"discrete-mathematics",
+				"discretemath",
+				"math_discrete",
+				"number theory",
+				"комбинаторика",
+				"теория чисел"
+			]
+		},
+		{
+			"key": "computational_geometry",
+			"kind": "domain",
+			"parentKey": "algorithms",
+			"name": "Вычислительная геометрия",
+			"hhId": null,
+			"habrId": null,
+			"soTag": "computational-geometry",
+			"aliases": ["computational-geometry", "geometry"]
+		},
+		{
+			"key": "string_algorithms",
+			"kind": "domain",
+			"parentKey": "algorithms",
+			"name": "Строковые алгоритмы",
+			"hhId": null,
+			"habrId": null,
+			"soTag": "string-algorithm",
+			"aliases": ["string-algorithm", "string_algorithms", "strings", "суффиксный массив"]
+		},
+		{
+			"key": "competitive_programming",
+			"kind": "practice",
+			"parentKey": "algorithms",
+			"name": "Спортивное программирование",
+			"hhId": null,
+			"habrId": null,
+			"soTag": null,
+			"aliases": ["competitive programming", "cp", "icpc", "олимпиадное программирование"]
+		},
+		{
+			"key": "optimization",
+			"kind": "practice",
+			"parentKey": null,
+			"name": "Оптимизация производительности",
+			"hhId": null,
+			"habrId": "1325",
+			"soTag": null,
+			"aliases": ["optimization", "performance", "profiling", "профилирование"]
+		},
+		{
+			"key": "multithreading",
+			"kind": "domain",
+			"parentKey": null,
+			"name": "Многопоточность",
+			"hhId": null,
+			"habrId": "658",
+			"soTag": "multithreading",
+			"aliases": [
+				"concurrency",
+				"cross-threading",
+				"multi-threaded",
+				"multithread",
+				"multithreading",
+				"thread",
+				"threading",
+				"threads",
+				"асинхронность",
+				"параллельное программирование"
+			]
+		},
+		{
+			"key": "oop",
+			"kind": "practice",
+			"parentKey": null,
+			"name": "ООП",
+			"hhId": "2350",
+			"habrId": "31",
+			"soTag": "oop",
+			"aliases": [
+				"design patterns",
+				"object-orientation",
+				"object-oriented",
+				"object-oriented-design",
+				"object-oriented-modeling",
+				"oo",
+				"oo-design",
+				"ood",
+				"oop",
+				"oops",
+				"solid",
+				"объектно-ориентированное программирование",
+				"паттерны проектирования"
+			]
+		},
+		{
+			"key": "teamwork",
+			"kind": "practice",
+			"parentKey": null,
+			"name": "Командная работа",
+			"hhId": "4118",
+			"habrId": "638",
+			"soTag": null,
+			"aliases": ["teamwork", "Работа в команде"]
+		},
+		{
+			"key": "presentation",
+			"kind": "practice",
+			"parentKey": null,
+			"name": "Публичные выступления/питч",
+			"hhId": "1107",
+			"habrId": null,
+			"soTag": null,
+			"aliases": ["pitching", "presentation", "Public Speaking", "презентация"]
+		},
+		{
+			"key": "english",
+			"kind": "domain",
+			"parentKey": null,
+			"name": "Английский язык",
+			"hhId": "5488",
+			"habrId": "989",
+			"soTag": null,
+			"aliases": ["english"]
+		}
+	]
+}

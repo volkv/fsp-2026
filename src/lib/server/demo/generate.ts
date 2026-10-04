@@ -1,0 +1,729 @@
+// Deterministic plans of the demo data: who the candidates are, which companies exist, what they publish and what the
+// synthetic vacancy sources list. Everything here is computed from the seed data, the simulator's dataset and the
+// batch id with seeded random numbers, so the same inputs give the same plans; nothing touches the database.
+import { createHash } from 'node:crypto';
+import { Random } from '../../../../services/fsp-mock/src/seed/random.ts';
+import { syntheticName, syntheticRegion, translit } from '../../../../services/fsp-mock/src/seed/names.ts';
+import type { CatalogScopeField } from '$lib/server/consent/kinds';
+import type { SourcePosting } from '$lib/server/vacancies/sources/types';
+import { QUIZ_SKILLS, type DemoPreferences, type HeroCandidate, type RoleProfile, type SeedData } from './data';
+import type { QuizPlan, QuizSkill } from './quizzes';
+import type { WorldAthlete } from './world';
+
+export { Random };
+
+interface PersonName {
+	lastName: string;
+	firstName: string;
+	middleName: string | null;
+}
+
+export interface CandidatePlan {
+	/** Stable key: the hero key, `fsp:<athlete>` or `resume:<n>`. */
+	key: string;
+	email: string;
+	name: PersonName;
+	birthDate: string;
+	athlete: WorldAthlete | null;
+	/** Blocks of the catalog card; `null` — the candidate does not show the profile in the catalog. */
+	catalogScope: CatalogScopeField[] | null;
+	desiredRoles: string[];
+	preferences: DemoPreferences | { work_formats: string[]; employment_forms: string[]; relocation: boolean };
+	searchStatus: 'active' | 'open_to_offers';
+	/** The file the candidate uploads: a hero's PDF or DOCX from `seeds/resumes/`, a background candidate's text. */
+	resume: { declaredName: string; bytes: Uint8Array<ArrayBuffer> } | null;
+	github: string | null;
+	/** A platform quiz the candidate took; `null` — none. */
+	quiz: QuizPlan | null;
+}
+
+const DAY = 86_400_000;
+
+/** Ability on the quizzes' scale of a person of the grade (0 — an average middle). */
+const GRADE_ABILITY: Record<string, number> = { intern: -1, junior: -0.5, middle: 0.3, senior: 1.1, lead: 1.4 };
+
+const isQuizSkill = (skill: string): skill is QuizSkill => (QUIZ_SKILLS as readonly string[]).includes(skill);
+
+/** Quizzes a person of the stack would take: the required skills of the stack that have a quiz in the bank. */
+function stackQuizzes(stack: RoleProfile['stacks'][number]): QuizSkill[] {
+	return stack.required.filter(isQuizSkill);
+}
+
+/** Quizzes a person of the role would take: those of any of its stacks. */
+function roleQuizzes(role: RoleProfile): QuizSkill[] {
+	return [...new Set(role.stacks.flatMap(stackQuizzes))];
+}
+
+/** Half of those whose stack has a quiz took one of its quizzes. */
+function quizPlan(rnd: Random, skills: readonly QuizSkill[], grade: string): QuizPlan | null {
+	if (skills.length === 0 || !rnd.chance(0.5)) return null;
+	return { skill: rnd.pick(skills), ability: (GRADE_ABILITY[grade] ?? 0) + 0.5 * rnd.normal() };
+}
+const pad = (n: number) => String(n).padStart(2, '0');
+const round5k = (value: number) => Math.max(5_000, Math.round(value / 5_000) * 5_000);
+
+/** Grade by age for a candidate's expectations and a synthetic resume. */
+function gradeOfAge(age: number, rnd: Random): string {
+	if (age <= 20) return rnd.chance(0.6) ? 'intern' : 'junior';
+	if (age <= 23) return rnd.chance(0.7) ? 'junior' : 'middle';
+	if (age <= 27) return rnd.chance(0.7) ? 'middle' : rnd.pick(['junior', 'senior']);
+	if (age <= 34) return rnd.chance(0.65) ? 'senior' : 'middle';
+	return rnd.chance(0.3) ? 'lead' : 'senior';
+}
+
+function roleByKey(data: SeedData, key: string): RoleProfile {
+	const role = data.roles.roles.find((r) => r.key === key);
+	if (!role) throw new Error(`seeds/roles.json has no role ${key}`);
+	return role;
+}
+
+function band(data: SeedData, grade: string, multiplier: number): [number, number] {
+	const range = data.roles.grades[grade];
+	if (!range) throw new Error(`seeds/roles.json has no salary range of grade ${grade}`);
+	return [range[0] * multiplier, range[1] * multiplier];
+}
+
+function expectation(data: SeedData, rnd: Random, roleKey: string, grade: string) {
+	const [low, high] = band(data, grade, roleByKey(data, roleKey).multiplier);
+	const min = round5k(low + (high - low) * rnd.next() * 0.8);
+	return {
+		min,
+		max: rnd.chance(0.5) ? round5k(min * (1.1 + rnd.next() * 0.2)) : null,
+		currency: 'RUB' as const,
+		period: 'month' as const,
+		tax_base: rnd.chance(0.85) ? ('net' as const) : ('gross' as const)
+	};
+}
+
+function workTerms(rnd: Random, young: boolean) {
+	const formats = rnd.weighted<string[]>([
+		[['remote'], 3],
+		[['hybrid', 'remote'], 3],
+		[['office', 'hybrid'], 2],
+		[['office'], 1]
+	]);
+	return {
+		work_formats: formats,
+		employment_forms: young && rnd.chance(0.5) ? ['full', 'internship'] : ['full'],
+		relocation: rnd.chance(0.25)
+	};
+}
+
+const birthDateOf = (rnd: Random, year: number) => `${year}-${pad(rnd.int(1, 12))}-${pad(rnd.int(1, 28))}`;
+
+/** A hero's resume file under the name a person gives it: «Резюме Фамилия Имя.pdf». */
+function heroResume(path: string, name: PersonName, data: SeedData): NonNullable<CandidatePlan['resume']> {
+	const bytes = data.resumes.get(path);
+	if (bytes === undefined) throw new Error(`seeds/${path} was not read with the seed data`);
+	return { declaredName: `Резюме ${name.lastName} ${name.firstName}${path.slice(path.lastIndexOf('.'))}`, bytes };
+}
+
+/** A candidate of the scenario: named in `seeds/demo.json`; an athlete's name and age come from the simulator. */
+export function heroPlan(hero: HeroCandidate, athlete: WorldAthlete | null, data: SeedData): CandidatePlan {
+	const name: PersonName = athlete
+		? { lastName: athlete.lastName, firstName: athlete.firstName, middleName: athlete.middleName }
+		: {
+				lastName: hero.name?.lastName ?? '',
+				firstName: hero.name?.firstName ?? '',
+				middleName: hero.name?.middleName ?? null
+			};
+	if (athlete && Number(hero.birthDate.slice(0, 4)) !== athlete.birthYear) {
+		throw new Error(`seeds/demo.json: ${hero.key} is born in ${hero.birthDate}, the athlete in ${athlete.birthYear}`);
+	}
+	return {
+		key: hero.key,
+		email: hero.email,
+		name,
+		birthDate: hero.birthDate,
+		athlete,
+		// A minor shows the profile only after a representative's authority is verified (domain 7.3).
+		catalogScope: hero.representative ? null : hero.catalogScope,
+		desiredRoles: hero.desiredRoles,
+		preferences: hero.preferences,
+		searchStatus: 'active',
+		resume: hero.resume === undefined ? null : heroResume(hero.resume, name, data),
+		github: hero.github ?? null,
+		quiz: hero.quiz ?? null
+	};
+}
+
+/**
+ * The code of a region the simulator names. A name the reference does not know stops the seed: a candidate would
+ * otherwise lose the region without a trace.
+ */
+function regionCodeOf(data: SeedData, name: string, owner: string): string {
+	const code = data.regions.codeOf(name);
+	if (code === undefined) throw new Error(`region «${name}» of ${owner} is not in seeds/regions.json`);
+	return code;
+}
+
+/** A synthetic candidate linked to an athlete of the simulator. */
+export function athletePlan(athlete: WorldAthlete, data: SeedData, batch: string, now: Date): CandidatePlan {
+	const rnd = new Random(`${batch}:athlete:${athlete.fspId}`);
+	const age = now.getUTCFullYear() - athlete.birthYear;
+	const byDiscipline = data.roles.disciplines[athlete.discipline] ?? data.roles.disciplines.algorithmic;
+	const roles = (athlete.specialization ? byDiscipline?.[athlete.specialization] : undefined) ??
+		byDiscipline?.default ?? ['backend'];
+	const desiredRoles = roles.slice(0, rnd.chance(0.6) ? 1 : 2);
+	const primaryRole = desiredRoles[0] ?? 'backend';
+	const grade = gradeOfAge(age, rnd);
+	// A blank region is not stated; a stated one must be in the reference.
+	const region =
+		athlete.region === null || athlete.region.trim() === ''
+			? undefined
+			: regionCodeOf(data, athlete.region, `athlete ${athlete.fspId}`);
+	const terms = workTerms(rnd, age <= 22);
+	const visible = rnd.chance(0.93);
+	return {
+		key: `fsp:${athlete.fspId}`,
+		email: athlete.email,
+		name: { lastName: athlete.lastName, firstName: athlete.firstName, middleName: athlete.middleName },
+		birthDate: birthDateOf(rnd, athlete.birthYear),
+		athlete,
+		catalogScope: visible ? (rnd.chance(0.55) ? ['fsp_achievements_exact'] : []) : null,
+		desiredRoles,
+		preferences: {
+			...terms,
+			...(region === undefined ? {} : { region_code: region }),
+			...(rnd.chance(0.8) ? { salary_expectation: expectation(data, rnd, primaryRole, grade) } : {})
+		},
+		searchStatus: rnd.chance(0.75) ? 'active' : 'open_to_offers',
+		resume: null,
+		github: null,
+		quiz: quizPlan(rnd, roleQuizzes(roleByKey(data, primaryRole)), grade)
+	};
+}
+
+const MONTHS = [
+	'Январь',
+	'Февраль',
+	'Март',
+	'Апрель',
+	'Май',
+	'Июнь',
+	'Июль',
+	'Август',
+	'Сентябрь',
+	'Октябрь',
+	'Ноябрь',
+	'Декабрь'
+];
+
+const UNIVERSITIES = [
+	'Московский государственный университет им. М. В. Ломоносова',
+	'Университет ИТМО',
+	'Новосибирский государственный университет',
+	'Уральский федеральный университет',
+	'Томский политехнический университет',
+	'Казанский федеральный университет',
+	'Нижегородский государственный университет им. Н. И. Лобачевского',
+	'Самарский университет'
+];
+
+function pickRole(data: SeedData, rnd: Random): RoleProfile {
+	return rnd.weighted(data.roles.roles.map((role) => [role, role.weight] as const));
+}
+
+/** Text of a synthetic resume in the layout the rules extractor reads: headed sections and dated jobs. */
+function resumeText(
+	data: SeedData,
+	rnd: Random,
+	input: {
+		name: PersonName;
+		role: RoleProfile;
+		stack: RoleProfile['stacks'][number];
+		grade: string;
+		age: number;
+		now: Date;
+		skillNames: ReadonlyMap<string, string>;
+	}
+): string {
+	const { stack } = input;
+	const skills = [...stack.required, ...stack.nice.filter(() => rnd.chance(0.6))];
+	const nameOf = (key: string) => input.skillNames.get(key) ?? key;
+	const years = Math.max(1, Math.min(input.age - 21, input.grade === 'junior' ? 2 : input.grade === 'middle' ? 4 : 9));
+	const jobs: string[] = [];
+	let end: Date | null = null;
+	let remaining = years * 12;
+	for (let i = 0; i < 3 && remaining > 0; i++) {
+		const months = i === 2 ? remaining : Math.min(remaining, rnd.int(14, 40));
+		const to: Date = end ?? input.now;
+		const from: Date = new Date(to.getTime() - months * 30 * DAY);
+		const period = `${MONTHS[from.getUTCMonth()]} ${from.getUTCFullYear()} — ${
+			end === null ? 'настоящее время' : `${MONTHS[to.getUTCMonth()]?.toLowerCase()} ${to.getUTCFullYear()}`
+		}`;
+		const organization = rnd.pick(data.companies.organizations);
+		const title = i === 0 ? `${stack.label}-разработчик` : 'Разработчик';
+		const used = skills.slice(0, 3).map(nameOf).join(', ');
+		jobs.push(
+			`${period}\n\n${organization.includes('«') ? organization : `ООО «${organization}»`}\n\n${title}\n\n• Разработка и поддержка сервисов: ${used}.`
+		);
+		remaining -= months;
+		end = new Date(from.getTime() - 30 * DAY);
+	}
+	const title = `${data.roles.gradeTitles[input.grade] ?? ''} ${input.role.title} (${stack.label})`.trim();
+	const middle = input.name.middleName === null ? '' : ` ${input.name.middleName}`;
+	return [
+		`${input.name.lastName} ${input.name.firstName}${middle}`,
+		'Желаемая должность',
+		title,
+		'Опыт работы',
+		...jobs,
+		'Навыки',
+		skills.map(nameOf).join(', '),
+		'Образование',
+		`${rnd.pick(UNIVERSITIES)}, ${input.now.getUTCFullYear() - input.age + 22}`
+	].join('\n\n');
+}
+
+/** A synthetic candidate without FSP history: the profile rests on an uploaded resume. */
+export function resumePlan(
+	index: number,
+	data: SeedData,
+	batch: string,
+	now: Date,
+	skillNames: ReadonlyMap<string, string>
+): CandidatePlan {
+	const rnd = new Random(`${batch}:resume:${index}`);
+	const synthetic = syntheticName(rnd);
+	const name: PersonName = {
+		lastName: synthetic.lastName,
+		firstName: synthetic.firstName,
+		middleName: synthetic.middleName
+	};
+	const age = rnd.int(22, 42);
+	const role = pickRole(data, rnd);
+	const grade = gradeOfAge(age, rnd);
+	const region = regionCodeOf(data, syntheticRegion(rnd), `synthetic resume ${index}`);
+	const stack = rnd.pick(role.stacks);
+	const text = resumeText(data, rnd, { name, role, stack, grade, age, now, skillNames });
+	return {
+		key: `resume:${index}`,
+		email: `${translit(name.firstName)}.${translit(name.lastName)}.${index}@candidates.example`,
+		name,
+		birthDate: birthDateOf(rnd, now.getUTCFullYear() - age),
+		athlete: null,
+		catalogScope: rnd.chance(0.9) ? [] : null,
+		desiredRoles: [role.key],
+		preferences: {
+			...workTerms(rnd, false),
+			region_code: region,
+			...(rnd.chance(0.85) ? { salary_expectation: expectation(data, rnd, role.key, grade) } : {})
+		},
+		searchStatus: rnd.chance(0.7) ? 'active' : 'open_to_offers',
+		resume: { declaredName: `Резюме ${name.lastName}.txt`, bytes: new TextEncoder().encode(text) },
+		github: null,
+		quiz: quizPlan(rnd, stackQuizzes(stack), grade)
+	};
+}
+
+/** A synthetic minor of the product discipline whose representative's authority is verified. */
+export function minorPlan(athlete: WorldAthlete, batch: string): CandidatePlan {
+	const rnd = new Random(`${batch}:minor:${athlete.fspId}`);
+	return {
+		key: `minor:${athlete.fspId}`,
+		email: athlete.email,
+		name: { lastName: athlete.lastName, firstName: athlete.firstName, middleName: athlete.middleName },
+		birthDate: birthDateOf(rnd, athlete.birthYear),
+		athlete,
+		// Shown in the catalog after the representative's authority is verified (scenes.ts).
+		catalogScope: null,
+		desiredRoles: ['frontend'],
+		preferences: { work_formats: ['remote'], employment_forms: ['internship'], relocation: false },
+		searchStatus: 'active',
+		resume: null,
+		github: null,
+		quiz: null
+	};
+}
+
+// --- Companies ---------------------------------------------------------------------------------------------------------
+
+export interface CompanyPlan {
+	key: string;
+	displayName: string;
+	legalName: string;
+	inn: string;
+	status: 'verified' | 'submitted';
+	minorTerms: boolean;
+	partnership: SeedData['demo']['companies'][number]['partnership'] | null;
+	members: { key: string; role: 'owner' | 'recruiter'; email: string; displayName: string }[];
+	/** Companies of the scenario get fixed vacancies besides the generated ones. */
+	scenario: boolean;
+}
+
+const WEIGHTS_10 = [2, 4, 10, 3, 5, 9, 4, 6, 8];
+
+/**
+ * A 10-digit ИНН with a correct check digit and the tax office code 00, which no office has: the number passes the
+ * checksum and cannot belong to a registered organization.
+ */
+function syntheticInn(key: string): string {
+	const digest = createHash('sha256').update(`inn:${key}`).digest();
+	const body = `00${String(digest.readUInt32BE(0) % 10_000_000).padStart(7, '0')}`;
+	const digits = Array.from({ length: body.length }, (_, index) => body.charCodeAt(index) - 48);
+	const check = (WEIGHTS_10.reduce((sum, weight, i) => sum + weight * (digits[i] ?? 0), 0) % 11) % 10;
+	return `${body}${check}`;
+}
+
+const slug = (name: string) =>
+	translit(name)
+		.replace(/[^a-z0-9]+/g, '-')
+		.replace(/^-|-$/g, '');
+
+export function companyPlans(data: SeedData, batch: string): CompanyPlan[] {
+	const scenario: CompanyPlan[] = data.demo.companies.map((company) => ({
+		key: company.key,
+		displayName: company.displayName,
+		legalName: company.legalName,
+		inn: syntheticInn(company.key),
+		status: company.status,
+		minorTerms: company.minorTerms,
+		partnership: company.partnership ?? null,
+		members: company.members,
+		scenario: true
+	}));
+	const background = data.companies.companies.map((displayName, index): CompanyPlan => {
+		const rnd = new Random(`${batch}:company:${displayName}`);
+		const domain = `${slug(displayName)}.example`;
+		const owner = syntheticName(rnd);
+		const recruiter = syntheticName(rnd);
+		return {
+			key: `company_${index}`,
+			displayName,
+			legalName: `ООО «${displayName}»`,
+			inn: syntheticInn(`company:${displayName}`),
+			status: 'verified',
+			minorTerms: false,
+			partnership: null,
+			members: [
+				{
+					key: `company_${index}_owner`,
+					role: 'owner',
+					email: `owner@${domain}`,
+					displayName: `${owner.firstName} ${owner.lastName}`
+				},
+				{
+					key: `company_${index}_recruiter`,
+					role: 'recruiter',
+					email: `hr@${domain}`,
+					displayName: `${recruiter.firstName} ${recruiter.lastName}`
+				}
+			],
+			scenario: false
+		};
+	});
+	return [...scenario, ...background];
+}
+
+// --- Vacancies -------------------------------------------------------------------------------------------------------
+
+export interface OwnVacancyPlan {
+	/** Key of the company in the plans. */
+	company: string;
+	/** Set only on the scenario's vacancies, which the seed finds by it. */
+	scenarioKey: string | null;
+	input: {
+		title: string;
+		description: string;
+		roleKey: string;
+		gradeMin: string;
+		gradeMax: string;
+		requiredSkillKeys: string[];
+		niceSkillKeys: string[];
+		workFormat: string;
+		employmentForm: string;
+		contractTypes: string[];
+		cityId: null;
+		timezoneOverlapHours: null;
+		salary: { min: number; max: number; currency: 'RUB'; period: 'month'; taxBase: 'net' | 'gross' };
+		/** Internship open to candidates from this age (domain 7.3); needs the company's acceptance of the terms. */
+		minAge: number | null;
+	};
+}
+
+const GRADES = ['intern', 'junior', 'middle', 'senior', 'lead'] as const;
+const FORMAT_NAMES: Record<string, string> = { office: 'офис', hybrid: 'гибрид', remote: 'удалённая работа' };
+
+function description(
+	company: string,
+	title: string,
+	required: readonly string[],
+	nice: readonly string[],
+	workFormat: string,
+	internship: boolean
+): string {
+	const lines = [
+		`«${company}» ищет в команду: ${title}.`,
+		'Задачи: разработка и развитие продуктовых сервисов, участие в проектировании, код-ревью, работа с командой продукта.',
+		`Обязательно: ${required.join(', ')}.`,
+		...(nice.length > 0 ? [`Будет плюсом: ${nice.join(', ')}.`] : []),
+		`Условия: ${FORMAT_NAMES[workFormat] ?? workFormat}, ${internship ? 'стажировка с наставником' : 'полная занятость'}, оформление по ТК РФ.`
+	];
+	return lines.join('\n\n');
+}
+
+function vacancyTerms(
+	data: SeedData,
+	rnd: Random,
+	role: RoleProfile,
+	company: string,
+	skillNames: ReadonlyMap<string, string>
+): OwnVacancyPlan['input'] {
+	const stack = rnd.pick(role.stacks);
+	const grade = rnd.weighted<(typeof GRADES)[number]>([
+		['intern', 0.05],
+		['junior', 0.2],
+		['middle', 0.4],
+		['senior', 0.28],
+		['lead', 0.07]
+	]);
+	const next = GRADES[GRADES.indexOf(grade) + 1];
+	const gradeMax = next !== undefined && grade !== 'intern' && rnd.chance(0.35) ? next : grade;
+	const [low, high] = band(data, grade, role.multiplier);
+	const [, highMax] = band(data, gradeMax, role.multiplier);
+	const net = rnd.chance(0.7);
+	const factor = net ? 1 : 1 / 0.87;
+	const min = round5k((low + (high - low) * rnd.next() * 0.5) * factor);
+	const max = Math.max(min, round5k((high + (highMax - high) * rnd.next()) * factor));
+	const nice = stack.nice.filter(() => rnd.chance(0.5));
+	const workFormat = rnd.weighted<string>([
+		['remote', 0.35],
+		['hybrid', 0.4],
+		['office', 0.25]
+	]);
+	const internship = grade === 'intern';
+	const title = `${data.roles.gradeTitles[grade] ?? ''} ${role.title} (${stack.label})`.trim();
+	const names = (keys: readonly string[]) => keys.map((key) => skillNames.get(key) ?? key);
+	return {
+		title,
+		description: description(company, title, names(stack.required), names(nice), workFormat, internship),
+		roleKey: role.key,
+		gradeMin: grade,
+		gradeMax,
+		requiredSkillKeys: [...stack.required],
+		niceSkillKeys: nice,
+		workFormat,
+		employmentForm: internship ? 'internship' : 'full',
+		contractTypes: rnd.chance(0.2) ? ['labor', 'self_employed'] : ['labor'],
+		cityId: null,
+		timezoneOverlapHours: null,
+		salary: { min, max, currency: 'RUB', period: 'month', taxBase: net ? 'net' : 'gross' },
+		minAge: null
+	};
+}
+
+/** Vacancies of the scenario's main employer: the internship open from 16 and the two of the invitations. */
+function scenarioVacancies(companyKey: string, companyName: string): OwnVacancyPlan[] {
+	const fixed = (
+		scenarioKey: string,
+		input: Omit<OwnVacancyPlan['input'], 'description' | 'cityId' | 'timezoneOverlapHours' | 'minAge'> & {
+			niceNames: string[];
+			requiredNames: string[];
+		},
+		minAge: number | null
+	): OwnVacancyPlan => {
+		const { niceNames, requiredNames, ...rest } = input;
+		return {
+			company: companyKey,
+			scenarioKey,
+			input: {
+				...rest,
+				description: description(
+					companyName,
+					rest.title,
+					requiredNames,
+					niceNames,
+					rest.workFormat,
+					rest.employmentForm === 'internship'
+				),
+				cityId: null,
+				timezoneOverlapHours: null,
+				minAge
+			}
+		};
+	};
+	return [
+		fixed(
+			'internship_frontend',
+			{
+				title: 'Стажёр frontend-разработки',
+				roleKey: 'frontend',
+				gradeMin: 'intern',
+				gradeMax: 'intern',
+				requiredSkillKeys: ['javascript', 'html', 'css'],
+				requiredNames: ['JavaScript', 'HTML', 'CSS'],
+				niceSkillKeys: ['typescript', 'react'],
+				niceNames: ['TypeScript', 'React'],
+				workFormat: 'remote',
+				employmentForm: 'internship',
+				contractTypes: ['labor'],
+				salary: { min: 45_000, max: 60_000, currency: 'RUB', period: 'month', taxBase: 'net' }
+			},
+			16
+		),
+		fixed(
+			'python_senior',
+			{
+				title: 'Senior Python-разработчик (платформа логистики)',
+				roleKey: 'backend',
+				gradeMin: 'senior',
+				gradeMax: 'senior',
+				requiredSkillKeys: ['python', 'postgresql'],
+				requiredNames: ['Python', 'PostgreSQL'],
+				niceSkillKeys: ['fastapi', 'celery', 'docker'],
+				niceNames: ['FastAPI', 'Celery', 'Docker'],
+				workFormat: 'hybrid',
+				employmentForm: 'full',
+				contractTypes: ['labor'],
+				salary: { min: 360_000, max: 450_000, currency: 'RUB', period: 'month', taxBase: 'net' }
+			},
+			null
+		),
+		fixed(
+			'go_payments',
+			{
+				title: 'Middle Go-разработчик (платёжный шлюз)',
+				roleKey: 'backend',
+				gradeMin: 'middle',
+				gradeMax: 'senior',
+				requiredSkillKeys: ['go', 'postgresql'],
+				requiredNames: ['Go', 'PostgreSQL'],
+				niceSkillKeys: ['kafka', 'kubernetes'],
+				niceNames: ['Apache Kafka', 'Kubernetes'],
+				workFormat: 'hybrid',
+				employmentForm: 'full',
+				contractTypes: ['labor'],
+				salary: { min: 230_000, max: 290_000, currency: 'RUB', period: 'month', taxBase: 'net' }
+			},
+			null
+		)
+	];
+}
+
+/** Own vacancies of the verified companies: `count` in total, the scenario's main employer first. */
+export function ownVacancyPlans(
+	data: SeedData,
+	companies: readonly CompanyPlan[],
+	count: number,
+	batch: string,
+	skillNames: ReadonlyMap<string, string>
+): OwnVacancyPlan[] {
+	const verified = companies.filter((c) => c.status === 'verified');
+	const main = verified.find((c) => c.minorTerms);
+	const plans: OwnVacancyPlan[] = main ? scenarioVacancies(main.key, main.displayName) : [];
+	const rnd = new Random(`${batch}:vacancies:own`);
+	for (let i = 0; plans.length < count; i++) {
+		// The scenario's companies publish more than the background ones.
+		const company = rnd.weighted(verified.map((c) => [c, c.scenario ? 3 : 1] as const));
+		plans.push({
+			company: company.key,
+			scenarioKey: null,
+			input: vacancyTerms(data, rnd, pickRole(data, rnd), company.displayName, skillNames)
+		});
+	}
+	return plans;
+}
+
+// --- Synthetic vacancy sources ---------------------------------------------------------------------------------------
+
+interface DemoSource {
+	key: string;
+	name: string;
+	storeDescription: boolean;
+	attribution: string;
+}
+
+/** Two synthetic listings: a posting may appear in both, and the aggregator clusters the duplicates. */
+export const DEMO_SOURCES: readonly DemoSource[] = [
+	{
+		key: 'demo_board',
+		name: 'Демо-лента вакансий «Доска»',
+		storeDescription: true,
+		attribution: 'Демо-данные: синтетическая лента вакансий'
+	},
+	{
+		key: 'demo_portal',
+		name: 'Демо-портал вакансий',
+		storeDescription: false,
+		attribution: 'Демо-данные: синтетический портал вакансий'
+	}
+];
+
+const CITIES = ['Москва', 'Санкт-Петербург', 'Новосибирск', 'Казань', 'Екатеринбург', 'Нижний Новгород', 'Томск', null];
+const EMPLOYMENT_RAW = ['Полная занятость', 'Полный день', 'Частичная занятость', 'Проектная работа'];
+
+function sha256(value: string): string {
+	return createHash('sha256').update(value).digest('hex');
+}
+
+/**
+ * Postings of the synthetic sources: `count` vacancies, some listed by both sources (the same title, organization and
+ * city), a part without a salary, tax bases mostly unstated as in real listings. One posting of the organization that
+ * matches the company under review is listed by both sources without a salary: «this is our vacancy».
+ */
+export function externalPostings(
+	data: SeedData,
+	count: number,
+	batch: string,
+	/** The day the listing is dated by: a fixed day keeps a repeated import of the same postings unchanged. */
+	asOf: Date,
+	claimOrganization: string,
+	skillNames: ReadonlyMap<string, string>
+): Map<string, SourcePosting[]> {
+	const rnd = new Random(`${batch}:vacancies:external`);
+	const bySource = new Map<string, SourcePosting[]>(DEMO_SOURCES.map((s) => [s.key, []]));
+	const organizations = data.companies.organizations.filter((o) => o !== claimOrganization);
+	for (let i = 0; i < count; i++) {
+		const claim = i === 0;
+		const role = claim ? roleByKey(data, 'backend') : pickRole(data, rnd);
+		const stack = claim ? (role.stacks[0] ?? rnd.pick(role.stacks)) : rnd.pick(role.stacks);
+		const grade = rnd.weighted<(typeof GRADES)[number]>([
+			['junior', 0.25],
+			['middle', 0.45],
+			['senior', 0.3]
+		]);
+		const organization = claim ? claimOrganization : rnd.pick(organizations);
+		const city = claim ? 'Казань' : rnd.pick(CITIES);
+		const withSalary = !claim && rnd.chance(0.5);
+		const [low, high] = band(data, grade, role.multiplier);
+		const min = withSalary && rnd.chance(0.85) ? round5k(low / 0.87) : null;
+		const max = withSalary && (min === null || rnd.chance(0.7)) ? round5k(high / 0.87) : null;
+		const skills = [...stack.required, ...stack.nice.filter(() => rnd.chance(0.5))].map(
+			(key) => skillNames.get(key) ?? key
+		);
+		const title = claim ? 'Backend-разработчик Go' : `${data.roles.gradeTitles[grade] ?? ''} ${role.title}`.trim();
+		const published = new Date(asOf.getTime() - rnd.int(0, 20) * DAY);
+		const both = claim || rnd.chance(0.15);
+		const sources = both ? DEMO_SOURCES : [rnd.pick(DEMO_SOURCES)];
+		for (const source of sources) {
+			const externalId = `${source.key}-${String(i + 1).padStart(5, '0')}`;
+			const posting: Omit<SourcePosting, 'rawSha256'> = {
+				externalId,
+				url: `https://example.com/demo-vacancies/${externalId}`,
+				title,
+				organization: { name: organization, inn: null, sourceOrgId: `org-${sha256(organization).slice(0, 8)}` },
+				publishedAt: published.toISOString(),
+				updatedAt: published.toISOString(),
+				salary: {
+					min,
+					max,
+					currency: min === null && max === null ? null : 'RUB',
+					period: min === null && max === null ? null : 'month',
+					taxBase: min === null && max === null ? null : rnd.chance(0.3) ? 'gross' : null,
+					rawText: min === null && max === null ? null : `${min ?? ''}–${max ?? ''} ₽`
+				},
+				grade: claim ? null : { raw: data.roles.gradeTitles[grade] ?? grade },
+				location: { city, remote: city === null ? true : rnd.chance(0.3), raw: city },
+				employment: { raw: rnd.pick(EMPLOYMENT_RAW) },
+				skillsRaw: skills,
+				description: source.storeDescription
+					? `${organization} ищет специалиста: ${title}. Стек: ${skills.join(', ')}.`
+					: null,
+				contactsRemoved: false
+			};
+			bySource.get(source.key)?.push({ ...posting, rawSha256: sha256(JSON.stringify(posting)) });
+		}
+	}
+	return bySource;
+}

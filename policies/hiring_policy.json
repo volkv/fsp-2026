@@ -1,0 +1,24 @@
+{
+	"kind": "hiring_policy",
+	"source": "docs/domain.md §13.7, §13.8, §20",
+	"versions": [
+		{
+			"version": 1,
+			"effective_from": "2026-09-25T00:00:00Z",
+			"params": {
+				"outcome_due_days": 30,
+				"reminder_intervals_days": [7],
+				"max_reminders": 2,
+				"stages": ["interview_scheduled", "interview_done", "offer_made", "offer_accepted"],
+				"outcome_reason_codes": ["salary", "format", "stack", "position_closed", "other"]
+			},
+			"basis": {
+				"outcome_due_days": "product_default",
+				"reminder_intervals_days": "product_default",
+				"max_reminders": "product_default",
+				"stages": "docs/domain.md §13.7: hiring_reports.stage",
+				"outcome_reason_codes": "product_default"
+			}
+		}
+	]
+}

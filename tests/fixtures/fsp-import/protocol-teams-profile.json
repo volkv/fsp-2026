@@ -1,0 +1,14 @@
+{
+	"name": "fsp-team-protocol",
+	"columns": {
+		"place": "Место",
+		"team": "Команда",
+		"score": "Результат (баллы)"
+	},
+	"values": {
+		"discipline": { "программирование продуктовое": "product" },
+		"online": { "дистанционно": true }
+	},
+	"competition": { "format": "team" },
+	"defaults": { "status": "official" }
+}

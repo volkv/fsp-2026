@@ -1,0 +1,444 @@
+{
+	"created_at": "2026-09-25T20:34:46+00:00",
+	"product_revision": "2b0b489d9649",
+	"requested_mode": "rules_only",
+	"timing": {
+		"extract_seconds": 31.3,
+		"seconds_per_document": 0.272,
+		"concurrency": 2
+	},
+	"row": {
+		"dataset_id": "synthetic-resumes-v2",
+		"dataset_size": 115,
+		"dataset_provenance": "synthetic",
+		"split": "holdout-by-profile-and-family",
+		"versions": {
+			"taxonomy": "2026.09.6",
+			"taxonomy_sha256": "9bb53efdd5a3f11f60f52281c12fb503fdbe0d7827e7f13c3f318791d0cdd4d6",
+			"categorization_ruleset": 6,
+			"resume_rules": "resume-rules/2",
+			"resume_schema": "resume-extract/v2",
+			"docparse": "fsp-docparse@1.0.0+2f77590dee2f",
+			"extract_producer": "resume-rules/2",
+			"dataset_generator": 2,
+			"dataset_labels_sha256": "fafea5704a7d201e2d51cfbc74c3c2ed928971437e869233bce0c92bcc206464",
+			"fsp_layer": "fsp-achievements-v2",
+			"fsp_layer_labels_sha256": "a1e84eaa29bbece9592efdce7d687249aa9da3ee8ae23ba1830c99cecc7e92ad",
+			"matching_layer": "synthetic-matching-v1",
+			"matching_layer_labels_sha256": "8282f05774f8c58459436ec9d85a63f8458f4b047c32d2ef3b0fe08a4f021ccd",
+			"match_ruleset": "4",
+			"reranker": "none",
+			"embedding_space": "none",
+			"harness": "fsp-eval/2",
+			"thresholds_sha256": "d21297e1b428"
+		},
+		"processing_mode": "rules_only",
+		"thresholds": {
+			"resume.parse_success_rate": {
+				"min": 0.98
+			},
+			"resume.skills_f1": {
+				"min": 0.85
+			},
+			"resume.skills_precision": {
+				"min": 0.85
+			},
+			"resume.skills_recall": {
+				"min": 0.85
+			},
+			"resume.fields_f1": {
+				"min": 0.75
+			},
+			"resume.quote_validity": {
+				"min": 0.98
+			},
+			"skills.normalization_accuracy": {
+				"min": 0.9
+			},
+			"skills.normalization_accuracy.unknown": {
+				"min": 0.9
+			},
+			"categorization.role_accuracy": {
+				"min": 0.8
+			},
+			"categorization.grade_in_range": {
+				"min": 0.75
+			},
+			"categorization.grade_range_width": {
+				"max": 2
+			},
+			"categorization.sufficiency_accuracy.role": {
+				"min": 0.85
+			},
+			"categorization.false_refusal_rate": {
+				"max": 0.1
+			},
+			"matching.ndcg_at_10": {
+				"min": 0.7
+			}
+		},
+		"metrics": {
+			"resume.parse_success_rate": {
+				"value": 1.0,
+				"n": 115
+			},
+			"resume.skills_f1": {
+				"value": 0.9779,
+				"n": 115,
+				"baseline": 0.7578
+			},
+			"resume.skills_precision": {
+				"value": 0.9851,
+				"n": 115,
+				"baseline": 0.9769
+			},
+			"resume.skills_recall": {
+				"value": 0.9707,
+				"n": 115,
+				"baseline": 0.6189
+			},
+			"resume.skills_recall.unfamiliar": {
+				"value": 0.7719,
+				"n": 57,
+				"baseline": 0.5789
+			},
+			"resume.fields_f1": {
+				"value": 0.9787,
+				"n": 115
+			},
+			"resume.fields_f1.period": {
+				"value": 0.9979,
+				"n": 235
+			},
+			"resume.fields_f1.role": {
+				"value": 0.9729,
+				"n": 263
+			},
+			"resume.fields_f1.organization": {
+				"value": 0.9438,
+				"n": 263
+			},
+			"resume.fields_f1.language": {
+				"value": 1.0,
+				"n": 127
+			},
+			"resume.fields_f1.education": {
+				"value": 1.0,
+				"n": 100
+			},
+			"resume.fields_f1.marker": {
+				"value": 1.0,
+				"n": 43
+			},
+			"skills.normalization_accuracy": {
+				"value": 0.8598,
+				"n": 271,
+				"baseline": 0.3727
+			},
+			"skills.normalization_accuracy.variant": {
+				"value": 0.8386,
+				"n": 223,
+				"baseline": 0.3991
+			},
+			"skills.normalization_accuracy.unfamiliar": {
+				"value": 0.2,
+				"n": 45,
+				"baseline": 0.0
+			},
+			"skills.normalization_accuracy.typo": {
+				"value": 0.9444,
+				"n": 36,
+				"baseline": 0.0
+			},
+			"skills.normalization_accuracy.unknown": {
+				"value": 1.0,
+				"n": 12,
+				"baseline": 1.0
+			},
+			"skills.lexicon_overlap": {
+				"value": 0.7982,
+				"n": 223
+			},
+			"categorization.role_accuracy": {
+				"value": 0.9815,
+				"n": 108,
+				"baseline": 0.0833
+			},
+			"categorization.grade_in_range": {
+				"value": 0.9688,
+				"n": 96,
+				"baseline": 0.2292
+			},
+			"categorization.grade_range_width": {
+				"value": 1.8947,
+				"n": 95,
+				"baseline": 1.0
+			},
+			"categorization.sufficiency_accuracy.role": {
+				"value": 0.9826,
+				"n": 115,
+				"baseline": 0.9391
+			},
+			"categorization.sufficiency_accuracy.grade": {
+				"value": 0.9913,
+				"n": 115,
+				"baseline": 0.8348
+			},
+			"categorization.refusal_rate": {
+				"value": 0.0783,
+				"n": 115,
+				"baseline": 0.0
+			},
+			"categorization.false_refusal_rate": {
+				"value": 0.0185,
+				"n": 108,
+				"baseline": 0.0
+			},
+			"categorization.role_established.without_fsp": {
+				"value": 0.8511,
+				"n": 47
+			},
+			"categorization.role_established.with_fsp": {
+				"value": 0.8511,
+				"n": 47,
+				"baseline": 0.8511
+			},
+			"categorization.role_found.without_fsp": {
+				"value": 0.8511,
+				"n": 47
+			},
+			"categorization.role_found.with_fsp": {
+				"value": 0.8511,
+				"n": 47,
+				"baseline": 0.8511
+			},
+			"categorization.role_accuracy.without_fsp": {
+				"value": 0.9756,
+				"n": 41
+			},
+			"categorization.role_accuracy.with_fsp": {
+				"value": 0.9756,
+				"n": 41,
+				"baseline": 0.9756
+			},
+			"categorization.role_wrong_rate.without_fsp": {
+				"value": 0.0,
+				"n": 47
+			},
+			"categorization.role_wrong_rate.with_fsp": {
+				"value": 0.0,
+				"n": 47,
+				"baseline": 0.0
+			},
+			"categorization.refusal_rate.without_fsp": {
+				"value": 0.1489,
+				"n": 47
+			},
+			"categorization.refusal_rate.with_fsp": {
+				"value": 0.1489,
+				"n": 47,
+				"baseline": 0.1489
+			},
+			"categorization.grade_established.without_fsp": {
+				"value": 0.7872,
+				"n": 47
+			},
+			"categorization.grade_established.with_fsp": {
+				"value": 0.7872,
+				"n": 47,
+				"baseline": 0.7872
+			},
+			"categorization.grade_in_range.without_fsp": {
+				"value": 0.973,
+				"n": 37
+			},
+			"categorization.grade_in_range.with_fsp": {
+				"value": 0.973,
+				"n": 37,
+				"baseline": 0.973
+			},
+			"categorization.fsp_level_accuracy": {
+				"value": 1.0,
+				"n": 60
+			},
+			"categorization.fsp_level_coverage": {
+				"value": 0.9787,
+				"n": 47
+			},
+			"matching.ndcg_at_10": {
+				"value": 0.8597,
+				"n": 38,
+				"baseline": 0.7548
+			},
+			"matching.ndcg_at_10.keywords": {
+				"value": 0.7548,
+				"n": 38,
+				"baseline": 0.0737
+			},
+			"matching.ndcg_at_10.random": {
+				"value": 0.0737,
+				"n": 38
+			},
+			"matching.ndcg_at_10.resume_only": {
+				"value": 0.8393,
+				"n": 38,
+				"baseline": 0.7548
+			},
+			"matching.ndcg_at_10.without_fsp": {
+				"value": 0.8583,
+				"n": 38,
+				"baseline": 0.8597
+			},
+			"matching.ndcg_at_10.without_tests": {
+				"value": 0.8484,
+				"n": 38,
+				"baseline": 0.8597
+			},
+			"matching.ndcg_at_10.without_reranker": {
+				"value": null,
+				"n": 0,
+				"baseline": 0.8597
+			},
+			"matching.ndcg_at_10.with_semantic": {
+				"value": null,
+				"n": 0
+			},
+			"resume.quote_validity": {
+				"value": 1.0,
+				"n": 2769
+			},
+			"resume.quote_validity.offsets": {
+				"value": 1.0,
+				"n": 2769
+			},
+			"resume.quote_refusal_rate": {
+				"value": 0.0,
+				"n": 2772
+			},
+			"performance.extract_ms.p50": {
+				"value": 2,
+				"n": 115
+			},
+			"performance.extract_ms.p95": {
+				"value": 6,
+				"n": 115
+			}
+		}
+	},
+	"threshold_failures": ["skills.normalization_accuracy: 0.8598 outside {'min': 0.9}"],
+	"matching": {
+		"vacancies": 40,
+		"rated_vacancies": 38,
+		"pool": 115,
+		"reranker_used": false,
+		"deltas": {
+			"full_minus_keywords": {
+				"mean": 0.10487861513617407,
+				"ci95": [0.0593148797716041, 0.153954979106364],
+				"n": 38
+			},
+			"full_minus_random": {
+				"mean": 0.7860384978000023,
+				"ci95": [0.734412151569987, 0.8278841181251151],
+				"n": 38
+			},
+			"full_minus_resume_only": {
+				"mean": 0.02042071817170888,
+				"ci95": [-0.00565981757382577, 0.04946761337832166],
+				"n": 38
+			},
+			"full_minus_without_fsp": {
+				"mean": 0.0014120888436848595,
+				"ci95": [-0.013212929681158819, 0.01812254815871644],
+				"n": 38
+			},
+			"full_minus_without_tests": {
+				"mean": 0.011248252071227764,
+				"ci95": [-0.01039922622570937, 0.0328360041965848],
+				"n": 38
+			}
+		},
+		"role_agnostic": {
+			"keywords": 0.7435951151829748,
+			"random": 0.07495002954800292,
+			"full": 0.8425261284805853,
+			"without_fsp": 0.8413138571128455,
+			"without_tests": 0.8373304716882393,
+			"resume_only": 0.8261002398590953,
+			"without_reranker": null
+		},
+		"by_kind": {
+			"algorithmic": {
+				"keywords": 0.5719336067720446,
+				"random": 0.09369488338565628,
+				"full": 0.6885848057336043,
+				"without_fsp": 0.6801612161432536,
+				"without_tests": 0.6769526252748511,
+				"resume_only": 0.6145103349539888,
+				"without_reranker": null
+			},
+			"other": {
+				"keywords": 0.7961080285566049,
+				"random": 0.06912723895916115,
+				"full": 0.8983283183128531,
+				"without_fsp": 0.898499471573254,
+				"without_tests": 0.8871667597484859,
+				"resume_only": 0.8900229636332523,
+				"without_reranker": null
+			}
+		},
+		"bridge": {
+			"reranker": {
+				"full": {
+					"used": 0,
+					"unavailable": {
+						"disabled": 40
+					}
+				},
+				"without_fsp": {
+					"used": 0,
+					"unavailable": {
+						"disabled": 40
+					}
+				},
+				"without_tests": {
+					"used": 0,
+					"unavailable": {
+						"disabled": 40
+					}
+				},
+				"resume_only": {
+					"used": 0,
+					"unavailable": {
+						"disabled": 40
+					}
+				},
+				"without_reranker": {
+					"used": 0,
+					"unavailable": {
+						"disabled": 40
+					}
+				}
+			},
+			"semantic": {
+				"no_active_space": 200
+			},
+			"models": {
+				"match_ruleset": "4",
+				"reranker": "none",
+				"embedding_space": "none"
+			},
+			"catalog": {
+				"candidates": 460,
+				"categorized": 460,
+				"stale_jobs": 0,
+				"tests": 86,
+				"fsp_facts": 274
+			},
+			"seconds": {
+				"catalog": 5.3,
+				"ranking": 4.1
+			}
+		}
+	}
+}

@@ -1,0 +1,481 @@
+name: fsp-career
+
+# Host ports live in the 57xxx range and are bound to 127.0.0.1 only; see docs/development.md.
+# Values come from .env (copy of .env.example).
+
+# Everything src/lib/server/config.ts reads, for the application and the worker. Addresses are the internal ones of
+# this network; secrets come from .env.
+x-app-environment: &app-environment
+  DATABASE_URL: postgres://${POSTGRES_USER:?set in .env}:${POSTGRES_PASSWORD:?set in .env}@postgres:5432/${POSTGRES_DB:?set in .env}
+  REDIS_URL: redis://redis:6379
+  APP_ORIGIN: http://localhost:57300
+  # adapter-node: origin of form posts for the framework's CSRF check.
+  ORIGIN: http://localhost:57300
+  FIELD_ENCRYPTION_KEYS: ${FIELD_ENCRYPTION_KEYS:?set in .env}
+  FIELD_ENCRYPTION_ACTIVE_KEY: ${FIELD_ENCRYPTION_ACTIVE_KEY:?set in .env}
+  FIELD_HMAC_SECRET: ${FIELD_HMAC_SECRET:?set in .env}
+  RECEIPT_SIGNING_KEYS: ${RECEIPT_SIGNING_KEYS:?set in .env}
+  RECEIPT_ACTIVE_SIGNING_KEY: ${RECEIPT_ACTIVE_SIGNING_KEY:?set in .env}
+  S3_ENDPOINT: http://storage:8333
+  S3_REGION: ${S3_REGION:?set in .env}
+  S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?set in .env}
+  S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?set in .env}
+  S3_BUCKET: ${S3_BUCKET:?set in .env}
+  SMTP_URL: smtp://mailpit:1025
+  MAIL_FROM: ${MAIL_FROM:?set in .env}
+  DOCPARSE_URL: http://docparse-gateway:8080
+  SANDBOX_URL: http://sandbox-gateway:8080
+  SANDBOX_MAX_CONCURRENT_RUNS: ${SANDBOX_MAX_CONCURRENT_RUNS:-}
+  # The simulator has the same address from the browser and from here (see the fsp-mock service).
+  FSP_ID_ISSUER: http://fsp-mock.localhost:57610/realms/fsp
+  FSP_ID_CLIENT_ID: ${FSP_ID_CLIENT_ID:?set in .env}
+  FSP_ID_CLIENT_SECRET: ${FSP_ID_CLIENT_SECRET:?set in .env}
+  FSP_ID_REDIRECT_URI: http://localhost:57300/auth/fsp/callback
+  FSP_ID_SCOPES: ${FSP_ID_SCOPES:-}
+  COMPANY_REGISTRY: ${COMPANY_REGISTRY:-}
+  GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+  FSP_ACHIEVEMENTS_ADAPTER: mock
+  FSP_ACHIEVEMENTS_BASE_URL: http://fsp-mock.localhost:57610
+  FSP_WEBHOOK_SECRET: ${FSP_WEBHOOK_SECRET:?set in .env}
+  FSP_ASSERTION_SECRET: ${FSP_ASSERTION_SECRET:?set in .env}
+  # Optional integrations as configured in .env; an empty value disables one (docs/contracts.md, sections 3.1
+  # and 8.2). Their addresses must be reachable from the containers, not only from the host.
+  LLM_BASE_URL: ${LLM_BASE_URL:-}
+  LLM_MODEL: ${LLM_MODEL:-}
+  LLM_API_KEY: ${LLM_API_KEY:-}
+  LLM_TIMEOUT_MS: ${LLM_TIMEOUT_MS:-}
+  LLM_INTERACTIVE_TIMEOUT_MS: ${LLM_INTERACTIVE_TIMEOUT_MS:-}
+  LLM_MAX_CONCURRENCY: ${LLM_MAX_CONCURRENCY:-}
+  # The stand's own embedder (the embedder service below); the space is registered at the start of the app
+  # (docs/development.md, «Эмбеддер»). Batches of 8 keep a search query waiting behind background work for about a
+  # second; a batch of 32 makes it wait longer than EMBED_INTERACTIVE_TIMEOUT_MS.
+  EMBED_BASE_URL: http://embedder:8080
+  EMBED_MODEL: bge-m3
+  EMBED_SPACE_ID: bge-m3@aa473d51f451/q:none/d:none/cls/l2/1024/t512/sections-v1
+  EMBED_TIMEOUT_MS: ${EMBED_TIMEOUT_MS:-}
+  EMBED_INTERACTIVE_TIMEOUT_MS: ${EMBED_INTERACTIVE_TIMEOUT_MS:-}
+  EMBED_BATCH_SIZE: ${EMBED_BATCH_SIZE:-8}
+  RERANK_BASE_URL: ${RERANK_BASE_URL:-}
+  RERANK_MODEL: ${RERANK_MODEL:-}
+  RERANK_API_KEY: ${RERANK_API_KEY:-}
+  RERANK_TIMEOUT_MS: ${RERANK_TIMEOUT_MS:-}
+  RERANK_INTERACTIVE_TIMEOUT_MS: ${RERANK_INTERACTIVE_TIMEOUT_MS:-}
+  RERANK_TOP_N: ${RERANK_TOP_N:-}
+  RERANK_TRUNCATE_TOKENS: ${RERANK_TRUNCATE_TOKENS:-}
+  TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+  TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
+  TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:-}
+  # Demonstration mode (docs/development.md, «Демо-данные»): the demo seed and reset run only with DEMO_MODE=true. The
+  # seed generates the simulator's dataset again, so the simulator below gets the same FSP_MOCK_SEED and
+  # FSP_MOCK_ATHLETES; the reset returns the simulator to that dataset through its control endpoints.
+  DEMO_MODE: ${DEMO_MODE:-}
+  DEMO_CANDIDATES: ${DEMO_CANDIDATES:-}
+  DEMO_VACANCIES: ${DEMO_VACANCIES:-}
+  FSP_MOCK_SEED: ${FSP_MOCK_SEED:-fsp-career-2026-7}
+  FSP_MOCK_ATHLETES: ${FSP_MOCK_ATHLETES:-3000}
+  FSP_MOCK_CONTROL_TOKEN: ${FSP_MOCK_CONTROL_TOKEN:?set in .env}
+
+services:
+  postgres:
+    image: pgvector/pgvector:0.8.6-pg17-trixie
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?set in .env}
+      POSTGRES_USER: ${POSTGRES_USER:?set in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env}
+    ports:
+      - 127.0.0.1:57432:5432
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  redis:
+    image: redis:8.10.2-alpine
+    ports:
+      - 127.0.0.1:57379:6379
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  # S3-compatible object storage of uploaded files: SeaweedFS in its single-process mode (master, volume server, filer
+  # and the S3 API). It creates the application bucket at start from S3_BUCKET and knows one identity, the app's keys;
+  # buckets are never created on upload. Besides the S3 API the process serves its master, volume and filer APIs without
+  # authentication, so the service has a network of its own with the app and the worker, and the host sees the S3 API
+  # alone.
+  storage:
+    image: chrislusf/seaweedfs:4.47
+    command:
+      - mini
+      - -dir=/data
+      # The components reach each other over the container's loopback, whatever address the container gets.
+      - -ip=127.0.0.1
+      - -ip.bind=0.0.0.0
+      - -s3.autoCreateBucket=false
+      - -webdav=false
+      - -admin.ui=false
+      - -s3.port.iceberg=0
+      - -s3.port.lance=0
+    environment:
+      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?set in .env}
+      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?set in .env}
+      S3_BUCKET: ${S3_BUCKET:?set in .env}
+      # The Go heap is collected before the container limit is reached.
+      GOMEMLIMIT: 192MiB
+    mem_limit: 256m
+    memswap_limit: 256m
+    ports:
+      - 127.0.0.1:57900:8333
+    volumes:
+      - storage-data:/data
+    networks: [storage]
+    healthcheck:
+      # The S3 API answers before the bucket exists: healthy once both hold, so `docker compose up --wait` covers both.
+      test:
+        [
+          CMD-SHELL,
+          'wget -q -O /dev/null http://127.0.0.1:8333/healthz && wget -q -O /dev/null "http://127.0.0.1:8888/buckets/$$S3_BUCKET/"'
+        ]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  mailpit:
+    image: axllent/mailpit:v1.31.2
+    ports:
+      - 127.0.0.1:57025:1025
+      - 127.0.0.1:57825:8025
+    healthcheck:
+      test: [CMD, /mailpit, readyz]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  # Resume file parser (docs/contracts.md, section 4). Its only network is internal and holds nobody but the gateway:
+  # no route outside, no access to the database, storage or the app. Limits follow the contract: 768 MB, 2 parses.
+  docparse:
+    build:
+      context: services/docparse
+      target: runtime
+    read_only: true
+    tmpfs:
+      # Uploads and per-request scratch directories; LibreOffice profiles live here too.
+      - /tmp:size=512m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    mem_limit: 768m
+    memswap_limit: 768m
+    cpus: 2
+    pids_limit: 256
+    networks: [docparse]
+    healthcheck:
+      test:
+        [
+          CMD,
+          python,
+          -c,
+          "import urllib.request, sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/v1/health', timeout=2).status == 200 else 1)"
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+
+  # The only way to docparse: from the app over the default network, from the host on 127.0.0.1:57800 for development.
+  docparse-gateway:
+    image: nginx:1.30.5-alpine
+    user: '101:101'
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,uid=101,gid=101
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    volumes:
+      - ./services/docparse/gateway/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      docparse:
+        condition: service_healthy
+    networks: [default, docparse]
+    ports:
+      - 127.0.0.1:57800:8080
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, 'http://127.0.0.1:8080/v1/health']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # Code execution sandbox (docs/contracts.md, section 6): go-judge with the language toolchains. Every program runs in
+  # its own user, network, mount and PID namespaces with cgroup limits; go-judge needs CAP_SYS_ADMIN for that, so the
+  # container itself is the outer wall: no volumes, no Docker socket, a network with nobody but its gateway, a fixed
+  # memory, CPU and pids budget. Why each privilege is needed — docs/development.md, "Песочница".
+  sandbox:
+    build:
+      context: services/sandbox
+    read_only: true
+    tmpfs:
+      # Roots of the program environments; their /w and /tmp are separate tmpfs mounts inside.
+      - /tmp:size=64m
+      # Mount point of the procfs instance for the environments (services/sandbox/entrypoint.sh).
+      - /run:size=1m
+    # go-judge's file store holds compiled programs between the compile step and the tests.
+    shm_size: 128m
+    cap_drop: [ALL]
+    cap_add: [SYS_ADMIN, SETUID, SETGID, SETFCAP]
+    security_opt:
+      - no-new-privileges:true
+      # Docker's default profile (moby/profiles seccomp v0.2.3) plus pivot_root, which go-judge uses to enter the
+      # environment root.
+      - seccomp=services/sandbox/seccomp.json
+      # Docker's default AppArmor profile forbids every mount; the environments are built from mounts.
+      - apparmor=unconfined
+    cgroup: private
+    # Two programs at once (-parallelism=2) at up to 512 MB each, plus go-judge and its store.
+    mem_limit: 1536m
+    memswap_limit: 1536m
+    cpus: 2
+    pids_limit: 512
+    networks: [sandbox]
+
+  # The only way to the sandbox: from the app over the default network, from the host on 127.0.0.1:57950 for
+  # development and integration tests of the adapter.
+  sandbox-gateway:
+    image: nginx:1.30.5-alpine
+    user: '101:101'
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,uid=101,gid=101
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    volumes:
+      - ./services/sandbox/gateway/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      sandbox:
+        condition: service_healthy
+    networks: [default, sandbox]
+    ports:
+      - 127.0.0.1:57950:8080
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, 'http://127.0.0.1:8080/version']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # FSP simulator (docs/contracts.md, sections 1 and 2.6): FSP ID over OIDC and the achievements API in one process,
+  # synthetic athletes on real competitions. The OIDC issuer must be the same string for the browser and for the app
+  # container, so the service has one address everywhere: http://fsp-mock.localhost:57610. Browsers resolve *.localhost
+  # to loopback, where the port is published; containers resolve the same name through the network alias, and the
+  # process listens on the same port inside.
+  fsp-mock:
+    build:
+      context: services/fsp-mock
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    mem_limit: 256m
+    memswap_limit: 256m
+    cpus: 1
+    pids_limit: 128
+    environment:
+      FSP_MOCK_ORIGIN: http://fsp-mock.localhost:57610
+      PORT: 57610
+      FSP_MOCK_CLIENT_ID: ${FSP_ID_CLIENT_ID:?set in .env}
+      FSP_MOCK_CLIENT_SECRET: ${FSP_ID_CLIENT_SECRET:?set in .env}
+      # Callbacks of pnpm dev, the e2e servers of both slots (tests/e2e/helpers/ports.ts, E2E_SLOTS) and the app
+      # container; redirect_uri must match one exactly. The slots are listed, not taken from E2E_PORT: the simulator is
+      # shared by the copies of the tree, and each `compose up` with another value would recreate it for one copy only.
+      FSP_MOCK_REDIRECT_URIS: http://localhost:57173/auth/fsp/callback,http://localhost:57175/auth/fsp/callback,http://127.0.0.1:57175/auth/fsp/callback,http://localhost:57185/auth/fsp/callback,http://127.0.0.1:57185/auth/fsp/callback,http://localhost:57300/auth/fsp/callback
+      FSP_MOCK_ASSERTION_SECRET: ${FSP_ASSERTION_SECRET:?set in .env}
+      # Webhook subscription made at start; deliveries fail (and are retried, then logged) while the app is down.
+      FSP_MOCK_WEBHOOK_URL: http://app:3000/api/v1/integrations/fsp/webhooks
+      FSP_MOCK_WEBHOOK_SECRET: ${FSP_WEBHOOK_SECRET:?set in .env}
+      FSP_MOCK_CONTROL_TOKEN: ${FSP_MOCK_CONTROL_TOKEN:?set in .env}
+      # The dataset; the application's demo seed reads the same two values (x-app-environment).
+      FSP_MOCK_SEED: ${FSP_MOCK_SEED:-fsp-career-2026-7}
+      FSP_MOCK_ATHLETES: ${FSP_MOCK_ATHLETES:-3000}
+    networks:
+      default:
+        aliases: [fsp-mock.localhost]
+    ports:
+      - 127.0.0.1:57610:57610
+    healthcheck:
+      test:
+        [
+          CMD,
+          node,
+          -e,
+          "fetch('http://127.0.0.1:57610/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+        ]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+
+  # Embedding model runtime (docs/contracts.md, section 3.3; docs/development.md, «Эмбеддер»): llama.cpp server on the
+  # CPU with bge-m3 Q8_0, the space BGE_M3_Q8 of src/lib/server/embeddings/definitions.ts. The model file lives in the
+  # volume; the first start downloads it from Hugging Face at a fixed commit and every start checks its SHA-256, so a
+  # partial or altered file is never loaded. Inputs are at most 512 tokens (one physical batch): the memory of attention
+  # grows with the square of the input. Measured peak with a batch of 512-token inputs: 644 MiB, the model included.
+  embedder:
+    image: ghcr.io/ggml-org/llama.cpp:server-b11176
+    entrypoint: [/bin/sh, -eu, -c]
+    command:
+      - |
+        model=/models/bge-m3-q8_0.gguf
+        if [ -f "$$model" ] && ! echo "$$MODEL_SHA256  $$model" | sha256sum -c --status; then
+          echo "embedder: $$model fails its SHA-256, downloading it again" >&2
+          rm -f "$$model"
+        fi
+        if [ ! -f "$$model" ]; then
+          echo "embedder: downloading $$MODEL_URL" >&2
+          curl -fsSL --retry 5 --retry-all-errors --connect-timeout 20 -o "$$model.part" "$$MODEL_URL"
+          if ! echo "$$MODEL_SHA256  $$model.part" | sha256sum -c --status; then
+            echo "embedder: the downloaded file fails its SHA-256" >&2
+            rm -f "$$model.part"
+            exit 1
+          fi
+          mv "$$model.part" "$$model"
+        fi
+        exec /app/llama-server --model "$$model" --alias bge-m3 --embeddings --pooling cls \
+          --ctx-size 512 --batch-size 512 --ubatch-size 512 --parallel 1 \
+          --threads "$$THREADS" --threads-batch "$$THREADS" --threads-http 4 --host 0.0.0.0 --port 8080 --no-webui --no-slots
+    environment:
+      MODEL_URL: https://huggingface.co/ggml-org/bge-m3-Q8_0-GGUF/resolve/9eba04c5d75ba5a1595e45de734d36bef4e5cb98/bge-m3-q8_0.gguf
+      MODEL_SHA256: aa473d51f451a22f0fcf39ba3330c14bed38a385712b1113440f69df4047a173
+      THREADS: '4'
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    mem_limit: 896m
+    memswap_limit: 896m
+    cpus: 4
+    pids_limit: 64
+    volumes:
+      - embedder-models:/models
+    ports:
+      - 127.0.0.1:57820:8080
+    healthcheck:
+      # 200 once the model is loaded; the first start downloads 635 MB before that.
+      test: [CMD, curl, -fsS, -o, /dev/null, 'http://127.0.0.1:8080/health']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 600s
+
+  app:
+    # Named so that the worker runs the same image.
+    image: fsp-career-app:local
+    build:
+      context: .
+      args:
+        # Empty value makes the build fail with an explicit message; `make up` sets it from git.
+        APP_COMMIT: ${APP_COMMIT:-}
+    profiles: [app]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      storage:
+        condition: service_healthy
+      mailpit:
+        condition: service_healthy
+      docparse-gateway:
+        condition: service_healthy
+      sandbox-gateway:
+        condition: service_healthy
+      fsp-mock:
+        condition: service_healthy
+    environment:
+      <<: *app-environment
+      # The bootstrap administrator (docs/domain.md, section 4.1), created or confirmed at every start of the
+      # application (build/admin/main.js ensure); the worker never needs the password, so only the app gets it.
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
+    networks: [default, storage]
+    ports:
+      - 127.0.0.1:57300:3000
+    healthcheck:
+      test:
+        [
+          CMD,
+          node,
+          -e,
+          "fetch('http://127.0.0.1:3000/api/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  # Background jobs (docs/development.md, «Воркер фоновых заданий»): the application image with the worker command.
+  # `--types` is the explicit list of enabled job types; a type without a handler stops the worker at start. It starts
+  # after the application, whose container applies the migrations.
+  worker:
+    image: fsp-career-app:local
+    # Built by the app service; never pulled.
+    pull_policy: never
+    profiles: [app]
+    depends_on:
+      app:
+        condition: service_healthy
+    command:
+      - node
+      - --enable-source-maps
+      - build/worker/main.js
+      - '--types=retention.sweep,fsp.sync,external_profile.refresh,categorization.compute,match.refresh,derivations.reconcile,dispute.deadline_watch,company.registry_lookup,invitation.expire,invitation.remind_due,hiring.outcome_request,vacancies.import,vacancies.freshness_check,vacancy.normalize,vacancies.text_recheck,vacancy.embed,profile.embed,embedding.reindex,resume.parse,resume.extract,assessment.run,market.refresh,notification.deliver,demo.reset,demo.purge,consent.revocation_cleanup,account.purge,candidate.majority_transition'
+    environment: *app-environment
+    networks: [default, storage]
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    mem_limit: 512m
+    memswap_limit: 512m
+    cpus: 1
+    pids_limit: 128
+    # Longer than the worker's shutdown grace (20 s) plus the wait for aborted handlers (5 s).
+    stop_grace_period: 30s
+    healthcheck:
+      # The state endpoint listens on the container's loopback only.
+      test:
+        [
+          CMD,
+          node,
+          -e,
+          "fetch('http://127.0.0.1:57310/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+
+networks:
+  # No gateway to the outside world: docparse and LibreOffice cannot make outgoing connections.
+  docparse:
+    internal: true
+  # Same for the sandbox: its only neighbour is sandbox-gateway.
+  sandbox:
+    internal: true
+  # The storage with the app and the worker only (see the storage service).
+  storage:
+
+volumes:
+  postgres-data:
+  redis-data:
+  storage-data:
+  embedder-models:

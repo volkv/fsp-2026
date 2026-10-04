@@ -1,0 +1,8 @@
+-- Why a resume parse gave no text (docs/domain.md, section 15.2): `parse_error` holds the code exactly when the status is
+-- `failed` or `unsupported_format`. Resumes that failed before the code was kept get `unrecorded`; an unknown format
+-- is its own code.
+ALTER TABLE "resume_documents" ADD COLUMN "parse_error" text;--> statement-breakpoint
+UPDATE "resume_documents" SET "parse_error" = CASE "parse_status" WHEN 'unsupported_format' THEN 'unsupported_format' ELSE 'unrecorded' END WHERE "parse_status" in ('failed', 'unsupported_format');--> statement-breakpoint
+ALTER TABLE "resume_documents" ADD CONSTRAINT "resume_documents_parse_error_values" CHECK ("resume_documents"."parse_error" in ('unsupported_format', 'too_large', 'unpacked_too_large', 'encrypted', 'corrupt', 'no_text', 'timeout', 'memory_exceeded', 'busy', 'internal', 'bad_request', 'unavailable', 'invalid_response', 'cancelled', 'object_missing', 'storage_integrity', 'storage_unavailable', 'input_mismatch', 'unrecorded'));--> statement-breakpoint
+ALTER TABLE "resume_documents" ADD CONSTRAINT "resume_documents_parse_error_status" CHECK (("resume_documents"."parse_error" is not null) = ("resume_documents"."parse_status" in ('failed', 'unsupported_format')));--> statement-breakpoint
+ALTER TABLE "resume_documents" ADD CONSTRAINT "resume_documents_unsupported_format_error" CHECK (("resume_documents"."parse_status" = 'unsupported_format') = ("resume_documents"."parse_error" is not distinct from 'unsupported_format'));

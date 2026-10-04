@@ -1,0 +1,16 @@
+{
+	"name": "fsp-final-protocol",
+	"columns": {
+		"place": "Место",
+		"fspId": "ФСП ID",
+		"fullName": "Участник",
+		"solved": "Решено",
+		"penaltyMinutes": "Штраф"
+	},
+	"values": {
+		"discipline": { "программирование алгоритмическое": "algorithmic" },
+		"online": { "дистанционно": true }
+	},
+	"defaults": { "status": "official" },
+	"blank": ["—"]
+}

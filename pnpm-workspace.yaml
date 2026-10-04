@@ -1,0 +1,7 @@
+# Build scripts of dependencies are disabled: every package listed here works from its prebuilt or pure-JS fallback.
+allowBuilds:
+  '@scarf/scarf': false
+  cpu-features: false
+  esbuild: false
+  protobufjs: false
+  ssh2: false

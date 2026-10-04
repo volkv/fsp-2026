@@ -1,0 +1,50 @@
+{
+	"key": "py-access-log",
+	"kind": "code_task",
+	"version": 1,
+	"title": "Сводка журнала доступа",
+	"summary": "Разобрать журнал HTTP-запросов и собрать сводку: классы кодов ответа, самый долгий и самый частый путь.",
+	"stack": "python",
+	"level": "junior",
+	"skillKeys": ["python"],
+	"languages": ["python3"],
+	"timeLimitMinutes": 60,
+	"limits": {
+		"cpuTimeMs": 2000,
+		"wallTimeMs": 5000,
+		"memoryMb": 256,
+		"outputKb": 64,
+		"processes": 1,
+		"compileCpuTimeMs": 10000,
+		"compileMemoryMb": 256
+	},
+	"checker": { "kind": "exact" },
+	"levelScale": {
+		"type": "tests_passed",
+		"thresholds": [{ "minRatio": 1, "level": "junior", "levelStrength": 0.6 }],
+		"below": "not_passed"
+	},
+	"coverage": {
+		"skills": [{ "skillKey": "python", "levels": ["junior"] }],
+		"checks": [
+			"чтение и разбор построчного ввода с произвольным числом пробелов",
+			"словари и подсчёт частот",
+			"детерминированный выбор при равенстве (лексикографический порядок)",
+			"граничные случаи: пустой журнал, один запрос"
+		],
+		"doesNotCheck": [
+			"производительность на больших объёмах",
+			"работу с сетью, файлами, базами данных и фреймворками",
+			"архитектуру, стиль кода, тесты и работу в команде",
+			"коммерческий опыт"
+		]
+	},
+	"tests": [
+		{ "id": "sample-1", "hidden": false },
+		{ "id": "empty", "hidden": false },
+		{ "id": "ties", "hidden": true },
+		{ "id": "single", "hidden": true },
+		{ "id": "random-small", "hidden": true },
+		{ "id": "random-large", "hidden": true }
+	]
+}

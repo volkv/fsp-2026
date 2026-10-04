@@ -1,0 +1,34 @@
+{
+	"name": "fsp-results-export",
+	"columns": {
+		"fspId": ["ФСП ID", "ID спортсмена"],
+		"fullName": "ФИО",
+		"birthYear": "Год рождения",
+		"competitionTitle": "Соревнование",
+		"ekpNumber": "Номер ЕКП",
+		"discipline": "Дисциплина",
+		"level": "Статус соревнования",
+		"stage": "Этап",
+		"online": "Формат",
+		"startDate": "Дата начала",
+		"place": "Место",
+		"solved": "Решено",
+		"penaltyMinutes": "Штраф, мин",
+		"status": "Статус результата",
+		"team": "Команда",
+		"role": "Роль"
+	},
+	"values": {
+		"discipline": {
+			"программирование алгоритмическое": "algorithmic",
+			"программирование продуктовое": "product"
+		},
+		"level": { "Кубок России": "russian_cup", "Чемпионат России": "russian_championship" },
+		"stage": { "отборочный": "qualifier", "финал": "final" },
+		"online": { "дистанционно": true, "очно": false },
+		"status": { "официальный": "official", "предварительный": "preliminary", "аннулирован": "annulled" },
+		"role": { "капитан": "captain", "участник": "athlete", "запасной": "reserve" }
+	},
+	"competition": { "ageGroup": "adults" },
+	"noPlace": ["в/к"]
+}

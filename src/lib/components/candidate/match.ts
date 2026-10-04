@@ -1,0 +1,202 @@
+/**
+ * The match of a vacancy as the candidate reads it (docs/domain.md, section 13.4): the same decomposition the company
+ * sees, worded for the candidate — what fits and what it rests on, what is unknown, what to check at the interview and
+ * what to improve for this vacancy. Built from the stored result of `matchScore`.
+ */
+import { trustNote, type TrustDetails } from '$lib/components/employer/model.js';
+import { inScore } from '$lib/matching/evidence-components.js';
+import type { MatchComponentKey, MatchComponentStatus, MatchView } from '$lib/components/product/model.js';
+import {
+	gradeName,
+	roleName,
+	skillMark,
+	skillName,
+	STRENGTH_BANDS,
+	type Attestation,
+	type Labels,
+	type TrustLevel
+} from './model.js';
+
+type ComponentStatus = 'computed' | 'unknown' | 'unavailable' | 'not_comparable';
+
+interface ComponentData<Details = object> {
+	value: number | null;
+	weight: number;
+	status: ComponentStatus;
+	details: Details & { reason?: string };
+}
+
+/** The part of a stored `MatchResult` the candidate view reads. */
+export interface MatchResultData {
+	score: number;
+	components: Record<Exclude<MatchComponentKey, 'role' | 'trust'>, ComponentData> & {
+		role: ComponentData<{
+			vacancy?: string;
+			candidate?: string[];
+			basis?: 'primary' | 'secondary' | 'desired' | 'none';
+		}>;
+		trust: ComponentData<TrustDetails>;
+	};
+	explanation: {
+		matches: (
+			| {
+					kind: 'skill';
+					requirement: 'required' | 'nice';
+					skill_key: string;
+					band: 'weak' | 'moderate' | 'strong';
+					attestation: Attestation;
+					badge_trust: TrustLevel | null;
+			  }
+			| { kind: 'role'; role_key: string }
+			| { kind: 'grade'; vacancy: { min: string; max: string }; candidate: { min: string; max: string } }
+			| { kind: 'salary'; comparison: 'lower' | 'equal' | 'overlap' }
+		)[];
+		unknown: { component: MatchComponentKey; status: Exclude<ComponentStatus, 'computed'>; reason: string }[];
+		to_verify: { code: string; skill_key?: string }[];
+		gaps: (
+			| { code: 'required_skill_missing' | 'nice_skill_missing'; skill_key: string }
+			| { code: 'grade_below'; steps: number }
+			| { code: 'role_other' }
+		)[];
+	};
+}
+
+const COMPONENT_REASONS: Record<string, string> = {
+	no_required_skills: 'в вакансии нет обязательных навыков',
+	no_nice_skills: 'в вакансии нет желательных навыков',
+	no_published_run: 'твоя категория ещё не рассчитана',
+	run_below_evidence_floor: 'профиль пересчитывается после изменения оснований',
+	vacancy_grade_unknown: 'грейд вакансии не указан',
+	candidate_grade_not_established: 'твой грейд не установлен',
+	vacancy_role_unknown: 'роль вакансии не указана',
+	candidate_role_not_established: 'твоя роль пока не установлена — мало оснований',
+	candidate_expectation_missing: 'ты не указал ожидания по зарплате',
+	vacancy_salary_missing: 'в вакансии нет вилки',
+	different_terms: 'разные валюта, период или налоговая база — сравнивать нельзя',
+	no_active_space: 'смысловой поиск выключен — считаем по навыкам',
+	pair_vector_missing: 'смысловой вектор ещё не посчитан',
+	pair_not_reranked: 'уточняющая модель работает только в каталоге работодателя',
+	outside_rerank_top_n: 'за пределами окна уточняющей модели',
+	switched_off: 'модель выключена'
+};
+
+const reasonOf = (reason: string | undefined) => (reason ? (COMPONENT_REASONS[reason] ?? reason) : undefined);
+
+const range = (labels: Labels, value: { min: string; max: string }) =>
+	value.min === value.max
+		? gradeName(labels, value.min)
+		: `${gradeName(labels, value.min)} – ${gradeName(labels, value.max)}`;
+
+const VERIFY: Record<string, string> = {
+	grade_not_established: 'Грейд не установлен — его уточнят на собеседовании.',
+	role_not_established: 'Роль не установлена — на собеседовании спросят, какой работой ты занимался.',
+	role_desired_only: 'Эту роль ты указал желаемой, но основания её пока не подтверждают — добавь опыт или пройди тест.',
+	salary_not_comparable: 'Зарплату сравнить нельзя: разные валюта, период или налоговая база.',
+	salary_expectation_missing: 'Ожидания по зарплате не указаны.',
+	profile_recalculating: 'Профиль пересчитывается — соответствие уточнится.',
+	profile_insufficient_data:
+		'Недостаточно данных: категория не рассчитана — навыки пока не подтверждены, соответствие уточнится после расчёта.'
+};
+
+function verifyText(item: { code: string; skill_key?: string }, labels: Labels): string {
+	const skill = item.skill_key ? skillName(labels, item.skill_key) : '';
+	switch (item.code) {
+		case 'skill_claimed':
+			return `${skill}: только заявлено — будь готов показать на деле.`;
+		case 'skill_derived':
+			return `${skill}: выведено правилом из других фактов, прямого подтверждения нет.`;
+		case 'skill_weak_evidence':
+			return `${skill}: основания слабые.`;
+		default:
+			return VERIFY[item.code] ?? item.code;
+	}
+}
+
+function gapText(item: MatchResultData['explanation']['gaps'][number], labels: Labels): string {
+	if (item.code === 'role_other') return 'Твои основания говорят о другой роли, чем у вакансии.';
+	if (item.code === 'grade_below')
+		return `Грейд ниже требуемого на ${item.steps} ${item.steps === 1 ? 'ступень' : 'ступени'}.`;
+	const skill = skillName(labels, item.skill_key);
+	return item.code === 'required_skill_missing'
+		? `Апсолв: подтверди обязательный навык «${skill}» — тестом платформы, профилем или опытом в резюме.`
+		: `Плюсом будет «${skill}» (желательный навык).`;
+}
+
+function roleNote(details: MatchResultData['components']['role']['details'], labels: Labels): string | undefined {
+	const vacancy = details.vacancy === undefined ? '' : roleName(labels, details.vacancy);
+	switch (details.basis) {
+		case 'primary':
+			return `${vacancy} — твоя основная роль`;
+		case 'secondary':
+			return `${vacancy} — твоя дополнительная роль`;
+		case 'desired':
+			return `${vacancy} — желаемая роль, основаниями пока не подтверждена`;
+		case 'none': {
+			const own = details.candidate?.[0];
+			return own === undefined ? undefined : `твоя роль — ${roleName(labels, own)}`;
+		}
+		default:
+			return undefined;
+	}
+}
+
+export function candidateMatchView(result: MatchResultData, labels: Labels): MatchView {
+	const keys = Object.keys(result.components) as MatchComponentKey[];
+	const scored = keys.filter((key) => inScore(key, result.components[key]));
+	const totalWeight = scored.reduce((sum, key) => sum + result.components[key].weight, 0);
+	return {
+		score: result.score,
+		components: keys.map((key) => {
+			const component = result.components[key];
+			const status: MatchComponentStatus = component.status;
+			const reason = reasonOf(component.details.reason);
+			const note =
+				status !== 'computed'
+					? undefined
+					: key === 'role'
+						? roleNote(result.components.role.details, labels)
+						: key === 'trust'
+							? trustNote(result.components.trust.details, 'candidate')
+							: undefined;
+			return {
+				key,
+				status,
+				...(component.value === null ? {} : { value: component.value }),
+				...(scored.includes(key) && totalWeight > 0 ? { weight: component.weight / totalWeight } : {}),
+				...(reason === undefined ? {} : { reason }),
+				...(note === undefined ? {} : { note })
+			};
+		}),
+		matches: result.explanation.matches.map((item) => {
+			switch (item.kind) {
+				case 'skill':
+					return {
+						requirement: skillName(labels, item.skill_key),
+						evidence: `${item.requirement === 'required' ? 'обязательный' : 'желательный'} · ${STRENGTH_BANDS[item.band]}`,
+						trust: skillMark({ attestation: item.attestation, badgeTrust: item.badge_trust })
+					};
+				case 'role':
+					return {
+						requirement: roleName(labels, item.role_key),
+						evidence: 'роль совпадает с твоей категорией',
+						trust: 'derived'
+					};
+				case 'grade':
+					return {
+						requirement: `Грейд ${range(labels, item.vacancy)}`,
+						evidence: `твой диапазон ${range(labels, item.candidate)}`,
+						trust: 'derived'
+					};
+				case 'salary':
+					return {
+						requirement: 'Зарплата',
+						evidence: item.comparison === 'lower' ? 'вилка выше твоих ожиданий' : 'вилка сходится с твоими ожиданиями',
+						trust: 'claimed'
+					};
+			}
+		}),
+		unknown: result.explanation.unknown.map((item) => reasonOf(item.reason) ?? item.reason),
+		toVerify: result.explanation.to_verify.map((item) => verifyText(item, labels)),
+		gaps: result.explanation.gaps.map((item) => gapText(item, labels))
+	};
+}

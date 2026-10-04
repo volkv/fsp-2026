@@ -1,0 +1,8 @@
+ALLOW
+ALLOW
+DENY
+DENY
+ALLOW
+DENY
+big 2 3
+other 1 0

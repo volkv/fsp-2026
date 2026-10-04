@@ -1,0 +1,83 @@
+# File system of every program run by go-judge (https://docs.goj.ac/mount). Toolchains and libraries are read-only;
+# the only writable places are the working directory /w and /tmp, both fresh tmpfs per run and charged to the
+# program's memory limit. The container's own /etc, /opt, /run and /proc are not visible.
+mount:
+  - type: bind
+    source: /bin
+    target: /bin
+    readonly: true
+  - type: bind
+    source: /lib
+    target: /lib
+    readonly: true
+  - type: bind
+    source: /lib64
+    target: /lib64
+    readonly: true
+  - type: bind
+    source: /usr
+    target: /usr
+    readonly: true
+  - type: bind
+    source: /etc/ld.so.cache
+    target: /etc/ld.so.cache
+    readonly: true
+  - type: bind
+    source: /etc/alternatives
+    target: /etc/alternatives
+    readonly: true
+  # Language set with the toolchain versions of this image; the client reads it with a run of /bin/cat.
+  - type: bind
+    source: /etc/sandbox/languages.resolved.json
+    target: /etc/sandbox/languages.json
+    readonly: true
+  - type: bind
+    source: /etc/sandbox/passwd
+    target: /etc/passwd
+    readonly: true
+  - type: bind
+    source: /dev/null
+    target: /dev/null
+  - type: bind
+    source: /dev/urandom
+    target: /dev/urandom
+  - type: bind
+    source: /dev/random
+    target: /dev/random
+  - type: bind
+    source: /dev/zero
+    target: /dev/zero
+  - type: tmpfs
+    target: /w
+    data: size=128m,nr_inodes=4k
+  - type: tmpfs
+    target: /tmp
+    data: size=64m,nr_inodes=1k
+# Read-only procfs: the JVM and Go read /proc/self/exe.
+proc: true
+symLink:
+  - linkPath: /dev/fd
+    target: /proc/self/fd
+  - linkPath: /dev/stdin
+    target: /proc/self/fd/0
+  - linkPath: /dev/stdout
+    target: /proc/self/fd/1
+  - linkPath: /dev/stderr
+    target: /proc/self/fd/2
+maskPath:
+  - /proc/acpi
+  - /proc/asound
+  - /proc/kcore
+  - /proc/keys
+  - /proc/latency_stats
+  - /proc/timer_list
+  - /proc/timer_stats
+  - /proc/sched_debug
+  - /proc/scsi
+workDir: /w
+hostName: sandbox
+domainName: sandbox
+# User and group of the program inside its user namespace; outside it maps to a separate unprivileged uid per
+# environment (-container-cred-start).
+uid: 1536
+gid: 1536

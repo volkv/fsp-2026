@@ -1,0 +1,355 @@
+{
+	"description": "Профили ролей демо-данных: названия, стеки навыков (ключи таксономии), доля среди вакансий и множитель зарплаты; зарплатные коридоры по грейдам (на руки, ₽ в месяц) и роли, которые спортсмен ФСП указывает желаемыми по дисциплине и специализации в команде.",
+	"grades": {
+		"intern": [40000, 70000],
+		"junior": [90000, 150000],
+		"middle": [170000, 270000],
+		"senior": [280000, 420000],
+		"lead": [380000, 550000]
+	},
+	"gradeTitles": {
+		"intern": "Стажёр",
+		"junior": "Junior",
+		"middle": "Middle",
+		"senior": "Senior",
+		"lead": "Ведущий"
+	},
+	"roles": [
+		{
+			"key": "backend",
+			"weight": 25,
+			"multiplier": 1.0,
+			"title": "Backend-разработчик",
+			"stacks": [
+				{
+					"label": "Go",
+					"required": ["go", "postgresql"],
+					"nice": ["kafka", "kubernetes", "docker", "grpc", "redis"]
+				},
+				{
+					"label": "Python",
+					"required": ["python", "postgresql"],
+					"nice": ["fastapi", "django", "docker", "redis", "celery"]
+				},
+				{
+					"label": "Java",
+					"required": ["java", "spring_boot", "sql"],
+					"nice": ["kafka", "docker", "kubernetes", "hibernate"]
+				},
+				{
+					"label": "C#",
+					"required": ["csharp", "dotnet", "sql"],
+					"nice": ["aspnet", "mssql", "docker"]
+				},
+				{
+					"label": "Node.js",
+					"required": ["nodejs", "typescript", "postgresql"],
+					"nice": ["nestjs", "docker", "redis"]
+				},
+				{
+					"label": "PHP",
+					"required": ["php", "mysql"],
+					"nice": ["laravel", "docker", "redis"]
+				},
+				{
+					"label": "C++",
+					"required": ["cpp", "linux"],
+					"nice": ["multithreading", "postgresql", "docker"]
+				}
+			]
+		},
+		{
+			"key": "frontend",
+			"weight": 12,
+			"multiplier": 0.95,
+			"title": "Frontend-разработчик",
+			"stacks": [
+				{
+					"label": "React",
+					"required": ["typescript", "react", "html", "css"],
+					"nice": ["redux", "nextjs", "jest"]
+				},
+				{
+					"label": "Vue",
+					"required": ["javascript", "vue", "html", "css"],
+					"nice": ["typescript", "pinia", "nuxt"]
+				},
+				{
+					"label": "Angular",
+					"required": ["typescript", "angular", "html", "css"],
+					"nice": ["rxjs", "jest"]
+				}
+			]
+		},
+		{
+			"key": "fullstack",
+			"weight": 8,
+			"multiplier": 1.0,
+			"title": "Fullstack-разработчик",
+			"stacks": [
+				{
+					"label": "TypeScript",
+					"required": ["typescript", "nodejs", "react", "postgresql"],
+					"nice": ["docker", "nestjs"]
+				},
+				{
+					"label": "Python и React",
+					"required": ["python", "javascript", "react", "sql"],
+					"nice": ["django", "docker"]
+				}
+			]
+		},
+		{
+			"key": "mobile",
+			"weight": 6,
+			"multiplier": 1.0,
+			"title": "Мобильный разработчик",
+			"stacks": [
+				{
+					"label": "Android",
+					"required": ["android", "kotlin"],
+					"nice": ["jetpack_compose", "git"]
+				},
+				{
+					"label": "iOS",
+					"required": ["ios", "swift"],
+					"nice": ["swiftui", "uikit"]
+				},
+				{
+					"label": "Flutter",
+					"required": ["flutter", "dart"],
+					"nice": ["android", "ios"]
+				}
+			]
+		},
+		{
+			"key": "qa_automation",
+			"weight": 6,
+			"multiplier": 0.85,
+			"title": "Инженер по автоматизации тестирования",
+			"stacks": [
+				{
+					"label": "Python",
+					"required": ["test_automation", "python", "pytest"],
+					"nice": ["selenium", "postman", "docker"]
+				},
+				{
+					"label": "Java",
+					"required": ["test_automation", "java", "junit"],
+					"nice": ["selenium", "jenkins"]
+				},
+				{
+					"label": "TypeScript",
+					"required": ["test_automation", "typescript", "playwright"],
+					"nice": ["cypress", "jest"]
+				}
+			]
+		},
+		{
+			"key": "devops",
+			"weight": 7,
+			"multiplier": 1.05,
+			"title": "DevOps-инженер",
+			"stacks": [
+				{
+					"label": "Kubernetes",
+					"required": ["kubernetes", "docker", "cicd", "linux"],
+					"nice": ["terraform", "helm", "prometheus", "ansible"]
+				}
+			]
+		},
+		{
+			"key": "data_analyst",
+			"weight": 6,
+			"multiplier": 0.85,
+			"title": "Аналитик данных",
+			"stacks": [
+				{
+					"label": "SQL и Python",
+					"required": ["sql", "python"],
+					"nice": ["pandas", "superset", "statistics", "excel"]
+				}
+			]
+		},
+		{
+			"key": "data_engineer",
+			"weight": 4,
+			"multiplier": 1.05,
+			"title": "Инженер данных",
+			"stacks": [
+				{
+					"label": "Python",
+					"required": ["sql", "python", "airflow"],
+					"nice": ["spark", "clickhouse", "kafka", "dbt"]
+				}
+			]
+		},
+		{
+			"key": "ml_engineer",
+			"weight": 5,
+			"multiplier": 1.15,
+			"title": "ML-инженер",
+			"stacks": [
+				{
+					"label": "Python",
+					"required": ["python", "ml", "dl"],
+					"nice": ["pytorch", "sklearn", "docker", "nlp"]
+				},
+				{
+					"label": "Компьютерное зрение",
+					"required": ["python", "ml", "cv"],
+					"nice": ["pytorch", "opencv"]
+				}
+			]
+		},
+		{
+			"key": "algo_engineer",
+			"weight": 3,
+			"multiplier": 1.1,
+			"title": "Разработчик алгоритмов",
+			"stacks": [
+				{
+					"label": "C++",
+					"required": ["algorithms", "cpp"],
+					"nice": ["graph_algorithms", "optimization", "linux"]
+				},
+				{
+					"label": "Python",
+					"required": ["algorithms", "python"],
+					"nice": ["optimization", "statistics"]
+				}
+			]
+		},
+		{
+			"key": "pentester",
+			"weight": 3,
+			"multiplier": 1.05,
+			"title": "Специалист по тестированию на проникновение",
+			"stacks": [
+				{
+					"label": "Web",
+					"required": ["pentest"],
+					"nice": ["linux", "networking", "python", "appsec"]
+				}
+			]
+		},
+		{
+			"key": "appsec",
+			"weight": 2,
+			"multiplier": 1.1,
+			"title": "Инженер AppSec",
+			"stacks": [
+				{
+					"label": "Python",
+					"required": ["appsec", "python"],
+					"nice": ["pentest", "docker", "cicd"]
+				},
+				{
+					"label": "Go",
+					"required": ["appsec", "go"],
+					"nice": ["pentest", "kubernetes"]
+				}
+			]
+		},
+		{
+			"key": "soc_analyst",
+			"weight": 2,
+			"multiplier": 0.9,
+			"title": "Аналитик SOC",
+			"stacks": [
+				{
+					"label": "SIEM",
+					"required": ["soc"],
+					"nice": ["linux", "networking", "forensics"]
+				}
+			]
+		},
+		{
+			"key": "robotics_engineer",
+			"weight": 2,
+			"multiplier": 0.95,
+			"title": "Инженер-робототехник",
+			"stacks": [
+				{
+					"label": "ROS",
+					"required": ["ros", "cpp"],
+					"nice": ["python", "slam", "control_theory", "linux"]
+				}
+			]
+		},
+		{
+			"key": "uav_engineer",
+			"weight": 2,
+			"multiplier": 0.95,
+			"title": "Разработчик ПО беспилотных систем",
+			"stacks": [
+				{
+					"label": "PX4",
+					"required": ["uav", "cpp"],
+					"nice": ["px4", "python", "control_theory"]
+				}
+			]
+		},
+		{
+			"key": "embedded",
+			"weight": 3,
+			"multiplier": 0.95,
+			"title": "Разработчик встраиваемых систем",
+			"stacks": [
+				{
+					"label": "C",
+					"required": ["c", "embedded_dev"],
+					"nice": ["stm32", "rtos", "electronics"]
+				}
+			]
+		},
+		{
+			"key": "systems_analyst",
+			"weight": 3,
+			"multiplier": 0.9,
+			"title": "Системный аналитик",
+			"stacks": [
+				{
+					"label": "Интеграции",
+					"required": ["requirements", "sql"],
+					"nice": ["bpmn", "uml", "openapi"]
+				}
+			]
+		}
+	],
+	"disciplines": {
+		"algorithmic": {
+			"default": ["algo_engineer", "backend"]
+		},
+		"product": {
+			"default": ["backend", "fullstack"],
+			"backend": ["backend"],
+			"frontend": ["frontend"],
+			"fullstack": ["fullstack"],
+			"ml": ["ml_engineer"],
+			"design": ["frontend"],
+			"pm": ["systems_analyst"],
+			"mobile": ["mobile"],
+			"devops": ["devops"]
+		},
+		"uas": {
+			"default": ["uav_engineer", "embedded"]
+		},
+		"robotics": {
+			"default": ["robotics_engineer"],
+			"embedded": ["embedded"],
+			"cv": ["ml_engineer"],
+			"control": ["robotics_engineer"],
+			"mechanics": ["robotics_engineer"]
+		},
+		"infosec": {
+			"default": ["pentester"],
+			"pentest": ["pentester"],
+			"web": ["appsec"],
+			"reverse": ["pentester"],
+			"crypto": ["soc_analyst"],
+			"forensics": ["soc_analyst"],
+			"pwn": ["pentester"]
+		}
+	}
+}

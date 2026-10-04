@@ -1,0 +1,26 @@
+{
+	"kind": "invitation_policy",
+	"source": "docs/domain.md §13.5, §13.6, §13.8, §20",
+	"versions": [
+		{
+			"version": 1,
+			"effective_from": "2026-09-25T00:00:00Z",
+			"params": {
+				"response_window_hours": 72,
+				"decline_reason_codes": ["salary", "format", "stack", "not_looking", "other"],
+				"reason_required": true,
+				"max_open_per_company_per_day": 50,
+				"reopen_cooldown_days": 14,
+				"max_reopens": 2
+			},
+			"basis": {
+				"response_window_hours": "product_default",
+				"decline_reason_codes": "docs/domain.md §13.6: зарплата, формат, стек, не ищу, другое",
+				"reason_required": "docs/domain.md §13.6: reason_code обязателен при decline",
+				"max_open_per_company_per_day": "product_default",
+				"reopen_cooldown_days": "product_default",
+				"max_reopens": "product_default"
+			}
+		}
+	]
+}

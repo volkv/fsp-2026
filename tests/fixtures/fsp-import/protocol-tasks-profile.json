@@ -1,0 +1,15 @@
+{
+	"name": "fsp-individual-protocol",
+	"columns": {
+		"place": "№ п\\п",
+		"fullName": "Участник",
+		"solved": "Решено",
+		"penaltyMinutes": "Время выполнения задач"
+	},
+	"values": {
+		"discipline": { "программирование алгоритмическое": "algorithmic" },
+		"online": { "дистанционно": true }
+	},
+	"competition": { "format": "individual" },
+	"defaults": { "status": "official" }
+}

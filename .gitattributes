@@ -1,0 +1,2 @@
+# Test inputs of the assessment bank are byte-exact: line endings are part of the data.
+assessments/code/**/tests/** -text

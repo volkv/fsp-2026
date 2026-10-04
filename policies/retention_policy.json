@@ -1,0 +1,60 @@
+{
+	"kind": "retention_policy",
+	"source": "docs/domain.md §18.1, §19.2, §20",
+	"versions": [
+		{
+			"version": 1,
+			"effective_from": "2026-09-25T00:00:00Z",
+			"params": {
+				"audit_retention_months": 36,
+				"disclosure_retention_months": 36,
+				"inactive_candidate_purge_days": 730
+			},
+			"basis": {
+				"audit_retention_months": "docs/domain.md §18.1: журнал хранится 3 года",
+				"disclosure_retention_months": "product_default",
+				"inactive_candidate_purge_days": "product_default"
+			}
+		},
+		{
+			"version": 2,
+			"effective_from": "2026-09-25T00:00:00Z",
+			"params": {
+				"audit_retention_months": 36,
+				"disclosure_retention_months": 36,
+				"inactive_candidate_purge_days": 730,
+				"demo_session_hours": 24,
+				"demo_own_resume_hours": 24
+			},
+			"basis": {
+				"audit_retention_months": "docs/domain.md §18.1: журнал хранится 3 года",
+				"disclosure_retention_months": "product_default",
+				"inactive_candidate_purge_days": "product_default",
+				"demo_session_hours": "docs/domain.md §19.3: демо-сессия живёт сутки",
+				"demo_own_resume_hours": "docs/domain.md §19.3: своё резюме в демо удаляется через сутки после загрузки"
+			}
+		},
+		{
+			"version": 3,
+			"effective_from": "2026-09-25T00:00:00Z",
+			"params": {
+				"audit_retention_months": 36,
+				"disclosure_retention_months": 36,
+				"inactive_candidate_purge_days": 730,
+				"demo_session_hours": 24,
+				"demo_own_resume_hours": 24,
+				"inactivity_notice_days": 30,
+				"fsp_batch_retention_days": 90
+			},
+			"basis": {
+				"audit_retention_months": "docs/domain.md §18.1: журнал хранится 3 года",
+				"disclosure_retention_months": "product_default",
+				"inactive_candidate_purge_days": "product_default",
+				"demo_session_hours": "docs/domain.md §19.3: демо-сессия живёт сутки",
+				"demo_own_resume_hours": "docs/domain.md §19.3: своё резюме в демо удаляется через сутки после загрузки",
+				"inactivity_notice_days": "docs/domain.md §19.2: purge_after через 30 дней после уведомления",
+				"fsp_batch_retention_days": "product_default"
+			}
+		}
+	]
+}

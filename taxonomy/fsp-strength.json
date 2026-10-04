@@ -1,0 +1,289 @@
+{
+	"meta": {
+		"version": "2026.09.1",
+		"description": "Сила результата ФСП: таблица норм ЕВСК «уровень соревнования × возрастная группа × место → разряд» (расчётный показатель, не присвоенный разряд), сила разряда, множители формата соревнования, множитель неизвестной роли в команде, полураспад давности. Коды уровней, этапов и возрастных групп — контракт адаптера ФСП.",
+		"sources": [
+			{
+				"title": "Приказ Минспорта России от 09.04.2026 № 299 «Об утверждении Единой всероссийской спортивной классификации», приложение № 77 «спортивное программирование» (зарегистрирован Минюстом России 05.06.2026 № 86925); содержание совпадает с приложением № 24 к приказу от 22.04.2024 № 450",
+				"url": "http://publication.pravo.gov.ru/document/0001202606080012",
+				"retrievedAt": "2026-09-24",
+				"license": "нормативный акт, ГК РФ ст. 1259 п. 6"
+			},
+			{
+				"title": "Собственная модель команды: сила разряда, множители формата и неизвестной роли, давность (гипотеза до калибровки)",
+				"retrievedAt": "2026-09-24"
+			}
+		]
+	},
+	"evskNorm": {
+		"norm": {
+			"document": "Приказ Минспорта России от 09.04.2026 № 299",
+			"appendix": "77",
+			"edition": "2026-04-09",
+			"registration": "Минюст России 05.06.2026 № 86925",
+			"url": "http://publication.pravo.gov.ru/document/0001202606080012",
+			"sameContentAs": "Приказ Минспорта России от 22.04.2024 № 450, приложение № 24"
+		},
+		"minAge": { "MS": 16, "KMS": 15, "I": 14, "II": 14, "III": 14, "Y1": 12, "Y2": 12, "Y3": 12 },
+		"eligibleStages": ["final", "single"],
+		"u15Disciplines": ["algorithmic", "robotics"],
+		"placeOverlap": "first_listed_rank",
+		"rows": [
+			{
+				"level": "world_championship",
+				"ageGroup": "adults",
+				"ranges": [
+					{ "rank": "MS", "fromPlace": 1, "toPlace": 1 },
+					{ "rank": "KMS", "fromPlace": 2, "toPlace": 8 }
+				]
+			},
+			{
+				"level": "world_championship",
+				"ageGroup": "juniors_u19",
+				"ranges": [{ "rank": "KMS", "fromPlace": 1, "toPlace": 5 }]
+			},
+			{
+				"level": "european_championship",
+				"ageGroup": "adults",
+				"ranges": [
+					{ "rank": "MS", "fromPlace": 1, "toPlace": 1 },
+					{ "rank": "KMS", "fromPlace": 2, "toPlace": 6 }
+				]
+			},
+			{
+				"level": "european_championship",
+				"ageGroup": "juniors_u19",
+				"ranges": [{ "rank": "KMS", "fromPlace": 1, "toPlace": 4 }]
+			},
+			{
+				"level": "universiade",
+				"ageGroup": "juniors_u26",
+				"ranges": [
+					{ "rank": "KMS", "fromPlace": 1, "toPlace": 1 },
+					{ "rank": "I", "fromPlace": 2, "toPlace": 3 },
+					{ "rank": "II", "fromPlace": 4, "toPlace": 5 }
+				]
+			},
+			{
+				"level": "international_ekp",
+				"ageGroup": "adults",
+				"ranges": [
+					{ "rank": "MS", "fromPlace": 1, "toPlace": 1 },
+					{ "rank": "KMS", "fromPlace": 2, "toPlace": 3 }
+				]
+			},
+			{
+				"level": "russian_championship",
+				"ageGroup": "adults",
+				"ranges": [
+					{ "rank": "MS", "fromPlace": 1, "toPlace": 1 },
+					{ "rank": "KMS", "fromPlace": 2, "toPlace": 4 },
+					{ "rank": "I", "fromPlace": 5, "toPlace": 9 }
+				]
+			},
+			{
+				"level": "russian_cup",
+				"ageGroup": "adults",
+				"ranges": [
+					{ "rank": "KMS", "fromPlace": 1, "toPlace": 3 },
+					{ "rank": "I", "fromPlace": 4, "toPlace": 8 }
+				]
+			},
+			{
+				"level": "russian_youth_championship",
+				"ageGroup": "juniors_u19",
+				"ranges": [
+					{ "rank": "KMS", "fromPlace": 1, "toPlace": 1 },
+					{ "rank": "I", "fromPlace": 2, "toPlace": 8 }
+				]
+			},
+			{
+				"level": "all_russian_ekp",
+				"ageGroup": "adults",
+				"ranges": [
+					{ "rank": "KMS", "fromPlace": 1, "toPlace": 2 },
+					{ "rank": "I", "fromPlace": 3, "toPlace": 4 }
+				]
+			},
+			{
+				"level": "all_russian_ekp",
+				"ageGroup": "juniors_u19",
+				"ranges": [{ "rank": "I", "fromPlace": 1, "toPlace": 3 }]
+			},
+			{
+				"level": "all_russian_sport_event",
+				"ageGroup": "adults",
+				"ranges": [
+					{ "rank": "II", "fromPlace": 1, "toPlace": 2 },
+					{ "rank": "III", "fromPlace": 3, "toPlace": 6 }
+				]
+			},
+			{
+				"level": "all_russian_sport_event",
+				"ageGroup": "juniors_u26",
+				"ranges": [
+					{ "rank": "II", "fromPlace": 1, "toPlace": 2 },
+					{ "rank": "III", "fromPlace": 3, "toPlace": 5 }
+				]
+			},
+			{
+				"level": "all_russian_sport_event",
+				"ageGroup": "juniors_u19",
+				"ranges": [
+					{ "rank": "II", "fromPlace": 1, "toPlace": 1 },
+					{ "rank": "III", "fromPlace": 2, "toPlace": 4 }
+				]
+			},
+			{
+				"level": "federal_district",
+				"ageGroup": "adults",
+				"ranges": [
+					{ "rank": "I", "fromPlace": 1, "toPlace": 2 },
+					{ "rank": "II", "fromPlace": 3, "toPlace": 4 },
+					{ "rank": "III", "fromPlace": 5, "toPlace": 8 }
+				]
+			},
+			{
+				"level": "federal_district",
+				"ageGroup": "juniors_u19",
+				"ranges": [
+					{ "rank": "I", "fromPlace": 1, "toPlace": 1 },
+					{ "rank": "II", "fromPlace": 2, "toPlace": 3 },
+					{ "rank": "III", "fromPlace": 4, "toPlace": 5 }
+				]
+			},
+			{
+				"level": "interregional_ekp",
+				"ageGroup": "adults",
+				"ranges": [
+					{ "rank": "I", "fromPlace": 1, "toPlace": 1 },
+					{ "rank": "II", "fromPlace": 2, "toPlace": 4 }
+				]
+			},
+			{
+				"level": "interregional_ekp",
+				"ageGroup": "juniors_u19",
+				"ranges": [
+					{ "rank": "I", "fromPlace": 1, "toPlace": 1 },
+					{ "rank": "II", "fromPlace": 2, "toPlace": 3 }
+				]
+			},
+			{
+				"level": "regional_championship",
+				"ageGroup": "adults",
+				"ranges": [
+					{ "rank": "I", "fromPlace": 1, "toPlace": 2 },
+					{ "rank": "II", "fromPlace": 3, "toPlace": 4 },
+					{ "rank": "III", "fromPlace": 5, "toPlace": 6 }
+				]
+			},
+			{
+				"level": "regional_cup",
+				"ageGroup": "adults",
+				"ranges": [
+					{ "rank": "I", "fromPlace": 1, "toPlace": 1 },
+					{ "rank": "II", "fromPlace": 2, "toPlace": 3 },
+					{ "rank": "III", "fromPlace": 4, "toPlace": 5 }
+				]
+			},
+			{
+				"level": "regional_youth",
+				"ageGroup": "juniors_u19",
+				"ranges": [
+					{ "rank": "II", "fromPlace": 1, "toPlace": 1 },
+					{ "rank": "III", "fromPlace": 2, "toPlace": 4 },
+					{ "rank": "Y1", "fromPlace": 5, "toPlace": 8 }
+				]
+			},
+			{
+				"level": "regional_youth",
+				"ageGroup": "boys_girls_u15",
+				"ranges": [
+					{ "rank": "III", "fromPlace": 1, "toPlace": 3 },
+					{ "rank": "Y1", "fromPlace": 4, "toPlace": 6 },
+					{ "rank": "Y2", "fromPlace": 8, "toPlace": 9 }
+				]
+			},
+			{
+				"level": "regional_other",
+				"ageGroup": "adults",
+				"ranges": [
+					{ "rank": "II", "fromPlace": 1, "toPlace": 2 },
+					{ "rank": "III", "fromPlace": 3, "toPlace": 4 }
+				]
+			},
+			{
+				"level": "regional_other",
+				"ageGroup": "juniors_u19",
+				"ranges": [
+					{ "rank": "III", "fromPlace": 1, "toPlace": 2 },
+					{ "rank": "Y1", "fromPlace": 3, "toPlace": 4 },
+					{ "rank": "Y2", "fromPlace": 5, "toPlace": 8 }
+				]
+			},
+			{
+				"level": "regional_other",
+				"ageGroup": "boys_girls_u15",
+				"ranges": [
+					{ "rank": "III", "fromPlace": 1, "toPlace": 1 },
+					{ "rank": "Y1", "fromPlace": 2, "toPlace": 3 },
+					{ "rank": "Y2", "fromPlace": 3, "toPlace": 5 },
+					{ "rank": "Y3", "fromPlace": 6, "toPlace": 8 }
+				]
+			},
+			{
+				"level": "municipal",
+				"ageGroup": "adults",
+				"ranges": [
+					{ "rank": "II", "fromPlace": 1, "toPlace": 2 },
+					{ "rank": "III", "fromPlace": 3, "toPlace": 4 }
+				]
+			},
+			{
+				"level": "municipal",
+				"ageGroup": "juniors_u19",
+				"ranges": [
+					{ "rank": "III", "fromPlace": 1, "toPlace": 1 },
+					{ "rank": "Y1", "fromPlace": 2, "toPlace": 3 },
+					{ "rank": "Y2", "fromPlace": 4, "toPlace": 6 },
+					{ "rank": "Y3", "fromPlace": 7, "toPlace": 8 }
+				]
+			},
+			{
+				"level": "municipal",
+				"ageGroup": "boys_girls_u15",
+				"ranges": [
+					{ "rank": "Y1", "fromPlace": 1, "toPlace": 2 },
+					{ "rank": "Y2", "fromPlace": 3, "toPlace": 4 },
+					{ "rank": "Y3", "fromPlace": 5, "toPlace": 6 }
+				]
+			}
+		]
+	},
+	"rankStrength": {
+		"ZMS": 1,
+		"MSMK": 1,
+		"MS": 1,
+		"KMS": 0.85,
+		"I": 0.7,
+		"II": 0.55,
+		"III": 0.4,
+		"Y1": 0.25,
+		"Y2": 0.15,
+		"Y3": 0.1,
+		"participation": 0.05
+	},
+	"formatFactors": {
+		"rows": [
+			{ "stage": "final", "online": false, "factor": 1 },
+			{ "stage": "single", "online": false, "factor": 1 },
+			{ "stage": "final", "online": true, "factor": 0.8 },
+			{ "stage": "single", "online": true, "factor": 0.8 },
+			{ "stage": "qualifier", "online": false, "factor": 0.6 },
+			{ "stage": "qualifier", "online": true, "factor": 0.5 }
+		],
+		"unknown": 0.5
+	},
+	"unknownRoleFactor": 0.7,
+	"recencyHalfLifeYears": 3
+}

@@ -1,0 +1,65 @@
+// What the public API works with: the configured infrastructure, built lazily so that `vite build` needs no
+// environment. Route files serve operations with `apiServices()`; tests pass their own services.
+import { configuredRegistry, type CompanyRegistry } from '$lib/server/companies/registry';
+import type { CompanyDeps } from '$lib/server/companies/context';
+import { config } from '$lib/server/config';
+import { fieldCrypto, type FieldCrypto } from '$lib/server/crypto/fields';
+import { db, type Database } from '$lib/server/db';
+import { configuredReceiptSigner, type ReceiptSigner } from '$lib/server/fsp/receipts';
+import type { InvitationDeps } from '$lib/server/invitations/deps';
+import { mailer, type Mailer } from '$lib/server/mail/mailer';
+import type { MatchingDeps } from '$lib/server/matching/deps';
+import type { MatchingModels } from '$lib/server/matching/semantic';
+import { modelAdapter } from '$lib/server/ml';
+import type { ModelAdapter } from '$lib/server/ml/adapter';
+import { redis, type Redis } from '$lib/server/redis';
+
+export interface ApiServices {
+	db: Database;
+	/** Connected Redis: stored answers of idempotent requests. */
+	redis: () => Promise<Redis>;
+	crypto: FieldCrypto;
+	mailer: Mailer;
+	registry: CompanyRegistry;
+	models: MatchingModels & Pick<ModelAdapter, 'extract'>;
+	/** Signs the receipts of facts a catalog card issues. */
+	receiptSigner: ReceiptSigner;
+	/** Origin of links in letters. */
+	appOrigin: string;
+	now: () => Date;
+}
+
+let configured: ApiServices | undefined;
+
+export function apiServices(): ApiServices {
+	configured ??= {
+		db: db(),
+		redis,
+		crypto: fieldCrypto(),
+		mailer: mailer(),
+		registry: configuredRegistry(config().companyRegistry),
+		models: modelAdapter(),
+		receiptSigner: configuredReceiptSigner(),
+		appOrigin: config().appOrigin,
+		now: () => new Date()
+	};
+	return configured;
+}
+
+export const companyDeps = (s: ApiServices): CompanyDeps => ({
+	db: s.db,
+	crypto: s.crypto,
+	mailer: s.mailer,
+	registry: s.registry,
+	appOrigin: s.appOrigin,
+	now: s.now
+});
+
+export const invitationDeps = (s: ApiServices): InvitationDeps => ({ db: s.db, crypto: s.crypto, now: s.now });
+
+export const matchingDeps = (s: ApiServices): MatchingDeps => ({
+	db: s.db,
+	models: s.models,
+	pseudonym: (candidateId, companyId) => s.crypto.pseudonym(candidateId, companyId),
+	now: s.now
+});

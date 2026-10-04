@@ -1,0 +1,16 @@
+{
+	"kind": "matching_policy",
+	"source": "docs/domain.md §13.3, §13.4, §13.8",
+	"versions": [
+		{
+			"version": 1,
+			"effective_from": "2026-09-25T00:00:00Z",
+			"params": {
+				"store_threshold": 0.3
+			},
+			"basis": {
+				"store_threshold": "docs/domain.md §13.4: в match_scores хранятся пары со счётом не ниже порога, остальные считаются при чтении; порог не выше порога пула §13.3 — product_default"
+			}
+		}
+	]
+}

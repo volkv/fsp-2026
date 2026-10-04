@@ -1,0 +1,413 @@
+{
+	"key": "quiz-kotlin",
+	"kind": "quiz",
+	"version": 1,
+	"title": "Kotlin: язык и корутины",
+	"summary": "Адаптивный квиз по Kotlin: null-безопасность, data-классы, коллекции и последовательности, функции-расширения, корутины и Flow.",
+	"skillKeys": ["kotlin"],
+	"timeLimitMinutes": 30,
+	"rule": {
+		"model": "irt_3pl",
+		"discrimination": 1.7,
+		"guessing": "one_over_options",
+		"estimator": "eap",
+		"prior": {
+			"mean": 0,
+			"sd": 1
+		},
+		"grid": {
+			"from": -4,
+			"to": 4,
+			"step": 0.05
+		},
+		"selection": "max_information",
+		"stop": {
+			"minItems": 6,
+			"maxItems": 10,
+			"maxStandardError": 0.55
+		}
+	},
+	"levelScale": {
+		"type": "ability",
+		"cuts": [
+			{
+				"level": "junior",
+				"minAbility": -1.0,
+				"levelStrength": 0.45,
+				"gradeKey": "junior"
+			},
+			{
+				"level": "middle",
+				"minAbility": 0.05,
+				"levelStrength": 0.6,
+				"gradeKey": "middle"
+			},
+			{
+				"level": "senior",
+				"minAbility": 1.35,
+				"levelStrength": 0.7,
+				"gradeKey": "senior"
+			}
+		],
+		"below": "not_confirmed"
+	},
+	"coverage": {
+		"skills": [
+			{
+				"skillKey": "kotlin",
+				"levels": ["junior", "middle", "senior"]
+			}
+		],
+		"checks": [
+			"null-безопасность, умные приведения и сравнение объектов",
+			"data-классы, коллекции и последовательности",
+			"функции-расширения и их диспетчеризацию",
+			"корутины: структурную конкурентность, диспетчеры, отмену и Flow"
+		],
+		"doesNotCheck": [
+			"Android SDK и Jetpack Compose",
+			"сборку Gradle и мультиплатформенные проекты",
+			"умение писать и отлаживать код — для этого есть практические задачи",
+			"коммерческий опыт и работу в команде"
+		],
+		"notes": [
+			"Сложность вопросов задана экспертно и ещё не откалибрована на ответах кандидатов.",
+			"Уровень квиза подтверждает или ограничивает сверху диапазон грейда по опыту, но не поднимает его."
+		]
+	},
+	"items": [
+		{
+			"id": "quiz-kotlin-01",
+			"version": 1,
+			"level": "junior",
+			"difficulty": -1.6,
+			"prompt": "Что напечатает код?",
+			"code": "val list = mutableListOf(1, 2)\nlist.add(3)\nprintln(list)",
+			"options": [
+				{
+					"id": "a",
+					"text": "Ошибка компиляции: val нельзя менять"
+				},
+				{
+					"id": "b",
+					"text": "[1, 2, 3]"
+				},
+				{
+					"id": "c",
+					"text": "[1, 2]"
+				},
+				{
+					"id": "d",
+					"text": "UnsupportedOperationException"
+				}
+			],
+			"correct": "b",
+			"explanation": "`val` запрещает переприсвоить ссылку, но не менять объект. Неизменяемость содержимого даёт `List` вместо `MutableList`."
+		},
+		{
+			"id": "quiz-kotlin-02",
+			"version": 1,
+			"level": "junior",
+			"difficulty": -1.3,
+			"prompt": "Что напечатает код?",
+			"code": "val name: String? = null\nprintln(name?.length ?: 0)",
+			"options": [
+				{
+					"id": "a",
+					"text": "null"
+				},
+				{
+					"id": "b",
+					"text": "NullPointerException"
+				},
+				{
+					"id": "c",
+					"text": "0"
+				},
+				{
+					"id": "d",
+					"text": "Ошибка компиляции"
+				}
+			],
+			"correct": "c",
+			"explanation": "`?.` возвращает `null` вместо обращения к `null`, а элвис-оператор `?:` подставляет значение по умолчанию."
+		},
+		{
+			"id": "quiz-kotlin-03",
+			"version": 1,
+			"level": "junior",
+			"difficulty": -1.0,
+			"prompt": "Что напечатает код?",
+			"code": "data class User(val id: Int)\n\nval a = User(1)\nval b = User(1)\nprintln(\"${a == b} ${a === b}\")",
+			"options": [
+				{
+					"id": "a",
+					"text": "true false"
+				},
+				{
+					"id": "b",
+					"text": "false false"
+				},
+				{
+					"id": "c",
+					"text": "true true"
+				},
+				{
+					"id": "d",
+					"text": "false true"
+				}
+			],
+			"correct": "a",
+			"explanation": "`==` вызывает `equals`, который data-класс генерирует по свойствам первичного конструктора. `===` сравнивает ссылки."
+		},
+		{
+			"id": "quiz-kotlin-04",
+			"version": 1,
+			"level": "junior",
+			"difficulty": -0.7,
+			"prompt": "Что напечатает `describe(\"abc\")`?",
+			"code": "fun describe(x: Any): String = when (x) {\n    is String -> \"строка длиной ${x.length}\"\n    is Int -> \"число\"\n    else -> \"другое\"\n}",
+			"options": [
+				{
+					"id": "a",
+					"text": "Ошибка компиляции: у Any нет length"
+				},
+				{
+					"id": "b",
+					"text": "строка длиной 3"
+				},
+				{
+					"id": "c",
+					"text": "другое"
+				},
+				{
+					"id": "d",
+					"text": "ClassCastException"
+				}
+			],
+			"correct": "b",
+			"explanation": "После проверки `is String` компилятор сам приводит `x` к `String` в этой ветке — умное приведение."
+		},
+		{
+			"id": "quiz-kotlin-05",
+			"version": 1,
+			"level": "middle",
+			"difficulty": -0.2,
+			"prompt": "Что произойдёт при `val len = s!!.length`, если `s` равна `null`?",
+			"options": [
+				{
+					"id": "a",
+					"text": "len станет 0"
+				},
+				{
+					"id": "b",
+					"text": "len станет null"
+				},
+				{
+					"id": "c",
+					"text": "Ошибка компиляции"
+				},
+				{
+					"id": "d",
+					"text": "NullPointerException"
+				}
+			],
+			"correct": "d",
+			"explanation": "`!!` утверждает, что значение не `null`, и бросает исключение, если это не так. В коде его стараются не использовать."
+		},
+		{
+			"id": "quiz-kotlin-06",
+			"version": 1,
+			"level": "middle",
+			"difficulty": 0.1,
+			"prompt": "Что напечатает код?",
+			"code": "val r = listOf(1, 2, 3, 4)\n    .asSequence()\n    .map { println(\"map $it\"); it * 2 }\n    .first { it > 2 }",
+			"options": [
+				{
+					"id": "a",
+					"text": "map 1, map 2, map 3 и map 4"
+				},
+				{
+					"id": "b",
+					"text": "Ничего"
+				},
+				{
+					"id": "c",
+					"text": "map 1 и map 2"
+				},
+				{
+					"id": "d",
+					"text": "Только map 2"
+				}
+			],
+			"correct": "c",
+			"explanation": "Последовательность обрабатывает элементы по одному и лениво: `first` останавливается на первом подходящем элементе. Со списком без `asSequence` `map` обработал бы все четыре."
+		},
+		{
+			"id": "quiz-kotlin-07",
+			"version": 1,
+			"level": "middle",
+			"difficulty": 0.4,
+			"prompt": "Что напечатает код?",
+			"code": "data class Team(val name: String, val members: MutableList<String>)\n\nval a = Team(\"A\", mutableListOf(\"Анна\"))\nval b = a.copy(name = \"B\")\nb.members.add(\"Иван\")\nprintln(a.members)",
+			"options": [
+				{
+					"id": "a",
+					"text": "[Анна, Иван]"
+				},
+				{
+					"id": "b",
+					"text": "[Анна]"
+				},
+				{
+					"id": "c",
+					"text": "[Иван]"
+				},
+				{
+					"id": "d",
+					"text": "Ошибка компиляции"
+				}
+			],
+			"correct": "a",
+			"explanation": "`copy` поверхностный: новый объект получает ту же ссылку на изменяемый список."
+		},
+		{
+			"id": "quiz-kotlin-08",
+			"version": 1,
+			"level": "middle",
+			"difficulty": 0.7,
+			"prompt": "Что напечатает код?",
+			"code": "open class A\nclass B : A()\n\nfun A.name() = \"A\"\nfun B.name() = \"B\"\n\nval x: A = B()\nprintln(x.name())",
+			"options": [
+				{
+					"id": "a",
+					"text": "B"
+				},
+				{
+					"id": "b",
+					"text": "A"
+				},
+				{
+					"id": "c",
+					"text": "Ошибка компиляции: неоднозначный вызов"
+				},
+				{
+					"id": "d",
+					"text": "AB"
+				}
+			],
+			"correct": "b",
+			"explanation": "Функции-расширения разрешаются статически, по объявленному типу выражения, а не по типу объекта во время выполнения. Полиморфизм дают только члены класса."
+		},
+		{
+			"id": "quiz-kotlin-09",
+			"version": 1,
+			"level": "senior",
+			"difficulty": 1.1,
+			"prompt": "Что произойдёт?",
+			"code": "coroutineScope {\n    launch { delay(100); throw IllegalStateException() }\n    launch { delay(1000); println(\"done\") }\n}",
+			"options": [
+				{
+					"id": "a",
+					"text": "Напечатает done, а потом пробросит исключение"
+				},
+				{
+					"id": "b",
+					"text": "Ошибка первой корутины не повлияет на вторую"
+				},
+				{
+					"id": "c",
+					"text": "Исключение будет молча проглочено внутри launch, а done напечатается"
+				},
+				{
+					"id": "d",
+					"text": "Вторая корутина отменится, coroutineScope пробросит исключение"
+				}
+			],
+			"correct": "d",
+			"explanation": "Структурная конкурентность: сбой дочерней корутины отменяет родителя и всех остальных детей, а `coroutineScope` бросает исключение дальше. Независимых детей дают `supervisorScope` или `SupervisorJob`."
+		},
+		{
+			"id": "quiz-kotlin-10",
+			"version": 1,
+			"level": "senior",
+			"difficulty": 1.4,
+			"prompt": "Почему блокирующий вызов (`Thread.sleep`, запрос JDBC) нельзя делать в корутине на `Dispatchers.Default`?",
+			"options": [
+				{
+					"id": "a",
+					"text": "Он займёт один из немногих потоков пула и затормозит другие корутины"
+				},
+				{
+					"id": "b",
+					"text": "Это ошибка компиляции: блокирующие вызовы внутри suspend-кода запрещены"
+				},
+				{
+					"id": "c",
+					"text": "Корутина будет автоматически отменена по таймауту"
+				},
+				{
+					"id": "d",
+					"text": "Ничего страшного: диспетчер сам добавит поток в пул"
+				}
+			],
+			"correct": "a",
+			"explanation": "`Default` рассчитан на вычисления, и его пул ограничен числом ядер. Корутина, заблокировавшая поток, его не отдаёт. `IO` — пул, рассчитанный на ожидание."
+		},
+		{
+			"id": "quiz-kotlin-11",
+			"version": 1,
+			"level": "senior",
+			"difficulty": 1.7,
+			"prompt": "Что не так с этим кодом?",
+			"code": "launch {\n    try {\n        delay(1000)\n    } catch (e: Exception) {\n        log(e)\n    }\n    doMore()\n}",
+			"options": [
+				{
+					"id": "a",
+					"text": "delay нельзя вызывать внутри блока try"
+				},
+				{
+					"id": "b",
+					"text": "log(e) никогда не вызовется: delay не бросает исключений при отмене"
+				},
+				{
+					"id": "c",
+					"text": "catch проглатывает отмену: корутина продолжит работу после cancel"
+				},
+				{
+					"id": "d",
+					"text": "Ничего: отмена всё равно прервёт doMore до начала"
+				}
+			],
+			"correct": "c",
+			"explanation": "Отмена в корутинах — это исключение `CancellationException` из точки приостановки. Перехватив его вместе с остальными, код «воскрешает» отменённую корутину."
+		},
+		{
+			"id": "quiz-kotlin-12",
+			"version": 1,
+			"level": "senior",
+			"difficulty": 2.0,
+			"prompt": "Чем `StateFlow` отличается от холодного `flow { }`?",
+			"options": [
+				{
+					"id": "a",
+					"text": "StateFlow холодный, а flow { } горячий и общий для всех подписчиков"
+				},
+				{
+					"id": "b",
+					"text": "flow { } буферизует все значения и отдаёт их поздним подписчикам"
+				},
+				{
+					"id": "c",
+					"text": "Ничем: StateFlow — псевдоним Flow с другим именем"
+				},
+				{
+					"id": "d",
+					"text": "StateFlow горячий и хранит текущее значение, flow { } — холодный"
+				}
+			],
+			"correct": "d",
+			"explanation": "`StateFlow` — держатель состояния: одно значение, сравнение через `equals`, общий для всех подписчиков. Холодный поток ничего не делает, пока его не собирают."
+		}
+	]
+}

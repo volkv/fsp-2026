@@ -1,0 +1,251 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"title": "docparse/v1 ParseResponse",
+	"description": "Successful response of POST /v1/parse. Error responses and the health response are in $defs. Offsets are Unicode code points into `text`; blocks do not overlap and are ordered by `start`. Tables are grids of cells whose text is held by blocks of kind table_cell.",
+	"$ref": "#/$defs/ParseResponse",
+	"$defs": {
+		"Extractor": {
+			"type": "object",
+			"additionalProperties": false,
+			"required": ["name", "version"],
+			"properties": {
+				"name": { "type": "string", "minLength": 1 },
+				"version": {
+					"type": "string",
+					"minLength": 1,
+					"description": "Changes whenever the result for the same input may change."
+				}
+			}
+		},
+		"DetectedFormat": {
+			"enum": ["pdf", "docx", "doc", "rtf", "odt", "txt", "png", "jpeg"]
+		},
+		"BlockKind": {
+			"enum": ["heading", "paragraph", "list_item", "table_cell", "line"]
+		},
+		"IncompleteReason": {
+			"enum": ["page_limit", "ocr_low_confidence", "unsupported_element", "encrypted_part", "embedded_object_skipped"]
+		},
+		"Block": {
+			"type": "object",
+			"additionalProperties": false,
+			"required": ["id", "page", "kind", "column", "start", "end"],
+			"properties": {
+				"id": {
+					"type": "string",
+					"pattern": "^(p[1-9][0-9]*|d)-b[0-9]{3,}$",
+					"description": "Stable for the same input.sha256 and extractor.version: p<page>-b<n> for paged formats, d-b<n> otherwise."
+				},
+				"page": { "type": ["integer", "null"], "minimum": 1 },
+				"kind": { "$ref": "#/$defs/BlockKind" },
+				"column": {
+					"type": ["integer", "null"],
+					"minimum": 1,
+					"description": "Column of a multi-column layout, numbered from the left."
+				},
+				"start": { "type": "integer", "minimum": 0 },
+				"end": {
+					"type": "integer",
+					"minimum": 1,
+					"description": "Exclusive end offset."
+				}
+			}
+		},
+		"TableCell": {
+			"type": "object",
+			"additionalProperties": false,
+			"required": ["col", "text", "blockIds"],
+			"properties": {
+				"col": {
+					"type": "integer",
+					"minimum": 0,
+					"description": "Grid column of the cell's left edge, from 0; the row is the one the cell is listed in."
+				},
+				"rowSpan": { "type": "integer", "minimum": 2, "description": "Grid rows the cell covers; absent means 1." },
+				"colSpan": { "type": "integer", "minimum": 2, "description": "Grid columns the cell covers; absent means 1." },
+				"text": {
+					"type": "string",
+					"description": "Text of the cell's blocks joined by \\n; empty for an empty cell."
+				},
+				"blockIds": {
+					"type": "array",
+					"uniqueItems": true,
+					"items": { "type": "string", "pattern": "^(p[1-9][0-9]*|d)-b[0-9]{3,}$" },
+					"description": "Blocks of kind table_cell holding the cell's text, in text order; a block belongs to one cell."
+				}
+			}
+		},
+		"Table": {
+			"type": "object",
+			"additionalProperties": false,
+			"required": ["id", "page", "bbox", "columnCount", "rows"],
+			"properties": {
+				"id": {
+					"type": "string",
+					"pattern": "^(p[1-9][0-9]*|d)-t[0-9]{3,}$",
+					"description": "Stable like block ids: p<page>-t<n> for paged formats, d-t<n> otherwise."
+				},
+				"page": { "type": ["integer", "null"], "minimum": 1 },
+				"bbox": {
+					"type": ["array", "null"],
+					"items": { "type": "number" },
+					"minItems": 4,
+					"maxItems": 4,
+					"description": "x0, top, x1, bottom in PDF points from the top-left corner of the page; null for formats without pages."
+				},
+				"columnCount": { "type": "integer", "minimum": 1 },
+				"rows": {
+					"type": "array",
+					"minItems": 1,
+					"description": "Grid rows from the top; a row lists the cells whose top-left corner is in it, ordered by col. Cells do not overlap; a grid position may be covered by no cell.",
+					"items": { "type": "array", "items": { "$ref": "#/$defs/TableCell" } }
+				},
+				"continues": {
+					"type": "string",
+					"pattern": "^p[1-9][0-9]*-t[0-9]{3,}$",
+					"description": "The table on the previous page this one continues: the same columns, rows go on after its last row."
+				},
+				"repeatedHeaderRows": {
+					"type": "integer",
+					"minimum": 1,
+					"description": "Leading rows of a continuation that repeat the first rows of the table it continues (a header repeated on each page)."
+				}
+			},
+			"dependentRequired": { "repeatedHeaderRows": ["continues"] }
+		},
+		"ParseResponse": {
+			"type": "object",
+			"additionalProperties": false,
+			"required": ["schemaVersion", "extractor", "input", "status", "text", "blocks", "flags", "stats"],
+			"properties": {
+				"schemaVersion": { "const": "docparse/v1" },
+				"extractor": { "$ref": "#/$defs/Extractor" },
+				"input": {
+					"type": "object",
+					"additionalProperties": false,
+					"required": ["sha256", "sizeBytes", "detectedFormat", "pageCount"],
+					"properties": {
+						"sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+						"sizeBytes": { "type": "integer", "minimum": 1 },
+						"detectedFormat": { "$ref": "#/$defs/DetectedFormat" },
+						"pageCount": {
+							"type": ["integer", "null"],
+							"minimum": 1,
+							"description": "null for formats without pages."
+						}
+					}
+				},
+				"status": { "enum": ["complete", "partial"] },
+				"text": {
+					"type": "string",
+					"minLength": 1,
+					"description": "NFC, line breaks are \\n. Empty text is an error, never a result."
+				},
+				"blocks": {
+					"type": "array",
+					"minItems": 1,
+					"items": { "$ref": "#/$defs/Block" }
+				},
+				"tables": {
+					"type": "array",
+					"items": { "$ref": "#/$defs/Table" },
+					"description": "Tables in document order (an outer table before the tables nested in its cells). Absent in answers of extractors that did not report tables; an empty array means none were found. PDF: ruled tables and tables aligned without rulings; DOCX, DOC, RTF, ODT: the document's tables; scans read by OCR and plain text: none."
+				},
+				"flags": {
+					"type": "object",
+					"additionalProperties": false,
+					"required": ["ocrUsed", "ocrPages", "incompleteReasons", "externalResourcesIgnored"],
+					"properties": {
+						"ocrUsed": { "type": "boolean" },
+						"ocrPages": {
+							"type": "array",
+							"uniqueItems": true,
+							"items": { "type": "integer", "minimum": 1 }
+						},
+						"incompleteReasons": {
+							"type": "array",
+							"uniqueItems": true,
+							"items": { "$ref": "#/$defs/IncompleteReason" }
+						},
+						"externalResourcesIgnored": {
+							"type": "boolean",
+							"description": "The document referred to external resources; they were not loaded."
+						}
+					}
+				},
+				"stats": {
+					"type": "object",
+					"additionalProperties": false,
+					"required": ["durationMs"],
+					"properties": {
+						"durationMs": { "type": "integer", "minimum": 0 }
+					}
+				}
+			},
+			"allOf": [
+				{
+					"if": { "properties": { "status": { "const": "partial" } } },
+					"then": { "properties": { "flags": { "properties": { "incompleteReasons": { "minItems": 1 } } } } },
+					"else": { "properties": { "flags": { "properties": { "incompleteReasons": { "maxItems": 0 } } } } }
+				},
+				{
+					"if": { "properties": { "flags": { "properties": { "ocrUsed": { "const": true } } } } },
+					"then": { "properties": { "flags": { "properties": { "ocrPages": { "minItems": 1 } } } } },
+					"else": { "properties": { "flags": { "properties": { "ocrPages": { "maxItems": 0 } } } } }
+				}
+			]
+		},
+		"ErrorCode": {
+			"enum": [
+				"unsupported_format",
+				"too_large",
+				"unpacked_too_large",
+				"encrypted",
+				"corrupt",
+				"no_text",
+				"timeout",
+				"memory_exceeded",
+				"busy",
+				"internal",
+				"bad_request"
+			],
+			"description": "no_text: the document yields no text, OCR included. bad_request: the request itself does not follow this contract (no file part, unknown route or method)."
+		},
+		"ErrorResponse": {
+			"type": "object",
+			"additionalProperties": false,
+			"required": ["error"],
+			"properties": {
+				"error": {
+					"type": "object",
+					"additionalProperties": false,
+					"required": ["code", "retryable", "message"],
+					"properties": {
+						"code": { "$ref": "#/$defs/ErrorCode" },
+						"retryable": { "type": "boolean" },
+						"message": {
+							"type": "string",
+							"minLength": 1,
+							"description": "Without personal data or document content."
+						}
+					}
+				}
+			}
+		},
+		"HealthResponse": {
+			"type": "object",
+			"additionalProperties": false,
+			"required": ["status", "extractor", "formats"],
+			"properties": {
+				"status": { "const": "ok" },
+				"extractor": { "$ref": "#/$defs/Extractor" },
+				"formats": {
+					"type": "array",
+					"minItems": 1,
+					"uniqueItems": true,
+					"items": { "$ref": "#/$defs/DetectedFormat" }
+				}
+			}
+		}
+	}
+}

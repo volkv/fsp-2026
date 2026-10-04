@@ -1,0 +1,256 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"title": "fsp-achievements/v1",
+	"description": "Responses of the achievements API of the FSP source (docs/contracts.md, section 1). The simulator fsp-mock serves exactly these shapes; the platform validates responses against this schema. Enumerations include 'unknown': a value the source could not map is passed as 'unknown' with the original string in rawValues. Optional fields may be added within v1, so objects are open.",
+	"$defs": {
+		"Date": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$", "format": "date" },
+		"DateTime": { "type": "string", "format": "date-time" },
+		"RawValues": {
+			"type": "object",
+			"description": "Original source strings of fields that were passed as 'unknown', keyed by field path (e.g. 'level', 'team.role').",
+			"additionalProperties": { "type": "string" }
+		},
+		"DisciplineCode": { "enum": ["algorithmic", "product", "uas", "robotics", "infosec"] },
+		"KnownDisciplineCode": { "enum": ["algorithmic", "product", "uas", "robotics", "infosec", "unknown"] },
+		"CompetitionLevel": {
+			"enum": [
+				"world_championship",
+				"european_championship",
+				"international_ekp",
+				"russian_championship",
+				"russian_cup",
+				"russian_youth_championship",
+				"all_russian_ekp",
+				"all_russian_sport_event",
+				"universiade",
+				"federal_district",
+				"interregional_ekp",
+				"regional_championship",
+				"regional_cup",
+				"regional_youth",
+				"regional_other",
+				"municipal",
+				"accredited",
+				"unofficial",
+				"unknown"
+			]
+		},
+		"EvskRank": { "enum": ["MS", "KMS", "I", "II", "III", "Y1", "Y2", "Y3"] },
+		"Discipline": {
+			"type": "object",
+			"required": ["code", "name", "vrvsCode", "format"],
+			"properties": {
+				"code": { "$ref": "#/$defs/DisciplineCode" },
+				"name": { "type": "string", "minLength": 1 },
+				"vrvsCode": { "type": "string", "pattern": "^\\d{10}Я$" },
+				"format": { "enum": ["individual", "team", "both"] }
+			}
+		},
+		"Competition": {
+			"type": "object",
+			"required": ["id", "ekpNumber", "title", "discipline", "level", "startDate"],
+			"properties": {
+				"id": { "type": "string", "minLength": 1 },
+				"ekpNumber": { "type": ["string", "null"], "pattern": "^\\d{16}$" },
+				"title": { "type": "string", "minLength": 1 },
+				"discipline": { "$ref": "#/$defs/KnownDisciplineCode" },
+				"level": { "$ref": "#/$defs/CompetitionLevel" },
+				"stage": { "enum": ["qualifier", "final", "single", "unknown"] },
+				"ageGroup": { "enum": ["boys_girls_u15", "juniors_u19", "juniors_u26", "adults", "unknown"] },
+				"format": { "enum": ["individual", "team"] },
+				"startDate": { "$ref": "#/$defs/Date" },
+				"endDate": { "$ref": "#/$defs/Date" },
+				"location": { "type": "string" },
+				"online": { "type": "boolean" },
+				"platform": { "type": ["string", "null"] },
+				"participantsCount": { "type": "integer", "minimum": 0 },
+				"regionsCount": { "type": "integer", "minimum": 0 },
+				"protocolUrl": { "type": ["string", "null"], "format": "uri" },
+				"rawValues": { "$ref": "#/$defs/RawValues" }
+			}
+		},
+		"ResultTeam": {
+			"type": "object",
+			"required": ["id", "name"],
+			"properties": {
+				"id": { "type": "string", "minLength": 1 },
+				"name": { "type": "string", "minLength": 1 },
+				"region": { "type": "string" },
+				"size": { "type": "integer", "minimum": 1 },
+				"role": { "enum": ["captain", "athlete", "reserve", "trainer", "unknown"] },
+				"specialization": {
+					"type": ["string", "null"],
+					"description": "Personal function in the team; absent or null means the source has no personal specialization."
+				}
+			}
+		},
+		"Result": {
+			"type": "object",
+			"required": ["id", "competitionId", "place", "status"],
+			"properties": {
+				"id": { "type": "string", "minLength": 1, "description": "Source's own id of the result record." },
+				"competitionId": { "type": "string", "minLength": 1 },
+				"place": { "type": ["integer", "null"], "minimum": 1 },
+				"placeOf": { "type": "integer", "minimum": 1 },
+				"score": { "type": ["number", "null"] },
+				"solved": { "type": ["integer", "null"], "minimum": 0 },
+				"penaltyMinutes": { "type": ["integer", "null"], "minimum": 0 },
+				"team": { "oneOf": [{ "$ref": "#/$defs/ResultTeam" }, { "type": "null" }] },
+				"award": { "enum": ["winner", "prize", "finalist", "participant", "unknown"] },
+				"evskFulfilled": {
+					"oneOf": [{ "$ref": "#/$defs/EvskRank" }, { "type": "null" }],
+					"description": "EVSK norm the source recorded as fulfilled by this result; not an assigned rank."
+				},
+				"status": { "enum": ["official", "preliminary", "annulled"] },
+				"publishedAt": { "$ref": "#/$defs/DateTime" },
+				"rawValues": { "$ref": "#/$defs/RawValues" }
+			}
+		},
+		"Qualification": {
+			"type": "object",
+			"required": ["rank", "assignedAt"],
+			"properties": {
+				"id": { "type": "string", "minLength": 1 },
+				"rank": { "enum": ["ZMS", "MSMK", "MS", "KMS", "I", "II", "III", "Y1", "Y2", "Y3", "unknown"] },
+				"discipline": { "$ref": "#/$defs/KnownDisciplineCode" },
+				"assignedAt": { "$ref": "#/$defs/Date" },
+				"validUntil": { "oneOf": [{ "$ref": "#/$defs/Date" }, { "type": "null" }] },
+				"orderNumber": { "type": ["string", "null"] },
+				"assignedBy": { "type": "string" },
+				"basisCompetitionId": { "type": ["string", "null"] }
+			}
+		},
+		"PlatformAccount": {
+			"type": "object",
+			"required": ["platform", "login"],
+			"properties": {
+				"platform": { "type": "string", "minLength": 1 },
+				"login": { "type": "string", "minLength": 1 },
+				"rating": { "type": ["number", "null"] }
+			}
+		},
+		"Athlete": {
+			"type": "object",
+			"required": ["fspId", "lastName", "firstName"],
+			"properties": {
+				"fspId": {
+					"type": "string",
+					"minLength": 1,
+					"description": "Opaque athlete key; in the simulator equals sub of FSP ID."
+				},
+				"lastName": { "type": "string", "minLength": 1 },
+				"firstName": { "type": "string", "minLength": 1 },
+				"middleName": { "type": ["string", "null"] },
+				"birthYear": { "type": ["integer", "null"], "minimum": 1900 },
+				"region": { "type": "string" },
+				"nationalTeam": {
+					"oneOf": [
+						{
+							"type": "object",
+							"required": ["discipline", "squad", "season"],
+							"properties": {
+								"discipline": { "$ref": "#/$defs/DisciplineCode" },
+								"squad": { "enum": ["main", "reserve"] },
+								"season": { "type": "integer" }
+							}
+						},
+						{ "type": "null" }
+					]
+				},
+				"platformAccounts": { "type": "array", "items": { "$ref": "#/$defs/PlatformAccount" } }
+			}
+		},
+		"PageInfo": {
+			"type": "object",
+			"required": ["number", "size", "totalPages", "totalResults"],
+			"properties": {
+				"number": { "type": "integer", "minimum": 1 },
+				"size": { "type": "integer", "minimum": 1 },
+				"totalPages": { "type": "integer", "minimum": 1 },
+				"totalResults": { "type": "integer", "minimum": 0 }
+			}
+		},
+		"AchievementsPage": {
+			"type": "object",
+			"description": "GET /v1/athletes/{fspId}/achievements?page=&pageSize= — one page of results (newest first) with the competitions they reference; athlete and qualifications repeat on every page. The snapshot is complete when all pages share sourceVersion and every page has complete: true; a missing complete means the source gives no completeness signal.",
+			"required": ["athlete", "qualifications", "results", "competitions", "generatedAt", "sourceVersion", "page"],
+			"properties": {
+				"athlete": { "$ref": "#/$defs/Athlete" },
+				"qualifications": { "type": "array", "items": { "$ref": "#/$defs/Qualification" } },
+				"results": { "type": "array", "items": { "$ref": "#/$defs/Result" } },
+				"competitions": { "type": "array", "items": { "$ref": "#/$defs/Competition" } },
+				"generatedAt": { "$ref": "#/$defs/DateTime" },
+				"sourceVersion": { "type": "string", "minLength": 1 },
+				"page": { "$ref": "#/$defs/PageInfo" },
+				"complete": { "type": "boolean" }
+			}
+		},
+		"DisciplineList": {
+			"type": "object",
+			"description": "GET /v1/disciplines",
+			"required": ["items"],
+			"properties": { "items": { "type": "array", "items": { "$ref": "#/$defs/Discipline" } } }
+		},
+		"CompetitionList": {
+			"type": "object",
+			"description": "GET /v1/competitions?discipline=&level=&season=&page=&pageSize=",
+			"required": ["items", "page"],
+			"properties": {
+				"items": { "type": "array", "items": { "$ref": "#/$defs/Competition" } },
+				"page": { "$ref": "#/$defs/PageInfo" }
+			}
+		},
+		"WebhookEvent": {
+			"type": "object",
+			"description": "Body of POST {subscriber url}; headers X-FSP-Event-Id, X-FSP-Timestamp, X-FSP-Signature (docs/contracts.md, section 1.5).",
+			"required": ["eventId", "type", "occurredAt", "athleteIds"],
+			"properties": {
+				"eventId": { "type": "string", "minLength": 1 },
+				"type": { "enum": ["result.published", "result.annulled", "qualification.assigned", "athlete.updated"] },
+				"occurredAt": { "$ref": "#/$defs/DateTime" },
+				"athleteIds": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+				"competitionId": { "type": "string", "minLength": 1 }
+			}
+		},
+		"WebhookSubscription": {
+			"type": "object",
+			"description": "Answer of POST /v1/webhooks and items of GET /v1/webhooks; the secret is never returned.",
+			"required": ["id", "url", "events", "createdAt"],
+			"properties": {
+				"id": { "type": "string", "minLength": 1 },
+				"url": { "type": "string", "format": "uri" },
+				"events": {
+					"type": "array",
+					"minItems": 1,
+					"items": { "enum": ["result.published", "result.annulled", "qualification.assigned", "athlete.updated"] }
+				},
+				"createdAt": { "$ref": "#/$defs/DateTime" }
+			}
+		},
+		"Error": {
+			"type": "object",
+			"description": "Any non-2xx answer. 401 grant_invalid, 403 grant_mismatch, 404 not_found, 429 rate_limited (Retry-After), 503 unavailable, 400 invalid_request.",
+			"required": ["error"],
+			"properties": {
+				"error": {
+					"type": "object",
+					"required": ["code", "message"],
+					"properties": {
+						"code": {
+							"enum": [
+								"not_found",
+								"grant_invalid",
+								"grant_mismatch",
+								"unavailable",
+								"rate_limited",
+								"invalid_request",
+								"unauthorized"
+							]
+						},
+						"message": { "type": "string" }
+					}
+				}
+			}
+		}
+	}
+}

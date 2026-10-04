@@ -1,0 +1,7 @@
+1xx: 33
+2xx: 60
+3xx: 55
+4xx: 90
+5xx: 62
+slowest: /api/users 442764312
+top: /login 34

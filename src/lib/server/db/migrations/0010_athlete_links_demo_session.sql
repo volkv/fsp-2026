@@ -1,0 +1,5 @@
+DROP INDEX "athlete_links_active_athlete";--> statement-breakpoint
+ALTER TABLE "athlete_links" ADD COLUMN "demo_session_id" uuid;--> statement-breakpoint
+ALTER TABLE "athlete_links" ADD CONSTRAINT "athlete_links_demo_session_id_demo_sessions_id_fk" FOREIGN KEY ("demo_session_id") REFERENCES "public"."demo_sessions"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+CREATE UNIQUE INDEX "athlete_links_active_athlete_demo" ON "athlete_links" USING btree ("source","source_athlete_id","demo_session_id") WHERE "athlete_links"."status" = 'active' and "athlete_links"."demo_session_id" is not null;--> statement-breakpoint
+CREATE UNIQUE INDEX "athlete_links_active_athlete" ON "athlete_links" USING btree ("source","source_athlete_id") WHERE "athlete_links"."status" = 'active' and "athlete_links"."demo_session_id" is null;

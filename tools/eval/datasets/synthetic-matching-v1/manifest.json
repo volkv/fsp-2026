@@ -1,0 +1,13 @@
+{
+	"id": "synthetic-matching-v1",
+	"provenance": "synthetic",
+	"generator": 1,
+	"seed": 20261003,
+	"base_dataset": "synthetic-resumes-v2",
+	"fsp_layer": "fsp-achievements-v2",
+	"vacancies": {
+		"dev": 40,
+		"holdout": 40
+	},
+	"labels_sha256": "8282f05774f8c58459436ec9d85a63f8458f4b047c32d2ef3b0fe08a4f021ccd"
+}

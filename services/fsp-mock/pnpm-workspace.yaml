@@ -1,0 +1,2 @@
+# Own workspace root: the simulator is not part of the application workspace and has its own lock file.
+allowBuilds: {}

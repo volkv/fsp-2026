@@ -1,0 +1,5 @@
+1 4
+PUT 0 k v 1
+GET 0 k
+DEL 0 k
+GET 1 k

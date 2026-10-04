@@ -1,0 +1,52 @@
+{
+	"key": "java-lru-cache",
+	"kind": "code_task",
+	"version": 1,
+	"title": "Кэш с вытеснением и сроком жизни",
+	"summary": "Воспроизвести поведение кэша карточек: вместимость, вытеснение давно не использованных записей и время жизни.",
+	"stack": "java",
+	"level": "middle",
+	"skillKeys": ["java"],
+	"languages": ["java21"],
+	"timeLimitMinutes": 90,
+	"limits": {
+		"cpuTimeMs": 3000,
+		"wallTimeMs": 6000,
+		"memoryMb": 256,
+		"outputKb": 256,
+		"processes": 1,
+		"compileCpuTimeMs": 20000,
+		"compileMemoryMb": 512
+	},
+	"checker": { "kind": "exact" },
+	"levelScale": {
+		"type": "tests_passed",
+		"thresholds": [{ "minRatio": 1, "level": "middle", "levelStrength": 0.8 }],
+		"below": "not_passed"
+	},
+	"coverage": {
+		"skills": [{ "skillKey": "java", "levels": ["middle"] }],
+		"checks": [
+			"коллекции: LinkedHashMap с порядком доступа или собственный список",
+			"согласованность нескольких правил состояния: срок жизни, вытеснение, обновление",
+			"порядок проверок в каждой операции и граничные моменты времени",
+			"64-битное время"
+		],
+		"doesNotCheck": [
+			"производительность на больших объёмах и асимптотику очистки",
+			"многопоточность и потокобезопасность",
+			"Spring, базы данных и распределённые кэши",
+			"стиль кода, тесты и коммерческий опыт"
+		]
+	},
+	"tests": [
+		{ "id": "sample-1", "hidden": false },
+		{ "id": "update-existing", "hidden": false },
+		{ "id": "expired-frees-space", "hidden": true },
+		{ "id": "miss-does-not-touch", "hidden": true },
+		{ "id": "empty-end", "hidden": true },
+		{ "id": "del-and-reput", "hidden": true },
+		{ "id": "huge-ttl", "hidden": true },
+		{ "id": "random", "hidden": true }
+	]
+}

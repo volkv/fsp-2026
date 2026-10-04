@@ -1,0 +1,208 @@
+{
+	"description": "Демо-данные стенда: учётки ролей, компании сценария и кандидаты-герои. Люди и компании вымышленные, соревнования — реальные соревнования ФСП из мира имитатора fsp-mock.",
+	"version": 1,
+	"staff": [
+		{
+			"key": "operator",
+			"role": "operator",
+			"email": "operator@fsp-career.example",
+			"displayName": "Ирина Лебедева"
+		},
+		{
+			"key": "admin",
+			"role": "admin",
+			"email": "admin@fsp-career.example",
+			"displayName": "Администратор платформы"
+		}
+	],
+	"companies": [
+		{
+			"key": "severny_kod",
+			"displayName": "Северный код",
+			"legalName": "ООО «Северный код»",
+			"status": "verified",
+			"minorTerms": true,
+			"members": [
+				{
+					"key": "severny_kod_owner",
+					"role": "owner",
+					"email": "owner@severny-kod.example",
+					"displayName": "Марина Кольцова"
+				},
+				{
+					"key": "severny_kod_recruiter",
+					"role": "recruiter",
+					"email": "recruiter@severny-kod.example",
+					"displayName": "Алина Лаврова"
+				}
+			]
+		},
+		{
+			"key": "teply_stek",
+			"displayName": "Тёплый стек",
+			"legalName": "ООО «Тёплый стек»",
+			"status": "verified",
+			"minorTerms": false,
+			"partnership": {
+				"competition": {
+					"discipline": "product",
+					"level": "russian_cup",
+					"stage": "final",
+					"year": 2025
+				},
+				"kind": "case_provider",
+				"basis": "Договор о предоставлении кейса финала Кубка России 2025 (демо-данные)"
+			},
+			"members": [
+				{
+					"key": "teply_stek_recruiter",
+					"role": "owner",
+					"email": "recruiter@teply-stek.example",
+					"displayName": "Олеся Гаврилова"
+				}
+			]
+		},
+		{
+			"key": "novaya_komanda",
+			"displayName": "Новая команда",
+			"legalName": "ООО «Новая команда»",
+			"status": "submitted",
+			"minorTerms": false,
+			"members": [
+				{
+					"key": "novaya_komanda_owner",
+					"role": "owner",
+					"email": "owner@novaya-komanda.example",
+					"displayName": "Роберт Сайфуллин"
+				}
+			]
+		}
+	],
+	"candidates": [
+		{
+			"key": "k1",
+			"email": "stepan.rodionov@fsp-career.example",
+			"athlete": "captain_backend",
+			"birthDate": "1999-04-17",
+			"catalogScope": ["fsp_achievements_exact", "external_profiles"],
+			"desiredRoles": ["backend"],
+			"preferences": {
+				"work_formats": ["hybrid", "remote"],
+				"employment_forms": ["full"],
+				"region_code": "RU-TA",
+				"relocation": false,
+				"salary_expectation": {
+					"min": 220000,
+					"max": 280000,
+					"currency": "RUB",
+					"period": "month",
+					"tax_base": "net"
+				}
+			},
+			"resume": "resumes/k1.pdf",
+			"github": "srodionov-dev",
+			"quiz": {
+				"skill": "go",
+				"ability": 0.5
+			}
+		},
+		{
+			"key": "k2",
+			"email": "dmitry.orlov@fsp-career.example",
+			"name": {
+				"lastName": "Орлов",
+				"firstName": "Дмитрий",
+				"middleName": "Андреевич"
+			},
+			"birthDate": "1997-03-14",
+			"catalogScope": ["external_profiles"],
+			"desiredRoles": ["backend"],
+			"preferences": {
+				"work_formats": ["remote"],
+				"employment_forms": ["full"],
+				"region_code": "RU-SPE",
+				"relocation": false,
+				"salary_expectation": {
+					"min": 300000,
+					"max": 360000,
+					"currency": "RUB",
+					"period": "month",
+					"tax_base": "net"
+				}
+			},
+			"resume": "resumes/k2.docx",
+			"github": "dorlov-go"
+		},
+		{
+			"key": "k3",
+			"email": "gleb.sokolov@fsp-career.example",
+			"athlete": "algo_kms",
+			"birthDate": "2003-06-15",
+			"catalogScope": ["fsp_achievements_exact"],
+			"desiredRoles": ["algo_engineer", "backend"],
+			"preferences": {
+				"work_formats": ["office", "hybrid"],
+				"employment_forms": ["full", "internship"],
+				"region_code": "RU-NVS",
+				"relocation": true,
+				"salary_expectation": {
+					"min": 150000,
+					"max": null,
+					"currency": "RUB",
+					"period": "month",
+					"tax_base": "net"
+				}
+			},
+			"dispute": "Считаю, что грейд занижен: у меня КМС и второе место финала Кубка России по алгоритмическому программированию, прошу учесть рейтинг Фонкода."
+		},
+		{
+			"key": "k4",
+			"email": "alisa.zakharova@fsp-career.example",
+			"athlete": "teen_16",
+			"birthDate": "2010-02-20",
+			"catalogScope": [],
+			"desiredRoles": ["frontend"],
+			"preferences": {
+				"work_formats": ["remote"],
+				"employment_forms": ["internship"],
+				"region_code": "RU-MOW",
+				"relocation": false
+			},
+			"representative": {
+				"fullName": "Захарова Елена Викторовна",
+				"email": "elena.zakharova@fsp-career.example",
+				"relation": "parent"
+			}
+		},
+		{
+			"key": "k5",
+			"email": "oleg.petrov@fsp-career.example",
+			"name": {
+				"lastName": "Петров",
+				"firstName": "Олег",
+				"middleName": "Игоревич"
+			},
+			"birthDate": "1992-11-03",
+			"catalogScope": [],
+			"desiredRoles": ["backend"],
+			"preferences": {
+				"work_formats": ["office", "hybrid"],
+				"employment_forms": ["full"],
+				"region_code": "RU-MOW",
+				"relocation": false,
+				"salary_expectation": {
+					"min": 380000,
+					"max": 450000,
+					"currency": "RUB",
+					"period": "month",
+					"tax_base": "net"
+				}
+			},
+			"resume": "resumes/k5.pdf",
+			"quiz": {
+				"skill": "python",
+				"ability": 1.6
+			}
+		}
+	]
+}

@@ -1,0 +1,297 @@
+{
+	"meta": {
+		"version": "2026.09.2",
+		"description": "Правила проекции достижений ФСП: дисциплина (и персональная специализация в команде) → навык, роль или маркер с весом. Прямое подтверждение (direct, бейдж «Подтверждено ФСП») — только у навыка, который личный результат дисциплины устанавливает сам по себе; тематические навыки, язык, стек и роли выводятся (derived) и бейджа не дают. Командный результат прямо не подтверждает ничего, в том числе teamwork. Язык программирования из результата без специализации не выводится. Роль выводит только персональная специализация в команде, называющая роль, и только как поддерживающее основание: олимпиада, CTF, робототехника или результат без специализации говорят, насколько человек силён и какими навыками владеет, а не какую работу он делает — такой участник находится по уровню ФСП и навыкам. Веса — стартовые, до калибровки на данных ФСП.",
+		"sources": [
+			{
+				"title": "Правила вида спорта «спортивное программирование», приказ Минспорта России от 11.08.2023 № 584 (форматы дисциплин, личный и командный зачёт)",
+				"retrievedAt": "2026-09-24"
+			},
+			{
+				"title": "Карточка задачи «Цифровая платформа-агрегатор ИТ-вакансий с верифицированным профилем достижений участника ФСП»",
+				"url": "https://i.moscow/api/lct/task/43d9697cdc484417826f36ba29f88b3c/?isEnglish=false",
+				"retrievedAt": "2026-09-24"
+			},
+			{ "title": "Собственная модель проекции команды (веса — гипотеза до калибровки)", "retrievedAt": "2026-09-24" }
+		]
+	},
+	"ruleGroups": [
+		{
+			"discipline": "algorithmic",
+			"appliesTo": "individual",
+			"attestation": "direct",
+			"requiresSpecialization": null,
+			"targets": { "skill": { "algorithms": 1, "competitive_programming": 1 } }
+		},
+		{
+			"discipline": "algorithmic",
+			"appliesTo": "individual",
+			"attestation": "derived",
+			"requiresSpecialization": null,
+			"targets": {
+				"skill": {
+					"graph_algorithms": 0.8,
+					"dynamic_programming": 0.8,
+					"math_discrete": 0.7,
+					"string_algorithms": 0.5,
+					"optimization": 0.5,
+					"computational_geometry": 0.4
+				}
+			}
+		},
+		{
+			"discipline": "algorithmic",
+			"appliesTo": "team",
+			"attestation": "derived",
+			"requiresSpecialization": null,
+			"targets": {
+				"skill": {
+					"algorithms": 1,
+					"competitive_programming": 1,
+					"graph_algorithms": 0.8,
+					"dynamic_programming": 0.8,
+					"math_discrete": 0.7,
+					"string_algorithms": 0.5,
+					"optimization": 0.5,
+					"computational_geometry": 0.4
+				}
+			}
+		},
+		{
+			"discipline": "product",
+			"appliesTo": "team",
+			"attestation": "derived",
+			"requiresSpecialization": null,
+			"targets": { "skill": { "teamwork": 1, "presentation": 0.8 } }
+		},
+		{
+			"discipline": "product",
+			"appliesTo": "team",
+			"attestation": "derived",
+			"requiresSpecialization": "backend",
+			"targets": { "skill": { "rest": 0.7, "sql": 0.5 }, "role": { "backend": 0.8 } }
+		},
+		{
+			"discipline": "product",
+			"appliesTo": "team",
+			"attestation": "derived",
+			"requiresSpecialization": "frontend",
+			"targets": { "skill": { "javascript": 0.7, "html": 0.6, "css": 0.6 }, "role": { "frontend": 0.8 } }
+		},
+		{
+			"discipline": "product",
+			"appliesTo": "team",
+			"attestation": "derived",
+			"requiresSpecialization": "fullstack",
+			"targets": { "skill": { "javascript": 0.5, "rest": 0.5, "sql": 0.4 }, "role": { "fullstack": 0.8 } }
+		},
+		{
+			"discipline": "product",
+			"appliesTo": "team",
+			"attestation": "derived",
+			"requiresSpecialization": "mobile",
+			"targets": { "role": { "mobile": 0.8 } }
+		},
+		{
+			"discipline": "product",
+			"appliesTo": "team",
+			"attestation": "derived",
+			"requiresSpecialization": "ml",
+			"targets": { "skill": { "ml": 0.8, "python": 0.7 }, "role": { "ml_engineer": 0.8 } }
+		},
+		{
+			"discipline": "product",
+			"appliesTo": "team",
+			"attestation": "derived",
+			"requiresSpecialization": "devops",
+			"targets": { "skill": { "docker": 0.6, "cicd": 0.6, "linux": 0.5 }, "role": { "devops": 0.8 } }
+		},
+		{
+			"discipline": "product",
+			"appliesTo": "team",
+			"attestation": "derived",
+			"requiresSpecialization": "design",
+			"targets": { "skill": { "figma": 0.8, "ui": 0.8, "ux": 0.6 }, "role": { "ui_ux_designer": 0.8 } }
+		},
+		{
+			"discipline": "product",
+			"appliesTo": "team",
+			"attestation": "derived",
+			"requiresSpecialization": "pm",
+			"targets": {
+				"skill": { "product_management": 0.8, "project_management": 0.6 },
+				"role": { "product_manager": 0.8 }
+			}
+		},
+		{
+			"discipline": "infosec",
+			"appliesTo": "individual",
+			"attestation": "direct",
+			"requiresSpecialization": null,
+			"targets": { "skill": { "ctf": 1 } }
+		},
+		{
+			"discipline": "infosec",
+			"appliesTo": "individual",
+			"attestation": "derived",
+			"requiresSpecialization": null,
+			"targets": {
+				"skill": {
+					"pentest": 0.8,
+					"networking": 0.6,
+					"linux": 0.6,
+					"reverse": 0.6,
+					"appsec": 0.6,
+					"crypto": 0.5,
+					"forensics": 0.5
+				}
+			}
+		},
+		{
+			"discipline": "infosec",
+			"appliesTo": "team",
+			"attestation": "derived",
+			"requiresSpecialization": null,
+			"targets": {
+				"skill": {
+					"ctf": 1,
+					"pentest": 0.8,
+					"networking": 0.6,
+					"linux": 0.6,
+					"reverse": 0.6,
+					"appsec": 0.6,
+					"crypto": 0.5,
+					"forensics": 0.5
+				}
+			}
+		},
+		{
+			"discipline": "infosec",
+			"appliesTo": "team",
+			"attestation": "derived",
+			"requiresSpecialization": "pentest",
+			"targets": { "skill": { "pentest": 0.9 }, "role": { "pentester": 0.9 } }
+		},
+		{
+			"discipline": "infosec",
+			"appliesTo": "team",
+			"attestation": "derived",
+			"requiresSpecialization": "web",
+			"targets": { "skill": { "appsec": 0.9 }, "role": { "appsec": 0.9 } }
+		},
+		{
+			"discipline": "infosec",
+			"appliesTo": "team",
+			"attestation": "derived",
+			"requiresSpecialization": "reverse",
+			"targets": { "skill": { "reverse": 0.9 }, "role": { "reverse_engineer": 0.9 } }
+		},
+		{
+			"discipline": "infosec",
+			"appliesTo": "team",
+			"attestation": "derived",
+			"requiresSpecialization": "pwn",
+			"targets": { "skill": { "reverse": 0.8, "assembly": 0.5 }, "role": { "reverse_engineer": 0.7 } }
+		},
+		{
+			"discipline": "infosec",
+			"appliesTo": "team",
+			"attestation": "derived",
+			"requiresSpecialization": "crypto",
+			"targets": { "skill": { "crypto": 0.9 }, "role": { "security_engineer": 0.6 } }
+		},
+		{
+			"discipline": "infosec",
+			"appliesTo": "team",
+			"attestation": "derived",
+			"requiresSpecialization": "forensics",
+			"targets": { "skill": { "forensics": 0.9 }, "role": { "soc_analyst": 0.7 } }
+		},
+		{
+			"discipline": "robotics",
+			"appliesTo": "individual",
+			"attestation": "direct",
+			"requiresSpecialization": null,
+			"targets": { "skill": { "robotics": 1 } }
+		},
+		{
+			"discipline": "robotics",
+			"appliesTo": "individual",
+			"attestation": "derived",
+			"requiresSpecialization": null,
+			"targets": {
+				"skill": {
+					"embedded_dev": 0.7,
+					"control_theory": 0.7,
+					"ros": 0.6,
+					"cv": 0.5,
+					"slam": 0.4,
+					"electronics": 0.4,
+					"cad3d": 0.3
+				}
+			}
+		},
+		{
+			"discipline": "robotics",
+			"appliesTo": "team",
+			"attestation": "derived",
+			"requiresSpecialization": null,
+			"targets": {
+				"skill": {
+					"robotics": 1,
+					"embedded_dev": 0.7,
+					"control_theory": 0.7,
+					"ros": 0.6,
+					"cv": 0.5,
+					"slam": 0.4,
+					"electronics": 0.4,
+					"cad3d": 0.3
+				}
+			}
+		},
+		{
+			"discipline": "robotics",
+			"appliesTo": "team",
+			"attestation": "derived",
+			"requiresSpecialization": "embedded",
+			"targets": { "skill": { "embedded_dev": 0.9 }, "role": { "embedded": 0.9 } }
+		},
+		{
+			"discipline": "robotics",
+			"appliesTo": "team",
+			"attestation": "derived",
+			"requiresSpecialization": "cv",
+			"targets": { "skill": { "cv": 0.8, "opencv": 0.6 }, "role": { "cv_engineer": 0.7 } }
+		},
+		{
+			"discipline": "robotics",
+			"appliesTo": "team",
+			"attestation": "derived",
+			"requiresSpecialization": "control",
+			"targets": { "skill": { "control_theory": 0.9 }, "role": { "robotics_engineer": 0.9 } }
+		},
+		{
+			"discipline": "robotics",
+			"appliesTo": "team",
+			"attestation": "derived",
+			"requiresSpecialization": "mechanics",
+			"targets": { "skill": { "cad3d": 0.7 } }
+		},
+		{
+			"discipline": "uas",
+			"appliesTo": "individual",
+			"attestation": "direct",
+			"requiresSpecialization": null,
+			"targets": { "skill": { "uav": 1 } }
+		},
+		{
+			"discipline": "uas",
+			"appliesTo": "individual",
+			"attestation": "derived",
+			"requiresSpecialization": null,
+			"targets": {
+				"skill": { "px4": 0.7, "control_theory": 0.7, "cv": 0.5, "slam": 0.5, "embedded_dev": 0.5 }
+			}
+		}
+	]
+}

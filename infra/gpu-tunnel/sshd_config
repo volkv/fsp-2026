@@ -1,0 +1,53 @@
+# sshd of the tunnel container, run as the unprivileged account `tunnel` (Dockerfile). The only thing it allows is a
+# reverse TCP forward of the two model ports; everything else an SSH client can ask for is refused.
+# Only the relay reaches it: `nc 127.0.0.1 2222`, started in this container by `docker exec` from the server's sshd.
+Port 2222
+ListenAddress 127.0.0.1
+AddressFamily inet
+HostKey /keys/ssh_host_ed25519_key
+HostKeyAlgorithms ssh-ed25519
+PidFile none
+
+# One account, one key (entrypoint.sh), public key only.
+AllowUsers tunnel
+AuthorizedKeysFile /run/tunnel/authorized_keys
+AuthenticationMethods publickey
+PubkeyAcceptedAlgorithms ssh-ed25519
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PermitRootLogin no
+MaxAuthTries 2
+LoginGraceTime 20
+MaxStartups 4:50:8
+# Every connection arrives from the same address, the relay's 127.0.0.1: a penalty for one failed or unauthenticated
+# connection would lock the model machine out as well.
+PerSourcePenalties no
+
+# Reverse forwards on the model ports only. GatewayPorts binds them on every address of the container, so the app and
+# the worker reach them over the network `gpu` (the daemon itself listens on the loopback only).
+AllowTcpForwarding remote
+GatewayPorts yes
+PermitListen 57810 57801
+PermitOpen none
+AllowStreamLocalForwarding no
+AllowAgentForwarding no
+X11Forwarding no
+PermitTunnel no
+
+# No sessions: no shell, no command, no subsystem; forwarding does not need one (ssh -N).
+MaxSessions 0
+ForceCommand /bin/false
+PermitTTY no
+PermitUserRC no
+PermitUserEnvironment no
+
+# A dead client (sleep, lost network) is dropped in about 10 s, and its ports are free for the next connection. The
+# relay in front of this sshd (nc here, the server's sshd before it) keeps the TCP connection itself alive, so only
+# these probes notice a dead client. sshd probes only after a full interval without any event: connections to the
+# forwarded ports more often than every 3 s postpone the probes and keep a dead client's ports taken (docs/models.md) —
+# hence the short interval.
+ClientAliveInterval 3
+ClientAliveCountMax 3
+
+# VERBOSE logs the fingerprint of the key of every login.
+LogLevel VERBOSE

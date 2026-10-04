@@ -1,0 +1,50 @@
+{
+	"key": "go-word-frequency",
+	"kind": "code_task",
+	"version": 1,
+	"title": "Частотный словарь",
+	"summary": "Разбить текст на Юникоде на слова, посчитать частоты без учёта регистра и вывести самые частые.",
+	"stack": "go",
+	"level": "junior",
+	"skillKeys": ["go"],
+	"languages": ["go"],
+	"timeLimitMinutes": 60,
+	"limits": {
+		"cpuTimeMs": 2000,
+		"wallTimeMs": 5000,
+		"memoryMb": 256,
+		"outputKb": 64,
+		"processes": 1,
+		"compileCpuTimeMs": 15000,
+		"compileMemoryMb": 512
+	},
+	"checker": { "kind": "exact" },
+	"levelScale": {
+		"type": "tests_passed",
+		"thresholds": [{ "minRatio": 1, "level": "junior", "levelStrength": 0.6 }],
+		"below": "not_passed"
+	},
+	"coverage": {
+		"skills": [{ "skillKey": "go", "levels": ["junior"] }],
+		"checks": [
+			"чтение потока через bufio и io",
+			"руны и Юникод: буквы, цифры, смена регистра по символам",
+			"map и сортировка с составным ключом",
+			"граничные случаи: пустой текст, разделители без слов, K больше числа слов"
+		],
+		"doesNotCheck": [
+			"горутины, каналы и конкурентность",
+			"сеть, HTTP, базы данных и сторонние модули",
+			"структуру пакетов, стиль кода и тесты",
+			"коммерческий опыт"
+		]
+	},
+	"tests": [
+		{ "id": "sample-1", "hidden": false },
+		{ "id": "empty-text", "hidden": false },
+		{ "id": "ties", "hidden": true },
+		{ "id": "separators", "hidden": true },
+		{ "id": "unicode-case", "hidden": true },
+		{ "id": "large-text", "hidden": true }
+	]
+}

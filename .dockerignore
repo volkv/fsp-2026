@@ -1,0 +1,18 @@
+# Allowlist: only what the image build needs.
+*
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!tsconfig.json
+!vite.config.ts
+!src/
+!static/
+!scripts/
+!taxonomy/
+!legal/
+!policies/
+!assessments/
+!seeds/
+# The dataset generator of the FSP simulator, bundled into the demo command line.
+!services/fsp-mock/src/
+src/**/*.test.ts

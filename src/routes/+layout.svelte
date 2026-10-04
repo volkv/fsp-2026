@@ -1,0 +1,31 @@
+<script lang="ts">
+	import '../app.css';
+	import { ModeWatcher } from 'mode-watcher';
+	import { page } from '$app/state';
+	import { AppHeader, SiteFooter } from '$lib/components/shell/index.js';
+	import { Toaster } from '$lib/components/ui/sonner/index.js';
+	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
+	import type { LayoutProps } from './$types';
+
+	let { children }: LayoutProps = $props();
+</script>
+
+<!-- The inline theme script is disabled: the CSP allows only same-origin scripts. -->
+<ModeWatcher defaultMode="light" disableHeadScriptInjection />
+<Toaster position="bottom-right" />
+
+<Tooltip.Provider delayDuration={200}>
+	<a
+		href="#content"
+		class="sr-only z-50 rounded-md bg-primary px-4 py-2 text-primary-foreground focus:not-sr-only focus:fixed focus:top-3 focus:left-3"
+	>
+		Перейти к содержимому
+	</a>
+	<div class="flex min-h-dvh flex-col">
+		<AppHeader workspace={null} pathname={page.url.pathname} />
+		<main id="content" tabindex="-1" class="flex-1 focus:outline-none">
+			{@render children()}
+		</main>
+		<SiteFooter />
+	</div>
+</Tooltip.Provider>

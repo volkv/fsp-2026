@@ -1,0 +1,131 @@
+{
+	"meta": {
+		"version": "2026.09.11",
+		"description": "Шаблоны квитанций проверки: какие поля факта квитанция утверждает на уровне раскрытия generalized и exact и чего факт не подтверждает. Квитанции выпускаются только для фактов с доверием fsp_verified, platform_verified и public_verifiable. «Не подтверждает» задаётся по виду результата: all — в каждой квитанции шаблона; team и individual — в квитанции командного и личного результата соревнования; byRole — в квитанции командного результата участника в этой роли (unknown — источник роль не передал).",
+		"sources": [{ "title": "Собственная модель квитанций проверки", "retrievedAt": "2026-09-24" }]
+	},
+	"templates": [
+		{
+			"source": "fsp",
+			"factType": "competition_result",
+			"asserts": {
+				"generalized": ["discipline", "competitionLevel", "season", "resultGroup", "format"],
+				"exact": ["discipline", "competition", "competitionLevel", "season", "stage", "place", "format"]
+			},
+			"doesNotAssert": {
+				"all": [
+					"владение конкретным языком программирования",
+					"коммерческий опыт",
+					"грейд и производственная самостоятельность"
+				],
+				"team": ["личный вклад в командное решение"],
+				"individual": ["работу в команде"],
+				"byRole": {
+					"reserve": ["участие в решении задач: запасной мог не выходить на соревнование"],
+					"trainer": ["решение задач: тренер команды задачи соревнования не решает"],
+					"unknown": ["роль в команде: источник её не передал"]
+				}
+			}
+		},
+		{
+			"source": "fsp",
+			"factType": "qualification",
+			"asserts": {
+				"generalized": ["discipline", "rank", "assignedYear"],
+				"exact": ["discipline", "rank", "assignedOn", "orderNumber"]
+			},
+			"doesNotAssert": {
+				"all": [
+					"владение конкретным языком программирования",
+					"коммерческий опыт",
+					"грейд и производственная самостоятельность"
+				],
+				"team": [],
+				"individual": [],
+				"byRole": {}
+			}
+		},
+		{
+			"source": "fsp",
+			"factType": "national_team",
+			"asserts": {
+				"generalized": ["discipline", "season", "squad"],
+				"exact": ["discipline", "season", "squad"]
+			},
+			"doesNotAssert": {
+				"all": [
+					"владение конкретным языком программирования",
+					"коммерческий опыт",
+					"грейд и производственная самостоятельность"
+				],
+				"team": [],
+				"individual": [],
+				"byRole": {}
+			}
+		},
+		{
+			"source": "fsp",
+			"factType": "platform_rating",
+			"asserts": {
+				"generalized": ["platform"],
+				"exact": ["platform", "login", "rating"]
+			},
+			"doesNotAssert": {
+				"all": ["актуальность рейтинга на дату проверки", "коммерческий опыт"],
+				"team": [],
+				"individual": [],
+				"byRole": {}
+			}
+		},
+		{
+			"source": "platform_test",
+			"factType": "test_score",
+			"asserts": {
+				"generalized": ["assessment", "skill", "level", "passed", "scoredOn"],
+				"exact": ["assessment", "skill", "level", "passed", "score", "scoredOn"]
+			},
+			"doesNotAssert": {
+				"all": ["самостоятельность выполнения", "навыки за пределами покрытия задания", "коммерческий опыт"],
+				"team": [],
+				"individual": [],
+				"byRole": {}
+			}
+		},
+		{
+			"source": "codeforces",
+			"factType": "platform_rating",
+			"asserts": {
+				"generalized": ["platform", "ratingBand"],
+				"exact": ["platform", "handle", "rating", "maxRating"]
+			},
+			"doesNotAssert": {
+				"all": [
+					"владение конкретным языком программирования",
+					"командную и производственную работу",
+					"коммерческий опыт"
+				],
+				"team": [],
+				"individual": [],
+				"byRole": {}
+			}
+		},
+		{
+			"source": "github",
+			"factType": "repo_languages",
+			"asserts": {
+				"generalized": ["languages"],
+				"exact": ["languages", "repositories"]
+			},
+			"doesNotAssert": {
+				"all": [
+					"авторство каждой строки кода: это языки публичных репозиториев, в них может быть и чужой код",
+					"качество кода",
+					"коммерческий опыт"
+				],
+				"team": [],
+				"individual": [],
+				"byRole": {}
+			}
+		}
+	]
+}

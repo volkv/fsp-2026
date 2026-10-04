@@ -1,0 +1,400 @@
+/*
+ * Design tokens of «ФСП | Карьера» — the single source of colours, type, radii and elevation.
+ *
+ * Layers:
+ *   1. Primitives (`@theme`): brand scales from the public FSP brandbook (#402FFF, #EC1D35, #1B1C21, #EDEDED, #C8C9CA),
+ *      neutrals from fsp-russia.ru and lk.fsp-russia.ru, status colours from the athlete cabinet.
+ *   2. Semantic roles (`:root` — light, `.dark` — dark): what components use. Replacing the product palette means
+ *      editing these two blocks; component code never names a primitive directly.
+ *   3. Tailwind bindings (`@theme inline`): expose the semantic roles as utilities (`bg-card`, `text-link`, `bg-trust-fsp`).
+ *
+ * Contrast (WCAG 2.x, checked for every text/background pair below): body text ≥ 13:1, muted text ≥ 4.9:1,
+ * text on accent fill 6.8:1, input borders ≥ 3.3:1; muted and error text stay ≥ 4.5:1 on their tinted fills too. The brand blue #402FFF is a fill only on dark surfaces
+ * (2.5:1 as text there) — text and links use `--link`.
+ */
+
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn-svelte/tailwind.css';
+
+@custom-variant dark (&:is(.dark *));
+
+/* Fonts are served locally from /static/fonts (SIL OFL 1.1, licences next to the files). */
+@font-face {
+	font-family: 'Inter';
+	font-style: normal;
+	font-weight: 100 900;
+	font-display: swap;
+	src: url('/fonts/inter/inter-cyrillic-ext-wght-normal.woff2') format('woff2');
+	unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+@font-face {
+	font-family: 'Inter';
+	font-style: normal;
+	font-weight: 100 900;
+	font-display: swap;
+	src: url('/fonts/inter/inter-cyrillic-wght-normal.woff2') format('woff2');
+	unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+@font-face {
+	font-family: 'Inter';
+	font-style: normal;
+	font-weight: 100 900;
+	font-display: swap;
+	src: url('/fonts/inter/inter-latin-ext-wght-normal.woff2') format('woff2');
+	unicode-range:
+		U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F,
+		U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+	font-family: 'Inter';
+	font-style: normal;
+	font-weight: 100 900;
+	font-display: swap;
+	src: url('/fonts/inter/inter-latin-wght-normal.woff2') format('woff2');
+	unicode-range:
+		U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC,
+		U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+	font-family: 'JetBrains Mono';
+	font-style: normal;
+	font-weight: 400;
+	font-display: swap;
+	src: url('/fonts/jetbrains-mono/JetBrainsMono-Regular.woff2') format('woff2');
+}
+@font-face {
+	font-family: 'JetBrains Mono';
+	font-style: normal;
+	font-weight: 500;
+	font-display: swap;
+	src: url('/fonts/jetbrains-mono/JetBrainsMono-Medium.woff2') format('woff2');
+}
+@font-face {
+	font-family: 'JetBrains Mono';
+	font-style: normal;
+	font-weight: 700;
+	font-display: swap;
+	src: url('/fonts/jetbrains-mono/JetBrainsMono-Bold.woff2') format('woff2');
+}
+
+/* 1. Primitives */
+@theme {
+	/* Type: JetBrains Mono is the only brandbook face — headings, numbers, labels; Inter — running text and dense UI. */
+	--font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+	--font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+	--font-heading: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+
+	--text-display: 3rem;
+	--text-display--line-height: 3.5rem;
+	--text-display--letter-spacing: -0.02em;
+	--text-display--font-weight: 500;
+	--text-h1: 2rem;
+	--text-h1--line-height: 2.5rem;
+	--text-h1--letter-spacing: -0.01em;
+	--text-h1--font-weight: 500;
+	--text-h2: 1.5rem;
+	--text-h2--line-height: 2rem;
+	--text-h2--letter-spacing: -0.01em;
+	--text-h2--font-weight: 500;
+	--text-h3: 1.25rem;
+	--text-h3--line-height: 1.75rem;
+	--text-h3--font-weight: 500;
+	--text-metric: 2.5rem;
+	--text-metric--line-height: 2.75rem;
+	--text-metric--font-weight: 500;
+	--text-label: 0.75rem;
+	--text-label--line-height: 1rem;
+	--text-label--letter-spacing: 0.02em;
+	--text-label--font-weight: 500;
+
+	/* Brand blue-violet: 500 = brandbook #402FFF, other steps derived in OKLab keeping the hue. */
+	--color-brand-50: #f4f3ff;
+	--color-brand-100: #eceaff;
+	--color-brand-200: #d5d0ff;
+	--color-brand-300: #9d93ff;
+	--color-brand-400: #7a6bff;
+	--color-brand-500: #402fff;
+	--color-brand-600: #382ce1;
+	--color-brand-700: #2b1fb7;
+	--color-brand-800: #1f1889;
+	--color-brand-900: #141461;
+	--color-brand-950: #0b0c40;
+
+	/* Brand red: 500 = brandbook #EC1D35. Decorative only (logo node, "live" marker) — errors use --destructive. */
+	--color-fsp-red-50: #fff1ef;
+	--color-fsp-red-100: #ffdedb;
+	--color-fsp-red-200: #ff9a94;
+	--color-fsp-red-300: #ff8d87;
+	--color-fsp-red-400: #ff5a6a;
+	--color-fsp-red-500: #ec1d35;
+	--color-fsp-red-600: #af0011;
+	--color-fsp-red-700: #8d0009;
+
+	/* Neutrals from the FSP site and athlete cabinet (900 = brandbook dark #1B1C21, 50 = brandbook light #EDEDED). */
+	--color-ink-0: #ffffff;
+	--color-ink-25: #f3f4f8;
+	--color-ink-40: #edeef3;
+	--color-ink-50: #ededed;
+	--color-ink-75: #e2e3ea;
+	--color-ink-100: #d9d9d9;
+	--color-ink-150: #c8c9ca;
+	--color-ink-250: #aeafb2;
+	--color-ink-300: #9b9c9e;
+	--color-ink-350: #8a8b93;
+	--color-ink-400: #838388;
+	--color-ink-450: #7a7b84;
+	--color-ink-500: #5f5f66;
+	--color-ink-600: #4e5268;
+	--color-ink-700: #3d3e42;
+	--color-ink-800: #2d2e37;
+	--color-ink-850: #24252c;
+	--color-ink-900: #1b1c21;
+	--color-ink-1000: #131416;
+
+	/* Radii: 6px controls (site), 12px cards, 20px panels, 24px large blocks (cabinet), pills for chips. */
+	--radius-xs: 0.25rem;
+	--radius-sm: 0.25rem;
+	--radius-md: 0.375rem;
+	--radius-lg: 0.5rem;
+	--radius-xl: 0.75rem;
+	--radius-2xl: 1.25rem;
+	--radius-3xl: 1.5rem;
+	--radius-4xl: 2rem;
+
+	--ease-standard: cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* 2. Semantic roles — light (default; mirrors the athlete cabinet: grey page, white cards) */
+:root {
+	--radius: 0.5rem;
+
+	--background: var(--color-ink-25);
+	--foreground: var(--color-ink-900);
+	--card: var(--color-ink-0);
+	--card-foreground: var(--color-ink-900);
+	--popover: var(--color-ink-0);
+	--popover-foreground: var(--color-ink-900);
+	--primary: var(--color-brand-500);
+	--primary-foreground: var(--color-ink-0);
+	--secondary: var(--color-brand-50);
+	--secondary-foreground: var(--color-brand-700);
+	--muted: var(--color-ink-40);
+	--muted-foreground: var(--color-ink-500);
+	--accent: var(--color-brand-50);
+	--accent-foreground: var(--color-brand-700);
+	--destructive: #b3121f;
+	--border: var(--color-ink-75);
+	--input: var(--color-ink-350);
+	--ring: var(--color-brand-500);
+	--link: var(--color-brand-600);
+
+	--success: #067a42;
+	--success-subtle: #e6f6ed;
+	--warning: #8a5a00;
+	--warning-subtle: #fff4db;
+	--danger-subtle: var(--color-fsp-red-50);
+	--info: var(--color-brand-700);
+	--info-subtle: var(--color-brand-50);
+	--brand-red: var(--color-fsp-red-500);
+	--header: var(--color-ink-0);
+
+	/* Trust levels (domain §9): shape + icon + label carry the meaning, colour only reinforces it. */
+	--trust-fsp: var(--color-brand-500);
+	--trust-fsp-foreground: var(--color-ink-0);
+	--trust-platform: var(--color-brand-50);
+	--trust-platform-foreground: var(--color-brand-700);
+	--trust-platform-border: var(--color-brand-300);
+	--trust-public: var(--color-ink-0);
+	--trust-public-foreground: var(--color-ink-700);
+	--trust-public-border: var(--color-ink-500);
+	--trust-claimed-foreground: var(--color-ink-500);
+	--trust-claimed-border: var(--color-ink-400);
+
+	--chart-1: var(--color-brand-500);
+	--chart-2: var(--color-brand-300);
+	--chart-3: var(--color-ink-500);
+	--chart-4: var(--color-ink-150);
+	--chart-5: var(--color-fsp-red-500);
+
+	--sidebar: var(--color-ink-0);
+	--sidebar-foreground: var(--color-ink-900);
+	--sidebar-primary: var(--color-brand-500);
+	--sidebar-primary-foreground: var(--color-ink-0);
+	--sidebar-accent: var(--color-brand-50);
+	--sidebar-accent-foreground: var(--color-brand-700);
+	--sidebar-border: var(--color-ink-75);
+	--sidebar-ring: var(--color-brand-500);
+
+	/* Elevation as in the cabinet: soft shadows on light; the dark theme is flat (surface step + border). */
+	--elevation-xs: 0 1px 2px rgb(27 28 33 / 0.06);
+	--elevation-sm: 0 4px 16px rgb(0 0 0 / 0.04);
+	--elevation-md: 0 4px 16px rgb(0 0 0 / 0.08);
+	--elevation-lg: 0 12px 40px rgb(27 28 33 / 0.16);
+}
+
+/* 2. Semantic roles — dark (mirrors fsp-russia.ru: #1B1C21 page, #24252C cards) */
+.dark {
+	--background: var(--color-ink-900);
+	--foreground: var(--color-ink-50);
+	--card: var(--color-ink-850);
+	--card-foreground: var(--color-ink-50);
+	--popover: var(--color-ink-850);
+	--popover-foreground: var(--color-ink-50);
+	--primary: var(--color-brand-500);
+	--primary-foreground: var(--color-ink-0);
+	--secondary: #262259;
+	--secondary-foreground: var(--color-brand-200);
+	--muted: var(--color-ink-800);
+	--muted-foreground: var(--color-ink-250);
+	--accent: #262259;
+	--accent-foreground: var(--color-brand-200);
+	--destructive: var(--color-fsp-red-200);
+	--border: var(--color-ink-700);
+	--input: var(--color-ink-450);
+	--ring: var(--color-brand-300);
+	--link: var(--color-brand-300);
+
+	--success: #2bd483;
+	--success-subtle: #0f2e20;
+	--warning: #ffba2f;
+	--warning-subtle: #33280f;
+	--danger-subtle: #3a1318;
+	--info: var(--color-brand-200);
+	--info-subtle: #262259;
+	--header: var(--color-ink-850);
+
+	--trust-fsp: var(--color-brand-500);
+	--trust-fsp-foreground: var(--color-ink-0);
+	--trust-platform: #262259;
+	--trust-platform-foreground: var(--color-brand-200);
+	--trust-platform-border: var(--color-brand-400);
+	--trust-public: transparent;
+	--trust-public-foreground: var(--color-ink-50);
+	--trust-public-border: var(--color-ink-300);
+	--trust-claimed-foreground: var(--color-ink-300);
+	--trust-claimed-border: var(--color-ink-400);
+
+	--chart-1: var(--color-brand-400);
+	--chart-2: var(--color-brand-200);
+	--chart-3: var(--color-ink-300);
+	--chart-4: var(--color-ink-600);
+	--chart-5: var(--color-fsp-red-400);
+
+	--sidebar: var(--color-ink-850);
+	--sidebar-foreground: var(--color-ink-50);
+	--sidebar-primary: var(--color-brand-500);
+	--sidebar-primary-foreground: var(--color-ink-0);
+	--sidebar-accent: #262259;
+	--sidebar-accent-foreground: var(--color-brand-200);
+	--sidebar-border: var(--color-ink-700);
+	--sidebar-ring: var(--color-brand-300);
+
+	--elevation-xs: none;
+	--elevation-sm: none;
+	--elevation-md: none;
+	--elevation-lg: 0 12px 40px rgb(0 0 0 / 0.5);
+}
+
+/* 3. Tailwind bindings */
+@theme inline {
+	--color-background: var(--background);
+	--color-foreground: var(--foreground);
+	--color-card: var(--card);
+	--color-card-foreground: var(--card-foreground);
+	--color-popover: var(--popover);
+	--color-popover-foreground: var(--popover-foreground);
+	--color-primary: var(--primary);
+	--color-primary-foreground: var(--primary-foreground);
+	--color-secondary: var(--secondary);
+	--color-secondary-foreground: var(--secondary-foreground);
+	--color-muted: var(--muted);
+	--color-muted-foreground: var(--muted-foreground);
+	--color-accent: var(--accent);
+	--color-accent-foreground: var(--accent-foreground);
+	--color-destructive: var(--destructive);
+	--color-border: var(--border);
+	--color-input: var(--input);
+	--color-ring: var(--ring);
+	--color-link: var(--link);
+
+	--color-success: var(--success);
+	--color-success-subtle: var(--success-subtle);
+	--color-warning: var(--warning);
+	--color-warning-subtle: var(--warning-subtle);
+	--color-danger-subtle: var(--danger-subtle);
+	--color-info: var(--info);
+	--color-info-subtle: var(--info-subtle);
+	--color-brand-red: var(--brand-red);
+	--color-header: var(--header);
+
+	--color-trust-fsp: var(--trust-fsp);
+	--color-trust-fsp-foreground: var(--trust-fsp-foreground);
+	--color-trust-platform: var(--trust-platform);
+	--color-trust-platform-foreground: var(--trust-platform-foreground);
+	--color-trust-platform-border: var(--trust-platform-border);
+	--color-trust-public: var(--trust-public);
+	--color-trust-public-foreground: var(--trust-public-foreground);
+	--color-trust-public-border: var(--trust-public-border);
+	--color-trust-claimed-foreground: var(--trust-claimed-foreground);
+	--color-trust-claimed-border: var(--trust-claimed-border);
+
+	--color-chart-1: var(--chart-1);
+	--color-chart-2: var(--chart-2);
+	--color-chart-3: var(--chart-3);
+	--color-chart-4: var(--chart-4);
+	--color-chart-5: var(--chart-5);
+
+	--color-sidebar: var(--sidebar);
+	--color-sidebar-foreground: var(--sidebar-foreground);
+	--color-sidebar-primary: var(--sidebar-primary);
+	--color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+	--color-sidebar-accent: var(--sidebar-accent);
+	--color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+	--color-sidebar-border: var(--sidebar-border);
+	--color-sidebar-ring: var(--sidebar-ring);
+
+	--shadow-xs: var(--elevation-xs);
+	--shadow-sm: var(--elevation-sm);
+	--shadow-md: var(--elevation-md);
+	--shadow-lg: var(--elevation-lg);
+}
+
+@layer base {
+	* {
+		@apply border-border outline-ring/50;
+	}
+	html {
+		@apply font-sans;
+		color-scheme: light;
+	}
+	html.dark {
+		color-scheme: dark;
+	}
+	body {
+		@apply bg-background text-foreground antialiased;
+	}
+	h1,
+	h2,
+	h3 {
+		@apply font-heading;
+	}
+	:focus-visible {
+		@apply outline-2 outline-offset-2 outline-ring;
+	}
+	@media (prefers-reduced-motion: reduce) {
+		*,
+		*::before,
+		*::after {
+			animation-duration: 0.01ms !important;
+			animation-iteration-count: 1 !important;
+			transition-duration: 0.01ms !important;
+			scroll-behavior: auto !important;
+		}
+	}
+}
+
+/* Tabular figures for salaries, scores, timers. */
+@utility numeric {
+	font-variant-numeric: tabular-nums;
+}

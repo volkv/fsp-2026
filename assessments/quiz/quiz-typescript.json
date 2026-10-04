@@ -1,0 +1,416 @@
+{
+	"key": "quiz-typescript",
+	"kind": "quiz",
+	"version": 1,
+	"title": "TypeScript: система типов",
+	"summary": "Адаптивный квиз по TypeScript: структурная типизация, сужение типов, дженерики, условные и служебные типы.",
+	"skillKeys": ["typescript"],
+	"timeLimitMinutes": 30,
+	"rule": {
+		"model": "irt_3pl",
+		"discrimination": 1.7,
+		"guessing": "one_over_options",
+		"estimator": "eap",
+		"prior": {
+			"mean": 0,
+			"sd": 1
+		},
+		"grid": {
+			"from": -4,
+			"to": 4,
+			"step": 0.05
+		},
+		"selection": "max_information",
+		"stop": {
+			"minItems": 6,
+			"maxItems": 10,
+			"maxStandardError": 0.55
+		}
+	},
+	"levelScale": {
+		"type": "ability",
+		"cuts": [
+			{
+				"level": "junior",
+				"minAbility": -1.0,
+				"levelStrength": 0.45,
+				"gradeKey": "junior"
+			},
+			{
+				"level": "middle",
+				"minAbility": 0.05,
+				"levelStrength": 0.6,
+				"gradeKey": "middle"
+			},
+			{
+				"level": "senior",
+				"minAbility": 1.35,
+				"levelStrength": 0.7,
+				"gradeKey": "senior"
+			}
+		],
+		"below": "not_confirmed"
+	},
+	"coverage": {
+		"skills": [
+			{
+				"skillKey": "typescript",
+				"levels": ["junior", "middle", "senior"]
+			}
+		],
+		"checks": [
+			"проверку типов при компиляции и структурную совместимость",
+			"сужение типов и размеченные объединения",
+			"дженерики, keyof и индексные типы доступа",
+			"условные типы, infer, satisfies и вариантность функций"
+		],
+		"doesNotCheck": [
+			"поведение JavaScript во время выполнения — для этого есть квиз по JavaScript",
+			"настройку tsconfig, сборку проектов и фреймворки",
+			"умение писать и отлаживать код — для этого есть практические задачи",
+			"коммерческий опыт и работу в команде"
+		],
+		"notes": [
+			"Сложность вопросов задана экспертно и ещё не откалибрована на ответах кандидатов.",
+			"Уровень квиза подтверждает или ограничивает сверху диапазон грейда по опыту, но не поднимает его."
+		]
+	},
+	"items": [
+		{
+			"id": "quiz-typescript-01",
+			"version": 1,
+			"level": "junior",
+			"difficulty": -1.6,
+			"prompt": "Что произойдёт при компиляции?",
+			"code": "let count: number = 5;\ncount = \"five\";",
+			"options": [
+				{
+					"id": "a",
+					"text": "count станет строкой \"five\" без ошибок"
+				},
+				{
+					"id": "b",
+					"text": "Ошибка компиляции: тип string нельзя присвоить типу number"
+				},
+				{
+					"id": "c",
+					"text": "Ошибка во время выполнения"
+				},
+				{
+					"id": "d",
+					"text": "TypeScript расширит тип count до number | string"
+				}
+			],
+			"correct": "b",
+			"explanation": "Тип переменной фиксируется при объявлении, и компилятор проверяет каждое присваивание. До выполнения такой код не дойдёт."
+		},
+		{
+			"id": "quiz-typescript-02",
+			"version": 1,
+			"level": "junior",
+			"difficulty": -1.3,
+			"prompt": "Что скажет компилятор в режиме strict?",
+			"code": "function size(x: unknown) {\n\treturn x.length;\n}",
+			"options": [
+				{
+					"id": "a",
+					"text": "Всё в порядке: unknown ведёт себя так же, как any"
+				},
+				{
+					"id": "b",
+					"text": "Всё в порядке: тип результата выведется как number"
+				},
+				{
+					"id": "c",
+					"text": "Ошибка: к свойствам unknown нельзя обращаться без сужения типа"
+				},
+				{
+					"id": "d",
+					"text": "Ошибка: unknown допустим только в возвращаемом типе"
+				}
+			],
+			"correct": "c",
+			"explanation": "`unknown` — безопасная противоположность `any`: значение можно передать дальше, но использовать — только после проверки (`typeof`, `in`, `instanceof`)."
+		},
+		{
+			"id": "quiz-typescript-03",
+			"version": 1,
+			"level": "junior",
+			"difficulty": -1.0,
+			"prompt": "Что скажет компилятор?",
+			"code": "interface Point {\n\tx: number;\n\ty: number;\n}\nfunction print(p: Point) {}\n\nconst p3 = { x: 1, y: 2, z: 3 };\nprint(p3);",
+			"options": [
+				{
+					"id": "a",
+					"text": "Всё в порядке: тип совместим по структуре"
+				},
+				{
+					"id": "b",
+					"text": "Ошибка: у объекта лишнее свойство z"
+				},
+				{
+					"id": "c",
+					"text": "Ошибка: p3 не объявлен как Point"
+				},
+				{
+					"id": "d",
+					"text": "Скомпилируется, но z удалится при вызове"
+				}
+			],
+			"correct": "a",
+			"explanation": "Типизация в TypeScript структурная: подходит любой объект с нужными полями. Проверка лишних свойств срабатывает только для свежего объектного литерала, например `print({ x: 1, y: 2, z: 3 })`."
+		},
+		{
+			"id": "quiz-typescript-04",
+			"version": 1,
+			"level": "junior",
+			"difficulty": -0.7,
+			"prompt": "Какой тип у `x` в строке с `toFixed`?",
+			"code": "function format(x: string | number) {\n\tif (typeof x === 'string') return x.toUpperCase();\n\treturn x.toFixed(2);\n}",
+			"options": [
+				{
+					"id": "a",
+					"text": "string | number"
+				},
+				{
+					"id": "b",
+					"text": "number"
+				},
+				{
+					"id": "c",
+					"text": "any"
+				},
+				{
+					"id": "d",
+					"text": "never"
+				}
+			],
+			"correct": "b",
+			"explanation": "Проверка `typeof` сужает объединение: после ветки, которая вернула строку, остаётся только `number`."
+		},
+		{
+			"id": "quiz-typescript-05",
+			"version": 1,
+			"level": "middle",
+			"difficulty": -0.2,
+			"prompt": "Какой тип получится у `Role`?",
+			"code": "const roles = ['admin', 'user'] as const;\ntype Role = (typeof roles)[number];",
+			"options": [
+				{
+					"id": "a",
+					"text": "string"
+				},
+				{
+					"id": "b",
+					"text": "string[]"
+				},
+				{
+					"id": "c",
+					"text": "readonly string[]"
+				},
+				{
+					"id": "d",
+					"text": "'admin' | 'user'"
+				}
+			],
+			"correct": "d",
+			"explanation": "`as const` делает массив кортежем только для чтения с литеральными типами элементов, а индекс `[number]` берёт объединение типов элементов. Без `as const` получился бы `string`."
+		},
+		{
+			"id": "quiz-typescript-06",
+			"version": 1,
+			"level": "middle",
+			"difficulty": 0.1,
+			"prompt": "В `Shape` добавили вариант `{ kind: 'triangle'; h: number }`, а функцию не изменили. Что произойдёт?",
+			"code": "type Shape = { kind: 'circle'; r: number } | { kind: 'square'; a: number };\n\nfunction area(s: Shape): number {\n\tswitch (s.kind) {\n\t\tcase 'circle':\n\t\t\treturn Math.PI * s.r ** 2;\n\t\tcase 'square':\n\t\t\treturn s.a ** 2;\n\t\tdefault: {\n\t\t\tconst unreachable: never = s;\n\t\t\treturn unreachable;\n\t\t}\n\t}\n}",
+			"options": [
+				{
+					"id": "a",
+					"text": "Ничего: для треугольника функция вернёт undefined"
+				},
+				{
+					"id": "b",
+					"text": "Ошибка во время выполнения при вызове с треугольником"
+				},
+				{
+					"id": "c",
+					"text": "Ошибка компиляции в default: треугольник не присваивается never"
+				},
+				{
+					"id": "d",
+					"text": "Компилятор выдаст предупреждение, но соберёт код"
+				}
+			],
+			"correct": "c",
+			"explanation": "Присваивание в `never` — проверка полноты разбора: пока все варианты обработаны, в `default` тип сужен до `never`. Новый вариант попадает туда и ломает сборку, а не прод."
+		},
+		{
+			"id": "quiz-typescript-07",
+			"version": 1,
+			"level": "middle",
+			"difficulty": 0.4,
+			"prompt": "Какой тип у `v`?",
+			"code": "function get<T, K extends keyof T>(obj: T, key: K): T[K] {\n\treturn obj[key];\n}\n\nconst user = { name: 'Анна', age: 30 };\nconst v = get(user, 'age');",
+			"options": [
+				{
+					"id": "a",
+					"text": "number"
+				},
+				{
+					"id": "b",
+					"text": "string | number"
+				},
+				{
+					"id": "c",
+					"text": "any"
+				},
+				{
+					"id": "d",
+					"text": "unknown"
+				}
+			],
+			"correct": "a",
+			"explanation": "`K` выводится как литерал `'age'`, а индексный тип доступа `T[K]` даёт тип именно этого свойства."
+		},
+		{
+			"id": "quiz-typescript-08",
+			"version": 1,
+			"level": "middle",
+			"difficulty": 0.7,
+			"prompt": "Какой объект нельзя присвоить типу `Patch`?",
+			"code": "interface User {\n\tid: number;\n\tname: string;\n\temail: string;\n}\ntype Patch = Omit<Partial<User>, 'id'>;",
+			"options": [
+				{
+					"id": "a",
+					"text": "{}"
+				},
+				{
+					"id": "b",
+					"text": "{ id: 1 }"
+				},
+				{
+					"id": "c",
+					"text": "{ name: 'Анна' }"
+				},
+				{
+					"id": "d",
+					"text": "{ name: 'Анна', email: 'anna@example.org' }"
+				}
+			],
+			"correct": "b",
+			"explanation": "`Partial` делает поля необязательными, `Omit` убирает `id`. Пустой объект подходит, а литерал с `id` отвергает проверка лишних свойств."
+		},
+		{
+			"id": "quiz-typescript-09",
+			"version": 1,
+			"level": "senior",
+			"difficulty": 1.1,
+			"prompt": "Какой тип получится у `R`?",
+			"code": "type ToArray<T> = T extends unknown ? T[] : never;\ntype R = ToArray<string | number>;",
+			"options": [
+				{
+					"id": "a",
+					"text": "(string | number)[]"
+				},
+				{
+					"id": "b",
+					"text": "never"
+				},
+				{
+					"id": "c",
+					"text": "unknown[]"
+				},
+				{
+					"id": "d",
+					"text": "string[] | number[]"
+				}
+			],
+			"correct": "d",
+			"explanation": "Условный тип над «голым» параметром дистрибутивен: он применяется к каждому члену объединения отдельно. Чтобы получить `(string | number)[]`, параметр оборачивают: `[T] extends [unknown]`."
+		},
+		{
+			"id": "quiz-typescript-10",
+			"version": 1,
+			"level": "senior",
+			"difficulty": 1.4,
+			"prompt": "Что скажет компилятор в режиме strict?",
+			"code": "class Animal {\n\tname = '';\n}\nclass Dog extends Animal {\n\tbark() {}\n}\n\nlet f1: (a: Dog) => void = (a: Animal) => {}; // (1)\nlet f2: (a: Animal) => void = (a: Dog) => {}; // (2)",
+			"options": [
+				{
+					"id": "a",
+					"text": "(1) компилируется, (2) — ошибка"
+				},
+				{
+					"id": "b",
+					"text": "Обе строки компилируются"
+				},
+				{
+					"id": "c",
+					"text": "(1) — ошибка, (2) компилируется"
+				},
+				{
+					"id": "d",
+					"text": "Обе строки — ошибки"
+				}
+			],
+			"correct": "a",
+			"explanation": "С `strictFunctionTypes` параметры функций контравариантны: функции, принимающей любое животное, можно доверить собаку, а функции только для собак нельзя передать произвольное животное."
+		},
+		{
+			"id": "quiz-typescript-11",
+			"version": 1,
+			"level": "senior",
+			"difficulty": 1.7,
+			"prompt": "Какой тип получится у `R`?",
+			"code": "type Unwrap<T> = T extends Promise<infer U> ? Unwrap<U> : T;\ntype R = Unwrap<Promise<Promise<number>>>;",
+			"options": [
+				{
+					"id": "a",
+					"text": "Promise<number>"
+				},
+				{
+					"id": "b",
+					"text": "Promise<Promise<number>>"
+				},
+				{
+					"id": "c",
+					"text": "number"
+				},
+				{
+					"id": "d",
+					"text": "never"
+				}
+			],
+			"correct": "c",
+			"explanation": "`infer U` достаёт тип из-под `Promise`, а рекурсия разворачивает вложенные промисы до конца — так же устроен встроенный `Awaited<T>`."
+		},
+		{
+			"id": "quiz-typescript-12",
+			"version": 1,
+			"level": "senior",
+			"difficulty": 2.0,
+			"prompt": "Что скажет компилятор?",
+			"code": "type Colors = Record<'red' | 'green', string | [number, number, number]>;\n\nconst palette = {\n\tred: [255, 0, 0],\n\tgreen: '#00ff00'\n} satisfies Colors;\n\npalette.green.toUpperCase();",
+			"options": [
+				{
+					"id": "a",
+					"text": "Ошибка: у green тип string | [number, number, number]"
+				},
+				{
+					"id": "b",
+					"text": "Всё в порядке, потому что satisfies работает как приведение as"
+				},
+				{
+					"id": "c",
+					"text": "Ошибка: массив red не соответствует кортежу из Colors"
+				},
+				{
+					"id": "d",
+					"text": "Всё в порядке: satisfies сохраняет выведенный тип, green — string"
+				}
+			],
+			"correct": "d",
+			"explanation": "С аннотацией `const palette: Colors` тип `green` был бы объединением, и вызов `toUpperCase` не скомпилировался бы. `satisfies` проверяет соответствие, не расширяя тип."
+		}
+	]
+}
