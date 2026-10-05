@@ -183,9 +183,11 @@ export function needCandidateOf(snapshot: CandidateSnapshot, results: TestResult
 
 /**
  * Ranks the candidates for a need — or, with `need = null`, by the strength of the confirmed profile alone (the catalog
- * without a need): `needScore` of every candidate, highest first; scores closer than the rule set's `nearTie` are almost
- * equal, and their order is the semantic similarity to the text of the need, then the strength, then the id. The
- * semantic similarity never changes a score and never moves a candidate past one that scores clearly higher.
+ * without a need): `needScore` of every candidate; those covering every required skill first, then by the number of
+ * unconfirmed required skills, and inside each group the highest score first; scores closer than the rule set's
+ * `nearTie` are almost equal, and their order is the semantic similarity to the text of the need, then the strength,
+ * then the id. The semantic similarity never changes a score and never moves a candidate past one that scores clearly
+ * higher or covers more.
  */
 export async function rankForNeed(
 	executor: Executor,
@@ -205,7 +207,7 @@ export async function rankForNeed(
 		const candidate = needCandidateOf(snapshot, answer);
 		const input = { need, candidate, params, skillBandValue: ruleset.params.skillBandValue, now };
 		const result = needScore(input);
-		return { snapshot, result, withoutFsp: needScore({ ...input, withoutFsp: true }).score };
+		return { snapshot, result, withoutFsp: needScore({ ...input, withoutFsp: true }) };
 	});
 
 	let similarities = new Map<string, number>();
@@ -227,9 +229,13 @@ export async function rankForNeed(
 	const order = orderForNeed(
 		scored.map((entry) => ({
 			id: entry.snapshot.id,
+			unconfirmed: entry.result.coverage.unconfirmed.length,
 			score: entry.result.score,
 			strength: entry.result.levels.strength,
-			withoutFsp: entry.withoutFsp
+			withoutFsp: {
+				unconfirmed: entry.withoutFsp.coverage.unconfirmed.length,
+				score: entry.withoutFsp.score
+			}
 		})),
 		similarities,
 		params.nearTie
@@ -252,11 +258,13 @@ export async function rankForNeed(
 
 export interface ScoredPlace {
 	id: string;
+	/** Required skills of the need not confirmed: the first key, fewer first. */
+	unconfirmed: number;
 	score: number;
 	/** The strength level of the score: the next key among almost equal. */
 	strength: number;
-	/** The score the candidate would have without their FSP results. */
-	withoutFsp: number;
+	/** The place the candidate would have without their FSP results: an FSP result may confirm a required skill too. */
+	withoutFsp: { unconfirmed: number; score: number };
 }
 
 export interface OrderedPlace {
@@ -267,11 +275,12 @@ export interface OrderedPlace {
 }
 
 /**
- * The order of a ranking for a need: by score, highest first. Scores within `nearTie` of the first of a group are almost
- * equal; inside the group the semantic similarity decides (a candidate without one goes after those with one), then
- * the strength, then the score, then the id. A group is cut from the top, so the similarity never lifts a candidate
- * above one that scores `nearTie` or more higher. «Без ФСП — позиция N» is the place the score without FSP would take
- * among the others' scores as they are.
+ * The order of a ranking for a need: by the number of unconfirmed required skills, fewer first, then by score, highest
+ * first. Inside one number, scores within `nearTie` of the first of a group are almost equal; inside the group the
+ * semantic similarity decides (a candidate without one goes after those with one), then the strength, then the score,
+ * then the id. A group is cut from the top and never spans two numbers, so the similarity never lifts a candidate above
+ * one that covers more or scores `nearTie` or more higher. «Без ФСП — позиция N» is the place the coverage and the score
+ * without FSP would take among the others' as they are.
  */
 export function orderForNeed(
 	places: readonly ScoredPlace[],
@@ -279,12 +288,17 @@ export function orderForNeed(
 	nearTie: number
 ): OrderedPlace[] {
 	const byId = (a: ScoredPlace, b: ScoredPlace) => (a.id < b.id ? -1 : 1);
-	const ordered = [...places].sort((a, b) => b.score - a.score || byId(a, b));
+	const ordered = [...places].sort((a, b) => a.unconfirmed - b.unconfirmed || b.score - a.score || byId(a, b));
 	const result: OrderedPlace[] = [];
 	for (let start = 0; start < ordered.length;) {
-		const top = ordered[start]?.score ?? 0;
+		const first = ordered[start];
+		if (!first) break;
 		let end = start + 1;
-		while (end < ordered.length && top - (ordered[end]?.score ?? 0) < nearTie) end++;
+		while (end < ordered.length) {
+			const next = ordered[end];
+			if (!next || next.unconfirmed !== first.unconfirmed || first.score - next.score >= nearTie) break;
+			end++;
+		}
 		const group = ordered.slice(start, end);
 		const similarity = (place: ScoredPlace) => similarities.get(place.id) ?? -Infinity;
 		const settled = [...group].sort(
@@ -302,24 +316,29 @@ export function orderForNeed(
 		}
 		start = end;
 	}
-	const descending = places.map((place) => place.score).sort((a, b) => b - a);
-	/** How many scores are strictly above the value. */
-	const above = (value: number) => {
+	// One sortable key per place: the number of unconfirmed skills, then the score (in [0, 1]) descending.
+	const key = (unconfirmed: number, score: number) => unconfirmed * 2 + (1 - score);
+	const keys = places.map((place) => key(place.unconfirmed, place.score)).sort((a, b) => a - b);
+	/** How many places come strictly before the key. */
+	const before = (value: number) => {
 		let low = 0;
-		let high = descending.length;
+		let high = keys.length;
 		while (low < high) {
 			const middle = (low + high) >> 1;
-			if ((descending[middle] ?? -Infinity) > value) low = middle + 1;
+			if ((keys[middle] ?? Infinity) < value) low = middle + 1;
 			else high = middle;
 		}
 		return low;
 	};
-	const withoutFsp = new Map(places.map((place) => [place.id, place]));
+	const scoredOf = new Map(places.map((place) => [place.id, place]));
 	for (const place of result) {
-		const scored = withoutFsp.get(place.id);
+		const scored = scoredOf.get(place.id);
 		if (!scored) throw new Error('an ordered candidate was not scored');
-		// The own score is above the score without FSP, so `above` counts it once: it stands for the place itself.
-		place.positionWithoutFsp = scored.withoutFsp >= scored.score ? place.position : above(scored.withoutFsp);
+		const own = key(scored.unconfirmed, scored.score);
+		const without = key(scored.withoutFsp.unconfirmed, scored.withoutFsp.score);
+		// Without FSP the place can only fall; its own key is before the key without FSP, so `before` counts it once: it
+		// stands for the place itself.
+		place.positionWithoutFsp = without <= own ? place.position : before(without);
 	}
 	return result;
 }

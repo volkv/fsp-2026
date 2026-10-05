@@ -6,7 +6,12 @@
 // company no longer sees as «кандидат больше недоступен», without data. Only members of the company see its shortlists.
 import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
 import { can, companyAdmission, type AccessSubject } from '$lib/server/access/permissions';
-import type { GradeKey, SpecializationKey } from '$lib/server/assessments/contract/catalog';
+import {
+	GRADE_KEYS,
+	gradeOrdinal,
+	type GradeKey,
+	type SpecializationKey
+} from '$lib/server/assessments/contract/catalog';
 import { recordAuditEvent } from '$lib/server/audit/record';
 import { auditActorOf } from '$lib/server/companies/context';
 import { admissionRefusal, requireAdmission } from '$lib/server/companies/gate';
@@ -26,8 +31,16 @@ import {
 	type SearchMode
 } from '$lib/server/matching/search';
 import { openSpecializations } from '$lib/server/assessments/bank-store';
-import { parseNeedForm } from '$lib/server/needs/form';
-import { recommendCategories } from '$lib/server/needs/recommend';
+import { parseNeedForm, type NeedForm } from '$lib/server/needs/form';
+import {
+	countCategories,
+	needCategoriesOf,
+	recommendCategories,
+	type CategoryBasis,
+	type CategoryCounts,
+	type RecommendedCategory
+} from '$lib/server/needs/recommend';
+import type { SmallCell } from '$lib/server/operator/small-numbers';
 import { regionReference } from '$lib/server/regions';
 import type { ShowExtra } from '$lib/server/visibility/can-show';
 import { offerFit, salaryAnswers, type OfferFit, type SalaryAnswer } from './cohort';
@@ -127,12 +140,13 @@ async function checkOpen(executor: Executor, categories: readonly CategoryPair[]
 }
 
 /**
- * The categories of a new shortlist by default: the pair of the form, or — without a specialization — the categories
- * the skills of the need recommend; neighbouring grades are offered on the need's page, not taken by default.
+ * The categories of a new shortlist by default: the pair of the form, or the specializations of its role. Neighbouring
+ * grades and suggestions by skills are offered on the need's page, never taken by default: a need whose role no test
+ * checks gets no categories rather than the categories of another role.
  */
 export function defaultCategories(form: ShortlistQuery['form'], open: ReadonlySet<SpecializationKey>): CategoryPair[] {
-	const recommended = recommendCategories(form, open).filter((c) => c.basis !== 'neighbour_grade');
-	return recommended.slice(0, MAX_CATEGORIES).map(({ specialization, grade }) => ({ specialization, grade }));
+	const own = recommendCategories(form, open).filter((c) => c.basis === 'form' || c.basis === 'role');
+	return own.slice(0, MAX_CATEGORIES).map(({ specialization, grade }) => ({ specialization, grade }));
 }
 
 export interface ShortlistCreated {
@@ -162,16 +176,9 @@ export async function createShortlist(
 		const form = parseNeedForm(need.id, need.form);
 		let categories: CategoryPair[];
 		if (input.categories === undefined) {
+			// A need without a category of its own gives an empty shortlist that says why (`coverage`), not an error: the
+			// employer adds the suggested categories as a refinement.
 			categories = defaultCategories(form, await openSpecializations(tx));
-			if (categories.length === 0) {
-				throw invalid([
-					{
-						path: 'categories',
-						code: 'no_categories',
-						message: 'Укажите специализацию или обязательные навыки, которые проверяет тест, или выберите категории'
-					}
-				]);
-			}
 		} else {
 			const parsed = z.array(categoryPairSchema).min(1).max(MAX_CATEGORIES).safeParse(input.categories);
 			if (!parsed.success) throw invalid(zodDetails(parsed.error, 'categories'));
@@ -285,6 +292,29 @@ export interface ExposureShare {
 	of: number;
 }
 
+/**
+ * What a shortlist says of its categories (domain 13.10): where the categories of the need come from and, for a need
+ * without one of its own, why and what is suggested by its skills; the neighbouring grades with candidates the step does
+ * not take — a deliberate widening; the requirements outside the taxonomy no evidence covers.
+ */
+export interface ShortlistCoverage {
+	basis: CategoryBasis;
+	roleKey: string | null;
+	/** Specializations of the form or the role that are closed now. */
+	closed: SpecializationKey[];
+	/** For a step without categories: categories whose blocks confirm required skills of the need. */
+	suggestions: RecommendedCategory[];
+	/** Grades next to the step's grades of each of its specializations, with the candidates the step does not show. */
+	neighbours: (CategoryPair & { candidates: SmallCell; direction: 'below' | 'above' })[];
+	otherRequirements: { name: string; requirement: 'required' | 'nice' }[];
+}
+
+/** Candidates of the whole ranking by the group of coverage of the required skills. */
+export interface CoverageGroups {
+	covers: number;
+	gaps: number;
+}
+
 export interface ShortlistView {
 	id: string;
 	needId: string;
@@ -303,6 +333,8 @@ export interface ShortlistView {
 	/** Candidates without FSP results in the top ten against their share in the whole result (contracts 11.2). */
 	exposure: { top: ExposureShare; pool: ExposureShare };
 	mode: SearchMode;
+	coverage: ShortlistCoverage;
+	groups: CoverageGroups;
 }
 
 /** Candidates of the ids with an FSP result in force. */
@@ -321,7 +353,7 @@ async function withFsp(executor: Executor, candidateIds: readonly string[]): Pro
 	return new Set(rows.map((row) => row.id));
 }
 
-/** The ranked candidates of a step, each through `canShow` now. */
+/** The ranked candidates of a step, each through `canShow` now; a step without categories ranks nobody. */
 export async function rankStep(
 	deps: ShortlistDeps,
 	subject: AccessSubject,
@@ -329,8 +361,71 @@ export async function rankStep(
 	revision: Pick<Revision, 'seq' | 'query'>,
 	signal?: AbortSignal
 ): Promise<{ ranked: CandidateSearchItem[]; mode: SearchMode }> {
+	if (revision.query.categories.length === 0) {
+		return {
+			ranked: [],
+			mode: {
+				searchMode: 'fts_only',
+				embeddingSpaceId: null,
+				semanticReason: 'no_categories',
+				reranker: { status: 'not_applicable', reason: null }
+			}
+		};
+	}
 	const search = searchOf(revision.query, shortlist.needText, { id: shortlist.id, revision: revision.seq });
 	return rankCandidates(deps, subject, { need: search.need, filters: search.filters }, signal);
+}
+
+/** The grades next to the step's grades of each of its specializations that the step does not take. */
+function neighbourCategories(categories: readonly CategoryPair[]): (CategoryPair & { direction: 'below' | 'above' })[] {
+	const taken = new Set(categories.map((c) => `${c.specialization}:${c.grade}`));
+	const result: (CategoryPair & { direction: 'below' | 'above' })[] = [];
+	for (const specialization of [...new Set(categories.map((c) => c.specialization))]) {
+		const ordinals = categories.filter((c) => c.specialization === specialization).map((c) => gradeOrdinal(c.grade));
+		const below = GRADE_KEYS.find((key) => gradeOrdinal(key) === Math.min(...ordinals) - 1);
+		const above = GRADE_KEYS.find((key) => gradeOrdinal(key) === Math.max(...ordinals) + 1);
+		for (const [grade, direction] of [
+			[below, 'below'],
+			[above, 'above']
+		] as const) {
+			if (grade !== undefined && !taken.has(`${specialization}:${grade}`)) {
+				result.push({ specialization, grade, direction });
+			}
+		}
+	}
+	return result;
+}
+
+/** What the shortlist says of its categories at a step; `shown` — candidates of the step's ranking. */
+async function coverageOf(
+	deps: ShortlistDeps,
+	subject: AccessSubject,
+	query: ShortlistQuery,
+	shown: ReadonlySet<string>
+): Promise<ShortlistCoverage> {
+	const form: NeedForm = query.form;
+	const own = needCategoriesOf(form, await openSpecializations(deps.db));
+	const counted: (CategoryPair & CategoryCounts & { direction: 'below' | 'above' })[] = await countCategories(
+		deps.db,
+		subject,
+		form,
+		neighbourCategories(query.categories),
+		deps.now(),
+		shown
+	);
+	return {
+		basis: own.basis,
+		roleKey: form.role_key ?? null,
+		closed: own.closed,
+		suggestions: query.categories.length === 0 ? own.categories.filter((category) => category.basis === 'skills') : [],
+		neighbours: counted
+			.filter(({ candidates }) => !('value' in candidates) || candidates.value > 0)
+			.map(({ specialization, grade, direction, candidates }) => ({ specialization, grade, direction, candidates })),
+		otherRequirements: [
+			...(form.other_skills ?? []).map((name) => ({ name, requirement: 'required' as const })),
+			...(form.other_nice_skills ?? []).map((name) => ({ name, requirement: 'nice' as const }))
+		]
+	};
 }
 
 function needMatchOf(item: CandidateSearchItem): CompanyNeedMatch {
@@ -477,7 +572,12 @@ export async function openShortlist(
 		marked,
 		salary,
 		exposure: { top: share(ranked.slice(0, TOP)), pool: share(ranked) },
-		mode
+		mode,
+		coverage: await coverageOf(deps, subject, revision.query, new Set(ranked.map((item) => item.candidateId))),
+		groups: {
+			covers: ranked.filter((item) => needMatchOf(item).coverage.group === 'covers').length,
+			gaps: ranked.filter((item) => needMatchOf(item).coverage.group === 'gaps').length
+		}
 	};
 }
 

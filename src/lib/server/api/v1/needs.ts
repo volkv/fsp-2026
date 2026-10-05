@@ -16,6 +16,12 @@ const needParams = z.strictObject({ need_id: id('Потребность') });
 
 const needForm = z
 	.object({
+		role_key: key
+			.optional()
+			.describe(
+				'Роль таксономии: без специализации категории потребности — специализации роли (fullstack — backend и ' +
+					'frontend); у роли, которую не проверяет ни один тест каталога (data_engineer), категории нет'
+			),
 		specialization: z.enum(SPECIALIZATION_KEYS).optional(),
 		grade: z
 			.object({ min: z.enum(GRADE_KEYS), max: z.enum(GRADE_KEYS) })
@@ -23,6 +29,14 @@ const needForm = z
 			.describe('Диапазон грейдов: «Middle» — `{min: middle, max: middle}`, «от Junior» — junior–senior'),
 		skill_keys: z.array(key).describe('Обязательные навыки — ключи таксономии'),
 		nice_skill_keys: z.array(key).describe('Желательные навыки'),
+		other_skills: z
+			.array(z.string())
+			.optional()
+			.describe(
+				'Обязательные требования вне таксономии — по названию («Hugging Face»): платформа их не подтверждает, ' +
+					'работодатель проверяет сам'
+			),
+		other_nice_skills: z.array(z.string()).optional().describe('Желательные требования вне таксономии'),
 		team: z.string().optional().describe('О команде, до 500 символов'),
 		work_format: z.enum(OFFER_WORK_FORMATS).optional(),
 		region_code: z.string().optional().describe('Код региона из справочника `seeds/regions.json`'),
@@ -209,9 +223,11 @@ export const needRecommendedCategories = defineOperation({
 	tag: TAG,
 	summary: 'Рекомендованные категории',
 	description:
-		'Пара формы и соседние грейды той же специализации; без специализации — специализации, чьи блоки подтверждают ' +
-		'обязательные навыки. У каждой — число кандидатов с действующей категорией, которых компания видит в каталоге, ' +
-		'и из них — с результатами ФСП, относящимися к потребности; меньше порога — `{below}`.',
+		'Пара формы, без специализации — специализации роли потребности, и соседние грейды как осознанное расширение. ' +
+		'Потребность без своей категории (`basis`: роль не проверяет ни один тест, специализация закрыта, нет ни роли, ни ' +
+		'специализации) получает только предложения по навыкам — специализации, чьи блоки подтверждают её обязательные ' +
+		'навыки. У каждой категории — число кандидатов с действующей категорией, которых компания видит в каталоге, и из ' +
+		'них — с результатами ФСП, относящимися к потребности; меньше порога — `{below}`.',
 	auth: 'account',
 	permission: 'need.manage',
 	params: needParams,
@@ -221,13 +237,24 @@ export const needRecommendedCategories = defineOperation({
 		description: 'Рекомендованные категории',
 		schema: z.object({
 			need_id: z.uuid(),
+			basis: z
+				.enum(['form', 'role', 'unsupported_role', 'closed', 'no_basis'])
+				.describe(
+					'Откуда категории: `form` — специализация формы, `role` — специализации роли, `unsupported_role` — роль ' +
+						'не проверяет ни один тест каталога, `closed` — специализация закрыта, `no_basis` — нет ни роли, ни ' +
+						'специализации'
+				),
+			closed: z.array(z.enum(SPECIALIZATION_KEYS)).describe('Закрытые сейчас специализации формы или роли'),
 			categories: z.array(
 				z.object({
 					specialization: z.enum(SPECIALIZATION_KEYS),
 					grade: z.enum(GRADE_KEYS),
 					basis: z
-						.enum(['form', 'neighbour_grade', 'skills'])
-						.describe('`form` — пара формы, `neighbour_grade` — соседний грейд, `skills` — по навыкам'),
+						.enum(['form', 'role', 'neighbour_grade', 'skills'])
+						.describe(
+							'`form` — пара формы, `role` — специализация роли, `neighbour_grade` — соседний грейд (расширение), ' +
+								'`skills` — предложение по навыкам'
+						),
 					covered_skills: z.array(z.string()).describe('Обязательные навыки, которые подтверждают блоки'),
 					candidates: cell,
 					with_fsp: cell
@@ -236,9 +263,15 @@ export const needRecommendedCategories = defineOperation({
 		})
 	},
 	async handle(ctx) {
-		const { need, categories } = await needCategories(needDeps(ctx.services), await ctx.subject(), ctx.params.need_id);
+		const { need, basis, closed, categories } = await needCategories(
+			needDeps(ctx.services),
+			await ctx.subject(),
+			ctx.params.need_id
+		);
 		return {
 			need_id: need.id,
+			basis,
+			closed,
 			categories: categories.map((category) => ({
 				specialization: category.specialization,
 				grade: category.grade,

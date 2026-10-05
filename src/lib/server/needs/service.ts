@@ -4,6 +4,7 @@
 // and change its needs, while the admission policy lets the company act.
 import { and, desc, eq } from 'drizzle-orm';
 import { openSpecializations } from '$lib/server/assessments/bank-store';
+import type { SpecializationKey } from '$lib/server/assessments/contract/catalog';
 import { can, companyAdmission, type AccessSubject } from '$lib/server/access/permissions';
 import { recordAuditEvent } from '$lib/server/audit/record';
 import { auditActorOf } from '$lib/server/companies/context';
@@ -15,10 +16,11 @@ import { ApiError, policyViolation, type ErrorDetail } from '$lib/server/errors/
 import type { RequestMeta } from '$lib/server/invitations/deps';
 import type { ModelAdapter } from '$lib/server/ml/adapter';
 import { regionReference } from '$lib/server/regions';
+import { ROLE_SPECIALIZATIONS } from '$lib/server/categories/roles';
 import { checkVacancyText, textCheckSchema, type TextCheck } from '$lib/server/vacancies/text-check';
 import { needFormSchema, NEED_TEXT_MAX, parseNeedForm, type NeedForm } from './form';
 import { parseNeedText, type NeedParse } from './parse';
-import { countRecommendedCategories, type CountedCategory } from './recommend';
+import { countCategories, needCategoriesOf, type CategoryBasis, type CountedCategory } from './recommend';
 
 export interface NeedDeps {
 	db: Database;
@@ -57,7 +59,7 @@ function memberCompany(subject: AccessSubject): { companyId: string; memberId: s
 const invalid = (details: ErrorDetail[]) => new ApiError('validation_failed', { details });
 
 /**
- * The form of the request: the schema, a range only in roubles (`422 salary_not_rub`), a known region, a specialization
+ * The form of the request: the schema, a range only in roubles (`422 salary_not_rub`), a known region and role, a specialization
  * open now — switched on in the catalog and with a released bank (`422 specialization_closed`).
  */
 async function validForm(executor: Executor, raw: unknown): Promise<NeedForm> {
@@ -78,6 +80,9 @@ async function validForm(executor: Executor, raw: unknown): Promise<NeedForm> {
 	const form = parsed.data;
 	if (form.region_code !== undefined && !(await regionReference()).has(form.region_code)) {
 		throw invalid([{ path: 'form.region_code', code: 'unknown', message: 'Неизвестный регион' }]);
+	}
+	if (form.role_key !== undefined && !Object.hasOwn(ROLE_SPECIALIZATIONS, form.role_key)) {
+		throw invalid([{ path: 'form.role_key', code: 'unknown', message: 'Неизвестная роль' }]);
 	}
 	if (form.specialization !== undefined && !(await openSpecializations(executor)).has(form.specialization)) {
 		throw policyViolation('specialization_closed', 'form.specialization');
@@ -259,20 +264,19 @@ export async function listNeeds(deps: Pick<NeedDeps, 'db'>, subject: AccessSubje
 	return rows.map(viewOf);
 }
 
-/** The categories recommended for the need, with the numbers of candidates the company sees. */
+/**
+ * The categories recommended for the need, with the numbers of candidates the company sees, and where they come from:
+ * a need without a category of its own says why (its role no test checks, its specialization is closed) and gets only
+ * suggestions by its skills.
+ */
 export async function needCategories(
 	deps: NeedDeps,
 	subject: AccessSubject,
 	needId: string
-): Promise<{ need: NeedView; categories: CountedCategory[] }> {
+): Promise<{ need: NeedView; basis: CategoryBasis; closed: SpecializationKey[]; categories: CountedCategory[] }> {
 	const member = memberCompany(subject);
 	const need = viewOf(await ownNeed(deps.db, member.companyId, needId));
-	const categories = await countRecommendedCategories(
-		deps.db,
-		subject,
-		need.form,
-		await openSpecializations(deps.db),
-		deps.now()
-	);
-	return { need, categories };
+	const recommended = needCategoriesOf(need.form, await openSpecializations(deps.db));
+	const categories = await countCategories(deps.db, subject, need.form, recommended.categories, deps.now());
+	return { need, basis: recommended.basis, closed: recommended.closed, categories };
 }

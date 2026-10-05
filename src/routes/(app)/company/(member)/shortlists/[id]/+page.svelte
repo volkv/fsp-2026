@@ -7,6 +7,7 @@
 		categoryName,
 		CHANGE_NAMES,
 		cohortCount,
+		groupTitle,
 		intervalText,
 		WHAT_IF_REASONS
 	} from '$lib/components/employer/shortlist.js';
@@ -36,6 +37,27 @@
 		Object.keys(change)
 			.map((key) => CHANGE_NAMES[key] ?? key)
 			.join(', ');
+	const coverage = $derived(shortlist.coverage);
+	const roleName = $derived(coverage.roleKey ? (names.roles[coverage.roleKey] ?? coverage.roleKey) : null);
+	/** Why a step without categories ranks nobody. */
+	const emptyReason = $derived.by(() => {
+		switch (coverage.basis) {
+			case 'unsupported_role':
+				return `Для роли «${roleName ?? ''}» нет подтверждаемой категории: ни один тест платформы её работу не проверяет.`;
+			case 'closed':
+				return `Категория ${coverage.closed.map((key) => names.specializations[key] ?? key).join(', ')} сейчас закрыта: тест ещё не выпущен.`;
+			default:
+				return 'У потребности нет ни роли, ни специализации — подборке не из чего взять категории.';
+		}
+	});
+	/** The heading before an item: where the number of unconfirmed required skills changes. */
+	const headingAt = (index: number) => {
+		const item = shortlist.items[index];
+		const previous = shortlist.items[index - 1];
+		if (!item) return null;
+		if (previous && previous.match.coverage.unconfirmed.length === item.match.coverage.unconfirmed.length) return null;
+		return groupTitle(item.match.coverage);
+	};
 	const MARK_STATES = {
 		in_results: 'в выдаче',
 		not_matching: 'не проходит новое условие',
@@ -88,8 +110,19 @@
 						· подтверждено тестом: {skillNames(query.filters.confirmed_skill_keys)}
 					{/if}
 				</p>
+				{#if coverage.otherRequirements.length > 0}
+					<p class="text-muted-foreground" data-testid="shortlist-other-requirements">
+						Вне таксономии, платформа не подтверждает — проверьте на собеседовании: {coverage.otherRequirements
+							.map((r) => (r.requirement === 'nice' ? `${r.name} (желательно)` : r.name))
+							.join(', ')}
+					</p>
+				{/if}
 				<p data-testid="shortlist-exposure">
-					Найдено: <span class="font-medium">{shortlist.total}</span> · без результатов ФСП в первой десятке —
+					Найдено: <span class="font-medium">{shortlist.total}</span>
+					{#if shortlist.total > 0}
+						(закрывают все обязательные — {shortlist.groups.covers}, с неподтверждёнными — {shortlist.groups.gaps})
+					{/if}
+					· без результатов ФСП в первой десятке —
 					{shareText(shortlist.exposure.top)}, во всей выдаче — {shareText(shortlist.exposure.pool)}
 				</p>
 				{#if shortlist.mode.searchMode === 'fts_only' && shortlist.mode.semanticReason !== 'no_query'}
@@ -109,7 +142,32 @@
 			</Card.Content>
 		</Card.Root>
 
-		{#each shortlist.items as item (item.pseudonym)}
+		{#if query.categories.length === 0}
+			<Card.Root data-testid="shortlist-no-categories">
+				<Card.Content class="grid gap-2 pt-6 text-sm">
+					<p class="font-medium">{emptyReason}</p>
+					{#if coverage.suggestions.length > 0}
+						<p>
+							Тесты этих категорий подтверждают обязательные навыки потребности —
+							{coverage.suggestions
+								.map(
+									(c) =>
+										`${categoryName(c, names)}: ${skillNames(c.coveredSkills)} (${c.coveredSkills.length} из ${query.form.skill_keys.length})`
+								)
+								.join('; ')}. Это не замена роли: добавьте их уточнением, если такие кандидаты вам подходят.
+						</p>
+					{:else}
+						<p class="text-muted-foreground">Тесты платформы не подтверждают ни один обязательный навык потребности.</p>
+					{/if}
+				</Card.Content>
+			</Card.Root>
+		{/if}
+
+		{#each shortlist.items as item, index (item.pseudonym)}
+			{@const heading = headingAt(index)}
+			{#if heading}
+				<h2 class="font-heading text-h3" data-testid="shortlist-group">{heading}</h2>
+			{/if}
 			<ShortlistRow
 				pseudonym={item.pseudonym}
 				match={item.match}
@@ -122,13 +180,35 @@
 				{editable}
 			/>
 		{:else}
-			<Empty.Root class="border">
-				<Empty.Header>
-					<Empty.Title>В категориях подборки сейчас никого</Empty.Title>
-					<Empty.Description>Добавьте соседнюю категорию или ослабьте фильтры уточнением.</Empty.Description>
-				</Empty.Header>
-			</Empty.Root>
+			{#if query.categories.length > 0}
+				<Empty.Root class="border">
+					<Empty.Header>
+						<Empty.Title>В категориях подборки сейчас никого</Empty.Title>
+						<Empty.Description>Ослабьте фильтры уточнением или осознанно расширьте категории.</Empty.Description>
+					</Empty.Header>
+				</Empty.Root>
+			{/if}
 		{/each}
+		{#if latest && coverage.neighbours.length > 0}
+			<div class="grid gap-2 rounded-xl border border-dashed p-4 text-sm" data-testid="shortlist-neighbours">
+				{#each coverage.neighbours as neighbour (`${neighbour.specialization}:${neighbour.grade}`)}
+					<form method="POST" action="?/widen" use:enhance class="flex flex-wrap items-center gap-2">
+						<CsrfInput />
+						{#each query.categories as own (`${own.specialization}:${own.grade}`)}
+							<input type="hidden" name="category" value={`${own.specialization}:${own.grade}`} />
+						{/each}
+						<input type="hidden" name="category" value={`${neighbour.specialization}:${neighbour.grade}`} />
+						<span>
+							Ещё {cohortCount(neighbour.candidates)} в соседней категории {categoryName(neighbour, names)} — грейд
+							{neighbour.direction === 'above' ? 'выше' : 'ниже'} заявленного.
+						</span>
+						{#if editable}
+							<Button type="submit" size="sm" variant="outline">Расширить подборку</Button>
+						{/if}
+					</form>
+				{/each}
+			</div>
+		{/if}
 		{#if shortlist.nextCursor}
 			<form method="GET" class="justify-self-center">
 				<input type="hidden" name="revision" value={shortlist.revision.seq} />

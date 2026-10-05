@@ -305,8 +305,15 @@ describe('a shortlist of a need', () => {
 		const ids = view.items.map((item) => item.candidateId);
 		expect(ids).not.toContain(otherCategory.id);
 		expect(ids).not.toContain(uncategorized.id);
-		// The FSP-confirmed Kafka is worth its band; the claimed one — its ceiling; the stronger test wins among equals.
+		// The FSP-confirmed Kafka covers every required skill: that group comes first. The others leave Kafka unconfirmed —
+		// claimed, or unknown for a profile without a published evidence run; among them the claim is worth its band under
+		// the ceiling, the stronger test wins among equals.
 		expect(ids.slice(0, 4)).toEqual([withFsp.id, claimsOnly.id, tested.id, weaker.id]);
+		expect(view.groups).toEqual({ covers: 1, gaps: 3 });
+		const coverage = (id: string) => view.items.find((item) => item.candidateId === id)?.needMatch.coverage;
+		expect(coverage(withFsp.id)).toEqual({ group: 'covers', required: 3, unconfirmed: [] });
+		expect(coverage(claimsOnly.id)?.unconfirmed).toEqual([{ skill_key: 'kafka', state: 'claimed' }]);
+		expect(coverage(tested.id)?.unconfirmed).toEqual([{ skill_key: 'kafka', state: 'unknown' }]);
 		const first = view.items[0];
 		if (!first) throw new Error('empty shortlist');
 		expect(first.needMatch.reasons.length).toBeGreaterThanOrEqual(3);
@@ -321,6 +328,53 @@ describe('a shortlist of a need', () => {
 		expect(first.needMatch.positionWithoutFsp).toBeGreaterThan(1);
 		expect(view.exposure.pool).toEqual({ withoutFsp: 3, of: 4 });
 		expect(view.mode.reranker.status).toBe('not_applicable');
+	});
+
+	it('offers a neighbouring grade as a widening with its candidates, never takes it by default', async () => {
+		const { subject } = await employer();
+		const senior = await person({ category: { specialization: 'backend', grade: 'senior' } });
+		const need = await backendNeed(subject, { skill_keys: ['sql'] });
+		const { id } = await createShortlist(deps(), subject, meta, need.id, {});
+		const view = await openShortlist(deps(), subject, id);
+		expect(view.revision.query.categories).toEqual([backendMiddle]);
+		expect(view.items.map((item) => item.candidateId)).not.toContain(senior.id);
+		const above = view.coverage.neighbours.find((n) => n.specialization === 'backend' && n.grade === 'senior');
+		expect(above?.direction).toBe('above');
+		expect(above?.candidates).not.toEqual({ value: 0 });
+		const widened = await reviseShortlist(deps(), subject, meta, id, {
+			categories: [backendMiddle, { specialization: 'backend', grade: 'senior' }]
+		});
+		const after = await openShortlist(deps(), subject, id, { revision: widened.revision });
+		expect(after.items.map((item) => item.candidateId)).toContain(senior.id);
+		expect(after.coverage.neighbours.some((n) => n.grade === 'senior')).toBe(false);
+	});
+
+	it('of a need whose role no test checks is empty and says why, with categories its skills suggest', async () => {
+		const { subject } = await employer();
+		const need = await createNeed(needDeps(), subject, meta, {
+			text: 'Дата-инженер\nТребования: Python, SQL, Hugging Face.\nБудет плюсом: dbt'
+		});
+		expect(need.form).toMatchObject({ role_key: 'data_engineer', other_skills: ['Hugging Face'] });
+		expect(need.form.specialization).toBeUndefined();
+		const { id } = await createShortlist(deps(), subject, meta, need.id, {});
+		const view = await openShortlist(deps(), subject, id);
+		expect(view.revision.query.categories).toEqual([]);
+		expect(view.items).toEqual([]);
+		expect(view.coverage).toMatchObject({
+			basis: 'unsupported_role',
+			roleKey: 'data_engineer',
+			neighbours: []
+		});
+		expect(view.coverage.otherRequirements).toContainEqual({ name: 'Hugging Face', requirement: 'required' });
+		expect(view.coverage.suggestions.length).toBeGreaterThan(0);
+		expect(view.coverage.suggestions.every((c) => c.coveredSkills.length > 0)).toBe(true);
+		// The suggestion is the employer's to take, as a refinement.
+		const [suggested] = view.coverage.suggestions;
+		if (!suggested) throw new Error('no suggestion');
+		const revised = await reviseShortlist(deps(), subject, meta, id, {
+			categories: [{ specialization: suggested.specialization, grade: suggested.grade }]
+		});
+		expect(revised.revision).toBe(2);
 	});
 
 	it('is refused for another company, and a candidate the company does not see cannot be marked', async () => {

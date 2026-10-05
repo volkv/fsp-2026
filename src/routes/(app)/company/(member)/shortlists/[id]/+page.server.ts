@@ -8,7 +8,13 @@ import { configuredNeedDeps } from '$lib/server/needs/page';
 import { recommendCategories } from '$lib/server/needs/recommend';
 import { getNeed } from '$lib/server/needs/service';
 import { evaluationSummary } from '$lib/server/shortlists/evaluation';
-import { blockTitles, configuredShortlistDeps, refinementFromPost, whatIfFromQuery } from '$lib/server/shortlists/page';
+import {
+	blockTitles,
+	categoriesFromPost,
+	configuredShortlistDeps,
+	refinementFromPost,
+	whatIfFromQuery
+} from '$lib/server/shortlists/page';
 import { markCandidate, openShortlist, reviseShortlist, unmarkCandidate, whatIf } from '$lib/server/shortlists/service';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -60,6 +66,8 @@ export const load: PageServerLoad = async (event) => {
 				salary: view.salary,
 				exposure: view.exposure,
 				mode: view.mode,
+				coverage: view.coverage,
+				groups: view.groups,
 				items: view.items.map((item) => ({
 					pseudonym: item.pseudonym,
 					match: item.needMatch,
@@ -88,6 +96,7 @@ export const load: PageServerLoad = async (event) => {
 			names: {
 				skills: labels.skills,
 				specializations: labels.specializations,
+				roles: labels.roles,
 				grades: labels.grades,
 				workFormats: labels.terms.work_format,
 				blocks: blockTitles()
@@ -111,6 +120,21 @@ export const actions: Actions = {
 				event.params.id,
 				await refinementFromPost(form)
 			);
+			return { revised: revised.revision };
+		} catch (cause) {
+			return formFailure(cause);
+		}
+	},
+
+	/** A deliberate widening by a neighbouring grade the shortlist offers: the step's categories and that one. */
+	widen: async (event) => {
+		const { subject, meta } = await employerRequest(event);
+		membershipOf(event, subject);
+		const form = await event.request.formData();
+		try {
+			const revised = await reviseShortlist(configuredShortlistDeps(), subject, meta, event.params.id, {
+				categories: categoriesFromPost(form)
+			});
 			return { revised: revised.revision };
 		} catch (cause) {
 			return formFailure(cause);

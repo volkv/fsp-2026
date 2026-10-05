@@ -13,6 +13,7 @@
 		COMPONENT_NAMES,
 		COMPONENT_REASONS,
 		contribution,
+		coverageText,
 		OFFER_FIT,
 		reasonText,
 		type NeedMatchData,
@@ -20,8 +21,9 @@
 	} from './shortlist.js';
 
 	/**
-	 * A candidate of a shortlist (domain 13.10): the category, the score of two levels with the exact contribution of
-	 * every component, 3–5 reasons with their sources, the skills of the need by their basis, the position without FSP,
+	 * A candidate of a shortlist (domain 13.10): the category, the required skills not confirmed and what stands for each,
+	 * the score with the exact contribution of every component, 3–5 reasons with their sources, the skills of the need
+	 * by their basis, the position without FSP,
 	 * whether the offer suits the candidate by what the card shows, the mark and the way to an offer.
 	 */
 	interface Props {
@@ -41,6 +43,7 @@
 	let { pseudonym, match, offerFit, mark, hasFsp, names, cardHref, offerQuery, editable }: Props = $props();
 
 	const percent = new Intl.NumberFormat('ru-RU', { style: 'percent', maximumFractionDigits: 0 });
+	const unconfirmed = $derived(coverageText(match.coverage, names));
 </script>
 
 <article class="grid gap-3 rounded-xl border bg-card p-4 sm:p-5" data-candidate={pseudonym} data-testid="shortlist-row">
@@ -62,6 +65,10 @@
 			</span>
 		</div>
 	</div>
+
+	{#if unconfirmed}
+		<p class="text-sm" data-testid="shortlist-unconfirmed">{unconfirmed}</p>
+	{/if}
 
 	<div class="h-2 overflow-hidden rounded-full bg-muted" aria-hidden="true">
 		<div class="flex h-full">

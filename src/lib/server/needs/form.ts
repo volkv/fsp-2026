@@ -1,12 +1,18 @@
 // The form of a hiring need (docs/domain.md, section 13.10): what the employer confirms after the text is parsed —
-// specialization and the range of grades of the catalog of categories, required and nice-to-have skills of the taxonomy, the team,
-// the work format, the region, a range in roubles per month and whether results of FSP matter. Stored as
-// `hiring_needs.form` in this shape, read back through the same schema.
+// the role of the taxonomy the need is for, the specialization and the range of grades of the catalog of categories,
+// required and nice-to-have skills of the taxonomy, requirements the taxonomy does not know (kept by their names: the
+// platform does not check them, the employer does), the team, the work format, the region, a range in roubles per
+// month and whether results of FSP matter. Stored as `hiring_needs.form` in this shape, read back through the same
+// schema.
 import { z } from 'zod';
 import { GRADE_KEYS, gradeOrdinal, SPECIALIZATION_KEYS, type GradeKey } from '$lib/server/assessments/contract/catalog';
 import { OFFER_WORK_FORMATS } from '$lib/server/invitations/terms';
 
 const skillKey = z.string().regex(/^[a-z0-9_]+$/u);
+
+const roleKey = z.string().regex(/^[a-z0-9_]+$/u);
+/** A requirement outside the taxonomy, by its name as the employer writes it: «Hugging Face», «1С:ERP». */
+const otherRequirement = z.string().trim().min(1).max(80);
 
 export const NEED_TEXT_MAX = 5000;
 export const NEED_TEAM_MAX = 500;
@@ -42,10 +48,18 @@ export function gradesOf(range: NeedGrade): GradeKey[] {
 }
 
 export const needFormSchema = z.strictObject({
+	/**
+	 * The role of the taxonomy the need is for: its specializations are the categories of the need when the employer
+	 * names none (fullstack — backend and frontend); a role no test of the catalog checks has no category.
+	 */
+	role_key: roleKey.optional(),
 	specialization: z.enum(SPECIALIZATION_KEYS).optional(),
 	grade: needGradeSchema.optional(),
 	skill_keys: z.array(skillKey).max(30),
 	nice_skill_keys: z.array(skillKey).max(30),
+	/** Required and nice-to-have requirements the taxonomy does not know: no evidence of the platform covers them. */
+	other_skills: z.array(otherRequirement).max(20).optional(),
+	other_nice_skills: z.array(otherRequirement).max(20).optional(),
 	team: z.string().trim().min(1).max(NEED_TEAM_MAX).optional(),
 	work_format: z.enum(OFFER_WORK_FORMATS).optional(),
 	region_code: z.string().min(1).optional(),

@@ -6,6 +6,7 @@
 
 export interface ShortlistNames {
 	skills: Readonly<Record<string, string>>;
+	roles: Readonly<Record<string, string>>;
 	specializations: Readonly<Record<string, string>>;
 	grades: Readonly<Record<string, string>>;
 	workFormats: Readonly<Record<string, string>>;
@@ -34,7 +35,14 @@ export interface ComponentData {
 	reason: string | null;
 }
 
+export interface CoverageData {
+	group: 'covers' | 'gaps';
+	required: number;
+	unconfirmed: { skill_key: string; state: 'public_profile' | 'claimed' | 'missing' | 'unknown' }[];
+}
+
 export interface NeedMatchData {
+	coverage: CoverageData;
 	score: number;
 	levels: { need: number; strength: number };
 	components: Record<string, ComponentData>;
@@ -127,8 +135,32 @@ export const BASIS: Record<string, { label: string; tone: string }> = {
 		label: 'заявлено',
 		tone: 'border border-dashed border-trust-claimed-border text-trust-claimed-foreground'
 	},
-	missing: { label: 'нет', tone: 'border border-dashed text-muted-foreground line-through' }
+	missing: { label: 'нет', tone: 'border border-dashed text-muted-foreground line-through' },
+	unknown: { label: 'неизвестно: профиль пересчитывается', tone: 'border border-dashed text-muted-foreground' }
 };
+
+const UNCONFIRMED: Record<CoverageData['unconfirmed'][number]['state'], string> = {
+	public_profile: 'только публичный профиль',
+	claimed: 'заявлено',
+	missing: 'нет',
+	unknown: 'неизвестно — профиль пересчитывается'
+};
+
+/** «Не подтверждено 2 из 3 обязательных: Docker — заявлено, Kafka — нет»; `null` — всё подтверждено. */
+export function coverageText(coverage: CoverageData, names: ShortlistNames): string | null {
+	if (coverage.unconfirmed.length === 0) return null;
+	const items = coverage.unconfirmed.map(
+		(item) => `${names.skills[item.skill_key] ?? item.skill_key} — ${UNCONFIRMED[item.state]}`
+	);
+	return `Не подтверждено ${coverage.unconfirmed.length} из ${coverage.required} обязательных: ${items.join(', ')}`;
+}
+
+/** The heading of a group of the ranking. */
+export function groupTitle(coverage: CoverageData): string {
+	if (coverage.group === 'covers') return 'Закрывают все обязательные требования';
+	const n = coverage.unconfirmed.length;
+	return `Категория подходит, не подтверждено ${n} из ${coverage.required} обязательных`;
+}
 
 export const COMPONENT_NAMES: Record<string, string> = {
 	required: 'Обязательные навыки',

@@ -598,12 +598,16 @@ export function qualifiesForPool(
 
 // --- Ranking for a hiring need and the strength of the confirmed profile (domain 13.10) ------------------------------
 //
-// Two levels in one additive score: the fit to the need (its skills by the best basis of each, the work format) and the
-// strength of the confirmed profile (the test by blocks, an FSP result that relates to the need, how recent the last
-// confirmed action is). The denominator is the weight of the components the need asks for — the same for every
-// candidate of the need — so a contribution is `weight × value / denominator`, exactly, and the absence of FSP is the
-// absence of its bonus, never a penalty. The catalog without a need ranks by the strength level alone. The salary
-// expectation of a candidate is hidden from a company and never enters a score a company sees (domain 13.10).
+// Two levels. The first is the coverage of the required skills: a candidate whose every required skill a test, an FSP
+// result or the platform confirmed covers the need; another has N of M required skills unconfirmed, and each of them
+// says what there is instead — a verified public profile, the candidate's words, nothing, or nothing known while the
+// profile is being recalculated. The ranking orders by the number of unconfirmed required skills first (`coverage`).
+// The second is the score inside a group: the fit to the need (its skills by the best basis of each, the work format)
+// and the strength of the confirmed profile (the test by blocks, an FSP result that relates to the need, how recent the
+// last confirmed action is), additive. The denominator is the weight of the components the need asks for — the same
+// for every candidate of the need — so a contribution is `weight × value / denominator`, exactly, and the absence of
+// FSP is the absence of its bonus, never a penalty. The catalog without a need ranks by the strength level alone. The
+// salary expectation of a candidate is hidden from a company and never enters a score a company sees (domain 13.10).
 
 export const NEED_COMPONENT_KEYS = ['required', 'nice', 'format', 'test', 'fsp', 'freshness'] as const;
 export type NeedComponentKey = (typeof NEED_COMPONENT_KEYS)[number];
@@ -661,12 +665,26 @@ export interface NeedScoreInput {
 	withoutFsp?: boolean;
 }
 
-/** The best basis of a skill of the need; `claimed` covers a derivation from the resume too. */
 /**
- * The best basis of a skill of the need; `claimed` covers a derivation from the resume too. `claimed_untestable` — a
- * claim of a skill no block of the need's specializations can confirm: the resume is the best evidence there is.
+ * The best basis of a skill of the need; `claimed` covers a derivation from the resume too. `claimed` — a claim of a
+ * skill the candidate's own test checks (a block or the practice language of the grade they passed) and did not
+ * confirm; `claimed_untestable` — a claim of a skill their test does not check: the resume is the best evidence there
+ * is. `missing` — the read profile has nothing of the skill; `unknown` — the profile is not readable now (none
+ * published, or evidence withdrawn after it), so its absence is not known.
  */
-export type SkillBasis = 'test' | 'fsp' | 'platform' | 'public_profile' | 'claimed_untestable' | 'claimed' | 'missing';
+export type SkillBasis =
+	'test' | 'fsp' | 'platform' | 'public_profile' | 'claimed_untestable' | 'claimed' | 'missing' | 'unknown';
+
+/** What stands for a required skill no test, FSP result or platform confirmed. */
+export type UnconfirmedState = 'public_profile' | 'claimed' | 'missing' | 'unknown';
+
+/** The first level: the required skills of the need and those not confirmed. */
+export interface NeedCoverage {
+	/** `covers` — every required skill is confirmed (or the need names none); `gaps` — some are not. */
+	group: 'covers' | 'gaps';
+	required: number;
+	unconfirmed: { skill_key: string; state: UnconfirmedState }[];
+}
 
 export interface SkillReading {
 	skill_key: string;
@@ -731,6 +749,9 @@ export type NeedReason =
 	| { code: 'confirmed_recently'; days: number; contribution: number; source: NeedReasonSource };
 
 export interface NeedResult {
+	/** The first level: the order goes by the number of unconfirmed required skills before the score. */
+	coverage: NeedCoverage;
+	/** The order inside a group of coverage. */
 	score: number;
 	/** The sum of the contributions of each level. */
 	levels: { need: number; strength: number };
@@ -754,7 +775,8 @@ const BASIS_ORDER: readonly SkillBasis[] = [
 	'public_profile',
 	'claimed_untestable',
 	'claimed',
-	'missing'
+	'missing',
+	'unknown'
 ];
 const DAY_MS = 86_400_000;
 
@@ -763,13 +785,35 @@ function blockOfSkill(category: ConfirmedCategory, skillKey: string): string {
 	return block ?? gradeDefinition(category.specialization, category.grade).practice.block;
 }
 
-/** The best basis of each skill: the test's confirmed stack, then confirmations by trust, then what was claimed. */
+/**
+ * Skills the candidate's own tests check: the skills of the blocks of the grades of their categories in force and the
+ * practice languages of those specializations. A claim of such a skill was put to the check and not confirmed.
+ */
+function checkedByOwnTests(categories: readonly ConfirmedCategory[]): Set<string> {
+	const checked = new Set<string>();
+	for (const category of categories) {
+		for (const quota of gradeDefinition(category.specialization, category.grade).blocks) {
+			for (const skill of blockDefinition(quota.block).skillKeys) checked.add(skill);
+		}
+		for (const language of CATALOG.specializations.find((s) => s.key === category.specialization)?.practiceLanguages ??
+			[]) {
+			checked.add(PRACTICE_LANGUAGE_SKILLS[language]);
+		}
+	}
+	return checked;
+}
+
+/**
+ * The best basis of each skill: the test's confirmed stack, then confirmations by trust, then what was claimed. A claim
+ * is worth its band times a ceiling — lower when the candidate's own test checks the skill — so a stronger claim stays
+ * stronger and no claim reaches a check.
+ */
 function readSkill(
 	skillKey: string,
 	requirement: 'required' | 'nice',
 	candidate: NeedCandidate,
 	skills: ReadonlyMap<string, SkillEvidence>,
-	testable: ReadonlySet<string>,
+	checked: ReadonlySet<string>,
 	input: Pick<NeedScoreInput, 'params' | 'skillBandValue' | 'withoutFsp'>
 ): SkillReading {
 	const options: SkillReading[] = [];
@@ -795,8 +839,8 @@ function readSkill(
 		else if (trust === 'platform_verified') [basis, value] = ['platform', band];
 		else if (trust === 'public_verifiable')
 			[basis, value] = ['public_profile', band * input.params.skill.publicProfileFactor];
-		else if (testable.has(skillKey)) [basis, value] = ['claimed', Math.min(band, input.params.skill.claimedCeiling)];
-		else [basis, value] = ['claimed_untestable', Math.min(band, input.params.skill.untestableClaimedCeiling)];
+		else if (checked.has(skillKey)) [basis, value] = ['claimed', band * input.params.skill.claimedCeiling];
+		else [basis, value] = ['claimed_untestable', band * input.params.skill.untestableClaimedCeiling];
 		if (!(basis === 'fsp' && input.withoutFsp)) {
 			options.push({
 				skill_key: skillKey,
@@ -812,9 +856,21 @@ function readSkill(
 	const best = options.sort(
 		(a, b) => b.value - a.value || BASIS_ORDER.indexOf(a.basis) - BASIS_ORDER.indexOf(b.basis)
 	)[0];
-	return (
-		best ?? { skill_key: skillKey, requirement, basis: 'missing', value: 0, band: null, block: null, fact_ids: [] }
-	);
+	if (best) return best;
+	const basis = candidate.evidence.status === 'available' ? 'missing' : 'unknown';
+	return { skill_key: skillKey, requirement, basis, value: 0, band: null, block: null, fact_ids: [] };
+}
+
+const CONFIRMED_BASES: ReadonlySet<SkillBasis> = new Set(['test', 'fsp', 'platform']);
+
+function coverageOf(required: readonly SkillReading[]): NeedCoverage {
+	const unconfirmed = required
+		.filter((skill) => !CONFIRMED_BASES.has(skill.basis))
+		.map((skill) => ({
+			skill_key: skill.skill_key,
+			state: (skill.basis === 'claimed_untestable' ? 'claimed' : skill.basis) as UnconfirmedState
+		}));
+	return { group: unconfirmed.length === 0 ? 'covers' : 'gaps', required: required.length, unconfirmed };
 }
 
 /** The category the strength is read from: of the shortlist's categories (or any), the highest grade. */
@@ -910,26 +966,14 @@ export function needScore(input: NeedScoreInput): NeedResult {
 	const { need, candidate, params, now } = input;
 	const evidence = candidate.evidence;
 	const skills = new Map(evidence.status === 'available' ? evidence.skills.map((s) => [s.skillKey, s]) : []);
-	// Skills a test of the need's specializations can confirm: a claim of one of them is capped low, as the check exists.
-	const specializations = new Set((need?.categories ?? []).map((c) => c.specialization));
-	const testable = new Set(
-		CATALOG.blocks
-			.filter((block) => specializations.size === 0 || specializations.has(block.specialization))
-			.flatMap((block) => block.skillKeys)
-	);
-	for (const definition of CATALOG.definitions) {
-		if (specializations.size > 0 && !specializations.has(definition.specialization)) continue;
-		for (const language of CATALOG.specializations.find((s) => s.key === definition.specialization)
-			?.practiceLanguages ?? []) {
-			testable.add(PRACTICE_LANGUAGE_SKILLS[language]);
-		}
-	}
+	// Skills the candidate's own test checks: a claim of one of them is capped low, as the check did not confirm it.
+	const checked = checkedByOwnTests(candidate.categories);
 	const required = (need?.requiredSkillKeys ?? []).map((key) =>
-		readSkill(key, 'required', candidate, skills, testable, input)
+		readSkill(key, 'required', candidate, skills, checked, input)
 	);
 	const nice = (need?.niceSkillKeys ?? [])
 		.filter((key) => !need?.requiredSkillKeys.includes(key))
-		.map((key) => readSkill(key, 'nice', candidate, skills, testable, input));
+		.map((key) => readSkill(key, 'nice', candidate, skills, checked, input));
 	const needSkills = new Set([...required, ...nice].map((s) => s.skill_key));
 	const category = strengthCategory(candidate.categories, need?.categories ?? null);
 	const test = readTest(category, candidate.tests, needSkills, params.test);
@@ -1086,6 +1130,7 @@ export function needScore(input: NeedScoreInput): NeedResult {
 		.map((reason) => ({ ...reason, contribution: round4(reason.contribution) }));
 
 	return {
+		coverage: coverageOf(required),
 		score: round4(score),
 		levels: { need: level('need'), strength: level('strength') },
 		components: Object.fromEntries(

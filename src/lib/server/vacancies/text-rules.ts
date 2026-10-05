@@ -13,7 +13,7 @@ import { gradeRangeIn } from './normalize';
 import type { VacancyTaxonomy } from './taxonomy';
 
 /** Version of these rules (`ml_results.rules_version`): any change of what they find is a new version. */
-export const VACANCY_TEXT_RULES_VERSION = `vacancy-text-rules/2+${ROLE_TITLE_RULES_VERSION}`;
+export const VACANCY_TEXT_RULES_VERSION = `vacancy-text-rules/3+${ROLE_TITLE_RULES_VERSION}`;
 
 const w = (pattern: string, flags = '') => new RegExp(`(?<![\\p{L}\\p{N}])(?:${pattern})`, `u${flags}`);
 
@@ -109,15 +109,17 @@ function titleOf(line: string): string {
 }
 
 /**
- * The title among the first lines: a line naming a role of the taxonomy first, else a line with a job word
- * («Инженер-программист»). Hashtags and headings are not titles.
+ * The title among the first lines: the line that opens the text or a line with a job word («Инженер-программист»), one
+ * naming a role of the taxonomy first. Any other line is a sentence or a list: a stack line «Python, Airflow, Spark»
+ * names tools, not the position, and never decides the role. Hashtags and headings are not titles.
  */
 function findTitle(blocks: readonly Block[], taxonomy: VacancyTaxonomy): { block: Block; text: string } | null {
 	const candidates = blocks
 		.slice(0, TITLE_LINES)
 		.filter((block) => !HASHTAG_LINE.test(block.text) && !headingOf(block.text))
 		.map((block) => ({ block, text: titleOf(block.text) }))
-		.filter(({ text }) => text.length >= 3 && text.length <= MAX_TITLE);
+		.filter(({ text }) => text.length >= 3 && text.length <= MAX_TITLE)
+		.filter(({ text }, index) => index === 0 || TITLE_WORD.test(text));
 	return (
 		candidates.find(({ text }) => roleOfTitle(text, taxonomy.roleNames) !== null) ??
 		candidates.find(({ text }) => TITLE_WORD.test(text)) ??

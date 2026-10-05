@@ -3,11 +3,12 @@
 // adapter with the schema of a pasted vacancy (contracts 3.2 `vacancy-extract/v2`: the same reading of role, grade,
 // skills, range, format and city, with the same checks of quotes and negations); without the model the deterministic
 // rules read the same fields — the path without a GPU is complete, and the parse says which path read it.
-// Specializations outside the open ones are not suggested.
+// The role comes from the title; specializations outside the open ones are not suggested; requirements the taxonomy does
+// not know are kept by their names.
 import { createHash } from 'node:crypto';
 import { GRADE_KEYS, type GradeKey, type SpecializationKey } from '$lib/server/assessments/contract/catalog';
 import { openSpecializations } from '$lib/server/assessments/bank-store';
-import { primarySpecializationOfRole } from '$lib/server/categories/roles';
+import { specializationsOfRole } from '$lib/server/categories/roles';
 import type { Database } from '$lib/server/db';
 import { mlResults } from '$lib/server/db/schema';
 import type { ModelAdapter } from '$lib/server/ml/adapter';
@@ -20,14 +21,16 @@ import {
 	VACANCY_SCHEMA_VERSION,
 	type VacancyTextFields
 } from '$lib/server/vacancies/from-text';
+import { TITLE_WORD } from '$lib/server/taxonomy/roles';
 import { roleOfTitle } from '$lib/server/vacancies/normalize';
 import { loadVacancyTaxonomy, resolveSkill, vacancyLexicon } from '$lib/server/vacancies/taxonomy';
 import { extractVacancyByRules, VACANCY_TEXT_RULES_VERSION } from '$lib/server/vacancies/text-rules';
 import { OFFER_WORK_FORMATS } from '$lib/server/invitations/terms';
 import { EMPTY_FORM, type NeedGrade, type NeedForm } from './form';
+import { unrecognizedRequirements } from './requirements';
 
 /** Version of the reading of a need on top of the rules of a vacancy text: any change of what it suggests is new. */
-export const NEED_RULES_VERSION = `need-rules/1+${VACANCY_TEXT_RULES_VERSION}`;
+export const NEED_RULES_VERSION = `need-rules/2+${VACANCY_TEXT_RULES_VERSION}`;
 
 /** A suggested field of the form with the words of the text it rests on. */
 export interface ParsedField {
@@ -97,20 +100,27 @@ async function suggestion(
 	const form: NeedForm = { ...EMPTY_FORM, skill_keys: [], nice_skill_keys: [] };
 	const parsed: ParsedField[] = [];
 
-	// The role of the title, else the first line whose words name a role; its specialization by the mapping of the
-	// module of categories.
-	let specialization: { key: SpecializationKey; quote: string } | null = null;
-	const byTitle = fields.roleKey === null ? null : primarySpecializationOfRole(fields.roleKey);
-	if (byTitle !== null && fields.title) specialization = { key: byTitle, quote: quoteText(fields.title.quote) };
+	// The role of the title, else of a line with a job word («Ищем в команду инженера данных»): a line of a stack or of a
+	// sentence never names it — «Python» there is a tool, not the position. A role mapping to specializations gives the
+	// specialization when it is one; a role of several (fullstack) leaves the choice to the categories of the role; a
+	// role no test checks (data engineer, systems analyst) stays the role of the need without a specialization.
+	let role: { key: string; quote: string } | null =
+		fields.roleKey !== null && fields.title ? { key: fields.roleKey, quote: quoteText(fields.title.quote) } : null;
 	for (const block of blocks) {
-		if (specialization !== null) break;
-		const role = roleOf(block.text);
-		const key = role === null ? null : primarySpecializationOfRole(role);
-		if (key !== null) specialization = { key, quote: block.text };
+		if (role !== null) break;
+		if (!TITLE_WORD.test(block.text)) continue;
+		const key = roleOf(block.text);
+		if (key !== null) role = { key, quote: block.text };
 	}
-	if (specialization && open.has(specialization.key)) {
-		form.specialization = specialization.key;
-		parsed.push({ path: 'specialization', value: specialization.key, quote: specialization.quote });
+	if (role !== null) {
+		form.role_key = role.key;
+		parsed.push({ path: 'role_key', value: role.key, quote: role.quote });
+		const specializations = specializationsOfRole(role.key);
+		const [only] = specializations;
+		if (specializations.length === 1 && only !== undefined && open.has(only)) {
+			form.specialization = only;
+			parsed.push({ path: 'specialization', value: only, quote: role.quote });
+		}
 	}
 
 	const range = fields.grade && catalogRange(fields.grade.value, quoteText(fields.grade.quote));
@@ -124,12 +134,37 @@ async function suggestion(
 		['nice_skill_keys', fields.niceSkills]
 	] as const) {
 		for (const skill of skills) {
-			if (skill.key === null || form.skill_keys.includes(skill.key) || form.nice_skill_keys.includes(skill.key)) {
-				continue;
-			}
+			if (skill.key === null) continue;
+			if (form.skill_keys.includes(skill.key) || form.nice_skill_keys.includes(skill.key)) continue;
 			form[path].push(skill.key);
 			parsed.push({ path, value: skill.key, quote: quoteText(skill.quote) });
 		}
+	}
+
+	// Requirements no skill of the taxonomy names: the model's skills without a key and the items of the lists of
+	// requirements no alias read. Kept by their names for the employer to confirm — never dropped, never replaced by a
+	// broader skill.
+	const other: { name: string; requirement: 'required' | 'nice'; quote: string }[] = [
+		...[...fields.requiredSkills, ...fields.niceSkills]
+			.filter((skill) => skill.key === null)
+			.map((skill) => ({
+				name: skill.raw.trim(),
+				requirement: fields.niceSkills.includes(skill) ? ('nice' as const) : ('required' as const),
+				quote: quoteText(skill.quote)
+			})),
+		...unrecognizedRequirements(
+			blocks,
+			[...fields.requiredSkills, ...fields.niceSkills, ...fields.negatedSkills].map((skill) => skill.raw)
+		)
+	];
+	const seen = new Set<string>();
+	for (const item of other) {
+		const folded = item.name.toLowerCase();
+		if (item.name === '' || seen.has(folded)) continue;
+		seen.add(folded);
+		const path = item.requirement === 'nice' ? 'other_nice_skills' : 'other_skills';
+		(form[path] ??= []).push(item.name);
+		parsed.push({ path, value: item.name, quote: item.quote });
 	}
 
 	const format = OFFER_WORK_FORMATS.find((key) => key === fields.workFormat?.value);

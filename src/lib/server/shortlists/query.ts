@@ -19,14 +19,21 @@ export const categoryPairSchema = z.strictObject({
 
 export type CategoryPair = z.infer<typeof categoryPairSchema>;
 
+const distinct = (pairs: readonly CategoryPair[]) =>
+	new Set(pairs.map((p) => `${p.specialization}:${p.grade}`)).size === pairs.length;
+
+/** Categories a refinement names: at least one. */
 const categoriesSchema = z
 	.array(categoryPairSchema)
 	.min(1)
 	.max(MAX_CATEGORIES)
-	.refine(
-		(pairs) => new Set(pairs.map((p) => `${p.specialization}:${p.grade}`)).size === pairs.length,
-		'Категории повторяются'
-	);
+	.refine(distinct, 'Категории повторяются');
+
+/**
+ * Categories of a step: none for a need without a category of its own (its role no test checks, nothing to go by) —
+ * the step ranks nobody and the shortlist says why.
+ */
+const stepCategoriesSchema = z.array(categoryPairSchema).max(MAX_CATEGORIES).refine(distinct, 'Категории повторяются');
 
 export const shortlistFiltersSchema = z.strictObject({
 	/** Only candidates with an FSP result in force. */
@@ -39,7 +46,7 @@ export const shortlistFiltersSchema = z.strictObject({
 
 export const shortlistQuerySchema = z.strictObject({
 	form: needFormSchema,
-	categories: categoriesSchema,
+	categories: stepCategoriesSchema,
 	filters: shortlistFiltersSchema
 });
 

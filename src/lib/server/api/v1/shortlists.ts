@@ -86,7 +86,28 @@ const reason = z
 
 const needMatchSchema = z
 	.object({
-		score: z.number(),
+		coverage: z
+			.object({
+				group: z
+					.enum(['covers', 'gaps'])
+					.describe('`covers` — все обязательные навыки подтверждены; `gaps` — часть не подтверждена'),
+				required: z.int().describe('Обязательных навыков потребности'),
+				unconfirmed: z
+					.array(
+						z.object({
+							skill_key: key,
+							state: z
+								.enum(['public_profile', 'claimed', 'missing', 'unknown'])
+								.describe(
+									'`public_profile` — только публичный профиль, `claimed` — заявлено, `missing` — нет, ' +
+										'`unknown` — профиль сейчас не прочитан'
+								)
+						})
+					)
+					.describe('Обязательные навыки, которые не подтвердили ни тест, ни ФСП, ни платформа')
+			})
+			.describe('Первый уровень порядка: меньше неподтверждённых обязательных — выше; внутри — по `score`'),
+		score: z.number().describe('Порядок внутри группы покрытия'),
 		levels: z.object({ need: z.number(), strength: z.number() }),
 		components: z.object(
 			Object.fromEntries(NEED_COMPONENT_KEYS.map((k) => [k, component])) as Record<
@@ -99,9 +120,11 @@ const needMatchSchema = z
 				skill_key: key,
 				requirement: z.enum(['required', 'nice']),
 				basis: z
-					.enum(['test', 'fsp', 'platform', 'public_profile', 'claimed_untestable', 'claimed', 'missing'])
+					.enum(['test', 'fsp', 'platform', 'public_profile', 'claimed_untestable', 'claimed', 'missing', 'unknown'])
 					.describe(
-						'`claimed` — заявлено: не выше потолка правил; `claimed_untestable` — заявлено, тестом не проверяется: потолок выше'
+						'`claimed` — заявлено, тест кандидата навык проверял и не подтвердил: полоса × низкий потолок; ' +
+							'`claimed_untestable` — заявлено, тест кандидата навык не проверяет: полоса × потолок выше; ' +
+							'`missing` — нет; `unknown` — профиль сейчас не прочитан'
 					),
 				value: z.number(),
 				band: z.enum(['weak', 'moderate', 'strong']).nullable(),
@@ -121,6 +144,7 @@ const needMatchSchema = z
 
 function needMatchView(match: CompanyNeedMatch) {
 	return {
+		coverage: match.coverage,
 		score: match.score,
 		levels: match.levels,
 		components: match.components,
@@ -206,7 +230,44 @@ const shortlistSchema = z
 				pool: z.object({ without_fsp: z.int(), of: z.int() })
 			})
 			.describe('Кандидаты без результатов ФСП в первой десятке и во всей выдаче'),
-		mode: modeSchema
+		mode: modeSchema,
+		coverage: z
+			.object({
+				basis: z
+					.enum(['form', 'role', 'unsupported_role', 'closed', 'no_basis'])
+					.describe(
+						'Откуда категории потребности: `unsupported_role` — роль не проверяет ни один тест, `closed` — ' +
+							'специализация закрыта, `no_basis` — нет ни роли, ни специализации'
+					),
+				role_key: key.nullable(),
+				closed: z.array(z.enum(SPECIALIZATION_KEYS)),
+				suggestions: z
+					.array(
+						z.object({
+							specialization: z.enum(SPECIALIZATION_KEYS),
+							grade: z.enum(GRADE_KEYS),
+							covered_skills: z.array(key)
+						})
+					)
+					.describe('Шаг без категорий: категории, чьи блоки подтверждают обязательные навыки, — на выбор'),
+				neighbours: z
+					.array(
+						z.object({
+							specialization: z.enum(SPECIALIZATION_KEYS),
+							grade: z.enum(GRADE_KEYS),
+							direction: z.enum(['below', 'above']),
+							candidates: count.describe('Кандидаты категории, которых нет в выдаче шага')
+						})
+					)
+					.describe('Соседние грейды, которые шаг не берёт: расширение — только уточнением'),
+				other_requirements: z
+					.array(z.object({ name: z.string(), requirement: z.enum(['required', 'nice']) }))
+					.describe('Требования вне таксономии: платформа их не подтверждает')
+			})
+			.describe('Что подборка говорит о своих категориях: пустая выдача объясняется, а не возвращается ошибкой'),
+		groups: z
+			.object({ covers: z.int(), gaps: z.int() })
+			.describe('Кандидатов всей выдачи, закрывающих все обязательные навыки, и с неподтверждёнными')
 	})
 	.meta({ id: 'Shortlist' });
 
@@ -217,8 +278,10 @@ export const createNeedShortlist = defineOperation({
 	tag: TAG,
 	summary: 'Подборка по потребности',
 	description:
-		'Первый шаг берёт форму потребности и категории — переданные или рекомендованные (пара формы; без специализации — ' +
-		'по навыкам). Закрытая потребность — `409 need_closed`; закрытая специализация — `422 specialization_closed`.',
+		'Первый шаг берёт форму потребности и категории — переданные или свои категории потребности (пара формы; без ' +
+		'специализации — специализации роли). У потребности без своей категории (роль не проверяет ни один тест) первый ' +
+		'шаг — без категорий: выдача пуста, `coverage` подборки объясняет почему и предлагает категории по навыкам. ' +
+		'Закрытая потребность — `409 need_closed`; закрытая специализация — `422 specialization_closed`.',
 	auth: 'account',
 	permission: 'need.manage',
 	idempotent: true,
@@ -332,7 +395,20 @@ export const getShortlist = defineOperation({
 				top10: { without_fsp: view.exposure.top.withoutFsp, of: view.exposure.top.of },
 				pool: { without_fsp: view.exposure.pool.withoutFsp, of: view.exposure.pool.of }
 			},
-			mode: modeView(view.mode)
+			mode: modeView(view.mode),
+			coverage: {
+				basis: view.coverage.basis,
+				role_key: view.coverage.roleKey,
+				closed: view.coverage.closed,
+				suggestions: view.coverage.suggestions.map((c) => ({
+					specialization: c.specialization,
+					grade: c.grade,
+					covered_skills: c.coveredSkills
+				})),
+				neighbours: view.coverage.neighbours,
+				other_requirements: view.coverage.otherRequirements
+			},
+			groups: view.groups
 		};
 	}
 });

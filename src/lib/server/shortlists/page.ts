@@ -39,13 +39,9 @@ async function skillsOf(form: FormData, fields: readonly string[]): Promise<Reco
 	return result;
 }
 
-/**
- * The refinement the page posts: the whole set of conditions of the form; the service keeps only what differs from
- * the current step and refuses a refinement that changes nothing.
- */
-export async function refinementFromPost(form: FormData): Promise<Record<string, unknown>> {
-	const skills = await skillsOf(form, ['skill_keys', 'nice_skill_keys', 'confirmed_skill_keys']);
-	const categories = form
+/** The categories the page posts as `category` values «specialization:grade». */
+export function categoriesFromPost(form: FormData): { specialization: string; grade: string }[] {
+	return form
 		.getAll('category')
 		.filter((value): value is string => typeof value === 'string')
 		.map((value) => value.split(':'))
@@ -54,6 +50,15 @@ export async function refinementFromPost(form: FormData): Promise<Record<string,
 				? [{ specialization, grade }]
 				: []
 		);
+}
+
+/**
+ * The refinement the page posts: the whole set of conditions of the form; the service keeps only what differs from
+ * the current step and refuses a refinement that changes nothing.
+ */
+export async function refinementFromPost(form: FormData): Promise<Record<string, unknown>> {
+	const skills = await skillsOf(form, ['skill_keys', 'nice_skill_keys', 'confirmed_skill_keys']);
+	const categories = categoriesFromPost(form);
 	const format = formText(form, 'work_format');
 	const required = skills.skill_keys ?? [];
 	return {

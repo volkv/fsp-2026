@@ -20,10 +20,12 @@ export const load: PageServerLoad = async (event) => {
 	const deps = configuredNeedDeps();
 	try {
 		const need = await getNeed(deps, subject, event.params.id);
-		const { categories } = await needCategories(deps, subject, need.id);
+		const { categories, basis, closed } = await needCategories(deps, subject, need.id);
 		return {
 			need,
 			categories,
+			basis,
+			closed,
 			shortlists: await listShortlists(configuredShortlistDeps(), subject, need.id),
 			options: await needFormOptions(),
 			created: event.url.searchParams.has('created')

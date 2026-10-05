@@ -28,6 +28,7 @@ import type {
 	MatchExplanation,
 	NeedComponent,
 	NeedComponentKey,
+	NeedCoverage,
 	NeedReason,
 	NeedSpec,
 	SkillReading
@@ -127,6 +128,7 @@ export type CompanyNeedReason = NeedReason extends infer R
 
 /** The decomposition of a ranking for a need (or by strength) as a company sees it. */
 export interface CompanyNeedMatch {
+	coverage: NeedCoverage;
 	score: number;
 	levels: { need: number; strength: number };
 	components: Record<NeedComponentKey, NeedComponent>;
@@ -144,6 +146,7 @@ export interface CompanyNeedMatch {
 export function companyNeedMatch(entry: RankedForNeed): CompanyNeedMatch {
 	const { result } = entry;
 	return {
+		coverage: result.coverage,
 		score: result.score,
 		levels: result.levels,
 		components: result.components,

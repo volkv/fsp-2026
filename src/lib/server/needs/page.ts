@@ -1,9 +1,11 @@
 // What the pages of the employer cabinet need for hiring needs (docs/domain.md, section 13.10): the services built from
 // the configured infrastructure and the reading of the posted form. Skills are written by their names and resolved by
-// the taxonomy; a name the taxonomy does not know is a field error, never dropped silently.
+// the taxonomy; a name the taxonomy does not know is a field error, never dropped silently. Requirements outside the
+// taxonomy have fields of their own and stay as written.
 import { openSpecializations } from '$lib/server/assessments/bank-store';
 import { CATALOG } from '$lib/server/assessments/contract/catalog';
 import { formText } from '$lib/server/auth/http';
+import { specializationsOfRole } from '$lib/server/categories/roles';
 import { db } from '$lib/server/db';
 import { ApiError, type ErrorDetail } from '$lib/server/errors/api-error';
 import { modelAdapter } from '$lib/server/ml';
@@ -50,9 +52,17 @@ export async function needFormFromPost(form: FormData): Promise<Record<string, u
 	const team = optional(formText(form, 'team'));
 	const workFormat = optional(formText(form, 'work_format'));
 	const region = optional(formText(form, 'region_code'));
+	const role = optional(formText(form, 'role_key'));
+	const otherSkills = [...new Set(names(formText(form, 'other_skills')))];
+	const otherNiceSkills = [...new Set(names(formText(form, 'other_nice_skills')))].filter(
+		(name) => !otherSkills.includes(name)
+	);
 	return {
 		skill_keys: [...new Set(skillKeys)],
 		nice_skill_keys: [...new Set(niceSkillKeys)],
+		...(otherSkills.length === 0 ? {} : { other_skills: otherSkills }),
+		...(otherNiceSkills.length === 0 ? {} : { other_nice_skills: otherNiceSkills }),
+		...(role === undefined ? {} : { role_key: role }),
 		...(specialization === undefined ? {} : { specialization }),
 		...(gradeMin === undefined ? {} : { grade: { min: gradeMin, max: gradeMax ?? gradeMin } }),
 		...(team === undefined ? {} : { team }),
@@ -73,7 +83,10 @@ export async function needFormFromPost(form: FormData): Promise<Record<string, u
 	};
 }
 
-/** The choices of the form: open specializations and grades of the catalog, work formats by name, regions. */
+/**
+ * The choices of the form: roles of the taxonomy, each with whether a test of the catalog checks it, open
+ * specializations and grades of the catalog, work formats by name, regions.
+ */
 export async function needFormOptions() {
 	const [vocabulary, regions, open] = await Promise.all([
 		currentVocabulary(db()),
@@ -82,6 +95,7 @@ export async function needFormOptions() {
 	]);
 	const formatNames = new Map(vocabulary.terms.work_format.map(({ key, name }) => [key, name]));
 	return {
+		roles: vocabulary.roles.map(({ key, name }) => ({ key, name, tested: specializationsOfRole(key).length > 0 })),
 		specializations: CATALOG.specializations
 			.filter((item) => open.has(item.key))
 			.map(({ key, title }) => ({ key, title })),

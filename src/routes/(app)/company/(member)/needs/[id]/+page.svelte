@@ -21,16 +21,41 @@
 	const gradeTitle = (key: string) => data.options.grades.find((g) => g.key === key)?.title ?? key;
 	const gradeRangeTitle = (range: { min: string; max: string }) =>
 		range.min === range.max ? gradeTitle(range.min) : `${gradeTitle(range.min)}–${gradeTitle(range.max)}`;
+	const roleName = (key: string) => data.options.roles.find((r) => r.key === key)?.name ?? key;
 	const FIELDS: Record<string, string> = {
+		role_key: 'Роль',
 		specialization: 'Специализация',
 		grade: 'Грейд',
 		skill_keys: 'Обязательный навык',
 		nice_skill_keys: 'Желательный навык',
+		other_skills: 'Обязательное требование вне таксономии',
+		other_nice_skills: 'Желательное требование вне таксономии',
 		work_format: 'Формат',
 		region_code: 'Регион',
 		salary: 'Вилка'
 	};
-	const BASIS = { form: 'по форме', neighbour_grade: 'соседний грейд', skills: 'по навыкам' } as const;
+	const BASIS = {
+		form: 'по форме',
+		role: 'по роли',
+		neighbour_grade: 'соседний грейд — расширение: грейд вне заявленного',
+		skills: 'предложение по навыкам'
+	} as const;
+	const own = $derived(data.categories.filter((c) => c.basis === 'form' || c.basis === 'role'));
+	/** Why the need has no category of its own; `null` — it has. */
+	const notice = $derived.by(() => {
+		if (own.length > 0) return null;
+		const role = need.form.role_key ? roleName(need.form.role_key) : null;
+		switch (data.basis) {
+			case 'unsupported_role':
+				return `Для роли «${role ?? ''}» нет подтверждаемой категории: ни один тест платформы её работу не проверяет.`;
+			case 'closed':
+				return `Категория ${data.closed.map(specializationTitle).join(', ')} сейчас закрыта: тест ещё не выпущен.`;
+			default:
+				return 'Укажите роль или специализацию — тогда у потребности появятся свои категории.';
+		}
+	});
+	const coveredText = (category: { coveredSkills: string[] }) =>
+		`подтверждает ${category.coveredSkills.map(skillName).join(', ')} — ${category.coveredSkills.length} из ${need.form.skill_keys.length} обязательных`;
 	const STATUS = {
 		draft: { label: 'Черновик', tone: 'neutral' },
 		active: { label: 'Действует', tone: 'success' },
@@ -38,6 +63,7 @@
 	} as const;
 
 	function fieldValue(path: string, value: unknown): string {
+		if (path === 'role_key' && typeof value === 'string') return roleName(value);
 		if (path === 'specialization' && typeof value === 'string') return specializationTitle(value);
 		if (path === 'grade' && typeof value === 'object' && value !== null && 'min' in value && 'max' in value) {
 			return gradeRangeTitle({ min: String(value.min), max: String(value.max) });
@@ -137,10 +163,13 @@
 						<NeedForm
 							options={data.options}
 							values={{
+								...(need.form.role_key ? { roleKey: need.form.role_key } : {}),
 								...(need.form.specialization ? { specialization: need.form.specialization } : {}),
 								...(need.form.grade ? { grade: need.form.grade } : {}),
 								skills: need.form.skill_keys.map(skillName).join(', '),
 								niceSkills: need.form.nice_skill_keys.map(skillName).join(', '),
+								otherSkills: (need.form.other_skills ?? []).join(', '),
+								otherNiceSkills: (need.form.other_nice_skills ?? []).join(', '),
 								...(need.form.team ? { team: need.form.team } : {}),
 								...(need.form.work_format ? { workFormat: need.form.work_format } : {}),
 								...(need.form.region_code ? { regionCode: need.form.region_code } : {}),
@@ -188,12 +217,19 @@
 					показывается как «&lt; 5».
 				</Card.Description>
 			</Card.Header>
-			<Card.Content>
-				{#if data.categories.length === 0}
-					<p class="text-sm text-muted-foreground">
-						Укажите специализацию или обязательные навыки, которые проверяет тест платформы, — тогда появятся категории.
-					</p>
-				{:else}
+			<Card.Content class="grid gap-3">
+				{#if notice}
+					<Alert.Root data-testid="need-categories-notice">
+						<Alert.Description>
+							{notice}
+							{#if data.categories.length > 0}
+								Ниже — категории, чьи тесты подтверждают обязательные навыки потребности: это предложение, а не замена
+								роли; выберите их сами.
+							{/if}
+						</Alert.Description>
+					</Alert.Root>
+				{/if}
+				{#if data.categories.length > 0}
 					<div class="overflow-x-auto">
 						<Table.Root label="Рекомендованные категории">
 							<Table.Header>
@@ -210,7 +246,9 @@
 											<span class="font-medium"
 												>{specializationTitle(category.specialization)} · {gradeTitle(category.grade)}</span
 											>
-											<span class="block text-xs text-muted-foreground">{BASIS[category.basis]}</span>
+											<span class="block text-xs text-muted-foreground">
+												{BASIS[category.basis]}{category.basis === 'skills' ? `: ${coveredText(category)}` : ''}
+											</span>
 										</Table.Cell>
 										<Table.Cell>{count(category.candidates)}</Table.Cell>
 										<Table.Cell>{count(category.withFsp)}</Table.Cell>
@@ -231,11 +269,16 @@
 				</Card.Description>
 			</Card.Header>
 			<Card.Content class="grid gap-4">
-				{#if need.status !== 'closed' && data.categories.length > 0}
+				{#if need.status !== 'closed'}
 					<form method="POST" action="?/shortlist" use:enhance class="grid gap-3" data-testid="shortlist-create">
 						<CsrfInput />
 						<fieldset class="grid gap-2">
 							<legend class="mb-1 text-sm font-medium">Категории подборки</legend>
+							{#if data.categories.length === 0}
+								<p class="text-sm text-muted-foreground">
+									Своих категорий нет — подборка будет пустой и скажет почему.
+								</p>
+							{/if}
 							{#each data.categories as category (`${category.specialization}:${category.grade}`)}
 								<label class="flex items-center gap-2 text-sm">
 									<input
@@ -243,7 +286,7 @@
 										class="size-4"
 										name="category"
 										value={`${category.specialization}:${category.grade}`}
-										checked={category.basis !== 'neighbour_grade'}
+										checked={category.basis === 'form' || category.basis === 'role'}
 									/>
 									{specializationTitle(category.specialization)} · {gradeTitle(category.grade)}
 									<span class="text-xs text-muted-foreground">({count(category.candidates)})</span>
@@ -267,8 +310,6 @@
 							</li>
 						{/each}
 					</ul>
-				{:else if data.categories.length === 0}
-					<p class="text-sm text-muted-foreground">Подборка появится, когда у потребности будут категории.</p>
 				{/if}
 			</Card.Content>
 		</Card.Root>

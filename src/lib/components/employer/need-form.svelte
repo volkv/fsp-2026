@@ -5,22 +5,27 @@
 	import NativeSelect from './native-select.svelte';
 
 	/**
-	 * The fields of a hiring need (domain 13.10): specialization and the range of grades of the catalog of categories, skills by their
-	 * names, the team, the format, the region, a range in roubles per month and whether FSP results matter. The parent
-	 * form posts them; the server resolves skill names by the taxonomy.
+	 * The fields of a hiring need (domain 13.10): the role, specialization and the range of grades of the catalog of
+	 * categories, skills by their names, requirements outside the taxonomy as written, the team, the format, the region, a
+	 * range in roubles per month and whether FSP results matter. The parent form posts them; the server resolves skill
+	 * names by the taxonomy.
 	 */
 	interface Props {
 		options: {
+			roles: { key: string; name: string; tested: boolean }[];
 			specializations: { key: string; title: string }[];
 			grades: { key: string; title: string }[];
 			workFormats: { key: string; name: string }[];
 			regions: { code: string; name: string }[];
 		};
 		values?: {
+			roleKey?: string;
 			specialization?: string;
 			grade?: { min: string; max: string };
 			skills: string;
 			niceSkills: string;
+			otherSkills?: string;
+			otherNiceSkills?: string;
 			team?: string;
 			workFormat?: string;
 			regionCode?: string;
@@ -36,10 +41,21 @@
 
 <div class="grid gap-4" data-testid="need-form-fields">
 	<div class="grid gap-3 sm:grid-cols-2">
+		<Field.Field data-invalid={problems['form.role_key'] !== undefined}>
+			<Field.Label for="{id}-role">Роль</Field.Label>
+			<NativeSelect id="{id}-role" name="role_key" value={values?.roleKey ?? ''}>
+				<option value="">Не указана</option>
+				{#each options.roles as item (item.key)}
+					<option value={item.key}>{item.name}{item.tested ? '' : ' — тестом не подтверждается'}</option>
+				{/each}
+			</NativeSelect>
+			<Field.Description>Без специализации подборка берёт категории роли.</Field.Description>
+			{#if problems['form.role_key']}<Field.Error>{problems['form.role_key']}</Field.Error>{/if}
+		</Field.Field>
 		<Field.Field data-invalid={problems['form.specialization'] !== undefined}>
 			<Field.Label for="{id}-spec">Специализация</Field.Label>
 			<NativeSelect id="{id}-spec" name="specialization" value={values?.specialization ?? ''}>
-				<option value="">Не указана — по навыкам</option>
+				<option value="">Не указана — по роли</option>
 				{#each options.specializations as item (item.key)}
 					<option value={item.key}>{item.title}</option>
 				{/each}
@@ -77,6 +93,17 @@
 		<Input id="{id}-nice" name="nice_skill_keys" value={values?.niceSkills ?? ''} placeholder="Kafka" />
 		{#if problems['form.nice_skill_keys']}<Field.Error>{problems['form.nice_skill_keys']}</Field.Error>{/if}
 	</Field.Field>
+	<div class="grid gap-3 sm:grid-cols-2">
+		<Field.Field>
+			<Field.Label for="{id}-other">Другие обязательные требования</Field.Label>
+			<Input id="{id}-other" name="other_skills" value={values?.otherSkills ?? ''} placeholder="Hugging Face" />
+			<Field.Description>Вне таксономии: платформа их не подтверждает — проверьте на собеседовании.</Field.Description>
+		</Field.Field>
+		<Field.Field>
+			<Field.Label for="{id}-other-nice">Другие желательные требования</Field.Label>
+			<Input id="{id}-other-nice" name="other_nice_skills" value={values?.otherNiceSkills ?? ''} />
+		</Field.Field>
+	</div>
 	<Field.Field>
 		<Field.Label for="{id}-team">О команде (необязательно)</Field.Label>
 		<Textarea id="{id}-team" name="team" rows={2} maxlength={500} value={values?.team ?? ''} />

@@ -131,6 +131,68 @@ describe('a hiring need', () => {
 		expect(need.status).toBe('draft');
 	});
 
+	it('takes the role from the title: a stack line never names it, a role no test checks keeps no specialization', async () => {
+		const { subject } = await employer();
+		const form = async (text: string) => (await createNeed(deps(), subject, meta, { text })).form;
+		// Python in the requirements is a tool, not the position: the data engineer is not a backend developer.
+		for (const text of [
+			'Дата-инженер\nТребования: Python, SQL, Airflow.',
+			'Data Engineer (Middle)\nPython, Spark, Airflow\nОпыт с Python от 3 лет.',
+			'Аналитик данных\nНужны SQL и Python.'
+		]) {
+			const read = await form(text);
+			expect(read.specialization).toBeUndefined();
+			expect(['data_engineer', 'data_analyst']).toContain(read.role_key);
+		}
+		expect(await form('Системный аналитик\nТребования: SQL, BPMN, REST.')).toMatchObject({
+			role_key: 'systems_analyst'
+		});
+		// A title without a role and a line of a stack: no role at all rather than one read from the stack.
+		for (const text of [
+			'Команда платформы данных\nPython, Kafka, ClickHouse',
+			'Ищем аналитика данных в команду маркетинга\nНужны SQL и Python.'
+		]) {
+			const untitled = await form(text);
+			expect(untitled.role_key).toBeUndefined();
+			expect(untitled.specialization).toBeUndefined();
+		}
+		// A role of one specialization gives it; fullstack is left to the categories of the role.
+		expect(await form('Python-разработчик\nНужны Django и PostgreSQL.')).toMatchObject({
+			role_key: 'backend',
+			specialization: 'backend'
+		});
+		const fullstack = await form('Fullstack-разработчик (React + Node.js)\nТребования: TypeScript, PostgreSQL.');
+		expect(fullstack.role_key).toBe('fullstack');
+		expect(fullstack.specialization).toBeUndefined();
+		const { basis, categories } = await needCategories(
+			deps(),
+			subject,
+			(await createNeed(deps(), subject, meta, { form: { ...fullstack } })).id
+		);
+		expect(basis).toBe('role');
+		expect([...new Set(categories.filter((c) => c.basis === 'role').map((c) => c.specialization))]).toEqual([
+			'backend',
+			'frontend'
+		]);
+	});
+
+	it('keeps a required tool the taxonomy does not know by its name, never a broader skill, and not a negated one', async () => {
+		const { subject } = await employer();
+		const form = async (text: string) => (await createNeed(deps(), subject, meta, { text })).form;
+		const ml = await form('ML-инженер\nТребования: Python, Hugging Face, Docker.');
+		expect(ml.other_skills).toEqual(['Hugging Face']);
+		expect(ml.skill_keys).toEqual(expect.arrayContaining(['python', 'docker']));
+		const variants = await form(
+			'Backend-разработчик\nСтек: Go, PostgreSQL, Temporal\nБудет плюсом: опыт с Camunda\nKotlin не требуется'
+		);
+		expect(variants.other_skills).toEqual(['Temporal']);
+		expect(variants.other_nice_skills).toEqual(['Camunda']);
+		expect(JSON.stringify(variants)).not.toContain('Kotlin');
+		// Prose of requirements names no tool.
+		const prose = await form('QA-инженер\nТребования: опыт от 2 лет, умение писать тест-кейсы, внимательность.');
+		expect(prose.other_skills).toBeUndefined();
+	});
+
 	it('reads a range of grades: «Middle/Senior», «от Junior», a grade above the catalog as its top', async () => {
 		const { subject } = await employer();
 		const read = async (text: string) => (await createNeed(deps(), subject, meta, { text })).form.grade;

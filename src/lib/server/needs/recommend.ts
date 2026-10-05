@@ -1,8 +1,11 @@
-// Recommended categories of a need (docs/domain.md, section 13.10): the pair of the form and the neighbouring grades of
-// its specialization; without a specialization — the specializations whose blocks confirm the required skills of the
-// need. Each with the number of candidates of an active category the company sees (`canShow` in the catalog and the
-// predicate of the module of categories), of them with results of FSP that relate to the need; small numbers are
-// «< 5». The categories are a pure function of the form; the numbers are read at the moment of the request.
+// Recommended categories of a need (docs/domain.md, section 13.10). The categories of the need are the pair of the
+// form, or — without a specialization — the specializations of its role (fullstack: backend and frontend); each with
+// the neighbouring grades of its range, offered as a deliberate widening, never taken by default. A need whose role no
+// test of the catalog checks (data engineer, systems analyst) has no category: the specializations whose blocks confirm
+// its required skills are suggested with what they cover, for the employer to choose, never instead of the role. Each
+// category with the number of candidates of an active category the company sees (`canShow` in the catalog and the
+// predicate of the module of categories), of them with results of FSP that relate to the need; small numbers are «< 5».
+// The categories are a pure function of the form; the numbers are read at the moment of the request.
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import type { AccessSubject } from '$lib/server/access/permissions';
 import {
@@ -13,6 +16,7 @@ import {
 	type SpecializationKey
 } from '$lib/server/assessments/contract/catalog';
 import { categoryPredicate } from '$lib/server/categories/read';
+import { specializationsOfRole } from '$lib/server/categories/roles';
 import type { Executor } from '$lib/server/db';
 import { candidateAt, listedInCatalog } from '$lib/server/db/conditions';
 import { candidates, skillInferences, sourceFacts } from '$lib/server/db/schema';
@@ -21,7 +25,12 @@ import { smallCell, smallCountThreshold, type SmallCell } from '$lib/server/oper
 import { canShow } from '$lib/server/visibility/can-show';
 import { gradesOf, type NeedForm, type NeedGrade } from './form';
 
-export type RecommendationBasis = 'form' | 'neighbour_grade' | 'skills';
+/**
+ * Why a category is offered: `form` — the pair the employer named; `role` — a specialization of the role of the need;
+ * `neighbour_grade` — a grade next to the range, a widening; `skills` — a suggestion by the required skills its blocks
+ * confirm, for a need without a category of its own.
+ */
+export type RecommendationBasis = 'form' | 'role' | 'neighbour_grade' | 'skills';
 
 export interface RecommendedCategory {
 	specialization: SpecializationKey;
@@ -29,6 +38,21 @@ export interface RecommendedCategory {
 	basis: RecommendationBasis;
 	/** Required skills of the need the blocks of the specialization confirm. */
 	coveredSkills: string[];
+}
+
+/**
+ * Where the categories of a need come from: `form` — its specialization; `role` — the specializations of its role;
+ * `unsupported_role` — its role is one no test of the catalog checks; `closed` — the specialization of the form or of
+ * the role is not open now; `no_basis` — the need names neither a role nor a specialization.
+ */
+export type CategoryBasis = 'form' | 'role' | 'unsupported_role' | 'closed' | 'no_basis';
+
+export interface NeedCategories {
+	basis: CategoryBasis;
+	/** The categories of the need and their neighbouring grades, then the suggestions by skills. */
+	categories: RecommendedCategory[];
+	/** Specializations of the form or the role that are closed now. */
+	closed: SpecializationKey[];
 }
 
 /** The grades just below and just above the range. */
@@ -47,18 +71,20 @@ function coveredBy(specialization: SpecializationKey, skills: readonly string[])
 
 /**
  * The categories of one specialization: every grade of the range of the form and the neighbours of the range, or every
- * grade without a range.
+ * grade without a range. Suggestions by skills take no neighbours: they are a choice already.
  */
 function categoriesOf(
 	specialization: SpecializationKey,
 	range: NeedGrade | undefined,
-	basis: 'form' | 'skills',
+	basis: 'form' | 'role' | 'skills',
 	covered: string[]
 ): RecommendedCategory[] {
 	if (range === undefined)
 		return GRADE_KEYS.map((key) => ({ specialization, grade: key, basis, coveredSkills: covered }));
+	const own = gradesOf(range).map((grade) => ({ specialization, grade, basis, coveredSkills: covered }));
+	if (basis === 'skills') return own;
 	return [
-		...gradesOf(range).map((grade) => ({ specialization, grade, basis, coveredSkills: covered })),
+		...own,
 		...neighbours(range).map((key) => ({
 			specialization,
 			grade: key,
@@ -68,16 +94,8 @@ function categoriesOf(
 	];
 }
 
-/**
- * The categories recommended for the form, among the open specializations: the pair of the form and its neighbouring
- * grades; without a specialization, the specializations confirming the most required skills first. Nothing to go by —
- * no specialization and no skill a block confirms — gives no categories.
- */
-export function recommendCategories(form: NeedForm, open: ReadonlySet<SpecializationKey>): RecommendedCategory[] {
-	if (form.specialization !== undefined) {
-		if (!open.has(form.specialization)) return [];
-		return categoriesOf(form.specialization, form.grade, 'form', coveredBy(form.specialization, form.skill_keys));
-	}
+/** Open specializations whose blocks confirm a required skill of the need, the most covered first. */
+function bySkills(form: NeedForm, open: ReadonlySet<SpecializationKey>): RecommendedCategory[] {
 	return [...open]
 		.map((specialization) => ({ specialization, covered: coveredBy(specialization, form.skill_keys) }))
 		.filter(({ covered }) => covered.length > 0)
@@ -85,12 +103,45 @@ export function recommendCategories(form: NeedForm, open: ReadonlySet<Specializa
 		.flatMap(({ specialization, covered }) => categoriesOf(specialization, form.grade, 'skills', covered));
 }
 
-export interface CountedCategory extends RecommendedCategory {
+/**
+ * The categories of the form among the open specializations: the specialization of the form, else those of its role,
+ * each with its neighbouring grades. A need without an open category of its own gets suggestions by its required skills;
+ * nothing to go by gives no categories.
+ */
+export function needCategoriesOf(form: NeedForm, open: ReadonlySet<SpecializationKey>): NeedCategories {
+	const own = (basis: 'form' | 'role', specializations: readonly SpecializationKey[]): NeedCategories => {
+		const opened = specializations.filter((s) => open.has(s));
+		const closed = specializations.filter((s) => !open.has(s));
+		if (opened.length === 0) return { basis: 'closed', categories: bySkills(form, open), closed };
+		return {
+			basis,
+			categories: opened.flatMap((s) => categoriesOf(s, form.grade, basis, coveredBy(s, form.skill_keys))),
+			closed
+		};
+	};
+	if (form.specialization !== undefined) return own('form', [form.specialization]);
+	if (form.role_key !== undefined) {
+		const specializations = specializationsOfRole(form.role_key);
+		if (specializations.length > 0) return own('role', specializations);
+		return { basis: 'unsupported_role', categories: bySkills(form, open), closed: [] };
+	}
+	return { basis: 'no_basis', categories: bySkills(form, open), closed: [] };
+}
+
+/** The recommended categories of the form, in the order of `needCategoriesOf`. */
+export function recommendCategories(form: NeedForm, open: ReadonlySet<SpecializationKey>): RecommendedCategory[] {
+	return needCategoriesOf(form, open).categories;
+}
+
+/** The numbers of a category for the company. */
+export interface CategoryCounts {
 	/** Candidates of an active category of the pair the company sees in the catalog. */
 	candidates: SmallCell;
 	/** Of them, with an active result of FSP that relates to the need. */
 	withFsp: SmallCell;
 }
+
+export type CountedCategory = RecommendedCategory & CategoryCounts;
 
 /**
  * Candidates with an active result of FSP relating to the need: an FSP fact in force and, when the need names required
@@ -121,23 +172,24 @@ async function withRelevantFsp(
 }
 
 /**
- * The recommended categories of the form with their numbers for the subject's company: candidates of a category in
- * force by the predicate of the module of categories, then `canShow` in the catalog of the company.
+ * Categories with their numbers for the subject's company: candidates of a category in force by the predicate of the
+ * module of categories, then `canShow` in the catalog of the company; `exclude` — candidates not to count (those a
+ * shortlist already shows).
  */
-export async function countRecommendedCategories(
+export async function countCategories<T extends { specialization: SpecializationKey; grade: GradeKey }>(
 	executor: Executor,
 	subject: AccessSubject,
 	form: NeedForm,
-	open: ReadonlySet<SpecializationKey>,
-	now: Date
-): Promise<CountedCategory[]> {
-	const recommended = recommendCategories(form, open);
-	if (recommended.length === 0) return [];
+	categories: readonly T[],
+	now: Date,
+	exclude: ReadonlySet<string> = new Set()
+): Promise<(T & CategoryCounts)[]> {
+	if (categories.length === 0) return [];
 	const viewer = await loadCatalogViewer(executor, subject, now);
-	if (!viewer) throw new Error('recommended categories are counted for a member of a company');
+	if (!viewer) throw new Error('categories are counted for a member of a company');
 	const c = candidateAt('c');
 	const members = new Map<string, Set<string>>();
-	for (const category of recommended) {
+	for (const category of categories) {
 		const rows = await executor.execute<{ id: string }>(
 			sql`select c.id from ${candidates} c where ${listedInCatalog(c)}
 				and ${categoryPredicate(sql`c.id`, { specializations: [category.specialization], grades: [category.grade] })}`
@@ -153,13 +205,14 @@ export async function countRecommendedCategories(
 	});
 	const visible = new Set(
 		all.filter((id) => {
+			if (exclude.has(id)) return false;
 			const candidate = facts.get(id);
 			return candidate !== undefined && canShow(candidate, viewer.viewer, { kind: 'catalog' }).allowed;
 		})
 	);
 	const fsp = await withRelevantFsp(executor, [...visible], form);
 	const threshold = await smallCountThreshold(executor, now);
-	return recommended.map((category) => {
+	return categories.map((category) => {
 		const ids = [...(members.get(`${category.specialization}:${category.grade}`) ?? [])].filter((id) =>
 			visible.has(id)
 		);

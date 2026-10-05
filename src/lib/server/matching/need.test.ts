@@ -1,6 +1,8 @@
-// Ranking for a hiring need (docs/domain.md, section 13.10): what a candidate says of themselves is capped below what a
-// check confirms, the two levels add up with exact contributions, FSP is a bonus only where it relates to the need and
-// never a penalty, the test is read by blocks, and the semantic similarity only orders almost equal scores.
+// Ranking for a hiring need (docs/domain.md, section 13.10): candidates covering every required skill come first, then
+// by the number of unconfirmed ones — missing, unknown and claimed told apart; what a candidate says of themselves is
+// worth its band under a ceiling below what a check confirms, the two levels add up with exact contributions, FSP is a
+// bonus only where it relates to the need and never a penalty, the test is read by blocks, and the semantic similarity
+// only orders almost equal scores.
 import { describe, expect, it } from 'vitest';
 import matchRuleset from '../../../../taxonomy/match-ruleset.json';
 import { matchRulesetParamsSchema } from './params';
@@ -63,34 +65,80 @@ const score = (input: Partial<NeedScoreInput> & Pick<NeedScoreInput, 'candidate'
 const sum = (values: number[]) => values.reduce((a, b) => a + b, 0);
 
 describe('the fit to a need', () => {
-	it('caps what the candidate claims below what the test confirms, however strong the claim', () => {
-		const claimed = score({
-			candidate: candidate({
-				categories: [],
-				evidence: {
-					status: 'available',
-					runId: 'r',
-					skills: [skill('sql'), skill('multithreading'), skill('kafka')]
-				}
-			})
-		});
+	it('caps what the candidate claims below what the test confirms, lower where their own test checked the skill', () => {
+		const claims = (band: SkillEvidence['band'], categories = [backendMiddle({ confirmedSkillKeys: ['python'] })]) =>
+			score({
+				candidate: candidate({
+					categories,
+					evidence: {
+						status: 'available',
+						runId: 'r',
+						skills: [skill('sql', { band }), skill('multithreading', { band }), skill('kafka', { band })]
+					}
+				})
+			});
+		const claimed = claims('strong');
 		const tested = score({ candidate: candidate() });
-		// SQL and multithreading a Backend test confirms: their claim is capped low. Kafka no block of Backend checks: the
-		// resume is the best evidence there is, capped higher, still below a verified public profile.
-		const by = (key: string) => claimed.skills.find((s) => s.skill_key === key);
-		expect(by('sql')).toMatchObject({ basis: 'claimed', value: params.need.skill.claimedCeiling });
-		expect(by('multithreading')).toMatchObject({ basis: 'claimed', value: params.need.skill.claimedCeiling });
-		expect(by('kafka')).toMatchObject({
+		// SQL and multithreading the candidate's Backend Middle test checks and did not confirm: their claim is capped low.
+		// Kafka no block of that test checks: the resume is the best evidence there is, capped higher, still below a
+		// verified public profile.
+		const by = (result: ReturnType<typeof score>, key: string) => result.skills.find((s) => s.skill_key === key);
+		expect(by(claimed, 'sql')).toMatchObject({ basis: 'claimed', value: params.need.skill.claimedCeiling });
+		expect(by(claimed, 'multithreading')).toMatchObject({
+			basis: 'claimed',
+			value: params.need.skill.claimedCeiling
+		});
+		expect(by(claimed, 'kafka')).toMatchObject({
 			basis: 'claimed_untestable',
 			value: params.need.skill.untestableClaimedCeiling
 		});
 		expect(params.need.skill.claimedCeiling).toBeLessThan(params.need.skill.untestableClaimedCeiling);
 		expect(params.need.skill.untestableClaimedCeiling).toBeLessThan(params.need.skill.publicProfileFactor);
-		expect(tested.skills.find((s) => s.skill_key === 'sql')).toMatchObject({ basis: 'test', value: 1, block: 'be.db' });
+		expect(by(tested, 'sql')).toMatchObject({ basis: 'test', value: 1, block: 'be.db' });
 		expect(tested.components.required.value).toBeGreaterThan(claimed.components.required.value);
 		expect(claimed.toVerify).toEqual(['sql', 'multithreading', 'kafka']);
 		// Kafka is in no confirmed stack and not claimed: a gap of the tested candidate.
 		expect(tested.gaps).toEqual(['kafka']);
+
+		// The value of a claim follows its band: a weak claim is worth less than a strong one, never the same ceiling.
+		const weak = claims('weak');
+		expect(by(weak, 'sql')?.value).toBeCloseTo(params.skillBandValue.weak * params.need.skill.claimedCeiling, 6);
+		expect(by(weak, 'kafka')?.value).toBeLessThan(by(claimed, 'kafka')?.value ?? 0);
+		// Without a category no test of the candidate checked SQL: the claim is capped as an unchecked one.
+		expect(by(claims('strong', []), 'sql')).toMatchObject({ basis: 'claimed_untestable' });
+	});
+
+	it('tells the coverage of the required skills: confirmed, a public profile, claimed, missing, unknown', () => {
+		const tested = score({ candidate: candidate() });
+		expect(tested.coverage).toEqual({
+			group: 'gaps',
+			required: 3,
+			unconfirmed: [{ skill_key: 'kafka', state: 'missing' }]
+		});
+		const fsp = skill('kafka', { attestation: 'direct', badgeTrust: 'fsp_verified', factIds: ['f1'] });
+		const covering = score({ candidate: candidate({ evidence: { status: 'available', runId: 'r', skills: [fsp] } }) });
+		expect(covering.coverage).toEqual({ group: 'covers', required: 3, unconfirmed: [] });
+		const public_ = skill('kafka', { attestation: 'direct', badgeTrust: 'public_verifiable' });
+		expect(
+			score({ candidate: candidate({ evidence: { status: 'available', runId: 'r', skills: [public_] } }) }).coverage
+				.unconfirmed
+		).toEqual([{ skill_key: 'kafka', state: 'public_profile' }]);
+		expect(
+			score({ candidate: candidate({ evidence: { status: 'available', runId: 'r', skills: [skill('kafka')] } }) })
+				.coverage.unconfirmed
+		).toEqual([{ skill_key: 'kafka', state: 'claimed' }]);
+		// A profile that cannot be read now: what the test confirmed stands, the rest is unknown, not missing.
+		const unreadable = score({
+			candidate: candidate({ evidence: { status: 'unavailable', reason: 'run_below_evidence_floor' } })
+		});
+		expect(unreadable.coverage.unconfirmed).toEqual([{ skill_key: 'kafka', state: 'unknown' }]);
+		expect(unreadable.gaps).toEqual([]);
+		// A need without required skills is covered by everybody.
+		expect(score({ need: need({ requiredSkillKeys: [] }), candidate: candidate() }).coverage).toEqual({
+			group: 'covers',
+			required: 0,
+			unconfirmed: []
+		});
 	});
 
 	it('takes the best basis of a skill: a test over a claim, an FSP confirmation by its band', () => {
@@ -261,7 +309,55 @@ describe('reasons «почему подходит»', () => {
 });
 
 describe('the order of a ranking for a need', () => {
-	const place = (id: string, score: number, strength = 0, withoutFsp = score) => ({ id, score, strength, withoutFsp });
+	const place = (
+		id: string,
+		score: number,
+		strength = 0,
+		withoutFsp = score,
+		unconfirmed = 0,
+		without = unconfirmed
+	) => ({
+		id,
+		unconfirmed,
+		score,
+		strength,
+		withoutFsp: { unconfirmed: without, score: withoutFsp }
+	});
+
+	it('puts those covering every required skill first, then by the number unconfirmed, by score inside', () => {
+		const order = orderForNeed(
+			[place('a', 0.95, 0, 0.95, 1), place('b', 0.5), place('c', 0.9, 0, 0.9, 2), place('d', 0.6, 0, 0.6, 1)],
+			new Map(),
+			0.01
+		);
+		expect(order.map((p) => p.id)).toEqual(['b', 'a', 'd', 'c']);
+	});
+
+	it('never orders by similarity across the number of unconfirmed skills', () => {
+		const order = orderForNeed(
+			[place('a', 0.8), place('b', 0.801, 0, 0.801, 1)],
+			new Map([
+				['a', 0.1],
+				['b', 0.9]
+			]),
+			0.01
+		);
+		expect(order.map((p) => [p.id, p.tieBrokenBySemantic])).toEqual([
+			['a', false],
+			['b', false]
+		]);
+	});
+
+	it('places a candidate whose FSP result confirmed a required skill among the others as without it', () => {
+		const order = orderForNeed(
+			[place('a', 0.9, 0, 0.85, 0, 1), place('b', 0.6), place('c', 0.8, 0, 0.8, 1), place('d', 0.9, 0, 0.9, 1)],
+			new Map(),
+			0.01
+		);
+		// Without FSP `a` leaves the first group: after `b`, and after `d` that covers as much and scores higher.
+		expect(order.map((p) => p.id)).toEqual(['a', 'b', 'd', 'c']);
+		expect(order.find((p) => p.id === 'a')).toMatchObject({ position: 1, positionWithoutFsp: 3 });
+	});
 
 	it('orders almost equal scores by the semantic similarity and never lifts one past a clearly higher score', () => {
 		const order = orderForNeed(
