@@ -1,6 +1,9 @@
-// Platform tests as an evidence source: tasks, versions, attempts, scores and artifacts (domain 10).
+// The test on a declared grade (docs/domain.md, section 10): bank releases, attempts, served clusters, artifacts of an
+// attempt and grade decisions.
 import { sql } from 'drizzle-orm';
 import {
+	bigint,
+	boolean,
 	check,
 	date,
 	index,
@@ -10,6 +13,7 @@ import {
 	pgTable,
 	text,
 	unique,
+	uniqueIndex,
 	uuid,
 	type AnyPgColumn
 } from 'drizzle-orm/pg-core';
@@ -18,130 +22,162 @@ import { candidates } from './candidates';
 import { files } from './documents';
 import { users } from './identity';
 
-const ASSESSMENT_KINDS = ['code_task', 'quiz', 'open_answer'] as const;
+const RELEASE_STATUSES = ['released', 'retired'] as const;
 
-export const assessments = pgTable(
-	'assessments',
+/** A released version of the bank of one specialization (domain 10.5); its content never changes. */
+export const bankReleases = pgTable(
+	'bank_releases',
 	{
-		id: id(),
-		kind: text({ enum: ASSESSMENT_KINDS }).notNull(),
-		title: text().notNull(),
-		skillKeys: text().array().notNull(),
-		...timestamps()
-	},
-	(t) => [
-		enumCheck('assessments', 'kind', t.kind, ASSESSMENT_KINDS),
-		check('assessments_skill_keys', sql`cardinality(${t.skillKeys}) >= 1`)
-	]
-);
-
-const VERSION_STATUSES = ['draft', 'published', 'retired', 'defective'] as const;
-
-export const assessmentVersions = pgTable(
-	'assessment_versions',
-	{
-		id: id(),
-		assessmentId: uuid()
-			.notNull()
-			.references(() => assessments.id),
-		version: integer().notNull(),
+		/** `<specialization>@<catalog version>-<n>`. */
+		id: text().primaryKey(),
+		specialization: text().notNull(),
+		catalogVersion: text().notNull(),
+		procedureVersion: text().notNull(),
 		contentSha256: text().notNull(),
-		scorer: jsonb().notNull(),
-		levelScale: jsonb().notNull(),
-		coverage: jsonb().notNull(),
-		itemBank: jsonb(),
-		status: text({ enum: VERSION_STATUSES }).notNull(),
-		...timestamps()
+		/** SHA-256 of the shared code of the generators (`_*` directories of the bank tree). */
+		sharedSha256: text().notNull(),
+		manifest: jsonb().notNull(),
+		status: text({ enum: RELEASE_STATUSES }).notNull(),
+		releasedAt: ts().notNull(),
+		retiredAt: ts()
 	},
 	(t) => [
-		enumCheck('assessment_versions', 'status', t.status, VERSION_STATUSES),
-		sha256Check('assessment_versions', 'content_sha256', t.contentSha256),
-		check('assessment_versions_version_positive', sql`${t.version} >= 1`),
-		unique('assessment_versions_assessment_version').on(t.assessmentId, t.version)
+		enumCheck('bank_releases', 'status', t.status, RELEASE_STATUSES),
+		sha256Check('bank_releases', 'content_sha256', t.contentSha256),
+		sha256Check('bank_releases', 'shared_sha256', t.sharedSha256),
+		check('bank_releases_retired', sql`(${t.status} = 'retired') = (${t.retiredAt} is not null)`),
+		uniqueIndex('bank_releases_one_released')
+			.on(t.specialization)
+			.where(sql`${t.status} = 'released'`)
 	]
 );
 
-const ATTEMPT_STATUSES = ['started', 'submitted', 'scored', 'expired', 'annulled'] as const;
-const ANNUL_REASONS = ['plagiarism', 'technical_failure', 'version_defect', 'candidate_request'] as const;
+export const ATTEMPT_PURPOSES = ['grade', 'vacancy_block', 'recheck'] as const;
+export const ATTEMPT_STATUSES = ['in_progress', 'decided', 'expired', 'annulled'] as const;
+export const ANNUL_REASONS = [
+	'plagiarism',
+	'candidate_request',
+	'technical_failure',
+	'version_defect',
+	'objection_upheld'
+] as const;
+const FORMS = ['A', 'B'] as const;
 
-export const assessmentAttempts = pgTable(
-	'assessment_attempts',
+export const testAttempts = pgTable(
+	'test_attempts',
 	{
 		id: id(),
 		candidateId: uuid()
 			.notNull()
 			.references(() => candidates.id),
-		versionId: uuid()
+		purpose: text({ enum: ATTEMPT_PURPOSES }).notNull(),
+		specialization: text().notNull(),
+		grade: text().notNull(),
+		catalogVersion: text().notNull(),
+		bankReleaseId: text()
 			.notNull()
-			.references(() => assessmentVersions.id),
-		startedAt: ts().notNull(),
-		submittedAt: ts(),
-		deadlineAt: ts().notNull(),
+			.references(() => bankReleases.id),
+		procedureVersion: text().notNull(),
+		policyVersion: integer().notNull(),
+		/** `A` or `B` for a grade attempt; a block test and a recheck take reserve classes and have none. */
+		form: text({ enum: FORMS }),
+		/** Started on the one-step right of a confident result (domain 12.3). */
+		viaConfidentUpgrade: boolean().notNull().default(false),
+		/** 128 random bits in hex; the seeds of the instances derive from it. */
+		seed: text().notNull(),
 		status: text({ enum: ATTEMPT_STATUSES }).notNull(),
+		startedAt: ts().notNull(),
+		deadlineAt: ts().notNull(),
+		endedAt: ts(),
+		/** For `vacancy_block`: the employer's request (domain 13.11). */
+		confirmationRequestId: uuid(),
 		integritySignals: jsonb(),
+		/** A seeded attempt (domain 23.3): scores by the deterministic verdict, nothing run in the sandbox. */
+		seeded: boolean().notNull().default(false),
 		annulledBy: uuid().references(() => users.id),
 		annulledAt: ts(),
 		annulReason: text({ enum: ANNUL_REASONS }),
 		...timestamps()
 	},
 	(t) => [
-		enumCheck('assessment_attempts', 'status', t.status, ATTEMPT_STATUSES),
-		enumCheck('assessment_attempts', 'annul_reason', t.annulReason, ANNUL_REASONS),
+		enumCheck('test_attempts', 'purpose', t.purpose, ATTEMPT_PURPOSES),
+		enumCheck('test_attempts', 'status', t.status, ATTEMPT_STATUSES),
+		enumCheck('test_attempts', 'form', t.form, FORMS),
+		enumCheck('test_attempts', 'annul_reason', t.annulReason, ANNUL_REASONS),
+		check('test_attempts_form', sql`(${t.purpose} = 'grade') = (${t.form} is not null)`),
+		check('test_attempts_seed_format', sql`${t.seed} ~ '^[0-9a-f]{32}$'`),
 		check(
-			'assessment_attempts_annulment',
+			'test_attempts_annulment',
 			sql`(${t.status} = 'annulled') = (${t.annulledAt} is not null and ${t.annulReason} is not null)`
 		),
+		check('test_attempts_ended', sql`(${t.status} = 'in_progress') = (${t.endedAt} is null)`),
 		check(
-			'assessment_attempts_submitted',
-			sql`${t.status} not in ('submitted', 'scored') or ${t.submittedAt} is not null`
+			'test_attempts_confirmation_request',
+			sql`(${t.purpose} = 'vacancy_block') = (${t.confirmationRequestId} is not null)`
 		),
-		index('assessment_attempts_candidate').on(t.candidateId)
+		uniqueIndex('test_attempts_one_in_progress')
+			.on(t.candidateId)
+			.where(sql`${t.status} = 'in_progress'`),
+		index('test_attempts_candidate').on(t.candidateId, t.specialization, t.grade)
 	]
 );
 
-const SCORED_BY = ['automatic', 'human_review'] as const;
+export const ITEM_STATUSES = ['served', 'answered', 'scored', 'awaiting_sandbox'] as const;
 
-/** Append-only: a review adds a score that supersedes the previous one (domain 10.3). */
-export const assessmentScores = pgTable(
-	'assessment_scores',
+/** Served clusters of an attempt (domain 10.7): the instance whole, the candidate sees only its statement. */
+export const testItems = pgTable(
+	'test_items',
 	{
 		id: id(),
 		attemptId: uuid()
 			.notNull()
-			.references(() => assessmentAttempts.id),
-		score: numeric().notNull(),
-		maxScore: numeric().notNull(),
-		level: text().notNull(),
-		scoredBy: text({ enum: SCORED_BY }).notNull(),
-		scorerVersion: text().notNull(),
-		supersedesScoreId: uuid().references((): AnyPgColumn => assessmentScores.id),
-		reviewReason: text(),
-		reviewerId: uuid().references(() => users.id),
-		createdAt: ts().notNull().defaultNow()
+			.references(() => testAttempts.id),
+		/** The slot of the blueprint, from 1. */
+		seq: integer().notNull(),
+		block: text().notNull(),
+		format: text().notNull(),
+		practice: boolean().notNull(),
+		familyKey: text().notNull(),
+		familyVersion: integer().notNull(),
+		classId: text().notNull(),
+		instanceSeed: text().notNull(),
+		instance: jsonb().notNull(),
+		angoff: numeric({ precision: 3, scale: 2, mode: 'number' }).notNull(),
+		servedAt: ts().notNull(),
+		answeredAt: ts(),
+		score: numeric({ precision: 3, scale: 2, mode: 'number' }),
+		scoreDetail: jsonb(),
+		status: text({ enum: ITEM_STATUSES }).notNull()
 	},
 	(t) => [
-		enumCheck('assessment_scores', 'scored_by', t.scoredBy, SCORED_BY),
-		check('assessment_scores_range', sql`${t.maxScore} > 0 and ${t.score} >= 0 and ${t.score} <= ${t.maxScore}`),
-		check('assessment_scores_review_reason', sql`${t.supersedesScoreId} is null or ${t.reviewReason} is not null`),
-		check('assessment_scores_human_reviewer', sql`${t.scoredBy} <> 'human_review' or ${t.reviewerId} is not null`),
-		unique('assessment_scores_supersedes').on(t.supersedesScoreId),
-		index('assessment_scores_attempt').on(t.attemptId)
+		enumCheck('test_items', 'status', t.status, ITEM_STATUSES),
+		unique('test_items_attempt_seq').on(t.attemptId, t.seq),
+		check('test_items_seq_positive', sql`${t.seq} >= 1`),
+		check('test_items_angoff_range', sql`${t.angoff} > 0 and ${t.angoff} < 1 and mod(${t.angoff} * 20, 1) = 0`),
+		check(
+			'test_items_score_range',
+			sql`${t.score} is null or (${t.score} >= 0 and ${t.score} <= 1 and mod(${t.score} * 20, 1) = 0)`
+		),
+		check('test_items_scored', sql`(${t.status} = 'scored') = (${t.score} is not null)`)
 	]
 );
 
-const ARTIFACT_KINDS = ['answer', 'code_submission', 'run_result', 'quiz_step'] as const;
+export const ARTIFACT_KINDS = ['answer', 'code_submission', 'run_result', 'qa_cases'] as const;
 
 /**
- * Append-only artifacts of an attempt (domain 10.4). After `retention_until` the retention role may clear
- * `content` and `file_id`; hashes and the row stay (trigger in migration 0002).
+ * Append-only artifacts of an attempt (domain 10.7). After `retention_until` the retention role may clear `content` and
+ * `file_id`; the row, its hash and the score stay (trigger of the migration).
  */
-export const assessmentArtifacts = pgTable(
-	'assessment_artifacts',
+export const testArtifacts = pgTable(
+	'test_artifacts',
 	{
 		id: id(),
 		attemptId: uuid()
 			.notNull()
-			.references(() => assessmentAttempts.id),
+			.references(() => testAttempts.id),
+		itemId: uuid()
+			.notNull()
+			.references(() => testItems.id),
 		seq: integer().notNull(),
 		kind: text({ enum: ARTIFACT_KINDS }).notNull(),
 		content: jsonb(),
@@ -151,9 +187,74 @@ export const assessmentArtifacts = pgTable(
 		retentionUntil: date({ mode: 'string' }).notNull()
 	},
 	(t) => [
-		enumCheck('assessment_artifacts', 'kind', t.kind, ARTIFACT_KINDS),
-		sha256Check('assessment_artifacts', 'sha256', t.sha256),
-		check('assessment_artifacts_seq_positive', sql`${t.seq} >= 1`),
-		unique('assessment_artifacts_attempt_seq').on(t.attemptId, t.seq)
+		enumCheck('test_artifacts', 'kind', t.kind, ARTIFACT_KINDS),
+		sha256Check('test_artifacts', 'sha256', t.sha256),
+		check('test_artifacts_seq_positive', sql`${t.seq} >= 1`),
+		unique('test_artifacts_attempt_seq').on(t.attemptId, t.seq),
+		index('test_artifacts_item').on(t.itemId)
+	]
+);
+
+export const DECISION_OUTCOMES = ['confirmed', 'not_confirmed', 'undetermined'] as const;
+export const DECISION_REASONS = [
+	'sprt_upper',
+	'sprt_lower',
+	'forced_upper_at_max',
+	'forced_lower_at_max',
+	'forced_upper_final',
+	'forced_lower_final',
+	'band_after_extension',
+	'practice_gate_failed',
+	'defining_block_failed',
+	'bank_exhausted',
+	'rescored_incomplete'
+] as const;
+const DECISION_STATUSES = ['valid', 'annulled', 'superseded'] as const;
+
+/**
+ * Append-only grade decisions (domain 10.7): only `status` changes, `valid → annulled | superseded`. Sums are in
+ * twentieths of a point, the log-likelihood ratio in millionths (the exact arithmetic of the procedure).
+ */
+export const gradeDecisions = pgTable(
+	'grade_decisions',
+	{
+		id: id(),
+		attemptId: uuid()
+			.notNull()
+			.references(() => testAttempts.id),
+		candidateId: uuid()
+			.notNull()
+			.references(() => candidates.id),
+		specialization: text().notNull(),
+		grade: text().notNull(),
+		outcome: text({ enum: DECISION_OUTCOMES }).notNull(),
+		reason: text({ enum: DECISION_REASONS }).notNull(),
+		confident: boolean().notNull(),
+		llr: bigint({ mode: 'number' }).notNull(),
+		scoreSum: integer().notNull(),
+		cutSum: integer().notNull(),
+		/** Items used, the practice not counted. */
+		items: integer().notNull(),
+		extensionUsed: boolean().notNull(),
+		/** `null` — decided before the practice (the bank ran out). */
+		practice: jsonb(),
+		blocks: jsonb().notNull(),
+		procedureVersion: text().notNull(),
+		bankReleaseId: text()
+			.notNull()
+			.references(() => bankReleases.id),
+		status: text({ enum: DECISION_STATUSES }).notNull(),
+		supersedesDecisionId: uuid().references((): AnyPgColumn => gradeDecisions.id),
+		decidedAt: ts().notNull()
+	},
+	(t) => [
+		enumCheck('grade_decisions', 'outcome', t.outcome, DECISION_OUTCOMES),
+		enumCheck('grade_decisions', 'reason', t.reason, DECISION_REASONS),
+		enumCheck('grade_decisions', 'status', t.status, DECISION_STATUSES),
+		check('grade_decisions_confident', sql`not ${t.confident} or ${t.outcome} = 'confirmed'`),
+		uniqueIndex('grade_decisions_one_valid')
+			.on(t.attemptId)
+			.where(sql`${t.status} = 'valid'`),
+		index('grade_decisions_candidate').on(t.candidateId, t.specialization)
 	]
 );

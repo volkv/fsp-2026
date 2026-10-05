@@ -17,9 +17,7 @@ import { searchVacancyIds, visibleVacancyId } from '$lib/server/api/read/vacanci
 import type { Actor } from '$lib/server/access/actor';
 import { requireStandChange, standChangesLocked } from '$lib/server/access/demo-actor';
 import { grantStaffRole } from '$lib/server/admin/staff';
-import { readAssessmentBank } from '$lib/server/assessments/bank';
 import { loadSelfEvidence } from '$lib/server/candidates/profile';
-import { publishAssessmentBank } from '$lib/server/assessments/publish';
 import { currentDocument } from '$lib/server/auth/documents';
 import { createEvidenceHandler } from '$lib/server/evidence/job';
 import { loadAccessSubject } from '$lib/server/companies/subject';
@@ -162,7 +160,6 @@ beforeAll(async () => {
 		await publishTaxonomy(client, buildRelease(await readTaxonomyDatasets(path('taxonomy'))));
 		await publishLegalDocuments(client, await readLegalRelease(path('legal')));
 		await publishPolicies(client, await readPolicyRelease(path('policies')));
-		await publishAssessmentBank(client, await readAssessmentBank(path('assessments')));
 	} finally {
 		await client.end({ timeout: 5 });
 	}

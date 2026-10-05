@@ -3,6 +3,8 @@
 // below the evidence floor is not shown as current: the profile is being recalculated (domain 17.3).
 import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
 import { can, type AccessSubject } from '$lib/server/access/permissions';
+import { blockDefinition } from '$lib/server/assessments/contract/catalog';
+import { testTitle } from '$lib/server/assessments/titles';
 import type { Contribution } from '$lib/server/evidence/types';
 import { parsePreferences, type CandidatePreferences } from '$lib/server/candidates/preferences';
 import type { Executor } from '$lib/server/db';
@@ -73,17 +75,14 @@ export type FactDetail =
 	| { kind: 'platform_rating'; platform: string; login: string; rating: number | null }
 	| {
 			kind: 'test_score';
-			assessment: string;
-			testKind: 'code_task' | 'quiz';
-			/** Version of the task the attempt was scored against. */
-			version: number;
+			/** «Backend Junior»: the test on a declared grade that confirmed it. */
+			title: string;
 			attemptId: string;
-			level: string;
-			/** Language of the solution; `null` — the test is not tied to one. */
-			language: string | null;
-			score: number;
-			maxScore: number;
-			scoredOn: string;
+			decisionId: string;
+			/** Titles of the blocks passed. */
+			blocks: string[];
+			bankReleaseId: string;
+			decidedOn: string;
 	  }
 	| { kind: 'other'; factType: string };
 
@@ -197,17 +196,15 @@ function formatOf(competition: Competition): 'onsite' | 'online' | 'unknown' {
 	return competition.online ? 'online' : 'onsite';
 }
 
-/** What a `test_score` fact of the platform stores (assessments/scoring). */
+/** What a `test_score` fact of the platform stores (assessments/engine, domain 10.9). */
 interface TestScorePayload {
-	assessmentTitle: string;
-	kind: 'code_task' | 'quiz';
-	version: number;
+	decisionId: string;
 	attemptId: string;
-	level: string;
-	language: string | null;
-	score: number;
-	maxScore: number;
-	scoredOn: string;
+	specialization: string;
+	grade: string;
+	blocks: string[];
+	bankReleaseId: string;
+	decidedOn: string;
 }
 
 function detailOf(factType: string, payload: unknown): FactDetail {
@@ -268,15 +265,12 @@ function detailOf(factType: string, payload: unknown): FactDetail {
 			const test = payload as TestScorePayload;
 			return {
 				kind: 'test_score',
-				assessment: test.assessmentTitle,
-				testKind: test.kind,
-				version: test.version,
+				title: testTitle(test.specialization, test.grade),
 				attemptId: test.attemptId,
-				level: test.level,
-				language: test.language,
-				score: test.score,
-				maxScore: test.maxScore,
-				scoredOn: test.scoredOn
+				decisionId: test.decisionId,
+				blocks: test.blocks.map((code) => blockDefinition(code).title),
+				bankReleaseId: test.bankReleaseId,
+				decidedOn: test.decidedOn
 			};
 		}
 		default:

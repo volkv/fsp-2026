@@ -8,23 +8,6 @@ import { join, resolve } from 'node:path';
 import { z } from 'zod';
 import { CATALOG_SCOPE_FIELDS } from '$lib/server/consent/kinds';
 import { RegionReference, regionsFileSchema } from '$lib/server/regions';
-import type { QuizSkill } from './quizzes';
-
-/** Skills with a quiz in the bank (`assessments/quiz/`): a quiz a candidate of the demo takes is one of them. */
-export const QUIZ_SKILLS = [
-	'go',
-	'python',
-	'javascript',
-	'typescript',
-	'sql',
-	'java',
-	'kotlin',
-	'csharp',
-	'cpp',
-	'php',
-	'docker',
-	'linux'
-] as const satisfies readonly QuizSkill[];
 
 const key = z.string().regex(/^[a-z0-9_]+$/);
 const email = z.email().max(254);
@@ -84,8 +67,6 @@ const heroCandidate = z
 			.string()
 			.regex(/^[A-Za-z0-9-]{1,39}$/)
 			.optional(),
-		/** A platform quiz the hero took, with the ability the answers follow. */
-		quiz: z.strictObject({ skill: z.enum(QUIZ_SKILLS), ability: z.number().min(-3).max(3) }).optional(),
 		representative: z
 			.strictObject({
 				fullName: z.string().min(5),

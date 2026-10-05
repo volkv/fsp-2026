@@ -26,7 +26,8 @@ import {
 } from '$lib/server/db/schema';
 import { ApiError } from '$lib/server/errors/api-error';
 import { recordEvidenceChange } from '$lib/server/resumes/revision';
-import { decide, invalidate, testDecision, testDecisions } from '../helpers/categories';
+import { decide, invalidate, invalidateIn, recordDecisionIn } from '../helpers/categories';
+import { GRADE_DECISIONS } from '$lib/server/categories/decisions';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
 import { createCandidate, createUser } from '../helpers/factories';
 
@@ -251,7 +252,7 @@ describe('revocation', () => {
 		const { db } = database;
 		const candidate = await createCandidate(db);
 		const old = await decide(db, candidate.id, { specialization: 'data_ml', grade: 'junior' });
-		testDecisions.invalidate(candidate.id, old.decision.id, 'objection_rescored');
+		await database.db.transaction((tx) => invalidateIn(tx, old.decision.id, 'objection_rescored'));
 		const rescored = await decide(db, candidate.id, {
 			specialization: 'data_ml',
 			grade: 'junior',
@@ -334,19 +335,19 @@ describe('objections to a test result', () => {
 		const decisions = new Map<string, ObjectedDecision>();
 		return {
 			decisions,
-			decisionsOf: (executor, candidateId, specialization) =>
-				testDecisions.decisionsOf(executor, candidateId, specialization),
+			decisionsOf: (...args) => GRADE_DECISIONS.decisionsOf(...args),
 			find: (_, id) => Promise.resolve(decisions.get(id) ?? null),
-			annul: (_, decision) => {
+			annul: async (tx, decision) => {
 				decisions.set(decision.id, { ...decision, status: 'annulled' });
-				testDecisions.invalidate(decision.candidateId, decision.id, 'objection_annulled');
-				return Promise.resolve();
+				await invalidateIn(tx, decision.id, 'objection_annulled');
 			},
-			rescore: (_, decision) => {
-				testDecisions.invalidate(decision.candidateId, decision.id, 'objection_rescored');
-				const next = testDecision({ specialization: decision.specialization, grade: decision.grade });
-				testDecisions.record(decision.candidateId, next);
-				return Promise.resolve(next.id);
+			rescore: async (tx, decision) => {
+				await invalidateIn(tx, decision.id, 'objection_rescored');
+				const next = await recordDecisionIn(tx, decision.candidateId, {
+					specialization: decision.specialization,
+					grade: decision.grade
+				});
+				return next.id;
 			}
 		};
 	}

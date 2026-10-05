@@ -4,11 +4,11 @@
 // an operator's decision names the decision only; its reasons are read in the product. A candidate aged 14–17 learns
 // whether the representative's authority is confirmed, never the operator's notes or the details of the document; the
 // candidate whose birth date the operator checked learns the regime of age, never the date or the document; the
-// annulment of an attempt names the test and whether the attempt still counts toward the limit, never the operator's
+// annulment of an attempt names the test and whether the attempt still counts by the grade policy, never the operator's
 // grounds. The staff learn that an objection's answer is due, never who objected or why.
 import { z } from 'zod';
-import { UNCOUNTED_REASONS } from '$lib/server/assessments/annul';
-import { assessmentAttempts } from '$lib/server/db/schema';
+import { GRADE_POLICY } from '$lib/server/assessments/contract/policy';
+import { ANNUL_REASONS } from '$lib/server/db/schema';
 import type { MailMessage } from '$lib/server/mail/mailer';
 import { render, type Letter } from '$lib/server/mail/templates';
 import type { InvitationFacts, NotificationFacts } from './content';
@@ -39,7 +39,7 @@ const authorityResult = z.enum(['verified', 'rejected']);
 const moderationOutcome = z.enum(['published', 'returned', 'rejected']);
 const moderatedStatus = z.enum(['published', 'paused', 'draft', 'closed']);
 const ageRegime = z.enum(['adult', 'minor']);
-const annulReason = z.enum(assessmentAttempts.annulReason.enumValues);
+const annulReason = z.enum(ANNUL_REASONS);
 
 type DecisionType =
 	| 'company.verification_decided'
@@ -277,14 +277,14 @@ function bodyOf(type: NotificationType, facts: NotificationFacts, payload: Paylo
 		}
 		case 'assessment.annulled': {
 			if (facts.object !== 'assessment_attempt') unsupported(type, facts);
-			const retake = UNCOUNTED_REASONS.includes(annulReason.parse(payload.reason));
+			const retake = GRADE_POLICY.freeRetakeAnnulReasons.includes(annulReason.parse(payload.reason));
 			return {
 				subject: 'Результат теста аннулирован',
 				paragraphs: [
-					`Оператор ФСП аннулировал попытку теста «${facts.title}»: её результат больше не учитывается в профиле.`,
+					`Попытка теста «${facts.title}» аннулирована: её результат больше не учитывается в профиле.`,
 					retake
-						? 'Попытка не засчитывается в лимит — тест можно пройти снова.'
-						: 'Попытка засчитывается в лимит попыток теста.'
+						? 'Попытка не засчитывается — тест можно пройти снова сразу.'
+						: 'Попытка засчитывается в число попыток по правилам грейда.'
 				],
 				action: 'Открыть попытку'
 			};

@@ -28,7 +28,9 @@ export const POLICY_VIOLATION_CODES = {
 	reopen_cooldown: 'Повторное предложение этому кандидату пока недоступно',
 	minor_age_mismatch: 'Вакансия не подходит кандидату по возрасту',
 	scope_fields_minor: 'Кандидату младше 18 лет расширенный состав карточки недоступен',
-	specialization_closed: 'Специализация закрыта: её тест ещё не выпущен или выключен'
+	specialization_closed: 'Специализация закрыта: её тест ещё не выпущен или выключен',
+	qa_budget_too_small: 'Слишком мало тест-кейсов: нужно не меньше, чем требует задание',
+	qa_budget_exceeded: 'Слишком много тест-кейсов: выберите самые важные в пределах бюджета задания'
 } as const;
 
 export type PolicyViolationCode = keyof typeof POLICY_VIOLATION_CODES;

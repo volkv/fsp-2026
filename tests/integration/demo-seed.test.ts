@@ -9,8 +9,6 @@ import { createClient } from 'redis';
 import { afterAll, beforeAll, describe, expect, inject, it, vi } from 'vitest';
 import { publishLegalDocuments, readLegalRelease } from '../../scripts/seed-legal';
 import { publishPolicies, readPolicyRelease } from '../../scripts/seed-policies';
-import { readAssessmentBank } from '$lib/server/assessments/bank';
-import { publishAssessmentBank } from '$lib/server/assessments/publish';
 import { loadAccessSubject } from '$lib/server/companies/subject';
 import { createFieldCrypto } from '$lib/server/crypto/fields';
 import {
@@ -34,7 +32,7 @@ import {
 } from '$lib/server/db/schema';
 import { resetDemo } from '$lib/server/demo/reset';
 import { batchId, seedDemo, type SeedSummary } from '$lib/server/demo/seed';
-import { QUIZ_SKILLS, readSeedData } from '$lib/server/demo/data';
+import { readSeedData } from '$lib/server/demo/data';
 import type { DemoServices } from '$lib/server/demo/services';
 import { HttpAchievementsSource } from '$lib/server/fsp/adapter';
 import { ServiceGrantIssuer } from '$lib/server/fsp/grant';
@@ -116,7 +114,6 @@ beforeAll(async () => {
 		await publishTaxonomy(client, buildRelease(await readTaxonomyDatasets(path('taxonomy'))));
 		await publishLegalDocuments(client, await readLegalRelease(path('legal')));
 		await publishPolicies(client, await readPolicyRelease(path('policies')));
-		await publishAssessmentBank(client, await readAssessmentBank(path('assessments')));
 	} finally {
 		await client.end({ timeout: 5 });
 	}
@@ -179,7 +176,7 @@ async function census() {
 		'claims',
 		'consent_events',
 		'resume_documents',
-		'assessment_attempts',
+		'test_attempts',
 		'invitations',
 		'invitation_terms',
 		'hiring_processes',
@@ -277,12 +274,6 @@ describe('nightly demo reset', () => {
 });
 
 describe('demo seed prerequisites', () => {
-	it('knows every quiz of the bank, so candidates of any stack with a quiz take one', async () => {
-		const bank = await readAssessmentBank(path('assessments'));
-		const quizSkills = bank.filter((entry) => entry.kind === 'quiz').flatMap((entry) => entry.skillKeys);
-		expect([...QUIZ_SKILLS].sort()).toEqual(quizSkills.sort());
-	});
-
 	it('names what the stand lacks before seeding anything, the storage policy of matches included', async () => {
 		const empty = await createTestDatabase();
 		try {

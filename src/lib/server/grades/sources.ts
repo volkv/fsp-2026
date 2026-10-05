@@ -4,6 +4,8 @@
 // the candidate pass the instance below.
 import type { GradeKey, SpecializationKey } from '$lib/server/assessments/contract/catalog';
 import type { PolicyAttempt, PolicyCategory } from '$lib/server/assessments/contract/policy';
+import { attemptRecords } from '$lib/server/assessments/attempt-records';
+import { releasedSpecializations } from '$lib/server/assessments/bank-store';
 import { activeCategories } from '$lib/server/categories/read';
 import type { Executor } from '$lib/server/db';
 
@@ -33,13 +35,12 @@ export interface GradeSources {
 }
 
 /**
- * The readers of this build. The categories come from their owner (`categories/read.ts`). The bank releases and the
- * attempts are written only by the test engine; until its tables are part of the schema there is no released bank and
- * no attempt to read, and the readers say exactly that.
+ * The readers of this build: the categories from their owner (`categories/read.ts`), the released banks and the
+ * attempts from the test engine (`assessments/bank-store.ts`, `assessments/attempt-records.ts`).
  */
 export const gradeSources: GradeSources = {
-	releasedSpecializations: () => Promise.resolve(new Set()),
+	releasedSpecializations,
 	activeCategories: async (executor, candidateId) =>
 		(await activeCategories(executor, [candidateId])).get(candidateId) ?? [],
-	policyAttempts: () => Promise.resolve([])
+	policyAttempts: attemptRecords
 };

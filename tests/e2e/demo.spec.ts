@@ -148,7 +148,7 @@ test.beforeAll(async () => {
 	}
 	client = postgres(databaseUrl, { max: 2, onnotice: () => undefined });
 	mock = await startFspMock({ athletes: ATHLETES, redirectUri: `${ORIGIN}/auth/fsp/callback` });
-	for (const script of ['migrate', 'seed-taxonomy', 'seed-legal', 'seed-policies', 'seed-assessments']) {
+	for (const script of ['migrate', 'seed-taxonomy', 'seed-legal', 'seed-policies', 'release-bank']) {
 		await run(process.execPath, [`scripts/${script}.ts`]);
 	}
 	await run('pnpm', ['demo:build']);

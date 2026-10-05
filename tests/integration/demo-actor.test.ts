@@ -19,6 +19,7 @@ import type { AccessSubject } from '$lib/server/access/permissions';
 import { readJournal } from '$lib/server/admin/audit';
 import { findUser, grantStaffRole, setOperatorAuditRead, staffList } from '$lib/server/admin/staff';
 import { annulAttempt } from '$lib/server/assessments/annul';
+import { OWNER_STANDING } from '$lib/server/assessments/standing';
 import { recordAuditEvent } from '$lib/server/audit/record';
 import { authenticateSession } from '$lib/server/auth/authenticate';
 import type { AuthDeps } from '$lib/server/auth/context';
@@ -33,9 +34,6 @@ import { registryNotConfigured } from '$lib/server/companies/registry';
 import { decideVerification, suspendCompany } from '$lib/server/companies/verification';
 import { createFieldCrypto } from '$lib/server/crypto/fields';
 import {
-	assessmentAttempts,
-	assessmentVersions,
-	assessments,
 	authorityChecks,
 	candidates,
 	assessmentObjections,
@@ -48,6 +46,7 @@ import {
 	passwordCredentials,
 	representations,
 	staffRoles,
+	testAttempts,
 	users,
 	vacancyClaims
 } from '$lib/server/db/schema';
@@ -67,7 +66,9 @@ import { decideAuthority } from '$lib/server/operator/representatives';
 import type { Redis } from '$lib/server/redis';
 import { openFile, type FileAccessContext } from '$lib/server/storage/access';
 import type { ObjectStore, StoredObject } from '$lib/server/storage/object-store';
+import { insertAttempt, releaseFixtureBank } from '../helpers/bank';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
+import { recordDecision } from '../helpers/categories';
 import {
 	createCandidate,
 	createCompany,
@@ -127,7 +128,7 @@ let redis: Redis;
 let data: SeedData;
 const store = new MemoryStore();
 let taxonomyVersionId: string;
-let assessmentVersionId: string;
+let bankReleaseId: string;
 
 /** What one place of the stand holds: a demo session, or the stand outside sessions (`session: null`). */
 interface Place {
@@ -248,7 +249,9 @@ async function place(session: string | null): Promise<Place> {
 		.insert(assessmentObjections)
 		.values({
 			candidateId: objecting.id,
-			decisionId: randomUUID(),
+			decisionId: (
+				await recordDecision(db, objecting.id, { specialization: 'backend', grade: 'junior', outcome: 'not_confirmed' })
+			).id,
 			reason: 'Не согласен с оценкой задания',
 			openedAt,
 			dueAt: new Date(openedAt.getTime() + 30 * DAY),
@@ -310,18 +313,11 @@ async function place(session: string | null): Promise<Place> {
 	if (!claim) throw new Error('claim not inserted');
 
 	const submittedCandidate = await createCandidate(db, { userId: await account(), demoSessionId: session });
-	const [attempt] = await db
-		.insert(assessmentAttempts)
-		.values({
-			candidateId: submittedCandidate.id,
-			versionId: assessmentVersionId,
-			startedAt: new Date(),
-			submittedAt: new Date(),
-			deadlineAt: new Date(Date.now() + DAY),
-			status: 'submitted'
-		})
-		.returning();
-	if (!attempt) throw new Error('attempt not inserted');
+	const attempt = await insertAttempt(db, {
+		candidateId: submittedCandidate.id,
+		releaseId: bankReleaseId,
+		status: 'expired'
+	});
 
 	const ageConflictCandidate = await createCandidate(db, {
 		userId: await account(),
@@ -378,25 +374,7 @@ beforeAll(async () => {
 	data = await readSeedData(path('seeds'));
 	const { db } = database;
 	taxonomyVersionId = (await createTaxonomyVersion(db)).id;
-	const [assessment] = await db
-		.insert(assessments)
-		.values({ kind: 'quiz', title: 'test', skillKeys: ['go'] })
-		.returning();
-	if (!assessment) throw new Error('assessment not inserted');
-	const [version] = await db
-		.insert(assessmentVersions)
-		.values({
-			assessmentId: assessment.id,
-			version: 1,
-			contentSha256: randomSha256(),
-			scorer: {},
-			levelScale: {},
-			coverage: {},
-			status: 'published'
-		})
-		.returning();
-	if (!version) throw new Error('assessment version not inserted');
-	assessmentVersionId = version.id;
+	bankReleaseId = (await releaseFixtureBank(db, 'backend')).releaseId;
 	first = await place(await demoSession());
 	second = await place(await demoSession());
 	stand = await place(null);
@@ -588,22 +566,22 @@ describe('a clone of the FSP operator', () => {
 	it('annuls the platform attempts of its own session only', async () => {
 		for (const other of others()) {
 			await expect(
-				annulAttempt(database.db, first.operator, meta, other.attemptId, 'plagiarism', new Date())
+				annulAttempt(database.db, OWNER_STANDING, first.operator, meta, other.attemptId, 'plagiarism', new Date())
 			).rejects.toMatchObject({ code: 'not_found' });
 		}
 		const untouched = await database.db
-			.select({ id: assessmentAttempts.id, status: assessmentAttempts.status })
-			.from(assessmentAttempts)
-			.where(inArray(assessmentAttempts.id, [second.attemptId, stand.attemptId]));
+			.select({ id: testAttempts.id, status: testAttempts.status })
+			.from(testAttempts)
+			.where(inArray(testAttempts.id, [second.attemptId, stand.attemptId]));
 		expect(Object.fromEntries(untouched.map((row) => [row.id, row.status]))).toEqual({
-			[second.attemptId]: 'submitted',
-			[stand.attemptId]: 'submitted'
+			[second.attemptId]: 'expired',
+			[stand.attemptId]: 'expired'
 		});
-		await annulAttempt(database.db, first.operator, meta, first.attemptId, 'plagiarism', new Date());
+		await annulAttempt(database.db, OWNER_STANDING, first.operator, meta, first.attemptId, 'plagiarism', new Date());
 		const [annulled] = await database.db
-			.select({ status: assessmentAttempts.status })
-			.from(assessmentAttempts)
-			.where(eq(assessmentAttempts.id, first.attemptId));
+			.select({ status: testAttempts.status })
+			.from(testAttempts)
+			.where(eq(testAttempts.id, first.attemptId));
 		expect(annulled?.status).toBe('annulled');
 	});
 

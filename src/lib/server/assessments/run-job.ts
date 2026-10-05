@@ -1,57 +1,151 @@
-// Job `assessment.run` (docs/domain.md, 17.2; docs/contracts.md, 6.4): runs the submitted code of a code task in the
-// sandbox outside any transaction, then writes the run artifacts and the score conditionally — only while the attempt
-// is still `submitted` and has no run result. A failure of the sandbox never becomes a verdict against the candidate:
-// it is retried once, and after that the attempt stays `submitted` without a score for an operator to look into.
-// Without `pd_processing` in effect the code is not run and a result is not written.
+// Job `test.run` (docs/domain.md, 10.3, 17.2; docs/contracts.md, 6.4–6.5): scores a practice cluster in the sandbox
+// outside any transaction, then writes the run artifacts and the score conditionally — only while the cluster still
+// waits for this submission. A program: one request with every test of every group of its instance (or of its step
+// «измени своё решение»). QA test cases: the harness with the correct reference first; a case failing on it scores 0;
+// otherwise the harness with every mutant, one run — for the task or for the changed specification of its step. A failure of the sandbox is never a verdict against the candidate:
+// one retry, then the cluster stays `awaiting_sandbox` for an operator (contracts 6.4).
+// Without `pd_processing` in effect nothing is run and nothing is written.
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { config } from '$lib/server/config';
 import { processingAllowed } from '$lib/server/consent/processing';
 import type { Transaction } from '$lib/server/db';
-import { assessmentArtifacts, assessmentAttempts } from '$lib/server/db/schema';
+import { testArtifacts, testAttempts, testItems } from '$lib/server/db/schema';
 import { defineHandler, JobFailure, type JobHandler, type JobResult } from '$lib/server/jobs/handler';
 import { runResultArtifacts } from '$lib/server/sandbox/artifacts';
 import { GoJudgeRunner } from '$lib/server/sandbox/runner';
-import type { RunResponse, SandboxRunner } from '$lib/server/sandbox/types';
-import type { CodeScorer } from './bank';
-import { assessmentPolicy, retentionUntil } from './policy';
-import { appendArtifacts, recordAutomaticScore, type ScoredLevel } from './scoring';
-import { loadVersion, type CodeVersion } from './versions';
+import type { RunRequest, RunResponse, SandboxRunner } from '$lib/server/sandbox/types';
+import { familyModule, releaseById } from './bank-store';
+import type { FamilyModule, ItemInstance } from './contract/bank';
+import { advance, appendArtifacts, type EngineDeps } from './engine';
+import {
+	SandboxFailure,
+	groupsScore,
+	harnessLimits,
+	harnessLine,
+	practiceRunRequest,
+	qaCasesStdin,
+	qaScore,
+	withChangeStep,
+	type QaCase
+} from './score';
+import { OWNER_STANDING } from './standing';
 
-const submissionContent = z.looseObject({ language: z.string().min(1), source: z.string() });
+const submissionContent = z.looseObject({
+	language: z.string().min(1),
+	source: z.string(),
+	stage: z.enum(['task', 'change_step'])
+});
+const casesContent = z.looseObject({
+	stage: z.enum(['task', 'change_step']),
+	cases: z.array(z.strictObject({ input: z.string(), expected: z.string() }))
+});
 
-/** Passed tests and the level of the version they reach (`tests_passed` scale). */
-export function codeTaskLevel(
-	version: CodeVersion,
-	response: RunResponse
-): { passed: number; total: number; level: ScoredLevel } {
-	const total = version.scorer.tests.length;
-	const passed = response.tests.filter((test) => test.verdict === 'accepted').length;
-	const reached = [...version.levelScale.thresholds]
-		.sort((a, b) => b.minRatio - a.minRatio)
-		.find((threshold) => passed / total >= threshold.minRatio);
+interface Scored {
+	/** What the run gives the item: its final score, or the task part before the step. */
+	score: number;
+	detail: Record<string, unknown>;
+	runs: { request: RunRequest; response: RunResponse }[];
+}
+
+async function run(runner: SandboxRunner, request: RunRequest): Promise<RunResponse> {
+	const result = await runner.run(request);
+	if (!result.ok) {
+		const { code, retryable, message } = result.error;
+		// `invalid_request` and `unsupported_language` are defects of the task, not of the candidate (contracts 6.4).
+		throw new JobFailure(`sandbox_${code}`, message, { retryable });
+	}
+	return result.value;
+}
+
+function asRetryable(error: unknown): never {
+	if (error instanceof SandboxFailure) throw new JobFailure('sandbox_run_failed', error.message, { retryable: true });
+	throw error;
+}
+
+async function scoreProgram(
+	runner: SandboxRunner,
+	artifactId: string,
+	instance: ItemInstance,
+	stage: 'task' | 'change_step',
+	language: string,
+	source: string
+): Promise<Scored> {
+	const groups = stage === 'task' ? (instance.practice?.groups ?? []) : (instance.changeStep?.groups ?? []);
+	const request = practiceRunRequest(artifactId, instance, groups, language, source);
+	const response = await run(runner, request);
+	try {
+		const scored = groupsScore(groups, response);
+		return {
+			score: scored.score,
+			detail: { passed_groups: scored.passedGroups, total_groups: scored.totalGroups, groups: scored.groups },
+			runs: [{ request, response }]
+		};
+	} catch (error) {
+		return asRetryable(error);
+	}
+}
+
+function harnessRequest(requestId: string, source: string, cases: readonly QaCase[], mutants: number): RunRequest {
 	return {
-		passed,
-		total,
-		level: reached
-			? {
-					level: reached.level,
-					// A practical task confirms skills, not a grade: one task is not a level test (domain 9.3).
-					confirmed: { level: reached.level, levelStrength: reached.levelStrength, gradeKey: null }
-				}
-			: { level: version.levelScale.below, confirmed: null }
+		requestId,
+		language: 'python3',
+		source,
+		// The harness prints one line, read from the preview; the candidate never sees it.
+		tests: [{ id: 'harness', stdin: qaCasesStdin(cases), expected: '', hidden: false }],
+		limits: harnessLimits(mutants),
+		checker: { kind: 'exact' }
 	};
 }
 
-function runRequest(artifactId: string, scorer: CodeScorer, language: string, source: string) {
-	return {
-		requestId: artifactId,
-		language,
-		source,
-		tests: scorer.tests,
-		limits: scorer.limits,
-		checker: scorer.checker
-	};
+async function scoreCases(
+	runner: SandboxRunner,
+	artifactId: string,
+	instance: ItemInstance,
+	deps: { harness: NonNullable<FamilyModule['harness']>; rubric: Parameters<typeof qaScore>[1] },
+	cases: readonly QaCase[],
+	part: 'task' | 'change_step'
+): Promise<Scored> {
+	const qa = part === 'task' ? instance.qa : instance.changeStep?.qa;
+	if (!qa) throw new JobFailure('not_qa', `instance ${instance.family} has no QA ${part}`, { retryable: false });
+	const reference = harnessRequest(
+		`${artifactId}:reference`,
+		deps.harness(instance, 'reference', part).source,
+		cases,
+		1
+	);
+	const referenceResponse = await run(runner, reference);
+	const runs = [{ request: reference, response: referenceResponse }];
+	try {
+		const referenceLine = harnessLine(referenceResponse, cases.length);
+		let mutantLine: string | null = null;
+		if (!referenceLine.includes('0')) {
+			const mutants = harnessRequest(
+				`${artifactId}:mutants`,
+				deps.harness(instance, 'mutants', part).source,
+				cases,
+				qa.mutants.length
+			);
+			const mutantResponse = await run(runner, mutants);
+			runs.push({ request: mutants, response: mutantResponse });
+			mutantLine = harnessLine(mutantResponse, qa.mutants.length);
+		}
+		const scored = qaScore(instance, deps.rubric, referenceLine, mutantLine, part);
+		return {
+			score: scored.score,
+			detail: {
+				outcome: scored.outcome,
+				cases_on_reference: scored.casesOnReference,
+				killed: scored.killed,
+				non_equivalent: scored.nonEquivalent,
+				kill_ratio: scored.killRatio,
+				matrix: scored.matrix
+			},
+			runs
+		};
+	} catch (error) {
+		return asRetryable(error);
+	}
 }
 
 let configuredRunner: SandboxRunner | null = null;
@@ -67,110 +161,125 @@ function sandboxRunner(): SandboxRunner {
 
 const stale: JobResult = { isCurrent: () => Promise.resolve(false), write: () => Promise.resolve() };
 
-export function createAssessmentRunHandler(
+export function createTestRunHandler(
 	runner: () => SandboxRunner,
+	deps: EngineDeps,
 	now: () => Date = () => new Date()
-): JobHandler<'assessment.run'> {
+): JobHandler<'test.run'> {
 	return defineHandler({
-		type: 'assessment.run',
+		type: 'test.run',
 		concurrency: 2,
 		run: async ({ job, db, requestId, signal }) => {
 			const artifactId = job.payload.artifact_id;
-			const [submission] = await db
-				.select({
-					kind: assessmentArtifacts.kind,
-					content: assessmentArtifacts.content,
-					attemptId: assessmentArtifacts.attemptId,
-					candidateId: assessmentAttempts.candidateId,
-					versionId: assessmentAttempts.versionId,
-					status: assessmentAttempts.status
-				})
-				.from(assessmentArtifacts)
-				.innerJoin(assessmentAttempts, eq(assessmentAttempts.id, assessmentArtifacts.attemptId))
-				.where(eq(assessmentArtifacts.id, artifactId));
-			if (!submission || submission.kind !== 'code_submission') {
-				throw new JobFailure('submission_missing', `artifact ${artifactId} is not a code submission`, {
-					retryable: false
-				});
+			const [row] = await db
+				.select({ artifact: testArtifacts, item: testItems, attempt: testAttempts })
+				.from(testArtifacts)
+				.innerJoin(testItems, eq(testItems.id, testArtifacts.itemId))
+				.innerJoin(testAttempts, eq(testAttempts.id, testArtifacts.attemptId))
+				.where(eq(testArtifacts.id, artifactId));
+			if (!row || (row.artifact.kind !== 'code_submission' && row.artifact.kind !== 'qa_cases')) {
+				throw new JobFailure('submission_missing', `artifact ${artifactId} is not a submission`, { retryable: false });
 			}
-			if (submission.status !== 'submitted') return stale;
-			if (!(await processingAllowed(db, submission.candidateId, now()))) return stale;
-			// The content is gone only after the retention period, long after any run could still be waiting.
-			const parsed = submissionContent.safeParse(submission.content);
-			if (!parsed.success) {
-				throw new JobFailure('submission_unreadable', `artifact ${artifactId} has no code to run`, {
-					retryable: false
-				});
-			}
-			const version = await loadVersion(db, submission.versionId);
-			if (version?.kind !== 'code_task') {
-				throw new JobFailure('version_mismatch', `attempt ${submission.attemptId} is not on a code task`, {
-					retryable: false
-				});
-			}
-			if (version.status === 'defective') return stale;
-
+			const { artifact, item, attempt } = row;
+			if (attempt.status !== 'in_progress' || item.status !== 'awaiting_sandbox') return stale;
+			if (!(await processingAllowed(db, attempt.candidateId, now()))) return stale;
+			const instance = item.instance as ItemInstance;
+			let scored: Scored;
+			let stage: 'task' | 'change_step' = 'task';
+			let language: string | null = null;
 			signal.throwIfAborted();
-			const result = await runner().run(
-				runRequest(artifactId, version.scorer, parsed.data.language, parsed.data.source)
+			if (artifact.kind === 'code_submission') {
+				const parsed = submissionContent.safeParse(artifact.content);
+				if (!parsed.success) {
+					throw new JobFailure('submission_unreadable', `artifact ${artifactId} has no code to run`, {
+						retryable: false
+					});
+				}
+				stage = parsed.data.stage;
+				language = parsed.data.language;
+				scored = await scoreProgram(runner(), artifactId, instance, stage, parsed.data.language, parsed.data.source);
+			} else {
+				const parsed = casesContent.safeParse(artifact.content);
+				if (!parsed.success) {
+					throw new JobFailure('submission_unreadable', `artifact ${artifactId} has no test cases`, {
+						retryable: false
+					});
+				}
+				const release = await releaseById(db, attempt.bankReleaseId);
+				const family = release.families.find((f) => f.descriptor.key === item.familyKey);
+				if (!family)
+					throw new JobFailure('family_missing', `family ${item.familyKey} is not in its release`, {
+						retryable: false
+					});
+				const module = await (deps.modules ?? familyModule)(family, release);
+				if (!module.harness) {
+					throw new JobFailure('harness_missing', `family ${item.familyKey} has no harness`, { retryable: false });
+				}
+				stage = parsed.data.stage;
+				scored = await scoreCases(
+					runner(),
+					artifactId,
+					instance,
+					{ harness: module.harness, rubric: family.descriptor.rubric },
+					parsed.data.cases,
+					stage
+				);
+			}
+			const drafts = scored.runs.flatMap(({ request, response }) =>
+				runResultArtifacts(response, request.tests).map((draft) => ({
+					kind: draft.kind,
+					content: { ...draft.content, seq: item.seq, stage }
+				}))
 			);
-			if (!result.ok) {
-				const { code, retryable, message } = result.error;
-				// `invalid_request` and `unsupported_language` are defects of the task, not of the candidate (contracts 6.4).
-				throw new JobFailure(`sandbox_${code}`, message, { retryable });
-			}
-			const response = result.value;
-			if (response.tests.some((test) => test.verdict === 'sandbox_error')) {
-				throw new JobFailure('sandbox_test_failed', 'the sandbox failed to run a test', { retryable: true });
-			}
-			const drafts = runResultArtifacts(response, version.scorer.tests);
-			const { passed, total, level } = codeTaskLevel(version, response);
 			const at = now();
 
 			return {
 				isCurrent: async (tx: Transaction) => {
-					const [attempt] = await tx
-						.select({ status: assessmentAttempts.status })
-						.from(assessmentAttempts)
-						.where(eq(assessmentAttempts.id, submission.attemptId))
+					const [locked] = await tx
+						.select({ status: testAttempts.status })
+						.from(testAttempts)
+						.where(eq(testAttempts.id, attempt.id))
 						.for('update');
-					if (attempt?.status !== 'submitted') return false;
-					if (!(await processingAllowed(tx, submission.candidateId, at))) return false;
-					const [judged] = await tx
-						.select({ id: assessmentArtifacts.id })
-						.from(assessmentArtifacts)
-						.where(
-							and(eq(assessmentArtifacts.attemptId, submission.attemptId), eq(assessmentArtifacts.kind, 'run_result'))
-						)
-						.limit(1);
-					return judged === undefined;
+					if (locked?.status !== 'in_progress') return false;
+					if (!(await processingAllowed(tx, attempt.candidateId, at))) return false;
+					const [current] = await tx
+						.select({ status: testItems.status })
+						.from(testItems)
+						.where(and(eq(testItems.id, item.id), eq(testItems.status, 'awaiting_sandbox')));
+					return current !== undefined;
 				},
 				write: async (tx: Transaction) => {
-					const policy = await assessmentPolicy(tx, at);
-					await appendArtifacts(
-						tx,
-						submission.attemptId,
-						drafts.map((draft) => ({ kind: draft.kind, content: draft.content })),
-						at,
-						retentionUntil(policy, at)
-					);
-					await recordAutomaticScore(tx, {
-						attempt: { id: submission.attemptId, candidateId: submission.candidateId },
-						version,
-						score: passed,
-						maxScore: total,
-						level,
-						language: response.language.key,
-						details: { passed, total, language_version: response.language.version },
-						now: at,
-						requestId,
-						createdBy: { kind: 'system', id: job.id }
-					});
+					await appendArtifacts(tx, attempt.id, item.id, drafts, at);
+					const previous = (item.scoreDetail ?? {}) as Record<string, unknown> & { task?: { score: number } };
+					const step = instance.changeStep;
+					if (stage === 'task' && step) {
+						// The task is scored; the step «измени своё решение» opens for the candidate.
+						await tx
+							.update(testItems)
+							.set({ status: 'answered', scoreDetail: { language, task: { score: scored.score, ...scored.detail } } })
+							.where(eq(testItems.id, item.id));
+						return;
+					}
+					const score =
+						stage === 'change_step' && step
+							? withChangeStep(previous.task?.score ?? 0, scored.score, step.weight)
+							: scored.score;
+					const detail =
+						stage === 'change_step'
+							? { ...previous, step: { score: scored.score, ...scored.detail } }
+							: { language, task: { score: scored.score, ...scored.detail } };
+					await tx
+						.update(testItems)
+						.set({ status: 'scored', score, scoreDetail: detail })
+						.where(eq(testItems.id, item.id));
+					const [fresh] = await tx.select().from(testAttempts).where(eq(testAttempts.id, attempt.id));
+					if (!fresh) throw new Error(`attempt ${attempt.id} is missing`);
+					await advance(tx, deps, fresh, { now: at, requestId, createdBy: { kind: 'system', id: job.id } });
 				},
-				describe: () => ({ passed, total, level: level.level })
+				describe: () => ({ stage, score: scored.score })
 			};
 		}
 	});
 }
 
-export const assessmentRun = createAssessmentRunHandler(sandboxRunner);
+export const testRun = createTestRunHandler(sandboxRunner, { standing: OWNER_STANDING });

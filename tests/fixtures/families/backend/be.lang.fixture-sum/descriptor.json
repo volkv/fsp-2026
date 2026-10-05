@@ -1,0 +1,128 @@
+{
+	"key": "be.lang.fixture-sum",
+	"version": 1,
+	"specialization": "backend",
+	"block": "be.lang",
+	"format": "code_trace",
+	"answerKind": "exact",
+	"levels": [
+		{
+			"grade": "junior",
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": {
+							"kind": "model",
+							"model": "reviewer-one",
+							"lineage": "lineage-one"
+						},
+						"p": 0.55,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "898bd931d4fecc5b8226bacd9419c7d5667d0a0adcfceef8c77cbb0943f9c613"
+					},
+					{
+						"rater": {
+							"kind": "model",
+							"model": "reviewer-two",
+							"lineage": "lineage-two"
+						},
+						"p": 0.65,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "898bd931d4fecc5b8226bacd9419c7d5667d0a0adcfceef8c77cbb0943f9c613"
+					}
+				],
+				"mean": 0.6
+			},
+			"constructive": {
+				"loops": 1
+			},
+			"constructiveRank": 1,
+			"timeNormSec": 120,
+			"classes": [
+				{
+					"id": "inclusive",
+					"form": "A",
+					"description": "цикл включает верхнюю границу"
+				},
+				{
+					"id": "exclusive",
+					"form": "B",
+					"description": "цикл не включает верхнюю границу"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{
+			"name": "names",
+			"description": "имя переменной"
+		}
+	],
+	"essentialParams": [
+		{
+			"name": "bound",
+			"description": "включительность границы цикла"
+		}
+	],
+	"language": "python3",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": {
+		"kind": "binary"
+	},
+	"coverage": {
+		"checks": ["границы range"],
+		"doesNotCheck": ["производительность"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "off-by-one",
+			"defect": "граница сдвинута на единицу",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": {
+		"draftedBy": "team",
+		"authors": ["Автор А"]
+	},
+	"gates": {
+		"reference": {
+			"seeds": 200,
+			"failures": 0
+		},
+		"wrongSolutions": {
+			"mustBeCaught": 1,
+			"caught": 1
+		},
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.01,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": [
+			{
+				"reviewer": {
+					"kind": "model",
+					"model": "reviewer-one",
+					"lineage": "lineage-one"
+				},
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [],
+				"sourceSha256": "898bd931d4fecc5b8226bacd9419c7d5667d0a0adcfceef8c77cbb0943f9c613"
+			},
+			{
+				"reviewer": {
+					"kind": "model",
+					"model": "reviewer-two",
+					"lineage": "lineage-two"
+				},
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [],
+				"sourceSha256": "898bd931d4fecc5b8226bacd9419c7d5667d0a0adcfceef8c77cbb0943f9c613"
+			}
+		]
+	}
+}

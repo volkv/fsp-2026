@@ -1,8 +1,9 @@
 // Grade decisions as the category owner reads them (docs/domain.md 12.3, 12.4). The decisions are written by the engine
 // of the test into `grade_decisions`; the category of a specialization is whatever `resolveCategory` gives over all of
-// them, so the owner reads them all at once through `GradeDecisionReader`. Until the engine is part of the build, the
-// reader stops the request with `DecisionsUnavailable` instead of pretending a decision.
+// them, so the owner reads them all at once through `GradeDecisionReader`; the engine reads its table for it
+// (`decisionRecords`).
 import type { PracticeLanguageKey, SpecializationKey } from '$lib/server/assessments/contract/catalog';
+import { decisionRecords } from '$lib/server/assessments/decision-records';
 import type { CategoryDecision } from '$lib/server/assessments/contract/policy';
 import type { Executor } from '$lib/server/db';
 import type { CATEGORY_REVOKE_REASONS } from '$lib/server/db/schema';
@@ -25,17 +26,8 @@ export interface GradeDecisionReader {
 	decisionsOf(executor: Executor, candidateId: string, specialization: SpecializationKey): Promise<DecisionRecord[]>;
 }
 
-export class DecisionsUnavailable extends Error {
-	constructor(operation: string) {
-		super(`${operation}: the engine of the test is not part of the build`);
-		this.name = 'DecisionsUnavailable';
-	}
-}
-
 /** The reader of `grade_decisions`. */
-export const GRADE_DECISIONS: GradeDecisionReader = {
-	decisionsOf: () => Promise.reject(new DecisionsUnavailable('decisionsOf'))
-};
+export const GRADE_DECISIONS: GradeDecisionReader = { decisionsOf: decisionRecords };
 
 /**
  * Decisions kept in memory, for a run that has no engine of the test behind it: the quality evaluation gives each

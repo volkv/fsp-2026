@@ -5,7 +5,6 @@
 // link leads an operator to the queue of objections and an admin to the staff management. Only the staff who reach the
 // objection are reminded (domain 19.3): the clones of the candidate's demo session, the staff outside sessions for a
 // candidate outside them.
-import { randomUUID } from 'node:crypto';
 import { and, eq, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
@@ -24,6 +23,7 @@ import { notificationLinks } from '$lib/server/notifications/deliver';
 import { openNotification } from '$lib/server/notifications/inbox';
 import { notificationLetter, telegramText } from '$lib/server/notifications/templates';
 import { isNotificationType } from '$lib/server/notifications/types';
+import { recordDecision } from '../helpers/categories';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
 import { createCandidate, createUser, randomSha256 } from '../helpers/factories';
 
@@ -91,7 +91,9 @@ async function objection(demoSessionId?: string) {
 	const { db } = database;
 	const userId = demoSessionId ? (await createUser(db, { demoSessionId })).id : undefined;
 	const candidate = await createCandidate(db, { profileRevision: 1, userId, demoSessionId });
-	const decisionId = randomUUID();
+	const decisionId = (
+		await recordDecision(db, candidate.id, { specialization: 'backend', grade: 'junior', outcome: 'not_confirmed' })
+	).id;
 	decided.set(decisionId, candidate.id);
 	const opened = await openObjection(db, decisions, {
 		candidateId: candidate.id,

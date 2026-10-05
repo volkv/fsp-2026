@@ -12,5 +12,5 @@
 		"skipLibCheck": true,
 		"noEmit": true
 	},
-	"include": ["code/*/reference/*.ts"]
+	"include": ["families/**/*.ts"]
 }

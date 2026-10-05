@@ -8,9 +8,7 @@ import { and, desc, eq } from 'drizzle-orm';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { AccessSubject } from '$lib/server/access/permissions';
-import { readAssessmentBank } from '$lib/server/assessments/bank';
 import type { GradeKey, SpecializationKey } from '$lib/server/assessments/contract/catalog';
-import { publishAssessmentBank } from '$lib/server/assessments/publish';
 import { candidateDemand, type CandidateDemand } from '$lib/server/candidates/demand';
 import {
 	categorizationRulesets,
@@ -23,6 +21,7 @@ import {
 } from '$lib/server/db/schema';
 import { publishTaxonomy } from '$lib/server/taxonomy/publish';
 import { buildRelease, readTaxonomyDatasets } from '$lib/server/taxonomy/release';
+import { releaseFixtureBank } from '../helpers/bank';
 import { decide } from '../helpers/categories';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
 import {
@@ -36,7 +35,6 @@ import {
 } from '../helpers/factories';
 
 const TAXONOMY_DIR = fileURLToPath(new URL('../../taxonomy', import.meta.url));
-const BANK_DIR = fileURLToPath(new URL('../../assessments', import.meta.url));
 const NOW = new Date();
 const DAY = 86_400_000;
 /** `market_policy.min_sample`: the fewest vacancies a share is shown for. */
@@ -46,7 +44,6 @@ let database: TestDatabase;
 let taxonomyVersionId: string;
 let rulesetId: string;
 let session: string;
-const assessmentIds = new Map<string, string>();
 
 type SkillRow = {
 	skillKey: string;
@@ -145,12 +142,10 @@ beforeAll(async () => {
 	const client = postgres(database.url, { max: 1, onnotice: () => {} });
 	try {
 		await publishTaxonomy(client, buildRelease(await readTaxonomyDatasets(TAXONOMY_DIR)));
-		for (const item of (await publishAssessmentBank(client, await readAssessmentBank(BANK_DIR))).assessments) {
-			assessmentIds.set(item.key, item.assessmentId);
-		}
 	} finally {
 		await client.end({ timeout: 5 });
 	}
+	await releaseFixtureBank(db, 'backend');
 	const [version] = await db
 		.select({ id: taxonomyVersions.id })
 		.from(taxonomyVersions)
@@ -262,15 +257,15 @@ describe('what the market asks for in the category', () => {
 		expect(result.confirmed).toEqual([{ skillKey: 'go', share: 6 / 7 }]);
 	});
 
-	it('points each gap to a platform test or an FSP result, or says there is neither', async () => {
+	it('points each gap to a block of an open test or an FSP result, or says there is neither', async () => {
 		const result = available(await candidateDemand(database.db, await categorized(middleBackend), NOW));
 		const path = (key: string) => result.gaps.find((gap) => gap.skillKey === key)?.path;
 
-		expect(path('sql')?.tests.map((test) => [test.assessmentId, test.kind])).toContainEqual([
-			assessmentIds.get('quiz-sql'),
-			'quiz'
+		// SQL is confirmed by the block of databases of the open Backend test; DevOps, whose block confirms Docker, is closed.
+		expect(path('sql')?.tests).toEqual([
+			{ block: 'be.db', specialization: 'backend', title: 'Backend: Базы данных и SQL' }
 		]);
-		expect(path('docker')?.tests.map((test) => test.kind)).toContain('quiz');
+		expect(path('docker')?.tests).toEqual([]);
 		expect(path('algorithms')).toMatchObject({ fspDisciplines: ['algorithmic'] });
 		expect(path('kafka')).toEqual({ tests: [], fspDisciplines: [] });
 	});

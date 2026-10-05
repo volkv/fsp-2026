@@ -16,11 +16,7 @@ import { assignObjection } from '$lib/server/categories/objections';
 import { registryNotConfigured } from '$lib/server/companies/registry';
 import { createFieldCrypto } from '$lib/server/crypto/fields';
 import {
-	assessmentArtifacts,
 	assessmentObjections,
-	assessmentAttempts,
-	assessments,
-	assessmentVersions,
 	athleteLinks,
 	auditEvents,
 	authorityChecks,
@@ -35,6 +31,7 @@ import {
 	externalIdentities,
 	files,
 	fspLevelAssignments,
+	gradeDecisions,
 	gradeDeclarations,
 	legalRepresentatives,
 	matchRulesets,
@@ -48,6 +45,9 @@ import {
 	resumeDocuments,
 	skillInferences,
 	sourceFacts,
+	testArtifacts,
+	testAttempts,
+	testItems,
 	users
 } from '$lib/server/db/schema';
 import type { InvitationDeps } from '$lib/server/invitations/deps';
@@ -57,6 +57,7 @@ import { COMPONENT_KEYS, matchRulesetParamsSchema } from '$lib/server/matching/p
 import { createReceiptSigner } from '$lib/server/fsp/receipts';
 import { fail } from '$lib/server/ml/result';
 import shippedMatchRuleset from '../../taxonomy/match-ruleset.json';
+import { releaseFixtureBank, type FixtureBank } from '../helpers/bank';
 import { decide } from '../helpers/categories';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
 import { testEnvironment } from '../helpers/environment';
@@ -86,6 +87,7 @@ const meta = { requestId: 'export-test', ip: '127.0.0.1', userAgent: 'vitest' };
 
 let database: TestDatabase;
 let taxonomyVersionId: string;
+let bank: FixtureBank;
 let matchRulesetId: string;
 let categorizationRulesetId: string;
 let documents: Record<'pd' | 'catalog' | 'disclosure' | 'telegram' | 'terms', { id: string }>;
@@ -95,6 +97,7 @@ beforeAll(async () => {
 	Object.assign(env, testEnvironment({ DATABASE_URL: database.url }));
 	const { db } = database;
 	taxonomyVersionId = (await createTaxonomyVersion(db)).id;
+	bank = await releaseFixtureBank(db, 'frontend');
 	const [matchRuleset] = await db
 		.insert(matchRulesets)
 		.values({
@@ -467,67 +470,96 @@ async function seedTheRest(person: Person, mark: string, scene: { visible: strin
 		result: 'verified'
 	});
 
-	const attempt = async (kind: 'code_task' | 'quiz', status: 'submitted' | 'started') => {
-		const [assessment] = await db
-			.insert(assessments)
-			.values({ kind, title: `${kind} ${mark}`, skillKeys: ['go'] })
-			.returning();
-		if (!assessment) throw new Error('assessment not inserted');
-		const [version] = await db
-			.insert(assessmentVersions)
-			.values({
-				assessmentId: assessment.id,
-				version: 1,
-				contentSha256: randomSha256(),
-				scorer: {},
-				levelScale: {},
-				coverage: {},
-				status: 'published'
-			})
-			.returning();
-		if (!version) throw new Error('assessment version not inserted');
-		const [row] = await db
-			.insert(assessmentAttempts)
-			.values({
-				candidateId: person.id,
-				versionId: version.id,
-				startedAt: new Date(),
-				submittedAt: status === 'submitted' ? new Date() : null,
-				deadlineAt: new Date(Date.now() + 3_600_000),
-				status,
-				integritySignals: { entries: [{ at: new Date().toISOString(), stage: 'code_submission', client: null }] }
-			})
-			.returning();
-		if (!row) throw new Error('attempt not inserted');
-		return row;
-	};
-	const code = await attempt('code_task', 'submitted');
-	const quiz = await attempt('quiz', 'started');
-	await db.insert(assessmentArtifacts).values([
-		{
-			attemptId: code.id,
+	// A decided attempt of the test on a grade: one served cluster with its key, the answer, a run whose output a
+	// hidden test printed, and the decision.
+	const family = bank.families.find((f) => f.descriptor.format === 'compute' || f.descriptor.format === 'code_trace');
+	if (!family) throw new Error('no computed family in the fixture bank');
+	const instance = family.module.generate({ seed: `seed-${mark}`, grade: 'junior', classId: 'a' });
+	const [attempt] = await db
+		.insert(testAttempts)
+		.values({
+			candidateId: person.id,
+			purpose: 'grade',
+			specialization: 'frontend',
+			grade: 'junior',
+			catalogVersion: '2026.10.1',
+			bankReleaseId: bank.releaseId,
+			procedureVersion: 'sprt-1',
+			policyVersion: 1,
+			form: 'A',
+			seed: randomBytes(16).toString('hex'),
+			status: 'decided',
+			startedAt: new Date(),
+			deadlineAt: new Date(Date.now() + 3_600_000),
+			endedAt: new Date(),
+			integritySignals: {
+				entries: [{ at: new Date().toISOString(), stage: 'answer', seq: 1, client: null }]
+			}
+		})
+		.returning();
+	if (!attempt) throw new Error('attempt not inserted');
+	const [item] = await db
+		.insert(testItems)
+		.values({
+			attemptId: attempt.id,
 			seq: 1,
-			kind: 'code_submission',
-			content: { language: 'go', source: `package ${mark}` },
+			block: family.descriptor.block,
+			format: family.descriptor.format,
+			practice: false,
+			familyKey: family.descriptor.key,
+			familyVersion: 1,
+			classId: 'a',
+			instanceSeed: `seed-${mark}`,
+			instance,
+			angoff: 0.6,
+			servedAt: new Date(),
+			answeredAt: new Date(),
+			score: 1,
+			scoreDetail: { correct: true },
+			status: 'scored'
+		})
+		.returning();
+	if (!item) throw new Error('item not inserted');
+	await db.insert(testArtifacts).values([
+		{
+			attemptId: attempt.id,
+			itemId: item.id,
+			seq: 1,
+			kind: 'answer',
+			content: { seq: 1, answer: `answer ${mark}` },
 			sha256: randomSha256(),
 			retentionUntil: '2030-01-01'
 		},
 		{
-			attemptId: quiz.id,
-			seq: 1,
-			kind: 'quiz_step',
-			content: {
-				item_id: `item-${mark}`,
-				item_version: 1,
-				presented_at: new Date().toISOString(),
-				answer: 'b',
-				correct: true,
-				ability_estimate_after: { ability: 0.5, standard_error: 0.3 }
-			},
+			attemptId: attempt.id,
+			itemId: item.id,
+			seq: 2,
+			kind: 'run_result',
+			content: { stage: 'test', test_id: 'g1/1', hidden: true, verdict: 'accepted', stdout_preview: `out ${mark}` },
 			sha256: randomSha256(),
 			retentionUntil: '2030-01-01'
 		}
 	]);
+	await db.insert(gradeDecisions).values({
+		attemptId: attempt.id,
+		candidateId: person.id,
+		specialization: 'frontend',
+		grade: 'junior',
+		outcome: 'not_confirmed',
+		reason: 'sprt_lower',
+		confident: false,
+		llr: -2_500_000,
+		scoreSum: 20,
+		cutSum: 72,
+		items: 6,
+		extensionUsed: false,
+		practice: { score: 0.5, gateMinScore: 0.4, passed: true },
+		blocks: [],
+		procedureVersion: 'sprt-1',
+		bankReleaseId: bank.releaseId,
+		status: 'valid',
+		decidedAt: new Date()
+	});
 
 	const score = (vacancyId: string) => ({
 		vacancyId,
@@ -804,16 +836,27 @@ describe('the export of own data', () => {
 				]
 			})
 		]);
-		const tests = new Map(document.tests.map((test) => [String(test.title), test]));
-		expect(tests.get('code_task anna-mark')).toMatchObject({
-			integrity_signals: { entries: [expect.objectContaining({ stage: 'code_submission' })] },
-			artifacts: [{ kind: 'code_submission', content: { language: 'go', source: 'package anna-mark' } }]
+		// The attempt with the statement served, the candidate's answer and the decision; never the key of the item or
+		// the output a hidden test printed.
+		// The decisions behind the category history are attempts too; the one of the fixture bank carries the items.
+		const served = document.tests.filter((t) => t.bank_release_id === bank.releaseId);
+		expect(served).toHaveLength(1);
+		const [test] = served;
+		expect(test).toMatchObject({
+			specialization: 'frontend',
+			grade: 'junior',
+			status: 'decided',
+			integrity_signals: { entries: [{ stage: 'answer', seq: 1, client: null }] },
+			items: [{ seq: 1, status: 'scored', statement: { code: null } }],
+			artifacts: [
+				{ kind: 'answer', content: { seq: 1, answer: 'answer anna-mark' } },
+				{ kind: 'run_result', content: { verdict: 'accepted', stdout_preview: null } }
+			],
+			decisions: [{ outcome: 'not_confirmed', reason: 'sprt_lower', status: 'valid' }]
 		});
-		// A quiz still running does not tell whether an answer was right.
-		expect(tests.get('quiz anna-mark')).toMatchObject({
-			artifacts: [{ kind: 'quiz_step', content: { item_id: 'item-anna-mark', item_version: 1, answer: 'b' } }]
-		});
-		expect(JSON.stringify(tests.get('quiz anna-mark'))).not.toContain('correct');
+		expect(JSON.stringify(test)).not.toContain('out anna-mark');
+		expect(JSON.stringify(test)).not.toContain('"answer":{"kind"');
+		expect(JSON.stringify(document)).not.toContain('boris-mark');
 		// Only the vacancy the candidate sees: the hidden one is not revealed by its stored match.
 		expect(document.matches).toHaveLength(1);
 		expect(document.matches[0]).toMatchObject({

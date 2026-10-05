@@ -6,6 +6,7 @@
 // Specializations outside the open ones are not suggested.
 import { createHash } from 'node:crypto';
 import { GRADE_KEYS, type GradeKey, type SpecializationKey } from '$lib/server/assessments/contract/catalog';
+import { openSpecializations } from '$lib/server/assessments/bank-store';
 import { primarySpecializationOfRole } from '$lib/server/categories/roles';
 import type { Database } from '$lib/server/db';
 import { mlResults } from '$lib/server/db/schema';
@@ -23,7 +24,7 @@ import { roleOfTitle } from '$lib/server/vacancies/normalize';
 import { loadVacancyTaxonomy, resolveSkill, vacancyLexicon } from '$lib/server/vacancies/taxonomy';
 import { extractVacancyByRules, VACANCY_TEXT_RULES_VERSION } from '$lib/server/vacancies/text-rules';
 import { OFFER_WORK_FORMATS } from '$lib/server/invitations/terms';
-import { EMPTY_FORM, openSpecializations, type NeedForm } from './form';
+import { EMPTY_FORM, type NeedForm } from './form';
 
 /** Version of the reading of a need on top of the rules of a vacancy text: any change of what it suggests is new. */
 export const NEED_RULES_VERSION = `need-rules/1+${VACANCY_TEXT_RULES_VERSION}`;
@@ -62,11 +63,11 @@ function catalogGrade(grade: string | null): GradeKey | null {
 async function suggestion(
 	fields: VacancyTextFields,
 	blocks: readonly Block[],
-	roleOf: (text: string) => string | null
+	roleOf: (text: string) => string | null,
+	open: ReadonlySet<SpecializationKey>
 ): Promise<{ form: NeedForm; parsed: ParsedField[] }> {
 	const form: NeedForm = { ...EMPTY_FORM, skill_keys: [], nice_skill_keys: [] };
 	const parsed: ParsedField[] = [];
-	const open = openSpecializations();
 
 	// The role of the title, else the first line whose words name a role; its specialization by the mapping of the
 	// module of categories.
@@ -208,7 +209,12 @@ export async function parseNeedText(
 	}
 	const [row] = await deps.db.insert(mlResults).values(values).returning({ id: mlResults.id });
 	if (!row) throw new Error('ml result was not inserted');
-	const { form, parsed } = await suggestion(fields, blocks, (text) => roleOfTitle(text, taxonomy).key);
+	const { form, parsed } = await suggestion(
+		fields,
+		blocks,
+		(text) => roleOfTitle(text, taxonomy).key,
+		await openSpecializations(deps.db)
+	);
 	return {
 		form,
 		parse: {

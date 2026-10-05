@@ -3,10 +3,6 @@ import { and, eq, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { recordAuditEvent } from '$lib/server/audit/record';
 import {
-	assessmentArtifacts,
-	assessmentAttempts,
-	assessments,
-	assessmentVersions,
 	auditEvents,
 	candidates,
 	consentEvents,
@@ -16,6 +12,8 @@ import {
 	notifications,
 	productPolicies,
 	staffRoles,
+	testArtifacts,
+	testItems,
 	users
 } from '$lib/server/db/schema';
 import { SWEEP_LIMIT } from '$lib/server/erasure/retention';
@@ -25,6 +23,7 @@ import { createLogger } from '$lib/server/jobs/log';
 import { enqueueJob } from '$lib/server/jobs/queue';
 import { JOURNAL_MONTHS_AHEAD, sweepJournal, sweepPersonalData } from '$lib/server/jobs/retention';
 import { startWorker } from '$lib/server/jobs/worker';
+import { insertAttempt, releaseFixtureBank } from '../helpers/bank';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
 import {
 	createCandidate,
@@ -156,40 +155,34 @@ describe('retention.sweep', () => {
 	it('clears the content of attempt artifacts past their retention in the same sweep', async () => {
 		const { db } = database;
 		const candidate = await createCandidate(db);
-		const [assessment] = await db
-			.insert(assessments)
-			.values({ kind: 'quiz', title: 'SQL', skillKeys: ['sql'] })
-			.returning({ id: assessments.id });
-		if (!assessment) throw new Error('assessment not inserted');
-		const [version] = await db
-			.insert(assessmentVersions)
-			.values({
-				assessmentId: assessment.id,
-				version: 1,
-				contentSha256: 'a'.repeat(64),
-				scorer: {},
-				levelScale: {},
-				coverage: {},
-				status: 'published'
-			})
-			.returning({ id: assessmentVersions.id });
-		if (!version) throw new Error('assessment version not inserted');
+		const { releaseId, families } = await releaseFixtureBank(db, 'qa');
+		const family = families[0];
+		if (!family) throw new Error('no fixture family');
 		const startedAt = new Date('2020-03-01T10:00:00Z');
-		const [attempt] = await db
-			.insert(assessmentAttempts)
+		const attempt = await insertAttempt(db, { candidateId: candidate.id, releaseId, status: 'expired', startedAt });
+		const [item] = await db
+			.insert(testItems)
 			.values({
-				candidateId: candidate.id,
-				versionId: version.id,
-				startedAt,
-				submittedAt: startedAt,
-				deadlineAt: new Date('2020-03-01T11:00:00Z'),
-				status: 'submitted'
+				attemptId: attempt.id,
+				seq: 1,
+				block: family.descriptor.block,
+				format: family.descriptor.format,
+				practice: false,
+				familyKey: family.descriptor.key,
+				familyVersion: 1,
+				classId: 'a',
+				instanceSeed: 's',
+				instance: family.module.generate({ seed: 's', grade: 'intern', classId: 'a' }),
+				angoff: 0.6,
+				servedAt: startedAt,
+				status: 'served'
 			})
-			.returning({ id: assessmentAttempts.id });
-		if (!attempt) throw new Error('attempt not inserted');
-		await db.insert(assessmentArtifacts).values([
+			.returning({ id: testItems.id });
+		if (!item) throw new Error('item not inserted');
+		await db.insert(testArtifacts).values([
 			{
 				attemptId: attempt.id,
+				itemId: item.id,
 				seq: 1,
 				kind: 'answer',
 				content: { answer: 'a' },
@@ -198,6 +191,7 @@ describe('retention.sweep', () => {
 			},
 			{
 				attemptId: attempt.id,
+				itemId: item.id,
 				seq: 2,
 				kind: 'answer',
 				content: { answer: 'b' },
@@ -210,13 +204,13 @@ describe('retention.sweep', () => {
 		expect(finished).toMatchObject({ artifacts_cleared: 1 });
 		const rows = await db
 			.select({
-				seq: assessmentArtifacts.seq,
-				content: assessmentArtifacts.content,
-				sha256: assessmentArtifacts.sha256
+				seq: testArtifacts.seq,
+				content: testArtifacts.content,
+				sha256: testArtifacts.sha256
 			})
-			.from(assessmentArtifacts)
-			.where(eq(assessmentArtifacts.attemptId, attempt.id))
-			.orderBy(assessmentArtifacts.seq);
+			.from(testArtifacts)
+			.where(eq(testArtifacts.attemptId, attempt.id))
+			.orderBy(testArtifacts.seq);
 		expect(rows).toEqual([
 			{ seq: 1, content: null, sha256: 'b'.repeat(64) },
 			{ seq: 2, content: { answer: 'b' }, sha256: 'c'.repeat(64) }

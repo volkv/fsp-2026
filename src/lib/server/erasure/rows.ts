@@ -3,8 +3,6 @@
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import type { Transaction } from '$lib/server/db';
 import {
-	assessmentArtifacts,
-	assessmentAttempts,
 	athleteLinks,
 	candidates,
 	documentExtractions,
@@ -12,7 +10,9 @@ import {
 	invitations,
 	notifications,
 	representations,
-	resumeDocuments
+	resumeDocuments,
+	testArtifacts,
+	testAttempts
 } from '$lib/server/db/schema';
 
 export interface PersonIds {
@@ -77,19 +77,16 @@ export async function personIds(tx: Transaction, userId: string): Promise<Person
 						.where(inArray(documentExtractions.resumeDocumentId, resumeIds))
 				);
 	const attemptIds = idsOf(
-		await tx
-			.select({ id: assessmentAttempts.id })
-			.from(assessmentAttempts)
-			.where(eq(assessmentAttempts.candidateId, candidateId))
+		await tx.select({ id: testAttempts.id }).from(testAttempts).where(eq(testAttempts.candidateId, candidateId))
 	);
 	const artifactIds =
 		attemptIds.length === 0
 			? []
 			: idsOf(
 					await tx
-						.select({ id: assessmentArtifacts.id })
-						.from(assessmentArtifacts)
-						.where(inArray(assessmentArtifacts.attemptId, attemptIds))
+						.select({ id: testArtifacts.id })
+						.from(testArtifacts)
+						.where(inArray(testArtifacts.attemptId, attemptIds))
 				);
 	const invitationIds = idsOf(
 		await tx

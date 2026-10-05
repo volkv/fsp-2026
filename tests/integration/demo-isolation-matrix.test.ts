@@ -24,8 +24,6 @@ import { publishLegalDocuments, readLegalRelease } from '../../scripts/seed-lega
 import { publishPolicies, readPolicyRelease } from '../../scripts/seed-policies';
 import type { Actor } from '$lib/server/access/actor';
 import {
-	assessmentAttempts,
-	assessmentVersions,
 	assessmentObjections,
 	candidateSurveys,
 	categorizationRulesets,
@@ -50,14 +48,13 @@ import {
 	vacancyImportRuns,
 	vacancyPostings
 } from '$lib/server/db/schema';
-import { readAssessmentBank } from '$lib/server/assessments/bank';
-import { publishAssessmentBank } from '$lib/server/assessments/publish';
 import { grantPartnerPoolConsent } from '$lib/server/candidates/consents';
 import { uuidv7 } from '$lib/server/ids';
 import { publishTaxonomy } from '$lib/server/taxonomy/publish';
 import { PENDING_NORMALIZATION, PENDING_VERSION } from '$lib/server/vacancies/clusters';
 import { HABR_SOURCE_KEY, registerVacancySources } from '$lib/server/vacancies/sources/definitions';
 import { buildRelease, readTaxonomyDatasets } from '$lib/server/taxonomy/release';
+import { insertDecidedAttempt, releaseFixtureBank } from '../helpers/bank';
 import { decide } from '../helpers/categories';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
 import {
@@ -142,6 +139,7 @@ interface Place {
 	moderatedVacancyId: string;
 	ageConflictId: string;
 	attemptId: string;
+	decisionId: string;
 	adminUserId: string;
 	partnershipId: string;
 }
@@ -149,7 +147,7 @@ interface Place {
 let database: TestDatabase;
 let taxonomyVersionId: string;
 let rulesetId: string;
-let assessmentVersionId: string;
+let bankReleaseId: string;
 let documents: { pd: string; catalog: string; disclosure: string };
 let places: Record<PlaceKey, Place>;
 
@@ -497,18 +495,7 @@ async function place(
 		}
 	);
 
-	const [attempt] = await db
-		.insert(assessmentAttempts)
-		.values({
-			candidateId: candidate.id,
-			versionId: assessmentVersionId,
-			startedAt: new Date(Date.now() - 2 * 3_600_000),
-			submittedAt: new Date(Date.now() - 3_600_000),
-			deadlineAt: new Date(Date.now() - 3_000_000),
-			status: 'submitted'
-		})
-		.returning({ id: assessmentAttempts.id });
-	if (!attempt) throw new Error('attempt not inserted');
+	const attempt = await insertDecidedAttempt(db, { candidateId: candidate.id, releaseId: bankReleaseId });
 
 	const admin = await account(session, `Администратор ${tag}`);
 	await db.insert(staffRoles).values({ userId: admin.id, role: 'admin', grantedAt: new Date() });
@@ -558,7 +545,8 @@ async function place(
 		claimId: claim.id,
 		moderatedVacancyId: moderated.id,
 		ageConflictId: conflict.id,
-		attemptId: attempt.id,
+		attemptId: attempt.attemptId,
+		decisionId: attempt.decisionId,
 		adminUserId: admin.id,
 		partnershipId: active.id
 	};
@@ -647,7 +635,6 @@ beforeAll(async () => {
 		await publishTaxonomy(client, buildRelease(await readTaxonomyDatasets(`${ROOT}/taxonomy`)));
 		await publishPolicies(client, await readPolicyRelease(`${ROOT}/policies`));
 		await publishLegalDocuments(client, await readLegalRelease(`${ROOT}/legal`));
-		await publishAssessmentBank(client, await readAssessmentBank(`${ROOT}/assessments`));
 	} finally {
 		await client.end({ timeout: 5 });
 	}
@@ -658,9 +645,7 @@ beforeAll(async () => {
 	if (!version || !ruleset) throw new Error('taxonomy not published');
 	taxonomyVersionId = version.id;
 	rulesetId = ruleset.id;
-	const [assessment] = await db.select({ id: assessmentVersions.id }).from(assessmentVersions).limit(1);
-	if (!assessment) throw new Error('no assessment published');
-	assessmentVersionId = assessment.id;
+	bankReleaseId = (await releaseFixtureBank(db, 'backend')).releaseId;
 	const documentOf = async (kind: 'pd_processing' | 'catalog_visibility' | 'contact_disclosure') => {
 		const [row] = await db.select({ id: legalDocuments.id }).from(legalDocuments).where(eq(legalDocuments.kind, kind));
 		if (!row) throw new Error(`no published ${kind}`);
@@ -959,6 +944,24 @@ const REGISTRY: Record<string, Entry> = {
 		(_, t) => `/me/tests/attempts/${t.attemptId}`,
 		(_, t) => ({ attemptId: t.attemptId })
 	),
+	'(app)/me/tests/decisions/[decisionId]/+page.server.ts': target(
+		'candidate',
+		'own',
+		(_, t) => `/me/tests/decisions/${t.decisionId}`,
+		(_, t) => ({ decisionId: t.decisionId })
+	),
+	'api/v1/me/tests/[attempt_id]/+server.ts': target(
+		'candidate',
+		'own',
+		(_, t) => `/api/v1/me/tests/${t.attemptId}`,
+		(_, t) => ({ attempt_id: t.attemptId })
+	),
+	'api/v1/me/tests/decisions/[decision_id]/+server.ts': target(
+		'candidate',
+		'own',
+		(_, t) => `/api/v1/me/tests/decisions/${t.decisionId}`,
+		(_, t) => ({ decision_id: t.decisionId })
+	),
 	'(app)/me/category/+page.server.ts': list('candidate', 'own', () => '/me/category'),
 	'api/v1/me/categories/+server.ts': list('candidate', 'own', () => '/api/v1/me/categories'),
 	'(app)/me/profile/+page.server.ts': list('candidate', 'own', () => '/me/profile'),
@@ -1018,7 +1021,7 @@ const REGISTRY: Record<string, Entry> = {
 		(_, t) => ({ id: t.ageConflictId })
 	),
 	'api/v1/operator/ages/+server.ts': list('operator', 'reach', () => '/api/v1/operator/ages'),
-	'(app)/operator/assessments/+page.server.ts': list('operator', 'reach', () => '/operator/assessments'),
+	'(app)/operator/assessments/+page.server.ts': list('operator', 'reach', () => '/operator/assessments?filter=all'),
 	'(app)/operator/assessments/[id]/+page.server.ts': target(
 		'operator',
 		'reach',
@@ -1110,7 +1113,8 @@ const REGISTRY: Record<string, Entry> = {
 	'(app)/me/resume/+page.server.ts': exempt('own resume'),
 	'(app)/me/settings/+page.server.ts': exempt('own settings'),
 	'(app)/me/visibility/+page.server.ts': exempt('own settings'),
-	'(app)/me/tests/[assessmentId]/+page.server.ts': exempt('the bank of the stand and own attempts'),
+	'(app)/admin/bank/+page.server.ts': exempt('bank releases of the stand'),
+	'api/v1/admin/bank-releases/+server.ts': exempt('bank releases of the stand'),
 	'(app)/company/(member)/profile/keys/+page.server.ts': exempt('own API keys'),
 	'(app)/company/(member)/vacancies/new/+page.server.ts': exempt('form of a new vacancy'),
 	'(app)/company/join/+page.server.ts': exempt('own membership'),
@@ -1171,6 +1175,8 @@ const REGISTRY: Record<string, Entry> = {
 	'api/v1/me/surveys/+server.ts': WRITES,
 	'api/v1/operator/ages/[candidate_id]/decision/+server.ts': WRITES,
 	'api/v1/operator/assessments/attempts/[attempt_id]/annulment/+server.ts': WRITES,
+	'api/v1/me/tests/+server.ts': WRITES,
+	'api/v1/me/tests/[attempt_id]/items/[seq]/answer/+server.ts': WRITES,
 	'api/v1/operator/moderation/vacancies/[vacancy_id]/decision/+server.ts': WRITES,
 	'api/v1/operator/objections/[objection_id]/assign/+server.ts': WRITES,
 	'api/v1/operator/objections/[objection_id]/resolution/+server.ts': WRITES,

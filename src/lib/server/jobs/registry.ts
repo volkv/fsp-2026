@@ -141,10 +141,11 @@ export const JOB_TYPES = {
 		leaseSeconds: 600,
 		priority: 10
 	}),
-	'assessment.run': defineJob({
+	// A submission of a practice cluster of the test run in the sandbox (domain 10.3, contracts 6.4–6.5).
+	'test.run': defineJob({
 		typeVersion: 1,
 		payload: ids('artifact_id'),
-		dedupKey: (p) => `assessment.run:${p.artifact_id}`,
+		dedupKey: (p) => `test.run:${p.artifact_id}`,
 		// One retry after a sandbox failure (contracts 6.4).
 		maxAttempts: 2,
 		leaseSeconds: 120,

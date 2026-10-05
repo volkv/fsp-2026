@@ -24,7 +24,6 @@ export interface CastRole {
 function candidatePart(hero: SeedData['demo']['candidates'][number]): string {
 	const parts = [hero.athlete === undefined ? 'опыт по резюме, без ФСП' : 'достижения ФСП'];
 	if (hero.athlete !== undefined && hero.resume !== undefined) parts.push('и резюме');
-	if (hero.quiz !== undefined) parts.push('тест платформы');
 	if (hero.representative !== undefined) parts.push('несовершеннолетний, представитель ждёт проверки');
 	return parts.join(', ');
 }

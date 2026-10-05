@@ -41,8 +41,7 @@ export const ERASURE_PLAN: Readonly<Record<string, ErasureDecision>> = {
 
 	// Acts of the person on someone else's rows.
 	'candidates.birth_date_verified_by': actOfAnother,
-	'assessment_attempts.annulled_by': actOfAnother,
-	'assessment_scores.reviewer_id': actOfAnother,
+	'test_attempts.annulled_by': actOfAnother,
 	'authority_checks.checked_by': actOfAnother,
 	'assessment_objections.assignee_id': actOfAnother,
 	'company_members.invited_by': actOfAnother,
@@ -67,7 +66,8 @@ export const ERASURE_PLAN: Readonly<Record<string, ErasureDecision>> = {
 	'grade_declarations.candidate_id': erased,
 	'match_scores.candidate_id': erased,
 	'resume_documents.candidate_id': erased,
-	'assessment_attempts.candidate_id': erased,
+	'test_attempts.candidate_id': erased,
+	'grade_decisions.candidate_id': erased,
 	'hiring_processes.candidate_id': erased,
 	'representations.candidate_id': kept('a representation with an authority document inside its retention period'),
 	'consent_events.subject_candidate_id': kept('the events a disclosure refers to (domain 6.5), until its retention'),

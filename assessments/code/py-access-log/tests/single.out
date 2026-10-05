@@ -1,7 +1,0 @@
-1xx: 0
-2xx: 0
-3xx: 0
-4xx: 0
-5xx: 1
-slowest: /api/users 4637
-top: /api/users 1

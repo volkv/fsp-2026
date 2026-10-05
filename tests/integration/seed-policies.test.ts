@@ -92,11 +92,7 @@ describe('product policies seed', () => {
 			inactivity_notice_days: 30,
 			fsp_batch_retention_days: 90
 		});
-		expect((await assessmentPolicy(database.db, now)).params).toEqual({
-			max_attempts: 3,
-			retake_interval_days: 1,
-			artifact_retention_days: 365
-		});
+		expect((await assessmentPolicy(database.db, now)).params).toEqual({ artifact_retention_days: 365 });
 	});
 
 	it('refuses a published version with other parameters: a change is a new version', async () => {

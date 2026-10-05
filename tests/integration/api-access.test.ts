@@ -52,6 +52,7 @@ import { publishTaxonomy } from '$lib/server/taxonomy/publish';
 import { buildRelease, readTaxonomyDatasets } from '$lib/server/taxonomy/release';
 import { PENDING_NORMALIZATION, PENDING_VERSION } from '$lib/server/vacancies/clusters';
 import { HABR_SOURCE_KEY, registerVacancySources } from '$lib/server/vacancies/sources/definitions';
+import { releaseFixtureBank } from '../helpers/bank';
 import { decide } from '../helpers/categories';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
 import {
@@ -95,6 +96,8 @@ beforeAll(async () => {
 	if (!version) throw new Error('taxonomy not published');
 	taxonomyVersionId = version.id;
 	await registerVacancySources(database.sql);
+	// A need may name a specialization only with a released bank.
+	await releaseFixtureBank(db, 'backend');
 
 	redis = createClient({ url: inject('redisUrl') });
 	await redis.connect();

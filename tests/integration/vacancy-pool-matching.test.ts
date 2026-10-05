@@ -2,13 +2,10 @@
 // the matching ones are read from its stored matches — at the pool threshold by the score, no required skill confirmed
 // directly, visible to some verified company when read — with the required skills a published platform test confirms.
 import { randomUUID } from 'node:crypto';
-import { fileURLToPath } from 'node:url';
 import { eq } from 'drizzle-orm';
 import postgres from 'postgres';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
-import { readAssessmentBank } from '$lib/server/assessments/bank';
 import type { SpecializationKey } from '$lib/server/assessments/contract/catalog';
-import { publishAssessmentBank } from '$lib/server/assessments/publish';
 import {
 	candidates,
 	categorizationRulesets,
@@ -38,6 +35,7 @@ import type { NormalizedPosting } from '$lib/server/vacancies/normalize';
 import { loadPoolCount, loadPoolCounter } from '$lib/server/vacancies/pool';
 import { HABR_SOURCE_KEY, registerVacancySources } from '$lib/server/vacancies/sources/definitions';
 import shippedMatchRuleset from '../../taxonomy/match-ruleset.json';
+import { releaseFixtureBank } from '../helpers/bank';
 import { decide } from '../helpers/categories';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
 import {
@@ -52,7 +50,6 @@ import {
 	randomSha256
 } from '../helpers/factories';
 
-const BANK_DIR = fileURLToPath(new URL('../../assessments', import.meta.url));
 const DAY = 86_400_000;
 
 let database: TestDatabase;
@@ -104,6 +101,7 @@ beforeAll(async () => {
 		pd: (await createPublishedDocument(db, 'pd_processing')).id,
 		catalog: (await createPublishedDocument(db, 'catalog_visibility')).id
 	};
+	await releaseFixtureBank(db, 'backend');
 	const since = new Date(Date.now() - DAY);
 	await db.insert(productPolicies).values([
 		{ kind: 'matching_policy', version: 1, params: { store_threshold: 0.3 }, effectiveFrom: since },
@@ -119,7 +117,6 @@ beforeAll(async () => {
 
 	const client = postgres(database.url, { max: 1, onnotice: () => {} });
 	try {
-		await publishAssessmentBank(client, await readAssessmentBank(BANK_DIR));
 		await registerVacancySources(client);
 	} finally {
 		await client.end({ timeout: 5 });
@@ -295,7 +292,7 @@ describe('pool of a vacancy and the matching candidates without confirmation', (
 			countedAt: expect.any(Date) as Date,
 			matching: {
 				unconfirmed: { status: 'counted', count: 2 },
-				// The bank has a Go quiz and Go tasks, nothing for PostgreSQL.
+				// The released Backend test confirms Go by its practice, nothing confirms PostgreSQL.
 				confirmableSkills: [{ key: 'go', name: 'Go' }]
 			}
 		});

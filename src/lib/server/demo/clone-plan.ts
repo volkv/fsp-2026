@@ -66,8 +66,7 @@ export const DEMO_CLONE_PLAN: Readonly<Record<string, TableDecision>> = {
 	legal_documents: reference,
 	product_policies: reference,
 	vacancy_sources: reference,
-	assessments: reference,
-	assessment_versions: reference,
+	bank_releases: reference,
 	embedding_spaces: reference,
 	search_settings: reference,
 	eval_runs: reference,
@@ -201,17 +200,23 @@ export const DEMO_CLONE_PLAN: Readonly<Record<string, TableDecision>> = {
 	skill_inferences: { kind: 'owned', copy: true, edges: { run_id: 'owner', candidate_id: 'owner' } },
 	experience_entries: { kind: 'owned', copy: true, edges: { candidate_id: 'owner', fact_id: 'owner' } },
 	verification_receipts: { kind: 'owned', copy: true, edges: { fact_id: 'owner', audience_company_id: 'owner' } },
-	assessment_attempts: {
+	test_attempts: {
 		kind: 'owned',
 		copy: true,
-		edges: { candidate_id: 'owner', version_id: 'reference', annulled_by: 'mention' }
+		edges: { candidate_id: 'owner', bank_release_id: 'reference', annulled_by: 'mention' }
 	},
-	assessment_scores: {
+	test_items: { kind: 'owned', copy: true, edges: { attempt_id: 'owner' } },
+	test_artifacts: { kind: 'owned', copy: true, edges: { attempt_id: 'owner', item_id: 'owner', file_id: 'owner' } },
+	grade_decisions: {
 		kind: 'owned',
 		copy: true,
-		edges: { attempt_id: 'owner', supersedes_score_id: 'owner', reviewer_id: 'mention' }
+		edges: {
+			attempt_id: 'owner',
+			candidate_id: 'owner',
+			bank_release_id: 'reference',
+			supersedes_decision_id: 'owner'
+		}
 	},
-	assessment_artifacts: { kind: 'owned', copy: true, edges: { attempt_id: 'owner', file_id: 'owner' } },
 	evidence_runs: {
 		kind: 'owned',
 		copy: true,
@@ -223,9 +228,18 @@ export const DEMO_CLONE_PLAN: Readonly<Record<string, TableDecision>> = {
 		}
 	},
 	fsp_level_assignments: { kind: 'owned', copy: true, edges: { run_id: 'owner' } },
-	// Categories and objections (domain 23.2); `decision_id` becomes an `owner` edge with its foreign key.
-	candidate_categories: { kind: 'owned', copy: true, edges: { candidate_id: 'owner' } },
-	assessment_objections: { kind: 'owned', copy: true, edges: { candidate_id: 'owner', assignee_id: 'mention' } },
+	// Categories and objections (domain 23.2).
+	candidate_categories: { kind: 'owned', copy: true, edges: { candidate_id: 'owner', decision_id: 'owner' } },
+	assessment_objections: {
+		kind: 'owned',
+		copy: true,
+		edges: {
+			candidate_id: 'owner',
+			decision_id: 'owner',
+			resulting_decision_id: 'owner',
+			assignee_id: 'mention'
+		}
+	},
 
 	// The survey and the declared grade (domain 12.2, 23.2).
 	candidate_surveys: {

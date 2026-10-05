@@ -424,15 +424,12 @@ export type FactDetailView =
 	| { kind: 'platform_rating'; platform: string; login: string; rating: number | null }
 	| {
 			kind: 'test_score';
-			assessment: string;
-			testKind: 'code_task' | 'quiz';
-			version: number;
+			title: string;
 			attemptId: string;
-			level: string;
-			language: string | null;
-			score: number;
-			maxScore: number;
-			scoredOn: string;
+			decisionId: string;
+			blocks: string[];
+			bankReleaseId: string;
+			decidedOn: string;
 	  }
 	| { kind: 'other'; factType: string };
 
@@ -499,7 +496,7 @@ export function factTitle(detail: FactDetailView): string {
 		case 'platform_rating':
 			return `Аккаунт ${detail.platform}`;
 		case 'test_score':
-			return `Тест «${detail.assessment}», версия ${detail.version}`;
+			return `Тест на грейд ${detail.title}`;
 		case 'other':
 			return detail.factType === 'resume_document' ? 'Резюме' : 'Факт профиля';
 	}

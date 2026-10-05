@@ -1,8 +1,0 @@
-2 7
-PUT 0 a 1 50
-PUT 1 b 2 50
-PUT 2 a 11 1000
-PUT 3 c 3 1000
-GET 60 b
-GET 60 a
-GET 60 c

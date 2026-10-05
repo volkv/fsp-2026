@@ -36,6 +36,7 @@ import { operatorOverview } from '$lib/server/operator/overview';
 import { representationCase, representationQueue } from '$lib/server/operator/representatives';
 import type { Redis } from '$lib/server/redis';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
+import { recordDecision } from '../helpers/categories';
 import {
 	createCandidate,
 	createCompany,
@@ -156,7 +157,9 @@ async function place(session: string | null, demoOriginal = false): Promise<Plac
 	if (!recruiter.userId) throw new Error('member without user');
 
 	const objecting = await profile(session, undefined, demoOriginal);
-	const decisionId = randomUUID();
+	const decisionId = (
+		await recordDecision(db, objecting.id, { specialization: 'backend', grade: 'junior', outcome: 'not_confirmed' })
+	).id;
 	decided.set(decisionId, objecting.id);
 	const openedAt = new Date();
 	const [objection] = await db

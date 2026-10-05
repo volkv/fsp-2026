@@ -3,12 +3,7 @@
 // the work format, the region, a range in roubles per month and whether results of FSP matter. Stored as
 // `hiring_needs.form` in this shape, read back through the same schema.
 import { z } from 'zod';
-import {
-	CATALOG,
-	GRADE_KEYS,
-	SPECIALIZATION_KEYS,
-	type SpecializationKey
-} from '$lib/server/assessments/contract/catalog';
+import { GRADE_KEYS, SPECIALIZATION_KEYS } from '$lib/server/assessments/contract/catalog';
 import { OFFER_WORK_FORMATS } from '$lib/server/invitations/terms';
 
 const skillKey = z.string().regex(/^[a-z0-9_]+$/u);
@@ -41,14 +36,6 @@ export const needFormSchema = z.strictObject({
 export type NeedForm = z.infer<typeof needFormSchema>;
 
 export const EMPTY_FORM: NeedForm = { skill_keys: [], nice_skill_keys: [] };
-
-/**
- * Specializations a need may name: switched on in the catalog. The released bank of each (domain 10.5) is the other
- * half of `specializationOpen`; it joins here with the module of test releases.
- */
-export function openSpecializations(): ReadonlySet<SpecializationKey> {
-	return new Set(CATALOG.specializations.filter((s) => s.availability === 'enabled').map((s) => s.key));
-}
 
 /** Parses a stored form; a stored value of the wrong shape is a data error and names the need. */
 export function parseNeedForm(needId: string, value: unknown): NeedForm {

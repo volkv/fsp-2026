@@ -15,10 +15,7 @@ import { clearAccountFailures } from '$lib/server/auth/lockout';
 import { revokeUserSessions } from '$lib/server/auth/sessions';
 import { db, type Database, type Executor, type Transaction } from '$lib/server/db';
 import {
-	assessmentArtifacts,
 	assessmentObjections,
-	assessmentScores,
-	assessmentAttempts,
 	athleteLinks,
 	authorityChecks,
 	candidateCategories,
@@ -39,6 +36,7 @@ import {
 	externalProfiles,
 	files,
 	fspLevelAssignments,
+	gradeDecisions,
 	gradeDeclarations,
 	hiringProcesses,
 	hiringReports,
@@ -58,6 +56,9 @@ import {
 	skillInferences,
 	sourceFacts,
 	telegramLinkTokens,
+	testArtifacts,
+	testAttempts,
+	testItems,
 	users,
 	verificationReceipts
 } from '$lib/server/db/schema';
@@ -125,9 +126,9 @@ async function erasableFiles(executor: Executor, ids: PersonIds, today: string):
 			inArray(
 				files.id,
 				executor
-					.select({ id: sql<string>`${assessmentArtifacts.fileId}` })
-					.from(assessmentArtifacts)
-					.where(and(inArray(assessmentArtifacts.id, ids.artifactIds), sql`${assessmentArtifacts.fileId} is not null`))
+					.select({ id: sql<string>`${testArtifacts.fileId}` })
+					.from(testArtifacts)
+					.where(and(inArray(testArtifacts.id, ids.artifactIds), sql`${testArtifacts.fileId} is not null`))
 			)
 		);
 	}
@@ -374,23 +375,24 @@ async function eraseEvidence(
 	);
 	if (ids.attemptIds.length > 0) {
 		const attempts = ids.attemptIds;
+		// Artifacts and decisions are append-only: the retention role removes them (domain 10.7, 23.2).
 		removal.add(
 			await asRetentionRole(tx, async () => [
 				...(await tx
-					.delete(assessmentArtifacts)
-					.where(inArray(assessmentArtifacts.attemptId, attempts))
-					.returning({ id: assessmentArtifacts.id })),
+					.delete(testArtifacts)
+					.where(inArray(testArtifacts.attemptId, attempts))
+					.returning({ id: testArtifacts.id })),
 				...(await tx
-					.delete(assessmentScores)
-					.where(inArray(assessmentScores.attemptId, attempts))
-					.returning({ id: assessmentScores.id }))
+					.delete(gradeDecisions)
+					.where(inArray(gradeDecisions.attemptId, attempts))
+					.returning({ id: gradeDecisions.id }))
 			])
 		);
 		removal.add(
-			await tx
-				.delete(assessmentAttempts)
-				.where(inArray(assessmentAttempts.id, attempts))
-				.returning({ id: assessmentAttempts.id })
+			await tx.delete(testItems).where(inArray(testItems.attemptId, attempts)).returning({ id: testItems.id })
+		);
+		removal.add(
+			await tx.delete(testAttempts).where(inArray(testAttempts.id, attempts)).returning({ id: testAttempts.id })
 		);
 	}
 	removal.add(

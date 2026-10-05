@@ -9,7 +9,8 @@ import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, inject, it, vi } from 'vitest';
 import type { AccessSubject } from '$lib/server/access/permissions';
 import type { Actor } from '$lib/server/access/actor';
-import { startAttempt } from '$lib/server/assessments/attempts';
+import { startAttempt } from '$lib/server/assessments/engine';
+import { OWNER_STANDING } from '$lib/server/assessments/standing';
 import { createProfileEmbedHandler } from '$lib/server/candidates/embed-job';
 import {
 	consentEvents,
@@ -402,10 +403,16 @@ describe('a resume of a candidate aged 14–17', () => {
 });
 
 describe('other processing of a candidate aged 14–17 without the representative', () => {
-	it('refuses to start an attempt of a platform test', async () => {
+	it('refuses to start an attempt of the test on a grade', async () => {
 		const person = await teenager();
 		await expect(
-			startAttempt(database.db, subjectOf(person), randomSha256().slice(0, 12), now())
+			startAttempt(
+				database.db,
+				{ standing: OWNER_STANDING },
+				subjectOf(person),
+				{ specialization: 'backend', grade: 'junior' },
+				{ now: now(), requestId: 'minor-test' }
+			)
 		).rejects.toMatchObject({
 			code: 'policy_violation',
 			details: [expect.objectContaining({ code: 'representative_consent_required' })]

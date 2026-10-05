@@ -9,7 +9,6 @@
 import { and, count, desc, eq, isNull, lt, or } from 'drizzle-orm';
 import type { Database } from '$lib/server/db';
 import {
-	assessmentAttempts,
 	assessmentObjections,
 	candidates,
 	companies,
@@ -18,6 +17,7 @@ import {
 	invitations,
 	notifications,
 	representations,
+	testAttempts,
 	vacancies
 } from '$lib/server/db/schema';
 import { categoryOwner } from '$lib/server/categories/read';
@@ -235,9 +235,9 @@ async function targetOf(
 				: { kind: 'unavailable' };
 		case 'assessment_attempt': {
 			const [attempt] = await db
-				.select({ candidateId: assessmentAttempts.candidateId })
-				.from(assessmentAttempts)
-				.where(eq(assessmentAttempts.id, objectId));
+				.select({ candidateId: testAttempts.candidateId })
+				.from(testAttempts)
+				.where(eq(testAttempts.id, objectId));
 			return attempt && (await candidateUserOf(db, attempt.candidateId)) === userId
 				? { kind: 'candidate_attempt', attemptId: objectId }
 				: { kind: 'unavailable' };

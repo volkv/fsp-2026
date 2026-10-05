@@ -1,6 +1,7 @@
-// Journal of attempt signals (docs/domain.md, 10.2 `integrity_signals`): time spent, pastes, leaving the page. They
-// are kept for a person who reviews the attempt and are shown to the candidate as they are. They never decide
-// anything automatically and are not a detection of borrowed or generated code: the platform does not claim one.
+// Journal of attempt signals (docs/domain.md, 10.7 `integrity_signals`): time spent, pastes, leaving the page. They
+// are kept for a person who reviews the attempt and for the employer next to the result, and are shown to the
+// candidate as they are. They never decide anything automatically and are not a detection of borrowed or generated
+// code: the platform does not claim one.
 import { z } from 'zod';
 
 const count = z.int().min(0).max(100_000);
@@ -16,8 +17,10 @@ export type ClientSignals = z.infer<typeof clientSignalsSchema>;
 
 const entrySchema = z.strictObject({
 	at: z.iso.datetime(),
-	stage: z.enum(['code_submission', 'quiz_step']),
-	itemId: z.string().optional(),
+	/** An answer to a computed item, a program or test cases, or the step «измени своё решение». */
+	stage: z.enum(['answer', 'submission', 'change_step']),
+	/** The slot of the item. */
+	seq: z.int().min(1),
 	/** From showing the question to the answer, measured by the server. */
 	responseMs: z.int().min(0).optional(),
 	/** `null` — the page sent no signals (scripts off or an old page). */

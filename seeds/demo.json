@@ -100,11 +100,7 @@
 				}
 			},
 			"resume": "resumes/k1.pdf",
-			"github": "srodionov-dev",
-			"quiz": {
-				"skill": "go",
-				"ability": 0.5
-			}
+			"github": "srodionov-dev"
 		},
 		{
 			"key": "k2",
@@ -197,11 +193,7 @@
 					"tax_base": "net"
 				}
 			},
-			"resume": "resumes/k5.pdf",
-			"quiz": {
-				"skill": "python",
-				"ability": 1.6
-			}
+			"resume": "resumes/k5.pdf"
 		}
 	]
 }

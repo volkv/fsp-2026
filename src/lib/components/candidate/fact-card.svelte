@@ -3,7 +3,6 @@
 	import ReceiptIcon from '@lucide/svelte/icons/receipt-text';
 	import TriangleAlertIcon from '@lucide/svelte/icons/triangle-alert';
 	import { resolve } from '$app/paths';
-	import { languageName, levelName as testLevelName } from '$lib/components/assessments/model.js';
 	import { AchievementBadge, TrustChip, VerificationReceipt } from '$lib/components/product/index.js';
 	import {
 		formatDate,
@@ -154,40 +153,30 @@
 			Рейтинг {detail.rating ?? 'не передан'} — в уровень ФСП не входит: шкала платформы не сверена.
 		</p>
 	{:else if detail.kind === 'test_score'}
-		<p class="font-heading text-lg">{detail.assessment}</p>
+		<p class="font-heading text-lg">Тест на грейд {detail.title}</p>
 		<dl class="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2" data-testid="test-score">
-			<div class="flex gap-1.5">
-				<dt class="text-muted-foreground">Уровень:</dt>
-				<dd data-level={detail.level}>{testLevelName(detail.level)}</dd>
+			<div class="flex gap-1.5 sm:col-span-2">
+				<dt class="text-muted-foreground">Пройденные блоки:</dt>
+				<dd>{detail.blocks.length > 0 ? detail.blocks.join(', ') : 'нет'}</dd>
 			</div>
 			<div class="flex gap-1.5">
-				<dt class="text-muted-foreground">{detail.testKind === 'quiz' ? 'Верных ответов:' : 'Результат:'}</dt>
-				<dd class="tabular-nums">{detail.score} из {detail.maxScore}</dd>
-			</div>
-			{#if detail.language !== null}
-				<div class="flex gap-1.5">
-					<dt class="text-muted-foreground">Язык решения:</dt>
-					<dd>{languageName(detail.language)}</dd>
-				</div>
-			{/if}
-			<div class="flex gap-1.5">
-				<dt class="text-muted-foreground">Версия задания:</dt>
-				<dd class="tabular-nums">{detail.version}</dd>
+				<dt class="text-muted-foreground">Выпуск банка:</dt>
+				<dd class="tabular-nums">{detail.bankReleaseId}</dd>
 			</div>
 			<div class="flex gap-1.5">
-				<dt class="text-muted-foreground">Оценено:</dt>
-				<dd>{formatDate(detail.scoredOn)}</dd>
+				<dt class="text-muted-foreground">Решение:</dt>
+				<dd>{formatDate(detail.decidedOn)}</dd>
 			</div>
 		</dl>
 		<p class="text-sm text-muted-foreground">
-			Подтверждено платформой по одной попытке этой версии задания: не самостоятельность выполнения и не вся
-			квалификация.
+			Подтверждено выполнение заданий этого теста в его условиях: без надзора, с лимитами и журналом сигналов. Это не
+			доказательство самостоятельного выполнения и не оценка всей квалификации.
 		</p>
 		<a
-			href={resolve('/(app)/me/tests/attempts/[attemptId]', { attemptId: detail.attemptId })}
+			href={resolve('/(app)/me/tests/decisions/[decisionId]', { decisionId: detail.decisionId })}
 			class="w-fit text-sm text-link underline underline-offset-4"
 		>
-			Открыть попытку
+			Открыть решение
 		</a>
 	{:else}
 		<p class="font-heading text-lg">{factTitle(detail)}</p>

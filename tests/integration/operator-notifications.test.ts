@@ -36,7 +36,8 @@ import { isNotificationType } from '$lib/server/notifications/types';
 import { decideAuthority } from '$lib/server/operator/representatives';
 import { publishTaxonomy } from '$lib/server/taxonomy/publish';
 import { buildRelease, readTaxonomyDatasets } from '$lib/server/taxonomy/release';
-import { decide, testDecisions } from '../helpers/categories';
+import { decide, invalidateIn } from '../helpers/categories';
+import { GRADE_DECISIONS } from '$lib/server/categories/decisions';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
 import { createCandidate, createCompany, createMember, createUser } from '../helpers/factories';
 
@@ -220,8 +221,7 @@ describe('company verification decisions', () => {
 
 describe('objection decisions', () => {
 	const decisions: ObjectionDecisions = {
-		decisionsOf: (executor, candidateId, specialization) =>
-			testDecisions.decisionsOf(executor, candidateId, specialization),
+		decisionsOf: (...args) => GRADE_DECISIONS.decisionsOf(...args),
 		find: (_, id) =>
 			Promise.resolve(
 				decided.get(id) === undefined
@@ -238,9 +238,8 @@ describe('objection decisions', () => {
 							artifactsKeptUntil: new Date(Date.now() + 90 * 86_400_000)
 						}
 			),
-		annul: (_, decision) => {
-			testDecisions.invalidate(decision.candidateId, decision.id, 'objection_annulled');
-			return Promise.resolve();
+		annul: async (tx, decision) => {
+			await invalidateIn(tx, decision.id, 'objection_annulled');
 		},
 		rescore: () => Promise.reject(new Error('not used'))
 	};

@@ -1,7 +1,0 @@
-1 6
-PUT 0 a 1 100
-DEL 5 a
-PUT 6 b 2 100
-PUT 7 a 3 100
-GET 8 b
-GET 8 a

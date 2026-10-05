@@ -19,11 +19,6 @@ import { recordAuditEvent } from '$lib/server/audit/record';
 import type { FieldCrypto } from '$lib/server/crypto/fields';
 import type { Database, Executor } from '$lib/server/db';
 import {
-	assessmentArtifacts,
-	assessmentAttempts,
-	assessments,
-	assessmentScores,
-	assessmentVersions,
 	athleteLinks,
 	auditEvents,
 	authorityChecks,
@@ -43,6 +38,7 @@ import {
 	externalProfiles,
 	files,
 	fspLevelAssignments,
+	gradeDecisions,
 	gradeDeclarations,
 	hiringProcesses,
 	hiringReports,
@@ -62,6 +58,9 @@ import {
 	resumeDocuments,
 	skillInferences,
 	sourceFacts,
+	testArtifacts,
+	testAttempts,
+	testItems,
 	users,
 	vacancies,
 	verificationReceipts
@@ -124,19 +123,10 @@ async function companyNames(executor: Executor, ids: readonly string[]): Promise
 	return new Map(rows.map((row) => [row.id, row.name]));
 }
 
-/**
- * An artifact of an attempt as the candidate may read it: while the attempt is still running, a quiz step keeps only the
- * question and the answer given — whether it was right and the estimate after it are shown once the quiz is over.
- */
-function artifactContent(kind: string, content: unknown, running: boolean): unknown {
-	if (!running || kind !== 'quiz_step' || content === null || typeof content !== 'object') return content;
-	const step = content as Record<string, unknown>;
-	return {
-		item_id: step.item_id,
-		item_version: step.item_version,
-		presented_at: step.presented_at,
-		answer: step.answer
-	};
+/** An artifact as the candidate reads it: a run keeps verdicts and hashes, never the output a test printed. */
+function artifactContent(kind: string, content: unknown): unknown {
+	if (kind !== 'run_result' || content === null || typeof content !== 'object') return content;
+	return { ...(content as Record<string, unknown>), stdout_preview: null };
 }
 
 /** The export of the candidate's data as it stands now; reads only. */
@@ -433,55 +423,52 @@ async function buildDataExport(
 					.orderBy(asc(hiringReports.reportedAt));
 
 	const attempts = await executor
-		.select({
-			id: assessmentAttempts.id,
-			title: assessments.title,
-			version: assessmentVersions.version,
-			status: assessmentAttempts.status,
-			startedAt: assessmentAttempts.startedAt,
-			submittedAt: assessmentAttempts.submittedAt,
-			deadlineAt: assessmentAttempts.deadlineAt,
-			integritySignals: assessmentAttempts.integritySignals,
-			annulReason: assessmentAttempts.annulReason
-		})
-		.from(assessmentAttempts)
-		.innerJoin(assessmentVersions, eq(assessmentVersions.id, assessmentAttempts.versionId))
-		.innerJoin(assessments, eq(assessments.id, assessmentVersions.assessmentId))
-		.where(eq(assessmentAttempts.candidateId, candidateId));
-	const scores =
-		attempts.length === 0
-			? []
-			: await executor
-					.select()
-					.from(assessmentScores)
-					.where(
-						inArray(
-							assessmentScores.attemptId,
-							attempts.map((attempt) => attempt.id)
-						)
-					)
-					.orderBy(asc(assessmentScores.createdAt));
-	const artifacts =
-		attempts.length === 0
+		.select()
+		.from(testAttempts)
+		.where(eq(testAttempts.candidateId, candidateId))
+		.orderBy(asc(testAttempts.startedAt));
+	const attemptIds = attempts.map((attempt) => attempt.id);
+	const items =
+		attemptIds.length === 0
 			? []
 			: await executor
 					.select({
-						attemptId: assessmentArtifacts.attemptId,
-						seq: assessmentArtifacts.seq,
-						kind: assessmentArtifacts.kind,
-						content: assessmentArtifacts.content,
-						sha256: assessmentArtifacts.sha256,
-						createdAt: assessmentArtifacts.createdAt,
-						retentionUntil: assessmentArtifacts.retentionUntil
+						attemptId: testItems.attemptId,
+						seq: testItems.seq,
+						block: testItems.block,
+						format: testItems.format,
+						instance: testItems.instance,
+						servedAt: testItems.servedAt,
+						answeredAt: testItems.answeredAt,
+						status: testItems.status
 					})
-					.from(assessmentArtifacts)
-					.where(
-						inArray(
-							assessmentArtifacts.attemptId,
-							attempts.map((attempt) => attempt.id)
-						)
-					)
-					.orderBy(asc(assessmentArtifacts.seq));
+					.from(testItems)
+					.where(inArray(testItems.attemptId, attemptIds))
+					.orderBy(asc(testItems.seq));
+	const artifacts =
+		attemptIds.length === 0
+			? []
+			: await executor
+					.select({
+						attemptId: testArtifacts.attemptId,
+						seq: testArtifacts.seq,
+						kind: testArtifacts.kind,
+						content: testArtifacts.content,
+						sha256: testArtifacts.sha256,
+						createdAt: testArtifacts.createdAt,
+						retentionUntil: testArtifacts.retentionUntil
+					})
+					.from(testArtifacts)
+					.where(inArray(testArtifacts.attemptId, attemptIds))
+					.orderBy(asc(testArtifacts.seq));
+	const decisions =
+		attemptIds.length === 0
+			? []
+			: await executor
+					.select()
+					.from(gradeDecisions)
+					.where(inArray(gradeDecisions.attemptId, attemptIds))
+					.orderBy(asc(gradeDecisions.decidedAt));
 
 	const received = await executor
 		.select()
@@ -865,40 +852,59 @@ async function buildDataExport(
 					reported_at: iso(report.reportedAt)
 				}))
 		})),
-		tests: attempts.map((attempt) => {
-			const running = attempt.status === 'started' && attempt.deadlineAt > now;
-			return {
-				title: attempt.title,
-				version: attempt.version,
-				status: attempt.status,
-				started_at: iso(attempt.startedAt),
-				deadline_at: iso(attempt.deadlineAt),
-				submitted_at: iso(attempt.submittedAt),
-				annul_reason: attempt.annulReason,
-				integrity_signals: attempt.integritySignals,
-				scores: scores
-					.filter((score) => score.attemptId === attempt.id)
-					.map((score) => ({
-						score: Number(score.score),
-						max_score: Number(score.maxScore),
-						level: score.level,
-						scored_by: score.scoredBy,
-						review_reason: score.reviewReason,
-						at: iso(score.createdAt)
-					})),
-				// Content past its retention period is cleared; the hash stays.
-				artifacts: artifacts
-					.filter((artifact) => artifact.attemptId === attempt.id)
-					.map((artifact) => ({
-						seq: artifact.seq,
-						kind: artifact.kind,
-						content: artifactContent(artifact.kind, artifact.content, running),
-						sha256: artifact.sha256,
-						created_at: iso(artifact.createdAt),
-						kept_until: artifact.retentionUntil
-					}))
-			};
-		}),
+		tests: attempts.map((attempt) => ({
+			purpose: attempt.purpose,
+			specialization: attempt.specialization,
+			grade: attempt.grade,
+			form: attempt.form,
+			bank_release_id: attempt.bankReleaseId,
+			status: attempt.status,
+			started_at: iso(attempt.startedAt),
+			deadline_at: iso(attempt.deadlineAt),
+			ended_at: iso(attempt.endedAt),
+			annul_reason: attempt.annulReason,
+			seeded: attempt.seeded,
+			integrity_signals: attempt.integritySignals,
+			// The statements served, never their keys, hidden tests or mutants.
+			items: items
+				.filter((item) => item.attemptId === attempt.id)
+				.map((item) => ({
+					seq: item.seq,
+					block: item.block,
+					format: item.format,
+					statement: (item.instance as { statement: unknown }).statement,
+					status: item.status,
+					served_at: iso(item.servedAt),
+					answered_at: iso(item.answeredAt)
+				})),
+			// Content past its retention period is cleared; the hash stays.
+			artifacts: artifacts
+				.filter((artifact) => artifact.attemptId === attempt.id)
+				.map((artifact) => ({
+					seq: artifact.seq,
+					kind: artifact.kind,
+					content: artifactContent(artifact.kind, artifact.content),
+					sha256: artifact.sha256,
+					created_at: iso(artifact.createdAt),
+					kept_until: artifact.retentionUntil
+				})),
+			decisions: decisions
+				.filter((decision) => decision.attemptId === attempt.id)
+				.map((decision) => ({
+					outcome: decision.outcome,
+					reason: decision.reason,
+					confident: decision.confident,
+					score_sum: decision.scoreSum,
+					cut_sum: decision.cutSum,
+					items: decision.items,
+					extension_used: decision.extensionUsed,
+					practice: decision.practice,
+					blocks: decision.blocks,
+					procedure_version: decision.procedureVersion,
+					status: decision.status,
+					decided_at: iso(decision.decidedAt)
+				}))
+		})),
 		notifications: received.map((row) => ({
 			type: row.type,
 			category: row.category,

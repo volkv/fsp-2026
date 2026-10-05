@@ -1,0 +1,66 @@
+// A seeded attempt (docs/domain.md, 23.3): the real path of the product — the grade policy, the choice of items from the
+// release, the procedure, the decision, the fact and the owner of the category — with the scores of the clusters given
+// by the deterministic verdict of the seed instead of the sandbox. Its artifacts say `seeded: true` and carry no code;
+// the attempt is marked `seeded` and shown as synthetic.
+import { eq } from 'drizzle-orm';
+import type { Transaction } from '$lib/server/db';
+import { testItems } from '$lib/server/db/schema';
+import type { ItemInstance } from './contract/bank';
+import type { GradeKey, SpecializationKey } from './contract/catalog';
+import { advance, appendArtifacts, itemFamily, startAttemptIn, type AdvanceOutcome, type EngineDeps } from './engine';
+import { seededClusterScore } from './seeded';
+
+export interface SeededAttemptInput {
+	candidateId: string;
+	specialization: SpecializationKey;
+	grade: GradeKey;
+	/** The candidate's true share: the chance of every cluster (and of every group and mutant). */
+	trueShare: number;
+	candidateSeed: string;
+	now: Date;
+	requestId: string;
+}
+
+/** Runs a seeded attempt to its end in the caller's transaction; returns the attempt and how it ended. */
+export async function runSeededAttempt(
+	tx: Transaction,
+	deps: EngineDeps,
+	input: SeededAttemptInput
+): Promise<{ attemptId: string; outcome: Extract<AdvanceOutcome, { kind: 'decided' | 'expired' }> }> {
+	const context = { now: input.now, requestId: input.requestId, createdBy: { kind: 'system' as const } };
+	const started = await startAttemptIn(
+		tx,
+		deps,
+		input.candidateId,
+		{ specialization: input.specialization, grade: input.grade },
+		{ now: input.now, requestId: input.requestId, userId: undefined, seeded: true }
+	);
+	const { attempt } = started;
+	let outcome = started.outcome;
+	while (outcome.kind === 'next' || outcome.kind === 'waiting_candidate') {
+		const item = outcome.item;
+		const instance = item.instance as ItemInstance;
+		const family = await itemFamily(tx, attempt, item);
+		const score = seededClusterScore({
+			candidateSeed: input.candidateSeed,
+			trueShare: input.trueShare,
+			seq: item.seq,
+			instance,
+			family
+		});
+		await appendArtifacts(
+			tx,
+			attempt.id,
+			item.id,
+			[{ kind: 'answer', content: { seq: item.seq, seeded: true } }],
+			input.now
+		);
+		await tx
+			.update(testItems)
+			.set({ status: 'scored', score, scoreDetail: { seeded: true }, answeredAt: input.now })
+			.where(eq(testItems.id, item.id));
+		outcome = await advance(tx, deps, attempt, context);
+	}
+	if (outcome.kind === 'waiting_sandbox') throw new Error(`seeded attempt ${attempt.id} waits for the sandbox`);
+	return { attemptId: attempt.id, outcome };
+}

@@ -3,9 +3,10 @@ import { describe, expect, it, vi } from 'vitest';
 vi.mock('$env/dynamic/private', () => ({ env: {} }));
 
 const { recommendCategories } = await import('./recommend');
-const { openSpecializations } = await import('./form');
+const { SPECIALIZATION_KEYS, specializationOpen } = await import('$lib/server/assessments/contract/catalog');
 
-const open = openSpecializations();
+/** Every bank released: open is what the catalog switches on. */
+const open = new Set(SPECIALIZATION_KEYS.filter((s) => specializationOpen(s, new Set(SPECIALIZATION_KEYS))));
 const empty = { skill_keys: [], nice_skill_keys: [] };
 
 describe('recommendCategories', () => {

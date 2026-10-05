@@ -22,7 +22,7 @@ make db-migrate
 make db-seed-taxonomy    # справочники: роли, навыки, грейды, правила проекции ФСП
 pnpm db:seed-legal       # правовые документы из legal/ (без них регистрация недоступна)
 pnpm db:seed-policies    # продуктовые политики из policies/ и источники вакансий (без политик приглашения недоступны)
-pnpm db:seed-assessments # банк заданий тестирования из assessments/ (квизы и практические задачи)
+pnpm db:release-bank     # выпуски банка заданий теста на грейд из assessments/families/
 make dev                 # http://localhost:57173
 ```
 
@@ -34,8 +34,8 @@ make dev                 # http://localhost:57173
 всё и ждёт, пока каждый сервис станет healthy (`--wait`); приложение — http://localhost:57300, состояние —
 http://localhost:57300/api/health. Контейнер приложения при каждом старте применяет миграции (`scripts/migrate.ts`) и публикует
 версию таксономии из `taxonomy/` (`scripts/seed-taxonomy.ts`), правовые документы из `legal/` (`scripts/seed-legal.ts`),
-продуктовые политики из `policies/` и источники вакансий (`scripts/seed-policies.ts`), банк заданий тестирования из
-`assessments/` (`scripts/seed-assessments.ts`), и только после успеха всех пяти шагов запускает сервер: шаги идемпотентны,
+продуктовые политики из `policies/` и источники вакансий (`scripts/seed-policies.ts`), выпуски банка заданий теста на грейд
+из `assessments/families/` (`scripts/release-bank.ts`), и только после успеха всех пяти шагов запускает сервер: шаги идемпотентны,
 изменённые файлы таксономии под уже опубликованной меткой — отказ старта (метку нужно поднять), изменённый текст документа —
 его новая версия, изменённые параметры опубликованной версии политики — отказ старта (изменение — новая версия в файле), новый
 источник вакансий — выключенным, изменённое содержимое опубликованной версии задания — отказ старта (изменение — новая версия
@@ -57,7 +57,8 @@ http://localhost:57300/api/health. Контейнер приложения пр�
 | `make db-migrate` | `pnpm db:migrate` | применить миграции к базе из `.env` |
 | `make db-seed-taxonomy` | `pnpm db:seed-taxonomy` | опубликовать версию таксономии из `taxonomy/` в базу из `.env`; повтор без изменений ничего не меняет (контейнер приложения делает это сам при старте) |
 | — | `pnpm db:seed-policies` | опубликовать продуктовые политики из `policies/` и зарегистрировать источники вакансий в базе из `.env`; повтор ничего не меняет |
-| — | `pnpm db:seed-assessments` | опубликовать банк заданий тестирования из `assessments/` в базу из `.env`; повтор без изменений ничего не меняет (контейнер приложения и сервер e2e делают это сами при старте) |
+| — | `pnpm db:release-bank` | выпустить банк заданий теста на грейд из `assessments/families/` в базу из `.env`: по каждой специализации новый выпуск, если содержимое изменилось и прошло ворота семейств, проверку вместимости и симуляцию траекторий; иначе — проблемы в вывод, специализация остаётся закрытой; повтор без изменений ничего не меняет (контейнер приложения и сервер e2e делают это сами при старте) |
+| — | `pnpm bank:check` | проверить дерево банка без базы: те же проверки выпуска, код выхода 1 при любой проблеме |
 | — | `pnpm db:seed-legal` | опубликовать правовые документы из `legal/` в базу из `.env`: изменённый вид — новая версия, прежняя вытесняется; повтор без изменений ничего не меняет (контейнер приложения и сервер e2e делают это сами при старте) |
 | `make db-seed-demo` | `pnpm db:seed-demo` | засеять демо-данные текущей партии в базу из `.env` (только при `DEMO_MODE=true`; раздел «Демо-данные»); засеянная партия — ничего не делает |
 | `make demo-reset` | `pnpm demo:reset` | очистить базу из `.env`, кроме справочников, вернуть имитатор ФСП к его набору и засеять демо-данные заново (`… reset --no-seed` — только очистить) |
@@ -160,8 +161,9 @@ TypeScript — `camelCase`. Миграции генерирует `pnpm db:gener
 опубликованная версия документа неизменяема, правка текста в `legal/` — новая версия. Продуктовые политики
 (`policies/<kind>.json`: версии, `effective_from`, параметры и основание каждого — раздел модели или `product_default`) и строки
 источников вакансий публикует `scripts/seed-policies.ts` (из `pnpm db:seed-policies`, при старте контейнера и сервера e2e),
-банк заданий тестирования (`assessments/`) — `scripts/seed-assessments.ts` (из `pnpm db:seed-assessments`, при старте
-контейнера и сервера e2e). Отдельного `drizzle.config.ts` нет: параметры drizzle-kit — в скрипте `db:generate`.
+выпуски банка заданий теста (`assessments/families/<специализация>/<семейство>/`: `descriptor.json` и `generator.ts`) —
+`scripts/release-bank.ts` (из `pnpm db:release-bank`, при старте контейнера и сервера e2e). Отдельного `drizzle.config.ts`
+нет: параметры drizzle-kit — в скрипте `db:generate`.
 
 **Состояние сервиса.** `GET /api/health` отвечает `200` и `{"status":"ok", ...}` или `503` и `"degraded"`, с версией,
 коммитом сборки и статусами `up`/`down` PostgreSQL и Valkey. Причины отказа пишутся только в лог сервера.
@@ -339,7 +341,7 @@ SSR-бандл Vite, как у воркера (`src/lib/server/demo/bundle.confi
 `DEMO_CANDIDATES` и `DEMO_VACANCIES` (по умолчанию 3000 и 1500). Локально:
 
 ```sh
-make infra && make db-migrate && make db-seed-taxonomy && pnpm db:seed-legal && pnpm db:seed-policies && pnpm db:seed-assessments
+make infra && make db-migrate && make db-seed-taxonomy && pnpm db:seed-legal && pnpm db:seed-policies && pnpm db:release-bank
 DEMO_MODE=true pnpm db:seed-demo     # или DEMO_MODE=true в .env
 ```
 

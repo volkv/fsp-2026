@@ -1,11 +1,12 @@
 // The FSP operator's funnel of career outcomes (contracts 5.5; domain 13.9): counted from live data stage by stage,
 // with who confirmed each count; small groups are pooled and small cells are «< N». The moderation of own vacancies
 // a blocked text check sent to the operator (domain 13.1): the queue and the decision. Conflicts of the birth date
-// (domain 7.2): the queue and the decision by a document. Attempts of platform tests (domain 10.2): the list for review
-// and the annulment.
+// (domain 7.2): the queue and the decision by a document. Attempts of the test on a grade (domain 10.7): the list for
+// review and the annulment.
 import { z } from 'zod';
-import { ANNUL_REASONS, annulAttempt } from '$lib/server/assessments/annul';
+import { ANNUL_REASONS, OPERATOR_ANNUL_REASONS, annulAttempt } from '$lib/server/assessments/annul';
 import { attemptsForReview } from '$lib/server/assessments/review';
+import { OWNER_STANDING } from '$lib/server/assessments/standing';
 import { careerFunnel, FUNNEL_DIMENSIONS } from '$lib/server/hiring/funnel';
 import { AGE_CHECK_METHODS, AGE_DOCUMENT_KINDS, ageConflictQueue, resolveAgeConflict } from '$lib/server/operator/ages';
 import { decideModeration, vacancyModerationQueue } from '$lib/server/operator/vacancies';
@@ -347,9 +348,9 @@ export const listAttemptsForReview = defineOperation({
 	tag: 'ФСП',
 	summary: 'Попытки тестов на пересмотр',
 	description:
-		'`attention` (по умолчанию) — отправленные неаннулированные попытки, в журнале сигналов которых есть вставки ' +
-		'или уходы со страницы (сигнал для человека, не вывод о заимствовании), и отправки, застрявшие без результата ' +
-		'песочницы дольше 30 минут; `all` — последние отправленные попытки, аннулированные тоже. Новые первыми, до 100.',
+		'`attention` (по умолчанию) — неаннулированные попытки, в журнале сигналов которых есть вставки или уходы со ' +
+		'страницы (сигнал для человека, не вывод о заимствовании), и попытки с кластером, ждущим песочницу дольше 30 ' +
+		'минут; `all` — последние попытки, аннулированные тоже. Новые первыми, до 100.',
 	auth: 'session',
 	permission: 'assessment.review',
 	query: z.strictObject({ filter: z.enum(['attention', 'all']).optional() }),
@@ -362,19 +363,24 @@ export const listAttemptsForReview = defineOperation({
 				z
 					.object({
 						attempt_id: z.uuid(),
-						title: z.string(),
-						kind: z.enum(['code_task', 'quiz', 'open_answer']),
-						version: z.int(),
-						status: z.enum(['started', 'submitted', 'scored', 'expired', 'annulled']),
-						submitted_at: z.iso.datetime().nullable(),
-						level: z.string().nullable().describe('Уровень действующей оценки'),
+						title: z.string().describe('Специализация и грейд теста'),
+						specialization: z.string(),
+						grade: z.string(),
+						bank_release_id: z.string(),
+						status: z.enum(['in_progress', 'decided', 'expired', 'annulled']),
+						started_at: z.iso.datetime(),
+						seeded: z.boolean().describe('Синтетика засева'),
+						outcome: z
+							.enum(['confirmed', 'not_confirmed', 'undetermined'])
+							.nullable()
+							.describe('Исход действующего решения'),
 						signals: z.object({
 							pastes: z.int(),
 							pasted_chars: z.int(),
 							departures: z.int(),
 							silent: z.int().describe('Записи, где страница не передала сигналы')
 						}),
-						stuck: z.boolean().describe('Отправлена и без результата дольше 30 минут'),
+						stuck: z.boolean().describe('Кластер ждёт песочницу дольше 30 минут'),
 						annul_reason: annulReason.nullable()
 					})
 					.meta({ id: 'AttemptReviewItem' })
@@ -386,17 +392,19 @@ export const listAttemptsForReview = defineOperation({
 			ctx.services.db,
 			await ctx.subject(),
 			ctx.query.filter ?? 'attention',
-			new Date()
+			ctx.services.now()
 		);
 		return {
 			items: items.map((item) => ({
 				attempt_id: item.attemptId,
 				title: item.title,
-				kind: item.kind,
-				version: item.version,
+				specialization: item.specialization,
+				grade: item.grade,
+				bank_release_id: item.bankReleaseId,
 				status: item.status,
-				submitted_at: item.submittedAt?.toISOString() ?? null,
-				level: item.level,
+				started_at: item.startedAt.toISOString(),
+				seeded: item.seeded,
+				outcome: item.outcome,
 				signals: {
 					pastes: item.signals.pastes,
 					pasted_chars: item.signals.pastedChars,
@@ -417,17 +425,17 @@ export const annulAssessmentAttempt = defineOperation({
 	tag: 'ФСП',
 	summary: 'Аннулирование попытки',
 	description:
-		'Отправленная попытка (`submitted`, `scored`) становится `annulled` с причиной: факты «подтверждено ' +
-		'платформой», в которые перешли её оценки, — `annulled` (квитанции отвечают `annulled`), их утверждения ' +
-		'недействительны, опубликованная категория снимается до пересчёта, пересчёт поставлен. Повтор по уже ' +
-		'аннулированной попытке ничего не меняет (`annulled: false`); неотправленная попытка — `409` ' +
-		'(`attempt_not_sent`). Попытка, аннулированная из-за технического сбоя или дефекта версии, не входит в лимит ' +
-		'попыток кандидата.',
+		'Попытка `decided` или `expired` становится `annulled` с причиной: решение — `annulled`, владелец категорий ' +
+		'приводит категорию и факт теста к оставшимся решениям (отзыв, возврат прежней или без изменений). Повтор по уже аннулированной попытке ничего не меняет (`annulled: false`); идущая попытка — `409` ' +
+		'(`attempt_in_progress`), кроме застрявшей с причиной `technical_failure`: её кластер ждёт песочницу дольше 30 минут. Попытка, аннулированная из-за технического сбоя или дефекта версии, не засчитывается ' +
+		'в попытки политики грейда.',
 	auth: 'session',
 	permission: 'assessment.review',
 	params: z.strictObject({ attempt_id: z.uuid() }),
 	body: z.strictObject({
-		reason: annulReason.describe('`plagiarism` · `technical_failure` · `version_defect` · `candidate_request`')
+		reason: z
+			.enum(OPERATOR_ANNUL_REASONS)
+			.describe('`plagiarism` · `technical_failure` · `version_defect` · `candidate_request`')
 	}),
 	errors: ['not_found', 'conflict'],
 	response: {
@@ -435,18 +443,24 @@ export const annulAssessmentAttempt = defineOperation({
 		description: 'Попытка аннулирована или уже была аннулирована',
 		schema: z.object({
 			annulled: z.boolean().describe('`false` — попытка уже была аннулирована'),
-			facts_annulled: z.int()
+			category: z
+				.enum(['assign', 'supersede', 'restore', 'revoke', 'keep'])
+				.describe('Что аннулирование сделало с категорией: отозвана, возвращена прежняя или без изменений')
 		})
 	},
 	async handle(ctx) {
 		const outcome = await annulAttempt(
 			ctx.services.db,
+			OWNER_STANDING,
 			await ctx.subject(),
 			ctx.meta,
 			ctx.params.attempt_id,
 			ctx.body.reason,
-			new Date()
+			ctx.services.now()
 		);
-		return { annulled: outcome.annulled, facts_annulled: outcome.factsAnnulled };
+		return {
+			annulled: outcome.annulled,
+			category: outcome.category
+		};
 	}
 });

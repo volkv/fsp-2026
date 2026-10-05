@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { resolve } from '$app/paths';
 	import ClipboardCheckIcon from '@lucide/svelte/icons/clipboard-check';
-	import { ATTEMPT_STATUSES, levelName } from '$lib/components/assessments/model.js';
+	import { resolve } from '$app/paths';
+	import { ATTEMPT_STATUSES, OUTCOMES } from '$lib/components/assessments/model.js';
 	import PageHeader from '$lib/components/forms/page-header.svelte';
 	import StatusPill from '$lib/components/forms/status-pill.svelte';
 	import { formatDateTime } from '$lib/components/product/model.js';
@@ -17,18 +17,11 @@
 		{ key: 'attention', label: 'Требуют внимания', query: '' },
 		{ key: 'all', label: 'Все последние', query: '?filter=all' }
 	] as const;
-	const KINDS: Record<string, string> = { code_task: 'задача', quiz: 'квиз', open_answer: 'открытый ответ' };
-	const REASONS: Record<string, string> = {
-		plagiarism: 'заимствование',
-		technical_failure: 'технический сбой',
-		version_defect: 'дефект версии',
-		candidate_request: 'просьба кандидата'
-	};
 </script>
 
 <PageHeader
 	title="Попытки тестов"
-	description="Пересмотр попытки по её артефактам и аннулирование с причиной. Сигналы попытки — повод посмотреть человеку, а не вывод о заимствовании: платформа не заявляет обнаружения сгенерированного кода."
+	description="Пересмотр попытки теста на грейд по сохранённым экземплярам и ответам и аннулирование с причиной. Сигналы попытки — повод посмотреть человеку, а не вывод о заимствовании: платформа не заявляет обнаружения сгенерированного кода."
 />
 
 <nav aria-label="Какие попытки показать">
@@ -55,8 +48,8 @@
 			<Empty.Title>{data.filter === 'attention' ? 'Нечего пересматривать' : 'Попыток пока нет'}</Empty.Title>
 			<Empty.Description>
 				{data.filter === 'attention'
-					? 'Здесь появятся попытки со вставками или уходами со страницы и отправки, которые песочница не проверила.'
-					: 'Здесь появятся отправленные попытки кандидатов.'}
+					? 'Здесь появятся попытки со вставками или уходами со страницы и практика, которую песочница не проверила.'
+					: 'Здесь появятся попытки кандидатов.'}
 			</Empty.Description>
 		</Empty.Header>
 	</Empty.Root>
@@ -66,45 +59,37 @@
 			<Table.Root label="Попытки тестов" data-testid="attempt-list">
 				<Table.Header>
 					<Table.Row>
-						<Table.Head>Задание</Table.Head>
-						<Table.Head>Отправлена</Table.Head>
+						<Table.Head>Тест</Table.Head>
+						<Table.Head>Начата</Table.Head>
 						<Table.Head>Статус</Table.Head>
 						<Table.Head>Сигналы</Table.Head>
 					</Table.Row>
 				</Table.Header>
 				<Table.Body>
 					{#each data.attempts as item (item.attemptId)}
+						{@const status = ATTEMPT_STATUSES[item.status]}
+						{@const outcome = item.outcome ? OUTCOMES[item.outcome] : null}
 						<Table.Row data-attempt={item.attemptId}>
 							<Table.Cell>
 								<a
 									class="font-medium underline-offset-4 hover:underline"
-									href={resolve('/(app)/operator/assessments/[id]', { id: item.attemptId })}
+									href={resolve('/(app)/operator/assessments/[id]', { id: item.attemptId })}>{item.title}</a
 								>
-									{item.title}
-								</a>
-								<span class="block text-xs text-muted-foreground"
-									>{KINDS[item.kind] ?? item.kind}, версия {item.version}</span
-								>
+								<p class="text-xs text-muted-foreground">
+									{item.bankReleaseId}{item.seeded ? ' · синтетика' : ''}
+								</p>
 							</Table.Cell>
-							<Table.Cell>{item.submittedAt ? formatDateTime(item.submittedAt) : '—'}</Table.Cell>
+							<Table.Cell>{formatDateTime(item.startedAt)}</Table.Cell>
 							<Table.Cell>
-								<span class="flex flex-wrap items-center gap-1.5">
-									<StatusPill
-										label={ATTEMPT_STATUSES[item.status] ?? item.status}
-										tone={item.status === 'annulled' ? 'danger' : item.stuck ? 'warning' : 'neutral'}
-									/>
-									{#if item.level}<span class="text-xs">{levelName(item.level)}</span>{/if}
-								</span>
-								{#if item.stuck}<span class="block text-xs text-warning">без результата песочницы</span>{/if}
-								{#if item.annulReason}<span class="block text-xs text-muted-foreground"
-										>{REASONS[item.annulReason] ?? item.annulReason}</span
-									>{/if}
+								<div class="flex flex-wrap gap-1">
+									{#if status}<StatusPill label={status.label} tone={status.tone} />{/if}
+									{#if outcome}<StatusPill label={outcome.label} tone={outcome.tone} />{/if}
+									{#if item.stuck}<StatusPill label="Песочница не ответила" tone="warning" />{/if}
+								</div>
 							</Table.Cell>
 							<Table.Cell class="text-sm">
-								вставок {item.signals.pastes}, уходов {item.signals.departures}
-								{#if item.signals.silent > 0}<span class="block text-xs text-muted-foreground"
-										>без сигналов страницы: {item.signals.silent}</span
-									>{/if}
+								вставок {item.signals.pastes} ({item.signals.pastedChars} симв.), уходов {item.signals.departures}
+								{#if item.signals.silent > 0}· без сигналов {item.signals.silent}{/if}
 							</Table.Cell>
 						</Table.Row>
 					{/each}

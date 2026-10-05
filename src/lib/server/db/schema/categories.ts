@@ -1,9 +1,10 @@
 // Categories confirmed by a test and objections to test results (domain 12.4, 12.5). A category is written by the
-// category module only, from a grade decision; `decision_id` refers to `grade_decisions`.
+// category module only, from a grade decision; `decision_id` is a foreign key to `grade_decisions`.
 import { sql } from 'drizzle-orm';
 import { check, index, pgTable, text, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 import { GRADE_KEYS, SPECIALIZATION_KEYS } from '../../assessments/contract/catalog';
 import { enumCheck, id, timestamps, ts } from './_columns';
+import { gradeDecisions } from './assessments';
 import { candidates } from './candidates';
 import { users } from './identity';
 
@@ -20,7 +21,9 @@ export const candidateCategories = pgTable(
 		specialization: text({ enum: SPECIALIZATION_KEYS }).notNull(),
 		grade: text({ enum: GRADE_KEYS }).notNull(),
 		catalogVersion: text().notNull(),
-		decisionId: uuid().notNull(),
+		decisionId: uuid()
+			.notNull()
+			.references(() => gradeDecisions.id),
 		bankReleaseId: text().notNull(),
 		confirmedBlocks: text().array().notNull(),
 		confirmedSkillKeys: text().array().notNull(),
@@ -59,7 +62,9 @@ export const assessmentObjections = pgTable(
 		candidateId: uuid()
 			.notNull()
 			.references(() => candidates.id),
-		decisionId: uuid().notNull(),
+		decisionId: uuid()
+			.notNull()
+			.references(() => gradeDecisions.id),
 		reason: text().notNull(),
 		/** Clusters (`test_items.id`) the candidate disagrees with. */
 		items: uuid().array(),
@@ -69,7 +74,7 @@ export const assessmentObjections = pgTable(
 		status: text({ enum: OBJECTION_STATUSES }).notNull(),
 		outcome: text({ enum: OBJECTION_OUTCOMES }),
 		resolution: text(),
-		resultingDecisionId: uuid(),
+		resultingDecisionId: uuid().references(() => gradeDecisions.id),
 		resolvedAt: ts(),
 		notifiedAt: ts(),
 		...timestamps()

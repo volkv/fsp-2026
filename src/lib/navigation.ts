@@ -118,6 +118,7 @@ export const WORKSPACES: Record<Workspace, WorkspaceNav> = {
 			{ label: 'Источники вакансий', icon: RssIcon, href: resolve('/admin/sources') },
 			{ label: 'Качество моделей', icon: GaugeIcon, href: resolve('/admin/quality') },
 			{ label: 'Политики', icon: ScaleIcon, href: resolve('/admin/policies') },
+			{ label: 'Задания', icon: ClipboardCheckIcon, href: resolve('/admin/bank') },
 			{ label: 'Журнал', icon: ScrollTextIcon, href: resolve('/admin/audit') },
 			{ label: 'Документы', icon: FileTextIcon, href: resolve('/admin/documents') },
 			{ label: 'Персонал', icon: UsersIcon, href: resolve('/admin/staff') }

@@ -20,7 +20,8 @@ import { ApiError } from '$lib/server/errors/api-error';
 import { defineHandler, type JobHandler } from '$lib/server/jobs/handler';
 import { enqueueJob } from '$lib/server/jobs/queue';
 import { notify } from '$lib/server/notifications/notify';
-import { DecisionsUnavailable, type GradeDecisionReader } from './decisions';
+import { holdAttemptArtifacts, ENGINE_OBJECTION_DECISIONS } from '$lib/server/assessments/objection-decisions';
+import type { GradeDecisionReader } from './decisions';
 import { applyGradeDecisions, type Journal } from './publish';
 
 export type AssessmentObjection = typeof assessmentObjections.$inferSelect;
@@ -40,7 +41,8 @@ export interface ObjectedDecision {
 	specialization: SpecializationKey;
 	grade: GradeKey;
 	outcome: DecisionOutcome;
-	status: 'valid' | 'annulled';
+	/** `superseded` — replaced by the decision of a review. */
+	status: 'valid' | 'annulled' | 'superseded';
 	decidedAt: Date;
 	/** The artifacts of the attempt are kept until then: an objection is possible while they are (domain 12.5). */
 	artifactsKeptUntil: Date;
@@ -71,16 +73,8 @@ export interface ObjectionDecisions extends GradeDecisionReader {
 	): Promise<string>;
 }
 
-/**
- * The one place where objections meet the engine of the test. Until the engine is part of the build, each operation
- * stops the request with `DecisionsUnavailable` instead of pretending a decision.
- */
-export const OBJECTION_DECISIONS: ObjectionDecisions = {
-	decisionsOf: () => Promise.reject(new DecisionsUnavailable('decisionsOf')),
-	find: () => Promise.reject(new DecisionsUnavailable('find')),
-	annul: () => Promise.reject(new DecisionsUnavailable('annul')),
-	rescore: () => Promise.reject(new DecisionsUnavailable('rescore'))
-};
+/** The one place where objections meet the engine of the test: its implementation on `grade_decisions`. */
+export const OBJECTION_DECISIONS: ObjectionDecisions = ENGINE_OBJECTION_DECISIONS;
 
 function text(value: string, path: string, max: number): string {
 	const trimmed = value.trim();
@@ -158,6 +152,8 @@ export async function openObjection(
 			})
 			.returning();
 		if (!objection) throw new Error('objection was not inserted');
+		// The artifacts of the attempt are evidence of the review: kept until the answer is due plus 30 days (domain 10.7).
+		await holdAttemptArtifacts(tx, decision.attemptId, objection.dueAt);
 		await enqueueJob(
 			tx,
 			'objection.deadline_watch',

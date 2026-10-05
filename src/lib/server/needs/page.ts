@@ -1,6 +1,7 @@
 // What the pages of the employer cabinet need for hiring needs (docs/domain.md, section 13.10): the services built from
 // the configured infrastructure and the reading of the posted form. Skills are written by their names and resolved by
 // the taxonomy; a name the taxonomy does not know is a field error, never dropped silently.
+import { openSpecializations } from '$lib/server/assessments/bank-store';
 import { CATALOG } from '$lib/server/assessments/contract/catalog';
 import { formText } from '$lib/server/auth/http';
 import { db } from '$lib/server/db';
@@ -10,7 +11,6 @@ import { loadVacancyTaxonomy, resolveSkill } from '$lib/server/vacancies/taxonom
 import { currentVocabulary } from '$lib/server/employer/vocabulary';
 import { OFFER_WORK_FORMATS } from '$lib/server/invitations/terms';
 import { regionReference } from '$lib/server/regions';
-import { openSpecializations } from './form';
 import type { NeedDeps } from './service';
 
 export function configuredNeedDeps(): NeedDeps {
@@ -74,8 +74,11 @@ export async function needFormFromPost(form: FormData): Promise<Record<string, u
 
 /** The choices of the form: open specializations and grades of the catalog, work formats by name, regions. */
 export async function needFormOptions() {
-	const [vocabulary, regions] = await Promise.all([currentVocabulary(db()), regionReference()]);
-	const open = openSpecializations();
+	const [vocabulary, regions, open] = await Promise.all([
+		currentVocabulary(db()),
+		regionReference(),
+		openSpecializations(db())
+	]);
 	const formatNames = new Map(vocabulary.terms.work_format.map(({ key, name }) => [key, name]));
 	return {
 		specializations: CATALOG.specializations

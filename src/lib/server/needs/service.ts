@@ -3,6 +3,7 @@
 // employer confirms the form, and the need gives the categories recommended for it. Only members of the company see
 // and change its needs, while the admission policy lets the company act.
 import { and, desc, eq } from 'drizzle-orm';
+import { openSpecializations } from '$lib/server/assessments/bank-store';
 import { can, companyAdmission, type AccessSubject } from '$lib/server/access/permissions';
 import { recordAuditEvent } from '$lib/server/audit/record';
 import { auditActorOf } from '$lib/server/companies/context';
@@ -15,7 +16,7 @@ import type { RequestMeta } from '$lib/server/invitations/deps';
 import type { ModelAdapter } from '$lib/server/ml/adapter';
 import { regionReference } from '$lib/server/regions';
 import { checkVacancyText, textCheckSchema, type TextCheck } from '$lib/server/vacancies/text-check';
-import { needFormSchema, NEED_TEXT_MAX, openSpecializations, parseNeedForm, type NeedForm } from './form';
+import { needFormSchema, NEED_TEXT_MAX, parseNeedForm, type NeedForm } from './form';
 import { parseNeedText, type NeedParse } from './parse';
 import { countRecommendedCategories, type CountedCategory } from './recommend';
 
@@ -55,8 +56,11 @@ function memberCompany(subject: AccessSubject): { companyId: string; memberId: s
 
 const invalid = (details: ErrorDetail[]) => new ApiError('validation_failed', { details });
 
-/** The form of the request: the schema, a range only in roubles (`422 salary_not_rub`), a known region. */
-async function validForm(raw: unknown): Promise<NeedForm> {
+/**
+ * The form of the request: the schema, a range only in roubles (`422 salary_not_rub`), a known region, a specialization
+ * open now — switched on in the catalog and with a released bank (`422 specialization_closed`).
+ */
+async function validForm(executor: Executor, raw: unknown): Promise<NeedForm> {
 	const salary = (raw as { salary?: { currency?: unknown } | null } | null)?.salary;
 	if (salary !== undefined && salary !== null && salary.currency !== 'RUB') {
 		throw policyViolation('salary_not_rub', 'form.salary.currency');
@@ -75,7 +79,7 @@ async function validForm(raw: unknown): Promise<NeedForm> {
 	if (form.region_code !== undefined && !(await regionReference()).has(form.region_code)) {
 		throw invalid([{ path: 'form.region_code', code: 'unknown', message: 'Неизвестный регион' }]);
 	}
-	if (form.specialization !== undefined && !openSpecializations().has(form.specialization)) {
+	if (form.specialization !== undefined && !(await openSpecializations(executor)).has(form.specialization)) {
 		throw policyViolation('specialization_closed', 'form.specialization');
 	}
 	return form;
@@ -130,7 +134,7 @@ export async function createNeed(
 ): Promise<NeedView> {
 	const member = memberCompany(subject);
 	const text = validText(input.text);
-	const given = input.form === undefined ? null : await validForm(input.form);
+	const given = input.form === undefined ? null : await validForm(deps.db, input.form);
 	if (text === null && given === null) {
 		throw invalid([{ path: 'text', code: 'required', message: 'Опишите потребность текстом или заполните форму' }]);
 	}
@@ -209,7 +213,7 @@ export async function updateNeed(
 	input: UpdateNeedInput
 ): Promise<NeedView> {
 	const member = memberCompany(subject);
-	const form = input.form === undefined ? undefined : await validForm(input.form);
+	const form = input.form === undefined ? undefined : await validForm(deps.db, input.form);
 	return deps.db.transaction(async (tx) => {
 		await requireAdmission(tx, member.companyId, { forUpdate: true });
 		const row = await ownNeed(tx, member.companyId, needId, true);
@@ -263,6 +267,12 @@ export async function needCategories(
 ): Promise<{ need: NeedView; categories: CountedCategory[] }> {
 	const member = memberCompany(subject);
 	const need = viewOf(await ownNeed(deps.db, member.companyId, needId));
-	const categories = await countRecommendedCategories(deps.db, subject, need.form, openSpecializations(), deps.now());
+	const categories = await countRecommendedCategories(
+		deps.db,
+		subject,
+		need.form,
+		await openSpecializations(deps.db),
+		deps.now()
+	);
 	return { need, categories };
 }

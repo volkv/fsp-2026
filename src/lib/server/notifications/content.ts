@@ -6,18 +6,17 @@
 // so do the representative's revocation, the verified birth date and an annulled attempt of a test. The deadline of an objection reaches the FSP staff while the
 // objection is still open and the recipient still holds a staff role; it names no candidate data.
 import { and, eq, inArray, isNull } from 'drizzle-orm';
+import { testTitle } from '$lib/server/assessments/titles';
 import type { FieldCrypto } from '$lib/server/crypto/fields';
 import type { Executor } from '$lib/server/db';
 import {
-	assessmentAttempts,
 	assessmentObjections,
-	assessments,
-	assessmentVersions,
 	candidates,
 	companies,
 	companyMembers,
 	hiringProcesses,
 	invitations,
+	testAttempts,
 	invitationTerms,
 	representations,
 	staffRoles,
@@ -194,13 +193,19 @@ export async function notificationFacts(
 				: null;
 		case 'assessment_attempt': {
 			const [attempt] = await executor
-				.select({ candidateId: assessmentAttempts.candidateId, title: assessments.title })
-				.from(assessmentAttempts)
-				.innerJoin(assessmentVersions, eq(assessmentVersions.id, assessmentAttempts.versionId))
-				.innerJoin(assessments, eq(assessments.id, assessmentVersions.assessmentId))
-				.where(eq(assessmentAttempts.id, notification.objectId));
+				.select({
+					candidateId: testAttempts.candidateId,
+					specialization: testAttempts.specialization,
+					grade: testAttempts.grade
+				})
+				.from(testAttempts)
+				.where(eq(testAttempts.id, notification.objectId));
 			if (!attempt || !(await isCandidateUser(executor, attempt.candidateId, notification.userId))) return null;
-			return { object: 'assessment_attempt', side: 'candidate', title: attempt.title };
+			return {
+				object: 'assessment_attempt',
+				side: 'candidate',
+				title: testTitle(attempt.specialization, attempt.grade)
+			};
 		}
 	}
 	return invitationFacts(executor, crypto, notification);

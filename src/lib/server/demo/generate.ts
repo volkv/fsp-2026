@@ -6,8 +6,7 @@ import { Random } from '../../../../services/fsp-mock/src/seed/random.ts';
 import { syntheticName, syntheticRegion, translit } from '../../../../services/fsp-mock/src/seed/names.ts';
 import type { CatalogScopeField } from '$lib/server/consent/kinds';
 import type { SourcePosting } from '$lib/server/vacancies/sources/types';
-import { QUIZ_SKILLS, type DemoPreferences, type HeroCandidate, type RoleProfile, type SeedData } from './data';
-import type { QuizPlan, QuizSkill } from './quizzes';
+import { type DemoPreferences, type HeroCandidate, type RoleProfile, type SeedData } from './data';
 import type { WorldAthlete } from './world';
 
 export { Random };
@@ -33,32 +32,10 @@ export interface CandidatePlan {
 	/** The file the candidate uploads: a hero's PDF or DOCX from `seeds/resumes/`, a background candidate's text. */
 	resume: { declaredName: string; bytes: Uint8Array<ArrayBuffer> } | null;
 	github: string | null;
-	/** A platform quiz the candidate took; `null` — none. */
-	quiz: QuizPlan | null;
 }
 
 const DAY = 86_400_000;
 
-/** Ability on the quizzes' scale of a person of the grade (0 — an average middle). */
-const GRADE_ABILITY: Record<string, number> = { intern: -1, junior: -0.5, middle: 0.3, senior: 1.1, lead: 1.4 };
-
-const isQuizSkill = (skill: string): skill is QuizSkill => (QUIZ_SKILLS as readonly string[]).includes(skill);
-
-/** Quizzes a person of the stack would take: the required skills of the stack that have a quiz in the bank. */
-function stackQuizzes(stack: RoleProfile['stacks'][number]): QuizSkill[] {
-	return stack.required.filter(isQuizSkill);
-}
-
-/** Quizzes a person of the role would take: those of any of its stacks. */
-function roleQuizzes(role: RoleProfile): QuizSkill[] {
-	return [...new Set(role.stacks.flatMap(stackQuizzes))];
-}
-
-/** Half of those whose stack has a quiz took one of its quizzes. */
-function quizPlan(rnd: Random, skills: readonly QuizSkill[], grade: string): QuizPlan | null {
-	if (skills.length === 0 || !rnd.chance(0.5)) return null;
-	return { skill: rnd.pick(skills), ability: (GRADE_ABILITY[grade] ?? 0) + 0.5 * rnd.normal() };
-}
 const pad = (n: number) => String(n).padStart(2, '0');
 const round5k = (value: number) => Math.max(5_000, Math.round(value / 5_000) * 5_000);
 
@@ -142,8 +119,7 @@ export function heroPlan(hero: HeroCandidate, athlete: WorldAthlete | null, data
 		preferences: hero.preferences,
 		searchStatus: 'active',
 		resume: hero.resume === undefined ? null : heroResume(hero.resume, name, data),
-		github: hero.github ?? null,
-		quiz: hero.quiz ?? null
+		github: hero.github ?? null
 	};
 }
 
@@ -189,8 +165,7 @@ export function athletePlan(athlete: WorldAthlete, data: SeedData, batch: string
 		},
 		searchStatus: rnd.chance(0.75) ? 'active' : 'open_to_offers',
 		resume: null,
-		github: null,
-		quiz: quizPlan(rnd, roleQuizzes(roleByKey(data, primaryRole)), grade)
+		github: null
 	};
 }
 
@@ -312,8 +287,7 @@ export function resumePlan(
 		},
 		searchStatus: rnd.chance(0.7) ? 'active' : 'open_to_offers',
 		resume: { declaredName: `Резюме ${name.lastName}.txt`, bytes: new TextEncoder().encode(text) },
-		github: null,
-		quiz: quizPlan(rnd, stackQuizzes(stack), grade)
+		github: null
 	};
 }
 
@@ -332,8 +306,7 @@ export function minorPlan(athlete: WorldAthlete, batch: string): CandidatePlan {
 		preferences: { work_formats: ['remote'], employment_forms: ['internship'], relocation: false },
 		searchStatus: 'active',
 		resume: null,
-		github: null,
-		quiz: null
+		github: null
 	};
 }
 

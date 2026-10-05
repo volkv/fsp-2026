@@ -12,18 +12,11 @@
 // the stored revision, and `estimateVacancyPool` for a vacancy not saved yet — the draft from pasted text or the form
 // being filled in — so the employer sees «≈N» before saving. An unsaved vacancy has no vector and no document yet, so
 // the estimate is counted without the semantic component and with the reranker reading its title.
-import { and, arrayOverlaps, desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray } from 'drizzle-orm';
+import { confirmingBlocks } from '$lib/server/assessments/bank-store';
 import type { Executor } from '$lib/server/db';
 import { listedInCatalog } from '$lib/server/db/conditions';
-import {
-	assessments,
-	assessmentVersions,
-	candidates,
-	companies,
-	matchScores,
-	skills,
-	vacancies
-} from '$lib/server/db/schema';
+import { candidates, companies, matchScores, skills, vacancies } from '$lib/server/db/schema';
 import { demoScope } from '$lib/server/demo/scope';
 import { uuidv7 } from '$lib/server/ids';
 import { requiredPolicy } from '$lib/server/invitations/policies';
@@ -245,24 +238,14 @@ async function countUnconfirmed(executor: Executor, vacancy: PoolVacancy, now: D
 	}).length;
 }
 
-/** Required skills of the vacancy covered by a published assessment, named as in the vacancy's taxonomy version. */
+/**
+ * Required skills of the vacancy a block of the test of an open specialization confirms, named as in the vacancy's
+ * taxonomy version.
+ */
 async function confirmableSkills(executor: Executor, vacancy: PoolVacancy): Promise<NamedKey[]> {
 	if (vacancy.requiredSkillKeys.length === 0) return [];
-	const covered = new Set(
-		(
-			await executor
-				.selectDistinct({ skillKeys: assessments.skillKeys })
-				.from(assessments)
-				.innerJoin(assessmentVersions, eq(assessmentVersions.assessmentId, assessments.id))
-				.where(
-					and(
-						eq(assessmentVersions.status, 'published'),
-						arrayOverlaps(assessments.skillKeys, [...vacancy.requiredSkillKeys])
-					)
-				)
-		).flatMap((row) => row.skillKeys)
-	);
-	const keys = vacancy.requiredSkillKeys.filter((key) => covered.has(key));
+	const blocks = await confirmingBlocks(executor, vacancy.requiredSkillKeys);
+	const keys = vacancy.requiredSkillKeys.filter((key) => (blocks.get(key)?.length ?? 0) > 0);
 	if (keys.length === 0) return [];
 	const names = new Map(
 		(

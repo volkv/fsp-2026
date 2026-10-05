@@ -6,10 +6,11 @@ import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { GenericContainer, Wait, type StartedTestContainer } from 'testcontainers';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { assessmentArtifacts, assessmentAttempts, assessments, assessmentVersions } from '$lib/server/db/schema';
+import { testArtifacts, testItems } from '$lib/server/db/schema';
 import { codeSubmissionArtifact, runResultArtifacts } from '$lib/server/sandbox/artifacts';
 import { GoJudgeRunner } from '$lib/server/sandbox/runner';
 import type { RunLimits, RunRequest, RunResponse, SandboxTest } from '$lib/server/sandbox/types';
+import { insertAttempt, releaseFixtureBank } from '../helpers/bank';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
 import { createCandidate } from '../helpers/factories';
 
@@ -500,38 +501,32 @@ describe('artifacts', () => {
 		await database.drop();
 	});
 
-	it('fit assessment_artifacts: the code before the run, the compile step and every test after it', async () => {
+	it('fit test_artifacts: the code before the run, the compile step and every test after it', async () => {
 		const { db } = database;
 		const candidate = await createCandidate(db);
-		const [assessment] = await db
-			.insert(assessments)
-			.values({ kind: 'code_task', title: 'A + B', skillKeys: ['cpp'] })
-			.returning();
-		if (!assessment) throw new Error('assessment not inserted');
-		const [version] = await db
-			.insert(assessmentVersions)
+		const { releaseId, families } = await releaseFixtureBank(db, 'backend');
+		const family = families.find((f) => f.descriptor.format === 'practice_code');
+		if (!family) throw new Error('no practice family');
+		const attempt = await insertAttempt(db, { candidateId: candidate.id, releaseId, status: 'in_progress' });
+		const [item] = await db
+			.insert(testItems)
 			.values({
-				assessmentId: assessment.id,
-				version: 1,
-				contentSha256: 'a'.repeat(64),
-				scorer: { type: 'sandbox_judge', version: 1 },
-				levelScale: {},
-				coverage: {},
-				status: 'published'
+				attemptId: attempt.id,
+				seq: 4,
+				block: family.descriptor.block,
+				format: family.descriptor.format,
+				practice: true,
+				familyKey: family.descriptor.key,
+				familyVersion: 1,
+				classId: 'a',
+				instanceSeed: 's',
+				instance: family.module.generate({ seed: 's', grade: 'intern', classId: 'a' }),
+				angoff: 0.8,
+				servedAt: new Date(),
+				status: 'awaiting_sandbox'
 			})
 			.returning();
-		if (!version) throw new Error('version not inserted');
-		const [attempt] = await db
-			.insert(assessmentAttempts)
-			.values({
-				candidateId: candidate.id,
-				versionId: version.id,
-				startedAt: new Date(),
-				deadlineAt: new Date(Date.now() + 3_600_000),
-				status: 'started'
-			})
-			.returning();
-		if (!attempt) throw new Error('attempt not inserted');
+		if (!item) throw new Error('item not inserted');
 
 		const runRequest = request('cpp17', SUM_SOURCES.cpp17 ?? '', { tests: SUM_TESTS });
 		const drafts = [codeSubmissionArtifact(runRequest), ...runResultArtifacts(await run(runRequest), runRequest.tests)];
@@ -546,10 +541,11 @@ describe('artifacts', () => {
 		expect(codeSubmissionArtifact({ ...runRequest }).sha256).toBe(drafts[0]?.sha256);
 
 		const rows = await db
-			.insert(assessmentArtifacts)
+			.insert(testArtifacts)
 			.values(
 				drafts.map((draft, index) => ({
 					attemptId: attempt.id,
+					itemId: item.id,
 					seq: index + 1,
 					kind: draft.kind,
 					content: draft.content,

@@ -1,7 +1,0 @@
-1xx: 0
-2xx: 3
-3xx: 0
-4xx: 1
-5xx: 1
-slowest: /api/orders 900
-top: /api/orders 3

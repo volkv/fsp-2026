@@ -10,8 +10,8 @@
 // operator counts every vacancy seen in the window outside demo sessions.
 import { and, eq, inArray, sql, type SQL } from 'drizzle-orm';
 import { can, type AccessSubject } from '$lib/server/access/permissions';
+import { confirmingBlocks } from '$lib/server/assessments/bank-store';
 import type { SpecializationKey } from '$lib/server/assessments/contract/catalog';
-import { publishedVersions } from '$lib/server/assessments/versions';
 import { activeCategories } from '$lib/server/categories/read';
 import { rolesOfSpecialization } from '$lib/server/categories/roles';
 import type { Executor } from '$lib/server/db';
@@ -78,8 +78,8 @@ export async function vacancySkillDemand(executor: Executor, where: SQL | undefi
 export type DemandSkillStatus = 'missing' | 'claimed' | 'derived' | 'public_profile';
 
 export interface DemandPath {
-	/** Published platform tests checking the skill; `/me/tests/{assessmentId}`. */
-	tests: { assessmentId: string; kind: 'code_task' | 'quiz'; title: string }[];
+	/** Blocks of the test of an open specialization that confirm the skill when passed; `/me/tests`. */
+	tests: { block: string; specialization: string; title: string }[];
 	/** FSP disciplines whose individual result confirms the skill directly, by the published taxonomy. */
 	fspDisciplines: string[];
 }
@@ -243,10 +243,8 @@ function pathOf(paths: Map<string, DemandPath>, skillKey: string): DemandPath {
 async function confirmationPaths(executor: Executor, skillKeys: readonly string[]): Promise<Map<string, DemandPath>> {
 	const result = new Map<string, DemandPath>(skillKeys.map((key) => [key, { tests: [], fspDisciplines: [] }]));
 	if (skillKeys.length === 0) return result;
-	for (const version of await publishedVersions(executor)) {
-		for (const key of version.skillKeys) {
-			result.get(key)?.tests.push({ assessmentId: version.assessmentId, kind: version.kind, title: version.title });
-		}
+	for (const [key, blocks] of await confirmingBlocks(executor, skillKeys)) {
+		result.get(key)?.tests.push(...blocks);
 	}
 	const taxonomy = await latestPublishedVersion(executor);
 	if (!taxonomy) throw new Error('a category is in force, yet no taxonomy is published');
@@ -263,7 +261,7 @@ async function confirmationPaths(executor: Executor, skillKeys: readonly string[
 		);
 	for (const rule of rules) result.get(rule.skillKey)?.fspDisciplines.push(rule.discipline);
 	for (const path of result.values()) {
-		path.tests.sort((a, b) => (a.kind === b.kind ? a.title.localeCompare(b.title) : a.kind === 'code_task' ? -1 : 1));
+		path.tests.sort((a, b) => a.title.localeCompare(b.title));
 		path.fspDisciplines.sort();
 	}
 	return result;

@@ -14,7 +14,7 @@
 		share: number;
 		status: DemandSkillStatus;
 		path: {
-			tests: { assessmentId: string; kind: 'code_task' | 'quiz'; title: string }[];
+			tests: { block: string; specialization: string; title: string }[];
 			fspDisciplines: string[];
 		};
 	}
@@ -65,8 +65,6 @@
 		derived: { label: 'выведено из смежного навыка', tone: 'info' },
 		public_profile: { label: 'публичный профиль, не проверено', tone: 'info' }
 	};
-
-	const TEST_KIND = { code_task: 'Задача', quiz: 'Квиз' } as const;
 
 	function grades(keys: readonly string[]): string {
 		const first = keys[0];
@@ -164,15 +162,13 @@
 							</div>
 							{#if gap.path.tests.length > 0 || gap.path.fspDisciplines.length > 0}
 								<ul class="grid gap-1" data-testid="demand-path">
-									{#each gap.path.tests as test (test.assessmentId)}
+									{#each gap.path.tests as test (test.block)}
 										<li class="flex items-start gap-1.5">
 											<FlaskConicalIcon class="mt-0.5 size-4 shrink-0 text-link" aria-hidden="true" />
-											<a
-												class="text-link underline-offset-4 hover:underline"
-												href={resolve('/(app)/me/tests/[assessmentId]', { assessmentId: test.assessmentId })}
-												>{TEST_KIND[test.kind]} «{test.title}»</a
+											<a class="text-link underline-offset-4 hover:underline" href={resolve('/(app)/me/tests')}
+												>Блок теста «{test.title}»</a
 											>
-											<span class="text-muted-foreground">— засчитанный результат подтвердит платформа</span>
+											<span class="text-muted-foreground">— пройденный блок подтвердит навык</span>
 										</li>
 									{/each}
 									{#if gap.path.fspDisciplines.length > 0}

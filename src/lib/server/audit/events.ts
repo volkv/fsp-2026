@@ -1,7 +1,7 @@
 // Catalog of journal events (docs/domain.md, section 18.2). `details` carries codes and identifiers only:
 // no resume text, contacts, free-text messages or profile field values (section 18.1).
 import { z } from 'zod';
-import { assessmentAttempts } from '$lib/server/db/schema';
+import { ANNUL_REASONS } from '$lib/server/db/schema';
 
 /** A code or an identifier: no spaces, so free text does not fit. */
 const token = z.string().regex(/^[A-Za-z0-9_.:@/+-]{1,128}$/, 'must be a code or an identifier');
@@ -212,11 +212,16 @@ const SPECIFIC_DETAILS: Partial<Record<AuditAction, z.ZodType>> = {
 		matches_declared: z.boolean(),
 		regime: z.enum(['adult', 'minor'])
 	}),
-	// The operator annulled an attempt (domain 10.2): the reason, where the attempt was and how many facts it took away.
+	// An attempt annulled (domain 10.7): the reason and where the attempt was; the category is the owner's own event.
 	'assessment.annulled': withKeys({
-		reason: z.enum(assessmentAttempts.annulReason.enumValues),
-		previous_status: z.enum(['submitted', 'scored']),
-		facts_annulled: count
+		reason: z.enum(ANNUL_REASONS),
+		previous_status: z.enum(['decided', 'expired', 'in_progress'])
+	}),
+	// A review of an objection re-scored clusters and replaced a decision (domain 12.5).
+	'assessment.score_revised': withKeys({
+		superseded_decision_id: token,
+		decision_id: token,
+		rescored_items: count
 	}),
 	// The operator's decision on a vacancy the text check sent to moderation, and the rules that blocked it (domain 13.1);
 	// the reason stays with the vacancy, not in the journal.

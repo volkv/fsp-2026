@@ -1,6 +1,6 @@
 // Task statements are written in a small subset of Markdown and turned into blocks the page renders as elements, so no
 // HTML from the bank ever reaches the page. Anything outside the subset is refused when the bank is read.
-// Imported by plain Node (through bank.ts): no imports, erasable syntax only.
+// Imported by plain Node (through release.ts): no imports, erasable syntax only.
 
 export type Inline = { kind: 'text'; text: string } | { kind: 'code'; text: string } | { kind: 'strong'; text: string };
 

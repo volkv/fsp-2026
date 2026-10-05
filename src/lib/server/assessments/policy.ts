@@ -1,5 +1,5 @@
-// `assessment_policy` (docs/domain.md, sections 10.3 and 13.8): the attempt limit, the pause between attempts and how
-// long attempt artifacts are kept. Its values depend on the brief; the version in force is read at the moment of use.
+// `assessment_policy` (docs/domain.md, 10.7, 13.8): how long the artifacts of an attempt are kept. The rules of who may
+// take which test live in the grade policy of the contract (`contract/policy.ts`); this policy keeps only the retention.
 import { and, desc, eq, lte } from 'drizzle-orm';
 import { parsePolicyParams, type PolicyParams } from '$lib/server/consent/kinds';
 import type { Executor } from '$lib/server/db';
@@ -12,8 +12,8 @@ export interface AssessmentPolicy {
 }
 
 /**
- * The version in force at `at`. Absence is a deployment defect — the policies are published with the seed — not a
- * state of the request, so it fails loudly instead of falling back to a guess.
+ * The version in force at `at`. Absence is a deployment defect — the policies are published at start — not a state of
+ * the request, so it fails loudly instead of falling back to a guess.
  */
 export async function assessmentPolicy(executor: Executor, at: Date): Promise<AssessmentPolicy> {
 	const [row] = await executor
@@ -26,7 +26,7 @@ export async function assessmentPolicy(executor: Executor, at: Date): Promise<As
 	return { id: row.id, version: row.version, params: parsePolicyParams('assessment_policy', row.params) };
 }
 
-/** The date after which the content of an artifact created at `at` is cleared (domain 10.4). */
+/** The date after which the content of an artifact created at `at` is cleared. */
 export function retentionUntil(policy: AssessmentPolicy, at: Date): string {
 	const until = new Date(at.getTime() + policy.params.artifact_retention_days * 86_400_000);
 	return until.toISOString().slice(0, 10);

@@ -1,6 +1,6 @@
 // Registered job handlers. A module that implements a job type adds its handler here and the type to the `--types`
 // list of the worker in compose.yaml; a type from the list without a handler stops the worker at start.
-import { assessmentRun } from '$lib/server/assessments/run-job';
+import { testRun } from '$lib/server/assessments/run-job';
 import { profileEmbed } from '$lib/server/candidates/embed-job';
 import { objectionDeadlineWatch } from '$lib/server/categories/objections';
 import { configuredRegistry } from '$lib/server/companies/registry';
@@ -55,7 +55,7 @@ export const JOB_HANDLERS = handlerRegistry([
 	embeddingReindex,
 	resumeParse,
 	resumeExtract,
-	assessmentRun,
+	testRun,
 	notificationDeliver,
 	demoReset,
 	demoPurge,

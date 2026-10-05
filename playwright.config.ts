@@ -88,7 +88,7 @@ export default defineConfig({
 		// are published, as the application container does on start (Dockerfile CMD), so tests rely on the seed instead
 		// of inserting rows of their own. DATABASE_URL of the environment wins over the one of `--env-file=.env`.
 		command:
-			'node scripts/e2e-database.ts && node --env-file=.env scripts/migrate.ts && node --env-file=.env scripts/seed-taxonomy.ts && node --env-file=.env scripts/seed-legal.ts && node --env-file=.env scripts/seed-policies.ts && node --env-file=.env scripts/seed-assessments.ts && node --env-file=.env build/index.js',
+			'node scripts/e2e-database.ts && node --env-file=.env scripts/migrate.ts && node --env-file=.env scripts/seed-taxonomy.ts && node --env-file=.env scripts/seed-legal.ts && node --env-file=.env scripts/seed-policies.ts && node --env-file=.env scripts/release-bank.ts && node --env-file=.env build/index.js',
 		// Readiness is probed by TCP port: a URL probe would go through HTTP_PROXY.
 		port: APP_PORT,
 		reuseExistingServer: false,

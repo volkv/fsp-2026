@@ -282,7 +282,7 @@ const JOINED_BEFORE_MS = 45 * 60_000;
 /**
  * When the people of the stand joined: `JOINED_BEFORE_MS` before the seed, or when the last of the legal documents they
  * accept was published, if that was later — nobody accepts a document before it exists. Their accounts and consents
- * date from then, so what they did afterwards (a quiz half an hour before the seed) comes after the consent.
+ * date from then, so what they did afterwards (an action half an hour before the seed) comes after the consent.
  */
 async function joiningTime(
 	services: DemoServices,

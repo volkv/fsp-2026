@@ -1,6 +1,6 @@
 // Hiring needs of a company (docs/domain.md, section 13.10): the text is parsed by the rules into a form with quotes
 // when the model is off, the fields the employer filled stay over the suggestion, closed specializations are not
-// suggested, a blocked text and a range not in roubles are refused, and the recommended categories count the
+// suggested — open is switched on in the catalog and with a released bank — a blocked text and a range not in roubles are refused, and the recommended categories count the
 // candidates of a category in force the company sees — through `canShow`, so a minor and a hidden profile are not
 // counted and small numbers are «< 5». Only members of the company see its needs.
 import { fileURLToPath } from 'node:url';
@@ -14,6 +14,7 @@ import { fail } from '$lib/server/ml/result';
 import { createNeed, getNeed, needCategories, updateNeed, type NeedDeps } from '$lib/server/needs/service';
 import { publishTaxonomy } from '$lib/server/taxonomy/publish';
 import { buildRelease, readTaxonomyDatasets } from '$lib/server/taxonomy/release';
+import { releaseFixtureBank } from '../helpers/bank';
 import { decide, invalidate } from '../helpers/categories';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
 import { createCandidate, createCompany, createMember, createPublishedDocument } from '../helpers/factories';
@@ -42,6 +43,10 @@ beforeAll(async () => {
 		{ kind: 'catalog_policy', version: 1, params: { small_count_threshold: 5 }, effectiveFrom },
 		{ kind: 'minor_policy', version: 1, params: { enabled: true, authority_methods: ['in_person'] }, effectiveFrom }
 	]);
+	// Data and ML is switched on in the catalog but has no released bank: closed.
+	for (const specialization of ['backend', 'frontend', 'qa'] as const) {
+		await releaseFixtureBank(database.db, specialization);
+	}
 	catalogDocumentId = (
 		await createPublishedDocument(database.db, 'catalog_visibility', { publishedAt: new Date(Date.now() - 10 * DAY) })
 	).id;
@@ -137,6 +142,10 @@ describe('a hiring need', () => {
 			createNeed(deps(), subject, meta, { form: { skill_keys: [], nice_skill_keys: [], specialization: 'mobile' } })
 		);
 		expect([closed.code, closed.details?.[0]?.code]).toEqual(['policy_violation', 'specialization_closed']);
+		const unreleased = await apiError(
+			createNeed(deps(), subject, meta, { form: { skill_keys: [], nice_skill_keys: [], specialization: 'data_ml' } })
+		);
+		expect([unreleased.code, unreleased.details?.[0]?.code]).toEqual(['policy_violation', 'specialization_closed']);
 	});
 
 	it('refuses a blocked text, a range not in roubles and a need of another company', async () => {

@@ -265,8 +265,6 @@ export const POLICY_PARAMS = {
 		stale_after_days: positiveInt
 	}),
 	assessment_policy: z.strictObject({
-		max_attempts: positiveInt,
-		retake_interval_days: nonNegativeInt,
 		artifact_retention_days: positiveInt
 	}),
 	// Version 1 had no terms of the demonstration stand; from version 2 both are stated (domain 19.3). Version 3 states

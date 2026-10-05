@@ -1,6 +1,0 @@
-5
-GET /api/orders 200 35
-POST /api/orders 201 120
-GET /api/orders/7 404 3
-GET /health 200 1
-GET /api/orders 500 900

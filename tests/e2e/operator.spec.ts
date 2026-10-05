@@ -14,13 +14,11 @@ import AxeBuilder from '@axe-core/playwright';
 import type { Browser, Page } from '@playwright/test';
 import { expect, test } from './helpers/test';
 import { APP_ORIGIN } from './helpers/ports';
+import { releaseFixtureBank } from '../helpers/bank';
+import { recordDecisionIn } from '../helpers/categories';
 import { and, eq } from 'drizzle-orm';
 import {
-	assessmentArtifacts,
 	assessmentObjections,
-	assessmentAttempts,
-	assessments,
-	assessmentVersions,
 	auditEvents,
 	candidates,
 	companies,
@@ -29,6 +27,9 @@ import {
 	files,
 	productPolicies,
 	staffRoles,
+	testArtifacts,
+	testAttempts,
+	testItems,
 	users
 } from '$lib/server/db/schema';
 
@@ -166,7 +167,13 @@ async function seedObjection(reason: string): Promise<string> {
 			.insert(assessmentObjections)
 			.values({
 				candidateId: candidate.id,
-				decisionId: randomUUID(),
+				decisionId: (
+					await recordDecisionIn(tx, candidate.id, {
+						specialization: 'backend',
+						grade: 'junior',
+						outcome: 'not_confirmed'
+					})
+				).id,
 				reason,
 				openedAt,
 				dueAt: new Date(openedAt.getTime() + 30 * 86_400_000),
@@ -481,15 +488,14 @@ test('the operator resolves a conflict of the birth date by a document', async (
 	await operator.context().close();
 });
 
-/** A code task submission the sandbox has not judged for an hour: the list asks a person to look at it. */
+/**
+ * An attempt whose practice the sandbox has not scored for an hour: the list asks a person to look at it. The bank of
+ * the attempt is a fixture release of QA (the e2e stand releases no bank of its own).
+ */
 async function seedStuckAttempt(): Promise<string> {
-	const [version] = await db()
-		.select({ id: assessmentVersions.id })
-		.from(assessmentVersions)
-		.innerJoin(assessments, eq(assessments.id, assessmentVersions.assessmentId))
-		.where(and(eq(assessmentVersions.status, 'published'), eq(assessments.kind, 'code_task')))
-		.limit(1);
-	if (!version) throw new Error('no published assessment: run scripts/seed-assessments.ts');
+	const { releaseId, families } = await releaseFixtureBank(db(), 'qa', { n: 900 });
+	const family = families.find((f) => f.descriptor.format === 'qa_mutation');
+	if (!family) throw new Error('no QA family in the fixture bank');
 	return db().transaction(async (tx) => {
 		const [user] = await tx
 			.insert(users)
@@ -511,40 +517,64 @@ async function seedStuckAttempt(): Promise<string> {
 			})
 			.returning({ id: candidates.id });
 		if (!candidate) throw new Error('candidate not inserted');
-		const submittedAt = new Date(Date.now() - 3_600_000);
+		const answeredAt = new Date(Date.now() - 3_600_000);
 		const [attempt] = await tx
-			.insert(assessmentAttempts)
+			.insert(testAttempts)
 			.values({
 				candidateId: candidate.id,
-				versionId: version.id,
-				startedAt: new Date(submittedAt.getTime() - 600_000),
-				submittedAt,
-				deadlineAt: new Date(submittedAt.getTime() + 3_600_000),
-				status: 'submitted',
+				purpose: 'grade',
+				specialization: 'qa',
+				grade: 'intern',
+				catalogVersion: '2026.10.1',
+				bankReleaseId: releaseId,
+				procedureVersion: 'sprt-1',
+				policyVersion: 1,
+				form: 'A',
+				seed: randomBytes(16).toString('hex'),
+				status: 'in_progress',
+				startedAt: new Date(answeredAt.getTime() - 600_000),
+				deadlineAt: new Date(answeredAt.getTime() + 3_600_000),
 				integritySignals: {
 					entries: [
 						{
-							at: submittedAt.toISOString(),
-							stage: 'code_submission',
+							at: answeredAt.toISOString(),
+							stage: 'submission',
+							seq: 1,
 							client: { elapsedMs: 540_000, pasteCount: 2, pastedChars: 380, blurCount: 4 }
 						}
 					]
 				}
 			})
-			.returning({ id: assessmentAttempts.id });
+			.returning({ id: testAttempts.id });
 		if (!attempt) throw new Error('attempt not inserted');
-		const content = {
-			request_id: randomUUID(),
-			language: 'python3',
-			source: 'print(sum(map(int, input().split())))\n'
-		};
-		await tx.insert(assessmentArtifacts).values({
+		const [item] = await tx
+			.insert(testItems)
+			.values({
+				attemptId: attempt.id,
+				seq: 1,
+				block: family.descriptor.block,
+				format: family.descriptor.format,
+				practice: true,
+				familyKey: family.descriptor.key,
+				familyVersion: 1,
+				classId: 'a',
+				instanceSeed: 's',
+				instance: family.module.generate({ seed: 's', grade: 'intern', classId: 'a' }),
+				angoff: 0.8,
+				servedAt: new Date(answeredAt.getTime() - 300_000),
+				answeredAt,
+				status: 'awaiting_sandbox'
+			})
+			.returning({ id: testItems.id });
+		if (!item) throw new Error('item not inserted');
+		await tx.insert(testArtifacts).values({
 			attemptId: attempt.id,
+			itemId: item.id,
 			seq: 1,
-			kind: 'code_submission',
-			content,
+			kind: 'qa_cases',
+			content: { seq: 1, stage: 'task', cases: [{ input: '5 1 9', expected: 'clamp-case-marker' }] },
 			sha256: sha256(),
-			createdAt: submittedAt,
+			createdAt: answeredAt,
 			retentionUntil: '2099-01-01'
 		});
 		return attempt.id;
@@ -558,24 +588,23 @@ test('the operator reads a stuck attempt in full and annuls it with a reason', a
 	await operator.goto('/operator/assessments');
 	await expect(operator.getByRole('heading', { level: 1 })).toHaveText('Попытки тестов');
 	const row = operator.locator(`[data-attempt="${attemptId}"]`);
-	await expect(row).toContainText('без результата песочницы');
-	await expect(row).toContainText('вставок 2, уходов 4');
+	await expect(row).toContainText('Песочница не ответила');
+	await expect(row).toContainText('вставок 2 (380 симв.), уходов 4');
 	await expectNoAxeViolations(operator);
 
 	await row.getByRole('link').click();
-	await expect(operator.getByTestId('review-submission')).toContainText('print(sum(map(int, input().split())))');
+	await expect(operator.getByTestId('review-item')).toContainText('clamp-case-marker');
 	await expect(operator.getByTestId('signals')).toBeVisible();
 	await expectNoAxeViolations(operator);
 
-	await operator.getByLabel('Причина').selectOption('technical_failure');
-	await operator.getByRole('button', { name: 'Аннулировать попытку' }).click();
-	await expect(operator.getByText(/Попытка аннулирована/)).toBeVisible();
-	await expect(operator.getByTestId('annulled-info')).toContainText('Технический сбой');
+	await operator.getByLabel('Попытка сорвалась из-за технического сбоя на стороне платформы.').check();
+	await operator.getByRole('button', { name: 'Аннулировать' }).click();
+	await expect(operator.getByText('Попытка аннулирована', { exact: true })).toBeVisible();
 
 	const [attempt] = await db()
-		.select({ status: assessmentAttempts.status, reason: assessmentAttempts.annulReason })
-		.from(assessmentAttempts)
-		.where(eq(assessmentAttempts.id, attemptId));
+		.select({ status: testAttempts.status, reason: testAttempts.annulReason })
+		.from(testAttempts)
+		.where(eq(testAttempts.id, attemptId));
 	expect(attempt).toEqual({ status: 'annulled', reason: 'technical_failure' });
 	const journal = await db()
 		.select({ action: auditEvents.action })

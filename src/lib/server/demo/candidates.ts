@@ -19,7 +19,6 @@ import {
 import { uploadResume } from '$lib/server/resumes/upload';
 import { documentOf, ensureUser, metaOf, sessionOf, subjectOf, type SeedContext } from './accounts';
 import type { CandidatePlan } from './generate';
-import { takeQuiz } from './quizzes';
 
 export interface SeededCandidate {
 	key: string;
@@ -173,9 +172,7 @@ export async function ensureCandidate(ctx: SeedContext, plan: CandidatePlan): Pr
 		}
 	}
 
-	const seeded = { key: plan.key, candidateId, userId };
-	if (plan.quiz !== null) await takeQuiz(ctx, seeded, plan.quiz);
-	return seeded;
+	return { key: plan.key, candidateId, userId };
 }
 
 /** Runs `task` over `items` with at most `limit` at a time, keeping the order of the results. */
