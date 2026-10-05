@@ -27,11 +27,11 @@
 			"requires_reconsent": false
 		},
 		"catalog_visibility": {
-			"title": "Согласие на показ псевдонимной карточки проверенным работодателям",
+			"title": "Согласие на показ псевдонимной карточки работодателям платформы",
 			"purposes": ["catalog"],
 			"data_categories": ["skills", "categories", "achievements_generalized"],
 			"operations": ["provide"],
-			"requires_reconsent": false
+			"requires_reconsent": true
 		},
 		"partner_pool": {
 			"title": "Согласие на показ карточки партнёрам соревнования",

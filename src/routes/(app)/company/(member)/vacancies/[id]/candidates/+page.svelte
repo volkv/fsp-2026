@@ -76,12 +76,12 @@
 		<Empty.Header>
 			<Empty.Media variant="icon"><UsersIcon aria-hidden="true" /></Empty.Media>
 			<Empty.Title>
-				{vacancy.status === 'closed' ? 'Вакансия закрыта' : 'Каталог кандидатов закрыт до проверки компании'}
+				{vacancy.status === 'closed' ? 'Вакансия закрыта' : 'Каталог кандидатов закрыт'}
 			</Empty.Title>
 			<Empty.Description>
 				{vacancy.status === 'closed'
 					? 'По закрытой вакансии кандидатов не подбирают.'
-					: 'Кандидатов видит только компания, проверенная оператором ФСП.'}
+					: 'Действия компании закрыты оператором ФСП: компания приостановлена или проверка отклонена.'}
 			</Empty.Description>
 		</Empty.Header>
 	</Empty.Root>

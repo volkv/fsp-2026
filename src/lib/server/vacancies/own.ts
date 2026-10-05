@@ -12,11 +12,12 @@ import { companies, companyMembers, mlResults, vacancies } from '$lib/server/db/
 import { uuidv7 } from '$lib/server/ids';
 import { withdrawOpenInvitations } from '$lib/server/invitations/send';
 import { conflict } from '$lib/server/companies/context';
+import { requireAdmission } from '$lib/server/companies/gate';
 import { minorTermsAcceptance } from '$lib/server/companies/profile';
 import type { JobCreator } from '$lib/server/jobs/queue';
 import { notify } from '$lib/server/notifications/notify';
 import { holdsApprovedClaim } from './claims';
-import { companyIsVerified, enqueueMatchRefresh, enqueueRevisionDerivations } from './derivations';
+import { companyAdmitted, enqueueMatchRefresh, enqueueRevisionDerivations } from './derivations';
 import { invalid, refuse, violation } from './errors';
 import { VACANCY_SCHEMA_VERSION } from './from-text';
 import {
@@ -99,12 +100,14 @@ function checkAgainstTaxonomy(input: OwnVacancyInput, taxonomy: VacancyTaxonomy)
 	}
 }
 
+/** The range of an own vacancy is in roubles only (domain 13.1): another currency is a policy, not a typo. */
 function parseInput(raw: unknown): OwnVacancyInput {
 	const parsed = ownVacancyInputSchema.safeParse(raw);
 	if (!parsed.success) {
 		const issue = parsed.error.issues[0];
 		throw invalid(issue?.path.join('.') ?? '', issue?.message ?? 'invalid vacancy');
 	}
+	if (parsed.data.salary.currency !== 'RUB') throw violation('salary_not_rub', 'salary.currency');
 	return parsed.data;
 }
 
@@ -278,7 +281,7 @@ export async function updateOwnVacancy(
 			}
 		} else if (moderated) {
 			const resumeTo = moderationCaseOf(previous).resume_to;
-			status = (await companyIsVerified(tx, author.companyId)) ? resumeTo : 'draft';
+			status = (await companyAdmitted(tx, author.companyId)) ? resumeTo : 'draft';
 			moderation = null;
 		} else if (listed) {
 			moderation = null;
@@ -405,7 +408,7 @@ export async function publishOwnVacancy(
 	return deps.db.transaction(async (tx) => {
 		const row = await lockOwnVacancy(tx, vacancyId, author.companyId);
 		if (row.status !== 'draft') throw violation('vacancy_not_editable');
-		if (!(await companyIsVerified(tx, author.companyId))) throw violation('company_not_verified');
+		await requireAdmission(tx, author.companyId, { forUpdate: true });
 		if (
 			row.salaryMin === null ||
 			row.salaryMax === null ||
@@ -522,9 +525,7 @@ export async function decideVacancyModeration(
 		const open = moderationCaseOf(check);
 		const resumeTo = open.resume_to;
 		const status = decision.decision === 'publish' ? resumeTo : decision.decision === 'return' ? 'draft' : 'closed';
-		if (decision.decision === 'publish' && !(await companyIsVerified(tx, row.companyId))) {
-			throw violation('company_not_verified');
-		}
+		if (decision.decision === 'publish') await requireAdmission(tx, row.companyId, { forUpdate: true });
 		const openedAt = open.opened_at;
 		const textCheck: TextCheck = {
 			...check,
@@ -591,9 +592,7 @@ async function transition(
 	return deps.db.transaction(async (tx) => {
 		const row = await lockOwnVacancy(tx, vacancyId, author.companyId);
 		if (!from.includes(row.status)) throw violation('vacancy_not_editable');
-		if (to === 'published' && !(await companyIsVerified(tx, author.companyId))) {
-			throw violation('company_not_verified');
-		}
+		if (to === 'published') await requireAdmission(tx, author.companyId, { forUpdate: true });
 		const now = deps.now();
 		const [updated] = await tx
 			.update(vacancies)

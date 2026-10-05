@@ -43,8 +43,10 @@
 	<Empty.Root class="border">
 		<Empty.Header>
 			<Empty.Media variant="icon"><UsersIcon aria-hidden="true" /></Empty.Media>
-			<Empty.Title>Каталог кандидатов закрыт до проверки компании</Empty.Title>
-			<Empty.Description>Кандидатов видит только компания, проверенная оператором ФСП.</Empty.Description>
+			<Empty.Title>Каталог кандидатов закрыт</Empty.Title>
+			<Empty.Description
+				>Действия компании закрыты оператором ФСП: компания приостановлена или проверка отклонена.</Empty.Description
+			>
 		</Empty.Header>
 	</Empty.Root>
 {:else}

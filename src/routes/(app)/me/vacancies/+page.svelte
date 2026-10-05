@@ -206,9 +206,11 @@
 					<div class="grid gap-1">
 						<h2 class="font-heading text-h3">{item.title}</h2>
 						<p class="text-sm text-muted-foreground">
-							{item.organization ?? 'Организация не указана'}{item.origin === 'own'
-								? ' · вакансия проверенной компании'
-								: ''}
+							{item.organization ?? 'Организация не указана'}{item.companyVerification === 'verified'
+								? ' · компания проверена'
+								: item.companyVerification === 'unverified'
+									? ' · компания не проверена'
+									: ''}
 						</p>
 					</div>
 					<p class="text-right">

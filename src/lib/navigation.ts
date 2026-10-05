@@ -26,6 +26,7 @@ import SearchIcon from '@lucide/svelte/icons/search';
 import ShieldCheckIcon from '@lucide/svelte/icons/shield-check';
 import SlidersHorizontalIcon from '@lucide/svelte/icons/sliders-horizontal';
 import TagIcon from '@lucide/svelte/icons/tag';
+import TargetIcon from '@lucide/svelte/icons/target';
 import Trash2Icon from '@lucide/svelte/icons/trash-2';
 import TrophyIcon from '@lucide/svelte/icons/trophy';
 import UserRoundIcon from '@lucide/svelte/icons/user-round';
@@ -79,6 +80,7 @@ export const WORKSPACES: Record<Workspace, WorkspaceNav> = {
 	employer: {
 		label: 'Работодатель',
 		items: [
+			{ label: 'Потребности', icon: TargetIcon, href: resolve('/company/needs') },
 			{ label: 'Кандидаты', icon: SearchIcon, href: resolve('/company/candidates') },
 			{ label: 'Вакансии', icon: BriefcaseIcon, href: resolve('/company/vacancies') },
 			{ label: 'Внешние вакансии', icon: GlobeIcon, href: resolve('/company/vacancies/external') },

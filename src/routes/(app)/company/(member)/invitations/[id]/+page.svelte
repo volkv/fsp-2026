@@ -3,7 +3,7 @@
 	import { resolve } from '$app/paths';
 	import ContactRoundIcon from '@lucide/svelte/icons/contact-round';
 	import TrendingDownIcon from '@lucide/svelte/icons/trending-down';
-	import InviteForm from '$lib/components/employer/invite-form.svelte';
+	import OfferForm from '$lib/components/employer/offer-form.svelte';
 	import { DISCLOSURE_FIELD_LABELS, TERMS_FIELD_LABELS, hiringView } from '$lib/components/employer/model.js';
 	import NativeSelect from '$lib/components/employer/native-select.svelte';
 	import CsrfInput from '$lib/components/forms/csrf-input.svelte';
@@ -38,7 +38,12 @@
 	}
 </script>
 
-<PageHeader title={`Приглашение: ${invitation.candidatePseudonym ?? ''}`} description={data.vacancy.title}>
+<PageHeader
+	title={`Приглашение: ${invitation.candidatePseudonym ?? ''}`}
+	description={current
+		? `${current.title}${current.vacancy ? ` · вакансия «${current.vacancy.snapshot.title}»` : ''}`
+		: ''}
+>
 	{#snippet eyebrow()}
 		<a class="text-link underline-offset-4 hover:underline" href={resolve('/company/invitations')}>Приглашения</a>
 	{/snippet}
@@ -88,10 +93,36 @@
 					>
 				</Card.Header>
 				<Card.Content class="grid gap-3 text-sm">
+					<p class="font-medium">{current.title}</p>
 					<SalaryRange salary={current.salary} size="lg" />
 					{#if open}
 						<ResponseDeadline dueAt={current.responseDueAt} />
 					{/if}
+					<p class="whitespace-pre-line">{current.description}</p>
+					<dl class="grid gap-1">
+						<div class="flex flex-wrap gap-1">
+							<dt class="text-muted-foreground">Формат:</dt>
+							<dd>{data.labels.terms.work_format[current.workFormat] ?? current.workFormat}</dd>
+						</div>
+						<div class="flex flex-wrap gap-1">
+							<dt class="text-muted-foreground">Вакансия:</dt>
+							<dd>{current.vacancy ? `«${current.vacancy.snapshot.title}»` : 'без вакансии'}</dd>
+						</div>
+						<div class="flex flex-wrap gap-1">
+							<dt class="text-muted-foreground">Связь:</dt>
+							<dd>
+								{current.contactMethod.value}{current.contactMethod.note ? ` — ${current.contactMethod.note}` : ''}
+							</dd>
+						</div>
+					</dl>
+					<div class="grid gap-1" data-testid="why-you">
+						<p class="text-muted-foreground">Почему вы:</p>
+						<ul class="list-disc pl-5">
+							{#each current.whyYou as point, index (index)}
+								<li>{point.text}</li>
+							{/each}
+						</ul>
+					</div>
 					{#if current.message}
 						<p class="rounded-md border bg-muted/40 p-3 whitespace-pre-line">{current.message}</p>
 					{/if}
@@ -255,7 +286,7 @@
 			</Card.Root>
 		{/if}
 
-		{#if data.vacancy.status === 'published'}
+		{#if current && data.offer.profileComplete}
 			<Card.Root>
 				<Card.Header>
 					<Card.Title>
@@ -270,13 +301,26 @@
 					</Card.Description>
 				</Card.Header>
 				<Card.Content>
-					<InviteForm
+					<OfferForm
 						action="?/revise"
-						salary={data.vacancy.salary}
-						initial={current
-							? { min: current.salary.min, max: current.salary.max, message: current.message }
-							: undefined}
-						responseWindowHours={data.responseWindowHours}
+						vacancies={data.offer.vacancies}
+						workFormats={data.offer.workFormats}
+						whyYouOptions={data.whyYouOptions}
+						initial={{
+							title: current.title,
+							description: current.description,
+							salaryMin: current.salary.min,
+							salaryMax: current.salary.max,
+							taxBase: current.salary.taxBase,
+							workFormat: current.workFormat,
+							contactKind: current.contactMethod.kind,
+							contactValue: current.contactMethod.value,
+							contactNote: current.contactMethod.note,
+							vacancyId: current.vacancy?.id ?? null,
+							message: current.message,
+							whyYou: data.whyYouOptions.map((option) => option.key)
+						}}
+						responseWindowHours={data.offer.responseWindowHours}
 						problems={problem?.fields ?? {}}
 						submitLabel="Отправить новую версию"
 					/>

@@ -11,6 +11,7 @@ import { mailer, type Mailer } from '$lib/server/mail/mailer';
 import type { MatchingDeps } from '$lib/server/matching/deps';
 import type { MatchingModels } from '$lib/server/matching/semantic';
 import { modelAdapter } from '$lib/server/ml';
+import type { NeedDeps } from '$lib/server/needs/service';
 import type { ModelAdapter } from '$lib/server/ml/adapter';
 import { redis, type Redis } from '$lib/server/redis';
 
@@ -55,7 +56,17 @@ export const companyDeps = (s: ApiServices): CompanyDeps => ({
 	now: s.now
 });
 
-export const invitationDeps = (s: ApiServices): InvitationDeps => ({ db: s.db, crypto: s.crypto, now: s.now });
+export const invitationDeps = (s: ApiServices): InvitationDeps => ({
+	db: s.db,
+	crypto: s.crypto,
+	now: s.now
+});
+
+export const needDeps = (s: ApiServices): NeedDeps => ({
+	db: s.db,
+	models: s.models,
+	now: s.now
+});
 
 export const matchingDeps = (s: ApiServices): MatchingDeps => ({
 	db: s.db,

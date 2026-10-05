@@ -35,7 +35,7 @@
 		{@const request = data.request}
 		<section class="grid gap-3" aria-labelledby="invitation-title" data-testid="representative-disclosure">
 			<h2 id="invitation-title" class="font-heading text-h3">
-				{request.vacancyTitle} <span class="text-muted-foreground">· {request.companyName}</span>
+				{request.offerTitle} <span class="text-muted-foreground">· {request.companyName}</span>
 			</h2>
 			<p>
 				Кандидат <strong>{request.candidateName}</strong> принимает приглашение компании «{request.companyName}».

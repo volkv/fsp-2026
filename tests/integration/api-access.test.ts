@@ -18,7 +18,9 @@ import * as v1 from '$lib/server/api/v1';
 import * as catalog from '$lib/server/api/v1/catalog';
 import * as categories from '$lib/server/api/v1/categories';
 import * as companies from '$lib/server/api/v1/companies';
+import * as companyProfile from '$lib/server/api/v1/company-profile';
 import * as invitations from '$lib/server/api/v1/invitations';
+import * as needs from '$lib/server/api/v1/needs';
 import * as me from '$lib/server/api/v1/me';
 import * as vacancies from '$lib/server/api/v1/vacancies';
 import { verifyReceiptOperation } from '$lib/server/api/v1/verify';
@@ -28,6 +30,7 @@ import { createFieldCrypto } from '$lib/server/crypto/fields';
 import {
 	auditEvents,
 	categorizationRulesets,
+	companies as companiesTable,
 	evidenceRuns,
 	consentEvents,
 	productPolicies,
@@ -569,10 +572,9 @@ describe('objects of another company and missing rights', () => {
 		const sent = await call(invitations.sendInvitation, {
 			actor: theirs.actor,
 			body: {
+				...OFFER,
 				vacancy_id: theirs.vacancy.id,
-				candidate_pseudonym: crypto.pseudonym(candidate.id, theirs.company.id),
-				salary_min: 260_000,
-				salary_max: 300_000
+				candidate_pseudonym: crypto.pseudonym(candidate.id, theirs.company.id)
 			}
 		});
 		expect(sent.status, sent.text).toBe(201);
@@ -615,11 +617,10 @@ describe('validation', () => {
 		const unknownField = await call(invitations.sendInvitation, {
 			actor,
 			body: {
+				...OFFER,
 				vacancy_id: vacancy.id,
 				candidate_pseudonym: 'aaaaaaaaaaaaaaaaaaaaaaaaaa',
-				salary_min: 1,
-				salary_max: 2,
-				salary_tax_base: 'net'
+				salary_period: 'year'
 			}
 		});
 		expectError(unknownField, 400, 'validation_failed');
@@ -905,6 +906,21 @@ describe('market of a category', () => {
 	});
 });
 
+/** The terms of an offer as the API takes them (contracts 10.2). */
+const OFFER = {
+	title: 'Backend-разработчик на Go',
+	description: 'Развиваем платёжный шлюз: Go, PostgreSQL, Kafka. Команда из шести инженеров, релизы каждую неделю.',
+	salary_min: 260_000,
+	salary_max: 320_000,
+	salary_currency: 'RUB',
+	salary_tax_base: 'gross',
+	work_format: 'remote',
+	contact_method: { kind: 'email', value: 'hr@example.ru' },
+	why_you: [
+		{ text: 'Удалённый формат совпадает с предпочтениями', source: { kind: 'preference', ref: 'work_formats' } }
+	]
+};
+
 describe('invitation through the API', () => {
 	it('invites by pseudonym, refuses an external vacancy and discloses contacts only after acceptance', async () => {
 		const { company, actor: ownerSession, vacancy } = await employer();
@@ -920,14 +936,21 @@ describe('invitation through the API', () => {
 		const external = await createExternalVacancy(database.db, taxonomyVersionId);
 		const refused = await call(invitations.sendInvitation, {
 			actor: key,
-			body: { vacancy_id: external.id, candidate_pseudonym: pseudonym, salary_min: 250_000, salary_max: 300_000 }
+			body: { ...OFFER, vacancy_id: external.id, candidate_pseudonym: pseudonym }
 		});
 		expectError(refused, 422, 'policy_violation');
 		expect(refused.json.error?.details?.[0]?.code).toBe('vacancy_not_invitable');
 
+		const notRub = await call(invitations.sendInvitation, {
+			actor: key,
+			body: { ...OFFER, salary_currency: 'USD', candidate_pseudonym: pseudonym }
+		});
+		expectError(notRub, 422, 'policy_violation');
+		expect(notRub.json.error?.details?.[0]?.code).toBe('salary_not_rub');
+
 		const sent = await call(invitations.sendInvitation, {
 			actor: key,
-			body: { vacancy_id: vacancy.id, candidate_pseudonym: pseudonym, salary_min: 260_000, salary_max: 320_000 }
+			body: { ...OFFER, vacancy_id: vacancy.id, candidate_pseudonym: pseudonym }
 		});
 		expect(sent.status, sent.text).toBe(201);
 		expect(sent.json).toMatchObject({ viewer: 'company', candidate_pseudonym: pseudonym, status: 'sent' });
@@ -962,6 +985,97 @@ describe('invitation through the API', () => {
 		expect(contacts.status, contacts.text).toBe(200);
 		expect(contacts.json).toMatchObject({ email, full_name: { last: LAST_NAME } });
 		expect(contacts.json.phone).toBeUndefined();
+	});
+});
+
+describe('company profile and hiring needs through the API', () => {
+	it('lets the owner fill in the profile, refuses an offer without it, and closes it to a suspended company', async () => {
+		const { company, actor: owner } = await employer('submitted');
+		const read = await call(companyProfile.getCompanyProfile, { actor: owner });
+		expect(read.status, read.text).toBe(200);
+		expect(read.json).toMatchObject({ verification: 'unverified', complete: true });
+
+		const cleared = await call(companyProfile.patchCompanyProfile, {
+			actor: owner,
+			body: { description: null, contacts: { telegram: '@severny_hr', website: 'https://example.ru' } }
+		});
+		expect(cleared.status, cleared.text).toBe(200);
+		expect(cleared.json).toMatchObject({
+			description: null,
+			complete: false,
+			contacts: { telegram: '@severny_hr', website: 'https://example.ru' }
+		});
+		const { candidate } = await catalogCandidate();
+		const incomplete = await call(invitations.sendInvitation, {
+			actor: owner,
+			body: { ...OFFER, candidate_pseudonym: crypto.pseudonym(candidate.id, company.id) }
+		});
+		expectError(incomplete, 422, 'policy_violation');
+		expect(incomplete.json.error?.details?.[0]?.code).toBe('company_profile_incomplete');
+
+		const recruiter = await recruiterOf(company.id);
+		expectError(
+			await call(companyProfile.patchCompanyProfile, { actor: recruiter, body: { activity: 'Финтех' } }),
+			403,
+			'forbidden'
+		);
+		await database.db.update(companiesTable).set({ status: 'rejected' }).where(eq(companiesTable.id, company.id));
+		const closed = await call(companyProfile.patchCompanyProfile, { actor: owner, body: { activity: 'Финтех' } });
+		expectError(closed, 403, 'forbidden');
+		expect(closed.json.error?.details?.[0]?.code).toBe('company_rejected');
+	});
+
+	it('parses a need by the rules and counts the candidates of its categories', async () => {
+		const { actor } = await employer();
+		const created = await call(needs.createHiringNeed, {
+			actor,
+			body: {
+				text: 'Ищем бэкенд-разработчика уровня middle в команду платежей.\nНужны Go и PostgreSQL. Kafka будет плюсом. Удалённо.'
+			}
+		});
+		expect(created.status, created.text).toBe(201);
+		expect(created.json).toMatchObject({
+			status: 'draft',
+			form: { specialization: 'backend', grade: 'middle', work_format: 'remote' },
+			parse: { mode: 'rules', model_failure: 'disabled' }
+		});
+		const form = created.json.form as { skill_keys: string[]; nice_skill_keys: string[] };
+		expect(form.skill_keys).toEqual(expect.arrayContaining(['go', 'postgresql']));
+		expect(form.nice_skill_keys).toContain('kafka');
+		const needId = String(created.json.id);
+
+		// Each category counts the candidates of a category in force the company sees: a visible candidate adds one, a
+		// candidate without the catalog consent adds nothing (other suites of this file may hold categories too).
+		const count = async () => {
+			const counted = await call(needs.needRecommendedCategories, { actor, params: { need_id: needId } });
+			expect(counted.status, counted.text).toBe(200);
+			return counted.json.categories as { grade: string; basis: string; candidates: { value?: number } }[];
+		};
+		const before = await count();
+		expect(before.map((c) => [c.grade, c.basis])).toEqual([
+			['middle', 'form'],
+			['junior', 'neighbour_grade'],
+			['senior', 'neighbour_grade']
+		]);
+		const { candidate } = await catalogCandidate();
+		const hidden = await catalogCandidate({ catalogConsent: false });
+		for (const id of [candidate.id, hidden.candidate.id]) {
+			await decide(database.db, id, { specialization: 'backend', grade: 'middle' });
+		}
+		const after = await count();
+		// The catalog policy of this suite shows numbers from 1 (`small_count_threshold: 1`).
+		expect(after[0]?.candidates.value).toBe((before[0]?.candidates.value ?? 0) + 1);
+		expect(after[1]?.candidates).toEqual(before[1]?.candidates);
+
+		const confirmed = await call(needs.updateHiringNeed, {
+			actor,
+			params: { need_id: needId },
+			body: { status: 'active' }
+		});
+		expect(confirmed.status, confirmed.text).toBe(200);
+		expect(confirmed.json.status).toBe('active');
+		const other = await employer();
+		expectError(await call(needs.getHiringNeed, { actor: other.actor, params: { need_id: needId } }), 404, 'not_found');
 	});
 });
 

@@ -1,17 +1,15 @@
 // Stored matches (docs/domain.md, section 13.4): `match_scores` keeps the significant pairs — the score at or above
-// `matching_policy.store_threshold` — and the pair of every invitation, with the decomposition as codes and numbers. Explanations are never stored: every
+// `matching_policy.store_threshold` — with the decomposition as codes and numbers. Explanations are never stored: every
 // screen builds them with `matchScore` when it reads, so a pair without a row is explained the same way. A refresh
-// writes only the rows whose result changed and removes the rows that stopped being significant or current; a row an
-// invitation refers to («why invited», domain 13.5) is kept.
+// writes only the rows whose result changed and removes the rows that stopped being significant or current. «Why you»
+// of an offer is a snapshot in its terms version, not a reference to a row (domain 13.5).
 import { and, desc, eq, inArray, lte, sql, type SQL } from 'drizzle-orm';
 import { parsePolicyParams } from '$lib/server/consent/kinds';
 import type { Executor, Transaction } from '$lib/server/db';
 import { candidates, matchScores, productPolicies } from '$lib/server/db/schema';
-import { loadCandidateSnapshots, loadGradeOrdinals, type VacancySnapshot } from './evidence';
 import { COMPONENT_KEYS, COMPONENT_STATUS_CODES, type ComponentKey, type ComponentStatus } from './params';
-import { loadActiveMatchRuleset, type MatchRuleset } from './ruleset';
-import { matchScore, qualifiesForPool, type MatchComponents, type MatchResult } from './score';
-import { loadActiveSpace, pairKey, pairSimilarities, semanticSignal } from './semantic';
+import type { MatchRuleset } from './ruleset';
+import { qualifiesForPool, type MatchComponents, type MatchResult } from './score';
 
 /** Rows per insert statement. */
 const BATCH = 500;
@@ -139,7 +137,7 @@ export async function writePairs(
 	tx: Transaction,
 	pairs: readonly ComputedPair[],
 	ruleset: MatchRuleset,
-	/** The refresh job that computed the pairs; `null` — computed by a request (`storeInvitedPair`). */
+	/** The refresh job that computed the pairs; `null` — computed outside a refresh job. */
 	jobId: string | null,
 	mode: WriteMode
 ): Promise<{ kept: ComputedPair[]; written: number }> {
@@ -202,84 +200,8 @@ export async function writePairs(
 	return { kept, written };
 }
 
-/**
- * The row of the pair at the current snapshot of the vacancy and the candidate, stored whatever its score: an invitation
- * refers to it («why invited», domain 13.5), and the reference keeps it from being removed. A row of that snapshot
- * already stored by a refresh is used as it is; otherwise the pair is computed the way the candidate side computes it —
- * with the semantic component and without the reranker — and written.
- */
-export async function storeInvitedPair(
-	tx: Transaction,
-	vacancy: VacancySnapshot,
-	candidateId: string
-): Promise<string> {
-	const ruleset = await loadActiveMatchRuleset(tx);
-	const candidate = (await loadCandidateSnapshots(tx, [candidateId])).get(candidateId);
-	if (!candidate) throw new Error(`candidate ${candidateId} does not exist`);
-	const runId = candidate.evidence.status === 'available' ? candidate.evidence.runId : null;
-	const stored = async () => {
-		const [row] = await tx
-			.select({ id: matchScores.id })
-			.from(matchScores)
-			.where(
-				and(
-					eq(matchScores.vacancyId, vacancy.id),
-					eq(matchScores.vacancyRevision, vacancy.revision),
-					eq(matchScores.candidateId, candidateId),
-					eq(matchScores.candidateRevision, candidate.revision),
-					sql`${matchScores.evidenceRunId} is not distinct from ${runId}::uuid`,
-					eq(matchScores.matchRulesetId, ruleset.id)
-				)
-			);
-		return row?.id;
-	};
-	const existing = await stored();
-	if (existing !== undefined) return existing;
-
-	const gradeOrdinals = (await loadGradeOrdinals(tx, [vacancy.taxonomyVersionId])).get(vacancy.taxonomyVersionId);
-	if (!gradeOrdinals) throw new Error('grade ordinals were not loaded');
-	const space = await loadActiveSpace(tx);
-	const similarity =
-		space === null
-			? undefined
-			: (await pairSimilarities(tx, space, [vacancy.id], [candidateId])).get(pairKey(vacancy.id, candidateId));
-	const result = matchScore({
-		vacancy,
-		candidate,
-		params: ruleset.params,
-		gradeOrdinals,
-		semantic: semanticSignal(space, similarity, 'pair_vector_missing'),
-		reranker: { status: 'unavailable', reason: 'pair_not_reranked' }
-	});
-	const { kept } = await writePairs(
-		tx,
-		[
-			{
-				vacancyId: vacancy.id,
-				vacancyRevision: vacancy.revision,
-				candidateId,
-				candidateRevision: candidate.revision,
-				evidenceRunId: runId,
-				result,
-				spaceId: result.components.semantic.status === 'computed' ? (space?.id ?? null) : null
-			}
-		],
-		ruleset,
-		null,
-		'keep_existing'
-	);
-	if (kept.length === 0) throw new Error(`the evidence floor of candidate ${candidateId} moved past its snapshot`);
-	// Written now, or by a refresh that committed the same snapshot in between.
-	const written = await stored();
-	if (written === undefined) throw new Error(`the match of candidate ${candidateId} was not stored`);
-	return written;
-}
-
-/** A row no invitation refers to. */
-const unreferenced = sql`not exists (select 1 from invitations i where i.match_score_id = ${matchScores.id})`;
-
 async function deleteRows(tx: Transaction, condition: SQL): Promise<number> {
-	const deleted = await tx.delete(matchScores).where(and(condition, unreferenced)).returning({ id: matchScores.id });
+	const deleted = await tx.delete(matchScores).where(condition).returning({ id: matchScores.id });
 	return deleted.length;
 }
 

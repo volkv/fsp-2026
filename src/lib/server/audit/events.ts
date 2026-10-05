@@ -64,6 +64,7 @@ const GROUPS = {
 		'company.rejected',
 		'company.info_requested',
 		'company.suspended',
+		'company.reinstated',
 		'member.invited',
 		'member.joined',
 		'member.role_changed',
@@ -104,7 +105,9 @@ const GROUPS = {
 		'invitation.withdrawn',
 		'invitation.responded',
 		'hiring.reported',
-		'match.viewed'
+		'match.viewed',
+		'need.created',
+		'need.updated'
 	],
 	aggregator: [
 		'vacancies.import_completed',

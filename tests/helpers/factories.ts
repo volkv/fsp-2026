@@ -14,6 +14,7 @@ import {
 	users,
 	vacancies
 } from '$lib/server/db/schema';
+import type { OfferInput } from '$lib/server/invitations/send';
 import type { TextCheck } from '$lib/server/vacancies/text-check';
 import { ageBand } from '$lib/server/visibility/age';
 
@@ -119,6 +120,9 @@ export async function createCompany(db: Executor, overrides: Insert<typeof compa
 			inn: inn(),
 			legalName: 'ООО «Пример»',
 			displayName: 'Пример',
+			// The profile an offer needs (domain 5.1, 13.5); a test of the incomplete profile clears it.
+			description: 'Разрабатываем сервисы для логистики и платежей, команда из сорока инженеров.',
+			activity: 'Разработка программного обеспечения',
 			status,
 			verifiedAt: status === 'verified' || status === 'suspended' ? new Date() : null,
 			...overrides
@@ -286,3 +290,42 @@ export async function createPublishedDocument(
 }
 
 export { sha256 as randomSha256 };
+
+/**
+ * The terms of an offer as the employer writes them (domain 13.5): a description, a range in roubles per month, the work
+ * format, the company's contact and one point of «why you» with its source. `overrides` replace fields.
+ */
+export function offerTerms(overrides: Partial<OfferInput> = {}): OfferInput {
+	return {
+		title: 'Backend-разработчик на Go',
+		description: 'Развиваем платёжный шлюз: Go, PostgreSQL, Kafka. Команда из шести инженеров, релизы каждую неделю.',
+		salaryMin: 260_000,
+		salaryMax: 300_000,
+		salaryCurrency: 'RUB',
+		salaryTaxBase: 'gross',
+		workFormat: 'remote',
+		contactMethod: { kind: 'email', value: 'hr@example.ru' },
+		whyYou: [
+			{ text: 'Удалённый формат совпадает с предпочтениями', source: { kind: 'preference', ref: 'work_formats' } }
+		],
+		message: null,
+		...overrides
+	};
+}
+
+/**
+ * The columns of an offer version a test inserts directly (domain 13.5), without a vacancy: the title, the description,
+ * the work format, the contact, «why you» and a clean text check. The range and the dates are the test's.
+ */
+export function offerTermsRow() {
+	return {
+		title: 'Backend-разработчик на Go',
+		description: 'Развиваем платёжный шлюз: Go, PostgreSQL, Kafka. Команда из шести инженеров, релизы каждую неделю.',
+		workFormat: 'remote',
+		contactMethod: { kind: 'email', value: 'hr@example.ru', note: null },
+		whyYou: [
+			{ text: 'Удалённый формат совпадает с предпочтениями', source: { kind: 'preference', ref: 'work_formats' } }
+		],
+		textCheck
+	};
+}

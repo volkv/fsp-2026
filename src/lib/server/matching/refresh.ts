@@ -105,7 +105,7 @@ async function refreshVacancy(
 		return row?.revision === vacancy.revision;
 	};
 	if (!refreshable(vacancy)) {
-		// Nobody is matched with it any more: its rows go, except those an invitation refers to.
+		// Nobody is matched with it any more: its rows go.
 		let removed = 0;
 		return {
 			isCurrent,

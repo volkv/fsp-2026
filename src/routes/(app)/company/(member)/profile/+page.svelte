@@ -12,11 +12,14 @@
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Field from '$lib/components/ui/field/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
+	import { Textarea } from '$lib/components/ui/textarea/index.js';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
 
 	const overview = $derived(data.overview);
+	const profile = $derived(data.profile);
+	const owner = $derived(data.role === 'owner');
 	const minorTerms = $derived(data.minorTerms);
 	const status = $derived(COMPANY_STATUSES[data.company.status]);
 	const editable = $derived(overview !== null && (overview.status === 'draft' || overview.status === 'rejected'));
@@ -43,6 +46,8 @@
 	<FormMessage text={problem.message} />
 {:else if form && 'saved' in form}
 	<FormMessage tone="success" text="Реквизиты сохранены." />
+{:else if form && 'profileSaved' in form}
+	<FormMessage tone="success" text="Профиль компании сохранён. Кандидаты увидят его в ваших предложениях." />
 {:else if data.transferred}
 	<FormMessage tone="success" text="Владение передано. Теперь вы — рекрутер компании." />
 {:else if form && 'minorTermsAccepted' in form}
@@ -53,6 +58,67 @@
 {:else if form && 'submitted' in form}
 	<FormMessage tone="success" text="Заявка подана. Оператор ФСП проверит ИНН и полномочия; решение придёт письмом." />
 {/if}
+
+<Card.Root class="mb-6" data-testid="company-public-profile">
+	<Card.Header>
+		<Card.Title><h2 class="font-heading text-h3">Профиль для кандидатов</h2></Card.Title>
+		<Card.Description>
+			Кандидат видит его в каждом предложении вместе с меткой «{profile.verification === 'verified'
+				? 'проверена'
+				: 'не проверена'}». Без описания и направления деятельности предложения не отправляются.
+		</Card.Description>
+	</Card.Header>
+	<Card.Content>
+		<form method="POST" action="?/profile" use:enhance class="grid gap-4">
+			<CsrfInput />
+			<fieldset disabled={!owner} class="grid gap-4">
+				<Field.Field data-invalid={fieldError('activity') !== undefined}>
+					<Field.Label for="company-activity">Направление деятельности</Field.Label>
+					<Input id="company-activity" name="activity" maxlength={200} value={profile.activity ?? ''} />
+					{#if fieldError('activity')}<Field.Error>{fieldError('activity')}</Field.Error>{/if}
+				</Field.Field>
+				<Field.Field data-invalid={fieldError('description') !== undefined}>
+					<Field.Label for="company-description">О компании</Field.Label>
+					<Textarea
+						id="company-description"
+						name="description"
+						rows={5}
+						maxlength={3000}
+						value={profile.description ?? ''}
+					/>
+					{#if fieldError('description')}<Field.Error>{fieldError('description')}</Field.Error>{/if}
+				</Field.Field>
+				<div class="grid gap-4 sm:grid-cols-2">
+					<Field.Field data-invalid={fieldError('contacts.website') !== undefined}>
+						<Field.Label for="company-website">Сайт</Field.Label>
+						<Input id="company-website" name="website" value={profile.contacts.website ?? ''} placeholder="https://" />
+						{#if fieldError('contacts.website')}<Field.Error>{fieldError('contacts.website')}</Field.Error>{/if}
+					</Field.Field>
+					<Field.Field data-invalid={fieldError('contacts.email') !== undefined}>
+						<Field.Label for="company-email">Почта компании</Field.Label>
+						<Input id="company-email" name="email" type="email" value={profile.contacts.email ?? ''} />
+						{#if fieldError('contacts.email')}<Field.Error>{fieldError('contacts.email')}</Field.Error>{/if}
+					</Field.Field>
+					<Field.Field data-invalid={fieldError('contacts.phone') !== undefined}>
+						<Field.Label for="company-phone">Телефон компании</Field.Label>
+						<Input id="company-phone" name="phone" value={profile.contacts.phone ?? ''} />
+						{#if fieldError('contacts.phone')}<Field.Error>{fieldError('contacts.phone')}</Field.Error>{/if}
+					</Field.Field>
+					<Field.Field data-invalid={fieldError('contacts.telegram') !== undefined}>
+						<Field.Label for="company-telegram">Telegram</Field.Label>
+						<Input id="company-telegram" name="telegram" value={profile.contacts.telegram ?? ''} placeholder="@" />
+						{#if fieldError('contacts.telegram')}<Field.Error>{fieldError('contacts.telegram')}</Field.Error>{/if}
+					</Field.Field>
+				</div>
+			</fieldset>
+			{#if owner}
+				<Button type="submit" variant="outline" class="justify-self-start">Сохранить профиль</Button>
+			{:else}
+				<p class="text-sm text-muted-foreground">Профиль меняет владелец компании.</p>
+			{/if}
+		</form>
+	</Card.Content>
+</Card.Root>
 
 {#if overview === null}
 	<Card.Root>
@@ -117,7 +183,8 @@
 			<Card.Header>
 				<Card.Title><h2 class="font-heading text-h3">Проверка оператором ФСП</h2></Card.Title>
 				<Card.Description>
-					Только проверенная компания видит каталог кандидатов, публикует вакансии и приглашает.
+					Проверка необязательна: каталог, вакансии и предложения доступны и без неё. Проверенная компания получает
+					метку «проверена» в предложениях.
 				</Card.Description>
 			</Card.Header>
 			<Card.Content class="grid gap-4 text-sm">

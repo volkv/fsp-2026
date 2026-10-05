@@ -1,5 +1,5 @@
 import { error, redirect } from '@sveltejs/kit';
-import { formText } from '$lib/server/auth/http';
+import { companyAdmission } from '$lib/server/access/permissions';
 import { db } from '$lib/server/db';
 import { findInCatalog, journalCardView, loadCatalogCard } from '$lib/server/employer/card';
 import { employerRequest, membershipOf } from '$lib/server/employer/http';
@@ -8,13 +8,13 @@ import { getOwnVacancy } from '$lib/server/employer/vacancies';
 import { labelsOf, vocabularyOf } from '$lib/server/employer/vocabulary';
 import { configuredReceiptSigner } from '$lib/server/fsp/receipts';
 import { invitationDeps } from '$lib/server/invitations/deps';
-import { currentPolicy } from '$lib/server/invitations/policies';
+import { offerFormContext, offerFromForm, whyYouOptions } from '$lib/server/invitations/offer-form';
 import { listInvitations } from '$lib/server/invitations/read';
 import { createInvitation } from '$lib/server/invitations/send';
 import { matchingDeps } from '$lib/server/matching/deps';
 import type { Actions, PageServerLoad } from './$types';
 
-/** The catalog card in the context of a vacancy: why the candidate fits, what is confirmed, and the invitation. */
+/** The catalog card in the context of a vacancy: why the candidate fits, what is confirmed, and the offer naming it. */
 export const load: PageServerLoad = async (event) => {
 	const { subject, meta } = await employerRequest(event);
 	const membership = membershipOf(event, subject);
@@ -22,7 +22,7 @@ export const load: PageServerLoad = async (event) => {
 	const now = new Date();
 	try {
 		const vacancy = await getOwnVacancy(database, membership.companyId, event.params.id, now);
-		if (membership.companyStatus !== 'verified' || vacancy.status === 'closed') {
+		if (!companyAdmission(membership.companyStatus).admitted || vacancy.status === 'closed') {
 			error(404, { message: 'Кандидат не найден', requestId: event.locals.requestId });
 		}
 		const item = await findInCatalog(matchingDeps(), subject, event.params.pseudonym, vacancy.id, event.request.signal);
@@ -42,30 +42,31 @@ export const load: PageServerLoad = async (event) => {
 			vacancyId: vacancy.id
 		});
 		const vocabulary = await vocabularyOf(database, vacancy.taxonomyVersionId);
+		const labels = labelsOf(vocabulary);
 		const existing = (await listInvitations(invitationDeps(), subject, 'company')).find(
-			(invitation) => invitation.vacancyId === vacancy.id && invitation.candidatePseudonym === item.pseudonym
+			(invitation) => invitation.candidatePseudonym === item.pseudonym
 		);
-		const policy = await currentPolicy(database, 'invitation_policy', now);
 		return {
 			vacancy: {
 				id: vacancy.id,
 				title: vacancy.title,
+				description: vacancy.description,
 				status: vacancy.status,
-				salary: vacancy.salary
+				salary: vacancy.salary,
+				workFormat: vacancy.workFormat
 			},
 			pseudonym: item.pseudonym,
 			match: item.match,
 			...card,
-			labels: labelsOf(vocabulary),
-			invitation: existing ? { id: existing.id, status: existing.status } : null,
-			responseWindowHours: policy?.params.response_window_hours ?? null
+			labels,
+			offer: await offerFormContext(database, membership.companyId, vocabulary, now),
+			whyYouOptions: whyYouOptions(card.card, { skills: labels.skills, workFormats: labels.terms.work_format }),
+			invitation: existing ? { id: existing.id, status: existing.status } : null
 		};
 	} catch (cause) {
 		pageError(event, cause);
 	}
 };
-
-const amount = (value: string) => Number(value.replace(/\s/gu, ''));
 
 export const actions: Actions = {
 	invite: async (event) => {
@@ -86,13 +87,7 @@ export const actions: Actions = {
 				invitationDeps(),
 				subject,
 				{ ...meta, sessionHash },
-				{
-					vacancyId: event.params.id,
-					candidateId: found.candidateId,
-					salaryMin: amount(formText(form, 'salaryMin')),
-					salaryMax: amount(formText(form, 'salaryMax')),
-					message: formText(form, 'message')
-				}
+				{ ...offerFromForm(form), candidateId: found.candidateId }
 			);
 			invitationId = sent.invitationId;
 		} catch (cause) {

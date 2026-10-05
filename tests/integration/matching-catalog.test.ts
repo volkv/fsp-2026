@@ -14,7 +14,6 @@ import {
 	embeddings,
 	fspLevelAssignments,
 	grades,
-	invitations,
 	jobs,
 	legalRepresentatives,
 	matchRulesets,
@@ -60,7 +59,6 @@ import {
 	createExternalVacancy,
 	createMember,
 	createOwnVacancy,
-	createPolicy,
 	createPublishedDocument,
 	createTaxonomyVersion,
 	createUser,
@@ -601,13 +599,18 @@ describe('catalog search: filters and visibility', () => {
 		expect(await minorTermsAccepted(accepted.subject, new Date(Date.now() + 2 * DAY))).toBe(false);
 	});
 
-	it('refuses a member of a company that is not verified', async () => {
+	it('opens the catalog to a company without a check and refuses a suspended or rejected one', async () => {
 		const { subject } = await employer();
 		const membership = subject.membership;
 		if (!membership) throw new Error('employer without membership');
 		await expect(
 			search({ ...subject, membership: { ...membership, companyStatus: 'submitted' } }, {})
-		).rejects.toMatchObject({ code: 'forbidden' });
+		).resolves.toBeDefined();
+		for (const companyStatus of ['suspended', 'rejected'] as const) {
+			await expect(search({ ...subject, membership: { ...membership, companyStatus } }, {})).rejects.toMatchObject({
+				code: 'forbidden'
+			});
+		}
 	});
 
 	it('pages with a cursor bound to its query', async () => {
@@ -1297,25 +1300,14 @@ describe('stored matches', () => {
 		const current = await storedRows(vacancy.id, person.id);
 		expect(current.map((row) => row.vacancyRevision)).toEqual([2]);
 
-		// An invitation refers to the row; then the pair falls below the threshold: the referred row stays, nothing else.
-		const policy = await createPolicy(db, 'invitation_policy');
-		await db.insert(invitations).values({
-			companyId: company.id,
-			vacancyId: vacancy.id,
-			candidateId: person.id,
-			sentByMemberId: member.id,
-			status: 'expired',
-			matchScoreId: current[0]?.id,
-			policyId: policy.id,
-			sentAt: new Date(),
-			purgedAt: new Date()
-		});
+		// The pair falls below the threshold: its rows go. An offer of the company keeps no row — «why you» is a snapshot
+		// in its terms (domain 13.5).
 		const other = await ownVacancy(company.id, member.id, { requiredSkillKeys: ['go'] });
 		expect(await refresh({ scope: 'vacancy', vacancy_id: other.id })).toBe('succeeded');
 		expect(await storedRows(other.id, person.id)).toHaveLength(1);
 		await withdraw(person.id, person.factId);
 		expect(await refresh({ scope: 'candidate', candidate_id: person.id })).toBe('succeeded');
-		expect(await storedRows(vacancy.id, person.id)).toEqual([current[0]]);
+		expect(await storedRows(vacancy.id, person.id)).toHaveLength(0);
 		expect(await storedRows(other.id, person.id)).toHaveLength(0);
 	});
 

@@ -199,10 +199,11 @@ beforeAll(async () => {
 		closedAt: NOW,
 		requiredSkillKeys: ['perl']
 	});
-	const pending = await createCompany(db, { status: 'submitted' });
+	// A company the admission policy refused: its vacancy reaches nobody (a company without a check would).
+	const refused = await createCompany(db, { status: 'rejected' });
 	await createOwnVacancy(
 		db,
-		{ companyId: pending.id, memberId: (await createMember(db, pending.id)).id, taxonomyVersionId },
+		{ companyId: refused.id, memberId: (await createMember(db, refused.id)).id, taxonomyVersionId },
 		{ requiredSkillKeys: ['cobol'] }
 	);
 

@@ -82,7 +82,7 @@ import { DEFAULT_SEED } from '../../services/fsp-mock/src/config.ts';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
 import { startParser, type StartedParser } from '../helpers/docparse';
 import { testEnvironment } from '../helpers/environment';
-import { createUser } from '../helpers/factories';
+import { createUser, offerTerms } from '../helpers/factories';
 import { FSP_MOCK_CREDENTIALS, startFspMock, type FspMock } from '../helpers/fsp-mock';
 
 const ROOT = new URL('../../', import.meta.url);
@@ -525,11 +525,8 @@ describe('demo sessions', () => {
 		if (!vacancy?.min || !vacancy.max) throw new Error('the clone of the main employer has no published vacancy');
 		await expect(
 			createInvitation(invitationDeps(), await subjectOf(recruiterA), meta, {
-				vacancyId: vacancy.id,
-				candidateId: stepan,
-				salaryMin: vacancy.min,
-				salaryMax: vacancy.max,
-				message: null
+				...offerTerms({ vacancyId: vacancy.id, salaryMin: vacancy.min, salaryMax: vacancy.max, message: null }),
+				candidateId: stepan
 			})
 		).rejects.toMatchObject({ code: 'not_found' });
 

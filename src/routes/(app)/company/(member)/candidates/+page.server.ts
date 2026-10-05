@@ -1,3 +1,4 @@
+import { companyAdmission } from '$lib/server/access/permissions';
 import { CATEGORY_OPTIONS } from '$lib/server/categories/labels';
 import { db } from '$lib/server/db';
 import { catalogView } from '$lib/server/employer/catalog';
@@ -27,7 +28,7 @@ export const load: PageServerLoad = async (event) => {
 		},
 		vacancies: await searchableVacancies(database, membership.companyId)
 	};
-	if (membership.companyStatus !== 'verified') return { ...base, catalog: null };
+	if (!companyAdmission(membership.companyStatus).admitted) return { ...base, catalog: null };
 	return {
 		...base,
 		catalog: await catalogView(matchingDeps(), subject, meta, event.url, undefined, event.request.signal)

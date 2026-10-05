@@ -3,6 +3,7 @@
 // `verified`. The operator may also send the request back for clarification, suspend and reinstate a company.
 import { and, asc, count, desc, eq, gt, inArray, isNull, lt, ne, or, sql, type SQL } from 'drizzle-orm';
 import { StaffReach } from '$lib/server/access/demo-actor';
+import { companyAdmission } from '$lib/server/access/permissions';
 import { recordAuditEvent } from '$lib/server/audit/record';
 import { isValidInn } from '$lib/server/auth/inn';
 import type { Transaction } from '$lib/server/db';
@@ -542,7 +543,14 @@ export async function decideVerification(
 		await tx.update(companies).set(companyValues).where(eq(companies.id, company.id));
 		// «This is our vacancy» claims wait for the company: a verified one sends them to review, a rejected one closes them.
 		if (decision.kind === 'approve') await onCompanyVerificationDecided(tx, company.id, 'verified', now);
-		if (decision.kind === 'reject') await onCompanyVerificationDecided(tx, company.id, 'rejected', now);
+		if (decision.kind === 'reject') {
+			await onCompanyVerificationDecided(tx, company.id, 'rejected', now);
+			// A company acts before its check (domain 5.1): the rejection closes its unanswered offers at once.
+			await withdrawOpenInvitations(tx, { companyId: company.id }, 'company_rejected', {
+				requestId: ctx.meta.requestId,
+				at: now
+			});
+		}
 		await tx
 			.update(companyVerifications)
 			.set({ decision: verificationDecision, decidedBy: operatorId, decidedAt: now, reason })
@@ -586,8 +594,9 @@ export type SuspensionReason =
 	'authority_revoked' | 'registry_inactive' | 'terms_violation' | 'complaint' | 'company_request';
 
 /**
- * `verified → suspended`: the catalog, invitations, partner pools and API keys of the company close at once, because
- * every request checks the status (domain 5.1). Hiring processes already under way stay open.
+ * A working company — verified or acting without a check (`draft`, `submitted`) — `→ suspended`: the catalog, offers,
+ * partner pools and API keys of the company close at once, because every request asks the admission policy
+ * (domain 5.1). Hiring processes already under way stay open.
  */
 export async function suspendCompany(
 	deps: CompanyDeps,
@@ -600,8 +609,9 @@ export async function suspendCompany(
 	await deps.db.transaction(async (tx) => {
 		const company = await lockCompany(tx, companyId);
 		(await StaffReach.of(tx, ctx.subject)).require(company.demoSessionId);
-		if (company.status !== 'verified')
-			throw conflict('not_verified', 'Приостановить можно только проверенную компанию');
+		if (!companyAdmission(company.status).admitted) {
+			throw conflict('not_admitted', 'Компания уже приостановлена или её проверка отклонена');
+		}
 		await tx.update(companies).set({ status: 'suspended' }).where(eq(companies.id, companyId));
 		// Sent and unanswered invitations close; accepted ones keep their hiring processes (domain 5.1).
 		await withdrawOpenInvitations(tx, { companyId }, 'company_suspended', {
@@ -618,7 +628,10 @@ export async function suspendCompany(
 	});
 }
 
-/** `suspended → verified`. */
+/**
+ * `suspended →` back to where the company was: `verified` for a company an operator has verified, `submitted` for one
+ * with an open verification request, `draft` otherwise.
+ */
 export async function reinstateCompany(deps: CompanyDeps, ctx: ActionContext, companyId: string): Promise<void> {
 	requirePermission(ctx.subject, 'company.moderate', { companyStatus: 'suspended' });
 	sessionUserId(ctx.subject);
@@ -629,13 +642,18 @@ export async function reinstateCompany(deps: CompanyDeps, ctx: ActionContext, co
 		if ((await activeOwnerCount(tx, companyId)) === 0) {
 			throw conflict('no_active_owner', 'У компании нет действующего владельца');
 		}
-		await tx.update(companies).set({ status: 'verified' }).where(eq(companies.id, companyId));
+		const [open] = await tx
+			.select({ id: companyVerifications.id })
+			.from(companyVerifications)
+			.where(and(eq(companyVerifications.companyId, companyId), isNull(companyVerifications.decision)));
+		const status = company.verifiedAt !== null ? 'verified' : open ? 'submitted' : 'draft';
+		await tx.update(companies).set({ status }).where(eq(companies.id, companyId));
 		await recordAuditEvent(tx, {
 			...audit(ctx),
-			action: 'company.verified',
+			action: status === 'verified' ? 'company.verified' : 'company.reinstated',
 			outcome: 'success',
 			object: { type: 'company', id: companyId },
-			details: { from: 'suspended' }
+			details: { from: 'suspended', status }
 		});
 	});
 }

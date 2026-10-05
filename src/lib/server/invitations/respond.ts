@@ -210,7 +210,7 @@ export async function respondToInvitation(
 	const side = candidateSide(subject);
 	return deps.db.transaction(async (tx) => {
 		const now = deps.now();
-		// The vacancy is locked before the invitation, in the order closing the vacancy takes them.
+		// The vacancy of the version is locked before the offer, in the order closing the vacancy takes them.
 		const vacancy = await lockVacancyOf(tx, invitationId);
 		const invitation = await lockInvitation(tx, invitationId);
 		if (!invitation || invitation.candidateId !== side.candidateId) throw refuse('not_found', 'not_addressee');
@@ -232,8 +232,8 @@ export async function respondToInvitation(
 		if (invitation.status === 'declined' || invitation.status === 'expired' || invitation.status === 'withdrawn') {
 			throw refuse('conflict', 'invitation_closed');
 		}
-		// A closed vacancy hires no one: its unanswered invitations are withdrawn when it closes, and a revision of an
-		// accepted one is not accepted either (domain 13.5).
+		// A closed vacancy hires no one: unanswered offers naming it are withdrawn when it closes, and a revision of an
+		// accepted one naming it is not accepted either (domain 13.5).
 		if (input.decision === 'accept' && vacancy?.status === 'closed') {
 			throw refuse('conflict', 'vacancy_closed');
 		}
@@ -358,14 +358,15 @@ export async function recordDecline(
 }
 
 /**
- * The vacancy of the invitation under a share lock: closing it waits for the answer, or the answer sees it closed.
- * `null` — no such invitation.
+ * The vacancy the current version of the offer names, under a share lock: closing it waits for the answer, or the
+ * answer sees it closed. `null` — the version names no vacancy, or there is no such offer.
  */
 export async function lockVacancyOf(tx: Transaction, invitationId: string): Promise<{ status: string } | null> {
 	const [row] = await tx
 		.select({ status: vacancies.status })
 		.from(invitations)
-		.innerJoin(vacancies, eq(vacancies.id, invitations.vacancyId))
+		.innerJoin(invitationTerms, eq(invitationTerms.id, invitations.currentTermsId))
+		.innerJoin(vacancies, eq(vacancies.id, invitationTerms.vacancyId))
 		.where(eq(invitations.id, invitationId))
 		.for('share', { of: vacancies });
 	return row ?? null;

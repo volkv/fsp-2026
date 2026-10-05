@@ -1,6 +1,8 @@
 import { formText } from '$lib/server/auth/http';
 import { acceptMinorTerms, companyOverview, minorTermsOf, updateCompanyDraft } from '$lib/server/companies/profile';
+import { companyProfileFor, updateCompanyProfile } from '$lib/server/companies/public-profile';
 import { submitForVerification } from '$lib/server/companies/verification';
+import { db } from '$lib/server/db';
 import { companyDeps, employerRequest, membershipOf } from '$lib/server/employer/http';
 import { formFailure, pageError } from '$lib/server/http/page';
 import type { Actions, PageServerLoad } from './$types';
@@ -9,12 +11,14 @@ export const load: PageServerLoad = async (event) => {
 	const { subject, meta } = await employerRequest(event);
 	const membership = membershipOf(event, subject);
 	const transferred = event.url.searchParams.has('transferred');
-	if (membership.role !== 'owner') return { overview: null, minorTerms: null, transferred };
 	try {
+		const profile = await companyProfileFor(db(), subject, membership.companyId);
+		if (membership.role !== 'owner') return { overview: null, minorTerms: null, profile, transferred };
 		const deps = companyDeps();
 		return {
 			overview: await companyOverview(deps, { subject, meta }, membership.companyId),
 			minorTerms: await minorTermsOf(deps, { subject, meta }, membership.companyId),
+			profile,
 			transferred
 		};
 	} catch (cause) {
@@ -26,6 +30,28 @@ export const load: PageServerLoad = async (event) => {
 const optional = (value: string) => (value.trim() === '' ? null : value);
 
 export const actions: Actions = {
+	/** The owner fills in what the candidate reads about the company in an offer (domain 5.1, 13.5). */
+	profile: async (event) => {
+		const { subject, meta } = await employerRequest(event);
+		const membership = membershipOf(event, subject);
+		const form = await event.request.formData();
+		try {
+			await updateCompanyProfile(companyDeps(), { subject, meta }, membership.companyId, {
+				description: formText(form, 'description'),
+				activity: formText(form, 'activity'),
+				contacts: {
+					website: formText(form, 'website'),
+					email: formText(form, 'email'),
+					phone: formText(form, 'phone'),
+					telegram: formText(form, 'telegram')
+				}
+			});
+		} catch (cause) {
+			return formFailure(cause);
+		}
+		return { profileSaved: true };
+	},
+
 	update: async (event) => {
 		const { subject, meta } = await employerRequest(event);
 		const membership = membershipOf(event, subject);

@@ -5,7 +5,7 @@
 import { and, eq, inArray, isNull } from 'drizzle-orm';
 import type { AccessSubject } from '$lib/server/access/permissions';
 import type { Executor } from '$lib/server/db';
-import { companies, invitations, vacancies } from '$lib/server/db/schema';
+import { companies, invitations, invitationTerms, vacancies } from '$lib/server/db/schema';
 import type { MatchingDeps } from '$lib/server/matching/deps';
 import {
 	recommendVacancies,
@@ -18,8 +18,10 @@ export interface RecommendedVacancy {
 	vacancyId: string;
 	origin: 'own' | 'external';
 	title: string;
-	/** The verified company of an own vacancy, or the organization an external posting names. */
+	/** The company of an own vacancy, or the organization an external posting names. */
 	organization: string | null;
+	/** The label of the check of the company of an own vacancy (domain 5.1); `null` — an external vacancy. */
+	companyVerification: 'verified' | 'unverified' | null;
 	salary: {
 		min: number | null;
 		max: number | null;
@@ -67,6 +69,7 @@ export async function recommendedVacancies(
 				.select({
 					id: vacancies.id,
 					companyName: companies.displayName,
+					companyStatus: companies.status,
 					externalOrg: vacancies.externalOrg,
 					salaryMin: vacancies.salaryMin,
 					salaryMax: vacancies.salaryMax,
@@ -87,12 +90,13 @@ export async function recommendedVacancies(
 	const sent =
 		ids.length && candidateId !== undefined
 			? await executor
-					.select({ id: invitations.id, vacancyId: invitations.vacancyId, status: invitations.status })
+					.select({ id: invitations.id, vacancyId: invitationTerms.vacancyId, status: invitations.status })
 					.from(invitations)
+					.innerJoin(invitationTerms, eq(invitationTerms.id, invitations.currentTermsId))
 					.where(
 						and(
 							eq(invitations.candidateId, candidateId),
-							inArray(invitations.vacancyId, ids),
+							inArray(invitationTerms.vacancyId, ids),
 							isNull(invitations.purgedAt)
 						)
 					)
@@ -108,6 +112,8 @@ export async function recommendedVacancies(
 				origin: item.origin,
 				title: item.title,
 				organization: row.companyName ?? organizationOf(row.externalOrg),
+				companyVerification:
+					row.companyStatus === null ? null : row.companyStatus === 'verified' ? 'verified' : 'unverified',
 				salary: {
 					min: row.salaryMin,
 					max: row.salaryMax,

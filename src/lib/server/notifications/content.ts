@@ -24,7 +24,6 @@ import {
 	vacancies
 } from '$lib/server/db/schema';
 import { categoryOwner } from '$lib/server/categories/read';
-import type { VacancySnapshot } from '$lib/server/invitations/terms';
 import { isObjectionDeadline, type NotificationType } from './types';
 
 export type RecipientSide = 'candidate' | 'company';
@@ -34,8 +33,8 @@ export interface InvitationFacts {
 	side: RecipientSide;
 	/** The company's display name: the candidate's own data about their invitation. */
 	companyName: string;
-	/** The vacancy title of the current terms version. */
-	vacancyTitle: string;
+	/** The title of the current terms version of the offer. */
+	offerTitle: string;
 	/** How the company side calls the candidate: the pseudonym for this company, never the name (domain 14). */
 	candidatePseudonym: string;
 }
@@ -240,7 +239,7 @@ async function invitationFacts(
 		.from(companies)
 		.where(eq(companies.id, invitation.companyId));
 	const [terms] = await executor
-		.select({ vacancySnapshot: invitationTerms.vacancySnapshot })
+		.select({ title: invitationTerms.title })
 		.from(invitationTerms)
 		.where(eq(invitationTerms.id, invitation.currentTermsId));
 	if (!company || !terms) throw new Error(`invitation ${target.invitationId} lacks its company or terms`);
@@ -248,7 +247,7 @@ async function invitationFacts(
 		object: 'invitation',
 		side,
 		companyName: company.displayName,
-		vacancyTitle: (terms.vacancySnapshot as VacancySnapshot).title,
+		offerTitle: terms.title,
 		candidatePseudonym: crypto.pseudonym(invitation.candidateId, invitation.companyId)
 	};
 }

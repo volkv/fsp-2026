@@ -67,7 +67,8 @@ import {
 	createMember,
 	createOwnVacancy,
 	createUser,
-	randomSha256
+	randomSha256,
+	offerTermsRow
 } from '../helpers/factories';
 
 // The routes read `config()`: its environment points at this file's database once it exists.
@@ -290,7 +291,6 @@ async function hired(
 		await tx.insert(invitations).values({
 			id: invitationId,
 			companyId: company.id,
-			vacancyId,
 			candidateId,
 			sentByMemberId: company.memberId,
 			status: 'accepted',
@@ -303,7 +303,9 @@ async function hired(
 			id: termsId,
 			invitationId,
 			version: 1,
-			vacancySnapshot: {},
+			...offerTermsRow(),
+			vacancyId,
+			vacancySnapshot: { title: 'Вакансия' },
 			salaryMin: 250_000,
 			salaryMax: 350_000,
 			salaryCurrency: 'RUB',
@@ -1113,6 +1115,14 @@ const REGISTRY: Record<string, Entry> = {
 	'(app)/company/(member)/vacancies/new/+page.server.ts': exempt('form of a new vacancy'),
 	'(app)/company/join/+page.server.ts': exempt('own membership'),
 	'api/v1/companies/[company_id]/api-keys/+server.ts': exempt('own API keys'),
+	'api/v1/company/profile/+server.ts': exempt('the profile of the own company'),
+	'(app)/company/(member)/needs/+page.server.ts': exempt('needs of the own company — needs.test.ts'),
+	'(app)/company/(member)/needs/[id]/+page.server.ts': exempt(
+		'a need of the own company, another one is 404 — needs.test.ts'
+	),
+	'api/v1/needs/+server.ts': exempt('needs of the own company — api-access.test.ts'),
+	'api/v1/needs/[need_id]/+server.ts': exempt('a need of the own company, another one is 404 — api-access.test.ts'),
+	'api/v1/needs/[need_id]/categories/+server.ts': exempt('counts through canShow, which keeps the demo scope'),
 
 	// Sign-in, registration and the links sent by mail: bound to a token, not to a place.
 	'(auth)/login/+page.server.ts': exempt('sign-in'),

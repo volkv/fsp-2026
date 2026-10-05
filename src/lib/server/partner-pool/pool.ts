@@ -251,26 +251,41 @@ export async function journalPoolView(
 	});
 }
 
-/** An own vacancy the company may invite a pool candidate by. */
+/** An own vacancy an offer to a pool candidate may name. */
 export interface InvitableVacancy {
 	id: string;
 	title: string;
 }
 
+/** How an offer can reach a pool candidate now (domain 5.5, 13.5). */
+export interface PoolOffer {
+	/** The candidate is visible in the catalog of the company: an offer without a vacancy goes from the card. */
+	withoutVacancy: boolean;
+	/** Own published vacancies an offer may name, in whose catalog context the candidate is visible. */
+	vacancies: InvitableVacancy[];
+}
+
 /**
- * For each candidate, the own published vacancies of the subject's company that are invitable and in whose catalog
- * context `canShow` shows the candidate — what sending an invitation checks (domain 13.5). An empty list: the pool
- * shows the candidate, but no vacancy of the company can carry an invitation to them now.
+ * For each candidate, the ways an offer goes by the general rules of an offer (domain 5.5, 13.5): without a vacancy
+ * when `canShow` shows the candidate in the catalog of the company, and with each own published invitable vacancy in
+ * whose catalog context it shows them. Neither: the pool shows the candidate, but the rules refuse an offer now (the
+ * candidate keeps the card out of the catalog and consented to the pool only).
  */
-export async function invitableVacancies(
+export async function poolOffers(
 	executor: Executor,
 	subject: AccessSubject,
 	candidateIds: readonly string[],
 	now: Date
-): Promise<Map<string, InvitableVacancy[]>> {
-	const result = new Map<string, InvitableVacancy[]>(candidateIds.map((id) => [id, []]));
+): Promise<Map<string, PoolOffer>> {
+	const result = new Map<string, PoolOffer>(candidateIds.map((id) => [id, { withoutVacancy: false, vacancies: [] }]));
 	const viewer = await loadCatalogViewer(executor, subject, now);
 	if (!viewer || candidateIds.length === 0) return result;
+	const policy = await loadVisibilityPolicy(executor, now);
+	const context = { now, policy, viewerCompanyId: viewer.viewer.companyId, viewerCompany: viewer.company };
+	for (const [candidateId, candidateFacts] of await loadVisibilityFacts(executor, candidateIds, context)) {
+		const offer = result.get(candidateId);
+		if (offer) offer.withoutVacancy = canShow(candidateFacts, viewer.viewer, { kind: 'catalog' }).allowed;
+	}
 	const rows = await executor
 		.select()
 		.from(vacancies)
@@ -281,15 +296,11 @@ export async function invitableVacancies(
 				inArray(vacancies.status, ['published'])
 			)
 		);
-	const policy = await loadVisibilityPolicy(executor, now);
 	for (const vacancy of rows) {
 		const invitability = await loadInvitability(executor, vacancy.id);
 		if (!invitability?.invitable) continue;
 		const facts = await loadVisibilityFacts(executor, candidateIds, {
-			now,
-			policy,
-			viewerCompanyId: viewer.viewer.companyId,
-			viewerCompany: viewer.company,
+			...context,
 			vacancy: {
 				id: vacancy.id,
 				companyId: vacancy.companyId,
@@ -300,7 +311,7 @@ export async function invitableVacancies(
 		});
 		for (const [candidateId, candidateFacts] of facts) {
 			if (canShow(candidateFacts, viewer.viewer, { kind: 'catalog', vacancyId: vacancy.id }).allowed) {
-				result.get(candidateId)?.push({ id: vacancy.id, title: vacancy.title });
+				result.get(candidateId)?.vacancies.push({ id: vacancy.id, title: vacancy.title });
 			}
 		}
 	}

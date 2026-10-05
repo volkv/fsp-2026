@@ -31,7 +31,7 @@ import {
 	taxonomyVersions,
 	users
 } from '$lib/server/db/schema';
-import { createCompany, createMember, createOwnVacancy } from '../helpers/factories';
+import { createCompany, createMember, createOwnVacancy, offerTerms } from '../helpers/factories';
 
 // `$env/dynamic/private`, which these modules need through `$lib/server/config`, only SvelteKit provides; the hook that
 // resolves it for a plain Node test process is registered process-wide (`playwright.config.ts`).
@@ -257,11 +257,14 @@ async function seedInternshipInvitation(candidateId: string): Promise<{ invitati
 		subject,
 		{ requestId: `e2e-${randomUUID()}` },
 		{
-			vacancyId: vacancy.id,
-			candidateId,
-			salaryMin: 45_000,
-			salaryMax: 55_000,
-			message: 'Приглашаем на летнюю стажировку.'
+			...offerTerms({
+				title: 'Стажёр-фронтендер',
+				vacancyId: vacancy.id,
+				salaryMin: 45_000,
+				salaryMax: 55_000,
+				message: 'Приглашаем на летнюю стажировку.'
+			}),
+			candidateId
 		}
 	);
 	return { invitationId: sent.invitationId, memberEmail };

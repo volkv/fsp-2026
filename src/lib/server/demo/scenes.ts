@@ -143,7 +143,7 @@ function sender(company: SeededCompany) {
 	return member;
 }
 
-async function invitationOf(ctx: SeedContext, companyId: string, vacancyId: string, candidateId: string) {
+async function invitationOf(ctx: SeedContext, companyId: string, candidateId: string) {
 	const [row] = await ctx.services.db
 		.select({
 			id: invitations.id,
@@ -151,33 +151,56 @@ async function invitationOf(ctx: SeedContext, companyId: string, vacancyId: stri
 			currentTermsId: invitations.currentTermsId
 		})
 		.from(invitations)
-		.where(
-			and(
-				eq(invitations.companyId, companyId),
-				eq(invitations.vacancyId, vacancyId),
-				eq(invitations.candidateId, candidateId)
-			)
-		);
+		.where(and(eq(invitations.companyId, companyId), eq(invitations.candidateId, candidateId)));
 	return row ?? null;
 }
 
-/** The only invitation of the company, vacancy and candidate, sent once. */
+interface SceneTerms {
+	salaryMin: number;
+	salaryMax: number;
+	message: string | null;
+}
+
+/** An offer of the scenario by a vacancy of the company, with «why you» named by the vacancy's first skill. */
+async function offerOf(ctx: SeedContext, vacancy: SeededVacancy, terms: SceneTerms) {
+	const [row] = await ctx.services.db
+		.select({ title: vacancies.title, skills: vacancies.requiredSkillKeys, workFormat: vacancies.workFormat })
+		.from(vacancies)
+		.where(eq(vacancies.id, vacancy.id));
+	if (!row) throw new Error(`vacancy ${vacancy.id} of the scenario does not exist`);
+	const skill = row.skills[0];
+	if (skill === undefined) throw new Error(`vacancy ${vacancy.id} of the scenario names no required skill`);
+	return {
+		title: row.title,
+		description: `${row.title}: задачи команды, стек и условия — в описании вакансии. Обсудим роль на созвоне и ответим на вопросы.`,
+		vacancyId: vacancy.id,
+		salaryMin: terms.salaryMin,
+		salaryMax: terms.salaryMax,
+		salaryCurrency: 'RUB',
+		salaryTaxBase: 'gross',
+		workFormat: row.workFormat ?? 'remote',
+		contactMethod: { kind: 'other', value: 'Ответ в приглашении на платформе' },
+		whyYou: [{ text: `В профиле — ${skill}, нужный команде`, source: { kind: 'declared_skill', ref: skill } }],
+		message: terms.message
+	};
+}
+
+/** The only line of offers of the company to the candidate, sent once. */
 async function ensureInvitation(
 	ctx: SeedContext,
 	company: SeededCompany,
 	vacancy: SeededVacancy,
 	candidate: SeededCandidate,
-	terms: { salaryMin: number; salaryMax: number; message: string | null }
+	terms: SceneTerms
 ) {
-	const existing = await invitationOf(ctx, company.id, vacancy.id, candidate.candidateId);
+	const existing = await invitationOf(ctx, company.id, candidate.candidateId);
 	if (existing) return existing;
 	const member = sender(company);
 	await createInvitation(ctx.invitations, await subjectOf(ctx, member.userId), metaOf(ctx, member.userId), {
-		vacancyId: vacancy.id,
-		candidateId: candidate.candidateId,
-		...terms
+		...(await offerOf(ctx, vacancy, terms)),
+		candidateId: candidate.candidateId
 	});
-	const created = await invitationOf(ctx, company.id, vacancy.id, candidate.candidateId);
+	const created = await invitationOf(ctx, company.id, candidate.candidateId);
 	if (!created) throw new Error('invitation was not created');
 	return created;
 }
@@ -288,11 +311,17 @@ export async function stageScenario(ctx: SeedContext, cast: Cast): Promise<void>
 		.where(eq(invitationTerms.invitationId, offer.id));
 	if ((versions?.n ?? 0) < 2) {
 		const member = sender(main);
-		await reviseInvitation(ctx.invitations, await subjectOf(ctx, member.userId), metaOf(ctx, member.userId), offer.id, {
-			salaryMin: 235_000,
-			salaryMax: 270_000,
-			message: 'Бюджет команды пересмотрели: предлагаем обновлённые условия.'
-		});
+		await reviseInvitation(
+			ctx.invitations,
+			await subjectOf(ctx, member.userId),
+			metaOf(ctx, member.userId),
+			offer.id,
+			await offerOf(ctx, go, {
+				salaryMin: 235_000,
+				salaryMax: 270_000,
+				message: 'Бюджет команды пересмотрели: предлагаем обновлённые условия.'
+			})
+		);
 	}
 
 	// The heroes who are finalists of a partner's competition show the card to its partners.

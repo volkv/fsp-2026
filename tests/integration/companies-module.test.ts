@@ -9,7 +9,7 @@ import type { RequestMeta } from '$lib/server/auth/context';
 import { sha256Hex } from '$lib/server/auth/secrets';
 import { authenticateApiKey, createApiKey, listApiKeys, revokeApiKey } from '$lib/server/companies/api-keys';
 import type { CompanyDeps } from '$lib/server/companies/context';
-import { loadCompanyGate } from '$lib/server/companies/gate';
+import { loadCompanyAdmission } from '$lib/server/companies/gate';
 import {
 	acceptMemberInvite,
 	inviteMember,
@@ -54,11 +54,10 @@ import type { MailMessage } from '$lib/server/mail/mailer';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
 import {
 	createCandidate,
-	createOwnVacancy,
 	createPolicy,
 	createPublishedDocument,
-	createTaxonomyVersion,
-	createUser
+	createUser,
+	offerTermsRow
 } from '../helpers/factories';
 
 let database: TestDatabase;
@@ -261,9 +260,9 @@ async function runRegistryLookup(verificationId: string, lookup: RegistryLookup)
 }
 
 describe('verification by an FSP operator', () => {
-	it('goes draft → submitted → back for clarification → submitted → verified, closing and opening the gate', async () => {
+	it('goes draft → submitted → back for clarification → submitted → verified, admitted with a label all along', async () => {
 		const { owner, companyId, inn } = await employerWithDraft();
-		expect(await loadCompanyGate(database.db, companyId)).toEqual({ allowed: false, reason: 'company_not_verified' });
+		expect(await loadCompanyAdmission(database.db, companyId)).toEqual({ admitted: true, label: 'unverified' });
 
 		// A document is required for a power of attorney.
 		await expectApiError(
@@ -287,7 +286,7 @@ describe('verification by an FSP operator', () => {
 		);
 
 		const first = await submit(owner.id, companyId);
-		expect(await loadCompanyGate(database.db, companyId)).toEqual({ allowed: false, reason: 'company_not_verified' });
+		expect(await loadCompanyAdmission(database.db, companyId)).toEqual({ admitted: true, label: 'unverified' });
 		await expectApiError(submit(owner.id, companyId), 'conflict', 'not_submittable');
 		await expectApiError(
 			updateCompanyDraft(deps(), await as(owner.id), companyId, { displayName: 'Другое' }),
@@ -358,7 +357,7 @@ describe('verification by an FSP operator', () => {
 			kind: 'approve',
 			requisites: { legalName: 'ОБЩЕСТВО С ОГРАНИЧЕННОЙ ОТВЕТСТВЕННОСТЬЮ "РОМАШКА"' }
 		});
-		expect(await loadCompanyGate(database.db, companyId)).toEqual({ allowed: true });
+		expect(await loadCompanyAdmission(database.db, companyId)).toEqual({ admitted: true, label: 'verified' });
 		const [verified] = await database.db.select().from(companies).where(eq(companies.id, companyId));
 		expect(verified).toMatchObject({
 			status: 'verified',
@@ -367,9 +366,12 @@ describe('verification by an FSP operator', () => {
 		expect(verified?.verifiedAt).toBeInstanceOf(Date);
 
 		await suspendCompany(deps(), await as(operator.id), companyId, { reasonCode: 'complaint' });
-		expect(await loadCompanyGate(database.db, companyId)).toEqual({ allowed: false, reason: 'company_suspended' });
+		expect(await loadCompanyAdmission(database.db, companyId)).toEqual({
+			admitted: false,
+			reason: 'company_suspended'
+		});
 		await reinstateCompany(deps(), await as(operator.id), companyId);
-		expect(await loadCompanyGate(database.db, companyId)).toEqual({ allowed: true });
+		expect(await loadCompanyAdmission(database.db, companyId)).toEqual({ admitted: true, label: 'verified' });
 
 		expect(await companyEvents(companyId)).toEqual([
 			'company.created',
@@ -382,10 +384,41 @@ describe('verification by an FSP operator', () => {
 		]);
 	});
 
+	it('suspends a company acting without a check and returns it to where it was', async () => {
+		const operator = await newOperator();
+		const draft = await employerWithDraft();
+		await suspendCompany(deps(), await as(operator.id), draft.companyId, { reasonCode: 'complaint' });
+		expect(await loadCompanyAdmission(database.db, draft.companyId)).toEqual({
+			admitted: false,
+			reason: 'company_suspended'
+		});
+		await expectApiError(
+			suspendCompany(deps(), await as(operator.id), draft.companyId, { reasonCode: 'complaint' }),
+			'conflict',
+			'not_admitted'
+		);
+		await reinstateCompany(deps(), await as(operator.id), draft.companyId);
+		expect(await loadCompanyAdmission(database.db, draft.companyId)).toEqual({ admitted: true, label: 'unverified' });
+		const [back] = await database.db
+			.select({ status: companies.status })
+			.from(companies)
+			.where(eq(companies.id, draft.companyId));
+		expect(back?.status).toBe('draft');
+
+		const submitted = await employerWithDraft();
+		await submit(submitted.owner.id, submitted.companyId);
+		await suspendCompany(deps(), await as(operator.id), submitted.companyId, { reasonCode: 'complaint' });
+		await reinstateCompany(deps(), await as(operator.id), submitted.companyId);
+		const [pending] = await database.db
+			.select({ status: companies.status })
+			.from(companies)
+			.where(eq(companies.id, submitted.companyId));
+		expect(pending?.status).toBe('submitted');
+		expect((await companyEvents(draft.companyId)).slice(-2)).toEqual(['company.suspended', 'company.reinstated']);
+	});
+
 	it('suspension withdraws sent invitations and keeps accepted ones', async () => {
 		const { companyId, memberId, operator } = await verifiedCompany();
-		const taxonomy = await createTaxonomyVersion(database.db);
-		const vacancy = await createOwnVacancy(database.db, { companyId, memberId, taxonomyVersionId: taxonomy.id });
 		const policy = await createPolicy(database.db, 'invitation_policy', Math.floor(Math.random() * 1_000_000) + 1);
 		async function invitation(status: 'sent' | 'accepted') {
 			const candidate = await createCandidate(database.db);
@@ -395,7 +428,6 @@ describe('verification by an FSP operator', () => {
 				await tx.insert(invitations).values({
 					id: invitationId,
 					companyId,
-					vacancyId: vacancy.id,
 					candidateId: candidate.id,
 					sentByMemberId: memberId,
 					status,
@@ -408,7 +440,7 @@ describe('verification by an FSP operator', () => {
 					id: termsId,
 					invitationId,
 					version: 1,
-					vacancySnapshot: { title: vacancy.title },
+					...offerTermsRow(),
 					salaryMin: 250_000,
 					salaryMax: 350_000,
 					salaryCurrency: 'RUB',
@@ -445,7 +477,7 @@ describe('verification by an FSP operator', () => {
 			kind: 'reject',
 			reason: 'Организация не связана с заявителем по документам'
 		});
-		expect(await loadCompanyGate(database.db, companyId)).toEqual({ allowed: false, reason: 'company_rejected' });
+		expect(await loadCompanyAdmission(database.db, companyId)).toEqual({ admitted: false, reason: 'company_rejected' });
 
 		const other = await employerWithDraft(inn, 'Настоящая Ромашка');
 		expect(other.companyId).not.toBe(companyId);
@@ -731,7 +763,7 @@ describe('API keys', () => {
 		expect(await authenticateApiKey(database.db, expiring.token, new Date(clock.now.getTime() + 60_000))).toBeNull();
 	});
 
-	it('grants a key only the creator’s API permissions, only to a verified company, only by its owner', async () => {
+	it('grants a key only the creator’s API permissions, to a company the admission policy lets act, only by its owner', async () => {
 		const { owner, companyId } = await verifiedCompany();
 		await expectApiError(
 			createApiKey(deps(), await as(owner.id), companyId, {
@@ -742,16 +774,14 @@ describe('API keys', () => {
 			'validation_failed',
 			'not_grantable'
 		);
+		// A company without a check acts under the admission policy (domain 5.1): its key is issued and works.
 		const { owner: draftOwner, companyId: draftCompany } = await employerWithDraft();
-		await expectApiError(
-			createApiKey(deps(), await as(draftOwner.id), draftCompany, {
-				name: 'early',
-				permissions: ['catalog.search'],
-				expiresAt: null
-			}),
-			'conflict',
-			'company_not_verified'
-		);
+		const early = await createApiKey(deps(), await as(draftOwner.id), draftCompany, {
+			name: 'early',
+			permissions: ['catalog.search'],
+			expiresAt: null
+		});
+		expect(await authenticateApiKey(database.db, early.token, clock.now)).not.toBeNull();
 		await expectApiError(
 			createApiKey(deps(), await as(draftOwner.id), companyId, {
 				name: 'foreign',

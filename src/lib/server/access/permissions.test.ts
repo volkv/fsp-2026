@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { can, type AccessSubject } from './permissions';
+import { can, companyAdmission, type AccessSubject } from './permissions';
 
 const recruiter = (
-	companyStatus: 'verified' | 'submitted' | 'suspended' = 'verified',
+	companyStatus: 'draft' | 'verified' | 'submitted' | 'suspended' | 'rejected' = 'verified',
 	status: 'active' | 'removed' = 'active'
 ): AccessSubject => ({
 	userId: 'u-r',
@@ -20,10 +20,23 @@ const anonymous: AccessSubject = {
 	staff: { operator: false, admin: false, extraPermissions: [] }
 };
 
+describe('companyAdmission', () => {
+	it('admits a company without a check, labels it, and refuses a suspended or rejected one', () => {
+		expect(companyAdmission('draft')).toEqual({ admitted: true, label: 'unverified' });
+		expect(companyAdmission('submitted')).toEqual({ admitted: true, label: 'unverified' });
+		expect(companyAdmission('verified')).toEqual({ admitted: true, label: 'verified' });
+		expect(companyAdmission('suspended')).toEqual({ admitted: false, reason: 'company_suspended' });
+		expect(companyAdmission('rejected')).toEqual({ admitted: false, reason: 'company_rejected' });
+	});
+});
+
 describe('can', () => {
-	it('opens the catalog only to an active member of a verified company', () => {
+	it('opens the catalog to an active member of a company the admission policy lets act, verified or not', () => {
 		expect(can(recruiter(), 'catalog.search', null)).toEqual({ allowed: true });
-		expect(can(recruiter('submitted'), 'catalog.search', null)).toEqual({ allowed: false, reason: 'object' });
+		expect(can(recruiter('submitted'), 'catalog.search', null)).toEqual({ allowed: true });
+		expect(can(recruiter('draft'), 'catalog.search', null)).toEqual({ allowed: true });
+		expect(can(recruiter('suspended'), 'catalog.search', null)).toEqual({ allowed: false, reason: 'object' });
+		expect(can(recruiter('rejected'), 'catalog.search', null)).toEqual({ allowed: false, reason: 'object' });
 		expect(can(recruiter('verified', 'removed'), 'catalog.search', null)).toEqual({ allowed: false, reason: 'role' });
 		expect(can(anonymous, 'catalog.search', null)).toEqual({ allowed: false, reason: 'unauthenticated' });
 	});
@@ -46,6 +59,18 @@ describe('can', () => {
 		expect(can(recruiter(), 'invitation.create', { invitability: { invitable: true }, show })).toEqual({
 			allowed: true
 		});
+	});
+
+	it('lets an unverified company send an offer without a vacancy and refuses a suspended one', () => {
+		const show = { allowed: true as const, projection: 'catalog' as const, extras: [], policyVersion: '1' };
+		expect(can(recruiter('draft'), 'invitation.create', { invitability: null, show })).toEqual({ allowed: true });
+		expect(can(recruiter('suspended'), 'invitation.create', { invitability: null, show })).toEqual({
+			allowed: false,
+			reason: 'object'
+		});
+		expect(
+			can(recruiter(), 'invitation.create', { invitability: null, show: { allowed: false, reason: 'not_visible' } })
+		).toEqual({ allowed: false, reason: 'object' });
 	});
 
 	it('keeps API keys out of candidate, staff and key operations', () => {

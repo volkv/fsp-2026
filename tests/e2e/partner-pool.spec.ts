@@ -226,7 +226,7 @@ test('a finalist consents to the partners of the competition, the partner finds 
 	await expect(members).toHaveCount(1);
 	await expect(members.first().getByTestId('pool-result')).toContainText('Финалист · 5 место · финал');
 	await expect(members.first()).not.toContainText('Финалист e2e');
-	await expect(members.first().getByTestId('pool-invite')).toContainText('Пригласить сейчас не по чему');
+	await expect(members.first().getByTestId('pool-invite')).toContainText('Предложить работу сейчас нельзя');
 	await expectNoAxeViolations(page);
 
 	await offer.getByRole('button', { name: 'Убрать карточку из пула партнёров' }).click();

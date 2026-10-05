@@ -82,11 +82,11 @@ export const offeredSalary = z
 	.object({
 		min: z.int(),
 		max: z.int(),
-		currency: z.string(),
-		period: salaryPeriod,
+		currency: z.literal('RUB'),
+		period: z.literal('month'),
 		tax_base: z.enum(['gross', 'net'])
 	})
-	.meta({ id: 'OfferedSalary', description: 'Предложенная вилка в единицах вакансии' });
+	.meta({ id: 'OfferedSalary', description: 'Предложенная вилка: рубли в месяц, налоговая база по выбору компании' });
 
 export const errorDetail = z
 	.object({

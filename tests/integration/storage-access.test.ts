@@ -33,10 +33,9 @@ import {
 	createCandidate,
 	createCompany,
 	createMember,
-	createOwnVacancy,
 	createPublishedDocument,
-	createTaxonomyVersion,
-	createUser
+	createUser,
+	offerTermsRow
 } from '../helpers/factories';
 import { startStorage } from '../helpers/storage';
 
@@ -139,18 +138,12 @@ async function expectRefused(subject: AccessSubject, fileId: string, context: Fi
 let candidate: Awaited<ReturnType<typeof createCandidate>>;
 let resumeFileId: string;
 let documents: Record<'pd' | 'disclosure', { id: string }>;
-let taxonomyVersionId: string;
 let policyId: string;
 
 /** An accepted invitation of a new company to the candidate, with the disclosure consent listing `fields`. */
 async function recipient(fields: string[]) {
 	const company = await createCompany(database.db);
 	const member = await createMember(database.db, company.id);
-	const vacancy = await createOwnVacancy(database.db, {
-		companyId: company.id,
-		memberId: member.id,
-		taxonomyVersionId
-	});
 	const invitationId = uuidv7();
 	const termsId = uuidv7();
 	const sentAt = new Date(Date.now() - 3_600_000);
@@ -158,7 +151,6 @@ async function recipient(fields: string[]) {
 		await tx.insert(invitations).values({
 			id: invitationId,
 			companyId: company.id,
-			vacancyId: vacancy.id,
 			candidateId: candidate.id,
 			sentByMemberId: member.id,
 			status: 'accepted',
@@ -171,7 +163,7 @@ async function recipient(fields: string[]) {
 			id: termsId,
 			invitationId,
 			version: 1,
-			vacancySnapshot: {},
+			...offerTermsRow(),
 			salaryMin: 250_000,
 			salaryMax: 350_000,
 			salaryCurrency: 'RUB',
@@ -211,7 +203,6 @@ beforeAll(async () => {
 		pd: await createPublishedDocument(db, 'pd_processing', published),
 		disclosure: await createPublishedDocument(db, 'contact_disclosure', published)
 	};
-	taxonomyVersionId = (await createTaxonomyVersion(db)).id;
 	const [policy] = await db
 		.insert(productPolicies)
 		.values({

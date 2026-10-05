@@ -35,7 +35,8 @@ import {
 	createOwnVacancy,
 	createPublishedDocument,
 	createTaxonomyVersion,
-	createUser
+	createUser,
+	offerTerms
 } from '../helpers/factories';
 
 const DAY = 86_400_000;
@@ -175,10 +176,8 @@ async function acceptedProcess(
 	person: Awaited<ReturnType<typeof candidate>>
 ) {
 	const sent = await createInvitation(deps, company.subject, meta, {
-		vacancyId: company.vacancy.id,
-		candidateId: person.id,
-		salaryMin: 260_000,
-		salaryMax: 300_000
+		...offerTerms({ vacancyId: company.vacancy.id, salaryMin: 260_000, salaryMax: 300_000 }),
+		candidateId: person.id
 	});
 	const answer = await respondToInvitation(deps, person.subject, meta, sent.invitationId, {
 		termsId: sent.termsId,
@@ -390,10 +389,8 @@ describe('career funnel', () => {
 		for (const person of people) processes.push({ person, ...(await acceptedProcess(company, person)) });
 		const extra = await candidate();
 		await createInvitation(deps, company.subject, meta, {
-			vacancyId: company.vacancy.id,
-			candidateId: extra.id,
-			salaryMin: 260_000,
-			salaryMax: 300_000
+			...offerTerms({ vacancyId: company.vacancy.id, salaryMin: 260_000, salaryMax: 300_000 }),
+			candidateId: extra.id
 		});
 		clock = new Date(sentAt.getTime() + 45 * DAY);
 

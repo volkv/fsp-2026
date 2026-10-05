@@ -347,11 +347,15 @@ const TERMS_FIELDS: Record<string, string> = {
 	'vacancy.nice_skill_keys': 'Желательные навыки',
 	'vacancy.min_age': 'Минимальный возраст',
 	'vacancy.revision': 'Редакция вакансии',
+	title: 'Название',
+	description: 'Описание',
+	vacancy_id: 'Вакансия',
 	salary_min: 'Зарплата от',
 	salary_max: 'Зарплата до',
-	salary_currency: 'Валюта',
-	salary_period: 'Период',
 	salary_tax_base: 'Налоговая база',
+	work_format: 'Формат работы',
+	contact_method: 'Способ связи',
+	why_you: 'Почему вы',
 	message: 'Сообщение'
 };
 
@@ -369,7 +373,24 @@ export function termsValue(field: string, value: unknown, labels: Labels): strin
 	if (field === 'vacancy.role_key' && typeof value === 'string') return roleName(labels, value);
 	if ((field === 'vacancy.grade_min' || field === 'vacancy.grade_max') && typeof value === 'string')
 		return gradeName(labels, value);
-	if (field === 'vacancy.work_format' && typeof value === 'string') return nameOr(labels.workFormats, value);
+	if ((field === 'vacancy.work_format' || field === 'work_format') && typeof value === 'string') {
+		return nameOr(labels.workFormats, value);
+	}
+	if (field === 'salary_tax_base' && (value === 'gross' || value === 'net')) {
+		return value === 'gross' ? 'до вычета НДФЛ' : 'на руки';
+	}
+	if (field === 'contact_method' && typeof value === 'object' && 'value' in value && typeof value.value === 'string') {
+		return value.value;
+	}
+	if (field === 'why_you' && Array.isArray(value)) {
+		return value
+			.map((point: unknown) =>
+				typeof point === 'object' && point !== null && 'text' in point && typeof point.text === 'string'
+					? point.text
+					: ''
+			)
+			.join('; ');
+	}
 	if (field === 'vacancy.employment_form' && typeof value === 'string') return nameOr(labels.employmentForms, value);
 	if (typeof value === 'number') return new Intl.NumberFormat('ru-RU').format(value);
 	if (Array.isArray(value)) return strings(value).join(', ');

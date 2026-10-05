@@ -1,4 +1,4 @@
-// Invitations with immutable terms versions, responses and hiring processes (domain 13.5–13.8).
+// Hiring needs, offers with immutable terms versions, responses and hiring processes (domain 13.5–13.10).
 import { sql } from 'drizzle-orm';
 import { check, date, index, integer, jsonb, pgTable, text, unique, uuid, type AnyPgColumn } from 'drizzle-orm/pg-core';
 import { enumCheck, fullSalary, id, salaryChecks, salaryColumns, timestamps, ts } from './_columns';
@@ -6,16 +6,47 @@ import { candidates } from './candidates';
 import { companies, companyMembers } from './companies';
 import { consentEvents } from './consent';
 import { users } from './identity';
-import { matchScores } from './matching';
 import { productPolicies } from './policies';
 import { vacancies } from './vacancies';
+
+const NEED_STATUSES = ['draft', 'active', 'closed'] as const;
+
+/**
+ * A hiring need of a company (domain 13.10): free text, its form confirmed by the employer and the parse of the text
+ * that suggested the form, each field with its quote. The way to an offer goes through it; a vacancy is not needed.
+ */
+export const hiringNeeds = pgTable(
+	'hiring_needs',
+	{
+		id: id(),
+		companyId: uuid()
+			.notNull()
+			.references(() => companies.id),
+		createdByMemberId: uuid()
+			.notNull()
+			.references(() => companyMembers.id),
+		text: text(),
+		form: jsonb().notNull(),
+		parse: jsonb(),
+		textCheck: jsonb().notNull(),
+		status: text({ enum: NEED_STATUSES }).notNull(),
+		...timestamps()
+	},
+	(t) => [
+		enumCheck('hiring_needs', 'status', t.status, NEED_STATUSES),
+		check('hiring_needs_text_length', sql`char_length(${t.text}) between 1 and 5000`),
+		check('hiring_needs_parse_with_text', sql`${t.parse} is null or ${t.text} is not null`),
+		index('hiring_needs_company').on(t.companyId, t.status)
+	]
+);
 
 const INVITATION_STATUSES = ['sent', 'viewed', 'accepted', 'declined', 'expired', 'withdrawn'] as const;
 
 /**
- * One invitation per company, vacancy and candidate for all time (domain 13.5). `current_terms_id` references
- * the terms table that references back; the constraint is deferred to commit (migration 0002).
- * `purged_at` marks the tombstone left after account purge: only id, company, status stay (domain 19.2).
+ * The line of offers of a company to a candidate (domain 13.5): one row per pair for all time; a new offer after a
+ * closed one is a new version of the same row. `current_terms_id` references the terms table that references back;
+ * the constraint is deferred to commit (migration 0002). `purged_at` marks the tombstone left after account purge:
+ * only id, company, status stay (domain 19.2).
  */
 export const invitations = pgTable(
 	'invitations',
@@ -24,9 +55,6 @@ export const invitations = pgTable(
 		companyId: uuid()
 			.notNull()
 			.references(() => companies.id),
-		vacancyId: uuid()
-			.notNull()
-			.references(() => vacancies.id),
 		candidateId: uuid()
 			.notNull()
 			.references(() => candidates.id),
@@ -36,7 +64,8 @@ export const invitations = pgTable(
 		status: text({ enum: INVITATION_STATUSES }).notNull(),
 		currentTermsId: uuid().references((): AnyPgColumn => invitationTerms.id),
 		acceptedTermsId: uuid().references((): AnyPgColumn => invitationTerms.id),
-		matchScoreId: uuid().references(() => matchScores.id, { onDelete: 'set null' }),
+		/** The need the offer was sent from (domain 13.10). */
+		needId: uuid().references(() => hiringNeeds.id),
 		policyId: uuid()
 			.notNull()
 			.references(() => productPolicies.id),
@@ -49,7 +78,7 @@ export const invitations = pgTable(
 	},
 	(t) => [
 		enumCheck('invitations', 'status', t.status, INVITATION_STATUSES),
-		unique('invitations_company_vacancy_candidate').on(t.companyId, t.vacancyId, t.candidateId),
+		unique('invitations_company_candidate').on(t.companyId, t.candidateId),
 		check('invitations_terms', sql`${t.purgedAt} is not null or ${t.currentTermsId} is not null`),
 		check(
 			'invitations_purged',
@@ -65,7 +94,10 @@ export const invitations = pgTable(
 	]
 );
 
-/** Append-only: every terms change is a new version (domain 13.5). */
+/**
+ * Append-only: every terms change is a new version (domain 13.5). The range is in roubles per month with the tax base
+ * the employer chose; the vacancy is optional and, when named, is copied into the version as it was at that moment.
+ */
 export const invitationTerms = pgTable(
 	'invitation_terms',
 	{
@@ -74,9 +106,18 @@ export const invitationTerms = pgTable(
 			.notNull()
 			.references(() => invitations.id),
 		version: integer().notNull(),
-		vacancySnapshot: jsonb().notNull(),
+		title: text().notNull(),
+		description: text().notNull(),
+		vacancyId: uuid().references(() => vacancies.id),
+		vacancySnapshot: jsonb(),
+		/** `{specialization, grade}` of the candidate's category at the version; `null` — no confirmed category. */
+		category: jsonb(),
 		...salaryColumns(),
+		workFormat: text().notNull(),
+		contactMethod: jsonb().notNull(),
+		whyYou: jsonb().notNull(),
 		message: text(),
+		textCheck: jsonb().notNull(),
 		responseDueAt: ts().notNull(),
 		changes: jsonb(),
 		createdByMemberId: uuid()
@@ -87,10 +128,22 @@ export const invitationTerms = pgTable(
 	(t) => [
 		...salaryChecks('invitation_terms', t),
 		check('invitation_terms_full_salary', fullSalary(t)),
+		check('invitation_terms_salary_rub', sql`${t.salaryCurrency} = 'RUB' and ${t.salaryPeriod} = 'month'`),
+		check('invitation_terms_title_length', sql`char_length(${t.title}) between 1 and 120`),
+		check('invitation_terms_description_length', sql`char_length(${t.description}) between 50 and 5000`),
+		check('invitation_terms_message_length', sql`char_length(${t.message}) between 1 and 2000`),
+		check('invitation_terms_vacancy_snapshot', sql`(${t.vacancyId} is null) = (${t.vacancySnapshot} is null)`),
+		check(
+			'invitation_terms_why_you',
+			sql`jsonb_typeof(${t.whyYou}) = 'array' and jsonb_array_length(${t.whyYou}) between 1 and 5`
+		),
 		check('invitation_terms_version_positive', sql`${t.version} >= 1`),
 		check('invitation_terms_changes', sql`(${t.version} > 1) = (${t.changes} is not null)`),
 		check('invitation_terms_due_after_creation', sql`${t.responseDueAt} > ${t.createdAt}`),
-		unique('invitation_terms_invitation_version').on(t.invitationId, t.version)
+		unique('invitation_terms_invitation_version').on(t.invitationId, t.version),
+		index('invitation_terms_vacancy')
+			.on(t.vacancyId)
+			.where(sql`${t.vacancyId} is not null`)
 	]
 );
 

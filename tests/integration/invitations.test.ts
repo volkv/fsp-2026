@@ -11,7 +11,8 @@ import {
 	createMember,
 	createOwnVacancy,
 	createPolicy,
-	createTaxonomyVersion
+	createTaxonomyVersion,
+	offerTermsRow
 } from '../helpers/factories';
 
 let database: TestDatabase;
@@ -47,7 +48,6 @@ async function sendInvitation(ctx: Awaited<ReturnType<typeof setup>>) {
 		await tx.insert(invitations).values({
 			id: invitationId,
 			companyId: ctx.company.id,
-			vacancyId: ctx.vacancy.id,
 			candidateId: ctx.candidate.id,
 			sentByMemberId: ctx.member.id,
 			status: 'sent',
@@ -59,7 +59,7 @@ async function sendInvitation(ctx: Awaited<ReturnType<typeof setup>>) {
 			id: termsId,
 			invitationId,
 			version: 1,
-			vacancySnapshot: { title: ctx.vacancy.title },
+			...offerTermsRow(),
 			salaryMin: 250_000,
 			salaryMax: 350_000,
 			salaryCurrency: 'RUB',
@@ -73,10 +73,38 @@ async function sendInvitation(ctx: Awaited<ReturnType<typeof setup>>) {
 }
 
 describe('invitations', () => {
-	it('allow one invitation per company, vacancy and candidate for all time', async () => {
+	it('allow one line of offers per company and candidate for all time', async () => {
 		const ctx = await setup();
 		await sendInvitation(ctx);
-		await expectDbError(sendInvitation(ctx), SQLSTATE.uniqueViolation, /invitations_company_vacancy_candidate/);
+		await expectDbError(sendInvitation(ctx), SQLSTATE.uniqueViolation, /invitations_company_candidate/);
+	});
+
+	it('refuse terms not in roubles per month, a vacancy without its snapshot and «why you» without points', async () => {
+		const ctx = await setup();
+		const { invitationId } = await sendInvitation(ctx);
+		const version = (overrides: Partial<typeof invitationTerms.$inferInsert>) =>
+			database.db.insert(invitationTerms).values({
+				invitationId,
+				version: 2,
+				...offerTermsRow(),
+				changes: {},
+				salaryMin: 250_000,
+				salaryMax: 350_000,
+				salaryCurrency: 'RUB',
+				salaryPeriod: 'month',
+				salaryTaxBase: 'gross',
+				responseDueAt: new Date(Date.now() + 3600_000),
+				createdByMemberId: ctx.member.id,
+				...overrides
+			});
+		await expectDbError(version({ salaryCurrency: 'USD' }), SQLSTATE.checkViolation, /invitation_terms_salary_rub/);
+		await expectDbError(version({ salaryPeriod: 'year' }), SQLSTATE.checkViolation, /invitation_terms_salary_rub/);
+		await expectDbError(
+			version({ vacancyId: ctx.vacancy.id }),
+			SQLSTATE.checkViolation,
+			/invitation_terms_vacancy_snapshot/
+		);
+		await expectDbError(version({ whyYou: [] }), SQLSTATE.checkViolation, /invitation_terms_why_you/);
 	});
 
 	it('refuse terms without a full range with a known tax base', async () => {
@@ -86,7 +114,7 @@ describe('invitations', () => {
 			database.db.insert(invitationTerms).values({
 				invitationId,
 				version: 2,
-				vacancySnapshot: {},
+				...offerTermsRow(),
 				changes: {},
 				salaryMin: 250_000,
 				salaryMax: 350_000,
@@ -103,7 +131,7 @@ describe('invitations', () => {
 });
 
 describe('isInvitable', () => {
-	it('accepts a published own vacancy of a verified company with a full range', async () => {
+	it('accepts a published own vacancy with a full range in roubles', async () => {
 		const ctx = await setup();
 		expect(await loadInvitability(database.db, ctx.vacancy.id)).toEqual({ invitable: true });
 	});
@@ -133,17 +161,15 @@ describe('isInvitable', () => {
 		expect(await loadInvitability(db, external.id)).toEqual({ invitable: false, reason: 'external_vacancy' });
 	});
 
-	it('refuses a vacancy of a company that is not verified', async () => {
+	it('refuses a vacancy with a range not in roubles', async () => {
+		const ctx = await setup();
 		const { db } = database;
-		const company = await createCompany(db, { status: 'suspended' });
-		const member = await createMember(db, company.id);
-		const taxonomy = await createTaxonomyVersion(db);
-		const vacancy = await createOwnVacancy(db, {
-			companyId: company.id,
-			memberId: member.id,
-			taxonomyVersionId: taxonomy.id
-		});
-		expect(await loadInvitability(db, vacancy.id)).toEqual({ invitable: false, reason: 'company_not_verified' });
+		const vacancy = await createOwnVacancy(
+			db,
+			{ companyId: ctx.company.id, memberId: ctx.member.id, taxonomyVersionId: ctx.taxonomy.id },
+			{ salaryCurrency: 'USD' }
+		);
+		expect(await loadInvitability(db, vacancy.id)).toEqual({ invitable: false, reason: 'incomplete_salary' });
 	});
 
 	it('cannot meet an own vacancy without a full range: the database refuses it', async () => {

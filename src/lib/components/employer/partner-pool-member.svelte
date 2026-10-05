@@ -9,20 +9,20 @@
 
 	/**
 	 * A finalist of the partner pool: the result the candidate entered the pool with, the categories in force, the full
-	 * catalog card on demand (`children`) and the own vacancies an invitation can go by. Without such a vacancy the row
-	 * says why there is no invitation instead of offering one that the rules would refuse.
+	 * catalog card on demand (`children`) and how an offer reaches the candidate: from the card without a vacancy, or
+	 * naming an own vacancy. When the rules refuse both, the row says why instead of offering what would be refused.
 	 */
 	interface Props {
 		pseudonym: string;
 		result: { place: number | null; award?: string; stage: string | null };
 		categories: { specialization: string; grade: string }[];
 		labels: { specializations: Record<string, string>; grades: Record<string, string> };
-		vacancies: { id: string; title: string }[];
+		offer: { withoutVacancy: boolean; vacancies: { id: string; title: string }[] };
 		/** The catalog card of the candidate. */
 		children: Snippet;
 	}
 
-	let { pseudonym, result, categories, labels, vacancies, children }: Props = $props();
+	let { pseudonym, result, categories, labels, offer, children }: Props = $props();
 
 	const award = $derived(result.award && result.award in AWARDS ? AWARDS[result.award as Award] : null);
 	const resultText = $derived(
@@ -65,16 +65,23 @@
 	</details>
 
 	<div class="grid gap-2 text-sm" data-testid="pool-invite">
-		{#if vacancies.length === 0}
+		{#if !offer.withoutVacancy && offer.vacancies.length === 0}
 			<p class="text-muted-foreground">
-				Пригласить сейчас не по чему: приглашение идёт на опубликованную вакансию компании, в контексте которой кандидат
-				виден в каталоге.
-				<a class="text-link underline underline-offset-4" href={resolve('/company/vacancies')}>Вакансии компании</a>
+				Предложить работу сейчас нельзя: кандидат показал карточку только партнёрам соревнования, а предложение идёт по
+				общим правилам — кандидат должен быть виден компании в каталоге или в контексте её вакансии.
 			</p>
-		{:else}
-			<span class="font-medium">Пригласить на вакансию:</span>
+		{/if}
+		{#if offer.withoutVacancy}
+			<a
+				class="justify-self-start text-link underline underline-offset-4"
+				href={resolve('/(app)/company/(member)/candidates/[pseudonym]', { pseudonym })}
+				data-sveltekit-preload-data="tap">Предложить работу без вакансии</a
+			>
+		{/if}
+		{#if offer.vacancies.length > 0}
+			<span class="font-medium">Предложить с вакансией:</span>
 			<ul class="flex flex-wrap gap-2">
-				{#each vacancies as vacancy (vacancy.id)}
+				{#each offer.vacancies as vacancy (vacancy.id)}
 					<li>
 						<a
 							class="inline-flex items-center rounded-full border px-3 py-1 text-link hover:bg-muted"

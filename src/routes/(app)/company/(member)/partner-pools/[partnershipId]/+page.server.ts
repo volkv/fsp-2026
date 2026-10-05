@@ -7,14 +7,14 @@ import { auditActorOf } from '$lib/server/companies/context';
 import { configuredReceiptSigner } from '$lib/server/fsp/receipts';
 import { pageError } from '$lib/server/http/page';
 import { matchingDeps } from '$lib/server/matching/deps';
-import { invitableVacancies, journalPoolView, readPartnerPool } from '$lib/server/partner-pool/pool';
+import { journalPoolView, poolOffers, readPartnerPool } from '$lib/server/partner-pool/pool';
 import type { PageServerLoad } from './$types';
 
 const list = (url: URL, name: string) => url.searchParams.getAll(name).filter((value) => value !== '');
 
 /**
  * The pool of a competition partner: finalists who consented to show the card to this company, each card with the
- * result of the competition exact, and the own vacancies an invitation to the candidate can go by.
+ * result of the competition exact, and how an offer can reach the candidate: without a vacancy or naming one.
  */
 export const load: PageServerLoad = async (event) => {
 	const { subject, meta } = await employerRequest(event);
@@ -29,7 +29,7 @@ export const load: PageServerLoad = async (event) => {
 			...(grades.length > 0 ? { grades } : {})
 		});
 		const signer = configuredReceiptSigner();
-		const vacancies = await invitableVacancies(
+		const offers = await poolOffers(
 			database,
 			subject,
 			pool.members.map((member) => member.candidateId),
@@ -46,9 +46,9 @@ export const load: PageServerLoad = async (event) => {
 				now,
 				signer
 			});
-			const offered = vacancies.get(member.candidateId);
-			if (!offered) throw new Error('a pool member was not checked against the vacancies');
-			members.push({ pseudonym: member.pseudonym, result: member.result, ...card, vacancies: offered });
+			const offer = offers.get(member.candidateId);
+			if (!offer) throw new Error('a pool member was not checked for an offer');
+			members.push({ pseudonym: member.pseudonym, result: member.result, ...card, offer });
 		}
 		await journalPoolView(database, {
 			actor: auditActorOf(subject),

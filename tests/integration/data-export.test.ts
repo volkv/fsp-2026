@@ -69,7 +69,8 @@ import {
 	createPublishedDocument,
 	createTaxonomyVersion,
 	createUser,
-	randomSha256
+	randomSha256,
+	offerTerms
 } from '../helpers/factories';
 
 const env = vi.hoisted((): Record<string, string> => ({}));
@@ -596,11 +597,13 @@ describe('the export of own data', () => {
 			staff: { operator: false, admin: false, extraPermissions: [] }
 		};
 		const sent = await createInvitation(deps(), companySubject, meta, {
-			vacancyId: vacancy.id,
-			candidateId: anna.id,
-			salaryMin: 260_000,
-			salaryMax: 340_000,
-			message: 'Приглашаем на собеседование'
+			...offerTerms({
+				vacancyId: vacancy.id,
+				salaryMin: 260_000,
+				salaryMax: 340_000,
+				message: 'Приглашаем на собеседование'
+			}),
+			candidateId: anna.id
 		});
 		await respondToInvitation(deps(), anna.subject, meta, sent.invitationId, {
 			termsId: sent.termsId,

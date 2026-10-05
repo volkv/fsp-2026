@@ -30,10 +30,8 @@ import {
 	createCandidate,
 	createCompany,
 	createMember,
-	createOwnVacancy,
 	createPolicy,
 	createPublishedDocument,
-	createTaxonomyVersion,
 	createUser
 } from '../helpers/factories';
 
@@ -268,11 +266,6 @@ async function disclosedTombstone(daysAgo: number, disclosureDocumentId: string)
 	const { db } = database;
 	const company = await createCompany(db);
 	const member = await createMember(db, company.id);
-	const vacancy = await createOwnVacancy(db, {
-		companyId: company.id,
-		memberId: member.id,
-		taxonomyVersionId: (await createTaxonomyVersion(db)).id
-	});
 	const policy = await createPolicy(db, 'invitation_policy', 100 + Math.floor(Math.random() * 1_000_000));
 	const profile = await createCandidate(
 		db,
@@ -290,7 +283,6 @@ async function disclosedTombstone(daysAgo: number, disclosureDocumentId: string)
 		.insert(invitations)
 		.values({
 			companyId: company.id,
-			vacancyId: vacancy.id,
 			candidateId: profile.id,
 			sentByMemberId: member.id,
 			status: 'accepted',

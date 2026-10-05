@@ -5,8 +5,8 @@ import type { ApiErrorCode } from '$lib/server/errors/codes';
 
 /** Detail codes of `policy_violation` for vacancies, with the message the client sees. */
 export const VACANCY_VIOLATIONS = {
-	company_not_verified: 'Публиковать вакансии может только проверенная компания',
-	salary_incomplete: 'Для публикации нужна полная вилка: обе границы, валюта, период и налоговая база',
+	salary_incomplete: 'Для публикации нужна полная вилка: обе границы, период и налоговая база',
+	salary_not_rub: 'Вилка указывается только в рублях',
 	text_warnings_unconfirmed: 'В тексте вакансии есть формулировки, требующие подтверждения',
 	vacancy_not_editable: 'Эту вакансию сейчас нельзя изменить',
 	external_vacancy_read_only: 'Внешняя вакансия изменяется только источником',

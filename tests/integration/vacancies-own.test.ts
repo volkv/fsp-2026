@@ -93,7 +93,7 @@ afterAll(async () => {
 });
 
 async function employer(
-	status: 'verified' | 'submitted' = 'verified',
+	status: 'verified' | 'submitted' | 'suspended' = 'verified',
 	role: 'owner' | 'recruiter' = 'owner'
 ): Promise<VacancyAuthor & { userId: string }> {
 	const company = await createCompany(database.db, { status });
@@ -178,6 +178,16 @@ describe('own vacancy', () => {
 				)
 			)
 		).toBe('validation_failed');
+		// The range is in roubles only (domain 13.1): another currency is a rule of the platform.
+		expect(
+			await refusalOf(
+				createOwnVacancy(
+					deps,
+					author,
+					input({ salary: { min: 3_000, max: 5_000, currency: 'USD', period: 'month', taxBase: 'gross' } })
+				)
+			)
+		).toBe('salary_not_rub');
 	});
 
 	it('is published by a verified company and enqueues matches at publication', async () => {
@@ -196,14 +206,26 @@ describe('own vacancy', () => {
 		expect(event).toBeDefined();
 	});
 
-	it('is not published by a company that is not verified', async () => {
-		const author = await employer('submitted');
-		const draft = await createOwnVacancy(deps, author, input());
-		expect(await refusalOf(publishOwnVacancy(deps, author, draft.id))).toBe('company_not_verified');
-		const [row] = await database.db
+	it('is published by a company without a check and not by a suspended one (the admission policy)', async () => {
+		const unverified = await employer('submitted');
+		const draft = await createOwnVacancy(deps, unverified, input());
+		await publishOwnVacancy(deps, unverified, draft.id);
+		const [published] = await database.db
 			.select({ status: vacancies.status })
 			.from(vacancies)
 			.where(eq(vacancies.id, draft.id));
+		expect(published?.status).toBe('published');
+
+		const closed = await employer('suspended');
+		const held = await createOwnVacancy(deps, closed, input());
+		await expect(publishOwnVacancy(deps, closed, held.id)).rejects.toMatchObject({
+			code: 'forbidden',
+			details: [{ code: 'company_suspended' }]
+		});
+		const [row] = await database.db
+			.select({ status: vacancies.status })
+			.from(vacancies)
+			.where(eq(vacancies.id, held.id));
 		expect(row?.status).toBe('draft');
 	});
 

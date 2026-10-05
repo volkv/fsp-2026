@@ -23,13 +23,15 @@
 	const problem = $derived(form && 'problem' in form ? form.problem : null);
 	const DONE: Record<string, string> = {
 		suspended: 'Компания приостановлена: каталог, пулы, ключи API и неотвеченные приглашения закрыты.',
-		reinstated: 'Компания снова проверена.',
+		reinstated: 'Компания снова работает: каталог, вакансии и предложения открыты.',
 		partnership_opened: 'Партнёрство открыто.',
 		partnership_ended: 'Партнёрство завершено: пул закрыт.'
 	};
 	const done = $derived(form && 'done' in form && form.done ? DONE[form.done] : null);
 	const titles = $derived(Object.fromEntries(data.competitions.map((c) => [c.ref, c.title])));
 	const openRequest = $derived(card.verifications.find((v) => v.decision === null) ?? null);
+	/** A working company — verified or acting without a check — may be suspended (domain 5.1). */
+	const working = $derived(card.status === 'verified' || card.status === 'submitted' || card.status === 'draft');
 </script>
 
 <PageHeader title={card.displayName} description={card.legalName}>
@@ -115,7 +117,14 @@
 				<Card.Title><h2 class="font-heading text-h3">Модерация</h2></Card.Title>
 			</Card.Header>
 			<Card.Content class="grid gap-4 text-sm">
-				{#if card.status === 'verified'}
+				{#if working}
+					{#if openRequest}
+						<a
+							class="text-link underline-offset-4 hover:underline"
+							href={resolve('/(app)/operator/companies/requests/[id]', { id: openRequest.id })}
+							>Открыть заявку на проверку</a
+						>
+					{/if}
 					<form method="POST" action="?/suspend" use:enhance class="grid gap-3" data-testid="suspend-form">
 						<CsrfInput />
 						<p class="text-muted-foreground">
@@ -137,17 +146,13 @@
 				{:else if card.status === 'suspended'}
 					<form method="POST" action="?/reinstate" use:enhance class="grid gap-3">
 						<CsrfInput />
-						<p class="text-muted-foreground">Возврат снова открывает компании каталог и приглашения.</p>
-						<Button type="submit" class="justify-self-start">Вернуть в проверенные</Button>
+						<p class="text-muted-foreground">
+							Возврат снова открывает компании каталог, вакансии и предложения; метка проверки остаётся прежней.
+						</p>
+						<Button type="submit" class="justify-self-start">Вернуть к работе</Button>
 					</form>
-				{:else if openRequest}
-					<a
-						class="text-link underline-offset-4 hover:underline"
-						href={resolve('/(app)/operator/companies/requests/[id]', { id: openRequest.id })}
-						>Открыть заявку на проверку</a
-					>
 				{:else}
-					<p class="text-muted-foreground">Компания не проверена: приостанавливать нечего.</p>
+					<p class="text-muted-foreground">Проверка компании отклонена: её действия закрыты.</p>
 				{/if}
 			</Card.Content>
 		</Card.Root>

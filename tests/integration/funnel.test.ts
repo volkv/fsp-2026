@@ -29,7 +29,8 @@ import {
 	createOwnVacancy,
 	createTaxonomyVersion,
 	createUser,
-	randomSha256
+	randomSha256,
+	offerTermsRow
 } from '../helpers/factories';
 
 const DAY = 86_400_000;
@@ -160,7 +161,6 @@ async function invite(
 		await tx.insert(invitations).values({
 			id: invitationId,
 			companyId: sender.companyId,
-			vacancyId: sender.vacancyId,
 			candidateId: candidate.id,
 			sentByMemberId: sender.memberId,
 			status: accepted ? 'accepted' : 'sent',
@@ -173,7 +173,7 @@ async function invite(
 			id: termsId,
 			invitationId,
 			version: 1,
-			vacancySnapshot: {},
+			...offerTermsRow(),
 			salaryMin: 200_000,
 			salaryMax: 300_000,
 			salaryCurrency: 'RUB',

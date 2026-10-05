@@ -29,7 +29,6 @@ import {
 } from '$lib/server/db/schema';
 import { ApiError } from '$lib/server/errors/api-error';
 import { auditActor, type RequestMeta } from '$lib/server/invitations/deps';
-import { loadVacancy } from '$lib/server/invitations/records';
 import { showInInvitationContext } from '$lib/server/invitations/visibility';
 import { fileById, type FileRow } from './files';
 import type { ObjectStore } from './object-store';
@@ -126,9 +125,7 @@ async function decide(
 			}
 			// The recipient receives the resume the candidate has now, as the recipient card shows it.
 			if (!resume.isCurrent) return deny('not_current_resume', candidateId);
-			const vacancy = await loadVacancy(deps.db, invitation.vacancyId);
-			if (!vacancy) throw new Error(`vacancy of invitation ${invitation.id} does not exist`);
-			const { decision, disclosure } = await showInInvitationContext(deps.db, subject, invitation, vacancy, deps.now());
+			const { decision, disclosure } = await showInInvitationContext(deps.db, subject, invitation, deps.now());
 			if (!can(subject, 'candidate.card.read', { show: decision }).allowed) return deny('not_recipient', candidateId);
 			if (!decision.allowed || decision.projection !== 'recipient') return deny('not_recipient', candidateId);
 			if (!disclosure?.fields.includes('resume')) return deny('resume_not_disclosed', candidateId);

@@ -6,6 +6,7 @@ import { createFieldCrypto } from '$lib/server/crypto/fields';
 import {
 	auditEvents,
 	candidates,
+	companies,
 	consentEvents,
 	disclosures,
 	documentAcceptances,
@@ -15,7 +16,6 @@ import {
 	jobs,
 	legalRepresentatives,
 	matchRulesets,
-	matchScores,
 	notifications,
 	productPolicies,
 	representations,
@@ -26,6 +26,7 @@ import { getHiringProcess, reportHiring } from '$lib/server/hiring/process';
 import { uuidv7 } from '$lib/server/ids';
 import type { InvitationDeps, RequestMeta } from '$lib/server/invitations/deps';
 import { recipientContacts, revokeDisclosureConsent } from '$lib/server/invitations/disclosure';
+import { ApiError } from '$lib/server/errors/api-error';
 import { Refusal } from '$lib/server/invitations/errors';
 import { createInvitationExpireHandler, createInvitationRemindDueHandler } from '$lib/server/invitations/jobs';
 import { getInvitation, listInvitations } from '$lib/server/invitations/read';
@@ -35,9 +36,9 @@ import type { JobHandler } from '$lib/server/jobs/handler';
 import { createLogger } from '$lib/server/jobs/log';
 import type { JobPayload, JobType } from '$lib/server/jobs/registry';
 import { matchRulesetParamsSchema } from '$lib/server/matching/params';
-import { storedComponent } from '$lib/server/matching/storage';
 import { closeOwnVacancy } from '$lib/server/vacancies/own';
 import shippedMatchRuleset from '../../taxonomy/match-ruleset.json';
+import { decide } from '../helpers/categories';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
 import { expectDbError, SQLSTATE } from '../helpers/errors';
 import {
@@ -48,7 +49,8 @@ import {
 	createOwnVacancy,
 	createPublishedDocument,
 	createTaxonomyVersion,
-	randomSha256
+	randomSha256,
+	offerTerms
 } from '../helpers/factories';
 
 const HOUR = 3_600_000;
@@ -253,6 +255,17 @@ async function minor(representativeStatus: 'authority_pending' | 'authority_veri
 	return { ...row, representationId: representation.id };
 }
 
+/** The error of the API an operation is refused with (a refusal of the invitation module or of the admission policy). */
+async function apiError(operation: Promise<unknown>): Promise<ApiError> {
+	try {
+		await operation;
+	} catch (error) {
+		if (error instanceof ApiError) return error;
+		throw error;
+	}
+	throw new Error('the operation was expected to be refused');
+}
+
 async function refusal(operation: Promise<unknown>): Promise<Refusal> {
 	try {
 		await operation;
@@ -269,11 +282,13 @@ async function send(
 	salary: [number, number] = [300_000, 340_000]
 ) {
 	return createInvitation(deps, company.subject, meta, {
-		vacancyId: company.vacancy.id,
-		candidateId: person.id,
-		salaryMin: salary[0],
-		salaryMax: salary[1],
-		message: 'Здравствуйте! Приглашаем на собеседование.'
+		...offerTerms({
+			vacancyId: company.vacancy.id,
+			salaryMin: salary[0],
+			salaryMax: salary[1],
+			message: 'Здравствуйте! Приглашаем на собеседование.'
+		}),
+		candidateId: person.id
 	});
 }
 
@@ -431,27 +446,68 @@ describe('the reverse flow', () => {
 		);
 	});
 
-	it('keeps the match of the pair at the first sending, however low: «why invited»', async () => {
+	it('sends an offer without a vacancy: the terms, «why you» and the category at the version are stored', async () => {
 		clock = new Date();
 		const company = await employer();
-		// No categorization run: nothing confirmed, the score is far below any store threshold.
 		const person = await candidate();
-
-		const sent = await send(company, person);
-		const [row] = await database.db.select().from(invitations).where(eq(invitations.id, sent.invitationId));
-		if (!row?.matchScoreId) throw new Error('the invitation does not refer to its match');
-		const [match] = await database.db.select().from(matchScores).where(eq(matchScores.id, row.matchScoreId));
-		expect(match).toMatchObject({
-			vacancyId: company.vacancy.id,
-			vacancyRevision: company.vacancy.revision,
-			candidateId: person.id,
-			candidateRevision: person.profileRevision,
-			evidenceRunId: null,
-			jobId: null
+		const sent = await createInvitation(deps, company.subject, meta, {
+			...offerTerms({ salaryTaxBase: 'net', workFormat: 'hybrid' }),
+			candidateId: person.id
 		});
-		expect(Number(match?.score)).toBeLessThan(0.3);
-		expect(match && storedComponent(match, 'required')).toEqual({ status: 'unavailable', value: null });
-		expect(match && storedComponent(match, 'reranker')).toEqual({ status: 'unavailable', value: null });
+		const [terms] = await database.db.select().from(invitationTerms).where(eq(invitationTerms.id, sent.termsId));
+		expect(terms).toMatchObject({
+			vacancyId: null,
+			vacancySnapshot: null,
+			// No category confirmed by a test yet: «категория не подтверждена».
+			category: null,
+			salaryCurrency: 'RUB',
+			salaryPeriod: 'month',
+			salaryTaxBase: 'net',
+			workFormat: 'hybrid',
+			contactMethod: { kind: 'email', value: 'hr@example.ru', note: null },
+			whyYou: [
+				{ text: 'Удалённый формат совпадает с предпочтениями', source: { kind: 'preference', ref: 'work_formats' } }
+			],
+			textCheck: { result: 'clean' }
+		});
+		const view = await getInvitation(deps, person.subject, sent.invitationId);
+		expect(view.versions[0]).toMatchObject({ vacancy: null, category: null, title: 'Backend-разработчик на Go' });
+		// Accepted without a vacancy: contacts reach the company and the hiring process opens all the same.
+		const answer = await accept(person, sent.invitationId, sent.termsId);
+		expect(answer).toMatchObject({ status: 'accepted', disclosedFields: ['full_name', 'email'] });
+		expect(answer.processId).not.toBeNull();
+		expect((await recipientContacts(deps, company.subject, meta, sent.invitationId)).email).toBe(person.email);
+
+		// A category confirmed by a test: the next version records it as it is at that moment.
+		const other = await employer();
+		await decide(database.db, person.id, { specialization: 'backend', grade: 'middle' });
+		const withCategory = await createInvitation(deps, other.subject, meta, { ...offerTerms(), candidateId: person.id });
+		const [recorded] = await database.db
+			.select({ category: invitationTerms.category })
+			.from(invitationTerms)
+			.where(eq(invitationTerms.id, withCategory.termsId));
+		expect(recorded?.category).toEqual({ specialization: 'backend', grade: 'middle' });
+	});
+
+	it('lets a company without a check send, labelled «не проверена», and refuses a suspended or rejected one', async () => {
+		clock = new Date();
+		const unverified = await employer({ status: 'submitted' });
+		const person = await candidate();
+		const sent = await createInvitation(deps, unverified.subject, meta, { ...offerTerms(), candidateId: person.id });
+		const view = await getInvitation(deps, person.subject, sent.invitationId);
+		expect(view.company).toMatchObject({ verification: 'unverified', activity: 'Разработка программного обеспечения' });
+		expect((await listInvitations(deps, person.subject, 'candidate'))[0]).toMatchObject({
+			companyVerification: 'unverified'
+		});
+
+		for (const status of ['suspended', 'rejected'] as const) {
+			const closed = await employer({ status: 'verified' });
+			await database.db.update(companies).set({ status }).where(eq(companies.id, closed.company.id));
+			const refused = await apiError(
+				createInvitation(deps, closed.subject, meta, { ...offerTerms(), candidateId: person.id })
+			);
+			expect([refused.code, refused.details?.[0]?.code]).toEqual(['forbidden', `company_${status}`]);
+		}
 	});
 
 	it('shows the invitation only to its company and its candidate', async () => {
@@ -468,7 +524,11 @@ describe('the reverse flow', () => {
 			candidatePseudonym: crypto.pseudonym(person.id, company.company.id)
 		});
 		const asCandidate = await getInvitation(deps, person.subject, sent.invitationId);
-		expect(asCandidate).toMatchObject({ viewer: 'candidate', candidatePseudonym: null, companyName: 'Пример' });
+		expect(asCandidate).toMatchObject({
+			viewer: 'candidate',
+			candidatePseudonym: null,
+			company: { displayName: 'Пример', verification: 'verified' }
+		});
 		expect((await refusal(getInvitation(deps, other.subject, sent.invitationId))).code).toBe('not_found');
 		expect((await refusal(getInvitation(deps, stranger.subject, sent.invitationId))).code).toBe('not_found');
 		expect((await listInvitations(deps, person.subject, 'candidate')).map((i) => i.id)).toEqual([sent.invitationId]);
@@ -484,10 +544,8 @@ describe('refusals of an invitation', () => {
 		const person = await candidate();
 		const error = await refusal(
 			createInvitation(deps, foreign.subject, meta, {
-				vacancyId: owner.vacancy.id,
-				candidateId: person.id,
-				salaryMin: 300_000,
-				salaryMax: 340_000
+				...offerTerms({ vacancyId: owner.vacancy.id, salaryMin: 300_000, salaryMax: 340_000 }),
+				candidateId: person.id
 			})
 		);
 		expect([error.code, error.reason]).toEqual(['not_found', 'foreign_vacancy']);
@@ -496,14 +554,6 @@ describe('refusals of an invitation', () => {
 			.from(auditEvents)
 			.where(and(eq(auditEvents.action, 'invitation.sent'), eq(auditEvents.subjectCandidateId, person.id)));
 		expect(denied).toMatchObject({ outcome: 'denied', details: { reason: 'foreign_vacancy' } });
-	});
-
-	it('forbids a member of an unverified company', async () => {
-		clock = new Date();
-		const company = await employer({ status: 'submitted' });
-		const person = await candidate();
-		const error = await refusal(send(company, person));
-		expect([error.code, error.reason]).toEqual(['forbidden', 'company_not_verified']);
 	});
 
 	it('refuses an external vacancy as not invitable', async () => {
@@ -520,10 +570,8 @@ describe('refusals of an invitation', () => {
 		});
 		const error = await refusal(
 			createInvitation(deps, company.subject, meta, {
-				vacancyId: external.id,
-				candidateId: person.id,
-				salaryMin: 250_000,
-				salaryMax: 300_000
+				...offerTerms({ vacancyId: external.id, salaryMin: 250_000, salaryMax: 300_000 }),
+				candidateId: person.id
 			})
 		);
 		expect(error.code).toBe('policy_violation');
@@ -552,10 +600,8 @@ describe('refusals of an invitation', () => {
 		);
 		const invite = (person: { id: string }, vacancyId: string) =>
 			createInvitation(deps, company.subject, meta, {
-				vacancyId,
-				candidateId: person.id,
-				salaryMin: 260_000,
-				salaryMax: 300_000
+				...offerTerms({ vacancyId, salaryMin: 260_000, salaryMax: 300_000 }),
+				candidateId: person.id
 			});
 
 		const pending = await minor('authority_pending');
@@ -579,16 +625,98 @@ describe('refusals of an invitation', () => {
 		// The representative answers by the link of a letter: tests/integration/representative-consent.test.ts.
 	});
 
-	it('refuses a second invitation of the same company, vacancy and candidate', async () => {
+	it('keeps one line of offers per company and candidate: an open offer is revised, a closed one reopened', async () => {
 		clock = new Date();
 		const company = await employer();
 		const person = await candidate();
 		const first = await send(company, person);
+		// Another vacancy changes nothing: the pair has one line.
+		const another = await createOwnVacancy(
+			database.db,
+			{ companyId: company.company.id, memberId: company.member.id, taxonomyVersionId },
+			{ salaryMin: 250_000, salaryMax: 350_000 }
+		);
+		const open = await refusal(
+			createInvitation(deps, company.subject, meta, {
+				...offerTerms({ vacancyId: another.id, salaryMin: 300_000, salaryMax: 340_000 }),
+				candidateId: person.id
+			})
+		);
+		expect([open.code, open.reason]).toEqual(['conflict', 'offer_open']);
 		await withdrawInvitation(deps, company.subject, meta, first.invitationId);
-		const error = await refusal(send(company, person, [260_000, 280_000]));
-		expect([error.code, error.reason]).toEqual(['conflict', 'invitation_exists']);
+		const early = await refusal(send(company, person, [260_000, 280_000]));
+		expect(early.details?.[0]?.code).toBe('reopen_cooldown');
+
+		clock = new Date(clock.getTime() + 15 * DAY);
+		const reopened = await send(company, person, [300_000, 340_000]);
+		expect(reopened).toMatchObject({ invitationId: first.invitationId, version: 2 });
 		const rows = await database.db.select().from(invitations).where(eq(invitations.candidateId, person.id));
 		expect(rows).toHaveLength(1);
+		expect(rows[0]).toMatchObject({ status: 'sent', reopenCount: 1 });
+	});
+
+	it('refuses a range not in roubles, an incomplete company profile and a blocked text', async () => {
+		clock = new Date();
+		const company = await employer();
+		const person = await candidate();
+		const usd = await apiError(
+			createInvitation(deps, company.subject, meta, {
+				...offerTerms({ salaryCurrency: 'USD' }),
+				candidateId: person.id
+			})
+		);
+		expect([usd.code, usd.details?.[0]?.code]).toEqual(['policy_violation', 'salary_not_rub']);
+
+		const blocked = await apiError(
+			createInvitation(deps, company.subject, meta, {
+				...offerTerms({
+					description: 'Ищем разработчика в команду платежей. Рассматриваем только мужчин до 35 лет, с опытом на Go.'
+				}),
+				candidateId: person.id
+			})
+		);
+		expect([blocked.code, blocked.details?.[0]?.code]).toEqual(['policy_violation', 'text_blocked']);
+
+		const bare = await employer();
+		await database.db
+			.update(companies)
+			.set({ description: null, activity: null })
+			.where(eq(companies.id, bare.company.id));
+		const incomplete = await apiError(
+			createInvitation(deps, bare.subject, meta, { ...offerTerms(), candidateId: person.id })
+		);
+		expect([incomplete.code, incomplete.details?.[0]?.code]).toEqual([
+			'policy_violation',
+			'company_profile_incomplete'
+		]);
+		expect(await database.db.select().from(invitations).where(eq(invitations.candidateId, person.id))).toEqual([]);
+	});
+
+	it('refuses «why you» without a source the company sees', async () => {
+		clock = new Date();
+		const company = await employer();
+		const person = await candidate();
+		const empty = await refusal(
+			createInvitation(deps, company.subject, meta, { ...offerTerms({ whyYou: [] }), candidateId: person.id })
+		);
+		expect([empty.code, empty.details?.[0]?.path]).toEqual(['validation_failed', 'why_you']);
+		const foreignReceipt = await refusal(
+			createInvitation(deps, company.subject, meta, {
+				...offerTerms({
+					whyYou: [
+						{
+							text: 'Финалист олимпиады',
+							source: { kind: 'fsp_fact', ref: 'r', receipt_handle: 'abcdefghijklmnopqrstuvwxyz' }
+						}
+					]
+				}),
+				candidateId: person.id
+			})
+		);
+		expect([foreignReceipt.code, foreignReceipt.details?.[0]?.path]).toEqual([
+			'validation_failed',
+			'why_you.0.source.receipt_handle'
+		]);
 	});
 
 	it('refuses an offer below the range of the vacancy', async () => {
@@ -608,11 +736,18 @@ describe('terms versions', () => {
 		const sent = await send(company, person, [300_000, 340_000]);
 
 		clock = new Date(clock.getTime() + HOUR);
-		const revised = await reviseInvitation(deps, company.subject, meta, sent.invitationId, {
-			salaryMin: 260_000,
-			salaryMax: 300_000,
-			message: 'Здравствуйте! Приглашаем на собеседование.'
-		});
+		const revised = await reviseInvitation(
+			deps,
+			company.subject,
+			meta,
+			sent.invitationId,
+			offerTerms({
+				vacancyId: company.vacancy.id,
+				salaryMin: 260_000,
+				salaryMax: 300_000,
+				message: 'Здравствуйте! Приглашаем на собеседование.'
+			})
+		);
 		expect(revised).toMatchObject({ version: 2, reopened: false });
 		expect(revised.changes).toMatchObject({
 			previous_version: 1,
@@ -647,11 +782,18 @@ describe('terms versions', () => {
 		await accept(person, sent.invitationId, revised.termsId);
 
 		// A revision of an accepted invitation keeps the accepted version until the candidate answers the new one.
-		const third = await reviseInvitation(deps, company.subject, meta, sent.invitationId, {
-			salaryMin: 280_000,
-			salaryMax: 320_000,
-			message: 'Здравствуйте! Приглашаем на собеседование.'
-		});
+		const third = await reviseInvitation(
+			deps,
+			company.subject,
+			meta,
+			sent.invitationId,
+			offerTerms({
+				vacancyId: company.vacancy.id,
+				salaryMin: 280_000,
+				salaryMax: 320_000,
+				message: 'Здравствуйте! Приглашаем на собеседование.'
+			})
+		);
 		expect(third.changes).toMatchObject({
 			salary_comparison: 'overlap',
 			salary_lowered: true,
@@ -676,7 +818,7 @@ describe('terms versions', () => {
 		).toHaveLength(1);
 	});
 
-	it('compares ranges only in the same unit: a changed tax base is not «lower»', async () => {
+	it('compares ranges only with the same tax base: a range on hand is not «lower» than one before tax', async () => {
 		clock = new Date();
 		const company = await employer();
 		const person = await candidate();
@@ -685,10 +827,13 @@ describe('terms versions', () => {
 			.update(vacancies)
 			.set({ salaryTaxBase: 'net', salaryMin: 200_000, salaryMax: 300_000 })
 			.where(eq(vacancies.id, company.vacancy.id));
-		const revised = await reviseInvitation(deps, company.subject, meta, sent.invitationId, {
-			salaryMin: 220_000,
-			salaryMax: 260_000
-		});
+		const revised = await reviseInvitation(
+			deps,
+			company.subject,
+			meta,
+			sent.invitationId,
+			offerTerms({ vacancyId: company.vacancy.id, salaryMin: 220_000, salaryMax: 260_000, salaryTaxBase: 'net' })
+		);
 		expect(revised.changes).toMatchObject({ salary_comparison: 'not_comparable', salary_lowered: false });
 	});
 
@@ -714,15 +859,24 @@ describe('terms versions', () => {
 
 		clock = new Date(clock.getTime() + DAY);
 		const early = await refusal(
-			reviseInvitation(deps, company.subject, meta, sent.invitationId, { salaryMin: 280_000, salaryMax: 300_000 })
+			reviseInvitation(
+				deps,
+				company.subject,
+				meta,
+				sent.invitationId,
+				offerTerms({ vacancyId: company.vacancy.id, salaryMin: 280_000, salaryMax: 300_000 })
+			)
 		);
 		expect(early.details?.[0]?.code).toBe('reopen_cooldown');
 
 		clock = new Date(clock.getTime() + 15 * DAY);
-		const reopened = await reviseInvitation(deps, company.subject, meta, sent.invitationId, {
-			salaryMin: 280_000,
-			salaryMax: 300_000
-		});
+		const reopened = await reviseInvitation(
+			deps,
+			company.subject,
+			meta,
+			sent.invitationId,
+			offerTerms({ vacancyId: company.vacancy.id, salaryMin: 280_000, salaryMax: 300_000 })
+		);
 		expect(reopened).toMatchObject({ version: 2, reopened: true });
 		expect(reopened.changes.salary_lowered).toBe(true);
 		const [row] = await database.db.select().from(invitations).where(eq(invitations.id, sent.invitationId));
@@ -757,10 +911,8 @@ describe('disclosure', () => {
 		const person = await candidate();
 		const sent = await send(company, person);
 		const otherSent = await createInvitation(deps, other.subject, meta, {
-			vacancyId: other.vacancy.id,
-			candidateId: person.id,
-			salaryMin: 300_000,
-			salaryMax: 340_000
+			...offerTerms({ vacancyId: other.vacancy.id, salaryMin: 300_000, salaryMax: 340_000 }),
+			candidateId: person.id
 		});
 
 		// Before acceptance nobody receives contacts.
@@ -821,10 +973,13 @@ describe('deadline jobs', () => {
 		const company = await employer();
 		const person = await candidate();
 		const sent = await send(company, person);
-		const revised = await reviseInvitation(deps, company.subject, meta, sent.invitationId, {
-			salaryMin: 300_000,
-			salaryMax: 350_000
-		});
+		const revised = await reviseInvitation(
+			deps,
+			company.subject,
+			meta,
+			sent.invitationId,
+			offerTerms({ vacancyId: company.vacancy.id, salaryMin: 300_000, salaryMax: 350_000 })
+		);
 		clock = new Date();
 		const expire = createInvitationExpireHandler({ now: () => new Date() });
 		expect(await runJob(expire, { terms_id: sent.termsId })).toBe(false);
@@ -896,11 +1051,18 @@ describe('a closed vacancy', () => {
 		const person = await candidate();
 		const sent = await send(company, person);
 		await accept(person, sent.invitationId, sent.termsId);
-		const revised = await reviseInvitation(deps, company.subject, meta, sent.invitationId, {
-			salaryMin: 320_000,
-			salaryMax: 360_000,
-			message: 'Здравствуйте! Приглашаем на собеседование.'
-		});
+		const revised = await reviseInvitation(
+			deps,
+			company.subject,
+			meta,
+			sent.invitationId,
+			offerTerms({
+				vacancyId: company.vacancy.id,
+				salaryMin: 320_000,
+				salaryMax: 360_000,
+				message: 'Здравствуйте! Приглашаем на собеседование.'
+			})
+		);
 
 		await closeVacancy(company);
 

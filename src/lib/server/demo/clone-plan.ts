@@ -280,21 +280,26 @@ export const DEMO_CLONE_PLAN: Readonly<Record<string, TableDecision>> = {
 			job_id: 'reference'
 		}
 	},
+	// Needs and offers (domain 13.5, 13.10, 23.2).
+	hiring_needs: { kind: 'owned', copy: true, edges: { company_id: 'owner', created_by_member_id: 'owner' } },
 	invitations: {
 		kind: 'owned',
 		copy: true,
 		edges: {
 			company_id: 'owner',
-			vacancy_id: 'owner',
 			candidate_id: 'owner',
 			sent_by_member_id: 'owner',
 			current_terms_id: 'mention',
 			accepted_terms_id: 'mention',
-			match_score_id: 'detach',
+			need_id: 'owner',
 			policy_id: 'reference'
 		}
 	},
-	invitation_terms: { kind: 'owned', copy: true, edges: { invitation_id: 'owner', created_by_member_id: 'owner' } },
+	invitation_terms: {
+		kind: 'owned',
+		copy: true,
+		edges: { invitation_id: 'owner', created_by_member_id: 'owner', vacancy_id: 'owner' }
+	},
 	invitation_responses: {
 		kind: 'owned',
 		copy: true,

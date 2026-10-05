@@ -6,11 +6,13 @@ import { openApiDocument, type ExternalRoute, type OpenApiDocument } from '../op
 import * as catalog from './catalog';
 import * as categories from './categories';
 import * as companies from './companies';
+import * as companyProfile from './company-profile';
 import * as grades from './grades';
 import * as hiring from './hiring';
 import * as integrations from './integrations';
 import * as invitations from './invitations';
 import * as me from './me';
+import * as needs from './needs';
 import * as operator from './operator';
 import * as partnerPools from './partner-pools';
 import * as taxonomy from './taxonomy';
@@ -47,6 +49,8 @@ export const API_OPERATIONS: readonly Operation[] = [
 	...Object.values(catalog),
 	...Object.values(partnerPools),
 	...Object.values(me),
+	...Object.values(companyProfile),
+	...Object.values(needs),
 	...Object.values(categories),
 	...Object.values(grades),
 	...Object.values(invitations),

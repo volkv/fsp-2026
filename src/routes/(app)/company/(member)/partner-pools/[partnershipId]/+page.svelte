@@ -79,7 +79,7 @@
 				result={member.result}
 				categories={member.card.categories ?? []}
 				labels={data.labels}
-				vacancies={member.vacancies}
+				offer={member.offer}
 			>
 				<CandidateCard
 					card={member.card}

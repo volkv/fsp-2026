@@ -30,6 +30,7 @@ import { loadAccessSubject } from '$lib/server/companies/subject';
 import { createFieldCrypto } from '$lib/server/crypto/fields';
 import {
 	auditEvents,
+	candidates,
 	companies,
 	competitionPartnerships,
 	consentEvents,
@@ -42,7 +43,7 @@ import { createReceiptSigner } from '$lib/server/fsp/receipts';
 import type { Competition, Result } from '$lib/server/fsp/types';
 import type { MatchingDeps } from '$lib/server/matching/deps';
 import { fail } from '$lib/server/ml/result';
-import { invitableVacancies, readPartnerPool } from '$lib/server/partner-pool/pool';
+import { poolOffers, readPartnerPool } from '$lib/server/partner-pool/pool';
 import type { Redis } from '$lib/server/redis';
 import { publishTaxonomy } from '$lib/server/taxonomy/publish';
 import { buildRelease, readTaxonomyDatasets } from '$lib/server/taxonomy/release';
@@ -374,7 +375,7 @@ describe('the pool a partner reads', () => {
 		});
 	});
 
-	it('does not depend on the catalog setting, while an invitation still needs a vacancy the candidate is visible for', async () => {
+	it('does not depend on the catalog setting, while an offer goes only by the general rules of an offer', async () => {
 		const contest = competition();
 		const { company, owner } = await partner();
 		const partnershipId = await open(company.id, contest.ref);
@@ -383,16 +384,31 @@ describe('the pool a partner reads', () => {
 		if (!owner.userId) throw new Error('member without user');
 		const subject = await subjectOf(owner.userId);
 		const pool = await readPartnerPool(matching(), subject, partnershipId);
-		// The profile is hidden from the catalog: the pool still shows it, but no vacancy can carry an invitation.
+		// The profile is hidden from the catalog: the pool still shows it, but no offer can reach it.
 		expect(pool.members.map((member) => member.candidateId)).toEqual([person.candidate.id]);
-		await createOwnVacancy(
+		const vacancy = await createOwnVacancy(
 			database.db,
 			{ companyId: company.id, memberId: owner.id, taxonomyVersionId },
 			{ status: 'published', publishedAt: new Date() }
 		);
-		expect(
-			(await invitableVacancies(database.db, subject, [person.candidate.id], new Date())).get(person.candidate.id)
-		).toEqual([]);
+		const offers = async () =>
+			(await poolOffers(database.db, subject, [person.candidate.id], new Date())).get(person.candidate.id);
+		expect(await offers()).toEqual({ withoutVacancy: false, vacancies: [] });
+
+		// In the catalog the offer goes from the card without a vacancy, or naming the vacancy.
+		await database.db.update(candidates).set({ visibility: 'catalog' }).where(eq(candidates.id, person.candidate.id));
+		await database.db.insert(consentEvents).values({
+			subjectCandidateId: person.candidate.id,
+			kind: 'catalog_visibility',
+			documentId: documents.catalog,
+			action: 'grant',
+			signerKind: 'subject',
+			signerUserId: person.user.id,
+			method: 'separate_screen_button',
+			evidence: {},
+			occurredAt: new Date(Date.now() - 60_000)
+		});
+		expect(await offers()).toEqual({ withoutVacancy: true, vacancies: [{ id: vacancy.id, title: vacancy.title }] });
 	});
 
 	it('filters by the specialization and the grade of the category in force', async () => {

@@ -37,7 +37,7 @@ export type DenyReason =
 	| 'age_unknown'
 	| 'age_ineligible'
 	| 'not_member'
-	| 'company_not_verified'
+	| 'company_blocked'
 	| 'blocked_by_candidate'
 	| 'no_catalog_consent'
 	| 'hidden_by_candidate'
@@ -87,7 +87,8 @@ export interface VisibilityFacts {
 	/** Company of a member viewer. */
 	viewerCompany?: {
 		membershipActive: boolean;
-		companyVerified: boolean;
+		/** The admission policy lets the company act now (`companyAdmission`, domain 5.1); verification is not required. */
+		companyAdmitted: boolean;
 		/** The actor holds `candidate.card.read` (a session member or an API key with that permission). */
 		hasCardReadPermission: boolean;
 		minorTermsAccepted: boolean;
@@ -98,7 +99,8 @@ export interface VisibilityFacts {
 		id: string;
 		companyId: string;
 		candidateId: string;
-		vacancyId: string;
+		/** The vacancy of the current terms version; `null` — an offer without a vacancy (domain 13.5). */
+		vacancyId: string | null;
 		status: 'sent' | 'viewed' | 'accepted' | 'declined' | 'expired' | 'withdrawn';
 		/** `effectiveConsent(contact_disclosure)` scoped to this invitation. */
 		disclosureConsentActive: boolean;
@@ -187,16 +189,16 @@ export function canShow(facts: VisibilityFacts, viewer: Viewer, context: ViewCon
 			: deny('not_visible');
 	}
 
-	// 7. Every other context is a member of a verified company not blocked by the candidate.
+	// 7. Every other context is a member of a company the admission policy lets act, not blocked by the candidate.
 	if (viewer.kind !== 'member') return deny('not_member');
 	const company = facts.viewerCompany;
 	if (!company?.membershipActive || !company.hasCardReadPermission) return deny('not_member');
-	if (!company.companyVerified) return deny('company_not_verified');
+	if (!company.companyAdmitted) return deny('company_blocked');
 	if (candidate.blockedCompanyIds.includes(viewer.companyId)) return deny('blocked_by_candidate');
 
 	switch (context.kind) {
 		// 8. Within an invitation: the recipient projection after acceptance with a disclosure consent;
-		// otherwise the catalog rules in the context of the invitation vacancy.
+		// otherwise the catalog rules in the context of the vacancy of the current terms, if they name one.
 		case 'invitation': {
 			const invitation = facts.invitation;
 			if (
@@ -207,7 +209,7 @@ export function canShow(facts: VisibilityFacts, viewer: Viewer, context: ViewCon
 				return deny('not_visible');
 			}
 			if (invitation.status === 'accepted' && invitation.disclosureConsentActive) return allow(facts, 'recipient');
-			return catalogDecision(facts, viewer, invitation.vacancyId, band);
+			return catalogDecision(facts, viewer, invitation.vacancyId ?? undefined, band);
 		}
 		// 9. Catalog.
 		case 'catalog':

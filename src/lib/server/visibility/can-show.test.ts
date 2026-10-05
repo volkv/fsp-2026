@@ -43,7 +43,7 @@ function adultFacts(overrides: Partial<VisibilityFacts> = {}): VisibilityFacts {
 		representativeVerified: false,
 		viewerCompany: {
 			membershipActive: true,
-			companyVerified: true,
+			companyAdmitted: true,
 			hasCardReadPermission: true,
 			minorTermsAccepted: false
 		},
@@ -59,7 +59,7 @@ function teenFacts(overrides: Partial<VisibilityFacts> = {}): VisibilityFacts {
 		representativeVerified: true,
 		viewerCompany: {
 			membershipActive: true,
-			companyVerified: true,
+			companyAdmitted: true,
 			hasCardReadPermission: true,
 			minorTermsAccepted: true
 		},
@@ -108,23 +108,23 @@ describe('canShow: catalog of an adult', () => {
 		expect(canShow(facts, member, { kind: 'catalog' })).toEqual({ allowed: false, reason: 'no_processing_consent' });
 	});
 
-	it('refuses an unverified company, a removed member and a blocked company', () => {
-		const unverified = adultFacts({
+	it('refuses a company the admission policy closed, a removed member and a blocked company', () => {
+		const closed = adultFacts({
 			viewerCompany: {
 				membershipActive: true,
-				companyVerified: false,
+				companyAdmitted: false,
 				hasCardReadPermission: true,
 				minorTermsAccepted: false
 			}
 		});
-		expect(canShow(unverified, member, { kind: 'catalog' })).toEqual({
+		expect(canShow(closed, member, { kind: 'catalog' })).toEqual({
 			allowed: false,
-			reason: 'company_not_verified'
+			reason: 'company_blocked'
 		});
 		const removed = adultFacts({
 			viewerCompany: {
 				membershipActive: false,
-				companyVerified: true,
+				companyAdmitted: true,
 				hasCardReadPermission: true,
 				minorTermsAccepted: false
 			}
@@ -228,7 +228,7 @@ describe('canShow: teenager 14–17', () => {
 				teenFacts({
 					viewerCompany: {
 						membershipActive: true,
-						companyVerified: true,
+						companyAdmitted: true,
 						hasCardReadPermission: true,
 						minorTermsAccepted: false
 					}
@@ -311,6 +311,16 @@ describe('canShow: invitation', () => {
 				invitationId: 'i-1'
 			})
 		).toMatchObject({ allowed: true, projection: 'catalog' });
+	});
+
+	it('reads an offer without a vacancy by the catalog rules: an adult is shown, a minor needs a vacancy', () => {
+		const withoutVacancy = { ...invitation, vacancyId: null, status: 'sent' as const, disclosureConsentActive: false };
+		expect(
+			canShow(adultFacts({ invitation: withoutVacancy }), member, { kind: 'invitation', invitationId: 'i-1' })
+		).toMatchObject({ allowed: true, projection: 'catalog' });
+		expect(
+			canShow(teenFacts({ invitation: withoutVacancy }), member, { kind: 'invitation', invitationId: 'i-1' })
+		).toEqual({ allowed: false, reason: 'minor_requires_vacancy' });
 	});
 
 	it('gives another company nothing through someone else’s invitation', () => {

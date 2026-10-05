@@ -29,7 +29,8 @@ import {
 	createOwnVacancy,
 	createPublishedDocument,
 	createTaxonomyVersion,
-	randomSha256
+	randomSha256,
+	offerTerms
 } from '../helpers/factories';
 
 const DAY = 86_400_000;
@@ -188,11 +189,13 @@ async function invitationAcross(companySession: string | null, candidateSession:
 	const company = await employer();
 	const person = await candidate();
 	const sent = await createInvitation(deps, company.subject, meta, {
-		vacancyId: company.vacancy.id,
-		candidateId: person.id,
-		salaryMin: 300_000,
-		salaryMax: 340_000,
-		message: 'Здравствуйте! Приглашаем на собеседование.'
+		...offerTerms({
+			vacancyId: company.vacancy.id,
+			salaryMin: 300_000,
+			salaryMax: 340_000,
+			message: 'Здравствуйте! Приглашаем на собеседование.'
+		}),
+		candidateId: person.id
 	});
 	await db.update(companies).set({ demoSessionId: companySession }).where(eq(companies.id, company.company.id));
 	await db.update(users).set({ demoSessionId: candidateSession }).where(eq(users.id, person.userId));

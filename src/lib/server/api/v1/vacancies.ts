@@ -469,7 +469,7 @@ export const publishVacancy = defineOperation({
 	tag: TAG,
 	summary: 'Опубликовать черновик',
 	description:
-		'`draft → published` для проверенной компании с полной вилкой и чистым текстом (или подтверждёнными ' +
+		'`draft → published` для компании, которую пропускает политика допуска, с полной вилкой и чистым текстом (или подтверждёнными ' +
 		'предупреждениями). Заблокированный проверкой текст уходит оператору: `status = pending_moderation`.',
 	auth: 'account',
 	permission: 'vacancy.write',

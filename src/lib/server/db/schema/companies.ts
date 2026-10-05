@@ -30,6 +30,12 @@ export const companies = pgTable(
 		legalName: text().notNull(),
 		displayName: text().notNull(),
 		status: text({ enum: COMPANY_STATUSES }).notNull(),
+		/** About the organization, up to 3000 characters; required to send an offer (domain 5.1, 13.5). */
+		description: text(),
+		/** Line of business, up to 200 characters; required with the description. */
+		activity: text(),
+		/** Contacts of the organization, not of an employee: `{website?, email?, phone?, telegram?}`. */
+		contacts: jsonb(),
 		registrySnapshot: jsonb(),
 		verifiedAt: ts(),
 		minorTermsDocumentId: uuid().references((): AnyPgColumn => legalDocuments.id),
@@ -45,11 +51,15 @@ export const companies = pgTable(
 	},
 	(t) => [
 		enumCheck('companies', 'status', t.status, COMPANY_STATUSES),
+		check('companies_description_length', sql`char_length(${t.description}) between 1 and 3000`),
+		check('companies_activity_length', sql`char_length(${t.activity}) between 1 and 200`),
+		check('companies_contacts_object', sql`jsonb_typeof(${t.contacts}) = 'object'`),
 		check('companies_demo_original', sql`not ${t.demoOriginal} or ${t.demoSessionId} is null`),
 		check('companies_demo_clone_of', sql`${t.demoCloneOf} is null or ${t.demoSessionId} is not null`),
 		// Length and digits only; the checksum is verified by the application.
 		check('companies_inn_format', sql`${t.inn} ~ '^([0-9]{10}|[0-9]{12})$'`),
-		check('companies_verified_at', sql`${t.status} not in ('verified', 'suspended') or ${t.verifiedAt} is not null`),
+		// A suspended company may never have been verified: the admission policy lets a company act before its check.
+		check('companies_verified_at', sql`${t.status} <> 'verified' or ${t.verifiedAt} is not null`),
 		// One live company per taxpayer number outside sessions and, separately, within each demo session: the clone of a
 		// company of the cast keeps its number, and visitors of different sessions register the same one (domain 19.3).
 		uniqueIndex('companies_inn_not_rejected')

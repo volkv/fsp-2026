@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import CandidateCard from '$lib/components/employer/candidate-card.svelte';
-	import InviteForm from '$lib/components/employer/invite-form.svelte';
+	import OfferForm from '$lib/components/employer/offer-form.svelte';
 	import { matchView } from '$lib/components/employer/model.js';
 	import FormMessage from '$lib/components/forms/form-message.svelte';
 	import PageHeader from '$lib/components/forms/page-header.svelte';
@@ -14,11 +14,14 @@
 
 	const problem = $derived(form?.problem ?? null);
 	const match = $derived(data.match ? matchView(data.match, data.labels) : null);
+	const vacancySalary = $derived(
+		data.vacancy.salary.currency === 'RUB' && data.vacancy.salary.period === 'month' ? data.vacancy.salary : null
+	);
 </script>
 
 <PageHeader
 	title={`Кандидат ${data.pseudonym}`}
-	description="Псевдоним виден только вашей компании. Имя и контакты — после принятия приглашения и только с согласия кандидата."
+	description="Псевдоним виден только вашей компании. Имя и контакты — после принятия предложения и только с согласия кандидата."
 >
 	{#snippet eyebrow()}
 		<a
@@ -45,8 +48,10 @@
 		<RecommendationNotice compact />
 		<Card.Root>
 			<Card.Header>
-				<Card.Title><h2 class="font-heading text-h3">Пригласить</h2></Card.Title>
-				<Card.Description>На вакансию «{data.vacancy.title}» — сразу с вилкой и сроком ответа.</Card.Description>
+				<Card.Title><h2 class="font-heading text-h3">Предложить работу</h2></Card.Title>
+				<Card.Description>
+					С вакансией «{data.vacancy.title}» — или без неё: вакансия в предложении по желанию.
+				</Card.Description>
 			</Card.Header>
 			<Card.Content class="grid gap-4">
 				{#if problem}
@@ -55,23 +60,42 @@
 				{#if data.invitation}
 					<div class="flex flex-wrap items-center gap-2 text-sm" data-testid="existing-invitation">
 						<InvitationStatus status={data.invitation.status} />
-						<span class="text-muted-foreground">Приглашение по этой вакансии уже отправлено.</span>
+						<span class="text-muted-foreground">
+							Предложение этому кандидату уже есть: новые условия — его новая версия.
+						</span>
 					</div>
 					<a
 						class={buttonVariants({ variant: 'outline' })}
 						href={resolve('/(app)/company/(member)/invitations/[id]', { id: data.invitation.id })}
 					>
-						Открыть приглашение
+						Открыть предложение
 					</a>
-				{:else if data.vacancy.status !== 'published'}
-					<p class="text-sm text-muted-foreground">
-						Приглашать можно по опубликованной вакансии. Опубликуйте её, чтобы отправить приглашение.
+				{:else if !data.offer.profileComplete}
+					<p class="text-sm text-muted-foreground" data-testid="profile-incomplete">
+						Кандидат увидит профиль компании в предложении. Заполните описание и направление деятельности в
+						<a class="text-link underline" href={resolve('/company/profile')}>профиле компании</a>.
 					</p>
 				{:else}
-					<InviteForm
+					<OfferForm
 						action="?/invite"
-						salary={data.vacancy.salary}
-						responseWindowHours={data.responseWindowHours}
+						vacancies={data.offer.vacancies}
+						workFormats={data.offer.workFormats}
+						whyYouOptions={data.whyYouOptions}
+						initial={{
+							title: data.vacancy.title,
+							description: data.vacancy.description,
+							salaryMin: vacancySalary?.min ?? null,
+							salaryMax: vacancySalary?.max ?? null,
+							taxBase: data.vacancy.salary.taxBase,
+							workFormat: data.vacancy.workFormat,
+							contactKind: 'email',
+							contactValue: '',
+							contactNote: null,
+							vacancyId: data.vacancy.status === 'published' ? data.vacancy.id : null,
+							message: null,
+							whyYou: []
+						}}
+						responseWindowHours={data.offer.responseWindowHours}
 						problems={problem?.fields ?? {}}
 					/>
 				{/if}

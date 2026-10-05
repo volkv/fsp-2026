@@ -23,7 +23,7 @@
 
 <PageHeader
 	title="Приглашения"
-	description="Работодатель выходит на тебя сам — с вакансией, вилкой и сроком ответа. Условия отправленного приглашения не меняются: пересмотр приходит новой версией."
+	description="Работодатель выходит на тебя сам — с описанием, вилкой в рублях, «почему вы» и сроком ответа. Условия отправленного приглашения не меняются: пересмотр приходит новой версией."
 >
 	{#snippet eyebrow()}<a class="underline underline-offset-4" href={resolve('/me/profile')}>Профиль</a>{/snippet}
 </PageHeader>
@@ -52,11 +52,11 @@
 					data-invitation-status={item.status}
 				>
 					<span class="grid gap-1">
-						<span class="font-heading text-lg">{item.vacancyTitle}</span>
+						<span class="font-heading text-lg">{item.title}</span>
 						<span class="text-sm text-muted-foreground">
-							{item.companyName} · отправлено {formatDate(item.sentAt)}{item.version > 1
-								? ` · версия ${item.version}`
-								: ''}
+							{item.companyName}{item.companyVerification === 'verified' ? '' : ' · компания не проверена'} · отправлено {formatDate(
+								item.sentAt
+							)}{item.version > 1 ? ` · версия ${item.version}` : ''}
 						</span>
 						<SalaryRange salary={item.salary} />
 					</span>

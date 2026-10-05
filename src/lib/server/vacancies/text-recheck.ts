@@ -15,7 +15,7 @@ import { enqueueJob, type JobCreator } from '$lib/server/jobs/queue';
 import { jobSpec } from '$lib/server/jobs/registry';
 import { LOCK_NAMESPACE } from '$lib/server/jobs/scheduler';
 import { loadStaleAfterDays, recomputeCluster } from './clusters';
-import { companyIsVerified, enqueueRevisionDerivations } from './derivations';
+import { companyAdmitted, enqueueRevisionDerivations } from './derivations';
 import { moderationCaseOf, publishNow } from './own';
 import {
 	TEXT_CHECK_VERSION,
@@ -117,7 +117,7 @@ async function clearModeration(
 ): Promise<void> {
 	const resumeTo = moderationCaseOf(textCheckSchema.parse(row.textCheck)).resume_to;
 	if (row.companyId === null) throw new Error('an own vacancy carries no company');
-	const status = (await companyIsVerified(tx, row.companyId)) ? resumeTo : 'draft';
+	const status = (await companyAdmitted(tx, row.companyId)) ? resumeTo : 'draft';
 	const [cleared] = await tx
 		.update(vacancies)
 		.set({

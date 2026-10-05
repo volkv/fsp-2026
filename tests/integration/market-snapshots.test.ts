@@ -282,7 +282,7 @@ function viewer(demoSessionId: string | null = null): CatalogViewer {
 		},
 		company: {
 			membershipActive: true,
-			companyVerified: true,
+			companyAdmitted: true,
 			hasCardReadPermission: true,
 			minorTermsAccepted: false
 		}

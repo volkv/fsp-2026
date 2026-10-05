@@ -332,7 +332,7 @@ describe('catalog card: refusals', () => {
 		}
 	});
 
-	it('refuses a vacancy that is not an open own one, and a member of a company that is not verified', async () => {
+	it('refuses a vacancy that is not an open own one, and a member of a company the admission policy closed', async () => {
 		const own = await employer();
 		const other = await employer();
 		const person = await candidate();
@@ -353,7 +353,7 @@ describe('catalog card: refusals', () => {
 		const membership = own.subject.membership;
 		if (!membership) throw new Error('employer without membership');
 		await expect(
-			find({ ...own.subject, membership: { ...membership, companyStatus: 'submitted' } }, pseudonym)
+			find({ ...own.subject, membership: { ...membership, companyStatus: 'suspended' } }, pseudonym)
 		).rejects.toMatchObject({ code: 'forbidden' });
 	});
 

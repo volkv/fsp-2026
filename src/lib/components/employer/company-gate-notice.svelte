@@ -5,27 +5,28 @@
 	import type { CompanyStatus } from './model.js';
 
 	/**
-	 * Why the catalog, publication and invitations are closed right now (domain 4.2, 5.1): only a company verified by
-	 * an FSP operator acts towards candidates. Vacancies can be prepared meanwhile.
+	 * The state of the company under the admission policy (domain 5.1): a company without a check acts towards
+	 * candidates — the catalog, vacancies and offers are open, and candidates see the label «не проверена»; a suspended
+	 * or rejected company is closed.
 	 */
 	let { status, role }: { status: Exclude<CompanyStatus, 'verified'>; role: 'owner' | 'recruiter' } = $props();
 
 	const texts: Record<Exclude<CompanyStatus, 'verified'>, { title: string; text: string }> = {
 		draft: {
-			title: 'Компания ещё не подана на проверку',
-			text: 'Каталог кандидатов, публикация вакансий и приглашения откроются после проверки оператором ФСП. Черновики вакансий можно готовить уже сейчас.'
+			title: 'Компания не проверена',
+			text: 'Каталог кандидатов, вакансии и предложения открыты. Кандидаты видят в предложениях метку «компания не проверена»; проверка оператором ФСП её снимает и необязательна.'
 		},
 		submitted: {
 			title: 'Компания на проверке у оператора ФСП',
-			text: 'Оператор сверяет ИНН и полномочия заявителя. До решения каталог кандидатов закрыт, публиковать и приглашать нельзя; черновики вакансий готовить можно.'
+			text: 'Работать с кандидатами можно уже сейчас; до решения оператора кандидаты видят метку «компания не проверена».'
 		},
 		rejected: {
 			title: 'Проверка компании отклонена',
-			text: 'Каталог, публикация и приглашения закрыты. Причина — в профиле компании; исправьте реквизиты и подайте заявку снова.'
+			text: 'Каталог, вакансии и предложения закрыты. Причина — в профиле компании.'
 		},
 		suspended: {
 			title: 'Компания приостановлена оператором ФСП',
-			text: 'Каталог, приглашения и ключи API закрыты. Уже начатые процессы найма остаются открытыми.'
+			text: 'Каталог, предложения и ключи API закрыты. Уже начатые процессы найма остаются открытыми.'
 		}
 	};
 	const content = $derived(texts[status]);

@@ -234,8 +234,8 @@ test('the operator approves a submitted company from the queue', async ({ page, 
 	await operator.getByLabel('Причина').selectOption('complaint');
 	await operator.getByRole('button', { name: 'Приостановить' }).click();
 	await expect(operator.getByText('Компания приостановлена')).toBeVisible();
-	await operator.getByRole('button', { name: 'Вернуть в проверенные' }).click();
-	await expect(operator.getByText('Компания снова проверена.')).toBeVisible();
+	await operator.getByRole('button', { name: 'Вернуть к работе' }).click();
+	await expect(operator.getByText('Компания снова работает', { exact: false })).toBeVisible();
 	await operator.context().close();
 });
 

@@ -14,7 +14,7 @@
 
 <PageHeader
 	title="Приглашения"
-	description="Отправленные кандидатам предложения: статус, текущая версия условий и срок ответа."
+	description="Предложения работы кандидатам: статус, текущая версия условий и срок ответа. Отправленные условия не меняются — пересмотр создаёт новую версию."
 />
 
 {#if data.invitations.length === 0}
@@ -22,7 +22,9 @@
 		<Empty.Header>
 			<Empty.Media variant="icon"><InboxIcon aria-hidden="true" /></Empty.Media>
 			<Empty.Title>Приглашений пока нет</Empty.Title>
-			<Empty.Description>Откройте кандидатов под вакансию и пригласите подходящих — сразу с вилкой.</Empty.Description>
+			<Empty.Description
+				>Откройте карточку кандидата в каталоге и предложите работу — с вилкой в рублях и «почему вы».</Empty.Description
+			>
 		</Empty.Header>
 	</Empty.Root>
 {:else}
@@ -31,7 +33,7 @@
 			<Table.Header>
 				<Table.Row>
 					<Table.Head>Кандидат</Table.Head>
-					<Table.Head>Вакансия</Table.Head>
+					<Table.Head>Предложение</Table.Head>
 					<Table.Head>Условия</Table.Head>
 					<Table.Head>Статус</Table.Head>
 					<Table.Head>Отправлено</Table.Head>
@@ -48,7 +50,12 @@
 								{invitation.candidatePseudonym}
 							</a>
 						</Table.Cell>
-						<Table.Cell>{invitation.vacancyTitle ?? 'Вакансия недоступна'}</Table.Cell>
+						<Table.Cell>
+							<span class="font-medium">{invitation.title}</span>
+							<span class="block text-xs text-muted-foreground">
+								{invitation.vacancyTitle ? `Вакансия «${invitation.vacancyTitle}»` : 'Без вакансии'}
+							</span>
+						</Table.Cell>
 						<Table.Cell>
 							<SalaryRange salary={invitation.salary} />
 							<span class="text-xs text-muted-foreground">версия {invitation.version}</span>

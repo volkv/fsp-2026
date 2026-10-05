@@ -12,10 +12,12 @@ import * as v1 from '$lib/server/api/v1';
 import * as catalog from '$lib/server/api/v1/catalog';
 import * as categories from '$lib/server/api/v1/categories';
 import * as companies from '$lib/server/api/v1/companies';
+import * as companyProfile from '$lib/server/api/v1/company-profile';
 import * as grades from '$lib/server/api/v1/grades';
 import * as hiring from '$lib/server/api/v1/hiring';
 import * as invitations from '$lib/server/api/v1/invitations';
 import * as me from '$lib/server/api/v1/me';
+import * as needs from '$lib/server/api/v1/needs';
 import * as operator from '$lib/server/api/v1/operator';
 import * as partnerPools from '$lib/server/api/v1/partner-pools';
 import * as taxonomy from '$lib/server/api/v1/taxonomy';
@@ -34,10 +36,12 @@ const exported = new Map<string, Operation>(
 		...catalog,
 		...categories,
 		...companies,
+		...companyProfile,
 		...grades,
 		...hiring,
 		...invitations,
 		...me,
+		...needs,
 		...operator,
 		...partnerPools,
 		...taxonomy,
@@ -234,12 +238,42 @@ describe('OpenAPI document of /api/v1', () => {
 		expect(withdrawal.responses['201']).toBeUndefined();
 	});
 
-	it('does not accept the currency, period or tax base of an invitation: they come from the vacancy', () => {
+	it('takes an offer without a vacancy: the range in roubles with its tax base, «why you» and the contact', () => {
 		const createInvitation = document.paths['/api/v1/invitations']?.post as {
-			requestBody: { content: { 'application/json': { schema: { properties: Record<string, unknown> } } } };
+			requestBody: {
+				content: { 'application/json': { schema: { properties: Record<string, unknown>; required: string[] } } };
+			};
 		};
-		const fields = Object.keys(createInvitation.requestBody.content['application/json'].schema.properties);
-		expect(fields.sort()).toEqual(['candidate_pseudonym', 'message', 'salary_max', 'salary_min', 'vacancy_id']);
+		const schema = createInvitation.requestBody.content['application/json'].schema;
+		expect(Object.keys(schema.properties).sort()).toEqual([
+			'candidate_pseudonym',
+			'contact_method',
+			'description',
+			'message',
+			'need_id',
+			'salary_currency',
+			'salary_max',
+			'salary_min',
+			'salary_tax_base',
+			'title',
+			'vacancy_id',
+			'why_you',
+			'work_format'
+		]);
+		// The vacancy is optional; the period is not taken: an offer is a range per month.
+		expect(schema.required).not.toContain('vacancy_id');
+		expect(schema.required).toEqual(expect.arrayContaining(['salary_currency', 'salary_tax_base', 'why_you']));
+		expect(JSON.stringify(schema.properties.salary_currency)).toContain('RUB');
+	});
+
+	it('describes the profile of the company and the needs with their recommended categories', () => {
+		expect(Object.keys(document.paths['/api/v1/company/profile'] ?? {}).sort()).toEqual(['get', 'patch']);
+		expect(Object.keys(document.paths['/api/v1/needs'] ?? {}).sort()).toEqual(['get', 'post']);
+		expect(Object.keys(document.paths['/api/v1/needs/{need_id}'] ?? {}).sort()).toEqual(['get', 'patch']);
+		const categories = document.paths['/api/v1/needs/{need_id}/categories']?.get as {
+			responses: Record<string, unknown>;
+		};
+		expect(Object.keys(categories.responses)).toEqual(expect.arrayContaining(['200', '404', '503']));
 	});
 });
 

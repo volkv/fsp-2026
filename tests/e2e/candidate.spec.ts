@@ -33,7 +33,7 @@ import type { AchievementsSnapshot } from '$lib/server/fsp/types';
 import { hashPassword } from '$lib/server/auth/password';
 import { createLogger } from '$lib/server/jobs/log';
 import { completeJob, enqueueJob, type ClaimedJob } from '$lib/server/jobs/queue';
-import { createCompany, createMember, createOwnVacancy } from '../helpers/factories';
+import { createCompany, createMember, createOwnVacancy, offerTerms } from '../helpers/factories';
 
 // `$env/dynamic/private`, which these modules need through `$lib/server/config`, only SvelteKit provides; the hook
 // that resolves it for a plain Node test process is registered process-wide, ahead of every worker's first import
@@ -303,11 +303,13 @@ async function seedInvitation(candidateId: string): Promise<string> {
 		subject,
 		{ requestId: `e2e-${randomUUID()}` },
 		{
-			vacancyId: vacancy.id,
-			candidateId,
-			salaryMin: 260_000,
-			salaryMax: 340_000,
-			message: 'Нам понравился ваш результат на Кубке — давайте познакомимся.'
+			...offerTerms({
+				vacancyId: vacancy.id,
+				salaryMin: 260_000,
+				salaryMax: 340_000,
+				message: 'Нам понравился ваш результат на Кубке — давайте познакомимся.'
+			}),
+			candidateId
 		}
 	);
 	return sent.invitationId;

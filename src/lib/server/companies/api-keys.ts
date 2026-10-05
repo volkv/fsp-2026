@@ -4,7 +4,7 @@
 import { randomBytes } from 'node:crypto';
 import { and, desc, eq, isNull, lt, or } from 'drizzle-orm';
 import type { Actor } from '$lib/server/access/actor';
-import { PERMISSIONS, rolesOf, type Permission } from '$lib/server/access/permissions';
+import { companyAdmission, PERMISSIONS, rolesOf, type Permission } from '$lib/server/access/permissions';
 import { recordAuditEvent } from '$lib/server/audit/record';
 import { newSecret, secretsEqual, sha256Hex } from '$lib/server/auth/secrets';
 import { base32 } from '$lib/server/crypto/encoding';
@@ -13,13 +13,13 @@ import { apiKeys, companies, companyMembers } from '$lib/server/db/schema';
 import { ApiError, type ErrorDetail } from '$lib/server/errors/api-error';
 import {
 	auditActorOf,
-	conflict,
 	invalid,
 	requirePermission,
 	sessionUserId,
 	type ActionContext,
 	type CompanyDeps
 } from './context';
+import { admissionRefusal } from './gate';
 import { lockCompany } from './rows';
 
 const TOKEN_PATTERN = /^fspk_([a-z2-7]{8})_([A-Za-z0-9_-]{43})$/;
@@ -88,9 +88,8 @@ export async function createApiKey(
 	const secret = newSecret();
 	const created = await deps.db.transaction(async (tx) => {
 		const company = await lockCompany(tx, companyId);
-		if (company.status !== 'verified') {
-			throw conflict('company_not_verified', 'Ключи API выдаются только проверенной компании');
-		}
+		const admission = companyAdmission(company.status);
+		if (!admission.admitted) throw admissionRefusal(admission.reason);
 		const [key] = await tx
 			.insert(apiKeys)
 			.values({
@@ -203,7 +202,8 @@ export async function authenticateApiKey(executor: Executor, token: string, now:
 	if (row.revokedAt !== null) return null;
 	if (row.expiresAt !== null && row.expiresAt.getTime() <= now.getTime()) return null;
 	if (row.memberStatus !== 'active' || row.memberCompanyId !== row.companyId || row.userId === null) return null;
-	if (row.companyStatus !== 'verified') return null;
+	// The admission policy closes the keys of a suspended or rejected company at once (domain 5.1).
+	if (!companyAdmission(row.companyStatus).admitted) return null;
 	await executor
 		.update(apiKeys)
 		.set({ lastUsedAt: now })

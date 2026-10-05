@@ -40,7 +40,6 @@ import {
 	candidateSide,
 	journalRefusal,
 	lockInvitation,
-	loadVacancy,
 	memberSide,
 	termsSalary,
 	type InvitationRow,
@@ -57,7 +56,7 @@ import {
 	type PendingRepresentativeDisclosure,
 	type ResponseResult
 } from './respond';
-import type { OfferedSalary, VacancySnapshot } from './terms';
+import type { OfferedSalary } from './terms';
 import { showInInvitationContext } from './visibility';
 
 export interface RecipientContacts {
@@ -88,9 +87,7 @@ export async function recipientContacts(
 				const member = memberSide(subject);
 				const invitation = await lockInvitation(tx, invitationId);
 				if (!invitation || invitation.companyId !== member.companyId) throw refuse('not_found', 'foreign_invitation');
-				const vacancy = await loadVacancy(tx, invitation.vacancyId);
-				if (!vacancy) throw new Error(`vacancy of invitation ${invitation.id} does not exist`);
-				const { decision, disclosure } = await showInInvitationContext(tx, subject, invitation, vacancy, now);
+				const { decision, disclosure } = await showInInvitationContext(tx, subject, invitation, now);
 				if (!decision.allowed) throw refuse('not_found', decision.reason);
 				if (decision.projection !== 'recipient' || !disclosure) throw refuse('not_found', 'no_disclosure_consent');
 
@@ -226,7 +223,8 @@ export async function revokeDisclosureConsent(
 export interface RepresentativeDisclosureRequest {
 	candidateName: string;
 	companyName: string;
-	vacancyTitle: string;
+	/** The title of the offer version the candidate accepted. */
+	offerTitle: string;
 	salary: OfferedSalary;
 	message: string | null;
 	fields: DisclosureField[];
@@ -297,7 +295,7 @@ export async function representativeDisclosureRequest(
 	return {
 		candidateName: facts.candidateName,
 		companyName: facts.companyName,
-		vacancyTitle: facts.vacancyTitle,
+		offerTitle: facts.offerTitle,
 		salary: termsSalary(linked.terms),
 		message: linked.terms.message,
 		fields: linked.pending.fields,
@@ -318,7 +316,7 @@ async function letterFacts(executor: Executor, linked: LinkedRequest) {
 	return {
 		companyName: row.companyName,
 		candidateName: row.candidateName ?? 'Кандидат',
-		vacancyTitle: (linked.terms.vacancySnapshot as VacancySnapshot).title
+		offerTitle: linked.terms.title
 	};
 }
 
@@ -332,7 +330,7 @@ async function answerByLink(
 	if (consumed?.targetRef == null) throw refuse('not_found', 'invalid_link');
 	const terms = await termsOf(tx, consumed.targetRef);
 	if (!terms) throw refuse('not_found', 'invalid_link');
-	// The vacancy is locked before the invitation, in the order closing the vacancy takes them.
+	// The vacancy of the version is locked before the offer, in the order closing the vacancy takes them.
 	const vacancy = await lockVacancyOf(tx, terms.invitationId);
 	const linked = await linkedRequest(tx, terms, await lockInvitation(tx, terms.invitationId), now);
 	if ('refused' in linked) throw refuse('conflict', linked.refused);
@@ -511,7 +509,7 @@ export async function sendDisclosureLetter(
 			representativeName: contact.representativeName,
 			candidateName: facts.candidateName,
 			companyName: facts.companyName,
-			vacancyTitle: facts.vacancyTitle,
+			offerTitle: facts.offerTitle,
 			salary: termsSalary(linked.terms),
 			fields: linked.pending.fields,
 			dueAt: linked.pending.dueAt,

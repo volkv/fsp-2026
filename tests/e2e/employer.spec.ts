@@ -1,8 +1,8 @@
 // The employer cabinet in the browser against the local infrastructure (`make infra`) with the models switched off:
 // an employer registers, the operator's decision makes the company verified, a candidate visible in the catalog is
 // seeded in the database with a category confirmed by a test, and the employer goes from pasted vacancy text (the
-// rules mode without the model) to the candidates for the vacancy, the catalog card and the invitation. An
-// unverified company cannot publish. The main screens have no accessibility violations.
+// rules mode without the model) to the candidates for the vacancy, the catalog card and the offer. A company without
+// a check publishes and searches under the label «не проверена». The main screens have no accessibility violations.
 //
 // Employers register through the form: their password, address and session need the field keys of the application,
 // which only the running application holds. Everything else is written directly, since it is state the product
@@ -294,6 +294,16 @@ test('a verified company turns pasted text into a vacancy, finds a candidate and
 	const companyId = await verifyCompany(inn);
 	const pseudonym = fieldCrypto().pseudonym(seeded.candidateId, companyId);
 
+	// The profile the candidate reads in an offer: without it an offer is not sent.
+	await page.goto('/company/profile');
+	const profile = page.getByTestId('company-public-profile');
+	await profile.getByLabel('Направление деятельности').fill('Платёжные сервисы');
+	await profile.getByLabel('О компании').fill('Разрабатываем платёжный шлюз и сервисы расчётов для банков.');
+	await profile.getByLabel('Telegram').fill('@severny_kod_hr');
+	await profile.getByRole('button', { name: 'Сохранить профиль' }).click();
+	await expect(page.getByText('Профиль компании сохранён.', { exact: false })).toBeVisible();
+	await expectNoAxeViolations(page);
+
 	await page.goto('/company/vacancies');
 	await expect(page.getByRole('heading', { level: 1 })).toHaveText('Вакансии');
 	await expectNoAxeViolations(page);
@@ -386,10 +396,16 @@ test('a verified company turns pasted text into a vacancy, finds a candidate and
 	await expect(page.locator('body')).not.toContainText('Кандидат e2e');
 	await page.goto(cardUrl);
 
-	const invite = page.getByTestId('invite-form');
-	await expect(invite.getByLabel(/^От/)).toHaveValue('200000');
-	await invite.getByLabel(/Сообщение/).fill('Здравствуйте! Будем рады обсудить вакансию.');
-	await invite.getByRole('button', { name: 'Пригласить' }).click();
+	// The offer: the vacancy fills the title and the range; the company writes the rest and picks «why you».
+	const offer = page.getByTestId('offer-form');
+	await expect(offer.getByLabel(/^От/)).toHaveValue('200000');
+	await offer
+		.getByLabel(/^Описание/)
+		.fill('Команда платёжных сервисов: Go, PostgreSQL, релизы каждую неделю, код-ревью и дежурства по очереди.');
+	await offer.getByLabel('Контакт', { exact: true }).fill('hr@example.ru');
+	await offer.getByTestId('why-you').getByRole('checkbox').first().check();
+	await offer.getByLabel(/Личное сообщение/).fill('Здравствуйте! Будем рады обсудить вакансию.');
+	await offer.getByRole('button', { name: 'Отправить предложение' }).click();
 
 	await expect(page).toHaveURL(/\/company\/invitations\/[0-9a-f-]+\?sent=1$/);
 	await expect(page.getByText('Приглашение отправлено.')).toBeVisible();
@@ -477,21 +493,21 @@ test('hovering the candidate link does not open the card; clicking it does', asy
 	expect(await cardViews()).toBe(1);
 });
 
-test('an unverified company prepares a vacancy but cannot publish it or open the catalog', async ({ page }) => {
+test('a company without a check publishes a vacancy and opens the catalog, labelled as not verified', async ({
+	page
+}) => {
 	await registerEmployer(page, 'Компания на проверке e2e');
 
 	await page.goto('/company/vacancies/new');
-	await expect(page.getByTestId('company-gate')).toContainText('не подана на проверку');
+	await expect(page.getByTestId('company-gate')).toContainText('Компания не проверена');
 	await fillVacancyForm(page, 'Стажёр-разработчик на Go', 'Стажировка в команде бэкенда: Go, PostgreSQL, код-ревью.');
 	await page.getByRole('button', { name: 'Сохранить черновик' }).click();
 	await expect(page.getByRole('heading', { level: 1 })).toHaveText('Стажёр-разработчик на Go');
 
 	await page.getByRole('button', { name: 'Опубликовать' }).click();
-	await expect(page.locator('[data-tone="error"]')).toContainText(
-		'Публиковать вакансии может только проверенная компания'
-	);
+	await expect(page.getByText('Опубликована').first()).toBeVisible();
 
 	await page.goto('/company/candidates');
-	await expect(page.getByText('Каталог кандидатов закрыт до проверки компании')).toBeVisible();
+	await expect(page.getByText('Каталог кандидатов закрыт')).toHaveCount(0);
 	await expectNoAxeViolations(page);
 });

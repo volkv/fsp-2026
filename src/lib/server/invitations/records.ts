@@ -1,5 +1,5 @@
-// Reads shared by the invitation entry points: the acting side, the invitation under a row lock, its vacancy and the
-// history of its terms.
+// Reads shared by the invitation entry points: the acting side, the invitation under a row lock, the vacancy a version
+// names and the history of its terms.
 import { asc, eq } from 'drizzle-orm';
 import type { AccessSubject } from '$lib/server/access/permissions';
 import { auditActor, type RequestMeta } from './deps';
@@ -7,7 +7,15 @@ import { recordAuditEvent, type AuditEventInput } from '$lib/server/audit/record
 import type { Database, Executor, Transaction } from '$lib/server/db';
 import { invitations, invitationTerms, vacancies } from '$lib/server/db/schema';
 import { refuse, Refusal } from './errors';
-import type { OfferedSalary, TermsVersionFacts, VacancySnapshot } from './terms';
+import type {
+	CategorySnapshot,
+	ContactMethod,
+	OfferedSalary,
+	TermsContent,
+	TermsVersionFacts,
+	VacancySnapshot,
+	WhyYouPoint
+} from './terms';
 
 export type InvitationRow = typeof invitations.$inferSelect;
 export type TermsRow = typeof invitationTerms.$inferSelect;
@@ -58,32 +66,37 @@ export async function loadTerms(executor: Executor, termsId: string): Promise<Te
 }
 
 export function termsSalary(row: TermsRow): OfferedSalary {
-	const {
-		salaryMin: min,
-		salaryMax: max,
-		salaryCurrency: currency,
-		salaryPeriod: period,
-		salaryTaxBase: taxBase
-	} = row;
+	const { salaryMin: min, salaryMax: max, salaryCurrency, salaryPeriod, salaryTaxBase: taxBase } = row;
+	// The database holds the same: a full range in roubles per month with a known tax base (`invitation_terms_salary_rub`).
 	if (
 		min === null ||
 		max === null ||
-		currency === null ||
-		period === null ||
+		salaryCurrency !== 'RUB' ||
+		salaryPeriod !== 'month' ||
 		(taxBase !== 'gross' && taxBase !== 'net')
 	) {
-		throw new Error(`terms ${row.id} have no full salary`);
+		throw new Error(`terms ${row.id} have no full range in roubles per month`);
 	}
-	return { min, max, currency, period, taxBase };
+	return { min, max, currency: 'RUB', period: 'month', taxBase };
+}
+
+/** What a stored version offers, read back in the shape it was written. */
+export function termsContent(row: TermsRow): TermsContent {
+	return {
+		title: row.title,
+		description: row.description,
+		vacancy: row.vacancyId === null ? null : { id: row.vacancyId, snapshot: row.vacancySnapshot as VacancySnapshot },
+		category: row.category as CategorySnapshot | null,
+		salary: termsSalary(row),
+		workFormat: row.workFormat,
+		contactMethod: row.contactMethod as ContactMethod,
+		whyYou: row.whyYou as WhyYouPoint[],
+		message: row.message
+	};
 }
 
 export function termsFacts(row: TermsRow): TermsVersionFacts {
-	return {
-		version: row.version,
-		snapshot: row.vacancySnapshot as VacancySnapshot,
-		salary: termsSalary(row),
-		message: row.message
-	};
+	return { version: row.version, ...termsContent(row) };
 }
 
 /** Every version of the invitation, oldest first. */

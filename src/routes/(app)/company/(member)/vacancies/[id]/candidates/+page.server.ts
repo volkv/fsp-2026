@@ -1,3 +1,4 @@
+import { companyAdmission } from '$lib/server/access/permissions';
 import { CATEGORY_OPTIONS } from '$lib/server/categories/labels';
 import { db } from '$lib/server/db';
 import { catalogView } from '$lib/server/employer/catalog';
@@ -43,8 +44,8 @@ export const load: PageServerLoad = async (event) => {
 			}
 		};
 		if (vacancy.status === 'closed') return { ...base, catalog: null };
-		// The catalog is open to a verified company only (domain 4.2); the page says why instead of an error.
-		if (membership.companyStatus !== 'verified') return { ...base, catalog: null };
+		// The catalog is closed to a company the admission policy refused (domain 5.1); the page says why.
+		if (!companyAdmission(membership.companyStatus).admitted) return { ...base, catalog: null };
 		return {
 			...base,
 			catalog: await catalogView(matchingDeps(), subject, meta, event.url, vacancy.id, event.request.signal)

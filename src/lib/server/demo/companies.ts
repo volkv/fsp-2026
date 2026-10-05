@@ -6,6 +6,7 @@ import { submitForVerification, decideVerification } from '$lib/server/companies
 import { acceptMinorTerms, createCompanyDraft, minorTermsAcceptance } from '$lib/server/companies/profile';
 import { acceptMemberInvite, inviteMember } from '$lib/server/companies/members';
 import { openPartnership } from '$lib/server/companies/partnerships';
+import { loadCompanyProfile, updateCompanyProfile } from '$lib/server/companies/public-profile';
 import { companies, companyMembers, companyVerifications, competitionPartnerships } from '$lib/server/db/schema';
 import { DemoBatchConflict, documentOf, ensureUser, metaOf, subjectOf, type SeedContext } from './accounts';
 import type { CompanyPlan } from './generate';
@@ -120,6 +121,14 @@ export async function ensureCompany(
 			if (!row) throw new Error(`${member.email} did not join company ${plan.key}`);
 		}
 		members.set(member.key, { userId, memberId: row.id, role: row.role });
+	}
+
+	if (!(await loadCompanyProfile(db, companyId)).complete) {
+		// The owner fills in the profile an offer needs (domain 5.1, 13.5): what the company does and its line of business.
+		await updateCompanyProfile(ctx.companies, owner, companyId, {
+			description: `${plan.displayName} — ИТ-компания демонстрационного стенда: разрабатывает и поддерживает собственные цифровые продукты, нанимает инженеров через платформу.`,
+			activity: 'Разработка программного обеспечения'
+		});
 	}
 
 	if (plan.minorTerms && !(await minorTermsAcceptance(db, companyId, ctx.now()))) {

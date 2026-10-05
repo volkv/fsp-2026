@@ -3,7 +3,6 @@ import { formText } from '$lib/server/auth/http';
 import { db } from '$lib/server/db';
 import { employerRequest, membershipOf, type EmployerRequest } from '$lib/server/employer/http';
 import { formFailure, pageError } from '$lib/server/http/page';
-import { getOwnVacancy } from '$lib/server/employer/vacancies';
 import { currentVocabulary, labelsOf } from '$lib/server/employer/vocabulary';
 import { ApiError } from '$lib/server/errors/api-error';
 import { getHiringProcess, reportHiring, type HiringReportInput } from '$lib/server/hiring/process';
@@ -11,7 +10,7 @@ import { OUTCOMES, type Outcome, type Stage } from '$lib/server/hiring/state';
 import { HIRING_STAGES } from '$lib/server/consent/kinds';
 import { invitationDeps } from '$lib/server/invitations/deps';
 import { recipientContacts } from '$lib/server/invitations/disclosure';
-import { currentPolicy } from '$lib/server/invitations/policies';
+import { offerFormContext, offerFromForm, optionsOfPoints } from '$lib/server/invitations/offer-form';
 import { getInvitation } from '$lib/server/invitations/read';
 import { reviseInvitation, withdrawInvitation } from '$lib/server/invitations/send';
 import type { Actions, PageServerLoad } from './$types';
@@ -37,18 +36,19 @@ export const load: PageServerLoad = async (event) => {
 	try {
 		const invitation = await getInvitation(deps, subject, event.params.id);
 		const accepted = invitation.acceptedTermsId !== null;
-		const [vacancy, vocabulary, policy, process, contacts] = await Promise.all([
-			getOwnVacancy(db(), membership.companyId, invitation.vacancyId, now),
-			currentVocabulary(db()),
-			currentPolicy(db(), 'invitation_policy', now),
+		const current = invitation.versions.find((version) => version.id === invitation.currentTermsId);
+		if (!current) throw new Error(`invitation ${invitation.id} lost its current terms`);
+		const vocabulary = await currentVocabulary(db());
+		const [offer, process, contacts] = await Promise.all([
+			offerFormContext(db(), membership.companyId, vocabulary, now),
 			invitation.hiringProcessId === null ? null : getHiringProcess(deps, subject, invitation.hiringProcessId),
 			accepted && invitation.status === 'accepted' ? contactsOf(request, invitation.id) : null
 		]);
 		return {
 			invitation,
-			vacancy: { id: vacancy.id, title: vacancy.title, status: vacancy.status, salary: vacancy.salary },
 			labels: labelsOf(vocabulary),
-			responseWindowHours: policy?.params.response_window_hours ?? null,
+			offer,
+			whyYouOptions: optionsOfPoints(current.whyYou),
 			process,
 			contacts,
 			stages: [...HIRING_STAGES],
@@ -59,8 +59,6 @@ export const load: PageServerLoad = async (event) => {
 		pageError(event, cause);
 	}
 };
-
-const amount = (value: string) => Number(value.replace(/\s/gu, ''));
 
 const isStage = (value: string): value is Stage => (HIRING_STAGES as readonly string[]).includes(value);
 const isOutcome = (value: string): value is Outcome => (OUTCOMES as readonly string[]).includes(value);
@@ -87,11 +85,13 @@ export const actions: Actions = {
 		const { subject, meta, sessionHash } = await employerRequest(event);
 		const form = await event.request.formData();
 		try {
-			const revised = await reviseInvitation(invitationDeps(), subject, { ...meta, sessionHash }, event.params.id, {
-				salaryMin: amount(formText(form, 'salaryMin')),
-				salaryMax: amount(formText(form, 'salaryMax')),
-				message: formText(form, 'message')
-			});
+			const revised = await reviseInvitation(
+				invitationDeps(),
+				subject,
+				{ ...meta, sessionHash },
+				event.params.id,
+				offerFromForm(form)
+			);
 			return { revised: { version: revised.version, lowered: revised.changes.salary_lowered } };
 		} catch (cause) {
 			return formFailure(cause);

@@ -3,6 +3,7 @@
 // the categories in force.
 import { and, eq, inArray, sql, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
+import { ADMITTED_COMPANY_STATUSES } from '$lib/server/access/permissions';
 import type { Executor } from '$lib/server/db';
 import { publishedRun, runInForce } from '$lib/server/db/conditions';
 import { activeCategories } from '$lib/server/categories/read';
@@ -192,12 +193,17 @@ export async function loadVacancySnapshot(executor: Executor, vacancyId: string)
 }
 
 /**
- * Vacancies a candidate may be matched with: published own vacancies of verified companies and external vacancies
+ * Vacancies a candidate may be matched with: published own vacancies of companies the admission policy lets act
+ * (domain 5.1: a check by an operator is not required) and external vacancies
  * that are active or awaiting a freshness check and not replaced by an own one (domain 13.1, 13.2).
  */
 export const matchableVacancy = sql`(
 	(${vacancies.origin} = 'own' and ${vacancies.status} = 'published'
-		and exists (select 1 from ${companies} where ${companies.id} = ${vacancies.companyId} and ${companies.status} = 'verified'))
+		and exists (select 1 from ${companies} where ${companies.id} = ${vacancies.companyId}
+			and ${companies.status} in (${sql.join(
+				ADMITTED_COMPANY_STATUSES.map((status) => sql`${status}`),
+				sql`, `
+			)})))
 	or (${vacancies.origin} = 'external' and ${vacancies.status} in ('active', 'stale')
 		and ${vacancies.supersededByVacancyId} is null)
 )`;

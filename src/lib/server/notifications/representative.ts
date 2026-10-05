@@ -40,7 +40,7 @@ export function salaryWords(salary: OfferedSalary): string {
 /** The consents the representative signs by the letter, as a letter and the page name them. */
 export const REPRESENTATIVE_CONSENT_NAMES = {
 	pd_processing: 'обработка персональных данных',
-	catalog_visibility: 'показ профиля проверенным работодателям',
+	catalog_visibility: 'показ профиля работодателям платформы',
 	fsp_import: 'получение достижений из систем ФСП'
 } as const;
 
@@ -59,7 +59,7 @@ export function representativeConsentLetter(
 		paragraphs: [
 			`Здравствуйте, ${input.representativeName}!`,
 			`Оператор ФСП подтвердил ваши полномочия законного представителя кандидата ${input.candidateName} на платформе ИТ-найма Федерации спортивного программирования.`,
-			'До 18 лет профиль кандидата ведётся только с согласия представителя. По ссылке — тексты согласий: на обработку персональных данных (без него профиль не ведётся), на показ профиля проверенным работодателям в контексте подходящей вакансии и, по желанию, на получение достижений из систем ФСП. Каждое согласие подписывается отдельно и отзывается в любой момент — по этой же ссылке.'
+			'До 18 лет профиль кандидата ведётся только с согласия представителя. По ссылке — тексты согласий: на обработку персональных данных (без него профиль не ведётся), на показ профиля работодателям платформы в контексте подходящей вакансии и, по желанию, на получение достижений из систем ФСП. Каждое согласие подписывается отдельно и отзывается в любой момент — по этой же ссылке.'
 		],
 		action: { label: 'Прочитать и подписать согласия', href: input.link },
 		footnote: `Ссылка действует до ${formatDateTime(input.expiresAt)} и срабатывает один раз. Новое письмо может запросить кандидат в своём профиле или вы сами: ${input.requestLink}. Если вы не знаете, о ком речь, удалите письмо — без вашей подписи профиль остаётся закрытым.`
@@ -125,7 +125,7 @@ export function representativeDisclosureLetter(
 		representativeName: string;
 		candidateName: string;
 		companyName: string;
-		vacancyTitle: string;
+		offerTitle: string;
 		salary: OfferedSalary;
 		fields: readonly DisclosureField[];
 		dueAt: Date;
@@ -136,7 +136,7 @@ export function representativeDisclosureLetter(
 		subject: `Согласие на раскрытие контактов компании «${input.companyName}»`,
 		paragraphs: [
 			`Здравствуйте, ${input.representativeName}!`,
-			`${input.candidateName} принимает приглашение компании «${input.companyName}» на вакансию «${input.vacancyTitle}»: ${salaryWords(input.salary)}.`,
+			`${input.candidateName} принимает приглашение компании «${input.companyName}» — «${input.offerTitle}»: ${salaryWords(input.salary)}.`,
 			`Компания получит: ${input.fields.map((field) => DISCLOSURE_FIELD_NAMES[field]).join(', ')}. До 18 лет контакты передаются только с согласия законного представителя; без него приглашение не будет принято.`,
 			`Ответить нужно до ${formatDateTime(input.dueAt)} — это срок ответа на приглашение, после него оно закроется.`
 		],

@@ -25,6 +25,8 @@ export const PERMISSIONS = {
 	'invitation.read': { roles: [...EMPLOYER, 'candidate'], apiKey: true },
 	'invitation.respond': { roles: ['candidate'], apiKey: false },
 	'hiring.report': { roles: [...EMPLOYER, 'candidate'], apiKey: true },
+	// Hiring needs of the company and the categories recommended for them (domain 13.10).
+	'need.manage': { roles: EMPLOYER, apiKey: true },
 	'vacancy.external.read': { roles: EVERYONE, apiKey: true },
 	'vacancy_claim.create': { roles: EMPLOYER, apiKey: false },
 	'vacancy_claim.review': { roles: ['operator'], apiKey: false },
@@ -42,6 +44,8 @@ export const PERMISSIONS = {
 	},
 	'company.create': { roles: ['user'], apiKey: false },
 	'company.profile.manage': { roles: ['owner'], apiKey: false },
+	// The public profile of the company (description, line of business, contacts) as its members read it (domain 5.1).
+	'company.profile.read': { roles: EMPLOYER, apiKey: true },
 	'company.members.manage': { roles: ['owner'], apiKey: false },
 	'api_key.manage': { roles: ['owner'], apiKey: false },
 	'company.review': { roles: ['operator'], apiKey: false },
@@ -69,7 +73,34 @@ export type Permission = keyof typeof PERMISSIONS;
 /** Permissions that a staff grant adds on top of roles; kept in sync with `staff_roles.extra_permissions`. */
 export const STAFF_EXTRA_PERMISSIONS = ['audit.read'] as const satisfies readonly Permission[];
 
-type CompanyStatus = 'draft' | 'submitted' | 'verified' | 'rejected' | 'suspended';
+export type CompanyStatus = 'draft' | 'submitted' | 'verified' | 'rejected' | 'suspended';
+
+/**
+ * The one admission policy of a company (domain 5.1), asked by every action of a company towards candidates: catalog,
+ * card, market, needs, offers and their revisions, vacancies, API keys. A company in `draft`, `submitted` or `verified`
+ * is admitted, labelled `verified` or `unverified` for the candidate; `suspended` and `rejected` are refused. The check
+ * by an operator is not required: it gives the label, not the admission.
+ */
+export type CompanyAdmission =
+	| { admitted: true; label: 'verified' | 'unverified' }
+	| { admitted: false; reason: 'company_suspended' | 'company_rejected' };
+
+/** Statuses the admission policy lets act: the same rule as `companyAdmission`, for queries over many companies. */
+export const ADMITTED_COMPANY_STATUSES = ['draft', 'submitted', 'verified'] as const satisfies readonly CompanyStatus[];
+
+export function companyAdmission(status: CompanyStatus): CompanyAdmission {
+	switch (status) {
+		case 'verified':
+			return { admitted: true, label: 'verified' };
+		case 'draft':
+		case 'submitted':
+			return { admitted: true, label: 'unverified' };
+		case 'suspended':
+			return { admitted: false, reason: 'company_suspended' };
+		case 'rejected':
+			return { admitted: false, reason: 'company_rejected' };
+	}
+}
 
 /** Who acts, with roles and memberships read from the database on this request (never cached in the session). */
 export interface AccessSubject {
@@ -95,11 +126,13 @@ export interface PermissionObjects {
 	'catalog.search': null;
 	'candidate.card.read': { show: ShowDecision };
 	'vacancy.write': { origin: 'own' | 'external'; companyId: string | null };
-	'invitation.create': { invitability: Invitability; show: ShowDecision };
+	/** `invitability` — of the vacancy the version names; `null` — an offer without a vacancy (domain 13.5). */
+	'invitation.create': { invitability: Invitability | null; show: ShowDecision };
 	'invitation.revise': { companyId: string; revisable: boolean };
 	'invitation.read': { companyId: string; candidateId: string };
 	'invitation.respond': { candidateId: string };
 	'hiring.report': { companyId: string; candidateId: string };
+	'need.manage': { companyId: string };
 	'vacancy.external.read': null;
 	'vacancy_claim.create': null;
 	'vacancy_claim.review': { status: string };
@@ -113,6 +146,7 @@ export interface PermissionObjects {
 	'notification.channel.manage': { ownerUserId: string };
 	'company.create': null;
 	'company.profile.manage': { companyId: string };
+	'company.profile.read': { companyId: string };
 	'company.members.manage': { companyId: string };
 	'api_key.manage': { companyId: string };
 	'company.review': { companyStatus: CompanyStatus };
@@ -153,9 +187,9 @@ export function rolesOf(subject: AccessSubject): Set<Role> {
 	return roles;
 }
 
-/** Active membership in a company that is verified right now. */
-function verifiedMember(subject: AccessSubject): boolean {
-	return subject.membership?.status === 'active' && subject.membership.companyStatus === 'verified';
+/** Active membership in a company the admission policy lets act right now (domain 5.1). */
+function admittedMember(subject: AccessSubject): boolean {
+	return subject.membership?.status === 'active' && companyAdmission(subject.membership.companyStatus).admitted;
 }
 
 function ownCompany(subject: AccessSubject, companyId: string | null): boolean {
@@ -175,7 +209,7 @@ function objectRule<P extends Permission>(
 		case 'invitation.respond':
 			return subject.candidate?.id === (o as { candidateId: string }).candidateId;
 		case 'catalog.search':
-			return verifiedMember(subject);
+			return admittedMember(subject);
 		case 'candidate.card.read':
 			return (o as PermissionObjects['candidate.card.read']).show.allowed;
 		case 'vacancy.write': {
@@ -184,11 +218,11 @@ function objectRule<P extends Permission>(
 		}
 		case 'invitation.create': {
 			const facts = o as PermissionObjects['invitation.create'];
-			return verifiedMember(subject) && facts.invitability.invitable && facts.show.allowed;
+			return admittedMember(subject) && (facts.invitability?.invitable ?? true) && facts.show.allowed;
 		}
 		case 'invitation.revise': {
 			const facts = o as PermissionObjects['invitation.revise'];
-			return verifiedMember(subject) && ownCompany(subject, facts.companyId) && facts.revisable;
+			return admittedMember(subject) && ownCompany(subject, facts.companyId) && facts.revisable;
 		}
 		case 'invitation.read':
 		case 'hiring.report': {
@@ -205,8 +239,7 @@ function objectRule<P extends Permission>(
 			return (
 				subject.membership !== null &&
 				subject.membership.status !== 'removed' &&
-				subject.membership.companyStatus !== 'rejected' &&
-				subject.membership.companyStatus !== 'suspended'
+				companyAdmission(subject.membership.companyStatus).admitted
 			);
 		case 'vacancy_claim.review':
 			return (o as PermissionObjects['vacancy_claim.review']).status === 'pending_review';
@@ -214,7 +247,7 @@ function objectRule<P extends Permission>(
 			const facts = o as PermissionObjects['match.read'];
 			const companySide =
 				(roles.has('owner') || roles.has('recruiter')) &&
-				verifiedMember(subject) &&
+				admittedMember(subject) &&
 				ownCompany(subject, facts.vacancyCompanyId) &&
 				facts.show?.allowed === true;
 			const candidateSide = roles.has('candidate') && subject.candidate?.id === facts.candidateId;
@@ -222,23 +255,27 @@ function objectRule<P extends Permission>(
 		}
 		case 'market.read': {
 			const facts = o as PermissionObjects['market.read'];
-			return verifiedMember(subject) || (roles.has('candidate') && facts.ownCategory);
+			return admittedMember(subject) || (roles.has('candidate') && facts.ownCategory);
 		}
 		case 'partner_pool.read': {
 			const facts = o as PermissionObjects['partner_pool.read'];
-			return verifiedMember(subject) && ownCompany(subject, facts.partnershipCompanyId) && facts.partnershipActive;
+			return admittedMember(subject) && ownCompany(subject, facts.partnershipCompanyId) && facts.partnershipActive;
 		}
 		case 'notification.channel.manage':
 			return subject.userId === (o as PermissionObjects['notification.channel.manage']).ownerUserId;
+		case 'need.manage':
+			return admittedMember(subject) && ownCompany(subject, (o as PermissionObjects['need.manage']).companyId);
 		case 'company.profile.manage':
+		case 'company.profile.read':
 		case 'company.members.manage':
 		case 'api_key.manage':
 			return ownCompany(subject, (o as { companyId: string }).companyId);
 		case 'company.review':
 			return (o as PermissionObjects['company.review']).companyStatus === 'submitted';
 		case 'company.moderate': {
+			// A company acting without a check is moderated as well: the operator suspends it as any working company.
 			const status = (o as PermissionObjects['company.moderate']).companyStatus;
-			return status === 'verified' || status === 'suspended';
+			return companyAdmission(status).admitted || status === 'suspended';
 		}
 		case 'audit.read':
 			return roles.has('admin') || (roles.has('operator') && subject.staff.extraPermissions.includes('audit.read'));

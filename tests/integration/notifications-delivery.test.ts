@@ -40,11 +40,10 @@ import {
 	createCandidate,
 	createCompany,
 	createMember,
-	createOwnVacancy,
 	createPolicy,
 	createPublishedDocument,
-	createTaxonomyVersion,
-	createUser
+	createUser,
+	offerTermsRow
 } from '../helpers/factories';
 
 const crypto = createFieldCrypto({
@@ -181,7 +180,6 @@ let smtp: FakeSmtp;
 let bot: FakeBotApi;
 let channels: NotificationChannels;
 let telegramDocumentId: string;
-let taxonomyVersionId: string;
 let invitationPolicyId: string;
 const handler = createNotificationDeliverHandler(() => ({
 	crypto,
@@ -201,7 +199,6 @@ beforeAll(async () => {
 	};
 	telegramDocumentId = (await createPublishedDocument(database.db, 'telegram_notifications', { publishedAt: EPOCH }))
 		.id;
-	taxonomyVersionId = (await createTaxonomyVersion(database.db)).id;
 	invitationPolicyId = (await createPolicy(database.db, 'invitation_policy')).id;
 });
 
@@ -239,18 +236,12 @@ async function world(options: { telegram?: boolean } = {}) {
 	const company = await createCompany(db, { displayName: COMPANY_NAME });
 	const memberUser = await userWithEmail(memberEmail);
 	const member = await createMember(db, company.id, { userId: memberUser.id });
-	const vacancy = await createOwnVacancy(
-		db,
-		{ companyId: company.id, memberId: member.id, taxonomyVersionId },
-		{ title: VACANCY_TITLE }
-	);
 	const invitationId = uuidv7();
 	const termsId = uuidv7();
 	await db.transaction(async (tx) => {
 		await tx.insert(invitations).values({
 			id: invitationId,
 			companyId: company.id,
-			vacancyId: vacancy.id,
 			candidateId: candidate.id,
 			sentByMemberId: member.id,
 			status: 'sent',
@@ -262,7 +253,8 @@ async function world(options: { telegram?: boolean } = {}) {
 			id: termsId,
 			invitationId,
 			version: 1,
-			vacancySnapshot: { title: VACANCY_TITLE },
+			...offerTermsRow(),
+			title: VACANCY_TITLE,
 			salaryMin: 250_000,
 			salaryMax: 300_000,
 			salaryCurrency: 'RUB',
@@ -438,7 +430,7 @@ describe('email', () => {
 		const raw = smtp.received[0] ?? '';
 		expect(raw).toContain(`To: ${w.candidateEmail}`);
 		const text = plainText(raw);
-		expect(text).toContain(`Компания «${COMPANY_NAME}» приглашает вас на вакансию «${VACANCY_TITLE}»`);
+		expect(text).toContain(`Компания «${COMPANY_NAME}» предлагает вам работу: «${VACANCY_TITLE}»`);
 		expect(text).toContain(`${APP_ORIGIN}/notifications/${id}`);
 		expect(text).toContain(`${APP_ORIGIN}/account/notifications`);
 
@@ -460,7 +452,7 @@ describe('email', () => {
 		const raw = smtp.received[0] ?? '';
 		expect(raw).toContain(`To: ${w.memberEmail}`);
 		const text = plainText(raw);
-		expect(text).toContain(`Кандидат ${w.pseudonym} отклонил приглашение на вакансию «${VACANCY_TITLE}»`);
+		expect(text).toContain(`Кандидат ${w.pseudonym} отклонил приглашение «${VACANCY_TITLE}»`);
 		expect(raw).not.toContain(w.candidateEmail);
 	});
 

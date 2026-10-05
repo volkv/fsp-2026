@@ -119,7 +119,7 @@
 	<Card.Root>
 		<Card.Header>
 			<Card.Title><h2 class="font-heading text-h3">Новый ключ</h2></Card.Title>
-			<Card.Description>Ключи выдаются только проверенной компании.</Card.Description>
+			<Card.Description>Ключи закрыты приостановленной и отклонённой компании.</Card.Description>
 		</Card.Header>
 		<Card.Content>
 			<form method="POST" action="?/create" use:enhance class="grid gap-4">

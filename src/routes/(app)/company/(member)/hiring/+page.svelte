@@ -37,7 +37,7 @@
 									class="hover:underline"
 									href={resolve('/(app)/company/(member)/invitations/[id]', { id: item.invitationId })}
 								>
-									{item.pseudonym} · {item.vacancyTitle ?? 'вакансия недоступна'}
+									{item.pseudonym} · {item.title}
 								</a>
 							</h2>
 						</Card.Title>

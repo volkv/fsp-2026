@@ -22,7 +22,7 @@
 	import FormMessage from '$lib/components/forms/form-message.svelte';
 	import PageHeader from '$lib/components/forms/page-header.svelte';
 	import { InvitationStatus, ResponseDeadline, SalaryRange } from '$lib/components/product/index.js';
-	import { formatDate, formatDateTime, type SalaryComparison } from '$lib/components/product/model.js';
+	import { formatDate, formatDateTime } from '$lib/components/product/model.js';
 	import { CSRF_FIELD, viewerFrom } from '$lib/components/shell/viewer.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
@@ -50,14 +50,6 @@
 		(field) => !REQUIRED_DISCLOSURE.includes(field) && field !== 'resume'
 	);
 
-	const COMPARISON: Record<SalaryComparison, string> = {
-		lower: 'ниже этого предложения',
-		equal: 'как в этом предложении',
-		higher: 'выше этого предложения',
-		overlap: 'пересекается с этим предложением',
-		not_comparable: 'несравнимо: другие валюта, период или налоговая база'
-	};
-
 	const selectClass =
 		'h-9 w-full rounded-md border border-input bg-transparent px-2.5 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30';
 
@@ -82,7 +74,7 @@
 	});
 </script>
 
-<PageHeader title={shown?.vacancy.title ?? 'Приглашение'} description={invitation.companyName}>
+<PageHeader title={shown?.title ?? 'Приглашение'} description={invitation.company.displayName}>
 	{#snippet eyebrow()}<a class="underline underline-offset-4" href={resolve('/me/invitations')}>Приглашения</a
 		>{/snippet}
 	{#snippet actions()}
@@ -133,42 +125,51 @@
 				<ResponseDeadline dueAt={current.responseDueAt} />
 			{/if}
 		</div>
+		<p class="text-sm whitespace-pre-line">{shown.description}</p>
 		<dl class="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
 			<div class="flex gap-1.5">
-				<dt class="text-muted-foreground">Роль:</dt>
-				<dd>{shown.vacancy.role_key ? roleName(labels, shown.vacancy.role_key) : 'не указана'}</dd>
-			</div>
-			<div class="flex gap-1.5">
-				<dt class="text-muted-foreground">Грейд:</dt>
-				<dd>{range(shown.vacancy.grade_min, shown.vacancy.grade_max)}</dd>
-			</div>
-			<div class="flex gap-1.5">
 				<dt class="text-muted-foreground">Формат:</dt>
-				<dd>
-					{shown.vacancy.work_format
-						? (labels.workFormats[shown.vacancy.work_format] ?? shown.vacancy.work_format)
-						: 'не указан'}
-				</dd>
+				<dd>{labels.workFormats[shown.workFormat] ?? shown.workFormat}</dd>
 			</div>
 			<div class="flex gap-1.5">
-				<dt class="text-muted-foreground">Занятость:</dt>
-				<dd>
-					{shown.vacancy.employment_form
-						? (labels.employmentForms[shown.vacancy.employment_form] ?? shown.vacancy.employment_form)
-						: 'не указана'}
+				<dt class="text-muted-foreground">Связь с компанией:</dt>
+				<dd data-testid="offer-contact">
+					{shown.contactMethod.value}{shown.contactMethod.note ? ` — ${shown.contactMethod.note}` : ''}
 				</dd>
 			</div>
 			<div class="flex gap-1.5 sm:col-span-2">
-				<dt class="text-muted-foreground">Обязательные навыки:</dt>
-				<dd>{shown.vacancy.required_skill_keys.map((key) => skillName(labels, key)).join(', ') || 'не указаны'}</dd>
+				<dt class="text-muted-foreground">Твоя категория в предложении:</dt>
+				<dd>
+					{shown.category
+						? `${shown.category.specialization} · ${gradeName(labels, shown.category.grade)}`
+						: 'категория не подтверждена'}
+				</dd>
 			</div>
-			{#if shown.vacancy.nice_skill_keys.length > 0}
+			{#if shown.vacancy}
+				{@const vacancy = shown.vacancy.snapshot}
 				<div class="flex gap-1.5 sm:col-span-2">
-					<dt class="text-muted-foreground">Желательные:</dt>
-					<dd>{shown.vacancy.nice_skill_keys.map((key) => skillName(labels, key)).join(', ')}</dd>
+					<dt class="text-muted-foreground">Вакансия:</dt>
+					<dd>
+						«{vacancy.title}» · {vacancy.role_key ? roleName(labels, vacancy.role_key) : 'роль не указана'} · {range(
+							vacancy.grade_min,
+							vacancy.grade_max
+						)}
+					</dd>
+				</div>
+				<div class="flex gap-1.5 sm:col-span-2">
+					<dt class="text-muted-foreground">Обязательные навыки:</dt>
+					<dd>{vacancy.required_skill_keys.map((key) => skillName(labels, key)).join(', ') || 'не указаны'}</dd>
 				</div>
 			{/if}
 		</dl>
+		<div class="grid gap-1 rounded-lg border p-3 text-sm" data-testid="why-you">
+			<h3 class="font-semibold">Почему вы — что компания увидела в твоём профиле</h3>
+			<ul class="list-disc pl-5">
+				{#each shown.whyYou as point, index (index)}
+					<li>{point.text}</li>
+				{/each}
+			</ul>
+		</div>
 		{#if shown.message}
 			<blockquote class="border-l-2 pl-3 text-sm whitespace-pre-line">{shown.message}</blockquote>
 		{/if}
@@ -185,6 +186,55 @@
 		{/if}
 	</SectionCard>
 {/if}
+
+<SectionCard
+	title="О компании"
+	description={invitation.company.verification === 'verified'
+		? 'Компания проверена оператором платформы.'
+		: 'Компания не проверена оператором платформы: проверка необязательна, но учитывай это при ответе.'}
+	testId="offer-company"
+>
+	<p class="text-sm font-medium">
+		{invitation.company.displayName}
+		<span class={invitation.company.verification === 'verified' ? 'text-success' : 'text-warning'}>
+			· {invitation.company.verification === 'verified' ? 'проверена' : 'не проверена'}
+		</span>
+	</p>
+	{#if invitation.company.activity}
+		<p class="text-sm text-muted-foreground">{invitation.company.activity}</p>
+	{/if}
+	{#if invitation.company.description}
+		<p class="text-sm whitespace-pre-line">{invitation.company.description}</p>
+	{/if}
+	{#if Object.keys(invitation.company.contacts).length > 0}
+		<dl class="grid gap-1 text-sm">
+			{#if invitation.company.contacts.website}
+				<div class="flex gap-1.5">
+					<dt class="text-muted-foreground">Сайт:</dt>
+					<dd>{invitation.company.contacts.website}</dd>
+				</div>
+			{/if}
+			{#if invitation.company.contacts.email}
+				<div class="flex gap-1.5">
+					<dt class="text-muted-foreground">Почта:</dt>
+					<dd>{invitation.company.contacts.email}</dd>
+				</div>
+			{/if}
+			{#if invitation.company.contacts.phone}
+				<div class="flex gap-1.5">
+					<dt class="text-muted-foreground">Телефон:</dt>
+					<dd>{invitation.company.contacts.phone}</dd>
+				</div>
+			{/if}
+			{#if invitation.company.contacts.telegram}
+				<div class="flex gap-1.5">
+					<dt class="text-muted-foreground">Telegram:</dt>
+					<dd>{invitation.company.contacts.telegram}</dd>
+				</div>
+			{/if}
+		</dl>
+	{/if}
+</SectionCard>
 
 {#if awaiting}
 	<SectionCard
@@ -359,25 +409,5 @@
 				</li>
 			{/each}
 		</ol>
-	</SectionCard>
-{/if}
-
-{#if invitation.otherOffers.length > 0}
-	<SectionCard
-		title="Другие предложения этой компании"
-		description="Сравнение вилок — только при одинаковых валюте, периоде и налоговой базе."
-	>
-		<ul class="grid gap-2 text-sm">
-			{#each invitation.otherOffers as offer (offer.invitationId)}
-				<li class="flex flex-wrap items-center gap-x-3 gap-y-1">
-					<a
-						class="text-link underline underline-offset-4"
-						href={resolve('/(app)/me/invitations/[id]', { id: offer.invitationId })}>{offer.vacancyTitle}</a
-					>
-					<SalaryRange salary={offer.salary} />
-					<span class="text-muted-foreground">{COMPARISON[offer.comparison]}</span>
-				</li>
-			{/each}
-		</ul>
 	</SectionCard>
 {/if}

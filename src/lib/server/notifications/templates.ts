@@ -1,5 +1,5 @@
 // Texts of notifications by type (docs/domain.md, section 3.7; contracts 8.1): a letter may name the recipient's own
-// data — the company and the vacancy of the candidate's invitation, the vacancy of the company's one — but the other
+// data — the company and the title of the candidate's offer, the vacancy of the company's one — but the other
 // side only by pseudonym. A Telegram message carries the kind of the event and the link, nothing else. A letter about
 // an operator's decision names the decision only; its reasons are read in the product. A candidate aged 14–17 learns
 // whether the representative's authority is confirmed, never the operator's notes or the details of the document; the
@@ -319,7 +319,7 @@ function bodyOf(type: NotificationType, facts: NotificationFacts, payload: Paylo
 
 function invitationBody(type: InvitationType, facts: InvitationFacts, payload: Payload): Body {
 	const company = `«${facts.companyName}»`;
-	const vacancy = `«${facts.vacancyTitle}»`;
+	const offer = `«${facts.offerTitle}»`;
 	const candidateSide = facts.side === 'candidate';
 	switch (type) {
 		case 'invitation.received':
@@ -327,7 +327,7 @@ function invitationBody(type: InvitationType, facts: InvitationFacts, payload: P
 			return {
 				subject: 'Новое приглашение',
 				paragraphs: [
-					`Компания ${company} приглашает вас на вакансию ${vacancy}.`,
+					`Компания ${company} предлагает вам работу: ${offer}.`,
 					'Посмотрите условия и ответьте до окончания срока: принять или отклонить приглашение можно на платформе.'
 				],
 				action: 'Открыть приглашение'
@@ -340,8 +340,8 @@ function invitationBody(type: InvitationType, facts: InvitationFacts, payload: P
 				subject: reopened ? 'Приглашение предложено снова' : 'Изменились условия приглашения',
 				paragraphs: [
 					reopened
-						? `Компания ${company} снова приглашает вас на вакансию ${vacancy} на новых условиях.`
-						: `Компания ${company} изменила условия приглашения на вакансию ${vacancy}.`,
+						? `Компания ${company} снова предлагает вам работу на новых условиях: ${offer}.`
+						: `Компания ${company} изменила условия приглашения ${offer}.`,
 					...(lowered ? ['Предложенная зарплата ниже, чем в прошлой версии условий.'] : []),
 					'Сравнить версии и ответить можно на платформе.'
 				],
@@ -356,7 +356,7 @@ function invitationBody(type: InvitationType, facts: InvitationFacts, payload: P
 				return {
 					subject: 'Законный представитель не дал согласия',
 					paragraphs: [
-						`Законный представитель кандидата ${facts.candidatePseudonym} не дал согласия на раскрытие контактов по приглашению на вакансию ${vacancy}. Приглашение отклонено.`
+						`Законный представитель кандидата ${facts.candidatePseudonym} не дал согласия на раскрытие контактов по приглашению ${offer}. Приглашение отклонено.`
 					],
 					action: 'Открыть приглашение'
 				};
@@ -365,8 +365,8 @@ function invitationBody(type: InvitationType, facts: InvitationFacts, payload: P
 				subject: accepted ? 'Кандидат принял приглашение' : 'Кандидат отклонил приглашение',
 				paragraphs: [
 					accepted
-						? `Кандидат ${facts.candidatePseudonym} принял приглашение на вакансию ${vacancy}${byRepresentative ? ' с согласия законного представителя' : ''}. Контакты, которые он раскрыл, доступны в карточке приглашения.`
-						: `Кандидат ${facts.candidatePseudonym} отклонил приглашение на вакансию ${vacancy}. Причина — в карточке приглашения.`
+						? `Кандидат ${facts.candidatePseudonym} принял приглашение ${offer}${byRepresentative ? ' с согласия законного представителя' : ''}. Контакты, которые он раскрыл, доступны в карточке приглашения.`
+						: `Кандидат ${facts.candidatePseudonym} отклонил приглашение ${offer}. Причина — в карточке приглашения.`
 				],
 				action: 'Открыть приглашение'
 			};
@@ -378,14 +378,14 @@ function invitationBody(type: InvitationType, facts: InvitationFacts, payload: P
 				? {
 						subject: 'Представитель согласен: приглашение принято',
 						paragraphs: [
-							`Законный представитель согласился на раскрытие контактов компании ${company} по вакансии ${vacancy}. Приглашение принято, компания получила выбранные контакты.`
+							`Законный представитель согласился на раскрытие контактов компании ${company} по приглашению ${offer}. Приглашение принято, компания получила выбранные контакты.`
 						],
 						action: 'Открыть приглашение'
 					}
 				: {
 						subject: 'Представитель не дал согласия',
 						paragraphs: [
-							`Законный представитель не согласился на раскрытие контактов компании ${company} по вакансии ${vacancy}. Приглашение отклонено, контакты компании не переданы.`
+							`Законный представитель не согласился на раскрытие контактов компании ${company} по приглашению ${offer}. Приглашение отклонено, контакты компании не переданы.`
 						],
 						action: 'Открыть приглашение'
 					};
@@ -394,23 +394,19 @@ function invitationBody(type: InvitationType, facts: InvitationFacts, payload: P
 			return candidateSide
 				? {
 						subject: 'Срок приглашения истёк',
-						paragraphs: [
-							`Срок ответа на приглашение компании ${company} на вакансию ${vacancy} истёк, приглашение закрыто.`
-						],
+						paragraphs: [`Срок ответа на приглашение компании ${company} ${offer} истёк, приглашение закрыто.`],
 						action: 'Открыть приглашение'
 					}
 				: {
 						subject: 'Кандидат не ответил в срок',
-						paragraphs: [
-							`Кандидат ${facts.candidatePseudonym} не ответил на приглашение на вакансию ${vacancy}, срок истёк.`
-						],
+						paragraphs: [`Кандидат ${facts.candidatePseudonym} не ответил на приглашение ${offer}, срок истёк.`],
 						action: 'Открыть приглашение'
 					};
 		case 'invitation.withdrawn':
 			if (!candidateSide) unsupported(type, facts);
 			return {
 				subject: 'Приглашение отозвано',
-				paragraphs: [`Приглашение компании ${company} на вакансию ${vacancy} отозвано. Отвечать на него не нужно.`],
+				paragraphs: [`Приглашение компании ${company} ${offer} отозвано. Отвечать на него не нужно.`],
 				action: 'Открыть приглашение'
 			};
 		case 'invitation.response_due_soon': {
@@ -419,7 +415,7 @@ function invitationBody(type: InvitationType, facts: InvitationFacts, payload: P
 			return {
 				subject: 'Скоро истекает срок ответа',
 				paragraphs: [
-					`До окончания срока ответа на приглашение компании ${company} на вакансию ${vacancy} осталось около ${hours} ч.`,
+					`До окончания срока ответа на приглашение компании ${company} ${offer} осталось около ${hours} ч.`,
 					'Без ответа приглашение закроется.'
 				],
 				action: 'Ответить на приглашение'
@@ -431,8 +427,8 @@ function invitationBody(type: InvitationType, facts: InvitationFacts, payload: P
 				subject: type === 'hiring.outcome_requested' ? 'Сообщите исход найма' : 'Напоминание: сообщите исход найма',
 				paragraphs: [
 					candidateSide
-						? `Расскажите, чем закончился найм по приглашению компании ${company} на вакансию ${vacancy}.`
-						: `Сообщите, чем закончился найм кандидата ${facts.candidatePseudonym} на вакансию ${vacancy}.`,
+						? `Расскажите, чем закончился найм по приглашению компании ${company} ${offer}.`
+						: `Сообщите, чем закончился найм кандидата ${facts.candidatePseudonym} ${offer}.`,
 					'Исход найма нужен, чтобы платформа честно показывала, как работают приглашения. Это займёт минуту.'
 				],
 				action: 'Сообщить исход'
@@ -442,8 +438,8 @@ function invitationBody(type: InvitationType, facts: InvitationFacts, payload: P
 				subject: 'Сообщения об исходе найма расходятся',
 				paragraphs: [
 					candidateSide
-						? `Компания ${company} сообщила об исходе найма по вакансии ${vacancy} иначе, чем вы.`
-						: `Кандидат ${facts.candidatePseudonym} сообщил об исходе найма на вакансию ${vacancy} иначе, чем ваша компания.`,
+						? `Компания ${company} сообщила об исходе найма по приглашению ${offer} иначе, чем вы.`
+						: `Кандидат ${facts.candidatePseudonym} сообщил об исходе найма по приглашению ${offer} иначе, чем ваша компания.`,
 					'Проверьте своё сообщение и при необходимости уточните его.'
 				],
 				action: 'Открыть процесс найма'

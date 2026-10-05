@@ -3,6 +3,7 @@
 // `hiring.outcome_requested`, the following ones `hiring.outcome_reminder`; after the last one the process becomes
 // `unknown` by derivation, nothing is written for it.
 import { eq } from 'drizzle-orm';
+import { companyAdmission } from '$lib/server/access/permissions';
 import type { Transaction } from '$lib/server/db';
 import { candidates, companies, hiringProcesses } from '$lib/server/db/schema';
 import { defineHandler, type JobHandler, type JobResult } from '$lib/server/jobs/handler';
@@ -26,12 +27,13 @@ async function recipientsOf(tx: Transaction, process: ProcessRow, party: Party):
 			.where(eq(candidates.id, process.candidateId));
 		return row && row.status === 'active' ? [row.userId] : [];
 	}
-	// A suspended company no longer reports, so it is not asked to (domain 13.7).
+	// A company the admission policy closed no longer reports, so it is not asked to (domain 5.1, 13.7).
 	const [company] = await tx
 		.select({ status: companies.status })
 		.from(companies)
 		.where(eq(companies.id, process.companyId));
-	return company?.status === 'verified' ? companyRecipientsOfProcess(tx, process) : [];
+	if (!company) throw new Error(`company ${process.companyId} does not exist`);
+	return companyAdmission(company.status).admitted ? companyRecipientsOfProcess(tx, process) : [];
 }
 
 export function createHiringOutcomeRequestHandler(clock: Clock): JobHandler<'hiring.outcome_request'> {

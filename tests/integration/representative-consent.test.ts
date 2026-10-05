@@ -72,7 +72,8 @@ import {
 	createOwnVacancy,
 	createPublishedDocument,
 	createTaxonomyVersion,
-	createUser
+	createUser,
+	offerTerms
 } from '../helpers/factories';
 
 const HOUR = 3_600_000;
@@ -391,11 +392,13 @@ async function shownTeenager(): Promise<Teen> {
 
 const invite = (company: Employer, teen: Teen) =>
 	createInvitation(invitationDeps, company.subject, meta, {
-		vacancyId: company.vacancy.id,
-		candidateId: teen.id,
-		salaryMin: 45_000,
-		salaryMax: 55_000,
-		message: 'Приглашаем на летнюю стажировку.'
+		...offerTerms({
+			vacancyId: company.vacancy.id,
+			salaryMin: 45_000,
+			salaryMax: 55_000,
+			message: 'Приглашаем на летнюю стажировку.'
+		}),
+		candidateId: teen.id
 	});
 
 const accept = async (teen: Teen, invitationId: string, termsId: string, fields = ['full_name', 'email']) =>
@@ -735,10 +738,14 @@ describe('the representative of a minor, by the links of letters', () => {
 		const company = await employer();
 		const revisedOne = await acceptAndAsk(teen, company);
 		clock = new Date(clock.getTime() + HOUR);
-		await reviseInvitation(invitationDeps, company.subject, meta, revisedOne.invitationId, {
-			salaryMin: 50_000,
-			salaryMax: 60_000
-		});
+		await reviseInvitation(
+			invitationDeps,
+			company.subject,
+			meta,
+			revisedOne.invitationId,
+			// A minor is reached only by a vacancy open to their age: the revision names it again.
+			offerTerms({ vacancyId: company.vacancy.id, salaryMin: 50_000, salaryMax: 60_000 })
+		);
 		expect(await representativeDisclosureRequest(invitationDeps, revisedOne.token)).toBeNull();
 		expect(
 			(await getInvitation(invitationDeps, teen.subject, revisedOne.invitationId)).awaitingRepresentative
@@ -875,7 +882,7 @@ describe('the representative revokes by the link', () => {
 		expect(outbox.count(teen.representativeEmail)).toBe(letters + 1);
 		const changed = outbox.letters.at(-1);
 		expect(changed?.subject).toMatch(/^Согласия законного представителя изменены/u);
-		expect(changed?.text).toContain('показ профиля проверенным работодателям — не подписано');
+		expect(changed?.text).toContain('показ профиля работодателям платформы — не подписано');
 		expect(changed?.text).toContain('обработка персональных данных — подписано');
 
 		// The link worked once.

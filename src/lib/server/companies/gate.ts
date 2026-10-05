@@ -1,43 +1,46 @@
-// Whether a company may act towards candidates right now: publish own vacancies, invite, search the catalog and read
-// partner pools (domain 4.2, 5.1). Only a verified company may; `suspended` and `rejected` close all of it at once.
-// Vacancies and invitations call this predicate instead of comparing statuses themselves.
+// The admission of a company read at this moment (domain 5.1): the one policy is `companyAdmission` of the access
+// module; this file only reads the status, optionally under a row lock, for the actions that order themselves with a
+// suspension running at the same time (publication, offers).
 import { eq } from 'drizzle-orm';
+import { companyAdmission, type CompanyAdmission, type CompanyStatus } from '$lib/server/access/permissions';
 import type { Executor } from '$lib/server/db';
 import { companies } from '$lib/server/db/schema';
+import { ApiError } from '$lib/server/errors/api-error';
 
-export type CompanyStatus = (typeof companies.$inferSelect)['status'];
-
-export type CompanyGateDenial = 'company_not_found' | 'company_not_verified' | 'company_suspended' | 'company_rejected';
-
-export type CompanyGate = { allowed: true } | { allowed: false; reason: CompanyGateDenial };
-
-/** Pure form: the status read by the caller in its own query. `null` — no such company. */
-export function companyGate(status: CompanyStatus | null): CompanyGate {
-	switch (status) {
-		case 'verified':
-			return { allowed: true };
-		case 'suspended':
-			return { allowed: false, reason: 'company_suspended' };
-		case 'rejected':
-			return { allowed: false, reason: 'company_rejected' };
-		case 'draft':
-		case 'submitted':
-			return { allowed: false, reason: 'company_not_verified' };
-		case null:
-			return { allowed: false, reason: 'company_not_found' };
-	}
-}
+export type { CompanyStatus };
 
 /**
- * Reads the status at this moment. Inside a transaction that publishes or invites, pass the transaction and lock the
- * company row with `forUpdate` so a concurrent suspension is ordered with the action.
+ * The admission of the company now. Inside a transaction that publishes or sends an offer, pass the transaction and
+ * lock the company row with `forUpdate`. A missing company is a defect of the caller, who holds its id from a membership.
  */
-export async function loadCompanyGate(
+export async function loadCompanyAdmission(
 	executor: Executor,
 	companyId: string,
 	options: { forUpdate?: boolean } = {}
-): Promise<CompanyGate> {
+): Promise<CompanyAdmission> {
 	const query = executor.select({ status: companies.status }).from(companies).where(eq(companies.id, companyId));
 	const [row] = options.forUpdate ? await query.for('update') : await query;
-	return companyGate(row?.status ?? null);
+	if (!row) throw new Error(`company ${companyId} does not exist`);
+	return companyAdmission(row.status);
+}
+
+const REFUSAL_MESSAGES = {
+	company_suspended: 'Действия компании приостановлены оператором платформы',
+	company_rejected: 'Проверка компании отклонена: действия компании закрыты'
+} as const;
+
+/** `403 forbidden` of the admission policy with its detail code (contracts 5.3). */
+export function admissionRefusal(reason: keyof typeof REFUSAL_MESSAGES): ApiError {
+	return new ApiError('forbidden', { details: [{ code: reason, message: REFUSAL_MESSAGES[reason] }] });
+}
+
+/** The admission now, or `403` with `company_suspended` / `company_rejected`; returns the label of an admitted company. */
+export async function requireAdmission(
+	executor: Executor,
+	companyId: string,
+	options: { forUpdate?: boolean } = {}
+): Promise<'verified' | 'unverified'> {
+	const admission = await loadCompanyAdmission(executor, companyId, options);
+	if (!admission.admitted) throw admissionRefusal(admission.reason);
+	return admission.label;
 }

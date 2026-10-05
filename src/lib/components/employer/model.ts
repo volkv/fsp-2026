@@ -410,11 +410,8 @@ export interface VocabularyView {
 	terms: Record<'work_format' | 'employment_form' | 'contract_type', NamedKey[]>;
 }
 
-export const CURRENCIES: NamedKey[] = [
-	{ key: 'RUB', name: '₽ — рубли' },
-	{ key: 'USD', name: '$ — доллары США' },
-	{ key: 'EUR', name: '€ — евро' }
-];
+/** The range of an own vacancy is in roubles only (domain 13.1). */
+export const CURRENCIES: NamedKey[] = [{ key: 'RUB', name: '₽ — рубли' }];
 
 export const PERIODS: NamedKey[] = [
 	{ key: 'month', name: 'в месяц' },
@@ -491,11 +488,15 @@ export const DISCLOSURE_FIELD_LABELS: Record<string, string> = {
 
 /** Names of fields that differ between versions of invitation terms (`invitation_terms.changes`). */
 export const TERMS_FIELD_LABELS: Record<string, string> = {
+	title: 'Название',
+	description: 'Описание',
+	vacancy_id: 'Вакансия',
 	salary_min: 'Зарплата от',
 	salary_max: 'Зарплата до',
-	salary_currency: 'Валюта',
-	salary_period: 'Период',
 	salary_tax_base: 'Налоговая база',
+	work_format: 'Формат работы',
+	contact_method: 'Способ связи',
+	why_you: 'Почему вы',
 	message: 'Сообщение',
 	'vacancy.title': 'Название вакансии',
 	'vacancy.role_key': 'Роль',

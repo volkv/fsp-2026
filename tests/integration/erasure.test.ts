@@ -91,7 +91,7 @@ import { codePointLength } from '$lib/text/offsets';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
 import { testEnvironment } from '../helpers/environment';
 import { decide } from '../helpers/categories';
-import { createCompany, createMember, createOwnVacancy, createUser } from '../helpers/factories';
+import { createCompany, createMember, createOwnVacancy, createUser, offerTerms } from '../helpers/factories';
 import { FSP_MOCK_CREDENTIALS, startFspMock, type FspMock } from '../helpers/fsp-mock';
 import { startStorage, type TestStorage } from '../helpers/storage';
 
@@ -285,7 +285,11 @@ afterAll(async () => {
 	await database.drop();
 });
 
-const invitationDeps = (): InvitationDeps => ({ db: database.db, crypto, now: () => new Date() });
+const invitationDeps = (): InvitationDeps => ({
+	db: database.db,
+	crypto,
+	now: () => new Date()
+});
 
 function authDeps(): AuthDeps {
 	return { db: database.db, redis, crypto, mailer, appOrigin: 'http://localhost:57173', now: () => new Date() };
@@ -520,8 +524,9 @@ describe('deleting a candidate with the whole pipeline behind the profile', () =
 			documentId: await documentId('catalog_visibility'),
 			scopeFields: []
 		});
-		// Two vacancies of a verified company: one invitation accepted with contacts, one left open.
+		// Offers of two companies: one accepted with contacts, one left open (a company has one line per candidate).
 		const company = await employer('hero');
+		const second = await employer('second');
 		const accepted = await createOwnVacancy(db, {
 			companyId: company.company.id,
 			memberId: company.member.id,
@@ -529,7 +534,7 @@ describe('deleting a candidate with the whole pipeline behind the profile', () =
 		});
 		const open = await createOwnVacancy(
 			db,
-			{ companyId: company.company.id, memberId: company.member.id, taxonomyVersionId },
+			{ companyId: second.company.id, memberId: second.member.id, taxonomyVersionId },
 			{ title: 'Go-разработчик платформы' }
 		);
 		await drain();
@@ -557,11 +562,8 @@ describe('deleting a candidate with the whole pipeline behind the profile', () =
 		);
 
 		const sentAccepted = await createInvitation(invitationDeps(), company.subject, meta, {
-			vacancyId: accepted.id,
-			candidateId: hero.candidateId,
-			salaryMin: 260_000,
-			salaryMax: 340_000,
-			message: 'Приглашаем'
+			...offerTerms({ vacancyId: accepted.id, salaryMin: 260_000, salaryMax: 340_000, message: 'Приглашаем' }),
+			candidateId: hero.candidateId
 		});
 		await respondToInvitation(invitationDeps(), hero.subject, meta, sentAccepted.invitationId, {
 			termsId: sentAccepted.termsId,
@@ -569,12 +571,9 @@ describe('deleting a candidate with the whole pipeline behind the profile', () =
 			discloseFields: ['full_name', 'email'],
 			disclosureDocumentId: await documentId('contact_disclosure')
 		});
-		const sentOpen = await createInvitation(invitationDeps(), company.subject, meta, {
-			vacancyId: open.id,
-			candidateId: hero.candidateId,
-			salaryMin: 260_000,
-			salaryMax: 340_000,
-			message: 'И ещё одна'
+		const sentOpen = await createInvitation(invitationDeps(), second.subject, meta, {
+			...offerTerms({ vacancyId: open.id, salaryMin: 260_000, salaryMax: 340_000, message: 'И ещё одна' }),
+			candidateId: hero.candidateId
 		});
 		const [disclosure] = await db.select().from(disclosures).where(eq(disclosures.candidateId, hero.candidateId));
 		if (!disclosure) throw new Error('the acceptance handed over no contacts');

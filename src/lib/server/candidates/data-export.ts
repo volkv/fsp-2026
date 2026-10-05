@@ -815,7 +815,13 @@ async function buildDataExport(
 				.filter((row) => row.invitationId === invitation.id)
 				.map((row) => ({
 					version: row.version,
+					title: row.title,
+					description: row.description,
 					vacancy: row.vacancySnapshot,
+					category: row.category,
+					why_you: row.whyYou,
+					work_format: row.workFormat,
+					contact_method: row.contactMethod,
 					salary: {
 						min: row.salaryMin,
 						max: row.salaryMax,

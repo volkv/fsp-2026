@@ -29,7 +29,8 @@ import {
 	createMember,
 	createOwnVacancy,
 	createTaxonomyVersion,
-	randomSha256
+	randomSha256,
+	offerTermsRow
 } from '../helpers/factories';
 
 const DAY = 86_400_000;
@@ -165,7 +166,6 @@ async function invitedDeveloper() {
 		await tx.insert(invitations).values({
 			id: invitationId,
 			companyId: world.companyId,
-			vacancyId: world.vacancyId,
 			candidateId: person.id,
 			sentByMemberId: world.memberId,
 			status: 'sent',
@@ -177,7 +177,7 @@ async function invitedDeveloper() {
 			id: termsId,
 			invitationId,
 			version: 1,
-			vacancySnapshot: {},
+			...offerTermsRow(),
 			salaryMin: 200_000,
 			salaryMax: 300_000,
 			salaryCurrency: 'RUB',
@@ -215,7 +215,9 @@ describe('a run below the evidence floor', () => {
 		const invitedBy = async (dimension: 'fsp_participant' | 'specialization') =>
 			Object.fromEntries(
 				(
-					await careerFunnel({ db: database.db, crypto, now: () => NOW }, operator, { dimensions: [dimension] })
+					await careerFunnel({ db: database.db, crypto, now: () => NOW }, operator, {
+						dimensions: [dimension]
+					})
 				).groups.map((group) => [group.key, group.invited])
 			);
 		const fspCandidates = async () =>

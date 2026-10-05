@@ -1,7 +1,7 @@
 // Facts of `canShow` (docs/domain.md, section 7.4) read for many candidates at once: catalog search and pool counters
 // decide visibility with the same pure function as a single card. Consents follow `effectiveConsent` (domain 6.3).
 import { and, asc, desc, eq, inArray, isNotNull, lte, sql } from 'drizzle-orm';
-import { rolesOf, type AccessSubject } from '$lib/server/access/permissions';
+import { companyAdmission, rolesOf, type AccessSubject } from '$lib/server/access/permissions';
 import { minorTermsAcceptance } from '$lib/server/companies/profile';
 import { effectiveConsent, type ConsentEventFacts } from '$lib/server/consent/effective';
 import { CATALOG_SCOPE_FIELDS, parsePolicyParams, type CatalogScopeField } from '$lib/server/consent/kinds';
@@ -78,7 +78,7 @@ export async function loadCatalogViewer(
 		},
 		company: {
 			membershipActive: membership.status === 'active',
-			companyVerified: membership.companyStatus === 'verified',
+			companyAdmitted: companyAdmission(membership.companyStatus).admitted,
 			hasCardReadPermission,
 			minorTermsAccepted: (await minorTermsAcceptance(executor, membership.companyId, now)) !== null
 		}
