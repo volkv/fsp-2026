@@ -41,6 +41,7 @@ export const load: PageServerLoad = async (event) => {
 	return {
 		candidate: current !== null,
 		endsAt,
+		nightlyReset: config().demo?.nightlyReset === true,
 		ownResumeHours: terms.ownResumeHours,
 		idleHours: DEMO_IDLE_MINUTES / 60,
 		document: { id: document.id, title: document.title, body: document.body, version: document.version }

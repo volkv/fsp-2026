@@ -3,6 +3,7 @@
 // has been idle for `DEMO_IDLE_MINUTES`, or when the stand is full and a new visitor needs its place after
 // `DEMO_EVICTABLE_MINUTES` of quiet. The times live in Redis beside the sign-in sessions they come from: a session with
 // no time recorded counts from its opening.
+import { config } from '$lib/server/config';
 import type { Redis } from '$lib/server/redis';
 
 /**
@@ -60,8 +61,12 @@ export function nextStandReset(now: Date): Date {
 	return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
 }
 
-/** When a session goes at the latest whatever its use: its own end or the nightly reset of the stand, the earlier. */
+/**
+ * When a session goes at the latest whatever its use: its own end or the nightly reset of the stand, the earlier. With
+ * `DEMO_NIGHTLY_RESET` off nothing resets the stand, and the session's own end is the last one.
+ */
 export function lastEndOf(expiresAt: Date, now: Date): Date {
+	if (config().demo?.nightlyReset === false) return expiresAt;
 	return new Date(Math.min(expiresAt.getTime(), nextStandReset(now).getTime()));
 }
 

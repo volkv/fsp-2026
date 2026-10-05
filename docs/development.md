@@ -51,7 +51,7 @@ http://localhost:57300/api/health. Контейнер приложения пр�
 |---|---|---|
 | `make up` | — | собирает образ и поднимает весь стенд вместе с приложением (http://localhost:57300) |
 | `make down` | — | останавливает стенд; тома сохраняются (`docker compose down -v` — удалить) |
-| `make infra` | — | инфраструктура: PostgreSQL, Redis, хранилище SeaweedFS, Mailpit, имитатор ФСП `fsp-mock`, `docparse` и песочница `sandbox` со шлюзами, эмбеддер `embedder` (первая сборка образов `docparse` и `sandbox` — несколько минут, первый старт эмбеддера качает модель, 635 МБ) |
+| `make infra` | — | инфраструктура: PostgreSQL, Valkey, хранилище SeaweedFS, Mailpit, имитатор ФСП `fsp-mock`, `docparse` и песочница `sandbox` со шлюзами, эмбеддер `embedder` (первая сборка образов `docparse` и `sandbox` — несколько минут, первый старт эмбеддера качает модель, 635 МБ) |
 | `make dev` | `pnpm dev` | Vite dev-сервер |
 | `make worker` | `pnpm worker --types=…` | собрать воркер в `build/worker/` и запустить на хосте с базой из `.env` (раздел «Воркер фоновых заданий») |
 | `make db-migrate` | `pnpm db:migrate` | применить миграции к базе из `.env` |
@@ -72,7 +72,7 @@ http://localhost:57300/api/health. Контейнер приложения пр�
 | — | `pnpm check` | `svelte-kit sync` и `svelte-check` (предупреждения — ошибки) |
 | — | `pnpm test:unit` | unit-тесты (`src/**/*.test.ts`) |
 | — | `pnpm test:integration` | integration-тесты (`tests/integration`) в контейнерах Testcontainers; нужен Docker |
-| — | `pnpm test:e2e` | Playwright против собранного `build/`; нужны `pnpm build`, `.env` и поднятые PostgreSQL, Redis, Mailpit и `fsp-mock` (`make infra`). База — своя (раздел «Своя база e2e»): сервер e2e пересоздаёт её пустой, мигрирует и публикует таксономию, правовые документы, политики и банк заданий. Порты — из `tests/e2e/helpers/ports.ts` (слот `E2E_PORT`, ниже); формы и вход через ФСП ID тесты открывают на `http://localhost:<порт слота>` — этот `redirect_uri` знает имитатор |
+| — | `pnpm test:e2e` | Playwright против собранного `build/`; нужны `pnpm build`, `.env` и поднятые PostgreSQL, Valkey, Mailpit и `fsp-mock` (`make infra`). База — своя (раздел «Своя база e2e»): сервер e2e пересоздаёт её пустой, мигрирует и публикует таксономию, правовые документы, политики и банк заданий. Порты — из `tests/e2e/helpers/ports.ts` (слот `E2E_PORT`, ниже); формы и вход через ФСП ID тесты открывают на `http://localhost:<порт слота>` — этот `redirect_uri` знает имитатор |
 | `make check-fast` | `pnpm check:fast` | lint, svelte-check, unit |
 | `make check-docparse` | `pnpm check:docparse` | `docparse`: ruff (lint и формат) и pytest в тестовом образе сервиса, без сети |
 | `make check-sandbox` | `pnpm check:sandbox` | песочница: собирает образ и гоняет `tests/integration/sandbox.test.ts` — вердикты, лимиты, изоляция (входит и в `pnpm test:integration`) |
@@ -83,11 +83,11 @@ http://localhost:57300/api/health. Контейнер приложения пр�
 | — | `pnpm eval:build` | собрать мост оценки в `.eval-build/` (делает и `eval:run`) |
 | — | `pnpm check:eval` | стенд оценки: ruff (lint и формат) и pytest в его тестовом образе, без сети |
 | — | `pnpm eval:lock` | пересобрать `tools/eval/uv.lock` после правки `tools/eval/pyproject.toml` |
-| — | `pnpm check:image` | собирает образ приложения (`pnpm docker:build`) и запускает его стартовой командой, как стенд (`scripts/check-image.sh`): своя пустая PostgreSQL и Redis во временной внутренней сети, миграции, публикации, пространство эмбеддингов, начальный администратор, демо-режим — красное, если сервер не стал healthy за 180 с; с `.env` и стендом разработки не пересекается |
-| `make check-all` | `pnpm check:all` | полный гейт: check-fast, integration (вместе с песочницей), build, e2e (сам поднимает PostgreSQL и Redis из compose), check-image, check-docparse, check-eval, check-fsp-mock |
+| — | `pnpm check:image` | собирает образ приложения (`pnpm docker:build`) и запускает его стартовой командой, как стенд (`scripts/check-image.sh`): своя пустая PostgreSQL и Valkey во временной внутренней сети, миграции, публикации, пространство эмбеддингов, начальный администратор, демо-режим — красное, если сервер не стал healthy за 180 с; с `.env` и стендом разработки не пересекается |
+| `make check-all` | `pnpm check:all` | полный гейт: check-fast, integration (вместе с песочницей), build, e2e (сам поднимает PostgreSQL и Valkey из compose), check-image, check-docparse, check-eval, check-fsp-mock |
 
 **Полный гейт** перед коммитом в `main` — `make check-all` (`pnpm check:all`). Нужны Docker, `.env` и свободные порты
-57432 и 57379: e2e поднимает PostgreSQL и Redis из `compose.yaml` и оставляет их работать (`make down` — погасить).
+57432 и 57379: e2e поднимает PostgreSQL и Valkey из `compose.yaml` и оставляет их работать (`make down` — погасить).
 Integration-тесты песочницы собирают её образ; первая сборка — несколько минут, дальше — из кэша. Шаги идут
 последовательно и останавливаются на первом красном; упавший шаг перезапускается отдельно командой из таблицы.
 Весь стенд (`make up`) гейт не поднимает, но образ приложения запускает (`pnpm check:image`): `docker build` доказывает
@@ -100,7 +100,7 @@ Integration-тесты песочницы собирают её образ; пе
 прогона — серверу, воркерам Playwright и тому, что они запускают. Первый шаг сервера e2e (`scripts/e2e-database.ts`)
 пересоздаёт её пустой, дальше — миграции и публикации, как у контейнера приложения. Поэтому прогон не встречает строк и
 выпусков таксономии, оставленных разработкой или другим прогоном; после прогона база остаётся для разбора и
-пересоздаётся следующим. `demo.spec.ts` заводит рядом ещё и свою временную базу `e2e_demo_*` и удаляет её в конце. Redis
+пересоздаётся следующим. `demo.spec.ts` заводит рядом ещё и свою временную базу `e2e_demo_*` и удаляет её в конце. Valkey
 тот же сервер из `.env`, но своя база на слот (`REDIS_URL` с `/1` или `/2`, `tests/e2e/helpers/ports.ts`): сессии, лимиты
 частоты и переключатели моделей прогона не смешиваются с разработкой (база 0) и со вторым прогоном.
 
@@ -110,7 +110,7 @@ Integration-тесты песочницы собирают её образ; пе
 умолчанию, 57185–57187 во втором слоте. Других слотов нет: имитатор `fsp-mock` из `compose.yaml` общий для копий и
 возвращает вход через ФСП ID только на колбэки обоих слотов (`FSP_MOCK_REDIRECT_URIS` — список, а не переменная: иначе
 каждый `compose up` из другой копии пересоздавал бы общий имитатор под себя); другой `E2E_PORT` — отказ конфига. Общими
-остаются серверы `make infra` (PostgreSQL, Redis, хранилище, Mailpit, `fsp-mock`). Имя compose-проекта
+остаются серверы `make infra` (PostgreSQL, Valkey, хранилище, Mailpit, `fsp-mock`). Имя compose-проекта
 (`name: fsp-career`) перекрывается `COMPOSE_PROJECT_NAME` из окружения или `.env`, но порты хоста в `compose.yaml` те же
 57xxx: отдельный стек копии рядом с основным без смены портов не поднять.
 
@@ -129,7 +129,7 @@ Integration-тесты песочницы собирают её образ; пе
 | 57300 | приложение в контейнере (`make up`) |
 | 57310 | состояние воркера `GET /health`, только loopback: у `make worker` — хоста, в compose — контейнера (не публикуется) |
 | 57432 | PostgreSQL |
-| 57379 | Redis |
+| 57379 | Valkey |
 | 57900 | хранилище `storage` (SeaweedFS): S3 API |
 | 57025 / 57825 | Mailpit: SMTP / веб-интерфейс |
 | 57800 | `docparse` через шлюз (`DOCPARSE_URL` для `pnpm dev`) |
@@ -162,11 +162,11 @@ TypeScript — `camelCase`. Миграции генерирует `pnpm db:gener
 контейнера и сервера e2e). Отдельного `drizzle.config.ts` нет: параметры drizzle-kit — в скрипте `db:generate`.
 
 **Состояние сервиса.** `GET /api/health` отвечает `200` и `{"status":"ok", ...}` или `503` и `"degraded"`, с версией,
-коммитом сборки и статусами `up`/`down` PostgreSQL и Redis. Причины отказа пишутся только в лог сервера.
+коммитом сборки и статусами `up`/`down` PostgreSQL и Valkey. Причины отказа пишутся только в лог сервера.
 
 **Тесты.**
 - unit — рядом с кодом, `*.test.ts`; зависимости подменяются `vi.mock`, в том числе `$env/dynamic/private`;
-- integration — `tests/integration`; `global-setup.ts` поднимает PostgreSQL (pgvector) и Redis в Testcontainers и
+- integration — `tests/integration`; `global-setup.ts` поднимает PostgreSQL (pgvector) и Valkey в Testcontainers и
   передаёт адреса через `inject`, тест подменяет ими `$env/dynamic/private`;
 - e2e — `tests/e2e`, Playwright против production-сборки;
 - образы контейнеров для тестов — `tests/helpers/images.ts`, держать в соответствии с `compose.yaml`;
@@ -305,7 +305,7 @@ init-контейнера нет — `docker compose up --wait` на нём па
 `EMBED_MODEL=bge-m3`, `EMBED_SPACE_ID` — идентификатор выше, затем `pnpm db:seed-embedding-space` и воркер с типами
 `embedding.reindex,profile.embed,vacancy.embed`. Пустой `EMBED_BASE_URL` — поиск только по словам.
 
-**Замеры** (локально, 2026-09-25, 4 потока): 300 демо-кандидатов (630 текстов секций) и 99 вакансий — 95 с, ≈ 8 текстов в
+**Замеры** (локально, 4 потока): 300 демо-кандидатов (630 текстов секций) и 99 вакансий — 95 с, ≈ 8 текстов в
 секунду; на двух потоках — ≈ 5 текстов в секунду, запрос, который ждёт за пачкой из 8 текстов, — ≈ 1,2 с (за пачкой из
 32 — 5,5 с, дольше `EMBED_INTERACTIVE_TIMEOUT_MS`, поэтому `EMBED_BATCH_SIZE=8`). Точный поиск по 3000 кандидатам
 (6000 векторов по 1024) — 20–22 мс в PostgreSQL; поиск каталога в режиме `hybrid` целиком на демо-засеве 3000 кандидатов
@@ -371,7 +371,7 @@ DEMO_MODE=true pnpm db:seed-demo     # или DEMO_MODE=true в .env
 Решение о каждой таблице — в `DEMO_RESET_PLAN` (`src/lib/server/demo/reset.ts`); таблица без решения останавливает сброс, а
 тест `tests/integration/demo-reset.test.ts` сверяет план со списком таблиц схемы после миграций — новая таблица без решения
 его роняет. Сброс идёт одной транзакцией (`TRUNCATE` и построчное удаление там, где справочник ссылается на очищаемую таблицу;
-триггеры append-only на время транзакции выключены), затем удаляет объекты файлов из хранилища, очищает Redis (`FLUSHDB`:
+триггеры append-only на время транзакции выключены), затем удаляет объекты файлов из хранилища, очищает Valkey (`FLUSHDB`:
 сессии, счётчики, кеши) и сбрасывает имитатор (`POST /mock/reset`). Остаются строки заданий `demo.reset` и векторы навыков.
 
 **Задание `demo.reset`** — сброс и засев в воркере: ночью в 00:00 UTC (планировщик ставит задание наступающей ночи только в
@@ -388,7 +388,7 @@ DEMO_MODE=true pnpm db:seed-demo     # или DEMO_MODE=true в .env
 ключи героев `seeds/demo.json`; неизвестный ключ останавливает старт имитатора). Новые сессии — 60 в сутки с адреса (правило
 `demoSession`; объём держит лимит живых сессий), запросы `POST /demo` — 200 за 10 минут (правило `demo`); живых сессий не больше
 60, при нехватке место отдаёт сессия, молчащая дольше всех (не меньше 20 минут); сессию без запросов 8 часов завершает
-`demo.purge`. Время использования сессий — в Redis (`demo:activity`); заход на `/demo` с живой сессией отмечает использование
+`demo.purge`. Время использования сессий — в Valkey (`demo:activity`); заход на `/demo` с живой сессией отмечает использование
 тоже. Клон оператора и администратора достаёт только строки своей сессии, общие действия
 (пакет ФСП, роли персонала, режим моделей) закрыты — `src/lib/server/access/demo-actor.ts`,
 `tests/integration/demo-actor.test.ts`.
@@ -398,7 +398,7 @@ DEMO_MODE=true pnpm db:seed-demo     # или DEMO_MODE=true в .env
 активного пространства и пространств в сборке (`enqueueDemoReindex`, `src/lib/server/demo/job.ts`); считает его воркер, до
 конца пересчёта каталог ищет по словам. Уже засеянная партия пересчёт не ставит.
 
-**Замеры** (локально, 2026-09-25): см. `docs/deploy.md`, «Демо-данные».
+**Замеры** (локально): см. `docs/deploy.md`, «Демо-данные».
 
 ## Начальный администратор
 
@@ -437,7 +437,7 @@ node --env-file=.env --enable-source-maps build/admin/main.js ensure --reset-pas
 подтверждённым тем, кто задаёт окружение.
 
 **Сброс демо** (`DEMO_RESET_PLAN`) сохраняет настоящий персонал: учётки без `seed_batch_id` и `demo_session_id`, у которых
-есть строка `staff_roles`, их пароли и роли; сессии уходят вместе с Redis. Каналы уведомлений не сохраняются — они ссылаются
+есть строка `staff_roles`, их пароли и роли; сессии уходят вместе с Valkey. Каналы уведомлений не сохраняются — они ссылаются
 на события согласий (append-only, сброс их очищает `TRUNCATE`), — канал почты администратора снова открывает следующий
 старт приложения. Проверки — `tests/integration/bootstrap-admin.test.ts`, `tests/integration/demo-reset.test.ts`.
 
@@ -600,7 +600,7 @@ Docker по умолчанию разрешает любому контейне�
 библиотеки: неизвестное имя останавливает go-judge на старте; образ — только для x86_64.
 
 **Права контейнера.** go-judge строит окружения из пространств имён и монтирований, поэтому контейнеру нужен
-`CAP_SYS_ADMIN`. Минимальный набор проверен перебором (2026-09-25, Docker 29.8, ядро 7.0):
+`CAP_SYS_ADMIN`. Минимальный набор проверен перебором (Docker 29.8, ядро 7.0):
 - `cap_add`: `SYS_ADMIN` (namespaces, mount, pivot_root, запись в cgroup), `SETUID`/`SETGID` (карты uid/gid окружений),
   `SETFCAP` (карта uid 0 в user namespace, ядро ≥ 5.12); без любого из четырёх окружение не создаётся, остальные
   capabilities сброшены;

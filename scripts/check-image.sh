@@ -3,7 +3,7 @@
 # «Полный гейт»). `docker build` proves only that the image builds: the start command of the image (Dockerfile, CMD)
 # runs the migrations and the publications with plain Node from the copied sources, so a module missing from the image
 # or a failing publication surfaces only here. The image runs with its own command, unchanged, against a PostgreSQL and
-# a Redis of its own on an internal network of its own: empty, as on a new stand, and gone after the check. Nothing of
+# a Valkey of its own on an internal network of its own: empty, as on a new stand, and gone after the check. Nothing of
 # the development stand (.env, compose.yaml, its volumes and ports) is touched.
 #
 #   scripts/check-image.sh <image>
@@ -41,7 +41,7 @@ docker run -d --name "$RUN-postgres" --network "$NETWORK" --network-alias postgr
 	--tmpfs /var/lib/postgresql/data --shm-size 128m \
 	-e POSTGRES_DB=fsp -e POSTGRES_USER=fsp -e POSTGRES_PASSWORD="$DB_PASSWORD" "$POSTGRES_IMAGE" >/dev/null
 docker run -d --name "$RUN-redis" --network "$NETWORK" --network-alias redis \
-	"$REDIS_IMAGE" redis-server --requirepass "$REDIS_PASSWORD" --save '' >/dev/null
+	"$REDIS_IMAGE" valkey-server --requirepass "$REDIS_PASSWORD" --save '' >/dev/null
 
 # Over TCP: while the image initialises the database, its temporary server listens on the socket only.
 for _ in $(seq 1 60); do

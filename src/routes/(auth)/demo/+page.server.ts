@@ -76,7 +76,8 @@ async function currentRole(event: RequestEvent, sessionId: string, roles: readon
 export const load: PageServerLoad = async (event) => {
 	requireDemo(event);
 	const now = new Date();
-	const resetAt = nextStandReset(now);
+	// With `DEMO_NIGHTLY_RESET` off nothing resets the stand: no reset time to show, a session ends at its own end.
+	const resetAt = config().demo?.nightlyReset === true ? nextStandReset(now) : null;
 	const roles = castRoles(await readSeedData(seedsDirectory()));
 	// FSP ID does not sign in to the heroes of the scenario (their originals or clones), and signs an athlete in within
 	// the visitor's demo session: the callback sends here when either stops it.
@@ -107,7 +108,7 @@ export const load: PageServerLoad = async (event) => {
 			? {
 					idleEndsAt: idleEndOf(current.session.expiresAt, now),
 					endsAt: lastEndOf(current.session.expiresAt, now),
-					endsAtReset: resetAt.getTime() <= current.session.expiresAt.getTime(),
+					endsAtReset: resetAt !== null && resetAt.getTime() <= current.session.expiresAt.getTime(),
 					ownResumeAt: current.session.ownResumeAt,
 					token: current.token,
 					joinLink: `${config().appOrigin}/demo?join=${encodeURIComponent(current.token)}`,

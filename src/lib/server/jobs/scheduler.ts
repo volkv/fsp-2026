@@ -43,14 +43,14 @@ export const PERIODIC_JOBS: readonly AnyPeriodicJob[] = [
 		due: (now) => ({ payload: { period: utcDate(now) }, inputVersion: utcDate(now) })
 	},
 	{
-		// Nightly on a demonstration stand: the job of the coming night waits for 00:00 UTC, then the stand returns to its
+		// Nightly on a demonstration stand with `DEMO_NIGHTLY_RESET` on: the job of the coming night waits for 00:00 UTC, then the stand returns to its
 		// seeded state (domain 19.2). A worker started in the evening does not reset the stand at once.
 		type: 'demo.reset',
 		due: (now) => {
 			const night = nextStandReset(now);
 			return { payload: { date: utcDate(night) }, inputVersion: utcDate(night), runAfter: night };
 		},
-		enabled: () => config().demo !== null
+		enabled: () => config().demo?.nightlyReset === true
 	},
 	{
 		// Hourly on a demonstration stand: demo sessions whose time is over are removed (domain 19.3).

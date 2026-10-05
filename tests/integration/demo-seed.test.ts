@@ -151,6 +151,7 @@ beforeAll(async () => {
 			candidates: 40,
 			vacancies: 30,
 			world: { seed: DEFAULT_SEED, athletes: ATHLETES },
+			nightlyReset: true,
 			fspMockControlToken: credentials.controlToken
 		},
 		appOrigin: 'http://localhost:57173',

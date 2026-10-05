@@ -30,7 +30,7 @@
 	{:else}
 		<p class="text-sm" data-testid="own-resume-term">
 			Резюме и всё, что из него получено, удалится вместе с демо-сессией: через {data.ownResumeHours} ч после загрузки, после
-			{data.idleHours} ч без действий в сессии или при ночном сбросе стенда — не позже {data.endsAt
+			{data.idleHours} ч без действий в сессии{data.nightlyReset ? ' или при ночном сбросе стенда' : ''} — не позже {data.endsAt
 				? formatDateTime(data.endsAt)
 				: ''}.
 		</p>

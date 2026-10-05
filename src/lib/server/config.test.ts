@@ -210,4 +210,19 @@ describe('parseConfig', () => {
 		expect(String(error)).toContain('BOOTSTRAP_ADMIN_EMAIL');
 		expect(String(error)).not.toContain(password);
 	});
+
+	it('resets a demonstration stand every night unless DEMO_NIGHTLY_RESET says false', () => {
+		const stand = {
+			...FSP_SIMULATOR,
+			DEMO_MODE: 'true',
+			FSP_MOCK_SEED: 'seed',
+			FSP_MOCK_ATHLETES: '200',
+			FSP_MOCK_CONTROL_TOKEN: 'k'.repeat(32)
+		};
+		expect(parseConfig(testEnvironment(stand)).demo?.nightlyReset).toBe(true);
+		expect(parseConfig(testEnvironment({ ...stand, DEMO_NIGHTLY_RESET: '' })).demo?.nightlyReset).toBe(true);
+		expect(parseConfig(testEnvironment({ ...stand, DEMO_NIGHTLY_RESET: 'true' })).demo?.nightlyReset).toBe(true);
+		expect(parseConfig(testEnvironment({ ...stand, DEMO_NIGHTLY_RESET: 'false' })).demo?.nightlyReset).toBe(false);
+		expect(() => parseConfig(testEnvironment({ ...stand, DEMO_NIGHTLY_RESET: 'no' }))).toThrow(/DEMO_NIGHTLY_RESET/);
+	});
 });

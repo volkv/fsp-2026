@@ -85,10 +85,11 @@ x-app-environment: &app-environment
   TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
   TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:-}
   # Demonstration mode (docs/deploy.md, «Демо-данные»): the stand seeds itself at start and returns to the seeded
-  # state every night at 00:00 UTC. The simulator below gets the same FSP_MOCK_SEED and FSP_MOCK_ATHLETES.
+  # state every night at 00:00 UTC unless DEMO_NIGHTLY_RESET=false. The simulator below gets the same FSP_MOCK_SEED and FSP_MOCK_ATHLETES.
   DEMO_MODE: ${DEMO_MODE:-}
   DEMO_CANDIDATES: ${DEMO_CANDIDATES:-}
   DEMO_VACANCIES: ${DEMO_VACANCIES:-}
+  DEMO_NIGHTLY_RESET: ${DEMO_NIGHTLY_RESET:-}
   FSP_MOCK_SEED: ${FSP_MOCK_SEED:-fsp-career-2026-7}
   FSP_MOCK_ATHLETES: ${FSP_MOCK_ATHLETES:-3000}
   FSP_MOCK_CONTROL_TOKEN: ${FSP_MOCK_CONTROL_TOKEN:?}
@@ -135,9 +136,9 @@ services:
   # rewrites its process title, so the argument is not shown in a process listing.
   redis:
     container_name: fsp-career-redis
-    image: redis:8.10.2-alpine
+    image: valkey/valkey:9.1.2-alpine
     restart: unless-stopped
-    command: [redis-server, --requirepass, '${REDIS_PASSWORD:?}']
+    command: [valkey-server, --requirepass, '${REDIS_PASSWORD:?}']
     environment:
       REDISCLI_AUTH: ${REDIS_PASSWORD:?}
     volumes:
@@ -146,7 +147,7 @@ services:
     memswap_limit: 128m
     networks: [internal]
     healthcheck:
-      test: [CMD-SHELL, 'redis-cli ping | grep -qx PONG']
+      test: [CMD-SHELL, 'valkey-cli ping | grep -qx PONG']
       interval: 5s
       timeout: 3s
       retries: 30

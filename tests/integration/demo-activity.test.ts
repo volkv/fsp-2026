@@ -161,3 +161,40 @@ describe('a visit to /demo', () => {
 		await purgeDemoSession({ db: database.db, redis, store: noFiles }, session.id, new Date(), REQUEST_ID);
 	});
 });
+
+describe('the nightly reset of the stand, DEMO_NIGHTLY_RESET', () => {
+	// `config()` is read once per module instance: each mode loads the modules afresh over its own environment.
+	async function standWith(nightlyReset: 'true' | 'false') {
+		env.DEMO_NIGHTLY_RESET = nightlyReset;
+		vi.resetModules();
+		try {
+			const activity = await import('$lib/server/demo/activity');
+			const scheduler = await import('$lib/server/jobs/scheduler');
+			return { activity, scheduled: scheduler.periodicJobsFor(['demo.reset', 'demo.purge']).map((job) => job.type) };
+		} finally {
+			delete env.DEMO_NIGHTLY_RESET;
+			vi.resetModules();
+		}
+	}
+
+	// 10:00 Moscow time: the stand's own end is a day away, the reset comes at 00:00 UTC.
+	const morning = new Date('2026-10-13T07:00:00Z');
+	const dayLater = new Date(morning.getTime() + DAY);
+	const reset = new Date('2026-10-14T00:00:00Z');
+
+	it('on: the worker schedules the reset and no session outlives it', async () => {
+		const { activity, scheduled } = await standWith('true');
+		expect(scheduled).toEqual(['demo.reset', 'demo.purge']);
+		expect(activity.lastEndOf(dayLater, morning)).toEqual(reset);
+	});
+
+	it('off: no reset is scheduled, sessions are purged by time and live to their own end', async () => {
+		const { activity, scheduled } = await standWith('false');
+		expect(scheduled).toEqual(['demo.purge']);
+		expect(activity.lastEndOf(dayLater, morning)).toEqual(dayLater);
+		const evening = new Date('2026-10-13T20:00:00Z');
+		expect(activity.idleEndOf(dayLater, evening)).toEqual(
+			new Date(evening.getTime() + activity.DEMO_IDLE_MINUTES * 60_000)
+		);
+	});
+});

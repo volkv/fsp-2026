@@ -4,7 +4,7 @@
 // The models behind the reverse tunnel are reachable from the app and the worker only, and the tunnel publishes nothing:
 // its client comes in through `docker exec` on the server. On the stand only the services Caddy reaches share its
 // network with other projects, every network of the stand itself is internal, the services that call outside have a
-// network of their own for it, and Redis takes the password of the stand's environment.
+// network of their own for it, and Valkey takes the password of the stand's environment.
 import { readFile } from 'node:fs/promises';
 import { describe, expect, it, vi } from 'vitest';
 import { BGE_M3_Q8 } from '$lib/server/embeddings/definitions';
@@ -167,12 +167,12 @@ describe('worker deployment', () => {
 		});
 	});
 
-	describe('Redis of the stand', () => {
+	describe('Valkey of the stand', () => {
 		it('refuses a client without the password of the environment', async () => {
 			const redis = (await prodServices()).get('redis') ?? '';
-			expect(redis).toMatch(/^ {4}command: \[redis-server, --requirepass, '\$\{REDIS_PASSWORD:\?\}'\]$/m);
+			expect(redis).toMatch(/^ {4}command: \[valkey-server, --requirepass, '\$\{REDIS_PASSWORD:\?\}'\]$/m);
 			expect(redis).toMatch(/^ {6}REDISCLI_AUTH: \$\{REDIS_PASSWORD:\?\}$/m);
-			expect(redis).toContain("test: [CMD-SHELL, 'redis-cli ping | grep -qx PONG']");
+			expect(redis).toContain("test: [CMD-SHELL, 'valkey-cli ping | grep -qx PONG']");
 		});
 
 		it('gives the app and the worker the password in the URL', async () => {
