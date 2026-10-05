@@ -110,4 +110,5 @@ export type StatementBlock =
 	| { kind: 'heading'; text: string }
 	| { kind: 'paragraph'; inlines: Inline[] }
 	| { kind: 'code'; text: string }
-	| { kind: 'list'; ordered: boolean; items: Inline[][] };
+	| { kind: 'list'; ordered: boolean; items: Inline[][] }
+	| { kind: 'table'; header: Inline[][]; rows: Inline[][][] };
