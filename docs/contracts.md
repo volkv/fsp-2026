@@ -1180,7 +1180,7 @@ interface ParseResponse {
 | 404 | `not_found` | объекта нет **или** актор не вправе знать о нём (в том числе отказ `canShow`) |
 | 409 | `conflict` | нарушение перехода состояния (ответ на истёкшее приглашение, ответ на заменённую версию условий — в `details` отличия); тест недоступен по политике грейда — `details[].code` из `BlockReason` (`retake_interval`, `grade_change_interval`, `attempt_limit`, `attempt_in_progress`, `lower_requires_failure`, `above_declared`, `above_next_grade`, `already_confirmed`, `below_confirmed`, `not_declared`) и `available_from` (domain 12.3); `bank_capacity_exhausted` — у банка нет невиденных классов для блока запроса подтверждения |
 | 409 | `idempotency_conflict` | повтор ключа идемпотентности с другим телом |
-| 422 | `policy_violation` | нарушение продуктовой политики; `details[].code`: `vacancy_not_invitable` (внешняя вакансия, неполная вилка, неизвестная налоговая база), `salary_not_rub`, `salary_below_vacancy`, `reopen_cooldown`, `minor_age_mismatch`, `scope_fields_minor`, `company_profile_incomplete`, `text_blocked`, `specialization_closed`, `qa_budget_too_small`, `qa_budget_exceeded`, `confirmation_block_confirmed` (блок уже подтверждён категорией) |
+| 422 | `policy_violation` | нарушение продуктовой политики; `details[].code`: `vacancy_not_invitable` (внешняя вакансия, неполная вилка, неизвестная налоговая база), `salary_not_rub`, `salary_below_vacancy`, `reopen_cooldown`, `minor_age_mismatch`, `scope_fields_minor`, `company_profile_incomplete`, `text_blocked`, `specialization_closed`, `qa_budget_too_small`, `qa_budget_exceeded`, `confirmation_block_confirmed` (определяющий блок категории), `block_not_testable` (пара «блок × грейд» без блок-теста, domain 13.11) |
 | 429 | `rate_limited` | с `Retry-After` |
 | 503 | `degraded` | зависимость недоступна, а безопасного режима у операции нет |
 
@@ -1243,7 +1243,7 @@ interface ParseResponse {
 | `GET /api/v1/verify/{handle}` | все, без аутентификации | проверка квитанции: `{status, statement, source_simulator, signature, signing_key_id}`, без ПДн (domain 9.6); заявление демонстрационного стенда несёт `source_simulator: true` под подписью, ответ отдаёт его же отдельным полем; публичная страница показывает «Источник — имитатор ФСП»; ограничение частоты по адресу |
 | `GET /.well-known/receipt-keys.json` | все | открытые ключи подписи квитанций (JWKS, `OKP`/`Ed25519`) |
 | `GET /api/v1/me/data` | кандидат (сессия) | «Мои данные»: выгрузка всего, что платформа хранит о кандидате, тем же документом, что скачивается со страницы `/me/export` (`fsp-career-data-export/v2`, domain 19.2); каждая выгрузка — событие `data.exported` с каналом `api` |
-| `PUT /api/v1/me/catalog-scope` | кандидат 18+ | `{ scope_fields }` — точные достижения и профили в каталоге; новое событие `catalog_visibility` |
+| `PUT /api/v1/me/catalog-scope` | кандидат 18+ | `{ scope_fields }` — точные достижения, профили и зарплатные ожидания (`salary_expectations`, domain 13.10) в каталоге; новое событие `catalog_visibility` |
 | `POST /api/v1/me/tests/decisions/{decision_id}/objections` | кандидат (сессия) | возражение против результата теста (domain 12.5) |
 | `POST /api/v1/me/notification-channels/telegram` | любой пользователь | ссылка привязки бота (раздел 8.2) |
 | `POST /api/v1/integrations/fsp/webhooks` | ФСП (подпись) | раздел 1.5 |
@@ -1459,14 +1459,18 @@ U+FFFD. Сравнение, `stdoutPreview` и `stdoutSha256` считаются
 
 Задания теста (domain 10.3) пользуются тем же интерфейсом `run` без изменений контракта.
 - **Практика (`practice_code`):** одна отправка — один запрос; `tests` — все тесты всех групп экземпляра (≤ 50, идентификатор теста
-  `<группа>/<n>`), `checker` — из экземпляра; балл кластера — доля групп, у которых все тесты `accepted`. Шаг «измени своё решение» —
-  отдельная отправка со своими группами того же кластера.
-- **Мутанты QA (`qa_mutation`):** два запроса на отправку. Первый — программа-обвязка экземпляра на Python с **исправным эталоном** и
-  кейсами кандидата во входе одного теста; вывод — по строке на кейс (`pass` / `fail`). Второй — та же обвязка, которая сама перебирает
-  все мутанты экземпляра × кейсы и печатает матрицу; эталон и мутанты — часть исходного кода обвязки, кейсы — во входе, кандидату ничего
-  из этого не показывается. Вердикт `accepted` с разобранной матрицей — оценка; любой другой вердикт обвязки (`time_limit`,
-  `runtime_error`, `sandbox_error`) — ошибка запуска, не «убит» и не «выжил»: повтор по правилам 6.4, кластер не оценивается до успешного
-  прогона. Лимиты второго запроса — `wallTimeMs` по числу мутантов (не больше 20 000), память — как у практики.
+  `<группа>/<n>`), `checker` — из экземпляра; балл кластера — `⌊20 · пройденные группы / группы⌋ / 20` (domain 10.3). Шаг «измени
+  своё решение» — отдельная отправка со своими группами того же кластера.
+- **Мутанты QA (`qa_mutation`):** программу даёт генератор семейства — `harness(instance, mode, part)` (`FamilyModule` контракта
+  `bank.ts`, domain 10.1); эталон и мутанты — часть её исходного кода, кейсы кандидата JSON `[{"input": …, "expected": …}]` — вход
+  единственного теста. Два запроса на отправку: `mode = 'reference'` — строка из `1`/`0` по кейсу (проходит ли на исправном эталоне);
+  `mode = 'mutants'` — строка из `1`/`0` по мутанту в порядке `qa.mutants` (убит ли). `part = 'change_step'` — то же для изменённой
+  спецификации шага «измени своё решение» (`changeStep.qa`). Строка читается из вывода теста; вердикт `accepted` или `wrong_answer` с
+  читаемой строкой длины числа кейсов или мутантов — оценка; любой другой вердикт или нечитаемая строка — ошибка запуска, не «убит» и
+  не «выжил»: повтор по правилам 6.4, кластер не оценивается до успешного прогона. Лимиты второго запроса — `wallTimeMs` по числу
+  мутантов (не больше 20 000), память — как у практики.
+- **Ожидание песочницы и аннулирование.** Кластер в `awaiting_sandbox` дольше 30 минут попадает в список «требуют внимания» оператора;
+  оператор может аннулировать **идущую** попытку с причиной `technical_failure` (domain 10.7): она не засчитывается политикой.
 - **Модели семантики**, которые генератор использует для Kotlin, оболочки, манифестов и конвейеров (domain 10.1), в песочнице стенда не
   исполняются: ключ считает генератор при сборке экземпляра.
 
@@ -1677,14 +1681,15 @@ interface NotificationChannel {
 | `POST /api/v1/me/surveys` | новая версия опроса `{direction, specialization, declared_skill_keys, preferences}` (domain 12.2) → `201 {survey_id, version}` | `422 specialization_closed`; `400` неизвестный навык |
 | `GET /api/v1/me/grade-hint` | подсказка грейда по действующим доказательствам: `{suggested, bases[], caveats}` | `409 not_declared` — нет опроса |
 | `POST /api/v1/me/grade-declarations` | `{specialization, grade}` → заявление со снимком подсказки | `409 attempt_in_progress` |
-| `GET /api/v1/me/grade-options?specialization=` | ответ `gradeOptions` (domain 12.3): по каждому грейду `available`, `kind` или `reason` и `available_from` | — |
+| `GET /api/v1/me/grade-options?specialization=` | ответ `gradeOptions` (domain 12.3): по каждому грейду `available`, `kind` или `reason` и `available_from` (наибольшая дата всех закрывающих причин); у варианта «ниже после неудачи» — `failed_retake: {grade, available_from}` | — |
 | `POST /api/v1/me/tests` | начать попытку `{specialization, grade}` → `201 {attempt_id, form, deadline_at, first_item}` | `409` с кодом `BlockReason`; `422 specialization_closed` |
 | `GET /api/v1/me/tests/{attempt_id}` | состояние попытки: поданные кластеры (условия без ключей), ответы кандидата, текущий кластер, срок | `404` чужая |
 | `POST /api/v1/me/tests/{attempt_id}/items/{seq}/answer` | ответ на кластер: `{answer}` для вычисляемого, `{language, source}` для практики, `{cases: [{input, expected}]}` для QA, `{change_step: …}` для шага → следующий шаг процедуры (`continue` со следующим кластером, `extend`, `decided` с решением) | `409` кластер уже отвечен или не текущий; `422 qa_budget_too_small` / `qa_budget_exceeded`; `202` — ждёт песочницу |
 | `GET /api/v1/me/tests/decisions/{decision_id}` | решение и объяснение (domain 10.6): итог, причина, `S`, `C`, блоки, практика, что не проверяется, что дальше | `404` чужое |
 | `POST /api/v1/me/tests/decisions/{decision_id}/objections` | возражение `{reason, items?}` (domain 12.5) → `201` | `409` открытое возражение уже есть |
 | `GET /api/v1/me/categories` | действующие и прошлые категории с блоками, стеком и статусом | — |
-| `GET /api/v1/me/confirmation-requests`, `POST …/{id}/accept`, `POST …/{id}/decline` | запросы подтверждения (domain 13.11); `accept` начинает попытку `vacancy_block` | `409` срок истёк или уже отвечен |
+| `GET /api/v1/me/confirmation-requests`, `POST …/{id}/accept`, `POST …/{id}/decline` | запросы подтверждения (domain 13.11); `accept` начинает блок-тест (`vacancy_block`) или, если есть действующий результат того же блока на том же или более высоком грейде, закрывает запрос им | `409` срок истёк или уже отвечен; `409 bank_capacity_exhausted` |
+| `PUT /api/v1/me/block-confirmations/{id}/visibility` | `{visibility: requester \| all_companies}` — кому виден результат блок-теста | `404` чужой |
 | `GET /api/v1/me/challenges`, `POST /api/v1/me/challenges/{delivery_id}/solutions`, `DELETE …/solutions/{id}` | доставленные вызовы, решение, отзыв решения (domain 13.12) | `409` вызов закрыт |
 
 ### 10.2. Работодатель: профиль, потребность, подборка, предложение
@@ -1699,9 +1704,9 @@ interface NotificationChannel {
 | `GET /api/v1/shortlists/{id}` | текущая выдача шага (каждый раз через `canShow`), отмеченные, история шагов; `?revision=` — выдача по запросу прошлого шага | — |
 | `POST /api/v1/shortlists/{id}/revisions` | уточнение `{change}` → новый шаг; отмеченные сохраняются с признаком «не проходит новое условие» | `400` |
 | `PUT`, `DELETE /api/v1/shortlists/{id}/marks/{pseudonym}` | отметить / снять | `404` кандидат не виден |
-| `GET /api/v1/shortlists/{id}/what-if?change=` | «что если» (domain 13.10): поимённо по формату, грейду, навыку; по вилке — интервалы и агрегаты | `400` больше одного изменения |
+| `GET /api/v1/shortlists/{id}/what-if?change=` | «что если» (domain 13.10): поимённо по формату, грейду, навыку; по вилке — интервалы и агрегат по фиксированной когорте категории подборки (суточный снимок), не по отмеченным | `400` больше одного изменения |
 | `POST /api/v1/invitations` (5.5), `POST /api/v1/invitations/{id}/terms` | предложение без вакансии и пересмотр | `422 salary_not_rub`, `company_profile_incomplete`, `text_blocked`; `409 offer_open`, `reopen_cooldown` |
-| `POST /api/v1/confirmation-requests` | `{candidate_pseudonym, block, invitation_id?, need_id?}` → открытый запрос или действующий результат (без дублей) | `422 confirmation_block_confirmed`, `specialization_closed` |
+| `POST /api/v1/confirmation-requests` | `{candidate_pseudonym, block, invitation_id?, need_id?}` → открытый запрос или видимый компании действующий результат того же блока на том же или более высоком грейде (без дублей) | `422 confirmation_block_confirmed` (определяющий блок категории), `block_not_testable` (пара «блок × грейд» не разрешена), `specialization_closed` |
 | `POST /api/v1/vacancies/{id}/test-spec`, `POST /api/v1/test-spec/from-text` | спецификация теста из вакансии или текста: основа категории и добавленные блоки (domain 13.11) | — |
 | `POST`, `PATCH /api/v1/challenges`, `GET /api/v1/challenges/{id}/solutions` | вызов компании и псевдонимные решения | `422 text_blocked`, `company_profile_incomplete` |
 

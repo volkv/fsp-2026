@@ -1,4 +1,4 @@
-// The catalog of categories (docs/domain.md, section 23.2): six specializations, four grades and, for every pair, the
+// The catalog of categories (docs/domain.md, section 12.1): six specializations, four grades and, for every pair, the
 // definition of the grade — the blocks of competence its test covers with the number of items each block gives to the
 // longest trajectory, the practice task, the borderline candidate in words and what the test does not check. A category
 // of a candidate is a specialization and a grade confirmed by a test of this catalog; nothing else assigns one.
@@ -36,11 +36,18 @@ export type ItemFormat = (typeof ITEM_FORMATS)[number];
 export const PRACTICE_FORMATS = ['practice_code', 'qa_mutation'] as const satisfies readonly ItemFormat[];
 
 /**
- * Language keys of the sandbox image (services/sandbox/languages.json); a unit test keeps the two lists equal. A
- * practice task runs only in these languages.
+ * Language keys of the sandbox image (services/sandbox/languages.json); a unit test keeps the two lists equal.
  */
 export const SANDBOX_LANGUAGE_KEYS = ['python3', 'javascript', 'typescript', 'go', 'cpp17', 'java21'] as const;
 export type SandboxLanguageKey = (typeof SANDBOX_LANGUAGE_KEYS)[number];
+
+/**
+ * Languages a practice task may be written in: the image's and those the product decided to add to it (Kotlin for
+ * Mobile). A specialization whose practice language the image lacks cannot be switched on, and its bank cannot be
+ * released (the validator checks both against `SANDBOX_LANGUAGE_KEYS`).
+ */
+export const PRACTICE_LANGUAGE_KEYS = [...SANDBOX_LANGUAGE_KEYS, 'kotlin'] as const;
+export type PracticeLanguageKey = (typeof PRACTICE_LANGUAGE_KEYS)[number];
 
 /**
  * Languages of traced code whose answer the generator computes itself (a model of the semantics checked against the
@@ -48,14 +55,15 @@ export type SandboxLanguageKey = (typeof SANDBOX_LANGUAGE_KEYS)[number];
  */
 export const GENERATOR_LANGUAGE_KEYS = ['kotlin', 'shell', 'sql', 'yaml', 'dockerfile', 'promql', 'hcl'] as const;
 
-/** The skill of the taxonomy a practice language confirms when the practice gate is passed (domain 23.6). */
-export const PRACTICE_LANGUAGE_SKILLS: Readonly<Record<SandboxLanguageKey, string>> = {
+/** The skill of the taxonomy a practice language confirms when the practice gate is passed (domain 12.4). */
+export const PRACTICE_LANGUAGE_SKILLS: Readonly<Record<PracticeLanguageKey, string>> = {
 	python3: 'python',
 	javascript: 'javascript',
 	typescript: 'typescript',
 	go: 'go',
 	cpp17: 'cpp',
-	java21: 'java'
+	java21: 'java',
+	kotlin: 'kotlin'
 };
 
 export interface DirectionDefinition {
@@ -74,7 +82,7 @@ export interface SpecializationDefinition {
 	availability: 'enabled' | 'disabled';
 	/** What the specialization is about, for the survey. */
 	summary: string;
-	practiceLanguages: readonly SandboxLanguageKey[];
+	practiceLanguages: readonly PracticeLanguageKey[];
 }
 
 export interface GradeLevel {
@@ -90,7 +98,7 @@ export interface BlockDefinition {
 	title: string;
 	/** What the items of the block check, for the candidate before the test and for the employer next to the result. */
 	checks: string;
-	/** Skills of the taxonomy a passed block confirms (domain 23.6); empty — the block confirms no named skill. */
+	/** Skills of the taxonomy the block confirms when it is a defining block of a confirmed grade (domain 12.4); empty — none. */
 	skillKeys: readonly string[];
 	formats: readonly ItemFormat[];
 	/** The block of the practice slot: only practice formats, one item per test. */
@@ -105,11 +113,14 @@ export interface BlockQuota {
 
 export interface PracticeSpec {
 	block: string;
-	/** 1-based position of the practice slot; not after the minimum length, so every decision sees the practice. */
+	/**
+	 * 1-based slot position of the practice; not after the slot of the minimum number of items, so every decision sees
+	 * it. The practice is a gate, not a summand of the procedure (domain 10.6).
+	 */
 	position: number;
 	/** The practice cluster carries the step «измени своё решение». */
 	changeStep: boolean;
-	/** The practice gate: the score of the practice cluster a confirmation needs (domain 23.5). */
+	/** The practice gate: a practice cluster scored under this share ends the attempt «не подтверждено» at once. */
 	gateMinScore: number;
 }
 
@@ -122,6 +133,11 @@ export interface GradeDefinition {
 	expects: readonly string[];
 	/** Required blocks with their items on the longest trajectory; the practice block is among them with one item. */
 	blocks: readonly BlockQuota[];
+	/**
+	 * The two defining blocks of the grade: each is served first (three items before the minimum length), a confirmation
+	 * needs each of them not failed, and the confirmed stack is theirs (domain 10.6, 12.4). Each has a quota of ≥ 3.
+	 */
+	defining: readonly string[];
 	practice: PracticeSpec;
 	/** What the test of this pair does not check, beyond `CATALOG.commonDoesNotCheck`. */
 	doesNotCheck: readonly string[];
@@ -144,7 +160,7 @@ const SENIOR_DOES_NOT_CHECK = [
 ] as const;
 
 export const CATALOG: Catalog = {
-	version: '2026.10.1',
+	version: '2026.10.2',
 	directions: [
 		{ key: 'development', title: 'Разработка' },
 		{ key: 'data', title: 'Данные и машинное обучение' },
@@ -174,7 +190,7 @@ export const CATALOG: Catalog = {
 			direction: 'development',
 			availability: 'disabled',
 			summary: 'Приложения под Android на Kotlin: язык, корутины, жизненный цикл, интерфейс и данные.',
-			practiceLanguages: ['java21']
+			practiceLanguages: ['kotlin']
 		},
 		{
 			key: 'data_ml',
@@ -620,6 +636,7 @@ export const CATALOG: Catalog = {
 		{
 			specialization: 'backend',
 			grade: 'intern',
+			defining: ['be.lang', 'be.db'],
 			borderline: 'Уверенно читает короткий код на одном языке и простые SELECT; ошибается на граничных данных и NULL.',
 			expects: [
 				'предсказывает вывод программы из 10–20 строк',
@@ -634,12 +651,13 @@ export const CATALOG: Catalog = {
 				{ block: 'be.api', items: 1 },
 				{ block: 'be.code', items: 1 }
 			],
-			practice: { block: 'be.code', position: 4, changeStep: false, gateMinScore: 0.5 },
+			practice: { block: 'be.code', position: 4, changeStep: false, gateMinScore: 0.4 },
 			doesNotCheck: []
 		},
 		{
 			specialization: 'backend',
 			grade: 'junior',
+			defining: ['be.db', 'be.api'],
 			borderline:
 				'Самостоятельно пишет обработчик по ясной спецификации и запрос с JOIN; ошибается в идемпотентности и NULL в агрегатах.',
 			expects: [
@@ -655,12 +673,13 @@ export const CATALOG: Catalog = {
 				{ block: 'be.debug', items: 3 },
 				{ block: 'be.code', items: 1 }
 			],
-			practice: { block: 'be.code', position: 4, changeStep: false, gateMinScore: 0.5 },
+			practice: { block: 'be.code', position: 4, changeStep: false, gateMinScore: 0.4 },
 			doesNotCheck: []
 		},
 		{
 			specialization: 'backend',
 			grade: 'middle',
+			defining: ['be.db', 'be.concurrency'],
 			borderline:
 				'Уверенно работает с транзакциями, конкурентным доступом и повтором сообщений; ошибается в редких гонках и оценке нагрузки.',
 			expects: [
@@ -677,12 +696,13 @@ export const CATALOG: Catalog = {
 				{ block: 'be.debug', items: 3 },
 				{ block: 'be.code', items: 1 }
 			],
-			practice: { block: 'be.code', position: 4, changeStep: true, gateMinScore: 0.6 },
+			practice: { block: 'be.code', position: 4, changeStep: true, gateMinScore: 0.4 },
 			doesNotCheck: []
 		},
 		{
 			specialization: 'backend',
 			grade: 'senior',
+			defining: ['be.concurrency', 'be.design'],
 			borderline:
 				'Оценивает ёмкость и согласованность системы и выбирает поведение при отказах; ошибается в редких сочетаниях отказов.',
 			expects: [
@@ -698,13 +718,14 @@ export const CATALOG: Catalog = {
 				{ block: 'be.design', items: 5 },
 				{ block: 'be.code', items: 1 }
 			],
-			practice: { block: 'be.code', position: 4, changeStep: true, gateMinScore: 0.6 },
+			practice: { block: 'be.code', position: 4, changeStep: true, gateMinScore: 0.4 },
 			doesNotCheck: [...SENIOR_DOES_NOT_CHECK]
 		},
 		// Frontend.
 		{
 			specialization: 'frontend',
 			grade: 'intern',
+			defining: ['fe.js', 'fe.dom'],
 			borderline:
 				'Читает короткий код на JavaScript и простую разметку; путается в this и порядке асинхронного вывода.',
 			expects: [
@@ -719,12 +740,13 @@ export const CATALOG: Catalog = {
 				{ block: 'fe.state', items: 2 },
 				{ block: 'fe.code', items: 1 }
 			],
-			practice: { block: 'fe.code', position: 4, changeStep: false, gateMinScore: 0.5 },
+			practice: { block: 'fe.code', position: 4, changeStep: false, gateMinScore: 0.4 },
 			doesNotCheck: []
 		},
 		{
 			specialization: 'frontend',
 			grade: 'junior',
+			defining: ['fe.js', 'fe.async'],
 			borderline:
 				'Уверенно работает с промисами и состоянием компонента; ошибается в порядке микро- и макрозадач и в кэшировании.',
 			expects: [
@@ -740,12 +762,13 @@ export const CATALOG: Catalog = {
 				{ block: 'fe.web', items: 3 },
 				{ block: 'fe.code', items: 1 }
 			],
-			practice: { block: 'fe.code', position: 4, changeStep: false, gateMinScore: 0.5 },
+			practice: { block: 'fe.code', position: 4, changeStep: false, gateMinScore: 0.4 },
 			doesNotCheck: []
 		},
 		{
 			specialization: 'frontend',
 			grade: 'middle',
+			defining: ['fe.async', 'fe.state'],
 			borderline:
 				'Предсказывает поведение асинхронного кода и повторного рендера; ошибается в редких гонках запросов и стоимости рендера.',
 			expects: [
@@ -762,12 +785,13 @@ export const CATALOG: Catalog = {
 				{ block: 'fe.perf', items: 2 },
 				{ block: 'fe.code', items: 1 }
 			],
-			practice: { block: 'fe.code', position: 4, changeStep: true, gateMinScore: 0.6 },
+			practice: { block: 'fe.code', position: 4, changeStep: true, gateMinScore: 0.4 },
 			doesNotCheck: []
 		},
 		{
 			specialization: 'frontend',
 			grade: 'senior',
+			defining: ['fe.async', 'fe.perf'],
 			borderline:
 				'Оценивает производительность и архитектуру клиентской части по условиям; ошибается в редких сочетаниях кэша и сети.',
 			expects: [
@@ -783,13 +807,14 @@ export const CATALOG: Catalog = {
 				{ block: 'fe.perf', items: 5 },
 				{ block: 'fe.code', items: 1 }
 			],
-			practice: { block: 'fe.code', position: 4, changeStep: true, gateMinScore: 0.6 },
+			practice: { block: 'fe.code', position: 4, changeStep: true, gateMinScore: 0.4 },
 			doesNotCheck: [...SENIOR_DOES_NOT_CHECK]
 		},
 		// Mobile.
 		{
 			specialization: 'mobile',
 			grade: 'intern',
+			defining: ['mob.kotlin', 'mob.lifecycle'],
 			borderline: 'Читает короткий код на Kotlin; путается в null-безопасности и порядке колбэков экрана.',
 			expects: [
 				'предсказывает вывод короткой программы на Kotlin',
@@ -803,12 +828,13 @@ export const CATALOG: Catalog = {
 				{ block: 'mob.data', items: 2 },
 				{ block: 'mob.code', items: 1 }
 			],
-			practice: { block: 'mob.code', position: 4, changeStep: false, gateMinScore: 0.5 },
+			practice: { block: 'mob.code', position: 4, changeStep: false, gateMinScore: 0.4 },
 			doesNotCheck: ['Работу на настоящем устройстве и в Android Studio']
 		},
 		{
 			specialization: 'mobile',
 			grade: 'junior',
+			defining: ['mob.kotlin', 'mob.lifecycle'],
 			borderline:
 				'Уверенно работает с коллекциями Kotlin и жизненным циклом экрана; ошибается при смене конфигурации и отмене корутин.',
 			expects: [
@@ -824,12 +850,13 @@ export const CATALOG: Catalog = {
 				{ block: 'mob.data', items: 2 },
 				{ block: 'mob.code', items: 1 }
 			],
-			practice: { block: 'mob.code', position: 4, changeStep: false, gateMinScore: 0.5 },
+			practice: { block: 'mob.code', position: 4, changeStep: false, gateMinScore: 0.4 },
 			doesNotCheck: ['Работу на настоящем устройстве и в Android Studio']
 		},
 		{
 			specialization: 'mobile',
 			grade: 'middle',
+			defining: ['mob.coroutines', 'mob.data'],
 			borderline:
 				'Предсказывает поведение корутин и состояния при уничтожении процесса; ошибается в редких гонках и в кэше без сети.',
 			expects: [
@@ -846,12 +873,13 @@ export const CATALOG: Catalog = {
 				{ block: 'mob.arch', items: 1 },
 				{ block: 'mob.code', items: 1 }
 			],
-			practice: { block: 'mob.code', position: 4, changeStep: true, gateMinScore: 0.6 },
+			practice: { block: 'mob.code', position: 4, changeStep: true, gateMinScore: 0.4 },
 			doesNotCheck: ['Работу на настоящем устройстве и в Android Studio']
 		},
 		{
 			specialization: 'mobile',
 			grade: 'senior',
+			defining: ['mob.coroutines', 'mob.arch'],
 			borderline:
 				'Выбирает архитектуру модулей и поведение приложения без сети; ошибается в редких сочетаниях жизненного цикла и данных.',
 			expects: [
@@ -867,13 +895,14 @@ export const CATALOG: Catalog = {
 				{ block: 'mob.arch', items: 5 },
 				{ block: 'mob.code', items: 1 }
 			],
-			practice: { block: 'mob.code', position: 4, changeStep: true, gateMinScore: 0.6 },
+			practice: { block: 'mob.code', position: 4, changeStep: true, gateMinScore: 0.4 },
 			doesNotCheck: ['Работу на настоящем устройстве и в Android Studio', ...SENIOR_DOES_NOT_CHECK]
 		},
 		// Data Science / ML.
 		{
 			specialization: 'data_ml',
 			grade: 'intern',
+			defining: ['ds.stats', 'ds.metrics'],
 			borderline:
 				'Считает базовые статистики и простые метрики; путается в условных вероятностях и метриках при дисбалансе.',
 			expects: [
@@ -888,12 +917,13 @@ export const CATALOG: Catalog = {
 				{ block: 'ds.sql', items: 2 },
 				{ block: 'ds.code', items: 1 }
 			],
-			practice: { block: 'ds.code', position: 4, changeStep: false, gateMinScore: 0.5 },
+			practice: { block: 'ds.code', position: 4, changeStep: false, gateMinScore: 0.4 },
 			doesNotCheck: ['Работу с библиотеками машинного обучения и GPU']
 		},
 		{
 			specialization: 'data_ml',
 			grade: 'junior',
+			defining: ['ds.metrics', 'ds.data'],
 			borderline:
 				'Уверенно считает метрики и готовит данные; ошибается в утечке целевой переменной и в метриках с равными скорами.',
 			expects: [
@@ -909,12 +939,13 @@ export const CATALOG: Catalog = {
 				{ block: 'ds.sql', items: 3 },
 				{ block: 'ds.code', items: 1 }
 			],
-			practice: { block: 'ds.code', position: 4, changeStep: false, gateMinScore: 0.5 },
+			practice: { block: 'ds.code', position: 4, changeStep: false, gateMinScore: 0.4 },
 			doesNotCheck: ['Работу с библиотеками машинного обучения и GPU']
 		},
 		{
 			specialization: 'data_ml',
 			grade: 'middle',
+			defining: ['ds.ml', 'ds.stats'],
 			borderline:
 				'Строит корректную схему валидации и выбирает метрику под задачу; ошибается в редких видах утечки и сдвига данных.',
 			expects: [
@@ -931,12 +962,13 @@ export const CATALOG: Catalog = {
 				{ block: 'ds.dl', items: 1 },
 				{ block: 'ds.code', items: 1 }
 			],
-			practice: { block: 'ds.code', position: 4, changeStep: true, gateMinScore: 0.6 },
+			practice: { block: 'ds.code', position: 4, changeStep: true, gateMinScore: 0.4 },
 			doesNotCheck: ['Работу с библиотеками машинного обучения и GPU']
 		},
 		{
 			specialization: 'data_ml',
 			grade: 'senior',
+			defining: ['ds.ml', 'ds.dl'],
 			borderline:
 				'Выбирает постановку, метрику и мониторинг модели в эксплуатации; ошибается в редких сочетаниях дрейфа и обратной связи.',
 			expects: [
@@ -952,13 +984,14 @@ export const CATALOG: Catalog = {
 				{ block: 'ds.dl', items: 5 },
 				{ block: 'ds.code', items: 1 }
 			],
-			practice: { block: 'ds.code', position: 4, changeStep: true, gateMinScore: 0.6 },
+			practice: { block: 'ds.code', position: 4, changeStep: true, gateMinScore: 0.4 },
 			doesNotCheck: ['Работу с библиотеками машинного обучения и GPU', ...SENIOR_DOES_NOT_CHECK]
 		},
 		// QA.
 		{
 			specialization: 'qa',
 			grade: 'intern',
+			defining: ['qa.design', 'qa.defects'],
 			borderline: 'Выделяет очевидные классы эквивалентности и читает простой лог; пропускает граничные значения.',
 			expects: [
 				'выделяет классы эквивалентности по спецификации',
@@ -972,12 +1005,13 @@ export const CATALOG: Catalog = {
 				{ block: 'qa.sql', items: 2 },
 				{ block: 'qa.mutants', items: 1 }
 			],
-			practice: { block: 'qa.mutants', position: 4, changeStep: false, gateMinScore: 0.5 },
+			practice: { block: 'qa.mutants', position: 4, changeStep: false, gateMinScore: 0.4 },
 			doesNotCheck: ['Работу с конкретной системой управления тестированием']
 		},
 		{
 			specialization: 'qa',
 			grade: 'junior',
+			defining: ['qa.design', 'qa.defects'],
 			borderline:
 				'Уверенно применяет граничные значения и проверяет API по контракту; ошибается в комбинациях условий.',
 			expects: [
@@ -993,12 +1027,13 @@ export const CATALOG: Catalog = {
 				{ block: 'qa.sql', items: 2 },
 				{ block: 'qa.mutants', items: 1 }
 			],
-			practice: { block: 'qa.mutants', position: 4, changeStep: false, gateMinScore: 0.5 },
+			practice: { block: 'qa.mutants', position: 4, changeStep: false, gateMinScore: 0.4 },
 			doesNotCheck: ['Работу с конкретной системой управления тестированием']
 		},
 		{
 			specialization: 'qa',
 			grade: 'middle',
+			defining: ['qa.auto', 'qa.design'],
 			borderline:
 				'Строит экономный набор проверок для сложной логики и автоматизирует его; ошибается в нестабильных тестах и редких сочетаниях.',
 			expects: [
@@ -1015,12 +1050,13 @@ export const CATALOG: Catalog = {
 				{ block: 'qa.strategy', items: 1 },
 				{ block: 'qa.mutants', items: 1 }
 			],
-			practice: { block: 'qa.mutants', position: 4, changeStep: true, gateMinScore: 0.6 },
+			practice: { block: 'qa.mutants', position: 4, changeStep: true, gateMinScore: 0.4 },
 			doesNotCheck: ['Работу с конкретной системой управления тестированием']
 		},
 		{
 			specialization: 'qa',
 			grade: 'senior',
+			defining: ['qa.strategy', 'qa.auto'],
 			borderline: 'Выбирает стратегию проверки по рискам и уровням тестирования; ошибается в редких сочетаниях рисков.',
 			expects: [
 				'распределяет проверки по рискам и уровням',
@@ -1035,13 +1071,14 @@ export const CATALOG: Catalog = {
 				{ block: 'qa.strategy', items: 5 },
 				{ block: 'qa.mutants', items: 1 }
 			],
-			practice: { block: 'qa.mutants', position: 4, changeStep: true, gateMinScore: 0.6 },
+			practice: { block: 'qa.mutants', position: 4, changeStep: true, gateMinScore: 0.4 },
 			doesNotCheck: ['Работу с конкретной системой управления тестированием', ...SENIOR_DOES_NOT_CHECK]
 		},
 		// DevOps / SRE.
 		{
 			specialization: 'devops',
 			grade: 'intern',
+			defining: ['ops.linux', 'ops.net'],
 			borderline: 'Читает простые команды и Dockerfile; путается в масках подсетей и кэше слоёв.',
 			expects: [
 				'предсказывает вывод конвейера из двух-трёх команд',
@@ -1055,12 +1092,13 @@ export const CATALOG: Catalog = {
 				{ block: 'ops.cicd', items: 1 },
 				{ block: 'ops.code', items: 1 }
 			],
-			practice: { block: 'ops.code', position: 4, changeStep: false, gateMinScore: 0.5 },
+			practice: { block: 'ops.code', position: 4, changeStep: false, gateMinScore: 0.4 },
 			doesNotCheck: ['Доступ к настоящей облачной инфраструктуре и кластеру']
 		},
 		{
 			specialization: 'devops',
 			grade: 'junior',
+			defining: ['ops.containers', 'ops.k8s'],
 			borderline:
 				'Уверенно собирает образ и описывает простой конвейер; ошибается в селекторах манифестов и условиях запуска заданий.',
 			expects: [
@@ -1076,12 +1114,13 @@ export const CATALOG: Catalog = {
 				{ block: 'ops.cicd', items: 3 },
 				{ block: 'ops.code', items: 1 }
 			],
-			practice: { block: 'ops.code', position: 4, changeStep: false, gateMinScore: 0.5 },
+			practice: { block: 'ops.code', position: 4, changeStep: false, gateMinScore: 0.4 },
 			doesNotCheck: ['Доступ к настоящей облачной инфраструктуре и кластеру']
 		},
 		{
 			specialization: 'devops',
 			grade: 'middle',
+			defining: ['ops.k8s', 'ops.observability'],
 			borderline: 'Предсказывает поведение оркестратора и оповещений; ошибается в редких сочетаниях ресурсов и правил.',
 			expects: [
 				'определяет, сколько подов и где запустится при ограничениях',
@@ -1097,12 +1136,13 @@ export const CATALOG: Catalog = {
 				{ block: 'ops.observability', items: 4 },
 				{ block: 'ops.code', items: 1 }
 			],
-			practice: { block: 'ops.code', position: 4, changeStep: true, gateMinScore: 0.6 },
+			practice: { block: 'ops.code', position: 4, changeStep: true, gateMinScore: 0.4 },
 			doesNotCheck: ['Доступ к настоящей облачной инфраструктуре и кластеру']
 		},
 		{
 			specialization: 'devops',
 			grade: 'senior',
+			defining: ['ops.iac', 'ops.observability'],
 			borderline:
 				'Планирует изменения инфраструктуры и надёжность сервиса по SLO; ошибается в редких сочетаниях отказов.',
 			expects: [
@@ -1118,7 +1158,7 @@ export const CATALOG: Catalog = {
 				{ block: 'ops.iac', items: 5 },
 				{ block: 'ops.code', items: 1 }
 			],
-			practice: { block: 'ops.code', position: 4, changeStep: true, gateMinScore: 0.6 },
+			practice: { block: 'ops.code', position: 4, changeStep: true, gateMinScore: 0.4 },
 			doesNotCheck: ['Доступ к настоящей облачной инфраструктуре и кластеру', ...SENIOR_DOES_NOT_CHECK]
 		}
 	],
@@ -1137,6 +1177,16 @@ export function gradeDefinition(specialization: SpecializationKey, grade: GradeK
 	return found;
 }
 
+/**
+ * The confirmed stack of a confirmed decision: the skills of the grade's defining blocks and the skill of the practice
+ * language. It does not depend on how long the attempt ran: every confirmation has seen the defining blocks in full.
+ */
+export function confirmedStack(definition: GradeDefinition, practiceLanguage: PracticeLanguageKey): string[] {
+	const skills = new Set<string>([PRACTICE_LANGUAGE_SKILLS[practiceLanguage]]);
+	for (const code of definition.defining) for (const skill of blockDefinition(code).skillKeys) skills.add(skill);
+	return [...skills].sort();
+}
+
 /** The block by its code. */
 export function blockDefinition(code: string): BlockDefinition {
 	const found = CATALOG.blocks.find((b) => b.code === code);
@@ -1150,7 +1200,7 @@ export function gradeOrdinal(grade: GradeKey): number {
 
 /**
  * Whether a specialization is open: switched on in the catalog and with a released bank. Every place that offers or
- * accepts a specialization asks this one predicate (domain 23.9).
+ * accepts a specialization asks this one predicate (domain 10.5).
  */
 export function specializationOpen(
 	specialization: SpecializationKey,

@@ -1,4 +1,4 @@
-// The validator of the frozen contract (docs/domain.md, section 23): the shape of every kind of data — the catalog,
+// The validator of the frozen contract (docs/domain.md, sections 10 and 12): the shape of every kind of data — the catalog,
 // the procedure, the grade policy, a family descriptor, a generated instance, a bank release — and the rules that tie
 // them together. Each check returns the problems as readable lines; an empty list means the data is valid. The bank
 // tree, the release script and the unit tests call it; nothing is released with a problem.
@@ -12,6 +12,7 @@ import {
 	GRADE_KEYS,
 	ITEM_FORMATS,
 	PRACTICE_FORMATS,
+	PRACTICE_LANGUAGE_KEYS,
 	SANDBOX_LANGUAGE_KEYS,
 	SPECIALIZATION_KEYS,
 	gradeOrdinal,
@@ -22,13 +23,14 @@ import {
 import {
 	ANSWER_KINDS,
 	FAMILY_GATES,
+	blockTestPairs,
 	capacityChecks,
 	type BankRelease,
 	type FamilyDescriptor,
 	type FamilyGates,
 	type ItemInstance
 } from './bank.ts';
-import { maxLength, type ProcedureParams } from './procedure.ts';
+import { SCALE, maxLength, type ProcedureParams, type TrajectoryModel } from './procedure.ts';
 import type { GradePolicy } from './policy.ts';
 
 const text = z.string().trim().min(1);
@@ -37,7 +39,10 @@ const positiveInt = z.int().positive();
 const specialization = z.enum(SPECIALIZATION_KEYS);
 const grade = z.enum(GRADE_KEYS);
 const format = z.enum(ITEM_FORMATS);
-const sandboxLanguage = z.enum(SANDBOX_LANGUAGE_KEYS);
+const practiceLanguage = z.enum(PRACTICE_LANGUAGE_KEYS);
+/** A share on the scale of the procedure: a multiple of 1/20. */
+const onScale = (x: number): boolean => Math.abs(x * SCALE - Math.round(x * SCALE)) < 1e-9;
+const scaledShare = z.number().min(0).max(1).refine(onScale, 'not a multiple of 1/20');
 const blockCode = z.string().regex(/^[a-z]+\.[a-z0-9_]+$/);
 
 const catalogSchema = z.strictObject({
@@ -50,7 +55,7 @@ const catalogSchema = z.strictObject({
 			direction: z.enum(DIRECTION_KEYS),
 			availability: z.enum(['enabled', 'disabled']),
 			summary: text,
-			practiceLanguages: z.array(sandboxLanguage).min(1)
+			practiceLanguages: z.array(practiceLanguage).min(1)
 		})
 	),
 	grades: z.array(z.strictObject({ key: grade, ordinal: z.int().min(0), title: text })),
@@ -72,11 +77,12 @@ const catalogSchema = z.strictObject({
 			borderline: text,
 			expects: z.array(text).min(2),
 			blocks: z.array(z.strictObject({ block: blockCode, items: positiveInt })).min(3),
+			defining: z.array(blockCode).length(2),
 			practice: z.strictObject({
 				block: blockCode,
 				position: positiveInt,
 				changeStep: z.boolean(),
-				gateMinScore: z.number().gt(0).max(1)
+				gateMinScore: scaledShare.refine((x) => x > 0, 'gate must be positive')
 			}),
 			doesNotCheck: z.array(text)
 		})
@@ -88,30 +94,53 @@ const lengthsSchema = z
 	.strictObject({ nMin: positiveInt, nMax: positiveInt, extension: positiveInt })
 	.refine((l) => l.nMin <= l.nMax, 'nMin > nMax');
 
-const acceptanceSchema = {
-	shift: share,
-	falseConfirmMax: z.strictObject({ intern: share, junior: share, middle: share, senior: share }),
-	trueConfirmMin: share,
-	undeterminedMax: share
-};
+const byGrade = z.strictObject({ intern: share, junior: share, middle: share, senior: share });
+const acceptanceSchema = { falseConfirmMax: byGrade, trueConfirmMin: byGrade, undeterminedMax: share };
+const errorsAtEnds = z.strictObject({ atP0Confirmed: share, atP1NotConfirmed: share });
+const consistency = z.array(z.strictObject({ shift: z.number(), min: share })).min(1);
 
 const procedureSchema = z.strictObject({
 	version: text,
 	delta: z.number().positive(),
 	alpha: z.number().gt(0).lt(0.5),
 	beta: z.number().gt(0).lt(0.5),
-	bands: z.strictObject({ atMax: share, final: share }),
-	confidentMargin: share,
-	blockVerdictMargin: z.number().positive(),
-	blockMinItems: positiveInt,
+	bands: z.strictObject({ atMax: positiveInt, final: positiveInt }),
+	confidentMargin: positiveInt,
+	blockVerdictMargin: positiveInt,
+	definingMinItems: positiveInt,
+	definingFailMargin: positiveInt,
 	grades: z.strictObject({
 		intern: lengthsSchema,
 		junior: lengthsSchema,
 		middle: lengthsSchema,
 		senior: lengthsSchema
 	}),
-	homogeneousAcceptance: z.strictObject({ ...acceptanceSchema, cuts: z.array(share).min(1) }),
-	trajectoryAcceptance: z.strictObject({ ...acceptanceSchema, consistencyMin: share })
+	homogeneousAcceptance: z.strictObject({
+		...acceptanceSchema,
+		cuts: z.array(scaledShare).min(1),
+		indifferenceErrorsMax: z.strictObject({
+			intern: errorsAtEnds,
+			junior: errorsAtEnds,
+			middle: errorsAtEnds,
+			senior: errorsAtEnds
+		}),
+		biasSensitivity: z
+			.array(z.strictObject({ bias: z.number().min(-0.3).max(0.3), falseConfirmMax: share, trueConfirmMin: share }))
+			.min(1),
+		consistencyMin: consistency
+	}),
+	trajectoryAcceptance: z.strictObject({
+		...acceptanceSchema,
+		model: z.strictObject({
+			itemAngoff: scaledShare,
+			practiceAngoff: scaledShare,
+			practiceGroups: positiveInt,
+			rho: share,
+			changeStepWeight: scaledShare
+		}),
+		weakDefiningBlockConfirmMax: share,
+		consistencyMin: consistency
+	})
 });
 
 const policySchema = z.strictObject({
@@ -146,7 +175,7 @@ const familySchema = z.strictObject({
 				constructive: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])),
 				constructiveRank: positiveInt,
 				timeNormSec: positiveInt,
-				classes: z.array(z.strictObject({ id: text, form: z.enum(['A', 'B', 'anchor']), description: text }))
+				classes: z.array(z.strictObject({ id: text, form: z.enum(['A', 'B', 'anchor', 'X']), description: text }))
 			})
 		)
 		.min(1)
@@ -154,26 +183,26 @@ const familySchema = z.strictObject({
 	surfaceParams: z.array(z.strictObject({ name: text, description: text })).min(1),
 	essentialParams: z.array(z.strictObject({ name: text, description: text })).min(1),
 	language: z.string().nullable(),
-	practice: z.strictObject({ languages: z.array(sandboxLanguage).min(1), hiddenTestGroups: positiveInt }).nullable(),
+	practice: z.strictObject({ languages: z.array(practiceLanguage).min(1), hiddenTestGroups: positiveInt }).nullable(),
 	qa: z
 		.strictObject({
 			budget: z.strictObject({ min: positiveInt, max: positiveInt }),
 			mutants: z.array(z.strictObject({ id: text, operator: text }))
 		})
 		.nullable(),
-	changeStep: z.strictObject({ description: text, weight: z.number().gt(0).lt(1) }).nullable(),
+	changeStep: z
+		.strictObject({ description: text, weight: scaledShare.refine((w) => w > 0 && w < 1, 'weight in (0, 1)') })
+		.nullable(),
 	rubric: z.discriminatedUnion('kind', [
 		z.strictObject({ kind: z.literal('binary') }),
 		z.strictObject({
 			kind: z.literal('parts'),
-			parts: z.array(z.strictObject({ id: text, weight: share })).min(2)
+			parts: z.array(z.strictObject({ id: text, weight: scaledShare })).min(2)
 		}),
 		z.strictObject({ kind: z.literal('groups') }),
 		z.strictObject({
 			kind: z.literal('mutants'),
-			levels: z
-				.array(z.strictObject({ minKillRatio: z.number().min(0).max(1), score: z.number().min(0).max(1) }))
-				.min(2)
+			levels: z.array(z.strictObject({ minKillRatio: z.number().min(0).max(1), score: scaledShare })).min(2)
 		})
 	]),
 	coverage: z.strictObject({ checks: z.array(text).min(1), doesNotCheck: z.array(text).min(1) }),
@@ -217,7 +246,7 @@ const instanceSchema = z.strictObject({
 	answer: answerSchema.nullable(),
 	practice: z
 		.strictObject({
-			languages: z.array(sandboxLanguage).min(1),
+			languages: z.array(practiceLanguage).min(1),
 			groups: z.array(groupSchema).min(1),
 			checker: z.discriminatedUnion('kind', [
 				z.strictObject({ kind: z.literal('exact') }),
@@ -236,9 +265,15 @@ const instanceSchema = z.strictObject({
 	changeStep: z
 		.strictObject({
 			markdown: text,
-			weight: z.number().gt(0).lt(1),
+			weight: scaledShare.refine((w) => w > 0 && w < 1, 'weight in (0, 1)'),
 			answer: answerSchema.nullable(),
-			groups: z.array(groupSchema)
+			groups: z.array(groupSchema),
+			qa: z
+				.strictObject({
+					specification: text,
+					mutants: z.array(z.strictObject({ id: text, operator: text, equivalent: z.boolean() })).min(1)
+				})
+				.nullable()
 		})
 		.nullable(),
 	timeNormSec: positiveInt
@@ -279,6 +314,10 @@ export function catalogProblems(catalog: Catalog, procedure: ProcedureParams, sk
 	const directions = new Set(catalog.directions.map((d) => d.key));
 	for (const spec of catalog.specializations) {
 		if (!directions.has(spec.direction)) problems.push(`catalog: ${spec.key} has unknown direction ${spec.direction}`);
+		const missing = spec.practiceLanguages.filter((l) => !(SANDBOX_LANGUAGE_KEYS as readonly string[]).includes(l));
+		if (spec.availability === 'enabled' && missing.length) {
+			problems.push(`catalog: ${spec.key} is enabled, but the sandbox image lacks ${missing.join(', ')}`);
+		}
 	}
 	for (const code of duplicates(catalog.blocks.map((b) => b.code))) problems.push(`catalog: block ${code} twice`);
 	const blocks = new Map(catalog.blocks.map((b) => [b.code, b]));
@@ -334,10 +373,26 @@ export function catalogProblems(catalog: Catalog, procedure: ProcedureParams, sk
 		) {
 			problems.push(`catalog: ${pair} must have exactly one practice slot, of block ${definition.practice.block}`);
 		}
-		if (definition.practice.position > lengths.nMin) {
+		if (definition.practice.position > lengths.nMin + 1) {
 			problems.push(
-				`catalog: ${pair} practice at ${definition.practice.position}, after the minimum length ${lengths.nMin}`
+				`catalog: ${pair} practice at slot ${definition.practice.position}, after the minimum of ${lengths.nMin} items`
 			);
+		}
+		if (definition.defining.length === 2 && definition.defining[0] === definition.defining[1]) {
+			problems.push(`catalog: ${pair} names the same defining block twice`);
+		}
+		for (const code of definition.defining) {
+			const quota = definition.blocks.find((q) => q.block === code);
+			if (!quota || blocks.get(code)?.practice !== false) {
+				problems.push(`catalog: ${pair} defining block ${code} is not a non-practice block of the plan`);
+			} else if (quota.items < procedure.definingMinItems) {
+				problems.push(
+					`catalog: ${pair} defining block ${code} has ${quota.items} items, ${procedure.definingMinItems} required`
+				);
+			}
+		}
+		if (definition.defining.length * procedure.definingMinItems > lengths.nMin) {
+			problems.push(`catalog: ${pair} defining blocks do not fit the minimum of ${lengths.nMin} items`);
 		}
 		const needsChangeStep = gradeOrdinal(definition.grade) >= gradeOrdinal('middle');
 		if (definition.practice.changeStep !== needsChangeStep) {
@@ -396,8 +451,17 @@ export function familyProblems(family: FamilyDescriptor, gates: FamilyGates = FA
 		}
 		const ps = level.angoff.ratings.map((r) => r.p);
 		const mean = ps.reduce((sum, p) => sum + p, 0) / Math.max(ps.length, 1);
-		if (Math.abs(mean - level.angoff.mean) > 1e-9)
-			problems.push(`${lw}: Angoff mean ${level.angoff.mean} is not ${mean.toFixed(4)}`);
+		// The cut of the level is the mean on the procedure's scale, ties rounded up (the stricter cut).
+		const scaled = Math.floor(mean * SCALE + 0.5 + 1e-9) / SCALE;
+		if (Math.abs(scaled - level.angoff.mean) > 1e-9)
+			problems.push(
+				`${lw}: Angoff mean ${level.angoff.mean} is not ${scaled.toFixed(2)} (mean ${mean.toFixed(3)} on the 1/20 scale)`
+			);
+		if (isPractice(family.format) && (scaled < gates.practiceAngoff.min || scaled > gates.practiceAngoff.max)) {
+			problems.push(
+				`${lw}: a practice cluster is a gate the borderline candidate passes: Angoff ${gates.practiceAngoff.min}–${gates.practiceAngoff.max}`
+			);
+		}
 		if (Math.max(...ps) - Math.min(...ps) > gates.angoffGapMax + 1e-9 && level.angoff.round !== 2) {
 			problems.push(`${lw}: ratings differ by more than ${gates.angoffGapMax} — the second round is required`);
 		}
@@ -406,6 +470,9 @@ export function familyProblems(family: FamilyDescriptor, gates: FamilyGates = FA
 		const forms = new Set(level.classes.map((c) => c.form));
 		if (!forms.has('A') || !forms.has('B')) problems.push(`${lw}: needs an essential class of form A and of form B`);
 		if (level.classes.filter((c) => c.form === 'anchor').length > 1) problems.push(`${lw}: at most one anchor class`);
+		if (definition && isPractice(family.format) && definition.practice.block !== family.block) {
+			problems.push(`${lw}: ${family.block} is not the practice block of ${level.grade}`);
+		}
 		if (definition && isPractice(family.format) && definition.practice.changeStep && family.changeStep === null) {
 			problems.push(`${lw}: the practice of ${level.grade} needs the step «измени своё решение»`);
 		}
@@ -446,6 +513,7 @@ export function familyProblems(family: FamilyDescriptor, gates: FamilyGates = FA
 		}
 		if (family.answerKind !== 'test_cases' || family.rubric.kind !== 'mutants')
 			problems.push(`${where}: QA is answered by test cases and scored by mutants`);
+		if (family.practice) problems.push(`${where}: QA has no practice particulars`);
 	} else if (family.qa) problems.push(`${where}: QA particulars on a ${family.format} family`);
 	if (!isPractice(family.format) && (family.answerKind === 'code' || family.answerKind === 'test_cases')) {
 		problems.push(`${where}: ${family.format} has a computed answer, not ${family.answerKind}`);
@@ -533,6 +601,19 @@ export function instanceProblems(instance: ItemInstance, family: FamilyDescripto
 	} else if (instance.qa) problems.push(`${where}: QA particulars on a ${family.format} instance`);
 	if ((instance.changeStep === null) !== (family.changeStep === null))
 		problems.push(`${where}: the change step must follow the family`);
+	if (instance.changeStep) {
+		const qaStep = instance.changeStep.qa !== null;
+		if (qaStep !== (family.format === 'qa_mutation'))
+			problems.push(`${where}: a QA change step carries its specification and mutants, others none`);
+		if (family.format === 'practice_code' && instance.changeStep.groups.length === 0)
+			problems.push(`${where}: the change step of a program needs its groups`);
+	}
+	if (instance.practice) {
+		for (const language of instance.practice.languages) {
+			if (!family.practice?.languages.includes(language))
+				problems.push(`${where}: language ${language} is not the family's`);
+		}
+	}
 	if (
 		instance.statement.code &&
 		![...SANDBOX_LANGUAGE_KEYS, ...GENERATOR_LANGUAGE_KEYS].includes(instance.statement.code.language as never)
@@ -543,12 +624,72 @@ export function instanceProblems(instance: ItemInstance, family: FamilyDescripto
 }
 
 /**
+ * The engine's simulation of whole trajectories on the families of a release (domain 10.6): per grade, the points of
+ * the curve at given shifts of the true share from the cut and the consistency of a retake on the other form.
+ */
+export interface TrajectoryReport {
+	releaseId: string;
+	procedureVersion: string;
+	/** The answer model the simulation ran under; its named assumptions go into the report text. */
+	model: Pick<TrajectoryModel, 'rho' | 'practiceGroups'>;
+	grades: readonly {
+		grade: GradeKey;
+		points: readonly { shift: number; runs: number; confirmed: number; undetermined: number; notConfirmed: number }[];
+		consistency: readonly { shift: number; value: number }[];
+	}[];
+}
+
+const RUNS_MIN = 1000;
+
+/** The release's trajectory report against `trajectoryAcceptance`: every grade, every bound, enough runs. */
+export function trajectoryReportProblems(
+	report: TrajectoryReport,
+	release: BankRelease,
+	procedure: ProcedureParams
+): string[] {
+	const where = `trajectory report of ${release.id}`;
+	const acceptance = procedure.trajectoryAcceptance;
+	const problems: string[] = [];
+	if (report.releaseId !== release.id) problems.push(`${where}: made for ${report.releaseId}`);
+	if (report.procedureVersion !== procedure.version) problems.push(`${where}: procedure ${report.procedureVersion}`);
+	const at = (points: TrajectoryReport['grades'][number]['points'], shift: number) =>
+		points.find((p) => Math.abs(p.shift - shift) < 1e-9);
+	for (const g of GRADE_KEYS) {
+		const entry = report.grades.find((e) => e.grade === g);
+		if (!entry) {
+			problems.push(`${where}: no ${g}`);
+			continue;
+		}
+		const low = at(entry.points, -0.15);
+		const high = at(entry.points, 0.15);
+		if (!low || !high) problems.push(`${where}: ${g} lacks the points at −0.15 and +0.15`);
+		if (low && low.confirmed > acceptance.falseConfirmMax[g])
+			problems.push(`${where}: ${g} false confirmation ${low.confirmed} > ${acceptance.falseConfirmMax[g]}`);
+		if (high && high.confirmed < acceptance.trueConfirmMin[g])
+			problems.push(`${where}: ${g} true confirmation ${high.confirmed} < ${acceptance.trueConfirmMin[g]}`);
+		for (const point of entry.points) {
+			if (point.runs < RUNS_MIN)
+				problems.push(`${where}: ${g} at ${point.shift} has ${point.runs} runs, ${RUNS_MIN} required`);
+			if (point.undetermined > acceptance.undeterminedMax)
+				problems.push(`${where}: ${g} at ${point.shift} undetermined ${point.undetermined}`);
+		}
+		for (const { shift, min } of acceptance.consistencyMin) {
+			const value = entry.consistency.find((c) => Math.abs(c.shift - shift) < 1e-9)?.value;
+			if (value === undefined || value < min)
+				problems.push(`${where}: ${g} consistency at ${shift} is ${value ?? 'missing'}, ${min} required`);
+		}
+	}
+	return problems;
+}
+
+/**
  * A bank release of one specialization: every family valid, unique and of the specialization, the anchors of every
- * grade, and every extreme trajectory of every grade served (`capacityChecks`).
+ * grade, every extreme history served (`capacityChecks`) and the trajectory report within the acceptance.
  */
 export function releaseProblems(
 	release: BankRelease,
 	procedure: ProcedureParams,
+	report: TrajectoryReport,
 	gates: FamilyGates = FAMILY_GATES
 ): string[] {
 	const where = `release ${release.id}`;
@@ -559,6 +700,7 @@ export function releaseProblems(
 		problems.push(`${where}: procedure ${release.procedureVersion}, current ${procedure.version}`);
 	if (!release.id.startsWith(`${release.specialization}@${release.catalogVersion}-`))
 		problems.push(`${where}: id must be ${release.specialization}@${release.catalogVersion}-<n>`);
+	if (!/^[0-9a-f]{64}$/.test(release.sharedSha256)) problems.push(`${where}: sharedSha256 is not a SHA-256`);
 	for (const key of duplicates(release.families.map((f) => f.key))) problems.push(`${where}: family ${key} twice`);
 	for (const family of release.families) {
 		if (family.specialization !== release.specialization)
@@ -572,12 +714,21 @@ export function releaseProblems(
 		if (anchors < gates.anchorsPerGrade)
 			problems.push(`${where}: ${g} has ${anchors} anchor family-levels, ${gates.anchorsPerGrade} required`);
 	}
+	for (const g of GRADE_KEYS) {
+		for (const { block } of blockTestPairs(release.specialization).filter((p) => p.grade === g)) {
+			const families = release.families.filter((f) => f.block === block && f.levels.some((l) => l.grade === g)).length;
+			if (families < gates.blockTestFamiliesMin)
+				problems.push(
+					`${where}: ${block}@${g} has ${families} families, a block test needs ${gates.blockTestFamiliesMin}`
+				);
+		}
+	}
 	for (const check of capacityChecks(release, procedure)) {
 		if (check.ok) continue;
-		const scenario = check.scenario.map((a) => `${a.form}${a.length}`).join('→');
-		const blocks = [...new Set(check.shortages.map((s) => s.block))].join(', ');
-		problems.push(`${where}: ${check.grade} ${scenario} runs out in ${blocks}`);
+		const steps = [...new Set(check.shortages.map((s) => `${s.step} in ${s.block}`))].join(', ');
+		problems.push(`${where}: ${check.grade} ${check.scenario.join('→')} runs out: ${steps}`);
 	}
+	problems.push(...trajectoryReportProblems(report, release, procedure));
 	return problems;
 }
 

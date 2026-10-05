@@ -1,142 +1,332 @@
 import { describe, expect, it } from 'vitest';
-import { GRADE_KEYS } from './catalog';
+import { CATALOG, GRADE_KEYS, gradeDefinition, type GradeKey } from './catalog';
+import { slotSequence } from './bank';
 import {
 	PROCEDURE,
 	ProcedureError,
 	boundaries,
-	clusterLlr,
 	decisionConsistency,
 	exhaustedDecision,
+	hypotheses,
+	itemLlr,
 	nextStep,
 	operatingPoint,
-	type ClusterResult
+	redecide,
+	simulateTrajectories,
+	type ClusterResult,
+	type DecisionRule,
+	type ProcedureParams
 } from './procedure';
 
-const item = (score: number, angoff = 0.6, block = 'be.db'): ClusterResult => ({
-	block,
-	angoff,
-	score,
-	practice: false
-});
-const practice = (score: number, angoff = 0.6): ClusterResult => ({ block: 'be.code', angoff, score, practice: true });
+const H = PROCEDURE.homogeneousAcceptance;
+const clamp = (s: number) => Math.min(0.99, Math.max(0.01, s));
 
-/** A trajectory of `n` clusters with the practice cluster fourth. */
-function trajectory(scores: readonly number[], practiceScore: number): ClusterResult[] {
-	const clusters = scores.map((score) => item(score));
-	clusters.splice(3, 0, practice(practiceScore));
-	return clusters;
+/** A trajectory on the real plan of a definition: item scores in slot order, the practice at its slot. */
+function trajectory(
+	rule: { specialization: string; grade: GradeKey },
+	scores: readonly number[],
+	practice: number,
+	angoff = 0.6
+) {
+	const definition = gradeDefinition(rule.specialization as 'backend', rule.grade);
+	const slots = slotSequence(definition);
+	const clusters: ClusterResult[] = [];
+	let i = 0;
+	for (const slot of slots) {
+		if (slot.practice) {
+			clusters.push({ block: slot.block, angoff: 0.8, score: practice, practice: true });
+			continue;
+		}
+		const score = scores[i];
+		if (score === undefined) break;
+		clusters.push({ block: slot.block, angoff, score, practice: false });
+		i += 1;
+	}
+	return { definition, clusters };
 }
 
-describe('operating characteristic (exact, homogeneous items)', () => {
-	const acceptance = PROCEDURE.homogeneousAcceptance;
-
+describe('exact operating characteristic (homogeneous binary items)', () => {
 	it.each(GRADE_KEYS)('meets the frozen acceptance for %s', (grade) => {
-		for (const cut of acceptance.cuts) {
-			const low = operatingPoint(PROCEDURE, grade, cut, cut - acceptance.shift);
-			const high = operatingPoint(PROCEDURE, grade, cut, Math.min(0.99, cut + acceptance.shift));
-			expect(low.confirmed, `${grade} cut ${cut}: false confirmation`).toBeLessThanOrEqual(
-				acceptance.falseConfirmMax[grade]
+		for (const cut of H.cuts) {
+			expect(operatingPoint(PROCEDURE, grade, cut, cut - 0.15).confirmed, `${grade} ${cut} FC`).toBeLessThanOrEqual(
+				H.falseConfirmMax[grade]
 			);
-			expect(high.confirmed, `${grade} cut ${cut}: true confirmation`).toBeGreaterThanOrEqual(
-				acceptance.trueConfirmMin
-			);
-			for (let share = 0.05; share < 1; share += 0.01) {
+			expect(
+				operatingPoint(PROCEDURE, grade, cut, clamp(cut + 0.15)).confirmed,
+				`${grade} ${cut} TC`
+			).toBeGreaterThanOrEqual(H.trueConfirmMin[grade]);
+			for (let share = 0.02; share < 0.99; share += 0.01) {
 				const point = operatingPoint(PROCEDURE, grade, cut, share);
-				expect(point.undetermined, `${grade} cut ${cut} share ${share.toFixed(2)}`).toBeLessThanOrEqual(
-					acceptance.undeterminedMax
-				);
+				expect(point.undetermined, `${grade} ${cut} ${share.toFixed(2)}`).toBeLessThanOrEqual(H.undeterminedMax);
 				expect(point.confirmed + point.undetermined + point.notConfirmed).toBeCloseTo(1, 9);
 			}
 		}
 	});
 
-	it('confirms the borderline candidate about half of the time and decides by the longest trajectory', () => {
-		for (const grade of GRADE_KEYS) {
-			const borderline = operatingPoint(PROCEDURE, grade, 0.6, 0.6);
-			expect(borderline.confirmed).toBeGreaterThan(0.3);
-			expect(borderline.confirmed).toBeLessThan(0.65);
-			const { nMax, extension } = PROCEDURE.grades[grade];
-			expect(borderline.expectedLength).toBeLessThanOrEqual(nMax + extension);
+	it.each(GRADE_KEYS)('publishes the real errors at the ends of the indifference zone for %s', (grade) => {
+		for (const cut of H.cuts) {
+			const { p0, p1 } = hypotheses(cut, PROCEDURE.delta);
+			expect(operatingPoint(PROCEDURE, grade, cut, p0).confirmed).toBeLessThanOrEqual(
+				H.indifferenceErrorsMax[grade].atP0Confirmed
+			);
+			expect(operatingPoint(PROCEDURE, grade, cut, p1).notConfirmed).toBeLessThanOrEqual(
+				H.indifferenceErrorsMax[grade].atP1NotConfirmed
+			);
+			// The nominal α = β = 0.10 is not what the truncated test delivers: the real rates are higher.
+			expect(operatingPoint(PROCEDURE, grade, cut, p0).confirmed).toBeGreaterThan(PROCEDURE.alpha);
 		}
 	});
 
-	it('gives repeated attempts of a clear candidate the same outcome', () => {
-		expect(decisionConsistency(operatingPoint(PROCEDURE, 'middle', 0.6, 0.85))).toBeGreaterThan(0.9);
-		expect(decisionConsistency(operatingPoint(PROCEDURE, 'middle', 0.6, 0.3))).toBeGreaterThan(0.9);
+	it.each(GRADE_KEYS)('stays within the bounds when the Angoff estimates are biased (%s)', (grade) => {
+		for (const { bias, falseConfirmMax, trueConfirmMin } of H.biasSensitivity) {
+			for (const cut of H.cuts) {
+				expect(operatingPoint(PROCEDURE, grade, cut, clamp(cut + bias - 0.15)).confirmed).toBeLessThanOrEqual(
+					falseConfirmMax
+				);
+				expect(operatingPoint(PROCEDURE, grade, cut, clamp(cut + bias + 0.15)).confirmed).toBeGreaterThanOrEqual(
+					trueConfirmMin
+				);
+			}
+		}
+	});
+
+	it.each(GRADE_KEYS)('gives repeated attempts the published consistency at given distances (%s)', (grade) => {
+		for (const { shift, min } of H.consistencyMin) {
+			for (const cut of H.cuts) {
+				expect(decisionConsistency(operatingPoint(PROCEDURE, grade, cut, clamp(cut + shift)))).toBeGreaterThanOrEqual(
+					min
+				);
+			}
+		}
+	});
+
+	it('equals the procedure itself: every binary trajectory of Intern enumerated through nextStep', () => {
+		// The block rule never bites here, so the sequential part alone is compared.
+		const params: ProcedureParams = { ...PROCEDURE, definingFailMargin: 20 };
+		const definition = gradeDefinition('backend', 'intern');
+		const n = params.grades.intern.nMax + params.grades.intern.extension;
+		for (const share of [0.45, 0.6, 0.75]) {
+			let confirmed = 0;
+			let undetermined = 0;
+			for (let mask = 0; mask < 2 ** n; mask += 1) {
+				const scores = Array.from({ length: n }, (_, i) => (mask >> i) & 1);
+				const { clusters } = trajectory(definition, scores, 1);
+				let step = { kind: 'continue' } as ReturnType<typeof nextStep>;
+				let used = 0;
+				for (let k = 1; k <= clusters.length && step.kind !== 'decided'; k += 1) {
+					step = nextStep(params, definition, clusters.slice(0, k));
+					used = k;
+				}
+				if (step.kind !== 'decided') throw new Error('no decision');
+				const items = clusters.slice(0, used).filter((c) => !c.practice);
+				const ones = items.filter((c) => c.score === 1).length;
+				// Probability of this prefix; the rest of the mask is summed out by counting each prefix once.
+				const rest = n - items.length;
+				if (mask >> items.length !== 0 && rest > 0) continue;
+				const p = share ** ones * (1 - share) ** (items.length - ones);
+				if (step.decision.outcome === 'confirmed') confirmed += p;
+				if (step.decision.outcome === 'undetermined') undetermined += p;
+			}
+			const exact = operatingPoint(params, 'intern', 0.6, share);
+			expect(confirmed).toBeCloseTo(exact.confirmed, 12);
+			expect(undetermined).toBeCloseTo(exact.undetermined, 12);
+		}
+	});
+});
+
+describe('integer arithmetic of the bands', () => {
+	it('decides exactly on the band (inclusive), whatever the order of the items', () => {
+		// Far boundaries leave the decision to the band: at nMax = 11 it is 2·(S₂₀ − C₂₀) ≥ 2·11.
+		const params: ProcedureParams = { ...PROCEDURE, alpha: 1e-6, beta: 1e-6, definingFailMargin: 20 };
+		const definition = gradeDefinition('backend', 'junior');
+		// Angoff 0.6 on 11 items: C₂₀ = 132; seven right answers and one at 0.15 give S₂₀ = 143 = C₂₀ + 11, on the band.
+		const onBand = [1, 1, 1, 0, 1, 0, 1, 0, 1, 0.15, 1];
+		const reordered = [0, 1, 0.15, 1, 1, 0, 1, 1, 0, 1, 1];
+		const under = [1, 1, 1, 0, 1, 0, 1, 0, 1, 0.1, 1];
+		const last = (scores: number[]) => {
+			const { clusters } = trajectory(definition, scores, 1);
+			return nextStep(params, definition, clusters);
+		};
+		expect(last(onBand)).toMatchObject({
+			kind: 'decided',
+			decision: { outcome: 'confirmed', reason: 'forced_upper_at_max', scoreSum: 143, cutSum: 132 }
+		});
+		expect(last(reordered)).toMatchObject({ kind: 'decided', decision: { outcome: 'confirmed', scoreSum: 143 } });
+		expect(last(under)).toEqual({ kind: 'extend' });
+	});
+
+	it('rounds every item to millionths, so the ratio does not depend on the order', () => {
+		const items = [12, 12, 12, 12, 12, 12].map((angoff, i) => itemLlr(angoff, i % 2 ? 20 : 0, PROCEDURE.delta));
+		const forward = items.reduce((s, x) => s + x, 0);
+		const backward = [...items].reverse().reduce((s, x) => s + x, 0);
+		expect(Number.isInteger(forward)).toBe(true);
+		expect(forward).toBe(backward);
+	});
+
+	it('refuses scores and estimates off the scale of twentieths', () => {
+		const definition = gradeDefinition('backend', 'junior');
+		const { clusters } = trajectory(definition, [1, 1, 1, 1, 1, 1], 1);
+		const first = clusters[0];
+		if (!first) throw new Error('no cluster');
+		clusters[0] = { ...first, score: 0.333 };
+		expect(() => nextStep(PROCEDURE, definition, clusters)).toThrow(ProcedureError);
+		expect(() => itemLlr(12, 21, PROCEDURE.delta)).toThrow(ProcedureError);
 	});
 });
 
 describe('nextStep', () => {
-	it('waits for the minimum length', () => {
-		expect(nextStep(PROCEDURE, 'middle', 0.6, trajectory([1, 1, 1, 1], 1))).toEqual({ kind: 'continue' });
-	});
+	const definition = gradeDefinition('backend', 'middle');
 
-	it('confirms on the upper boundary with the practice passed, and reports blocks and confidence', () => {
-		// Six right answers at a cut of 0.6 stay just under the boundary; the seventh crosses it.
-		expect(nextStep(PROCEDURE, 'middle', 0.6, trajectory([1, 1, 1, 1, 1], 1))).toEqual({ kind: 'continue' });
-		const step = nextStep(PROCEDURE, 'middle', 0.6, trajectory([1, 1, 1, 1, 1, 1], 1));
-		if (step.kind !== 'decided') throw new Error(step.kind);
-		const { upper } = boundaries(PROCEDURE);
-		expect(step.decision).toMatchObject({ outcome: 'confirmed', reason: 'sprt_upper', confident: true, clusters: 7 });
-		expect(step.decision.llr).toBeGreaterThanOrEqual(upper);
-		expect(step.decision.blocks).toEqual([
-			{ block: 'be.db', items: 6, score: 6, cut: expect.closeTo(3.6, 9) as number, verdict: 'above', passed: true },
-			{ block: 'be.code', items: 1, score: 1, cut: 0.6, verdict: 'at', passed: false }
-		]);
-	});
-
-	it('turns a confirmation into a failure when the practice cluster is under the gate', () => {
-		const step = nextStep(PROCEDURE, 'middle', 0.6, trajectory([1, 1, 1, 1, 1, 1, 1], 0.5));
-		if (step.kind !== 'decided') throw new Error(step.kind);
-		expect(step.decision).toMatchObject({
-			outcome: 'not_confirmed',
-			reason: 'practice_gate_failed',
-			practice: { score: 0.5, gateMinScore: 0.6, passed: false }
+	it('waits for the minimum number of items', () => {
+		expect(nextStep(PROCEDURE, definition, trajectory(definition, [1, 1, 1, 1, 1], 1).clusters)).toEqual({
+			kind: 'continue'
 		});
-		expect(step.decision.blocks.every((b) => !b.passed)).toBe(true);
+	});
+
+	it('confirms on the upper boundary with the defining blocks seen and passed; the stack does not depend on length', () => {
+		const { upper } = boundaries(PROCEDURE);
+		const { clusters } = trajectory(definition, [1, 1, 1, 1, 1, 1, 1], 1);
+		const step = nextStep(PROCEDURE, definition, clusters);
+		if (step.kind !== 'decided') throw new Error(step.kind);
+		expect(step.decision).toMatchObject({ outcome: 'confirmed', reason: 'sprt_upper', confident: true, items: 7 });
+		expect(step.decision.llr).toBeGreaterThanOrEqual(upper);
+		const defining = step.decision.blocks.filter((b) => b.defining);
+		expect(defining.map((b) => [b.block, b.items, b.passed])).toEqual([
+			['be.db', 3, true],
+			['be.concurrency', 3, true]
+		]);
+		expect(step.decision.blocks.filter((b) => !b.defining).every((b) => !b.passed)).toBe(true);
+	});
+
+	it('ends the attempt at once when the practice is under the gate, and the practice never enters the sums', () => {
+		const { clusters } = trajectory(definition, [1, 1, 1], 0.2);
+		const step = nextStep(PROCEDURE, definition, clusters);
+		expect(step).toMatchObject({
+			kind: 'decided',
+			decision: { outcome: 'not_confirmed', reason: 'practice_gate_failed', items: 3, scoreSum: 60, cutSum: 36 }
+		});
+		const passed = trajectory(definition, [1, 1, 1], 0.4).clusters;
+		expect(nextStep(PROCEDURE, definition, passed)).toEqual({ kind: 'continue' });
+	});
+
+	it('refuses a confirmation when a defining block fails', () => {
+		// be.db items are slots 1, 3, 6 of the plan; all three wrong, the rest right.
+		const scores = [0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1];
+		const { clusters } = trajectory(definition, scores, 1);
+		let decision = null;
+		for (let k = 1; k <= clusters.length && !decision; k += 1) {
+			const step = nextStep(PROCEDURE, definition, clusters.slice(0, k));
+			if (step.kind === 'decided') decision = step.decision;
+		}
+		expect(decision).toMatchObject({ outcome: 'not_confirmed', reason: 'defining_block_failed' });
 	});
 
 	it('rejects on the lower boundary', () => {
-		const step = nextStep(PROCEDURE, 'junior', 0.5, trajectory([0, 0, 0, 0, 0], 0));
-		expect(step).toMatchObject({ kind: 'decided', decision: { outcome: 'not_confirmed', reason: 'sprt_lower' } });
+		const { clusters } = trajectory(definition, [0, 0, 0, 0, 0, 0], 1);
+		expect(nextStep(PROCEDURE, definition, clusters)).toMatchObject({
+			kind: 'decided',
+			decision: { outcome: 'not_confirmed', reason: 'sprt_lower' }
+		});
 	});
 
 	it('extends inside the band at the end of the main part and ends undetermined inside the final band', () => {
 		const { nMax, extension } = PROCEDURE.grades.senior;
-		// Scores equal to the cut keep the ratio near zero: neither boundary nor band is ever crossed.
-		const even = Array.from({ length: nMax - 1 }, () => 0.6);
-		expect(nextStep(PROCEDURE, 'senior', 0.6, trajectory(even, 0.6))).toEqual({ kind: 'extend' });
-		const longer = Array.from({ length: nMax + extension - 1 }, () => 0.6);
-		expect(nextStep(PROCEDURE, 'senior', 0.6, trajectory(longer, 0.6))).toMatchObject({
+		const senior = gradeDefinition('backend', 'senior');
+		const even = (n: number) => Array.from({ length: n }, () => 0.6);
+		expect(nextStep(PROCEDURE, senior, trajectory(senior, even(nMax), 1).clusters)).toEqual({ kind: 'extend' });
+		expect(nextStep(PROCEDURE, senior, trajectory(senior, even(nMax + extension), 1).clusters)).toMatchObject({
 			kind: 'decided',
 			decision: { outcome: 'undetermined', reason: 'band_after_extension', extensionUsed: true }
 		});
 	});
 
-	it('scores a fractional cluster between its binary extremes', () => {
-		const delta = PROCEDURE.delta;
-		const half = clusterLlr(item(0.5), delta);
-		expect(half).toBeGreaterThan(clusterLlr(item(0), delta));
-		expect(half).toBeLessThan(clusterLlr(item(1), delta));
-	});
-
 	it('ends undetermined when the bank is exhausted', () => {
-		expect(exhaustedDecision(PROCEDURE, 'intern', 0.5, trajectory([1, 1], 1))).toMatchObject({
+		const { clusters } = trajectory(definition, [1, 1], 1);
+		expect(exhaustedDecision(PROCEDURE, definition, clusters)).toMatchObject({
 			outcome: 'undetermined',
 			reason: 'bank_exhausted'
 		});
 	});
 
-	it('refuses trajectories that break the blueprint', () => {
-		const noPractice = Array.from({ length: 6 }, () => item(1));
-		expect(() => nextStep(PROCEDURE, 'middle', 0.6, noPractice)).toThrow(ProcedureError);
-		const twoPractices = [...trajectory([1, 1, 1, 1], 1), practice(1)];
-		expect(() => nextStep(PROCEDURE, 'middle', 0.6, twoPractices)).toThrow(ProcedureError);
-		const tooLong = trajectory(
-			Array.from({ length: 18 }, () => 1),
-			1
-		);
-		expect(() => nextStep(PROCEDURE, 'middle', 0.6, tooLong)).toThrow(ProcedureError);
-		expect(() => nextStep(PROCEDURE, 'middle', 0.6, trajectory([1, 1, 1, 1, 1, 1.5], 1))).toThrow(ProcedureError);
+	it('refuses trajectories that break the plan', () => {
+		const rule: DecisionRule = definition;
+		const noPractice = Array.from({ length: 6 }, (): ClusterResult => ({
+			block: 'be.db',
+			angoff: 0.6,
+			score: 1,
+			practice: false
+		}));
+		expect(() => nextStep(PROCEDURE, rule, noPractice)).toThrow(ProcedureError);
+		const { clusters } = trajectory(definition, [1, 1, 1, 1], 1);
+		const practice = clusters.find((c) => c.practice);
+		if (!practice) throw new Error('no practice');
+		expect(() => nextStep(PROCEDURE, rule, [...clusters, { ...practice }])).toThrow(ProcedureError);
+		const uncovered = clusters.map((c) => (c.practice ? c : { ...c, block: 'be.api' }));
+		const more = [
+			...uncovered,
+			...[1, 1].map((): ClusterResult => ({ block: 'be.api', angoff: 0.6, score: 1, practice: false }))
+		];
+		expect(() => nextStep(PROCEDURE, rule, more)).toThrow(ProcedureError);
+	});
+});
+
+describe('redecide', () => {
+	const definition = gradeDefinition('backend', 'middle');
+
+	it('replays the procedure and stops where it would have stopped', () => {
+		const { clusters } = trajectory(definition, [1, 1, 1, 1, 1, 1, 1], 1);
+		expect(redecide(PROCEDURE, definition, clusters)).toMatchObject({
+			outcome: 'confirmed',
+			reason: 'sprt_upper',
+			items: 7
+		});
+	});
+
+	it('ends undetermined (a system end) when the corrected trajectory no longer decides at its length', () => {
+		const { clusters } = trajectory(definition, [1, 1, 1, 1, 1, 1, 1], 1);
+		const corrected = clusters.map((c, i) => (i === clusters.length - 1 ? { ...c, score: 0 } : c));
+		expect(redecide(PROCEDURE, definition, corrected)).toMatchObject({
+			outcome: 'undetermined',
+			reason: 'rescored_incomplete'
+		});
+	});
+
+	it('turns a confirmation into a gate failure when the practice is re-scored under the gate', () => {
+		const { clusters } = trajectory(definition, [1, 1, 1, 1, 1, 1, 1], 1);
+		const corrected = clusters.map((c) => (c.practice ? { ...c, score: 0.2 } : c));
+		expect(redecide(PROCEDURE, definition, corrected)).toMatchObject({
+			outcome: 'not_confirmed',
+			reason: 'practice_gate_failed'
+		});
+	});
+});
+
+describe('whole trajectories under the answer model', () => {
+	const T = PROCEDURE.trajectoryAcceptance;
+	const RUNS = 2000;
+
+	it('meets the trajectory acceptance on every plan of the catalog', () => {
+		let seed = 1;
+		for (const definition of CATALOG.definitions) {
+			const slots = slotSequence(definition);
+			const run = (shift: number, extra?: number) =>
+				simulateTrajectories(PROCEDURE, definition, slots, T.model, shift, RUNS, {
+					seed: [seed++, 7, 11, 13],
+					...(extra === undefined ? {} : { definingBlockShift: extra })
+				});
+			const low = run(-0.15);
+			const mid = run(0);
+			const high = run(0.15);
+			const pair = `${definition.specialization} × ${definition.grade}`;
+			expect(low.confirmed, `${pair} FC`).toBeLessThanOrEqual(T.falseConfirmMax[definition.grade]);
+			expect(high.confirmed, `${pair} TC`).toBeGreaterThanOrEqual(T.trueConfirmMin[definition.grade]);
+			for (const point of [low, mid, high]) expect(point.undetermined, pair).toBeLessThanOrEqual(T.undeterminedMax);
+			for (const { shift, min } of T.consistencyMin) {
+				expect(decisionConsistency(shift < 0 ? low : high), `${pair} consistency ${shift}`).toBeGreaterThanOrEqual(min);
+			}
+			expect(run(0.15, -0.55).confirmed, `${pair} weak defining block`).toBeLessThanOrEqual(
+				T.weakDefiningBlockConfirmMax
+			);
+		}
 	});
 });

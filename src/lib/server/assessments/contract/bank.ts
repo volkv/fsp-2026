@@ -1,19 +1,20 @@
-// The bank of item families (docs/domain.md, sections 23.7–23.8): what a family declares, what its generator returns
-// for a seed, how the slots of a test are laid out by the blueprint of a grade and whether a released version of the
-// bank can serve every extreme trajectory without running out or showing a candidate a family-level class twice.
+// The bank of item families (docs/domain.md, sections 10.1–10.5): what a family declares, what its generator module
+// exports, how the slots of a test are laid out by the plan of a grade, which form an attempt takes and whether a
+// released version of the bank can serve every extreme history of a candidate the policy allows — two grade attempts,
+// the block tests of employers' requests and a recheck — without running out or showing a family-level class twice.
 //
-// Types and pure functions; the families themselves (descriptor + generator code) live in the bank tree and are
-// checked by the validator of this contract. Plain erasable TypeScript without `$lib`.
+// The bank tree: `assessments/families/<specialization>/<family key>/` with `descriptor.json` (a `FamilyDescriptor`)
+// and `generator.ts` (a `FamilyModule`); shared code lives in directories whose name starts with `_` and is hashed into
+// the release separately (`BankRelease.sharedSha256`). Types and pure functions; plain erasable TypeScript without `$lib`.
 import {
 	CATALOG,
-	gradeDefinition,
 	type GradeDefinition,
 	type GradeKey,
 	type ItemFormat,
-	type SandboxLanguageKey,
+	type PracticeLanguageKey,
 	type SpecializationKey
 } from './catalog.ts';
-import { maxLength, type ProcedureParams } from './procedure.ts';
+import { PROCEDURE, maxLength, type ProcedureParams } from './procedure.ts';
 
 /** How the answer of an item is compared; every expected answer is computed by the generator. */
 export const ANSWER_KINDS = [
@@ -28,8 +29,11 @@ export const ANSWER_KINDS = [
 ] as const;
 export type AnswerKind = (typeof ANSWER_KINDS)[number];
 
-/** A form of the test: an attempt is served in one; an anchor class is common to both forms. */
-export type FormTag = 'A' | 'B' | 'anchor';
+/**
+ * A form of the test: a grade attempt is served in `A` or `B`; an `anchor` class is common to both forms; a reserve class
+ * `X` is never in a grade attempt — block tests and rechecks use it first.
+ */
+export type FormTag = 'A' | 'B' | 'anchor' | 'X';
 
 export interface EssentialClass {
 	/** Unique within the family-level. */
@@ -121,7 +125,7 @@ export interface FamilyDescriptor {
 	/** Language of the code an item shows: a sandbox language, a language the generator models, or none. */
 	language: string | null;
 	practice: {
-		languages: readonly SandboxLanguageKey[];
+		languages: readonly PracticeLanguageKey[];
 		/** Groups of hidden tests; each group is one aspect of the specification. */
 		hiddenTestGroups: number;
 	} | null;
@@ -163,7 +167,7 @@ export interface ItemInstance {
 	statement: { markdown: string; code: { language: string; source: string } | null };
 	answer: ComputedAnswer | null;
 	practice: {
-		languages: readonly SandboxLanguageKey[];
+		languages: readonly PracticeLanguageKey[];
 		groups: readonly HiddenTestGroup[];
 		checker: { kind: 'exact' } | { kind: 'tokens' } | { kind: 'float_eps'; eps: number };
 	} | null;
@@ -178,8 +182,36 @@ export interface ItemInstance {
 		weight: number;
 		answer: ComputedAnswer | null;
 		groups: readonly HiddenTestGroup[];
+		/** QA: the changed specification and mutants; the harness runs them with `part = 'change_step'`. */
+		qa: { specification: string; mutants: readonly { id: string; operator: string; equivalent: boolean }[] } | null;
 	} | null;
 	timeNormSec: number;
+}
+
+/** What `generate` of a family takes. */
+export interface GenerateInput {
+	seed: string;
+	grade: GradeKey;
+	classId: string;
+}
+
+/**
+ * A QA harness run: `reference` — the candidate's cases (JSON `[{"input": …, "expected": …}]` on standard input) against
+ * the correct program, one line with a character per case (`1` passes, `0` fails); `mutants` — against every mutant in
+ * the order of `qa.mutants` (of the task or of the change step), one line with a character per mutant (`1` killed).
+ */
+export type HarnessMode = 'reference' | 'mutants';
+
+export interface HarnessProgram {
+	language: 'python3';
+	/** The program with the reference and the mutants inside; never shown to the candidate. */
+	source: string;
+}
+
+/** What `generator.ts` of a family exports: `generate` always, `harness` for a `qa_mutation` family. */
+export interface FamilyModule {
+	generate: (input: GenerateInput) => ItemInstance;
+	harness?: (instance: ItemInstance, mode: HarnessMode, part?: 'task' | 'change_step') => HarnessProgram;
 }
 
 /** The thresholds of the admission of a family (domain 23.7): only a family that meets all of them is released. */
@@ -194,6 +226,10 @@ export interface FamilyGates {
 	/** A gap between two ratings above this needs the second round. */
 	angoffGapMax: number;
 	practiceGroupsMin: number;
+	/** The Angoff estimate of a practice family-level: the borderline candidate passes the gate (domain 10.6). */
+	practiceAngoff: { min: number; max: number };
+	/** Distinct family-levels of a block × grade a block test may draw from. */
+	blockTestFamiliesMin: number;
 	qaBudget: { min: number; max: number };
 	qaMutantsMin: number;
 	/** Anchor family-levels per grade in a release. */
@@ -217,7 +253,9 @@ export const FAMILY_GATES: FamilyGates = {
 	},
 	angoffRatersMin: 2,
 	angoffGapMax: 0.2,
-	practiceGroupsMin: 3,
+	practiceGroupsMin: 5,
+	practiceAngoff: { min: 0.75, max: 0.9 },
+	blockTestFamiliesMin: 4,
 	qaBudget: { min: 5, max: 8 },
 	qaMutantsMin: 6,
 	anchorsPerGrade: 2
@@ -231,6 +269,8 @@ export interface BankRelease {
 	catalogVersion: string;
 	procedureVersion: string;
 	families: readonly FamilyDescriptor[];
+	/** SHA-256 of the shared code (`_*` directories) the generators import: a change of it is a new release. */
+	sharedSha256: string;
 }
 
 export interface Slot {
@@ -241,44 +281,93 @@ export interface Slot {
 }
 
 /**
- * The slots of a grade's test in order: the trajectory of length n uses the first n. The practice slot sits at its
- * position; the other blocks are interleaved by smooth weighted round robin over their items (ties — the order of the
- * definition), so every prefix keeps the blocks near their proportions.
+ * The slots of a grade's test in order: a trajectory uses a prefix. The two defining blocks come first, alternating,
+ * `definingMinItems` items each, so every decision sees them in full; the practice sits at its position; the rest of the
+ * quotas are interleaved by smooth weighted round robin (ties — the order of the definition).
  */
-export function slotSequence(definition: GradeDefinition): Slot[] {
-	const others = definition.blocks.filter((b) => b.block !== definition.practice.block);
-	const total = others.reduce((sum, b) => sum + b.items, 0);
-	const current = others.map(() => 0);
-	const remaining = others.map((b) => b.items);
+export function slotSequence(definition: GradeDefinition, params: ProcedureParams = PROCEDURE): Slot[] {
+	const remaining = new Map(
+		definition.blocks.filter((b) => b.block !== definition.practice.block).map((b) => [b.block, b.items])
+	);
 	const order: string[] = [];
+	for (let round = 0; round < params.definingMinItems; round += 1) {
+		for (const block of definition.defining) {
+			const left = remaining.get(block) ?? 0;
+			if (left === 0)
+				throw new Error(`slot sequence: defining block ${block} has fewer than ${params.definingMinItems} items`);
+			remaining.set(block, left - 1);
+			order.push(block);
+		}
+	}
+	const blocks = [...remaining.entries()].filter(([, items]) => items > 0);
+	const total = blocks.reduce((sum, [, items]) => sum + items, 0);
+	const current = blocks.map(() => 0);
+	const left = blocks.map(([, items]) => items);
 	for (let step = 0; step < total; step += 1) {
 		let best = -1;
-		for (let i = 0; i < others.length; i += 1) {
-			if ((remaining[i] ?? 0) === 0) continue;
-			current[i] = (current[i] ?? 0) + (others[i]?.items ?? 0);
+		for (let i = 0; i < blocks.length; i += 1) {
+			if ((left[i] ?? 0) === 0) continue;
+			current[i] = (current[i] ?? 0) + (blocks[i]?.[1] ?? 0);
 			if (best === -1 || (current[i] ?? 0) > (current[best] ?? 0)) best = i;
 		}
-		const chosen = others[best];
+		const chosen = blocks[best];
 		if (!chosen) throw new Error('slot sequence: no block left');
 		current[best] = (current[best] ?? 0) - total;
-		remaining[best] = (remaining[best] ?? 0) - 1;
-		order.push(chosen.block);
+		left[best] = (left[best] ?? 0) - 1;
+		order.push(chosen[0]);
 	}
 	order.splice(definition.practice.position - 1, 0, definition.practice.block);
 	return order.map((block, i) => ({ position: i + 1, block, practice: block === definition.practice.block }));
 }
 
+/** Tests besides the grade attempt that also draw instances from the bank (domain 13.11, 10.7). */
+export interface AdditionalTests {
+	/** A block test of an employer's request: this many clusters of one block, each of a different family. */
+	blockTest: { clusters: number; minQuota: number; perBlockGradeInWindow: number };
+	/** A recheck on a call: one fresh cluster of a defining block, of a family the candidate solved, in another class. */
+	recheck: { clusters: number; perWindow: number };
+}
+
+export const ADDITIONAL_TESTS: AdditionalTests = {
+	blockTest: { clusters: 4, minQuota: 3, perBlockGradeInWindow: 1 },
+	recheck: { clusters: 1, perWindow: 2 }
+};
+
+/**
+ * The block × grade pairs a block test may be requested for: a non-practice block with at least `minQuota` items in the
+ * grade's plan. Other pairs have no bank behind them; a vacancy skill that maps only to them is shown as «тестом не
+ * проверяется».
+ */
+export function blockTestPairs(specialization: SpecializationKey): { block: string; grade: GradeKey }[] {
+	return CATALOG.definitions
+		.filter((d) => d.specialization === specialization)
+		.flatMap((d) =>
+			d.blocks
+				.filter((q) => q.block !== d.practice.block && q.items >= ADDITIONAL_TESTS.blockTest.minQuota)
+				.map((q) => ({ block: q.block, grade: d.grade }))
+		);
+}
+
+/**
+ * The form of the next grade attempt: the one with fewer of the candidate's seen classes at this grade within the window
+ * of forms; a tie — by the attempt's seed. A first attempt is therefore A or B by the seed, a retake the other one.
+ */
+export function chooseForm(seen: { A: number; B: number }, seedBit: 0 | 1): 'A' | 'B' {
+	if (seen.A !== seen.B) return seen.A < seen.B ? 'A' : 'B';
+	return seedBit === 0 ? 'A' : 'B';
+}
+
 export interface CapacityShortage {
+	step: string;
 	position: number;
 	block: string;
 }
 
 export interface CapacityCheck {
 	grade: GradeKey;
-	/** The attempts of one candidate in order: the form of each and its length. */
-	scenario: readonly { form: 'A' | 'B'; length: number }[];
+	/** The tests of one candidate in order. */
+	scenario: readonly string[];
 	ok: boolean;
-	/** Slots of the last attempt of the scenario no unseen family-level could fill. */
 	shortages: CapacityShortage[];
 }
 
@@ -291,44 +380,63 @@ interface Unit {
 	classes: readonly EssentialClass[];
 }
 
+type Want = 'grade' | 'reserve';
+
 /**
- * Serves one attempt in the given form: for every slot, the first family-level (in the stable order of the release)
- * of the slot's block and kind not used in this attempt with a class not seen by the candidate — the anchor class
- * first, then a class of the form. The engine chooses at random among the eligible; capacity holds for any choice,
- * because a family-level of a release has a class of each form and each attempt uses a family once.
+ * Serves `slots` for one test: for every slot, the first family-level (in the stable order of the release) of the slot's
+ * block and kind not used in this test with a class the candidate has not seen. A grade attempt takes the anchor class
+ * first, then a class of its form; a block test or a recheck takes only reserve classes (`X`). The classes of the two
+ * kinds never overlap and every family-level has a class of each form, so the result does not depend on which eligible
+ * family-level the engine picks at random: the check holds for any choice.
  */
-function serve(units: readonly Unit[], slots: readonly Slot[], form: 'A' | 'B', seen: Set<string>): CapacityShortage[] {
+function serve(
+	units: readonly Unit[],
+	slots: readonly { block: string; practice: boolean; position: number }[],
+	want: Want,
+	form: 'A' | 'B',
+	seen: Set<string>,
+	step: string,
+	preferSeenFamilies = false
+): CapacityShortage[] {
 	const used = new Set<string>();
 	const shortages: CapacityShortage[] = [];
+	const solved = new Set([...seen].map((key) => key.split('#')[0]));
 	for (const slot of slots) {
+		const candidates = units.filter(
+			(u) => u.block === slot.block && u.practice === slot.practice && !used.has(u.family)
+		);
+		const ordered = preferSeenFamilies
+			? [...candidates.filter((u) => solved.has(u.family)), ...candidates.filter((u) => !solved.has(u.family))]
+			: candidates;
 		let served = false;
-		for (const unit of units) {
-			if (unit.block !== slot.block || unit.practice !== slot.practice || used.has(unit.family)) continue;
+		for (const unit of ordered) {
+			const unseen = unit.classes.filter((c) => !seen.has(`${unit.family}#${c.id}`));
 			const cls =
-				unit.classes.find((c) => c.form === 'anchor' && !seen.has(`${unit.family}#${c.id}`)) ??
-				unit.classes.find((c) => c.form === form && !seen.has(`${unit.family}#${c.id}`));
+				want === 'grade'
+					? (unseen.find((c) => c.form === 'anchor') ?? unseen.find((c) => c.form === form))
+					: unseen.find((c) => c.form === 'X');
 			if (!cls) continue;
 			used.add(unit.family);
 			seen.add(`${unit.family}#${cls.id}`);
 			served = true;
 			break;
 		}
-		if (!served) shortages.push({ position: slot.position, block: slot.block });
+		if (!served) shortages.push({ step, position: slot.position, block: slot.block });
 	}
 	return shortages;
 }
 
 /**
- * Generates every extreme trajectory the policy allows within one window of forms — a first attempt of either form
- * stopping at the minimum, at the end of the main part or after the extension, and the retake on the other form after
- * a longest first attempt — and checks that each can be served from the release without exhausting a block and without
- * a family-level class the candidate has seen. Family-levels are units: a family serves a grade only by its level.
+ * Generates every extreme history the policy allows within one window of forms and checks that the release serves it:
+ * a first attempt of either form stopping at the minimum, at the end of the main part or after the extension; then the
+ * longest first attempt, the retake on the form `chooseForm` gives, a block test of every allowed block of the grade and
+ * the rechecks of the window. Family-levels are units: a family serves a grade only by its level.
  */
 export function capacityChecks(release: BankRelease, params: ProcedureParams): CapacityCheck[] {
 	const checks: CapacityCheck[] = [];
 	for (const definition of CATALOG.definitions.filter((d) => d.specialization === release.specialization)) {
 		const grade = definition.grade;
-		const slots = slotSequence(gradeDefinition(release.specialization, grade));
+		const slots = slotSequence(definition, params);
 		const units: Unit[] = release.families.flatMap((family) =>
 			family.levels
 				.filter((level) => level.grade === grade)
@@ -339,20 +447,55 @@ export function capacityChecks(release: BankRelease, params: ProcedureParams): C
 					classes: level.classes
 				}))
 		);
+		const slotsUpToItems = (items: number): Slot[] => {
+			let count = 0;
+			const prefix: Slot[] = [];
+			for (const slot of slots) {
+				prefix.push(slot);
+				if (!slot.practice) count += 1;
+				if (count === items) break;
+			}
+			return prefix;
+		};
 		const { nMin, nMax } = params.grades[grade];
 		const longest = maxLength(params, grade);
-		const scenarios: { form: 'A' | 'B'; length: number }[][] = [];
 		for (const first of ['A', 'B'] as const) {
-			for (const length of [nMin, nMax, longest]) scenarios.push([{ form: first, length }]);
-			scenarios.push([
-				{ form: first, length: longest },
-				{ form: first === 'A' ? 'B' : 'A', length: longest }
-			]);
-		}
-		for (const scenario of scenarios) {
+			for (const items of [nMin, nMax]) {
+				const seen = new Set<string>();
+				const shortages = serve(units, slotsUpToItems(items), 'grade', first, seen, `${first}${items}`);
+				checks.push({ grade, scenario: [`${first}${items}`], ok: shortages.length === 0, shortages });
+			}
 			const seen = new Set<string>();
-			let shortages: CapacityShortage[] = [];
-			for (const attempt of scenario) shortages = serve(units, slots.slice(0, attempt.length), attempt.form, seen);
+			const scenario: string[] = [];
+			const shortages: CapacityShortage[] = [];
+			const attempt = (form: 'A' | 'B') => {
+				scenario.push(`${form}${longest}`);
+				shortages.push(...serve(units, slots, 'grade', form, seen, `${form}${longest}`));
+			};
+			attempt(first);
+			const count = (form: 'A' | 'B') =>
+				units.reduce(
+					(sum, u) => sum + u.classes.filter((c) => c.form === form && seen.has(`${u.family}#${c.id}`)).length,
+					0
+				);
+			attempt(chooseForm({ A: count('A'), B: count('B') }, first === 'A' ? 1 : 0));
+			const blockTests = blockTestPairs(release.specialization).filter((p) => p.grade === grade);
+			for (const { block } of blockTests) {
+				const step = `block:${block}`;
+				scenario.push(step);
+				const clusters = Array.from({ length: ADDITIONAL_TESTS.blockTest.clusters }, (_, i) => ({
+					block,
+					practice: false,
+					position: i + 1
+				}));
+				shortages.push(...serve(units, clusters, 'reserve', first, seen, step));
+			}
+			for (let i = 0; i < ADDITIONAL_TESTS.recheck.perWindow; i += 1) {
+				const block = definition.defining[i % definition.defining.length] ?? '';
+				const step = `recheck:${block}`;
+				scenario.push(step);
+				shortages.push(...serve(units, [{ block, practice: false, position: 1 }], 'reserve', first, seen, step, true));
+			}
 			checks.push({ grade, scenario, ok: shortages.length === 0, shortages });
 		}
 	}

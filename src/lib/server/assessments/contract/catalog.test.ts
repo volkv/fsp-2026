@@ -1,7 +1,15 @@
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { CATALOG, SANDBOX_LANGUAGE_KEYS, specializationOpen, type Catalog, type GradeDefinition } from './catalog';
+import {
+	CATALOG,
+	SANDBOX_LANGUAGE_KEYS,
+	confirmedStack,
+	gradeDefinition,
+	specializationOpen,
+	type Catalog,
+	type GradeDefinition
+} from './catalog';
 import { GRADE_POLICY } from './policy';
 import { PROCEDURE } from './procedure';
 import { catalogProblems, policyProblems, procedureProblems } from './validate';
@@ -63,9 +71,9 @@ describe('catalog', () => {
 		};
 		expect(catalogProblems(missing, PROCEDURE, skills)).toContain('catalog: devops × senior has 0 definitions');
 
-		const late = withDefinition('frontend', 'intern', (d) => ({ ...d, practice: { ...d.practice, position: 7 } }));
+		const late = withDefinition('frontend', 'intern', (d) => ({ ...d, practice: { ...d.practice, position: 8 } }));
 		expect(catalogProblems(late, PROCEDURE, skills)).toEqual([
-			'catalog: frontend × intern practice at 7, after the minimum length 6'
+			'catalog: frontend × intern practice at slot 8, after the minimum of 6 items'
 		]);
 	});
 
@@ -88,6 +96,36 @@ describe('catalog', () => {
 		expect(catalogProblems(broken, PROCEDURE, skills)).toEqual([
 			'catalog: be.db names skill cobol unknown to the taxonomy',
 			'catalog: block be.db is not practice but has practice_code'
+		]);
+	});
+
+	it('requires two defining blocks of the plan with enough items each', () => {
+		const thin = withDefinition('backend', 'intern', (d) => ({ ...d, defining: ['be.lang', 'be.api'] }));
+		expect(catalogProblems(thin, PROCEDURE, skills)).toEqual([
+			'catalog: backend × intern defining block be.api has 1 items, 3 required'
+		]);
+		const foreign = withDefinition('backend', 'intern', (d) => ({ ...d, defining: ['be.lang', 'be.code'] }));
+		expect(catalogProblems(foreign, PROCEDURE, skills)).toEqual([
+			'catalog: backend × intern defining block be.code is not a non-practice block of the plan'
+		]);
+	});
+
+	it('does not switch on a specialization whose practice language the sandbox lacks (Kotlin for Mobile)', () => {
+		const on: Catalog = {
+			...CATALOG,
+			specializations: CATALOG.specializations.map((s) => (s.key === 'mobile' ? { ...s, availability: 'enabled' } : s))
+		};
+		expect(catalogProblems(on, PROCEDURE, skills)).toEqual([
+			'catalog: mobile is enabled, but the sandbox image lacks kotlin'
+		]);
+	});
+
+	it('confirms the stack of the defining blocks and the practice language, whatever the length', () => {
+		expect(confirmedStack(gradeDefinition('backend', 'middle'), 'go')).toEqual([
+			'databases',
+			'go',
+			'multithreading',
+			'sql'
 		]);
 	});
 

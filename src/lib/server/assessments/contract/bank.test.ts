@@ -1,8 +1,25 @@
 import { describe, expect, it } from 'vitest';
-import { CATALOG, GRADE_KEYS, gradeDefinition, type GradeKey, type SpecializationKey } from './catalog';
-import { capacityChecks, slotSequence, type BankRelease, type FamilyDescriptor, type ItemInstance } from './bank';
+import {
+	CATALOG,
+	GRADE_KEYS,
+	SPECIALIZATION_KEYS,
+	blockDefinition,
+	gradeDefinition,
+	type GradeKey,
+	type SpecializationKey
+} from './catalog';
+import {
+	blockTestPairs,
+	capacityChecks,
+	chooseForm,
+	slotSequence,
+	type BankRelease,
+	type EssentialClass,
+	type FamilyDescriptor,
+	type ItemInstance
+} from './bank';
 import { PROCEDURE, maxLength } from './procedure';
-import { familyProblems, instanceProblems, levelsByBlock, releaseProblems } from './validate';
+import { familyProblems, instanceProblems, levelsByBlock, releaseProblems, type TrajectoryReport } from './validate';
 
 const GATES_MET: FamilyDescriptor['gates'] = {
 	reference: { seeds: 200, failures: 0 },
@@ -14,17 +31,23 @@ const GATES_MET: FamilyDescriptor['gates'] = {
 	rubricReview: { reviewer: 'Автор Б', reviewedAt: '2026-10-06' }
 };
 
+const CLASSES: EssentialClass[] = [
+	{ id: 'a', form: 'A', description: 'граница включена' },
+	{ id: 'b', form: 'B', description: 'граница исключена' },
+	{ id: 'x', form: 'X', description: 'резерв: граница на переполнении' }
+];
+
 /** A computed-answer family of one level that meets every gate. */
 function computedFamily(block: string, name: string, grade: GradeKey, anchor = false): FamilyDescriptor {
-	const blockSpec = CATALOG.blocks.find((b) => b.code === block);
-	if (!blockSpec) throw new Error(block);
+	const spec = blockDefinition(block);
+	const bug = spec.formats.includes('bug_locate');
 	return {
 		key: `${block}.${name}`,
 		version: 1,
-		specialization: blockSpec.specialization,
+		specialization: spec.specialization,
 		block,
-		format: blockSpec.formats.includes('bug_locate') ? 'bug_locate' : (blockSpec.formats[0] ?? 'compute'),
-		answerKind: blockSpec.formats.includes('bug_locate') ? 'line_no' : 'exact',
+		format: bug ? 'bug_locate' : (spec.formats[0] ?? 'compute'),
+		answerKind: bug ? 'line_no' : 'exact',
 		levels: [
 			{
 				grade,
@@ -39,11 +62,7 @@ function computedFamily(block: string, name: string, grade: GradeKey, anchor = f
 				constructive: { depth: 2 },
 				constructiveRank: 1,
 				timeNormSec: 180,
-				classes: [
-					{ id: 'a', form: 'A', description: 'граница включена' },
-					{ id: 'b', form: 'B', description: 'граница исключена' },
-					...(anchor ? [{ id: 'k', form: 'anchor' as const, description: 'опорный класс' }] : [])
-				]
+				classes: [...CLASSES, ...(anchor ? [{ id: 'k', form: 'anchor' as const, description: 'опорный класс' }] : [])]
 			}
 		],
 		surfaceParams: [{ name: 'names', description: 'имена переменных и сюжет' }],
@@ -63,24 +82,36 @@ function computedFamily(block: string, name: string, grade: GradeKey, anchor = f
 	};
 }
 
-/** A practice family of one level; from Middle up it carries the change step. */
-function practiceFamily(block: string, name: string, grade: GradeKey, anchor = false): FamilyDescriptor {
-	const base = computedFamily(block, name, grade, anchor);
-	const spec = CATALOG.blocks.find((b) => b.code === block)?.specialization ?? 'backend';
+/** A practice family of one level: a gate the borderline candidate passes (Angoff 0.8), five groups. */
+function practiceFamily(block: string, name: string, grade: GradeKey): FamilyDescriptor {
+	const base = computedFamily(block, name, grade);
+	const spec = blockDefinition(block).specialization;
 	const changeStep = gradeDefinition(spec, grade).practice.changeStep;
 	const isQa = block === 'qa.mutants';
+	const level = base.levels[0];
+	if (!level) throw new Error('level');
 	return {
 		...base,
-		key: `${block}.${name}`,
-		specialization: spec,
-		block,
 		format: isQa ? 'qa_mutation' : 'practice_code',
 		answerKind: isQa ? 'test_cases' : 'code',
+		levels: [
+			{
+				...level,
+				angoff: {
+					round: 1,
+					ratings: [
+						{ rater: 'Автор А', p: 0.8 },
+						{ rater: 'Автор Б', p: 0.8 }
+					],
+					mean: 0.8
+				}
+			}
+		],
 		practice: isQa
 			? null
 			: {
 					languages: [CATALOG.specializations.find((s) => s.key === spec)?.practiceLanguages[0] ?? 'python3'],
-					hiddenTestGroups: 4
+					hiddenTestGroups: 5
 				},
 		qa: isQa
 			? {
@@ -108,22 +139,38 @@ function practiceFamily(block: string, name: string, grade: GradeKey, anchor = f
 	};
 }
 
-/** A release that fills every slot of every grade exactly, with two anchors per grade. */
-function exactRelease(specialization: SpecializationKey): BankRelease {
+/** The fewest family-levels per block × grade the release check accepts, each with classes A, B and X. */
+function minimalCounts(specialization: SpecializationKey): Map<string, number> {
+	const counts = new Map<string, number>();
+	for (const d of CATALOG.definitions.filter((x) => x.specialization === specialization)) {
+		for (const q of d.blocks) counts.set(`${d.grade}|${q.block}`, q.items);
+	}
+	for (const pair of blockTestPairs(specialization)) {
+		const key = `${pair.grade}|${pair.block}`;
+		counts.set(key, Math.max(counts.get(key) ?? 0, 4));
+	}
+	for (let round = 0; round < 20; round += 1) {
+		const short = capacityChecks(release(specialization, counts), PROCEDURE).flatMap((c) =>
+			c.shortages.map((s) => `${c.grade}|${s.block}`)
+		);
+		if (short.length === 0) return counts;
+		for (const key of new Set(short)) counts.set(key, (counts.get(key) ?? 0) + 1);
+	}
+	throw new Error('no minimal release');
+}
+
+function release(specialization: SpecializationKey, counts: ReadonlyMap<string, number>): BankRelease {
 	const families: FamilyDescriptor[] = [];
-	for (const grade of GRADE_KEYS) {
-		const definition = gradeDefinition(specialization, grade);
-		let anchors = 0;
-		for (const quota of definition.blocks) {
-			for (let i = 0; i < quota.items; i += 1) {
-				const anchor = anchors < 2 && quota.block !== definition.practice.block;
-				if (anchor) anchors += 1;
-				const name = `${grade}-${String(i)}`;
-				families.push(
-					quota.block === definition.practice.block
-						? practiceFamily(quota.block, name, grade, anchor)
-						: computedFamily(quota.block, name, grade, anchor)
-				);
+	const anchors = new Map<string, number>();
+	for (const [key, n] of counts) {
+		const [grade, block] = key.split('|') as [GradeKey, string];
+		for (let i = 0; i < n; i += 1) {
+			const name = `${grade}-${i}`;
+			if (blockDefinition(block).practice) families.push(practiceFamily(block, name, grade));
+			else {
+				const anchor = (anchors.get(grade) ?? 0) < 2;
+				if (anchor) anchors.set(grade, (anchors.get(grade) ?? 0) + 1);
+				families.push(computedFamily(block, name, grade, anchor));
 			}
 		}
 	}
@@ -132,77 +179,133 @@ function exactRelease(specialization: SpecializationKey): BankRelease {
 		specialization,
 		catalogVersion: CATALOG.version,
 		procedureVersion: PROCEDURE.version,
-		families
+		families,
+		sharedSha256: 'a'.repeat(64)
 	};
 }
 
+function passingReport(r: BankRelease): TrajectoryReport {
+	return {
+		releaseId: r.id,
+		procedureVersion: PROCEDURE.version,
+		model: { rho: 0.5, practiceGroups: 5 },
+		grades: GRADE_KEYS.map((grade) => ({
+			grade,
+			points: [
+				{ shift: -0.15, runs: 2000, confirmed: 0.07, undetermined: 0.06, notConfirmed: 0.87 },
+				{ shift: 0.15, runs: 2000, confirmed: 0.79, undetermined: 0.06, notConfirmed: 0.15 }
+			],
+			consistency: [
+				{ shift: -0.15, value: 0.81 },
+				{ shift: 0.15, value: 0.66 }
+			]
+		}))
+	};
+}
+
+const total = (counts: ReadonlyMap<string, number>, grade: GradeKey) =>
+	[...counts].filter(([k]) => k.startsWith(`${grade}|`)).reduce((s, [, n]) => s + n, 0);
+
 describe('slot sequence', () => {
 	it.each(CATALOG.definitions.map((d) => [`${d.specialization} × ${d.grade}`, d] as const))(
-		'%s fills the longest trajectory with the practice at its position',
+		'%s: defining blocks first, the practice at its position, quotas filled',
 		(_, definition) => {
 			const slots = slotSequence(definition);
 			expect(slots).toHaveLength(maxLength(PROCEDURE, definition.grade));
 			expect(slots.filter((s) => s.practice)).toEqual([
 				{ position: definition.practice.position, block: definition.practice.block, practice: true }
 			]);
-			for (const quota of definition.blocks) {
-				expect(slots.filter((s) => s.block === quota.block)).toHaveLength(quota.items);
+			const firstItems = slots.filter((s) => !s.practice).slice(0, PROCEDURE.grades[definition.grade].nMin);
+			for (const code of definition.defining) {
+				expect(firstItems.filter((s) => s.block === code)).toHaveLength(PROCEDURE.definingMinItems);
 			}
+			for (const quota of definition.blocks)
+				expect(slots.filter((s) => s.block === quota.block)).toHaveLength(quota.items);
 		}
 	);
+});
 
-	it('keeps every block of a quota of three or more inside the main part', () => {
-		const definition = gradeDefinition('backend', 'middle');
-		const main = slotSequence(definition).slice(0, PROCEDURE.grades.middle.nMax);
-		for (const quota of definition.blocks.filter((q) => q.items >= 3)) {
-			expect(
-				main.some((s) => s.block === quota.block),
-				quota.block
-			).toBe(true);
-		}
+describe('form choice', () => {
+	it('takes the form with fewer seen classes, the seed on a tie', () => {
+		expect(chooseForm({ A: 18, B: 0 }, 0)).toBe('B');
+		expect(chooseForm({ A: 0, B: 3 }, 1)).toBe('A');
+		expect(chooseForm({ A: 0, B: 0 }, 1)).toBe('B');
 	});
 });
 
 describe('bank release', () => {
-	it('accepts a release that serves every extreme trajectory', () => {
-		const release = exactRelease('backend');
-		expect(releaseProblems(release, PROCEDURE)).toEqual([]);
-		expect(capacityChecks(release, PROCEDURE).every((check) => check.ok)).toBe(true);
-		expect(levelsByBlock(release, 'middle').get('be.db')).toBe(4);
+	it('publishes the minimal numbers of family-levels per grade (classes A, B and X each)', () => {
+		const sizes = Object.fromEntries(
+			SPECIALIZATION_KEYS.map((spec) => {
+				const counts = minimalCounts(spec);
+				return [spec, GRADE_KEYS.map((g) => total(counts, g))];
+			})
+		);
+		expect(sizes).toEqual({
+			backend: [20, 23, 23, 21],
+			frontend: [18, 23, 21, 21],
+			mobile: [19, 21, 24, 19],
+			data_ml: [17, 23, 22, 19],
+			qa: [18, 21, 22, 21],
+			devops: [17, 23, 21, 19]
+		});
 	});
 
-	it('runs out when a block lacks one family-level, on every longest trajectory', () => {
-		const release = exactRelease('qa');
-		const lacking = { ...release, families: release.families.filter((f) => f.key !== 'qa.design.junior-4') };
-		expect(releaseProblems(lacking, PROCEDURE)).toEqual([
-			'release qa@2026.10.1-1: junior A18 runs out in qa.design',
-			'release qa@2026.10.1-1: junior A18→B18 runs out in qa.design',
-			'release qa@2026.10.1-1: junior B18 runs out in qa.design',
-			'release qa@2026.10.1-1: junior B18→A18 runs out in qa.design'
-		]);
+	it('accepts the minimal release with a trajectory report within the acceptance', () => {
+		const r = release('backend', minimalCounts('backend'));
+		expect(releaseProblems(r, PROCEDURE, passingReport(r))).toEqual([]);
+		expect(levelsByBlock(r, 'middle').get('be.db')).toBe(5);
+	});
+
+	it('runs out when a block test of an allowed block has fewer than four families', () => {
+		const counts = new Map(minimalCounts('backend'));
+		counts.set('intern|be.algo', 3);
+		const r = release('backend', counts);
+		const problems = releaseProblems(r, PROCEDURE, passingReport(r));
+		expect(problems).toContain('release backend@2026.10.2-1: be.algo@intern has 3 families, a block test needs 4');
+		expect(problems.some((p) => p.includes('block:be.algo in be.algo'))).toBe(true);
+	});
+
+	it('runs out on the block tests and the recheck without reserve classes', () => {
+		const r = release('qa', minimalCounts('qa'));
+		const noReserve = {
+			...r,
+			families: r.families.map((f) => ({
+				...f,
+				levels: f.levels.map((l) => ({ ...l, classes: l.classes.filter((c) => c.form !== 'X') }))
+			}))
+		};
+		const problems = releaseProblems(noReserve, PROCEDURE, passingReport(noReserve));
+		expect(problems.some((p) => p.includes('block:qa.design in qa.design'))).toBe(true);
+		expect(problems.some((p) => p.includes('recheck:'))).toBe(true);
 	});
 
 	it('runs out on the retake when a family-level has no class of the other form', () => {
-		const release = exactRelease('backend');
-		const families = release.families.map((f) =>
+		const r = release('backend', minimalCounts('backend'));
+		const families = r.families.map((f) =>
 			f.key === 'be.algo.junior-0'
 				? { ...f, levels: f.levels.map((l) => ({ ...l, classes: l.classes.filter((c) => c.form !== 'B') })) }
 				: f
 		);
-		const problems = releaseProblems({ ...release, families }, PROCEDURE);
+		const problems = releaseProblems({ ...r, families }, PROCEDURE, passingReport(r));
 		expect(problems).toContain('family be.algo.junior-0@junior: needs an essential class of form A and of form B');
-		expect(problems).toContain('release backend@2026.10.1-1: junior A18→B18 runs out in be.algo');
 	});
 
-	it('requires two anchors per grade', () => {
-		const release = exactRelease('frontend');
-		const families = release.families.map((f) =>
-			f.levels[0]?.grade === 'senior'
-				? { ...f, levels: f.levels.map((l) => ({ ...l, classes: l.classes.filter((c) => c.form !== 'anchor') })) }
-				: f
-		);
-		expect(releaseProblems({ ...release, families }, PROCEDURE)).toEqual([
-			'release frontend@2026.10.1-1: senior has 0 anchor family-levels, 2 required'
+	it('refuses a release without a trajectory report within the acceptance, or without the hash of shared code', () => {
+		const r = release('backend', minimalCounts('backend'));
+		const report = passingReport(r);
+		const bad: TrajectoryReport = {
+			...report,
+			grades: report.grades.map((g) =>
+				g.grade === 'middle'
+					? { ...g, points: g.points.map((p) => (p.shift > 0 ? { ...p, confirmed: 0.6, runs: 500 } : p)) }
+					: g
+			)
+		};
+		expect(releaseProblems({ ...r, sharedSha256: 'x' }, PROCEDURE, bad)).toEqual([
+			'release backend@2026.10.2-1: sharedSha256 is not a SHA-256',
+			'trajectory report of backend@2026.10.2-1: middle true confirmation 0.6 < 0.75',
+			'trajectory report of backend@2026.10.2-1: middle at 0.15 has 500 runs, 1000 required'
 		]);
 	});
 });
@@ -213,12 +316,26 @@ describe('family descriptor', () => {
 	it('accepts a valid family', () => {
 		expect(familyProblems(valid)).toEqual([]);
 		expect(familyProblems(practiceFamily('qa.mutants', 'boundaries', 'middle'))).toEqual([]);
+		expect(familyProblems(practiceFamily('be.code', 'handler', 'senior'))).toEqual([]);
 	});
 
-	it('refuses Angoff without two raters, a wrong mean and a large gap without the second round', () => {
+	it('takes as the cut the mean of the ratings on the 1/20 scale, ties up', () => {
 		const level = valid.levels[0];
 		if (!level) throw new Error('level');
-		const broken: FamilyDescriptor = {
+		const at = (ratings: number[], mean: number): FamilyDescriptor => ({
+			...valid,
+			levels: [{ ...level, angoff: { round: 1, ratings: ratings.map((p, i) => ({ rater: `Автор ${i}`, p })), mean } }]
+		});
+		expect(familyProblems(at([0.55, 0.6], 0.6))).toEqual([]);
+		expect(familyProblems(at([0.55, 0.6], 0.575))).toEqual([
+			'family be.db.null-aggregate@junior: Angoff mean 0.575 is not 0.60 (mean 0.575 on the 1/20 scale)'
+		]);
+	});
+
+	it('refuses Angoff without two raters and a large gap without the second round', () => {
+		const level = valid.levels[0];
+		if (!level) throw new Error('level');
+		const gap: FamilyDescriptor = {
 			...valid,
 			levels: [
 				{
@@ -226,51 +343,61 @@ describe('family descriptor', () => {
 					angoff: {
 						round: 1,
 						ratings: [
-							{ rater: 'Автор А', p: 0.3 },
-							{ rater: 'Автор Б', p: 0.62 }
+							{ rater: 'А', p: 0.3 },
+							{ rater: 'Б', p: 0.6 }
 						],
-						mean: 0.5
+						mean: 0.45
 					}
 				}
 			]
 		};
-		expect(familyProblems(broken)).toEqual([
-			'family be.db.null-aggregate@junior: Angoff rating 0.62 is not on the 0.05 scale',
-			'family be.db.null-aggregate@junior: Angoff mean 0.5 is not 0.4600',
+		expect(familyProblems(gap)).toEqual([
 			'family be.db.null-aggregate@junior: ratings differ by more than 0.2 — the second round is required'
 		]);
 		const single: FamilyDescriptor = {
 			...valid,
-			levels: [{ ...level, angoff: { round: 1, ratings: [{ rater: 'Автор А', p: 0.6 }], mean: 0.6 } }]
+			levels: [{ ...level, angoff: { round: 1, ratings: [{ rater: 'А', p: 0.6 }], mean: 0.6 } }]
 		};
 		expect(familyProblems(single)).toEqual(['family be.db.null-aggregate@junior: Angoff needs 2 distinct raters']);
 	});
 
-	it('refuses a QA budget outside 5–8, a missing change step and a failed gate', () => {
+	it('refuses a practice that is not a gate the borderline passes, too few groups, a wrong QA budget', () => {
+		const practice = practiceFamily('be.code', 'handler', 'junior');
+		const level = practice.levels[0];
+		if (!level) throw new Error('level');
+		const hard: FamilyDescriptor = {
+			...practice,
+			levels: [
+				{
+					...level,
+					angoff: {
+						round: 1,
+						ratings: [
+							{ rater: 'А', p: 0.6 },
+							{ rater: 'Б', p: 0.6 }
+						],
+						mean: 0.6
+					}
+				}
+			],
+			practice: { languages: ['python3'], hiddenTestGroups: 4 }
+		};
+		expect(familyProblems(hard)).toEqual([
+			'family be.code.handler@junior: a practice cluster is a gate the borderline candidate passes: Angoff 0.75–0.9',
+			'family be.code.handler: fewer than 5 hidden test groups'
+		]);
 		const qa = practiceFamily('qa.mutants', 'boundaries', 'middle');
 		expect(familyProblems({ ...qa, qa: qa.qa && { ...qa.qa, budget: { min: 5, max: 50 } } })).toEqual([
 			'family qa.mutants.boundaries: the QA budget is 5–8 test cases'
 		]);
-		expect(familyProblems({ ...qa, changeStep: null })).toEqual([
-			'family qa.mutants.boundaries@middle: the practice of middle needs the step «измени своё решение»'
-		]);
-		expect(familyProblems({ ...valid, gates: { ...valid.gates, answerCollision: 0.2, rubricReview: null } })).toEqual([
-			'family be.db.null-aggregate: gate answer collision 0.2',
-			'family be.db.null-aggregate: gate rubric not reviewed by a person'
-		]);
 	});
 
-	it('refuses a block of another specialization, a format the block does not take and non-adjacent levels', () => {
-		const level = valid.levels[0];
-		if (!level) throw new Error('level');
+	it('refuses a block of another specialization and a format the block does not take', () => {
 		expect(familyProblems({ ...valid, specialization: 'qa' })).toContain(
 			'family be.db.null-aggregate: block be.db is not of qa'
 		);
 		expect(familyProblems({ ...valid, format: 'config_eval' })).toContain(
 			'family be.db.null-aggregate: block be.db does not take config_eval'
-		);
-		expect(familyProblems({ ...valid, levels: [level, { ...level, grade: 'senior' }] })).toContain(
-			'family be.db.null-aggregate: two levels must be adjacent grades'
 		);
 	});
 });
@@ -295,6 +422,39 @@ describe('instance', () => {
 
 	it('accepts an instance of its family', () => {
 		expect(instanceProblems(instance, family)).toEqual([]);
+	});
+
+	it('requires the QA change step to carry its own specification and mutants', () => {
+		const qaFamily = practiceFamily('qa.mutants', 'boundaries', 'middle');
+		const qaInstance: ItemInstance = {
+			...instance,
+			family: qaFamily.key,
+			grade: 'middle',
+			format: 'qa_mutation',
+			answerKind: 'test_cases',
+			answer: null,
+			statement: { markdown: 'Составьте тест-кейсы', code: null },
+			qa: {
+				budget: { min: 5, max: 8 },
+				specification: 'спецификация',
+				mutants: [{ id: 'lt', operator: 'lt', equivalent: false }]
+			},
+			changeStep: { markdown: 'Новое условие', weight: 0.3, answer: null, groups: [], qa: null }
+		};
+		expect(instanceProblems(qaInstance, qaFamily)).toEqual([
+			'instance qa.mutants.boundaries/seed-1: a QA change step carries its specification and mutants, others none'
+		]);
+		const fixed: ItemInstance = {
+			...qaInstance,
+			changeStep: {
+				markdown: 'Новое условие',
+				weight: 0.3,
+				answer: null,
+				groups: [],
+				qa: { specification: 'новая', mutants: [{ id: 'le', operator: 'le', equivalent: false }] }
+			}
+		};
+		expect(instanceProblems(fixed, qaFamily)).toEqual([]);
 	});
 
 	it('refuses an unknown class, a missing answer and an unknown language', () => {
