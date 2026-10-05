@@ -15,7 +15,7 @@ import { configuredDemoServices } from './configured';
 import { readSeedData } from './data';
 import { enqueueDemoReindex } from './job';
 import { resetDemo } from './reset';
-import { batchId, isSeeded, seedDemo } from './seed';
+import { batchId, isSeeded, releasedBanks, seedDemo } from './seed';
 import type { DemoServices } from './services';
 
 const log = createLogger({ component: 'demo' });
@@ -25,7 +25,13 @@ async function seed(services: DemoServices): Promise<void> {
 	log.info(summary.status === 'seeded' ? 'demo data seeded' : 'demo data already seeded', {
 		batch: summary.batch,
 		duration_ms: summary.durationMs,
-		...Object.fromEntries(Object.entries(summary.counts))
+		...Object.fromEntries(
+			Object.entries(summary.counts).map(([key, value]) => [
+				key,
+				typeof value === 'number' ? value : JSON.stringify(value)
+			])
+		),
+		...(summary.tests === null ? {} : { tests: JSON.stringify(summary.tests) })
 	});
 	if (summary.status !== 'seeded') return;
 	// The reset emptied the vectors of profiles and vacancies; the fresh seed gets them back (job.ts).
@@ -52,7 +58,7 @@ async function reset(services: DemoServices, withSeed: boolean): Promise<void> {
 }
 
 async function ensure(services: DemoServices): Promise<void> {
-	const batch = batchId(await readSeedData(services.seedsDir), services.settings);
+	const batch = batchId(await readSeedData(services.seedsDir), services.settings, await releasedBanks(services));
 	if (await isSeeded(services, batch)) {
 		log.info('demo data of the current batch are seeded', { batch });
 		return;

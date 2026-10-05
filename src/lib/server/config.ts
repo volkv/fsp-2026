@@ -516,8 +516,8 @@ function build(e: Env): Config {
 		demo:
 			e.DEMO_MODE === true
 				? {
-						candidates: e.DEMO_CANDIDATES ?? 3000,
-						vacancies: e.DEMO_VACANCIES ?? 1500,
+						candidates: e.DEMO_CANDIDATES ?? 1000,
+						vacancies: e.DEMO_VACANCIES ?? 300,
 						nightlyReset: e.DEMO_NIGHTLY_RESET ?? true,
 						world: {
 							seed: present(e.FSP_MOCK_SEED, 'FSP_MOCK_SEED'),

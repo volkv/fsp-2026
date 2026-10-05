@@ -21,20 +21,13 @@ export interface CastRole {
 	home: '/me' | '/company' | '/operator' | '/admin';
 }
 
-function candidatePart(hero: SeedData['demo']['candidates'][number]): string {
-	const parts = [hero.athlete === undefined ? 'опыт по резюме, без ФСП' : 'достижения ФСП'];
-	if (hero.athlete !== undefined && hero.resume !== undefined) parts.push('и резюме');
-	if (hero.representative !== undefined) parts.push('несовершеннолетний, представитель ждёт проверки');
-	return parts.join(', ');
-}
-
 /** The roles of the cast in the order of `seeds/demo.json`. */
 export function castRoles(data: SeedData): CastRole[] {
 	const roles: CastRole[] = data.demo.candidates.map((hero, index) => ({
 		key: `candidate:${hero.key}`,
 		group: 'candidate',
 		code: `К-${index + 1}`,
-		part: candidatePart(hero),
+		part: hero.part,
 		email: hero.email,
 		home: '/me'
 	}));

@@ -344,7 +344,18 @@ const SPECIFIC_DETAILS: Partial<Record<AuditAction, z.ZodType>> = {
 		rows_kept: z.int().nonnegative(),
 		files_removed: z.int().nonnegative()
 	}),
-	'demo.seeded': withKeys({ batch: token, candidates: z.int().nonnegative(), vacancies: z.int().nonnegative() }),
+	// With what the seed did with the tests (domain 23.3): open specializations, candidates and needs left without a
+	// released bank, candidates of roles no test checks.
+	'demo.seeded': withKeys({
+		batch: token,
+		candidates: z.int().nonnegative(),
+		vacancies: z.int().nonnegative(),
+		tests_open: z.array(token),
+		tests_closed: z.record(z.string().regex(/^[a-z][a-z0-9_]*$/), count),
+		tests_untested: count,
+		tests_closed_needs: count,
+		tests_closed_scenes: z.array(token)
+	}),
 	// A demo session was opened for a visitor with the clones of the cast, or removed with all its rows (domain 19.3).
 	'demo.session_opened': withKeys({
 		seed_batch: token,

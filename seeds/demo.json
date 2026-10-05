@@ -1,6 +1,6 @@
 {
-	"description": "Демо-данные стенда: учётки ролей, компании сценария и кандидаты-герои. Люди и компании вымышленные, соревнования — реальные соревнования ФСП из мира имитатора fsp-mock.",
-	"version": 1,
+	"description": "Демо-данные стенда: учётки ролей, компании сценария с потребностями, подборками и предложениями, кандидаты-герои с путём через опрос, заявленный грейд и тест. Люди и компании вымышленные, соревнования — реальные соревнования ФСП из мира имитатора fsp-mock; попытки героев синтетические (вердикт засева, без песочницы).",
+	"version": 2,
 	"staff": [
 		{
 			"key": "operator",
@@ -34,6 +34,64 @@
 					"role": "recruiter",
 					"email": "recruiter@severny-kod.example",
 					"displayName": "Алина Лаврова"
+				}
+			],
+			"needs": [
+				{
+					"key": "payments_backend",
+					"text": "Ищем backend-разработчика уровня Middle или Senior в команду платёжного шлюза. Пишем на Go и Python, храним данные в PostgreSQL, события гоняем через Kafka. Нужен опыт с высоконагруженными сервисами и желание разбираться в предметной области платежей. Гибридный формат, вилка 230 000 – 380 000 ₽ на руки.",
+					"form": {
+						"role_key": "backend",
+						"specialization": "backend",
+						"grade": {
+							"min": "middle",
+							"max": "senior"
+						},
+						"skill_keys": ["go", "postgresql"],
+						"nice_skill_keys": ["python", "kafka", "docker"],
+						"team": "Команда платёжного шлюза, 7 инженеров",
+						"work_format": "hybrid",
+						"salary": {
+							"min": 230000,
+							"max": 380000,
+							"currency": "RUB",
+							"period": "month",
+							"tax_base": "net"
+						},
+						"fsp_relevant": true
+					},
+					"marks": [
+						{
+							"candidate": "k1",
+							"note": "Уверенный Middle по тесту и финалист ФСП: предложить роль в шлюзе"
+						},
+						{
+							"candidate": "k5",
+							"note": null
+						}
+					]
+				}
+			],
+			"offers": [
+				{
+					"candidate": "k5",
+					"need": "payments_backend",
+					"title": "Ведущий backend-разработчик платёжного шлюза",
+					"description": "Развиваем платёжный шлюз «Северного кода»: Python и Go, PostgreSQL, Kafka. Нужен инженер, который возьмёт на себя архитектуру сервисов расчётов и поможет растить команду из семи разработчиков.",
+					"salary": {
+						"min": 330000,
+						"max": 380000,
+						"taxBase": "net"
+					},
+					"workFormat": "hybrid",
+					"contact": {
+						"kind": "email",
+						"value": "hiring@severny-kod.example"
+					},
+					"message": "Олег, здравствуйте! Увидели подтверждённый Senior по тесту — хотим обсудить роль ведущего разработчика.",
+					"state": "accepted",
+					"disclose": ["full_name", "email"],
+					"stages": ["interview_scheduled"]
 				}
 			]
 		},
@@ -75,6 +133,56 @@
 					"email": "owner@novaya-komanda.example",
 					"displayName": "Роберт Сайфуллин"
 				}
+			],
+			"needs": [
+				{
+					"key": "go_middle",
+					"text": "Нужен Go-разработчик уровня Middle для нового сервиса уведомлений. Удалённо, PostgreSQL и Docker.",
+					"form": {
+						"role_key": "backend",
+						"specialization": "backend",
+						"grade": {
+							"min": "middle",
+							"max": "middle"
+						},
+						"skill_keys": ["go"],
+						"nice_skill_keys": ["postgresql", "docker"],
+						"work_format": "remote",
+						"salary": {
+							"min": 220000,
+							"max": 280000,
+							"currency": "RUB",
+							"period": "month",
+							"tax_base": "net"
+						}
+					},
+					"marks": [
+						{
+							"candidate": "k2",
+							"note": null
+						}
+					]
+				}
+			],
+			"offers": [
+				{
+					"candidate": "k2",
+					"need": "go_middle",
+					"title": "Go-разработчик сервиса уведомлений",
+					"description": "«Новая команда» запускает сервис уведомлений для партнёров: Go, PostgreSQL, Docker. Ищем разработчика, который поможет спроектировать сервис с нуля и вывести его в эксплуатацию.",
+					"salary": {
+						"min": 240000,
+						"max": 280000,
+						"taxBase": "net"
+					},
+					"workFormat": "remote",
+					"contact": {
+						"kind": "email",
+						"value": "hr@novaya-komanda.example"
+					},
+					"message": null,
+					"state": "sent"
+				}
 			]
 		}
 	],
@@ -82,6 +190,7 @@
 		{
 			"key": "k1",
 			"email": "stepan.rodionov@fsp-career.example",
+			"part": "Middle Backend подтверждён уверенно, достижения ФСП и резюме; ждёт предложения от «Северного кода»",
 			"athlete": "captain_backend",
 			"birthDate": "1999-04-17",
 			"catalogScope": ["fsp_achievements_exact", "external_profiles"],
@@ -100,11 +209,27 @@
 				}
 			},
 			"resume": "resumes/k1.pdf",
-			"github": "srodionov-dev"
+			"github": "srodionov-dev",
+			"profile": {
+				"headline": "Backend-разработчик (Go)",
+				"softSkills": ["teamwork", "mentoring", "problem_solving"]
+			},
+			"assessment": {
+				"specialization": "backend",
+				"skills": ["go", "postgresql", "kafka", "docker", "redis"],
+				"declared": "middle",
+				"attempts": [
+					{
+						"grade": "middle",
+						"outcome": "confident"
+					}
+				]
+			}
 		},
 		{
 			"key": "k2",
 			"email": "dmitry.orlov@fsp-career.example",
+			"part": "Senior Backend не подтверждён, Middle подтверждён тестом ниже; опыт по резюме, без ФСП; предложение непроверенной компании",
 			"name": {
 				"lastName": "Орлов",
 				"firstName": "Дмитрий",
@@ -127,11 +252,31 @@
 				}
 			},
 			"resume": "resumes/k2.docx",
-			"github": "dorlov-go"
+			"github": "dorlov-go",
+			"profile": {
+				"headline": "Go-разработчик, платёжные системы",
+				"softSkills": ["responsibility", "attention_to_detail"]
+			},
+			"assessment": {
+				"specialization": "backend",
+				"skills": ["go", "postgresql", "kafka", "grpc", "kubernetes"],
+				"declared": "senior",
+				"attempts": [
+					{
+						"grade": "senior",
+						"outcome": "not_confirmed"
+					},
+					{
+						"grade": "middle",
+						"outcome": "confirmed"
+					}
+				]
+			}
 		},
 		{
 			"key": "k3",
 			"email": "gleb.sokolov@fsp-career.example",
+			"part": "Тест Middle Backend — «не определено»; достижения ФСП, КМС по алгоритмическому программированию",
 			"athlete": "algo_kms",
 			"birthDate": "2003-06-15",
 			"catalogScope": ["fsp_achievements_exact"],
@@ -148,11 +293,27 @@
 					"period": "month",
 					"tax_base": "net"
 				}
+			},
+			"profile": {
+				"headline": "Разработчик, спортивное программирование",
+				"softSkills": ["self_learning", "critical_thinking"]
+			},
+			"assessment": {
+				"specialization": "backend",
+				"skills": ["cpp", "algorithms", "python", "postgresql"],
+				"declared": "middle",
+				"attempts": [
+					{
+						"grade": "middle",
+						"outcome": "undetermined"
+					}
+				]
 			}
 		},
 		{
 			"key": "k4",
 			"email": "alisa.zakharova@fsp-career.example",
+			"part": "Несовершеннолетняя, представитель ждёт проверки; тест Frontend не выпущен — без опроса",
 			"athlete": "teen_16",
 			"birthDate": "2010-02-20",
 			"catalogScope": [],
@@ -172,6 +333,7 @@
 		{
 			"key": "k5",
 			"email": "oleg.petrov@fsp-career.example",
+			"part": "Senior Backend подтверждён; принял предложение «Северного кода», контакты раскрыты; опыт по резюме, без ФСП",
 			"name": {
 				"lastName": "Петров",
 				"firstName": "Олег",
@@ -193,7 +355,22 @@
 					"tax_base": "net"
 				}
 			},
-			"resume": "resumes/k5.pdf"
+			"resume": "resumes/k5.pdf",
+			"profile": {
+				"headline": "Ведущий Python-разработчик",
+				"softSkills": ["leadership", "mentoring", "communication"]
+			},
+			"assessment": {
+				"specialization": "backend",
+				"skills": ["python", "postgresql", "fastapi", "celery", "docker"],
+				"declared": "senior",
+				"attempts": [
+					{
+						"grade": "senior",
+						"outcome": "confirmed"
+					}
+				]
+			}
 		}
 	]
 }

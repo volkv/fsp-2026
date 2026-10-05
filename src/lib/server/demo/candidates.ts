@@ -2,7 +2,8 @@
 // birth date, the user agreement, the FSP ID identity of an athlete), then the product's own actions — the consent to
 // processing, the work terms, the catalog consent, the confirmed FSP import or the uploaded resume. Facts, claims,
 // categories and matches follow from the jobs these actions enqueue. The candidate's name and GitHub handle have no
-// screen yet and are written as the rows such a screen would write.
+// screen yet and are written as the rows such a screen would write; the headline, the soft skills and the places of
+// work typed by hand go through the profile screen's own functions.
 import { and, eq } from 'drizzle-orm';
 import { confirmFspAchievements } from '$lib/server/auth/identities';
 import { grantProfileConsent } from '$lib/server/auth/onboarding';
@@ -16,6 +17,8 @@ import {
 	externalProfiles,
 	resumeDocuments
 } from '$lib/server/db/schema';
+import { addManualExperience } from '$lib/server/profile/experience';
+import { updateOwnProfile } from '$lib/server/profile/fields';
 import { uploadResume } from '$lib/server/resumes/upload';
 import { documentOf, ensureUser, metaOf, sessionOf, subjectOf, type SeedContext } from './accounts';
 import type { CandidatePlan } from './generate';
@@ -32,7 +35,8 @@ async function candidateOf(ctx: SeedContext, userId: string) {
 			id: candidates.id,
 			status: candidates.status,
 			searchStatus: candidates.searchStatus,
-			desiredRoleKeys: candidates.desiredRoleKeys
+			desiredRoleKeys: candidates.desiredRoleKeys,
+			headline: candidates.headline
 		})
 		.from(candidates)
 		.where(eq(candidates.userId, userId));
@@ -109,6 +113,21 @@ export async function ensureCandidate(ctx: SeedContext, plan: CandidatePlan): Pr
 	}
 	if (plan.searchStatus !== candidate.searchStatus) {
 		await setSearchStatus(db, await subjectOf(ctx, userId), plan.searchStatus);
+	}
+
+	if (plan.profile !== null && candidate.headline === null) {
+		const subject = await subjectOf(ctx, userId);
+		const profile = { db, crypto, now: ctx.now };
+		await updateOwnProfile(profile, subject, meta, {
+			last_name: plan.name.lastName,
+			first_name: plan.name.firstName,
+			middle_name: plan.name.middleName,
+			phone: null,
+			telegram: null,
+			headline: plan.profile.headline,
+			soft_skill_keys: plan.profile.softSkills
+		});
+		for (const entry of plan.profile.experience) await addManualExperience({ db, now: ctx.now }, subject, meta, entry);
 	}
 
 	if (plan.github !== null) {

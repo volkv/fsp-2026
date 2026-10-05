@@ -4,9 +4,21 @@
 import { createHash } from 'node:crypto';
 import { Random } from '../../../../services/fsp-mock/src/seed/random.ts';
 import { syntheticName, syntheticRegion, translit } from '../../../../services/fsp-mock/src/seed/names.ts';
+import { GRADE_KEYS, type GradeKey, type SpecializationKey } from '$lib/server/assessments/contract/catalog';
+import { specializationsOfRole } from '$lib/server/categories/roles';
 import type { CatalogScopeField } from '$lib/server/consent/kinds';
+import type { NeedForm } from '$lib/server/needs/form';
+import type { ExperienceInput } from '$lib/server/profile/experience';
+import { SOFT_SKILLS } from '$lib/server/profile/soft-skills';
 import type { SourcePosting } from '$lib/server/vacancies/sources/types';
-import { type DemoPreferences, type HeroCandidate, type RoleProfile, type SeedData } from './data';
+import {
+	type DemoPreferences,
+	type HeroAssessment,
+	type HeroCandidate,
+	type RoleProfile,
+	type SeedData,
+	type TestOutcome
+} from './data';
 import type { WorldAthlete } from './world';
 
 export { Random };
@@ -15,6 +27,31 @@ interface PersonName {
 	lastName: string;
 	firstName: string;
 	middleName: string | null;
+}
+
+/** One test of the plan: the grade and the outcome the seeded verdict is to give (domain 23.3). */
+export interface AttemptPlan {
+	grade: GradeKey;
+	outcome: TestOutcome;
+}
+
+/**
+ * The candidate's path through the test: the survey of the specialization with the declared stack, the declared grade
+ * and the attempts in their order. The seed takes it only when the specialization has a released bank; otherwise the
+ * candidate stays without a survey and the report of the seed counts them.
+ */
+export interface AssessmentPlan {
+	specialization: SpecializationKey;
+	skills: string[];
+	declared: GradeKey;
+	attempts: AttemptPlan[];
+}
+
+/** What the candidate typed in the profile by hand (domain 7.1). */
+export interface ProfilePlan {
+	headline: string;
+	softSkills: string[];
+	experience: ExperienceInput[];
 }
 
 export interface CandidatePlan {
@@ -32,6 +69,10 @@ export interface CandidatePlan {
 	/** The file the candidate uploads: a hero's PDF or DOCX from `seeds/resumes/`, a background candidate's text. */
 	resume: { declaredName: string; bytes: Uint8Array<ArrayBuffer> } | null;
 	github: string | null;
+	/** `null` — a minor: the fields wait for the representative's consent to processing (domain 7.3). */
+	profile: ProfilePlan | null;
+	/** `null` — the candidate has not taken the survey. */
+	assessment: AssessmentPlan | null;
 }
 
 const DAY = 86_400_000;
@@ -88,6 +129,91 @@ function workTerms(rnd: Random, young: boolean) {
 
 const birthDateOf = (rnd: Random, year: number) => `${year}-${pad(rnd.int(1, 12))}-${pad(rnd.int(1, 28))}`;
 
+/** The specialization of the catalog the first tested role of the candidate names; `null` — no role is tested. */
+function specializationOf(roles: readonly string[]): SpecializationKey | null {
+	for (const role of roles) {
+		const [first] = specializationsOfRole(role);
+		if (first !== undefined) return first;
+	}
+	return null;
+}
+
+/** The grade of the catalog a grade of the salary bands stands for: the catalog ends with Senior. */
+function catalogGrade(grade: string): GradeKey {
+	if (grade === 'lead') return 'senior';
+	const known = GRADE_KEYS.find((key) => key === grade);
+	if (known === undefined) throw new Error(`grade ${grade} is not in the catalog`);
+	return known;
+}
+
+/**
+ * The attempts of a background candidate after the survey (domain 12.3): none yet, one at the declared grade with each
+ * outcome, a failure followed by the test below it, or a confident result followed by the next grade at once.
+ */
+function attemptsOf(rnd: Random, declared: GradeKey): AttemptPlan[] {
+	const index = GRADE_KEYS.indexOf(declared);
+	const below = index > 0 ? GRADE_KEYS[index - 1] : undefined;
+	const above = GRADE_KEYS[index + 1];
+	const at = (outcome: TestOutcome): AttemptPlan => ({ grade: declared, outcome });
+	const paths: [AttemptPlan[], number][] = [
+		[[], 14],
+		[[at('confident')], 20],
+		[[at('confirmed')], 24],
+		[[at('not_confirmed')], 12]
+	];
+	// At Senior the released bank practically never leaves the band crossed: «не определено» is planned below it.
+	if (declared !== 'senior') paths.push([[at('undetermined')], 5]);
+	if (below !== undefined) {
+		paths.push([[at('not_confirmed'), { grade: below, outcome: rnd.chance(0.3) ? 'confident' : 'confirmed' }], 10]);
+	}
+	if (above !== undefined) {
+		paths.push([[at('confident'), { grade: above, outcome: rnd.chance(0.5) ? 'confirmed' : 'not_confirmed' }], 6]);
+	}
+	return rnd.weighted(paths);
+}
+
+/** The survey and the tests of a background candidate of `roles`; `null` — no role of theirs is tested. */
+function assessmentOf(
+	data: SeedData,
+	rnd: Random,
+	roles: readonly string[],
+	grade: string,
+	stack: RoleProfile['stacks'][number] | null
+): AssessmentPlan | null {
+	const specialization = specializationOf(roles);
+	if (specialization === null) return null;
+	const role = roles.find((key) => specializationsOfRole(key).includes(specialization));
+	const own = stack ?? (role === undefined ? null : rnd.pick(roleByKey(data, role).stacks));
+	if (own === null) return null;
+	const skills = [...own.required, ...own.nice.filter(() => rnd.chance(0.6))].slice(0, 10);
+	const declared = catalogGrade(grade);
+	return { specialization, skills, declared, attempts: attemptsOf(rnd, declared) };
+}
+
+function softSkillsOf(rnd: Random): string[] {
+	return rnd.shuffle(SOFT_SKILLS.map((skill) => skill.key)).slice(0, rnd.int(0, 3));
+}
+
+const monthOf = (date: Date) => `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}`;
+
+/** A place of work typed by hand: the current job of an athlete without a resume. */
+function manualExperience(data: SeedData, rnd: Random, role: RoleProfile, grade: string, now: Date): ExperienceInput {
+	const stack = rnd.pick(role.stacks);
+	const months = grade === 'intern' ? rnd.int(3, 8) : grade === 'junior' ? rnd.int(8, 24) : rnd.int(18, 60);
+	return {
+		position_title: `${stack.label}-разработчик`,
+		organization_name: rnd.pick(data.companies.organizations),
+		role_key: role.key,
+		period_from: monthOf(new Date(now.getTime() - months * 30 * DAY)),
+		period_to: null,
+		skill_keys: [...stack.required],
+		description: 'Разработка и поддержка продуктовых сервисов команды.'
+	};
+}
+
+const headlineOf = (data: SeedData, grade: string, role: RoleProfile) =>
+	`${data.roles.gradeTitles[grade] ?? ''} ${role.title}`.trim();
+
 /** A hero's resume file under the name a person gives it: «Резюме Фамилия Имя.pdf». */
 function heroResume(path: string, name: PersonName, data: SeedData): NonNullable<CandidatePlan['resume']> {
 	const bytes = data.resumes.get(path);
@@ -119,7 +245,21 @@ export function heroPlan(hero: HeroCandidate, athlete: WorldAthlete | null, data
 		preferences: hero.preferences,
 		searchStatus: 'active',
 		resume: hero.resume === undefined ? null : heroResume(hero.resume, name, data),
-		github: hero.github ?? null
+		github: hero.github ?? null,
+		profile:
+			hero.profile === undefined
+				? null
+				: { headline: hero.profile.headline, softSkills: hero.profile.softSkills, experience: [] },
+		assessment: hero.assessment === undefined ? null : heroAssessment(hero.assessment)
+	};
+}
+
+function heroAssessment(plan: HeroAssessment): AssessmentPlan {
+	return {
+		specialization: plan.specialization,
+		skills: plan.skills,
+		declared: plan.declared,
+		attempts: plan.attempts.map((attempt) => ({ grade: attempt.grade, outcome: attempt.outcome }))
 	};
 }
 
@@ -141,6 +281,10 @@ export function athletePlan(athlete: WorldAthlete, data: SeedData, batch: string
 	const roles = (athlete.specialization ? byDiscipline?.[athlete.specialization] : undefined) ??
 		byDiscipline?.default ?? ['backend'];
 	const desiredRoles = roles.slice(0, rnd.chance(0.6) ? 1 : 2);
+	// Most athletes whose first role no test checks also want a tested one of their discipline (an olympiad programmer —
+	// backend too): they take its test.
+	const tested = roles.find((role) => specializationsOfRole(role).length > 0);
+	if (specializationOf(desiredRoles) === null && tested !== undefined && rnd.chance(0.8)) desiredRoles.push(tested);
 	const primaryRole = desiredRoles[0] ?? 'backend';
 	const grade = gradeOfAge(age, rnd);
 	// A blank region is not stated; a stated one must be in the reference.
@@ -165,7 +309,14 @@ export function athletePlan(athlete: WorldAthlete, data: SeedData, batch: string
 		},
 		searchStatus: rnd.chance(0.75) ? 'active' : 'open_to_offers',
 		resume: null,
-		github: null
+		github: null,
+		profile: {
+			headline: headlineOf(data, grade, roleByKey(data, primaryRole)),
+			softSkills: softSkillsOf(rnd),
+			experience:
+				age >= 20 && rnd.chance(0.45) ? [manualExperience(data, rnd, roleByKey(data, primaryRole), grade, now)] : []
+		},
+		assessment: assessmentOf(data, rnd, desiredRoles, grade, null)
 	};
 }
 
@@ -287,7 +438,9 @@ export function resumePlan(
 		},
 		searchStatus: rnd.chance(0.7) ? 'active' : 'open_to_offers',
 		resume: { declaredName: `Резюме ${name.lastName}.txt`, bytes: new TextEncoder().encode(text) },
-		github: null
+		github: null,
+		profile: { headline: headlineOf(data, grade, role), softSkills: softSkillsOf(rnd), experience: [] },
+		assessment: assessmentOf(data, rnd, [role.key], grade, stack)
 	};
 }
 
@@ -306,7 +459,9 @@ export function minorPlan(athlete: WorldAthlete, batch: string): CandidatePlan {
 		preferences: { work_formats: ['remote'], employment_forms: ['internship'], relocation: false },
 		searchStatus: 'active',
 		resume: null,
-		github: null
+		github: null,
+		profile: null,
+		assessment: null
 	};
 }
 
@@ -366,7 +521,8 @@ export function companyPlans(data: SeedData, batch: string): CompanyPlan[] {
 			displayName,
 			legalName: `ООО «${displayName}»`,
 			inn: syntheticInn(`company:${displayName}`),
-			status: 'verified',
+			// Every seventh company is still under review: its offers carry the mark «не проверена».
+			status: index % 7 === 6 ? 'submitted' : 'verified',
 			minorTerms: false,
 			partnership: null,
 			members: [
@@ -387,6 +543,89 @@ export function companyPlans(data: SeedData, batch: string): CompanyPlan[] {
 		};
 	});
 	return [...scenario, ...background];
+}
+
+// --- Needs ----------------------------------------------------------------------------------------------------------
+
+/** A need of a background company and the offers it sends from its shortlist (domain 13.10). */
+export interface NeedPlan {
+	company: string;
+	/** `null` — the employer filled only the form. */
+	text: string | null;
+	form: NeedForm;
+	/** How many of the best of the shortlist get an offer. */
+	offers: number;
+	terms: {
+		title: string;
+		description: string;
+		salaryMin: number;
+		salaryMax: number;
+		taxBase: 'net' | 'gross';
+		workFormat: string;
+		contact: { kind: string; value: string };
+		message: string | null;
+	};
+}
+
+const OFFER_FORMATS = ['remote', 'hybrid', 'office'] as const;
+
+/**
+ * Two needs of every background company, for roles a test of the catalog checks; a need of a specialization without a
+ * released bank is left to the seed to skip, so a bank released later adds its needs without a change here.
+ */
+export function needPlans(data: SeedData, companies: readonly CompanyPlan[], batch: string): NeedPlan[] {
+	const tested = data.roles.roles.filter((role) => specializationsOfRole(role.key).length > 0);
+	const plans: NeedPlan[] = [];
+	for (const company of companies.filter((c) => !c.scenario)) {
+		const rnd = new Random(`${batch}:needs:${company.key}`);
+		const domain = company.members[0]?.email.split('@')[1] ?? 'company.example';
+		for (let i = 0; i < 2; i++) {
+			const role = rnd.weighted(tested.map((r) => [r, r.weight] as const));
+			const specialization = specializationsOfRole(role.key)[0];
+			const stack = rnd.pick(role.stacks);
+			const grade = rnd.weighted<GradeKey>([
+				['junior', 0.3],
+				['middle', 0.45],
+				['senior', 0.25]
+			]);
+			const next = GRADE_KEYS[GRADE_KEYS.indexOf(grade) + 1];
+			const max = next !== undefined && rnd.chance(0.4) ? next : grade;
+			const [low] = band(data, grade, role.multiplier);
+			const [, high] = band(data, max, role.multiplier);
+			const salary = { min: round5k(low), max: round5k(high) };
+			const workFormat = rnd.pick(OFFER_FORMATS);
+			const title = `${data.roles.gradeTitles[grade] ?? ''} ${role.title} (${stack.label})`.trim();
+			const nice = stack.nice.filter(() => rnd.chance(0.5));
+			plans.push({
+				company: company.key,
+				text: rnd.chance(0.6)
+					? `«${company.displayName}» ищет: ${title}. Стек: ${stack.label}. Формат — ${FORMAT_NAMES[workFormat] ?? workFormat}, вилка ${salary.min}–${salary.max} ₽ на руки.`
+					: null,
+				form: {
+					role_key: role.key,
+					...(specialization === undefined ? {} : { specialization }),
+					grade: { min: grade, max },
+					skill_keys: [...stack.required],
+					nice_skill_keys: nice,
+					work_format: workFormat,
+					salary: { ...salary, currency: 'RUB', period: 'month', tax_base: 'net' },
+					fsp_relevant: rnd.chance(0.5)
+				},
+				offers: rnd.int(2, 5),
+				terms: {
+					title,
+					description: `«${company.displayName}» предлагает роль: ${title}. Задачи команды, стек ${stack.label} и условия обсудим на созвоне, ответим на вопросы.`,
+					salaryMin: salary.min,
+					salaryMax: salary.max,
+					taxBase: 'net',
+					workFormat,
+					contact: { kind: 'email', value: `hr@${domain}` },
+					message: null
+				}
+			});
+		}
+	}
+	return plans;
 }
 
 // --- Vacancies -------------------------------------------------------------------------------------------------------

@@ -78,6 +78,7 @@ import type { ObjectStore, StoredObject } from '$lib/server/storage/object-store
 import { publishTaxonomy } from '$lib/server/taxonomy/publish';
 import { buildRelease, readTaxonomyDatasets } from '$lib/server/taxonomy/release';
 import { DEFAULT_SEED } from '../../services/fsp-mock/src/config.ts';
+import { releaseBankAhead } from '../helpers/demo-bank';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
 import { startParser, type StartedParser } from '../helpers/docparse';
 import { testEnvironment } from '../helpers/environment';
@@ -165,6 +166,7 @@ beforeAll(async () => {
 	} finally {
 		await client.end({ timeout: 5 });
 	}
+	await releaseBankAhead(database.db, 'backend');
 	mock = await startFspMock({ athletes: ATHLETES });
 	redis = createClient({ url: `${inject('redisUrl')}/${REDIS_DATABASE}` });
 	await redis.connect();
@@ -385,9 +387,9 @@ describe('demo sessions', () => {
 			expect(own).toEqual({ status: 'active', session: null });
 		}
 
-		// The clone of К-5 has the open invitation of the clone of the main employer, not of the original.
-		const oleg = await candidateOfUser(await cloneOfRole(database.db, crypto, a.sessionId, role('k5')));
-		const invitation = await openInvitationOf(oleg);
+		// The clone of К-2 has the open offer of the clone of the company under review, not of the original.
+		const dmitry = await candidateOfUser(await cloneOfRole(database.db, crypto, a.sessionId, role('k2')));
+		const invitation = await openInvitationOf(dmitry);
 		expect(invitation.status).toBe('sent');
 		const [sender] = await database.db
 			.select({ session: companies.demoSessionId })
@@ -395,6 +397,33 @@ describe('demo sessions', () => {
 			.innerJoin(companies, eq(companies.id, invitations.companyId))
 			.where(eq(invitations.id, invitation.id));
 		expect(sender?.session).toBe(a.sessionId);
+		// The path through the test comes with the clone: the survey, the declaration, the attempts with their items and
+		// decisions, the category; the shortlist of the main employer marks the clone of К-1, not the original.
+		const pathOf = async (candidateId: string) =>
+			database.sql<
+				{ attempts: number; items: number; decisions: number; categories: string | null; surveys: number }[]
+			>`
+				select (select count(*)::int from test_attempts where candidate_id = ${candidateId}) as attempts,
+					(select count(*)::int from test_items i join test_attempts t on t.id = i.attempt_id
+						where t.candidate_id = ${candidateId}) as items,
+					(select count(*)::int from grade_decisions where candidate_id = ${candidateId}) as decisions,
+					(select string_agg(specialization || ':' || grade, ',') from candidate_categories
+						where candidate_id = ${candidateId} and status = 'active') as categories,
+					(select count(*)::int from candidate_surveys where candidate_id = ${candidateId}) as surveys`;
+		const originalsNow = await castOriginals(database.db, crypto, castRoles(data));
+		for (const hero of ['k1', 'k2', 'k3', 'k5']) {
+			const original = await candidateOfUser(originalsNow.users.get(role(hero).key)?.id ?? '');
+			const clone = await candidateOfUser(await cloneOfRole(database.db, crypto, a.sessionId, role(hero)));
+			const [copied] = await pathOf(clone);
+			expect(copied).toEqual((await pathOf(original))[0]);
+			expect(copied?.attempts).toBeGreaterThan(0);
+		}
+		const stepanA = await candidateOfUser(await cloneOfRole(database.db, crypto, a.sessionId, role('k1')));
+		const [markOfA] = await database.sql<{ session: string | null }[]>`
+			select c.demo_session_id as session from shortlist_marks m
+			join shortlists s on s.id = m.shortlist_id join companies c on c.id = s.company_id
+			where m.candidate_id = ${stepanA}`;
+		expect(markOfA?.session).toBe(a.sessionId);
 		// Copied resume files have their own objects.
 		const copiedFiles = await database.db
 			.select({ key: files.storageKey })
@@ -406,20 +435,20 @@ describe('demo sessions', () => {
 	});
 
 	it('keeps what one visitor does out of the other session', { timeout: 120_000 }, async () => {
-		// The visitor of A declines the invitation of К-5.
-		const olegA = await cloneOfRole(database.db, crypto, a.sessionId, role('k5'));
-		const invitationA = await openInvitationOf(await candidateOfUser(olegA));
-		await respondToInvitation(invitationDeps(), await subjectOf(olegA), meta, invitationA.id, {
+		// The visitor of A declines the offer to К-2.
+		const dmitryA = await cloneOfRole(database.db, crypto, a.sessionId, role('k2'));
+		const invitationA = await openInvitationOf(await candidateOfUser(dmitryA));
+		await respondToInvitation(invitationDeps(), await subjectOf(dmitryA), meta, invitationA.id, {
 			termsId: invitationA.termsId,
 			decision: 'decline',
 			reasonCode: 'salary'
 		});
-		expect((await openInvitationOf(await candidateOfUser(olegA))).status).toBe('declined');
+		expect((await openInvitationOf(await candidateOfUser(dmitryA))).status).toBe('declined');
 
-		// Session B does not see it: its К-5 still has the invitation unanswered, from its own employer.
-		const olegB = await cloneOfRole(database.db, crypto, b.sessionId, role('k5'));
-		expect((await openInvitationOf(await candidateOfUser(olegB))).status).toBe('sent');
-		const recruiterB = await cloneOfRole(database.db, crypto, b.sessionId, role('recruiter@severny-kod.example'));
+		// Session B does not see it: its К-2 still has the offer unanswered, from its own company.
+		const dmitryB = await cloneOfRole(database.db, crypto, b.sessionId, role('k2'));
+		expect((await openInvitationOf(await candidateOfUser(dmitryB))).status).toBe('sent');
+		const recruiterB = await cloneOfRole(database.db, crypto, b.sessionId, role('owner@novaya-komanda.example'));
 		const sentByB = await database.db
 			.select({ status: invitations.status })
 			.from(invitations)

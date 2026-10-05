@@ -1,27 +1,41 @@
-// The demo seed (docs/domain.md, sections 7.1, 12.5, 21): accounts of every role, companies of the scenario and of the
-// background, candidates on real FSP competitions of the simulator's dataset, own and external vacancies, and the
-// states the scenario starts from. Data flow through the product: FSP sync → facts → claims → evidence →
-// matches, resume parse → extraction, vacancy import → normalization, invitations → hiring. Every record the seed
-// creates carries the batch id. The seed is deterministic and idempotent: its batch id is a hash of its inputs, a
-// finished batch is recorded in the journal and not seeded again, and a stopped one continues where it stopped.
+// The demo seed (docs/domain.md, sections 7.1, 12, 13.10, 21, 23.3): accounts of every role, companies of the scenario
+// and of the background, verified and under review, candidates on real FSP competitions of the simulator's dataset and
+// with synthetic resumes, each through the survey, the declared grade and the seeded tests of the specializations with a
+// released bank, the categories their decisions give, the needs of the companies with shortlists and offers in every
+// status, own and external vacancies, and the states the scenario starts from. Data flow through the product: FSP sync →
+// facts → claims → evidence, resume parse → extraction, survey → declaration → attempt → decision → category, need →
+// shortlist → offer → acceptance → disclosure → hiring. Every record the seed creates carries the batch id. The seed is
+// deterministic in what it creates and idempotent: its batch id is a hash of its inputs (the released banks included),
+// a finished batch is recorded in the journal and not seeded again, and a stopped one continues where it stopped.
 import { createHash } from 'node:crypto';
 import { and, count, eq, inArray, lte, max, sql } from 'drizzle-orm';
 import { recordAuditEvent } from '$lib/server/audit/record';
 import { currentDocument, type CurrentDocument } from '$lib/server/auth/documents';
+import { openSpecializations } from '$lib/server/assessments/bank-store';
+import type { SpecializationKey } from '$lib/server/assessments/contract/catalog';
 import { createEvidenceHandler } from '$lib/server/evidence/job';
 import { companyRegistryLookup } from '$lib/server/companies/registry-check';
 import { registryNotConfigured } from '$lib/server/companies/registry';
 import type { DocumentKind } from '$lib/server/consent/kinds';
 import {
 	auditEvents,
+	bankReleases,
+	candidateCategories,
+	candidateSurveys,
 	candidates,
+	disclosures,
 	evidenceRuns,
 	companies,
 	documentExtractions,
+	gradeDecisions,
+	hiringNeeds,
+	hiringProcesses,
+	invitations,
 	legalDocuments,
 	matchScores,
 	productPolicies,
 	resumeDocuments,
+	shortlists,
 	skills,
 	sourceFacts,
 	users,
@@ -43,6 +57,7 @@ import { createResumeParseHandler } from '$lib/server/resumes/parse-job';
 import { latestPublishedVersion } from '$lib/server/taxonomy/vocabulary';
 import { createVacancyNormalizeHandler } from '$lib/server/vacancies/normalize-job';
 import { ensureStaffRole, ensureUser, DemoBatchConflict, type SeedContext } from './accounts';
+import { ensureAssessment, type AssessmentState } from './assessments';
 import { ensureCandidate, inPool, type SeededCandidate } from './candidates';
 import { castOriginals, castRoles, markCastOriginals } from './cast';
 import { ensureCompany, type SeededCompany } from './companies';
@@ -53,6 +68,7 @@ import {
 	externalPostings,
 	heroPlan,
 	minorPlan,
+	needPlans,
 	ownVacancyPlans,
 	Random,
 	resumePlan,
@@ -65,7 +81,9 @@ import {
 	revokeSomeConsents,
 	showMinorInCatalog,
 	stageFunnel,
-	stageScenario
+	stageContacts,
+	stageScenario,
+	type FunnelSummary
 } from './scenes';
 import { LetterBox, type DemoServices } from './services';
 import { ensureOwnVacancies, importExternalVacancies } from './vacancies';
@@ -73,7 +91,7 @@ import { demoWorld, eligibleAthletes, heroAthlete, minorAthletes, type World } f
 import { syntheticName } from '../../../../services/fsp-mock/src/seed/names.ts';
 
 /** Bump when the seed code changes what it creates from the same inputs: a new version is a new batch. */
-const SEED_VERSION = 5;
+const SEED_VERSION = 6;
 
 /** Share of FSP athletes among the synthetic candidates; the rest have a resume and no FSP history. */
 const FSP_SHARE = 0.9;
@@ -178,21 +196,55 @@ interface SeedCounts {
 	sourceFacts: number;
 	publishedEvidenceRuns: number;
 	companies: number;
+	surveys: number;
+	/** Decisions of the seeded tests by outcome: `confirmed`, `confident` (of the confirmed), `not_confirmed`, `undetermined`. */
+	decisions: Record<string, number>;
+	categories: number;
+	needs: number;
+	shortlists: number;
+	/** Offers by status. */
+	invitations: Record<string, number>;
+	disclosures: number;
+	hiringProcesses: number;
 	vacancies: number;
 	ownVacancies: number;
 	externalPostings: number;
 	matchScores: number;
 }
 
+/** What the seed did with the tests: specializations with a released bank, and candidates left without the survey. */
+export interface SeedTests {
+	open: SpecializationKey[];
+	/** Candidates whose specialization has no released bank, by specialization: no survey, no attempts. */
+	closed: Record<string, number>;
+	/** Candidates of the plan whose roles no test checks. */
+	untested: number;
+	/** Needs of the background whose specialization has no released bank: not written. */
+	closedNeeds: number;
+	/** Needs of the scenario (`company.need`) waiting for a released bank, with their offers. */
+	closedScenes: string[];
+}
+
 export interface SeedSummary {
 	status: 'seeded' | 'already_seeded';
 	batch: string;
 	counts: SeedCounts;
+	/** `null` for a batch seeded earlier. */
+	tests: SeedTests | null;
 	durationMs: number;
 }
 
-/** The batch of these inputs: seed data, world, sizes and the seed code version. */
-export function batchId(data: SeedData, settings: DemoServices['settings']): string {
+/** The released banks the batch is seeded against: a bank released later is a new batch, with tests of its own. */
+export async function releasedBanks(services: DemoServices): Promise<string[]> {
+	const rows = await services.db
+		.select({ id: bankReleases.id })
+		.from(bankReleases)
+		.where(eq(bankReleases.status, 'released'));
+	return rows.map((row) => row.id).sort();
+}
+
+/** The batch of these inputs: seed data, world, sizes, released banks and the seed code version. */
+export function batchId(data: SeedData, settings: DemoServices['settings'], releases: readonly string[]): string {
 	const hash = createHash('sha256')
 		.update(
 			JSON.stringify({
@@ -200,7 +252,8 @@ export function batchId(data: SeedData, settings: DemoServices['settings']): str
 				data: data.sha256,
 				world: settings.world,
 				candidates: settings.candidates,
-				vacancies: settings.vacancies
+				vacancies: settings.vacancies,
+				releases
 			})
 		)
 		.digest('hex');
@@ -227,6 +280,21 @@ export async function isSeeded(services: DemoServices, batch: string): Promise<b
 async function seedCounts(services: DemoServices, batch: string): Promise<SeedCounts> {
 	const { db } = services;
 	const one = async (query: Promise<{ n: number }[]>) => (await query)[0]?.n ?? 0;
+	const grouped = async (query: Promise<{ key: string; n: number }[]>) =>
+		Object.fromEntries((await query).map((row) => [row.key, row.n]));
+	const decisions = await grouped(
+		db
+			.select({ key: gradeDecisions.outcome, n: sql<number>`count(*)::int` })
+			.from(gradeDecisions)
+			.where(eq(gradeDecisions.status, 'valid'))
+			.groupBy(gradeDecisions.outcome)
+	);
+	decisions.confident = await one(
+		db
+			.select({ n: count() })
+			.from(gradeDecisions)
+			.where(and(eq(gradeDecisions.status, 'valid'), eq(gradeDecisions.confident, true)))
+	);
 	return {
 		users: await one(db.select({ n: count() }).from(users).where(eq(users.seedBatchId, batch))),
 		candidates: await one(db.select({ n: count() }).from(candidates).where(eq(candidates.seedBatchId, batch))),
@@ -241,6 +309,21 @@ async function seedCounts(services: DemoServices, batch: string): Promise<SeedCo
 			db.select({ n: count() }).from(evidenceRuns).where(eq(evidenceRuns.status, 'published'))
 		),
 		companies: await one(db.select({ n: count() }).from(companies).where(eq(companies.seedBatchId, batch))),
+		surveys: await one(db.select({ n: count() }).from(candidateSurveys)),
+		decisions,
+		categories: await one(
+			db.select({ n: count() }).from(candidateCategories).where(eq(candidateCategories.status, 'active'))
+		),
+		needs: await one(db.select({ n: count() }).from(hiringNeeds)),
+		shortlists: await one(db.select({ n: count() }).from(shortlists)),
+		invitations: await grouped(
+			db
+				.select({ key: invitations.status, n: sql<number>`count(*)::int` })
+				.from(invitations)
+				.groupBy(invitations.status)
+		),
+		disclosures: await one(db.select({ n: count() }).from(disclosures)),
+		hiringProcesses: await one(db.select({ n: count() }).from(hiringProcesses)),
 		vacancies: await one(db.select({ n: count() }).from(vacancies).where(eq(vacancies.seedBatchId, batch))),
 		ownVacancies: await one(
 			db
@@ -351,9 +434,9 @@ export async function seedDemo(services: DemoServices): Promise<SeedSummary> {
 	const { db, settings, log } = services;
 	const now = () => new Date();
 	const data = await readSeedData(services.seedsDir);
-	const batch = batchId(data, settings);
+	const batch = batchId(data, settings, await releasedBanks(services));
 	if (await isSeeded(services, batch)) {
-		return { status: 'already_seeded', batch, counts: await seedCounts(services, batch), durationMs: 0 };
+		return { status: 'already_seeded', batch, counts: await seedCounts(services, batch), tests: null, durationMs: 0 };
 	}
 	const foreign = (await seededBatches(services)).filter((b) => b !== batch);
 	if (foreign.length > 0) {
@@ -365,6 +448,7 @@ export async function seedDemo(services: DemoServices): Promise<SeedSummary> {
 	const joinedAt = await joiningTime(services, documents, now());
 	const world = demoWorld(settings.world);
 	await checkSimulator(services, world);
+	const open = await openSpecializations(db);
 
 	const letters = new LetterBox();
 	const ctx: SeedContext = {
@@ -389,10 +473,11 @@ export async function seedDemo(services: DemoServices): Promise<SeedSummary> {
 	};
 	const names = await skillNames(services, taxonomyVersionId);
 
-	log.info('demo seed: accounts and companies', { batch });
+	log.info('demo seed: accounts and companies', { batch, open_specializations: [...open].join(',') });
 	const { operatorUserId } = await ensureStaff(ctx, data);
+	const plans = companyPlans(data, batch);
 	const companyList: SeededCompany[] = [];
-	for (const plan of companyPlans(data, batch)) companyList.push(await ensureCompany(ctx, plan, operatorUserId, world));
+	for (const plan of plans) companyList.push(await ensureCompany(ctx, plan, operatorUserId, world));
 	const companyMap = new Map(companyList.map((c) => [c.key, c]));
 
 	log.info('demo seed: candidates', { batch });
@@ -416,7 +501,8 @@ export async function seedDemo(services: DemoServices): Promise<SeedSummary> {
 		drainJobs(db, handlers, types, { since: new Date(started), log, label });
 	// The whole cast is seeded now: its profiles and companies are the originals the demo sessions clone.
 	await markCastOriginals(db, await castOriginals(db, services.crypto, castRoles(data)));
-	const minorCandidate = await ensureCandidate(ctx, minorPlan(minor, batch));
+	const minorPlanned = minorPlan(minor, batch);
+	const minorCandidate = await ensureCandidate(ctx, minorPlanned);
 	const seededBackground = await inPool(backgroundPlans, 4, (plan) => ensureCandidate(ctx, plan));
 
 	for (const hero of data.demo.candidates) {
@@ -443,9 +529,19 @@ export async function seedDemo(services: DemoServices): Promise<SeedSummary> {
 	await drain('candidate sources', ['fsp.sync', 'resume.parse', 'resume.extract']);
 	await drain('candidates');
 
+	log.info('demo seed: surveys and tests', { batch });
+	// The hint of a declaration reads the evidence just computed; the categories the decisions give move the profiles.
+	const tests: SeedTests = { open: [...open].sort(), closed: {}, untested: 0, closedNeeds: 0, closedScenes: [] };
+	const pairs: [SeededCandidate, CandidatePlan][] = [
+		...heroPlans.map((plan): [SeededCandidate, CandidatePlan] => [required(heroes.get(plan.key)), plan]),
+		...backgroundPlans.map((plan, i): [SeededCandidate, CandidatePlan] => [required(seededBackground[i]), plan])
+	];
+	const states = await inPool(pairs, 4, ([candidate, plan]) => ensureAssessment(ctx, candidate, plan, open));
+	for (const [index, state] of states.entries()) countTest(tests, state, pairs[index]?.[1]);
+	await drain('categories');
+
 	log.info('demo seed: vacancies', { batch });
 	const ownCount = Math.round(settings.vacancies * OWN_SHARE);
-	const plans = companyPlans(data, batch);
 	const ownVacancies = await ensureOwnVacancies(ctx, ownVacancyPlans(data, plans, ownCount, batch, names), companyMap);
 	const claimCompany = plans.find((p) => p.status === 'submitted');
 	await importExternalVacancies(
@@ -464,16 +560,21 @@ export async function seedDemo(services: DemoServices): Promise<SeedSummary> {
 	await drain('vacancy normalization', ['vacancy.normalize']);
 	await drain('vacancies');
 
-	log.info('demo seed: scenario states', { batch });
-	const cast = {
-		companies: companyMap,
-		vacancies: ownVacancies,
-		heroes,
-		background: seededBackground,
-		operatorUserId
-	};
-	await stageScenario(ctx, cast);
-	await stageFunnel(ctx, cast, Math.min(150, Math.max(10, Math.round(settings.candidates / 20))), batch);
+	log.info('demo seed: needs, shortlists and offers', { batch });
+	const cast = { companies: companyMap, heroes, background: seededBackground, operatorUserId };
+	tests.closedScenes = await stageScenario(ctx, cast, data, open);
+	const gateway = ownVacancies.find((vacancy) => vacancy.scenarioKey === 'go_payments');
+	if (!gateway) throw new Error('the scenario needs the vacancy go_payments');
+	if (!(await stageContacts(ctx, cast, gateway.id, open))) tests.closedScenes.push('contacts');
+	const funnel: FunnelSummary = await stageFunnel(
+		ctx,
+		cast,
+		needPlans(data, plans, batch),
+		open,
+		Math.min(150, Math.max(10, Math.round(settings.candidates / 8))),
+		batch
+	);
+	tests.closedNeeds = funnel.closedNeeds;
 	await revokeSomeConsents(ctx, seededBackground, REVOKED_SHARE, batch);
 	const athleteOf = new Map(backgroundPlans.map((plan) => [plan.key, plan.athlete]));
 	for (const company of companyList) {
@@ -502,7 +603,29 @@ export async function seedDemo(services: DemoServices): Promise<SeedSummary> {
 		outcome: 'success',
 		actor: { kind: 'system' },
 		requestId: ctx.meta.requestId,
-		details: { batch, candidates: counts.candidates, vacancies: counts.vacancies }
+		details: {
+			batch,
+			candidates: counts.candidates,
+			vacancies: counts.vacancies,
+			tests_open: tests.open,
+			tests_closed: tests.closed,
+			tests_untested: tests.untested,
+			tests_closed_needs: tests.closedNeeds,
+			tests_closed_scenes: tests.closedScenes
+		}
 	});
-	return { status: 'seeded', batch, counts, durationMs: Date.now() - started };
+	return { status: 'seeded', batch, counts, tests, durationMs: Date.now() - started };
+}
+
+function required<T>(value: T | undefined): T {
+	if (value === undefined) throw new Error('a seeded candidate of the plan is missing');
+	return value;
+}
+
+function countTest(tests: SeedTests, state: AssessmentState | undefined, plan: CandidatePlan | undefined): void {
+	if (state === 'none') tests.untested++;
+	else if (state === 'closed' && plan?.assessment) {
+		const key = plan.assessment.specialization;
+		tests.closed[key] = (tests.closed[key] ?? 0) + 1;
+	}
 }

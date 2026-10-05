@@ -1,6 +1,7 @@
-// The demo seed on a small world (docs/domain.md, sections 7.1, 12.5, 19.2, 21): candidates on real FSP competitions of
-// the simulator, companies and vacancies, and the states the demo scenario starts from, all reached through the
-// product's own actions and jobs. Every seeded record carries the batch id; a repeated seed, even of a batch whose
+// The demo seed on a small world (docs/domain.md, sections 7.1, 12, 13.10, 19.2, 21, 23.3): candidates on real FSP
+// competitions of the simulator through the survey, the declared grade and the seeded tests, companies with needs,
+// shortlists and offers, vacancies, and the states the demo scenario starts from, all reached through the product's own
+// actions and jobs. Every seeded record carries the batch id; a repeated seed, even of a batch whose
 // completion was lost, adds nothing; a reset followed by a seed gives the same stand again.
 import { fileURLToPath } from 'node:url';
 import { eq, isNotNull, isNull, sql } from 'drizzle-orm';
@@ -14,6 +15,7 @@ import { loadAccessSubject } from '$lib/server/companies/subject';
 import { createFieldCrypto } from '$lib/server/crypto/fields';
 import {
 	athleteLinks,
+	candidateSurveys,
 	candidates,
 	companies,
 	competitionPartnerships,
@@ -32,7 +34,7 @@ import {
 	vacancyPostings
 } from '$lib/server/db/schema';
 import { resetDemo } from '$lib/server/demo/reset';
-import { batchId, seedDemo, type SeedSummary } from '$lib/server/demo/seed';
+import { batchId, releasedBanks, seedDemo, type SeedSummary } from '$lib/server/demo/seed';
 import { readSeedData } from '$lib/server/demo/data';
 import type { DemoServices } from '$lib/server/demo/services';
 import { HttpAchievementsSource } from '$lib/server/fsp/adapter';
@@ -50,6 +52,7 @@ import { buildRelease, readTaxonomyDatasets } from '$lib/server/taxonomy/release
 import { sliceByCodePoints } from '$lib/text/offsets';
 import { DEFAULT_SEED } from '../../services/fsp-mock/src/config.ts';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
+import { releaseBankAhead } from '../helpers/demo-bank';
 import { startParser, type StartedParser } from '../helpers/docparse';
 import { testEnvironment } from '../helpers/environment';
 import { FSP_MOCK_CREDENTIALS, startFspMock, type FspMock } from '../helpers/fsp-mock';
@@ -118,6 +121,7 @@ beforeAll(async () => {
 	} finally {
 		await client.end({ timeout: 5 });
 	}
+	await releaseBankAhead(database.db, 'backend');
 	mock = await startFspMock({ athletes: ATHLETES });
 	redis = createClient({ url: `${inject('redisUrl')}/${REDIS_DATABASE}` });
 	await redis.connect();
@@ -177,7 +181,20 @@ async function census() {
 		'claims',
 		'consent_events',
 		'resume_documents',
+		'candidate_surveys',
+		'grade_declarations',
 		'test_attempts',
+		'grade_decisions',
+		'candidate_categories',
+		'hiring_needs',
+		'shortlists',
+		'shortlist_marks',
+		'disclosures',
+		'profile_experience_entries',
+		'challenge_deliveries',
+		'challenge_solutions',
+		'applications',
+		'confirmation_requests',
 		'invitations',
 		'invitation_terms',
 		'hiring_processes',
@@ -291,7 +308,9 @@ describe('demo seed', () => {
 		const { db } = database;
 		first = await seedDemo(services);
 		expect(first.status).toBe('seeded');
-		expect(first.batch).toBe(batchId(await readSeedData(path('seeds')), services.settings));
+		expect(first.batch).toBe(
+			batchId(await readSeedData(path('seeds')), services.settings, await releasedBanks(services))
+		);
 		expect(first.counts.candidates).toBe(40);
 		expect(first.counts.vacancies).toBeGreaterThanOrEqual(25);
 
@@ -445,23 +464,85 @@ describe('demo seed', () => {
 		expect(background[0]?.reason).toBe('demo_seed_background');
 		expect(background[0]?.n).toBeGreaterThan(0);
 
-		// К-5: an open invitation of the main employer; К-2: the first offer accepted, the second one lower.
+		// The heroes went through the survey, the declared grade and the seeded tests: К-1 confirmed Middle with the
+		// margin, К-2 failed Senior and confirmed Middle below it, К-3 «не определено», К-5 confirmed Senior; К-4 has no
+		// released test of her specialization and no survey.
+		expect(first.tests?.open).toEqual(expect.arrayContaining(['backend']));
+		const testsOf = async (email: string) => {
+			const candidate = await candidateOf(email);
+			return database.sql<{ grade: string; outcome: string; confident: boolean; seeded: boolean }[]>`
+				select a.grade, d.outcome, d.confident, a.seeded from test_attempts a
+				join grade_decisions d on d.attempt_id = a.id and d.status = 'valid'
+				where a.candidate_id = ${candidate.id} order by a.started_at`;
+		};
+		const category = async (email: string) => {
+			const candidate = await candidateOf(email);
+			return database.sql<{ specialization: string; grade: string }[]>`
+				select specialization, grade from candidate_categories where candidate_id = ${candidate.id} and status = 'active'`;
+		};
+		expect(await testsOf('stepan.rodionov@fsp-career.example')).toEqual([
+			{ grade: 'middle', outcome: 'confirmed', confident: true, seeded: true }
+		]);
+		expect(await category('stepan.rodionov@fsp-career.example')).toEqual([
+			{ specialization: 'backend', grade: 'middle' }
+		]);
+		expect(await testsOf('dmitry.orlov@fsp-career.example')).toEqual([
+			{ grade: 'senior', outcome: 'not_confirmed', confident: false, seeded: true },
+			{ grade: 'middle', outcome: 'confirmed', confident: false, seeded: true }
+		]);
+		expect(await category('dmitry.orlov@fsp-career.example')).toEqual([{ specialization: 'backend', grade: 'middle' }]);
+		expect(await testsOf('gleb.sokolov@fsp-career.example')).toEqual([
+			{ grade: 'middle', outcome: 'undetermined', confident: false, seeded: true }
+		]);
+		expect(await category('gleb.sokolov@fsp-career.example')).toEqual([]);
+		expect(await category('oleg.petrov@fsp-career.example')).toEqual([{ specialization: 'backend', grade: 'senior' }]);
+		const alisa = await candidateOf('alisa.zakharova@fsp-career.example');
+		expect(await db.select().from(candidateSurveys).where(eq(candidateSurveys.candidateId, alisa.id))).toEqual([]);
+		// Seeded attempts carry no code and run nothing in the sandbox.
+		const [sandbox] = await db.execute<{ n: number }>(sql`select count(*)::int as n from jobs where type = 'test.run'`);
+		expect(sandbox?.n).toBe(0);
+		expect(first.counts.decisions.confirmed).toBeGreaterThan(0);
+		expect(first.counts.decisions.not_confirmed).toBeGreaterThan(0);
+
+		// К-5: the main employer's need, its shortlist, the offer from it accepted with the contacts disclosed.
 		const oleg = await candidateOf('oleg.petrov@fsp-career.example');
-		expect(
-			(
-				await db.select({ status: invitations.status }).from(invitations).where(eq(invitations.candidateId, oleg.id))
-			).map((i) => i.status)
-		).toEqual(['sent']);
-		const dmitry = await candidateOf('dmitry.orlov@fsp-career.example');
-		const [offer] = await db.select().from(invitations).where(eq(invitations.candidateId, dmitry.id));
-		expect(offer?.status).toBe('accepted');
-		const versions = await db
-			.select({ version: invitationTerms.version, min: invitationTerms.salaryMin })
+		const [accepted] = await db.select().from(invitations).where(eq(invitations.candidateId, oleg.id));
+		expect(accepted?.status).toBe('accepted');
+		expect(accepted?.needId).not.toBeNull();
+		const [opened] = await database.sql<{ n: number }[]>`
+			select count(*)::int as n from disclosures where invitation_id = ${accepted?.id ?? null}`;
+		expect(opened?.n).toBeGreaterThan(0);
+		const [terms] = await db
+			.select({ whyYou: invitationTerms.whyYou })
 			.from(invitationTerms)
-			.where(eq(invitationTerms.invitationId, offer?.id ?? ''))
-			.orderBy(invitationTerms.version);
-		expect(versions.map((v) => v.version)).toEqual([1, 2]);
-		expect(Number(versions[1]?.min)).toBeLessThan(Number(versions[0]?.min));
+			.where(eq(invitationTerms.invitationId, accepted?.id ?? ''));
+		expect(JSON.stringify(terms?.whyYou)).toContain('test_block');
+		// К-1 is marked in that shortlist and waits for the offer the visitor sends on stage.
+		const stepanProfile = await candidateOf('stepan.rodionov@fsp-career.example');
+		const [marked] = await database.sql<{ n: number }[]>`
+			select count(*)::int as n from shortlist_marks where candidate_id = ${stepanProfile.id}`;
+		expect(marked?.n).toBe(1);
+		expect(await db.select().from(invitations).where(eq(invitations.candidateId, stepanProfile.id))).toEqual([]);
+		// К-1 also solved the partner's call, applied to the main employer's vacancy and was asked to confirm a block.
+		const [contacts] = await database.sql<{ solutions: number; applications: number; requests: number }[]>`
+			select (select count(*)::int from challenge_solutions s join challenge_deliveries d on d.id = s.delivery_id
+					where d.candidate_id = ${stepanProfile.id}) as solutions,
+				(select count(*)::int from applications where candidate_id = ${stepanProfile.id}) as applications,
+				(select count(*)::int from confirmation_requests where candidate_id = ${stepanProfile.id}) as requests`;
+		expect(contacts).toEqual({ solutions: 1, applications: 1, requests: 1 });
+		// К-2: an offer of the company under review, unanswered.
+		const dmitry = await candidateOf('dmitry.orlov@fsp-career.example');
+		const [unverified] = await db
+			.select({ status: invitations.status, company: companies.status })
+			.from(invitations)
+			.innerJoin(companies, eq(companies.id, invitations.companyId))
+			.where(eq(invitations.candidateId, dmitry.id));
+		expect(unverified).toEqual({ status: 'sent', company: 'submitted' });
+		// The funnel of the background: offers from the shortlists of the needs (on a small world — a handful; every
+		// status shows on the stand's thousand).
+		const offers = Object.values(first.counts.invitations).reduce((sum, n) => sum + n, 0);
+		expect(offers).toBeGreaterThan(2);
+		expect(first.counts.needs).toBeGreaterThan(2);
 
 		// К-4: the representative confirmed the address and waits for the operator; the profile is hidden.
 		const eva = await candidateOf('alisa.zakharova@fsp-career.example');
