@@ -1,0 +1,12 @@
+{
+	"id": "fsp-achievements-v3",
+	"provenance": "synthetic",
+	"generator": 1,
+	"seed": 20261006,
+	"base_dataset": "synthetic-resumes-v3",
+	"labels_sha256": "52f6dddbf49147168af32fe5c7ab6521dc644252be5e9031b9a32109fa35ccfd",
+	"participants": {
+		"dev": 501,
+		"holdout": 446
+	}
+}

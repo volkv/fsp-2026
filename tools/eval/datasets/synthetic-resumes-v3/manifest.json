@@ -1,0 +1,20 @@
+{
+	"id": "synthetic-resumes-v3",
+	"provenance": "synthetic",
+	"generator": 2,
+	"seed": 20261005,
+	"profiles": 2000,
+	"as_of": "2026-10-01",
+	"holdout_percent": 50,
+	"labels_sha256": "33108fe3a260cf74e5896093b606b5a8e4ae173495bf4f7603c1b5b3babcda02",
+	"splits": {
+		"dev": {
+			"profiles": 1025,
+			"families": ["pdf_classic", "docx_headings", "pdf_sidebar", "docx_table"]
+		},
+		"holdout": {
+			"profiles": 975,
+			"families": ["docx_table", "pdf_hh"]
+		}
+	}
+}

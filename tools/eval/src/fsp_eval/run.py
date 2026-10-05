@@ -16,6 +16,7 @@ from typing import Any, Literal, Protocol
 from fsp_eval.baselines import (
     NameDictionary,
     taxonomy_names,
+    taxonomy_skill_names,
     taxonomy_spellings,
 )
 from fsp_eval.dataset import build, load_manifest, write_documents
@@ -25,16 +26,17 @@ from fsp_eval.gold import unfamiliar_skills
 from fsp_eval.holdout import registered_access
 from fsp_eval.lexicon import DISTRACTORS, SKILL_SURFACES, fold_spelling
 from fsp_eval.matching import (
-    NEEDS_MODEL,
-    VARIANTS,
-    GradeResult,
+    TEST_SPECIALIZATION,
+    Catalog,
+    Decision,
+    Truth,
     World,
-    block_sums,
     build_matching,
+    category_of,
+    decide,
+    decide_falsely,
     load_matching,
-    matching_metrics,
     need_text,
-    product_pool,
 )
 from fsp_eval.metrics import (
     FspLevelCase,
@@ -48,8 +50,9 @@ from fsp_eval.metrics import (
     quote_metrics,
     resume_metrics,
 )
+from fsp_eval.selection import Inputs, ProductNeed, admissible_set_of, evaluate
 
-HARNESS_VERSION = "fsp-eval/3"
+HARNESS_VERSION = "fsp-eval/4"
 THRESHOLDS_FILE = Path(__file__).resolve().parents[2] / "thresholds.json"
 
 Mode = Literal["rules_only", "model"]
@@ -181,13 +184,15 @@ def run_fsp_levels(
     return cases, answers
 
 
-# Evidence of a candidate in a ranking variant: with FSP achievements or without; the test result is always there.
+# Evidence of a candidate of the catalog: with FSP achievements or without; the honest test decisions always. A person
+# the scenario of false confirmations confirms is a third candidate with the scenario's decisions instead.
 EVIDENCE: dict[bool, str] = {True: "resume+fsp+tests", False: "resume+tests"}
+FALSE = "false-confirmation"
 
 
 @dataclass(frozen=True)
 class Ranked:
-    # Variant → need id → profile ids of the shortlist, best first.
+    # Ranking → need id → profile ids of the shortlist, best first.
     rankings: dict[str, dict[str, list[str]]]
     semantic_used: bool
     answer: dict[str, Any]
@@ -203,15 +208,49 @@ def _semantic_used(answer: dict[str, Any]) -> bool:
     return usage["used"] > 0
 
 
-def _test_result(
-    seed: int, profile_id: str, test: GradeResult, definitions: dict[tuple[str, str], dict[str, Any]], skills: list[str]
-) -> dict[str, Any]:
-    """A test result as contracts 11.1 has it, with the blocks of a confirmed one drawn by the harness."""
-    result: dict[str, Any] = {"specialization": test.specialization, "grade": test.grade, "outcome": test.outcome}
-    if test.outcome == "confirmed":
-        definition = definitions[(test.specialization, test.grade)]
-        result["blocks"] = block_sums(seed, profile_id, test, definition["defining"], skills)
-    return result
+def preferences_of(truth: Truth) -> dict[str, Any]:
+    """The survey's answers as `candidates.preferences` stores them."""
+    preferences = truth.preferences
+    stored: dict[str, Any] = {
+        "work_formats": list(preferences.formats),
+        "relocation": preferences.relocation,
+        "salary_expectation": {
+            "min": preferences.salary_min,
+            "max": None,
+            "currency": "RUB",
+            "period": "month",
+            "tax_base": "net",
+        },
+    }
+    if preferences.region is not None:
+        stored["region_code"] = preferences.region
+    return stored
+
+
+@dataclass(frozen=True)
+class Decided:
+    """The test decisions of the people of the split: honest, and those of the scenario of false confirmations."""
+
+    honest: dict[str, tuple[Decision, ...]]
+    false: dict[str, tuple[Decision, ...]]
+
+    @property
+    def categories(self) -> dict[str, tuple[str, str]]:
+        return {pid: c for pid, decisions in self.honest.items() if (c := category_of(decisions)) is not None}
+
+    @property
+    def false_categories(self) -> dict[str, tuple[str, str]]:
+        return {pid: c for pid, decisions in self.false.items() if (c := category_of(decisions)) is not None}
+
+
+def decide_all(world: World, seed: int, people: list[str], catalog: Catalog) -> Decided:
+    honest = {pid: decide(seed, world.truths[pid], world.plans[pid], catalog) for pid in people}
+    false = {
+        pid: decisions
+        for pid in people
+        if (decisions := decide_falsely(seed, world.truths[pid], world.plans[pid], catalog)) is not None
+    }
+    return Decided(honest, false)
 
 
 def run_ranking(
@@ -220,16 +259,17 @@ def run_ranking(
     as_of: str,
     split: Split,
     world: World,
-    seed: int,
+    decided: Decided,
     records: dict[str, FspRecord],
     documents: dict[str, dict[str, Any]],
-    categories: list[dict[str, Any]],
+    sorting_sets: dict[str, list[str]],
+    open_specializations: list[str],
     semantic: bool,
 ) -> Ranked:
-    """The people of the split as candidates of a fresh catalog, once with their FSP achievements and once without, and
-    the product's shortlist of every need of the split; the semantic similarity is on or off by the variant, and only in
-    a run asked for it."""
-    definitions = {(c["specialization"], c["grade"]): c for c in categories}
+    """The people of the split as candidates of a fresh catalog — with their FSP achievements and without, and the
+    people of the scenario of false confirmations with its decisions — and the product's shortlist of every need of the
+    split by each ranking: everything, without FSP, without the semantic similarity (a run with it only), the scenario,
+    and the sorting of the admissible set of each need (methodology v3, (c))."""
     candidates = []
     for profile_id, document in documents.items():
         resume = (
@@ -237,41 +277,54 @@ def run_ranking(
             if document["ok"]
             else None
         )
-        tests = world.tests[profile_id]
-        test = (
-            _test_result(seed, profile_id, tests[0], definitions, list(world.truths[profile_id].skills))
-            if tests
-            else None
-        )
-        for with_fsp, evidence in EVIDENCE.items():
+        preferences = preferences_of(world.truths[profile_id])
+        variants = [(EVIDENCE[with_fsp], with_fsp, decided.honest[profile_id]) for with_fsp in (True, False)]
+        if profile_id in decided.false:
+            variants.append((FALSE, True, decided.false[profile_id]))
+        for suffix, with_fsp, decisions in variants:
             record = records.get(profile_id) if with_fsp else None
             candidates.append(
                 {
-                    "id": f"{profile_id}/{evidence}",
+                    "id": f"{profile_id}/{suffix}",
                     "resume": resume,
                     "fsp": None if record is None else record.page,
-                    "test_result": test,
+                    "preferences": preferences,
+                    "test_results": [decision.to_json() for decision in decisions],
                 }
             )
+    full = [f"{pid}/{EVIDENCE[True]}" for pid in documents]
+    scenario = [f"{pid}/{FALSE if pid in decided.false else EVIDENCE[True]}" for pid in documents]
     needs = world.vacancies_of(split)
+    rankings: list[dict[str, Any]] = [
+        {"name": "full", "candidates": full, "semantic": semantic, "admission": "categories"},
+        {
+            "name": "without_fsp",
+            "candidates": [f"{pid}/{EVIDENCE[False]}" for pid in documents],
+            "semantic": semantic,
+            "admission": "categories",
+        },
+        {"name": "false_confirmations", "candidates": scenario, "semantic": semantic, "admission": "categories"},
+        {
+            "name": "sorting",
+            "candidates": full,
+            "semantic": semantic,
+            "admission": "given",
+            "per_need": {nid: [f"{pid}/{EVIDENCE[True]}" for pid in people] for nid, people in sorting_sets.items()},
+        },
+    ]
+    if semantic:
+        rankings.append({"name": "without_semantic", "candidates": full, "semantic": False, "admission": "categories"})
     answer = bridge.call(
         {
             "command": "rank",
             "as_of": as_of,
+            "open_specializations": open_specializations,
             "candidates": candidates,
             "needs": [{"id": v.id, "text": need_text(v)} for v in needs],
-            "rankings": [
-                {
-                    "name": name,
-                    "candidates": [f"{pid}/{EVIDENCE[spec['fsp']]}" for pid in documents],
-                    "semantic": spec["semantic"] and semantic,
-                }
-                for name, spec in VARIANTS.items()
-                if semantic or NEEDS_MODEL.get(name) != "semantic"
-            ],
+            "rankings": rankings,
         }
     )
-    rankings = {
+    ranked = {
         name: {need_id: [cid.split("/", 1)[0] for cid in order] for need_id, order in by_need.items()}
         for name, by_need in answer["rankings"].items()
     }
@@ -279,7 +332,31 @@ def run_ranking(
     if semantic and not semantic_used:
         reasons = answer["semantic"]["full"]["unavailable"]
         raise RunError(f"the run asked for semantic similarity and the ranking had none: {reasons}")
-    return Ranked(rankings, semantic_used, answer)
+    return Ranked(ranked, semantic_used, answer)
+
+
+def product_needs(answer: dict[str, Any]) -> dict[str, ProductNeed]:
+    return {
+        need_id: ProductNeed(
+            specialization=read["specialization"],
+            skill_keys=tuple(read["skill_keys"]),
+            nice_skill_keys=tuple(read["nice_skill_keys"]),
+            categories=frozenset(tuple(c.split(":", 1)) for c in read["categories"]),
+        )
+        for need_id, read in answer["needs"].items()
+    }
+
+
+def product_categories(answer: dict[str, Any]) -> dict[str, list[tuple[str, str, frozenset[str]]]]:
+    """The categories the product holds for each person, read from the candidate with everything."""
+    suffix = f"/{EVIDENCE[True]}"
+    return {
+        cid.removesuffix(suffix): [
+            (c["specialization"], c["grade"], frozenset(c["confirmed_skill_keys"])) for c in held
+        ]
+        for cid, held in answer["categories"].items()
+        if cid.endswith(suffix)
+    }
 
 
 def execute(options: RunOptions, bridge: BridgeLike) -> dict[str, Any]:
@@ -327,21 +404,28 @@ def execute(options: RunOptions, bridge: BridgeLike) -> dict[str, Any]:
     parsed = [document for document in documents if document["ok"]]
     by_profile = {profile.id: document for profile, document in zip(profiles, documents, strict=True)}
     fsp_cases, fsp_answers = run_fsp_levels(bridge, as_of=manifest.as_of, records=records, documents=by_profile)
-    ranked = (
-        run_ranking(
+    ranked = None
+    decided = None
+    if world is not None and matching is not None:
+        catalog = Catalog.of(info)
+        decided = decide_all(world, matching.seed, [profile.id for profile in profiles], catalog)
+        sorting_sets = {
+            need.id: admissible_set_of(need, decided.categories) for need in world.vacancies_of(options.split)
+        }
+        ranked = run_ranking(
             bridge,
             as_of=manifest.as_of,
             split=options.split,
             world=world,
-            seed=matching.seed,
+            decided=decided,
             records=records,
             documents=by_profile,
-            categories=info["categories"],
+            sorting_sets=sorting_sets,
+            open_specializations=sorted(
+                {s["key"] for s in info["specializations"] if s["open"]} & set(TEST_SPECIALIZATION.values())
+            ),
             semantic=options.semantic,
         )
-        if world is not None and matching is not None
-        else None
-    )
 
     dictionary = NameDictionary(taxonomy_names(taxonomy_dir))
     table = MetricTable()
@@ -361,37 +445,35 @@ def execute(options: RunOptions, bridge: BridgeLike) -> dict[str, Any]:
     if layer is not None:
         fsp_level_metrics(table, fsp_cases)
     matching_report = None
-    if world is not None and ranked is not None and matching is not None:
-        pool = product_pool(world, [profile.id for profile in profiles])
-        matching_report = matching_metrics(
+    if world is not None and ranked is not None and matching is not None and decided is not None:
+        matching_report = evaluate(
             table,
-            seed=matching.seed,
-            vacancies=world.vacancies_of(options.split),
-            truths=world.truths,
-            pool=pool,
-            texts={pid: by_profile[pid]["text"] if by_profile[pid]["ok"] else None for pid in pool},
-            rankings=ranked.rankings,
-            top=ranked.answer["top"],
-            semantic_used=ranked.semantic_used,
-            with_fsp=frozenset(records),
+            Inputs(
+                seed=matching.seed,
+                needs=world.vacancies_of(options.split),
+                texts={pid: document["text"] for pid, document in by_profile.items() if document["ok"]},
+                truths=world.truths,
+                categories=decided.categories,
+                false_categories=decided.false_categories,
+                product_needs=product_needs(ranked.answer),
+                product_categories=product_categories(ranked.answer),
+                rankings=ranked.rankings,
+                names=taxonomy_skill_names(taxonomy_dir),
+                semantic_used=ranked.semantic_used,
+                with_fsp=frozenset(records),
+                top=ranked.answer["top"],
+            ),
         )
-        # The same shortlists against rubric v2, side by side, under keys of their own (`matching_v2.*`).
-        second = matching_metrics(
-            table,
-            seed=matching.seed,
-            vacancies=world.vacancies_of(options.split),
-            truths=world.truths,
-            pool=pool,
-            texts={pid: by_profile[pid]["text"] if by_profile[pid]["ok"] else None for pid in pool},
-            rankings=ranked.rankings,
-            top=ranked.answer["top"],
-            semantic_used=ranked.semantic_used,
-            with_fsp=frozenset(records),
-            rubric="v2",
-        )
-        matching_report["rubric_v2"] = {key: value for key, value in second.items() if key != "per_vacancy"}
         matching_report["bridge"] = {
-            key: value for key, value in ranked.answer.items() if key not in {"rankings", "top"}
+            key: value
+            for key, value in ranked.answer.items()
+            if key not in {"rankings", "top", "categories", "unconfirmed"}
+        }
+        # Who is apart from each shortlist, by count: the names are the people without a category, the same for every
+        # need of a ranking.
+        matching_report["bridge"]["unconfirmed"] = {
+            name: {need: len(people) for need, people in by_need.items()}
+            for name, by_need in ranked.answer["unconfirmed"].items()
         }
     quotes = quote_metrics(table, documents, skill_spellings(taxonomy_dir))
     performance_metrics(table, documents)
@@ -413,6 +495,7 @@ def execute(options: RunOptions, bridge: BridgeLike) -> dict[str, Any]:
             else {}
         ),
         **(ranked.answer["models"] if ranked is not None else {}),
+        **({"matching_methodology": "v3"} if ranked is not None else {}),
         "harness": HARNESS_VERSION,
         "thresholds_sha256": thresholds_sha,
     }
@@ -471,7 +554,7 @@ def _write(options: RunOptions, name: str, report: dict[str, Any], bridge: Bridg
     # The numbers without the documents and the per-vacancy detail: small enough to keep with the code.
     brief = {key: value for key, value in report.items() if key not in {"documents", "report_path"}}
     if brief["matching"] is not None:
-        brief["matching"] = {key: value for key, value in brief["matching"].items() if key != "per_vacancy"}
+        brief["matching"] = {key: value for key, value in brief["matching"].items() if key != "per_need"}
     (directory / "summary.json").write_text(json.dumps(brief, ensure_ascii=False, indent="\t") + "\n", encoding="utf-8")
     if options.record_owner is not None:
         # The report file goes with the row: the panel links the run to it.
@@ -531,15 +614,13 @@ def summary(report: dict[str, Any]) -> str:
         f" at concurrency {timing['concurrency']}"
     )
     if report["matching"] is not None:
-        for rubric, deltas in (
-            ("v1", report["matching"]["deltas"]),
-            ("v2", report["matching"].get("rubric_v2", {}).get("deltas", {})),
-        ):
-            for name, delta in deltas.items():
-                low, high = delta["ci95"]
-                lines.append(
-                    f"{rubric} {name:49} {delta['mean']:+.4f}  95% CI [{low:+.4f}, {high:+.4f}]  n={delta['n']}"
-                )
+        checks = (("", report["matching"]["deltas"]), ("sorting ", {**report["matching"]["sorting"]["deltas"]}))
+        for check, deltas in checks:
+            for measure, by in deltas.items():
+                for other, delta in by.items() if check == "" else [("keywords_same_requirements", by)]:
+                    low, high = delta["ci95"]
+                    name = f"{check}{measure} product − {other}"
+                    lines.append(f"{name:62} {delta['mean']:+.4f}  95% CI [{low:+.4f}, {high:+.4f}]  n={delta['n']}")
     if "recorded" in report:
         lines.append(f"eval_runs row {report['recorded']['id']}: {report['recorded']}")
     lines.append(f"report: {report['report_path']}")

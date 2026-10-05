@@ -48,6 +48,7 @@ COPY --from=uv /uv /usr/local/bin/uv
 RUN --mount=type=cache,id=fsp-eval-uv,target=/root/.cache/uv \
 	uv sync --frozen --no-install-project --group dev
 COPY tests ./tests
+COPY jury ./jury
 # Label space of the baselines (skill names, grade order) and the norm table the FSP world is checked against come
 # from the application's `taxonomy` build context.
 COPY --from=taxonomy skills.json grades.json fsp-strength.json ./tests/taxonomy/

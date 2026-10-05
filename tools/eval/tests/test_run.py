@@ -6,12 +6,21 @@ from pathlib import Path
 
 import pytest
 
+from catalog_fixture import BLOCKS, catalog_info
 from fsp_eval import __main__ as main_module
 from fsp_eval import run as run_module
-from fsp_eval.dataset import build, load_manifest
+from fsp_eval.dataset import DocumentFile, build, load_manifest
 from fsp_eval.fsp import build_layer, load_layer
 from fsp_eval.holdout import JOURNAL, HoldoutError
-from fsp_eval.matching import VARIANTS, build_matching, load_matching, relevance
+from fsp_eval.matching import (
+    CATALOG_GRADES,
+    TEST_SPECIALIZATION,
+    VOCABULARY,
+    admissible_categories,
+    build_matching,
+    load_matching,
+    relevance,
+)
 from fsp_eval.run import (
     RunError,
     RunOptions,
@@ -22,11 +31,11 @@ from fsp_eval.run import (
     threshold_failures,
 )
 
-MANIFEST = load_manifest("synthetic-resumes-v2")
+MANIFEST = load_manifest("synthetic-resumes-v3")
 DATASET = build(MANIFEST)
-LAYER = load_layer("fsp-achievements-v2")
+LAYER = load_layer("fsp-achievements-v3")
 RECORDS = build_layer(LAYER, DATASET)
-MATCHING = load_matching("synthetic-matching-v2")
+MATCHING = load_matching("synthetic-matching-v3")
 WORLD = build_matching(MATCHING, DATASET, LAYER.id, RECORDS)
 KEY = re.compile(r"^[a-z][a-z0-9_]*(\.[a-z0-9_]+)+$")
 REVISION = "0123456789abcdef0123456789abcdef01234567"
@@ -51,11 +60,20 @@ def _period(key: str) -> dict:
     }
 
 
+def best_category(results: list[dict]) -> tuple[str, str] | None:
+    confirmed = [r for r in results if r["outcome"] == "confirmed"]
+    if not confirmed:
+        return None
+    best = max(confirmed, key=lambda r: CATALOG_GRADES.index(r["grade"]))
+    return best["specialization"], best["grade"]
+
+
 class LabelEcho:
-    """A bridge that answers with the labels themselves, optionally with every FSP level one step off (`wrong_levels`);
-    it shortlists for a need the people of the need's role with a confirmed test, by the relevance the rubric gives
-    them, or in the reverse order (`reverse_ranking`); with `everyone` it shortlists every person with a confirmed test,
-    whatever the role; the semantic similarity serves a ranking that asks for it on as many needs as `embedded` says
+    """A bridge that answers with the labels themselves, optionally with every FSP level one step off (`wrong_levels`).
+    It reads every need right (the need's own requirements and the categories it admits), holds the category the test
+    decisions give with the skills of its defining blocks, and shortlists for a need the holders of a category it
+    admits by the relevance the rubric gives them — or in the reverse order (`reverse_ranking`), or every holder of any
+    category (`everyone`); the semantic similarity serves a ranking that asks for it on as many needs as `embedded` says
     (all by default); it reports the product revision `revision`."""
 
     def __init__(
@@ -80,17 +98,8 @@ class LabelEcho:
             case "info":
                 return {
                     "product_revision": self.revision,
-                    "versions": {"taxonomy": "test"},
-                    "categories": [
-                        {
-                            "specialization": specialization,
-                            "grade": grade,
-                            "open": True,
-                            "defining": [{"block": f"{specialization}.a", "items": 3, "skill_keys": ["python"]}],
-                        }
-                        for specialization in ("backend", "frontend", "qa", "data_ml")
-                        for grade in ("intern", "junior", "middle", "senior")
-                    ],
+                    **catalog_info(),
+                    "versions": {"taxonomy": "test", "catalog": "test"},
                 }
             case "extract":
                 return {"documents": [self._document(d["id"]) for d in request["documents"]]}
@@ -107,7 +116,7 @@ class LabelEcho:
 
     def _rank(self, request: dict) -> dict:
         needs = {v.id: v for v in WORLD.vacancies}
-        by_id = {c["id"]: c for c in request["candidates"]}
+        held = {c["id"]: best_category(c["test_results"]) for c in request["candidates"]}
         rankings, top, semantic = {}, {}, {}
         for ranking in request["rankings"]:
             by_need = {}
@@ -117,13 +126,17 @@ class LabelEcho:
                 def rel(cid: str, rated=rated) -> int:
                     return relevance(rated, WORLD.truths[cid.split("/", 1)[0]])
 
-                confirmed = [
-                    cid
-                    for cid in ranking["candidates"]
-                    if (by_id[cid]["test_result"] or {}).get("outcome") == "confirmed"
-                    and (self.everyone or WORLD.truths[cid.split("/", 1)[0]].role == rated.role)
-                ]
-                order = sorted(confirmed, key=lambda cid, rel=rel: (-rel(cid), cid))
+                considered = ranking.get("per_need", {}).get(need["id"], ranking["candidates"])
+                if ranking["admission"] == "given":
+                    admitted = list(considered)
+                else:
+                    admissible = admissible_categories(rated)
+                    admitted = [
+                        cid
+                        for cid in considered
+                        if held[cid] is not None and (self.everyone or held[cid] in admissible)
+                    ]
+                order = sorted(admitted, key=lambda cid, rel=rel: (-rel(cid), cid))
                 by_need[need["id"]] = order[::-1] if self.reverse_ranking else order
             rankings[ranking["name"]] = by_need
             top[ranking["name"]] = {
@@ -136,11 +149,39 @@ class LabelEcho:
                 if ranking["semantic"]
                 else {"used": 0, "unavailable": {"no_query": len(request["needs"])}}
             )
+        categories = {}
+        for cid, category in held.items():
+            if not any(c["id"] == cid and c["test_results"] for c in request["candidates"]):
+                continue
+            categories[cid] = (
+                []
+                if category is None
+                else [
+                    {
+                        "specialization": category[0],
+                        "grade": category[1],
+                        "confirmed_skill_keys": sorted(
+                            {k for _, skills in BLOCKS[category[0]] for k in skills if k in VOCABULARY}
+                        ),
+                    }
+                ]
+            )
         return {
             "rankings": rankings,
             "top": top,
             "semantic": semantic,
-            "needs": {},
+            "categories": categories,
+            "unconfirmed": {name: {nid: [] for nid in by_need} for name, by_need in rankings.items()},
+            "needs": {
+                v.id: {
+                    "specialization": TEST_SPECIALIZATION.get(v.role),
+                    "grade": None,
+                    "skill_keys": list(v.required),
+                    "nice_skill_keys": list(v.nice),
+                    "categories": [f"{s}:{g}" for s, g in sorted(admissible_categories(v))],
+                }
+                for v in (needs[n["id"]] for n in request["needs"])
+            },
             "models": {"match_ruleset": "11", "embedding_space": "none"},
         }
 
@@ -244,14 +285,28 @@ def write_journal(repo: Path, *entries: dict) -> None:
 
 
 @pytest.fixture
-def options(tmp_path):
+def options(tmp_path, monkeypatch):
     repo = tmp_path / "repo"
     (repo / "taxonomy").mkdir(parents=True)
     taxonomy = Path(__file__).parent / "taxonomy"
     for name in ("skills.json", "grades.json"):
         (repo / "taxonomy" / name).write_text((taxonomy / name).read_text(encoding="utf-8"), encoding="utf-8")
-    # The tests run on the holdout: an earlier look at it and the entry of these runs.
-    write_journal(repo, journal_entry(date="2026-09-25", report="old.json", seen="F1 0.97"), journal_entry())
+    # The tests run on the holdout: a look at another dataset and the entry of these runs.
+    write_journal(
+        repo, journal_entry(dataset_id="synthetic-resumes-v2", date="2026-09-25", report="old.json"), journal_entry()
+    )
+
+    # The bridge here reads the labels, not the files: the documents are not rendered.
+    def documents(dataset, split, directory):
+        directory.mkdir(parents=True, exist_ok=True)
+        files = []
+        for profile in dataset.split(split):
+            path = directory / f"{profile.id}.pdf"
+            path.write_bytes(b"")
+            files.append(DocumentFile(profile.id, path, f"resume-{profile.id}.pdf", "0" * 64))
+        return files
+
+    monkeypatch.setattr(run_module, "write_documents", documents)
     return RunOptions(
         repo=repo,
         out=tmp_path / "out",
@@ -291,15 +346,14 @@ def test_answers_equal_to_the_labels_meet_every_threshold(options, monkeypatch, 
     assert values["resume.quote_validity"] == 1.0
     assert values["resume.quote_refusal_rate"] == 0.0
     # The product reads no role or grade from a resume: nothing of the kind is measured.
-    assert not any(key.startswith("categorization.role") or "grade" in key for key in row["metrics"])
+    assert not any(key.startswith("categorization.role") for key in row["metrics"])
     assert row["versions"]["fsp_layer"] == LAYER.id
-    # Only the holdout split is rendered and sent; achievements go only with the people who have them.
+    # Only the holdout split is sent; achievements go only with the people who have them.
     sent = {d["id"] for d in bridge.requests[1]["documents"]}
     assert sent == {p.id for p in DATASET.split("holdout")}
     evidence = next(r for r in bridge.requests if r["command"] == "evidence")
     assert {p["id"] for p in evidence["profiles"]} == sent & set(RECORDS)
     assert len(evidence["profiles"]) == LAYER.participants["holdout"]
-    assert all("fsp" in p for p in evidence["profiles"])
     assert Path(report["report_path"]).is_file()
     assert "ok {'min': 0.9}" in summary(report)
     assert report["threshold_failures"] == []
@@ -309,27 +363,41 @@ def test_answers_equal_to_the_labels_meet_every_threshold(options, monkeypatch, 
     assert accuracy == 0.0
     assert "FAIL" in summary(wrong)
     assert wrong["threshold_failures"] == [f"categorization.fsp_level_accuracy: {accuracy} outside {{'min': 0.9}}"]
-    # The worst order of the pool: every variant falls below the keyword search.
+    # The worst order of the same shortlists is worse.
     reversed_rows = execute(options, LabelEcho(reverse_ranking=True))["row"]["metrics"]
-    assert reversed_rows["matching.ndcg_at_10"]["value"] < reversed_rows["matching.ndcg_at_10"]["baseline"]
+    assert reversed_rows["shortlist.ndcg_at_10"]["value"] < values["shortlist.ndcg_at_10"]
 
 
-def test_the_run_ranks_every_evidence_set_and_records_the_report(options):
+def test_the_run_ranks_every_evidence_set_and_checks_the_three_questions(options):
     bridge = LabelEcho()
     report = execute(options, bridge)
     row = report["row"]
     values = {key: metric["value"] for key, metric in row["metrics"].items()}
-    # A shortlist of the people with a confirmed test of the need's role, by the rubric's own relevance: both variants
-    # rank the same way, and the shortlist holds fewer people than the pool, so it is not ideal.
-    assert values["matching.ndcg_at_10"] == values["matching.ndcg_at_10.without_fsp"]
-    assert 0 < values["matching.ndcg_at_10"] < 1.0
-    assert values["matching.ndcg_at_10.random"] < values["matching.ndcg_at_10.keywords"]
-    assert 0 <= values["matching.precision_at_10"] <= 1
-    assert values["matching.without_fsp_share_top10"] is not None
+    # Shortlists of the holders of an admitted category, by the rubric's own relevance: with and without FSP the same,
+    # and short of the pool (a person confirmed below their grade is outside the need's categories), so not ideal.
+    assert values["shortlist.ndcg_at_10"] == values["shortlist.ndcg_at_10.without_fsp"]
+    assert 0 < values["shortlist.ndcg_at_10"] <= values["shortlist.ndcg_at_10.ceiling_admitted"] <= 1.0
+    assert values["shortlist.ndcg_at_10.random"] < values["shortlist.ndcg_at_10.keywords_same_text"]
+    for measure in ("precision_at_10", "recall_at_10", "mrr"):
+        assert 0 <= values[f"shortlist.{measure}"] <= 1
+    assert values["shortlist.precision_at_10"] <= values["shortlist.precision_at_10.ceiling"]
+    assert 0 < values["shortlist.needs_without_suitable"] < 1
+    assert values["shortlist.without_fsp_share_top10"] is not None
+    # (a) the echo keeps every rule of the task.
+    assert values["shortlist.tz.uncategorized_positions"] == 0
+    assert values["shortlist.tz.category_mismatch"] == 0
+    assert values["shortlist.tz.outside_need_categories"] == 0
+    assert values["shortlist.tz.confirmation_consistency"] == 1.0
+    # (c) the sorting of the admissible set by the relevance itself is ideal.
+    assert values["shortlist.sorting.ndcg_at_10"] == 1.0
+    assert values["shortlist.sorting.ndcg_at_10"] >= values["shortlist.sorting.ndcg_at_10.keywords_same_requirements"]
+    # The scenario of false confirmations ranks the falsely confirmed: the echo puts nobody of them first.
+    assert values["shortlist.false_confirmed.share_top10"] is not None
     # Without an embedder in the run the variant without it is neither ranked nor computed.
-    assert values["matching.ndcg_at_10.without_semantic"] is None
-    assert row["metrics"]["matching.ndcg_at_10"]["n"] == report["matching"]["rated_needs"]
+    assert values["shortlist.ndcg_at_10.without_semantic"] is None
+    assert row["metrics"]["shortlist.ndcg_at_10"]["n"] == report["matching"]["rated_needs"]
     assert row["versions"]["matching_layer"] == MATCHING.id
+    assert row["versions"]["matching_methodology"] == "v3"
     assert row["versions"]["match_ruleset"] == "11"
     assert report["recorded"]["id"] == "run-1"
     record = bridge.requests[-1]
@@ -344,23 +412,43 @@ def test_the_run_ranks_every_evidence_set_and_records_the_report(options):
     brief = json.loads((Path(report["report_path"]).parent / "summary.json").read_text(encoding="utf-8"))
     assert brief["row"] == row
     assert "documents" not in brief
-    assert "per_vacancy" not in brief["matching"]
+    assert "per_need" not in brief["matching"]
+    assert "slices" in brief["matching"]
+
+
+def test_the_catalog_holds_every_evidence_set_and_the_scenario(options):
+    bridge = LabelEcho()
+    execute(options, bridge)
     sent = {p.id for p in DATASET.split("holdout")}
-    # Each person enters the catalog once with FSP achievements and once without; the test result is in both.
+    # Each person enters the catalog with FSP achievements and without; a person the scenario of false confirmations
+    # confirms — a third time, with its decisions.
     rank = next(r for r in bridge.requests if r["command"] == "rank")
+    assert {r["name"]: r["admission"] for r in rank["rankings"]} == {
+        "full": "categories",
+        "without_fsp": "categories",
+        "false_confirmations": "categories",
+        "sorting": "given",
+    }
     assert not any(ranking["semantic"] for ranking in rank["rankings"])
-    assert "without_semantic" not in {ranking["name"] for ranking in rank["rankings"]}
-    assert len(rank["candidates"]) == 2 * len(sent)
+    false = [c for c in rank["candidates"] if c["id"].endswith("/false-confirmation")]
+    assert false
+    assert len(rank["candidates"]) == 2 * len(sent) + len(false)
     assert {n["id"] for n in rank["needs"]} == {v.id for v in WORLD.vacancies_of("holdout")}
+    assert rank["open_specializations"] == ["backend", "data_ml", "frontend", "qa"]
     without = [c for c in rank["candidates"] if c["id"].endswith("/resume+tests")]
     assert all(c["fsp"] is None for c in without)
     full = {c["id"].split("/")[0]: c for c in rank["candidates"] if c["id"].endswith("/resume+fsp+tests")}
     assert all((full[pid]["fsp"] is not None) == (pid in RECORDS) for pid in full)
-    # A confirmed test carries the blocks of its category; another outcome — none.
-    tested = [c["test_result"] for c in full.values() if c["test_result"] is not None]
-    assert tested
-    for result in tested:
-        assert ("blocks" in result) == (result["outcome"] == "confirmed")
+    assert all(c["preferences"]["work_formats"] for c in full.values())
+    # Every decision carries its blocks; a confirmation names the language of its practice.
+    decisions = [d for c in full.values() for d in c["test_results"]]
+    assert decisions
+    for decision in decisions:
+        assert decision["blocks"]
+        assert ("practice_language" in decision) == (decision["outcome"] == "confirmed")
+    # The sorting ranks, for every need, the holders of a category it admits.
+    sorting = next(r for r in rank["rankings"] if r["name"] == "sorting")
+    assert set(sorting["per_need"]) == {v.id for v in WORLD.vacancies_of("holdout")}
 
 
 def test_a_run_with_semantic_similarity_ranks_every_variant_with_it_but_one(options):
@@ -369,13 +457,17 @@ def test_a_run_with_semantic_similarity_ranks_every_variant_with_it_but_one(opti
     report = execute(semantic, bridge)
     rank = next(r for r in bridge.requests if r["command"] == "rank")
     assert {r["name"]: r["semantic"] for r in rank["rankings"]} == {
-        name: name != "without_semantic" for name in VARIANTS
+        "full": True,
+        "without_fsp": True,
+        "false_confirmations": True,
+        "sorting": True,
+        "without_semantic": False,
     }
     metrics = report["row"]["metrics"]
-    assert metrics["matching.ndcg_at_10.without_semantic"] == {
-        "value": metrics["matching.ndcg_at_10"]["value"],
+    assert metrics["shortlist.ndcg_at_10.without_semantic"] == {
+        "value": metrics["shortlist.ndcg_at_10"]["value"],
         "n": report["matching"]["rated_needs"],
-        "baseline": metrics["matching.ndcg_at_10"]["value"],
+        "baseline": metrics["shortlist.ndcg_at_10"]["value"],
     }
     # Asked for and absent, or served for some needs only: no measurement of the product as configured.
     with pytest.raises(RunError, match="had none"):
@@ -384,17 +476,23 @@ def test_a_run_with_semantic_similarity_ranks_every_variant_with_it_but_one(opti
         execute(semantic, LabelEcho(embedded=5))
 
 
-def test_a_product_worse_than_the_keyword_search_fails_the_relative_threshold(options):
-    # The absolute floor alone let such a product pass: the relative threshold is committed next to it.
+def test_a_product_worse_than_the_same_text_search_fails_the_relative_threshold(options):
     thresholds, _ = run_module.load_thresholds(run_module.THRESHOLDS_FILE)
-    assert thresholds["matching.ndcg_at_10.lift_over_keywords"] == {"min": 0}
+    assert thresholds["shortlist.ndcg_at_10.lift_over_keywords_same_text"] == {"min": 0}
     report = execute(options, LabelEcho(reverse_ranking=True))
-    lift = report["row"]["metrics"]["matching.ndcg_at_10.lift_over_keywords"]
-    assert lift["value"] == round(report["matching"]["deltas"]["full_minus_keywords"]["ci95"][0], 4) < 0
-    assert any(f.startswith("matching.ndcg_at_10.lift_over_keywords:") for f in report["threshold_failures"])
-    # The rubric's own order of the whole pool beats the keyword search.
-    passed = execute(options, LabelEcho(everyone=True))["threshold_failures"]
-    assert not any(f.startswith("matching.ndcg_at_10.lift_over_keywords:") for f in passed)
+    lift = report["row"]["metrics"]["shortlist.ndcg_at_10.lift_over_keywords_same_text"]
+    assert lift["value"] == round(report["matching"]["deltas"]["ndcg_at_10"]["keywords_same_text"]["ci95"][0], 4) < 0
+    assert any(f.startswith("shortlist.ndcg_at_10.lift_over_keywords_same_text:") for f in report["threshold_failures"])
+    # The rubric's own order of the admitted holders beats the search by the text.
+    passed = execute(options, LabelEcho())["threshold_failures"]
+    assert not any(f.startswith("shortlist.ndcg_at_10.lift_over_keywords_same_text:") for f in passed)
+
+
+def test_a_shortlist_breaking_the_rules_of_the_task_fails_them(options):
+    # Every holder of any category in every shortlist: positions outside the categories the need admits.
+    report = execute(options, LabelEcho(everyone=True))
+    assert report["row"]["metrics"]["shortlist.tz.outside_need_categories"]["value"] > 0
+    assert any(f.startswith("shortlist.tz.outside_need_categories:") for f in report["threshold_failures"])
 
 
 def test_a_run_on_the_holdout_needs_its_entry_in_the_journal(options, monkeypatch, tmp_path):
@@ -403,9 +501,9 @@ def test_a_run_on_the_holdout_needs_its_entry_in_the_journal(options, monkeypatc
         "journal_entry": 1,
         "by": "tester",
         "purpose": "the final measurement",
-        "looks_at_dataset": 2,
+        "looks_at_dataset": 1,
     }
-    assert "HOLDOUT look 2" in summary(report)
+    assert "HOLDOUT look 1" in summary(report)
     # An entry of another day, mode or revision, or without who and why, is not this run's.
     for entry in (
         journal_entry(date="2026-09-25"),
@@ -418,6 +516,21 @@ def test_a_run_on_the_holdout_needs_its_entry_in_the_journal(options, monkeypatc
         write_journal(options.repo, entry)
         with pytest.raises(HoldoutError, match="no entry for this run"):
             execute(options, LabelEcho())
+    # The holdout is opened once: a second look in the mode, a look at another revision, a dataset already seen.
+    write_journal(options.repo, journal_entry(date="2026-10-01"), journal_entry())
+    with pytest.raises(HoldoutError, match="opened once"):
+        execute(options, LabelEcho())
+    write_journal(options.repo, journal_entry(mode="model", product_revision="fedcba987654"), journal_entry())
+    with pytest.raises(HoldoutError, match="one revision"):
+        execute(options, LabelEcho())
+    write_journal(options.repo, journal_entry(mode="model"), journal_entry())
+    assert execute(options, LabelEcho())["holdout_access"]["looks_at_dataset"] == 2
+    path = options.repo / JOURNAL
+    path.write_text(
+        json.dumps({"status": {MANIFEST.id: "просмотрен"}, "accesses": [journal_entry()]}), encoding="utf-8"
+    )
+    with pytest.raises(HoldoutError, match="no independent measure"):
+        execute(options, LabelEcho())
     # A bridge built with uncommitted changes is refused even when the journal holds an entry of its commit; a dev run
     # of it goes on and its report names the revision as the bridge gave it.
     write_journal(options.repo, journal_entry())
@@ -459,29 +572,29 @@ def test_a_failed_threshold_or_a_metric_not_computed_at_one_fails_the_command(op
     assert command(LabelEcho()) == 0
     assert command(LabelEcho(wrong_levels=True)) == 1
     # A threshold on a variant the run could not compute is a failure too, not a pass.
-    thresholds.write_text(json.dumps({"thresholds": {"matching.ndcg_at_10.without_semantic": {"min": 0.1}}}))
+    thresholds.write_text(json.dumps({"thresholds": {"shortlist.ndcg_at_10.without_semantic": {"min": 0.1}}}))
     assert command(LabelEcho()) == 1
 
 
 def test_a_run_without_the_fsp_layer_has_no_fsp_levels(options, monkeypatch, tmp_path):
     bare = dataclasses.replace(options, fsp_layer=None, matching=None)
     # The committed thresholds include matching: a run without it is refused, not passed.
-    with pytest.raises(RunError, match=r"matching\.ndcg_at_10"):
+    with pytest.raises(RunError, match=r"shortlist\.ndcg_at_10"):
         execute(bare, LabelEcho())
     thresholds = tmp_path / "thresholds.json"
     thresholds.write_text(json.dumps({"thresholds": {"resume.skills_f1": {"min": 0.9}}}))
     monkeypatch.setattr(run_module, "THRESHOLDS_FILE", thresholds)
     row = execute(bare, LabelEcho())["row"]
     assert not any(key.startswith("categorization.fsp_level") for key in row["metrics"])
-    assert not any(key.startswith("matching.") for key in row["metrics"])
+    assert not any(key.startswith("shortlist.") for key in row["metrics"])
     assert "fsp_layer" not in row["versions"]
 
 
 def test_a_threshold_of_a_metric_the_run_lacks_stops_the_run(options, monkeypatch, tmp_path):
     thresholds = tmp_path / "thresholds.json"
-    thresholds.write_text(json.dumps({"thresholds": {"matching.ndcg_at_10": {"min": 0.5}}}))
+    thresholds.write_text(json.dumps({"thresholds": {"shortlist.ndcg_at_10": {"min": 0.5}}}))
     monkeypatch.setattr(run_module, "THRESHOLDS_FILE", thresholds)
-    with pytest.raises(RunError, match=r"matching\.ndcg_at_10"):
+    with pytest.raises(RunError, match=r"shortlist\.ndcg_at_10"):
         execute(dataclasses.replace(options, matching=None), LabelEcho())
 
 

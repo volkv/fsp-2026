@@ -7,6 +7,10 @@ the holdout is refused unless the journal already holds its entry: dataset and m
 reports, today's date (UTC), who and why. The entry is written first and committed with the report after the run.
 The revision must name a commit and nothing else: a bridge built from a checkout with uncommitted changes reports its
 commit with `-dirty` (src/eval/bundle.config.ts), and the holdout is not looked at with code no commit holds.
+
+A holdout is opened once: one revision, one run of each mode on it. A second look in a mode, a look at another
+revision, or a look at a dataset the journal names in `status` (seen, withdrawn) is refused — its numbers would no
+longer be an independent measure; the next one is a new dataset.
 """
 
 import json
@@ -45,14 +49,17 @@ class Access:
         }
 
 
-def _entries(path: Path) -> list[dict[str, Any]]:
+def _journal(path: Path) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     if not path.is_file():
         raise HoldoutError(f"no holdout journal {path}: a run on the holdout is written into it first")
     content = json.loads(path.read_text(encoding="utf-8"))
     entries = content.get("accesses") if isinstance(content, dict) else None
     if not isinstance(entries, list) or not all(isinstance(entry, dict) for entry in entries):
         raise HoldoutError(f"{path}: `accesses` must be a list of entries")
-    return entries
+    status = content.get("status", {})
+    if not isinstance(status, dict):
+        raise HoldoutError(f"{path}: `status` must map datasets to what happened to their holdout")
+    return status, entries
 
 
 def registered_access(repo: Path, *, dataset_id: str, mode: str, revision: str, today: date) -> Access:
@@ -63,7 +70,11 @@ def registered_access(repo: Path, *, dataset_id: str, mode: str, revision: str, 
             " commit the changes, rebuild the bridge (pnpm eval:build) and run again"
         )
     path = repo / JOURNAL
-    entries = _entries(path)
+    status, entries = _journal(path)
+    if dataset_id in status:
+        raise HoldoutError(
+            f"the holdout of {dataset_id} is no independent measure any more ({status[dataset_id]}): a new dataset is"
+        )
 
     def matches(entry: dict[str, Any]) -> bool:
         given = entry.get("product_revision")
@@ -99,6 +110,19 @@ def registered_access(repo: Path, *, dataset_id: str, mode: str, revision: str, 
         )
     index = found[-1]
     entry = entries[index]
+    for other, earlier in enumerate(entries):
+        if other == index or earlier.get("dataset_id") != dataset_id:
+            continue
+        if earlier.get("mode") == mode:
+            raise HoldoutError(
+                f"the holdout of {dataset_id} was looked at in mode {mode} already (entry {other}): it is opened once"
+            )
+        given = earlier.get("product_revision")
+        if not (isinstance(given, str) and revision.startswith(given)):
+            raise HoldoutError(
+                f"the holdout of {dataset_id} was opened at revision {given} (entry {other}): it is opened once, at"
+                " one revision"
+            )
     return Access(
         index=index,
         by=str(entry["by"]),

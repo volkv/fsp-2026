@@ -18,6 +18,12 @@ def taxonomy_names(taxonomy_dir: Path) -> dict[str, str]:
     return {skill["name"].casefold(): skill["key"] for skill in skills}
 
 
+def taxonomy_skill_names(taxonomy_dir: Path) -> dict[str, str]:
+    """Skill key → its canonical name: the words a search tool of the taxonomy shows for the skill."""
+    skills = json.loads((taxonomy_dir / "skills.json").read_text(encoding="utf-8"))["skills"]
+    return {skill["key"]: skill["name"] for skill in skills}
+
+
 def taxonomy_spellings(taxonomy_dir: Path) -> set[str]:
     """Every spelling the taxonomy knows — the canonical names and the aliases of its skills — folded. A spelling of the
     lexicon outside this set is one the taxonomy could not have been fitted to."""

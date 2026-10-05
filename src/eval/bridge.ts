@@ -1,18 +1,19 @@
 // Commands of the evaluation bridge: the harness in tools/eval sends one JSON request on stdin and reads one JSON answer
 // on stdout (main.ts). Each command runs the product code of this build — no reimplementation — over inputs the harness
 // generated, so the metrics describe what the product does.
-//   info       — versions of everything that shapes a result, and the definitions of the categories (the defining
-//                blocks of every pair with their items and skills) the harness draws test results for;
+//   info       — versions of everything that shapes a result, the definitions of the categories (the defining blocks of
+//                every pair with their items and skills) and the practice languages of every specialization with the
+//                skill each confirms: what the harness decides test results by;
 //   extract    — resume files → parse, extraction, evidence rows and the evidence snapshot they give;
 //   normalize  — skill mentions → taxonomy keys;
 //   evidence   — profile snapshots, optionally with FSP achievements → FSP levels and inferred skills;
-//   rank       — candidates (resume rows, FSP achievements, test results by blocks) and needs as texts → the product's
-//                path of a shortlist for every need — the need read by the rules, the categories of its shortlist, the
-//                candidates holding one, their ranking — and the candidates without a category apart, in a catalog of
-//                a temporary database;
+//   rank       — candidates (resume rows, FSP achievements, survey answers, test decisions in order) and needs as texts
+//                → the product's path of a shortlist for every need — the need read by the rules, the categories of its
+//                shortlist, the candidates it admits, their ranking — the candidates without a category apart, and the
+//                categories every candidate holds, in a catalog of a temporary database;
 //   record     — a finished run → a row of `eval_runs` in the format of the quality panel, with its report file.
 import { z } from 'zod';
-import { blockDefinition, CATALOG } from '$lib/server/assessments/contract/catalog';
+import { blockDefinition, CATALOG, PRACTICE_LANGUAGE_SKILLS } from '$lib/server/assessments/contract/catalog';
 import type { Docparse } from '$lib/server/documents/docparse';
 import type { ModelAdapter } from '$lib/server/ml/adapter';
 import { RESUME_SCHEMA_VERSION } from '$lib/server/resumes/extract-job';
@@ -98,6 +99,14 @@ export async function handle(raw: unknown, deps: BridgeDeps): Promise<unknown> {
 					resume_rules: RULES_VERSION,
 					resume_schema: RESUME_SCHEMA_VERSION
 				},
+				specializations: CATALOG.specializations.map((specialization) => ({
+					key: specialization.key,
+					open: specialization.availability === 'enabled',
+					practice_languages: specialization.practiceLanguages.map((language) => ({
+						key: language,
+						skill: PRACTICE_LANGUAGE_SKILLS[language]
+					}))
+				})),
 				categories: CATALOG.definitions.map((definition) => ({
 					specialization: definition.specialization,
 					grade: definition.grade,

@@ -37,6 +37,8 @@ class Bridge:
             text=True,
             timeout=self.timeout_s,
             check=False,
+            # The product reads its shipped references (`seeds/`) from the working directory: the checkout's root.
+            cwd=self.repo,
         )
         if completed.returncode != 0:
             raise BridgeError(f"bridge {request['command']} failed ({completed.returncode}):\n{completed.stderr}")

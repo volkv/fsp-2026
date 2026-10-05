@@ -1,0 +1,2119 @@
+{
+	"created_at": "2026-10-05T18:17:05+00:00",
+	"product_revision": "dc82edb53487",
+	"requested_mode": "rules_only",
+	"documents_by_mode": {
+		"rules_only": 1025
+	},
+	"holdout_access": null,
+	"timing": {
+		"extract_seconds": 235.1,
+		"seconds_per_document": 0.229,
+		"concurrency": 4
+	},
+	"row": {
+		"dataset_id": "synthetic-resumes-v3",
+		"dataset_size": 1025,
+		"dataset_provenance": "synthetic",
+		"split": "dev-by-profile-and-family",
+		"versions": {
+			"taxonomy": "2026.09.11",
+			"taxonomy_sha256": "7a915aa3a23e63773b0b9884edad6852412b821105cc9c56d69d0de77a7cf12d",
+			"categorization_ruleset": 11,
+			"catalog": "2026.10.2",
+			"resume_rules": "resume-rules/4",
+			"resume_schema": "resume-extract/v3",
+			"docparse": "fsp-docparse@1.0.0+2f77590dee2f",
+			"extract_producer": "resume-rules/4",
+			"dataset_generator": 2,
+			"dataset_labels_sha256": "33108fe3a260cf74e5896093b606b5a8e4ae173495bf4f7603c1b5b3babcda02",
+			"fsp_layer": "fsp-achievements-v3",
+			"fsp_layer_labels_sha256": "52f6dddbf49147168af32fe5c7ab6521dc644252be5e9031b9a32109fa35ccfd",
+			"matching_layer": "synthetic-matching-v3",
+			"matching_layer_labels_sha256": "4c29fbed417fafc3e4f05c3cc228c7f20aa9fc861c1470860c96c2ad04cf0d7d",
+			"match_ruleset": "12",
+			"embedding_space": "none",
+			"matching_methodology": "v3",
+			"harness": "fsp-eval/4",
+			"thresholds_sha256": "8bd7719e8754"
+		},
+		"processing_mode": "rules_only",
+		"thresholds": {
+			"resume.parse_success_rate": {
+				"min": 0.98
+			},
+			"resume.skills_f1": {
+				"min": 0.85
+			},
+			"resume.skills_precision": {
+				"min": 0.85
+			},
+			"resume.skills_recall": {
+				"min": 0.85
+			},
+			"resume.fields_f1": {
+				"min": 0.75
+			},
+			"resume.quote_validity": {
+				"min": 0.98
+			},
+			"skills.normalization_accuracy": {
+				"min": 0.9
+			},
+			"skills.normalization_accuracy.unknown": {
+				"min": 0.9
+			},
+			"shortlist.ndcg_at_10.lift_over_keywords_same_text": {
+				"min": 0
+			},
+			"shortlist.tz.uncategorized_positions": {
+				"max": 0
+			},
+			"shortlist.tz.category_mismatch": {
+				"max": 0
+			},
+			"shortlist.tz.outside_need_categories": {
+				"max": 0
+			},
+			"shortlist.tz.confirmation_consistency": {
+				"min": 1
+			}
+		},
+		"metrics": {
+			"resume.parse_success_rate": {
+				"value": 1.0,
+				"n": 1025
+			},
+			"resume.skills_f1": {
+				"value": 0.9821,
+				"n": 1025,
+				"baseline": 0.7959
+			},
+			"resume.skills_precision": {
+				"value": 0.9844,
+				"n": 1025,
+				"baseline": 0.9638
+			},
+			"resume.skills_recall": {
+				"value": 0.9797,
+				"n": 1025,
+				"baseline": 0.6778
+			},
+			"resume.skills_recall.unfamiliar": {
+				"value": 0.7642,
+				"n": 653,
+				"baseline": 0.4701
+			},
+			"resume.fields_f1": {
+				"value": 0.9849,
+				"n": 1025
+			},
+			"resume.fields_f1.period": {
+				"value": 1.0,
+				"n": 2242
+			},
+			"resume.fields_f1.role": {
+				"value": 0.9782,
+				"n": 2436
+			},
+			"resume.fields_f1.organization": {
+				"value": 0.9717,
+				"n": 2436
+			},
+			"resume.fields_f1.language": {
+				"value": 1.0,
+				"n": 1154
+			},
+			"resume.fields_f1.education": {
+				"value": 1.0,
+				"n": 931
+			},
+			"resume.fields_f1.marker": {
+				"value": 0.9422,
+				"n": 429
+			},
+			"skills.normalization_accuracy": {
+				"value": 0.8781,
+				"n": 402,
+				"baseline": 0.2811
+			},
+			"skills.normalization_accuracy.variant": {
+				"value": 0.8247,
+				"n": 251,
+				"baseline": 0.4064
+			},
+			"skills.normalization_accuracy.unfamiliar": {
+				"value": 0.2143,
+				"n": 56,
+				"baseline": 0.0
+			},
+			"skills.normalization_accuracy.typo": {
+				"value": 0.9643,
+				"n": 140,
+				"baseline": 0.0
+			},
+			"skills.normalization_accuracy.unknown": {
+				"value": 1.0,
+				"n": 11,
+				"baseline": 1.0
+			},
+			"skills.lexicon_overlap": {
+				"value": 0.7769,
+				"n": 251
+			},
+			"categorization.fsp_level_accuracy": {
+				"value": 1.0,
+				"n": 586
+			},
+			"categorization.fsp_level_coverage": {
+				"value": 0.9561,
+				"n": 501
+			},
+			"shortlist.ndcg_at_10": {
+				"value": 0.5895,
+				"n": 29,
+				"baseline": 0.3238
+			},
+			"shortlist.ndcg_at_10.keywords_same_text": {
+				"value": 0.3238,
+				"n": 29
+			},
+			"shortlist.ndcg_at_10.keywords_same_requirements": {
+				"value": 0.2632,
+				"n": 29
+			},
+			"shortlist.ndcg_at_10.keywords_manual_query": {
+				"value": 0.2553,
+				"n": 29
+			},
+			"shortlist.precision_at_10": {
+				"value": 0.2172,
+				"n": 29,
+				"baseline": 0.1621
+			},
+			"shortlist.precision_at_10.keywords_same_text": {
+				"value": 0.1621,
+				"n": 29
+			},
+			"shortlist.precision_at_10.keywords_same_requirements": {
+				"value": 0.1276,
+				"n": 29
+			},
+			"shortlist.precision_at_10.keywords_manual_query": {
+				"value": 0.1276,
+				"n": 29
+			},
+			"shortlist.recall_at_10": {
+				"value": 0.7986,
+				"n": 29,
+				"baseline": 0.5418
+			},
+			"shortlist.recall_at_10.keywords_same_text": {
+				"value": 0.5418,
+				"n": 29
+			},
+			"shortlist.recall_at_10.keywords_same_requirements": {
+				"value": 0.371,
+				"n": 29
+			},
+			"shortlist.recall_at_10.keywords_manual_query": {
+				"value": 0.3908,
+				"n": 29
+			},
+			"shortlist.mrr": {
+				"value": 0.5664,
+				"n": 29,
+				"baseline": 0.3137
+			},
+			"shortlist.mrr.keywords_same_text": {
+				"value": 0.3137,
+				"n": 29
+			},
+			"shortlist.mrr.keywords_same_requirements": {
+				"value": 0.2949,
+				"n": 29
+			},
+			"shortlist.mrr.keywords_manual_query": {
+				"value": 0.2874,
+				"n": 29
+			},
+			"shortlist.ndcg_at_10.lift_over_keywords_same_text": {
+				"value": 0.131,
+				"n": 29
+			},
+			"shortlist.ndcg_at_10.random": {
+				"value": 0.0341,
+				"n": 29
+			},
+			"shortlist.ndcg_at_10.without_fsp": {
+				"value": 0.5681,
+				"n": 29,
+				"baseline": 0.5895
+			},
+			"shortlist.ndcg_at_10.without_semantic": {
+				"value": null,
+				"n": 0,
+				"baseline": 0.5895
+			},
+			"shortlist.ndcg_at_10.ceiling_admitted": {
+				"value": 0.894,
+				"n": 29,
+				"baseline": 0.5895
+			},
+			"shortlist.precision_at_10.ceiling": {
+				"value": 0.3069,
+				"n": 29
+			},
+			"shortlist.recall_at_10.ceiling": {
+				"value": 0.9969,
+				"n": 29
+			},
+			"shortlist.recall_at_10.admitted": {
+				"value": 0.8903,
+				"n": 29
+			},
+			"shortlist.needs_without_suitable": {
+				"value": 0.5735,
+				"n": 68
+			},
+			"shortlist.inflated_share_top10": {
+				"value": 0.2248,
+				"n": 54,
+				"baseline": 0.2632
+			},
+			"shortlist.without_fsp_share_top10": {
+				"value": 0.4825,
+				"n": 54,
+				"baseline": 0.5307
+			},
+			"shortlist.tz.uncategorized_positions": {
+				"value": 0,
+				"n": 1155
+			},
+			"shortlist.tz.category_mismatch": {
+				"value": 0,
+				"n": 198
+			},
+			"shortlist.tz.outside_need_categories": {
+				"value": 0.069,
+				"n": 478
+			},
+			"shortlist.tz.confirmation_consistency": {
+				"value": 0.9014,
+				"n": 436
+			},
+			"shortlist.sorting.ndcg_at_10": {
+				"value": 0.679,
+				"n": 26,
+				"baseline": 0.4756
+			},
+			"shortlist.sorting.ndcg_at_10.keywords_same_requirements": {
+				"value": 0.4756,
+				"n": 26
+			},
+			"shortlist.sorting.precision_at_10": {
+				"value": 0.25,
+				"n": 26,
+				"baseline": 0.1885
+			},
+			"shortlist.sorting.precision_at_10.keywords_same_requirements": {
+				"value": 0.1885,
+				"n": 26
+			},
+			"shortlist.sorting.mrr": {
+				"value": 0.6382,
+				"n": 26,
+				"baseline": 0.4392
+			},
+			"shortlist.sorting.mrr.keywords_same_requirements": {
+				"value": 0.4392,
+				"n": 26
+			},
+			"shortlist.sorting.ndcg_at_10.lift_over_keywords_same_requirements": {
+				"value": 0.1029,
+				"n": 26
+			},
+			"shortlist.false_confirmed.ndcg_at_10": {
+				"value": 0.5864,
+				"n": 33,
+				"baseline": 0.3021
+			},
+			"shortlist.false_confirmed.share_top10": {
+				"value": 0.2902,
+				"n": 54,
+				"baseline": 0.2519
+			},
+			"resume.quote_validity": {
+				"value": 1.0,
+				"n": 26601
+			},
+			"resume.quote_validity.offsets": {
+				"value": 1.0,
+				"n": 26601
+			},
+			"resume.quote_refusal_rate": {
+				"value": 0.0,
+				"n": 29774
+			},
+			"performance.extract_ms.p50": {
+				"value": 4,
+				"n": 1025
+			},
+			"performance.extract_ms.p95": {
+				"value": 8,
+				"n": 1025
+			}
+		}
+	},
+	"threshold_failures": [
+		"shortlist.tz.confirmation_consistency: 0.9014 outside {'min': 1}",
+		"shortlist.tz.outside_need_categories: 0.069 outside {'max': 0}",
+		"skills.normalization_accuracy: 0.8781 outside {'min': 0.9}"
+	],
+	"matching": {
+		"methodology": "v3",
+		"needs": 68,
+		"rated_needs": 29,
+		"pool": 198,
+		"semantic_used": false,
+		"deltas": {
+			"ndcg_at_10": {
+				"keywords_same_text": {
+					"mean": 0.26568781478692427,
+					"ci95": [0.13097781685656654, 0.3809422817045353],
+					"n": 29
+				},
+				"keywords_same_requirements": {
+					"mean": 0.32627948615459845,
+					"ci95": [0.20633118730323563, 0.44039146857406664],
+					"n": 29
+				},
+				"keywords_manual_query": {
+					"mean": 0.33416175198644743,
+					"ci95": [0.2162366977423024, 0.4422641991000134],
+					"n": 29
+				},
+				"without_fsp": {
+					"mean": 0.02140481889022566,
+					"ci95": [-0.020716330360730544, 0.07650450493151141],
+					"n": 29
+				}
+			},
+			"precision_at_10": {
+				"keywords_same_text": {
+					"mean": 0.05517241379310344,
+					"ci95": [0.006896551724137925, 0.09999999999999999],
+					"n": 29
+				},
+				"keywords_same_requirements": {
+					"mean": 0.0896551724137931,
+					"ci95": [0.04482758620689655, 0.13448275862068967],
+					"n": 29
+				},
+				"keywords_manual_query": {
+					"mean": 0.0896551724137931,
+					"ci95": [0.04482758620689655, 0.13448275862068967],
+					"n": 29
+				},
+				"without_fsp": {
+					"mean": 0.003448275862068966,
+					"ci95": [0.0, 0.010344827586206898],
+					"n": 29
+				}
+			},
+			"recall_at_10": {
+				"keywords_same_text": {
+					"mean": 0.25674851967955414,
+					"ci95": [0.06517763845350052, 0.44070010449320796],
+					"n": 29
+				},
+				"keywords_same_requirements": {
+					"mean": 0.4276011344976862,
+					"ci95": [0.25257501119570086, 0.6091954022988506],
+					"n": 29
+				},
+				"keywords_manual_query": {
+					"mean": 0.4077474249888043,
+					"ci95": [0.2449992536199433, 0.574712643678161],
+					"n": 29
+				},
+				"without_fsp": {
+					"mean": 0.017241379310344827,
+					"ci95": [0.0, 0.05172413793103448],
+					"n": 29
+				}
+			},
+			"mrr": {
+				"keywords_same_text": {
+					"mean": 0.25270877189128593,
+					"ci95": [0.07024736258244503, 0.4197793647036131],
+					"n": 29
+				},
+				"keywords_same_requirements": {
+					"mean": 0.27156350489082326,
+					"ci95": [0.1041320579635667, 0.4256853541738392],
+					"n": 29
+				},
+				"keywords_manual_query": {
+					"mean": 0.2790675849659516,
+					"ci95": [0.1044831353361299, 0.4380714163835761],
+					"n": 29
+				},
+				"without_fsp": {
+					"mean": 0.03908045977011494,
+					"ci95": [-0.04310344827586208, 0.1339080459770115],
+					"n": 29
+				}
+			}
+		},
+		"without_suitable": {
+			"needs": [
+				"dn001",
+				"dn002",
+				"dn003",
+				"dn004",
+				"dn005",
+				"dn006",
+				"dn007",
+				"dn008",
+				"dn009",
+				"dn010",
+				"dn012",
+				"dn013",
+				"dn017",
+				"dn021",
+				"dn024",
+				"dn026",
+				"dn030",
+				"dn031",
+				"dn035",
+				"dn036",
+				"dn041",
+				"dn042",
+				"dn043",
+				"dn044",
+				"dn046",
+				"dn055",
+				"dn056",
+				"dn057",
+				"dn058",
+				"dn059",
+				"dn060",
+				"dn061",
+				"dn062",
+				"dn063",
+				"dn064",
+				"dn065",
+				"dn066",
+				"dn067",
+				"dn068"
+			],
+			"by_kind": {
+				"role_without_test.empty_shortlist": 14,
+				"tested_role.shortlist": 25
+			}
+		},
+		"slices": {
+			"role": {
+				"data_scientist": {
+					"n": 3,
+					"ndcg_at_10": {
+						"full": 0.8107556299760356,
+						"keywords_same_text": 0.3314417690992942,
+						"keywords_same_requirements": 0.3885213139127001,
+						"keywords_manual_query": 0.3885213139127001
+					},
+					"precision_at_10": {
+						"full": 0.3333333333333333,
+						"keywords_same_text": 0.20000000000000004,
+						"keywords_same_requirements": 0.16666666666666666,
+						"keywords_manual_query": 0.16666666666666666
+					},
+					"recall_at_10": {
+						"full": 0.875,
+						"keywords_same_text": 0.38888888888888884,
+						"keywords_same_requirements": 0.40277777777777773,
+						"keywords_manual_query": 0.40277777777777773
+					},
+					"mrr": {
+						"full": 1.0,
+						"keywords_same_text": 0.4444444444444444,
+						"keywords_same_requirements": 0.611111111111111,
+						"keywords_manual_query": 0.611111111111111
+					}
+				},
+				"frontend": {
+					"n": 6,
+					"ndcg_at_10": {
+						"full": 0.808713383716508,
+						"keywords_same_text": 0.386280224920748,
+						"keywords_same_requirements": 0.18150917841557004,
+						"keywords_manual_query": 0.2157458660114302
+					},
+					"precision_at_10": {
+						"full": 0.25,
+						"keywords_same_text": 0.21666666666666667,
+						"keywords_same_requirements": 0.06666666666666667,
+						"keywords_manual_query": 0.10000000000000002
+					},
+					"recall_at_10": {
+						"full": 1.0,
+						"keywords_same_text": 0.9166666666666666,
+						"keywords_same_requirements": 0.3333333333333333,
+						"keywords_manual_query": 0.4444444444444444
+					},
+					"mrr": {
+						"full": 0.8055555555555555,
+						"keywords_same_text": 0.23214285714285712,
+						"keywords_same_requirements": 0.24972458843426584,
+						"keywords_manual_query": 0.2733221943748259
+					}
+				},
+				"fullstack": {
+					"n": 4,
+					"ndcg_at_10": {
+						"full": 0.17944654545190414,
+						"keywords_same_text": 0.23735745035265468,
+						"keywords_same_requirements": 0.2090703451692454,
+						"keywords_manual_query": 0.2090703451692454
+					},
+					"precision_at_10": {
+						"full": 0.075,
+						"keywords_same_text": 0.07500000000000001,
+						"keywords_same_requirements": 0.1,
+						"keywords_manual_query": 0.1
+					},
+					"recall_at_10": {
+						"full": 0.25,
+						"keywords_same_text": 0.5,
+						"keywords_same_requirements": 0.41666666666666663,
+						"keywords_manual_query": 0.41666666666666663
+					},
+					"mrr": {
+						"full": 0.2708333333333333,
+						"keywords_same_text": 0.1857638888888889,
+						"keywords_same_requirements": 0.20482456140350877,
+						"keywords_manual_query": 0.20482456140350877
+					}
+				},
+				"ml_engineer": {
+					"n": 8,
+					"ndcg_at_10": {
+						"full": 0.5827804833111228,
+						"keywords_same_text": 0.2077206088821884,
+						"keywords_same_requirements": 0.12998337914450986,
+						"keywords_manual_query": 0.08422056095226013
+					},
+					"precision_at_10": {
+						"full": 0.2125,
+						"keywords_same_text": 0.125,
+						"keywords_same_requirements": 0.0875,
+						"keywords_manual_query": 0.0625
+					},
+					"recall_at_10": {
+						"full": 0.8702651515151515,
+						"keywords_same_text": 0.3787878787878788,
+						"keywords_same_requirements": 0.11931818181818182,
+						"keywords_manual_query": 0.10795454545454546
+					},
+					"mrr": {
+						"full": 0.5595238095238095,
+						"keywords_same_text": 0.18025683198380565,
+						"keywords_same_requirements": 0.1395670489337881,
+						"keywords_manual_query": 0.09466655420602789
+					}
+				},
+				"qa_automation": {
+					"n": 4,
+					"ndcg_at_10": {
+						"full": 0.6729085536642254,
+						"keywords_same_text": 0.37585758005524067,
+						"keywords_same_requirements": 0.4468474846003003,
+						"keywords_manual_query": 0.4298716623101046
+					},
+					"precision_at_10": {
+						"full": 0.25,
+						"keywords_same_text": 0.1,
+						"keywords_same_requirements": 0.17500000000000002,
+						"keywords_manual_query": 0.17500000000000002
+					},
+					"recall_at_10": {
+						"full": 1.0,
+						"keywords_same_text": 0.3333333333333333,
+						"keywords_same_requirements": 0.5416666666666666,
+						"keywords_manual_query": 0.5416666666666666
+					},
+					"mrr": {
+						"full": 0.425,
+						"keywords_same_text": 0.5942028985507246,
+						"keywords_same_requirements": 0.4375,
+						"keywords_manual_query": 0.4375
+					}
+				},
+				"qa_manual": {
+					"n": 4,
+					"ndcg_at_10": {
+						"full": 0.4345043903513135,
+						"keywords_same_text": 0.49066268456341167,
+						"keywords_same_requirements": 0.4284916384091928,
+						"keywords_manual_query": 0.4284916384091928
+					},
+					"precision_at_10": {
+						"full": 0.2,
+						"keywords_same_text": 0.275,
+						"keywords_same_requirements": 0.25,
+						"keywords_manual_query": 0.25
+					},
+					"recall_at_10": {
+						"full": 0.6428571428571428,
+						"keywords_same_text": 0.6706349206349206,
+						"keywords_same_requirements": 0.6904761904761905,
+						"keywords_manual_query": 0.6904761904761905
+					},
+					"mrr": {
+						"full": 0.3333333333333333,
+						"keywords_same_text": 0.4523809523809524,
+						"keywords_same_requirements": 0.3833333333333333,
+						"keywords_manual_query": 0.3833333333333333
+					}
+				}
+			},
+			"specialization": {
+				"backend": {
+					"n": 4,
+					"ndcg_at_10": {
+						"full": 0.17944654545190414,
+						"keywords_same_text": 0.23735745035265468,
+						"keywords_same_requirements": 0.2090703451692454,
+						"keywords_manual_query": 0.2090703451692454
+					},
+					"precision_at_10": {
+						"full": 0.075,
+						"keywords_same_text": 0.07500000000000001,
+						"keywords_same_requirements": 0.1,
+						"keywords_manual_query": 0.1
+					},
+					"recall_at_10": {
+						"full": 0.25,
+						"keywords_same_text": 0.5,
+						"keywords_same_requirements": 0.41666666666666663,
+						"keywords_manual_query": 0.41666666666666663
+					},
+					"mrr": {
+						"full": 0.2708333333333333,
+						"keywords_same_text": 0.1857638888888889,
+						"keywords_same_requirements": 0.20482456140350877,
+						"keywords_manual_query": 0.20482456140350877
+					}
+				},
+				"data_ml": {
+					"n": 11,
+					"ndcg_at_10": {
+						"full": 0.6449555233106444,
+						"keywords_same_text": 0.24146274348685362,
+						"keywords_same_requirements": 0.2004937249903799,
+						"keywords_manual_query": 0.16721167539601647
+					},
+					"precision_at_10": {
+						"full": 0.24545454545454548,
+						"keywords_same_text": 0.14545454545454548,
+						"keywords_same_requirements": 0.10909090909090909,
+						"keywords_manual_query": 0.09090909090909091
+					},
+					"recall_at_10": {
+						"full": 0.8715564738292012,
+						"keywords_same_text": 0.38154269972451793,
+						"keywords_same_requirements": 0.1966253443526171,
+						"keywords_manual_query": 0.1883608815426997
+					},
+					"mrr": {
+						"full": 0.6796536796536796,
+						"keywords_same_text": 0.25230799901852535,
+						"keywords_same_requirements": 0.2681699749821489,
+						"keywords_manual_query": 0.23551506972559605
+					}
+				},
+				"frontend": {
+					"n": 6,
+					"ndcg_at_10": {
+						"full": 0.808713383716508,
+						"keywords_same_text": 0.386280224920748,
+						"keywords_same_requirements": 0.18150917841557004,
+						"keywords_manual_query": 0.2157458660114302
+					},
+					"precision_at_10": {
+						"full": 0.25,
+						"keywords_same_text": 0.21666666666666667,
+						"keywords_same_requirements": 0.06666666666666667,
+						"keywords_manual_query": 0.10000000000000002
+					},
+					"recall_at_10": {
+						"full": 1.0,
+						"keywords_same_text": 0.9166666666666666,
+						"keywords_same_requirements": 0.3333333333333333,
+						"keywords_manual_query": 0.4444444444444444
+					},
+					"mrr": {
+						"full": 0.8055555555555555,
+						"keywords_same_text": 0.23214285714285712,
+						"keywords_same_requirements": 0.24972458843426584,
+						"keywords_manual_query": 0.2733221943748259
+					}
+				},
+				"qa": {
+					"n": 8,
+					"ndcg_at_10": {
+						"full": 0.5537064720077695,
+						"keywords_same_text": 0.4332601323093262,
+						"keywords_same_requirements": 0.43766956150474656,
+						"keywords_manual_query": 0.42918165035964867
+					},
+					"precision_at_10": {
+						"full": 0.225,
+						"keywords_same_text": 0.1875,
+						"keywords_same_requirements": 0.2125,
+						"keywords_manual_query": 0.2125
+					},
+					"recall_at_10": {
+						"full": 0.8214285714285714,
+						"keywords_same_text": 0.501984126984127,
+						"keywords_same_requirements": 0.6160714285714286,
+						"keywords_manual_query": 0.6160714285714286
+					},
+					"mrr": {
+						"full": 0.37916666666666665,
+						"keywords_same_text": 0.5232919254658385,
+						"keywords_same_requirements": 0.41041666666666665,
+						"keywords_manual_query": 0.41041666666666665
+					}
+				}
+			},
+			"grade_min": {
+				"intern": {
+					"n": 10,
+					"ndcg_at_10": {
+						"full": 0.6070024979277988,
+						"keywords_same_text": 0.33221517404439693,
+						"keywords_same_requirements": 0.33324381860508373,
+						"keywords_manual_query": 0.3360455922739368
+					},
+					"precision_at_10": {
+						"full": 0.21000000000000002,
+						"keywords_same_text": 0.12000000000000002,
+						"keywords_same_requirements": 0.14,
+						"keywords_manual_query": 0.15
+					},
+					"recall_at_10": {
+						"full": 0.8571428571428571,
+						"keywords_same_text": 0.4738095238095238,
+						"keywords_same_requirements": 0.5428571428571429,
+						"keywords_manual_query": 0.5928571428571429
+					},
+					"mrr": {
+						"full": 0.555952380952381,
+						"keywords_same_text": 0.43234126984126986,
+						"keywords_same_requirements": 0.34500000000000003,
+						"keywords_manual_query": 0.34637426900584795
+					}
+				},
+				"junior": {
+					"n": 8,
+					"ndcg_at_10": {
+						"full": 0.7066822460050544,
+						"keywords_same_text": 0.30563062865600804,
+						"keywords_same_requirements": 0.30490251220847736,
+						"keywords_manual_query": 0.25622508155046264
+					},
+					"precision_at_10": {
+						"full": 0.3,
+						"keywords_same_text": 0.2,
+						"keywords_same_requirements": 0.1375,
+						"keywords_manual_query": 0.1125
+					},
+					"recall_at_10": {
+						"full": 0.8802083333333334,
+						"keywords_same_text": 0.47916666666666663,
+						"keywords_same_requirements": 0.359375,
+						"keywords_manual_query": 0.296875
+					},
+					"mrr": {
+						"full": 0.7541666666666667,
+						"keywords_same_text": 0.20037525879917184,
+						"keywords_same_requirements": 0.3681860902255639,
+						"keywords_manual_query": 0.31994047619047616
+					}
+				},
+				"lead": {
+					"n": 3,
+					"ndcg_at_10": {
+						"full": 0.3405189665135458,
+						"keywords_same_text": 0.3493476123440189,
+						"keywords_same_requirements": 0.14578296127523144,
+						"keywords_manual_query": 0.14578296127523144
+					},
+					"precision_at_10": {
+						"full": 0.13333333333333333,
+						"keywords_same_text": 0.06666666666666667,
+						"keywords_same_requirements": 0.06666666666666667,
+						"keywords_manual_query": 0.06666666666666667
+					},
+					"recall_at_10": {
+						"full": 0.6666666666666666,
+						"keywords_same_text": 0.4444444444444444,
+						"keywords_same_requirements": 0.2222222222222222,
+						"keywords_manual_query": 0.2222222222222222
+					},
+					"mrr": {
+						"full": 0.2222222222222222,
+						"keywords_same_text": 0.5175438596491228,
+						"keywords_same_requirements": 0.20008354218880534,
+						"keywords_manual_query": 0.2080200501253133
+					}
+				},
+				"middle": {
+					"n": 4,
+					"ndcg_at_10": {
+						"full": 0.4220551926108175,
+						"keywords_same_text": 0.35745239066857715,
+						"keywords_same_requirements": 0.19136365517145318,
+						"keywords_manual_query": 0.17324787948731304
+					},
+					"precision_at_10": {
+						"full": 0.2,
+						"keywords_same_text": 0.25,
+						"keywords_same_requirements": 0.2,
+						"keywords_manual_query": 0.175
+					},
+					"recall_at_10": {
+						"full": 0.6363636363636364,
+						"keywords_same_text": 0.702020202020202,
+						"keywords_same_requirements": 0.19696969696969696,
+						"keywords_manual_query": 0.17424242424242425
+					},
+					"mrr": {
+						"full": 0.41666666666666663,
+						"keywords_same_text": 0.29166666666666663,
+						"keywords_same_requirements": 0.22111483059444106,
+						"keywords_manual_query": 0.21988866396761134
+					}
+				},
+				"senior": {
+					"n": 4,
+					"ndcg_at_10": {
+						"full": 0.6652420998208949,
+						"keywords_same_text": 0.2860583045916768,
+						"keywords_same_requirements": 0.16441553246809754,
+						"keywords_manual_query": 0.21573530801522942
+					},
+					"precision_at_10": {
+						"full": 0.15,
+						"keywords_same_text": 0.175,
+						"keywords_same_requirements": 0.05,
+						"keywords_manual_query": 0.1
+					},
+					"recall_at_10": {
+						"full": 0.75,
+						"keywords_same_text": 0.75,
+						"keywords_same_requirements": 0.25,
+						"keywords_manual_query": 0.41666666666666663
+					},
+					"mrr": {
+						"full": 0.625,
+						"keywords_same_text": 0.11298076923076923,
+						"keywords_same_requirements": 0.16766254090197752,
+						"keywords_manual_query": 0.2015873015873016
+					}
+				}
+			},
+			"lead": {
+				"no_lead": {
+					"n": 22,
+					"ndcg_at_10": {
+						"full": 0.6096228962618951,
+						"keywords_same_text": 0.32713665147119736,
+						"keywords_same_requirements": 0.2971414956547486,
+						"keywords_manual_query": 0.2774203678678328
+					},
+					"precision_at_10": {
+						"full": 0.2409090909090909,
+						"keywords_same_text": 0.17272727272727273,
+						"keywords_same_requirements": 0.15,
+						"keywords_manual_query": 0.1409090909090909
+					},
+					"recall_at_10": {
+						"full": 0.8253886265249902,
+						"keywords_same_text": 0.5172504263413354,
+						"keywords_same_requirements": 0.41324773711137347,
+						"keywords_manual_query": 0.4091155057064148
+					},
+					"mrr": {
+						"full": 0.6027056277056277,
+						"keywords_same_text": 0.32241279252148813,
+						"keywords_same_requirements": 0.33090672928101256,
+						"keywords_manual_query": 0.3137645979751243
+					}
+				},
+				"range_with_lead": {
+					"n": 7,
+					"ndcg_at_10": {
+						"full": 0.5260750426891738,
+						"keywords_same_text": 0.31318229362839484,
+						"keywords_same_requirements": 0.15643014481401205,
+						"keywords_manual_query": 0.18575573084094457
+					},
+					"precision_at_10": {
+						"full": 0.14285714285714285,
+						"keywords_same_text": 0.1285714285714286,
+						"keywords_same_requirements": 0.05714285714285715,
+						"keywords_manual_query": 0.08571428571428573
+					},
+					"recall_at_10": {
+						"full": 0.7142857142857143,
+						"keywords_same_text": 0.619047619047619,
+						"keywords_same_requirements": 0.23809523809523808,
+						"keywords_manual_query": 0.3333333333333333
+					},
+					"mrr": {
+						"full": 0.4523809523809524,
+						"keywords_same_text": 0.28636495083863506,
+						"keywords_same_requirements": 0.18155725573918943,
+						"keywords_manual_query": 0.20434419381787802
+					}
+				}
+			},
+			"format": {
+				"hybrid": {
+					"n": 6,
+					"ndcg_at_10": {
+						"full": 0.6083850704866959,
+						"keywords_same_text": 0.39430964175194383,
+						"keywords_same_requirements": 0.21237570061247024,
+						"keywords_manual_query": 0.20839937550631957
+					},
+					"precision_at_10": {
+						"full": 0.18333333333333335,
+						"keywords_same_text": 0.13333333333333333,
+						"keywords_same_requirements": 0.08333333333333333,
+						"keywords_manual_query": 0.08333333333333333
+					},
+					"recall_at_10": {
+						"full": 1.0,
+						"keywords_same_text": 0.7361111111111112,
+						"keywords_same_requirements": 0.375,
+						"keywords_manual_query": 0.375
+					},
+					"mrr": {
+						"full": 0.5,
+						"keywords_same_text": 0.34218559218559214,
+						"keywords_same_requirements": 0.1735668287128601,
+						"keywords_manual_query": 0.18905276010539165
+					}
+				},
+				"office": {
+					"n": 2,
+					"ndcg_at_10": {
+						"full": 0.1781035935540111,
+						"keywords_same_text": 0.1853328452006593,
+						"keywords_same_requirements": 0.19342640361727081,
+						"keywords_manual_query": 0.19342640361727081
+					},
+					"precision_at_10": {
+						"full": 0.05,
+						"keywords_same_text": 0.1,
+						"keywords_same_requirements": 0.05,
+						"keywords_manual_query": 0.05
+					},
+					"recall_at_10": {
+						"full": 0.5,
+						"keywords_same_text": 0.5,
+						"keywords_same_requirements": 0.25,
+						"keywords_manual_query": 0.25
+					},
+					"mrr": {
+						"full": 0.08333333333333333,
+						"keywords_same_text": 0.08881578947368421,
+						"keywords_same_requirements": 0.27380952380952384,
+						"keywords_manual_query": 0.2857142857142857
+					}
+				},
+				"remote": {
+					"n": 21,
+					"ndcg_at_10": {
+						"full": 0.6232243526932244,
+						"keywords_same_text": 0.31679804032629166,
+						"keywords_same_requirements": 0.284334138437771,
+						"keywords_manual_query": 0.27458519755745114
+					},
+					"precision_at_10": {
+						"full": 0.24285714285714283,
+						"keywords_same_text": 0.1761904761904762,
+						"keywords_same_requirements": 0.14761904761904762,
+						"keywords_manual_query": 0.14761904761904762
+					},
+					"recall_at_10": {
+						"full": 0.7694547515976088,
+						"keywords_same_text": 0.4902940974369545,
+						"keywords_same_requirements": 0.3813388991960421,
+						"keywords_manual_query": 0.4087559266130694
+					},
+					"mrr": {
+						"full": 0.63140589569161,
+						"keywords_same_text": 0.32699480758486965,
+						"keywords_same_requirements": 0.33151565783144726,
+						"keywords_manual_query": 0.31559454191033137
+					}
+				}
+			},
+			"region": {
+				"region": {
+					"n": 8,
+					"ndcg_at_10": {
+						"full": 0.5008147012535247,
+						"keywords_same_text": 0.3420654426141227,
+						"keywords_same_requirements": 0.20763837636367038,
+						"keywords_manual_query": 0.20465613253405737
+					},
+					"precision_at_10": {
+						"full": 0.15,
+						"keywords_same_text": 0.125,
+						"keywords_same_requirements": 0.075,
+						"keywords_manual_query": 0.075
+					},
+					"recall_at_10": {
+						"full": 0.875,
+						"keywords_same_text": 0.6770833333333334,
+						"keywords_same_requirements": 0.34375,
+						"keywords_manual_query": 0.34375
+					},
+					"mrr": {
+						"full": 0.3958333333333333,
+						"keywords_same_text": 0.2788431415076152,
+						"keywords_same_requirements": 0.19862750248702601,
+						"keywords_manual_query": 0.2132181415076152
+					}
+				},
+				"remote": {
+					"n": 21,
+					"ndcg_at_10": {
+						"full": 0.6232243526932244,
+						"keywords_same_text": 0.31679804032629166,
+						"keywords_same_requirements": 0.284334138437771,
+						"keywords_manual_query": 0.27458519755745114
+					},
+					"precision_at_10": {
+						"full": 0.24285714285714283,
+						"keywords_same_text": 0.1761904761904762,
+						"keywords_same_requirements": 0.14761904761904762,
+						"keywords_manual_query": 0.14761904761904762
+					},
+					"recall_at_10": {
+						"full": 0.7694547515976088,
+						"keywords_same_text": 0.4902940974369545,
+						"keywords_same_requirements": 0.3813388991960421,
+						"keywords_manual_query": 0.4087559266130694
+					},
+					"mrr": {
+						"full": 0.63140589569161,
+						"keywords_same_text": 0.32699480758486965,
+						"keywords_same_requirements": 0.33151565783144726,
+						"keywords_manual_query": 0.31559454191033137
+					}
+				}
+			},
+			"salary": {
+				"below_market": {
+					"n": 1,
+					"ndcg_at_10": {
+						"full": 0.9345919653607407,
+						"keywords_same_text": 0.06027884403393843,
+						"keywords_same_requirements": 0.34376744356799327,
+						"keywords_manual_query": 0.34376744356799327
+					},
+					"precision_at_10": {
+						"full": 0.2,
+						"keywords_same_text": 0.0,
+						"keywords_same_requirements": 0.1,
+						"keywords_manual_query": 0.1
+					},
+					"recall_at_10": {
+						"full": 1.0,
+						"keywords_same_text": 0.0,
+						"keywords_same_requirements": 0.5,
+						"keywords_manual_query": 0.5
+					},
+					"mrr": {
+						"full": 1.0,
+						"keywords_same_text": 0.08333333333333333,
+						"keywords_same_requirements": 0.3333333333333333,
+						"keywords_manual_query": 0.3333333333333333
+					}
+				},
+				"market": {
+					"n": 28,
+					"ndcg_at_10": {
+						"full": 0.5771298946866131,
+						"keywords_same_text": 0.33317869799039884,
+						"keywords_same_requirements": 0.2602984455190914,
+						"keywords_manual_query": 0.25213467019324787
+					},
+					"precision_at_10": {
+						"full": 0.21785714285714283,
+						"keywords_same_text": 0.16785714285714287,
+						"keywords_same_requirements": 0.1285714285714286,
+						"keywords_manual_query": 0.1285714285714286
+					},
+					"recall_at_10": {
+						"full": 0.7913767779839208,
+						"keywords_same_text": 0.5611729540300969,
+						"keywords_same_requirements": 0.3663613172541744,
+						"keywords_manual_query": 0.38692408781694493
+					},
+					"mrr": {
+						"full": 0.5509353741496599,
+						"keywords_same_text": 0.3219393842146375,
+						"keywords_same_requirements": 0.2934826964651167,
+						"keywords_manual_query": 0.2857106135301624
+					}
+				}
+			},
+			"fsp": {
+				"algorithmic": {
+					"n": 6,
+					"ndcg_at_10": {
+						"full": 0.6713566744182513,
+						"keywords_same_text": 0.23007337041667422,
+						"keywords_same_requirements": 0.1478033162466957,
+						"keywords_manual_query": 0.11168623627450071
+					},
+					"precision_at_10": {
+						"full": 0.18333333333333335,
+						"keywords_same_text": 0.10000000000000002,
+						"keywords_same_requirements": 0.05000000000000001,
+						"keywords_manual_query": 0.03333333333333333
+					},
+					"recall_at_10": {
+						"full": 0.9027777777777778,
+						"keywords_same_text": 0.4444444444444444,
+						"keywords_same_requirements": 0.16666666666666666,
+						"keywords_manual_query": 0.16666666666666666
+					},
+					"mrr": {
+						"full": 0.6944444444444445,
+						"keywords_same_text": 0.1794871794871795,
+						"keywords_same_requirements": 0.16704177953076507,
+						"keywords_manual_query": 0.11943426943426944
+					}
+				},
+				"other": {
+					"n": 23,
+					"ndcg_at_10": {
+						"full": 0.5680908247859304,
+						"keywords_same_text": 0.34821052892456783,
+						"keywords_same_requirements": 0.2932740878531469,
+						"keywords_manual_query": 0.2927574257100839
+					},
+					"precision_at_10": {
+						"full": 0.22608695652173913,
+						"keywords_same_text": 0.17826086956521742,
+						"keywords_same_requirements": 0.14782608695652175,
+						"keywords_manual_query": 0.15217391304347827
+					},
+					"recall_at_10": {
+						"full": 0.771386222473179,
+						"keywords_same_text": 0.567225045485915,
+						"keywords_same_requirements": 0.4242659514398645,
+						"keywords_manual_query": 0.4492988895162808
+					},
+					"mrr": {
+						"full": 0.5330227743271222,
+						"keywords_same_text": 0.3487266528008743,
+						"keywords_same_requirements": 0.32819991987704394,
+						"keywords_manual_query": 0.3311576041553158
+					}
+				}
+			}
+		},
+		"conformance": {
+			"uncategorized_positions": [],
+			"category_mismatch": [],
+			"outside_need_categories": 33,
+			"needs_with_extra_categories": [
+				{
+					"need": "dn011",
+					"role": "fullstack",
+					"extra": [
+						["frontend", "intern"],
+						["frontend", "junior"]
+					]
+				},
+				{
+					"need": "dn012",
+					"role": "fullstack",
+					"extra": [["frontend", "junior"]]
+				},
+				{
+					"need": "dn013",
+					"role": "fullstack",
+					"extra": [["frontend", "middle"]]
+				},
+				{
+					"need": "dn014",
+					"role": "fullstack",
+					"extra": [["frontend", "senior"]]
+				},
+				{
+					"need": "dn015",
+					"role": "fullstack",
+					"extra": [["frontend", "senior"]]
+				},
+				{
+					"need": "dn016",
+					"role": "fullstack",
+					"extra": [
+						["frontend", "intern"],
+						["frontend", "junior"]
+					]
+				}
+			],
+			"needs_with_missed_categories": [],
+			"confirmed_not_held": {
+				"python": 43
+			}
+		},
+		"sorting": {
+			"needs": 26,
+			"deltas": {
+				"ndcg_at_10": {
+					"mean": 0.20342187932706343,
+					"ci95": [0.10291403602251709, 0.3102655329471803],
+					"n": 26
+				},
+				"precision_at_10": {
+					"mean": 0.06153846153846154,
+					"ci95": [0.03461538461538462, 0.0923076923076923],
+					"n": 26
+				},
+				"recall_at_10": {
+					"mean": 0.2400030525030525,
+					"ci95": [0.12568681318681318, 0.3746184371184371],
+					"n": 26
+				},
+				"mrr": {
+					"mean": 0.19896334094126963,
+					"ci95": [0.05058116755909626, 0.355982905982906],
+					"n": 26
+				}
+			}
+		},
+		"false_confirmations": {
+			"people": 67,
+			"pool": 265
+		},
+		"bridge": {
+			"unconfirmed": {
+				"full": {
+					"dn001": 827,
+					"dn002": 827,
+					"dn003": 827,
+					"dn004": 827,
+					"dn005": 827,
+					"dn006": 827,
+					"dn007": 827,
+					"dn008": 827,
+					"dn009": 827,
+					"dn010": 827,
+					"dn011": 827,
+					"dn012": 827,
+					"dn013": 827,
+					"dn014": 827,
+					"dn015": 827,
+					"dn016": 827,
+					"dn017": 827,
+					"dn018": 827,
+					"dn019": 827,
+					"dn020": 827,
+					"dn021": 827,
+					"dn022": 827,
+					"dn023": 827,
+					"dn024": 827,
+					"dn025": 827,
+					"dn026": 827,
+					"dn027": 827,
+					"dn028": 827,
+					"dn029": 827,
+					"dn030": 827,
+					"dn031": 827,
+					"dn032": 827,
+					"dn033": 827,
+					"dn034": 827,
+					"dn035": 827,
+					"dn036": 827,
+					"dn037": 827,
+					"dn038": 827,
+					"dn039": 827,
+					"dn040": 827,
+					"dn041": 827,
+					"dn042": 827,
+					"dn043": 827,
+					"dn044": 827,
+					"dn045": 827,
+					"dn046": 827,
+					"dn047": 827,
+					"dn048": 827,
+					"dn049": 827,
+					"dn050": 827,
+					"dn051": 827,
+					"dn052": 827,
+					"dn053": 827,
+					"dn054": 827,
+					"dn055": 827,
+					"dn056": 827,
+					"dn057": 827,
+					"dn058": 827,
+					"dn059": 827,
+					"dn060": 827,
+					"dn061": 827,
+					"dn062": 827,
+					"dn063": 827,
+					"dn064": 827,
+					"dn065": 827,
+					"dn066": 827,
+					"dn067": 827,
+					"dn068": 827
+				},
+				"without_fsp": {
+					"dn001": 827,
+					"dn002": 827,
+					"dn003": 827,
+					"dn004": 827,
+					"dn005": 827,
+					"dn006": 827,
+					"dn007": 827,
+					"dn008": 827,
+					"dn009": 827,
+					"dn010": 827,
+					"dn011": 827,
+					"dn012": 827,
+					"dn013": 827,
+					"dn014": 827,
+					"dn015": 827,
+					"dn016": 827,
+					"dn017": 827,
+					"dn018": 827,
+					"dn019": 827,
+					"dn020": 827,
+					"dn021": 827,
+					"dn022": 827,
+					"dn023": 827,
+					"dn024": 827,
+					"dn025": 827,
+					"dn026": 827,
+					"dn027": 827,
+					"dn028": 827,
+					"dn029": 827,
+					"dn030": 827,
+					"dn031": 827,
+					"dn032": 827,
+					"dn033": 827,
+					"dn034": 827,
+					"dn035": 827,
+					"dn036": 827,
+					"dn037": 827,
+					"dn038": 827,
+					"dn039": 827,
+					"dn040": 827,
+					"dn041": 827,
+					"dn042": 827,
+					"dn043": 827,
+					"dn044": 827,
+					"dn045": 827,
+					"dn046": 827,
+					"dn047": 827,
+					"dn048": 827,
+					"dn049": 827,
+					"dn050": 827,
+					"dn051": 827,
+					"dn052": 827,
+					"dn053": 827,
+					"dn054": 827,
+					"dn055": 827,
+					"dn056": 827,
+					"dn057": 827,
+					"dn058": 827,
+					"dn059": 827,
+					"dn060": 827,
+					"dn061": 827,
+					"dn062": 827,
+					"dn063": 827,
+					"dn064": 827,
+					"dn065": 827,
+					"dn066": 827,
+					"dn067": 827,
+					"dn068": 827
+				},
+				"false_confirmations": {
+					"dn001": 760,
+					"dn002": 760,
+					"dn003": 760,
+					"dn004": 760,
+					"dn005": 760,
+					"dn006": 760,
+					"dn007": 760,
+					"dn008": 760,
+					"dn009": 760,
+					"dn010": 760,
+					"dn011": 760,
+					"dn012": 760,
+					"dn013": 760,
+					"dn014": 760,
+					"dn015": 760,
+					"dn016": 760,
+					"dn017": 760,
+					"dn018": 760,
+					"dn019": 760,
+					"dn020": 760,
+					"dn021": 760,
+					"dn022": 760,
+					"dn023": 760,
+					"dn024": 760,
+					"dn025": 760,
+					"dn026": 760,
+					"dn027": 760,
+					"dn028": 760,
+					"dn029": 760,
+					"dn030": 760,
+					"dn031": 760,
+					"dn032": 760,
+					"dn033": 760,
+					"dn034": 760,
+					"dn035": 760,
+					"dn036": 760,
+					"dn037": 760,
+					"dn038": 760,
+					"dn039": 760,
+					"dn040": 760,
+					"dn041": 760,
+					"dn042": 760,
+					"dn043": 760,
+					"dn044": 760,
+					"dn045": 760,
+					"dn046": 760,
+					"dn047": 760,
+					"dn048": 760,
+					"dn049": 760,
+					"dn050": 760,
+					"dn051": 760,
+					"dn052": 760,
+					"dn053": 760,
+					"dn054": 760,
+					"dn055": 760,
+					"dn056": 760,
+					"dn057": 760,
+					"dn058": 760,
+					"dn059": 760,
+					"dn060": 760,
+					"dn061": 760,
+					"dn062": 760,
+					"dn063": 760,
+					"dn064": 760,
+					"dn065": 760,
+					"dn066": 760,
+					"dn067": 760,
+					"dn068": 760
+				},
+				"sorting": {
+					"dn001": 0,
+					"dn002": 0,
+					"dn003": 0,
+					"dn004": 0,
+					"dn005": 0,
+					"dn006": 0,
+					"dn007": 0,
+					"dn008": 0,
+					"dn009": 0,
+					"dn010": 0,
+					"dn011": 0,
+					"dn012": 0,
+					"dn013": 0,
+					"dn014": 0,
+					"dn015": 0,
+					"dn016": 0,
+					"dn017": 0,
+					"dn018": 0,
+					"dn019": 0,
+					"dn020": 0,
+					"dn021": 0,
+					"dn022": 0,
+					"dn023": 0,
+					"dn024": 0,
+					"dn025": 0,
+					"dn026": 0,
+					"dn027": 0,
+					"dn028": 0,
+					"dn029": 0,
+					"dn030": 0,
+					"dn031": 0,
+					"dn032": 0,
+					"dn033": 0,
+					"dn034": 0,
+					"dn035": 0,
+					"dn036": 0,
+					"dn037": 0,
+					"dn038": 0,
+					"dn039": 0,
+					"dn040": 0,
+					"dn041": 0,
+					"dn042": 0,
+					"dn043": 0,
+					"dn044": 0,
+					"dn045": 0,
+					"dn046": 0,
+					"dn047": 0,
+					"dn048": 0,
+					"dn049": 0,
+					"dn050": 0,
+					"dn051": 0,
+					"dn052": 0,
+					"dn053": 0,
+					"dn054": 0,
+					"dn055": 0,
+					"dn056": 0,
+					"dn057": 0,
+					"dn058": 0,
+					"dn059": 0,
+					"dn060": 0,
+					"dn061": 0,
+					"dn062": 0,
+					"dn063": 0,
+					"dn064": 0,
+					"dn065": 0,
+					"dn066": 0,
+					"dn067": 0,
+					"dn068": 0
+				}
+			},
+			"semantic": {
+				"full": {
+					"used": 0,
+					"unavailable": {
+						"no_query": 68
+					}
+				},
+				"without_fsp": {
+					"used": 0,
+					"unavailable": {
+						"no_query": 68
+					}
+				},
+				"false_confirmations": {
+					"used": 0,
+					"unavailable": {
+						"no_query": 68
+					}
+				},
+				"sorting": {
+					"used": 0,
+					"unavailable": {
+						"no_query": 68
+					}
+				}
+			},
+			"needs": {
+				"dn001": {
+					"specialization": "backend",
+					"grade": "intern–junior",
+					"skill_keys": ["java", "postgresql", "rest", "algorithms"],
+					"nice_skill_keys": ["nginx", "python"],
+					"categories": ["backend:intern", "backend:junior"]
+				},
+				"dn002": {
+					"specialization": "backend",
+					"grade": "junior–middle",
+					"skill_keys": ["dotnet", "csharp", "aspnet", "efcore"],
+					"nice_skill_keys": ["php", "microservices"],
+					"categories": ["backend:junior", "backend:middle"]
+				},
+				"dn003": {
+					"specialization": "backend",
+					"grade": "middle–senior",
+					"skill_keys": ["php", "rest", "mysql"],
+					"nice_skill_keys": ["fastapi", "go"],
+					"categories": ["backend:middle", "backend:senior"]
+				},
+				"dn004": {
+					"specialization": "backend",
+					"grade": "senior–senior",
+					"skill_keys": ["java", "spring_boot", "kafka", "algorithms"],
+					"nice_skill_keys": ["efcore", "grpc"],
+					"categories": ["backend:senior"]
+				},
+				"dn005": {
+					"specialization": "backend",
+					"grade": "senior–senior",
+					"skill_keys": ["java", "rest", "hibernate"],
+					"nice_skill_keys": ["kubernetes", "postgresql"],
+					"categories": ["backend:senior"]
+				},
+				"dn006": {
+					"specialization": "backend",
+					"grade": "intern–junior",
+					"skill_keys": ["java", "sql", "kubernetes", "algorithms"],
+					"nice_skill_keys": ["php", "redis"],
+					"categories": ["backend:intern", "backend:junior"]
+				},
+				"dn007": {
+					"specialization": "backend",
+					"grade": "junior–junior",
+					"skill_keys": ["php", "docker", "symfony"],
+					"nice_skill_keys": ["nginx", "hibernate"],
+					"categories": ["backend:junior"]
+				},
+				"dn008": {
+					"specialization": "backend",
+					"grade": "middle–senior",
+					"skill_keys": ["php", "nginx", "mysql"],
+					"nice_skill_keys": ["aspnet", "kafka"],
+					"categories": ["backend:middle", "backend:senior"]
+				},
+				"dn009": {
+					"specialization": "backend",
+					"grade": "senior–senior",
+					"skill_keys": ["go", "kafka", "postgresql"],
+					"nice_skill_keys": ["mysql", "aspnet"],
+					"categories": ["backend:senior"]
+				},
+				"dn010": {
+					"specialization": "backend",
+					"grade": "senior–senior",
+					"skill_keys": ["go", "microservices", "kafka"],
+					"nice_skill_keys": ["rest", "dotnet"],
+					"categories": ["backend:senior"]
+				},
+				"dn011": {
+					"specialization": null,
+					"grade": "intern–junior",
+					"skill_keys": ["typescript", "nodejs", "sql"],
+					"nice_skill_keys": ["docker", "express"],
+					"categories": ["backend:intern", "backend:junior", "frontend:intern", "frontend:junior"]
+				},
+				"dn012": {
+					"specialization": null,
+					"grade": "junior–junior",
+					"skill_keys": ["typescript", "nestjs", "react"],
+					"nice_skill_keys": ["express", "nodejs"],
+					"categories": ["backend:junior", "frontend:junior"]
+				},
+				"dn013": {
+					"specialization": null,
+					"grade": "middle–middle",
+					"skill_keys": ["javascript", "vue", "docker"],
+					"nice_skill_keys": ["sql", "nestjs"],
+					"categories": ["backend:middle", "frontend:middle"]
+				},
+				"dn014": {
+					"specialization": null,
+					"grade": "senior–senior",
+					"skill_keys": ["typescript", "nodejs", "nestjs"],
+					"nice_skill_keys": ["rest", "postgresql"],
+					"categories": ["backend:senior", "frontend:senior"]
+				},
+				"dn015": {
+					"specialization": null,
+					"grade": "senior–senior",
+					"skill_keys": ["typescript", "react", "javascript"],
+					"nice_skill_keys": ["postgresql", "express"],
+					"categories": ["backend:senior", "frontend:senior"]
+				},
+				"dn016": {
+					"specialization": null,
+					"grade": "intern–junior",
+					"skill_keys": ["typescript", "docker", "nodejs"],
+					"nice_skill_keys": ["express", "javascript"],
+					"categories": ["backend:intern", "backend:junior", "frontend:intern", "frontend:junior"]
+				},
+				"dn017": {
+					"specialization": "frontend",
+					"grade": "intern–junior",
+					"skill_keys": ["javascript", "webpack", "redux"],
+					"nice_skill_keys": ["react", "vue"],
+					"categories": ["frontend:intern", "frontend:junior"]
+				},
+				"dn018": {
+					"specialization": "frontend",
+					"grade": "junior–middle",
+					"skill_keys": ["javascript", "typescript", "html"],
+					"nice_skill_keys": ["tailwind", "nextjs"],
+					"categories": ["frontend:junior", "frontend:middle"]
+				},
+				"dn019": {
+					"specialization": "frontend",
+					"grade": "middle–senior",
+					"skill_keys": ["javascript", "tailwind", "html"],
+					"nice_skill_keys": ["sass", "typescript"],
+					"categories": ["frontend:middle", "frontend:senior"]
+				},
+				"dn020": {
+					"specialization": "frontend",
+					"grade": "senior–senior",
+					"skill_keys": ["javascript", "jest", "webpack"],
+					"nice_skill_keys": ["html", "css"],
+					"categories": ["frontend:senior"]
+				},
+				"dn021": {
+					"specialization": "frontend",
+					"grade": "senior–senior",
+					"skill_keys": ["javascript", "react", "css"],
+					"nice_skill_keys": ["jest", "redux"],
+					"categories": ["frontend:senior"]
+				},
+				"dn022": {
+					"specialization": "frontend",
+					"grade": "intern–junior",
+					"skill_keys": ["javascript", "vite", "jest"],
+					"nice_skill_keys": ["tailwind", "html"],
+					"categories": ["frontend:intern", "frontend:junior"]
+				},
+				"dn023": {
+					"specialization": "frontend",
+					"grade": "junior–middle",
+					"skill_keys": ["javascript", "vite", "html"],
+					"nice_skill_keys": ["jest", "webpack"],
+					"categories": ["frontend:junior", "frontend:middle"]
+				},
+				"dn024": {
+					"specialization": "frontend",
+					"grade": "middle–middle",
+					"skill_keys": ["javascript", "html", "vue"],
+					"nice_skill_keys": ["nextjs", "vite"],
+					"categories": ["frontend:middle"]
+				},
+				"dn025": {
+					"specialization": "frontend",
+					"grade": "senior–senior",
+					"skill_keys": ["javascript", "vue", "sass"],
+					"nice_skill_keys": ["redux", "vite"],
+					"categories": ["frontend:senior"]
+				},
+				"dn026": {
+					"specialization": "frontend",
+					"grade": "senior–senior",
+					"skill_keys": ["javascript", "webpack", "jest"],
+					"nice_skill_keys": ["css", "nextjs"],
+					"categories": ["frontend:senior"]
+				},
+				"dn027": {
+					"specialization": "qa",
+					"grade": "intern–junior",
+					"skill_keys": ["manual_testing", "rest", "jira"],
+					"nice_skill_keys": ["postman", "sql"],
+					"categories": ["qa:intern", "qa:junior"]
+				},
+				"dn028": {
+					"specialization": "qa",
+					"grade": "junior–middle",
+					"skill_keys": ["manual_testing", "rest", "sql"],
+					"nice_skill_keys": ["jira", "postman"],
+					"categories": ["qa:junior", "qa:middle"]
+				},
+				"dn029": {
+					"specialization": "qa",
+					"grade": "middle–senior",
+					"skill_keys": ["manual_testing", "sql", "postman"],
+					"nice_skill_keys": ["rest", "jira"],
+					"categories": ["qa:middle", "qa:senior"]
+				},
+				"dn030": {
+					"specialization": "qa",
+					"grade": "senior–senior",
+					"skill_keys": ["manual_testing", "postman", "rest"],
+					"nice_skill_keys": ["sql", "jira"],
+					"categories": ["qa:senior"]
+				},
+				"dn031": {
+					"specialization": "qa",
+					"grade": "senior–senior",
+					"skill_keys": ["manual_testing", "sql", "postman"],
+					"nice_skill_keys": ["jira", "rest"],
+					"categories": ["qa:senior"]
+				},
+				"dn032": {
+					"specialization": "qa",
+					"grade": "intern–junior",
+					"skill_keys": ["manual_testing", "jira", "rest"],
+					"nice_skill_keys": ["postman", "sql"],
+					"categories": ["qa:intern", "qa:junior"]
+				},
+				"dn033": {
+					"specialization": "qa",
+					"grade": "intern–intern",
+					"skill_keys": ["test_automation", "cicd", "java"],
+					"nice_skill_keys": ["selenium", "pytest"],
+					"categories": ["qa:intern"]
+				},
+				"dn034": {
+					"specialization": "qa",
+					"grade": "junior–middle",
+					"skill_keys": ["test_automation", "pytest", "playwright"],
+					"nice_skill_keys": ["postman", "jmeter"],
+					"categories": ["qa:junior", "qa:middle"]
+				},
+				"dn035": {
+					"specialization": "qa",
+					"grade": "middle–middle",
+					"skill_keys": ["test_automation", "selenium", "python"],
+					"nice_skill_keys": ["junit", "java"],
+					"categories": ["qa:middle"]
+				},
+				"dn036": {
+					"specialization": "qa",
+					"grade": "senior–senior",
+					"skill_keys": ["test_automation", "junit", "cicd"],
+					"nice_skill_keys": ["java", "jmeter"],
+					"categories": ["qa:senior"]
+				},
+				"dn037": {
+					"specialization": "qa",
+					"grade": "senior–senior",
+					"skill_keys": ["test_automation", "python", "pytest"],
+					"nice_skill_keys": ["postman", "junit"],
+					"categories": ["qa:senior"]
+				},
+				"dn038": {
+					"specialization": "qa",
+					"grade": "intern–junior",
+					"skill_keys": ["test_automation", "junit", "java"],
+					"nice_skill_keys": ["jmeter", "playwright"],
+					"categories": ["qa:intern", "qa:junior"]
+				},
+				"dn039": {
+					"specialization": "data_ml",
+					"grade": "intern–junior",
+					"skill_keys": ["python", "ml", "sklearn"],
+					"nice_skill_keys": ["xgboost", "statistics"],
+					"categories": ["data_ml:intern", "data_ml:junior"]
+				},
+				"dn040": {
+					"specialization": "data_ml",
+					"grade": "junior–middle",
+					"skill_keys": ["python", "xgboost", "pandas", "algorithms"],
+					"nice_skill_keys": ["numpy", "sql"],
+					"categories": ["data_ml:junior", "data_ml:middle"]
+				},
+				"dn041": {
+					"specialization": "data_ml",
+					"grade": "middle–senior",
+					"skill_keys": ["python", "sklearn", "pandas", "algorithms"],
+					"nice_skill_keys": ["pytorch", "xgboost"],
+					"categories": ["data_ml:middle", "data_ml:senior"]
+				},
+				"dn042": {
+					"specialization": "data_ml",
+					"grade": "senior–senior",
+					"skill_keys": ["python", "pandas", "numpy", "algorithms"],
+					"nice_skill_keys": ["statistics", "pytorch"],
+					"categories": ["data_ml:senior"]
+				},
+				"dn043": {
+					"specialization": "data_ml",
+					"grade": "senior–senior",
+					"skill_keys": ["python", "numpy", "statistics"],
+					"nice_skill_keys": ["sklearn", "pandas"],
+					"categories": ["data_ml:senior"]
+				},
+				"dn044": {
+					"specialization": "data_ml",
+					"grade": "intern–intern",
+					"skill_keys": ["python", "ml", "numpy"],
+					"nice_skill_keys": ["sql", "sklearn"],
+					"categories": ["data_ml:intern"]
+				},
+				"dn045": {
+					"specialization": "data_ml",
+					"grade": "junior–middle",
+					"skill_keys": ["python", "xgboost", "pandas"],
+					"nice_skill_keys": ["ml", "sklearn"],
+					"categories": ["data_ml:junior", "data_ml:middle"]
+				},
+				"dn046": {
+					"specialization": "data_ml",
+					"grade": "middle–middle",
+					"skill_keys": ["python", "numpy", "pandas"],
+					"nice_skill_keys": ["sklearn", "statistics"],
+					"categories": ["data_ml:middle"]
+				},
+				"dn047": {
+					"specialization": "data_ml",
+					"grade": "intern–junior",
+					"skill_keys": ["ml", "python", "dl", "tensorflow"],
+					"nice_skill_keys": ["pytorch", "mlops_tools"],
+					"categories": ["data_ml:intern", "data_ml:junior"]
+				},
+				"dn048": {
+					"specialization": "data_ml",
+					"grade": "junior–middle",
+					"skill_keys": ["ml", "python", "nlp", "llm", "algorithms"],
+					"nice_skill_keys": ["docker", "tensorflow"],
+					"categories": ["data_ml:junior", "data_ml:middle"]
+				},
+				"dn049": {
+					"specialization": "data_ml",
+					"grade": "middle–senior",
+					"skill_keys": ["ml", "python", "mlops_tools", "algorithms"],
+					"nice_skill_keys": ["nlp", "tensorflow"],
+					"categories": ["data_ml:middle", "data_ml:senior"]
+				},
+				"dn050": {
+					"specialization": "data_ml",
+					"grade": "senior–senior",
+					"skill_keys": ["ml", "python", "nlp", "algorithms"],
+					"nice_skill_keys": ["llm"],
+					"categories": ["data_ml:senior"]
+				},
+				"dn051": {
+					"specialization": "data_ml",
+					"grade": "senior–senior",
+					"skill_keys": ["ml", "python", "mlops_tools"],
+					"nice_skill_keys": ["llm"],
+					"categories": ["data_ml:senior"]
+				},
+				"dn052": {
+					"specialization": "data_ml",
+					"grade": "intern–junior",
+					"skill_keys": ["ml", "python", "nlp", "pytorch", "algorithms"],
+					"nice_skill_keys": ["docker", "tensorflow"],
+					"categories": ["data_ml:intern", "data_ml:junior"]
+				},
+				"dn053": {
+					"specialization": "data_ml",
+					"grade": "junior–middle",
+					"skill_keys": ["ml", "python", "dl", "llm", "algorithms"],
+					"nice_skill_keys": ["mlops_tools", "nlp"],
+					"categories": ["data_ml:junior", "data_ml:middle"]
+				},
+				"dn054": {
+					"specialization": "data_ml",
+					"grade": "middle–senior",
+					"skill_keys": ["ml", "python", "docker", "tensorflow"],
+					"nice_skill_keys": ["nlp"],
+					"categories": ["data_ml:middle", "data_ml:senior"]
+				},
+				"dn055": {
+					"specialization": null,
+					"grade": "intern–junior",
+					"skill_keys": ["sql", "spark", "kafka"],
+					"nice_skill_keys": ["scala", "dbt"],
+					"categories": []
+				},
+				"dn056": {
+					"specialization": null,
+					"grade": "junior–middle",
+					"skill_keys": ["sql", "airflow", "hadoop"],
+					"nice_skill_keys": ["clickhouse", "scala"],
+					"categories": []
+				},
+				"dn057": {
+					"specialization": null,
+					"grade": "middle–senior",
+					"skill_keys": ["sql", "etl", "airflow"],
+					"nice_skill_keys": ["dbt", "python"],
+					"categories": []
+				},
+				"dn058": {
+					"specialization": null,
+					"grade": "intern–intern",
+					"skill_keys": ["sql", "pandas", "statistics"],
+					"nice_skill_keys": ["tableau", "excel"],
+					"categories": []
+				},
+				"dn059": {
+					"specialization": null,
+					"grade": "junior–junior",
+					"skill_keys": ["sql", "excel", "clickhouse"],
+					"nice_skill_keys": ["python", "pandas"],
+					"categories": []
+				},
+				"dn060": {
+					"specialization": null,
+					"grade": "middle–middle",
+					"skill_keys": ["sql", "powerbi", "pandas"],
+					"nice_skill_keys": ["tableau", "statistics"],
+					"categories": []
+				},
+				"dn061": {
+					"specialization": null,
+					"grade": "intern–junior",
+					"skill_keys": ["docker", "jenkins", "linux"],
+					"nice_skill_keys": ["gitlab_ci", "cicd"],
+					"categories": []
+				},
+				"dn062": {
+					"specialization": null,
+					"grade": "junior–middle",
+					"skill_keys": ["docker", "linux", "prometheus"],
+					"nice_skill_keys": ["jenkins", "nginx"],
+					"categories": []
+				},
+				"dn063": {
+					"specialization": null,
+					"grade": "middle–senior",
+					"skill_keys": ["docker", "elk", "jenkins"],
+					"nice_skill_keys": ["python", "prometheus"],
+					"categories": []
+				},
+				"dn064": {
+					"specialization": null,
+					"grade": "intern–junior",
+					"skill_keys": ["ios", "swift", "uikit", "rest"],
+					"nice_skill_keys": ["flutter", "swiftui"],
+					"categories": []
+				},
+				"dn065": {
+					"specialization": null,
+					"grade": "junior–middle",
+					"skill_keys": ["ios", "swift", "rest"],
+					"nice_skill_keys": ["flutter", "swiftui"],
+					"categories": []
+				},
+				"dn066": {
+					"specialization": null,
+					"grade": "middle–senior",
+					"skill_keys": ["android", "kotlin", "rest", "jetpack_compose"],
+					"nice_skill_keys": ["uikit", "swift"],
+					"categories": []
+				},
+				"dn067": {
+					"specialization": null,
+					"grade": "intern–intern",
+					"skill_keys": ["jira", "rest"],
+					"nice_skill_keys": ["sql", "openapi"],
+					"categories": []
+				},
+				"dn068": {
+					"specialization": null,
+					"grade": "junior–middle",
+					"skill_keys": ["bpmn", "rest"],
+					"nice_skill_keys": ["kafka", "jira"],
+					"categories": []
+				}
+			},
+			"models": {
+				"match_ruleset": "12",
+				"embedding_space": "none"
+			},
+			"catalog": {
+				"candidates": 2117,
+				"evidence": 2117,
+				"stale_jobs": 0,
+				"test_results": 1321,
+				"categories": 463,
+				"fsp_facts": 1432,
+				"embedded": null
+			},
+			"seconds": {
+				"catalog": 27.9,
+				"embedding": 0,
+				"ranking": 2.1
+			}
+		}
+	}
+}
