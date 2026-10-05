@@ -1,0 +1,161 @@
+{
+	"key": "qa.api.idempotent-create",
+	"version": 1,
+	"specialization": "qa",
+	"block": "qa.api",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": {
+				"requests": "5–6",
+				"timing": "строго по очереди",
+				"keyRules": "повтор, без ключа, клиент, 500"
+			},
+			"constructiveRank": 3,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "replay",
+					"form": "A",
+					"description": "повтор с тем же ключом и телом получает сохранённый ответ с тем же номером, новый отклик не создаётся"
+				},
+				{
+					"id": "no-key",
+					"form": "B",
+					"description": "одинаковые запросы без ключа выполняются каждый: сервер не сравнивает тела"
+				},
+				{
+					"id": "per-client",
+					"form": "anchor",
+					"description": "одинаковое значение ключа у двух клиентов: ключи независимы, у каждого свой отклик"
+				},
+				{
+					"id": "server-error",
+					"form": "X",
+					"description": "первое выполнение кончилось 500: ответ не сохранён, повтор с тем же ключом выполняется заново"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"requests": "6–8",
+				"timing": "время прихода и длительность выполнения, пересечения",
+				"keyRules": "другое тело, срок хранения ключа, повтор во время выполнения"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "body-mismatch",
+					"form": "A",
+					"description": "тот же ключ с другим телом после завершения — 422, ничего не создаётся"
+				},
+				{
+					"id": "expiry",
+					"form": "B",
+					"description": "срок хранения ключа истёк: повтор выполняется как первый и сохраняет ключ заново"
+				},
+				{
+					"id": "in-flight",
+					"form": "anchor",
+					"description": "повтор, пока первый запрос выполняется, — 409; пришедший после завершения — сохранённый ответ"
+				},
+				{
+					"id": "mixed",
+					"form": "X",
+					"description": "запрос ровно в момент истечения срока и повторы во время выполнения в одной ленте"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "клиенты, значения ключей, номера вакансий в телах" },
+		{ "name": "numbers", "description": "первый номер отклика, моменты прихода, длительности выполнения" }
+	],
+	"essentialParams": [
+		{
+			"name": "repeat-kind",
+			"description": "как повторяется запрос: тот же ключ и тело, без ключа, другой клиент, другое тело"
+		},
+		{
+			"name": "timing",
+			"description": "когда приходит повтор: после завершения, во время выполнения, после срока хранения ключа, ровно на границе"
+		},
+		{ "name": "failure", "description": "кончилось ли первое выполнение ответом 500" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"повтор с тем же ключом возвращает сохранённый ответ и не создаёт ресурс",
+			"запросы без ключа не дедуплицируются",
+			"область действия ключа — клиент",
+			"ответ 500 не сохраняется",
+			"тот же ключ с другим телом — 422",
+			"повтор во время выполнения — 409",
+			"срок хранения ключа и его граница",
+			"число созданных ресурсов против числа ответов 201"
+		],
+		"doesNotCheck": [
+			"хранение ключей при нескольких экземплярах сервера",
+			"формат и генерацию значений ключа на клиенте"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "replay-creates",
+			"defect": "считает, что повтор с тем же ключом снова создаёт отклик",
+			"mustBeCaught": true
+		},
+		{
+			"id": "count-attempts",
+			"defect": "считает созданными столько откликов, сколько пришло ответов 201",
+			"mustBeCaught": true
+		},
+		{
+			"id": "no-key-deduped",
+			"defect": "считает, что одинаковые запросы без ключа сервер склеивает",
+			"mustBeCaught": true
+		},
+		{ "id": "key-global", "defect": "считает ключ общим для всех клиентов", "mustBeCaught": true },
+		{
+			"id": "replay-500",
+			"defect": "считает, что ответ 500 сохраняется и возвращается на повтор",
+			"mustBeCaught": true
+		},
+		{
+			"id": "mismatch-replays",
+			"defect": "отдаёт на тот же ключ с другим телом сохранённый ответ",
+			"mustBeCaught": true
+		},
+		{ "id": "no-expiry", "defect": "забывает о сроке хранения ключа", "mustBeCaught": true },
+		{
+			"id": "expiry-inclusive",
+			"defect": "считает ключ живым и в момент ровно через срок хранения",
+			"mustBeCaught": true
+		},
+		{
+			"id": "inflight-waits",
+			"defect": "считает, что повтор во время выполнения дождётся первого и получит его ответ",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 9, "caught": 9 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0001,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

@@ -1,0 +1,124 @@
+{
+	"key": "qa.mutants.order-lifecycle",
+	"version": 1,
+	"specialization": "qa",
+	"block": "qa.mutants",
+	"format": "qa_mutation",
+	"answerKind": "test_cases",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.8 },
+			"constructive": { "states": "5–6", "transitions": 8, "limit": true, "ignored": 0, "changeStep": "новый переход" },
+			"constructiveRank": 5,
+			"timeNormSec": 1800,
+			"classes": [
+				{
+					"id": "order",
+					"form": "A",
+					"description": "заказ: оплата, отгрузка частями с лимитом, доставка, отмена и возврат"
+				},
+				{
+					"id": "ticket",
+					"form": "B",
+					"description": "заявка в поддержку: переназначения с лимитом, работа, решение, повторное открытие"
+				},
+				{
+					"id": "document",
+					"form": "anchor",
+					"description": "документ: правки черновика с лимитом, согласование, отказ и возврат в черновик"
+				},
+				{
+					"id": "subscription",
+					"form": "X",
+					"description": "подписка: пробный период, продления с лимитом, пауза, отмена и истечение"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.8 },
+			"constructive": { "states": "5–6", "transitions": 9, "limit": true, "ignored": 2, "changeStep": "новый переход" },
+			"constructiveRank": 7,
+			"timeNormSec": 2100,
+			"classes": [
+				{ "id": "order", "form": "A", "description": "заказ с игнорируемыми повторными событиями" },
+				{ "id": "ticket", "form": "B", "description": "заявка с игнорируемыми повторными событиями" },
+				{ "id": "document", "form": "anchor", "description": "документ с игнорируемыми повторными событиями" },
+				{ "id": "subscription", "form": "X", "description": "подписка с игнорируемыми повторными событиями" }
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "limit", "description": "сколько раз принимается событие с лимитом" },
+		{ "name": "order", "description": "порядок перечисления переходов в спецификации" }
+	],
+	"essentialParams": [
+		{ "name": "machine", "description": "автомат состояний: какие переходы есть, где цикл с лимитом" },
+		{ "name": "optional", "description": "какие дополнительные переходы действуют и какой приходит с изменением" },
+		{ "name": "ignored", "description": "Senior: события, которые в части состояний игнорируются, а не ошибка" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": {
+		"budget": { "min": 5, "max": 8 },
+		"mutants": [
+			{ "id": "target", "operator": "переход ведёт в другое состояние" },
+			{ "id": "lost", "operator": "допустимый переход потерян" },
+			{ "id": "extra", "operator": "появился лишний переход" },
+			{ "id": "limit", "operator": "лимит события сдвинут на единицу" },
+			{ "id": "ignored", "operator": "игнорируемое событие стало ошибкой или наоборот" },
+			{ "id": "go-on", "operator": "после недопустимого события обработка продолжается" },
+			{ "id": "zero-based", "operator": "номер недопустимого события считается с нуля" }
+		]
+	},
+	"changeStep": {
+		"description": "Новое условие: в автомате появляется новый допустимый переход; набор кейсов меняется под новую спецификацию и её мутантов.",
+		"weight": 0.3
+	},
+	"rubric": {
+		"kind": "mutants",
+		"levels": [
+			{ "minKillRatio": 0.6, "score": 0.5 },
+			{ "minKillRatio": 0.8, "score": 0.75 },
+			{ "minKillRatio": 1, "score": 1 }
+		]
+	},
+	"coverage": {
+		"checks": [
+			"покрытие всех переходов автомата",
+			"недопустимое событие и номер, на котором обработка останавливается",
+			"граница лимита события: ровно лимит и на один больше",
+			"игнорируемые события (Senior)",
+			"переработка набора под новый переход"
+		],
+		"doesNotCheck": [
+			"последовательности длиннее пяти событий",
+			"оформление тест-кейсов в системе управления тестированием"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "happy-path",
+			"defect": "проверяет только допустимые последовательности, без недопустимых событий",
+			"mustBeCaught": true
+		},
+		{ "id": "limit-untested", "defect": "не доходит до лимита события и не переходит его", "mustBeCaught": true },
+		{ "id": "wrong-expected", "defect": "в одном кейсе ожидаемое состояние определено неверно", "mustBeCaught": true },
+		{
+			"id": "exhaustive",
+			"defect": "перебирает последовательности вместо анализа переходов — больше 8 кейсов",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 4, "caught": 4 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

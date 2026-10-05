@@ -1,0 +1,145 @@
+{
+	"key": "qa.design.boundary-values",
+	"version": 1,
+	"specialization": "qa",
+	"block": "qa.design",
+	"format": "compute",
+	"answerKind": "set",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": {
+				"fields": 1,
+				"ranges": "1–2",
+				"comparisons": "нестрогие и строгие",
+				"method": "дву- или трёхточечный"
+			},
+			"constructiveRank": 2,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "closed",
+					"form": "A",
+					"description": "один диапазон с включёнными концами: по два значения у каждого конца, одно из них — недопустимое"
+				},
+				{
+					"id": "strict",
+					"form": "B",
+					"description": "строгие сравнения «больше» и «меньше»: крайние допустимые значения сдвинуты на единицу от названного числа"
+				},
+				{
+					"id": "two-tiers",
+					"form": "anchor",
+					"description": "две смежные ступени с разным результатом: граница между ступенями тоже даёт пару значений"
+				},
+				{
+					"id": "three-point",
+					"form": "X",
+					"description": "трёхточечный анализ: вокруг каждого названного числа три значения, строгость сравнения не важна"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"fields": 1,
+				"ranges": "3–5",
+				"comparisons": "смешанные",
+				"interacting": "ступени + исключённые значения или предел режима"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "tiers",
+					"form": "A",
+					"description": "три-четыре ступени со смешанной строгостью: каждая граница между ступенями даёт свою пару"
+				},
+				{
+					"id": "excluded",
+					"form": "B",
+					"description": "внутри диапазона исключены значения или поддиапазон: у каждого исключения свои границы"
+				},
+				{
+					"id": "intersection",
+					"form": "anchor",
+					"description": "общий предел поля и более строгий предел выбранного режима: действует пересечение условий"
+				},
+				{
+					"id": "three-point-tiers",
+					"form": "X",
+					"description": "трёхточечный анализ на ступенях: вокруг каждой внутренней и внешней границы три значения"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "система, поле, единицы, названия тарифов и способов" },
+		{ "name": "numbers", "description": "значения границ, кратные шагу поля" }
+	],
+	"essentialParams": [
+		{ "name": "comparisons", "description": "строгие и нестрогие концы диапазонов" },
+		{ "name": "structure", "description": "один диапазон, смежные ступени, исключённые значения, предел режима" },
+		{ "name": "method", "description": "двухточечный или трёхточечный анализ" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"перевод словесного требования в целочисленные границы со строгими и нестрогими концами",
+			"границы между смежными ступенями с разным поведением, а не только внешние",
+			"недопустимые соседи границ входят в набор",
+			"исключённые значения внутри диапазона и пересечение общего предела с пределом режима",
+			"двухточечный и трёхточечный анализ по определению"
+		],
+		"doesNotCheck": ["дробные и нечисловые значения поля", "выбор метода анализа самим кандидатом"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "inclusive-flip",
+			"defect": "читает строгие сравнения «больше» и «меньше» как нестрогие",
+			"mustBeCaught": true
+		},
+		{
+			"id": "inside-only",
+			"defect": "берёт только допустимые значения на краях, без недопустимых соседей",
+			"mustBeCaught": true
+		},
+		{
+			"id": "outer-only",
+			"defect": "проверяет только внешние границы поля и пропускает границы между ступенями",
+			"mustBeCaught": true
+		},
+		{
+			"id": "three-point",
+			"defect": "берёт три значения вокруг границы, когда задан двухточечный анализ",
+			"mustBeCaught": true
+		},
+		{
+			"id": "two-point",
+			"defect": "берёт два значения вокруг границы, когда задан трёхточечный анализ",
+			"mustBeCaught": true
+		},
+		{ "id": "excluded-ignored", "defect": "не видит исключённых значений внутри диапазона", "mustBeCaught": true },
+		{
+			"id": "loosest-limit",
+			"defect": "берёт общий предел поля вместо более строгого предела выбранного режима",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 7, "caught": 7 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

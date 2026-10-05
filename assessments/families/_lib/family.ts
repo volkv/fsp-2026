@@ -35,13 +35,20 @@ export function readDescriptor(generatorUrl: string): FamilyDescriptor {
  * - `qa` — the harness of the instance passes the author's cases on the reference and kills every mutant that is not
  *   equivalent with them (the task is solvable within the budget), and `differential` (a program comparing every
  *   mutant with the reference over the whole input domain) prints the equivalence of each mutant as the instance
- *   declares it.
+ *   declares it; `changeStep` — the same proof for the step «измени своё решение» of an instance that has one.
  */
 export type ReferenceProbe =
 	| { kind: 'output'; source: string; stdin: string }
 	| { kind: 'bug'; check: string; fix: string }
 	| { kind: 'practice'; source: string; changeSource: string | null }
-	| { kind: 'qa'; harness: Readonly<Record<HarnessMode, string>>; cases: readonly QaCase[]; differential: string };
+	| ({ kind: 'qa'; changeStep?: QaProof } & QaProof);
+
+/** The proof of one part of a QA cluster: its two harness programs, the author's cases and the differential run. */
+export interface QaProof {
+	harness: Readonly<Record<HarnessMode, string>>;
+	cases: readonly QaCase[];
+	differential: string;
+}
 
 /** The part of a QA cluster a harness runs: the task, or the change step with its own specification and mutants. */
 export type HarnessPart = 'task' | 'change_step';

@@ -1,0 +1,134 @@
+{
+	"key": "qa.auto.unittest-lifecycle",
+	"version": 1,
+	"specialization": "qa",
+	"block": "qa.auto",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"tests": "3–5 методов в одном классе",
+				"fixtures": "setUpClass/tearDownClass, setUp/tearDown, addCleanup",
+				"mechanisms": "порядок запуска, отказ фикстуры, стек очистки"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "alphabetical-order",
+					"form": "A",
+					"description": "методы объявлены не по алфавиту, один-два проваливают проверку: порядок запуска и tearDown после провала"
+				},
+				{
+					"id": "setup-error",
+					"form": "B",
+					"description": "setUp падает на части тестов после addCleanup: тест и tearDown не выполняются, очистка выполняется"
+				},
+				{
+					"id": "cleanup-stack",
+					"form": "anchor",
+					"description": "addCleanup в setUp и в самом тесте: очистка после tearDown, в обратном порядке регистрации"
+				},
+				{
+					"id": "name-sorting",
+					"form": "X",
+					"description": "имена с цифрами, заглавными буквами и префиксом test без подчёркивания: какие методы запустятся и в каком порядке"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "имена класса, методов, ресурсов и значения в проверках" },
+		{ "name": "data", "description": "числа в проверках и фикстурах" }
+	],
+	"essentialParams": [
+		{ "name": "order", "description": "порядок, в котором загрузчик запускает методы" },
+		{ "name": "failure-point", "description": "где падает тест: в проверке или в setUp" },
+		{ "name": "cleanups", "description": "сколько функций очистки и где они зарегистрированы" }
+	],
+	"language": "python3",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"порядок запуска методов загрузчиком unittest (сортировка имён как строк)",
+			"какие методы считаются тестами (префикс test)",
+			"порядок setUpClass, setUp, тела теста, tearDown, tearDownClass",
+			"tearDown после проваленной проверки",
+			"что выполняется, когда падает setUp",
+			"addCleanup: после tearDown, в обратном порядке регистрации"
+		],
+		"doesNotCheck": [
+			"pytest и его фикстуры",
+			"отчёт раннера и счётчики результатов",
+			"setUpModule и очистка уровня класса"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "declaration-order",
+			"defect": "считает, что тесты запускаются в порядке объявления методов в классе",
+			"mustBeCaught": true
+		},
+		{
+			"id": "teardown-skipped-on-failure",
+			"defect": "считает, что после проваленной проверки tearDown не вызывается",
+			"mustBeCaught": true
+		},
+		{
+			"id": "rest-of-test-runs",
+			"defect": "считает, что после проваленной проверки оставшиеся строки теста всё равно выполняются",
+			"mustBeCaught": true
+		},
+		{
+			"id": "failure-stops-class",
+			"defect": "считает, что после первого упавшего теста остальные тесты класса не запускаются",
+			"mustBeCaught": true
+		},
+		{
+			"id": "teardown-after-setup-error",
+			"defect": "считает, что tearDown вызывается, даже если упал setUp",
+			"mustBeCaught": true
+		},
+		{
+			"id": "cleanup-skipped-on-setup-error",
+			"defect": "считает, что при падении setUp зарегистрированная до падения очистка не выполняется",
+			"mustBeCaught": true
+		},
+		{
+			"id": "cleanup-fifo",
+			"defect": "считает, что функции addCleanup вызываются в порядке регистрации",
+			"mustBeCaught": true
+		},
+		{
+			"id": "cleanup-before-teardown",
+			"defect": "считает, что функции addCleanup вызываются до tearDown",
+			"mustBeCaught": true
+		},
+		{
+			"id": "natural-order",
+			"defect": "считает, что имена сортируются «по-человечески»: без учёта регистра и с числами по величине",
+			"mustBeCaught": true
+		},
+		{
+			"id": "test-prefix-only",
+			"defect": "считает, что тестами считаются только методы с префиксом `test_`, а `testing…` или `tests…` не запускаются",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 10, "caught": 10 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

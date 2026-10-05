@@ -1,0 +1,89 @@
+{
+	"key": "qa.strategy.requirements-traceability",
+	"version": 1,
+	"specialization": "qa",
+	"block": "qa.strategy",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"requirements": "8–12 с приоритетом",
+				"tests": "10–15, у теста 1–2 требования и статус прогона",
+				"interacting": "покрытие, выполнение и подтверждение — разные меры с разным знаменателем"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "gaps",
+					"form": "A",
+					"description": "требования без тестов и требования с тестами, но не подтверждённые прогоном"
+				},
+				{
+					"id": "release",
+					"form": "B",
+					"description": "критерий выпуска: все требования высокого приоритета подтверждены и доля подтверждённых не ниже порога"
+				},
+				{
+					"id": "percentages",
+					"form": "anchor",
+					"description": "доли покрытых, выполненных и подтверждённых требований"
+				},
+				{
+					"id": "orphans",
+					"form": "X",
+					"description": "тесты удалённых требований и требования, чьи тесты не выполнялись"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "идентификаторы требований и тестов" },
+		{ "name": "numbers", "description": "связи требований и тестов, статусы прогона, порог" }
+	],
+	"essentialParams": [
+		{
+			"name": "measure",
+			"description": "что считается: покрытие, выполнение, подтверждение, готовность к выпуску, висячие тесты"
+		},
+		{ "name": "statuses", "description": "как статусы pass, fail, blocked, not run влияют на меру" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"матрица трассировки требований и тестов",
+			"покрытие требований тестами против подтверждения прогоном",
+			"знаменатель метрики: требования, а не тесты",
+			"критерий готовности к выпуску по приоритетам",
+			"тесты удалённых требований и невыполненные проверки"
+		],
+		"doesNotCheck": ["работу с конкретной системой управления тестированием", "оценку качества самих тестов"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "any-pass-suffices",
+			"defect": "считает требование подтверждённым, если прошёл хотя бы один его тест, даже когда другой упал",
+			"mustBeCaught": true
+		},
+		{ "id": "tests-denominator", "defect": "считает доли по тестам, а не по требованиям", "mustBeCaught": true },
+		{ "id": "blocked-as-run", "defect": "считает заблокированный тест выполненным", "mustBeCaught": true },
+		{ "id": "round-up", "defect": "округляет процент вверх, а не вниз", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 4, "caught": 4 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0057,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

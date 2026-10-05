@@ -1,0 +1,134 @@
+{
+	"key": "qa.api.rate-limit",
+	"version": 1,
+	"specialization": "qa",
+	"block": "qa.api",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": { "requests": "8–11", "limits": 1, "headers": "Retry-After и X-RateLimit-Remaining" },
+			"constructiveRank": 4,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "fixed-window",
+					"form": "A",
+					"description": "фиксированное окно: всплеск на стыке окон проходит почти вдвое больше лимита, Retry-After — до конца окна"
+				},
+				{
+					"id": "sliding-log",
+					"form": "B",
+					"description": "скользящее окно (t − W; t]: запрос ровно через W после старого уже не видит его; отклонённые не считаются"
+				},
+				{
+					"id": "token-bucket",
+					"form": "anchor",
+					"description": "корзина токенов: пополнение непрерывное и не выше ёмкости, после простоя — не больше C подряд"
+				},
+				{
+					"id": "remaining-headers",
+					"form": "X",
+					"description": "фиксированное окно с остатком в заголовке: остаток считается после этого запроса, отклонённые его не тратят"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": { "requests": "9–12", "limits": "1–2", "headers": "Retry-After при нескольких лимитах" },
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "two-limits",
+					"form": "A",
+					"description": "короткое фиксированное окно и длинное скользящее вместе: отклонённый запрос не учитывается ни в одном, Retry-After — наибольший"
+				},
+				{
+					"id": "bucket-retry",
+					"form": "B",
+					"description": "корзина с дробным периодом пополнения: Retry-After — до накопления целого токена, а не целый период"
+				},
+				{
+					"id": "sliding-retry",
+					"form": "anchor",
+					"description": "скользящее окно: Retry-After — когда из окна выйдет самый старый принятый запрос"
+				},
+				{
+					"id": "bucket-and-quota",
+					"form": "X",
+					"description": "корзина токенов и квота на фиксированное окно вместе: после простоя корзина не переполняется, Retry-After — наибольший из отказавших лимитов"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "метод API, клиент" },
+		{ "name": "numbers", "description": "моменты запросов, лимиты, длины окон, номер запроса для остатка" }
+	],
+	"essentialParams": [
+		{
+			"name": "algorithm",
+			"description": "фиксированное окно, скользящее окно, корзина токенов или два лимита вместе"
+		},
+		{
+			"name": "timing",
+			"description": "всплеск на стыке окон, запрос ровно через W, простой длиннее заполнения корзины, дробный остаток токена"
+		}
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"какие запросы получат 429 при фиксированном и скользящем окне и корзине токенов",
+			"граница скользящего окна",
+			"отклонённые запросы не расходуют лимит",
+			"Retry-After для каждого алгоритма и при двух лимитах",
+			"X-RateLimit-Remaining после учёта запроса"
+		],
+		"doesNotCheck": [
+			"распределённые счётчики и рассинхронизацию часов",
+			"заголовки RateLimit-Policy нового стандарта",
+			"лимиты по объёму трафика"
+		]
+	},
+	"wrongSolutions": [
+		{ "id": "rejected-counted", "defect": "засчитывает отклонённые запросы в лимит", "mustBeCaught": true },
+		{ "id": "fixed-as-sliding", "defect": "считает фиксированное окно скользящим", "mustBeCaught": true },
+		{ "id": "sliding-as-fixed", "defect": "считает скользящее окно фиксированными окнами", "mustBeCaught": true },
+		{
+			"id": "inclusive-boundary",
+			"defect": "включает в скользящее окно запрос, сделанный ровно W секунд назад",
+			"mustBeCaught": true
+		},
+		{
+			"id": "retry-full-period",
+			"defect": "отдаёт в Retry-After полную длину окна или периода пополнения",
+			"mustBeCaught": true
+		},
+		{ "id": "remaining-before", "defect": "считает остаток до учёта текущего запроса", "mustBeCaught": true },
+		{ "id": "bucket-no-cap", "defect": "копит токены сверх ёмкости корзины", "mustBeCaught": true },
+		{
+			"id": "bucket-discrete",
+			"defect": "добавляет токены целиком в моменты, кратные периоду, а не непрерывно",
+			"mustBeCaught": true
+		},
+		{ "id": "retry-min", "defect": "при двух лимитах берёт в Retry-After наименьшее значение", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 9, "caught": 9 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0064,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

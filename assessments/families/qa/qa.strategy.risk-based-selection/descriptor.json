@@ -1,0 +1,127 @@
+{
+	"key": "qa.strategy.risk-based-selection",
+	"version": 1,
+	"specialization": "qa",
+	"block": "qa.strategy",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": {
+				"areas": "6–9 с вероятностью, влиянием и стоимостью проверки",
+				"rule": "жадный отбор по риску или риску на час с заданным правилом равенства",
+				"interacting": "бюджет: не влезающая область пропускается, отбор продолжается"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "greedy-skip",
+					"form": "A",
+					"description": "по убыванию риска: не влезающая область пропускается, отбор продолжается"
+				},
+				{ "id": "density", "form": "B", "description": "по убыванию риска на час проверки" },
+				{
+					"id": "threshold",
+					"form": "anchor",
+					"description": "области с критичным влиянием обязательны независимо от риска, остаток бюджета — по убыванию риска"
+				},
+				{
+					"id": "ties",
+					"form": "X",
+					"description": "много равных рисков: порядок решает правило равенства — сначала дешёвая"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"areas": "6–8",
+				"rule": "зависимости областей, два уровня проверки, обязательные регуляторные проверки, оптимальный набор",
+				"interacting": "бюджет и правило отбора взаимодействуют с обязательствами и зависимостями"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "dependencies",
+					"form": "A",
+					"description": "область проверяется только вместе со своими зависимостями: в бюджет идёт стоимость всей цепочки"
+				},
+				{
+					"id": "two-levels",
+					"form": "B",
+					"description": "два уровня проверки: E2E снимает весь риск, API — половину, выбор по бюджету"
+				},
+				{
+					"id": "regulatory",
+					"form": "anchor",
+					"description": "регуляторные проверки обязательны, остаток бюджета — наибольший суммарный риск"
+				},
+				{
+					"id": "knapsack",
+					"form": "X",
+					"description": "набор с наибольшим покрытым риском в пределах бюджета, а не жадный отбор"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "названия областей продукта" },
+		{ "name": "numbers", "description": "вероятности, влияние, часы, бюджет" }
+	],
+	"essentialParams": [
+		{ "name": "rule", "description": "правило отбора: по риску, по риску на час, наибольший суммарный риск" },
+		{ "name": "obligations", "description": "обязательные области, зависимости областей, уровни проверки" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"риск как произведение вероятности и влияния",
+			"отбор по риску в пределах бюджета с правилом равенства",
+			"обязательные и регуляторные проверки",
+			"зависимости областей и уровни тестирования с разной ценой и полнотой",
+			"оптимальный набор против жадного"
+		],
+		"doesNotCheck": ["оценку вероятности и влияния по данным инцидентов", "планирование по людям и срокам"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "stop-at-misfit",
+			"defect": "останавливает отбор на первой области, которая не влезает в бюджет",
+			"mustBeCaught": true
+		},
+		{ "id": "sum-not-product", "defect": "считает риск суммой вероятности и влияния", "mustBeCaught": true },
+		{
+			"id": "ignore-tie-rule",
+			"defect": "при равном риске берёт области в порядке списка, а не сначала дешёвые",
+			"mustBeCaught": true
+		},
+		{ "id": "risk-not-density", "defect": "сортирует по риску, а не по риску на час проверки", "mustBeCaught": true },
+		{ "id": "ignore-mandatory", "defect": "отбирает обязательные области на общих основаниях", "mustBeCaught": true },
+		{ "id": "ignore-dependencies", "defect": "не добавляет зависимости и их стоимость", "mustBeCaught": true },
+		{ "id": "api-full", "defect": "считает, что проверка на уровне API снимает весь риск", "mustBeCaught": true },
+		{
+			"id": "greedy-not-optimal",
+			"defect": "отбирает жадно по риску, когда нужен набор с наибольшим суммарным риском",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 8, "caught": 8 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

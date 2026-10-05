@@ -1,0 +1,122 @@
+{
+	"key": "qa.auto.result-summary",
+	"version": 1,
+	"specialization": "qa",
+	"block": "qa.auto",
+	"format": "code_trace",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"tests": "5–9 методов",
+				"outcomes": "успех, провал, ошибка, пропуск, ожидаемый провал, неожиданный успех",
+				"mechanisms": "subTest, декораторы пропуска и expectedFailure, ошибки фикстур",
+				"answer": "testsRun и состав пяти списков результата"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "subtests",
+					"form": "A",
+					"description": "циклы с subTest: каждая упавшая итерация — своя запись, метод считается один раз, KeyError — ошибка"
+				},
+				{
+					"id": "expected-failure",
+					"form": "B",
+					"description": "expectedFailure: провал и исключение — ожидаемый провал, прошедший тест — неожиданный успех"
+				},
+				{
+					"id": "fail-error-skip",
+					"form": "anchor",
+					"description": "провал проверки против исключения, skipTest, skip, skipIf и skipUnless с условием; пропущенные тесты запущены"
+				},
+				{
+					"id": "fixture-errors",
+					"form": "X",
+					"description": "исключение и skipTest в setUp, исключение в tearDown после успеха и после провала"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "имена методов, ключи словарей, тексты причин пропуска" },
+		{ "name": "data", "description": "значения в проверках и наборы данных subTest" }
+	],
+	"essentialParams": [
+		{ "name": "outcome-mechanism", "description": "через что тест получает исход: subTest, декоратор, фикстура" },
+		{ "name": "counts", "description": "сколько записей даёт каждый метод в каждом списке результата" }
+	],
+	"language": "python3",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"чем провал (failures) отличается от ошибки (errors)",
+			"testsRun считает и пропущенные тесты, и метод с subTest — один раз",
+			"каждый упавший subTest — отдельная запись",
+			"expectedFailure: ожидаемый провал и неожиданный успех",
+			"условные пропуски skipIf и skipUnless",
+			"исход теста при исключении и skipTest в setUp, исключение в tearDown"
+		],
+		"doesNotCheck": ["текст отчёта раннера", "порядок запуска (отдельное семейство)", "pytest"]
+	},
+	"wrongSolutions": [
+		{ "id": "subtest-as-tests", "defect": "считает, что каждый subTest увеличивает testsRun", "mustBeCaught": true },
+		{
+			"id": "subtest-stops",
+			"defect": "считает, что первый упавший subTest прерывает метод: одна запись на метод",
+			"mustBeCaught": true
+		},
+		{
+			"id": "error-as-failure",
+			"defect": "считает любое исключение в тесте провалом (failures), а не ошибкой (errors)",
+			"mustBeCaught": true
+		},
+		{
+			"id": "unexpected-success-is-pass",
+			"defect": "считает, что прошедший тест с expectedFailure — обычный успех",
+			"mustBeCaught": true
+		},
+		{
+			"id": "expected-failure-ignored",
+			"defect": "считает, что expectedFailure не меняет исход: провал остаётся провалом, ошибка — ошибкой",
+			"mustBeCaught": true
+		},
+		{
+			"id": "xfail-error-is-error",
+			"defect": "считает, что исключение в тесте с expectedFailure — ошибка, а не ожидаемый провал",
+			"mustBeCaught": true
+		},
+		{ "id": "skipped-not-run", "defect": "считает, что пропущенные тесты не входят в testsRun", "mustBeCaught": true },
+		{
+			"id": "skip-unless-inverted",
+			"defect": "считает, что skipUnless пропускает тест, когда условие истинно",
+			"mustBeCaught": true
+		},
+		{
+			"id": "setup-error-as-failure",
+			"defect": "считает исключение в setUp провалом теста, а не ошибкой",
+			"mustBeCaught": true
+		},
+		{
+			"id": "one-outcome-per-test",
+			"defect": "считает, что у теста одна запись: если тест провалился, исключение в tearDown уже не записывается",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 10, "caught": 10 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

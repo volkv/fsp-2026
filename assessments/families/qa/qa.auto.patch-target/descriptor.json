@@ -1,0 +1,208 @@
+{
+	"key": "qa.auto.patch-target",
+	"version": 1,
+	"specialization": "qa",
+	"block": "qa.auto",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"modules": "2–3 модуля, собранные в программе",
+				"patches": "2–3 подмены через patch или patch.object",
+				"mechanisms": "место поиска имени, восстановление, порядок аргументов декораторов"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "from-import",
+					"form": "A",
+					"description": "модуль импортирует функцию через from: подмена там, где функция определена, его не задевает"
+				},
+				{
+					"id": "module-attribute",
+					"form": "B",
+					"description": "модуль обращается к функции через имя модуля: работает подмена в исходном модуле, у импортёра атрибута нет"
+				},
+				{
+					"id": "decorator-order",
+					"form": "anchor",
+					"description": "два декоратора patch: первый аргумент — от нижнего декоратора; после выхода подмена снята"
+				},
+				{
+					"id": "patch-object",
+					"form": "X",
+					"description": "patch.object на классе задевает и созданные раньше экземпляры, на экземпляре — только его"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"modules": "2–3 модуля, захваченные ссылки и словари настроек",
+				"patches": "2–4 подмены, autospec, patch.dict, patch на классе тестов",
+				"mechanisms": "сигнатура подмены, ссылки, захваченные при импорте, изменение словаря на месте, область действия подмены"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "autospec",
+					"form": "A",
+					"description": "без autospec подмена принимает любой вызов и прячет неверный вызов в коде; с autospec — TypeError, вызов не записан"
+				},
+				{
+					"id": "captured-reference",
+					"form": "B",
+					"description": "ссылки, захваченные при импорте (псевдоним, реестр, значение по умолчанию), подмена атрибута модуля не меняет"
+				},
+				{
+					"id": "patch-dict",
+					"form": "anchor",
+					"description": "patch.dict меняет словарь на месте и восстанавливает его; clear=True; константа, вычисленная при импорте, не меняется"
+				},
+				{
+					"id": "class-decorator",
+					"form": "X",
+					"description": "patch на классе тестов действует только в методах test*, у каждого теста свой мок; setUp видит настоящую функцию"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "имена модулей, функций и классов" },
+		{ "name": "data", "description": "настоящие и подменённые значения, аргументы вызовов" }
+	],
+	"essentialParams": [
+		{
+			"name": "lookup",
+			"description": "как код находит подменяемое имя: from-импорт, атрибут модуля, ссылка, захваченная при импорте"
+		},
+		{
+			"name": "scope",
+			"description": "где и когда подмена действует: блок with, декоратор функции или класса, экземпляр или класс"
+		},
+		{ "name": "kind", "description": "что подменяется: функция, метод, словарь, с autospec или без" }
+	],
+	"language": "python3",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"patch подменяет имя там, где его ищут",
+			"from-импорт против обращения через модуль",
+			"patch несуществующего атрибута — AttributeError",
+			"порядок аргументов у нескольких декораторов patch",
+			"восстановление после with и декоратора",
+			"patch.object на классе и на экземпляре",
+			"autospec и сигнатура",
+			"ссылки, захваченные при импорте",
+			"patch.dict и clear",
+			"patch как декоратор класса тестов"
+		],
+		"doesNotCheck": ["асинхронные моки", "patch встроенных функций", "реальный импорт пакетов с диска"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "patch-source-everywhere",
+			"defect": "считает, что подмена функции в модуле, где она определена, действует во всех модулях, которые её импортировали",
+			"mustBeCaught": true
+		},
+		{
+			"id": "patch-importer-only",
+			"defect": "считает, что подмена в исходном модуле не видна модулю, который обращается к функции через имя этого модуля",
+			"mustBeCaught": true
+		},
+		{
+			"id": "missing-attribute-created",
+			"defect": "считает, что patch молча создаёт отсутствующий атрибут",
+			"mustBeCaught": true
+		},
+		{
+			"id": "patch-persists",
+			"defect": "считает, что подмена остаётся после выхода из with или из функции с декоратором",
+			"mustBeCaught": true
+		},
+		{
+			"id": "top-down-args",
+			"defect": "считает, что первый аргумент функции получает мок от верхнего декоратора",
+			"mustBeCaught": true
+		},
+		{
+			"id": "existing-instances-unaffected",
+			"defect": "считает, что patch.object на классе действует только на экземпляры, созданные после подмены",
+			"mustBeCaught": true
+		},
+		{
+			"id": "instance-patch-affects-class",
+			"defect": "считает, что patch.object на экземпляре меняет метод у всех экземпляров класса",
+			"mustBeCaught": true
+		},
+		{
+			"id": "plain-mock-checks-signature",
+			"defect": "считает, что подмена без autospec проверяет аргументы по сигнатуре настоящей функции",
+			"mustBeCaught": true
+		},
+		{
+			"id": "autospec-ignores-signature",
+			"defect": "считает, что autospec не мешает вызвать подмену с неверными аргументами",
+			"mustBeCaught": true
+		},
+		{
+			"id": "rejected-call-counted",
+			"defect": "считает, что вызов, отвергнутый autospec, записан в call_count",
+			"mustBeCaught": true
+		},
+		{
+			"id": "patch-reaches-captured",
+			"defect": "считает, что подмена атрибута модуля меняет и ссылки, захваченные при импорте: псевдоним, реестр, значение по умолчанию",
+			"mustBeCaught": true
+		},
+		{
+			"id": "dict-replaced",
+			"defect": "считает, что patch.dict подставляет новый словарь, и код со своей ссылкой на старый подмены не видит",
+			"mustBeCaught": true
+		},
+		{
+			"id": "dict-keeps-added",
+			"defect": "считает, что ключи, добавленные patch.dict, остаются после выхода",
+			"mustBeCaught": true
+		},
+		{
+			"id": "clear-ignored",
+			"defect": "считает, что при clear=True прежние ключи словаря остаются",
+			"mustBeCaught": true
+		},
+		{
+			"id": "captured-constant-follows",
+			"defect": "считает, что константа, вычисленная из словаря при импорте, меняется вместе со словарём",
+			"mustBeCaught": true
+		},
+		{
+			"id": "class-patch-covers-setup",
+			"defect": "считает, что patch на классе тестов действует и в setUp",
+			"mustBeCaught": true
+		},
+		{
+			"id": "class-patch-shared-mock",
+			"defect": "считает, что patch на классе создаёт один мок на все тесты, и его call_count накапливается",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 17, "caught": 17 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0011,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

@@ -1,0 +1,161 @@
+{
+	"key": "qa.api.breaking-changes",
+	"version": 1,
+	"specialization": "qa",
+	"block": "qa.api",
+	"format": "compute",
+	"answerKind": "set",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"changes": "6–8",
+				"clients": 1,
+				"conditions": "направление, использование поля клиентом, режим сервера"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "request-changes",
+					"form": "A",
+					"description": "изменения запроса: новое и ставшее обязательным поле ломают, удалённое из перечисления значение — только если клиент его передаёт"
+				},
+				{
+					"id": "response-changes",
+					"form": "B",
+					"description": "изменения ответа у терпимого клиента: ломает только то, что клиент читает, включая поле, ставшее nullable"
+				},
+				{
+					"id": "strict-client",
+					"form": "anchor",
+					"description": "строгий клиент: новое поле ответа и новое значение читаемого перечисления его ломают"
+				},
+				{
+					"id": "defaults",
+					"form": "X",
+					"description": "сменилось значение по умолчанию и поле стало обязательным: ломает клиента, который поле не передаёт"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"changes": "8–10",
+				"clients": 2,
+				"conditions": "два профиля клиента, переименования, режим сервера"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "two-clients",
+					"form": "A",
+					"description": "терпимое приложение и строгая интеграция партнёра: одни и те же изменения ломают их по-разному"
+				},
+				{
+					"id": "server-mode",
+					"form": "B",
+					"description": "сервер v2 игнорирует неизвестные поля запроса: удалённое поле не ломает; перечисления запроса — в обратную сторону, чем ответа"
+				},
+				{
+					"id": "renames",
+					"form": "anchor",
+					"description": "переименования, смена типа и nullable в ответе: ломают тех, кто читает поле; новое значение перечисления — строгих"
+				},
+				{
+					"id": "mixed-all",
+					"form": "X",
+					"description": "все виды изменений сразу: значения по умолчанию, сужение перечислений запроса, ответ"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "метод API, имена полей и значений перечислений" },
+		{ "name": "order", "description": "порядок и номера изменений" }
+	],
+	"essentialParams": [
+		{ "name": "direction", "description": "изменение в запросе или в ответе" },
+		{
+			"name": "client-profile",
+			"description": "какие поля и значения клиент передаёт, какие поля читает, строг ли к неизвестным полям и значениям"
+		},
+		{ "name": "server-mode", "description": "отклоняет ли сервер v2 неизвестные поля запроса" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"направление изменения: запрос и ответ меняются по противоположным правилам",
+			"использование поля и значения конкретным клиентом",
+			"строгие и терпимые клиенты к неизвестным полям и значениям",
+			"значения по умолчанию и обязательность полей запроса",
+			"удаление поля запроса при разных режимах сервера",
+			"переименование как удаление и добавление"
+		],
+		"doesNotCheck": [
+			"семантические изменения без изменения схемы",
+			"версионирование через заголовки и согласование версии",
+			"изменения кодов ответов и ошибок"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "required-add-safe",
+			"defect": "считает новое обязательное поле запроса и поле, ставшее обязательным, безопасными",
+			"mustBeCaught": true
+		},
+		{
+			"id": "narrow-safe",
+			"defect": "считает удаление значения из перечисления запроса безопасным",
+			"mustBeCaught": true
+		},
+		{
+			"id": "usage-ignored",
+			"defect": "не смотрит, передаёт ли клиент поле и читает ли его: любое удаление, смену типа и nullable считает ломающими",
+			"mustBeCaught": true
+		},
+		{
+			"id": "nullable-safe",
+			"defect": "считает, что поле ответа, ставшее nullable, никого не ломает",
+			"mustBeCaught": true
+		},
+		{
+			"id": "widen-safe",
+			"defect": "считает новое значение перечисления в ответе безопасным и для строгого клиента",
+			"mustBeCaught": true
+		},
+		{
+			"id": "tolerant-assumed",
+			"defect": "считает новые поля ответа безопасными и для клиента, который отклоняет неизвестные поля",
+			"mustBeCaught": true
+		},
+		{ "id": "default-safe", "defect": "считает смену значения по умолчанию безопасной", "mustBeCaught": true },
+		{
+			"id": "removed-request-rejected",
+			"defect": "считает удалённое поле запроса ломающим, даже если сервер игнорирует неизвестные поля",
+			"mustBeCaught": true
+		},
+		{
+			"id": "enum-direction",
+			"defect": "переносит правило ответа на запрос: новое значение перечисления запроса считает ломающим, удалённое — безопасным",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 9, "caught": 9 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0119,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

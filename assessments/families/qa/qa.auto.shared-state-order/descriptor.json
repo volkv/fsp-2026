@@ -1,0 +1,183 @@
+{
+	"key": "qa.auto.shared-state-order",
+	"version": 1,
+	"specialization": "qa",
+	"block": "qa.auto",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"classes": "1–2 класса тестов, 4–7 тестов",
+				"state": "атрибут класса, значение по умолчанию, setUpClass, кэш модуля",
+				"mechanisms": "порядок запуска по алфавиту, общее изменяемое состояние"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "class-attribute",
+					"form": "A",
+					"description": "изменяемый атрибут класса: append меняет общий список, присваивание через self — нет"
+				},
+				{
+					"id": "mutable-default",
+					"form": "B",
+					"description": "список по умолчанию в вспомогательной функции копится между тестами и классами"
+				},
+				{
+					"id": "setupclass-state",
+					"form": "anchor",
+					"description": "состояние из setUpClass общее для тестов класса и своё у каждого класса"
+				},
+				{
+					"id": "module-cache",
+					"form": "X",
+					"description": "кэш модуля и глобальный словарь, изменённый тестом без восстановления"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"classes": "1–2 класса тестов, наследование, 4–7 тестов",
+				"state": "унаследованный атрибут, частичное изменение при провале, поверхностная копия, +=",
+				"mechanisms": "повторный запуск унаследованных тестов, восстановление через addCleanup, копирование и связывание имён"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "inherited-state",
+					"form": "A",
+					"description": "подкласс тестов запускает унаследованные тесты ещё раз и делит с базовым атрибут класса"
+				},
+				{
+					"id": "partial-mutation",
+					"form": "B",
+					"description": "тест меняет глобальное состояние и падает до строки восстановления; addCleanup восстанавливает и после провала"
+				},
+				{
+					"id": "shallow-copy",
+					"form": "anchor",
+					"description": "setUp копирует шаблон поверхностно: вложенный список общий, deepcopy — свой"
+				},
+				{
+					"id": "augmented-assignment",
+					"form": "X",
+					"description": "self.items += [...] меняет общий список класса, self.count += 1 создаёт атрибут экземпляра"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "имена классов, тестов, ключей и значений" },
+		{ "name": "data", "description": "значения в проверках" }
+	],
+	"essentialParams": [
+		{ "name": "state", "description": "где живёт общее состояние: класс, значение по умолчанию, setUpClass, модуль" },
+		{ "name": "order", "description": "в каком порядке тесты меняют и читают состояние" },
+		{ "name": "binding", "description": "меняется ли объект на месте или имя связывается с новым объектом" }
+	],
+	"language": "python3",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"новый экземпляр TestCase на каждый тест не сбрасывает атрибуты класса",
+			"изменение на месте против присваивания через self",
+			"изменяемое значение по умолчанию",
+			"setUpClass: общее состояние класса",
+			"кэш и глобальные данные модуля между тестами",
+			"повторный запуск унаследованных тестов",
+			"восстановление состояния после провала: строка после проверки против addCleanup",
+			"поверхностная и глубокая копия",
+			"+= для списка и для числа"
+		],
+		"doesNotCheck": ["параллельный запуск тестов", "pytest и его фикстуры", "изоляция процессов"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "fresh-per-test",
+			"defect": "считает, что каждый тест видит атрибуты класса в исходном виде, раз экземпляр TestCase новый",
+			"mustBeCaught": true
+		},
+		{
+			"id": "declaration-order",
+			"defect": "считает, что тесты класса запускаются в порядке объявления",
+			"mustBeCaught": true
+		},
+		{
+			"id": "rebind-shares",
+			"defect": "считает, что присваивание self.items = ... меняет список класса для остальных тестов",
+			"mustBeCaught": true
+		},
+		{
+			"id": "default-fresh",
+			"defect": "считает, что изменяемое значение по умолчанию создаётся заново при каждом вызове",
+			"mustBeCaught": true
+		},
+		{
+			"id": "setupclass-per-test",
+			"defect": "считает, что setUpClass выполняется перед каждым тестом",
+			"mustBeCaught": true
+		},
+		{
+			"id": "shared-across-classes",
+			"defect": "считает, что состояние из setUpClass одно на все классы тестов",
+			"mustBeCaught": true
+		},
+		{ "id": "cache-per-test", "defect": "считает, что кэш модуля сбрасывается между тестами", "mustBeCaught": true },
+		{
+			"id": "global-restored",
+			"defect": "считает, что изменения глобальных данных модуля откатываются после каждого теста",
+			"mustBeCaught": true
+		},
+		{
+			"id": "inherited-not-rerun",
+			"defect": "считает, что подкласс запускает только свои тесты, а унаследованные — нет",
+			"mustBeCaught": true
+		},
+		{
+			"id": "subclass-own-copy",
+			"defect": "считает, что подкласс получает свою копию изменяемого атрибута базового класса",
+			"mustBeCaught": true
+		},
+		{
+			"id": "restore-after-failure",
+			"defect": "считает, что строка восстановления после упавшей проверки всё равно выполняется",
+			"mustBeCaught": true
+		},
+		{
+			"id": "shallow-is-deep",
+			"defect": "считает, что dict(...) и .copy() копируют и вложенные списки",
+			"mustBeCaught": true
+		},
+		{
+			"id": "copy-is-alias",
+			"defect": "считает, что dict(...) и .copy() возвращают тот же словарь",
+			"mustBeCaught": true
+		},
+		{
+			"id": "iadd-rebinds",
+			"defect": "считает, что += для списка создаёт новый список, как для числа",
+			"mustBeCaught": true
+		},
+		{ "id": "int-iadd-shared", "defect": "считает, что self.count += 1 меняет атрибут класса", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 15, "caught": 15 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

@@ -1,0 +1,151 @@
+{
+	"key": "qa.api.status-codes",
+	"version": 1,
+	"specialization": "qa",
+	"block": "qa.api",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.65 },
+			"constructive": { "requests": "5–6", "collidingRules": 1, "stateChanges": "создание и удаление без конфликтов" },
+			"constructiveRank": 2,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "auth-role",
+					"form": "A",
+					"description": "запросы без токена, с истёкшим токеном и от ролей без права: 401 против 403"
+				},
+				{
+					"id": "body-validation",
+					"form": "B",
+					"description": "тело не разбирается как JSON (400) против тела с неверными полями (422) и успешных записей"
+				},
+				{
+					"id": "success-codes",
+					"form": "anchor",
+					"description": "успешные операции дают разные коды (200, 201, 204), запрос к удалённой или несуществующей вакансии — 404"
+				},
+				{
+					"id": "method-check",
+					"form": "X",
+					"description": "метод, которого у адреса нет, — 405 раньше проверки токена, даже без токена"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"requests": "7–8",
+				"collidingRules": "2–3 в одном запросе",
+				"stateChanges": "создание, удаление, повторное удаление, освобождение названия"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "rights-vs-existence",
+					"form": "A",
+					"description": "роль без права обращается к несуществующей вакансии: 403 раньше 404"
+				},
+				{
+					"id": "body-vs-existence",
+					"form": "B",
+					"description": "неверное тело к несуществующей вакансии (404 раньше 400/422) и занятое название при неверных полях (422 раньше 409)"
+				},
+				{
+					"id": "stateful",
+					"form": "anchor",
+					"description": "состояние меняется по ходу: повторное удаление — 404, название удалённой вакансии свободно, номера не переиспользуются"
+				},
+				{
+					"id": "mixed",
+					"form": "X",
+					"description": "все правила вперемешку: токены, права, существование, тело и уникальность в одной последовательности"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "названия вакансий, токены, номера вакансий" },
+		{ "name": "numbers", "description": "зарплаты, число и порядок запросов" }
+	],
+	"essentialParams": [
+		{
+			"name": "colliding-rules",
+			"description": "какие правила контракта нарушены в одном запросе и чей черёд проверки раньше"
+		},
+		{
+			"name": "state",
+			"description": "меняет ли последовательность состояние: создание, удаление, повторное удаление, занятое название"
+		}
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"401 против 403: нет аутентификации или нет права",
+			"400 против 422: тело не разбирается или поля не проходят проверку",
+			"порядок проверок контракта при нескольких нарушениях в одном запросе",
+			"коды успешных операций: 200, 201, 204",
+			"405 для метода, которого у адреса нет",
+			"ожидаемые коды с учётом состояния после предыдущих запросов"
+		],
+		"doesNotCheck": [
+			"тексты и формат тел ошибок",
+			"коды 5xx и поведение при сбоях сервера",
+			"настройку конкретного фреймворка маршрутизации"
+		]
+	},
+	"wrongSolutions": [
+		{ "id": "anon-403", "defect": "отвечает 403 на запрос без токена или с истёкшим токеном", "mustBeCaught": true },
+		{ "id": "validation-400", "defect": "отвечает 400 на тело с неверными полями", "mustBeCaught": true },
+		{ "id": "success-200", "defect": "считает, что любая успешная операция отвечает 200", "mustBeCaught": true },
+		{
+			"id": "auth-before-method",
+			"defect": "проверяет токен раньше, чем существование метода у адреса",
+			"mustBeCaught": true
+		},
+		{
+			"id": "existence-before-rights",
+			"defect": "проверяет существование вакансии раньше прав роли",
+			"mustBeCaught": true
+		},
+		{
+			"id": "body-before-existence",
+			"defect": "проверяет тело запроса раньше существования вакансии",
+			"mustBeCaught": true
+		},
+		{
+			"id": "conflict-before-validation",
+			"defect": "проверяет уникальность названия раньше остальных полей",
+			"mustBeCaught": true
+		},
+		{
+			"id": "repeat-delete-204",
+			"defect": "считает повторное удаление успешным (204), раз DELETE идемпотентен",
+			"mustBeCaught": true
+		},
+		{
+			"id": "deleted-title-taken",
+			"defect": "считает название удалённой вакансии всё ещё занятым",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 9, "caught": 9 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0007,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

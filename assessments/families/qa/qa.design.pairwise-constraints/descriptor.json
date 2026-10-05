@@ -1,0 +1,129 @@
+{
+	"key": "qa.design.pairwise-constraints",
+	"version": 1,
+	"specialization": "qa",
+	"block": "qa.design",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"parameters": "3–4 по 2–4 значения",
+				"constraints": "2–3: несовместимость и «только при»",
+				"tests": "5–9 тестов, часть может быть недопустима"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "uncovered",
+					"form": "A",
+					"description": "сколько всего допустимых пар и сколько из них набор не покрывает"
+				},
+				{
+					"id": "invalid-tests",
+					"form": "B",
+					"description": "какие тесты нарушают ограничения и сколько допустимых пар остаётся без покрытия без них"
+				},
+				{
+					"id": "redundant",
+					"form": "anchor",
+					"description": "тесты, все пары которых покрыты другими выполнимыми тестами набора"
+				},
+				{
+					"id": "pair-table",
+					"form": "X",
+					"description": "непокрытые допустимые пары значений двух заданных параметров"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"parameters": "4 по 2–4 значения",
+				"constraints": "3–4, в том числе цепочки «только при» + несовместимость",
+				"interacting": "пары, не запрещённые напрямую, но недостижимые ни в одном допустимом тесте"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "unreachable",
+					"form": "A",
+					"description": "пары, не запрещённые напрямую, но не встречающиеся ни в одном допустимом тесте"
+				},
+				{
+					"id": "uncovered-reachable",
+					"form": "B",
+					"description": "недопустимые тесты набора и число достижимых пар без покрытия"
+				},
+				{
+					"id": "min-additional",
+					"form": "anchor",
+					"description": "сколько достижимых пар не покрыто и сколько допустимых тестов наименьшее нужно добавить"
+				},
+				{
+					"id": "valid-combinations",
+					"form": "X",
+					"description": "число допустимых полных комбинаций и число достижимых пар"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "предметная область, параметры и их значения" },
+		{ "name": "numbers", "description": "состав и порядок тестов набора" }
+	],
+	"essentialParams": [
+		{
+			"name": "constraints",
+			"description": "какие пары запрещены напрямую, какие недостижимы через цепочку ограничений"
+		},
+		{
+			"name": "question",
+			"description": "что ищется: число непокрытых пар, недопустимые или избыточные тесты, дополнение набора"
+		}
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"попарное покрытие с ограничениями: запрещённые пары не нужно покрывать",
+			"недопустимый тест не выполняется и ничего не покрывает",
+			"одностороннее ограничение «только при»",
+			"пары, недостижимые через цепочку ограничений",
+			"избыточные тесты и наименьшее дополнение набора"
+		],
+		"doesNotCheck": ["построение наименьшего попарного набора с нуля", "работу конкретного генератора пар"]
+	},
+	"wrongSolutions": [
+		{ "id": "count-forbidden", "defect": "считает и запрещённые пары: требует их покрытия", "mustBeCaught": true },
+		{
+			"id": "implication-symmetric",
+			"defect": "читает «A только при B» как двустороннее: будто и B допустимо только при A",
+			"mustBeCaught": true
+		},
+		{ "id": "keep-invalid", "defect": "засчитывает пары, покрытые недопустимыми тестами", "mustBeCaught": true },
+		{
+			"id": "direct-only",
+			"defect": "исключает только пары, запрещённые напрямую, и не видит недостижимых через цепочку ограничений",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 4, "caught": 4 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0163,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

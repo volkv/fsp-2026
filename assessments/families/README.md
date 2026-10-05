@@ -14,7 +14,8 @@ assessments/families/
   <специализация>/<ключ семейства>/
     descriptor.json     FamilyDescriptor контракта (src/lib/server/assessments/contract/bank.ts), вместе с отчётом ворот gates
     generator.ts        generate({seed, grade, classId}) → ItemInstance; у QA ещё harness(instance, mode, part); для ворот — build()
-  _lib/                 общий код генераторов: поток случайных чисел от сида, SQL, сравнение ответов, сборка экземпляра
+  _lib/                 общий код генераторов: поток случайных чисел от сида, SQL, сравнение ответов, сборка экземпляра;
+                        у QA — обвязка и дифференциальный прогон (`qa.ts`), упорядоченные таблицы правил и их мутанты (`qa-rules.ts`)
   _probes/<специализация>/<ключ>/   пробы механизмов в том же формате: проходят ворота, в выпуск не идут
   gate-sources.json     хэш исходников, с которыми каждое семейство последний раз прошло ворота
   gates-report.md       отчёт последнего полного прогона ворот
@@ -46,7 +47,8 @@ assessments/families/
 
 1. Папка `<специализация>/<ключ>/` с `descriptor.json` и `generator.ts`, ключ `<блок>.<имя>`; образцы — `be.lang.closure-capture`
    (трассировка), `be.db.null-aggregates` (SQL), `be.api.retry-backoff` (расчёт), `be.debug.spec-violation` (поиск дефекта),
-   `be.code.order-summary` и `be.code.rate-limiter` (практика, у второй — шаг «измени своё решение»), `_probes/qa/…` (QA).
+   `be.code.order-summary` и `be.code.rate-limiter` (практика, у второй — шаг «измени своё решение»), `qa.mutants.field-validation`
+   (QA) и `qa.mutants.order-lifecycle` (QA с шагом «измени своё решение»).
    В `gates` нового описания — нули: их заполнит прогон.
 2. `node scripts/assessments/gates.ts --local-python --no-write --family <ключ>` — пока не `ok`.
 3. `pnpm bank:gates --family <ключ>` пишет отчёт в `descriptor.json` и хэш в `gate-sources.json`.
@@ -66,6 +68,12 @@ node scripts/assessments/gates.ts --local-python --no-write --family be.lang.   
 решения, коллизии, пересечение классов, мутанты, перенос), проблемы валидатора контракта и банковая сторона выпуска: опорные классы,
 не меньше 4 семейств за каждым блок-тестом (`blockTestPairs`), вместимость всех крайних историй кандидата (`capacityChecks`: две
 попытки на грейд, блок-тесты из вакансий, перепроверки). Симуляцию траекторий выпуска делает движок теста (`pnpm bank:check`).
+
+## Формат ответа
+
+Неупорядоченная коллекция (номера, даты, имена) — `set`: поле ввода — список, по элементу в строке, порядок и повторы не
+важны, пустой набор — одна строка `-`. Упорядоченный список — `sequence`. Составной ответ из частей разной природы — `tokens`
+с разделителем `|` и точным порядком, описанным в условии.
 
 ## Классы
 

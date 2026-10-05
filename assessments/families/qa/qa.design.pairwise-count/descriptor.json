@@ -1,0 +1,124 @@
+{
+	"key": "qa.design.pairwise-count",
+	"version": 1,
+	"specialization": "qa",
+	"block": "qa.design",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.65 },
+			"constructive": { "parameters": "3–5", "values": "2–6", "constraints": "0–2 запрещённые пары", "suite": false },
+			"constructiveRank": 2,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "pairs-3",
+					"form": "A",
+					"description": "три параметра: пары берутся по всем трём парам параметров, полный перебор — произведение"
+				},
+				{
+					"id": "pairs-many",
+					"form": "B",
+					"description": "четыре-пять параметров: пар параметров уже шесть-десять, а не только соседние"
+				},
+				{
+					"id": "constraint",
+					"form": "anchor",
+					"description": "запрещённые пары: каждая убирает одну пару и все полные комбинации, где она встречается"
+				},
+				{
+					"id": "minimum",
+					"form": "X",
+					"description": "три параметра и самый короткий попарный набор: произведение двух самых больших параметров"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"parameters": "3–4",
+				"values": "2–4",
+				"suite": "5–9 тестов",
+				"interacting": "готовый набор + запрещённые пары или удаление тестов"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "uncovered",
+					"form": "A",
+					"description": "сколько пар готовый набор не покрывает: перебор всех шести пар параметров по таблице"
+				},
+				{
+					"id": "removable",
+					"form": "B",
+					"description": "какие тесты удаляются по одному без потери покрытых пар: каждая пара теста есть в другом тесте"
+				},
+				{
+					"id": "constraint",
+					"form": "anchor",
+					"description": "непокрытые пары при запрещённых сочетаниях: запрещённые пары не нужно покрывать"
+				},
+				{ "id": "increments", "form": "X", "description": "сколько новых пар добавляет каждый тест по порядку" }
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "названия параметров и значений конфигурации" },
+		{ "name": "suite", "description": "строки готового набора тестов" }
+	],
+	"essentialParams": [
+		{ "name": "parameters", "description": "число параметров и значений" },
+		{ "name": "constraints", "description": "запрещённые пары значений" },
+		{ "name": "question", "description": "объём пространства, непокрытые пары, удаляемые тесты, прирост покрытия" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"число пар значений для попарного покрытия и число полных комбинаций",
+			"запрещённые пары в подсчёте пар и комбинаций",
+			"нижняя граница попарного набора для трёх параметров",
+			"покрытие пар готовым набором, избыточные тесты и прирост покрытия"
+		],
+		"doesNotCheck": ["построение попарного набора вручную или инструментом", "покрытие троек и выше (t > 2)"]
+	},
+	"wrongSolutions": [
+		{ "id": "adjacent-only", "defect": "считает пары только соседних в списке параметров", "mustBeCaught": true },
+		{ "id": "within-param", "defect": "добавляет пары значений одного параметра", "mustBeCaught": true },
+		{ "id": "pairs-as-combos", "defect": "путает число пар с полным перебором комбинаций", "mustBeCaught": true },
+		{ "id": "constraint-ignored", "defect": "не учитывает запрещённые пары", "mustBeCaught": true },
+		{
+			"id": "constraint-one-combo",
+			"defect": "вычитает из полного перебора по одной комбинации на запрещённую пару",
+			"mustBeCaught": true
+		},
+		{
+			"id": "min-as-max",
+			"defect": "считает, что попарному набору хватит тестов по числу значений самого большого параметра",
+			"mustBeCaught": true
+		},
+		{
+			"id": "each-value",
+			"defect": "считает тест лишним, если каждое его значение встречается в другом тесте (покрытие значений вместо пар)",
+			"mustBeCaught": true
+		},
+		{ "id": "count-total", "defect": "засчитывает каждому тесту все его пары, а не только новые", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 8, "caught": 8 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0174,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

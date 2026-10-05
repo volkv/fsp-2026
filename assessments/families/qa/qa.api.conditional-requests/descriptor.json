@@ -1,0 +1,148 @@
+{
+	"key": "qa.api.conditional-requests",
+	"version": 1,
+	"specialization": "qa",
+	"block": "qa.api",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"requests": "6–8",
+				"clients": 2,
+				"headers": "If-Match, If-None-Match, If-Modified-Since по отдельности",
+				"memory": "клиент помнит ETag и Last-Modified последнего ответа"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "lost-update",
+					"form": "A",
+					"description": "два клиента пишут с If-Match по своим чтениям: второй получает 412, пока не перечитает"
+				},
+				{
+					"id": "own-write-etag",
+					"form": "B",
+					"description": "ответ на свою запись приносит новый ETag: следующая запись и условный GET того же клиента идут с ним"
+				},
+				{
+					"id": "missing-precondition",
+					"form": "anchor",
+					"description": "запись без If-Match — 428, а не 412 и не безусловная запись"
+				},
+				{
+					"id": "if-modified-since",
+					"form": "X",
+					"description": "If-Modified-Since: Last-Modified, равный значению заголовка, — 304"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"requests": "7–9",
+				"clients": "2–3",
+				"headers": "сочетания условий, слабые ETag, If-Match: * и If-None-Match: *",
+				"memory": "клиент помнит ETag и Last-Modified последнего ответа"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "weak-etag",
+					"form": "A",
+					"description": "слабые ETag: If-Match сравнивает строго и не совпадает никогда, If-None-Match сравнивает слабо и даёт 304"
+				},
+				{
+					"id": "inm-overrides-ims",
+					"form": "B",
+					"description": "If-None-Match и If-Modified-Since вместе: решает только If-None-Match"
+				},
+				{
+					"id": "second-precision",
+					"form": "anchor",
+					"description": "две записи в одну секунду: Last-Modified не меняется, If-Modified-Since отвечает 304 на изменённый ресурс"
+				},
+				{
+					"id": "create-and-delete",
+					"form": "X",
+					"description": "If-None-Match: * создаёт только отсутствующий ресурс, If-Match: * требует существующего, после DELETE — 404 и 412"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "адрес ресурса, имена клиентов" },
+		{ "name": "numbers", "description": "моменты запросов, начальный номер версии" }
+	],
+	"essentialParams": [
+		{
+			"name": "precondition",
+			"description": "какие условные заголовки в запросах: If-Match, If-None-Match, If-Modified-Since, их сочетания, * и отсутствие"
+		},
+		{ "name": "etag-kind", "description": "сильные или слабые ETag" },
+		{ "name": "timing", "description": "сколько записей между чтениями клиента и попадают ли записи в одну секунду" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"If-Match против потерянного обновления: 412 по устаревшему ETag",
+			"428 при записи без предусловия",
+			"обновление сохранённого ETag после своей записи",
+			"If-None-Match и If-Modified-Since: 304 против 200 и приоритет If-None-Match",
+			"секундная точность Last-Modified",
+			"строгое и слабое сравнение ETag",
+			"If-Match: * и If-None-Match: * при создании и удалении"
+		],
+		"doesNotCheck": [
+			"диапазонные запросы и If-Range",
+			"кэширование ответов посредниками",
+			"вычисление ETag на стороне сервера"
+		]
+	},
+	"wrongSolutions": [
+		{ "id": "last-write-wins", "defect": "считает, что запись проходит независимо от If-Match", "mustBeCaught": true },
+		{
+			"id": "put-keeps-etag",
+			"defect": "не обновляет сохранённый ETag клиента после его же успешной записи",
+			"mustBeCaught": true
+		},
+		{ "id": "missing-as-412", "defect": "отвечает 412 на запись без If-Match", "mustBeCaught": true },
+		{ "id": "no-precondition-ok", "defect": "выполняет запись без If-Match как обычную", "mustBeCaught": true },
+		{
+			"id": "ims-strict",
+			"defect": "отвечает 304 по If-Modified-Since, только если Last-Modified строго раньше значения",
+			"mustBeCaught": true
+		},
+		{ "id": "weak-matches", "defect": "считает слабый ETag совпавшим в If-Match", "mustBeCaught": true },
+		{
+			"id": "both-conditions",
+			"defect": "при If-None-Match и If-Modified-Since вместе отвечает 304, если любое из условий говорит «не изменился»",
+			"mustBeCaught": true
+		},
+		{ "id": "ms-precision", "defect": "считает Last-Modified с точностью до миллисекунд", "mustBeCaught": true },
+		{
+			"id": "star-always-matches",
+			"defect": "считает, что If-Match: * совпадает и с отсутствующим ресурсом",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 9, "caught": 9 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0156,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

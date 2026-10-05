@@ -1,0 +1,151 @@
+{
+	"key": "qa.api.pagination-drift",
+	"version": 1,
+	"specialization": "qa",
+	"block": "qa.api",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"items": "9–12",
+				"pages": "3–4",
+				"events": "2–4 вставки, удаления или правки между страницами",
+				"sortKey": "уникальный"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "offset-insert",
+					"form": "A",
+					"description": "offset, новые сверху: вставки выше окна сдвигают список вниз, клиент получает элементы дважды"
+				},
+				{
+					"id": "offset-delete",
+					"form": "B",
+					"description": "offset, новые сверху: удаление уже полученных сдвигает список вверх, клиент пропускает элементы; удалённые не считаются пропущенными"
+				},
+				{
+					"id": "cursor-edits",
+					"form": "anchor",
+					"description": "курсор по (updated_at, id) по убыванию: правка поднимает элемент наверх, ещё не полученный элемент пропадает из обхода"
+				},
+				{
+					"id": "offset-ascending",
+					"form": "X",
+					"description": "offset, старые сверху: вставки уходят в конец и дублей не дают, удаления полученных — пропуски, удаления ещё не полученных — нет"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"items": "10–13",
+				"pages": "3–5",
+				"events": "0–3 изменения балла между страницами",
+				"sortKey": "неуникальный балл + id"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "score-only-cursor",
+					"form": "A",
+					"description": "курсор хранит только балл: элементы с тем же баллом, что у последнего на странице, теряются"
+				},
+				{
+					"id": "score-updates",
+					"form": "B",
+					"description": "правильный курсор (score, id), но баллы меняются между страницами: рост через курсор — пропуск, падение через курсор — дубль"
+				},
+				{
+					"id": "comparator-mismatch",
+					"form": "anchor",
+					"description": "сортировка по id по возрастанию внутри балла, а условие курсора сравнивает id в обратную сторону"
+				},
+				{
+					"id": "offset-reranking",
+					"form": "X",
+					"description": "offset при изменении баллов: элементы переставляются между страницами, одни приходят дважды, другие пропадают"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "номера элементов, сущность ленты" },
+		{ "name": "data", "description": "баллы, моменты правок, размер страницы, порядок событий" }
+	],
+	"essentialParams": [
+		{
+			"name": "paging",
+			"description": "offset или курсор и условие курсора: кортеж, только балл, обратное сравнение id"
+		},
+		{ "name": "sort", "description": "новые сверху или снизу, время правки, неуникальный балл с id" },
+		{ "name": "events", "description": "вставки, удаления полученных и не полученных, правки ключа сортировки" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"сдвиг окна offset при вставках и удалениях выше него",
+			"удалённые элементы не считаются пропущенными",
+			"курсорная пагинация при изменении ключа сортировки",
+			"курсор по неуникальному полю и курсор по кортежу (поле, id)",
+			"несогласованность сортировки и условия курсора"
+		],
+		"doesNotCheck": [
+			"согласованные снимки (snapshot isolation) и курсоры на стороне базы",
+			"кодирование и подпись курсора",
+			"производительность глубоких страниц"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "offset-stable",
+			"defect": "считает, что изменения между запросами не влияют на страницы offset: ни дублей, ни пропусков",
+			"mustBeCaught": true
+		},
+		{
+			"id": "sides-swapped",
+			"defect": "путает направление сдвига: вставки выше окна принимает за пропуски, удаления — за дубли",
+			"mustBeCaught": true
+		},
+		{
+			"id": "deleted-missed",
+			"defect": "считает пропущенными и элементы, удалённые до того, как клиент до них дошёл",
+			"mustBeCaught": true
+		},
+		{
+			"id": "cursor-as-offset",
+			"defect": "считает страницы курсора так же, как страницы offset",
+			"mustBeCaught": true
+		},
+		{
+			"id": "update-ignored",
+			"defect": "не учитывает, что правка меняет место элемента в сортировке",
+			"mustBeCaught": true
+		},
+		{
+			"id": "tuple-assumed",
+			"defect": "считает, что курсор всегда продолжает с места, где кончилась страница, не читая его условие",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 6, "caught": 6 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0167,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

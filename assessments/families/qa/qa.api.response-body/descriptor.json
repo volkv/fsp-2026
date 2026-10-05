@@ -1,0 +1,129 @@
+{
+	"key": "qa.api.response-body",
+	"version": 1,
+	"specialization": "qa",
+	"block": "qa.api",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": { "records": "8–10", "pagination": "page/per_page", "filters": "0–1", "sortKeys": 1 },
+			"constructiveRank": 2,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "page-numbering",
+					"form": "A",
+					"description": "вторая или третья страница: страницы нумеруются с 1, сдвиг — (page − 1) · per_page"
+				},
+				{
+					"id": "total-filtered",
+					"form": "B",
+					"description": "фильтр по городу или статусу: total — число отфильтрованных записей на всех страницах, а не размер страницы и не вся таблица"
+				},
+				{
+					"id": "sort-ties",
+					"form": "anchor",
+					"description": "сортировка по баллу с равными значениями: равные упорядочиваются по id, а не по порядку в таблице"
+				},
+				{
+					"id": "last-page",
+					"form": "X",
+					"description": "запрошена последняя страница: next — null, даже если страница заполнена целиком"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": { "records": "11–14", "pagination": "limit/offset", "filters": "1–2", "sortKeys": "1–2" },
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "exact-boundary",
+					"form": "A",
+					"description": "offset + limit ровно равно total: страница полная, но next — null"
+				},
+				{
+					"id": "range-filter",
+					"form": "B",
+					"description": "фильтр диапазона score_gte / score_lte включает границы; записи стоят ровно на границах"
+				},
+				{
+					"id": "multi-sort",
+					"form": "anchor",
+					"description": "сортировка по двум ключам с разным направлением, затем по id"
+				},
+				{
+					"id": "odd-offset",
+					"form": "X",
+					"description": "offset не кратен limit: страница начинается с записи номер offset + 1, а не со страницы номер offset"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "имена, города, номера записей" },
+		{ "name": "data", "description": "баллы, статусы, порядок записей в таблице" }
+	],
+	"essentialParams": [
+		{ "name": "pagination", "description": "page/per_page или limit/offset, какая страница и где она кончается" },
+		{ "name": "filter", "description": "нет фильтра, фильтр на равенство, фильтр диапазона с границами" },
+		{ "name": "sort", "description": "один ключ без равных, один ключ с равными, два ключа с разным направлением" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"total считается после фильтра и до пагинации",
+			"нумерация страниц с 1 и сдвиг limit/offset",
+			"next на последней странице и на ровной границе",
+			"включающие границы фильтра диапазона",
+			"вторичный ключ сортировки и сортировка по нескольким полям"
+		],
+		"doesNotCheck": [
+			"курсорную пагинацию и изменения данных между запросами страниц",
+			"локалезависимую сортировку строк",
+			"формат дат и чисел в ответе"
+		]
+	},
+	"wrongSolutions": [
+		{ "id": "page-from-zero", "defect": "нумерует страницы с 0", "mustBeCaught": true },
+		{ "id": "total-page-size", "defect": "считает total числом записей на этой странице", "mustBeCaught": true },
+		{ "id": "total-unfiltered", "defect": "считает total без учёта фильтра", "mustBeCaught": true },
+		{
+			"id": "ties-table-order",
+			"defect": "оставляет равные по ключу записи в порядке таблицы, без вторичного ключа id",
+			"mustBeCaught": true
+		},
+		{ "id": "next-always", "defect": "указывает next и на последней странице", "mustBeCaught": true },
+		{
+			"id": "next-if-full",
+			"defect": "указывает next всякий раз, когда страница заполнена целиком",
+			"mustBeCaught": true
+		},
+		{ "id": "exclusive-range", "defect": "считает границы score_gte / score_lte исключёнными", "mustBeCaught": true },
+		{ "id": "first-key-only", "defect": "сортирует только по первому ключу, затем по id", "mustBeCaught": true },
+		{
+			"id": "offset-as-page",
+			"defect": "читает offset как номер страницы и пропускает offset · limit записей",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 9, "caught": 9 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0001,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

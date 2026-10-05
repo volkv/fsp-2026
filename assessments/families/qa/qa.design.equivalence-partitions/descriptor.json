@@ -1,0 +1,143 @@
+{
+	"key": "qa.design.equivalence-partitions",
+	"version": 1,
+	"specialization": "qa",
+	"block": "qa.design",
+	"format": "compute",
+	"answerKind": "set",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": { "fields": 1, "classes": "4–7", "tests": "9–11", "coverage": "значение — класс" },
+			"constructiveRank": 2,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "tiers",
+					"form": "A",
+					"description": "несколько допустимых ступеней со строгими и нестрогими концами: значение на конце относится к своей ступени"
+				},
+				{
+					"id": "format",
+					"form": "B",
+					"description": "правила формата (пусто, буквы, дробное): каждое правило — свой недопустимый класс"
+				},
+				{
+					"id": "split-invalid",
+					"form": "anchor",
+					"description": "значения ниже и выше диапазона с одним сообщением — два разных класса"
+				},
+				{
+					"id": "excluded",
+					"form": "X",
+					"description": "из допустимого диапазона вырезано значение: допустимые части по обе стороны — разные классы"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"fields": "2–3",
+				"tests": "8–11",
+				"coverage": "правила Майерса для недопустимых значений",
+				"interacting": "типы полей + маскирование ошибок"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "masking",
+					"form": "A",
+					"description": "тест с двумя недопустимыми значениями не покрывает ничего: следующий тест с одним из них не избыточен"
+				},
+				{
+					"id": "invalid-valid",
+					"form": "B",
+					"description": "три поля: допустимые значения в тесте с ошибкой не покрывают своих классов"
+				},
+				{
+					"id": "combinations",
+					"form": "anchor",
+					"description": "допустимый тест с новым сочетанием уже покрытых классов избыточен; значения на строгих концах"
+				},
+				{
+					"id": "format-fields",
+					"form": "X",
+					"description": "правила формата в нескольких полях вместе с маскированием"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "форма, названия полей, сообщения об ошибках, коды перечислений" },
+		{ "name": "numbers", "description": "границы диапазонов и значения тестов" }
+	],
+	"essentialParams": [
+		{
+			"name": "field-structure",
+			"description": "ступени, объединённые недопустимые диапазоны, вырезанные значения, правила формата"
+		},
+		{ "name": "fields", "description": "одно поле или несколько, числовые и перечисления" },
+		{ "name": "test-kinds", "description": "доля тестов с одним и с несколькими недопустимыми значениями" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"отнесение значения к классу при строгих и нестрогих концах диапазона",
+			"несмежные диапазоны одного пункта и правила формата — отдельные классы",
+			"граничное значение не образует отдельного класса",
+			"правила Майерса: что покрывает тест с одним и с несколькими недопустимыми значениями",
+			"покрытие классов, а не сочетаний"
+		],
+		"doesNotCheck": ["выделение классов по неформальному описанию без пунктов", "минимизацию набора тестов"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "merge-disjoint",
+			"defect": "считает несмежные диапазоны одного пункта одним классом",
+			"mustBeCaught": true
+		},
+		{
+			"id": "edge-flip",
+			"defect": "читает строгие «больше» и «меньше» как нестрогие и относит значение на конце к соседнему классу",
+			"mustBeCaught": true
+		},
+		{ "id": "boundary-class", "defect": "считает значение на конце диапазона отдельным классом", "mustBeCaught": true },
+		{
+			"id": "merge-format",
+			"defect": "объединяет все нечисловые значения в один класс «некорректный ввод»",
+			"mustBeCaught": true
+		},
+		{
+			"id": "multi-invalid-counts",
+			"defect": "засчитывает тесту с несколькими недопустимыми значениями покрытие каждого из них",
+			"mustBeCaught": true
+		},
+		{
+			"id": "invalid-covers-valid",
+			"defect": "засчитывает допустимые значения теста с ошибкой как покрытые",
+			"mustBeCaught": true
+		},
+		{
+			"id": "combination-counts",
+			"defect": "считает допустимый тест полезным, если в нём новое сочетание классов",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 7, "caught": 7 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0137,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

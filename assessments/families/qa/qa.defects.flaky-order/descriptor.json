@@ -1,0 +1,123 @@
+{
+	"key": "qa.defects.flaky-order",
+	"version": 1,
+	"specialization": "qa",
+	"block": "qa.defects",
+	"format": "compute",
+	"answerKind": "set",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"tests": "8–10",
+				"runs": "6–8",
+				"mechanism": "задан в условии; ищется единственный загрязнитель"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "precedes",
+					"form": "A",
+					"description": "одна жертва падает, если загрязнитель выполнился раньше неё в любом месте прогона"
+				},
+				{
+					"id": "adjacent",
+					"form": "B",
+					"description": "загрязнитель ломает только тест, выполненный сразу после него; жертв несколько"
+				},
+				{
+					"id": "many-victims",
+					"form": "anchor",
+					"description": "один загрязнитель, несколько чувствительных тестов-жертв; падают те, что выполнились после него"
+				},
+				{
+					"id": "module-reset",
+					"form": "X",
+					"description": "между модулями состояние сбрасывается: загрязнитель действует только внутри своего модуля"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"tests": "10–12",
+				"runs": "8–10",
+				"mechanism": "не задан: выбрать единственное объяснение из четырёх механизмов"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "two-polluters",
+					"form": "A",
+					"description": "жертва падает, если раньше неё выполнился хотя бы один из двух загрязнителей"
+				},
+				{
+					"id": "cleaner",
+					"form": "B",
+					"description": "загрязнитель и очищающий тест: жертва падает, если между загрязнителем и ней не было очистки"
+				},
+				{
+					"id": "both-needed",
+					"form": "anchor",
+					"description": "жертва падает, только если раньше неё выполнились оба теста"
+				},
+				{
+					"id": "missing-setup",
+					"form": "X",
+					"description": "жертва зависит от теста, который готовит данные: падает, если он не выполнился раньше неё"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "tests", "description": "имена тестов и модулей" },
+		{ "name": "runs", "description": "порядки выполнения в прогонах" }
+	],
+	"essentialParams": [
+		{
+			"name": "mechanism",
+			"description": "как порядок вызывает падение: раньше, сразу перед, внутри модуля, любой из двух, оба, без очистки, без подготовки"
+		}
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"зависимость падения от порядка тестов в прогонах",
+			"проверка гипотезы о загрязнителе на всех прогонах, включая зелёные",
+			"область действия общего состояния: соседний тест, модуль, весь прогон",
+			"выбор механизма: два загрязнителя, очищающий тест, недостающая подготовка"
+		],
+		"doesNotCheck": ["исправление тестов и фикстур", "настройку плагинов случайного порядка"]
+	},
+	"wrongSolutions": [
+		{ "id": "victim", "defect": "называет упавший тест — жертву, а не причину", "mustBeCaught": true },
+		{
+			"id": "neighbour",
+			"defect": "называет тест, выполненный прямо перед упавшим в первом красном прогоне, не проверяя гипотезу на других прогонах",
+			"mustBeCaught": true
+		},
+		{
+			"id": "one-of-two",
+			"defect": "находит только одного из двух виновников (загрязнителя без очищающего теста или одного из пары)",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 3, "caught": 3 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0104,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

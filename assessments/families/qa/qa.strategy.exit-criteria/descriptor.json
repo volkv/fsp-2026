@@ -1,0 +1,99 @@
+{
+	"key": "qa.strategy.exit-criteria",
+	"version": 1,
+	"specialization": "qa",
+	"block": "qa.strategy",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"criteria": "6–7 критериев выхода с порогами",
+				"data": "статусы тестов, дефекты по серьёзности и статусу, ночные прогоны, тренд",
+				"interacting": "строгие и нестрогие пороги, отклонённые дефекты, знаменатели метрик, снятие критериев"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 420,
+			"classes": [
+				{ "id": "violated", "form": "A", "description": "какие критерии выхода нарушены" },
+				{
+					"id": "dre",
+					"form": "B",
+					"description": "эффективность устранения дефектов: общая и фазы системного тестирования"
+				},
+				{
+					"id": "waivers",
+					"form": "anchor",
+					"description": "решение о выпуске: нарушенные критерии, снятые и не снятые решением владельца"
+				},
+				{
+					"id": "flaky",
+					"form": "X",
+					"description": "ночные прогоны: нестабильные и стабильно падающие тесты, число падений нестабильных"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "названия тестов, порядок и номера критериев" },
+		{ "name": "numbers", "description": "пороги, счётчики тестов и дефектов, результаты ночей" }
+	],
+	"essentialParams": [
+		{
+			"name": "measure",
+			"description": "что оценивается: критерии выхода, DRE, снятие критериев, стабильность прогонов"
+		},
+		{ "name": "traps", "description": "граница порога, отклонённые и дублирующие дефекты, знаменатель метрики" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"критерии выхода из тестирования и их пороги",
+			"открытые дефекты по серьёзности: отклонённые и дубликаты не считаются",
+			"доля пройденных тестов от запланированных",
+			"эффективность устранения дефектов (DRE) и утечка в эксплуатацию",
+			"нестабильные тесты по ночным прогонам"
+		],
+		"doesNotCheck": ["выбор самих критериев выхода для проекта", "прогноз числа дефектов"]
+	},
+	"wrongSolutions": [
+		{ "id": "ge-vs-gt", "defect": "путает строгое и нестрогое сравнение с порогом", "mustBeCaught": true },
+		{ "id": "count-rejected", "defect": "считает отклонённые дефекты и дубликаты", "mustBeCaught": true },
+		{
+			"id": "percent-of-executed",
+			"defect": "считает долю пройденных тестов от выполненных, а не от запланированных",
+			"mustBeCaught": true
+		},
+		{
+			"id": "denominator-all-phases",
+			"defect": "в DRE фазы делит на все дефекты, а не на найденные в этой фазе и позже",
+			"mustBeCaught": true
+		},
+		{
+			"id": "waivable-as-waived",
+			"defect": "считает снятым любой критерий, который можно снять, хотя решения о снятии нет",
+			"mustBeCaught": true
+		},
+		{
+			"id": "flaky-includes-broken",
+			"defect": "относит к нестабильным и тесты, которые падают каждую ночь",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 6, "caught": 6 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0174,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

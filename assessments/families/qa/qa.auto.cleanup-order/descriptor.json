@@ -1,0 +1,213 @@
+{
+	"key": "qa.auto.cleanup-order",
+	"version": 1,
+	"specialization": "qa",
+	"block": "qa.auto",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"classes": "1–2 класса тестов, 2–4 теста",
+				"fixtures": "setUpClass, addClassCleanup, addCleanup, ExitStack, наследование setUp",
+				"mechanisms": "отказ фикстуры класса, исключение в очистке, выход из with при исключении, setUp без super()"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "setupclass-error",
+					"form": "A",
+					"description": "setUpClass падает после addClassCleanup: тесты класса и tearDownClass пропущены, очистка класса выполняется"
+				},
+				{
+					"id": "cleanup-error",
+					"form": "B",
+					"description": "одна функция addCleanup бросает исключение: остальные всё равно выполняются, в результате — ошибка"
+				},
+				{
+					"id": "exit-stack",
+					"form": "anchor",
+					"description": "ExitStack в тесте: обратные вызовы при выходе из with, до tearDown и addCleanup; код после with при исключении не выполняется"
+				},
+				{
+					"id": "missing-super",
+					"form": "X",
+					"description": "setUp подкласса без super().setUp(): фикстура базового класса не создана и её очистка не зарегистрирована"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"constructive": {
+				"classes": "1–3 класса тестов, примеси",
+				"fixtures": "очистка уровня класса и теста, enterContext, suppress, цепочки super()",
+				"mechanisms": "порядок очистки класса после tearDownClass, контексты как очистка, подавление исключений, порядок MRO"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "class-cleanups",
+					"form": "A",
+					"description": "очистка класса после tearDownClass, даже если он упал; отказ setUpClass у другого класса"
+				},
+				{
+					"id": "enter-context",
+					"form": "B",
+					"description": "enterContext в setUp закрывает контекст вместе с addCleanup в обратном порядке, и при падении setUp тоже"
+				},
+				{
+					"id": "suppress",
+					"form": "anchor",
+					"description": "contextlib.suppress: подавляет только свой тип, выполнение продолжается после блока with"
+				},
+				{
+					"id": "mro-fixtures",
+					"form": "X",
+					"description": "setUp и tearDown примеси и базового класса через super(): порядок по MRO и место вызова super()"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "имена классов, тестов, ресурсов" },
+		{ "name": "layout", "description": "сколько тестов и функций очистки, в каком порядке они объявлены" }
+	],
+	"essentialParams": [
+		{
+			"name": "failure-point",
+			"description": "где возникает исключение: setUpClass, tearDownClass, очистка, тело with, setUp"
+		},
+		{ "name": "registration", "description": "когда и на каком уровне зарегистрирована очистка" },
+		{ "name": "chain", "description": "как вызываются фикстуры базовых классов" }
+	],
+	"language": "python3",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"отказ setUpClass: что пропускается, что выполняется",
+			"addClassCleanup и addCleanup: обратный порядок, исключение в очистке",
+			"ExitStack и with внутри теста",
+			"setUp без super().setUp()",
+			"очистка класса после tearDownClass",
+			"enterContext",
+			"contextlib.suppress",
+			"порядок фикстур по MRO"
+		],
+		"doesNotCheck": ["setUpModule и tearDownModule", "асинхронные тесты", "pytest и его фикстуры"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "teardownclass-after-error",
+			"defect": "считает, что tearDownClass вызывается и после упавшего setUpClass",
+			"mustBeCaught": true
+		},
+		{
+			"id": "tests-run-after-class-error",
+			"defect": "считает, что тесты класса запускаются, хотя setUpClass упал",
+			"mustBeCaught": true
+		},
+		{
+			"id": "class-cleanup-skipped",
+			"defect": "считает, что очистка класса не выполняется, если setUpClass упал",
+			"mustBeCaught": true
+		},
+		{
+			"id": "cleanup-fifo",
+			"defect": "считает, что функции очистки вызываются в порядке регистрации",
+			"mustBeCaught": true
+		},
+		{
+			"id": "cleanup-chain-stops",
+			"defect": "считает, что исключение в одной функции очистки отменяет остальные",
+			"mustBeCaught": true
+		},
+		{
+			"id": "cleanup-error-ignored",
+			"defect": "считает, что исключение в функции очистки не попадает в результат",
+			"mustBeCaught": true
+		},
+		{
+			"id": "exitstack-fifo",
+			"defect": "считает, что обратные вызовы ExitStack выполняются в порядке регистрации",
+			"mustBeCaught": true
+		},
+		{
+			"id": "exit-after-teardown",
+			"defect": "считает, что ExitStack закрывается в конце теста, после tearDown",
+			"mustBeCaught": true
+		},
+		{
+			"id": "code-after-with-runs",
+			"defect": "считает, что после исключения в блоке with код после блока всё равно выполняется",
+			"mustBeCaught": true
+		},
+		{
+			"id": "implicit-super",
+			"defect": "считает, что setUp и tearDown базового класса вызываются сами, без super()",
+			"mustBeCaught": true
+		},
+		{
+			"id": "class-cleanup-before-teardownclass",
+			"defect": "считает, что очистка класса выполняется до tearDownClass",
+			"mustBeCaught": true
+		},
+		{
+			"id": "teardownclass-error-skips-cleanup",
+			"defect": "считает, что исключение в tearDownClass отменяет очистку класса",
+			"mustBeCaught": true
+		},
+		{
+			"id": "context-exits-after-setup",
+			"defect": "считает, что контекст из enterContext закрывается сразу по окончании setUp, как with",
+			"mustBeCaught": true
+		},
+		{
+			"id": "cleanup-skipped-on-setup-error",
+			"defect": "считает, что при падении setUp зарегистрированная до этого очистка не выполняется",
+			"mustBeCaught": true
+		},
+		{
+			"id": "suppress-ignored",
+			"defect": "считает, что исключение из блока suppress всё равно выходит наружу",
+			"mustBeCaught": true
+		},
+		{
+			"id": "suppress-resumes-inside",
+			"defect": "считает, что после подавленного исключения выполняются оставшиеся строки блока with",
+			"mustBeCaught": true
+		},
+		{
+			"id": "suppress-any-type",
+			"defect": "считает, что suppress подавляет исключение любого типа",
+			"mustBeCaught": true
+		},
+		{
+			"id": "super-skips-to-testcase",
+			"defect": "считает, что super().setUp() в примеси ведёт сразу в TestCase, минуя базовый класс",
+			"mustBeCaught": true
+		},
+		{
+			"id": "super-runs-first",
+			"defect": "считает, что метод базового класса выполняется до тела метода, где бы ни стоял вызов super()",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 19, "caught": 19 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0001,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

@@ -1,0 +1,156 @@
+{
+	"key": "qa.defects.log-deviation",
+	"version": 1,
+	"specialization": "qa",
+	"block": "qa.defects",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": {
+				"records": "18–24",
+				"rules": "3–4 правила одного сервиса",
+				"state": "нет или одно значение (баланс, статус заказа)"
+			},
+			"constructiveRank": 3,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "validation",
+					"form": "A",
+					"description": "проверка входа: ответ на граничное значение или порядок проверок расходится со спецификацией"
+				},
+				{
+					"id": "computed",
+					"form": "B",
+					"description": "вычисляемые поля ответа (скидка, доставка) не по правилу; позже есть ещё и арифметическая ошибка"
+				},
+				{
+					"id": "balance",
+					"form": "anchor",
+					"description": "баланс после операции неверен при верном коде ответа; позже отказ, который лишь следствие"
+				},
+				{
+					"id": "transitions",
+					"form": "X",
+					"description": "статус заказа сменился по запрещённому переходу; заказы перемешаны в журнале"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"records": "24–36",
+				"rules": "правило проявляется только в сочетании: повтор, окно времени, часовой пояс, лимит на клиента",
+				"state": "по ключу, по клиенту или по суткам"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "idempotency",
+					"form": "A",
+					"description": "повтор запроса с тем же ключом идемпотентности: срок ключа, сумма повтора"
+				},
+				{
+					"id": "rate-limit",
+					"form": "B",
+					"description": "лимит запросов на клиента в календарную минуту: границы минуты, отказы не считаются"
+				},
+				{
+					"id": "timezone",
+					"form": "anchor",
+					"description": "суточный лимит по московским суткам, а журнал — в UTC; позже есть ещё одно, независимое расхождение"
+				},
+				{
+					"id": "daily-limit",
+					"form": "X",
+					"description": "суточный лимит суммы на пользователя: какие операции учитываются в сумме и граница лимита"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "пользователи, ключи, суммы и время записей" },
+		{ "name": "limits", "description": "пороги, сроки и лимиты правил" }
+	],
+	"essentialParams": [
+		{
+			"name": "rule",
+			"description": "какое правило нарушено и от какого состояния оно зависит: вход, вычисление, баланс, статус, ключ, окно, сутки"
+		},
+		{
+			"name": "defect",
+			"description": "вид нарушения правила в системе: граница, округление, лишний учёт, не тот отсчёт"
+		}
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"сверка журнала со спецификацией поведения запись за записью",
+			"ожидаемые отказы и ошибки по спецификации — не дефект",
+			"причина и следствие: первое расхождение, а не первое заметное",
+			"состояние по ключу, по клиенту и по суткам; окно времени и часовой пояс"
+		],
+		"doesNotCheck": ["поиск по журналу инструментами", "оформление баг-репорта", "исправление дефекта"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "first-error",
+			"defect": "называет первую запись с WARN или кодом 4xx, хотя этот отказ предписан спецификацией",
+			"mustBeCaught": true
+		},
+		{
+			"id": "arithmetic-only",
+			"defect": "проверяет только арифметику строки (итог из её же полей), а не правила расчёта полей",
+			"mustBeCaught": true
+		},
+		{
+			"id": "consequence",
+			"defect": "сверяет только коды ответов и называет отказ-следствие, а не запись, где разошёлся баланс",
+			"mustBeCaught": true
+		},
+		{
+			"id": "global-state",
+			"defect": "ведёт одно общее состояние для всех заказов вместо состояния каждого заказа",
+			"mustBeCaught": true
+		},
+		{
+			"id": "ignores-ttl",
+			"defect": "считает, что повтор с тем же ключом всегда возвращает прежний платёж, не глядя на срок ключа",
+			"mustBeCaught": true
+		},
+		{
+			"id": "shared-counter",
+			"defect": "считает лимит общим для всех клиентов, а не для каждого отдельно",
+			"mustBeCaught": true
+		},
+		{
+			"id": "sliding-window",
+			"defect": "считает лимит в скользящем окне 60 секунд вместо календарной минуты",
+			"mustBeCaught": true
+		},
+		{
+			"id": "utc-day",
+			"defect": "делит записи на сутки по дате UTC из журнала, а не по московским суткам из спецификации",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 8, "caught": 8 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

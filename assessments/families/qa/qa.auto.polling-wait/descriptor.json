@@ -1,0 +1,152 @@
+{
+	"key": "qa.auto.polling-wait",
+	"version": 1,
+	"specialization": "qa",
+	"block": "qa.auto",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"helpers": "одна функция ожидания или повтора на фальшивых часах",
+				"runs": "2–3 ожидания подряд, часы не сбрасываются",
+				"mechanisms": "проверка до паузы, тайм-аут, экспоненциальная пауза с потолком"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "poll-success",
+					"form": "A",
+					"description": "условие наступает между опросами: возврат на первом опросе после события, первая проверка до паузы"
+				},
+				{
+					"id": "poll-timeout",
+					"form": "B",
+					"description": "условие не наступает: последний опрос на шаге, не раньше дедлайна, затем TimeoutError"
+				},
+				{
+					"id": "retry-backoff",
+					"form": "anchor",
+					"description": "повторы с экспоненциальной паузой и потолком; после последней неудачи паузы нет"
+				},
+				{ "id": "backoff-poll", "form": "X", "description": "опрос с удваивающимся интервалом и потолком интервала" }
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"helpers": "две вложенные функции или общий дедлайн",
+				"runs": "2–4 шага на общих фальшивых часах",
+				"mechanisms": "ожидание внутри повтора, остаток общего дедлайна, проверка дедлайна до паузы, eventually для проверок"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "retry-around-wait",
+					"form": "A",
+					"description": "повтор с паузой вокруг ожидания с тайм-аутом: время каждой попытки и общее время"
+				},
+				{
+					"id": "shared-deadline",
+					"form": "B",
+					"description": "шаги делят общий дедлайн: каждому достаётся остаток, а не полный бюджет"
+				},
+				{
+					"id": "backoff-deadline",
+					"form": "anchor",
+					"description": "повтор с удвоением паузы и дедлайном: отказ до паузы, которая вышла бы за дедлайн"
+				},
+				{
+					"id": "eventually",
+					"form": "X",
+					"description": "помощник eventually повторяет проверку до тайм-аута и пробрасывает последний AssertionError"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "имена шагов и задач" },
+		{ "name": "data", "description": "моменты событий, интервалы, тайм-ауты, число неудач" }
+	],
+	"essentialParams": [
+		{ "name": "loop", "description": "порядок проверки, паузы и сравнения с дедлайном в цикле" },
+		{ "name": "delays", "description": "постоянный интервал, удвоение с потолком" },
+		{ "name": "composition", "description": "одно ожидание, вложенные, общий дедлайн" }
+	],
+	"language": "python3",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"ожидание условия опросом вместо фиксированной паузы",
+			"момент возврата и число проверок",
+			"поведение на тайм-ауте",
+			"экспоненциальная пауза и её потолок",
+			"повторы без паузы после последней попытки",
+			"вложенные ожидания и общий дедлайн",
+			"eventually для проверок в автотестах"
+		],
+		"doesNotCheck": ["потоки и асинхронность", "случайный разброс пауз (jitter)", "настоящее время"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "sleep-before-check",
+			"defect": "считает, что цикл сначала ждёт интервал и только потом проверяет условие",
+			"mustBeCaught": true
+		},
+		{
+			"id": "returns-at-event",
+			"defect": "считает, что ожидание завершается ровно в момент события, а не на ближайшем опросе после него",
+			"mustBeCaught": true
+		},
+		{
+			"id": "stops-at-deadline",
+			"defect": "считает, что часы на тайм-ауте показывают ровно дедлайн, хотя последняя пауза его перешагнула",
+			"mustBeCaught": true
+		},
+		{
+			"id": "no-final-check",
+			"defect": "считает, что после последней паузы условие не проверяется — тайм-аут объявляется сразу",
+			"mustBeCaught": true
+		},
+		{
+			"id": "sleep-after-last",
+			"defect": "считает, что после последней неудачной попытки тоже есть пауза",
+			"mustBeCaught": true
+		},
+		{ "id": "no-cap", "defect": "не применяет потолок паузы или интервала", "mustBeCaught": true },
+		{ "id": "growth-first", "defect": "считает, что первая пауза уже умножена на коэффициент", "mustBeCaught": true },
+		{
+			"id": "timeout-per-step",
+			"defect": "считает, что каждый шаг получает полный тайм-аут, а не остаток общего дедлайна",
+			"mustBeCaught": true
+		},
+		{
+			"id": "deadline-after-sleep",
+			"defect": "считает, что дедлайн проверяется после паузы, и часы успевают сдвинуться",
+			"mustBeCaught": true
+		},
+		{
+			"id": "eventually-swallows",
+			"defect": "считает, что после тайм-аута eventually молча возвращается, и проверка считается пройденной",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 10, "caught": 10 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0154,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

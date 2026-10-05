@@ -1,0 +1,145 @@
+{
+	"key": "qa.api.schema-violations",
+	"version": 1,
+	"specialization": "qa",
+	"block": "qa.api",
+	"format": "compute",
+	"answerKind": "set",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": { "fields": 6, "nesting": "плоский объект", "responses": "6–8", "deviationsPerResponse": "0–1" },
+			"constructiveRank": 3,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "nullable",
+					"form": "A",
+					"description": "null в поле с пометкой «может быть null» допустим, в остальных полях — нарушение, даже в необязательных"
+				},
+				{
+					"id": "optional",
+					"form": "B",
+					"description": "отсутствие необязательного поля допустимо, обязательного — нарушение"
+				},
+				{
+					"id": "types-enum",
+					"form": "anchor",
+					"description": "число и логическое значение строкой — нарушение типа; значение перечисления в другом регистре — нарушение"
+				},
+				{
+					"id": "extra-fields",
+					"form": "X",
+					"description": "лишние поля разрешены схемой: они не нарушение, в отличие от настоящих нарушений рядом"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"fields": "8 + вложенный объект",
+				"nesting": "объект и массив",
+				"responses": "8–10",
+				"deviationsPerResponse": "0–2"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "nested-extra",
+					"form": "A",
+					"description": "у корня и вложенного объекта разные правила лишних полей: где лишнее поле нарушение, а где нет"
+				},
+				{
+					"id": "arrays",
+					"form": "B",
+					"description": "массив с минимумом элементов: пустой массив и элемент не того типа — нарушения"
+				},
+				{
+					"id": "dates",
+					"form": "anchor",
+					"description": "формат даты ГГГГ-ММ-ДД с существующей датой; null в дате с пометкой «может быть null» допустим"
+				},
+				{
+					"id": "combined",
+					"form": "X",
+					"description": "в одном ответе два отклонения: допустимое и нарушение или два допустимых"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "названия вакансий, компаний, тегов, лишних полей" },
+		{ "name": "data", "description": "значения полей, число и порядок ответов" }
+	],
+	"essentialParams": [
+		{
+			"name": "deviation",
+			"description": "какие отклонения от образца есть в ответах: null, отсутствие поля, тип, регистр перечисления, лишнее поле, массив, дата"
+		},
+		{
+			"name": "schema-flags",
+			"description": "пометки схемы: обязательность, допустимость null, разрешены ли лишние поля у корня и у вложенного объекта"
+		}
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"обязательность поля против допустимости null",
+			"строгая проверка типов integer и boolean",
+			"перечисления с учётом регистра",
+			"лишние поля при разрешённых и запрещённых дополнительных свойствах, в том числе во вложенном объекте",
+			"минимальное число элементов массива и тип элементов",
+			"формат даты"
+		],
+		"doesNotCheck": [
+			"комбинаторы схем (oneOf, allOf) и ссылки $ref",
+			"форматы email, uri и uuid",
+			"ограничения чисел (minimum, maximum) и длины строк"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "null-nullable-violation",
+			"defect": "считает null нарушением и там, где схема его допускает",
+			"mustBeCaught": true
+		},
+		{ "id": "null-required-ok", "defect": "считает null допустимым в любом поле, раз ключ есть", "mustBeCaught": true },
+		{
+			"id": "missing-optional-violation",
+			"defect": "считает нарушением отсутствие необязательного поля",
+			"mustBeCaught": true
+		},
+		{ "id": "string-scalar-ok", "defect": "принимает \"15\" за integer и \"true\" за boolean", "mustBeCaught": true },
+		{ "id": "enum-case-ok", "defect": "сравнивает значения перечисления без учёта регистра", "mustBeCaught": true },
+		{
+			"id": "extra-allowed-violation",
+			"defect": "считает лишнее поле нарушением, хотя схема разрешает лишние поля",
+			"mustBeCaught": true
+		},
+		{
+			"id": "extra-forbidden-ok",
+			"defect": "не считает лишнее поле нарушением, хотя схема их запрещает",
+			"mustBeCaught": true
+		},
+		{ "id": "empty-array-ok", "defect": "не проверяет минимальное число элементов массива", "mustBeCaught": true },
+		{ "id": "array-items-unchecked", "defect": "не проверяет тип элементов массива", "mustBeCaught": true },
+		{ "id": "date-format-ok", "defect": "принимает любую строку за дату", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 10, "caught": 10 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0083,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

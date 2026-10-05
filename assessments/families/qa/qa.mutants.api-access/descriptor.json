@@ -1,0 +1,116 @@
+{
+	"key": "qa.mutants.api-access",
+	"version": 1,
+	"specialization": "qa",
+	"block": "qa.mutants",
+	"format": "qa_mutation",
+	"answerKind": "test_cases",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.8 },
+			"constructive": { "fields": 5, "rules": 4, "conditionsPerRule": "2–3", "changeStep": "одно новое правило" },
+			"constructiveRank": 5,
+			"timeNormSec": 1800,
+			"classes": [
+				{
+					"id": "articles",
+					"form": "A",
+					"description": "статьи: гость, читатель, автор своих статей, редактор; скрытые черновики, архив только для чтения"
+				},
+				{
+					"id": "files",
+					"form": "B",
+					"description": "файлы: корзина скрыта от всех, кроме администратора, блокировка, свой лимит размера у участника"
+				},
+				{
+					"id": "tickets",
+					"form": "anchor",
+					"description": "заявки поддержки: чужая заявка клиенту не видна, закрытую меняет только старший"
+				},
+				{
+					"id": "calendar",
+					"form": "X",
+					"description": "календарь: прошедшие события только для чтения, идущее нельзя удалить, участник меняет только свои"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.8 },
+			"constructive": { "fields": 5, "rules": 5, "conditionsPerRule": "2–3", "changeStep": "одно новое правило" },
+			"constructiveRank": 7,
+			"timeNormSec": 2100,
+			"classes": [
+				{ "id": "articles", "form": "A", "description": "статьи: пять правил, сталкиваются права, состояние и размер" },
+				{ "id": "files", "form": "B", "description": "файлы: пять правил, два лимита размера для разных ролей" },
+				{ "id": "tickets", "form": "anchor", "description": "заявки: пять правил, удаление и изменение по состояниям" },
+				{ "id": "calendar", "form": "X", "description": "календарь: пять правил, роль и состояние события вместе" }
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "limits", "description": "лимиты размера тела и знак сравнения" },
+		{ "name": "subset", "description": "какие правила из набора ресурса действуют и какое приходит с изменением" },
+		{ "name": "field-order", "description": "порядок полей во входной строке" }
+	],
+	"essentialParams": [
+		{ "name": "resource", "description": "ресурс и его политика доступа: роли, состояния, какие правила сталкиваются" },
+		{ "name": "rules", "description": "число правил и их порядок: где решает приоритет" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": {
+		"budget": { "min": 5, "max": 8 },
+		"mutants": [
+			{ "id": "boundary", "operator": "строгое сравнение размера заменено нестрогим или наоборот" },
+			{ "id": "list-drop", "operator": "из списка ролей, методов или состояний правила пропало одно" },
+			{ "id": "list-add", "operator": "в список правила попало лишнее значение" },
+			{ "id": "lost-condition", "operator": "правило потеряло одно из условий" },
+			{ "id": "swap", "operator": "два соседних правила переставлены" },
+			{ "id": "skip", "operator": "правило не проверяется" },
+			{ "id": "output", "operator": "правило отвечает чужим кодом" }
+		]
+	},
+	"changeStep": {
+		"description": "Новое условие: в контракт добавлено ещё одно правило доступа на указанном месте; набор кейсов меняется под новую спецификацию и её мутантов.",
+		"weight": 0.3
+	},
+	"rubric": {
+		"kind": "mutants",
+		"levels": [
+			{ "minKillRatio": 0.6, "score": 0.5 },
+			{ "minKillRatio": 0.8, "score": 0.75 },
+			{ "minKillRatio": 1, "score": 1 }
+		]
+	},
+	"coverage": {
+		"checks": [
+			"каждое правило таблицы решений срабатывает хотя бы в одном кейсе",
+			"приоритет правил: запрос, под который подходят два правила с разными кодами",
+			"граничные значения лимитов размера",
+			"переработка набора под изменённый контракт"
+		],
+		"doesNotCheck": ["вызов настоящего HTTP-сервиса", "оформление тест-кейсов в системе управления тестированием"]
+	},
+	"wrongSolutions": [
+		{ "id": "typical-only", "defect": "проверяет только типичные запросы, далёкие от лимитов", "mustBeCaught": true },
+		{
+			"id": "single-fault",
+			"defect": "в каждом кейсе нарушает не больше одного правила — приоритет правил не проверен",
+			"mustBeCaught": true
+		},
+		{ "id": "wrong-expected", "defect": "в одном кейсе ожидаемый код определён неверно", "mustBeCaught": true },
+		{ "id": "exhaustive", "defect": "перебирает запросы вместо анализа правил — больше 8 кейсов", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 4, "caught": 4 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0009,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

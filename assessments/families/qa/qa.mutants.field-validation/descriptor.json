@@ -1,0 +1,129 @@
+{
+	"key": "qa.mutants.field-validation",
+	"version": 1,
+	"specialization": "qa",
+	"block": "qa.mutants",
+	"format": "qa_mutation",
+	"answerKind": "test_cases",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.8 },
+			"constructive": { "fields": "2–3", "rules": 3, "twoFieldRules": "0–1", "mutants": "9–13" },
+			"constructiveRank": 4,
+			"timeNormSec": 1200,
+			"classes": [
+				{
+					"id": "registration",
+					"form": "A",
+					"description": "регистрация: возраст в диапазоне с двух сторон и список допустимых документов"
+				},
+				{
+					"id": "loan",
+					"form": "B",
+					"description": "заявка на кредит: возраст, минимальный доход и недопустимые виды занятости"
+				},
+				{
+					"id": "shipment",
+					"form": "anchor",
+					"description": "отправление: пустой и тяжёлый вес, запрет вложений только для доставки за границу"
+				},
+				{
+					"id": "vacation",
+					"form": "X",
+					"description": "отпуск: лимит дней не для больничного, срок подачи заявления для части видов отпуска"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.8 },
+			"constructive": { "fields": "2–3", "rules": 4, "twoFieldRules": "1–3", "mutants": "11–16" },
+			"constructiveRank": 6,
+			"timeNormSec": 1500,
+			"classes": [
+				{
+					"id": "registration",
+					"form": "A",
+					"description": "регистрация и правило двух полей: детский документ действует только до возраста внутри диапазона"
+				},
+				{
+					"id": "loan",
+					"form": "B",
+					"description": "кредит и правило двух полей: для самозанятых порог дохода выше общего"
+				},
+				{
+					"id": "shipment",
+					"form": "anchor",
+					"description": "отправление и правило двух полей: вне города действует свой предел веса"
+				},
+				{
+					"id": "vacation",
+					"form": "X",
+					"description": "отпуск и правило двух полей: учебный отпуск короче общего лимита"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "limits", "description": "границы диапазонов и сроков" },
+		{ "name": "lists", "description": "какие слова списка допустимы, какие нет" }
+	],
+	"essentialParams": [
+		{ "name": "rules", "description": "форма: какие поля, классы их значений и порядок проверок" },
+		{ "name": "two-field", "description": "Junior: правило по двум полям сразу, где нужен кейс на сочетание значений" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": {
+		"budget": { "min": 5, "max": 8 },
+		"mutants": [
+			{ "id": "boundary", "operator": "строгое сравнение заменено нестрогим или наоборот" },
+			{ "id": "list-drop", "operator": "из списка допустимых (недопустимых) слов пропало одно" },
+			{ "id": "list-add", "operator": "в список попало лишнее слово" },
+			{ "id": "lost-condition", "operator": "правило по двум полям потеряло одно условие" },
+			{ "id": "swap", "operator": "две соседние проверки переставлены" },
+			{ "id": "skip", "operator": "проверка не выполняется" },
+			{ "id": "output", "operator": "проверка выдаёт чужой код" }
+		]
+	},
+	"changeStep": null,
+	"rubric": {
+		"kind": "mutants",
+		"levels": [
+			{ "minKillRatio": 0.6, "score": 0.5 },
+			{ "minKillRatio": 0.8, "score": 0.75 },
+			{ "minKillRatio": 1, "score": 1 }
+		]
+	},
+	"coverage": {
+		"checks": [
+			"классы эквивалентности каждого поля: допустимые и недопустимые слова, значения внутри и вне диапазона",
+			"граничные значения диапазонов",
+			"порядок проверок: кейс, где нарушены два правила сразу",
+			"сочетания значений двух полей (Junior)",
+			"экономный набор: 5–8 кейсов"
+		],
+		"doesNotCheck": ["оформление тест-кейсов в системе управления тестированием", "автоматизацию тестов в коде"]
+	},
+	"wrongSolutions": [
+		{ "id": "typical-only", "defect": "проверяет только типичные значения, далёкие от границ", "mustBeCaught": true },
+		{
+			"id": "valid-only",
+			"defect": "проверяет только допустимые заявки, без недопустимых классов",
+			"mustBeCaught": true
+		},
+		{ "id": "wrong-expected", "defect": "в одном кейсе ожидаемый код определён неверно", "mustBeCaught": true },
+		{ "id": "exhaustive", "defect": "перебирает входы вместо анализа классов — больше 8 кейсов", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 4, "caught": 4 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0092,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

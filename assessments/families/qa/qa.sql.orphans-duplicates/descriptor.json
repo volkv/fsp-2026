@@ -1,0 +1,164 @@
+{
+	"key": "qa.sql.orphans-duplicates",
+	"version": 1,
+	"specialization": "qa",
+	"block": "qa.sql",
+	"format": "sql_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": {
+				"tables": "1–2",
+				"rows": "7–12",
+				"clauses": "LEFT JOIN … IS NULL, NOT EXISTS, GROUP BY … HAVING"
+			},
+			"constructiveRank": 2,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "left-join-orphans",
+					"form": "A",
+					"description": "сироты через LEFT JOIN … IS NULL: заказ без клиента (NULL в ссылке) тоже попадает в результат"
+				},
+				{
+					"id": "group-duplicates",
+					"form": "B",
+					"description": "дубликаты через GROUP BY … HAVING: строки, отличающиеся регистром или пробелом, — разные группы"
+				},
+				{
+					"id": "duplicate-rows",
+					"form": "anchor",
+					"description": "все строки дублирующихся групп через IN по подзапросу: в выдаче и первая строка группы, не только лишние"
+				},
+				{
+					"id": "not-exists-orphans",
+					"form": "X",
+					"description": "сироты через NOT EXISTS: мягко удалённый родитель всё ещё существует, а NULL в ссылке даёт сироту"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"tables": "1–2",
+				"rows": "9–14",
+				"clauses": "нормализация в GROUP BY, составной ключ с NULL, NOT IN по MIN, COUNT по LEFT JOIN"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "normalized-unique",
+					"form": "A",
+					"description": "уникальность без учёта регистра и крайних пробелов: lower(trim(…)) склеивает варианты, пробел внутри — нет"
+				},
+				{
+					"id": "composite-null",
+					"form": "B",
+					"description": "дубликаты по составному ключу: GROUP BY считает NULL одной группой, и строки с NULL оказываются дубликатами"
+				},
+				{
+					"id": "keep-first",
+					"form": "anchor",
+					"description": "строки к удалению при дедупликации: всё, кроме MIN(id) нормализованной группы, включая группу NULL"
+				},
+				{
+					"id": "childless-parents",
+					"form": "X",
+					"description": "родители без детей через LEFT JOIN и HAVING COUNT(дочерний id) = 0"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "названия таблиц, имена, адреса почты, номера строк" },
+		{ "name": "data", "description": "число строк, порядок вставки, какие строки дублируются" }
+	],
+	"essentialParams": [
+		{ "name": "check", "description": "проверка сирот (LEFT JOIN, NOT EXISTS) или дубликатов (GROUP BY, IN, NOT IN)" },
+		{
+			"name": "trap",
+			"description": "NULL в ссылке, мягкое удаление, регистр и пробелы, NULL в составном ключе, COUNT по внешнему соединению"
+		}
+	],
+	"language": "sql",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"поиск сирот через LEFT JOIN … IS NULL и NOT EXISTS",
+			"NULL во внешнем ключе при поиске сирот",
+			"поиск дубликатов через GROUP BY … HAVING и IN по подзапросу",
+			"нормализация регистра и пробелов при проверке уникальности",
+			"NULL в ключе группировки",
+			"COUNT(столбец) против COUNT(*) при внешнем соединении"
+		],
+		"doesNotCheck": [
+			"сравнение строк с учётом локали и Unicode-регистра",
+			"ограничения целостности, которые не дают сиротам появиться",
+			"производительность проверочных запросов"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "null-fk-not-orphan",
+			"defect": "считает, что строка с NULL в ссылке не попадает в выборку сирот",
+			"mustBeCaught": true
+		},
+		{
+			"id": "normalized-assumed",
+			"defect": "считает, что GROUP BY сравнивает строки без учёта регистра и пробелов",
+			"mustBeCaught": true
+		},
+		{
+			"id": "only-extras",
+			"defect": "считает, что запрос возвращает только лишние копии, без первой строки группы",
+			"mustBeCaught": true
+		},
+		{
+			"id": "soft-deleted-orphans",
+			"defect": "считает родителя с заполненным deleted_at отсутствующим",
+			"mustBeCaught": true
+		},
+		{
+			"id": "case-only",
+			"defect": "не замечает trim и сравнивает строки только без учёта регистра",
+			"mustBeCaught": true
+		},
+		{
+			"id": "trim-only",
+			"defect": "не замечает lower и сравнивает строки только без крайних пробелов",
+			"mustBeCaught": true
+		},
+		{
+			"id": "null-groups-separate",
+			"defect": "считает, что строки с NULL в ключе группировки не образуют общую группу",
+			"mustBeCaught": true
+		},
+		{
+			"id": "raw-group",
+			"defect": "не замечает нормализацию в подзапросе и группирует по исходному значению",
+			"mustBeCaught": true
+		},
+		{
+			"id": "count-star",
+			"defect": "читает COUNT(o.id) как COUNT(*), который у LEFT JOIN не бывает нулём",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 9, "caught": 9 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0027,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

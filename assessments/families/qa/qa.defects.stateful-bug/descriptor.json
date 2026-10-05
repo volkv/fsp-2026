@@ -1,0 +1,118 @@
+{
+	"key": "qa.defects.stateful-bug",
+	"version": 1,
+	"specialization": "qa",
+	"block": "qa.defects",
+	"format": "bug_locate",
+	"answerKind": "line_no",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"methods": "5–6",
+				"lines": "35–55",
+				"defect": "одна строка; баг проявляется только на определённой последовательности вызовов"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "stale-state",
+					"form": "A",
+					"description": "состояние не обновляется на одном из переходов: купон, срок сессии, начало окна"
+				},
+				{ "id": "guard", "form": "B", "description": "проверка допустимости перехода пропускает запрещённый переход" },
+				{
+					"id": "boundary",
+					"form": "anchor",
+					"description": "граница порога или окна времени: строгое сравнение вместо нестрогого"
+				},
+				{
+					"id": "aliasing",
+					"form": "X",
+					"description": "внутреннее состояние отдаётся наружу или берётся снаружи без копии"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"methods": "5–6",
+				"lines": "40–60",
+				"defect": "одна строка; баг-репорт показывает следствие, а причина — в другом методе"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "retry-accounting",
+					"form": "A",
+					"description": "учёт попыток в очереди повторов: сброс счётчика, граница числа попыток, пауза"
+				},
+				{
+					"id": "double-apply",
+					"form": "B",
+					"description": "повтор операции применяется второй раз: идемпотентность по ключу, повторное снятие резерва"
+				},
+				{
+					"id": "cache-invalidation",
+					"form": "anchor",
+					"description": "кэш не сбрасывается при изменении или ключ кэша не учитывает часть входа"
+				},
+				{
+					"id": "iteration",
+					"form": "X",
+					"description": "коллекция меняется во время обхода: пропуск элемента или ошибка обхода"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "context", "description": "порядок методов класса и шапка модуля" },
+		{ "name": "program", "description": "какой класс с состоянием и в каком его методе дефект" }
+	],
+	"essentialParams": [
+		{
+			"name": "defect-kind",
+			"description": "вид дефекта состояния: устаревшее состояние, проверка перехода, граница, общая ссылка, учёт попыток, повтор, кэш, обход"
+		}
+	],
+	"language": "python3",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"чтение баг-репорта: шаги воспроизведения, ожидаемый и фактический результат",
+			"поиск причины в состоянии объекта, а не там, где баг заметен",
+			"переходы состояний, границы окон времени, копии состояния",
+			"очереди повторов, идемпотентность, кэш, изменение коллекции при обходе"
+		],
+		"doesNotCheck": ["исправление дефекта (только его место)", "оформление баг-репорта"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "neighbour-line",
+			"defect": "указывает соседнюю строку того же метода, где «исправление» не возвращает спецификацию",
+			"mustBeCaught": true
+		},
+		{
+			"id": "symptom-line",
+			"defect": "указывает строку, где баг заметен (её правка чинит шаги репорта), но причина в другой строке и другие сценарии спецификации не проходят",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 2, "caught": 2 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0354,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

@@ -1,0 +1,127 @@
+{
+	"key": "qa.design.decision-table",
+	"version": 1,
+	"specialization": "qa",
+	"block": "qa.design",
+	"format": "compute",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": { "conditions": "2–3", "rules": "3–4", "cases": "5–6", "reading": "первое подходящее правило" },
+			"constructiveRank": 2,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "full-table",
+					"form": "A",
+					"description": "полная таблица двух условий без «-»: путь решения — порог числового условия на самой границе"
+				},
+				{
+					"id": "dashes",
+					"form": "B",
+					"description": "непересекающиеся правила с «-» и действие по умолчанию: «безразлично» подходит к любому значению"
+				},
+				{
+					"id": "priority",
+					"form": "anchor",
+					"description": "пересекающиеся правила: срабатывает первое подходящее слева, а не последнее"
+				},
+				{
+					"id": "two-thresholds",
+					"form": "X",
+					"description": "два числовых условия со строгим и нестрогим порогом вместе с «-»"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"conditions": "3–4",
+				"rules": "4–5",
+				"interacting": "порядок правил + невозможные сочетания",
+				"output": "развёртка таблицы по правилам"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "priority",
+					"form": "A",
+					"description": "все сочетания возможны, правила пересекаются: сочетание достаётся первому подходящему"
+				},
+				{
+					"id": "impossible",
+					"form": "B",
+					"description": "ограничения предметной области: невозможные сочетания выпадают из подсчёта"
+				},
+				{
+					"id": "mixed",
+					"form": "anchor",
+					"description": "четыре условия, пересечения правил и невозможные сочетания одновременно"
+				},
+				{
+					"id": "shadowed",
+					"form": "X",
+					"description": "одно из правил целиком перекрыто предыдущими: оно не обрабатывает ни одного сочетания"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "предметная область, тексты условий и действий" },
+		{ "name": "numbers", "description": "пороги числовых условий и значения в случаях" }
+	],
+	"essentialParams": [
+		{ "name": "table-shape", "description": "полная таблица или сжатая с «-», пересекаются ли правила" },
+		{ "name": "conditions", "description": "логические и числовые условия, строгие и нестрогие пороги" },
+		{ "name": "constraints", "description": "невозможные сочетания условий" },
+		{ "name": "question", "description": "ожидаемое действие для случаев или развёртка таблицы по правилам" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"чтение таблицы решений: «Да», «Нет», «-» и действие по умолчанию",
+			"порядок просмотра правил при пересечении",
+			"значение числового условия на самом пороге",
+			"развёртка сжатой таблицы в полную с учётом невозможных сочетаний",
+			"правило, перекрытое предыдущими"
+		],
+		"doesNotCheck": ["построение таблицы решений по тексту требований", "минимизацию таблицы склейкой столбцов"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "boundary-strict",
+			"defect": "на самом пороге путает строгое и нестрогое сравнение условия",
+			"mustBeCaught": true
+		},
+		{ "id": "dash-as-no", "defect": "читает «-» как «Нет»", "mustBeCaught": true },
+		{
+			"id": "last-match",
+			"defect": "при нескольких подходящих правилах берёт последнее, а не первое",
+			"mustBeCaught": true
+		},
+		{
+			"id": "no-priority",
+			"defect": "считает сочетания каждого правила отдельно, не учитывая, что предыдущее правило их уже забрало",
+			"mustBeCaught": true
+		},
+		{ "id": "count-impossible", "defect": "считает и невозможные сочетания условий", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 5, "caught": 5 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0062,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

@@ -1,0 +1,129 @@
+{
+	"key": "qa.sql.null-traps",
+	"version": 1,
+	"specialization": "qa",
+	"block": "qa.sql",
+	"format": "sql_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": { "tables": 1, "rows": "7–10", "nullColumns": "1–2", "clauses": "NOT IN, COUNT, = NULL, AVG" },
+			"constructiveRank": 2,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "not-in-null",
+					"form": "A",
+					"description": "NOT IN по подзапросу с NULL даёт NULL, а не 1; NOT EXISTS даёт честный ответ"
+				},
+				{
+					"id": "count-column",
+					"form": "B",
+					"description": "COUNT(*), COUNT(столбец) и COUNT(DISTINCT столбец) по группам с NULL"
+				},
+				{
+					"id": "equals-null",
+					"form": "anchor",
+					"description": "условие = NULL не находит ничего, а <> отбрасывает строки с NULL"
+				},
+				{ "id": "avg-null", "form": "X", "description": "AVG делит на число не-NULL значений, SUM пропускает NULL" }
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"tables": "1–2",
+				"rows": "8–12",
+				"nullColumns": 2,
+				"clauses": "COALESCE в условии, SUM по LEFT JOIN, CASE и конкатенация, NOT в условии"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "coalesce-condition",
+					"form": "A",
+					"description": "COALESCE в условии оставляет строки с NULL, которые голое сравнение отбросило бы"
+				},
+				{
+					"id": "left-join-sum",
+					"form": "B",
+					"description": "SUM по LEFT JOIN без пар — NULL, и арифметика с ним — тоже NULL"
+				},
+				{
+					"id": "case-concat",
+					"form": "anchor",
+					"description": "простой CASE с WHEN NULL никогда не срабатывает; конкатенация с NULL даёт NULL"
+				},
+				{
+					"id": "negated-condition",
+					"form": "X",
+					"description": "NOT (сравнение с NULL) — тоже NULL: строка не проходит ни условие, ни его отрицание"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "названия таблиц и столбцов, имена, города" },
+		{ "name": "data", "description": "значения, число строк, порядок вставки, где стоят NULL" }
+	],
+	"essentialParams": [
+		{
+			"name": "construct",
+			"description": "какая конструкция встречает NULL: NOT IN, COUNT, сравнение, AVG, COALESCE, SUM по LEFT JOIN, CASE, ||, NOT"
+		},
+		{
+			"name": "null-site",
+			"description": "где NULL: в подзапросе, в агрегируемом столбце, в условии, в паре соединения"
+		}
+	],
+	"language": "sql",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"NOT IN по подзапросу, где есть NULL",
+			"COUNT(*), COUNT(столбец), COUNT(DISTINCT столбец)",
+			"трёхзначная логика: = NULL, <>, NOT",
+			"AVG и SUM при NULL",
+			"COALESCE в условии",
+			"SUM по внешнему соединению и арифметика с NULL",
+			"простой CASE и конкатенация строк с NULL"
+		],
+		"doesNotCheck": ["диалекты, где пустая строка равна NULL", "NULL в индексах и ограничениях уникальности"]
+	},
+	"wrongSolutions": [
+		{ "id": "not-in-ignores-null", "defect": "считает, что NULL в подзапросе не мешает NOT IN", "mustBeCaught": true },
+		{ "id": "count-star", "defect": "считает, что COUNT(столбец) считает и строки с NULL", "mustBeCaught": true },
+		{ "id": "eq-null-matches", "defect": "считает, что = NULL находит строки с NULL", "mustBeCaught": true },
+		{ "id": "null-ne-true", "defect": "считает, что NULL <> значение — истина", "mustBeCaught": true },
+		{ "id": "null-as-zero", "defect": "подставляет 0 вместо NULL в агрегатах и арифметике", "mustBeCaught": true },
+		{
+			"id": "coalesce-ignored",
+			"defect": "не замечает COALESCE в условии и отбрасывает строки с NULL",
+			"mustBeCaught": true
+		},
+		{ "id": "case-null-matches", "defect": "считает, что CASE x WHEN NULL срабатывает на NULL", "mustBeCaught": true },
+		{ "id": "concat-skips-null", "defect": "считает, что конкатенация пропускает NULL", "mustBeCaught": true },
+		{
+			"id": "not-includes-null",
+			"defect": "считает, что NOT (сравнение с NULL) истинно и строка с NULL проходит",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 9, "caught": 9 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

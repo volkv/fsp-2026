@@ -1,0 +1,90 @@
+{
+	"key": "qa.auto.vacuous-assertion",
+	"version": 1,
+	"specialization": "qa",
+	"block": "qa.auto",
+	"format": "bug_locate",
+	"answerKind": "line_no",
+	"levels": [
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": {
+				"functions": "3–4 функции под тестом",
+				"tests": "по одному тесту на функцию, 1–2 похожие, но рабочие проверки",
+				"defect": "одна строка теста, из-за которой тест проходит и на неверной реализации"
+			},
+			"constructiveRank": 3,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "truthy-check",
+					"form": "A",
+					"description": "проверка истинности вместо сравнения: assertTrue(result, expected), assertIsNotNone(result)"
+				},
+				{
+					"id": "partial-compare",
+					"form": "B",
+					"description": "неполное сравнение списков: zip обрезает длинный список, сравниваются только длины"
+				},
+				{
+					"id": "broad-raises",
+					"form": "anchor",
+					"description": "assertRaises(Exception) принимает любое исключение вместо ValueError из спецификации"
+				},
+				{
+					"id": "tautology",
+					"form": "X",
+					"description": "ожидаемое значение берётся у самой функции под тестом или результат сравнивается сам с собой"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "module", "description": "какие функции показаны, их порядок и порядок тестов" },
+		{ "name": "distractors", "description": "какие рабочие проверки похожи на пустые" }
+	],
+	"essentialParams": [
+		{
+			"name": "vacuity",
+			"description": "почему проверка ничего не ловит: истинность, неполное сравнение, широкий тип исключения, сравнение с собой"
+		}
+	],
+	"language": "python3",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"чем assertTrue и assertIsNotNone отличаются от assertEqual",
+			"zip без strict обрезает до короткого списка",
+			"сравнение длин вместо содержимого",
+			"assertRaises с базовым классом исключения",
+			"ожидаемое значение, вычисленное тестируемым кодом"
+		],
+		"doesNotCheck": ["исправление теста (только место)", "дизайн набора тестов", "pytest"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "distractor-assertion",
+			"defect": "указывает на рабочую проверку другого теста, которая только выглядит слабой",
+			"mustBeCaught": true
+		},
+		{
+			"id": "act-line",
+			"defect": "указывает на строку вызова функции в том же тесте, а не на проверку",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 2, "caught": 2 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0342,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

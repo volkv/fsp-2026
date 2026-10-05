@@ -10,14 +10,10 @@ import {
 	type QaCase,
 	readDescriptor,
 	type GenerateInput,
-	type HarnessMode,
-	type HarnessPart,
 	type ItemInstance
-} from '../../../_lib/family.ts';
-import type { Rng } from '../../../_lib/rng.ts';
-import type { HarnessProgram } from '../../../../../src/lib/server/assessments/contract/bank.ts';
-
-const BUDGET = { min: 5, max: 8 };
+} from '../../_lib/family.ts';
+import { greedyCover, QA_BUDGET, QA_TASK_TEXT, qaBuilt, type QaPrograms, qaHarnessOf } from '../../_lib/qa.ts';
+import type { Rng } from '../../_lib/rng.ts';
 
 const descriptor = readDescriptor(import.meta.url);
 
@@ -134,15 +130,6 @@ function mutants(program: Program): Mutant[] {
 }
 
 /** Every input of the domain, in a fixed order. */
-function domain(program: Program): Record<string, number>[] {
-	let points: Record<string, number>[] = [{}];
-	for (const v of program.vars) {
-		const next: Record<string, number>[] = [];
-		for (const p of points) for (let x = v.min; x <= v.max; x += 1) next.push({ ...p, [v.name]: x });
-		points = next;
-	}
-	return points;
-}
 
 const line = (program: Program, input: Readonly<Record<string, number>>): string =>
 	program.vars.map((v) => input[v.name] ?? 0).join(' ');
@@ -170,22 +157,11 @@ function boundaryCandidates(rng: Rng, program: Program): Record<string, number>[
 
 /** A small set of cases that kills every killable mutant: greedy cover over boundary candidates. */
 function coverSet(rng: Rng, program: Program, alive: readonly Mutant[]): Record<string, number>[] | null {
-	const candidates = boundaryCandidates(rng, program);
-	const remaining = new Set(alive.map((m) => m.id));
-	const chosen: Record<string, number>[] = [];
-	while (remaining.size > 0) {
-		let best: Record<string, number> | null = null;
-		let bestKills: string[] = [];
-		for (const p of candidates) {
-			const expected = run(program, p);
-			const kills = alive.filter((m) => remaining.has(m.id) && run(m.program, p) !== expected).map((m) => m.id);
-			if (kills.length > bestKills.length) [best, bestKills] = [p, kills];
-		}
-		if (!best) return null;
-		chosen.push(best);
-		for (const id of bestKills) remaining.delete(id);
-	}
-	return chosen;
+	return greedyCover(
+		boundaryCandidates(rng, program),
+		(p) => String(run(program, p)),
+		alive.map((m) => ({ id: m.id, run: (p: Record<string, number>) => String(run(m.program, p)) }))
+	);
 }
 
 const cond = (v: string, op: Op, c: number): Cond => ({ v, op, c });
@@ -368,57 +344,34 @@ function pythonFunction(name: string, program: Program): string {
 	return lines.join('\n');
 }
 
-/**
- * The harness of contract 6.5 in one mode: the candidate's cases (JSON `[{input, expected}]`) on standard input, one
- * line out — a character per case on the reference (`1` passes), or a character per mutant in the instance's order
- * (`1` some case kills it).
- */
-function harnessSource(program: Program, list: readonly Mutant[], mode: HarnessMode): string {
-	const bounds = JSON.stringify(program.vars.map((v) => [v.min, v.max]));
-	return [
-		'import json',
-		'import sys',
-		'',
-		pythonFunction('reference', program),
-		'',
-		...list.flatMap((m) => [pythonFunction(`mutant_${m.id}`, m.program), '']),
-		`MUTANTS = [${list.map((m) => `("${m.id}", mutant_${m.id})`).join(', ')}]`,
-		`BOUNDS = ${bounds}`,
-		'',
-		'def parse(case):',
-		'    try:',
-		'        args = [int(x) for x in case["input"].split()]',
-		'        expected = int(case["expected"].strip())',
-		'    except (ValueError, KeyError, AttributeError):',
-		'        return None',
-		'    if len(args) != len(BOUNDS) or any(not lo <= a <= hi for a, (lo, hi) in zip(args, BOUNDS)):',
-		'        return None',
-		'    return args, expected',
-		'',
-		'cases = [parse(c) for c in json.load(sys.stdin)]',
-		...(mode === 'reference'
-			? ['print("".join("1" if c is not None and reference(*c[0]) == c[1] else "0" for c in cases))']
-			: [
-					'print("".join("1" if any(c is not None and fn(*c[0]) != c[1] for c in cases) else "0" for _, fn in MUTANTS))'
-				])
-	].join('\n');
-}
-
-/** The whole domain against the reference: which mutants no input tells apart. */
-function differential(program: Program, list: readonly Mutant[]): string {
-	return [
-		'import itertools',
-		'import json',
-		'',
-		pythonFunction('reference', program),
-		'',
-		...list.flatMap((m) => [pythonFunction(`mutant_${m.id}`, m.program), '']),
-		`MUTANTS = [${list.map((m) => `("${m.id}", mutant_${m.id})`).join(', ')}]`,
-		`RANGES = [${program.vars.map((v) => `range(${v.min}, ${v.max + 1})`).join(', ')}]`,
-		'points = list(itertools.product(*RANGES))',
-		'expected = [reference(*p) for p in points]',
-		'print(json.dumps({mid: all(fn(*p) == e for p, e in zip(points, expected)) for mid, fn in MUTANTS}))'
-	].join('\n');
+/** The reference and the mutants as Python over the input line: integers within the ranges of the specification. */
+function programs(program: Program, list: readonly Mutant[]): QaPrograms {
+	return {
+		io: [
+			`BOUNDS = ${JSON.stringify(program.vars.map((v) => [v.min, v.max]))}`,
+			'',
+			'def parse(text):',
+			'    try:',
+			'        args = tuple(int(x) for x in text.split())',
+			'    except ValueError:',
+			'        return None',
+			'    if len(args) != len(BOUNDS) or any(not lo <= a <= hi for a, (lo, hi) in zip(args, BOUNDS)):',
+			'        return None',
+			'    return args',
+			'',
+			'def expect(text):',
+			'    try:',
+			'        return int(text.strip())',
+			'    except ValueError:',
+			'        return None'
+		].join('\n'),
+		reference: pythonFunction('reference', program),
+		mutants: list.map((m) => ({ id: m.id, source: pythonFunction(`mutant_${m.id}`, m.program) })),
+		domain: [
+			'import itertools',
+			`DOMAIN = itertools.product(${program.vars.map((v) => `range(${v.min}, ${v.max + 1})`).join(', ')})`
+		].join('\n')
+	};
 }
 
 /**
@@ -426,10 +379,64 @@ function differential(program: Program, list: readonly Mutant[]): string {
  * in its own function, so the domain is not held by the closures of the built instance.
  */
 function withEquivalence(program: Program, list: readonly Mutant[]): (Mutant & { equivalent: boolean })[] {
-	const points = domain(program);
-	const expected = points.map((p) => run(program, p));
-	return list.map((m) => ({ ...m, equivalent: points.every((p, i) => run(m.program, p) === expected[i]) }));
+	const reference = compileNumeric(program);
+	const runs = list.map((m) => compileNumeric(m.program));
+	const differs = new Uint8Array(list.length);
+	const x = new Float64Array(program.vars.map((v) => v.min));
+	// Every point of the domain, the last variable varying fastest, in one reused array.
+	for (;;) {
+		const expected = reference(x);
+		runs.forEach((r, i) => {
+			if (differs[i] === 0 && r(x) !== expected) differs[i] = 1;
+		});
+		let k = program.vars.length - 1;
+		for (; k >= 0; k -= 1) {
+			const v = program.vars[k] as Var;
+			if ((x[k] as number) < v.max) {
+				x[k] = (x[k] as number) + 1;
+				break;
+			}
+			x[k] = v.min;
+		}
+		if (k < 0) break;
+	}
+	return list.map((m, i) => ({ ...m, equivalent: differs[i] === 0 }));
 }
+
+/** The program over the values of its variables in their order: `run` without lookups by name. */
+function compileNumeric(program: Program): (x: Float64Array) => number {
+	const at = (name: string): number => program.vars.findIndex((v) => v.name === name);
+	const base = typeof program.base === 'number' ? -1 : at(program.base);
+	const baseValue = typeof program.base === 'number' ? program.base : 0;
+	const rules = program.rules.map((r) => ({
+		and: r.join === 'and',
+		when: r.when.map((c) => ({ i: at(c.v), op: c.op, c: c.c })),
+		then: r.then,
+		per: r.then.kind === 'per' ? at(r.then.v) : -1
+	}));
+	return (x) => {
+		let cost = base < 0 ? baseValue : (x[base] as number);
+		for (const rule of rules) {
+			let hit = rule.and;
+			for (const c of rule.when) {
+				const ok = compare(x[c.i] as number, c.op, c.c);
+				if (rule.and ? !ok : ok) {
+					hit = !rule.and;
+					break;
+				}
+			}
+			if (!hit) continue;
+			const a = rule.then;
+			if (a.kind === 'set') cost = a.value;
+			else if (a.kind === 'add') cost += a.value;
+			else if (a.kind === 'per') cost += a.step * ((x[rule.per] as number) - a.over);
+			else cost = Math.floor((cost * a.value) / 100);
+		}
+		return cost;
+	};
+}
+
+const toPrograms = (x: { program: Program; list: readonly Mutant[] }): QaPrograms => programs(x.program, x.list);
 
 export function build(input: GenerateInput): Built {
 	levelAndClass(descriptor, input);
@@ -441,54 +448,37 @@ export function build(input: GenerateInput): Built {
 		const killable = list.filter((m) => !m.equivalent);
 		if (killable.length < 6) continue;
 		const cover = coverSet(rng, program, killable);
-		if (!cover || cover.length > BUDGET.max) continue;
+		if (!cover || cover.length > QA_BUDGET.max) continue;
 		const model = [...cover];
-		while (model.length < BUDGET.min)
+		while (model.length < QA_BUDGET.min)
 			model.push(Object.fromEntries(program.vars.map((v) => [v.name, rng.int(v.min, v.max)])));
 		const cases: QaCase[] = model.map((p) => ({ input: line(program, p), expected: String(run(program, p)) }));
-		const typical: QaCase[] = Array.from({ length: BUDGET.min }, () => {
+		const typical: QaCase[] = Array.from({ length: QA_BUDGET.min }, () => {
 			const p = Object.fromEntries(program.vars.map((v) => [v.name, typicalValue(rng, v, program)]));
 			return { input: line(program, p), expected: String(run(program, p)) };
 		});
-		const exhaustive: QaCase[] = Array.from({ length: BUDGET.max + rng.int(4, 12) }, () => {
+		const exhaustive: QaCase[] = Array.from({ length: QA_BUDGET.max + rng.int(4, 12) }, () => {
 			const p = Object.fromEntries(program.vars.map((v) => [v.name, rng.int(v.min, v.max)]));
 			return { input: line(program, p), expected: String(run(program, p)) };
 		});
 		const wrongExpected = cases.map((c, i) => (i === 0 ? { ...c, expected: String(Number(c.expected) + 10) } : c));
 		const instance = makeInstance(descriptor, input, {
 			statement: {
-				markdown: [
-					'Ниже — спецификация программы. Составьте от 5 до 8 тест-кейсов: строку входа и ожидаемый вывод. Кейсы сначала',
-					'запускаются на правильной программе — если хоть один не совпадёт с ней, набор не засчитывается. Затем — на',
-					'изменённых версиях программы (мутантах): мутант пойман, если хотя бы на одном кейсе его вывод отличается от',
-					'ожидаемого. Балл — доля пойманных мутантов. Код программы и мутантов не показывается.'
-				].join(' '),
+				markdown: QA_TASK_TEXT,
 				code: null
 			},
 			answer: null,
 			qa: {
-				budget: BUDGET,
+				budget: QA_BUDGET,
 				specification: specification(program),
 				mutants: list.map((m) => ({ id: m.id, operator: m.operator, equivalent: m.equivalent }))
 			}
 		});
-		return {
-			instance,
-			reference: () => ({
-				kind: 'qa',
-				harness: {
-					reference: harnessSource(program, list, 'reference'),
-					mutants: harnessSource(program, list, 'mutants')
-				},
-				cases,
-				differential: differential(program, list)
-			}),
-			wrong: () => ({
-				'typical-only': { kind: 'cases', cases: typical },
-				'wrong-expected': { kind: 'cases', cases: wrongExpected },
-				exhaustive: { kind: 'cases', cases: exhaustive }
-			})
-		};
+		return qaBuilt(instance, toPrograms, { source: { program, list }, cases }, null, {
+			'typical-only': typical,
+			'wrong-expected': wrongExpected,
+			exhaustive
+		});
 	}
 	throw new Error(`${descriptor.key}: no program for ${input.grade}/${input.classId} after 50 tries`);
 }
@@ -512,10 +502,5 @@ export function generate(input: GenerateInput): ItemInstance {
 	return build(input).instance;
 }
 
-/** The harness the engine runs for an instance: rebuilt from the instance's seed, grade and class. */
-export function harness(instance: ItemInstance, mode: HarnessMode, part: HarnessPart = 'task'): HarnessProgram {
-	if (part !== 'task') throw new Error(`${descriptor.key}: no change step at ${instance.grade}`);
-	const probe = build({ seed: instance.seed, grade: instance.grade, classId: instance.classId }).reference();
-	if (probe.kind !== 'qa') throw new Error(`${descriptor.key}: the reference of a QA instance is not a harness`);
-	return { language: 'python3', source: probe.harness[mode] };
-}
+/** The harness the engine runs for an instance and a part. */
+export const harness = qaHarnessOf(descriptor.key, build);

@@ -1,0 +1,131 @@
+{
+	"key": "qa.design.state-transitions",
+	"version": 1,
+	"specialization": "qa",
+	"block": "qa.design",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.65 },
+			"constructive": { "states": "3–7", "events": "7–12", "paths": 1, "guards": "счётчик у опорного класса" },
+			"constructiveRank": 2,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "order",
+					"form": "A",
+					"description": "жизненный цикл заказа: недопустимое событие отклоняется и не меняет состояние"
+				},
+				{
+					"id": "self-loops",
+					"form": "B",
+					"description": "документ с переходами в то же состояние: такое событие принято, а не отклонено"
+				},
+				{
+					"id": "counter",
+					"form": "anchor",
+					"description": "блокировка после N неудачных входов подряд: успешный вход и смена состояния обнуляют счётчик"
+				},
+				{
+					"id": "terminal",
+					"form": "X",
+					"description": "подписка доходит до конечного состояния: все события после него отклоняются"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": { "states": "5–7", "transitions": "10–11", "paths": "2–4", "coverage": "0-switch" },
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "reset",
+					"form": "A",
+					"description": "каждый путь начинается заново из начального состояния, а не с того, где закончился предыдущий"
+				},
+				{
+					"id": "same-event",
+					"form": "B",
+					"description": "одно событие на нескольких переходах: покрыт только тот переход, что выполнен из своего состояния"
+				},
+				{
+					"id": "negative-steps",
+					"form": "anchor",
+					"description": "в путях есть недопустимые события: они не покрывают переходов и не сдвигают состояние"
+				},
+				{
+					"id": "self-loops",
+					"form": "X",
+					"description": "переходы в то же состояние покрываются, как любые другие; пути начинаются заново"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "объект и его диаграмма состояний" },
+		{ "name": "events", "description": "последовательность событий и тест-пути" }
+	],
+	"essentialParams": [
+		{
+			"name": "machine-features",
+			"description": "переходы в то же состояние, конечное состояние, счётчик-условие, общие события"
+		},
+		{ "name": "question", "description": "трассировка одной последовательности или покрытие переходов набором путей" },
+		{ "name": "invalid-share", "description": "доля недопустимых событий в путях" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"чтение диаграммы состояний: допустимые и недопустимые события",
+			"переход в то же состояние — принятое событие и покрываемый переход",
+			"условие-счётчик на переходе",
+			"покрытие переходов (0-switch) набором путей из начального состояния"
+		],
+		"doesNotCheck": ["покрытие пар переходов (1-switch)", "построение диаграммы по тексту требований"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "invalid-changes",
+			"defect": "недопустимое событие всё равно переводит объект в состояние, куда это событие ведёт",
+			"mustBeCaught": true
+		},
+		{
+			"id": "self-loop-rejected",
+			"defect": "не считает переход в то же состояние переходом: событие «отклонено», переход не покрыт",
+			"mustBeCaught": true
+		},
+		{
+			"id": "counter-total",
+			"defect": "считает все неудачные попытки, а не идущие подряд: успешный вход не обнуляет счётчик",
+			"mustBeCaught": true
+		},
+		{
+			"id": "no-reset",
+			"defect": "начинает следующий тест-путь с состояния, где закончился предыдущий",
+			"mustBeCaught": true
+		},
+		{
+			"id": "event-coverage",
+			"defect": "считает переход покрытым, если его событие где-то выполнено, пусть из другого состояния",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 5, "caught": 5 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0144,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

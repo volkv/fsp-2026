@@ -1,0 +1,137 @@
+{
+	"key": "qa.design.dependent-boundaries",
+	"version": 1,
+	"specialization": "qa",
+	"block": "qa.design",
+	"format": "compute",
+	"answerKind": "set",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"rules": "условие на вычисляемую величину: сумму, дату, сумму с комиссией",
+				"boundaries": "две границы, двухточечный анализ",
+				"interacting": "округление при переводе границы на вход"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "computed-sum",
+					"form": "A",
+					"description": "сумма = цена × количество в диапазоне: границы переводятся на количество с округлением"
+				},
+				{
+					"id": "date-window",
+					"form": "B",
+					"description": "дата окончания в окне от даты начала: календарный счёт дней через границу месяца"
+				},
+				{
+					"id": "fee-limit",
+					"form": "anchor",
+					"description": "сумма плюс комиссия с минимумом не больше лимита: наибольшая допустимая сумма"
+				},
+				{
+					"id": "tier-price",
+					"form": "X",
+					"description": "цена за штуку падает с объёмом: сумма немонотонна, у условия больше одной границы"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"rules": "3–4 условия на зависимые величины",
+				"interacting": "доминирующие и перекрытые ограничения, немонотонная комиссия, линейная граница двух входов",
+				"lattice": "целочисленная решётка"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "effective-domain",
+					"form": "A",
+					"description": "количество под тремя ограничениями: границы только у действующей области, перекрытые не тестируются"
+				},
+				{
+					"id": "lattice-2d",
+					"form": "B",
+					"description": "линейная граница двух целых входов: точки на границе и наибольшее допустимое значение по строкам"
+				},
+				{
+					"id": "fee-tiers",
+					"form": "anchor",
+					"description": "комиссия со ступенью ставки и минимумом: допустимые суммы — два отрезка"
+				},
+				{
+					"id": "date-caps",
+					"form": "X",
+					"description": "окно даты окончания от даты начала и календарные пределы сезона: действует более строгая граница"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "товар, перевод, аренда, посылка" },
+		{ "name": "numbers", "description": "цены, пороги, ставки, даты" }
+	],
+	"essentialParams": [
+		{
+			"name": "dependency",
+			"description": "как вход связан с проверяемой величиной: произведение, комиссия, календарь, линейная комбинация"
+		},
+		{ "name": "monotonicity", "description": "монотонна ли величина по входу: одна граница или несколько" },
+		{ "name": "dominance", "description": "какие из нескольких ограничений действительно задают границу" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"двухточечный анализ граничных значений вычисляемой величины на входе",
+			"округление при переводе границы на целый вход",
+			"календарный счёт дней через границу месяца",
+			"немонотонная зависимость и несколько границ одного условия",
+			"перекрытые ограничения и граница действующей области",
+			"линейная граница двух целых входов"
+		],
+		"doesNotCheck": ["трёхточечный анализ граничных значений", "граничные значения вещественных входов"]
+	},
+	"wrongSolutions": [
+		{ "id": "boundary-on-sum", "defect": "берёт границы самой суммы, не переводя их на вход", "mustBeCaught": true },
+		{ "id": "round-wrong", "defect": "округляет при переводе границы в неверную сторону", "mustBeCaught": true },
+		{
+			"id": "inclusive-count",
+			"defect": "считает день начала первым днём срока: «через N дней» превращается в N − 1",
+			"mustBeCaught": true
+		},
+		{ "id": "month-30", "defect": "прибавляет дни так, будто в каждом месяце 30 дней", "mustBeCaught": true },
+		{ "id": "ignore-fee", "defect": "сравнивает с лимитом сумму без комиссии", "mustBeCaught": true },
+		{ "id": "round-down", "defect": "округляет комиссию вниз, а не вверх", "mustBeCaught": true },
+		{
+			"id": "monotonic-assumption",
+			"defect": "считает зависимость монотонной и ищет одну границу условия",
+			"mustBeCaught": true
+		},
+		{
+			"id": "all-constraints",
+			"defect": "берёт граничные значения каждого ограничения, в том числе перекрытого более строгим",
+			"mustBeCaught": true
+		},
+		{ "id": "off-point", "defect": "называет граничным допустимым значением первое недопустимое", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 9, "caught": 9 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0012,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

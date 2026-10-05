@@ -1,0 +1,115 @@
+{
+	"key": "qa.sql.window-invariants",
+	"version": 1,
+	"specialization": "qa",
+	"block": "qa.sql",
+	"format": "sql_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"tables": 1,
+				"rows": "8–12",
+				"partitions": "2–3",
+				"clauses": "LAG, SUM OVER с рамкой по умолчанию, ROW_NUMBER, фильтр после окна"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "numbering-gaps",
+					"form": "A",
+					"description": "разрывы нумерации через LAG по счёту: первая строка счёта не проверяется, повтор номера — разрыв"
+				},
+				{
+					"id": "overlapping-bookings",
+					"form": "B",
+					"description": "пересечения броней через LAG(end_at): касание не пересечение, а длинная бронь, накрывающая не соседнюю, не видна"
+				},
+				{
+					"id": "running-balance",
+					"form": "anchor",
+					"description": "отрицательный остаток по нарастающему итогу: ORDER BY по неуникальному дню суммирует весь день сразу"
+				},
+				{
+					"id": "last-status",
+					"form": "X",
+					"description": "последний статус объекта через ROW_NUMBER: фильтр по статусу стоит после нумерации, а не до неё"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "названия таблиц, счета, комнаты, объекты" },
+		{ "name": "data", "description": "номера, моменты, суммы, статусы, порядок вставки" }
+	],
+	"essentialParams": [
+		{
+			"name": "invariant",
+			"description": "что проверяется: непрерывность нумерации, непересечение, неотрицательный остаток, итоговый статус"
+		},
+		{
+			"name": "window-trap",
+			"description": "граница раздела, первая строка без предыдущей, касание интервалов, рамка RANGE с равными ключами, порядок фильтра и окна"
+		}
+	],
+	"language": "sql",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"LAG в разделе и NULL у первой строки раздела",
+			"что проверка через соседнюю строку не видит",
+			"рамка по умолчанию у SUM OVER с ORDER BY и равные ключи",
+			"ROW_NUMBER для последнего состояния и место фильтра"
+		],
+		"doesNotCheck": [
+			"рамки с RANGE и смещением по значению",
+			"оконные функции в других СУБД",
+			"производительность оконных запросов"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "lag-no-partition",
+			"defect": "не замечает PARTITION BY и берёт предыдущую строку соседнего раздела",
+			"mustBeCaught": true
+		},
+		{
+			"id": "first-row-included",
+			"defect": "считает, что первая строка раздела сравнивается с нулём",
+			"mustBeCaught": true
+		},
+		{ "id": "touching-overlap", "defect": "считает касающиеся интервалы пересекающимися", "mustBeCaught": true },
+		{
+			"id": "lag-sees-all",
+			"defect": "считает, что LAG сравнивает со всеми предыдущими строками, а не только с соседней",
+			"mustBeCaught": true
+		},
+		{
+			"id": "rows-frame",
+			"defect": "считает нарастающий итог построчно, хотя у строк одного дня одинаковый ключ сортировки",
+			"mustBeCaught": true
+		},
+		{ "id": "filter-before-rank", "defect": "применяет фильтр по статусу до нумерации строк", "mustBeCaught": true },
+		{
+			"id": "first-not-last",
+			"defect": "путает направление сортировки и берёт первое событие объекта",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 7, "caught": 7 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0001,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

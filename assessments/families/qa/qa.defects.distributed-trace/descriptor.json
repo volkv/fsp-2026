@@ -1,0 +1,152 @@
+{
+	"key": "qa.defects.distributed-trace",
+	"version": 1,
+	"specialization": "qa",
+	"block": "qa.defects",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"spans": "8–13",
+				"depth": "3–4",
+				"signals": "ошибки, один повтор или один тайм-аут; время спанов для критического пути"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "propagated",
+					"form": "A",
+					"description": "ошибка поднимается по цепочке из нескольких уровней; первопричина — самый глубокий её спан"
+				},
+				{
+					"id": "retries",
+					"form": "B",
+					"description": "рядом с цепочкой сбоя — вызов, первая попытка которого упала, а повтор прошёл"
+				},
+				{
+					"id": "timeout",
+					"form": "anchor",
+					"description": "родитель упал по тайм-ауту, ребёнок отменён: первопричина — медленный ребёнок"
+				},
+				{
+					"id": "critical-path",
+					"form": "X",
+					"description": "задержка: критический путь по ребёнку, который закончился последним"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"spans": "12–20",
+				"depth": "4–5",
+				"signals": "серии повторов, допустимые ошибки необязательных вызовов, каскад отмен, вклад сервиса в задержку"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "retry-chain",
+					"form": "A",
+					"description": "внизу цепочки — вызов, все попытки которого упали; первопричина — последняя попытка"
+				},
+				{
+					"id": "tolerated",
+					"form": "B",
+					"description": "глубже первопричины есть ошибка необязательного вызова, родитель которой завершился OK"
+				},
+				{
+					"id": "timeout-cascade",
+					"form": "anchor",
+					"description": "тайм-аут родителя и каскад отмен: первопричина — самый глубокий отменённый спан"
+				},
+				{
+					"id": "service-latency",
+					"form": "X",
+					"description": "вклад одного сервиса в задержку критического пути при параллельных вызовах"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "services", "description": "сервисы, операции и идентификаторы спанов" },
+		{ "name": "timing", "description": "начала и длительности спанов" }
+	],
+	"essentialParams": [
+		{
+			"name": "signal",
+			"description": "что надо прочитать в трассе: распространение ошибки, повторы, тайм-ауты и отмены, допустимые ошибки, критический путь"
+		}
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"дерево спанов по родителям",
+			"первопричина сбоя: спан с ошибкой, не объяснённой детьми",
+			"повторы вызовов, тайм-ауты и отмены",
+			"критический путь и вклад сервиса в задержку"
+		],
+		"doesNotCheck": ["работу с конкретной системой трассировки", "выборку и сэмплирование трасс"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "root-span",
+			"defect": "называет корневой спан запроса — там ошибка видна, но не возникла",
+			"mustBeCaught": true
+		},
+		{
+			"id": "shallow",
+			"defect": "останавливается на первом упавшем ребёнке корня и не спускается по цепочке",
+			"mustBeCaught": true
+		},
+		{
+			"id": "first-attempt",
+			"defect": "считает упавшую попытку отдельным сбоем: называет первую упавшую попытку повторённого вызова",
+			"mustBeCaught": true
+		},
+		{
+			"id": "reported-timeout",
+			"defect": "называет спан, сообщивший о тайм-ауте, а не медленный отменённый вызов",
+			"mustBeCaught": true
+		},
+		{
+			"id": "deepest-error",
+			"defect": "называет самый глубокий спан с ошибкой во всей трассе, даже если его ошибку родитель допустил",
+			"mustBeCaught": true
+		},
+		{
+			"id": "first-cancelled",
+			"defect": "останавливается на первом отменённом спане каскада, не спускаясь к самому глубокому",
+			"mustBeCaught": true
+		},
+		{
+			"id": "longest-child",
+			"defect": "строит критический путь по самому долгому ребёнку, а не по закончившемуся последним",
+			"mustBeCaught": true
+		},
+		{
+			"id": "all-spans",
+			"defect": "складывает длительности всех спанов сервиса, включая параллельные вне критического пути",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 8, "caught": 8 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0216,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

@@ -1,0 +1,124 @@
+{
+	"key": "qa.auto.flaky-locate",
+	"version": 1,
+	"specialization": "qa",
+	"block": "qa.auto",
+	"format": "bug_locate",
+	"answerKind": "line_no",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"module": "код продукта и 3–4 теста, 35–60 строк",
+				"sources": "общая фикстура, момент запуска, случайные данные, порядок событий",
+				"defect": "одна строка теста — источник нестабильности"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "shared-fixture",
+					"form": "A",
+					"description": "setUp отдаёт тесту общий изменяемый объект модуля: результат зависит от порядка тестов"
+				},
+				{
+					"id": "calendar-boundary",
+					"form": "B",
+					"description": "проверка считает ожидаемую дату арифметикой над днём или часом и ломается на границе месяца или суток"
+				},
+				{
+					"id": "random-boundary",
+					"form": "anchor",
+					"description": "случайные входные данные без фиксации задевают границу, на которой ожидаемый ответ другой"
+				},
+				{
+					"id": "unordered-result",
+					"form": "X",
+					"description": "проверка опирается на порядок ключей словаря, собранного из событий в произвольном порядке"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"module": "код продукта, фальшивые часы или подмены и 3–4 теста, 45–75 строк",
+				"sources": "фиксированная пауза, утёкшая подмена, равные ключи сортировки, тайм-аут ожидания",
+				"defect": "одна строка теста — источник нестабильности"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "fixed-sleep",
+					"form": "A",
+					"description": "тест ждёт фиксированную паузу вместо ожидания условия, а задержка воркера в окружении плавает"
+				},
+				{
+					"id": "leaked-patch",
+					"form": "B",
+					"description": "patch.start() без остановки: подмена переживает тест и ломает тесты, идущие после него"
+				},
+				{
+					"id": "sort-ties",
+					"form": "anchor",
+					"description": "проверка порядка элементов с равным ключом сортировки: он зависит от порядка входных данных"
+				},
+				{
+					"id": "tight-timeout",
+					"form": "X",
+					"description": "ожидание условия с тайм-аутом меньше худшей задержки окружения"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "module", "description": "предметная область, имена, порядок функций и тестов, рабочие тесты рядом" },
+		{ "name": "data", "description": "числа, даты, события" }
+	],
+	"essentialParams": [
+		{
+			"name": "flakiness-source",
+			"description": "откуда нестабильность: порядок тестов, момент запуска, случайность, порядок данных, задержка"
+		}
+	],
+	"language": "python3",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"зависимость тестов от порядка запуска через общее состояние",
+			"зависимость от момента запуска: границы суток и месяца",
+			"случайные данные без фиксации",
+			"порядок словаря и стабильная сортировка при равных ключах",
+			"фиксированная пауза против ожидания условия, тайм-аут ожидания",
+			"подмена через patch.start() без остановки"
+		],
+		"doesNotCheck": [
+			"исправление теста (только место)",
+			"параллельный запуск в нескольких процессах",
+			"pytest и его плагины"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "test-other-line",
+			"defect": "указывает на строку рядом с источником — вызов кода продукта или изменение данных в тесте, — которая от условий запуска не зависит",
+			"mustBeCaught": true
+		},
+		{ "id": "product-line", "defect": "винит код продукта, а не тест", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 2, "caught": 2 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0372,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

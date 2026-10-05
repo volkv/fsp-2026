@@ -1,0 +1,149 @@
+{
+	"key": "qa.design.transition-coverage",
+	"version": 1,
+	"specialization": "qa",
+	"block": "qa.design",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"states": "4–6",
+				"transitions": "7–11, петли в части классов",
+				"tests": "3–5 последовательностей событий, тест обрывается на недопустимом событии"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "switch1",
+					"form": "A",
+					"description": "1-switch: сколько всего пар последовательных переходов и сколько из них проходят тесты"
+				},
+				{
+					"id": "negative",
+					"form": "B",
+					"description": "негативные тесты: недопустимые пары «состояние × событие» только для достижимых состояний"
+				},
+				{
+					"id": "uncovered",
+					"form": "anchor",
+					"description": "какие переходы не покрыты тестами, когда тест обрывается на недопустимом событии"
+				},
+				{
+					"id": "loops",
+					"form": "X",
+					"description": "1-switch в автомате с петлями: петля — тоже переход и входит в пары"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"states": "4–5",
+				"transitions": "6–9",
+				"interacting": "кратчайший обход всех переходов: поиск по паре (состояние, покрытые переходы), а не жадный обход"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "tour",
+					"form": "A",
+					"description": "кратчайшая последовательность событий из начального состояния, проходящая все переходы"
+				},
+				{
+					"id": "tour-reset",
+					"form": "B",
+					"description": "то же со сбросом в начальное состояние, который считается шагом"
+				},
+				{
+					"id": "switch1-tests",
+					"form": "anchor",
+					"description": "1-switch покрытие тестами с петлями и оборванными тестами"
+				},
+				{
+					"id": "min-tests",
+					"form": "X",
+					"description": "наименьшее число тестов из начального состояния, покрывающих все переходы, и их наименьшая общая длина"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "предметная область, имена состояний и событий" },
+		{ "name": "numbers", "description": "нумерация переходов, состав тестов" }
+	],
+	"essentialParams": [
+		{
+			"name": "criterion",
+			"description": "покрытие переходов, пар переходов (1-switch) или недопустимых пар «состояние × событие»"
+		},
+		{ "name": "structure", "description": "петли, недостижимые и тупиковые состояния" },
+		{ "name": "reset", "description": "можно ли вернуться в начальное состояние и сколько стоит новый тест" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"покрытие переходов и пар переходов (1-switch) набором тестов",
+			"петли как переходы",
+			"негативные тесты: недопустимые события в достижимых состояниях",
+			"кратчайший обход всех переходов с выходом и без выхода в начальное состояние"
+		],
+		"doesNotCheck": ["автоматы с охранными условиями и выходами", "покрытие N-switch при N > 1"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "forget-loops",
+			"defect": "не считает петли переходами: пропускает их в парах и в обходе",
+			"mustBeCaught": true
+		},
+		{
+			"id": "include-start",
+			"defect": "считает начало теста переходом и добавляет пары «старт → переход из начального состояния»",
+			"mustBeCaught": true
+		},
+		{
+			"id": "include-unreachable",
+			"defect": "строит негативные тесты и для состояний, недостижимых из начального",
+			"mustBeCaught": true
+		},
+		{
+			"id": "skip-dead-end",
+			"defect": "не строит негативные тесты для тупикового состояния без исходящих переходов",
+			"mustBeCaught": true
+		},
+		{
+			"id": "continue-after-invalid",
+			"defect": "продолжает тест после недопустимого события, будто автомат его проигнорировал",
+			"mustBeCaught": true
+		},
+		{
+			"id": "failed-test-counts-nothing",
+			"defect": "не засчитывает упавшему тесту и переходы, пройденные до падения",
+			"mustBeCaught": true
+		},
+		{
+			"id": "greedy",
+			"defect": "обходит жадно: каждый раз идёт к ближайшему непокрытому переходу",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 7, "caught": 7 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0285,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

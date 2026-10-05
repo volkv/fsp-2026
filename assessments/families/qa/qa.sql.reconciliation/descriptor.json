@@ -1,0 +1,113 @@
+{
+	"key": "qa.sql.reconciliation",
+	"version": 1,
+	"specialization": "qa",
+	"block": "qa.sql",
+	"format": "sql_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"tables": 2,
+				"rows": "7–12 в каждой",
+				"clauses": "EXCEPT, сравнение агрегатов по группам, два LEFT JOIN через UNION, GROUP BY … HAVING",
+				"traps": "NULL, дубли строк, ключи только с одной стороны"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "except-diff",
+					"form": "A",
+					"description": "EXCEPT между источником и приёмником: NULL совпадает с NULL, повторы строк источника схлопываются"
+				},
+				{
+					"id": "group-sums",
+					"form": "B",
+					"description": "сравнение сумм по регионам через LEFT JOIN и <>: регион, пропавший из приёмника или с NULL-суммой, сверка не показывает"
+				},
+				{
+					"id": "one-side-rows",
+					"form": "anchor",
+					"description": "строки только с одной стороны через два LEFT JOIN и UNION: UNION схлопывает повторы, NULL-ключ не находит пары"
+				},
+				{
+					"id": "load-duplicates",
+					"form": "X",
+					"description": "дубли после загрузки через GROUP BY id HAVING: строки с NULL-ключом — одна группа, COUNT(DISTINCT) не считает NULL"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "названия таблиц, адреса, регионы, партии загрузки" },
+		{ "name": "data", "description": "значения, число строк, какие строки изменены, потеряны или задвоены" }
+	],
+	"essentialParams": [
+		{
+			"name": "method",
+			"description": "способ сверки: EXCEPT, сравнение агрегатов, односторонние строки через UNION, поиск дублей"
+		},
+		{
+			"name": "trap",
+			"description": "NULL в сравниваемых значениях и ключах, повторы строк, ключи только с одной стороны"
+		}
+	],
+	"language": "sql",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"EXCEPT: сравнение строк целиком, NULL как равные значения, удаление повторов",
+			"сравнение агрегатов через <> и потеря строк с NULL",
+			"строки только с одной стороны без FULL JOIN",
+			"UNION против UNION ALL",
+			"NULL в ключе соединения и группировки",
+			"COUNT(DISTINCT) при NULL"
+		],
+		"doesNotCheck": [
+			"сверку больших объёмов по хэшам и выборкам",
+			"сверку между разными СУБД и типами данных",
+			"производительность сверочных запросов"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "except-null-distinct",
+			"defect": "считает, что EXCEPT сравнивает NULL как неравные значения",
+			"mustBeCaught": true
+		},
+		{ "id": "except-keeps-duplicates", "defect": "считает, что EXCEPT оставляет повторы строк", "mustBeCaught": true },
+		{
+			"id": "ne-catches-null",
+			"defect": "считает, что условие <> срабатывает и тогда, когда одна из сумм NULL",
+			"mustBeCaught": true
+		},
+		{ "id": "union-all", "defect": "считает, что UNION оставляет повторы строк", "mustBeCaught": true },
+		{ "id": "null-key-matches", "defect": "считает, что NULL-ключ находит пару с NULL-ключом", "mustBeCaught": true },
+		{
+			"id": "null-group-excluded",
+			"defect": "считает, что строки с NULL в ключе не попадают в группировку",
+			"mustBeCaught": true
+		},
+		{
+			"id": "distinct-counts-null",
+			"defect": "считает NULL отдельным значением в COUNT(DISTINCT)",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 7, "caught": 7 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

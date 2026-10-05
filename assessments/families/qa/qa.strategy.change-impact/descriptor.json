@@ -1,0 +1,102 @@
+{
+	"key": "qa.strategy.change-impact",
+	"version": 1,
+	"specialization": "qa",
+	"block": "qa.strategy",
+	"format": "compute",
+	"answerKind": "set",
+	"levels": [
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"modules": "7–10, зависимости без циклов, цепочки до 3–4 звеньев",
+				"tests": "11–16: модульные, интеграционные, сквозные, контрактные",
+				"interacting": "транзитивное влияние против прямого, направление зависимости, правила отбора по виду теста"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "transitive",
+					"form": "A",
+					"description": "влияние идёт по цепочке потребителей изменённого модуля, тесты с меткой always — всегда"
+				},
+				{
+					"id": "contracts",
+					"form": "B",
+					"description": "контрактные тесты запускаются только при изменении потребителя или поставщика, не по цепочке"
+				},
+				{
+					"id": "stable-api",
+					"form": "anchor",
+					"description": "зависимость через опубликованный API передаёт влияние, только если API изменили"
+				},
+				{
+					"id": "quarantine",
+					"form": "X",
+					"description": "тесты в карантине не запускаются, даже если затронуты или помечены always"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "имена модулей и номера тестов" },
+		{ "name": "numbers", "description": "граф зависимостей, состав тестов, изменённые модули" }
+	],
+	"essentialParams": [
+		{
+			"name": "propagation",
+			"description": "как влияние изменения расходится по графу: транзитивно, через API, по видам тестов"
+		},
+		{ "name": "selection", "description": "какие виды тестов отбираются по каким правилам" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"анализ влияния изменения по графу зависимостей модулей",
+			"направление зависимости: затронуты потребители изменённого модуля",
+			"транзитивное влияние",
+			"отбор контрактных, сквозных и карантинных тестов"
+		],
+		"doesNotCheck": ["построение графа зависимостей по коду", "покрытие кода тестами"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "direct-only",
+			"defect": "берёт только прямых потребителей изменённого модуля, без цепочки",
+			"mustBeCaught": true
+		},
+		{
+			"id": "reverse-direction",
+			"defect": "идёт по зависимостям в обратную сторону: к модулям, которые использует изменённый",
+			"mustBeCaught": true
+		},
+		{ "id": "forget-always", "defect": "не добавляет тесты с меткой always", "mustBeCaught": true },
+		{
+			"id": "contract-transitive",
+			"defect": "запускает контрактный тест, если затронут его потребитель или поставщик, а не только изменён",
+			"mustBeCaught": true
+		},
+		{
+			"id": "ignore-stable-api",
+			"defect": "передаёт влияние через опубликованный API и тогда, когда API не менялся",
+			"mustBeCaught": true
+		},
+		{ "id": "keep-quarantined", "defect": "запускает тесты из карантина", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 6, "caught": 6 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0006,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

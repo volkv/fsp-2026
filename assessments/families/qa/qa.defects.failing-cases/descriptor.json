@@ -1,0 +1,117 @@
+{
+	"key": "qa.defects.failing-cases",
+	"version": 1,
+	"specialization": "qa",
+	"block": "qa.defects",
+	"format": "compute",
+	"answerKind": "set",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": { "parameters": "1–2", "cases": "7–8", "defect": "одно условие или одна формула" },
+			"constructiveRank": 2,
+			"timeNormSec": 240,
+			"classes": [
+				{ "id": "boundary", "form": "A", "description": "граница сдвинута: падают только кейсы ровно на пороге" },
+				{
+					"id": "logic",
+					"form": "B",
+					"description": "«и» вместо «или» или потерянное отрицание: падают кейсы, где условия расходятся"
+				},
+				{
+					"id": "arithmetic",
+					"form": "anchor",
+					"description": "округление или деление не того вида: падают только кейсы с остатком нужного вида"
+				},
+				{
+					"id": "special-value",
+					"form": "X",
+					"description": "0 принят за «не задано»: падают только кейсы с нулём, а None обрабатывается верно"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"parameters": "2–3",
+				"cases": "8–10",
+				"defect": "проявляется только в сочетании условий или на части значений"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "masked-boundary",
+					"form": "A",
+					"description": "граница одного из двух условий сдвинута; кейс на этой границе падает, только если второе условие выполнено"
+				},
+				{
+					"id": "grouping",
+					"form": "B",
+					"description": "сочетание условий сгруппировано не так (приоритет and над or): падает часть комбинаций"
+				},
+				{
+					"id": "rounding-step",
+					"form": "anchor",
+					"description": "округление не на том шаге или не в ту сторону: падают только кейсы с дробной частью нужного вида"
+				},
+				{
+					"id": "rule-order",
+					"form": "X",
+					"description": "правила проверяются не в том порядке: падают только кейсы, где срабатывают оба переставленных правила"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "function", "description": "какое бизнес-правило и его пороги" },
+		{ "name": "cases", "description": "идентификаторы кейсов и конкретные входы" }
+	],
+	"essentialParams": [
+		{ "name": "defect-kind", "description": "вид дефекта реализации и, следовательно, на каких входах он проявляется" }
+	],
+	"language": "python3",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"сравнение фактического результата с ожидаемым по спецификации",
+			"на каких входах проявляется дефект, а на каких код совпадает со спецификацией",
+			"граничные значения и маскирование границы другим условием",
+			"сочетания условий и порядок правил",
+			"округление и особые значения (0, None)"
+		],
+		"doesNotCheck": ["составление тест-кейсов", "исправление дефекта", "оформление баг-репорта"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "boundary-miss",
+			"defect": "пропускает упавший кейс ровно на границе, считая его «обычным»",
+			"mustBeCaught": true
+		},
+		{
+			"id": "not-manifest",
+			"defect": "считает упавшими все кейсы класса, через который проходит дефект, в том числе те, где результат совпал",
+			"mustBeCaught": true
+		},
+		{
+			"id": "judges-by-actual",
+			"defect": "смотрит на фактический результат, а не на сравнение с ожидаемым: считает упавшими кейсы, где функция вернула отказ",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 3, "caught": 3 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0008,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

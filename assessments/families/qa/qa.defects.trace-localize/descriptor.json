@@ -1,0 +1,120 @@
+{
+	"key": "qa.defects.trace-localize",
+	"version": 1,
+	"specialization": "qa",
+	"block": "qa.defects",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": { "steps": "4–5", "requests": 1, "defect": "один шаг нарушает свой контракт" },
+			"constructiveRank": 2,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "boundary",
+					"form": "A",
+					"description": "порог шага (скидка, доставка) применён не включительно ровно на границе; дальше меняется ветка следующего шага"
+				},
+				{
+					"id": "arithmetic",
+					"form": "B",
+					"description": "формула шага неверна: не то основание, вычитание дважды, потерянное слагаемое"
+				},
+				{ "id": "rounding", "form": "anchor", "description": "шаг округляет вверх вместо отбрасывания дробной части" },
+				{
+					"id": "units",
+					"form": "X",
+					"description": "рубли и копейки перепутаны: сумма купона или доставки в рублях применена как копейки"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"steps": 6,
+				"requests": 3,
+				"defect": "проявляется не на каждом запросе; первый запрос трассы чистый"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "masked-branch",
+					"form": "A",
+					"description": "неверная скидка переключает ветку следующего шага (купон до нуля, доставка), и заметно это позже"
+				},
+				{
+					"id": "rounding",
+					"form": "B",
+					"description": "округление вверх проявляется только на запросах с дробной частью"
+				},
+				{
+					"id": "currency",
+					"form": "anchor",
+					"description": "конвертация валюты нарушает контракт только для запросов не в рублях"
+				},
+				{
+					"id": "boundary",
+					"form": "X",
+					"description": "порог не включён: проявляется только на запросе, попавшем ровно на границу"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "numbers", "description": "цены, количества, пороги, ставки, курсы" },
+		{ "name": "requests", "description": "идентификаторы и порядок запросов в трассе" }
+	],
+	"essentialParams": [
+		{ "name": "defect", "description": "какой шаг и каким образом нарушает свой контракт" },
+		{
+			"name": "manifestation",
+			"description": "на каких запросах дефект проявляется и меняет ли он ветку следующего шага"
+		}
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"сверка выхода каждого шага с его контрактом по фактическому входу шага",
+			"отличие нарушения контракта от следствия, которое видно дальше по конвейеру",
+			"пороги, округление, единицы измерения, конвертация валюты",
+			"расчёт значения, которое шаг должен был выдать"
+		],
+		"doesNotCheck": ["исправление кода шага", "оформление баг-репорта"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "last-step",
+			"defect": "винит последний шаг, на выходе которого неверный итог, и называет итог, ожидаемый от всего конвейера",
+			"mustBeCaught": true
+		},
+		{
+			"id": "visible-step",
+			"defect": "винит шаг, где ошибка стала заметна — его ветка (купон, доставка) сработала иначе, чем ожидалось",
+			"mustBeCaught": true
+		},
+		{
+			"id": "consumer-step",
+			"defect": "винит шаг, который первым получил неверное значение на вход, а не тот, что его выдал",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 3, "caught": 3 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0034,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

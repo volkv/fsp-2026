@@ -1,0 +1,142 @@
+{
+	"key": "qa.design.mcdc",
+	"version": 1,
+	"specialization": "qa",
+	"block": "qa.design",
+	"format": "compute",
+	"answerKind": "set",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"conditions": "3–4, каждое входит в выражение один раз",
+				"operators": "and, or, not с вложенностью",
+				"tests": "6–9 строк таблицы истинности"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "min-subset",
+					"form": "A",
+					"description": "наименьшее подмножество данных тестов, дающее MC/DC (unique-cause) по всем условиям"
+				},
+				{
+					"id": "pairs",
+					"form": "B",
+					"description": "все пары данных тестов, показывающие независимое влияние одного условия"
+				},
+				{
+					"id": "gaps",
+					"form": "anchor",
+					"description": "условия без пары независимости и тесты, не входящие ни в одну пару"
+				},
+				{
+					"id": "complete",
+					"form": "X",
+					"description": "наименьшее дополнение набора строками таблицы истинности до полного MC/DC"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"conditions": "4–5, каждое входит в выражение один раз",
+				"constraints": "1–2 ограничения предметной области: исключение или следование",
+				"interacting": "невозможные сочетания условий выпадают из таблицы и из пар"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "feasible-min",
+					"form": "A",
+					"description": "в наборе есть невозможные тесты: наименьшее подмножество выполнимых тестов, дающее MC/DC"
+				},
+				{
+					"id": "undemonstrable",
+					"form": "B",
+					"description": "по всей таблице с ограничениями: какие условия нельзя показать и сколько тестов нужно для остальных"
+				},
+				{
+					"id": "feasible-pairs",
+					"form": "anchor",
+					"description": "пары независимости одного условия, когда часть тестов набора невыполнима"
+				},
+				{
+					"id": "feasible-complete",
+					"form": "X",
+					"description": "наименьшее дополнение набора выполнимыми строками таблицы до полного MC/DC"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "предметная область и имена условий" },
+		{ "name": "numbers", "description": "номера тестов и их порядок" }
+	],
+	"essentialParams": [
+		{
+			"name": "structure",
+			"description": "вложенность and/or/not: от неё зависит, при каких значениях условие влияет"
+		},
+		{
+			"name": "question",
+			"description": "что ищется: пары одного условия, наименьший набор, дыры набора или его дополнение"
+		},
+		{ "name": "constraints", "description": "невозможные сочетания условий из ограничений предметной области" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"пара независимости по unique-cause MC/DC: меняется только условие, и меняется решение",
+			"наименьший набор тестов для MC/DC и избыточные тесты",
+			"отличие MC/DC от покрытия условий и решений",
+			"невыполнимые сочетания условий и условия, влияние которых показать нельзя"
+		],
+		"doesNotCheck": ["masking MC/DC и связанные условия", "покрытие кода конкретным инструментом"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "decision-ignored",
+			"defect": "считает парой два теста, различающихся только условием, даже если решение не меняется (путает с покрытием условий)",
+			"mustBeCaught": true
+		},
+		{
+			"id": "others-may-change",
+			"defect": "считает парой тесты с разным условием и разным решением, даже если меняются и другие условия",
+			"mustBeCaught": true
+		},
+		{
+			"id": "greedy-pairs",
+			"defect": "берёт для каждого условия первую найденную пару и объединяет их, не ища наименьший набор",
+			"mustBeCaught": true
+		},
+		{
+			"id": "ignore-constraints",
+			"defect": "пользуется невозможными сочетаниями условий как обычными тестами",
+			"mustBeCaught": true
+		},
+		{
+			"id": "n-plus-one",
+			"defect": "считает, что для MC/DC всегда хватает N + 1 теста, где N — число показываемых условий",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 5, "caught": 5 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0314,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

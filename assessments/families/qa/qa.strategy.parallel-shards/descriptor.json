@@ -1,0 +1,94 @@
+{
+	"key": "qa.strategy.parallel-shards",
+	"version": 1,
+	"specialization": "qa",
+	"block": "qa.strategy",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"tests": "8–12 с длительностями",
+				"executors": "2–4",
+				"interacting": "правило раскладки, равенства длительностей и загрузок, группы и скорости исполнителей"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 420,
+			"classes": [
+				{ "id": "lpt", "form": "A", "description": "по убыванию длительности на наименее загруженный исполнитель" },
+				{
+					"id": "groups",
+					"form": "B",
+					"description": "тесты одной группы идут на один исполнитель: группа раскладывается как одно целое"
+				},
+				{
+					"id": "speeds",
+					"form": "anchor",
+					"description": "исполнители разной скорости: тест идёт туда, где закончится раньше, а не где меньше загрузка"
+				},
+				{
+					"id": "dynamic",
+					"form": "X",
+					"description": "очередь без сортировки: тест в порядке списка берёт исполнитель, освободившийся первым"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "имена тестов и наборов" },
+		{ "name": "numbers", "description": "длительности тестов, число исполнителей" }
+	],
+	"essentialParams": [
+		{ "name": "rule", "description": "правило раскладки: сортировка, выбор исполнителя, равенства" },
+		{ "name": "constraints", "description": "группы тестов и скорости исполнителей" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"раскладка тестов по параллельным исполнителям по заданному правилу",
+			"время прогона — время самого загруженного исполнителя",
+			"неделимые группы тестов",
+			"исполнители разной скорости"
+		],
+		"doesNotCheck": ["оптимальная раскладка (задача NP-трудная)", "настройка конкретной системы CI"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "no-sort",
+			"defect": "раскладывает тесты в порядке списка, не отсортировав по длительности",
+			"mustBeCaught": true
+		},
+		{
+			"id": "round-robin",
+			"defect": "раскладывает по кругу: первый тест на первый исполнитель, второй на второй и так далее",
+			"mustBeCaught": true
+		},
+		{ "id": "ignore-groups", "defect": "раскладывает тесты группы по одному, как независимые", "mustBeCaught": true },
+		{
+			"id": "least-loaded",
+			"defect": "выбирает исполнитель с наименьшей загрузкой, не учитывая, где тест закончится раньше",
+			"mustBeCaught": true
+		},
+		{
+			"id": "sorted-queue",
+			"defect": "сортирует очередь по длительности, хотя раннер берёт тесты в порядке списка",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 5, "caught": 5 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

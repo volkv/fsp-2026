@@ -1,0 +1,139 @@
+{
+	"key": "qa.auto.mock-behaviour",
+	"version": 1,
+	"specialization": "qa",
+	"block": "qa.auto",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"mocks": "1–2 объекта Mock или MagicMock",
+				"calls": "4–7 вызовов",
+				"mechanisms": "return_value, side_effect, записи вызовов, автоматические атрибуты"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "side-effect-list",
+					"form": "A",
+					"description": "side_effect — список значений и исключений: очередь, исчерпание и StopIteration, return_value не используется"
+				},
+				{
+					"id": "side-effect-function",
+					"form": "B",
+					"description": "side_effect — функция: её результат вместо return_value, DEFAULT возвращает return_value, исключение всплывает"
+				},
+				{
+					"id": "call-records",
+					"form": "anchor",
+					"description": "call_count, call_args, call_args_list и mock_calls у родителя и дочерних атрибутов, reset_mock"
+				},
+				{
+					"id": "auto-attributes",
+					"form": "X",
+					"description": "атрибуты и return_value создаются один раз и переиспользуются; магические методы есть у MagicMock, а не у Mock"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "имена моков, методов и аргументов" },
+		{ "name": "data", "description": "возвращаемые значения и аргументы вызовов" }
+	],
+	"essentialParams": [
+		{ "name": "configuration", "description": "чем настроен мок: return_value, список, функция, исключение" },
+		{
+			"name": "inspection",
+			"description": "что программа спрашивает у мока: результат, счётчики, записи вызовов, атрибуты"
+		}
+	],
+	"language": "python3",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"приоритет side_effect над return_value",
+			"side_effect списком: исключения в списке, исчерпание",
+			"side_effect функцией и DEFAULT",
+			"call_count, call_args, call_args_list, mock_calls",
+			"reset_mock сбрасывает записи, но не настройку",
+			"автоматически создаваемые атрибуты и общий return_value",
+			"магические методы MagicMock"
+		],
+		"doesNotCheck": ["patch и место подмены (отдельное семейство)", "spec и autospec", "асинхронные моки"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "return-value-wins",
+			"defect": "считает, что заданный return_value важнее side_effect",
+			"mustBeCaught": true
+		},
+		{
+			"id": "return-value-after-exhaust",
+			"defect": "считает, что после исчерпания списка side_effect мок возвращает return_value",
+			"mustBeCaught": true
+		},
+		{
+			"id": "side-effect-cycles",
+			"defect": "считает, что исчерпанный список side_effect начинается сначала",
+			"mustBeCaught": true
+		},
+		{
+			"id": "exception-returned",
+			"defect": "считает, что исключение из списка side_effect возвращается как значение, а не бросается",
+			"mustBeCaught": true
+		},
+		{
+			"id": "raising-call-not-counted",
+			"defect": "считает, что вызов, который бросил исключение, не учитывается в call_count",
+			"mustBeCaught": true
+		},
+		{
+			"id": "default-as-is",
+			"defect": "считает, что DEFAULT из функции side_effect возвращается вызывающему как есть",
+			"mustBeCaught": true
+		},
+		{
+			"id": "child-counted",
+			"defect": "считает, что вызовы методов мока увеличивают call_count самого мока",
+			"mustBeCaught": true
+		},
+		{
+			"id": "call-args-first",
+			"defect": "считает, что call_args хранит первый вызов, а не последний",
+			"mustBeCaught": true
+		},
+		{
+			"id": "reset-clears-config",
+			"defect": "считает, что reset_mock сбрасывает и настройку: return_value и side_effect",
+			"mustBeCaught": true
+		},
+		{
+			"id": "fresh-return-each-call",
+			"defect": "считает, что каждый вызов мока возвращает новый объект",
+			"mustBeCaught": true
+		},
+		{
+			"id": "mock-has-magic",
+			"defect": "считает, что обычный Mock поддерживает len и in так же, как MagicMock",
+			"mustBeCaught": true
+		},
+		{ "id": "magic-falsy", "defect": "считает, что MagicMock с длиной 0 ложен в условии", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 12, "caught": 12 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0005,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

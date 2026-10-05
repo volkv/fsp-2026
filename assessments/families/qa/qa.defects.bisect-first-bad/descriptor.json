@@ -1,0 +1,151 @@
+{
+	"key": "qa.defects.bisect-first-bad",
+	"version": 1,
+	"specialization": "qa",
+	"block": "qa.defects",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.65 },
+			"constructive": {
+				"commits": "12–18",
+				"results": "известен результат проверки каждого коммита",
+				"noise": "несобравшиеся сборки, нестабильный тест, старая починенная поломка или обратный порядок журнала"
+			},
+			"constructiveRank": 2,
+			"timeNormSec": 180,
+			"classes": [
+				{ "id": "skip", "form": "A", "description": "часть коммитов не собирается: красная сборка — не падение теста" },
+				{
+					"id": "flaky",
+					"form": "B",
+					"description": "тест нестабилен: коммит плохой, только если упали все перезапуски"
+				},
+				{
+					"id": "fixed-earlier",
+					"form": "anchor",
+					"description": "в истории была другая поломка, её починили; ищется начало текущей"
+				},
+				{ "id": "newest-first", "form": "X", "description": "журнал показан от новых к старым, как git log" }
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"commits": "16–40",
+				"procedure": "двоичный поиск по заданному правилу выбора середины",
+				"noise": "несобирающиеся коммиты или перезапуск нестабильного теста"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "floor-mid",
+					"form": "A",
+					"description": "середина интервала округляется вниз; все коммиты собираются"
+				},
+				{
+					"id": "ceil-mid",
+					"form": "B",
+					"description": "середина интервала округляется вверх; все коммиты собираются"
+				},
+				{
+					"id": "skip-rule",
+					"form": "anchor",
+					"description": "часть коммитов не собирается: вместо них берётся ближайший более новый; неудачная сборка — тоже проверка"
+				},
+				{
+					"id": "flaky-rerun",
+					"form": "X",
+					"description": "нестабильный тест: после падения один перезапуск, коммит плохой, только если упали оба прогона; считаются прогоны"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "history", "description": "хэши, авторы и сообщения коммитов" },
+		{ "name": "positions", "description": "сколько коммитов и где в истории дефект и несобирающиеся сборки" }
+	],
+	"essentialParams": [
+		{
+			"name": "noise",
+			"description": "что мешает читать результаты: несобравшиеся сборки, нестабильный тест, старая поломка, порядок журнала"
+		},
+		{ "name": "procedure", "description": "правило выбора середины и обработки несобирающихся коммитов и перезапусков" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"первый плохой коммит по истории результатов проверки",
+			"несобравшаяся сборка не равна падению теста",
+			"нестабильный тест и правило перезапуска",
+			"двоичный поиск по истории: выбор середины, учёт пропущенных сборок, число проверок"
+		],
+		"doesNotCheck": ["команды git bisect", "поиск причины дефекта в коде коммита"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "first-red",
+			"defect": "называет первый коммит с красной сборкой, хотя сборка не прошла и тест не запускался",
+			"mustBeCaught": true
+		},
+		{
+			"id": "any-fail",
+			"defect": "считает коммит плохим по одному упавшему прогону нестабильного теста",
+			"mustBeCaught": true
+		},
+		{
+			"id": "earliest-fail",
+			"defect": "называет самое раннее падение в истории — начало старой, уже починенной поломки",
+			"mustBeCaught": true
+		},
+		{
+			"id": "from-the-end",
+			"defect": "читает журнал сверху вниз и называет первое встреченное падение — самый новый плохой коммит",
+			"mustBeCaught": true
+		},
+		{ "id": "other-rounding", "defect": "округляет середину интервала не в ту сторону", "mustBeCaught": true },
+		{
+			"id": "counts-ends",
+			"defect": "добавляет к проверкам заведомо хороший и заведомо плохой концы истории",
+			"mustBeCaught": true
+		},
+		{
+			"id": "skip-not-counted",
+			"defect": "не считает проверкой попытку собрать коммит, который не собрался",
+			"mustBeCaught": true
+		},
+		{
+			"id": "skip-older",
+			"defect": "вместо несобирающегося коммита берёт ближайший более старый, а не более новый",
+			"mustBeCaught": true
+		},
+		{
+			"id": "no-rerun",
+			"defect": "не перезапускает упавший тест: считает коммит плохим по первому падению",
+			"mustBeCaught": true
+		},
+		{
+			"id": "counts-commits",
+			"defect": "считает проверенные коммиты, а не прогоны теста с перезапусками",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 10, "caught": 10 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

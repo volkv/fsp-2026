@@ -1,0 +1,144 @@
+{
+	"key": "qa.design.date-boundaries",
+	"version": 1,
+	"specialization": "qa",
+	"block": "qa.design",
+	"format": "compute",
+	"answerKind": "set",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": { "rules": 1, "unit": "дни, годы или месяцы", "calendar": "переход через месяц и год" },
+			"constructiveRank": 2,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "promo",
+					"form": "A",
+					"description": "период с датами включительно: по два дня у каждой границы, первый и последний день внутри"
+				},
+				{
+					"id": "within-days",
+					"form": "B",
+					"description": "срок в днях со следующего дня после события: последний день — дата события плюс N"
+				},
+				{
+					"id": "age",
+					"form": "anchor",
+					"description": "полные годы: разрешено с дня рождения, а не со следующего дня и не с начала года"
+				},
+				{
+					"id": "months",
+					"form": "X",
+					"description": "срок в месяцах истекает в то же число, а не через 30 дней на месяц"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"rules": "2–3",
+				"unit": "дни, месяцы, часы, рабочие дни",
+				"interacting": "високосный год, короткий месяц, выходные и праздники"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "leap-age",
+					"form": "A",
+					"description": "день рождения 29 февраля: в невисокосный год действует правило подстановки из условия"
+				},
+				{
+					"id": "month-end",
+					"form": "B",
+					"description": "срок в месяцах с 29–31 числа: в коротком месяце срок истекает в его последний день"
+				},
+				{
+					"id": "hours",
+					"form": "anchor",
+					"description": "окно в часах с точностью до минуты: конец не входит, переход через сутки и месяц"
+				},
+				{
+					"id": "business-days",
+					"form": "X",
+					"description": "срок в рабочих днях: пропускаются выходные и праздники, отсчёт со следующего дня"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "название акции, правила или услуги" },
+		{ "name": "dates", "description": "даты и время события" }
+	],
+	"essentialParams": [
+		{ "name": "unit", "description": "дни, полные годы, месяцы, часы, рабочие дни" },
+		{ "name": "calendar-trap", "description": "конец месяца, 29 февраля, выходные и праздники, переход через сутки" },
+		{ "name": "end-rule", "description": "включается ли последний день или момент" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"граничные даты периода с включёнными концами",
+			"отсчёт срока в днях со следующего дня после события",
+			"полные годы и день рождения 29 февраля",
+			"срок в месяцах и конец короткого месяца",
+			"окно в часах с исключённым концом, срок в рабочих днях"
+		],
+		"doesNotCheck": ["часовые пояса и переход на летнее время", "правила переноса срока на рабочий день"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "end-exclusive",
+			"defect": "считает последний день «по … включительно» уже вне периода",
+			"mustBeCaught": true
+		},
+		{ "id": "inside-only", "defect": "берёт только даты внутри периода, без соседних снаружи", "mustBeCaught": true },
+		{ "id": "count-from-event", "defect": "считает день события первым днём срока", "mustBeCaught": true },
+		{
+			"id": "age-day-after",
+			"defect": "считает, что полные годы наступают на следующий день после дня рождения",
+			"mustBeCaught": true
+		},
+		{
+			"id": "age-year-only",
+			"defect": "считает возраст по году рождения: разрешает с 1 января нужного года",
+			"mustBeCaught": true
+		},
+		{ "id": "month-30-days", "defect": "считает месяц за 30 дней", "mustBeCaught": true },
+		{
+			"id": "month-overflow",
+			"defect": "переносит несуществующее число на следующий месяц (31 января + 1 месяц = 3 марта)",
+			"mustBeCaught": true
+		},
+		{
+			"id": "leap-other-day",
+			"defect": "для дня рождения 29 февраля берёт не тот день подстановки, что задан правилом",
+			"mustBeCaught": true
+		},
+		{
+			"id": "hours-as-days",
+			"defect": "переводит часы в календарные дни и разрешает до конца последнего дня",
+			"mustBeCaught": true
+		},
+		{ "id": "end-inclusive", "defect": "считает момент ровно через N часов ещё допустимым", "mustBeCaught": true },
+		{ "id": "calendar-days", "defect": "считает рабочие дни календарными", "mustBeCaught": true },
+		{ "id": "holidays-ignored", "defect": "пропускает выходные, но не праздники", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 12, "caught": 12 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0011,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

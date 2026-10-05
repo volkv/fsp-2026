@@ -1,0 +1,124 @@
+{
+	"key": "qa.defects.race-log",
+	"version": 1,
+	"specialization": "qa",
+	"block": "qa.defects",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": { "handlers": "2–3", "records": "8–14", "transactions": "нет или одна откатываемая" },
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "lost-update",
+					"form": "A",
+					"description": "чтение–изменение–запись без блокировок: запись по устаревшему чтению затирает чужую"
+				},
+				{
+					"id": "check-then-act",
+					"form": "B",
+					"description": "проверка остатка по прочитанному значению, затем запись: резервы проходят, товар продан сверх остатка"
+				},
+				{
+					"id": "dirty-read",
+					"form": "anchor",
+					"description": "READ UNCOMMITTED: чтение незафиксированного значения, которое затем откатили"
+				},
+				{
+					"id": "mixed-atomic",
+					"form": "X",
+					"description": "атомарные приращения вперемешку с чтением–записью: теряются приращения между чтением и записью"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"handlers": 3,
+				"records": "14–24",
+				"transactions": "транзакции с уровнем изоляции, откаты, поступления на склад"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "lost-update",
+					"form": "A",
+					"description": "транзакции READ COMMITTED: фиксация по чтению, сделанному до чужой фиксации, затирает её; есть откат"
+				},
+				{
+					"id": "check-then-act",
+					"form": "B",
+					"description": "резервы по прочитанному остатку и атомарные поступления на склад вперемешку"
+				},
+				{
+					"id": "dirty-read",
+					"form": "anchor",
+					"description": "три транзакции READ UNCOMMITTED: грязное чтение откатываемой записи и чистые чтения рядом"
+				},
+				{
+					"id": "mixed-atomic",
+					"form": "X",
+					"description": "два обработчика чтение–запись и атомарные приращения третьего"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "ресурс (баланс, остаток, счётчик) и его начальное значение" },
+		{ "name": "interleaving", "description": "суммы и порядок записей обработчиков" }
+	],
+	"essentialParams": [
+		{
+			"name": "anomaly",
+			"description": "аномалия конкурентного доступа: потерянное обновление, проверка-затем-действие, грязное чтение, смесь атомарных и неатомарных операций"
+		},
+		{ "name": "isolation", "description": "транзакции и уровень изоляции" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"пошаговое исполнение чередующегося журнала с локальными значениями обработчиков",
+			"потерянные обновления и их подсчёт",
+			"проверка-затем-действие и продажа сверх остатка",
+			"видимость незафиксированных и откаченных значений по уровню изоляции"
+		],
+		"doesNotCheck": ["исправление кода блокировками", "поведение конкретной СУБД сверх описанной модели"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "sequential",
+			"defect": "применяет операции последовательно, как будто гонки нет: каждое изменение — к текущему значению",
+			"mustBeCaught": true
+		},
+		{
+			"id": "counts-overwrites",
+			"defect": "считает потерянным каждое обновление, за которым следует запись другого обработчика, не глядя на момент его чтения",
+			"mustBeCaught": true
+		},
+		{
+			"id": "negative-stock",
+			"defect": "ищет продажу сверх остатка по отрицательному остатку в базе, а его там нет",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 3, "caught": 3 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0026,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

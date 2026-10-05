@@ -1,0 +1,145 @@
+{
+	"key": "qa.design.coverage-criteria",
+	"version": 1,
+	"specialization": "qa",
+	"block": "qa.design",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"parameters": "3–5 по 2–4 значения",
+				"constraints": "0–3 несовместимых пары значений",
+				"criteria": "each-choice, base-choice, multiple base-choice, все комбинации"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "base-choice",
+					"form": "A",
+					"description": "base-choice с ограничениями: сколько допустимых тестов и какие значения в нём не проверить"
+				},
+				{
+					"id": "each-choice-subset",
+					"form": "B",
+					"description": "наименьшее подмножество данного набора, сохраняющее each-choice"
+				},
+				{
+					"id": "criteria-counts",
+					"form": "anchor",
+					"description": "число тестов для each-choice, base-choice и всех допустимых комбинаций при ограничениях"
+				},
+				{
+					"id": "multi-base",
+					"form": "X",
+					"description": "multiple base-choice с двумя базовыми тестами: объединение наборов и повторы"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"parameters": "4 по 2–4 значения или 5–6 причин графа",
+				"constraints": "2–4: несовместимости, E/I/O/R/M",
+				"interacting": "ограничения убирают значения и комбинации, критерии сравниваются"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "cause-effect",
+					"form": "A",
+					"description": "граф причин и следствий с ограничениями E, I, R: допустимые комбинации причин и сколько из них дают следствие"
+				},
+				{
+					"id": "base-vs-pairwise",
+					"form": "B",
+					"description": "сколько допустимых пар оставляет непокрытыми base-choice — цена перехода на попарное покрытие"
+				},
+				{
+					"id": "dead-values",
+					"form": "anchor",
+					"description": "each-choice при ограничениях: значения, недостижимые ни в одном допустимом тесте, и наименьший набор"
+				},
+				{ "id": "cause-effect-om", "form": "X", "description": "граф причин и следствий с ограничениями O, M, R" }
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "предметная область, параметры, значения, причины" },
+		{ "name": "numbers", "description": "базовый тест, состав набора, несовместимые пары" }
+	],
+	"essentialParams": [
+		{
+			"name": "criterion",
+			"description": "each-choice, base-choice, все комбинации, попарное, граф причин и следствий"
+		},
+		{
+			"name": "constraints",
+			"description": "несовместимые значения и ограничения графа: что выпадает из набора и что становится недостижимым"
+		}
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"число тестов для each-choice, base-choice и всех комбинаций",
+			"недопустимые тесты и недостижимые значения при ограничениях",
+			"наименьший набор, сохраняющий each-choice",
+			"что теряет base-choice по сравнению с попарным покрытием",
+			"ограничения графа причин и следствий E, I, O, R, M"
+		],
+		"doesNotCheck": [
+			"построение наименьшего попарного набора",
+			"работу конкретного инструмента комбинаторного покрытия"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "no-base-subtract",
+			"defect": "считает base-choice как 1 + Σnᵢ, не вычитая базовое значение каждого параметра",
+			"mustBeCaught": true
+		},
+		{
+			"id": "ignore-constraints",
+			"defect": "не учитывает ограничения: считает все комбинации допустимыми",
+			"mustBeCaught": true
+		},
+		{
+			"id": "greedy-cover",
+			"defect": "отбирает тесты жадно — каждый раз тот, что добавляет больше новых значений, — вместо наименьшего набора",
+			"mustBeCaught": true
+		},
+		{ "id": "each-sum", "defect": "считает, что each-choice требует Σnᵢ тестов", "mustBeCaught": true },
+		{
+			"id": "keep-duplicates",
+			"defect": "складывает наборы двух базовых тестов, не убирая совпадающие тесты",
+			"mustBeCaught": true
+		},
+		{
+			"id": "count-forbidden",
+			"defect": "считает непокрытыми и пары, запрещённые ограничениями",
+			"mustBeCaught": true
+		},
+		{ "id": "e-as-o", "defect": "читает ограничение E («не больше одной») как O («ровно одна»)", "mustBeCaught": true },
+		{ "id": "o-as-e", "defect": "читает ограничение O («ровно одна») как E («не больше одной»)", "mustBeCaught": true },
+		{ "id": "r-symmetric", "defect": "читает R («a требует b») как равносильность a и b", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 9, "caught": 9 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.032,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}
