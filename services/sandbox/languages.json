@@ -112,6 +112,58 @@
 				"tasks": 32,
 				"env": []
 			}
+		},
+		{
+			"key": "kotlin",
+			"title": "Kotlin (JVM)",
+			"versionCommand": ["cat", "/usr/local/lib/kotlin/build.txt"],
+			"sourceFile": "Main.kt",
+			"compile": {
+				"args": [
+					"/usr/local/lib/jvm/temurin-21/bin/java",
+					"-XX:+UseSerialGC",
+					"-XX:TieredStopAtLevel=1",
+					"-XX:-UsePerfData",
+					"-XX:CICompilerCount=1",
+					"-Xmx384m",
+					"-Xshare:auto",
+					"-Dkotlin.home=/usr/local/lib/kotlin",
+					"-cp",
+					"/usr/local/lib/kotlin/lib/kotlin-preloader.jar",
+					"org.jetbrains.kotlin.preloading.Preloader",
+					"-cp",
+					"/usr/local/lib/kotlin/lib/kotlin-compiler.jar",
+					"org.jetbrains.kotlin.cli.jvm.K2JVMCompiler",
+					"-no-stdlib",
+					"-no-reflect",
+					"-cp",
+					"/usr/local/lib/kotlin/lib/kotlin-stdlib.jar:/usr/local/lib/kotlin/lib/kotlinx-coroutines-core-jvm.jar",
+					"-jvm-target",
+					"21",
+					"-nowarn",
+					"-d",
+					"main.jar",
+					"Main.kt"
+				],
+				"tasks": 64,
+				"env": []
+			},
+			"artifacts": ["main.jar"],
+			"run": {
+				"args": [
+					"/usr/local/lib/jvm/temurin-21/bin/java",
+					"-XX:+UseSerialGC",
+					"-XX:ActiveProcessorCount=1",
+					"-XX:-UsePerfData",
+					"-Xmx{memory_mb}m",
+					"-Xss64m",
+					"-cp",
+					"main.jar:/usr/local/lib/kotlin/lib/kotlin-stdlib.jar:/usr/local/lib/kotlin/lib/kotlinx-coroutines-core-jvm.jar",
+					"MainKt"
+				],
+				"tasks": 32,
+				"env": []
+			}
 		}
 	]
 }

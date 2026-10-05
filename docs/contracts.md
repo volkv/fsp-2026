@@ -1342,7 +1342,7 @@ interface SandboxRunner {
 }
 
 interface LanguageSpec {
-  key: string;                                 // 'python3' | 'javascript' | 'typescript' | 'go' | 'cpp17' | 'java21' — набор задаёт образ
+  key: string;                                 // 'python3' | 'javascript' | 'typescript' | 'go' | 'cpp17' | 'java21' | 'kotlin' — набор задаёт образ
   version: string;                             // версия компилятора или интерпретатора в образе
   sourceFile: string;
   compile: string[] | null;

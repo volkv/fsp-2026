@@ -20,7 +20,8 @@ export const LANGUAGES: Record<string, string> = {
 	typescript: 'TypeScript (Node.js, стираемый синтаксис)',
 	go: 'Go',
 	cpp17: 'C++17',
-	java21: 'Java 21'
+	java21: 'Java 21',
+	kotlin: 'Kotlin'
 };
 
 export const languageName = (key: string) => LANGUAGES[key] ?? key;
@@ -35,7 +36,8 @@ export const STARTERS: Record<string, string> = {
 	cpp17:
 		'#include <bits/stdc++.h>\nusing namespace std;\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    return 0;\n}\n',
 	java21:
-		'import java.io.BufferedReader;\nimport java.io.IOException;\nimport java.io.InputStreamReader;\n\npublic class Main {\n\tpublic static void main(String[] args) throws IOException {\n\t\tBufferedReader in = new BufferedReader(new InputStreamReader(System.in));\n\t\tSystem.out.println(in.readLine());\n\t}\n}\n'
+		'import java.io.BufferedReader;\nimport java.io.IOException;\nimport java.io.InputStreamReader;\n\npublic class Main {\n\tpublic static void main(String[] args) throws IOException {\n\t\tBufferedReader in = new BufferedReader(new InputStreamReader(System.in));\n\t\tSystem.out.println(in.readLine());\n\t}\n}\n',
+	kotlin: 'fun main() {\n\tval input = generateSequence(::readlnOrNull).joinToString("\\n")\n\tprintln(input)\n}\n'
 };
 
 export const ATTEMPT_STATUSES: Record<

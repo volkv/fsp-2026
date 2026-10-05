@@ -7,6 +7,9 @@ ARG PYTHON_IMAGE=python:3.13.15-slim-trixie
 ARG GO_IMAGE=golang:1.27.1-trixie
 ARG NODE_IMAGE=node:24.21.0-trixie-slim
 ARG JDK_IMAGE=eclipse-temurin:21.0.12_8-jdk-noble
+# Kotlin compiler release of JetBrains/kotlin; the checksum is that of the release's kotlin-compiler zip.
+ARG KOTLIN_VERSION=2.4.20
+ARG KOTLIN_SHA256=59e9ca74c7904ef2c122b12114937673ccce68de820a663f0ed66ccf8799e0b7
 
 FROM ${GO_IMAGE} AS go
 
@@ -19,6 +22,35 @@ RUN CGO_ENABLED=0 GOBIN=/opt/go-judge go install -trimpath -ldflags=-s -tags sec
 
 FROM ${NODE_IMAGE} AS node
 FROM ${JDK_IMAGE} AS jdk
+
+# The Kotlin compiler runs on the JDK above; only the jars the compiler and the programs need are kept (not the
+# sources, the Native, JS and Wasm libraries, compiler plugins or the test libraries of the distribution).
+FROM ${PYTHON_IMAGE} AS kotlin
+ARG KOTLIN_VERSION
+ARG KOTLIN_SHA256
+RUN python3 - <<'PY'
+import hashlib, os, urllib.request, zipfile
+version = os.environ["KOTLIN_VERSION"]
+url = f"https://github.com/JetBrains/kotlin/releases/download/v{version}/kotlin-compiler-{version}.zip"
+data = urllib.request.urlopen(url, timeout=120).read()
+if hashlib.sha256(data).hexdigest() != os.environ["KOTLIN_SHA256"]:
+    raise SystemExit("kotlin-compiler zip does not match its pinned checksum")
+open("/tmp/kotlin.zip", "wb").write(data)
+keep = {"kotlin-preloader.jar", "kotlin-compiler.jar", "kotlin-stdlib.jar", "kotlin-reflect.jar",
+        "kotlin-script-runtime.jar", "kotlinx-coroutines-core-jvm.jar", "annotations-13.0.jar"}
+os.makedirs("/opt/kotlin/lib")
+with zipfile.ZipFile("/tmp/kotlin.zip") as archive:
+    for name in keep:
+        open("/opt/kotlin/lib/" + name, "wb").write(archive.read("kotlinc/lib/" + name))
+    open("/opt/kotlin/build.txt", "wb").write(archive.read("kotlinc/build.txt"))
+    for name in archive.namelist():
+        if name.startswith("kotlinc/license/"):
+            if name.endswith("/"):
+                continue
+            target = "/opt/kotlin/" + name[len("kotlinc/"):]
+            os.makedirs(os.path.dirname(target), exist_ok=True)
+            open(target, "wb").write(archive.read(name))
+PY
 
 FROM ${PYTHON_IMAGE} AS runtime
 ARG DEBIAN_SNAPSHOT=20260924T000000Z
@@ -36,6 +68,7 @@ RUN rm -f /etc/apt/sources.list.d/debian.sources \
 COPY --from=go /usr/local/go /usr/local/go
 COPY --from=node /usr/local/bin/node /usr/local/bin/node
 COPY --from=jdk /opt/java/openjdk /usr/local/lib/jvm/temurin-21
+COPY --from=kotlin /opt/kotlin /usr/local/lib/kotlin
 COPY --from=go-judge /opt/go-judge/go-judge /usr/local/sbin/go-judge
 COPY ts-strip.js /usr/local/lib/sandbox/ts-strip.js
 

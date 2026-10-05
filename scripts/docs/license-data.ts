@@ -173,6 +173,7 @@ export const SYSTEM_LICENSES: Readonly<Record<string, { license: string; purpose
 	tini: { license: 'MIT', purpose: 'init-процесс контейнера' },
 	'g++': { license: 'GPL-3.0-or-later WITH GCC-exception-3.1', purpose: 'компилятор C++ песочницы' },
 	'openssh-server': { license: 'SSH-OpenSSH', purpose: 'sshd обратного туннеля' },
+	'kotlin-compiler': { license: 'Apache-2.0', purpose: 'компилятор Kotlin песочницы (релиз JetBrains/kotlin, контрольная сумма закреплена)' },
 	'github.com/criyle/go-judge/cmd/go-judge': { license: 'MIT', purpose: 'go-judge — исполнитель песочницы' }
 };
 

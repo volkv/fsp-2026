@@ -136,6 +136,7 @@ describe('Dockerfile and image parsing', () => {
 		const dockerfile = [
 			'ARG GO_JUDGE_VERSION=v1.12.3',
 			'ARG DEBIAN_SNAPSHOT=20260924T000000Z',
+			'ARG KOTLIN_VERSION=2.4.20',
 			'RUN go install -tags seccomp \\',
 			'\t\tgithub.com/criyle/go-judge/cmd/go-judge@${GO_JUDGE_VERSION}',
 			'RUN apt-get update \\',
@@ -149,7 +150,8 @@ describe('Dockerfile and image parsing', () => {
 			{ name: 'poppler-utils', version: 'снимок Debian 20260924T000000Z' },
 			{ name: 'tini', version: 'снимок Debian 20260924T000000Z' },
 			{ name: 'openssh-server', version: 'репозиторий Alpine базового образа' },
-			{ name: 'github.com/criyle/go-judge/cmd/go-judge', version: 'v1.12.3' }
+			{ name: 'github.com/criyle/go-judge/cmd/go-judge', version: 'v1.12.3' },
+			{ name: 'kotlin-compiler', version: '2.4.20' }
 		]);
 	});
 

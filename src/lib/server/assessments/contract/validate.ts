@@ -338,7 +338,12 @@ const isPractice = (f: ItemFormat): boolean => (PRACTICE_FORMATS as readonly Ite
  * grades, one definition per pair, blocks of the pair's specialization, quotas that fill the longest trajectory, the
  * practice slot not after the minimum length, the step «измени своё решение» from Middle up.
  */
-export function catalogProblems(catalog: Catalog, procedure: ProcedureParams, skills: ReadonlySet<string>): string[] {
+export function catalogProblems(
+	catalog: Catalog,
+	procedure: ProcedureParams,
+	skills: ReadonlySet<string>,
+	sandboxLanguages: readonly string[] = SANDBOX_LANGUAGE_KEYS
+): string[] {
 	const problems = shapeProblems(catalogSchema, catalog, 'catalog');
 	if (problems.length) return problems;
 	const specs = catalog.specializations.map((s) => s.key);
@@ -353,7 +358,7 @@ export function catalogProblems(catalog: Catalog, procedure: ProcedureParams, sk
 	const directions = new Set(catalog.directions.map((d) => d.key));
 	for (const spec of catalog.specializations) {
 		if (!directions.has(spec.direction)) problems.push(`catalog: ${spec.key} has unknown direction ${spec.direction}`);
-		const missing = spec.practiceLanguages.filter((l) => !(SANDBOX_LANGUAGE_KEYS as readonly string[]).includes(l));
+		const missing = spec.practiceLanguages.filter((l) => !sandboxLanguages.includes(l));
 		if (spec.availability === 'enabled' && missing.length) {
 			problems.push(`catalog: ${spec.key} is enabled, but the sandbox image lacks ${missing.join(', ')}`);
 		}

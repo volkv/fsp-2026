@@ -110,12 +110,13 @@ describe('catalog', () => {
 		]);
 	});
 
-	it('does not switch on a specialization whose practice language the sandbox lacks (Kotlin for Mobile)', () => {
+	it('does not switch on a specialization whose practice language the sandbox lacks ', () => {
 		const on: Catalog = {
 			...CATALOG,
 			specializations: CATALOG.specializations.map((s) => (s.key === 'mobile' ? { ...s, availability: 'enabled' } : s))
 		};
-		expect(catalogProblems(on, PROCEDURE, skills)).toEqual([
+		const withoutKotlin = SANDBOX_LANGUAGE_KEYS.filter((key) => key !== 'kotlin');
+		expect(catalogProblems(on, PROCEDURE, skills, withoutKotlin)).toEqual([
 			'catalog: mobile is enabled, but the sandbox image lacks kotlin'
 		]);
 	});

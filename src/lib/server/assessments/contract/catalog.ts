@@ -38,15 +38,22 @@ export const PRACTICE_FORMATS = ['practice_code', 'qa_mutation'] as const satisf
 /**
  * Language keys of the sandbox image (services/sandbox/languages.json); a unit test keeps the two lists equal.
  */
-export const SANDBOX_LANGUAGE_KEYS = ['python3', 'javascript', 'typescript', 'go', 'cpp17', 'java21'] as const;
+export const SANDBOX_LANGUAGE_KEYS = [
+	'python3',
+	'javascript',
+	'typescript',
+	'go',
+	'cpp17',
+	'java21',
+	'kotlin'
+] as const;
 export type SandboxLanguageKey = (typeof SANDBOX_LANGUAGE_KEYS)[number];
 
 /**
- * Languages a practice task may be written in: the image's and those the product decided to add to it (Kotlin for
- * Mobile). A specialization whose practice language the image lacks cannot be switched on, and its bank cannot be
- * released (the validator checks both against `SANDBOX_LANGUAGE_KEYS`).
+ * Languages a practice task may be written in: those of the image. A specialization whose practice language the image
+ * lacks cannot be switched on, and its bank cannot be released (the validator checks both against the image's set).
  */
-export const PRACTICE_LANGUAGE_KEYS = [...SANDBOX_LANGUAGE_KEYS, 'kotlin'] as const;
+export const PRACTICE_LANGUAGE_KEYS = SANDBOX_LANGUAGE_KEYS;
 export type PracticeLanguageKey = (typeof PRACTICE_LANGUAGE_KEYS)[number];
 
 /**

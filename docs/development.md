@@ -580,6 +580,12 @@ node --env-file=.env --enable-source-maps build/admin/main.js ensure --reset-pas
   стоила бы ~10 с CPU. Окружение прогрева в `Dockerfile` должно совпадать с окружением компиляции в `languages.json`;
 - `java21` — `javac` и `jar` в один шаг компиляции, куча JVM равна лимиту памяти (`-Xmx{memory_mb}m`), так что
   переполнение — `memory_limit`, а не `OutOfMemoryError` в `runtime_error`.
+- `kotlin` — компилятор JetBrains (релиз из GitHub, контрольная сумма закреплена в `Dockerfile`) запускается на JDK образа
+  напрямую через `kotlin-preloader.jar`, без скрипта `kotlinc`; в образе только нужные jar: компилятор, stdlib, reflect,
+  `kotlinx-coroutines-core-jvm`. Исходник `Main.kt` с `fun main()` на верхнем уровне, класс запуска `MainKt`; stdlib и
+  корутины идут в classpath при компиляции и запуске, в `main.jar` их нет. Куча компилятора ограничена 384 МБ (лимит
+  `compileMemoryMb` — до 512), «hello world» компилируется ≈ 2 с CPU, решение на 100 строк ≈ 3 с (один CPU, как на
+  стенде) — укладывается в `compileCpuTimeMs` по умолчанию (10 с). Запуск как у `java21`: куча равна лимиту памяти.
 
 **Изоляция программы.** Каждый запуск go-judge делает в собственных пространствах имён: user (программа — uid 1536
 внутри, снаружи — отдельный непривилегированный uid на окружение, без дополнительных групп), network (только `lo`, и тот

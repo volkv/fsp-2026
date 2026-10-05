@@ -69,7 +69,8 @@ const SUM_SOURCES: Record<string, string> = {
 	cpp17:
 		'#include <iostream>\nint main() {\n\tlong long a, b;\n\tstd::cin >> a >> b;\n\tstd::cout << a + b << "\\n";\n}\n',
 	java21:
-		'import java.util.Scanner;\n\npublic class Main {\n\tpublic static void main(String[] args) {\n\t\tScanner in = new Scanner(System.in);\n\t\tSystem.out.println(in.nextLong() + in.nextLong());\n\t}\n}\n'
+		'import java.util.Scanner;\n\npublic class Main {\n\tpublic static void main(String[] args) {\n\t\tScanner in = new Scanner(System.in);\n\t\tSystem.out.println(in.nextLong() + in.nextLong());\n\t}\n}\n',
+	kotlin: 'fun main() {\n\tval (a, b) = readln().trim().split(" ").map { it.toLong() }\n\tprintln(a + b)\n}\n'
 };
 
 let container: StartedTestContainer;
@@ -129,7 +130,7 @@ describe('languages', () => {
 		const result = await runner.languages();
 		if (!result.ok) throw new Error(result.error.message);
 		const keys = result.value.map((language) => language.key).sort();
-		expect(keys).toEqual(['cpp17', 'go', 'java21', 'javascript', 'python3', 'typescript']);
+		expect(keys).toEqual(['cpp17', 'go', 'java21', 'javascript', 'kotlin', 'python3', 'typescript']);
 		for (const language of result.value) expect(language.version).toMatch(/^\d+(\.\d+)+$/);
 	});
 });
@@ -177,6 +178,10 @@ describe('verdicts', () => {
 		expect(sleeping.verdict).toBe('time_limit');
 		expect(sleeping.wallTimeMs).toBeGreaterThanOrEqual(1_000);
 		expect(sleeping.wallTimeMs).toBeLessThan(3_000);
+
+		const kotlin = await run(request('kotlin', 'fun main() {\n\tvar x = 0L\n\twhile (true) x++\n}\n'));
+		expect(kotlin.compile?.status).toBe('ok');
+		expect(kotlin.tests[0]?.verdict).toBe('time_limit');
 	});
 
 	it('gives memory_limit when a program takes more than its memory', async () => {
@@ -196,6 +201,39 @@ describe('verdicts', () => {
 			)
 		);
 		expect(java.tests[0]?.verdict).toBe('memory_limit');
+
+		const kotlin = await run(
+			request(
+				'kotlin',
+				'fun main() {\n\tval l = ArrayList<LongArray>()\n\twhile (true) l.add(LongArray(1 shl 20))\n}\n'
+			)
+		);
+		expect(kotlin.compile?.status).toBe('ok');
+		expect(kotlin.tests[0]?.verdict).toBe('memory_limit');
+	});
+
+	it('runs Kotlin: top-level main, standard input and the coroutines library', async () => {
+		const hello = await run(
+			request('kotlin', 'fun main() {\n\tprintln("Hello, Kotlin")\n}\n', {
+				tests: [{ id: 'hello', stdin: '', expected: 'Hello, Kotlin', hidden: false }]
+			})
+		);
+		expect(hello.compile?.status).toBe('ok');
+		expect(hello.tests[0]?.verdict).toBe('accepted');
+
+		const coroutines = [
+			'import kotlinx.coroutines.*',
+			'',
+			'fun main() = runBlocking {',
+			'\tval sum = (1..4).map { n -> async { delay(10); n * n } }.awaitAll().sum()',
+			'\tprintln(sum)',
+			'}',
+			''
+		].join('\n');
+		const response = await run(
+			request('kotlin', coroutines, { tests: [{ id: 'c', stdin: '', expected: '30', hidden: false }] })
+		);
+		expect(response.tests[0]?.verdict).toBe('accepted');
 	});
 
 	it('gives runtime_error with the exit code or the signal', async () => {
@@ -215,6 +253,11 @@ describe('verdicts', () => {
 		const typescript = await run(request('typescript', 'enum Color { Red }\nconsole.log(Color.Red);\n'));
 		expect(typescript.compile?.status).toBe('compile_error');
 		expect(typescript.compile?.stderr).toContain('enum');
+
+		const kotlin = await run(request('kotlin', 'fun main() {\n\tprintln(undefinedName)\n}\n', { tests: SUM_TESTS }));
+		expect(kotlin.compile?.status).toBe('compile_error');
+		expect(kotlin.compile?.stderr).toContain('undefinedName');
+		expect(kotlin.tests.map((test) => test.verdict)).toEqual(['compile_error', 'compile_error']);
 	});
 
 	it('gives output_limit to output above the limit and accepts output exactly at it', async () => {

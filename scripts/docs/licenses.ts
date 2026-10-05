@@ -392,7 +392,7 @@ function imageGroup(): ComponentGroup {
 	};
 }
 
-/** Packages a Dockerfile installs with apt-get or apk, and Go modules it builds with `go install`. */
+/** Packages a Dockerfile installs with apt-get or apk, Go modules it builds with `go install`, and the Kotlin compiler it downloads. */
 export function dockerfilePackages(text: string): { name: string; version: string }[] {
 	const joined = text.replace(/\\\n/g, ' ');
 	const snapshot = /^ARG DEBIAN_SNAPSHOT=(\S+)/m.exec(text)?.[1];
@@ -414,6 +414,8 @@ export function dockerfilePackages(text: string): { name: string; version: strin
 		if (version === undefined) throw new Error(`go install of ${match[1] ?? ''}: ARG ${variable} has no default`);
 		packages.push({ name: match[1] ?? '', version });
 	}
+	const kotlin = /^ARG KOTLIN_VERSION=(\S+)/m.exec(text)?.[1];
+	if (kotlin !== undefined) packages.push({ name: 'kotlin-compiler', version: kotlin });
 	return packages;
 }
 
