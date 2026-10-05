@@ -138,7 +138,10 @@ describe('a hiring need', () => {
 		for (const text of [
 			'Дата-инженер\nТребования: Python, SQL, Airflow.',
 			'Data Engineer (Middle)\nPython, Spark, Airflow\nОпыт с Python от 3 лет.',
-			'Аналитик данных\nНужны SQL и Python.'
+			'Аналитик данных\nНужны SQL и Python.',
+			// A title inside a sentence of search, inflected.
+			'Ищем аналитика данных в команду маркетинга\nНужны SQL и Python.',
+			'Приглашаем в команду дата-инженера\nСтек: Python, Spark, Airflow.'
 		]) {
 			const read = await form(text);
 			expect(read.specialization).toBeUndefined();
@@ -148,14 +151,13 @@ describe('a hiring need', () => {
 			role_key: 'systems_analyst'
 		});
 		// A title without a role and a line of a stack: no role at all rather than one read from the stack.
-		for (const text of [
-			'Команда платформы данных\nPython, Kafka, ClickHouse',
-			'Ищем аналитика данных в команду маркетинга\nНужны SQL и Python.'
-		]) {
-			const untitled = await form(text);
-			expect(untitled.role_key).toBeUndefined();
-			expect(untitled.specialization).toBeUndefined();
-		}
+		const untitled = await form('Команда платформы данных\nPython, Kafka, ClickHouse');
+		expect(untitled.role_key).toBeUndefined();
+		expect(untitled.specialization).toBeUndefined();
+		expect(await form('Открыта вакансия на позицию QA-инженера\nНужны SQL и Postman.')).toMatchObject({
+			role_key: 'qa_manual',
+			specialization: 'qa'
+		});
 		// A role of one specialization gives it; fullstack is left to the categories of the role.
 		expect(await form('Python-разработчик\nНужны Django и PostgreSQL.')).toMatchObject({
 			role_key: 'backend',

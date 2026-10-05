@@ -49,6 +49,35 @@ describe('role of a job title', () => {
 		expect(roleOfTitle(title, roles)).toBe(role);
 	});
 
+	// A title inside a sentence of search is inflected: the job nouns are read in any case and in the plural.
+	it.each([
+		['Ищем аналитика данных', 'data_analyst'],
+		['в команду дата-инженера', 'data_engineer'],
+		['на позицию QA-инженера', 'qa_manual'],
+		['ведущего системного аналитика', 'systems_analyst'],
+		['Приглашаем тестировщика в команду платежей', 'qa_manual'],
+		['требуется инженер данных', 'data_engineer'],
+		['ищем инженеров по тестированию', 'qa_manual'],
+		['ищем руководителя проектов', 'project_manager'],
+		['в поиске технического писателя', 'tech_writer'],
+		['на роль технического директора', 'cto'],
+		['ищем сетевого инженера', 'network_engineer'],
+		['ищем системного администратора', 'sysadmin'],
+		['усиливаем команду бизнес-аналитиком', 'business_analyst'],
+		['ищем продуктового аналитика', 'product_analyst'],
+		['ищем UX-дизайнера', 'ui_ux_designer'],
+		['ищем архитектора решений', 'architect']
+	])('%s → %s', (title, role) => {
+		expect(roleOfTitle(title, roles)).toBe(role);
+	});
+
+	it.each(['Архитектура данных', 'Разработка игровых механик', 'Аналитика', 'Ищем инженера'])(
+		'reads no role into a word that only looks like a job noun: «%s»',
+		(title) => {
+			expect(roleOfTitle(title, roles)).toBeNull();
+		}
+	);
+
 	it('takes the name of a role as written in the taxonomy', () => {
 		const [first] = roles;
 		if (!first) throw new Error('the taxonomy has no roles');

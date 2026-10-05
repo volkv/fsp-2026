@@ -2,10 +2,12 @@
 // a resume entry, of an external posting and of a pasted vacancy. The title is matched against the role names of the
 // version first, then against title patterns in order: the more specific role wins («Frontend тимлид» is a team lead,
 // «Python-разработчик» is a backend developer). A key the version does not have is not returned; a title naming no
-// role («программист», «инженер») stays without one — the rules do not guess a role from a generic word.
+// role («программист», «инженер») stays without one — the rules do not guess a role from a generic word. A title
+// inside a sentence is inflected («Ищем аналитика данных», «в команду дата-инженера», «на позицию тестировщика»): the
+// job nouns are brought to the nominative before the patterns are matched, so the patterns are written once, in it.
 
 /** Version of the title rules; the rules of resumes and of postings that use them name it in their own versions. */
-export const ROLE_TITLE_RULES_VERSION = 'role-title/2';
+export const ROLE_TITLE_RULES_VERSION = 'role-title/3';
 
 export interface RoleName {
 	key: string;
@@ -17,7 +19,7 @@ const w = (pattern: string) => new RegExp(`(?<![\\p{L}\\p{N}])(?:${pattern})`, '
 
 /** Order matters: the first matching pattern gives the role. */
 export const ROLE_TITLE_RULES: readonly { role: string; pattern: RegExp }[] = [
-	{ role: 'cto', pattern: w('cto(?![\\p{L}])|технический директор|chief technology') },
+	{ role: 'cto', pattern: w('cto(?![\\p{L}])|техническ\\p{L}* директор|chief technology') },
 	{ role: 'presale', pattern: w('пре ?сейл|pre ?sales?(?![\\p{L}])') },
 	{ role: 'delivery_manager', pattern: w('delivery (?:manager|lead|director)|head of delivery|деливери') },
 	{
@@ -25,7 +27,7 @@ export const ROLE_TITLE_RULES: readonly { role: string; pattern: RegExp }[] = [
 		pattern: w('product manager|product owner|менеджер продукта|владел\\p{L}* продукта|продакт')
 	},
 	{ role: 'project_manager', pattern: w('project manager|руководитель проект|менеджер проект') },
-	{ role: 'tech_writer', pattern: w('технический писатель|technical writer|tech writer') },
+	{ role: 'tech_writer', pattern: w('техническ\\p{L}* писатель|technical writer|tech writer') },
 	{
 		role: 'tech_support',
 		pattern: w('техподдержк|техническ\\p{L}* поддержк|служб\\p{L}* поддержки|support engineer|helpdesk|service desk')
@@ -106,9 +108,23 @@ export function foldTitle(title: string): string {
 		.trim();
 }
 
+/**
+ * Job nouns of titles with the endings of their cases and of the plural: «аналитика», «инженеру», «разработчиков»,
+ * «руководителя». A noun of another word («разработка», «архитектура», «инженерия») does not end so.
+ */
+const JOB_NOUN =
+	/(?<![\p{L}])(разработчик|программист|аналитик|инженер|тестировщик|автоматизатор|дизайнер|архитектор|администратор|сисадмин|менеджер|директор|специалист|верстальщик|тимлид|техлид|консультант|стажер|робототехник|пентестер|сайентист)(?:а|у|ом|е|ы|и|ов|ам|ами|ах)(?![\p{L}])/gu;
+/** Nouns in «-тель»: «руководителя», «писателю», «исследователем». */
+const TEL_NOUN = /(?<![\p{L}])(руководител|писател|исследовател)(?:я|ю|ем|е|и|ей|ям|ями|ях)(?![\p{L}])/gu;
+
+/** A folded title with its job nouns in the nominative singular. */
+function nominative(folded: string): string {
+	return folded.replace(JOB_NOUN, '$1').replace(TEL_NOUN, '$1ь');
+}
+
 /** The role of a job title, or `null` when the title names no role of the version. */
 export function roleOfTitle(title: string, roles: readonly RoleName[]): string | null {
-	const folded = foldTitle(title);
+	const folded = nominative(foldTitle(title));
 	const byName = roles.find((role) => foldTitle(role.nameRu) === folded);
 	if (byName) return byName.key;
 	const known = new Set(roles.map((role) => role.key));
