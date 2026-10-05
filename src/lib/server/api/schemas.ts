@@ -6,6 +6,7 @@ import { API_ERRORS } from '$lib/server/errors/codes';
 import { paginate, queryFingerprint, MAX_PAGE_SIZE, DEFAULT_PAGE_SIZE } from '$lib/server/matching/page';
 import { SALARY_PERIODS, SALARY_TAX_BASES } from '$lib/server/db/schema/_columns';
 import type { MarketFigure } from '$lib/server/market/read';
+import { TRUST_FACT_KEYS, type CompanyTrust } from '$lib/server/companies/trust';
 
 export const id = (description: string) => z.uuid().describe(description);
 
@@ -273,4 +274,38 @@ export function marketFigureView(figure: MarketFigure) {
 				sample_size: figure.sampleSize,
 				threshold: figure.threshold
 			};
+}
+
+/** Facts of trust in a company (domain 5.6): each «so many of so many», or «no data» below the threshold. */
+export const companyTrust = z
+	.object({
+		window_days: z.int().describe('Факты считаются по предложениям за это число последних дней'),
+		min_observations: z.int().describe('Меньше наблюдений — «нет данных» без чисел'),
+		facts: z.array(
+			z.discriminatedUnion('status', [
+				z.object({
+					key: z.enum(TRUST_FACT_KEYS),
+					status: z.literal('shown'),
+					count: z.int().nonnegative(),
+					of: z.int().positive().describe('Число наблюдений')
+				}),
+				z.object({ key: z.enum(TRUST_FACT_KEYS), status: z.literal('no_data') })
+			])
+		)
+	})
+	.meta({
+		id: 'CompanyTrust',
+		description:
+			'Факты доверия к компании с числом наблюдений, без общего индекса: ' +
+			'`applications_answered` — компания ответила на отклик кандидата (пригласила или отказала); ' +
+			'`first_step_in_time` — компания отметила этап или исход найма в течение 7 дней после принятия предложения; ' +
+			'`outcome_reported` — сообщила исход найма по принятому предложению (наблюдение — процесс со сроком исхода или с исходом компании); ' +
+			'`outcome_agreed` — исход компании совпал с исходом кандидата; ' +
+			'`salary_lowered` — новая версия условий снизила вилку против прежних; ' +
+			'`offers_withdrawn` — предложение отозвано до ответа (компанией, её приостановкой или закрытием вакансии); ' +
+			'`complaints_upheld` — обоснованные жалобы кандидатов на число предложений.'
+	});
+
+export function companyTrustView(trust: CompanyTrust) {
+	return { window_days: trust.windowDays, min_observations: trust.minObservations, facts: trust.facts };
 }

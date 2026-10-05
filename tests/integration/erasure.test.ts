@@ -59,6 +59,7 @@ import {
 import type { Docparse, ParseRequest } from '$lib/server/documents/docparse';
 import { foreignKeyColumns } from '$lib/server/demo/graph';
 import { drainJobs } from '$lib/server/demo/queue';
+import { fileComplaint } from '$lib/server/complaints/service';
 import { compareWithErasurePlan, erasedColumns, ERASURE_PLAN } from '$lib/server/erasure/plan';
 import { createAccountPurgeHandler } from '$lib/server/erasure/purge';
 import { declareGrade } from '$lib/server/grades/declarations';
@@ -578,6 +579,11 @@ describe('deleting a candidate with the whole pipeline behind the profile', () =
 		});
 		const [disclosure] = await db.select().from(disclosures).where(eq(disclosures.candidateId, hero.candidateId));
 		if (!disclosure) throw new Error('the acceptance handed over no contacts');
+		// A complaint about the accepted offer: the candidate's own account of what happened (domain 13.13).
+		const complaint = await fileComplaint(invitationDeps(), hero.subject, meta, sentAccepted.invitationId, {
+			reasonCode: 'terms_mismatch',
+			text: 'На собеседовании назвали вилку вдвое ниже'
+		});
 		expect(await db.select().from(notifications).where(eq(notifications.userId, hero.userId))).not.toHaveLength(0);
 		// A category confirmed by a test and an objection to its decision: both are the candidate's (domain 23.2).
 		const { decision } = await decide(db, hero.candidateId, { specialization: 'backend', grade: 'middle' });
@@ -691,6 +697,7 @@ describe('deleting a candidate with the whole pipeline behind the profile', () =
 		expect(await count('skill_inferences', 'run_id', runIds)).toBe(0);
 		expect(await count('candidate_categories', 'decision_id', [decision.id])).toBe(0);
 		expect(await count('assessment_objections', 'id', [objection.id])).toBe(0);
+		expect(await count('invitation_complaints', 'id', [complaint.id])).toBe(0);
 		expect(await count('invitation_terms', 'invitation_id', invitationIds)).toBe(0);
 		expect(await count('invitation_responses', 'invitation_id', invitationIds)).toBe(0);
 		expect(await count('hiring_processes', 'invitation_id', invitationIds)).toBe(0);

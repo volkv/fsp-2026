@@ -624,6 +624,46 @@ draft | submitted ──(оператор)──▶ suspended ──(опера�
 
 ---
 
+### 5.6. Факты доверия к компании
+
+Кандидат видит рядом с профилем компании в каждом предложении (и сама компания — в своём профиле, `GET /api/v1/company/trust`)
+**факты** о том, что компания делала с предложениями за последние `TRUST_WINDOW_DAYS` (365) дней. Каждый факт — «столько из
+стольких» с числом наблюдений; при наблюдениях меньше `TRUST_MIN_OBSERVATIONS` (3) — «нет данных» **без чисел**: один-два случая
+рассказывают о конкретном кандидате, а не о компании. Общего индекса, рейтинга или «оценки доверия» нет и не вводится: каждый факт
+читается как есть. Факты не хранятся — считаются из строк компании (`companies/trust.ts`); клон компании демо-сессии считает свои
+строки, удаление аккаунта кандидата убирает его строки из счёта.
+
+| Факт | Наблюдение | Совпадение |
+|---|---|---|
+| `applications_answered` | отклик на вакансию компании (кроме отозванного до ответа) | компания пригласила или отказала |
+| `first_step_in_time` | процесс найма, открытый принятием, у которого прошло 7 дней или компания уже сообщила этап/исход | компания сообщила этап или исход в течение 7 дней после принятия |
+| `outcome_reported` | процесс со сроком исхода (`outcome_due_at`) в прошлом или с исходом компании | у компании есть действующее сообщение об исходе |
+| `outcome_agreed` | процесс, где исход сообщили обе стороны | исходы согласованы (оба `hired` или оба из группы «не нанят», 13.7) |
+| `salary_lowered` | новая версия условий (пересмотр или возобновление, `version > 1`) | `changes.salary_lowered` |
+| `offers_withdrawn` | линия предложений, отправленная в окне (надгробия удалённых аккаунтов — тоже, статус у них сохранён) | статус `withdrawn` — компания отозвала, её приостановили или закрыли вакансию |
+| `complaints_upheld` | линия предложений в окне | обоснованная жалоба кандидата (решение `warning` или `suspension`, 13.14) |
+
+**Отклики.** Факт `applications_answered`: наблюдение — отклик на вакансию компании в окне (отозванный кандидатом до ответа не
+считается), совпадение — компания ответила (пригласила или отказала, `decided_at`); считает `applicationAnswerCounts` модуля откликов.
+Событие `application.received` (5.7) модуль откликов отправляет через `emitCompanyEvent` в транзакции создания отклика.
+
+### 5.7. Исходящие события компании
+
+Компания подписывает свою систему найма на события платформы, чтобы не опрашивать API (`contracts.md`, раздел 13).
+
+| Таблица | Поля | Смысл |
+|---|---|---|
+| `event_subscriptions` | `id`, `company_id`, `target` (`webhook` · `huntflow`), `name`, `url` (вебхук: `https://` во внешней сети; Хантфлоу — `NULL`), `events text[]` (подмножество `COMPANY_EVENT_TYPES`, не пусто), `status` (`active` · `paused`), `secret_enc` (секрет подписи вебхука или токен Хантфлоу, `enc`), `secret_hint`, `previous_secret_enc` + `previous_secret_until` (ротация), `settings` (Хантфлоу: `{account_id, vacancy_id, statuses}`), `created_by_member_id` | подписка |
+| `event_deliveries` | `id`, `subscription_id`, `company_id`, `event_id` (`X-Event-Id`, общий для всех подписок события), `event_type` (события + `ping`), `invitation_id` (для удаления), `payload` (только идентификаторы и коды), `occurred_at`, `status` (`queued` · `delivered` · `failed` · `skipped`), `attempts`, `last_status`, `last_error`, `delivered_at`; `UNIQUE (subscription_id, event_id)` | журнал доставок |
+| `ats_links` | `id`, `subscription_id`, `invitation_id`, `external_id`; `UNIQUE (subscription_id, invitation_id)` | запись адаптера ATS (кандидат Хантфлоу) по предложению |
+
+События: `invitation.accepted`, `invitation.declined`, `invitation.expired`, `contacts.disclosed`, `hiring.reported`,
+`application.received` (задача откликов). Событие создаётся `emitCompanyEvent` в транзакции изменения: строка доставки и задание
+`event.deliver` на каждую активную подписку компании на этот тип. Псевдоним кандидата для компании добавляется в тело при отправке и не
+хранится. Подписками управляет владелец допущенной компании в сессии (`company.events.manage`), ключам API право не выдаётся. При отправке
+доставка снова спрашивает политику допуска: приостановленной или отклонённой компании события не уходят (`skipped`), так же — подписке
+на паузе.
+
 ## 6. Правовые документы, согласия, представители, раскрытия
 
 Модель: версионированные документы → append-only события выдачи и отзыва → производное состояние. Согласие, настройка видимости
@@ -3204,6 +3244,25 @@ test:block:{block}`) с областью покрытия в `payload` (спец
 только эта компания; блок-лист, неактивный профиль, отсутствие согласия на обработку и закрытая компания по-прежнему отказывают
 (`invitation.create` получает признак `ownApplication`). Предложение по отклику отправляется со страницы отклика.
 
+### 13.14. Жалоба кандидата на предложение
+
+**`invitation_complaints`**: `id`, `invitation_id`, `company_id`, `candidate_id`, `terms_id` (версия, действовавшая в момент жалобы),
+`reason_code` (`terms_mismatch` · `no_real_job` · `contact_harvesting` · `payment_demanded` · `discrimination` · `other`), `text`
+(10–2000 символов, словами кандидата), `status` (`open` · `decided`), `decision` (`no_action` · `warning` · `suspension`), `resolution`
+(объяснение оператора кандидату, 10–2000), `decided_by`, `decided_at`; `UNIQUE (invitation_id, candidate_id)` — одна жалоба кандидата
+на предложение.
+
+- Жалуется адресат предложения (`complaint.create`) — в любом статусе, в том числе после принятия: несовпадение условий часто
+  выясняется на собеседовании. Повтор — `409 complaint_exists`; чужое предложение — `404`.
+- Оператор (`complaint.review`) работает очередь старых первыми; каждое открытие дела — `operator.case_access` (`case_type: complaint`).
+  Клон оператора демо-сессии видит жалобы компаний своей сессии (19.3).
+- Решение: `no_action`; `warning` — жалоба обоснована; `suspension` — в той же транзакции компания `→ suspended` с причиной
+  `complaint` и `complaint_id` в журнале, неотвеченные предложения отзываются (5.1). Компанию, которую политика допуска уже не
+  пропускает, приостановить нельзя — `409 not_admitted`.
+- Кандидат видит статус и объяснение на странице предложения и получает `complaint.decided`. Владельцы компании узнают только об
+  обоснованной жалобе (`company.complaint_upheld`) и только её причину — не кто пожаловался и не текст. Обоснованные жалобы входят
+  в факт доверия `complaints_upheld` (5.6).
+
 ---
 
 ## 14. Проекции карточки кандидата
@@ -4046,6 +4105,7 @@ Append-only, партиционирование по месяцу, срок хр
 | удаление таблиц агрегатора | R | 0029 | по решению о судьбе агрегатора |
 | `shortlists`, `shortlist_revisions` (append-only, удаляет роль хранения), `shortlist_marks`, `salary_cohort_snapshots`, `shortlist_evaluations` | C2 | 0030 | `catalog_policy.salary_bins` — версия 2 политики |
 | `company_challenges`, `challenge_deliveries`, `challenge_solutions`, `applications` (13.13), `confirmation_requests`, `block_confirmations` | C3 | 0031 (фактически 0032) | колонка `test_attempts.confirmation_request_id` с внешним ключом (единственная связь попытки и запроса); ключ `confirmation_requests.confirmation_id` проверяется при фиксации (ручная дописка); `disclosures.application_id`, `invitation_id` без `NOT NULL` и `CHECK` «ровно одно основание»; `consent_events.scope_application_id` и область согласия «ровно одно из приглашения и отклика»; `demo_sessions.clock_offset_seconds`; политика `challenge_policy` |
+| `invitation_complaints`, `event_subscriptions`, `event_deliveries`, `ats_links` | C4 | 0033 | тип задания `event.deliver` в реестре и обоих `--types` |
 | `category_attestations`, ручные поля профиля (`candidates.telegram_enc`, `candidates.soft_skill_keys`, `profile_experience_entries`, `profile_suggestions`) | D1 | 0032 (фактически 0029) | ограничение надгробия `candidates_tombstone` дополнено новыми колонками |
 
 **Правила миграций.** Миграцию генерирует `drizzle-kit` из схемы (`pnpm db:generate`, снимки `meta/`); номер в таблице — плановый
@@ -4103,6 +4163,10 @@ Append-only, партиционирование по месяцу, срок хр
 | `category_attestations` | `owned`, копируется с новым `handle` (`demo/clone.ts`); `candidate_id`, `category_id`, `decision_id: owner` | `erased` до категорий; проверка после удаления — `404` |
 | `profile_experience_entries` | `owned`, копируется; `candidate_id: owner` | `erased` |
 | `profile_suggestions` | `owned`, копируется; `candidate_id`, `extraction_id: owner` | `erased` до текстов извлечения; значения ФИО и контактов — со строкой |
+| `invitation_complaints` | `owned`, копируется; `invitation_id`, `company_id`, `candidate_id`, `terms_id: owner`; `decided_by: mention` | `erased` по `candidate_id` до версий условий; решение по компании остаётся в журнале |
+| `event_subscriptions` | `owned`, не копируется (секрет и адрес системы компании); `company_id`, `created_by_member_id: owner` | ссылок на кандидата нет |
+| `event_deliveries` | `owned`, не копируется; `subscription_id`, `company_id`, `invitation_id: owner` | удаляются с предложениями удалённого кандидата (`invitation_id`) |
+| `ats_links` | `owned`, не копируется; `subscription_id`, `invitation_id: owner` | удаляются с предложениями удалённого кандидата |
 
 `source_facts` теста (10.9, 13.11) и выводы о навыках идут общим путём доказательств (раздел 9, 19). Выгрузка своих данных
 (`fsp-career-data-export`) с первой задачей, добавившей сущность кандидата, получает новую версию: опросы, заявления, попытки с поданными

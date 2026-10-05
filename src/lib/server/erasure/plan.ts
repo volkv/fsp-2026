@@ -82,7 +82,11 @@ export const ERASURE_PLAN: Readonly<Record<string, ErasureDecision>> = {
 	'challenge_deliveries.candidate_id': erased,
 	'confirmation_requests.candidate_id': erased,
 	'block_confirmations.candidate_id': erased,
-	'applications.candidate_id': kept('a tombstone of id, company, vacancy and status: a disclosure by it refers to it')
+	'applications.candidate_id': kept('a tombstone of id, company, vacancy and status: a disclosure by it refers to it'),
+	// Complaints about offers (domain 13.14): the candidate's account of what happened goes; the operator's decision on
+	// the company stays in the journal.
+	'invitation_complaints.candidate_id': erased,
+	'invitation_complaints.decided_by': actOfAnother
 };
 
 /** A single-column foreign key of the schema. */

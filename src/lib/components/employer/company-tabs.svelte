@@ -3,7 +3,7 @@
 	import { page } from '$app/state';
 	import { cn } from '$lib/components/utils.js';
 
-	/** Sections of the company: the profile for every member; the team and the API keys for its owner. */
+	/** Sections of the company: the profile for every member; the team, the API keys and the events for an ATS for its owner. */
 	let { role }: { role: 'owner' | 'recruiter' } = $props();
 
 	const tabs = $derived([
@@ -11,7 +11,8 @@
 		...(role === 'owner'
 			? [
 					{ href: resolve('/company/profile/team'), label: 'Команда' },
-					{ href: resolve('/company/profile/keys'), label: 'Ключи API' }
+					{ href: resolve('/company/profile/keys'), label: 'Ключи API' },
+					{ href: resolve('/company/profile/integrations'), label: 'События для ATS' }
 				]
 			: [])
 	]);

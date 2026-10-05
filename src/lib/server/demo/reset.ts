@@ -178,7 +178,12 @@ export const DEMO_RESET_PLAN: Readonly<Record<string, TableDecision>> = {
 		kind: 'clear_except',
 		keep: "type = 'demo.reset'",
 		why: 'the running reset owns its row, and a night whose reset ran must not get another one'
-	}
+	},
+	// Complaints of candidates and outgoing events of companies (domain 5.6, 5.7, 13.14).
+	invitation_complaints: clear,
+	event_subscriptions: clear,
+	event_deliveries: clear,
+	ats_links: clear
 };
 
 export class DemoResetPlanMismatch extends Error {

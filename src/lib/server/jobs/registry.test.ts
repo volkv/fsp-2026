@@ -22,7 +22,8 @@ describe('job registry', () => {
 			['demo.purge', { period: '2026-10-12T15' }, 'demo.purge:2026-10-12T15'],
 			['vacancies.text_recheck', { validator_version: 'text-check/2' }, 'vacancies.text_recheck:text-check/2'],
 			['challenge.deliver', { period: '2026-10-12T15' }, 'challenge.deliver:2026-10-12T15'],
-			['confirmation.expire', { request_id: id }, `confirmation.expire:${id}`]
+			['confirmation.expire', { request_id: id }, `confirmation.expire:${id}`],
+			['event.deliver', { delivery_id: id }, `event.deliver:${id}`]
 		];
 		for (const [type, payload, key] of expectations) {
 			const spec = jobSpec(type);
@@ -36,6 +37,6 @@ describe('job registry', () => {
 	});
 
 	it('covers every type of the model registry', () => {
-		expect(Object.keys(JOB_TYPES)).toHaveLength(30);
+		expect(Object.keys(JOB_TYPES)).toHaveLength(31);
 	});
 });

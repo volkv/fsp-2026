@@ -18,6 +18,7 @@
 10. [API теста, категории и контакта](#10-api-теста-категории-и-контакта)
 11. [Режим оценки жюри и эталон подбора](#11-режим-оценки-жюри-и-эталон-подбора)
 12. [Нагрузка](#12-нагрузка)
+13. [Исходящие события компании и адаптер Хантфлоу](#13-исходящие-события-компании-и-адаптер-хантфлоу)
 
 ---
 
@@ -1268,6 +1269,10 @@ interface ParseResponse {
 | `PUT /api/v1/me/catalog-scope` | кандидат 18+ | `{ scope_fields }` — точные достижения, профили и зарплатные ожидания (`salary_expectations`, domain 13.10) в каталоге; новое событие `catalog_visibility` |
 | `POST /api/v1/me/tests/decisions/{decision_id}/objections` | кандидат (сессия) | возражение против результата теста (domain 12.5) |
 | `POST /api/v1/me/notification-channels/telegram` | любой пользователь | ссылка привязки бота (раздел 8.2) |
+| `GET /api/v1/company/trust` | член компании (сессия или ключ) | факты доверия к своей компании (domain 5.6) |
+| `POST`, `GET /api/v1/invitations/{id}/complaint` | кандидат (сессия) | жалоба на предложение `{reason_code, text}` и её статус (domain 13.14) |
+| `GET /api/v1/operator/complaints`, `GET …/{complaint_id}`, `POST …/{complaint_id}/decision` | оператор (`complaint.review`, сессия) | очередь, дело, решение `{decision: no_action \| warning \| suspension, resolution}` |
+| `/api/v1/companies/{company_id}/event-subscriptions` (`GET`, `POST`), `…/huntflow`, `…/{id}` (`PATCH`, `DELETE`), `…/{id}/secret`, `…/{id}/ping`, `…/{id}/deliveries` | владелец (`company.events.manage`, сессия) | исходящие события, раздел 13 |
 | `POST /api/v1/integrations/fsp/webhooks` | ФСП (подпись) | раздел 1.5 |
 | `POST /api/v1/integrations/telegram/webhook` | Telegram (секрет) | раздел 8.2 |
 
@@ -1738,7 +1743,7 @@ interface NotificationChannel {
 | `PUT /api/v1/me/block-confirmations/{id}/visibility` | `{visibility: requester \| all_companies}` — кому виден результат блок-теста | `404` чужой |
 | `GET /api/v1/me/challenges`, `POST /api/v1/me/challenges/{delivery_id}/viewed`, `POST …/solutions`, `DELETE …/solutions/{id}`, `POST …/dismissal` | доставленные вызовы, отметка «открыт» (свежесть не меняет), решение или подход (освежает профиль), отзыв решения (текст стирается), «не интересно» (domain 13.12) | `409 challenge_closed`; `409 already_submitted`; `404` чужая доставка |
 | `GET /api/v1/me/demand` | спрос на категорию по потребностям компаний: `{needs: {value} \| {below}, salary: {gross, net}, skills}` — агрегат с порогом `catalog_policy`, медиана и навыки — от порога | — |
-| `POST /api/v1/me/applications`, `GET /api/v1/me/applications`, `POST …/{id}/withdrawal` | отклик на вакансию витрины `{vacancy_id, message?, disclose_fields, disclosure_document_id}` со снимком соответствия и раскрытием выбранных контактов этой компании; мои отклики со статусами; отзыв (domain 13.13) | `404` не вакансия витрины (внешняя, чужой сессии); `409 vacancy_closed`, `already_applied`, `disclosure_document_changed`; `422 application_adult_only` |
+| `POST /api/v1/me/applications`, `GET /api/v1/me/applications`, `POST …/{id}/withdrawal` | отклик на вакансию витрины `{vacancy_id, message?, disclose_fields, disclosure_document_id}` со снимком соответствия и раскрытием выбранных контактов этой компании; мои отклики со статусами; отзыв (domain 13.14) | `404` не вакансия витрины (внешняя, чужой сессии); `409 vacancy_closed`, `already_applied`, `disclosure_document_changed`; `422 application_adult_only` |
 | `POST /api/v1/demo/clock` | «промотать неделю» учётки демо-сессии: часы сессии +7 дней и прогон доставки вызовов её компаний (domain 13.12) | `403` учётка вне демо-сессий |
 
 ### 10.2. Работодатель: профиль, потребность, подборка, предложение
@@ -1763,7 +1768,7 @@ interface NotificationChannel {
 | `POST /api/v1/confirmation-requests`, `GET /api/v1/confirmation-requests?candidate_pseudonym=` | `{candidate_pseudonym, block, invitation_id?, need_id?}` → `{outcome: created \| existing \| result, request, result}`: открытый запрос или видимый компании подтверждённый действующий результат того же блока на том же или более высоком грейде (без дублей); список запросов компании с результатами | `422 confirmation_block_confirmed` (определяющий блок категории), `block_not_testable` (пара «блок × грейд» не разрешена), `specialization_closed`; `409 grade_unknown` — у кандидата нет ни категории, ни заявленного грейда специализации блока; `404` кандидат не виден |
 | `POST /api/v1/vacancies/{id}/test-spec`, `POST /api/v1/test-spec/from-text` | спецификация теста из вакансии или текста: основа категории и добавленные блоки (domain 13.11) | — |
 | `POST`, `GET /api/v1/challenges`, `GET`, `PATCH /api/v1/challenges/{id}`, `GET …/{id}/solutions`, `POST …/solutions/{solution_id}/dismissal` | вызов компании (черновик или сразу опубликован; у опубликованного меняется только `ends_at`, `status: closed` закрывает) и псевдонимные решения; пригласить из решения — `POST /invitations` с пунктом `{source: {kind: challenge_solution, ref}}` | `422 text_blocked`, `company_profile_incomplete`, `salary_not_rub`, `specialization_closed`; `409 challenge_published`, `challenge_closed` |
-| `GET /api/v1/applications`, `GET /api/v1/applications/{id}`, `POST …/{id}/rejection` | входящие отклики на свои вакансии по псевдонимам; отклик с контактами по нему, пока согласие действует (первое чтение — `viewed`); отказ. Пригласить — `POST /invitations`: открытые отклики пары станут `invited` (domain 13.13) | `404` чужой; `409` закрытый |
+| `GET /api/v1/applications`, `GET /api/v1/applications/{id}`, `POST …/{id}/rejection` | входящие отклики на свои вакансии по псевдонимам; отклик с контактами по нему, пока согласие действует (первое чтение — `viewed`); отказ. Пригласить — `POST /invitations`: открытые отклики пары станут `invited` (domain 13.14) | `404` чужой; `409` закрытый |
 
 ### 10.3. Публичное и оператор
 
@@ -1907,3 +1912,49 @@ Precision@10 обеих систем считается по одной разм
 
 Отчёт нагрузки: коммит, дата, состав, число запросов по операциям, p50/p95/p99, доля ошибок, пиковая память по сервисам, доля холодных
 запросов, оба режима (с моделью и без).
+
+## 13. Исходящие события компании и адаптер Хантфлоу
+
+### 13.1. Подписка и тело события
+
+Подписку регистрирует владелец компании в кабинете («События для ATS») или по API в сессии
+(`/api/v1/companies/{company_id}/event-subscriptions…`, domain 5.7). Тело `POST` вебхука:
+
+```json
+{ "id": "<event id>", "type": "invitation.accepted", "occurred_at": "2026-10-05T12:00:00.000Z",
+  "company_id": "<uuid>", "data": { "invitation_id": "<uuid>", "terms_id": "<uuid>", "terms_version": 1,
+  "reason_code": null, "by_representative": false, "candidate_pseudonym": "<псевдоним для компании>" } }
+```
+
+`data` — только идентификаторы и коды: интеграция читает предложение и раскрытые контакты по API своим ключом, под теми же правами и
+согласием кандидата, что интерфейс. `contacts.disclosed` несёт `fields` (какие поля раскрыты), `hiring.reported` — `hiring_process_id`,
+`party`, `kind`, `value`, `start_date`, `outcome_state`; `ping` — проверочная доставка по кнопке.
+
+### 13.2. Подпись, повторы, адреса
+
+| Заголовок | Значение |
+|---|---|
+| `X-Event-Id` | id события, общий для всех подписок; получатель отвергает повтор |
+| `X-Event-Type` | тип события |
+| `X-Timestamp` | секунды Unix; получатель отвергает расхождение больше 5 минут |
+| `X-Signature` | `sha256=` HMAC-SHA-256 от `{timestamp}.{rawBody}` секретом подписки; сутки после ротации — две подписи через запятую (новым и прежним секретом) |
+
+Доставка — задание `event.deliver` (до 8 попыток). `2xx` — `delivered`; сеть, таймаут 10 с, `429`, `5xx` — повтор через 1, 5, 15 минут,
+1, 2, 4, 6 часов, после последней попытки — `failed`; другой ответ — `failed` сразу. Адрес — `https://`; адреса частных, loopback и
+link-local сетей отвергаются при регистрации и ещё раз на адресе, в который имя разрешилось при соединении; редиректы не выполняются.
+Каждая попытка пишется в `event_deliveries` сразу; владелец видит журнал в кабинете и по `GET …/deliveries`.
+
+### 13.3. Адаптер Хантфлоу
+
+Включается переменной `HUNTFLOW_API_URL` (база API v2, например `https://api.huntflow.ru/v2`); без неё подключение отвергается
+(`409 huntflow_disabled`), а доставки пропускаются. Компания подключает аккаунт своим токеном (хранится зашифрованным) и сопоставлением
+`{account_id, vacancy_id, statuses: {accepted, interview_scheduled?, interview_done?, offer_made?, offer_accepted?, hired?, not_hired?}}`.
+
+| Событие | Вызовы открытого API Хантфлоу v2 |
+|---|---|
+| `invitation.accepted` | `POST /accounts/{account_id}/applicants` (`ApplicantCreateRequest`: `last_name`, `first_name`, `middle_name`, `email`, `phone` — только поля, раскрытые компании, пока действует согласие; чтение пишется в журнал как `card.viewed_recipient` от имени подключившего) → `POST /accounts/{account_id}/applicants/{id}/vacancy` (`AddApplicantToVacancyRequest`: `vacancy`, `status = statuses.accepted`, `comment`); id кандидата Хантфлоу — в `ats_links` |
+| `hiring.reported` от компании | `PUT /accounts/{account_id}/applicants/{id}/vacancy` (`ChangeVacancyApplicantStatusRequest`: `vacancy`, `status` по этапу; при `hired` — `employment_date`); этап без статуса в сопоставлении и сообщения кандидата не передаются |
+
+Формы запросов сверяются тестом с фрагментом OpenAPI Хантфлоу (`tests/fixtures/huntflow/openapi-fragment.json`, источник
+`https://api.huntflow.ru/v2/openapi.json`). Обновление токена Хантфлоу (`/token/refresh`) и обратный вебхук Хантфлоу → платформа —
+развитие; Talantix, Поток, E-Staff подключаются вебхуком (13.1–13.2) и API с ключом.

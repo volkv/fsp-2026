@@ -8,7 +8,7 @@
 // grounds. The staff learn that an objection's answer is due, never who objected or why.
 import { z } from 'zod';
 import { GRADE_POLICY } from '$lib/server/assessments/contract/policy';
-import { ANNUL_REASONS } from '$lib/server/db/schema';
+import { ANNUL_REASONS, COMPLAINT_DECISIONS, COMPLAINT_REASONS } from '$lib/server/db/schema';
 import type { MailMessage } from '$lib/server/mail/mailer';
 import { render, type Letter } from '$lib/server/mail/templates';
 import type { InvitationFacts, NotificationFacts } from './content';
@@ -42,6 +42,19 @@ const ageRegime = z.enum(['adult', 'minor']);
 const annulReason = z.enum(ANNUL_REASONS);
 const blockVerdict = z.enum(['confirmed', 'not_confirmed']);
 const applicationDecision = z.enum(['invited', 'rejected']);
+const complaintDecision = z.enum(COMPLAINT_DECISIONS);
+const upheldDecision = z.enum(['warning', 'suspension']);
+const complaintReason = z.enum(COMPLAINT_REASONS);
+
+/** What the company reads about the ground of an upheld complaint: the reason only, never the candidate's words. */
+const COMPLAINT_REASON_TEXT: Record<z.infer<typeof complaintReason>, string> = {
+	terms_mismatch: 'условия на деле не совпали с условиями предложения',
+	no_real_job: 'работы, которую описывает предложение, нет',
+	contact_harvesting: 'предложение использовали, чтобы получить контакты',
+	payment_demanded: 'от кандидата требовали оплату',
+	discrimination: 'дискриминирующие требования или вопросы',
+	other: 'иное нарушение условий платформы'
+};
 
 type DecisionType =
 	| 'company.verification_decided'
@@ -63,7 +76,9 @@ type DecisionType =
 	| 'challenge.delivered'
 	| 'challenge.reminder'
 	| 'application.received'
-	| 'application.decided';
+	| 'application.decided'
+	| 'complaint.decided'
+	| 'company.complaint_upheld';
 type InvitationType = Exclude<NotificationType, DecisionType>;
 
 function unsupported(type: NotificationType, facts: NotificationFacts): never {
@@ -374,6 +389,40 @@ function bodyOf(type: NotificationType, facts: NotificationFacts, payload: Paylo
 						: `Компания «${facts.companyName}» не готова продолжить по отклику на вакансию «${facts.vacancyTitle}».`
 				],
 				action: invited ? 'Открыть предложение' : 'Открыть мои отклики'
+			};
+		}
+		case 'complaint.decided': {
+			if (facts.object !== 'invitation_complaint') unsupported(type, facts);
+			const decided = complaintDecision.parse(payload.decision);
+			return {
+				subject: 'Жалоба на предложение рассмотрена',
+				paragraphs: [
+					{
+						no_action: `Оператор ФСП рассмотрел вашу жалобу на предложение компании «${facts.companyName}» и не нашёл оснований для мер.`,
+						warning: `Оператор ФСП рассмотрел вашу жалобу на предложение компании «${facts.companyName}» и вынес компании предупреждение.`,
+						suspension: `Оператор ФСП рассмотрел вашу жалобу на предложение компании «${facts.companyName}» и приостановил работу компании на платформе.`
+					}[decided],
+					'Объяснение оператора — на странице предложения. Компания не узнаёт, кто пожаловался, и не видит текст жалобы.'
+				],
+				action: 'Открыть предложение'
+			};
+		}
+		case 'company.complaint_upheld': {
+			if (facts.object !== 'company') unsupported(type, facts);
+			const decided = upheldDecision.parse(payload.decision);
+			const reason = COMPLAINT_REASON_TEXT[complaintReason.parse(payload.reason_code)];
+			return {
+				subject:
+					decided === 'suspension'
+						? 'Работа компании приостановлена по жалобе кандидата'
+						: 'Предупреждение по жалобе кандидата',
+				paragraphs: [
+					`Оператор ФСП признал обоснованной жалобу кандидата на предложение компании «${facts.companyName}»: ${reason}.`,
+					decided === 'suspension'
+						? 'Действия компании на платформе приостановлены, неотвеченные предложения отозваны. Вопросы — оператору ФСП.'
+						: 'Это предупреждение: обоснованные жалобы видны кандидатам в фактах о компании, повторное нарушение ведёт к приостановке.'
+				],
+				action: 'Открыть профиль компании'
 			};
 		}
 		default:

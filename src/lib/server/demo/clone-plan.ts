@@ -458,7 +458,8 @@ export const DEMO_CLONE_PLAN: Readonly<Record<string, TableDecision>> = {
 				representation: 'representations',
 				confirmation_request: 'confirmation_requests',
 				challenge_delivery: 'challenge_deliveries',
-				application: 'applications'
+				application: 'applications',
+				invitation_complaint: 'invitation_complaints'
 			}
 		}
 	},
@@ -467,6 +468,36 @@ export const DEMO_CLONE_PLAN: Readonly<Record<string, TableDecision>> = {
 		copy: false,
 		edges: { notification_id: 'owner', channel_id: 'owner' },
 		why: 'deliveries went to the original person'
+	},
+	// Complaints of candidates and outgoing events of companies (domain 5.6, 5.7, 13.14, 23.2).
+	invitation_complaints: {
+		kind: 'owned',
+		copy: true,
+		edges: {
+			invitation_id: 'owner',
+			company_id: 'owner',
+			candidate_id: 'owner',
+			terms_id: 'owner',
+			decided_by: 'mention'
+		}
+	},
+	event_subscriptions: {
+		kind: 'owned',
+		copy: false,
+		edges: { company_id: 'owner', created_by_member_id: 'owner' },
+		why: 'a subscription holds a secret and the address of the company’s own system; a clone company sets its own'
+	},
+	event_deliveries: {
+		kind: 'owned',
+		copy: false,
+		edges: { subscription_id: 'owner', company_id: 'owner', invitation_id: 'owner' },
+		why: 'deliveries of a subscription, which is never cloned'
+	},
+	ats_links: {
+		kind: 'owned',
+		copy: false,
+		edges: { subscription_id: 'owner', invitation_id: 'owner' },
+		why: 'records of a subscription, which is never cloned'
 	}
 };
 

@@ -6,6 +6,7 @@ import { can, type AccessSubject } from '$lib/server/access/permissions';
 import { recordAuditEvent } from '$lib/server/audit/record';
 import type { Executor, Transaction } from '$lib/server/db';
 import { candidates, hiringProcesses, hiringReports, invitations } from '$lib/server/db/schema';
+import { emitCompanyEvent } from '$lib/server/events/emit';
 import { enqueueJob } from '$lib/server/jobs/queue';
 import { auditActor, type InvitationDeps, type RequestMeta } from '$lib/server/invitations/deps';
 import { invalid, refuse } from '$lib/server/invitations/errors';
@@ -197,6 +198,22 @@ export async function reportHiring(
 			}
 		}
 
+		await emitCompanyEvent(tx, {
+			companyId: process.companyId,
+			type: 'hiring.reported',
+			invitationId: process.invitationId,
+			data: {
+				invitation_id: process.invitationId,
+				hiring_process_id: process.id,
+				report_id: report.id,
+				party: input.party,
+				kind: input.kind,
+				value: input.kind === 'stage' ? (input.stage ?? '') : (input.outcome ?? ''),
+				start_date: input.startDate ?? null,
+				outcome_state: state.outcome
+			},
+			occurredAt: now
+		});
 		await recordAuditEvent(tx, {
 			action: 'hiring.reported',
 			outcome: 'success',

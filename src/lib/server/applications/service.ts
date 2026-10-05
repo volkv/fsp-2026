@@ -6,7 +6,7 @@
 // the match and the disclosed contacts, rejects or invites — an offer the company sends to the applicant marks it
 // `invited`. Applications are open to adults: a candidate aged 14–17 is reached by a company through a vacancy for
 // minors, with the consent of the representative (domain 7.3).
-import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
+import { and, count, desc, eq, gte, inArray, isNotNull, isNull, or, sql } from 'drizzle-orm';
 import { can, companyAdmission, type AccessSubject } from '$lib/server/access/permissions';
 import { recordAuditEvent, type AuditActor } from '$lib/server/audit/record';
 import { currentDocument } from '$lib/server/auth/documents';
@@ -27,6 +27,7 @@ import {
 } from '$lib/server/db/schema';
 import { demoSessionOfUser, inDemoScope } from '$lib/server/demo/scope';
 import { policyViolation } from '$lib/server/errors/api-error';
+import { emitCompanyEvent } from '$lib/server/events/emit';
 import { currentDisclosureDocument, effectiveDisclosure } from '$lib/server/invitations/consent';
 import { auditActor, channelOf, type RequestMeta } from '$lib/server/invitations/deps';
 import { invalid, refuse } from '$lib/server/invitations/errors';
@@ -295,6 +296,13 @@ export async function applyToVacancy(
 			action: 'contacts.disclosed',
 			outcome: 'success',
 			details: { application_id: application.id, company_id: vacancy.companyId, fields }
+		});
+		await emitCompanyEvent(tx, {
+			companyId: vacancy.companyId,
+			type: 'application.received',
+			invitationId: null,
+			data: { application_id: application.id, vacancy_id: vacancy.id, fields },
+			occurredAt: now
 		});
 		await recordAuditEvent(tx, {
 			...journal,
@@ -865,4 +873,31 @@ export async function markApplicationsInvited(
 		)
 		.returning();
 	for (const row of invited) await decided(tx, row, 'invited', journal.actor, journal.requestId, now);
+}
+
+/**
+ * Applications to the company's vacancies since the moment, and how many of them the company answered — invited or
+ * rejected (`decided_at`); an application the candidate withdrew before an answer is not counted. The fact of trust
+ * «answered N of M applications» (domain 5.6).
+ */
+export async function applicationAnswerCounts(
+	executor: Executor,
+	companyId: string,
+	since: Date
+): Promise<{ received: number; answered: number }> {
+	const [row] = await executor
+		.select({
+			received: count(),
+			answered: sql<number>`count(*) filter (where ${applications.decidedAt} is not null)`.mapWith(Number)
+		})
+		.from(applications)
+		.where(
+			and(
+				eq(applications.companyId, companyId),
+				gte(applications.submittedAt, since),
+				or(isNotNull(applications.decidedAt), sql`${applications.status} <> 'withdrawn'`)
+			)
+		);
+	if (!row) throw new Error('an aggregate returned no row');
+	return row;
 }

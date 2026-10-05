@@ -14,6 +14,7 @@ import { demoPurge } from '$lib/server/demo/purge-job';
 import { embeddingReindex } from '$lib/server/embeddings/reindex';
 import { derivationsReconcile } from '$lib/server/derivations/reconcile';
 import { evidenceCompute } from '$lib/server/evidence/job';
+import { eventDeliver } from '$lib/server/events/deliver';
 import { consentRevocationCleanup } from '$lib/server/erasure/fsp-import';
 import { accountPurge } from '$lib/server/erasure/purge';
 import { externalProfileRefresh, scheduleExternalProfileRefreshes } from '$lib/server/external-profiles/refresh-job';
@@ -65,7 +66,8 @@ export const JOB_HANDLERS = handlerRegistry([
 	accountPurge,
 	candidateMajorityTransition,
 	challengeDeliver,
-	confirmationExpire
+	confirmationExpire,
+	eventDeliver
 ]);
 
 /** Schedules with their own timetables, ticked by a worker that runs their job type. */

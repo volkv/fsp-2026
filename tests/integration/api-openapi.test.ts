@@ -15,6 +15,8 @@ import * as categories from '$lib/server/api/v1/categories';
 import * as challenges from '$lib/server/api/v1/challenges';
 import * as companies from '$lib/server/api/v1/companies';
 import * as companyProfile from '$lib/server/api/v1/company-profile';
+import * as complaints from '$lib/server/api/v1/complaints';
+import * as events from '$lib/server/api/v1/events';
 import * as confirmations from '$lib/server/api/v1/confirmations';
 import * as demand from '$lib/server/api/v1/demand';
 import * as grades from '$lib/server/api/v1/grades';
@@ -44,6 +46,8 @@ const exported = new Map<string, Operation>(
 		...categories,
 		...companies,
 		...companyProfile,
+		...complaints,
+		...events,
 		...grades,
 		...hiring,
 		...invitations,

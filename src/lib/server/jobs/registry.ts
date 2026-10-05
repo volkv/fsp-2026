@@ -279,6 +279,16 @@ export const JOB_TYPES = {
 		maxAttempts: 3,
 		leaseSeconds: 900,
 		priority: 20
+	}),
+	// One delivery of an outgoing event of a company to a webhook or an ATS adapter (domain 5.7). The pauses between
+	// attempts are the handler's own schedule, from a minute to six hours.
+	'event.deliver': defineJob({
+		typeVersion: 1,
+		payload: ids('delivery_id'),
+		dedupKey: (p) => `event.deliver:${p.delivery_id}`,
+		maxAttempts: 8,
+		leaseSeconds: 120,
+		priority: 40
 	})
 };
 

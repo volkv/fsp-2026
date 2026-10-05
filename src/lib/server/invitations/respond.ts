@@ -23,6 +23,7 @@ import {
 } from '$lib/server/db/schema';
 import { openHiringProcess } from '$lib/server/hiring/process';
 import { demoSessionOfUser, inDemoScope } from '$lib/server/demo/scope';
+import { emitCompanyEvent } from '$lib/server/events/emit';
 import { cancelWaitingJobs } from '$lib/server/jobs/queue';
 import { ageBand, isMinorBand } from '$lib/server/visibility/age';
 import { currentDisclosureDocument, effectiveDisclosure, type EffectiveDisclosure } from './consent';
@@ -294,6 +295,19 @@ export async function closeAnswer(
 			}
 		});
 	}
+	await emitCompanyEvent(tx, {
+		companyId: invitation.companyId,
+		type: answer.decision === 'accept' ? 'invitation.accepted' : 'invitation.declined',
+		invitationId: invitation.id,
+		data: {
+			invitation_id: invitation.id,
+			terms_id: terms.id,
+			terms_version: terms.version,
+			reason_code: answer.reasonCode,
+			by_representative: answer.byRepresentative
+		},
+		occurredAt: journal.occurredAt ?? new Date()
+	});
 	await recordAuditEvent(tx, {
 		...journal,
 		action: 'invitation.responded',
@@ -522,6 +536,13 @@ export async function finishAcceptance(
 			fields: newlyDisclosed,
 			channel: input.channel,
 			disclosedAt: now
+		});
+		await emitCompanyEvent(tx, {
+			companyId: invitation.companyId,
+			type: 'contacts.disclosed',
+			invitationId: invitation.id,
+			data: { invitation_id: invitation.id, fields: newlyDisclosed },
+			occurredAt: now
 		});
 		await recordAuditEvent(tx, {
 			...journal,

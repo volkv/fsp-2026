@@ -46,8 +46,9 @@ function isPermission(value: string): value is Permission {
 }
 
 /**
- * Creates a key of a verified company. Its permissions are a subset of the creator's: each is allowed for keys and
- * held by a role the creator has now. The returned `token` is the only time the secret leaves the server.
+ * Creates a key of a company the admission policy lets act (domain 5.1): verified or acting without a check, never
+ * suspended or rejected. Its permissions are a subset of the creator's: each is allowed for keys and held by a role
+ * the creator has now. The returned `token` is the only time the secret leaves the server.
  */
 export async function createApiKey(
 	deps: CompanyDeps,
@@ -173,8 +174,9 @@ export async function revokeApiKey(deps: CompanyDeps, ctx: ActionContext, keyId:
 export type ApiKeyActor = Extract<Actor, { kind: 'api_key' }>;
 
 /**
- * Resolves a bearer token to the actor of its key, or `null` — malformed, unknown, revoked, expired, or its creator is
- * no longer an active member of a verified company. The caller answers `401` for `null` without saying which.
+ * Resolves a bearer token to the actor of its key, or `null` — malformed, unknown, revoked, expired, its creator is no
+ * longer an active member of the company, or the admission policy refuses the company (suspended or rejected). The
+ * caller answers `401` for `null` without saying which.
  */
 export async function authenticateApiKey(executor: Executor, token: string, now: Date): Promise<ApiKeyActor | null> {
 	const match = TOKEN_PATTERN.exec(token);

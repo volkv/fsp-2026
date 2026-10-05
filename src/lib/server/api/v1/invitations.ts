@@ -13,7 +13,19 @@ import { createInvitation, reviseInvitation, withdrawInvitation, type OfferInput
 import { CONTACT_KINDS, OFFER_WORK_FORMATS, WHY_YOU_SOURCES, type OfferedSalary } from '$lib/server/invitations/terms';
 import { defineOperation } from '../operation';
 import { candidateOfPseudonym } from '../read/pseudonyms';
-import { dateTime, id, iso, isoOrNull, offeredSalary, page, pageOf, pageQuery, pseudonym } from '../schemas';
+import {
+	companyTrust,
+	companyTrustView,
+	dateTime,
+	id,
+	iso,
+	isoOrNull,
+	offeredSalary,
+	page,
+	pageOf,
+	pageQuery,
+	pseudonym
+} from '../schemas';
 import { invitationDeps } from '../services';
 import { activeMembership, invitationMeta, type BaseContext } from './context';
 
@@ -177,9 +189,10 @@ const companyProfileSchema = z
 			phone: z.string().optional(),
 			telegram: z.string().optional()
 		}),
-		verification
+		verification,
+		trust: companyTrust
 	})
-	.meta({ id: 'OfferCompany', description: 'Компания предложения с профилем и меткой проверки' });
+	.meta({ id: 'OfferCompany', description: 'Компания предложения с профилем, меткой проверки и фактами доверия' });
 
 const invitationSchema = z
 	.object({
@@ -217,7 +230,8 @@ async function invitationView(ctx: BaseContext, view: InvitationView) {
 			description: view.company.description,
 			activity: view.company.activity,
 			contacts: view.company.contacts,
-			verification: view.company.verification
+			verification: view.company.verification,
+			trust: companyTrustView(view.companyTrust)
 		},
 		need_id: view.needId,
 		candidate_pseudonym: view.candidatePseudonym,

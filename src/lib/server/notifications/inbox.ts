@@ -17,6 +17,7 @@ import {
 	confirmationRequests,
 	companyMembers,
 	hiringProcesses,
+	invitationComplaints,
 	invitations,
 	notifications,
 	representations,
@@ -293,7 +294,15 @@ async function targetOf(
 	}
 	let invitationId: string | null = null;
 	if (objectType === 'invitation') invitationId = objectId;
-	else if (objectType === 'hiring_process') {
+	else if (objectType === 'invitation_complaint') {
+		// The decision is read on the offer the complaint is about, by the candidate who filed it.
+		const [complaint] = await db
+			.select({ invitationId: invitationComplaints.invitationId, candidateId: invitationComplaints.candidateId })
+			.from(invitationComplaints)
+			.where(eq(invitationComplaints.id, objectId));
+		if (!complaint || (await candidateUserOf(db, complaint.candidateId)) !== userId) return { kind: 'unavailable' };
+		invitationId = complaint.invitationId;
+	} else if (objectType === 'hiring_process') {
 		const [process] = await db
 			.select({ invitationId: hiringProcesses.invitationId })
 			.from(hiringProcesses)

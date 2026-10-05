@@ -119,6 +119,8 @@ const envSchema = z
 		FSP_ID_SCOPES: optional(z.string().regex(/^openid( [a-z_:.]+)*$/, 'must start with openid')),
 
 		COMPANY_REGISTRY: optional(z.enum(['egrul'])),
+		/** Base of the Huntflow API v2 (`https://api.huntflow.ru/v2`); unset — the Huntflow adapter is off (contracts 13.3). */
+		HUNTFLOW_API_URL: optional(httpUrl),
 
 		CODEFORCES_API_URL: optional(httpUrl),
 		GITHUB_API_URL: optional(httpUrl),
@@ -376,6 +378,8 @@ export interface Config {
 	models: { extract: ExtractConfig | null; embed: EmbedConfig | null; rerank: RerankConfig | null };
 	/** Public registry of the company verification hint; `null` — not configured, the hint says so (domain 5.2). */
 	companyRegistry: 'egrul' | null;
+	/** The Huntflow adapter of outgoing events; `null` — off: no connection is made and its deliveries are skipped. */
+	huntflowApiUrl: string | null;
 	/**
 	 * Public APIs the verified public profiles are read from (domain 9.4): the real ones unless a stand points them
 	 * elsewhere. `githubToken` — without it GitHub allows 60 requests an hour from the address.
@@ -448,6 +452,7 @@ function build(e: Env): Config {
 				}
 			: null,
 		companyRegistry: e.COMPANY_REGISTRY ?? null,
+		huntflowApiUrl: e.HUNTFLOW_API_URL?.replace(/\/+$/, '') ?? null,
 		publicProfiles: {
 			codeforcesApiUrl: (e.CODEFORCES_API_URL ?? 'https://codeforces.com/api').replace(/\/+$/, ''),
 			githubApiUrl: (e.GITHUB_API_URL ?? 'https://api.github.com').replace(/\/+$/, ''),

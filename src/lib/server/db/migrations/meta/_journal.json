@@ -232,6 +232,13 @@
       "when": 1791237877676,
       "tag": "0032_challenges_confirmations_applications",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1791238503730,
+      "tag": "0033_trust_and_events",
+      "breakpoints": true
     }
   ]
 }

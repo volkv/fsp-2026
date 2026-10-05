@@ -7,6 +7,7 @@
 	import FormMessage from '$lib/components/forms/form-message.svelte';
 	import PageHeader from '$lib/components/forms/page-header.svelte';
 	import StatusPill from '$lib/components/forms/status-pill.svelte';
+	import { TrustFacts } from '$lib/components/product/index.js';
 	import { formatDate, formatDateTime } from '$lib/components/product/model.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
@@ -117,6 +118,19 @@
 				<p class="text-sm text-muted-foreground">Профиль меняет владелец компании.</p>
 			{/if}
 		</form>
+	</Card.Content>
+</Card.Root>
+
+<Card.Root class="mb-6" data-testid="company-trust">
+	<Card.Header>
+		<Card.Title><h2 class="font-heading text-h3">Факты доверия</h2></Card.Title>
+		<Card.Description>
+			Кандидат видит их рядом с профилем в каждом предложении. Они считаются из того, что компания делает с
+			предложениями, — изменить их можно только делами.
+		</Card.Description>
+	</Card.Header>
+	<Card.Content>
+		<TrustFacts trust={data.trust} />
 	</Card.Content>
 </Card.Root>
 

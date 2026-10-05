@@ -21,7 +21,7 @@
 	import CsrfInput from '$lib/components/forms/csrf-input.svelte';
 	import FormMessage from '$lib/components/forms/form-message.svelte';
 	import PageHeader from '$lib/components/forms/page-header.svelte';
-	import { InvitationStatus, ResponseDeadline, SalaryRange } from '$lib/components/product/index.js';
+	import { InvitationStatus, ResponseDeadline, SalaryRange, TrustFacts } from '$lib/components/product/index.js';
 	import { formatDate, formatDateTime } from '$lib/components/product/model.js';
 	import { CSRF_FIELD, viewerFrom } from '$lib/components/shell/viewer.js';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -46,6 +46,21 @@
 			(invitation.status === 'sent' || invitation.status === 'viewed' || invitation.status === 'accepted')
 	);
 	const problem = $derived(form && 'problem' in form ? form.problem : null);
+	const complaint = $derived(data.complaint);
+
+	const COMPLAINT_REASONS = {
+		terms_mismatch: 'Условия на деле не совпали с предложением (на собеседовании назвали другое)',
+		no_real_job: 'Работы, которую описывает предложение, нет',
+		contact_harvesting: 'Предложение использовали, чтобы получить мои контакты',
+		payment_demanded: 'Требовали оплату: обучение, оформление, оборудование',
+		discrimination: 'Дискриминирующие требования или вопросы',
+		other: 'Другое'
+	} as const;
+	const COMPLAINT_DECISIONS = {
+		no_action: 'оснований для мер не найдено',
+		warning: 'компании вынесено предупреждение',
+		suspension: 'работа компании на платформе приостановлена'
+	} as const;
 	const optionalFields = (Object.keys(DISCLOSURE_FIELDS) as DisclosureField[]).filter(
 		(field) => !REQUIRED_DISCLOSURE.includes(field) && field !== 'resume'
 	);
@@ -109,6 +124,11 @@
 	/>
 {:else if form && 'reported' in form}
 	<FormMessage tone="success" text="Сообщение о найме сохранено." />
+{:else if form && 'complained' in form}
+	<FormMessage
+		tone="success"
+		text="Жалоба отправлена оператору ФСП. Компания не узнает, кто пожаловался; решение придёт уведомлением."
+	/>
 {/if}
 
 {#if shown}
@@ -234,6 +254,10 @@
 			{/if}
 		</dl>
 	{/if}
+	<div class="grid gap-2 border-t pt-3">
+		<h3 class="text-sm font-semibold">Факты о компании</h3>
+		<TrustFacts trust={invitation.companyTrust} />
+	</div>
 </SectionCard>
 
 {#if awaiting}
@@ -411,3 +435,51 @@
 		</ol>
 	</SectionCard>
 {/if}
+
+<SectionCard
+	title="Жалоба на предложение"
+	description="Если компания ведёт себя недобросовестно, расскажи оператору ФСП. Компания не узнает, кто пожаловался, и не увидит текст; обоснованная жалоба попадает в факты о компании, которые видят другие кандидаты."
+	testId="offer-complaint"
+>
+	{#if complaint}
+		<div class="grid gap-1 text-sm">
+			<p>
+				<span class="text-muted-foreground">Причина:</span>
+				{COMPLAINT_REASONS[complaint.reasonCode]} · подана {formatDateTime(complaint.createdAt)}
+			</p>
+			{#if complaint.status === 'open'}
+				<p class="font-medium" data-complaint-status="open">На рассмотрении у оператора ФСП.</p>
+			{:else if complaint.decision}
+				<p class="font-medium" data-complaint-status="decided">
+					Рассмотрена{complaint.decidedAt ? ` ${formatDateTime(complaint.decidedAt)}` : ''}: {COMPLAINT_DECISIONS[
+						complaint.decision
+					]}.
+				</p>
+				{#if complaint.resolution}
+					<blockquote class="border-l-2 pl-3 whitespace-pre-line">{complaint.resolution}</blockquote>
+				{/if}
+			{/if}
+		</div>
+	{:else}
+		<details class="rounded-lg border text-sm">
+			<summary class="cursor-pointer px-3 py-2 font-medium">Пожаловаться</summary>
+			<form method="POST" action="?/complain" use:enhance class="grid gap-4 px-3 pb-3">
+				<CsrfInput />
+				<label class="grid gap-1.5">
+					<span>Что случилось</span>
+					<select name="reason_code" class={selectClass} required>
+						<option value="">— выбери —</option>
+						{#each Object.entries(COMPLAINT_REASONS) as [code, label] (code)}
+							<option value={code}>{label}</option>
+						{/each}
+					</select>
+				</label>
+				<label class="grid gap-1.5">
+					<span>Подробности</span>
+					<Textarea name="text" minlength={10} maxlength={2000} rows={4} required />
+				</label>
+				<Button type="submit" variant="outline" class="justify-self-start">Отправить жалобу</Button>
+			</form>
+		</details>
+	{/if}
+</SectionCard>

@@ -1,6 +1,7 @@
 import { formText } from '$lib/server/auth/http';
 import { acceptMinorTerms, companyOverview, minorTermsOf, updateCompanyDraft } from '$lib/server/companies/profile';
 import { companyProfileFor, updateCompanyProfile } from '$lib/server/companies/public-profile';
+import { companyTrust } from '$lib/server/companies/trust';
 import { submitForVerification } from '$lib/server/companies/verification';
 import { db } from '$lib/server/db';
 import { companyDeps, employerRequest, membershipOf } from '$lib/server/employer/http';
@@ -13,12 +14,15 @@ export const load: PageServerLoad = async (event) => {
 	const transferred = event.url.searchParams.has('transferred');
 	try {
 		const profile = await companyProfileFor(db(), subject, membership.companyId);
-		if (membership.role !== 'owner') return { overview: null, minorTerms: null, profile, transferred };
+		// The facts candidates read next to the profile; the profile read above checked the membership.
+		const trust = await companyTrust(db(), membership.companyId, new Date());
+		if (membership.role !== 'owner') return { overview: null, minorTerms: null, profile, trust, transferred };
 		const deps = companyDeps();
 		return {
 			overview: await companyOverview(deps, { subject, meta }, membership.companyId),
 			minorTerms: await minorTermsOf(deps, { subject, meta }, membership.companyId),
 			profile,
+			trust,
 			transferred
 		};
 	} catch (cause) {

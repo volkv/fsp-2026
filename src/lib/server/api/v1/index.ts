@@ -8,6 +8,8 @@ import * as catalog from './catalog';
 import * as categories from './categories';
 import * as challenges from './challenges';
 import * as companies from './companies';
+import * as complaints from './complaints';
+import * as events from './events';
 import * as companyProfile from './company-profile';
 import * as confirmations from './confirmations';
 import * as demand from './demand';
@@ -70,7 +72,9 @@ export const API_OPERATIONS: readonly Operation[] = [
 	...Object.values(confirmations),
 	...Object.values(challenges),
 	...Object.values(applications),
-	...Object.values(demand)
+	...Object.values(demand),
+	...Object.values(complaints),
+	...Object.values(events)
 ];
 
 export const EXTERNAL_ROUTES: readonly ExternalRoute[] = Object.values(integrations);

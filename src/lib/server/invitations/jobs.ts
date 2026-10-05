@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm';
 import type { Transaction } from '$lib/server/db';
 import { candidates, invitationResponses, invitations, invitationTerms } from '$lib/server/db/schema';
 import { defineHandler, JobFailure, type JobHandler, type JobResult } from '$lib/server/jobs/handler';
+import { emitCompanyEvent } from '$lib/server/events/emit';
 import { notify } from '$lib/server/notifications/notify';
 import { companyRecipients } from './notifications';
 import { reminderHours, reminderSlots, scheduleNextReminder } from './schedule';
@@ -79,6 +80,13 @@ export function createInvitationExpireHandler(clock: Clock): JobHandler<'invitat
 						.update(invitations)
 						.set({ status: 'expired', closedAt: now })
 						.where(eq(invitations.id, invitation.id));
+					await emitCompanyEvent(tx, {
+						companyId: invitation.companyId,
+						type: 'invitation.expired',
+						invitationId: invitation.id,
+						data: { invitation_id: invitation.id, terms_id: terms.id, terms_version: terms.version },
+						occurredAt: now
+					});
 					const recipients = [
 						await candidateUser(tx, invitation.candidateId),
 						...(await companyRecipients(tx, invitation))

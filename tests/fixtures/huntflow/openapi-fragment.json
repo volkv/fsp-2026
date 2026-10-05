@@ -1,0 +1,1247 @@
+{
+	"x-source": {
+		"url": "https://api.huntflow.ru/v2/openapi.json",
+		"retrieved": "2026-10-05",
+		"info": "Huntflow API Reference v2",
+		"note": "Fragment: the operations the Huntflow adapter calls and the schemas they reference, unchanged."
+	},
+	"openapi": "3.0.2",
+	"paths": {
+		"/accounts/{account_id}/applicants": {
+			"post": {
+				"operationId": "create_applicant_accounts__account_id__applicants_post",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"title": "Data",
+								"description": "Request body",
+								"allOf": [
+									{
+										"$ref": "#/components/schemas/ApplicantCreateRequest"
+									}
+								]
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Successful Response",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ApplicantCreateResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/accounts/{account_id}/applicants/{applicant_id}/vacancy": {
+			"post": {
+				"operationId": "add_applicant_to_vacancy_accounts__account_id__applicants__applicant_id__vacancy_post",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"title": "Data",
+								"description": "Request body",
+								"allOf": [
+									{
+										"$ref": "#/components/schemas/AddApplicantToVacancyRequest"
+									}
+								]
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Successful Response",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/AddApplicantToVacancyResponse"
+								}
+							}
+						}
+					}
+				}
+			},
+			"put": {
+				"operationId": "change_applicant_vacancy_status_accounts__account_id__applicants__applicant_id__vacancy_put",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"title": "Data",
+								"description": "Request body",
+								"allOf": [
+									{
+										"$ref": "#/components/schemas/ChangeVacancyApplicantStatusRequest"
+									}
+								]
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Successful Response",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/AddApplicantToVacancyResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	},
+	"components": {
+		"schemas": {
+			"AddApplicantToVacancyRequest": {
+				"title": "AddApplicantToVacancyRequest",
+				"required": ["vacancy", "status"],
+				"type": "object",
+				"properties": {
+					"vacancy": {
+						"title": "Vacancy",
+						"exclusiveMinimum": 0.0,
+						"type": "integer",
+						"description": "[Vacancy ID](/v2/docs#get-/accounts/-account_id-/vacancies)",
+						"example": 2
+					},
+					"status": {
+						"title": "Status",
+						"exclusiveMinimum": 0.0,
+						"type": "integer",
+						"description": "[Recruitment status ID](/v2/docs#get-/accounts/-account_id-/vacancies/statuses)",
+						"example": 3
+					},
+					"comment": {
+						"title": "Comment",
+						"maxLength": 65535,
+						"type": "string",
+						"description": "Comment text",
+						"example": "Example comment"
+					},
+					"rejection_reason": {
+						"title": "Rejection Reason",
+						"exclusiveMinimum": 0.0,
+						"type": "integer",
+						"description": "[Rejection reason ID](/v2/docs#get-/accounts/-account_id-/rejection_reasons)<br>The reason of the rejection (if the status is 'rejected')",
+						"example": 11
+					},
+					"fill_quota": {
+						"title": "Fill Quota",
+						"exclusiveMinimum": 0.0,
+						"type": "integer",
+						"description": "[Fill quota ID](/v2/docs#get-/accounts/-account_id-/vacancies/-vacancy_id-/quotas) (if the status is 'hired')",
+						"example": 1
+					},
+					"employment_date": {
+						"title": "Employment Date",
+						"type": "string",
+						"description": "Employment date (if the status is 'hired')",
+						"format": "date",
+						"example": "2020-01-01"
+					},
+					"files": {
+						"title": "Files",
+						"maxItems": 15,
+						"type": "array",
+						"items": {
+							"exclusiveMinimum": 0.0,
+							"type": "integer"
+						},
+						"description": "[Upload files](/v2/docs#post-/accounts/-account_id-/upload)<br>The list of file's ID attached to the log",
+						"example": [1, 2, 3]
+					},
+					"calendar_event": {
+						"title": "Calendar Event",
+						"allOf": [
+							{
+								"$ref": "#/components/schemas/ApplicantEvent"
+							}
+						],
+						"description": "Calendar event object"
+					},
+					"email": {
+						"title": "Email",
+						"allOf": [
+							{
+								"$ref": "#/components/schemas/ApplicantLogEmail"
+							}
+						],
+						"description": "Email object"
+					},
+					"im": {
+						"title": "Im",
+						"maxItems": 1,
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/ApplicantLogIm"
+						},
+						"description": "Telegram message"
+					},
+					"sms": {
+						"title": "Sms",
+						"allOf": [
+							{
+								"$ref": "#/components/schemas/ApplicantLogSms"
+							}
+						],
+						"description": "SMS message"
+					},
+					"applicant_offer": {
+						"title": "Applicant Offer",
+						"allOf": [
+							{
+								"$ref": "#/components/schemas/api__v2__serializers__request__applicants__ApplicantOffer"
+							}
+						],
+						"description": "Applicant's offer"
+					},
+					"survey_questionary_id": {
+						"title": "Survey Questionary Id",
+						"type": "integer",
+						"description": "[Survey questionary ID](/v2/docs#get-/accounts/-account_id-/surveys/type_q/questionaries/-questionary_id-)"
+					}
+				}
+			},
+			"AddApplicantToVacancyResponse": {
+				"title": "AddApplicantToVacancyResponse",
+				"required": ["id", "changed", "vacancy", "status"],
+				"type": "object",
+				"properties": {
+					"id": {
+						"title": "Id",
+						"type": "integer",
+						"description": "Binding ID",
+						"example": 9
+					},
+					"changed": {
+						"title": "Changed",
+						"type": "string",
+						"description": "The date of recruitment stage change",
+						"format": "date-time",
+						"example": "2020-01-01T00:00:00+03:00"
+					},
+					"vacancy": {
+						"title": "Vacancy",
+						"type": "integer",
+						"description": "[Vacancy ID](/v2/docs#get-/accounts/-account_id-/vacancies)",
+						"example": 3
+					},
+					"status": {
+						"title": "Status",
+						"type": "integer",
+						"description": "[Recruitment status ID](/v2/docs#get-/accounts/-account_id-/vacancies/statuses)",
+						"example": 4
+					},
+					"rejection_reason": {
+						"title": "Rejection Reason",
+						"type": "integer",
+						"description": "[Rejection reason ID](/v2/docs#get-/accounts/-account_id-/rejection_reasons)",
+						"example": 8
+					}
+				}
+			},
+			"AgreementStateResponse": {
+				"title": "AgreementStateResponse",
+				"enum": ["not_sent", "sent", "accepted", "declined", "send_error"],
+				"description": "An enumeration."
+			},
+			"ApplicantAgreement": {
+				"title": "ApplicantAgreement",
+				"type": "object",
+				"properties": {
+					"state": {
+						"allOf": [
+							{
+								"$ref": "#/components/schemas/AgreementStateResponse"
+							}
+						],
+						"description": "Agreement's state of applicant to personal data processing",
+						"example": "accepted"
+					},
+					"decision_date": {
+						"title": "Decision Date",
+						"type": "string",
+						"description": "Date of applicant's decision to personal data processing",
+						"format": "date-time",
+						"example": "2020-01-01T00:00:00+03:00"
+					}
+				}
+			},
+			"ApplicantCreateRequest": {
+				"title": "ApplicantCreateRequest",
+				"type": "object",
+				"properties": {
+					"first_name": {
+						"title": "First Name",
+						"type": "string",
+						"description": "First name",
+						"example": "John"
+					},
+					"last_name": {
+						"title": "Last Name",
+						"type": "string",
+						"description": "Last name",
+						"example": "Doe"
+					},
+					"middle_name": {
+						"title": "Middle Name",
+						"type": "string",
+						"description": "Middle name",
+						"example": "Michael"
+					},
+					"money": {
+						"title": "Money",
+						"type": "string",
+						"description": "Salary expectation",
+						"example": "$100000"
+					},
+					"phone": {
+						"title": "Phone",
+						"type": "string",
+						"description": "Phone number",
+						"example": "89999999999"
+					},
+					"email": {
+						"title": "Email",
+						"type": "string",
+						"description": "Email address",
+						"format": "email",
+						"example": "mail@mail.ru"
+					},
+					"skype": {
+						"title": "Skype",
+						"type": "string",
+						"description": "Skype login. Field is deprecated, please consider removal from your applications",
+						"example": "my_skype",
+						"deprecated": true
+					},
+					"position": {
+						"title": "Position",
+						"type": "string",
+						"description": "Applicant’s occupation",
+						"example": "Front-end developer"
+					},
+					"company": {
+						"title": "Company",
+						"type": "string",
+						"description": "Applicant’s place of work",
+						"example": "Google Inc."
+					},
+					"photo": {
+						"title": "Photo",
+						"type": "integer",
+						"description": "Applicant’s photo ID",
+						"example": 1
+					},
+					"birthday": {
+						"title": "Birthday",
+						"type": "string",
+						"description": "Date of birth",
+						"format": "date",
+						"example": "2000-01-01"
+					},
+					"externals": {
+						"title": "Externals",
+						"maxItems": 1,
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/ApplicantResumeCreate"
+						},
+						"description": "List of applicant's resumes"
+					},
+					"social": {
+						"title": "Social",
+						"maxItems": 1,
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/api__v2__serializers__request__applicants__ApplicantSocial"
+						},
+						"description": "List of applicant's social accounts",
+						"default": []
+					},
+					"site": {
+						"title": "Site",
+						"maxItems": 1,
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/api__v2__serializers__request__applicants__ApplicantSite"
+						},
+						"description": "List of applicant's sites",
+						"default": []
+					}
+				}
+			},
+			"ApplicantCreateResponse": {
+				"title": "ApplicantCreateResponse",
+				"required": ["id", "created", "doubles", "external", "social", "reindex_job_id"],
+				"type": "object",
+				"properties": {
+					"first_name": {
+						"title": "First Name",
+						"type": "string",
+						"description": "First name",
+						"example": "John"
+					},
+					"last_name": {
+						"title": "Last Name",
+						"type": "string",
+						"description": "Last name",
+						"example": "Doe"
+					},
+					"middle_name": {
+						"title": "Middle Name",
+						"type": "string",
+						"description": "Middle name",
+						"example": "Michael"
+					},
+					"money": {
+						"title": "Money",
+						"type": "string",
+						"description": "Salary expectation",
+						"example": "$100000"
+					},
+					"phone": {
+						"title": "Phone",
+						"type": "string",
+						"description": "Phone number",
+						"example": "89999999999"
+					},
+					"email": {
+						"title": "Email",
+						"type": "string",
+						"description": "Email address",
+						"format": "email",
+						"example": "mail@mail.ru"
+					},
+					"skype": {
+						"title": "Skype",
+						"type": "string",
+						"description": "Skype login. Field is deprecated, please consider removal from your applications",
+						"example": "my_skype",
+						"deprecated": true
+					},
+					"position": {
+						"title": "Position",
+						"type": "string",
+						"description": "Applicant’s occupation",
+						"example": "Front-end developer"
+					},
+					"company": {
+						"title": "Company",
+						"type": "string",
+						"description": "Applicant’s place of work",
+						"example": "Google Inc."
+					},
+					"photo": {
+						"title": "Photo",
+						"type": "integer",
+						"description": "Applicant’s photo ID",
+						"example": 1
+					},
+					"id": {
+						"title": "Id",
+						"type": "integer",
+						"description": "[Applicant ID](/v2/docs#get-/accounts/-account_id-/applicants)",
+						"example": 19
+					},
+					"created": {
+						"title": "Created",
+						"type": "string",
+						"description": "Date and time of adding an applicant",
+						"format": "date-time",
+						"example": "2020-01-01T00:00:00+03:00"
+					},
+					"birthday": {
+						"title": "Birthday",
+						"type": "string",
+						"description": "Date of birth",
+						"format": "date",
+						"example": "2020-01-01"
+					},
+					"files": {
+						"title": "Files",
+						"type": "array",
+						"items": {
+							"exclusiveMinimum": 0.0,
+							"type": "integer"
+						},
+						"description": "[Upload files](/v2/docs#post-/accounts/-account_id-/upload)<br>The list of file's ID attached to the applicant",
+						"example": [1, 2, 3]
+					},
+					"doubles": {
+						"title": "Doubles",
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/ApplicantDouble"
+						},
+						"description": "List of duplicates"
+					},
+					"agreement": {
+						"title": "Agreement",
+						"allOf": [
+							{
+								"$ref": "#/components/schemas/ApplicantAgreement"
+							}
+						],
+						"description": "Agreement's state of applicant to personal data processing",
+						"example": "sent"
+					},
+					"external": {
+						"title": "External",
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/ApplicantResume"
+						},
+						"description": "Applicant's resume"
+					},
+					"social": {
+						"title": "Social",
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/api__v2__serializers__response__applicants__ApplicantSocial"
+						},
+						"description": "List of applicant's social accounts"
+					},
+					"site": {
+						"title": "Site",
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/api__v2__serializers__response__applicants__ApplicantSite"
+						},
+						"description": "List of applicant's sites",
+						"default": []
+					},
+					"reindex_job_id": {
+						"title": "Reindex Job Id",
+						"type": "string"
+					}
+				}
+			},
+			"ApplicantDouble": {
+				"title": "ApplicantDouble",
+				"required": ["double"],
+				"type": "object",
+				"properties": {
+					"double": {
+						"title": "Double",
+						"type": "integer",
+						"description": "The ID of a duplicated applicant",
+						"example": 8
+					}
+				}
+			},
+			"ApplicantEvent": {
+				"title": "ApplicantEvent",
+				"required": ["event_type", "calendar", "attendees", "start", "end", "transparency"],
+				"type": "object",
+				"properties": {
+					"private": {
+						"title": "Private",
+						"type": "boolean",
+						"description": "Event private flag",
+						"default": true
+					},
+					"name": {
+						"title": "Name",
+						"type": "string",
+						"description": "Event name",
+						"example": "Example event"
+					},
+					"reminders": {
+						"title": "Reminders",
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/api__v2__serializers__request__applicants__CalendarEventReminder"
+						},
+						"description": "List of reminders <a href=https://tools.ietf.org/html/rfc5545>RFC 5545</a>"
+					},
+					"location": {
+						"title": "Location",
+						"maxLength": 1024,
+						"type": "string",
+						"description": "Event location",
+						"example": "Washington street 121"
+					},
+					"interview_type": {
+						"title": "Interview Type",
+						"exclusiveMinimum": 0.0,
+						"type": "integer",
+						"description": "Interview type ID",
+						"example": 17
+					},
+					"event_type": {
+						"allOf": [
+							{
+								"$ref": "#/components/schemas/CalendarEventType"
+							}
+						],
+						"description": "Calendar event type",
+						"example": "interview"
+					},
+					"description": {
+						"title": "Description",
+						"type": "string",
+						"description": "Event description (comment)",
+						"example": "Interview with applicant"
+					},
+					"calendar": {
+						"title": "Calendar",
+						"exclusiveMinimum": 0.0,
+						"type": "integer",
+						"description": "[Calendar ID](/v2/docs#get-/calendar_accounts)",
+						"example": 4
+					},
+					"attendees": {
+						"title": "Attendees",
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/api__v2__serializers__request__applicants__CalendarEventAttendee"
+						},
+						"description": "Event attendees (participants)"
+					},
+					"start": {
+						"title": "Start",
+						"type": "string",
+						"description": "Event start date",
+						"format": "date-time",
+						"example": "2021-05-20T09:00:00"
+					},
+					"end": {
+						"title": "End",
+						"type": "string",
+						"description": "Event end date",
+						"format": "date-time",
+						"example": "2021-05-20T10:00:00"
+					},
+					"timezone": {
+						"title": "Timezone",
+						"type": "string",
+						"description": "Time zone",
+						"example": "Europe/Moscow"
+					},
+					"transparency": {
+						"allOf": [
+							{
+								"$ref": "#/components/schemas/Transparency"
+							}
+						],
+						"description": "Event transparency (availability)",
+						"example": "busy"
+					}
+				}
+			},
+			"ApplicantLogEmail": {
+				"title": "ApplicantLogEmail",
+				"required": ["account_email", "html", "email", "subject"],
+				"type": "object",
+				"properties": {
+					"account_email": {
+						"title": "Account Email",
+						"exclusiveMinimum": 0.0,
+						"type": "integer",
+						"description": "[Email account ID](/v2/docs#get-/email_accounts)",
+						"example": 12
+					},
+					"files": {
+						"title": "Files",
+						"type": "array",
+						"items": {
+							"exclusiveMinimum": 0.0,
+							"type": "integer"
+						},
+						"description": "[Upload files](/v2/docs#post-/accounts/-account_id-/upload)<br>List of uploaded files ID",
+						"example": [1, 2, 3]
+					},
+					"followups": {
+						"title": "Followups",
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/EmailFollowup"
+						},
+						"description": "Followups list. You can get all available followups here - [List of email templates](/v2/docs#get-/accounts/-account_id-/mail/templates)"
+					},
+					"html": {
+						"title": "Html",
+						"type": "string",
+						"description": "Email content (HTML)",
+						"example": "<p>Hello John!</p>"
+					},
+					"email": {
+						"title": "Email",
+						"type": "string",
+						"description": "Recipient email address",
+						"format": "email",
+						"example": "recipient@example.com"
+					},
+					"subject": {
+						"title": "Subject",
+						"type": "string",
+						"description": "Email subject",
+						"example": "Welcome aboard!"
+					},
+					"send_at": {
+						"title": "Send At",
+						"type": "string",
+						"description": "Date and time to send email. If not supplied, email will be sent immediately",
+						"format": "date-time",
+						"example": "2021-05-20T10:00:00"
+					},
+					"timezone": {
+						"title": "Timezone",
+						"type": "string",
+						"description": "Time zone",
+						"example": "Europe/Moscow"
+					},
+					"to": {
+						"title": "To",
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/api__v2__serializers__request__applicants__EmailRecipient"
+						},
+						"description": "List of additional recipients (cc/bcc)"
+					},
+					"reply": {
+						"title": "Reply",
+						"exclusiveMinimum": 0.0,
+						"type": "integer",
+						"description": "Reply email ID",
+						"example": 6
+					}
+				}
+			},
+			"ApplicantLogIm": {
+				"title": "ApplicantLogIm",
+				"required": ["account_im", "receiver", "body"],
+				"type": "object",
+				"properties": {
+					"account_im": {
+						"title": "Account Im",
+						"exclusiveMinimum": 0.0,
+						"type": "integer",
+						"description": "Account IM ID",
+						"example": 8
+					},
+					"receiver": {
+						"title": "Receiver",
+						"type": "string",
+						"description": "Username or phone of recipient",
+						"example": "tg_user"
+					},
+					"body": {
+						"title": "Body",
+						"type": "string",
+						"description": "Message text",
+						"example": "Hello John!"
+					}
+				}
+			},
+			"ApplicantLogSms": {
+				"title": "ApplicantLogSms",
+				"required": ["phone", "body"],
+				"type": "object",
+				"properties": {
+					"phone": {
+						"title": "Phone",
+						"type": "string",
+						"description": "Phone number of recipient",
+						"example": "+79999999999"
+					},
+					"body": {
+						"title": "Body",
+						"type": "string",
+						"description": "Message text",
+						"example": "Hello John!"
+					}
+				}
+			},
+			"ApplicantResume": {
+				"title": "ApplicantResume",
+				"required": ["id"],
+				"type": "object",
+				"properties": {
+					"id": {
+						"title": "Id",
+						"type": "integer",
+						"description": "Resume ID",
+						"example": 1
+					},
+					"auth_type": {
+						"title": "Auth Type",
+						"type": "string",
+						"description": "The format of resume",
+						"example": "HH"
+					},
+					"account_source": {
+						"title": "Account Source",
+						"type": "integer",
+						"description": "[Resume source ID](/v2/docs#get-/accounts/-account_id-/applicants/sources)",
+						"example": 10
+					},
+					"updated": {
+						"title": "Updated",
+						"type": "string",
+						"description": "The date and time of resume update",
+						"format": "date-time",
+						"example": "2020-01-01T00:00:00+03:00"
+					}
+				}
+			},
+			"ApplicantResumeCreate": {
+				"title": "ApplicantResumeCreate",
+				"type": "object",
+				"properties": {
+					"auth_type": {
+						"title": "Auth Type",
+						"type": "string",
+						"description": "Auth type",
+						"example": "NATIVE"
+					},
+					"account_source": {
+						"title": "Account Source",
+						"exclusiveMinimum": 0.0,
+						"type": "integer",
+						"description": "[Resume source ID](/v2/docs#get-/accounts/-account_id-/applicants/sources)",
+						"example": 5
+					},
+					"data": {
+						"title": "Data",
+						"allOf": [
+							{
+								"$ref": "#/components/schemas/ApplicantResumeData"
+							}
+						],
+						"description": "Resume data",
+						"example": {
+							"body": "Resume text"
+						}
+					},
+					"files": {
+						"title": "Files",
+						"maxItems": 1,
+						"type": "array",
+						"items": {
+							"exclusiveMinimum": 0.0,
+							"type": "integer"
+						},
+						"description": "[Upload files](/v2/docs#post-/accounts/-account_id-/upload)<br>List of file's ID attached to the applicant resume",
+						"example": [1]
+					}
+				}
+			},
+			"ApplicantResumeData": {
+				"title": "ApplicantResumeData",
+				"type": "object",
+				"properties": {
+					"body": {
+						"title": "Body",
+						"type": "string",
+						"description": "Resume text (max 50000 characters)",
+						"example": "Resume text for example"
+					}
+				}
+			},
+			"CalendarEventReminderMethod": {
+				"title": "CalendarEventReminderMethod",
+				"enum": ["popup", "email"],
+				"type": "string",
+				"description": "An enumeration."
+			},
+			"CalendarEventType": {
+				"title": "CalendarEventType",
+				"enum": ["interview", "other"],
+				"type": "string",
+				"description": "An enumeration."
+			},
+			"ChangeVacancyApplicantStatusRequest": {
+				"title": "ChangeVacancyApplicantStatusRequest",
+				"required": ["vacancy", "status"],
+				"type": "object",
+				"properties": {
+					"vacancy": {
+						"title": "Vacancy",
+						"exclusiveMinimum": 0.0,
+						"type": "integer",
+						"description": "[Vacancy ID](/v2/docs#get-/accounts/-account_id-/vacancies)",
+						"example": 2
+					},
+					"status": {
+						"title": "Status",
+						"exclusiveMinimum": 0.0,
+						"type": "integer",
+						"description": "[Recruitment status ID](/v2/docs#get-/accounts/-account_id-/vacancies/statuses)",
+						"example": 3
+					},
+					"comment": {
+						"title": "Comment",
+						"maxLength": 65535,
+						"type": "string",
+						"description": "Comment text",
+						"example": "Example comment"
+					},
+					"rejection_reason": {
+						"title": "Rejection Reason",
+						"exclusiveMinimum": 0.0,
+						"type": "integer",
+						"description": "[Rejection reason ID](/v2/docs#get-/accounts/-account_id-/rejection_reasons)<br>The reason of the rejection (if the status is 'rejected')",
+						"example": 11
+					},
+					"fill_quota": {
+						"title": "Fill Quota",
+						"exclusiveMinimum": 0.0,
+						"type": "integer",
+						"description": "[Fill quota ID](/v2/docs#get-/accounts/-account_id-/vacancies/-vacancy_id-/quotas) (if the status is 'hired')",
+						"example": 1
+					},
+					"employment_date": {
+						"title": "Employment Date",
+						"type": "string",
+						"description": "Employment date (if the status is 'hired')",
+						"format": "date",
+						"example": "2020-01-01"
+					},
+					"files": {
+						"title": "Files",
+						"maxItems": 15,
+						"type": "array",
+						"items": {
+							"exclusiveMinimum": 0.0,
+							"type": "integer"
+						},
+						"description": "[Upload files](/v2/docs#post-/accounts/-account_id-/upload)<br>The list of file's ID attached to the log",
+						"example": [1, 2, 3]
+					},
+					"applicant_offer": {
+						"title": "Applicant Offer",
+						"allOf": [
+							{
+								"$ref": "#/components/schemas/api__v2__serializers__request__applicants__ApplicantOffer"
+							}
+						],
+						"description": "Applicant's offer"
+					},
+					"calendar_event": {
+						"title": "Calendar Event",
+						"allOf": [
+							{
+								"$ref": "#/components/schemas/ApplicantEvent"
+							}
+						],
+						"description": "Calendar event object"
+					},
+					"email": {
+						"title": "Email",
+						"allOf": [
+							{
+								"$ref": "#/components/schemas/ApplicantLogEmail"
+							}
+						],
+						"description": "Email object"
+					},
+					"im": {
+						"title": "Im",
+						"maxItems": 1,
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/ApplicantLogIm"
+						},
+						"description": "Telegram message"
+					},
+					"sms": {
+						"title": "Sms",
+						"allOf": [
+							{
+								"$ref": "#/components/schemas/ApplicantLogSms"
+							}
+						],
+						"description": "SMS message"
+					},
+					"survey_questionary_id": {
+						"title": "Survey Questionary Id",
+						"type": "integer",
+						"description": "[Survey questionary ID](/v2/docs#get-/accounts/-account_id-/surveys/type_q/questionaries/-questionary_id-)"
+					}
+				}
+			},
+			"EmailContactType": {
+				"title": "EmailContactType",
+				"enum": ["cc", "bcc", "to"],
+				"type": "string",
+				"description": "An enumeration."
+			},
+			"EmailFollowup": {
+				"title": "EmailFollowup",
+				"required": ["id", "account_member_template", "html", "days"],
+				"type": "object",
+				"properties": {
+					"id": {
+						"title": "Id",
+						"exclusiveMinimum": 0.0,
+						"type": "integer",
+						"description": "Followup ID",
+						"example": 2
+					},
+					"account_member_template": {
+						"title": "Account Member Template",
+						"type": "integer",
+						"description": "Email template ID",
+						"example": 7
+					},
+					"html": {
+						"title": "Html",
+						"type": "string",
+						"description": "Email content (HTML)",
+						"example": "<p>Hello John!</p>"
+					},
+					"days": {
+						"title": "Days",
+						"type": "integer",
+						"description": "The number of days after which to send a followup if there is no response",
+						"example": 1,
+						"gte": 1
+					}
+				}
+			},
+			"EventReminderMultiplier": {
+				"title": "EventReminderMultiplier",
+				"enum": ["minutes", "hours", "days", "weeks"],
+				"type": "string",
+				"description": "An enumeration."
+			},
+			"Transparency": {
+				"title": "Transparency",
+				"enum": ["busy", "free"],
+				"type": "string",
+				"description": "An enumeration."
+			},
+			"api__v2__serializers__request__applicants__ApplicantOffer": {
+				"title": "ApplicantOffer",
+				"required": ["account_applicant_offer", "values"],
+				"type": "object",
+				"properties": {
+					"account_applicant_offer": {
+						"title": "Account Applicant Offer",
+						"exclusiveMinimum": 0.0,
+						"type": "integer",
+						"description": "[Organization offer ID](/v2/docs#get-/accounts/-account_id-/offers)",
+						"example": 10
+					},
+					"values": {
+						"title": "Values",
+						"type": "object",
+						"description": "Offer values. You can see required values here - [Organization offer schema](/v2/docs#get-/accounts/-account_id-/offers/-offer_id-)",
+						"example": {
+							"position_name": "IOS developer",
+							"offer_text": "Offer text"
+						}
+					}
+				}
+			},
+			"api__v2__serializers__request__applicants__ApplicantSite": {
+				"title": "ApplicantSite",
+				"required": ["site_type", "value"],
+				"type": "object",
+				"properties": {
+					"site_type": {
+						"title": "Site Type",
+						"enum": ["MAX"],
+						"type": "string",
+						"description": "Type",
+						"example": "MAX"
+					},
+					"value": {
+						"title": "Value",
+						"type": "string",
+						"description": "Value",
+						"example": "https://max.ru/u/example"
+					}
+				}
+			},
+			"api__v2__serializers__request__applicants__ApplicantSocial": {
+				"title": "ApplicantSocial",
+				"required": ["social_type", "value"],
+				"type": "object",
+				"properties": {
+					"social_type": {
+						"title": "Social Type",
+						"enum": ["TELEGRAM"],
+						"type": "string",
+						"description": "Type",
+						"example": "TELEGRAM"
+					},
+					"value": {
+						"title": "Value",
+						"type": "string",
+						"description": "Value",
+						"example": "TelegramUsername"
+					}
+				}
+			},
+			"api__v2__serializers__request__applicants__CalendarEventAttendee": {
+				"title": "CalendarEventAttendee",
+				"required": ["email"],
+				"type": "object",
+				"properties": {
+					"member": {
+						"title": "Member",
+						"exclusiveMinimum": 0.0,
+						"type": "integer",
+						"description": "[Coworker ID](/v2/docs#get-/accounts/-account_id-/coworkers)",
+						"example": 19
+					},
+					"displayName": {
+						"title": "Displayname",
+						"type": "string",
+						"description": "Attendee name",
+						"example": "John Doe"
+					},
+					"email": {
+						"title": "Email",
+						"type": "string",
+						"description": "Attendee email",
+						"format": "email",
+						"example": "test@example.com"
+					}
+				}
+			},
+			"api__v2__serializers__request__applicants__CalendarEventReminder": {
+				"title": "CalendarEventReminder",
+				"required": ["multiplier", "value", "method"],
+				"type": "object",
+				"properties": {
+					"multiplier": {
+						"allOf": [
+							{
+								"$ref": "#/components/schemas/EventReminderMultiplier"
+							}
+						],
+						"description": "Reminder period",
+						"example": "hours"
+					},
+					"value": {
+						"title": "Value",
+						"type": "integer",
+						"description": "Reminder value",
+						"example": 1,
+						"gte": 0
+					},
+					"method": {
+						"allOf": [
+							{
+								"$ref": "#/components/schemas/CalendarEventReminderMethod"
+							}
+						],
+						"description": "Reminder method",
+						"example": "popup"
+					}
+				}
+			},
+			"api__v2__serializers__request__applicants__EmailRecipient": {
+				"title": "EmailRecipient",
+				"required": ["email", "type"],
+				"type": "object",
+				"properties": {
+					"email": {
+						"title": "Email",
+						"type": "string",
+						"description": "Email address",
+						"example": "mail@mail.ru"
+					},
+					"type": {
+						"allOf": [
+							{
+								"$ref": "#/components/schemas/EmailContactType"
+							}
+						],
+						"description": "Recipient type",
+						"example": "cc"
+					},
+					"displayName": {
+						"title": "Displayname",
+						"type": "string",
+						"description": "Recipient name",
+						"example": "John Doe"
+					}
+				}
+			},
+			"api__v2__serializers__response__applicants__ApplicantSite": {
+				"title": "ApplicantSite",
+				"required": ["id", "site_type", "value"],
+				"type": "object",
+				"properties": {
+					"id": {
+						"title": "Id",
+						"exclusiveMinimum": 0.0,
+						"type": "integer",
+						"description": "Site ID",
+						"example": 1
+					},
+					"site_type": {
+						"title": "Site Type",
+						"type": "string",
+						"description": "Type",
+						"example": "MAX"
+					},
+					"value": {
+						"title": "Value",
+						"type": "string",
+						"description": "Value",
+						"example": "https://max.ru/u/example"
+					}
+				}
+			},
+			"api__v2__serializers__response__applicants__ApplicantSocial": {
+				"title": "ApplicantSocial",
+				"required": ["id", "social_type", "value", "verified"],
+				"type": "object",
+				"properties": {
+					"id": {
+						"title": "Id",
+						"exclusiveMinimum": 0.0,
+						"type": "integer",
+						"description": "Social ID",
+						"example": 1
+					},
+					"social_type": {
+						"title": "Social Type",
+						"type": "string",
+						"description": "Type",
+						"example": "TELEGRAM"
+					},
+					"value": {
+						"title": "Value",
+						"type": "string",
+						"description": "Value",
+						"example": "TelegramUsername"
+					},
+					"verified": {
+						"title": "Verified",
+						"type": "boolean",
+						"description": "Verification flag"
+					},
+					"verification_date": {
+						"title": "Verification Date",
+						"type": "string",
+						"description": "Verification date",
+						"format": "date-time",
+						"example": "2020-01-01T00:00:00+03:00"
+					}
+				}
+			}
+		}
+	}
+}

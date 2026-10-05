@@ -4,6 +4,7 @@ import { formText } from '$lib/server/auth/http';
 import { candidateRequest } from '$lib/server/candidates/http';
 import { formFailure, pageError } from '$lib/server/http/page';
 import { candidateInvitationCard } from '$lib/server/candidates/invitations';
+import { complaintOfOffer, fileComplaint } from '$lib/server/complaints/service';
 import { reportHiring, type HiringReportInput } from '$lib/server/hiring/process';
 import { OUTCOMES } from '$lib/server/hiring/state';
 import { HIRING_STAGES } from '$lib/server/consent/kinds';
@@ -23,7 +24,11 @@ import type { Actions, PageServerLoad } from './$types';
 export const load: PageServerLoad = async (event) => {
 	const { subject } = await candidateRequest(event);
 	try {
-		return { card: await candidateInvitationCard(invitationDeps(), subject, event.params.id) };
+		const deps = invitationDeps();
+		return {
+			card: await candidateInvitationCard(deps, subject, event.params.id),
+			complaint: await complaintOfOffer(deps, subject, event.params.id)
+		};
 	} catch (cause) {
 		pageError(event, cause);
 	}
@@ -116,6 +121,21 @@ export const actions: Actions = {
 			return formFailure(cause);
 		}
 		return { disclosureRevoked: true };
+	},
+
+	/** A complaint about the offer to the FSP operator: a reason from the list and what happened. */
+	complain: async (event) => {
+		const { subject, meta } = await candidateRequest(event);
+		const form = await event.request.formData();
+		try {
+			await fileComplaint(invitationDeps(), subject, meta, event.params.id, {
+				reasonCode: formText(form, 'reason_code'),
+				text: formText(form, 'text')
+			});
+		} catch (cause) {
+			return formFailure(cause);
+		}
+		return { complained: true };
 	},
 
 	report: async (event) => {

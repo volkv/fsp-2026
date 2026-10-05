@@ -284,3 +284,19 @@ export const MODERATION_HISTORY: Record<string, string> = {
 	'vacancy.published': 'Вакансия опубликована',
 	'vacancy.closed': 'Вакансия закрыта'
 };
+
+/** Reasons of a candidate's complaint about an offer (domain 13.13), as the operator reads them. */
+export const COMPLAINT_REASONS: Record<string, string> = {
+	terms_mismatch: 'Условия на деле не совпали с предложением',
+	no_real_job: 'Работы, которую описывает предложение, нет',
+	contact_harvesting: 'Предложение использовали, чтобы получить контакты',
+	payment_demanded: 'От кандидата требовали оплату',
+	discrimination: 'Дискриминирующие требования или вопросы',
+	other: 'Другое'
+};
+
+export const COMPLAINT_DECISIONS: Record<string, { label: string; tone: Tone }> = {
+	no_action: { label: 'Без последствий', tone: 'neutral' },
+	warning: { label: 'Предупреждение', tone: 'warning' },
+	suspension: { label: 'Компания приостановлена', tone: 'danger' }
+};

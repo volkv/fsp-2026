@@ -7,8 +7,11 @@ import {
 	updateCompanyProfile,
 	type CompanyPublicProfile
 } from '$lib/server/companies/public-profile';
+import { companyTrust } from '$lib/server/companies/trust';
+import { requirePermission } from '$lib/server/companies/context';
 import { ApiError } from '$lib/server/errors/api-error';
 import { defineOperation } from '../operation';
+import { companyTrust as companyTrustSchema, companyTrustView } from '../schemas';
 import { companyDeps } from '../services';
 import { actionContext, activeMembership } from './context';
 
@@ -96,5 +99,27 @@ export const patchCompanyProfile = defineOperation({
 				...(given === undefined ? {} : { contacts: given })
 			})
 		);
+	}
+});
+
+export const getCompanyTrust = defineOperation({
+	id: 'getCompanyTrust',
+	method: 'GET',
+	path: '/company/trust',
+	tag: TAG,
+	summary: 'Факты доверия к своей компании',
+	description:
+		'Те же факты, что кандидат видит в предложении компании: каждый — «столько из стольких» с числом наблюдений за год, ' +
+		'меньше порога — «нет данных». Общего индекса или рейтинга нет.',
+	auth: 'account',
+	permission: 'company.profile.read',
+	errors: ['forbidden'],
+	response: { status: 200, description: 'Факты доверия', schema: companyTrustSchema },
+	async handle(ctx) {
+		const subject = await ctx.subject();
+		const membership = activeMembership(subject);
+		if (membership === null) throw new ApiError('forbidden');
+		requirePermission(subject, 'company.profile.read', { companyId: membership.companyId });
+		return companyTrustView(await companyTrust(ctx.services.db, membership.companyId, ctx.services.now()));
 	}
 });

@@ -184,6 +184,14 @@ const GROUPS = {
 		'application.submitted',
 		'application.withdrawn',
 		'application.decided'
+	],
+	// Complaints of candidates about offers and outgoing events of companies (domain 13.14, 5.7).
+	complaints: ['complaint.filed', 'complaint.decided'],
+	companyEvents: [
+		'event_subscription.created',
+		'event_subscription.updated',
+		'event_subscription.secret_rotated',
+		'event_subscription.deleted'
 	]
 } as const;
 
@@ -225,7 +233,7 @@ const SPECIFIC_DETAILS: Partial<Record<AuditAction, z.ZodType>> = {
 	'auth.registered': withKeys({ method: z.enum(['password', 'fsp_id']) }),
 	'auth.login': withKeys({ method: z.enum(['password', 'fsp_id']) }),
 	'operator.case_access': withKeys({
-		case_type: z.enum(['objection', 'moderation', 'authority', 'assessment', 'age']),
+		case_type: z.enum(['objection', 'moderation', 'authority', 'assessment', 'age', 'complaint']),
 		case_id: token
 	}),
 	// A month of the journal removed by `retention.sweep` after the retention period (domain 18.1).
@@ -357,6 +365,11 @@ const SPECIFIC_DETAILS: Partial<Record<AuditAction, z.ZodType>> = {
 	'application.decided': withKeys({ decision: z.enum(['viewed', 'invited', 'rejected']) }),
 	// «Промотать неделю» of a demo session: the new shift of the session's clock in seconds.
 	'demo.clock_advanced': withKeys({ clock_offset_seconds: count }),
+	'complaint.filed': withKeys({ company_id: token, reason_code: token }),
+	'complaint.decided': withKeys({
+		company_id: token,
+		decision: z.enum(['no_action', 'warning', 'suspension'])
+	}),
 	'ml.mode_changed': withKeys({
 		operation: z.enum(['extract', 'embed', 'rerank']),
 		from: z.enum(['on', 'off']),

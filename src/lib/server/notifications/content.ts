@@ -20,6 +20,7 @@ import {
 	companies,
 	companyMembers,
 	hiringProcesses,
+	invitationComplaints,
 	invitations,
 	testAttempts,
 	invitationTerms,
@@ -73,7 +74,9 @@ export type NotificationFacts =
 	/** The candidate's own application: the company of the vacancy decided on it. */
 	| { object: 'application'; side: 'candidate'; companyName: string; vacancyTitle: string }
 	/** An application to the company's own vacancy: the candidate by pseudonym. */
-	| { object: 'application'; side: 'company'; candidatePseudonym: string; vacancyTitle: string };
+	| { object: 'application'; side: 'company'; candidatePseudonym: string; vacancyTitle: string }
+	/** The operator decided the candidate's own complaint about an offer; `companyName` — of the offer, theirs to know. */
+	| { object: 'invitation_complaint'; side: 'candidate'; companyName: string };
 
 async function isActiveMember(executor: Executor, companyId: string, userId: string): Promise<boolean> {
 	const [member] = await executor
@@ -206,6 +209,15 @@ export async function notificationFacts(
 			return (await isCandidateUser(executor, notification.objectId, notification.userId))
 				? { object: 'candidate', side: 'candidate' }
 				: null;
+		case 'invitation_complaint': {
+			const [complaint] = await executor
+				.select({ candidateId: invitationComplaints.candidateId, companyName: companies.displayName })
+				.from(invitationComplaints)
+				.innerJoin(companies, eq(companies.id, invitationComplaints.companyId))
+				.where(eq(invitationComplaints.id, notification.objectId));
+			if (!complaint || !(await isCandidateUser(executor, complaint.candidateId, notification.userId))) return null;
+			return { object: 'invitation_complaint', side: 'candidate', companyName: complaint.companyName };
+		}
 		case 'assessment_attempt': {
 			const [attempt] = await executor
 				.select({

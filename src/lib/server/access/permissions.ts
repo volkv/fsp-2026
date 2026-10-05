@@ -71,7 +71,12 @@ export const PERMISSIONS = {
 	'staff.manage': { roles: ['admin'], apiKey: false },
 	'taxonomy.manage': { roles: ['admin'], apiKey: false },
 	'policy.manage': { roles: ['admin'], apiKey: false },
-	'jobs.manage': { roles: ['admin'], apiKey: false }
+	'jobs.manage': { roles: ['admin'], apiKey: false },
+	// A candidate's complaint about an offer and its review by an operator (domain 13.14).
+	'complaint.create': { roles: ['candidate'], apiKey: false },
+	'complaint.review': { roles: ['operator'], apiKey: false },
+	// Subscriptions of the company to its outgoing events: they hold secrets, so never by a key (domain 5.7).
+	'company.events.manage': { roles: ['owner'], apiKey: false }
 } as const satisfies Record<string, PermissionSpec>;
 
 export type Permission = keyof typeof PERMISSIONS;
@@ -133,7 +138,7 @@ export interface PermissionObjects {
 	'candidate.card.read': { show: ShowDecision };
 	'vacancy.write': { origin: 'own' | 'external'; companyId: string | null };
 	/** `invitability` — of the vacancy the version names; `null` — an offer without a vacancy (domain 13.5). */
-	/** `ownApplication` — the candidate applied to this company (domain 13.13): the offer needs no catalog visibility. */
+	/** `ownApplication` — the candidate applied to this company (domain 13.14): the offer needs no catalog visibility. */
 	'invitation.create': { invitability: Invitability | null; show: ShowDecision; ownApplication?: boolean };
 	'invitation.revise': { companyId: string; revisable: boolean };
 	'invitation.read': { companyId: string; candidateId: string };
@@ -171,6 +176,9 @@ export interface PermissionObjects {
 	'taxonomy.manage': null;
 	'policy.manage': null;
 	'jobs.manage': null;
+	'complaint.create': { candidateId: string };
+	'complaint.review': null;
+	'company.events.manage': { companyId: string };
 }
 
 export type AccessDecision =
@@ -217,6 +225,7 @@ function objectRule<P extends Permission>(
 		case 'candidate.self.read':
 		case 'candidate.self.write':
 		case 'invitation.respond':
+		case 'complaint.create':
 			return subject.candidate?.id === (o as { candidateId: string }).candidateId;
 		case 'catalog.search':
 			return admittedMember(subject);
@@ -288,6 +297,9 @@ function objectRule<P extends Permission>(
 		case 'company.members.manage':
 		case 'api_key.manage':
 			return ownCompany(subject, (o as { companyId: string }).companyId);
+		case 'company.events.manage':
+			// Events are sent only while the admission policy lets the company act: a closed company configures none.
+			return admittedMember(subject) && ownCompany(subject, (o as { companyId: string }).companyId);
 		case 'company.review':
 			return (o as PermissionObjects['company.review']).companyStatus === 'submitted';
 		case 'company.moderate': {

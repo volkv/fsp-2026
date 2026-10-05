@@ -606,25 +606,37 @@ export async function suspendCompany(
 ): Promise<void> {
 	requirePermission(ctx.subject, 'company.moderate', { companyStatus: 'verified' });
 	sessionUserId(ctx.subject);
-	await deps.db.transaction(async (tx) => {
-		const company = await lockCompany(tx, companyId);
-		(await StaffReach.of(tx, ctx.subject)).require(company.demoSessionId);
-		if (!companyAdmission(company.status).admitted) {
-			throw conflict('not_admitted', 'Компания уже приостановлена или её проверка отклонена');
+	await deps.db.transaction((tx) => suspendInTransaction(tx, ctx, companyId, input, deps.now()));
+}
+
+/**
+ * The suspension in the caller's transaction, for a decision that suspends the company together with its own records —
+ * an upheld complaint of a candidate names itself in the journal (domain 13.14). The caller checked the permission.
+ */
+export async function suspendInTransaction(
+	tx: Transaction,
+	ctx: ActionContext,
+	companyId: string,
+	input: { reasonCode: SuspensionReason; complaintId?: string },
+	now: Date
+): Promise<void> {
+	const company = await lockCompany(tx, companyId);
+	(await StaffReach.of(tx, ctx.subject)).require(company.demoSessionId);
+	if (!companyAdmission(company.status).admitted) {
+		throw conflict('not_admitted', 'Компания уже приостановлена или её проверка отклонена');
+	}
+	await tx.update(companies).set({ status: 'suspended' }).where(eq(companies.id, companyId));
+	// Sent and unanswered invitations close; accepted ones keep their hiring processes (domain 5.1).
+	await withdrawOpenInvitations(tx, { companyId }, 'company_suspended', { requestId: ctx.meta.requestId, at: now });
+	await recordAuditEvent(tx, {
+		...audit(ctx),
+		action: 'company.suspended',
+		outcome: 'success',
+		object: { type: 'company', id: companyId },
+		details: {
+			reason_code: input.reasonCode,
+			...(input.complaintId === undefined ? {} : { complaint_id: input.complaintId })
 		}
-		await tx.update(companies).set({ status: 'suspended' }).where(eq(companies.id, companyId));
-		// Sent and unanswered invitations close; accepted ones keep their hiring processes (domain 5.1).
-		await withdrawOpenInvitations(tx, { companyId }, 'company_suspended', {
-			requestId: ctx.meta.requestId,
-			at: deps.now()
-		});
-		await recordAuditEvent(tx, {
-			...audit(ctx),
-			action: 'company.suspended',
-			outcome: 'success',
-			object: { type: 'company', id: companyId },
-			details: { reason_code: input.reasonCode }
-		});
 	});
 }
 

@@ -52,6 +52,9 @@ import {
 	invitationResponses,
 	invitations,
 	invitationTerms,
+	invitationComplaints,
+	eventDeliveries,
+	atsLinks,
 	legalRepresentatives,
 	matchScores,
 	mlResults,
@@ -463,6 +466,21 @@ async function eraseInvitations(tx: Transaction, candidateId: string, ids: Perso
 	}
 	if (ids.invitationIds.length === 0) return;
 	const invited = ids.invitationIds;
+	// The complaints name the versions of the terms, and the deliveries of events and the records of ATS adapters name
+	// the offers by the candidate's pseudonym for the company: they go before the terms (domain 13.13, 5.7).
+	removal.add(
+		await tx
+			.delete(invitationComplaints)
+			.where(eq(invitationComplaints.candidateId, candidateId))
+			.returning({ id: invitationComplaints.id })
+	);
+	removal.add(
+		await tx
+			.delete(eventDeliveries)
+			.where(inArray(eventDeliveries.invitationId, invited))
+			.returning({ id: eventDeliveries.id })
+	);
+	removal.add(await tx.delete(atsLinks).where(inArray(atsLinks.invitationId, invited)).returning({ id: atsLinks.id }));
 	removal.add(
 		await tx
 			.delete(invitationResponses)

@@ -1128,6 +1128,25 @@ const REGISTRY: Record<string, Entry> = {
 	'(app)/company/join/+page.server.ts': exempt('own membership'),
 	'api/v1/companies/[company_id]/api-keys/+server.ts': exempt('own API keys'),
 	'api/v1/company/profile/+server.ts': exempt('the profile of the own company'),
+	// Trust, complaints and outgoing events (domain 5.7, 13.13).
+	'api/v1/company/trust/+server.ts': exempt('facts of the own company'),
+	'(app)/company/(member)/profile/integrations/+page.server.ts': exempt('own event subscriptions'),
+	'api/v1/companies/[company_id]/event-subscriptions/+server.ts': exempt('own event subscriptions'),
+	'api/v1/companies/[company_id]/event-subscriptions/huntflow/+server.ts': WRITES,
+	'api/v1/companies/[company_id]/event-subscriptions/[subscription_id]/+server.ts': WRITES,
+	'api/v1/companies/[company_id]/event-subscriptions/[subscription_id]/secret/+server.ts': WRITES,
+	'api/v1/companies/[company_id]/event-subscriptions/[subscription_id]/ping/+server.ts': WRITES,
+	'api/v1/companies/[company_id]/event-subscriptions/[subscription_id]/deliveries/+server.ts': exempt(
+		'deliveries of an own subscription'
+	),
+	'api/v1/invitations/[invitation_id]/complaint/+server.ts': exempt(
+		'own complaint about an own offer, another one is 404 — complaints.test.ts'
+	),
+	'(app)/operator/complaints/+page.server.ts': exempt('complaints within the reach — complaints.test.ts'),
+	'(app)/operator/complaints/[id]/+page.server.ts': exempt('a complaint within the reach — complaints.test.ts'),
+	'api/v1/operator/complaints/+server.ts': exempt('complaints within the reach — complaints.test.ts'),
+	'api/v1/operator/complaints/[complaint_id]/+server.ts': exempt('a complaint within the reach — complaints.test.ts'),
+	'api/v1/operator/complaints/[complaint_id]/decision/+server.ts': WRITES,
 	'(app)/company/(member)/needs/+page.server.ts': exempt('needs of the own company — needs.test.ts'),
 	'(app)/company/(member)/needs/[id]/+page.server.ts': exempt(
 		'a need of the own company, another one is 404 — needs.test.ts'

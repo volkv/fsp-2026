@@ -26,3 +26,6 @@ export * from './profile';
 export * from './shortlists';
 export * from './taxonomy';
 export * from './vacancies';
+// Trust in employers and outgoing events of companies (domain 5.6, 5.7, 13.14).
+export * from './complaints';
+export * from './events';

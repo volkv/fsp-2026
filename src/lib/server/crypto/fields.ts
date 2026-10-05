@@ -23,7 +23,9 @@ export type FieldContext =
 	| 'legal_representatives.email'
 	| 'legal_representatives.phone'
 	| 'notification_channels.telegram_chat_id'
-	| 'demo_letters.body';
+	| 'demo_letters.body'
+	| 'event_subscriptions.secret'
+	| 'event_subscriptions.previous_secret';
 
 /** Keyed lookup purposes; each has its own derived key, so values of different purposes never collide. */
 export type LookupPurpose = 'email' | 'telegram_chat';

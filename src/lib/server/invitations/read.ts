@@ -17,6 +17,7 @@ import {
 import type { DisclosureField } from '$lib/server/consent/kinds';
 import { companyInDemoScope, demoSessionOfUser, inDemoScope } from '$lib/server/demo/scope';
 import { loadCompanyProfile, type CompanyPublicProfile } from '$lib/server/companies/public-profile';
+import { companyTrust, type CompanyTrust } from '$lib/server/companies/trust';
 import type { InvitationDeps } from './deps';
 import { refuse } from './errors';
 import { termsContent, termsHistory, termsSalary, type InvitationRow, type TermsRow } from './records';
@@ -65,6 +66,8 @@ export interface InvitationView {
 	status: InvitationRow['status'];
 	/** The company with its profile and the label of the check: the candidate reads it before answering. */
 	company: CompanyPublicProfile;
+	/** Facts of trust in the company, each with its number of observations (domain 5.6). */
+	companyTrust: CompanyTrust;
 	needId: string | null;
 	/** The candidate as the company knows them. */
 	candidatePseudonym: string | null;
@@ -179,6 +182,7 @@ export async function getInvitation(
 		viewer,
 		status: invitation.status,
 		company: await loadCompanyProfile(executor, invitation.companyId),
+		companyTrust: await companyTrust(executor, invitation.companyId, deps.now()),
 		needId: invitation.needId,
 		candidatePseudonym:
 			viewer === 'company' ? deps.crypto.pseudonym(invitation.candidateId, invitation.companyId) : null,
