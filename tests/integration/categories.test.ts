@@ -87,8 +87,9 @@ describe('publication of a category', () => {
 			endedAt: null,
 			revokeReason: null
 		});
-		// The skills of the defining blocks and the practice language — never those of another block of the grade.
-		expect(category?.confirmedSkillKeys).toEqual(['databases', 'python', 'rest', 'sql']);
+		// The skills of the defining blocks — never those of another block of the grade; no program was written behind
+		// this decision, so no practice language either (the engine's path confirms one: test-engine).
+		expect(category?.confirmedSkillKeys).toEqual(['databases', 'rest', 'sql']);
 		expect(category?.confirmedSkillKeys).not.toContain('algorithms');
 		expect(category?.assignedAt).toEqual(decision.decidedAt);
 

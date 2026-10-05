@@ -153,7 +153,8 @@ export async function confirmingBlocks(
 	for (const block of CATALOG.blocks) {
 		if (!open.has(block.specialization)) continue;
 		const specialization = CATALOG.specializations.find((s) => s.key === block.specialization);
-		const skills = block.practice
+		// A program the candidate writes confirms its language; QA test cases confirm no harness language.
+		const skills = block.formats.includes('practice_code')
 			? (specialization?.practiceLanguages ?? []).map((language) => PRACTICE_LANGUAGE_SKILLS[language])
 			: block.skillKeys;
 		for (const skill of new Set(skills)) {

@@ -17,6 +17,10 @@
 		`${data.names.specializations[c.specialization] ?? c.specialization} · ${data.names.grades[c.grade] ?? c.grade}`;
 	const percent = new Intl.NumberFormat('ru-RU', { style: 'percent', maximumFractionDigits: 0 });
 	const WINNER = { product: 'подборка платформы', keywords: 'поиск по ключевым словам', tie: 'ничья' } as const;
+	const SCOPE = {
+		confirmed_pool: 'Сравнение на подтверждённом пуле: поиск по словам среди кандидатов тех же категорий и фильтров',
+		whole_catalog: 'Эксперимент по всей базе, не качество подборки: поиск по словам и среди кандидатов без категории'
+	} as const;
 </script>
 
 <PageHeader
@@ -39,6 +43,10 @@
 	<Card.Root>
 		<Card.Content class="pt-6 text-sm whitespace-pre-line">{data.needText}</Card.Content>
 	</Card.Root>
+{/if}
+
+{#if data.evaluation}
+	<p class="text-sm font-medium" data-testid="evaluation-scope">{SCOPE[data.evaluation.scope]}</p>
 {/if}
 
 {#if result}
@@ -96,8 +104,16 @@
 		<Button type="submit" class="justify-self-start">Сохранить оценку</Button>
 	</form>
 {:else}
-	<form method="POST" action="?/start" use:enhance>
-		<CsrfInput />
-		<Button type="submit">Показать карточки</Button>
-	</form>
+	<div class="grid gap-3 md:grid-cols-2">
+		{#each ['confirmed_pool', 'whole_catalog'] as const as scope (scope)}
+			<form method="POST" action="?/start" use:enhance class="grid gap-2 rounded-xl border bg-card p-4 text-sm">
+				<CsrfInput />
+				<input type="hidden" name="scope" value={scope} />
+				<p>{SCOPE[scope]}.</p>
+				<Button type="submit" class="justify-self-start" variant={scope === 'confirmed_pool' ? 'default' : 'outline'}>
+					{scope === 'confirmed_pool' ? 'Сравнить на подтверждённом пуле' : 'Эксперимент по всей базе'}
+				</Button>
+			</form>
+		{/each}
+	</div>
 {/if}

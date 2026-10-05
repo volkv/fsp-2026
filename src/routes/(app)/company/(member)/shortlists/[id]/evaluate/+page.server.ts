@@ -3,6 +3,7 @@ import { formText } from '$lib/server/auth/http';
 import { db } from '$lib/server/db';
 import { employerRequest, membershipOf } from '$lib/server/employer/http';
 import { currentVocabulary, labelsOf } from '$lib/server/employer/vocabulary';
+import { ApiError } from '$lib/server/errors/api-error';
 import { formFailure, pageError } from '$lib/server/http/page';
 import { loadCandidateSnapshots } from '$lib/server/matching/evidence';
 import { judgeEvaluation, openEvaluation, startEvaluation } from '$lib/server/shortlists/evaluation';
@@ -11,7 +12,8 @@ import { shortlistStep } from '$lib/server/shortlists/service';
 import type { Actions, PageServerLoad } from './$types';
 
 /**
- * «Оцените подбор» (contracts 11.2): the cards of the shortlist's top ten and of a keyword search, mixed and shuffled,
+ * «Оцените подбор» (contracts 11.2, item 10): the cards of the shortlist's top ten and of a keyword search — on the
+ * confirmed pool, or over the whole catalog as an experiment — mixed and shuffled,
  * shown as the catalog shows a candidate — categories and skills with their basis — without score, position or system.
  */
 export const load: PageServerLoad = async (event) => {
@@ -36,6 +38,7 @@ export const load: PageServerLoad = async (event) => {
 			...base,
 			evaluation: {
 				id: evaluationId,
+				scope: opened.scope,
 				judged: opened.judged,
 				cards: opened.cards.map((card) => {
 					const snapshot = card.candidateId === null ? undefined : snapshots.get(card.candidateId);
@@ -68,7 +71,15 @@ export const actions: Actions = {
 		membershipOf(event, subject);
 		let id: string;
 		try {
-			id = (await startEvaluation(configuredShortlistDeps(), subject, meta, event.params.id, event.request.signal)).id;
+			const scope = formText(await event.request.formData(), 'scope');
+			if (scope !== 'confirmed_pool' && scope !== 'whole_catalog') {
+				throw new ApiError('validation_failed', {
+					details: [{ path: 'scope', code: 'invalid', message: 'Выберите часть сравнения' }]
+				});
+			}
+			id = (
+				await startEvaluation(configuredShortlistDeps(), subject, meta, event.params.id, scope, event.request.signal)
+			).id;
 		} catch (cause) {
 			return formFailure(cause);
 		}

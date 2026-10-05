@@ -28,11 +28,12 @@ export interface TestDecisionInput {
 	blocks?: { block: string; items: number; score: number; cut: number }[];
 }
 
-/** A decision of the test, confirmed unless said otherwise, with the first practice language of the specialization. */
+/**
+ * A decision of the test, confirmed unless said otherwise. It is written without served clusters, so no practice program
+ * stands behind it and no practice language is confirmed (`decisionRecords` reads it so).
+ */
 function testDecision(input: TestDecisionInput): DecisionRecord {
 	const outcome = input.outcome ?? 'confirmed';
-	const language = CATALOG.specializations.find((s) => s.key === input.specialization)?.practiceLanguages[0];
-	if (!language) throw new Error(`specialization ${input.specialization} has no practice language`);
 	return {
 		id: randomUUID(),
 		specialization: input.specialization,
@@ -44,7 +45,7 @@ function testDecision(input: TestDecisionInput): DecisionRecord {
 		valid: true,
 		bankReleaseId: TEST_RELEASE,
 		catalogVersion: CATALOG.version,
-		practiceLanguage: outcome === 'confirmed' ? language : null,
+		practiceLanguage: null,
 		invalidReason: null
 	};
 }

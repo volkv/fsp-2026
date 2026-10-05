@@ -21,7 +21,12 @@ import { attestationStatementSchema } from '$lib/server/attestations/statement';
 import { verifyAttestation } from '$lib/server/attestations/verify';
 import { createReceiptSigner } from '$lib/server/fsp/receipts';
 import type { ItemInstance } from '$lib/server/assessments/contract/bank';
-import { CATALOG, type SpecializationKey } from '$lib/server/assessments/contract/catalog';
+import {
+	CATALOG,
+	blockDefinition,
+	gradeDefinition,
+	type SpecializationKey
+} from '$lib/server/assessments/contract/catalog';
 import type { CategoryChange } from '$lib/server/assessments/contract/policy';
 import {
 	answerItem,
@@ -576,6 +581,13 @@ describe('a whole attempt', () => {
 		// The candidate is never shown the harness output.
 		const state = await attemptState(database.db, subject, attempt.id, new Date());
 		expect(JSON.stringify(state)).not.toContain('11111');
+		// The candidate wrote test cases, not Python: the stack is the defining blocks', no language of the harness.
+		const [decision] = await database.db.select().from(gradeDecisions).where(eq(gradeDecisions.attemptId, attempt.id));
+		expect(decision?.outcome).toBe('confirmed');
+		const category = await categoryOf(candidateIdOf(subject), 'qa');
+		const defining = gradeDefinition('qa', 'intern').defining.flatMap((code) => blockDefinition(code).skillKeys);
+		expect(category?.confirmedSkillKeys).toEqual([...new Set(defining)].sort());
+		expect(category?.confirmedSkillKeys).not.toContain('python');
 	});
 
 	it('scores the QA step «измени своё решение» on its changed specification and own mutants', async () => {

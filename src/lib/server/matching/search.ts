@@ -28,6 +28,7 @@ import type {
 	MatchExplanation,
 	NeedComponent,
 	NeedComponentKey,
+	NeedComposite,
 	NeedCoverage,
 	NeedReason,
 	NeedSpec,
@@ -129,6 +130,7 @@ export type CompanyNeedReason = NeedReason extends infer R
 /** The decomposition of a ranking for a need (or by strength) as a company sees it. */
 export interface CompanyNeedMatch {
 	coverage: NeedCoverage;
+	composite: NeedComposite | null;
 	score: number;
 	levels: { need: number; strength: number };
 	components: Record<NeedComponentKey, NeedComponent>;
@@ -147,6 +149,7 @@ export function companyNeedMatch(entry: RankedForNeed): CompanyNeedMatch {
 	const { result } = entry;
 	return {
 		coverage: result.coverage,
+		composite: result.composite,
 		score: result.score,
 		levels: result.levels,
 		components: result.components,
@@ -833,18 +836,20 @@ export async function visibleAmong(
 }
 
 /**
- * The baseline of «Оцените подбор» (contracts 11.2): plain keyword search over the whole catalog the viewer sees —
- * the words of the query against the catalog documents, by full-text relevance alone, ties by id. No category, no
- * strength, no meaning: what a recruiter has without the platform's ranking.
+ * The baseline of «Оцените подбор» (contracts 11.2): plain keyword search among the candidates the viewer sees that
+ * pass the filters — the shortlist's categories and filters for the comparison on the confirmed pool, none for the
+ * experiment over the whole catalog — the words of the query against the catalog documents, by full-text relevance
+ * alone, ties by id. No strength, no meaning: what a recruiter has without the platform's ranking.
  */
 export async function keywordSearch(
 	deps: MatchingDeps,
 	subject: AccessSubject,
 	text: string,
-	limit: number
+	limit: number,
+	filters: CandidateSearchFilters
 ): Promise<{ candidateId: string; pseudonym: string }[]> {
 	const context = await searchContext(deps, subject, undefined);
-	const listed = await prefilter(deps.db, context.viewer.viewer, {});
+	const listed = await prefilter(deps.db, context.viewer.viewer, filters);
 	const visible = await visibleOf(deps.db, context, listed);
 	const documents = await candidateDocuments(deps.db, [...visible.keys()], text);
 	return [...documents.entries()]

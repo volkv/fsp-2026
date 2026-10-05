@@ -189,6 +189,30 @@
 				</Empty.Root>
 			{/if}
 		{/each}
+		{#if latest && coverage.composite.length > 0}
+			<div class="grid gap-2 rounded-xl border border-dashed p-4 text-sm" data-testid="shortlist-composite">
+				<p>
+					Составная роль «{roleName ?? ''}»: подборка берёт первую её половину, кандидаты с подтверждёнными категориями
+					обеих половин идут выше. Вторую половину можно добавить — это расширение: в выдаче появятся и те, у кого
+					подтверждена только она.
+				</p>
+				{#each coverage.composite as offer (`${offer.specialization}:${offer.grade}`)}
+					<form method="POST" action="?/widen" use:enhance class="flex flex-wrap items-center gap-2">
+						<CsrfInput />
+						{#each query.categories as own (`${own.specialization}:${own.grade}`)}
+							<input type="hidden" name="category" value={`${own.specialization}:${own.grade}`} />
+						{/each}
+						<input type="hidden" name="category" value={`${offer.specialization}:${offer.grade}`} />
+						<span>Ещё {cohortCount(offer.candidates)} в категории {categoryName(offer, names)}.</span>
+						{#if editable}
+							<Button type="submit" size="sm" variant="outline">
+								Добавить {names.specializations[offer.specialization] ?? offer.specialization}
+							</Button>
+						{/if}
+					</form>
+				{/each}
+			</div>
+		{/if}
 		{#if latest && coverage.neighbours.length > 0}
 			<div class="grid gap-2 rounded-xl border border-dashed p-4 text-sm" data-testid="shortlist-neighbours">
 				{#each coverage.neighbours as neighbour (`${neighbour.specialization}:${neighbour.grade}`)}
@@ -417,20 +441,27 @@
 			</Card.Content>
 		</Card.Root>
 
-		{#if data.evaluations.mean}
+		{#if data.evaluations.judged.length > 0}
 			<Card.Root data-testid="shortlist-evaluations">
 				<Card.Header>
 					<Card.Title><h2 class="font-heading text-h3">Оценки подбора</h2></Card.Title>
 				</Card.Header>
-				<Card.Content class="text-sm">
-					<p>
-						Оценок: {data.evaluations.judged.length} · Precision@10: подборка {data.evaluations.mean.precision_at_10
-							.product}, поиск по словам {data.evaluations.mean.precision_at_10.keywords}
-					</p>
-					<p class="text-muted-foreground">
-						Предпочтение: подборка {data.evaluations.mean.product_wins}, поиск по словам {data.evaluations.mean
-							.keyword_wins}
-					</p>
+				<Card.Content class="grid gap-3 text-sm">
+					{#each [{ scope: 'confirmed_pool', title: 'На подтверждённом пуле' }, { scope: 'whole_catalog', title: 'Эксперимент по всей базе — не качество подборки' }] as const as part (part.scope)}
+						{@const mean = data.evaluations.mean[part.scope]}
+						{#if mean}
+							<div data-evaluation-scope={part.scope}>
+								<p class="font-medium">{part.title}</p>
+								<p>
+									Оценок: {mean.count} · Precision@10: подборка {mean.precision_at_10.product}, поиск по словам
+									{mean.precision_at_10.keywords}
+								</p>
+								<p class="text-muted-foreground">
+									Предпочтение: подборка {mean.product_wins}, поиск по словам {mean.keyword_wins}
+								</p>
+							</div>
+						{/if}
+					{/each}
 				</Card.Content>
 			</Card.Root>
 		{/if}

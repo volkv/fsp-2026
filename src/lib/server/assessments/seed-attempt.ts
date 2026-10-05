@@ -21,6 +21,17 @@ export interface SeededAttemptInput {
 	requestId: string;
 }
 
+/**
+ * The detail of a seeded cluster: a practice program is taken as written in the first language of the cluster, as the
+ * owner of the category reads the language of a practice from its detail; nothing else is claimed.
+ */
+function seededDetail(instance: ItemInstance): { seeded: true; language?: string } {
+	if (instance.format !== 'practice_code') return { seeded: true };
+	const language = instance.practice?.languages[0];
+	if (!language) throw new Error(`practice instance ${instance.family}/${instance.seed} has no language`);
+	return { seeded: true, language };
+}
+
 /** Runs a seeded attempt to its end in the caller's transaction; returns the attempt and how it ended. */
 export async function runSeededAttempt(
 	tx: Transaction,
@@ -57,7 +68,7 @@ export async function runSeededAttempt(
 		);
 		await tx
 			.update(testItems)
-			.set({ status: 'scored', score, scoreDetail: { seeded: true }, answeredAt: input.now })
+			.set({ status: 'scored', score, scoreDetail: seededDetail(instance), answeredAt: input.now })
 			.where(eq(testItems.id, item.id));
 		outcome = await advance(tx, deps, attempt, context);
 	}

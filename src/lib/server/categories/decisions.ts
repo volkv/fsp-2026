@@ -15,7 +15,10 @@ export interface DecisionRecord extends CategoryDecision {
 	specialization: SpecializationKey;
 	bankReleaseId: string;
 	catalogVersion: string;
-	/** The language the practice was solved in; a confirmed decision always has one. */
+	/**
+	 * The language the candidate wrote the practice program in (`confirmedStack`); `null` — not confirmed, or a practice
+	 * the candidate wrote no program for (QA test cases).
+	 */
 	practiceLanguage: PracticeLanguageKey | null;
 	/** Why the decision stopped counting (`valid = false`): the reason a category standing on it is revoked. */
 	invalidReason: CategoryRevokeReason | null;

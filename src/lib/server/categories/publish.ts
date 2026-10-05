@@ -156,7 +156,6 @@ export async function applyGradeDecisions(
 			if (decision.catalogVersion !== CATALOG.version) {
 				throw new Error(`decision ${decision.id} is of catalog ${decision.catalogVersion}, not ${CATALOG.version}`);
 			}
-			if (decision.practiceLanguage === null) throw new Error(`confirmed decision ${decision.id} has no practice`);
 			const definition = gradeDefinition(specialization, resolved.grade);
 			const [inserted] = await tx
 				.insert(candidateCategories)

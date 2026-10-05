@@ -34,7 +34,7 @@ import { createInvitation } from '$lib/server/invitations/send';
 import { shortlistMatchOf } from '$lib/server/shortlists/service';
 import { invitations } from '$lib/server/db/schema';
 import { offerTerms } from '../helpers/factories';
-import { judgeEvaluation, startEvaluation } from '$lib/server/shortlists/evaluation';
+import { evaluationSummary, judgeEvaluation, startEvaluation } from '$lib/server/shortlists/evaluation';
 import {
 	createShortlist,
 	markCandidate,
@@ -349,6 +349,39 @@ describe('a shortlist of a need', () => {
 		expect(after.coverage.neighbours.some((n) => n.grade === 'senior')).toBe(false);
 	});
 
+	it('of a fullstack need takes Backend, offers Frontend, and puts those confirmed in both first', async () => {
+		const { subject } = await employer();
+		// Interns: no other test of the file shares these categories.
+		const backendIntern = { specialization: 'backend', grade: 'intern' } as const;
+		const frontendIntern = { specialization: 'frontend', grade: 'intern' } as const;
+		const strongBackend = await person({ category: backendIntern, margin: 8 });
+		const both = await person({ category: backendIntern, margin: 0 });
+		await decide(database.db, both.id, { specialization: 'frontend', grade: 'intern' });
+		const frontendOnly = await person({ category: frontendIntern });
+		const need = await createNeed(needDeps(), subject, meta, {
+			form: {
+				role_key: 'fullstack',
+				grade: { min: 'intern', max: 'intern' },
+				skill_keys: ['sql'],
+				nice_skill_keys: []
+			}
+		});
+		const { id } = await createShortlist(deps(), subject, meta, need.id, {});
+		const view = await openShortlist(deps(), subject, id);
+		expect(view.revision.query.categories).toEqual([backendIntern]);
+		const ids = view.items.map((item) => item.candidateId);
+		expect(ids).not.toContain(frontendOnly.id);
+		expect(ids.indexOf(both.id)).toBeLessThan(ids.indexOf(strongBackend.id));
+		const match = (candidateId: string) => view.items.find((item) => item.candidateId === candidateId)?.needMatch;
+		expect(match(both.id)?.composite).toMatchObject({ held: ['backend', 'frontend'], complete: true });
+		expect(match(strongBackend.id)?.composite).toMatchObject({ held: ['backend'], complete: false });
+		expect(view.coverage.composite.map((c) => `${c.specialization}:${c.grade}`)).toEqual(['frontend:intern']);
+		const widened = await reviseShortlist(deps(), subject, meta, id, { categories: [backendIntern, frontendIntern] });
+		const after = await openShortlist(deps(), subject, id, { revision: widened.revision });
+		expect(after.items.map((item) => item.candidateId)).toContain(frontendOnly.id);
+		expect(after.coverage.composite).toEqual([]);
+	});
+
 	it('of a need whose role no test checks is empty and says why, with categories its skills suggest', async () => {
 		const { subject } = await employer();
 		const need = await createNeed(needDeps(), subject, meta, {
@@ -538,7 +571,8 @@ describe('«Оцените подбор»', () => {
 			}
 		});
 		const { id } = await createShortlist(deps(), subject, meta, need.id, {});
-		const started = await startEvaluation(deps(), subject, meta, id);
+		// The experiment over the whole catalog: the keyword search reaches a candidate without a category.
+		const started = await startEvaluation(deps(), subject, meta, id, 'whole_catalog');
 		const shown = started.cards.map((card) => card.candidateId);
 		expect(shown).toContain(tested.id);
 		expect(shown).toContain(claimer.id);
@@ -555,9 +589,24 @@ describe('«Оцените подбор»', () => {
 			.from(shortlistEvaluations)
 			.where(eq(shortlistEvaluations.id, started.id));
 		expect(JSON.stringify(stored?.cards)).not.toMatch(/"pseudonym":"/u);
+		expect(stored?.scope).toBe('whole_catalog');
 		expect(
 			(await apiError(judgeEvaluation(deps(), subject, meta, id, started.id, [chosen.position]))).details?.[0]?.code
 		).toBe('already_judged');
+
+		// On the confirmed pool the keyword search takes the shortlist's categories: no one without a category.
+		const pooled = await person({
+			category: { specialization: 'data_ml', grade: 'senior' },
+			skills: [{ key: 'airflow', trust: 'claimed' }]
+		});
+		const onPool = await startEvaluation(deps(), subject, meta, id, 'confirmed_pool');
+		const pool = onPool.cards.map((card) => card.candidateId);
+		expect(pool).toContain(pooled.id);
+		expect(pool).not.toContain(claimer.id);
+		await judgeEvaluation(deps(), subject, meta, id, onPool.id, []);
+		const summary = await evaluationSummary(deps(), subject, id);
+		expect(summary.mean.whole_catalog).toMatchObject({ count: 1, precision_at_10: { product: 0.1 } });
+		expect(summary.mean.confirmed_pool).toMatchObject({ count: 1, precision_at_10: { product: 0, keywords: 0 } });
 	});
 });
 

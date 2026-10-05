@@ -306,6 +306,11 @@ export interface ShortlistCoverage {
 	suggestions: RecommendedCategory[];
 	/** Grades next to the step's grades of each of its specializations, with the candidates the step does not show. */
 	neighbours: (CategoryPair & { candidates: SmallCell; direction: 'below' | 'above' })[];
+	/**
+	 * Categories of the other specializations of a composite role (Frontend of a fullstack) the step does not take,
+	 * with the candidates the step does not show: a widening the employer makes knowingly.
+	 */
+	composite: (CategoryPair & { candidates: SmallCell })[];
 	otherRequirements: { name: string; requirement: 'required' | 'nice' }[];
 }
 
@@ -413,6 +418,17 @@ async function coverageOf(
 		deps.now(),
 		shown
 	);
+	const taken = new Set(query.categories.map((c) => `${c.specialization}:${c.grade}`));
+	const composite = await countCategories(
+		deps.db,
+		subject,
+		form,
+		own.categories
+			.filter((c) => c.basis === 'composite_role' && !taken.has(`${c.specialization}:${c.grade}`))
+			.map(({ specialization, grade }) => ({ specialization, grade })),
+		deps.now(),
+		shown
+	);
 	return {
 		basis: own.basis,
 		roleKey: form.role_key ?? null,
@@ -421,6 +437,7 @@ async function coverageOf(
 		neighbours: counted
 			.filter(({ candidates }) => !('value' in candidates) || candidates.value > 0)
 			.map(({ specialization, grade, direction, candidates }) => ({ specialization, grade, direction, candidates })),
+		composite: composite.map(({ specialization, grade, candidates }) => ({ specialization, grade, candidates })),
 		otherRequirements: [
 			...(form.other_skills ?? []).map((name) => ({ name, requirement: 'required' as const })),
 			...(form.other_nice_skills ?? []).map((name) => ({ name, requirement: 'nice' as const }))

@@ -5,6 +5,7 @@
 import { z } from 'zod';
 import { GRADE_KEYS, SPECIALIZATION_KEYS } from '$lib/server/assessments/contract/catalog';
 import { ApiError } from '$lib/server/errors/api-error';
+import { EVALUATION_SCOPES } from '$lib/server/db/schema';
 import type { CompanyNeedMatch, SearchMode } from '$lib/server/matching/search';
 import { NEED_COMPONENT_KEYS } from '$lib/server/matching/score';
 import {
@@ -107,6 +108,14 @@ const needMatchSchema = z
 					.describe('Обязательные навыки, которые не подтвердили ни тест, ни ФСП, ни платформа')
 			})
 			.describe('Первый уровень порядка: меньше неподтверждённых обязательных — выше; внутри — по `score`'),
+		composite: z
+			.object({
+				specializations: z.array(z.enum(SPECIALIZATION_KEYS)),
+				held: z.array(z.enum(SPECIALIZATION_KEYS)).describe('Специализации роли, в которых у кандидата есть категория'),
+				complete: z.boolean()
+			})
+			.nullable()
+			.describe('Составная роль: кандидат с категориями всех её специализаций идёт выше внутри группы покрытия'),
 		score: z.number().describe('Порядок внутри группы покрытия'),
 		levels: z.object({ need: z.number(), strength: z.number() }),
 		components: z.object(
@@ -145,6 +154,7 @@ const needMatchSchema = z
 function needMatchView(match: CompanyNeedMatch) {
 	return {
 		coverage: match.coverage,
+		composite: match.composite,
 		score: match.score,
 		levels: match.levels,
 		components: match.components,
@@ -260,6 +270,18 @@ const shortlistSchema = z
 						})
 					)
 					.describe('Соседние грейды, которые шаг не берёт: расширение — только уточнением'),
+				composite: z
+					.array(
+						z.object({
+							specialization: z.enum(SPECIALIZATION_KEYS),
+							grade: z.enum(GRADE_KEYS),
+							candidates: count.describe('Кандидаты категории, которых нет в выдаче шага')
+						})
+					)
+					.describe(
+						'Составная роль (fullstack): категории другой её специализации, которые шаг не берёт, — расширение ' +
+							'уточнением; в выдаче кандидаты с категориями обеих специализаций идут выше'
+					),
 				other_requirements: z
 					.array(z.object({ name: z.string(), requirement: z.enum(['required', 'nice']) }))
 					.describe('Требования вне таксономии: платформа их не подтверждает')
@@ -406,6 +428,7 @@ export const getShortlist = defineOperation({
 					covered_skills: c.coveredSkills
 				})),
 				neighbours: view.coverage.neighbours,
+				composite: view.coverage.composite,
 				other_requirements: view.coverage.otherRequirements
 			},
 			groups: view.groups
@@ -625,6 +648,19 @@ const evaluationResultSchema = z
 
 const evaluationResultView = (result: EvaluationResult) => result;
 
+const scopeSchema = z
+	.enum(EVALUATION_SCOPES)
+	.describe(
+		'`confirmed_pool` — сравнение на подтверждённом пуле; `whole_catalog` — эксперимент по всей базе, не качество подборки'
+	);
+
+const evaluationMean = z.object({
+	precision_at_10: z.object({ product: z.number(), keywords: z.number() }),
+	product_wins: z.int(),
+	keyword_wins: z.int(),
+	count: z.int()
+});
+
 export const startShortlistEvaluation = defineOperation({
 	id: 'startShortlistEvaluation',
 	method: 'POST',
@@ -633,9 +669,13 @@ export const startShortlistEvaluation = defineOperation({
 	summary: '«Оцените подбор»: начать',
 	description:
 		'Первая десятка подборки и первая десятка поиска по ключевым словам на той же потребности, смешанные ' +
-		'чередованием команд и перемешанные: какая система выбрала карточку — не указано. Нечего сравнивать — `409`.',
+		'чередованием команд и перемешанные: какая система выбрала карточку — не указано. Две части (contracts 11.2, ' +
+		'п. 10): `confirmed_pool` — поиск по словам среди кандидатов тех же категорий и фильтров, что у подборки; ' +
+		'`whole_catalog` — эксперимент: поиск по всему видимому каталогу, включая кандидатов без категории, — не ' +
+		'качество подборки. Нечего сравнивать — `409`.',
 	auth: 'session',
 	params: shortlistParams,
+	body: z.strictObject({ scope: scopeSchema }),
 	errors: ['forbidden', 'not_found', 'conflict'],
 	response: {
 		status: 201,
@@ -648,6 +688,7 @@ export const startShortlistEvaluation = defineOperation({
 			await ctx.subject(),
 			invitationMeta(ctx),
 			ctx.params.shortlist_id,
+			ctx.body.scope,
 			ctx.signal
 		);
 		return {
@@ -700,15 +741,17 @@ export const listShortlistEvaluations = defineOperation({
 		description: 'Сохранённые оценки и средние',
 		schema: z.object({
 			judged: z.array(
-				z.object({ id: z.uuid(), revision: z.int(), judged_at: dateTime, result: evaluationResultSchema })
+				z.object({
+					id: z.uuid(),
+					scope: scopeSchema,
+					revision: z.int(),
+					judged_at: dateTime,
+					result: evaluationResultSchema
+				})
 			),
 			mean: z
-				.object({
-					precision_at_10: z.object({ product: z.number(), keywords: z.number() }),
-					product_wins: z.int(),
-					keyword_wins: z.int()
-				})
-				.nullable()
+				.object({ confirmed_pool: evaluationMean.nullable(), whole_catalog: evaluationMean.nullable() })
+				.describe('Средние каждой части отдельно: части не смешиваются')
 		})
 	},
 	async handle(ctx) {
@@ -716,6 +759,7 @@ export const listShortlistEvaluations = defineOperation({
 		return {
 			judged: summary.judged.map((j) => ({
 				id: j.id,
+				scope: j.scope,
 				revision: j.revision,
 				judged_at: iso(j.judgedAt),
 				result: j.result

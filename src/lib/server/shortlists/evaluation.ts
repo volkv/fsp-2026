@@ -1,6 +1,9 @@
-// «Оцените подбор» (docs/contracts.md, section 11.2): the company — or an expert of the jury in a demo session — sees
-// the top ten of the shortlist and the top ten of a plain keyword search for the same need merged by team-draft
-// interleaving and shuffled, without which system put a card there, and marks the candidates who fit. The judgement
+// «Оцените подбор» (docs/contracts.md, section 11.2, item 10): the company — or an expert of the jury in a demo session
+// — sees the top ten of the shortlist and the top ten of a plain keyword search for the same need merged by team-draft
+// interleaving and shuffled, in one of two parts, each named as such: the comparison on the confirmed pool — the
+// keyword search among the candidates of the shortlist's categories and filters, the same conditions as the shortlist;
+// the experiment over the whole catalog — the keyword search over everyone the company sees, candidates without a
+// category included, «эксперимент, не качество подборки»; without which system put a card there, and marks the candidates who fit. The judgement
 // gives Precision@10 of each system (out of ten: a short list does not count higher), the preference by the interleaving
 // credits and the share of candidates without FSP results in each top ten. Until it is judged the evaluation names the
 // shown candidates by the company's pseudonyms; the judgement removes them and keeps only which system put each card
@@ -11,16 +14,19 @@ import { z } from 'zod';
 import type { AccessSubject } from '$lib/server/access/permissions';
 import { recordAuditEvent } from '$lib/server/audit/record';
 import { auditActorOf } from '$lib/server/companies/context';
-import { candidates, shortlistEvaluations, sourceFacts } from '$lib/server/db/schema';
+import { candidates, EVALUATION_SCOPES, shortlistEvaluations, sourceFacts } from '$lib/server/db/schema';
 import { listedInCatalog } from '$lib/server/db/conditions';
 import { currentVocabulary } from '$lib/server/employer/vocabulary';
 import { ApiError } from '$lib/server/errors/api-error';
 import type { RequestMeta } from '$lib/server/invitations/deps';
 import { keywordSearch, visibleAmong } from '$lib/server/matching/search';
 import { uuidv7 } from '$lib/server/ids';
+import { searchOf } from './query';
 import { rankStep, shortlistStep, type ShortlistDeps } from './service';
 
 export const TOP = 10;
+
+export type EvaluationScope = (typeof EVALUATION_SCOPES)[number];
 
 const cardSchema = z.strictObject({
 	position: z.int().positive(),
@@ -134,12 +140,16 @@ export interface StartedEvaluation {
 	cards: { position: number; pseudonym: string; candidateId: string }[];
 }
 
-/** A new blind comparison on the latest step of the shortlist. */
+/**
+ * A new blind comparison on the latest step of the shortlist, in the scope asked for. On the confirmed pool a step
+ * without categories has no pool: nothing to compare.
+ */
 export async function startEvaluation(
 	deps: ShortlistDeps,
 	subject: AccessSubject,
 	meta: RequestMeta,
 	shortlistId: string,
+	scope: EvaluationScope,
 	signal?: AbortSignal
 ): Promise<StartedEvaluation> {
 	const { shortlist, step, needText } = await shortlistStep(deps, subject, shortlistId);
@@ -147,7 +157,12 @@ export async function startEvaluation(
 	if (!membership) throw new ApiError('forbidden');
 	const product = (await rankStep(deps, subject, { id: shortlistId, needText }, step, signal)).ranked.slice(0, TOP);
 	const words = await keywordsOf(deps, step.query.form, needText);
-	const keywords = words === null ? [] : await keywordSearch(deps, subject, words, TOP);
+	const pool =
+		scope === 'confirmed_pool' ? searchOf(step.query, needText, { id: shortlistId, revision: step.seq }) : null;
+	const keywords =
+		words === null || (pool !== null && step.query.categories.length === 0)
+			? []
+			: await keywordSearch(deps, subject, words, TOP, pool?.filters ?? {});
 	if (product.length === 0 && keywords.length === 0) {
 		throw new ApiError('conflict', {
 			details: [{ code: 'nothing_to_compare', message: 'Ни подборка, ни поиск по словам никого не нашли' }]
@@ -192,6 +207,7 @@ export async function startEvaluation(
 			id,
 			shortlistId: shortlist.id,
 			revisionSeq: step.seq,
+			scope,
 			createdByMemberId: membership.memberId,
 			cards
 		});
@@ -203,7 +219,7 @@ export async function startEvaluation(
 			requestId: meta.requestId,
 			ip: meta.ip ?? null,
 			userAgent: meta.userAgent ?? null,
-			details: { evaluation_id: id, stage: 'started', cards: cards.length }
+			details: { evaluation_id: id, stage: 'started', scope, cards: cards.length }
 		});
 	});
 	return {
@@ -236,12 +252,14 @@ export async function openEvaluation(
 	shortlistId: string,
 	evaluationId: string
 ): Promise<{
+	scope: EvaluationScope;
 	judged: EvaluationResult | null;
 	cards: { position: number; pseudonym: string | null; candidateId: string | null }[];
 }> {
 	const { row, cards } = await ownEvaluation(deps, subject, shortlistId, evaluationId);
 	if (row.result !== null) {
 		return {
+			scope: row.scope,
 			judged: row.result as EvaluationResult,
 			cards: cards.map((card) => ({ position: card.position, pseudonym: null, candidateId: null }))
 		};
@@ -258,6 +276,7 @@ export async function openEvaluation(
 	);
 	const byPseudonym = new Map([...visible].map(([id, pseudonym]) => [pseudonym, id]));
 	return {
+		scope: row.scope,
 		judged: null,
 		cards: cards.map((card) => ({
 			position: card.position,
@@ -310,13 +329,20 @@ export async function judgeEvaluation(
 	return result;
 }
 
-export interface EvaluationSummary {
-	judged: { id: string; revision: number; judgedAt: Date; result: EvaluationResult }[];
-	/** Means over the judged evaluations of the shortlist; `null` — none judged. */
-	mean: { precision_at_10: { product: number; keywords: number }; product_wins: number; keyword_wins: number } | null;
+interface EvaluationMean {
+	precision_at_10: { product: number; keywords: number };
+	product_wins: number;
+	keyword_wins: number;
+	count: number;
 }
 
-/** The judged evaluations of the shortlist, newest first, with their means. */
+export interface EvaluationSummary {
+	judged: { id: string; scope: EvaluationScope; revision: number; judgedAt: Date; result: EvaluationResult }[];
+	/** Means over the judged evaluations of each scope, never mixed; `null` — none judged in it. */
+	mean: Record<EvaluationScope, EvaluationMean | null>;
+}
+
+/** The judged evaluations of the shortlist, newest first, with the means of each scope apart. */
 export async function evaluationSummary(
 	deps: ShortlistDeps,
 	subject: AccessSubject,
@@ -330,20 +356,28 @@ export async function evaluationSummary(
 		.orderBy(desc(shortlistEvaluations.judgedAt));
 	const judged = rows.map((row) => {
 		if (row.judgedAt === null || row.result === null) throw new Error('a judged evaluation without its result');
-		return { id: row.id, revision: row.revisionSeq, judgedAt: row.judgedAt, result: row.result as EvaluationResult };
+		return {
+			id: row.id,
+			scope: row.scope,
+			revision: row.revisionSeq,
+			judgedAt: row.judgedAt,
+			result: row.result as EvaluationResult
+		};
 	});
-	if (judged.length === 0) return { judged, mean: null };
-	const mean = (pick: (r: EvaluationResult) => number) =>
-		Math.round((judged.reduce((sum, j) => sum + pick(j.result), 0) / judged.length) * 1000) / 1000;
-	return {
-		judged,
-		mean: {
+	const meanOf = (scope: EvaluationScope): EvaluationMean | null => {
+		const of = judged.filter((j) => j.scope === scope);
+		if (of.length === 0) return null;
+		const mean = (pick: (r: EvaluationResult) => number) =>
+			Math.round((of.reduce((sum, j) => sum + pick(j.result), 0) / of.length) * 1000) / 1000;
+		return {
 			precision_at_10: {
 				product: mean((r) => r.precision_at_10.product),
 				keywords: mean((r) => r.precision_at_10.keywords)
 			},
-			product_wins: judged.filter((j) => j.result.preference.winner === 'product').length,
-			keyword_wins: judged.filter((j) => j.result.preference.winner === 'keywords').length
-		}
+			product_wins: of.filter((j) => j.result.preference.winner === 'product').length,
+			keyword_wins: of.filter((j) => j.result.preference.winner === 'keywords').length,
+			count: of.length
+		};
 	};
+	return { judged, mean: { confirmed_pool: meanOf('confirmed_pool'), whole_catalog: meanOf('whole_catalog') } };
 }

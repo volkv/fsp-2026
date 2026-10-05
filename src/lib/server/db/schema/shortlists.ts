@@ -12,6 +12,13 @@ import { hiringNeeds } from './hiring';
 
 export const SHORTLIST_STATUSES = ['open', 'archived'] as const;
 
+/**
+ * What «Оцените подбор» compares (contracts 11.2, item 10): `confirmed_pool` — the shortlist against a keyword search
+ * among the candidates of the same categories and filters; `whole_catalog` — an experiment: the keyword search over the
+ * whole visible catalog, candidates without a category included.
+ */
+export const EVALUATION_SCOPES = ['confirmed_pool', 'whole_catalog'] as const;
+
 export const shortlists = pgTable(
 	'shortlists',
 	{
@@ -122,6 +129,7 @@ export const shortlistEvaluations = pgTable(
 			.notNull()
 			.references(() => shortlists.id),
 		revisionSeq: integer().notNull(),
+		scope: text({ enum: EVALUATION_SCOPES }).notNull(),
 		createdByMemberId: uuid()
 			.notNull()
 			.references(() => companyMembers.id),
@@ -131,6 +139,7 @@ export const shortlistEvaluations = pgTable(
 		judgedAt: ts()
 	},
 	(t) => [
+		enumCheck('shortlist_evaluations', 'scope', t.scope, EVALUATION_SCOPES),
 		check('shortlist_evaluations_judged', sql`(${t.judgedAt} is null) = (${t.result} is null)`),
 		index('shortlist_evaluations_shortlist').on(t.shortlistId)
 	]

@@ -13,6 +13,7 @@
 		COMPONENT_NAMES,
 		COMPONENT_REASONS,
 		contribution,
+		compositeText,
 		coverageText,
 		OFFER_FIT,
 		reasonText,
@@ -44,6 +45,7 @@
 
 	const percent = new Intl.NumberFormat('ru-RU', { style: 'percent', maximumFractionDigits: 0 });
 	const unconfirmed = $derived(coverageText(match.coverage, names));
+	const composite = $derived(compositeText(match.composite, names));
 </script>
 
 <article class="grid gap-3 rounded-xl border bg-card p-4 sm:p-5" data-candidate={pseudonym} data-testid="shortlist-row">
@@ -66,6 +68,9 @@
 		</div>
 	</div>
 
+	{#if composite}
+		<p class="text-sm" data-testid="shortlist-composite-role">{composite}</p>
+	{/if}
 	{#if unconfirmed}
 		<p class="text-sm" data-testid="shortlist-unconfirmed">{unconfirmed}</p>
 	{/if}

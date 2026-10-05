@@ -1,13 +1,12 @@
 // Grade decisions as the owner of categories reads them (docs/domain.md, 12.3–12.4): every decision of a candidate in a
 // specialization from `grade_decisions`, with the attempt that gave it — whether it was started on a confident result,
-// the catalog version, the language the practice was solved in — and, for a decision that stopped counting, why: an
+// the catalog version, the language the candidate wrote the practice program in — and, for a decision that stopped counting, why: an
 // annulment upheld by an objection (`objection_annulled`), any other annulment (`decision_annulled`), a review that
 // replaced it (`objection_rescored`).
 import { and, eq } from 'drizzle-orm';
 import type { Executor } from '$lib/server/db';
 import { gradeDecisions, testAttempts, testItems } from '$lib/server/db/schema';
 import {
-	CATALOG,
 	GRADE_KEYS,
 	PRACTICE_LANGUAGE_KEYS,
 	type GradeKey,
@@ -26,15 +25,19 @@ const isPracticeLanguage = (value: unknown): value is PracticeLanguageKey =>
 	typeof value === 'string' && (PRACTICE_LANGUAGE_KEYS as readonly string[]).includes(value);
 
 /**
- * The language of a confirmed practice: the language the program ran in; a QA practice runs its harness in the first
- * practice language of the specialization (the test cases are data, the harness is Python).
+ * The language of a confirmed practice: the language the candidate wrote the program in (`practice_code`). A QA practice
+ * (`qa_mutation`) is test cases the harness runs in a language the candidate never wrote, and a decision without a
+ * served practice (a synthetic one of the quality evaluation) shows no program: no language is confirmed. A practice
+ * program without its language is a data error, not a language to guess.
  */
-function languageOf(detail: unknown, specialization: SpecializationKey): PracticeLanguageKey {
-	const language = (detail as { language?: unknown } | null)?.language;
-	if (isPracticeLanguage(language)) return language;
-	const first = CATALOG.specializations.find((s) => s.key === specialization)?.practiceLanguages[0];
-	if (!first) throw new Error(`specialization ${specialization} has no practice language`);
-	return first;
+function languageOf(
+	decisionId: string,
+	practice: { format: string; detail: unknown } | null
+): PracticeLanguageKey | null {
+	if (!practice || practice.format !== 'practice_code') return null;
+	const language = (practice.detail as { language?: unknown } | null)?.language;
+	if (!isPracticeLanguage(language)) throw new Error(`the practice of decision ${decisionId} has no language`);
+	return language;
 }
 
 /** Every decision of the candidate in the specialization, valid or not. */
@@ -44,7 +47,11 @@ export async function decisionRecords(
 	specialization: SpecializationKey
 ): Promise<DecisionRecord[]> {
 	const rows = await executor
-		.select({ decision: gradeDecisions, attempt: testAttempts, practice: testItems.scoreDetail })
+		.select({
+			decision: gradeDecisions,
+			attempt: testAttempts,
+			practice: { format: testItems.format, detail: testItems.scoreDetail }
+		})
 		.from(gradeDecisions)
 		.innerJoin(testAttempts, eq(testAttempts.id, gradeDecisions.attemptId))
 		.leftJoin(testItems, and(eq(testItems.attemptId, testAttempts.id), eq(testItems.practice, true)))
@@ -69,7 +76,7 @@ export async function decisionRecords(
 			specialization,
 			bankReleaseId: decision.bankReleaseId,
 			catalogVersion: attempt.catalogVersion,
-			practiceLanguage: decision.outcome === 'confirmed' ? languageOf(practice, specialization) : null,
+			practiceLanguage: decision.outcome === 'confirmed' ? languageOf(decision.id, practice) : null,
 			invalidReason
 		};
 	});

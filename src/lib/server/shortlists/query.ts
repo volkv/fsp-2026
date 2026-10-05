@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { GRADE_KEYS, SPECIALIZATION_KEYS } from '$lib/server/assessments/contract/catalog';
 import type { NeedSearch, CandidateSearchFilters } from '$lib/server/matching/search';
 import { needFormSchema, needSalarySchema, type NeedForm } from '$lib/server/needs/form';
+import { compositeSpecializations } from '$lib/server/needs/recommend';
 import { OFFER_WORK_FORMATS } from '$lib/server/invitations/terms';
 
 const skillKey = z.string().regex(/^[a-z0-9_]+$/u);
@@ -205,7 +206,8 @@ export function searchOf(
 				workFormat: form.work_format ?? null,
 				regionCode: form.region_code ?? null,
 				fspRelevant: form.fsp_relevant !== false,
-				categories: query.categories
+				categories: query.categories,
+				compositeSpecializations: compositeSpecializations(form)
 			},
 			semanticText: needText,
 			shortlist

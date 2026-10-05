@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('$env/dynamic/private', () => ({ env: {} }));
 
-const { needCategoriesOf, recommendCategories } = await import('./recommend');
+const { compositeSpecializations, needCategoriesOf, recommendCategories } = await import('./recommend');
 const { SPECIALIZATION_KEYS, specializationOpen } = await import('$lib/server/assessments/contract/catalog');
 
 /** Every bank released: open is what the catalog switches on. */
@@ -40,7 +40,7 @@ describe('recommendCategories', () => {
 		expect(categories.map((c) => c.grade)).toEqual(['intern', 'junior', 'middle', 'senior']);
 	});
 
-	it('takes every specialization of the role when the form names none: fullstack is backend and frontend', () => {
+	it('takes the first specialization of a composite role and offers the other: fullstack is backend, frontend offered', () => {
 		const result = needCategoriesOf(
 			{ ...empty, role_key: 'fullstack', skill_keys: ['sql'], grade: { min: 'middle', max: 'middle' } },
 			open
@@ -50,10 +50,11 @@ describe('recommendCategories', () => {
 			['backend', 'middle', 'role'],
 			['backend', 'junior', 'neighbour_grade'],
 			['backend', 'senior', 'neighbour_grade'],
-			['frontend', 'middle', 'role'],
-			['frontend', 'junior', 'neighbour_grade'],
-			['frontend', 'senior', 'neighbour_grade']
+			['frontend', 'middle', 'composite_role']
 		]);
+		expect(compositeSpecializations({ ...empty, role_key: 'fullstack' })).toEqual(['backend', 'frontend']);
+		expect(compositeSpecializations({ ...empty, role_key: 'backend' })).toEqual([]);
+		expect(compositeSpecializations(empty)).toEqual([]);
 	});
 
 	it('keeps a role no test checks without a category and only suggests categories by its skills', () => {

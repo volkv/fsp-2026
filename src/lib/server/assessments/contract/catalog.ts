@@ -1184,12 +1184,24 @@ export function gradeDefinition(specialization: SpecializationKey, grade: GradeK
 	return found;
 }
 
+/** Whether the practice of a grade is code the candidate writes (`practice_code`), so its language is theirs. */
+export function practiceWritesCode(definition: GradeDefinition): boolean {
+	return blockDefinition(definition.practice.block).formats.includes('practice_code');
+}
+
 /**
- * The confirmed stack of a confirmed decision: the skills of the grade's defining blocks and the skill of the practice
- * language. It does not depend on how long the attempt ran: every confirmation has seen the defining blocks in full.
+ * The confirmed stack of a confirmed decision: the skills of the grade's defining blocks and, when the candidate wrote
+ * the practice program, the skill of its language. A QA practice (`qa_mutation`) is test cases run by a harness in a
+ * language the candidate never wrote: no language is confirmed (`practiceLanguage` is `null`). It does not depend on how
+ * long the attempt ran: every confirmation has seen the defining blocks in full.
  */
-export function confirmedStack(definition: GradeDefinition, practiceLanguage: PracticeLanguageKey): string[] {
-	const skills = new Set<string>([PRACTICE_LANGUAGE_SKILLS[practiceLanguage]]);
+export function confirmedStack(definition: GradeDefinition, practiceLanguage: PracticeLanguageKey | null): string[] {
+	if (practiceLanguage !== null && !practiceWritesCode(definition)) {
+		throw new Error(
+			`${definition.specialization} × ${definition.grade}: the practice is not code the candidate writes, no language is confirmed`
+		);
+	}
+	const skills = new Set<string>(practiceLanguage === null ? [] : [PRACTICE_LANGUAGE_SKILLS[practiceLanguage]]);
 	for (const code of definition.defining) for (const skill of blockDefinition(code).skillKeys) skills.add(skill);
 	return [...skills].sort();
 }

@@ -14,7 +14,7 @@ import { mlResults } from '$lib/server/db/schema';
 import type { ModelAdapter } from '$lib/server/ml/adapter';
 import type { Block, QuoteLocation } from '$lib/server/ml/quotes';
 import type { VacancyItem } from '$lib/server/ml/vacancy-extract';
-import { regionReference } from '$lib/server/regions';
+import { placeReference } from '$lib/server/places';
 import {
 	fieldsFromItems,
 	textBlocks,
@@ -30,7 +30,7 @@ import { EMPTY_FORM, type NeedGrade, type NeedForm } from './form';
 import { unrecognizedRequirements } from './requirements';
 
 /** Version of the reading of a need on top of the rules of a vacancy text: any change of what it suggests is new. */
-export const NEED_RULES_VERSION = `need-rules/2+${VACANCY_TEXT_RULES_VERSION}`;
+export const NEED_RULES_VERSION = `need-rules/3+${VACANCY_TEXT_RULES_VERSION}`;
 
 /** A suggested field of the form with the words of the text it rests on. */
 export interface ParsedField {
@@ -173,12 +173,25 @@ async function suggestion(
 		parsed.push({ path: 'work_format', value: format, quote: quoteText(fields.workFormat.quote) });
 	}
 
+	// The region: the city the reading found — one outside the reference (Ташкент) gives none — else the first place a
+	// line names, a city in any case or a region by its name, through the reference of places.
+	const places = await placeReference();
+	let place: { code: string; quote: string } | null = null;
 	if (fields.city) {
-		const code = (await regionReference()).codeOf(fields.city.value);
-		if (code !== undefined) {
-			form.region_code = code;
-			parsed.push({ path: 'region_code', value: code, quote: quoteText(fields.city.quote) });
+		const found = places.find(fields.city.value);
+		if (found) place = { code: found.regionCode, quote: quoteText(fields.city.quote) };
+	} else {
+		for (const block of blocks) {
+			const found = places.find(block.text);
+			if (found) {
+				place = { code: found.regionCode, quote: block.text };
+				break;
+			}
 		}
+	}
+	if (place !== null) {
+		form.region_code = place.code;
+		parsed.push({ path: 'region_code', value: place.code, quote: place.quote });
 	}
 
 	// A range is suggested only in roubles per month with both bounds; the tax base the text does not state is the

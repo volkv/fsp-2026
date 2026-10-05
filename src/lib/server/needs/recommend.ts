@@ -1,6 +1,8 @@
 // Recommended categories of a need (docs/domain.md, section 13.10). The categories of the need are the pair of the
-// form, or — without a specialization — the specializations of its role (fullstack: backend and frontend); each with
-// the neighbouring grades of its range, offered as a deliberate widening, never taken by default. A need whose role no
+// form, or — without a specialization — the first specialization of its role, with the neighbouring grades of its
+// range offered as a deliberate widening, never taken by default. A composite role (fullstack: backend and frontend)
+// offers its other specializations the same way — the employer adds them knowingly; inside the shortlist a candidate
+// confirmed in every specialization of the role comes first (`compositeSpecializations`). A need whose role no
 // test of the catalog checks (data engineer, systems analyst) has no category: the specializations whose blocks confirm
 // its required skills are suggested with what they cover, for the employer to choose, never instead of the role. Each
 // category with the number of candidates of an active category the company sees (`canShow` in the catalog and the
@@ -26,11 +28,12 @@ import { canShow } from '$lib/server/visibility/can-show';
 import { gradesOf, type NeedForm, type NeedGrade } from './form';
 
 /**
- * Why a category is offered: `form` — the pair the employer named; `role` — a specialization of the role of the need;
+ * Why a category is offered: `form` — the pair the employer named; `role` — the specialization of the role of the
+ * need; `composite_role` — another specialization of a composite role (Frontend of a fullstack), a widening;
  * `neighbour_grade` — a grade next to the range, a widening; `skills` — a suggestion by the required skills its blocks
  * confirm, for a need without a category of its own.
  */
-export type RecommendationBasis = 'form' | 'role' | 'neighbour_grade' | 'skills';
+export type RecommendationBasis = 'form' | 'role' | 'composite_role' | 'neighbour_grade' | 'skills';
 
 export interface RecommendedCategory {
 	specialization: SpecializationKey;
@@ -76,13 +79,13 @@ function coveredBy(specialization: SpecializationKey, skills: readonly string[])
 function categoriesOf(
 	specialization: SpecializationKey,
 	range: NeedGrade | undefined,
-	basis: 'form' | 'role' | 'skills',
+	basis: 'form' | 'role' | 'composite_role' | 'skills',
 	covered: string[]
 ): RecommendedCategory[] {
 	if (range === undefined)
 		return GRADE_KEYS.map((key) => ({ specialization, grade: key, basis, coveredSkills: covered }));
 	const own = gradesOf(range).map((grade) => ({ specialization, grade, basis, coveredSkills: covered }));
-	if (basis === 'skills') return own;
+	if (basis === 'skills' || basis === 'composite_role') return own;
 	return [
 		...own,
 		...neighbours(range).map((key) => ({
@@ -104,18 +107,31 @@ function bySkills(form: NeedForm, open: ReadonlySet<SpecializationKey>): Recomme
 }
 
 /**
- * The categories of the form among the open specializations: the specialization of the form, else those of its role,
- * each with its neighbouring grades. A need without an open category of its own gets suggestions by its required skills;
- * nothing to go by gives no categories.
+ * The specializations of a composite role of the need (fullstack: backend and frontend); empty for a role of one or
+ * none. A candidate confirmed in all of them covers the whole work of the role.
+ */
+export function compositeSpecializations(form: NeedForm): SpecializationKey[] {
+	if (form.role_key === undefined) return [];
+	const specializations = specializationsOfRole(form.role_key);
+	return specializations.length > 1 ? [...specializations] : [];
+}
+
+/**
+ * The categories of the form among the open specializations: the specialization of the form, else the first open one
+ * of its role, with its neighbouring grades; the other open specializations of a composite role as offers. A need
+ * without an open category of its own gets suggestions by its required skills; nothing to go by gives no categories.
  */
 export function needCategoriesOf(form: NeedForm, open: ReadonlySet<SpecializationKey>): NeedCategories {
 	const own = (basis: 'form' | 'role', specializations: readonly SpecializationKey[]): NeedCategories => {
-		const opened = specializations.filter((s) => open.has(s));
+		const [first, ...others] = specializations.filter((s) => open.has(s));
 		const closed = specializations.filter((s) => !open.has(s));
-		if (opened.length === 0) return { basis: 'closed', categories: bySkills(form, open), closed };
+		if (first === undefined) return { basis: 'closed', categories: bySkills(form, open), closed };
 		return {
 			basis,
-			categories: opened.flatMap((s) => categoriesOf(s, form.grade, basis, coveredBy(s, form.skill_keys))),
+			categories: [
+				...categoriesOf(first, form.grade, basis, coveredBy(first, form.skill_keys)),
+				...others.flatMap((s) => categoriesOf(s, form.grade, 'composite_role', coveredBy(s, form.skill_keys)))
+			],
 			closed
 		};
 	};

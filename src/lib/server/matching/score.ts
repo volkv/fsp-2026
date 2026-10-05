@@ -601,7 +601,8 @@ export function qualifiesForPool(
 // Two levels. The first is the coverage of the required skills: a candidate whose every required skill a test, an FSP
 // result or the platform confirmed covers the need; another has N of M required skills unconfirmed, and each of them
 // says what there is instead — a verified public profile, the candidate's words, nothing, or nothing known while the
-// profile is being recalculated. The ranking orders by the number of unconfirmed required skills first (`coverage`).
+// profile is being recalculated. The ranking orders by the number of unconfirmed required skills first (`coverage`);
+// for a composite role (fullstack) a candidate confirmed in every specialization of the role comes next (`composite`).
 // The second is the score inside a group: the fit to the need (its skills by the best basis of each, the work format)
 // and the strength of the confirmed profile (the test by blocks, an FSP result that relates to the need, how recent the
 // last confirmed action is), additive. The denominator is the weight of the components the need asks for — the same
@@ -633,6 +634,11 @@ export interface NeedSpec {
 	/** `false` — the employer said results of FSP do not matter for the need: the FSP component is out of its score. */
 	fspRelevant: boolean;
 	categories: readonly CandidateCategory[];
+	/**
+	 * The specializations of a composite role of the need (fullstack: backend and frontend); empty for any other. A
+	 * candidate with a category in force in each of them covers the whole work of the role.
+	 */
+	compositeSpecializations: readonly SpecializationKey[];
 }
 
 /** A category in force with what its test confirmed (domain 12.4). */
@@ -748,9 +754,18 @@ export type NeedReason =
 	| { code: 'format_fits'; format: NeedWorkFormat; contribution: number; source: NeedReasonSource }
 	| { code: 'confirmed_recently'; days: number; contribution: number; source: NeedReasonSource };
 
+/** A composite role: its specializations and those the candidate holds a category in force of. */
+export interface NeedComposite {
+	specializations: SpecializationKey[];
+	held: SpecializationKey[];
+	complete: boolean;
+}
+
 export interface NeedResult {
 	/** The first level: the order goes by the number of unconfirmed required skills before the score. */
 	coverage: NeedCoverage;
+	/** For a composite role; `null` — the need's role is of one specialization or none. */
+	composite: NeedComposite | null;
 	/** The order inside a group of coverage. */
 	score: number;
 	/** The sum of the contributions of each level. */
@@ -1129,8 +1144,14 @@ export function needScore(input: NeedScoreInput): NeedResult {
 		.slice(0, REASONS_MAX)
 		.map((reason) => ({ ...reason, contribution: round4(reason.contribution) }));
 
+	const compositeOf = need?.compositeSpecializations ?? [];
+	const held = compositeOf.filter((s) => candidate.categories.some((c) => c.specialization === s));
 	return {
 		coverage: coverageOf(required),
+		composite:
+			compositeOf.length === 0
+				? null
+				: { specializations: [...compositeOf], held, complete: held.length === compositeOf.length },
 		score: round4(score),
 		levels: { need: level('need'), strength: level('strength') },
 		components: Object.fromEntries(

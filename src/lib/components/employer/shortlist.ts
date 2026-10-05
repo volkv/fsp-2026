@@ -43,6 +43,7 @@ export interface CoverageData {
 
 export interface NeedMatchData {
 	coverage: CoverageData;
+	composite: { specializations: string[]; held: string[]; complete: boolean } | null;
 	score: number;
 	levels: { need: number; strength: number };
 	components: Record<string, ComponentData>;
@@ -153,6 +154,14 @@ export function coverageText(coverage: CoverageData, names: ShortlistNames): str
 		(item) => `${names.skills[item.skill_key] ?? item.skill_key} — ${UNCONFIRMED[item.state]}`
 	);
 	return `Не подтверждено ${coverage.unconfirmed.length} из ${coverage.required} обязательных: ${items.join(', ')}`;
+}
+
+/** «Составная роль: подтверждены Backend и Frontend» or «…: подтверждена только Backend»; `null` — the role is not composite. */
+export function compositeText(composite: NeedMatchData['composite'], names: ShortlistNames): string | null {
+	if (composite === null) return null;
+	const held = composite.held.map((key) => names.specializations[key] ?? key);
+	if (composite.complete) return `Составная роль: подтверждены обе категории — ${held.join(' и ')}`;
+	return `Составная роль: подтверждена только ${held.join(', ') || 'другая категория'}`;
 }
 
 /** The heading of a group of the ranking. */

@@ -81,6 +81,7 @@ import { GRADE_DECISION_RESULTS } from '$lib/server/matching/test-results';
 import type { ModelAdapter } from '$lib/server/ml/adapter';
 import { fail } from '$lib/server/ml/result';
 import { parseNeedText } from '$lib/server/needs/parse';
+import { compositeSpecializations } from '$lib/server/needs/recommend';
 import { defaultCategories } from '$lib/server/shortlists/service';
 import { openSpecializations } from '$lib/server/assessments/bank-store';
 import { RESUME_SCHEMA_VERSION } from '$lib/server/resumes/extract-job';
@@ -997,7 +998,8 @@ export async function rankCandidates(request: RankRequest, deps: RankDeps): Prom
 					workFormat: form.work_format ?? null,
 					regionCode: form.region_code ?? null,
 					fspRelevant: form.fsp_relevant !== false,
-					categories
+					categories,
+					compositeSpecializations: compositeSpecializations(form)
 				}
 			});
 		}

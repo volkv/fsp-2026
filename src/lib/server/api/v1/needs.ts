@@ -250,10 +250,11 @@ export const needRecommendedCategories = defineOperation({
 					specialization: z.enum(SPECIALIZATION_KEYS),
 					grade: z.enum(GRADE_KEYS),
 					basis: z
-						.enum(['form', 'role', 'neighbour_grade', 'skills'])
+						.enum(['form', 'role', 'composite_role', 'neighbour_grade', 'skills'])
 						.describe(
-							'`form` — пара формы, `role` — специализация роли, `neighbour_grade` — соседний грейд (расширение), ' +
-								'`skills` — предложение по навыкам'
+							'`form` — пара формы, `role` — специализация роли, `composite_role` — другая специализация ' +
+								'составной роли (Frontend у fullstack; расширение), `neighbour_grade` — соседний грейд ' +
+								'(расширение), `skills` — предложение по навыкам'
 						),
 					covered_skills: z.array(z.string()).describe('Обязательные навыки, которые подтверждают блоки'),
 					candidates: cell,

@@ -179,15 +179,6 @@ const stepPending = (item: ItemRow): boolean =>
 export const ruleOf = (attempt: { specialization: string; grade: string }) =>
 	gradeDefinition(attempt.specialization as SpecializationKey, gradeOf(attempt));
 
-/** The language the practice program of a decided attempt ran in: the owner of the category needs it for the stack. */
-export async function practiceLanguageOf(executor: Executor, attemptId: string): Promise<string | null> {
-	const [item] = await executor
-		.select({ detail: testItems.scoreDetail })
-		.from(testItems)
-		.where(and(eq(testItems.attemptId, attemptId), eq(testItems.practice, true)));
-	return (item?.detail as { language?: string | null } | null | undefined)?.language ?? null;
-}
-
 /** The decision row of the contract's `GradeDecision` for an attempt. */
 export function decisionValues(attempt: AttemptRow, decision: GradeDecision, now: Date) {
 	return {

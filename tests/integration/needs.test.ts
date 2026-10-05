@@ -158,7 +158,7 @@ describe('a hiring need', () => {
 			role_key: 'qa_manual',
 			specialization: 'qa'
 		});
-		// A role of one specialization gives it; fullstack is left to the categories of the role.
+		// A role of one specialization gives it; fullstack takes its first half and offers the second.
 		expect(await form('Python-разработчик\nНужны Django и PostgreSQL.')).toMatchObject({
 			role_key: 'backend',
 			specialization: 'backend'
@@ -172,10 +172,9 @@ describe('a hiring need', () => {
 			(await createNeed(deps(), subject, meta, { form: { ...fullstack } })).id
 		);
 		expect(basis).toBe('role');
-		expect([...new Set(categories.filter((c) => c.basis === 'role').map((c) => c.specialization))]).toEqual([
-			'backend',
-			'frontend'
-		]);
+		const of = (b: string) => [...new Set(categories.filter((c) => c.basis === b).map((c) => c.specialization))];
+		expect(of('role')).toEqual(['backend']);
+		expect(of('composite_role')).toEqual(['frontend']);
 	});
 
 	it('keeps a required tool the taxonomy does not know by its name, never a broader skill, and not a negated one', async () => {
@@ -193,6 +192,17 @@ describe('a hiring need', () => {
 		// Prose of requirements names no tool.
 		const prose = await form('QA-инженер\nТребования: опыт от 2 лет, умение писать тест-кейсы, внимательность.');
 		expect(prose.other_skills).toBeUndefined();
+	});
+
+	it('takes the region from a city in any case, never from a city outside the reference', async () => {
+		const { subject } = await employer();
+		const region = async (text: string) => (await createNeed(deps(), subject, meta, { text })).form.region_code;
+		expect(await region('Go-разработчик\nОфис в Казани, гибрид.\nНужны Go и PostgreSQL.')).toBe('RU-TA');
+		expect(await region('Backend-разработчик\nРабота в Нижнем Новгороде, офис.\nНужен Python.')).toBe('RU-NIZ');
+		expect(await region('QA-инженер\nГород: Екатеринбург\nНужен SQL.')).toBe('RU-SVE');
+		expect(await region('Frontend-разработчик\nМосква, офис у метро.\nНужен React.')).toBe('RU-MOW');
+		expect(await region('Backend-разработчик\nОфис: г. Ташкент\nНужен Go.')).toBeUndefined();
+		expect(await region('Backend-разработчик\nКонтакт: Владимир\nНужен Go.')).toBeUndefined();
 	});
 
 	it('reads a range of grades: «Middle/Senior», «от Junior», a grade above the catalog as its top', async () => {

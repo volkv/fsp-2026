@@ -4,8 +4,10 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import {
 	CATALOG,
 	SANDBOX_LANGUAGE_KEYS,
+	blockDefinition,
 	confirmedStack,
 	gradeDefinition,
+	practiceWritesCode,
 	specializationOpen,
 	type Catalog,
 	type GradeDefinition
@@ -128,6 +130,17 @@ describe('catalog', () => {
 			'multithreading',
 			'sql'
 		]);
+	});
+
+	it('confirms no language of a QA practice: the candidate wrote test cases, the harness language is not theirs', () => {
+		const qa = gradeDefinition('qa', 'junior');
+		expect(practiceWritesCode(qa)).toBe(false);
+		expect(practiceWritesCode(gradeDefinition('backend', 'junior'))).toBe(true);
+		const defining = [...new Set(qa.defining.flatMap((code) => blockDefinition(code).skillKeys))].sort();
+		expect(confirmedStack(qa, null)).toEqual(defining);
+		expect(confirmedStack(qa, null)).not.toContain('python');
+		expect(() => confirmedStack(qa, 'python3')).toThrow(/no language is confirmed/);
+		expect(confirmedStack(gradeDefinition('backend', 'middle'), null)).not.toContain('go');
 	});
 
 	it('refuses a shape outside the schema', () => {

@@ -28,6 +28,7 @@ const need = (overrides: Partial<NeedSpec> = {}): NeedSpec => ({
 	regionCode: null,
 	fspRelevant: true,
 	categories: [{ specialization: 'backend', grade: 'middle' }],
+	compositeSpecializations: [],
 	...overrides
 });
 
@@ -202,6 +203,22 @@ describe('the fit to a need', () => {
 	});
 });
 
+describe('a composite role', () => {
+	it('says which specializations of the role the candidate holds a category of', () => {
+		const fullstack = need({ compositeSpecializations: ['backend', 'frontend'] });
+		const frontendJunior = backendMiddle({ specialization: 'frontend', grade: 'junior', decisionId: 'decision-2' });
+		expect(score({ need: fullstack, candidate: candidate() }).composite).toEqual({
+			specializations: ['backend', 'frontend'],
+			held: ['backend'],
+			complete: false
+		});
+		expect(
+			score({ need: fullstack, candidate: candidate({ categories: [backendMiddle(), frontendJunior] }) }).composite
+		).toMatchObject({ held: ['backend', 'frontend'], complete: true });
+		expect(score({ candidate: candidate() }).composite).toBeNull();
+	});
+});
+
 describe('the strength of the confirmed profile', () => {
 	const results = (blocks: { block: string; items: number; score: number; cut: number }[]) =>
 		new Map([['decision-1', blocks]]);
@@ -315,10 +332,12 @@ describe('the order of a ranking for a need', () => {
 		strength = 0,
 		withoutFsp = score,
 		unconfirmed = 0,
-		without = unconfirmed
+		without = unconfirmed,
+		composite = false
 	) => ({
 		id,
 		unconfirmed,
+		composite,
 		score,
 		strength,
 		withoutFsp: { unconfirmed: without, score: withoutFsp }
@@ -331,6 +350,21 @@ describe('the order of a ranking for a need', () => {
 			0.01
 		);
 		expect(order.map((p) => p.id)).toEqual(['b', 'a', 'd', 'c']);
+	});
+
+	it('puts a candidate confirmed in both halves of a composite role first within a group of coverage', () => {
+		const order = orderForNeed(
+			[
+				place('a', 0.9),
+				place('b', 0.6, 0, 0.6, 0, 0, true),
+				place('c', 0.95, 0, 0.95, 1, 1, true),
+				place('d', 0.7, 0, 0.7, 1)
+			],
+			new Map(),
+			0.01
+		);
+		// Coverage first: `c` with an unconfirmed skill stays below both who cover; inside it the composite one leads.
+		expect(order.map((p) => p.id)).toEqual(['b', 'a', 'c', 'd']);
 	});
 
 	it('never orders by similarity across the number of unconfirmed skills', () => {
