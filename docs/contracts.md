@@ -1685,7 +1685,7 @@ interface NotificationChannel {
 | `POST /api/v1/me/tests` | начать попытку `{specialization, grade}` → `201 {attempt_id, form, deadline_at, first_item}` | `409` с кодом `BlockReason`; `422 specialization_closed` |
 | `GET /api/v1/me/tests/{attempt_id}` | состояние попытки: поданные кластеры (условия без ключей), ответы кандидата, текущий кластер, срок | `404` чужая |
 | `POST /api/v1/me/tests/{attempt_id}/items/{seq}/answer` | ответ на кластер: `{answer}` для вычисляемого, `{language, source}` для практики, `{cases: [{input, expected}]}` для QA, `{change_step: …}` для шага → следующий шаг процедуры (`continue` со следующим кластером, `extend`, `decided` с решением) | `409` кластер уже отвечен или не текущий; `422 qa_budget_too_small` / `qa_budget_exceeded`; `202` — ждёт песочницу |
-| `GET /api/v1/me/tests/decisions/{decision_id}` | решение и объяснение (domain 10.6): итог, причина, `S`, `C`, блоки, практика, что не проверяется, что дальше | `404` чужое |
+| `GET /api/v1/me/tests/decisions/{decision_id}` | решение и объяснение (domain 10.6): итог, причина, `S`, `C`, блоки, практика, что не проверяется, что дальше; `judgement: {rubric_by_models_only, angoff_provisional}` по заданиям попытки — интерфейс показывает подпись domain 10.8 | `404` чужое |
 | `POST /api/v1/me/tests/decisions/{decision_id}/objections` | возражение `{reason, items?}` (domain 12.5) → `201` | `404` чужое решение; `409` открытое возражение уже есть, решение аннулировано или срок хранения попытки истёк |
 | `POST /api/v1/me/objections/{objection_id}/withdrawal` | кандидат отзывает своё открытое возражение → `200` (`withdrawn`) | `404` чужое; `409` уже решено или отозвано |
 | `GET /api/v1/me/categories` | действующие и прошлые категории с блоками, стеком, статусом и причиной отзыва | — |
@@ -1719,7 +1719,7 @@ interface NotificationChannel {
 | `GET /api/v1/verify/categories/{handle}` | все, без аутентификации; лимит частоты по адресу | подтверждение категории (domain 12.9): `{status: valid \| superseded \| annulled, statement, signature, signing_key_id, current_grade?}`; без ПДн |
 | `POST /api/v1/verify/categories/{handle}/holder` | все; лимит частоты | `{full_name, nonce}` от предъявителя → `{matches: boolean}`; ни ФИО, ни соль не сохраняются и в журнал не пишутся |
 | `GET /api/v1/operator/objections`, `POST …/{id}/assign`, `POST …/{id}/resolution` | оператор (`objection.manage`, сессия) | очередь возражений по сроку; `assign` — взять в работу (`204`, `409` уже взято другим или закрыто); исход `{outcome: upheld \| annulled \| rescored, resolution, rescored_items?: [{seq, score, reason}]}` — только ответственный оператор, `409` иначе; дело попытки — `/operator/assessments/{attempt_id}` |
-| `GET /api/v1/admin/bank-releases` | администратор | выпуски банка с отчётами ворот и вместимости |
+| `GET /api/v1/admin/bank-releases` | администратор | выпуски банка с отчётами ворот и вместимости, ревью и оценками (рецензент, вид, линейка, вердикт, хэш исходников) и сводкой предварительных порогов |
 | `POST /api/v1/eval/jury-runs` | администратор или оценщик (сессия) | режим оценки жюри (раздел 11) |
 
 ---

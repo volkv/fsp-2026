@@ -24,6 +24,7 @@ import {
 	ANSWER_KINDS,
 	FAMILY_GATES,
 	blockTestPairs,
+	reviewerIdentity,
 	capacityChecks,
 	type BankRelease,
 	type FamilyDescriptor,
@@ -153,6 +154,12 @@ const policySchema = z.strictObject({
 	freeRetakeAnnulReasons: z.array(text)
 });
 
+const sha256 = z.string().regex(/^[0-9a-f]{64}$/);
+const reviewerSchema = z.discriminatedUnion('kind', [
+	z.strictObject({ kind: z.literal('model'), model: text, lineage: text }),
+	z.strictObject({ kind: z.literal('person'), name: text })
+]);
+
 const ANGOFF_STEP = 0.05;
 const onAngoffScale = (p: number): boolean => Math.abs(p / ANGOFF_STEP - Math.round(p / ANGOFF_STEP)) < 1e-9;
 
@@ -169,7 +176,14 @@ const familySchema = z.strictObject({
 				grade,
 				angoff: z.strictObject({
 					round: z.union([z.literal(1), z.literal(2)]),
-					ratings: z.array(z.strictObject({ rater: text, p: z.number().min(0.05).max(0.95) })),
+					ratings: z.array(
+						z.strictObject({
+							rater: reviewerSchema,
+							p: z.number().min(0.05).max(0.95),
+							ratedAt: z.iso.date(),
+							sourceSha256: sha256
+						})
+					),
 					mean: share
 				}),
 				constructive: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])),
@@ -215,7 +229,15 @@ const familySchema = z.strictObject({
 		answerCollision: z.number().min(0).max(1),
 		transfer: z.number().min(0).max(1).nullable(),
 		bruteForceInputs: z.int().min(0).nullable(),
-		rubricReview: z.strictObject({ reviewer: text, reviewedAt: z.iso.date() }).nullable()
+		rubricReviews: z.array(
+			z.strictObject({
+				reviewer: reviewerSchema,
+				reviewedAt: z.iso.date(),
+				verdict: z.enum(['approved', 'changes_requested']),
+				remarks: z.array(text),
+				sourceSha256: sha256
+			})
+		)
 	})
 });
 
@@ -419,7 +441,11 @@ export function policyProblems(policy: GradePolicy): string[] {
  * block allows, adjacent levels the block serves, two blind Angoff ratings with a mean, a class of each form, the
  * practice and QA particulars, the step «измени своё решение» where the grade needs it, and every gate met.
  */
-export function familyProblems(family: FamilyDescriptor, gates: FamilyGates = FAMILY_GATES): string[] {
+export function familyProblems(
+	family: FamilyDescriptor,
+	sourceSha256: string,
+	gates: FamilyGates = FAMILY_GATES
+): string[] {
 	const where = `family ${family.key}`;
 	const problems = shapeProblems(familySchema, family, where);
 	if (problems.length) return problems;
@@ -442,10 +468,14 @@ export function familyProblems(family: FamilyDescriptor, gates: FamilyGates = FA
 		if (!definition?.blocks.some((q) => q.block === family.block)) {
 			problems.push(`${lw}: the ${level.grade} test of ${family.specialization} has no ${family.block} slots`);
 		}
-		const raters = level.angoff.ratings.map((r) => r.rater);
+		const raters = level.angoff.ratings.map((r) => reviewerIdentity(r.rater));
 		if (new Set(raters).size < gates.angoffRatersMin)
-			problems.push(`${lw}: Angoff needs ${gates.angoffRatersMin} distinct raters`);
-		if (duplicates(raters).length) problems.push(`${lw}: a rater rated twice`);
+			problems.push(
+				`${lw}: Angoff needs ${gates.angoffRatersMin} independent raters (models of different lineages or persons)`
+			);
+		if (duplicates(raters).length) problems.push(`${lw}: a rater (or a model lineage) rated twice`);
+		if (level.angoff.ratings.some((r) => r.sourceSha256 !== sourceSha256))
+			problems.push(`${lw}: an Angoff rating was made on other sources of the family — rate again`);
 		for (const rating of level.angoff.ratings) {
 			if (!onAngoffScale(rating.p)) problems.push(`${lw}: Angoff rating ${rating.p} is not on the 0.05 scale`);
 		}
@@ -462,8 +492,12 @@ export function familyProblems(family: FamilyDescriptor, gates: FamilyGates = FA
 				`${lw}: a practice cluster is a gate the borderline candidate passes: Angoff ${gates.practiceAngoff.min}–${gates.practiceAngoff.max}`
 			);
 		}
-		if (Math.max(...ps) - Math.min(...ps) > gates.angoffGapMax + 1e-9 && level.angoff.round !== 2) {
-			problems.push(`${lw}: ratings differ by more than ${gates.angoffGapMax} — the second round is required`);
+		if (Math.max(...ps) - Math.min(...ps) > gates.angoffGapMax + 1e-9) {
+			problems.push(
+				level.angoff.round === 2
+					? `${lw}: ratings still differ by more than ${gates.angoffGapMax} after the second round — not admitted`
+					: `${lw}: ratings differ by more than ${gates.angoffGapMax} — the second round is required`
+			);
 		}
 		const ids = level.classes.map((c) => c.id);
 		for (const id of duplicates(ids)) problems.push(`${lw}: class ${id} twice`);
@@ -539,12 +573,12 @@ export function familyProblems(family: FamilyDescriptor, gates: FamilyGates = FA
 	if (family.wrongSolutions.length < minimum) problems.push(`${where}: fewer than ${minimum} wrong solutions`);
 	for (const id of duplicates(family.wrongSolutions.map((w) => w.id)))
 		problems.push(`${where}: wrong solution ${id} twice`);
-	problems.push(...gateProblems(family, gates));
+	problems.push(...gateProblems(family, sourceSha256, gates));
 	return problems;
 }
 
 /** The admission gates of a family: reference, wrong solutions, hidden tests, collisions, transfer, rubric review. */
-function gateProblems(family: FamilyDescriptor, gates: FamilyGates): string[] {
+function gateProblems(family: FamilyDescriptor, sourceSha256: string, gates: FamilyGates): string[] {
 	const where = `family ${family.key}: gate`;
 	const report = family.gates;
 	const problems: string[] = [];
@@ -565,7 +599,21 @@ function gateProblems(family: FamilyDescriptor, gates: FamilyGates): string[] {
 	if (report.bruteForceInputs !== null && report.bruteForceInputs < gates.bruteForceInputsMin) {
 		problems.push(`${where} brute force on ${report.bruteForceInputs} inputs`);
 	}
-	if (!report.rubricReview) problems.push(`${where} rubric not reviewed by a person`);
+	const current = report.rubricReviews.filter((review) => review.sourceSha256 === sourceSha256);
+	if (current.some((review) => review.verdict === 'changes_requested'))
+		problems.push(`${where} a review of the current sources requests changes`);
+	const approved = current.filter((review) => review.verdict === 'approved');
+	const persons = new Set(
+		approved.filter((x) => x.reviewer.kind === 'person').map((x) => reviewerIdentity(x.reviewer))
+	);
+	const lineages = new Set(
+		approved.filter((x) => x.reviewer.kind === 'model').map((x) => reviewerIdentity(x.reviewer))
+	);
+	if (persons.size < gates.reviewsNeeded.persons && lineages.size < gates.reviewsNeeded.models) {
+		problems.push(
+			`${where} rubric needs ${gates.reviewsNeeded.models} approvals by models of different lineages or ${gates.reviewsNeeded.persons} by a person on the current sources`
+		);
+	}
 	return problems;
 }
 
@@ -705,7 +753,9 @@ export function releaseProblems(
 	for (const family of release.families) {
 		if (family.specialization !== release.specialization)
 			problems.push(`${where}: ${family.key} is of ${family.specialization}`);
-		problems.push(...familyProblems(family, gates));
+		const source = release.familySources[family.key];
+		if (source === undefined) problems.push(`${where}: no source hash of ${family.key}`);
+		else problems.push(...familyProblems(family, source, gates));
 	}
 	for (const g of GRADE_KEYS) {
 		const anchors = release.families.filter((f) =>

@@ -6,6 +6,7 @@
 // The bank tree: `assessments/families/<specialization>/<family key>/` with `descriptor.json` (a `FamilyDescriptor`)
 // and `generator.ts` (a `FamilyModule`); shared code lives in directories whose name starts with `_` and is hashed into
 // the release separately (`BankRelease.sharedSha256`). Types and pure functions; plain erasable TypeScript without `$lib`.
+import { createHash } from 'node:crypto';
 import {
 	CATALOG,
 	type GradeDefinition,
@@ -43,11 +44,34 @@ export interface EssentialClass {
 	description: string;
 }
 
+/**
+ * Who reviewed a family or rated a level: an independent model (never the family's author), named by the model and its
+ * lineage — the provider's family of models — or a person of the team. Two reviews are independent only from different
+ * lineages (or a person).
+ */
+export type Reviewer = { kind: 'model'; model: string; lineage: string } | { kind: 'person'; name: string };
+
+/** A review of a family: on the sources whose hash it names; any edit of the family changes the hash and resets it. */
+export interface FamilyReview {
+	reviewer: Reviewer;
+	/** ISO date. */
+	reviewedAt: string;
+	verdict: 'approved' | 'changes_requested';
+	/** What the reviewer found; empty for a clean approval. */
+	remarks: readonly string[];
+	/** `familySourceSha256` of the family the review was made on. */
+	sourceSha256: string;
+}
+
 export interface AngoffRating {
-	/** A named author of the team (the rating is «эталонная разметка команды», not an expert's). */
-	rater: string;
+	/** A blind independent rater: a model of its own lineage (a provisional rating) or a person of the team. */
+	rater: Reviewer;
 	/** Probability that the borderline candidate of the grade scores the cluster, in steps of 0.05. */
 	p: number;
+	/** ISO date. */
+	ratedAt: string;
+	/** `familySourceSha256` of the family rated; an edit of the family resets the rating. */
+	sourceSha256: string;
 }
 
 export interface FamilyLevel {
@@ -104,8 +128,11 @@ export interface FamilyGateReport {
 	transfer: number | null;
 	/** A brute-force reference agreed on this many random inputs; `null` — the family has none. */
 	bruteForceInputs: number | null;
-	/** A person read the rubric and the reference: who and when. */
-	rubricReview: { reviewer: string; reviewedAt: string } | null;
+	/**
+	 * Reviews of the rubric and the reference. A release needs, on the current sources and with no request for changes,
+	 * two approvals by models of different lineages or one by a person (domain 10.2).
+	 */
+	rubricReviews: readonly FamilyReview[];
 }
 
 export interface FamilyDescriptor {
@@ -223,6 +250,8 @@ export interface FamilyGates {
 	bruteForceInputsMin: number;
 	wrongSolutionsMin: Readonly<Partial<Record<ItemFormat, number>>>;
 	angoffRatersMin: number;
+	/** Approved reviews on the current sources a release needs: models of distinct lineages, or persons. */
+	reviewsNeeded: { models: number; persons: number };
 	/** A gap between two ratings above this needs the second round. */
 	angoffGapMax: number;
 	practiceGroupsMin: number;
@@ -252,6 +281,7 @@ export const FAMILY_GATES: FamilyGates = {
 		config_eval: 1
 	},
 	angoffRatersMin: 2,
+	reviewsNeeded: { models: 2, persons: 1 },
 	angoffGapMax: 0.2,
 	practiceGroupsMin: 5,
 	practiceAngoff: { min: 0.75, max: 0.9 },
@@ -271,6 +301,8 @@ export interface BankRelease {
 	families: readonly FamilyDescriptor[];
 	/** SHA-256 of the shared code (`_*` directories) the generators import: a change of it is a new release. */
 	sharedSha256: string;
+	/** `familySourceSha256` of every family by key: reviews and ratings count only on these sources. */
+	familySources: Readonly<Record<string, string>>;
 }
 
 export interface Slot {
@@ -500,4 +532,51 @@ export function capacityChecks(release: BankRelease, params: ProcedureParams): C
 		}
 	}
 	return checks;
+}
+
+/** The identity of a reviewer: a model is one per lineage (two models of one provider are not independent). */
+export function reviewerIdentity(reviewer: Reviewer): string {
+	return reviewer.kind === 'model' ? `model:${reviewer.lineage}` : `person:${reviewer.name}`;
+}
+
+function canonical(value: unknown): string {
+	if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
+	if (value !== null && typeof value === 'object') {
+		const entries = Object.entries(value as Record<string, unknown>)
+			.filter(([, v]) => v !== undefined)
+			.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+		return `{${entries.map(([k, v]) => `${JSON.stringify(k)}:${canonical(v)}`).join(',')}}`;
+	}
+	return JSON.stringify(value);
+}
+
+/**
+ * The hash of what a review and a rating judge: the descriptor without its gate report and Angoff ratings (they are the
+ * judgements, not the sources), and the text of `generator.ts`. Any edit of the family's content or code changes it and
+ * resets every review and rating made before.
+ */
+export function familySourceSha256(family: FamilyDescriptor, generatorSource: string): string {
+	const sources = {
+		...family,
+		gates: undefined,
+		levels: family.levels.map((level) => ({ ...level, angoff: undefined }))
+	};
+	return createHash('sha256').update(canonical(sources)).update('\n').update(generatorSource).digest('hex');
+}
+
+/** How a family-level was judged, for the labels of the product (domain 10.2): by models only, or with a person. */
+export interface JudgementProvenance {
+	/** The rubric and the reference were approved by models only. */
+	rubricByModelsOnly: boolean;
+	/** The Angoff cut rests on model ratings only: a provisional cut. */
+	angoffProvisional: boolean;
+}
+
+export function judgementProvenance(family: FamilyDescriptor, grade: GradeKey): JudgementProvenance {
+	const approved = family.gates.rubricReviews.filter((r) => r.verdict === 'approved');
+	const level = family.levels.find((l) => l.grade === grade);
+	return {
+		rubricByModelsOnly: !approved.some((r) => r.reviewer.kind === 'person'),
+		angoffProvisional: !level || level.angoff.ratings.every((r) => r.rater.kind === 'model')
+	};
 }

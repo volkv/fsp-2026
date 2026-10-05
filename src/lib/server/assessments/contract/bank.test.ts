@@ -12,14 +12,40 @@ import {
 	blockTestPairs,
 	capacityChecks,
 	chooseForm,
+	familySourceSha256,
+	judgementProvenance,
 	slotSequence,
+	type AngoffRating,
 	type BankRelease,
+	type Reviewer,
 	type EssentialClass,
 	type FamilyDescriptor,
 	type ItemInstance
 } from './bank';
 import { PROCEDURE, maxLength } from './procedure';
 import { familyProblems, instanceProblems, levelsByBlock, releaseProblems, type TrajectoryReport } from './validate';
+
+const GENERATOR = 'export function generate() {}';
+const STALE = '0'.repeat(64);
+const MODEL_A: Reviewer = { kind: 'model', model: 'codex', lineage: 'openai' };
+const MODEL_B: Reviewer = { kind: 'model', model: 'claude-sonnet', lineage: 'anthropic' };
+const rate = (rater: Reviewer, p: number): AngoffRating => ({ rater, p, ratedAt: '2026-10-06', sourceSha256: STALE });
+const person = (name: string): Reviewer => ({ kind: 'person', name });
+
+/** The family with every review and rating made on its current sources. */
+function seal(family: FamilyDescriptor): FamilyDescriptor {
+	const hash = familySourceSha256(family, GENERATOR);
+	return {
+		...family,
+		levels: family.levels.map((l) => ({
+			...l,
+			angoff: { ...l.angoff, ratings: l.angoff.ratings.map((x) => ({ ...x, sourceSha256: hash })) }
+		})),
+		gates: { ...family.gates, rubricReviews: family.gates.rubricReviews.map((x) => ({ ...x, sourceSha256: hash })) }
+	};
+}
+
+const check = (family: FamilyDescriptor) => familyProblems(seal(family), familySourceSha256(family, GENERATOR));
 
 const GATES_MET: FamilyDescriptor['gates'] = {
 	reference: { seeds: 200, failures: 0 },
@@ -28,7 +54,10 @@ const GATES_MET: FamilyDescriptor['gates'] = {
 	answerCollision: 0.01,
 	transfer: null,
 	bruteForceInputs: null,
-	rubricReview: { reviewer: 'Автор Б', reviewedAt: '2026-10-06' }
+	rubricReviews: [
+		{ reviewer: MODEL_A, reviewedAt: '2026-10-06', verdict: 'approved', remarks: [], sourceSha256: STALE },
+		{ reviewer: MODEL_B, reviewedAt: '2026-10-06', verdict: 'approved', remarks: [], sourceSha256: STALE }
+	]
 };
 
 const CLASSES: EssentialClass[] = [
@@ -53,10 +82,7 @@ function computedFamily(block: string, name: string, grade: GradeKey, anchor = f
 				grade,
 				angoff: {
 					round: 1,
-					ratings: [
-						{ rater: 'Автор А', p: 0.55 },
-						{ rater: 'Автор Б', p: 0.65 }
-					],
+					ratings: [rate(MODEL_A, 0.55), rate(MODEL_B, 0.65)],
 					mean: 0.6
 				},
 				constructive: { depth: 2 },
@@ -99,10 +125,7 @@ function practiceFamily(block: string, name: string, grade: GradeKey): FamilyDes
 				...level,
 				angoff: {
 					round: 1,
-					ratings: [
-						{ rater: 'Автор А', p: 0.8 },
-						{ rater: 'Автор Б', p: 0.8 }
-					],
+					ratings: [rate(MODEL_A, 0.8), rate(MODEL_B, 0.8)],
 					mean: 0.8
 				}
 			}
@@ -179,8 +202,9 @@ function release(specialization: SpecializationKey, counts: ReadonlyMap<string, 
 		specialization,
 		catalogVersion: CATALOG.version,
 		procedureVersion: PROCEDURE.version,
-		families,
-		sharedSha256: 'a'.repeat(64)
+		families: families.map(seal),
+		sharedSha256: 'a'.repeat(64),
+		familySources: Object.fromEntries(families.map((f) => [f.key, familySourceSha256(f, GENERATOR)]))
 	};
 }
 
@@ -314,9 +338,9 @@ describe('family descriptor', () => {
 	const valid = computedFamily('be.db', 'null-aggregate', 'junior');
 
 	it('accepts a valid family', () => {
-		expect(familyProblems(valid)).toEqual([]);
-		expect(familyProblems(practiceFamily('qa.mutants', 'boundaries', 'middle'))).toEqual([]);
-		expect(familyProblems(practiceFamily('be.code', 'handler', 'senior'))).toEqual([]);
+		expect(check(valid)).toEqual([]);
+		expect(check(practiceFamily('qa.mutants', 'boundaries', 'middle'))).toEqual([]);
+		expect(check(practiceFamily('be.code', 'handler', 'senior'))).toEqual([]);
 	});
 
 	it('takes as the cut the mean of the ratings on the 1/20 scale, ties up', () => {
@@ -324,10 +348,10 @@ describe('family descriptor', () => {
 		if (!level) throw new Error('level');
 		const at = (ratings: number[], mean: number): FamilyDescriptor => ({
 			...valid,
-			levels: [{ ...level, angoff: { round: 1, ratings: ratings.map((p, i) => ({ rater: `Автор ${i}`, p })), mean } }]
+			levels: [{ ...level, angoff: { round: 1, ratings: ratings.map((p, i) => rate(person(`Автор ${i}`), p)), mean } }]
 		});
-		expect(familyProblems(at([0.55, 0.6], 0.6))).toEqual([]);
-		expect(familyProblems(at([0.55, 0.6], 0.575))).toEqual([
+		expect(check(at([0.55, 0.6], 0.6))).toEqual([]);
+		expect(check(at([0.55, 0.6], 0.575))).toEqual([
 			'family be.db.null-aggregate@junior: Angoff mean 0.575 is not 0.60 (mean 0.575 on the 1/20 scale)'
 		]);
 	});
@@ -342,23 +366,29 @@ describe('family descriptor', () => {
 					...level,
 					angoff: {
 						round: 1,
-						ratings: [
-							{ rater: 'А', p: 0.3 },
-							{ rater: 'Б', p: 0.6 }
-						],
+						ratings: [rate(person('А'), 0.3), rate(person('Б'), 0.6)],
 						mean: 0.45
 					}
 				}
 			]
 		};
-		expect(familyProblems(gap)).toEqual([
+		expect(check(gap)).toEqual([
 			'family be.db.null-aggregate@junior: ratings differ by more than 0.2 — the second round is required'
+		]);
+		const stillApart: FamilyDescriptor = {
+			...gap,
+			levels: gap.levels.map((l) => ({ ...l, angoff: { ...l.angoff, round: 2 } }))
+		};
+		expect(check(stillApart)).toEqual([
+			'family be.db.null-aggregate@junior: ratings still differ by more than 0.2 after the second round — not admitted'
 		]);
 		const single: FamilyDescriptor = {
 			...valid,
-			levels: [{ ...level, angoff: { round: 1, ratings: [{ rater: 'А', p: 0.6 }], mean: 0.6 } }]
+			levels: [{ ...level, angoff: { round: 1, ratings: [rate(person('А'), 0.6)], mean: 0.6 } }]
 		};
-		expect(familyProblems(single)).toEqual(['family be.db.null-aggregate@junior: Angoff needs 2 distinct raters']);
+		expect(check(single)).toEqual([
+			'family be.db.null-aggregate@junior: Angoff needs 2 independent raters (models of different lineages or persons)'
+		]);
 	});
 
 	it('refuses a practice that is not a gate the borderline passes, too few groups, a wrong QA budget', () => {
@@ -372,33 +402,100 @@ describe('family descriptor', () => {
 					...level,
 					angoff: {
 						round: 1,
-						ratings: [
-							{ rater: 'А', p: 0.6 },
-							{ rater: 'Б', p: 0.6 }
-						],
+						ratings: [rate(person('А'), 0.6), rate(person('Б'), 0.6)],
 						mean: 0.6
 					}
 				}
 			],
 			practice: { languages: ['python3'], hiddenTestGroups: 4 }
 		};
-		expect(familyProblems(hard)).toEqual([
+		expect(check(hard)).toEqual([
 			'family be.code.handler@junior: a practice cluster is a gate the borderline candidate passes: Angoff 0.75–0.9',
 			'family be.code.handler: fewer than 5 hidden test groups'
 		]);
 		const qa = practiceFamily('qa.mutants', 'boundaries', 'middle');
-		expect(familyProblems({ ...qa, qa: qa.qa && { ...qa.qa, budget: { min: 5, max: 50 } } })).toEqual([
+		expect(check({ ...qa, qa: qa.qa && { ...qa.qa, budget: { min: 5, max: 50 } } })).toEqual([
 			'family qa.mutants.boundaries: the QA budget is 5–8 test cases'
 		]);
 	});
 
 	it('refuses a block of another specialization and a format the block does not take', () => {
-		expect(familyProblems({ ...valid, specialization: 'qa' })).toContain(
+		expect(check({ ...valid, specialization: 'qa' })).toContain(
 			'family be.db.null-aggregate: block be.db is not of qa'
 		);
-		expect(familyProblems({ ...valid, format: 'config_eval' })).toContain(
+		expect(check({ ...valid, format: 'config_eval' })).toContain(
 			'family be.db.null-aggregate: block be.db does not take config_eval'
 		);
+	});
+});
+
+describe('independent reviews', () => {
+	const valid = computedFamily('be.db', 'null-aggregate', 'junior');
+	const hash = familySourceSha256(valid, GENERATOR);
+	const withReviews = (reviews: FamilyDescriptor['gates']['rubricReviews']): FamilyDescriptor => ({
+		...seal(valid),
+		gates: { ...valid.gates, rubricReviews: reviews.map((x) => ({ ...x, sourceSha256: hash })) }
+	});
+	const review = (reviewer: Reviewer, verdict: 'approved' | 'changes_requested' = 'approved') => ({
+		reviewer,
+		reviewedAt: '2026-10-06',
+		verdict,
+		remarks: verdict === 'approved' ? [] : ['ключ неверен для класса b'],
+		sourceSha256: hash
+	});
+	const NEEDS =
+		'family be.db.null-aggregate: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources';
+
+	it('accepts two models of different lineages or one person', () => {
+		expect(familyProblems(withReviews([review(MODEL_A), review(MODEL_B)]), hash)).toEqual([]);
+		expect(familyProblems(withReviews([review(person('Павел'))]), hash)).toEqual([]);
+	});
+
+	it('refuses one model, or two models of one lineage', () => {
+		expect(familyProblems(withReviews([review(MODEL_A)]), hash)).toEqual([NEEDS]);
+		const sameLineage: Reviewer = { kind: 'model', model: 'codex-mini', lineage: 'openai' };
+		expect(familyProblems(withReviews([review(MODEL_A), review(sameLineage)]), hash)).toEqual([NEEDS]);
+	});
+
+	it('refuses a release while a review of the current sources requests changes', () => {
+		expect(
+			familyProblems(
+				withReviews([review(MODEL_A), review(MODEL_B), review(person('Роман'), 'changes_requested')]),
+				hash
+			)
+		).toEqual(['family be.db.null-aggregate: gate a review of the current sources requests changes']);
+	});
+
+	it('resets every review and rating when the family is edited', () => {
+		const sealed = seal(valid);
+		const edited = { ...sealed, coverage: { ...sealed.coverage, checks: ['граничные значения', 'NULL в агрегате'] } };
+		expect(familyProblems(edited, familySourceSha256(edited, GENERATOR))).toEqual([
+			'family be.db.null-aggregate@junior: an Angoff rating was made on other sources of the family — rate again',
+			NEEDS
+		]);
+		expect(familySourceSha256(valid, GENERATOR + ' ')).not.toBe(hash);
+	});
+
+	it('refuses Angoff ratings of two models of one lineage', () => {
+		const level = valid.levels[0];
+		if (!level) throw new Error('level');
+		const sameLineage: Reviewer = { kind: 'model', model: 'codex-mini', lineage: 'openai' };
+		const family: FamilyDescriptor = {
+			...valid,
+			levels: [{ ...level, angoff: { round: 1, ratings: [rate(MODEL_A, 0.6), rate(sameLineage, 0.6)], mean: 0.6 } }]
+		};
+		expect(check(family)).toEqual([
+			'family be.db.null-aggregate@junior: Angoff needs 2 independent raters (models of different lineages or persons)',
+			'family be.db.null-aggregate@junior: a rater (or a model lineage) rated twice'
+		]);
+	});
+
+	it('labels model-only judgements for the product', () => {
+		expect(judgementProvenance(seal(valid), 'junior')).toEqual({ rubricByModelsOnly: true, angoffProvisional: true });
+		expect(judgementProvenance(withReviews([review(person('Павел'))]), 'junior')).toEqual({
+			rubricByModelsOnly: false,
+			angoffProvisional: true
+		});
 	});
 });
 
