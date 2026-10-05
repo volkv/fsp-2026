@@ -41,6 +41,8 @@ export const candidates = pgTable(
 		firstNameEnc: bytea(),
 		middleNameEnc: bytea(),
 		phoneEnc: bytea(),
+		/** The Telegram contact the candidate states (`@handle`), encrypted. */
+		telegramEnc: bytea(),
 		birthDate: date({ mode: 'string' }),
 		birthDatePrecision: text({ enum: BIRTH_DATE_PRECISIONS }),
 		birthDateSource: text({ enum: BIRTH_DATE_SOURCES }),
@@ -52,6 +54,11 @@ export const candidates = pgTable(
 		searchStatus: text({ enum: SEARCH_STATUSES }).notNull(),
 		headline: text(),
 		desiredRoleKeys: text()
+			.array()
+			.notNull()
+			.default(sql`'{}'::text[]`),
+		/** Soft skills the candidate states (keys of `profile/soft-skills.ts`): their own word, never matched on. */
+		softSkillKeys: text()
 			.array()
 			.notNull()
 			.default(sql`'{}'::text[]`),
@@ -94,13 +101,15 @@ export const candidates = pgTable(
 			sql`(${t.birthDateStatus} = 'verified') = (${t.birthDateVerifiedAt} is not null)`
 		),
 		check('candidates_desired_roles', sql`cardinality(${t.desiredRoleKeys}) <= 3`),
+		check('candidates_soft_skills', sql`cardinality(${t.softSkillKeys}) <= 12`),
 		index('candidates_demo_session')
 			.on(t.demoSessionId)
 			.where(sql`${t.demoSessionId} is not null`),
 		check(
 			'candidates_tombstone',
 			sql`${t.status} <> 'deleted' or (${t.lastNameEnc} is null and ${t.firstNameEnc} is null
-				and ${t.middleNameEnc} is null and ${t.phoneEnc} is null and ${t.birthDate} is null and ${t.headline} is null)`
+				and ${t.middleNameEnc} is null and ${t.phoneEnc} is null and ${t.telegramEnc} is null and ${t.birthDate} is null
+				and ${t.headline} is null and cardinality(${t.softSkillKeys}) = 0)`
 		)
 	]
 );

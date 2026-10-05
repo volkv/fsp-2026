@@ -102,7 +102,7 @@ describe('resume by rules', () => {
 			fileSha256: 'a'.repeat(64),
 			extractorVersion: '1.0.0+test',
 			processingMode: 'rules_only',
-			producer: 'resume-rules/3',
+			producer: 'resume-rules/4',
 			taxonomy,
 			asOf: AS_OF
 		});
@@ -184,6 +184,7 @@ describe('jobs, languages and education by rules', () => {
 			{ id: 'p1-b012', kind: 'paragraph', column: 2, text: 'Северо-Восточный институт информатики' }
 		];
 		expect(kinds(blocks)).toEqual([
+			['full_name', null, 'Мария Туманова'],
 			['skill_mention', null, 'Docker'],
 			['skill_mention', null, 'Go'],
 			['role_title', 'job-1', 'Python-разработчик'],
@@ -224,7 +225,7 @@ describe('jobs, languages and education by rules', () => {
 			fileSha256: 'a'.repeat(64),
 			extractorVersion: '1.0.0+test',
 			processingMode: 'rules_only',
-			producer: 'resume-rules/3',
+			producer: 'resume-rules/4',
 			taxonomy,
 			asOf: AS_OF
 		});
@@ -310,5 +311,54 @@ describe('jobs, languages and education by rules', () => {
 			['education', null, 'Северо-Восточный институт информатики'],
 			['education', null, 'Магистратура: МГТУ им. Н. Э. Баумана']
 		]);
+	});
+});
+
+describe('profile values by rules', () => {
+	const kinds = (blocks: RuleBlock[]) =>
+		extractByRules(blocks, taxonomy).map((item) => [item.kind, item.group ?? null, item.raw_text]);
+
+	it('reads the name at the top, the own contacts of the header and the stated soft skills', () => {
+		const blocks: RuleBlock[] = [
+			{ id: 'h-b001', kind: 'heading', column: null, text: 'Резюме' },
+			{ id: 'h-b002', kind: 'heading', column: null, text: 'Туманова Мария Сергеевна' },
+			{ id: 'h-b003', kind: 'paragraph', column: null, text: 'Python-разработчик' },
+			{
+				id: 'h-b004',
+				kind: 'paragraph',
+				column: null,
+				text: '8 (912) 345-67-89 · maria@example.org · Telegram: @maria_dev'
+			},
+			{ id: 'h-b005', kind: 'heading', column: null, text: 'О себе' },
+			{ id: 'h-b006', kind: 'paragraph', column: null, text: 'Коммуникабельна, люблю работать в команде.' },
+			{ id: 'h-b007', kind: 'heading', column: null, text: 'Опыт работы' },
+			{ id: 'h-b008', kind: 'paragraph', column: null, text: '2022 — 2023' },
+			{ id: 'h-b009', kind: 'paragraph', column: null, text: 'Python-разработчик' },
+			{ id: 'h-b010', kind: 'list_item', column: null, text: '— Наставник двух стажёров' },
+			{
+				id: 'h-b011',
+				kind: 'paragraph',
+				column: null,
+				text: 'Рекомендации: Петров Пётр, +7 900 000-00-00, petrov@example.org'
+			}
+		];
+		const profileKinds = ['full_name', 'contact_phone', 'contact_email', 'contact_telegram', 'soft_skill'];
+		const found = kinds(blocks).filter(([kind]) => profileKinds.includes(kind ?? ''));
+		expect(found).toEqual([
+			['full_name', null, 'Туманова Мария Сергеевна'],
+			['contact_phone', null, '8 (912) 345-67-89'],
+			['contact_email', null, 'maria@example.org'],
+			['contact_telegram', null, '@maria_dev'],
+			['soft_skill', null, 'Коммуникабельна'],
+			['soft_skill', null, 'работать в команде'],
+			['soft_skill', null, 'Наставник']
+		]);
+		const { items, rejected } = checkResumeItems(
+			extractByRules(blocks, taxonomy),
+			blocks.map((b) => ({ id: b.id, text: b.text })),
+			resumeLexicon(taxonomy)
+		);
+		expect(rejected).toEqual([]);
+		expect(items.filter((item) => item.kind === 'full_name').map((item) => item.quote.blockId)).toEqual(['h-b002']);
 	});
 });

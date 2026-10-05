@@ -260,6 +260,7 @@ beforeAll(async () => {
 			adapter: () => ({
 				extract: () => Promise.resolve(fail('disabled', 'extract: off in the test', { reason: 'test' }))
 			}),
+			crypto: () => crypto,
 			now: () => new Date()
 		}),
 		createFspSyncHandler(() => ({

@@ -76,7 +76,7 @@ function adapter(switcher: ModelModes) {
 
 const REQUEST = {
 	input: { type: 'document_extraction', id: 'extraction-1' },
-	schemaVersion: 'resume-extract/v2',
+	schemaVersion: 'resume-extract/v3',
 	taxonomyVersionId: 'taxonomy-1',
 	blocks: [{ id: 'p1-b001', text: 'Go, PostgreSQL' }]
 } as const;
@@ -184,7 +184,7 @@ describe('models overview', () => {
 			inputRef: { type: 'document_extraction', id: 'x' },
 			inputSha256: randomSha256(),
 			inputVersion: '1',
-			schemaVersion: 'resume-extract/v2',
+			schemaVersion: 'resume-extract/v3',
 			processingMode: 'rules_only',
 			rulesVersion: 'rules-1',
 			failure: { code: 'timeout', retryable: true }

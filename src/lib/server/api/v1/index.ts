@@ -15,6 +15,7 @@ import * as me from './me';
 import * as needs from './needs';
 import * as operator from './operator';
 import * as partnerPools from './partner-pools';
+import * as profile from './profile';
 import * as taxonomy from './taxonomy';
 import * as tests from './tests';
 import * as vacancies from './vacancies';
@@ -50,6 +51,7 @@ export const API_OPERATIONS: readonly Operation[] = [
 	...Object.values(catalog),
 	...Object.values(partnerPools),
 	...Object.values(me),
+	...Object.values(profile),
 	...Object.values(tests),
 	...Object.values(companyProfile),
 	...Object.values(needs),

@@ -210,7 +210,8 @@ async function candidate(options: { birthYearsAgo?: number; catalogConsent?: boo
 		visibility: 'catalog',
 		lastNameEnc: crypto.encrypt('Иванова', 'candidates.last_name'),
 		firstNameEnc: crypto.encrypt('Анна', 'candidates.first_name'),
-		phoneEnc: crypto.encrypt('+79990001122', 'candidates.phone')
+		phoneEnc: crypto.encrypt('+79990001122', 'candidates.phone'),
+		telegramEnc: crypto.encrypt('@anna_dev', 'candidates.telegram')
 	});
 	const adult = (options.birthYearsAgo ?? 28) >= 18;
 	if (adult) {
@@ -364,8 +365,11 @@ describe('the reverse flow', () => {
 		expect(scheduled.map((job) => job.type).sort()).toEqual(['invitation.expire', 'invitation.remind_due']);
 
 		expect(await markInvitationViewed(deps, person.subject, sent.invitationId)).toBe('viewed');
-		const answer = await accept(person, sent.invitationId, sent.termsId, ['full_name', 'email', 'phone']);
-		expect(answer).toMatchObject({ status: 'accepted', disclosedFields: ['full_name', 'email', 'phone'] });
+		const answer = await accept(person, sent.invitationId, sent.termsId, ['full_name', 'email', 'phone', 'telegram']);
+		expect(answer).toMatchObject({
+			status: 'accepted',
+			disclosedFields: ['full_name', 'email', 'phone', 'telegram']
+		});
 		if (!answer.processId) throw new Error('no hiring process');
 
 		const [disclosure] = await database.db
@@ -376,7 +380,7 @@ describe('the reverse flow', () => {
 			candidateId: person.id,
 			companyId: company.company.id,
 			recipientMemberId: company.member.id,
-			fields: ['full_name', 'email', 'phone'],
+			fields: ['full_name', 'email', 'phone', 'telegram'],
 			channel: 'ui'
 		});
 		expect((await notificationsOf(company.userId)).map((n) => n.type)).toEqual(['invitation.answered']);
@@ -386,7 +390,8 @@ describe('the reverse flow', () => {
 			candidateId: person.id,
 			fullName: { last: 'Иванова', first: 'Анна', middle: null },
 			email: person.email,
-			phone: '+79990001122'
+			phone: '+79990001122',
+			telegram: '@anna_dev'
 		});
 		expect(contacts.resumeFileId).toBeUndefined();
 

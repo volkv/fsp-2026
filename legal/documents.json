@@ -57,7 +57,7 @@
 		"contact_disclosure": {
 			"title": "Согласие на передачу контактов компании по приглашению",
 			"purposes": ["contact_disclosure"],
-			"data_categories": ["full_name", "email", "phone", "resume"],
+			"data_categories": ["full_name", "email", "phone", "telegram", "resume"],
 			"operations": ["provide"],
 			"requires_reconsent": false
 		},

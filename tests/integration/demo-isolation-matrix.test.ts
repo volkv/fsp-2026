@@ -1112,7 +1112,15 @@ const REGISTRY: Record<string, Entry> = {
 	'api/v1/me/data/+server.ts': exempt('open: companies of demo sessions in the export'),
 	'(app)/me/resume/+page.server.ts': exempt('own resume'),
 	'(app)/me/settings/+page.server.ts': exempt('own settings'),
-	'(app)/me/visibility/+page.server.ts': exempt('own settings'),
+	'(app)/me/visibility/+page.server.ts': exempt(
+		'own settings; the company search keeps the demo scope of the candidate — candidate-profile.test.ts'
+	),
+	'(app)/me/profile/pdf/+server.ts': exempt('own PDF profile: own fields and own confirmations of categories'),
+	'api/v1/me/profile/+server.ts': exempt('own profile fields'),
+	'api/v1/me/company-blocks/+server.ts': exempt('own block list'),
+	'api/v1/me/company-blocks/search/+server.ts': exempt(
+		'companies by name in the demo scope of the candidate — candidate-profile.test.ts'
+	),
 	'(app)/admin/bank/+page.server.ts': exempt('bank releases of the stand'),
 	'api/v1/admin/bank-releases/+server.ts': exempt('bank releases of the stand'),
 	'(app)/company/(member)/profile/keys/+page.server.ts': exempt('own API keys'),
@@ -1155,6 +1163,10 @@ const REGISTRY: Record<string, Entry> = {
 	// A receipt is checked by its handle, a capability issued to one audience; it names no place.
 	'verify/[handle]/+page.server.ts': exempt('receipt by its handle'),
 	'api/v1/verify/[handle]/+server.ts': exempt('receipt by its handle'),
+	// A confirmation of a category is checked by its handle, given away in a PDF; it names no place.
+	'verify/categories/[handle]/+page.server.ts': exempt('confirmation of a category by its handle'),
+	'api/v1/verify/categories/[handle]/+server.ts': exempt('confirmation of a category by its handle'),
+	'api/v1/verify/categories/[handle]/holder/+server.ts': WRITES,
 	'.well-known/receipt-keys.json/+server.ts': exempt('public keys of receipts'),
 
 	// Writes: the matrix reads.
@@ -1173,6 +1185,10 @@ const REGISTRY: Record<string, Entry> = {
 	'api/v1/me/tests/decisions/[decision_id]/objections/+server.ts': WRITES,
 	'api/v1/me/grade-declarations/+server.ts': WRITES,
 	'api/v1/me/surveys/+server.ts': WRITES,
+	'api/v1/me/profile/experience/+server.ts': WRITES,
+	'api/v1/me/profile/experience/[entry_id]/+server.ts': WRITES,
+	'api/v1/me/profile/suggestions/[suggestion_id]/decision/+server.ts': WRITES,
+	'api/v1/me/company-blocks/[company_id]/+server.ts': WRITES,
 	'api/v1/operator/ages/[candidate_id]/decision/+server.ts': WRITES,
 	'api/v1/operator/assessments/attempts/[attempt_id]/annulment/+server.ts': WRITES,
 	'api/v1/me/tests/+server.ts': WRITES,

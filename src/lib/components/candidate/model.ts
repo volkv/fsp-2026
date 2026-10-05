@@ -299,12 +299,13 @@ export const REPRESENTATION_STATES: Record<
 	}
 };
 
-export type DisclosureField = 'full_name' | 'email' | 'phone' | 'resume';
+export type DisclosureField = 'full_name' | 'email' | 'phone' | 'telegram' | 'resume';
 
 export const DISCLOSURE_FIELDS: Record<DisclosureField, string> = {
 	full_name: 'ФИО',
 	email: 'Почта',
 	phone: 'Телефон',
+	telegram: 'Telegram',
 	resume: 'Файл резюме'
 };
 

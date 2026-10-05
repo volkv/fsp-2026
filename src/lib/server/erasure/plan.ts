@@ -72,7 +72,11 @@ export const ERASURE_PLAN: Readonly<Record<string, ErasureDecision>> = {
 	'representations.candidate_id': kept('a representation with an authority document inside its retention period'),
 	'consent_events.subject_candidate_id': kept('the events a disclosure refers to (domain 6.5), until its retention'),
 	'disclosures.candidate_id': kept('proof of a lawful transfer (domain 6.5), until `disclosure_retention_months`'),
-	'invitations.candidate_id': kept('a tombstone of id, company and status: disclosures refer to it')
+	'invitations.candidate_id': kept('a tombstone of id, company and status: disclosures refer to it'),
+	// The candidate's own profile fields and the confirmations of the categories (domain 12.9, 23.2).
+	'profile_experience_entries.candidate_id': erased,
+	'profile_suggestions.candidate_id': erased,
+	'category_attestations.candidate_id': erased
 };
 
 /** A single-column foreign key of the schema. */

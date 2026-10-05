@@ -1,8 +1,12 @@
 // The deterministic resume extractor — the product's path without a model (docs/contracts.md, section 3.5): skills by
 // the aliases of the taxonomy version, periods, job titles and organizations by patterns, sections by their headings.
-// It answers in the flat item shape the elements of `resume-extract/v2` are turned into, and its items pass the same
-// checks as the model's: a quote found in its block, supporting the item, with the negation detector applied.
+// It answers in the flat item shape the elements of `resume-extract/v3` are turned into, and its items pass the same
+// checks as the model's: a quote found in its block, supporting the item, with the negation detector applied. The name
+// at the top, the contacts of the header and of the contacts section, and the soft skills are read as well: they are
+// suggestions for the candidate's own profile, not evidence.
 import type { ResumeItemKind } from '$lib/server/ml/resume-extract';
+import { parseFullName } from '$lib/server/profile/contacts';
+import { softSkillsIn } from '$lib/server/profile/soft-skills';
 import { matchSkill } from '$lib/server/taxonomy/normalize';
 import { findMarker } from './markers';
 import { PERIOD_PATTERN } from './periods';
@@ -11,7 +15,7 @@ import { skillSpans } from '$lib/server/taxonomy/skill-spans';
 import type { ResumeTaxonomy } from './taxonomy';
 
 /** Version of this extractor (`ml_results.rules_version`): any change of what it finds is a new version. */
-export const RULES_VERSION = 'resume-rules/3';
+export const RULES_VERSION = 'resume-rules/4';
 
 export interface RuleBlock {
 	id: string;
@@ -21,7 +25,7 @@ export interface RuleBlock {
 	column: number | null;
 }
 
-/** An item in the flat shape of every resume extractor (`resumeCandidateSchema` of `resume-extract/v2`). */
+/** An item in the flat shape of every resume extractor (`resumeCandidateSchema` of `resume-extract/v3`). */
 export interface RuleItem {
 	kind: ResumeItemKind;
 	group?: string;
@@ -84,6 +88,23 @@ const LANGUAGE_LEVEL =
 const DEGREE_LINE =
 	/^(бакалавр|магистр|специалист|аспирант|кандидат\s+\p{L}+\s+наук|доктор\s+\p{L}+\s+наук|высшее|неоконченное высшее|среднее|bachelor|master|specialist|ph\.?\s?d|b\.?\s?sc|m\.?\s?sc|mba)(?![\p{L}])/iu;
 
+/** Lines at the top of a resume the name may stand on: a heading such as «Резюме» may come first. */
+const NAME_LINES = 3;
+const NOT_A_NAME = /^(резюме|cv|curriculum vitae|resume)$/iu;
+
+/** A Russian phone in a common spelling, or an international one written with `+`. */
+const PHONE =
+	/(?<![\d+])(?:(?:\+7|8)[\s‐-]*\(?\d{3}\)?[\s‐-]*\d{3}[\s‐-]*\d{2}[\s‐-]*\d{2}|\+\d{1,3}[\s‐-]*\(?\d{2,4}\)?(?:[\s‐-]*\d{2,4}){2,4})(?!\d)/gu;
+const EMAIL = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/gu;
+/** A Telegram username: a `t.me` link, a name after the word «Telegram», or `@name` that is not part of an address. */
+const TELEGRAM =
+	/(?:(?:https?:\/\/)?(?:t\.me|telegram\.me)\/[A-Za-z][A-Za-z0-9_]{4,31}|(?<=(?:telegram|телеграм|tg)\s*[:—–-]?\s*)@?[A-Za-z][A-Za-z0-9_]{4,31}|(?<![\w.@])@[A-Za-z][A-Za-z0-9_]{4,31})(?![\w@.])/giu;
+
+/** Sections whose contacts are the person's own: the header before any section, and the contacts section. */
+const CONTACT_SECTIONS: ReadonlySet<Section> = new Set(['unknown', 'contacts']);
+/** Sections that name no soft skill of the person: the list of schools, of languages. */
+const NO_SOFT_SKILLS: ReadonlySet<Section> = new Set(['education', 'languages']);
+
 interface Job {
 	label: string;
 	/** Columns the job's lines are in: a heading in one of them ends the job. */
@@ -132,6 +153,9 @@ export function extractByRules(blocks: readonly RuleBlock[], taxonomy: ResumeTax
 	// The current job lives in an object: `jobFor` replaces it, which narrowing of a local variable would not see.
 	const current: { job: Job | null } = { job: null };
 	let jobs = 0;
+	let nameLinesLeft = NAME_LINES;
+	let nameFound = false;
+	const softSkillsFound = new Set<string>();
 
 	/** The job a heading line belongs to: the current one while its heading lasts and lacks this field, else a new one. */
 	const jobFor = (field: HeaderField, blockSection: Section): Job | null => {
@@ -162,6 +186,39 @@ export function extractByRules(blocks: readonly RuleBlock[], taxonomy: ResumeTax
 		const blockSection = sectionOfBlock(block);
 		reading = blockSection;
 		const inWork = blockSection === 'experience' || blockSection === 'unknown';
+
+		// The name: one of the first lines of the resume, before any section, that reads as two or three name words.
+		if (!nameFound && blockSection === 'unknown' && jobs === 0) {
+			for (const rawLine of block.text.split('\n')) {
+				const line = rawLine.trim();
+				if (line.length === 0 || nameLinesLeft === 0) continue;
+				nameLinesLeft--;
+				if (NOT_A_NAME.test(line) || TITLE_WORD.test(line) || ORGANIZATION.test(line)) continue;
+				if (parseFullName(line) === null) continue;
+				nameFound = true;
+				add({ kind: 'full_name', raw_text: line, polarity: 'asserted', block_id: block.id, quote: line });
+				break;
+			}
+		}
+		if (CONTACT_SECTIONS.has(blockSection) && jobs === 0) {
+			for (const [pattern, kind] of [
+				[PHONE, 'contact_phone'],
+				[EMAIL, 'contact_email'],
+				[TELEGRAM, 'contact_telegram']
+			] as const) {
+				for (const match of block.text.matchAll(pattern)) {
+					const [found] = match;
+					add({ kind, raw_text: found, polarity: 'asserted', block_id: block.id, quote: found });
+				}
+			}
+		}
+		if (!NO_SOFT_SKILLS.has(blockSection)) {
+			for (const { skill, written } of softSkillsIn(block.text)) {
+				if (softSkillsFound.has(skill.key)) continue;
+				softSkillsFound.add(skill.key);
+				add({ kind: 'soft_skill', raw_text: written, polarity: 'asserted', block_id: block.id, quote: written });
+			}
+		}
 
 		// A period may wrap onto the next line («Март 2021 —\nнастоящее время»): it is found in the block and belongs to
 		// the line it starts on; the lines it covers are not titles.

@@ -154,6 +154,7 @@ function overridesOf(
 			// `/demo`), while outside sessions the identity stays the original's.
 			return { demo_session_id: ctx.sessionId };
 		case 'verification_receipts':
+		case 'category_attestations':
 			return { handle: base32(randomBytes(16)) };
 		case 'ml_results':
 			// The job wrote the original's result; the copy is nobody's job.

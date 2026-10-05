@@ -12,6 +12,8 @@ Copyright (c) 2026 Wine Coding Team
   static/fonts/inter           Inter, (c) The Inter Project Authors — SIL Open Font License 1.1 (static/fonts/inter/OFL.txt)
   static/fonts/jetbrains-mono  JetBrains Mono, (c) The JetBrains Mono Project Authors — SIL Open Font License 1.1
                                (static/fonts/jetbrains-mono/OFL.txt)
+  src/lib/server/profile/fonts Inter 4.1 (Regular, SemiBold — шрифт PDF-профиля), (c) The Inter Project Authors — SIL Open Font
+                               License 1.1 (src/lib/server/profile/fonts/OFL.txt)
 
 Сторонние компоненты
   Зависимости npm и Python, контейнерные образы, пакеты ОС и модели распространяются по своим лицензиям и в этот

@@ -1,7 +1,7 @@
 import { fail } from '@sveltejs/kit';
 import type { AccessSubject } from '$lib/server/access/permissions';
 import { SOURCE_FAILURES } from '$lib/components/candidate/model';
-import { resumeFields } from '$lib/components/candidate/quotes';
+import { resumeFields, type QuoteSource } from '$lib/components/candidate/quotes';
 import { authDeps } from '$lib/server/auth/context';
 import { formText } from '$lib/server/auth/http';
 import { fspIdentityOf } from '$lib/server/auth/identities';
@@ -27,6 +27,13 @@ import {
 } from '$lib/server/external-profiles/service';
 import { PLATFORM_NAMES, type ExternalPlatform } from '$lib/server/external-profiles/types';
 import { readOwnResumes } from '$lib/server/resumes/read';
+import { currentCandidateVocabulary } from '$lib/server/candidates/vocabulary';
+import { fieldCrypto } from '$lib/server/crypto/fields';
+import { addManualExperience, removeManualExperience, updateManualExperience } from '$lib/server/profile/experience';
+import { decideSuggestion, updateOwnProfile } from '$lib/server/profile/fields';
+import { MAX_SOFT_SKILLS, SOFT_SKILLS } from '$lib/server/profile/soft-skills';
+import { ownProfileView } from '$lib/server/profile/view';
+import { monthsText } from '$lib/server/grades/hint';
 import { eq } from 'drizzle-orm';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -58,9 +65,10 @@ async function consentState(
 
 /**
  * The current resume as the profile shows it: the file and where its reading stands, and once read, the extracted
- * fields with their quotes marked in the document text. Reviewing the fields is the resume page's business.
+ * fields with their quotes marked in the document text — and the quotes of the suggestions of profile fields, so a
+ * suggestion opens the document at its words. Reviewing the fields is the resume page's business.
  */
-async function currentResume(subject: AccessSubject) {
+async function currentResume(subject: AccessSubject, suggestions: readonly QuoteSource[]) {
 	const { current } = await readOwnResumes(db(), subject);
 	if (current === null) return null;
 	const { upload, reading } = current;
@@ -76,7 +84,7 @@ async function currentResume(subject: AccessSubject) {
 		inProgress:
 			upload.parseStatus === 'pending' ||
 			((upload.parseStatus === 'parsed' || upload.parseStatus === 'partial') && reading === null),
-		...resumeFields(current)
+		...resumeFields(current, suggestions)
 	};
 }
 
@@ -96,12 +104,34 @@ export const load: PageServerLoad = async (event) => {
 			if (issuer === undefined) fspStep = 'unavailable';
 			else fspStep = (await fspIdentityOf(await authDeps(), userId, issuer)) ? 'import' : 'link';
 		}
+		const own = await ownProfileView({ db: db(), crypto: fieldCrypto(), now: () => now }, subject);
+		const vocabulary = await currentCandidateVocabulary(db());
 		return {
 			evidence,
 			fspStep,
 			consent: await consentState(candidateId, now),
 			externalProfiles: await readOwnExternalProfiles(db(), candidateId, now),
-			resume: await currentResume(subject)
+			resume: await currentResume(
+				subject,
+				own.suggestions.map((suggestion) => ({ key: suggestion.sourceKey, quotes: [suggestion.quote] }))
+			),
+			own: {
+				profile: own.profile,
+				experience: own.experience,
+				experienceMonthsText: own.experience.length > 0 ? monthsText(own.experienceMonths) : null,
+				suggestions: own.suggestions,
+				attestations: own.attestations.map((attestation) => ({
+					handle: attestation.handle,
+					holderCode: attestation.holderCode,
+					status: attestation.status,
+					issuedAt: attestation.issuedAt,
+					url: `${config().appOrigin}/verify/categories/${attestation.handle}`
+				}))
+			},
+			softSkills: SOFT_SKILLS.map((skill) => ({ key: skill.key, name: skill.name })),
+			maxSoftSkills: MAX_SOFT_SKILLS,
+			skills: vocabulary?.skills ?? [],
+			roles: vocabulary?.roles ?? []
 		};
 	} catch (cause) {
 		pageError(event, cause);
@@ -181,7 +211,114 @@ function refreshMessage(platform: ExternalPlatform, outcome: RefreshOutcome): { 
 	}
 }
 
+const nullable = (value: string) => (value.trim() === '' ? null : value);
+const MONTH_INPUT = /^\d{4}-\d{2}$/u;
+
+/** The experience form as the service takes it; a month the browser did not send as `YYYY-MM` is refused there. */
+function experienceInput(form: FormData) {
+	const current = formText(form, 'is_current') === 'on';
+	const from = formText(form, 'period_from');
+	const to = formText(form, 'period_to');
+	const problems: { path: string; code: string; message: string }[] = [];
+	if (!MONTH_INPUT.test(from))
+		problems.push({ path: 'period_from', code: 'invalid_month', message: 'Укажите месяц начала' });
+	if (!current && !MONTH_INPUT.test(to)) {
+		problems.push({
+			path: 'period_to',
+			code: 'invalid_month',
+			message: 'Укажите месяц окончания или отметьте «работаю сейчас»'
+		});
+	}
+	const title = formText(form, 'position_title').trim();
+	if (title === '') problems.push({ path: 'position_title', code: 'required', message: 'Укажите должность' });
+	if (problems.length > 0) throw new ApiError('validation_failed', { details: problems });
+	return {
+		position_title: title,
+		organization_name: nullable(formText(form, 'organization_name')),
+		role_key: nullable(formText(form, 'role_key')),
+		period_from: from,
+		period_to: current ? null : to,
+		skill_keys: form.getAll('skill_keys').filter((value): value is string => typeof value === 'string'),
+		description: nullable(formText(form, 'description'))
+	};
+}
+
+const profileDeps = () => ({ db: db(), crypto: fieldCrypto(), now: () => new Date() });
+
 export const actions: Actions = {
+	saveProfile: async (event) => {
+		const { subject, meta } = await candidateRequest(event);
+		const form = await event.request.formData();
+		try {
+			const changed = await updateOwnProfile(profileDeps(), subject, meta, {
+				last_name: nullable(formText(form, 'last_name')),
+				first_name: nullable(formText(form, 'first_name')),
+				middle_name: nullable(formText(form, 'middle_name')),
+				phone: nullable(formText(form, 'phone')),
+				telegram: nullable(formText(form, 'telegram')),
+				headline: nullable(formText(form, 'headline')),
+				soft_skill_keys: form.getAll('soft_skill_keys').filter((value): value is string => typeof value === 'string')
+			});
+			return { target: 'fields', saved: changed.length };
+		} catch (cause) {
+			return targetFailure(cause, 'fields');
+		}
+	},
+
+	decideSuggestion: async (event) => {
+		const { subject, meta } = await candidateRequest(event);
+		const form = await event.request.formData();
+		const id = formText(form, 'suggestion_id');
+		const decision = formText(form, 'decision');
+		try {
+			if (!UUID.test(id)) throw new ApiError('not_found');
+			if (decision !== 'accepted' && decision !== 'rejected') {
+				throw new ApiError('validation_failed', { message: 'Не выбрано решение' });
+			}
+			await decideSuggestion(profileDeps(), subject, meta, id, decision);
+			return { target: `suggestion:${id}`, decided: decision };
+		} catch (cause) {
+			return targetFailure(cause, `suggestion:${id}`);
+		}
+	},
+
+	addExperience: async (event) => {
+		const { subject, meta } = await candidateRequest(event);
+		const form = await event.request.formData();
+		try {
+			await addManualExperience(profileDeps(), subject, meta, experienceInput(form));
+			return { target: 'experience:new', experienceSaved: true };
+		} catch (cause) {
+			return targetFailure(cause, 'experience:new');
+		}
+	},
+
+	updateExperience: async (event) => {
+		const { subject, meta } = await candidateRequest(event);
+		const form = await event.request.formData();
+		const id = formText(form, 'entry_id');
+		try {
+			if (!UUID.test(id)) throw new ApiError('not_found');
+			await updateManualExperience(profileDeps(), subject, meta, id, experienceInput(form));
+			return { target: `experience:${id}`, experienceSaved: true };
+		} catch (cause) {
+			return targetFailure(cause, `experience:${id}`);
+		}
+	},
+
+	removeExperience: async (event) => {
+		const { subject, meta } = await candidateRequest(event);
+		const form = await event.request.formData();
+		const id = formText(form, 'entry_id');
+		try {
+			if (!UUID.test(id)) throw new ApiError('not_found');
+			await removeManualExperience(profileDeps(), subject, meta, id);
+			return { target: 'experience:new', experienceRemoved: true };
+		} catch (cause) {
+			return targetFailure(cause, `experience:${id}`);
+		}
+	},
+
 	linkProfile: async (event) => {
 		const { subject, meta } = await candidateRequest(event);
 		const form = await event.request.formData();

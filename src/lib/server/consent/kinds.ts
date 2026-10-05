@@ -29,7 +29,7 @@ export const CATALOG_SCOPE_FIELDS = ['fsp_achievements_exact', 'external_profile
 export type CatalogScopeField = (typeof CATALOG_SCOPE_FIELDS)[number];
 
 /** Values of `scope_fields` of `contact_disclosure` and of `disclosures.fields` (domain 6.5, 13.6). */
-export const DISCLOSURE_FIELDS = ['full_name', 'email', 'phone', 'resume'] as const;
+export const DISCLOSURE_FIELDS = ['full_name', 'email', 'phone', 'telegram', 'resume'] as const;
 export type DisclosureField = (typeof DISCLOSURE_FIELDS)[number];
 
 /** Blocks an adult may choose for the public page (`public_distribution.scope_fields`, domain 14). */

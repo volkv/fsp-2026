@@ -4,6 +4,7 @@
 	import { invalidate } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import type { ResumeClaimView } from '$lib/components/candidate/quotes';
+	import ProfileSuggestion from '$lib/components/candidate/profile-suggestion.svelte';
 	import ResumeClaim from '$lib/components/candidate/resume-claim.svelte';
 	import ResumeDocument from '$lib/components/candidate/resume-document.svelte';
 	import ResumeEntry from '$lib/components/candidate/resume-entry.svelte';
@@ -231,6 +232,25 @@
 					<p class="text-sm text-muted-foreground">Других полей в резюме не нашлось.</p>
 				{/if}
 			</SectionCard>
+
+			{#if current.suggestions.length > 0}
+				<SectionCard
+					title="Для полей профиля"
+					description="ФИО, контакты и мягкие навыки, найденные в резюме. Принятое значение записывается в профиль; поправить его можно на странице профиля. В подбор и к работодателю эти поля из резюме не попадают."
+					testId="resume-profile-suggestions"
+				>
+					<ul class="grid gap-2">
+						{#each current.suggestions as suggestion (suggestion.id)}
+							<ProfileSuggestion
+								{suggestion}
+								accountEmail={data.accountEmail}
+								problem={problemOf(suggestion.sourceKey)?.message ?? null}
+								onshow={show}
+							/>
+						{/each}
+					</ul>
+				</SectionCard>
+			{/if}
 		</div>
 
 		<section

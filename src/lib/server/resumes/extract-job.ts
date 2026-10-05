@@ -1,6 +1,8 @@
 // Job `resume.extract` (docs/domain.md, sections 9, 16.1, 17.2; docs/contracts.md, sections 3.2, 3.5): the blocks of a
-// parsed resume go to the model's `resume-extract/v2`; every item that survives the quote checks becomes a claim with its
-// quote, job groups become experience entries, and the profile revision moves with the recalculation enqueued. Without
+// parsed resume go to the model's `resume-extract/v3`; every item that survives the quote checks becomes a claim with its
+// quote, job groups become experience entries, and the profile revision moves with the recalculation enqueued. The
+// name, the contacts and the soft skills the reading finds become suggestions for the candidate's own profile fields
+// (`profile/suggestions.ts`), never claims. Without
 // the model — switched off, not configured, or failing after the job's attempts — the deterministic extractor reads the
 // same blocks and its items pass the same checks; the envelope says `rules_only` and why, so the candidate is told to
 // check the fields. Nothing is written unless the document is still current and not yet extracted. Without
@@ -23,17 +25,19 @@ import { uuidv7 } from '$lib/server/ids';
 import { defineHandler, JobFailure, type JobHandler, type JobResult } from '$lib/server/jobs/handler';
 import { canonicalJson } from '$lib/server/json/canonical';
 import { LLM_DEFAULT_MAX_CONCURRENCY } from '$lib/server/config';
+import { fieldCrypto, type FieldCrypto } from '$lib/server/crypto/fields';
 import { modelAdapter } from '$lib/server/ml';
 import type { ModelAdapter } from '$lib/server/ml/adapter';
 import type { Rejected } from '$lib/server/ml/extract-common';
 import { checkResumeItems, type ResumeItem } from '$lib/server/ml/resume-extract';
+import { insertProfileSuggestions, planProfileSuggestions } from '$lib/server/profile/suggestions';
 import { sliceByCodePoints } from '$lib/text/offsets';
 import { planEvidence, type EvidencePlan } from './evidence';
 import { lockCandidate, recordEvidenceChange, resumeRecordRef } from './revision';
 import { extractByRules, RULES_VERSION, type RuleBlock } from './rules';
 import { loadResumeTaxonomy, resumeLexicon, type ResumeTaxonomy } from './taxonomy';
 
-export const RESUME_SCHEMA_VERSION = 'resume-extract/v2';
+export const RESUME_SCHEMA_VERSION = 'resume-extract/v3';
 
 const storedBlocks = z.array(
 	z.object({
@@ -112,6 +116,8 @@ interface Extraction {
 
 export interface ResumeExtractDeps {
 	adapter: () => Pick<ModelAdapter, 'extract'>;
+	/** Seals the suggested name and contacts. */
+	crypto: () => FieldCrypto;
 	now: () => Date;
 }
 
@@ -267,6 +273,7 @@ export function createResumeExtractHandler(deps: ResumeExtractDeps): JobHandler<
 				taxonomy,
 				asOf: now
 			});
+			const suggestions = planProfileSuggestions(extraction.items);
 			const mlResultId = uuidv7();
 			const rejected = [...extraction.rejected, ...plan.rejected];
 			return {
@@ -301,12 +308,18 @@ export function createResumeExtractHandler(deps: ResumeExtractDeps): JobHandler<
 							fact_id: plan.fact.id,
 							blocks: [...new Set(plan.claims.map((claim) => claim.quote.block_id))],
 							claims: plan.claims.map((claim) => claim.id),
-							experience_entries: plan.entries.map((entry) => entry.id)
+							experience_entries: plan.entries.map((entry) => entry.id),
+							profile_suggestions: suggestions.map((suggestion) => suggestion.id)
 						},
 						rejectedItems: rejected,
 						latencyMs: extraction.latencyMs
 					});
 					await insertEvidence(tx, target, plan, extraction, mlResultId, now);
+					await insertProfileSuggestions(tx, deps.crypto(), {
+						candidateId: target.candidateId,
+						extractionId: target.extractionId,
+						drafts: suggestions
+					});
 					await recordEvidenceChange(tx, {
 						candidateId: target.candidateId,
 						withdrawal: false,
@@ -321,6 +334,7 @@ export function createResumeExtractHandler(deps: ResumeExtractDeps): JobHandler<
 					failure: typeof extraction.failure?.code === 'string' ? extraction.failure.code : null,
 					claims: plan.claims.length,
 					experience_entries: plan.entries.length,
+					profile_suggestions: suggestions.length,
 					rejected: rejected.length
 				})
 			};
@@ -329,4 +343,8 @@ export function createResumeExtractHandler(deps: ResumeExtractDeps): JobHandler<
 }
 
 /** Handler of `resume.extract` for the job registry. */
-export const resumeExtract = createResumeExtractHandler({ adapter: modelAdapter, now: () => new Date() });
+export const resumeExtract = createResumeExtractHandler({
+	adapter: modelAdapter,
+	crypto: fieldCrypto,
+	now: () => new Date()
+});

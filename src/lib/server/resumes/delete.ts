@@ -1,6 +1,7 @@
 // The candidate deletes a resume (docs/domain.md, sections 17.3, 19): the object leaves the bucket, and one transaction
 // removes the document with everything derived from it — the extraction text, the model envelopes with their rejected
-// items, the fact, the claims and the experience entries. Personal data is deleted physically, not flagged. When the
+// items, the fact, the claims, the experience entries and the suggestions of profile fields (values the candidate
+// accepted stay in the profile: they are the candidate's own now). Personal data is deleted physically, not flagged. When the
 // resume still counted in the profile, the removal is a withdrawal: the revision and the evidence floor move, the
 // published category is blocked and the recalculation is enqueued.
 import { and, eq, inArray, sql } from 'drizzle-orm';
@@ -16,6 +17,7 @@ import {
 } from '$lib/server/db/schema';
 import { ApiError } from '$lib/server/errors/api-error';
 import { auditActor, type RequestMeta } from '$lib/server/invitations/deps';
+import { deleteSuggestionsOf } from '$lib/server/profile/suggestions';
 import { cancelResumeJobs, lockCandidate, recordEvidenceChange, resumeRecordRef } from './revision';
 import { selfCandidate, type ResumeDeps } from './deps';
 
@@ -79,6 +81,7 @@ export async function deleteResume(
 				);
 		}
 		if (factIds.length > 0) await tx.delete(sourceFacts).where(inArray(sourceFacts.id, factIds));
+		await deleteSuggestionsOf(tx, extractionIds);
 		await tx.delete(documentExtractions).where(eq(documentExtractions.resumeDocumentId, resumeDocumentId));
 		await tx.delete(resumeDocuments).where(eq(resumeDocuments.id, resumeDocumentId));
 		await tx.delete(files).where(eq(files.id, document.fileId));

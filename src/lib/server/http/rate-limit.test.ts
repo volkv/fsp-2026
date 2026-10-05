@@ -131,10 +131,12 @@ describe('rate limit', () => {
 		expect(accountSubject({ kind: 'anonymous' }, '10.0.0.1')).toBe('address:10.0.0.1');
 	});
 
-	it('lets the receipt page, the catalog pages and the sign-in through FSP ID refuse by themselves, nothing else', () => {
+	it('lets the receipt and confirmation pages, the catalog pages and the sign-in through FSP ID refuse by themselves, nothing else', () => {
 		for (const path of [
 			'/verify/abcdefghijklmnopqrstuvwxyz',
 			'/verify/abcdefghijklmnopqrstuvwxyz/__data.json',
+			'/verify/categories/abcdefghijklmnopqrstuvwxyz',
+			'/verify/categories/abcdefghijklmnopqrstuvwxyz/__data.json',
 			'/company/candidates',
 			'/company/candidates/__data.json',
 			'/company/candidates/k-7f3a',
@@ -149,6 +151,8 @@ describe('rate limit', () => {
 		expect(refusedByPage('POST', '/company/candidates/k-7f3a')).toBe(false);
 		expect(refusedByPage('GET', '/api/v1/catalog/candidates')).toBe(false);
 		expect(refusedByPage('GET', '/api/v1/verify/abcdefghijklmnopqrstuvwxyz')).toBe(false);
+		expect(refusedByPage('GET', '/api/v1/verify/categories/abcdefghijklmnopqrstuvwxyz')).toBe(false);
+		expect(refusedByPage('POST', '/verify/categories/abcdefghijklmnopqrstuvwxyz')).toBe(false);
 		expect(refusedByPage('GET', '/company/vacancies')).toBe(false);
 	});
 });

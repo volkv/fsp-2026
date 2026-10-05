@@ -12,6 +12,7 @@ import type { StartedTestContainer } from 'testcontainers';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { AccessSubject } from '$lib/server/access/permissions';
 import type { ExtractConfig } from '$lib/server/config';
+import { createFieldCrypto } from '$lib/server/crypto/fields';
 import {
 	candidates,
 	claims,
@@ -104,7 +105,7 @@ async function startRuntime(): Promise<FakeRuntime> {
 	return fake;
 }
 
-/** A `resume-extract/v2` answer: every array of the schema, empty unless given. */
+/** A `resume-extract/v3` answer: every array of the schema, empty unless given. */
 function chat(res: ServerResponse, arrays: Record<string, unknown[]>) {
 	const answer = {
 		jobs: [],
@@ -113,6 +114,9 @@ function chat(res: ServerResponse, arrays: Record<string, unknown[]>) {
 		education: [],
 		languages: [],
 		achievements: [],
+		full_name: [],
+		contacts: [],
+		soft_skills: [],
 		...arrays
 	};
 	res.writeHead(200, { 'content-type': 'application/json' }).end(
@@ -143,8 +147,14 @@ function adapter(extract: ExtractConfig | null): ModelAdapter {
 	});
 }
 
-const withModel = () => createResumeExtractHandler({ adapter: () => adapter(extractConfig()), now });
-const withoutModel = () => createResumeExtractHandler({ adapter: () => adapter(null), now });
+const crypto = createFieldCrypto({
+	keys: new Map([[1, Buffer.alloc(32, 1)]]),
+	activeVersion: 1,
+	hmacSecret: Buffer.alloc(32, 2)
+});
+const withModel = () =>
+	createResumeExtractHandler({ adapter: () => adapter(extractConfig()), crypto: () => crypto, now });
+const withoutModel = () => createResumeExtractHandler({ adapter: () => adapter(null), crypto: () => crypto, now });
 
 // --- Services -----------------------------------------------------------------------------------------------------------
 
@@ -361,7 +371,7 @@ describe('a PDF resume read by the model', () => {
 			.select()
 			.from(mlResults)
 			.where(sql`${mlResults.inputRef} ->> 'id' = ${extraction.id}`);
-		expect(envelope).toMatchObject({ processingMode: 'model', schemaVersion: 'resume-extract/v2', rulesVersion: null });
+		expect(envelope).toMatchObject({ processingMode: 'model', schemaVersion: 'resume-extract/v3', rulesVersion: null });
 		expect(envelope?.model).toMatchObject({ endpoint_profile: 'extract', model_id: 'extractor-7b' });
 		const reasons = (envelope?.rejectedItems as { reason: string }[]).map((r) => r.reason).sort();
 		expect(reasons).toEqual(['forbidden_field', 'forbidden_field', 'quote_not_found', 'quote_not_supporting']);
@@ -475,7 +485,7 @@ describe('a DOCX resume without the model', () => {
 			.select()
 			.from(mlResults)
 			.where(sql`${mlResults.inputRef} ->> 'id' = ${extraction.id}`);
-		expect(envelope).toMatchObject({ processingMode: 'rules_only', model: null, rulesVersion: 'resume-rules/3' });
+		expect(envelope).toMatchObject({ processingMode: 'rules_only', model: null, rulesVersion: 'resume-rules/4' });
 		expect(envelope?.failure).toMatchObject({ code: 'disabled', details: { reason: 'not_configured' } });
 
 		const view = await readOwnResumes(database.db, subjectOf(candidate));

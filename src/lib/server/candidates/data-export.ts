@@ -2,7 +2,8 @@
 // in one JSON document the candidate downloads — the account with its sign-in, FSP ID and notification settings, the
 // profile, the resumes with their extracted text, the facts with their claims, experience and receipts, the surveys
 // and the grade declarations with their hints, every evidence run with its skills and FSP levels, the categories with
-// their history, the objections to test results, the blocked companies, the matches
+// their history, the objections to test results, the blocked companies, the experience stated by hand, what the
+// readings of the resumes suggested for the profile fields, the confirmations of the categories, the matches
 // with the vacancies the candidate sees, the consents with who signed them, the accepted agreements, the invitations
 // with their terms and answers, what was handed to which company, the hiring processes, the tests with their artifacts,
 // the notifications, and the journal of actions about the candidate. Other people are named only by what the candidate
@@ -16,6 +17,7 @@
 import { and, asc, eq, inArray, or } from 'drizzle-orm';
 import type { AuditActor } from '$lib/server/audit/record';
 import { recordAuditEvent } from '$lib/server/audit/record';
+import { base32 } from '$lib/server/crypto/encoding';
 import type { FieldCrypto } from '$lib/server/crypto/fields';
 import type { Database, Executor } from '$lib/server/db';
 import {
@@ -26,6 +28,7 @@ import {
 	candidates,
 	candidateSurveys,
 	categorizationRulesets,
+	categoryAttestations,
 	evidenceRuns,
 	claims,
 	companies,
@@ -54,6 +57,8 @@ import {
 	notificationPreferences,
 	notifications,
 	passwordCredentials,
+	profileExperienceEntries,
+	profileSuggestions,
 	representations,
 	resumeDocuments,
 	skillInferences,
@@ -80,7 +85,7 @@ import { storedComponent } from '$lib/server/matching/storage';
  * Also in v3: the way to a category (domain 23.2) — every version of the survey and every grade declaration with its
  * hint.
  */
-export const DATA_EXPORT_FORMAT = 'fsp-career-data-export/v3';
+export const DATA_EXPORT_FORMAT = 'fsp-career-data-export/v4';
 
 const iso = (value: Date | null) => (value === null ? null : value.toISOString());
 
@@ -102,6 +107,9 @@ export interface DataExport {
 	categories: Record<string, unknown>[];
 	objections: Record<string, unknown>[];
 	company_blocks: Record<string, unknown>[];
+	manual_experience: Record<string, unknown>[];
+	profile_suggestions: Record<string, unknown>[];
+	category_attestations: Record<string, unknown>[];
 	matches: Record<string, unknown>[];
 	consents: Record<string, unknown>[];
 	document_acceptances: Record<string, unknown>[];
@@ -275,6 +283,21 @@ async function buildDataExport(
 		.from(candidateCompanyBlocks)
 		.where(eq(candidateCompanyBlocks.candidateId, candidateId))
 		.orderBy(asc(candidateCompanyBlocks.createdAt));
+	const manualExperience = await executor
+		.select()
+		.from(profileExperienceEntries)
+		.where(eq(profileExperienceEntries.candidateId, candidateId))
+		.orderBy(asc(profileExperienceEntries.periodFrom), asc(profileExperienceEntries.id));
+	const suggestions = await executor
+		.select()
+		.from(profileSuggestions)
+		.where(eq(profileSuggestions.candidateId, candidateId))
+		.orderBy(asc(profileSuggestions.id));
+	const attestations = await executor
+		.select()
+		.from(categoryAttestations)
+		.where(eq(categoryAttestations.candidateId, candidateId))
+		.orderBy(asc(categoryAttestations.issuedAt), asc(categoryAttestations.id));
 
 	// Stored matches of the vacancies the candidate sees in «Вакансии для меня» (matching/recommendations.ts): the
 	// same condition and the same demo scope, so a vacancy hidden from the candidate is not revealed by the export.
@@ -576,6 +599,7 @@ async function buildDataExport(
 			first_name: decrypt(candidate.firstNameEnc, 'candidates.first_name'),
 			middle_name: decrypt(candidate.middleNameEnc, 'candidates.middle_name'),
 			phone: decrypt(candidate.phoneEnc, 'candidates.phone'),
+			telegram: decrypt(candidate.telegramEnc, 'candidates.telegram'),
 			birth_date: candidate.birthDate,
 			birth_date_precision: candidate.birthDatePrecision,
 			birth_date_source: candidate.birthDateSource,
@@ -586,6 +610,7 @@ async function buildDataExport(
 			search_status: candidate.searchStatus,
 			headline: candidate.headline,
 			desired_role_keys: candidate.desiredRoleKeys,
+			soft_skill_keys: candidate.softSkillKeys,
 			preferences: candidate.preferences,
 			purge_after: candidate.purgeAfter,
 			created_at: iso(candidate.createdAt)
@@ -733,6 +758,45 @@ async function buildDataExport(
 		company_blocks: blocks.map((block) => ({
 			company: companyOf(block.companyId),
 			blocked_at: iso(block.createdAt)
+		})),
+		manual_experience: manualExperience.map((entry) => ({
+			id: entry.id,
+			position_title: entry.positionTitle,
+			organization_name: entry.organizationName,
+			role_key: entry.roleKey,
+			period_from: entry.periodFrom,
+			period_to: entry.periodTo,
+			is_current: entry.isCurrent,
+			skill_keys: entry.skillKeys,
+			description: entry.description,
+			created_at: iso(entry.createdAt),
+			updated_at: iso(entry.updatedAt)
+		})),
+		// What the readings of the resumes suggested for the profile fields, with the decisions on them.
+		profile_suggestions: suggestions.map((suggestion) => ({
+			id: suggestion.id,
+			extraction_id: suggestion.extractionId,
+			field: suggestion.field,
+			value:
+				suggestion.field === 'soft_skill'
+					? suggestion.skillKey
+					: decrypt(suggestion.valueEnc, 'profile_suggestions.value'),
+			quote: suggestion.quote,
+			status: suggestion.status,
+			decided_at: iso(suggestion.decidedAt),
+			created_at: iso(suggestion.createdAt)
+		})),
+		// The confirmations of the categories with their holder codes: the salt is the candidate's own secret.
+		category_attestations: attestations.map((attestation) => ({
+			handle: attestation.handle,
+			category_id: attestation.categoryId,
+			decision_id: attestation.decisionId,
+			bank_release_id: attestation.bankReleaseId,
+			statement: attestation.statement,
+			signature: attestation.signature,
+			signing_key_id: attestation.signingKeyId,
+			holder_code: base32(attestation.holderNonce),
+			issued_at: iso(attestation.issuedAt)
 		})),
 		matches: matches.map((row) => ({
 			vacancy: {

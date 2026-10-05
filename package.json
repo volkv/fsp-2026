@@ -59,7 +59,9 @@
 		"fast-xml-parser": "5.11.1",
 		"nodemailer": "^10.0.10",
 		"openid-client": "^6.8.8",
+		"pdfkit": "^0.20.2",
 		"postgres": "^3.4.9",
+		"qrcode": "^1.5.4",
 		"redis": "^6.2.1",
 		"swagger-ui-dist": "^5.33.0",
 		"zod": "^4.6.5"
@@ -77,6 +79,8 @@
 		"@testcontainers/postgresql": "^12.1.0",
 		"@testcontainers/redis": "^12.1.0",
 		"@types/node": "^24.13.6",
+		"@types/pdfkit": "^0.17.6",
+		"@types/qrcode": "^1.5.6",
 		"bits-ui": "^2.18.0",
 		"clsx": "^2.1.1",
 		"drizzle-kit": "^0.31.11",

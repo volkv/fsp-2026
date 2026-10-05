@@ -13,6 +13,9 @@ import { resumeDeps } from '$lib/server/resumes/deps';
 import { readOwnResumes } from '$lib/server/resumes/read';
 import { correctExperienceEntry, reviewExperienceEntry, reviewResumeClaim } from '$lib/server/resumes/review';
 import { uploadResume } from '$lib/server/resumes/upload';
+import { fieldCrypto } from '$lib/server/crypto/fields';
+import { decideSuggestion, readOwnProfile } from '$lib/server/profile/fields';
+import { readSuggestions } from '$lib/server/profile/suggestions';
 import type { Actions, PageServerLoad } from './$types';
 
 /** Key the page invalidates while the resume is still being read. */
@@ -57,8 +60,16 @@ export const load: PageServerLoad = async (event) => {
 			processingRefusal(database, candidateId, new Date())
 		]);
 		const current = own.current;
-		const fields = current === null ? null : resumeFields(current);
 		const document = current?.document ?? null;
+		const crypto = fieldCrypto();
+		const suggestions = document === null ? [] : await readSuggestions(database, crypto, candidateId, document);
+		const fields =
+			current === null
+				? null
+				: resumeFields(
+						current,
+						suggestions.map((suggestion) => ({ key: suggestion.sourceKey, quotes: [suggestion.quote] }))
+					);
 		const upload = current?.upload ?? null;
 		// The parse and the extraction run in the background: the page asks again until the reading is known.
 		const inProgress =
@@ -80,8 +91,13 @@ export const load: PageServerLoad = async (event) => {
 									? null
 									: { status: document.status, flags: readingFlags(document.flags), ...fields.document },
 							claims: fields.claims,
-							experience: fields.experience
+							experience: fields.experience,
+							suggestions
 						},
+			// The address of the account, to compare an address the resume gives with it.
+			accountEmail: suggestions.some((suggestion) => suggestion.field === 'email')
+				? (await readOwnProfile(database, crypto, candidateId)).email
+				: null,
 			inProgress,
 			labels: vocabularyLabels(vocabulary),
 			roles: vocabulary?.roles ?? []
@@ -178,6 +194,28 @@ export const actions: Actions = {
 			return targetFailure(cause, `claim:${claimId}`);
 		}
 		return { reviewed: `claim:${claimId}` };
+	},
+
+	decideSuggestion: async (event) => {
+		const { subject, meta } = await candidateRequest(event);
+		const form = await event.request.formData();
+		const suggestionId = formText(form, 'suggestion_id');
+		const decision = formText(form, 'decision');
+		try {
+			if (decision !== 'accepted' && decision !== 'rejected') {
+				throw new ApiError('validation_failed', { message: 'Не выбрано решение' });
+			}
+			await decideSuggestion(
+				{ db: db(), crypto: fieldCrypto(), now: () => new Date() },
+				subject,
+				meta,
+				idOf(form, 'suggestion_id'),
+				decision
+			);
+		} catch (cause) {
+			return targetFailure(cause, `suggestion:${suggestionId}`);
+		}
+		return { reviewed: `suggestion:${suggestionId}` };
 	},
 
 	reviewEntry: async (event) => {

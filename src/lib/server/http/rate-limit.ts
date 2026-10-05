@@ -121,14 +121,15 @@ export function accountSubject(actor: Actor, address: string): string {
 	}
 }
 
-const RECEIPT_PAGE = /^\/verify\/[^/]+(?:\/__data\.json)?$/u;
+/** The public page of a receipt or of a confirmation of a category (domain 9.6, 12.9) and its `__data.json`. */
+const RECEIPT_PAGE = /^\/verify\/(?:categories\/)?[^/]+(?:\/__data\.json)?$/u;
 
 /**
  * Reads a browser opens that refuse a request over the limit themselves, so the refusal comes in the layout of the site
- * with the headers of every response rather than as a bare error page or the JSON error of the API: the public receipt
- * page, the catalog pages (with their `__data.json`) and the sign-in through FSP ID. Such a route must refuse when
- * `locals.rateLimited` is set — a page with `429`, the sign-in with a redirect to the sign-in page: the hook has already
- * let the request through.
+ * with the headers of every response rather than as a bare error page or the JSON error of the API: the public pages
+ * of a receipt and of a confirmation of a category, the catalog pages (with their `__data.json`) and the sign-in through
+ * FSP ID. Such a route must refuse when `locals.rateLimited` is set — a page with `429`, the sign-in with a redirect to
+ * the sign-in page: the hook has already let the request through.
  */
 export function refusedByPage(method: string, pathname: string): boolean {
 	return (

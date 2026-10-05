@@ -112,7 +112,7 @@ const lexicon: SkillLexicon = {
 
 const RESUME = {
 	input: { type: 'document_extraction', id: 'extraction-1' },
-	schemaVersion: 'resume-extract/v2',
+	schemaVersion: 'resume-extract/v3',
 	taxonomyVersionId: 'taxonomy-1',
 	blocks: [
 		{ id: 'p1-b001', text: 'Backend-разработчик 🚀 ООО «Ромашка», 2021 — 2024' },
@@ -129,6 +129,9 @@ const resumeAnswer = (arrays: Record<string, unknown[]>) =>
 		education: [],
 		languages: [],
 		achievements: [],
+		full_name: [],
+		contacts: [],
+		soft_skills: [],
 		...arrays
 	});
 

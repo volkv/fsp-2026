@@ -59,7 +59,7 @@ export async function loadResumeTaxonomy(executor: Executor): Promise<ResumeTaxo
 }
 
 /**
- * Aliases the quote of a skill is checked against, in an answer of `resume-extract/v2` and in the items of the rules
+ * Aliases the quote of a skill is checked against, in an answer of `resume-extract/v3` and in the items of the rules
  * alike (docs/contracts.md, section 3.2).
  */
 export function resumeLexicon(taxonomy: ResumeTaxonomy): SkillLexicon {

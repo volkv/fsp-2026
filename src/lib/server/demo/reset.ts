@@ -113,6 +113,9 @@ export const DEMO_RESET_PLAN: Readonly<Record<string, TableDecision>> = {
 	assessment_objections: clear,
 	candidate_surveys: clear,
 	grade_declarations: clear,
+	profile_experience_entries: clear,
+	profile_suggestions: clear,
+	category_attestations: clear,
 	unknown_skill_mentions: clear,
 	// Vacancies, matches, invitations and hiring (domain 13).
 	vacancies: clear,

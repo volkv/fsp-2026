@@ -217,6 +217,12 @@
 									<dd>{contacts.phone}</dd>
 								</div>
 							{/if}
+							{#if contacts.telegram}
+								<div>
+									<dt class="text-muted-foreground">Telegram</dt>
+									<dd>{contacts.telegram}</dd>
+								</div>
+							{/if}
 						</dl>
 						<p class="text-xs text-muted-foreground">
 							Раскрыто: {contacts.fields.map((field) => DISCLOSURE_FIELD_LABELS[field] ?? field).join(', ')}.

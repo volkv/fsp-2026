@@ -135,6 +135,16 @@ const GROUPS = {
 		'assessment.artifact_viewed'
 	],
 	receipts: ['receipt.verified'],
+	profile: [
+		'profile.updated',
+		'profile.suggestion_decided',
+		'profile.experience_changed',
+		'company_block.added',
+		'company_block.removed',
+		'profile.pdf_issued',
+		'attestation.verified',
+		'attestation.holder_checked'
+	],
 	integrations: [
 		'fsp.sync_completed',
 		'fsp.webhook_rejected',
@@ -251,6 +261,21 @@ const SPECIFIC_DETAILS: Partial<Record<AuditAction, z.ZodType>> = {
 		handle: token,
 		result: z.enum(['valid', 'superseded', 'annulled', 'not_valid', 'not_found'])
 	}),
+	// Names of the changed fields only, never their values (section 18.1).
+	'profile.updated': withKeys({ fields: z.array(token).min(1) }),
+	'profile.suggestion_decided': withKeys({
+		field: z.enum(['full_name', 'phone', 'email', 'telegram', 'soft_skill']),
+		decision: z.enum(['accepted', 'rejected'])
+	}),
+	'profile.experience_changed': withKeys({ change: z.enum(['added', 'updated', 'removed']) }),
+	'company_block.added': withKeys({ company_id: token }),
+	'company_block.removed': withKeys({ company_id: token }),
+	'profile.pdf_issued': withKeys({ attestations: z.array(token), issued: z.int().nonnegative() }),
+	'attestation.verified': withKeys({
+		handle: token,
+		result: z.enum(['valid', 'superseded', 'annulled', 'not_found'])
+	}),
+	'attestation.holder_checked': withKeys({ handle: token, result: z.enum(['matches', 'differs', 'not_found']) }),
 	'fsp.sync_completed': withKeys({ fact_count: z.int().nonnegative(), complete: z.boolean() }),
 	'fsp.withdrawals_skipped_incomplete': withKeys({ missing_count: z.int().nonnegative() }),
 	'fsp.batch_imported': z.union([FSP_BATCH_IMPORTED_DETAILS.imported, FSP_BATCH_IMPORTED_DETAILS.refused]),

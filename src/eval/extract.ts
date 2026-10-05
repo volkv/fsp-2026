@@ -1,5 +1,5 @@
 // `extract` of the bridge: a resume file goes the product's way — `docparse` through its client, the blocks to the
-// extractor (the model's `resume-extract/v2`, or the deterministic rules), the items through the same quote checks and
+// extractor (the model's `resume-extract/v3`, or the deterministic rules), the items through the same quote checks and
 // into evidence rows (src/lib/server/resumes/parse-job.ts, extract-job.ts). Nothing is written: the rows come back
 // together with the evidence snapshot they would give (the shape `loadSnapshot` reads them in), the quote of every
 // claim with the blocks it points into, the refusals by reason and how long each step took. `rank` stores the rows

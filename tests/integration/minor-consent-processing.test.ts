@@ -49,6 +49,7 @@ vi.mock('$env/dynamic/private', () => ({ env }));
 
 const { closeDb } = await import('$lib/server/db');
 const { testEnvironment } = await import('../helpers/environment');
+const { fieldCrypto } = await import('$lib/server/crypto/fields');
 const resumePage = await import('../../src/routes/(app)/me/resume/+page.server');
 
 const TAXONOMY_DIR = fileURLToPath(new URL('../../taxonomy', import.meta.url));
@@ -371,6 +372,7 @@ describe('a resume of a candidate aged 14–17', () => {
 					return Promise.resolve(fail('disabled', 'extract: switched off', { reason: 'switched_off' }));
 				}
 			}),
+			crypto: fieldCrypto,
 			now
 		});
 		const enqueue = async () => {

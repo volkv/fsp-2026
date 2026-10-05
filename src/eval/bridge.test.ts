@@ -100,7 +100,7 @@ describe('evaluation bridge', () => {
 	it('reads a resume the product way: rules, evidence rows and the snapshot they give', async () => {
 		const document = await extractOne(deps());
 		if (!document.ok) throw new Error('extraction failed');
-		expect(document).toMatchObject({ mode: 'rules_only', producer: 'resume-rules/3', model_failure: null });
+		expect(document).toMatchObject({ mode: 'rules_only', producer: 'resume-rules/4', model_failure: null });
 		const skills = document.claims.filter((c) => c.kind === 'skill_mention').map((c) => c.skill_key);
 		expect(skills).toEqual(expect.arrayContaining(['python', 'django', 'postgresql', 'docker']));
 		expect(document.entries).toHaveLength(1);
@@ -254,7 +254,7 @@ describe('evaluation bridge', () => {
 		expect(answer.results.map((r) => r.skill_key)).toEqual(['postgresql', null]);
 		expect(await handle({ command: 'info' }, deps())).toMatchObject({
 			product_revision: 'abc123',
-			versions: { taxonomy: taxonomy.label, resume_rules: 'resume-rules/3', resume_schema: 'resume-extract/v2' }
+			versions: { taxonomy: taxonomy.label, resume_rules: 'resume-rules/4', resume_schema: 'resume-extract/v3' }
 		});
 	});
 

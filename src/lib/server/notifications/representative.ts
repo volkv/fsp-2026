@@ -15,6 +15,7 @@ export const DISCLOSURE_FIELD_NAMES: Record<DisclosureField, string> = {
 	full_name: 'фамилия, имя и отчество',
 	email: 'адрес почты',
 	phone: 'телефон',
+	telegram: 'имя в Telegram',
 	resume: 'файл резюме'
 };
 

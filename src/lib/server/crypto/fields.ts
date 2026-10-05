@@ -17,6 +17,8 @@ export type FieldContext =
 	| 'candidates.first_name'
 	| 'candidates.middle_name'
 	| 'candidates.phone'
+	| 'candidates.telegram'
+	| 'profile_suggestions.value'
 	| 'legal_representatives.full_name'
 	| 'legal_representatives.email'
 	| 'legal_representatives.phone'

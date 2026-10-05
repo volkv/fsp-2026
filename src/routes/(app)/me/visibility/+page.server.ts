@@ -10,21 +10,33 @@ import {
 import { candidateRequest } from '$lib/server/candidates/http';
 import { formFailure, pageError } from '$lib/server/http/page';
 import { db } from '$lib/server/db';
+import { ApiError } from '$lib/server/errors/api-error';
 import { invitationDeps } from '$lib/server/invitations/deps';
 import { revokeDisclosureConsent } from '$lib/server/invitations/disclosure';
+import {
+	blockCompany,
+	findCompaniesToBlock,
+	listBlockedCompanies,
+	unblockCompany
+} from '$lib/server/profile/company-blocks';
 import type { Actions, PageServerLoad } from './$types';
 
 /**
  * Who sees the profile and on which grounds: the catalog consent with its extra blocks, the pools of competition
- * partners by competition, and disclosed contacts.
+ * partners by competition, disclosed contacts, what a company sees of each field before and after a disclosure, and
+ * the companies the candidate hides from (`?company=` searches the companies to add).
  */
 export const load: PageServerLoad = async (event) => {
 	const { candidateId } = await candidateRequest(event);
 	const now = new Date();
+	const query = event.url.searchParams.get('company') ?? '';
 	try {
 		return {
 			overview: await consentOverview(db(), candidateId, now),
-			partnerPool: await partnerPoolOverview(db(), candidateId, now)
+			partnerPool: await partnerPoolOverview(db(), candidateId, now),
+			blocked: await listBlockedCompanies(db(), candidateId),
+			companyQuery: query,
+			companyOptions: await findCompaniesToBlock(db(), candidateId, query)
 		};
 	} catch (cause) {
 		pageError(event, cause);
@@ -32,6 +44,9 @@ export const load: PageServerLoad = async (event) => {
 };
 
 const optional = (value: string) => (value.trim() === '' ? undefined : value.trim());
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const blockDeps = () => ({ db: db(), now: () => new Date() });
 
 export const actions: Actions = {
 	catalogGrant: async (event) => {
@@ -84,6 +99,32 @@ export const actions: Actions = {
 			return formFailure(cause);
 		}
 		return { poolRevoked: competitionRef };
+	},
+
+	blockCompany: async (event) => {
+		const { subject, meta } = await candidateRequest(event);
+		const form = await event.request.formData();
+		const companyId = formText(form, 'companyId');
+		try {
+			if (!UUID.test(companyId)) throw new ApiError('not_found');
+			await blockCompany(blockDeps(), subject, meta, companyId);
+		} catch (cause) {
+			return formFailure(cause);
+		}
+		return { companyBlocked: true };
+	},
+
+	unblockCompany: async (event) => {
+		const { subject, meta } = await candidateRequest(event);
+		const form = await event.request.formData();
+		const companyId = formText(form, 'companyId');
+		try {
+			if (!UUID.test(companyId)) throw new ApiError('not_found');
+			await unblockCompany(blockDeps(), subject, meta, companyId);
+		} catch (cause) {
+			return formFailure(cause);
+		}
+		return { companyUnblocked: true };
 	},
 
 	disclosureRevoke: async (event) => {

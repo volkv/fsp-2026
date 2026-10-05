@@ -19,6 +19,7 @@ import {
 	athleteLinks,
 	authorityChecks,
 	candidateCategories,
+	categoryAttestations,
 	candidateCompanyBlocks,
 	candidates,
 	candidateSurveys,
@@ -27,6 +28,8 @@ import {
 	disclosures,
 	documentAcceptances,
 	documentExtractions,
+	profileExperienceEntries,
+	profileSuggestions,
 	emailTokens,
 	embeddings,
 	erasureLedger,
@@ -334,6 +337,13 @@ async function eraseEvidence(
 			.where(eq(assessmentObjections.candidateId, candidateId))
 			.returning({ id: assessmentObjections.id })
 	);
+	// The confirmations of the categories go with them: their check answers `404` afterwards (domain 12.9).
+	removal.add(
+		await tx
+			.delete(categoryAttestations)
+			.where(eq(categoryAttestations.candidateId, candidateId))
+			.returning({ id: categoryAttestations.id })
+	);
 	removal.add(
 		await tx
 			.delete(candidateCategories)
@@ -358,6 +368,19 @@ async function eraseEvidence(
 	);
 	removal.add(
 		await tx.delete(sourceFacts).where(eq(sourceFacts.candidateId, candidateId)).returning({ id: sourceFacts.id })
+	);
+	// The suggestions of the profile fields, with the values of the name and the contacts in them, before their readings.
+	removal.add(
+		await tx
+			.delete(profileSuggestions)
+			.where(eq(profileSuggestions.candidateId, candidateId))
+			.returning({ id: profileSuggestions.id })
+	);
+	removal.add(
+		await tx
+			.delete(profileExperienceEntries)
+			.where(eq(profileExperienceEntries.candidateId, candidateId))
+			.returning({ id: profileExperienceEntries.id })
 	);
 	if (ids.resumeIds.length > 0) {
 		removal.add(
@@ -579,6 +602,7 @@ async function tombstoneProfile(tx: Transaction, candidateId: string): Promise<v
 			firstNameEnc: null,
 			middleNameEnc: null,
 			phoneEnc: null,
+			telegramEnc: null,
 			birthDate: null,
 			birthDatePrecision: null,
 			birthDateSource: null,
@@ -589,6 +613,7 @@ async function tombstoneProfile(tx: Transaction, candidateId: string): Promise<v
 			visibility: 'hidden',
 			headline: null,
 			desiredRoleKeys: [],
+			softSkillKeys: [],
 			preferences: {},
 			purgeAfter: null
 		})

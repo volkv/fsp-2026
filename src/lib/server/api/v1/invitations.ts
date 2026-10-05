@@ -563,6 +563,7 @@ export const disclosedContacts = defineOperation({
 				.optional(),
 			email: z.string().optional(),
 			phone: z.string().nullable().optional(),
+			telegram: z.string().nullable().optional().describe('Telegram кандидата `@name`; `null` — не указан'),
 			resume_file_id: z.uuid().nullable().optional()
 		})
 	},
@@ -580,6 +581,7 @@ export const disclosedContacts = defineOperation({
 			...(contacts.fullName === undefined ? {} : { full_name: contacts.fullName }),
 			...(contacts.email === undefined ? {} : { email: contacts.email }),
 			...(contacts.phone === undefined ? {} : { phone: contacts.phone }),
+			...(contacts.telegram === undefined ? {} : { telegram: contacts.telegram }),
 			...(contacts.resumeFileId === undefined ? {} : { resume_file_id: contacts.resumeFileId })
 		};
 	}

@@ -1,11 +1,17 @@
 // Checked items of a resume → the evidence rows (docs/domain.md, sections 9.1, 9.2, 9.5): one `resume_document` fact,
-// a claim per item with its quote, and an experience entry per job group. Pure: the same items give the same rows, the
+// a claim per item with its quote, and an experience entry per job group. Values of the candidate's own profile fields
+// (the name, the contacts, the soft skills) are not evidence and never become claims: `profile/suggestions.ts` plans them. Pure: the same items give the same rows, the
 // identifiers are generated here so that the claims and the entries can refer to each other before the insert.
 import { createHash } from 'node:crypto';
 import { canonicalJson } from '$lib/server/json/canonical';
 import { uuidv7 } from '$lib/server/ids';
 import type { Rejected } from '$lib/server/ml/extract-common';
-import type { ResumeItem } from '$lib/server/ml/resume-extract';
+import {
+	isEvidenceItem,
+	type EvidenceItemKind,
+	type ResumeItem,
+	type ResumeItemOf
+} from '$lib/server/ml/resume-extract';
 import { matchSkill } from '$lib/server/taxonomy/normalize';
 import { findMarker } from './markers';
 import { parsePeriod, type ParsedPeriod } from './periods';
@@ -30,7 +36,7 @@ export interface FactDraft {
 
 export interface ClaimDraft {
 	id: string;
-	claimType: ResumeItem['kind'];
+	claimType: EvidenceItemKind;
 	experienceEntryId: string | null;
 	rawText: string;
 	polarity: ResumeItem['polarity'];
@@ -109,14 +115,14 @@ export function planEvidence(items: readonly ResumeItem[], source: EvidenceSourc
 	});
 
 	const rejected: Rejected[] = [];
-	const kept = items.filter((item) => {
+	const kept = items.filter(isEvidenceItem).filter((item) => {
 		const native =
 			item.kind === 'language_level' && NATIVE_LANGUAGE.test(`${item.rawText} ${item.level ?? ''} ${item.quote.text}`);
 		if (native) rejected.push({ item, reason: 'forbidden_field' });
 		return !native;
 	});
 
-	const groups = new Map<string, ResumeItem[]>();
+	const groups = new Map<string, ResumeItemOf<EvidenceItemKind>[]>();
 	for (const item of kept) {
 		if (item.group === null) continue;
 		groups.set(item.group, [...(groups.get(item.group) ?? []), item]);
@@ -162,7 +168,7 @@ export function planEvidence(items: readonly ResumeItem[], source: EvidenceSourc
 	});
 
 	const entries: EntryDraft[] = [...groups.entries()].map(([label, group]) => {
-		const first = (kind: ResumeItem['kind']) => group.find((item) => item.kind === kind) ?? null;
+		const first = (kind: EvidenceItemKind) => group.find((item) => item.kind === kind) ?? null;
 		const title = first('role_title');
 		const periodItem = first('experience_period');
 		const organization = first('organization')?.rawText ?? periodItem?.organization ?? null;

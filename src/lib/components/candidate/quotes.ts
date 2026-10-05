@@ -250,16 +250,17 @@ export function periodText(entry: ResumeEntryView): string | null {
 
 /**
  * The fields of the current resume as the pages show them: every claim and experience entry with its parsed quotes and
- * the key it marks the document with, and the document text of this reading with those quotes marked.
+ * the key it marks the document with, and the document text of this reading with those quotes marked — together with
+ * the quotes of other sources pointing into the same reading (the suggestions of profile fields, `suggestion:<id>`).
  */
-export function resumeFields<
-	C extends { id: string; quote: unknown },
-	E extends { id: string; quotes: unknown }
->(current: {
-	claims: readonly C[];
-	experience: readonly E[];
-	document: { extractionId: string; text: string; blocks: unknown } | null;
-}): {
+export function resumeFields<C extends { id: string; quote: unknown }, E extends { id: string; quotes: unknown }>(
+	current: {
+		claims: readonly C[];
+		experience: readonly E[];
+		document: { extractionId: string; text: string; blocks: unknown } | null;
+	},
+	extra: readonly QuoteSource[] = []
+): {
 	claims: (Omit<C, 'quote'> & { quote: ResumeQuote; sourceKey: string })[];
 	experience: (Omit<E, 'quotes'> & { quotes: ResumeQuote[]; sourceKey: string })[];
 	document: DocumentView | null;
@@ -276,7 +277,8 @@ export function resumeFields<
 	}));
 	const sources: QuoteSource[] = [
 		...claims.map((claim) => ({ key: claim.sourceKey, quotes: [claim.quote] })),
-		...experience.map((entry) => ({ key: entry.sourceKey, quotes: entry.quotes }))
+		...experience.map((entry) => ({ key: entry.sourceKey, quotes: entry.quotes })),
+		...extra
 	];
 	return {
 		claims,

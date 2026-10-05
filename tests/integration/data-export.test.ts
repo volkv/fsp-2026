@@ -877,7 +877,7 @@ describe('the export of own data', () => {
 		// The API gives the same document: its response schema keeps every section.
 		const api = await exportThroughApi(anna.userId);
 		expect(api.status, JSON.stringify(api.json)).toBe(200);
-		expect(api.json.format).toBe('fsp-career-data-export/v3');
+		expect(api.json.format).toBe('fsp-career-data-export/v4');
 		expect(document.surveys.map((survey) => [survey.version, survey.specialization])).toEqual([
 			[1, 'frontend'],
 			[2, 'backend']

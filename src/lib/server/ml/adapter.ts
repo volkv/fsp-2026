@@ -26,7 +26,7 @@ export interface CallOptions {
 /** Each `extract` schema: what it reads, which taxonomy keys it needs, what it returns. */
 export interface ExtractSchemas {
 	/** A resume: blocks of `document_extractions`. */
-	'resume-extract/v2': { input: { type: 'document_extraction'; id: string }; lexicon: SkillLexicon; item: ResumeItem };
+	'resume-extract/v3': { input: { type: 'document_extraction'; id: string }; lexicon: SkillLexicon; item: ResumeItem };
 	/** Vacancy text pasted by an employer: paragraphs of the text. */
 	'vacancy-extract/v2': {
 		input: { type: 'vacancy'; id: string; revision: number };
@@ -102,7 +102,7 @@ const extractBlocks = z
 
 const extractRequestSchema = z.discriminatedUnion('schemaVersion', [
 	z.object({
-		schemaVersion: z.literal('resume-extract/v2'),
+		schemaVersion: z.literal('resume-extract/v3'),
 		input: z.object({ type: z.literal('document_extraction'), id: z.string().min(1) }),
 		taxonomyVersionId: z.string().min(1),
 		blocks: extractBlocks
@@ -121,7 +121,7 @@ function prepareExtract<V extends ExtractSchemaVersion>(
 ): PreparedExtract<ExtractSchemas[V]['item']> {
 	// The request schema ties the version to its lexicon type; TypeScript cannot follow that through the switch.
 	switch (version) {
-		case 'resume-extract/v2':
+		case 'resume-extract/v3':
 			return prepareResumeExtract(lexicon);
 		case 'vacancy-extract/v2':
 			return prepareVacancyExtract(lexicon as VacancyLexicon);

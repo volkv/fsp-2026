@@ -66,6 +66,7 @@ export interface RecipientContacts {
 	fullName?: { last: string | null; first: string | null; middle: string | null };
 	email?: string;
 	phone?: string | null;
+	telegram?: string | null;
 	resumeFileId?: string | null;
 }
 
@@ -97,6 +98,7 @@ export async function recipientContacts(
 						firstNameEnc: candidates.firstNameEnc,
 						middleNameEnc: candidates.middleNameEnc,
 						phoneEnc: candidates.phoneEnc,
+						telegramEnc: candidates.telegramEnc,
 						emailEnc: users.emailEnc
 					})
 					.from(candidates)
@@ -124,6 +126,7 @@ export async function recipientContacts(
 					contacts.email = email;
 				}
 				if (fields.has('phone')) contacts.phone = open(candidate.phoneEnc, 'candidates.phone');
+				if (fields.has('telegram')) contacts.telegram = open(candidate.telegramEnc, 'candidates.telegram');
 				if (fields.has('resume')) {
 					const [resume] = await tx
 						.select({ fileId: resumeDocuments.fileId })

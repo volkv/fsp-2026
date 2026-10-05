@@ -4,6 +4,9 @@
 	import TrophyIcon from '@lucide/svelte/icons/trophy';
 	import { resolve } from '$app/paths';
 	import ExternalProfiles from '$lib/components/candidate/external-profiles.svelte';
+	import ManualExperience from '$lib/components/candidate/manual-experience.svelte';
+	import ProfileFields from '$lib/components/candidate/profile-fields.svelte';
+	import ProfilePdf from '$lib/components/candidate/profile-pdf.svelte';
 	import FactCard from '$lib/components/candidate/fact-card.svelte';
 	import { SEARCH_STATUSES, type FactSource, type FactView } from '$lib/components/candidate/model.js';
 	import ResumeSummary from '$lib/components/candidate/resume-summary.svelte';
@@ -48,6 +51,18 @@
 	// An upload supersedes the fact of the previous resume, so the one resume fact in force is the current resume's.
 	const [resumeFact = null, ...earlierResumeFacts] = $derived(factsOf('resume'));
 	const profileResult = $derived(form && 'target' in form ? form : null);
+	const own = $derived(data.own);
+	/** The answer of an action on the own fields, the suggestions or the experience stated by hand. */
+	const ownResult = $derived(
+		form &&
+			'target' in form &&
+			typeof form.target === 'string' &&
+			!form.target.startsWith('profile:') &&
+			form.target !== 'link'
+			? form
+			: null
+	);
+	const showSuggestion = $derived(data.resume?.document ? showResumeField : null);
 
 	const CONSENT_STATES = {
 		effective: 'Действует',
@@ -93,6 +108,21 @@
 		</dd>
 	</div>
 </dl>
+
+<SectionCard
+	title="Данные профиля"
+	description="ФИО, контакты, желаемая должность и мягкие навыки — заполните вручную или примите найденное в резюме. ФИО и контакты хранятся зашифрованными: компания видит их только после вашего согласия на раскрытие."
+	testId="profile-fields"
+>
+	<ProfileFields
+		profile={own.profile}
+		suggestions={own.suggestions}
+		softSkills={data.softSkills}
+		maxSoftSkills={data.maxSoftSkills}
+		result={ownResult}
+		onshow={showSuggestion}
+	/>
+</SectionCard>
 
 <SectionCard
 	title="Достижения ФСП"
@@ -240,4 +270,31 @@
 			{/each}
 		</ul>
 	{/if}
+</SectionCard>
+
+<SectionCard
+	title="Опыт, указанный вручную"
+	description="Места работы с ваших слов — например, те, что не вошли в резюме. Они попадают в PDF-профиль с пометкой «указано кандидатом»; подсказка грейда, категория и подбор опираются на резюме и тесты."
+	testId="manual-experience-section"
+>
+	<ManualExperience
+		entries={own.experience}
+		months={own.experienceMonthsText}
+		skills={data.skills}
+		roles={data.roles}
+		result={ownResult}
+	/>
+</SectionCard>
+
+<SectionCard
+	title="PDF-профиль"
+	description="Стандартный профиль одного вида для всех кандидатов: категория с QR-кодом на подписанное подтверждение, стек, опыт, достижения ФСП. Файл формируется для вас и нигде не хранится."
+	testId="pdf-section"
+>
+	<ProfilePdf
+		hasName={own.profile.fullName !== null}
+		hasPhone={own.profile.phone !== null}
+		hasTelegram={own.profile.telegram !== null}
+		attestations={own.attestations}
+	/>
 </SectionCard>

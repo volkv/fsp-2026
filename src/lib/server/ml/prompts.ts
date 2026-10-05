@@ -39,7 +39,11 @@ Return compact JSON on a single line, without indentation or line breaks, matchi
 - quote: an exact, contiguous fragment of that block's text that states the fact, copied character for character in the original language and letter case. Keep it short: the words that state the fact, not the whole block;
 - the fields of its array, listed below. Every field is required: copy values from the quote as written, and write "${NOT_STATED}" where a field says so and the text does not state it.
 
-First, job_count: the number of places of work in the work experience, counted before writing them. The array jobs then has exactly that many elements.
+First, the person's own details from the top of the resume and its contacts section:
+- full_name: the person's full name as written at the top, once ("Иванов Иван Сергеевич", "Ivan Petrov"); never a company, a position or a reference's name.
+- contacts: one element per contact of the person; kind is "phone", "email" or "telegram", raw_text is the contact as written ("+7 (912) 345-67-89", "ivan@mail.ru", "@ivan_dev", "t.me/ivan_dev"). Only the person's own contacts, never a company's or a reference's.
+
+Then job_count: the number of places of work in the work experience, counted before writing them. The array jobs then has exactly that many elements.
 
 Arrays:
 - jobs: one element per place of work in the work experience, each once, in the order of the resume. A job is never written empty or again: after the last place of work the array ends. The line under the person's name at the top is the position they want, not a job: never use it as a job title. Each job has its own arrays:
@@ -53,10 +57,11 @@ Arrays:
 - education: one element per school or university; institution is its name as written ("Уральский технический университет"), not the degree, the specialty or the year. The quote holds the name.
 - languages: one element per foreign language; language is its name as written ("Английский", "English"). level is the CEFR level the line states, one of ${LANGUAGE_LEVELS.map((level) => `"${level}"`).join(', ')}, or "${NOT_STATED}": "B2", "B2 — Средне-продвинутый" and "Upper-Intermediate" are "B2", "A2 — Элементарный" is "A2", "Родной" is "native". The quote is that language's own line and holds the language and the level as the line writes them. Skip the native language.
 - achievements: awards, competition results, publications and certificates, raw_text as written.
+- soft_skills: one element per personal quality or soft skill the person states about themselves ("коммуникабельность", "работа в команде", "наставничество", "стрессоустойчивость", "teamwork"); raw_text is only the quality, as written.
 
 Polarity of a skill: "asserted"; "negated" when the text says the person did not do or does not know it ("не работал с Go"); "uncertain" when the person is only learning, planning or vaguely familiar ("изучаю Rust", "знаком поверхностно"). A skill the person does not know or only learns is still an element, with that polarity.
 
-Extract only what the text states. Do not infer, translate or complete facts. Never output anything about gender, age, date of birth, citizenship, nationality, marital status, health, religion, photo, address or contacts.`;
+Extract only what the text states. Do not infer, translate or complete facts. The name and the contacts go only into full_name and contacts, never into another array. Never output anything about gender, age, date of birth, citizenship, nationality, marital status, health, religion, photo or address.`;
 
 export function vacancySystemPrompt(lexicon: VacancyLexicon): string {
 	const list = (values: readonly string[]) => values.map((value) => `"${value}"`).join(', ');

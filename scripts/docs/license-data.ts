@@ -216,10 +216,19 @@ export const MODELS: readonly { reference: string; name: string; version: string
 
 export const MODEL_LICENSE_SOURCE = 'карточка модели на Hugging Face, LICENSE репозитория vLLM';
 
-/** Fonts in static/fonts by directory; each directory carries its OFL.txt. */
-export const FONTS: Readonly<Record<string, { name: string; license: string; version: string }>> = {
-	inter: { name: 'Inter', license: 'OFL-1.1', version: 'вариативный, 100–900' },
-	'jetbrains-mono': { name: 'JetBrains Mono', license: 'OFL-1.1', version: '400, 500, 700' }
+/**
+ * Fonts of the repository by directory: every directory of static/fonts (the interface) and the fonts the server
+ * embeds into the PDF profile; each directory carries its OFL.txt.
+ */
+export const FONTS: Readonly<Record<string, { name: string; license: string; version: string; note?: string }>> = {
+	'static/fonts/inter': { name: 'Inter', license: 'OFL-1.1', version: 'вариативный, 100–900' },
+	'static/fonts/jetbrains-mono': { name: 'JetBrains Mono', license: 'OFL-1.1', version: '400, 500, 700' },
+	'src/lib/server/profile/fonts': {
+		name: 'Inter',
+		license: 'OFL-1.1',
+		version: '4.1, Regular и SemiBold (TTF)',
+		note: 'шрифт PDF-профиля кандидата'
+	}
 };
 
 /** Chromium that renders the PDF of the documentation, as installed by Playwright. */

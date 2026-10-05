@@ -227,7 +227,7 @@ async function extractByRules(resumeDocumentId: string): Promise<void> {
 		.from(documentExtractions)
 		.where(eq(documentExtractions.resumeDocumentId, resumeDocumentId));
 	if (!extraction) throw new Error('the parse left no extraction');
-	const handler = createResumeExtractHandler({ adapter: () => noModel, now: () => new Date() });
+	const handler = createResumeExtractHandler({ adapter: () => noModel, crypto: fieldCrypto, now: () => new Date() });
 	await runJob('resume.extract', extraction.id, { extraction_id: extraction.id }, handler);
 }
 

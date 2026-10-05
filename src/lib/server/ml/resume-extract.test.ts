@@ -387,7 +387,10 @@ const FIXTURES = {
 				{ language: 'Русский', level: 'native', block_id: 'p1-b031', quote: 'Русский — родной' },
 				{ language: 'Английский', level: 'C1', block_id: 'p1-b031', quote: 'Английский — C1' }
 			],
-			achievements: []
+			achievements: [],
+			full_name: [],
+			contacts: [],
+			soft_skills: []
 		}
 	},
 	/** Year periods; ordinary duties offered as responsibilities; a skill quoted by another skill's line. */
@@ -445,7 +448,10 @@ const FIXTURES = {
 			],
 			education: [],
 			languages: [],
-			achievements: []
+			achievements: [],
+			full_name: [],
+			contacts: [],
+			soft_skills: []
 		}
 	}
 };
@@ -501,7 +507,10 @@ const REPEATED = {
 				{ language: 'Русский', level: 'native', block_id: 'p1-b022', quote: 'Русский — родной\nАнглийский — B1' },
 				{ language: 'Английский', level: 'B1', block_id: 'p1-b022', quote: 'Русский — родной\nАнглийский — B1' }
 			],
-			achievements: []
+			achievements: [],
+			full_name: [],
+			contacts: [],
+			soft_skills: []
 		};
 	})()
 };
@@ -734,8 +743,24 @@ describe('structured output schema', () => {
 		expect(RESUME_EXTRACT_JSON_SCHEMA).toMatchObject({
 			type: 'object',
 			additionalProperties: false,
-			required: ['job_count', 'jobs', 'skills', 'responsibilities', 'education', 'languages', 'achievements'],
+			required: [
+				'full_name',
+				'contacts',
+				'job_count',
+				'jobs',
+				'skills',
+				'responsibilities',
+				'education',
+				'languages',
+				'achievements',
+				'soft_skills'
+			],
 			properties: {
+				full_name: { ...text, maxItems: 1 },
+				contacts: {
+					...element(['kind', 'raw_text', 'block_id', 'quote']),
+					items: { properties: { kind: { type: 'string', enum: ['phone', 'email', 'telegram'] } } }
+				},
 				job_count: { type: 'integer', minimum: 0, maximum: 10 },
 				jobs: {
 					type: 'array',
@@ -766,9 +791,92 @@ describe('structured output schema', () => {
 						}
 					}
 				},
-				achievements: text
+				achievements: text,
+				soft_skills: text
 			}
 		});
 		expect(RESUME_EXTRACT_JSON_SCHEMA).not.toHaveProperty('$schema');
+	});
+});
+
+describe('profile values (resume-extract/v3)', () => {
+	const blocks = [
+		{ id: 'h1', text: 'Иванова Мария Сергеевна' },
+		{ id: 'h2', text: 'Телефон: +7 (912) 345-67-89 · maria.ivanova@mail.ru · Telegram: @maria_dev' },
+		{ id: 'h3', text: 'О себе: коммуникабельна, умею работать в команде. Не стрессоустойчива.' },
+		{ id: 'h4', text: 'Руководитель: Петров Пётр, +7 900 000-00-00' }
+	];
+	const answer = (arrays: Record<string, unknown[]>) => ({
+		jobs: [],
+		skills: [],
+		responsibilities: [],
+		education: [],
+		languages: [],
+		achievements: [],
+		full_name: [],
+		contacts: [],
+		soft_skills: [],
+		...arrays
+	});
+
+	it('accepts the name, the contacts and the soft skills their quotes state', () => {
+		const { items, rejected } = checkResumeAnswer(
+			answer({
+				full_name: [{ raw_text: 'Иванова Мария Сергеевна', block_id: 'h1', quote: 'Иванова Мария Сергеевна' }],
+				contacts: [
+					{ kind: 'phone', raw_text: '+7 (912) 345-67-89', block_id: 'h2', quote: '+7 (912) 345-67-89' },
+					{ kind: 'email', raw_text: 'maria.ivanova@mail.ru', block_id: 'h2', quote: 'maria.ivanova@mail.ru' },
+					{ kind: 'telegram', raw_text: '@maria_dev', block_id: 'h2', quote: 'Telegram: @maria_dev' }
+				],
+				soft_skills: [
+					{ raw_text: 'коммуникабельна', block_id: 'h3', quote: 'коммуникабельна' },
+					{ raw_text: 'умею работать в команде', block_id: 'h3', quote: 'умею работать в команде' }
+				]
+			}),
+			blocks,
+			lexicon
+		);
+		expect(rejected).toEqual([]);
+		expect(items.map((found) => [found.kind, found.rawText, found.quote.blockId])).toEqual([
+			['full_name', 'Иванова Мария Сергеевна', 'h1'],
+			['soft_skill', 'коммуникабельна', 'h3'],
+			['soft_skill', 'умею работать в команде', 'h3'],
+			['contact_phone', '+7 (912) 345-67-89', 'h2'],
+			['contact_email', 'maria.ivanova@mail.ru', 'h2'],
+			['contact_telegram', '@maria_dev', 'h2']
+		]);
+	});
+
+	it('refuses values the quote does not state and contacts of another kind', () => {
+		const { items, rejected } = checkResumeAnswer(
+			answer({
+				full_name: [{ raw_text: 'Backend-разработчик', block_id: 'h1', quote: 'Иванова Мария' }],
+				contacts: [
+					{ kind: 'phone', raw_text: '+7 (999) 111-22-33', block_id: 'h2', quote: '+7 (912) 345-67-89' },
+					{ kind: 'email', raw_text: '@maria_dev', block_id: 'h2', quote: '@maria_dev' },
+					{ kind: 'fax', raw_text: '123', block_id: 'h2', quote: '123' }
+				],
+				soft_skills: [{ raw_text: 'PostgreSQL', block_id: 'h3', quote: 'коммуникабельна' }]
+			}),
+			blocks,
+			lexicon
+		);
+		expect(items).toEqual([]);
+		expect(rejected.map((entry) => entry.reason)).toEqual([
+			'quote_not_supporting',
+			'quote_not_supporting',
+			'quote_not_supporting',
+			'quote_not_supporting',
+			'unknown_enum'
+		]);
+	});
+
+	it('keeps the polarity of a quality the person denies', () => {
+		const { items } = checkResumeAnswer(
+			answer({ soft_skills: [{ raw_text: 'стрессоустойчива', block_id: 'h3', quote: 'стрессоустойчива' }] }),
+			blocks,
+			lexicon
+		);
+		expect(items.map((found) => [found.kind, found.polarity])).toEqual([['soft_skill', 'negated']]);
 	});
 });

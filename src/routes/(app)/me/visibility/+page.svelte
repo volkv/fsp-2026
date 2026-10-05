@@ -4,6 +4,8 @@
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
 	import { CATALOG_SCOPE, DISCLOSURE_FIELDS, HIDDEN_REASONS } from '$lib/components/candidate/model.js';
+	import { FIELD_PRIVACY } from '$lib/components/candidate/profile';
+	import { Input } from '$lib/components/ui/input/index.js';
 	import PartnerPoolConsent from '$lib/components/candidate/partner-pool-consent.svelte';
 	import SectionCard from '$lib/components/candidate/section-card.svelte';
 	import CsrfInput from '$lib/components/forms/csrf-input.svelte';
@@ -22,7 +24,7 @@
 	const scopes = Object.keys(CATALOG_SCOPE) as (keyof typeof CATALOG_SCOPE)[];
 	const problem = $derived(form && 'problem' in form ? form.problem : null);
 	const fieldLabel = (field: string) =>
-		field === 'full_name' || field === 'email' || field === 'phone' || field === 'resume'
+		field === 'full_name' || field === 'email' || field === 'phone' || field === 'telegram' || field === 'resume'
 			? DISCLOSURE_FIELDS[field]
 			: field;
 </script>
@@ -46,6 +48,10 @@
 	<FormMessage tone="success" text="Карточка убрана из пула партнёров этого соревнования." />
 {:else if form && 'disclosureRevoked' in form}
 	<FormMessage tone="success" text="Согласие на раскрытие контактов отозвано." />
+{:else if form && 'companyBlocked' in form}
+	<FormMessage tone="success" text="Компания больше не видит ваш профиль: ни в поиске, ни в подборках, ни по ссылке." />
+{:else if form && 'companyUnblocked' in form}
+	<FormMessage tone="success" text="Компания убрана из блок-листа." />
 {/if}
 
 <div
@@ -205,6 +211,85 @@
 				</li>
 			{/each}
 		</ul>
+	{/if}
+</SectionCard>
+
+<SectionCard
+	title="Что видно работодателю"
+	description="По каждому полю: что видит компания в каталоге до контакта и что — после того, как вы приняли её предложение и отметили поля для раскрытия."
+	testId="field-privacy"
+>
+	<div class="overflow-x-auto">
+		<table class="w-full text-left text-sm">
+			<thead class="text-muted-foreground">
+				<tr>
+					<th scope="col" class="py-2 pr-4 font-medium">Поле</th>
+					<th scope="col" class="py-2 pr-4 font-medium">В каталоге</th>
+					<th scope="col" class="py-2 font-medium">После раскрытия</th>
+				</tr>
+			</thead>
+			<tbody>
+				{#each FIELD_PRIVACY as row (row.field)}
+					<tr class="border-t align-top">
+						<th scope="row" class="py-2 pr-4 font-medium">{row.field}</th>
+						<td class="py-2 pr-4">{row.before}</td>
+						<td class="py-2">{row.after}</td>
+					</tr>
+				{/each}
+			</tbody>
+		</table>
+	</div>
+</SectionCard>
+
+<SectionCard
+	title="Блок-лист компаний"
+	description="Компания из списка не видит вас нигде: ни в каталоге и поиске, ни в подборках и соответствиях своих вакансий, ни по прямой ссылке. Она не узнаёт, что попала в список."
+	testId="company-blocks"
+>
+	{#if data.blocked.length > 0}
+		<ul class="grid gap-2">
+			{#each data.blocked as company (company.companyId)}
+				<li
+					class="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3 text-sm"
+					data-testid="blocked-company"
+				>
+					<span>
+						<span class="font-medium">{company.displayName}</span>
+						<span class="text-muted-foreground"> · с {formatDate(company.blockedAt)}</span>
+					</span>
+					<form method="POST" action="?/unblockCompany" use:enhance>
+						<CsrfInput />
+						<input type="hidden" name="companyId" value={company.companyId} />
+						<Button type="submit" variant="outline" size="sm">Убрать из списка</Button>
+					</form>
+				</li>
+			{/each}
+		</ul>
+	{:else}
+		<p class="text-sm text-muted-foreground">Список пуст: профиль видят все проверенные компании по вашему согласию.</p>
+	{/if}
+	<form method="GET" class="flex flex-wrap items-end gap-2" data-sveltekit-keepfocus>
+		<label class="grid min-w-64 flex-1 gap-1.5 text-sm">
+			<span>Найти компанию по названию</span>
+			<Input name="company" value={data.companyQuery} autocomplete="off" minlength={2} />
+		</label>
+		<Button type="submit" variant="outline">Найти</Button>
+	</form>
+	{#if data.companyOptions.length > 0}
+		<ul class="grid gap-2" aria-label="Найденные компании">
+			{#each data.companyOptions as company (company.companyId)}
+				<li class="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3 text-sm">
+					<span class="font-medium">{company.displayName}</span>
+					<form method="POST" action="?/blockCompany" use:enhance>
+						<CsrfInput />
+						<input type="hidden" name="companyId" value={company.companyId} />
+						<Button type="submit" size="sm">Скрыть себя от компании</Button>
+					</form>
+				</li>
+			{/each}
+		</ul>
+	{:else if data.companyQuery.trim().length >= 2}
+		<p class="text-sm text-muted-foreground">Компаний с таким названием нет или они уже в списке.</p>
 	{/if}
 </SectionCard>
 

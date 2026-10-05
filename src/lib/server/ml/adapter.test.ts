@@ -71,7 +71,7 @@ const embed = (models: ModelAdapter) =>
 const resumeLexicon: SkillLexicon = { aliasesOf: () => [] };
 const RESUME_REQUEST = {
 	input: { type: 'document_extraction' as const, id: 'extraction-1' },
-	schemaVersion: 'resume-extract/v2' as const,
+	schemaVersion: 'resume-extract/v3' as const,
 	taxonomyVersionId: 'taxonomy-1',
 	blocks: [{ id: 'p1-b001', text: 'Backend-разработчик' }]
 };
@@ -83,7 +83,10 @@ const emptyResumeAnswer = JSON.stringify({
 	responsibilities: [],
 	education: [],
 	languages: [],
-	achievements: []
+	achievements: [],
+	full_name: [],
+	contacts: [],
+	soft_skills: []
 });
 
 const reranked = ok({ results: [{ index: 0, relevance_score: 0.7 }] });

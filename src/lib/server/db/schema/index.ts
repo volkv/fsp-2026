@@ -20,5 +20,6 @@ export * from './matching';
 export * from './ml';
 export * from './notifications';
 export * from './policies';
+export * from './profile';
 export * from './taxonomy';
 export * from './vacancies';

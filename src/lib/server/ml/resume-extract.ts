@@ -1,4 +1,6 @@
-// `resume-extract/v2`: facts of a resume, each with a quote (docs/contracts.md, section 3.2; docs/domain.md, 9.2, 9.5).
+// `resume-extract/v3`: facts of a resume, each with a quote (docs/contracts.md, section 3.2; docs/domain.md, 9.2, 9.5),
+// and the values of the candidate's own profile fields — the name, the contacts, the soft skills — each with a quote as
+// well. The profile values never become evidence: they are suggestions the candidate accepts into the profile or not.
 //
 // The answer has one array per kind of fact, the jobs nested with their own arrays, and every key of an element is
 // required: structured output of the runtime accepts neither nullable types nor optional keys the model reliably fills,
@@ -8,6 +10,8 @@
 import { z } from 'zod';
 import { isPresent, parseDate } from '$lib/server/resumes/periods';
 import { findMarker } from '$lib/server/resumes/markers';
+import { normalizeEmail, normalizePhone, normalizeTelegram, parseFullName } from '$lib/server/profile/contacts';
+import { namesSoftSkill, softSkillOf } from '$lib/server/profile/soft-skills';
 import {
 	NOT_STATED,
 	flatJsonSchema,
@@ -41,10 +45,27 @@ export const RESUME_ITEM_KINDS = [
 	'education',
 	'responsibility_marker',
 	'language_level',
-	'achievement_mention'
+	'achievement_mention',
+	'full_name',
+	'contact_phone',
+	'contact_email',
+	'contact_telegram',
+	'soft_skill'
 ] as const;
 
 export type ResumeItemKind = (typeof RESUME_ITEM_KINDS)[number];
+
+/** Kinds that are values of the candidate's own profile fields, not evidence: they never become claims. */
+export const PROFILE_ITEM_KINDS = [
+	'full_name',
+	'contact_phone',
+	'contact_email',
+	'contact_telegram',
+	'soft_skill'
+] as const satisfies readonly ResumeItemKind[];
+
+export type ProfileItemKind = (typeof PROFILE_ITEM_KINDS)[number];
+export type EvidenceItemKind = Exclude<ResumeItemKind, ProfileItemKind>;
 
 /**
  * One fact before its checks, in the shape every extractor answers in: the elements of the model's answer are turned
@@ -70,6 +91,13 @@ const textElement = z.strictObject({ raw_text: z.string(), ...located });
 const skillElement = z.strictObject({ raw_text: z.string(), polarity: z.enum(POLARITIES), ...located });
 const periodElement = z.strictObject({ date_from: z.string(), date_to: z.string(), ...located });
 const educationElement = z.strictObject({ institution: z.string(), ...located });
+/** The kind of a contact goes first: the model decides what it copies before it copies it. */
+const CONTACT_KINDS = { phone: 'contact_phone', email: 'contact_email', telegram: 'contact_telegram' } as const;
+const contactElement = z.strictObject({
+	kind: z.enum(['phone', 'email', 'telegram']),
+	raw_text: z.string(),
+	...located
+});
 /**
  * The level comes after the quote: the model writes the level it has just copied. Before the quote it wrote a wrong
  * level of the list on six documents of the evaluation set («C2» for «Английский — C1»).
@@ -95,7 +123,9 @@ const RESUME_ARRAYS = {
 	responsibilities: { kind: 'responsibility_marker', schema: textElement },
 	education: { kind: 'education', schema: educationElement },
 	languages: { kind: 'language_level', schema: languageElement },
-	achievements: { kind: 'achievement_mention', schema: textElement }
+	achievements: { kind: 'achievement_mention', schema: textElement },
+	full_name: { kind: 'full_name', schema: textElement },
+	soft_skills: { kind: 'soft_skill', schema: textElement }
 } as const satisfies Record<string, { kind: ResumeItemKind; schema: z.ZodObject }>;
 
 type JobKey = keyof typeof JOB_ARRAYS;
@@ -110,7 +140,18 @@ const RESUME_KEYS = Object.keys(RESUME_ARRAYS) as ResumeKey[];
  * one job: its own lines name far fewer; more is the skills section copied into the job, which the product refuses as
  * not the job's.
  */
-const MAX = { jobs: 10, heading: 2, jobSkills: 25, skills: 80, responsibilities: 10, entries: 10, achievements: 20 };
+const MAX = {
+	jobs: 10,
+	heading: 2,
+	jobSkills: 25,
+	skills: 80,
+	responsibilities: 10,
+	entries: 10,
+	achievements: 20,
+	names: 1,
+	contacts: 6,
+	softSkills: 15
+};
 
 const jobSchema = z.strictObject({
 	role_titles: z.array(textElement).max(MAX.heading),
@@ -121,18 +162,21 @@ const jobSchema = z.strictObject({
 });
 
 /**
- * The answer: the number of jobs, then the jobs in the order of the resume, then the facts of the rest of it. The model
- * counts the places of work before it writes them: it counts them right and pads the array less (fewer tokens); the
- * product reads the jobs, not the count.
+ * The answer: the name and the contacts from the top of the resume, the number of jobs, then the jobs in the order of
+ * the resume, then the facts of the rest of it. The model counts the places of work before it writes them: it counts
+ * them right and pads the array less (fewer tokens); the product reads the jobs, not the count.
  */
 const resumeAnswerSchema = z.strictObject({
+	full_name: z.array(textElement).max(MAX.names),
+	contacts: z.array(contactElement).max(MAX.contacts),
 	job_count: z.int().min(0).max(MAX.jobs),
 	jobs: z.array(jobSchema).max(MAX.jobs),
 	skills: z.array(skillElement).max(MAX.skills),
 	responsibilities: z.array(textElement).max(MAX.responsibilities),
 	education: z.array(educationElement).max(MAX.entries),
 	languages: z.array(languageElement).max(MAX.entries),
-	achievements: z.array(textElement).max(MAX.achievements)
+	achievements: z.array(textElement).max(MAX.achievements),
+	soft_skills: z.array(textElement).max(MAX.softSkills)
 });
 
 export const RESUME_EXTRACT_JSON_SCHEMA = flatJsonSchema(resumeAnswerSchema);
@@ -141,7 +185,10 @@ const unknownArrays = <K extends string>(keys: readonly K[]) =>
 	z.object(Object.fromEntries(keys.map((key) => [key, z.array(z.unknown())])) as Record<K, z.ZodArray<z.ZodUnknown>>);
 
 const jobEnvelopeSchema = unknownArrays(JOB_KEYS);
-const resumeEnvelopeSchema = unknownArrays(RESUME_KEYS).extend({ jobs: z.array(z.unknown()) });
+const resumeEnvelopeSchema = unknownArrays(RESUME_KEYS).extend({
+	jobs: z.array(z.unknown()),
+	contacts: z.array(z.unknown())
+});
 
 export interface ResumeItem {
 	kind: ResumeItemKind;
@@ -156,6 +203,14 @@ export interface ResumeItem {
 	level: string | null;
 	quote: QuoteLocation;
 }
+
+/** An item of one kind. */
+export type ResumeItemOf<K extends ResumeItemKind> = ResumeItem & { kind: K };
+
+export const isProfileItem = (item: ResumeItem): item is ResumeItemOf<ProfileItemKind> =>
+	(PROFILE_ITEM_KINDS as readonly string[]).includes(item.kind);
+
+export const isEvidenceItem = (item: ResumeItem): item is ResumeItemOf<EvidenceItemKind> => !isProfileItem(item);
 
 const YEAR = /(?<!\d)(?:19|20)\d{2}(?!\d)/gu;
 
@@ -178,6 +233,8 @@ function periodSupported(item: ResumeCandidate, quote: string): boolean {
 	return [...yearsOf(from), ...yearsOf(to)].every((year) => inQuote.has(year));
 }
 
+const digitsOf = (text: string): string => text.replace(/\D/gu, '');
+
 /** The quote supports the item: a skill by an alias, a period by its dates, other kinds by their raw text. */
 function quoteSupports(item: ResumeCandidate, quote: string, lexicon: SkillLexicon): boolean {
 	const text = fold(quote);
@@ -191,6 +248,21 @@ function quoteSupports(item: ResumeCandidate, quote: string, lexicon: SkillLexic
 		case 'responsibility_marker':
 			// A responsibility is a marker the product recognises (mentoring, leading a team, architecture) or nothing.
 			return text.includes(fold(item.raw_text)) && findMarker(quote) !== null;
+		// A value of a profile field is written in the quote and reads as such a value.
+		case 'full_name':
+			return text.includes(fold(item.raw_text)) && parseFullName(item.raw_text) !== null;
+		case 'contact_phone':
+			return normalizePhone(item.raw_text) !== null && digitsOf(quote).includes(digitsOf(item.raw_text));
+		case 'contact_email':
+			return text.includes(fold(item.raw_text)) && normalizeEmail(item.raw_text) !== null;
+		case 'contact_telegram': {
+			const handle = normalizeTelegram(item.raw_text);
+			return handle !== null && text.includes(fold(handle.slice(1)));
+		}
+		case 'soft_skill': {
+			const skill = softSkillOf(item.raw_text);
+			return skill !== null && namesSoftSkill(quote, skill);
+		}
 		default:
 			return text.includes(fold(item.raw_text));
 	}
@@ -382,6 +454,17 @@ export function checkResumeAnswer(
 		const { kind, schema } = RESUME_ARRAYS[key];
 		for (const raw of answer[key]) checkElement(kind, schema, raw, undefined);
 	}
+	// A contact's kind is a value of the element: it is read once the element passes its schema.
+	for (const raw of answer.contacts) {
+		const parsed = contactElement.safeParse(raw);
+		if (!parsed.success) {
+			const failure = itemSchemaFailure(contactElement, ['kind'], raw);
+			if (!failure) throw new Error('a contact element failed its schema without a reason');
+			rejected.push({ item: { kind: 'contact', element: failure.item }, reason: failure.reason });
+			continue;
+		}
+		checkElement(CONTACT_KINDS[parsed.data.kind], contactElement, raw, undefined);
+	}
 	return { items: dropRepeats(dropIncompleteGroups(accepted, rejected), rejected), rejected };
 }
 
@@ -445,7 +528,7 @@ function dropRepeats(accepted: readonly ResumeItem[], rejected: Rejected[]): Res
 
 export function prepareResumeExtract(lexicon: SkillLexicon): PreparedExtract<ResumeItem> {
 	return {
-		schemaName: 'resume_extract_v2',
+		schemaName: 'resume_extract_v3',
 		jsonSchema: RESUME_EXTRACT_JSON_SCHEMA,
 		systemPrompt: RESUME_SYSTEM_PROMPT,
 		check: (answer, blocks) => {
@@ -453,7 +536,7 @@ export function prepareResumeExtract(lexicon: SkillLexicon): PreparedExtract<Res
 			if (!envelope.success) {
 				return {
 					ok: false,
-					problem: `the answer must be an object with the arrays jobs, ${RESUME_KEYS.join(', ')}`
+					problem: `the answer must be an object with the arrays jobs, contacts, ${RESUME_KEYS.join(', ')}`
 				};
 			}
 			return { ok: true, checked: checkResumeAnswer(envelope.data, blocks, lexicon) };

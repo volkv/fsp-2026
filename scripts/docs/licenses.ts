@@ -470,25 +470,30 @@ function modelGroup(): ComponentGroup {
 }
 
 function fontGroup(): ComponentGroup {
-	const dirs = readdirSync(join(ROOT, 'static/fonts'), { withFileTypes: true }).filter((entry) => entry.isDirectory());
+	const interfaceFonts = readdirSync(join(ROOT, 'static/fonts'), { withFileTypes: true })
+		.filter((entry) => entry.isDirectory())
+		.map((entry) => `static/fonts/${entry.name}`);
+	for (const dir of interfaceFonts) {
+		if (FONTS[dir] === undefined) throw new Error(`${dir}: add the font to FONTS in license-data.ts`);
+	}
 	return {
 		title: 'Шрифты',
-		description: 'Файлы шрифтов в `static/fonts`, рядом с каждым — текст лицензии `OFL.txt`.',
-		components: dirs
-			.map((dir) => dir.name)
+		description:
+			'Файлы шрифтов интерфейса в `static/fonts` и шрифт PDF-профиля в `src/lib/server/profile/fonts`, рядом с ' +
+			'каждым — текст лицензии `OFL.txt`.',
+		components: Object.keys(FONTS)
 			.sort()
 			.map((dir) => {
 				const font = FONTS[dir];
-				if (font === undefined) throw new Error(`static/fonts/${dir}: add the font to FONTS in license-data.ts`);
-				if (!existsSync(join(ROOT, 'static/fonts', dir, 'OFL.txt'))) {
-					throw new Error(`static/fonts/${dir} has no OFL.txt`);
-				}
+				if (font === undefined) throw new Error(`${dir} is not in FONTS`);
+				if (!existsSync(join(ROOT, dir, 'OFL.txt'))) throw new Error(`${dir} has no OFL.txt`);
 				return {
 					kind: 'font',
 					name: font.name,
 					version: font.version,
 					license: font.license,
-					source: `static/fonts/${dir}/OFL.txt`
+					source: `${dir}/OFL.txt`,
+					...(font.note === undefined ? {} : { note: font.note })
 				};
 			})
 	};

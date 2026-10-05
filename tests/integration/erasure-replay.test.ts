@@ -21,9 +21,12 @@ import {
 	erasureLedger,
 	files,
 	gradeDeclarations,
+	profileExperienceEntries,
 	staffRoles,
 	users
 } from '$lib/server/db/schema';
+import { ensureAttestations } from '$lib/server/attestations/issue';
+import { verifyAttestation } from '$lib/server/attestations/verify';
 import { purgeDemoSession } from '$lib/server/demo/purge';
 import { purgeAccountNow } from '$lib/server/erasure/purge';
 import {
@@ -36,6 +39,8 @@ import {
 import { beginAccountDeletion } from '$lib/server/erasure/request';
 import type { Redis } from '$lib/server/redis';
 import type { ObjectStore, StoredObject } from '$lib/server/storage/object-store';
+import { createReceiptSigner } from '$lib/server/fsp/receipts';
+import { decide } from '../helpers/categories';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
 import { testEnvironment } from '../helpers/environment';
 import { createCandidate, createTaxonomyVersion, createUser, randomSha256 } from '../helpers/factories';
@@ -72,7 +77,16 @@ let restored: Database;
 let redis: Redis;
 const store = new MemoryStore();
 
-const people = { candidate: '', candidateProfile: '', resumeKey: '', bystander: '', staff: '', clone: '', session: '' };
+const people = {
+	candidate: '',
+	candidateProfile: '',
+	resumeKey: '',
+	attestation: '',
+	bystander: '',
+	staff: '',
+	clone: '',
+	session: ''
+};
 let exported = '';
 let requestedAt: Date;
 
@@ -133,6 +147,30 @@ beforeAll(async () => {
 		hint: { version: 1, suggested: null, bases: [], caveats: [] },
 		declaredAt: new Date()
 	});
+	// The candidate's own profile fields and a confirmation of the category: rows and columns the replay must erase again.
+	await db
+		.update(candidates)
+		.set({ telegramEnc: randomBytes(24), softSkillKeys: ['teamwork'] })
+		.where(eq(candidates.id, candidate.id));
+	await db.insert(profileExperienceEntries).values({
+		candidateId: candidate.id,
+		positionTitle: 'Разработчик',
+		periodFrom: '2021-01-01',
+		isCurrent: true
+	});
+	await decide(db, candidate.id, { specialization: 'backend', grade: 'junior' });
+	const attestations = await db.transaction((tx) =>
+		ensureAttestations(
+			tx,
+			createReceiptSigner({ issuer: 'http://localhost', keyId: 'test-1', seed: randomBytes(32) }),
+			{
+				candidateId: candidate.id,
+				holder: { last: 'Иванова', first: 'Мария', middle: null },
+				now: new Date()
+			}
+		)
+	);
+	people.attestation = attestations[0]?.handle ?? '';
 	people.bystander = (await createCandidate(db)).userId;
 	const staff = await createCandidate(db);
 	people.staff = staff.userId;
@@ -242,6 +280,15 @@ describe('the erasure ledger after a restore', () => {
 		expect(
 			await restored.select().from(gradeDeclarations).where(eq(gradeDeclarations.candidateId, people.candidateProfile))
 		).toEqual([]);
+		expect(profile).toMatchObject({ telegramEnc: null, softSkillKeys: [] });
+		expect(
+			await restored
+				.select()
+				.from(profileExperienceEntries)
+				.where(eq(profileExperienceEntries.candidateId, people.candidateProfile))
+		).toEqual([]);
+		expect(people.attestation).not.toBe('');
+		expect(await verifyAttestation(restored, people.attestation)).toBeNull();
 		// The deletion began again as the system's act, not the person's.
 		const requested = await restored
 			.select({ actorKind: auditEvents.actorKind, cause: sql<string>`${auditEvents.details} ->> 'cause'` })

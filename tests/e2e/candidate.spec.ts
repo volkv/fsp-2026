@@ -33,6 +33,7 @@ import type { AchievementsSnapshot } from '$lib/server/fsp/types';
 import { hashPassword } from '$lib/server/auth/password';
 import { createLogger } from '$lib/server/jobs/log';
 import { completeJob, enqueueJob, type ClaimedJob } from '$lib/server/jobs/queue';
+import { decideIn } from '../helpers/categories';
 import { createCompany, createMember, createOwnVacancy, offerTerms } from '../helpers/factories';
 
 // `$env/dynamic/private`, which these modules need through `$lib/server/config`, only SvelteKit provides; the hook
@@ -480,4 +481,51 @@ test('a candidate under 18 is not offered the exact achievements in the catalog'
 	await expect(page.getByTestId('minor-regime')).toBeVisible();
 	await expect(page.getByRole('checkbox', { name: /Точные достижения/ })).toHaveCount(0);
 	await expectNoAxeViolations(page);
+});
+
+test('a candidate fills the profile, downloads the PDF and its QR leads to a valid confirmation of the category', async ({
+	page
+}) => {
+	const candidate = await seedCandidate({ birthDate: yearsAgo(27), name: 'Мария Иванова' });
+	await db().transaction((tx) => decideIn(tx, candidate.candidateId, { specialization: 'backend', grade: 'junior' }));
+	await signIn(page, candidate.email);
+
+	await page.goto('/me/profile');
+	const fields = page.getByTestId('profile-fields');
+	await fields.getByLabel('Фамилия').fill('Иванова');
+	await fields.getByLabel('Имя', { exact: true }).fill('Мария');
+	await fields.getByLabel('Telegram').fill('t.me/maria_dev');
+	await fields.getByRole('checkbox', { name: 'Работа в команде' }).check();
+	await fields.getByRole('button', { name: 'Сохранить' }).click();
+	await expect(fields.getByText('Профиль сохранён.')).toBeVisible();
+	await expect(fields.getByLabel('Telegram')).toHaveValue('@maria_dev');
+	await expectNoAxeViolations(page);
+
+	// The PDF of the candidate's session, with the address of the confirmation as the link of its QR code.
+	const pdf = await page.request.get('/me/profile/pdf?email=on&telegram=on');
+	expect(pdf.status()).toBe(200);
+	expect(pdf.headers()['content-type']).toBe('application/pdf');
+	const body = await pdf.body();
+	expect(body.subarray(0, 5).toString('latin1')).toBe('%PDF-');
+
+	await page.reload();
+	const attestation = page.getByTestId('attestation');
+	await expect(attestation).toHaveAttribute('data-status', 'valid');
+	const link = attestation.getByRole('link');
+	const href = await link.getAttribute('href');
+	if (href === null) throw new Error('the confirmation has no link');
+
+	// Anyone opens the confirmation: the category in force, no name; the holder proves it with the name and the code.
+	const visitor = await page.context().browser()?.newPage();
+	if (!visitor) throw new Error('no browser');
+	await visitor.goto(`${APP_ORIGIN}${href}`);
+	await expect(visitor.getByTestId('attestation-status')).toHaveAttribute('data-status', 'valid');
+	await expect(visitor.getByTestId('attestation-signature')).toHaveAttribute('data-signature', 'valid');
+	await expect(visitor.locator('body')).not.toContainText('Иванова');
+	const code = (await attestation.locator('.font-mono').first().textContent())?.trim() ?? '';
+	await visitor.getByLabel('ФИО').fill('Иванова Мария');
+	await visitor.getByLabel('Код владельца').fill(code);
+	await visitor.getByRole('button', { name: 'Проверить' }).click();
+	await expect(visitor.getByText('Совпадает: подтверждение выдано человеку с этим ФИО.')).toBeVisible();
+	await visitor.close();
 });

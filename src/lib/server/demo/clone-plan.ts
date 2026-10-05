@@ -249,6 +249,16 @@ export const DEMO_CLONE_PLAN: Readonly<Record<string, TableDecision>> = {
 	},
 	grade_declarations: { kind: 'owned', copy: true, edges: { candidate_id: 'owner', survey_id: 'owner' } },
 
+	// The candidate's own profile fields and the confirmations of the categories (domain 12.9, 23.2): a confirmation is
+	// copied with a new handle (`clone.ts`), so the QR of a session never opens the original's.
+	profile_experience_entries: { kind: 'owned', copy: true, edges: { candidate_id: 'owner' } },
+	profile_suggestions: { kind: 'owned', copy: true, edges: { candidate_id: 'owner', extraction_id: 'owner' } },
+	category_attestations: {
+		kind: 'owned',
+		copy: true,
+		edges: { candidate_id: 'owner', category_id: 'owner', decision_id: 'owner' }
+	},
+
 	// Vacancies, matches, invitations, hiring.
 	vacancies: {
 		kind: 'owned',

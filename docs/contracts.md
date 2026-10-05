@@ -652,7 +652,7 @@ ID-токена из разрешённого списка (2.1) в `id_token_si
 
 ```ts
 type ExtractRequest =
-  | { schemaVersion: 'resume-extract/v2';  input: { type: 'document_extraction'; id: string };                 // document_extractions.id
+  | { schemaVersion: 'resume-extract/v3';  input: { type: 'document_extraction'; id: string };                 // document_extractions.id
       taxonomyVersionId: string; blocks: { id: string; text: string }[] }                                    // блоки docparse
   | { schemaVersion: 'vacancy-extract/v2'; input: { type: 'vacancy'; id: string; revision: number };          // текст, вставленный работодателем
       taxonomyVersionId: string; blocks: { id: string; text: string }[] };                                   // абзацы текста вакансии
@@ -668,7 +668,7 @@ interface ExtractResponse<I> {
 type RejectReason =
   | 'schema_violation' | 'block_not_found' | 'quote_not_found'
   | 'quote_not_supporting' | 'quote_is_instruction' | 'forbidden_field' | 'unknown_enum' | 'incomplete_group'
-  | 'duplicate';                               // resume-extract/v2: повтор уже сказанного (группы опыта ниже)
+  | 'duplicate';                               // resume-extract/v3: повтор уже сказанного (группы опыта ниже)
 
 interface QuoteLocation {
   blockId: string;
@@ -677,7 +677,7 @@ interface QuoteLocation {
 }
 ```
 
-Схема и справочник версии таксономии идут в запрос вместе: `resume-extract/v2` — алиасы навыков, `vacancy-extract/v2` — алиасы навыков,
+Схема и справочник версии таксономии идут в запрос вместе: `resume-extract/v3` — алиасы навыков, `vacancy-extract/v2` — алиасы навыков,
 ключи грейдов по возрастанию и ключи форматов работы. Вход и версия схемы согласованы (`document_extraction` — только с резюме,
 `vacancy` — только с вакансией); несогласованный запрос — ошибка программы, а не ответ адаптера.
 
@@ -692,10 +692,16 @@ interface QuoteLocation {
 vLLM (xgrammar) их отвергает с 400. JSON Schema для рантайма генерируется из той же схемы Zod, которой проверяется ответ; тест:
 сгенерированная схема не содержит этих ключей.
 
-#### `resume-extract/v2`
+#### `resume-extract/v3`
 
-Ответ — **число мест работы, затем по массиву на вид факта, места работы вложены своими массивами, у каждого элемента все ключи
-обязательны** (как у `vacancy-extract/v2`). `v1` (один массив `items` с `kind` и необязательными `period_from`, `period_to`, `level`)
+`v3` — это `v2` и поля профиля кандидата (ТЗ К-a: «ФИО, контакты, … софт-скиллы»): `full_name`, `contacts`, `soft_skills`. В `v2`
+извлечения ФИО и контактов не было намеренно — из них не строится ни одно доказательство. В `v3` они тоже не доказательства: это
+**предложения полей профиля**, которые видит только кандидат и которые он принимает в профиль или отклоняет (domain 7.1, ниже).
+Конверты `ml_results` с `resume-extract/v2` остаются как есть по тому же правилу, что `v1`: продукт читает у конверта только режим и
+отказ; новый разбор документа пишет `v3`. Правила (`resumes/rules.ts`, `resume-rules/4`) читают те же поля.
+
+Ответ — **ФИО и контакты, число мест работы, затем по массиву на вид факта, места работы вложены своими массивами, у каждого
+элемента все ключи обязательны** (как у `vacancy-extract/v2`). `v1` (один массив `items` с `kind` и необязательными `period_from`, `period_to`, `level`)
 снята: 8B-модель необязательные ключи не заполняла вовсе — на выборке оценки ни у одного периода не было дат и ни у одного языка
 уровня, и продукт не получал ни стажа, ни языков. Значение, которого нет в тексте, пишется явно: `not_stated` у уровня языка.
 
@@ -707,8 +713,11 @@ vLLM (xgrammar) их отвергает с 400. JSON Schema для рантай�
 {
   "type": "object",
   "additionalProperties": false,
-  "required": ["job_count", "jobs", "skills", "responsibilities", "education", "languages", "achievements"],
+  "required": ["full_name", "contacts", "job_count", "jobs", "skills", "responsibilities", "education", "languages",
+               "achievements", "soft_skills"],
   "properties": {
+    "full_name":        { "type": "array", "maxItems": 1,  "items": { "<элемент>": "raw_text, block_id, quote" } },
+    "contacts":         { "type": "array", "maxItems": 6,  "items": { "<элемент>": "kind, raw_text, block_id, quote" } },
     "job_count": { "type": "integer", "minimum": 0, "maximum": 10 },
     "jobs": { "type": "array", "maxItems": 10, "items": {
       "type": "object", "additionalProperties": false,
@@ -724,7 +733,8 @@ vLLM (xgrammar) их отвергает с 400. JSON Schema для рантай�
     "responsibilities": { "type": "array", "maxItems": 10, "items": { "<элемент>": "raw_text, block_id, quote" } },
     "education":        { "type": "array", "maxItems": 10, "items": { "<элемент>": "institution, block_id, quote" } },
     "languages":        { "type": "array", "maxItems": 10, "items": { "<элемент>": "language, block_id, quote, level" } },
-    "achievements":     { "type": "array", "maxItems": 20, "items": { "<элемент>": "raw_text, block_id, quote" } }
+    "achievements":     { "type": "array", "maxItems": 20, "items": { "<элемент>": "raw_text, block_id, quote" } },
+    "soft_skills":      { "type": "array", "maxItems": 15, "items": { "<элемент>": "raw_text, block_id, quote" } }
   }
 }
 ```
@@ -756,6 +766,9 @@ vLLM (xgrammar) их отвергает с 400. JSON Schema для рантай�
 | `education` | `education`: `rawText` = `institution` (название учебного заведения, не степень и не год) | название |
 | `languages` | `language_level`: `rawText` = `language` без слова «язык» / «language» («Английский язык» — «Английский», как у правил), `level` — значение `enum` (или `null` при `not_stated`); цитата из нескольких строк списка языков сужается до строки этого языка; язык, который версия таксономии знает как навык («Английский» — `english`), — ещё и `skill_mention`, как его читают правила | язык и уровень в исходном написании: код CEFR, название шкалы hh.ru («B2 — Средне-продвинутый», «A2 — Элементарный», «Родной») или курсовой шкалы («Upper-Intermediate», «Pre-Intermediate»), целым названием — «Intermediate» внутри «Upper-Intermediate» не B1 (`ml/language-levels.ts`) |
 | `achievements` | `achievement_mention` | текст элемента |
+| `full_name` | `full_name` (предложение поля профиля) | текст элемента, и он читается как ФИО: два-три слова из букв (`profile/contacts.ts`) |
+| `contacts` | `contact_phone` · `contact_email` · `contact_telegram` по `kind` (`enum` `phone` · `email` · `telegram`) | телефон — цифры элемента стоят в цитате и нормализуются в `+<цифры>`; почта — адрес; Telegram — имя `@name` или `t.me/name` |
+| `soft_skills` | `soft_skill` (предложение поля профиля) | качество из закрытого списка `profile/soft-skills.ts`, названное одним из его написаний целыми словами |
 
 Уровень, который правила берут из текста как написан, хранится кодом, если он — название шкалы («Upper-Intermediate» — `B2`);
 название, которое делят несколько уровней («Fluent»), остаётся как написано.
@@ -778,6 +791,15 @@ interface ResumeItem {
 ```
 
 Полей для пола, гражданства, семейного положения, фотографии и других запрещённых сведений (domain 8) в схеме нет.
+
+**Поля профиля — не доказательства.** Элементы `full_name`, `contact_*`, `soft_skill` проходят те же проверки цитат, но утверждениями
+(`claims`) не становятся и в ранжирование, подсказку грейда и карточку компании не попадают. Задание `resume.extract` пишет их в
+`profile_suggestions` (domain 7.1): значение нормализовано и зашифровано (`profile_suggestions.value`), цитата хранится смещениями в
+тексте извлечения, без своих слов. Утверждаемые значения только: качество, которое человек за собой отрицает («не стрессоустойчив»),
+не предлагается; ФИО — одно, первое. Кандидат принимает предложение (значение записывается в поле профиля, как если бы он ввёл его
+сам) или отклоняет; почта из резюме только сравнивается с почтой аккаунта — контактная почта профиля и есть почта аккаунта. Удаление
+резюме удаляет его предложения; принятые значения остаются в профиле. Текст резюме в иностранный облачный рантайм не уходит без
+явной настройки (3.1): ФИО и контакты в `v3` идут в тот же рантайм, что и весь текст.
 
 **Группы опыта.** Место работы `jobs[n]` становится группой `"job-<n+1>"`. Приложение собирает из группы `experience_entries`
 (domain 9.5): у группы несколько цитат — по одной у каждого элемента. Элемент вне `jobs` к опыту не относится (навыки из раздела
@@ -1242,7 +1264,7 @@ interface ParseResponse {
 | `POST /api/v1/operator/assessments/attempts/{attempt_id}/annulment` | оператор (`assessment.review`, сессия) | `{ reason: plagiarism \| technical_failure \| version_defect \| candidate_request }` — попытка `decided` или `expired` → `annulled`, решение → `annulled`, категория по нему отозвана (domain 12.4), факт теста → `annulled`; `200 { annulled, category_revoked }`, повтор — `annulled: false` без изменений; идущая попытка — `409 conflict` (`attempt_in_progress`); событие `assessment.annulled` |
 | `GET /api/v1/verify/{handle}` | все, без аутентификации | проверка квитанции: `{status, statement, source_simulator, signature, signing_key_id}`, без ПДн (domain 9.6); заявление демонстрационного стенда несёт `source_simulator: true` под подписью, ответ отдаёт его же отдельным полем; публичная страница показывает «Источник — имитатор ФСП»; ограничение частоты по адресу |
 | `GET /.well-known/receipt-keys.json` | все | открытые ключи подписи квитанций (JWKS, `OKP`/`Ed25519`) |
-| `GET /api/v1/me/data` | кандидат (сессия) | «Мои данные»: выгрузка всего, что платформа хранит о кандидате, тем же документом, что скачивается со страницы `/me/export` (`fsp-career-data-export/v2`, domain 19.2); каждая выгрузка — событие `data.exported` с каналом `api` |
+| `GET /api/v1/me/data` | кандидат (сессия) | «Мои данные»: выгрузка всего, что платформа хранит о кандидате, тем же документом, что скачивается со страницы `/me/export` (`fsp-career-data-export/v4`, domain 19.2); каждая выгрузка — событие `data.exported` с каналом `api` |
 | `PUT /api/v1/me/catalog-scope` | кандидат 18+ | `{ scope_fields }` — точные достижения, профили и зарплатные ожидания (`salary_expectations`, domain 13.10) в каталоге; новое событие `catalog_visibility` |
 | `POST /api/v1/me/tests/decisions/{decision_id}/objections` | кандидат (сессия) | возражение против результата теста (domain 12.5) |
 | `POST /api/v1/me/notification-channels/telegram` | любой пользователь | ссылка привязки бота (раздел 8.2) |
@@ -1285,6 +1307,15 @@ public_profile, confirmed_coverage, grade_agreement: number|null, grade_agreemen
   вакансия» по тем же правилам, что `POST /api/v1/vacancies/{id}/claims` (domain 13.3): компания проверена → `pending_review`, не
   проверена → `awaiting_company_verification`; компания `rejected` или `suspended` — `403`.
 - `/me/vacancies?q=&origin=own|external&role=&format=&cursor=` — вакансии кандидата по происхождению; неизвестный `origin` — `400`.
+- `/me/profile` — профиль кандидата (domain 7.1): форма ФИО, контактов, желаемой должности и мягких навыков; под ней — что нашёл разбор
+  текущего резюме для этих полей, с цитатой (клик открывает текст резюме на этих словах) и решением «принять / отклонить»; опыт,
+  указанный вручную; PDF-профиль: выбор контактов на странице и подтверждения категорий со статусом и кодом владельца.
+  `/me/profile/pdf?phone=on&email=on&telegram=on` — сам файл (`application/pdf`, `cache-control: private, no-store`): только своей
+  сессии, нигде не хранится; первый PDF назначения выпускает подтверждение категории (domain 12.9), событие `profile.pdf_issued`; без
+  ФИО — `409` (`profile_name_required`).
+- `/me/resume` — те же предложения полей профиля рядом с полями резюме.
+- `/me/visibility` — кроме согласий: таблица «что видно работодателю» по полям — в каталоге и после раскрытия — и блок-лист компаний
+  (`?company=` ищет компании для списка).
 - `/me/category` — «Категория и грейд» (domain 12.3): статус (направление, специализация, грейд, пройденные блоки, подтверждённый и
   заявленный стек), история опросов, заявлений, попыток и решений, кнопки теста ниже и выше с причиной и датой, «шаг до категории»
   без категории, возражение по решению. Блок «спрос»: по каждому навыку потребностей и вакансий своей категории, не подтверждённому
@@ -1689,6 +1720,10 @@ interface NotificationChannel {
 | `POST /api/v1/me/tests/decisions/{decision_id}/objections` | возражение `{reason, items?}` (domain 12.5) → `201` | `404` чужое решение; `409` открытое возражение уже есть, решение аннулировано или срок хранения попытки истёк |
 | `POST /api/v1/me/objections/{objection_id}/withdrawal` | кандидат отзывает своё открытое возражение → `200` (`withdrawn`) | `404` чужое; `409` уже решено или отозвано |
 | `GET /api/v1/me/categories` | действующие и прошлые категории с блоками, стеком, статусом и причиной отзыва | — |
+| `GET`, `PUT /api/v1/me/profile` | ручные поля профиля (domain 7.1): `{last_name, first_name, middle_name, phone, telegram, headline, soft_skill_keys}` — все поля сразу, пустое очищает; ответ — поля с почтой аккаунта и желаемыми ролями, опыт, указанный вручную, со стажем `manual_experience_months`, предложения текущего резюме с цитатами (`suggestions`), подтверждения категорий со статусом и кодом владельца (`attestations`) | `400` фамилия без имени, телефон или Telegram не того вида, неизвестный мягкий навык; `422 policy_violation` — без действующего `pd_processing` |
+| `POST /api/v1/me/profile/suggestions/{id}/decision` | `{decision: accepted \| rejected}` по предложению поля из резюме → `204`; принятое записывается в поле | `404` чужое; `409` уже решено, почта (`email_is_account`), мягких навыков уже 12 |
+| `POST /api/v1/me/profile/experience`, `PUT`, `DELETE …/{entry_id}` | опыт, указанный вручную: `{position_title, organization_name, role_key, period_from: YYYY-MM, period_to: YYYY-MM \| null, skill_keys, description}`; до 20 мест работы; доказательством не становится | `400` неизвестная роль или навык, окончание раньше начала или в будущем; `404` чужое; `409 experience_full` |
+| `GET /api/v1/me/company-blocks`, `GET …/search?q=`, `PUT`, `DELETE …/{company_id}` | блок-лист компаний (domain 7.4): список, поиск компаний по названию (от двух букв, видимых месту кандидата — демо-сессия видит свои), добавить (повтор ничего не меняет), убрать | `404` компания не видна или не в списке |
 | `GET /api/v1/me/confirmation-requests`, `POST …/{id}/accept`, `POST …/{id}/decline` | запросы подтверждения (domain 13.11); `accept` начинает блок-тест (`vacancy_block`) или, если есть действующий результат того же блока на том же или более высоком грейде, закрывает запрос им | `409` срок истёк или уже отвечен; `409 bank_capacity_exhausted` |
 | `PUT /api/v1/me/block-confirmations/{id}/visibility` | `{visibility: requester \| all_companies}` — кому виден результат блок-теста | `404` чужой |
 | `GET /api/v1/me/challenges`, `POST /api/v1/me/challenges/{delivery_id}/solutions`, `DELETE …/solutions/{id}` | доставленные вызовы, решение, отзыв решения (domain 13.12) | `409` вызов закрыт |
@@ -1716,8 +1751,8 @@ interface NotificationChannel {
 
 | Метод и путь | Кто | Смысл |
 |---|---|---|
-| `GET /api/v1/verify/categories/{handle}` | все, без аутентификации; лимит частоты по адресу | подтверждение категории (domain 12.9): `{status: valid \| superseded \| annulled, statement, signature, signing_key_id, current_grade?}`; без ПДн |
-| `POST /api/v1/verify/categories/{handle}/holder` | все; лимит частоты | `{full_name, nonce}` от предъявителя → `{matches: boolean}`; ни ФИО, ни соль не сохраняются и в журнал не пишутся |
+| `GET /api/v1/verify/categories/{handle}` | все, без аутентификации; лимит частоты по адресу | подтверждение категории (domain 12.9): `{status: valid \| superseded \| annulled, statement, signature, signing_key_id, ended_on, annul_reason, current_grade}`; без ПДн. Страница `/verify/categories/{handle}` (QR PDF-профиля) показывает то же и проверяет подпись; `?code=` подставляет код владельца в форму сверки |
+| `POST /api/v1/verify/categories/{handle}/holder` | все; лимит частоты | `{full_name, nonce}` от предъявителя → `{matches: boolean}`; `nonce` — код владельца (соль в base32), его кандидат видит в кабинете; ФИО — в порядке «Фамилия Имя Отчество», регистр, «ё» и пробелы не важны; ни ФИО, ни соль не сохраняются и в журнал не пишутся (событие `attestation.holder_checked` — только идентификатор и исход) |
 | `GET /api/v1/operator/objections`, `POST …/{id}/assign`, `POST …/{id}/resolution` | оператор (`objection.manage`, сессия) | очередь возражений по сроку; `assign` — взять в работу (`204`, `409` уже взято другим или закрыто); исход `{outcome: upheld \| annulled \| rescored, resolution, rescored_items?: [{seq, score, reason}]}` — только ответственный оператор, `409` иначе; дело попытки — `/operator/assessments/{attempt_id}` |
 | `GET /api/v1/admin/bank-releases` | администратор | выпуски банка с отчётами ворот и вместимости, ревью и оценками (рецензент, вид, линейка, вердикт, хэш исходников) и сводкой предварительных порогов |
 | `POST /api/v1/eval/jury-runs` | администратор или оценщик (сессия) | режим оценки жюри (раздел 11) |

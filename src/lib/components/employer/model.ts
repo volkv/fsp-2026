@@ -483,6 +483,7 @@ export const DISCLOSURE_FIELD_LABELS: Record<string, string> = {
 	full_name: 'ФИО',
 	email: 'почта',
 	phone: 'телефон',
+	telegram: 'Telegram',
 	resume: 'резюме'
 };
 

@@ -159,7 +159,11 @@ function seedHandlers(services: DemoServices, heroCandidateIds: ReadonlySet<stri
 		createEvidenceHandler(),
 		createMatchRefreshHandler(() => MODELS_OFF),
 		createResumeParseHandler({ store: () => services.store, parser: () => services.parser }),
-		createResumeExtractHandler({ adapter: () => seedExtract(services, heroCandidateIds), now: () => new Date() }),
+		createResumeExtractHandler({
+			adapter: () => seedExtract(services, heroCandidateIds),
+			crypto: () => services.crypto,
+			now: () => new Date()
+		}),
 		createVacancyNormalizeHandler(),
 		// The companies are fictional: a registry would not find them.
 		companyRegistryLookup(() => registryNotConfigured),
