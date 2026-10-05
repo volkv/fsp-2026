@@ -1,4 +1,4 @@
-"""Resume files of the template families: PDF (fpdf2, a Unicode TrueType font) and DOCX (python-docx).
+"""Resume files of the template families: PDF (reportlab, a Unicode TrueType font) and DOCX (python-docx).
 
 Every family prints the same profile its own way; the labels do not depend on how (gold.py). Files are written with
 fixed metadata dates, so a family renders a profile to the same bytes each time.
@@ -12,7 +12,11 @@ from pathlib import Path
 
 import docx
 from docx.shared import Pt
-from fpdf import FPDF
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import mm
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.pdfgen.canvas import Canvas
 
 from fsp_eval.families import FAMILY_BY_KEY, DateStyle
 from fsp_eval.lexicon import LANGUAGE_NAMES, LEVEL_WORDS_HH
@@ -20,6 +24,15 @@ from fsp_eval.profiles import Job, Profile
 
 FONT_DIR = Path("/usr/share/fonts/truetype/dejavu")
 FIXED_DATE = datetime(2026, 1, 1, tzinfo=UTC)
+
+PAGE_WIDTH_MM = A4[0] / mm
+PAGE_HEIGHT_MM = A4[1] / mm
+PAGE_MARGIN_MM = 10  # left, right and top margins of a page
+BOTTOM_MARGIN_MM = 15  # a line that does not fit above it moves to the next page
+CELL_PADDING_MM = 1  # space between a column edge and its text
+LINE_HEIGHT_PER_PT_MM = 0.5  # line pitch of a text of a given size
+MM_PER_PT = 25.4 / 72
+FONTS = {False: "DejaVu", True: "DejaVu-Bold"}
 
 MONTHS_RU = (
     "Январь",
@@ -110,18 +123,79 @@ def _dated(profile: Profile) -> bool:
 # --- PDF ----------------------------------------------------------------------------------------------------------
 
 
-class _Pdf(FPDF):
+def _register_fonts() -> None:
+    """The font files are registered once per process; a second registration of a name is an error."""
+    if FONTS[False] not in pdfmetrics.getRegisteredFontNames():
+        pdfmetrics.registerFont(TTFont(FONTS[False], str(FONT_DIR / "DejaVuSans.ttf")))
+        pdfmetrics.registerFont(TTFont(FONTS[True], str(FONT_DIR / "DejaVuSans-Bold.ttf")))
+
+
+class _Pdf:
+    """A flowing page: lines of text go down from a cursor, inside the current column, onto a new page when full.
+
+    The cursor `y` is in millimetres from the top edge of the page. The canvas is invariant: the document carries
+    no time of creation and no random identifier, so a profile renders to the same bytes each time.
+    """
+
+    h = PAGE_HEIGHT_MM
+
     def __init__(self) -> None:
-        super().__init__(format="A4")
-        self.add_font("DejaVu", "", str(FONT_DIR / "DejaVuSans.ttf"))
-        self.add_font("DejaVu", "B", str(FONT_DIR / "DejaVuSans-Bold.ttf"))
-        self.set_creation_date(FIXED_DATE)
-        self.set_auto_page_break(auto=True, margin=15)
-        self.add_page()
+        _register_fonts()
+        self._buffer = io.BytesIO()
+        self._canvas = Canvas(self._buffer, pagesize=A4, invariant=1, pageCompression=0)
+        self._canvas.setAuthor("")
+        self._canvas.setTitle("")
+        self._canvas.setCreator("")
+        self._canvas.setProducer("")
+        self._left = PAGE_MARGIN_MM
+        self._right = PAGE_MARGIN_MM
+        self.y = PAGE_MARGIN_MM
+
+    def add_page(self) -> None:
+        self._canvas.showPage()
+        self.y = PAGE_MARGIN_MM
+
+    def get_y(self) -> float:
+        return self.y
+
+    def set_y(self, y: float) -> None:
+        self.y = y
+
+    def ln(self, height: float) -> None:
+        self.y += height
+
+    def _wrap(self, text: str, font: str, size: float) -> list[str]:
+        """Greedy wrap at spaces to the width of the column; a word longer than the column breaks between letters."""
+        width = (PAGE_WIDTH_MM - self._left - self._right - 2 * CELL_PADDING_MM) * mm
+        lines: list[str] = []
+        for paragraph in text.split("\n"):
+            current = ""
+            for word in paragraph.split(" "):
+                candidate = f"{current} {word}" if current else word
+                if pdfmetrics.stringWidth(candidate, font, size) <= width:
+                    current = candidate
+                    continue
+                if current:
+                    lines.append(current)
+                current = ""
+                for letter in word:
+                    if current and pdfmetrics.stringWidth(current + letter, font, size) > width:
+                        lines.append(current)
+                        current = ""
+                    current += letter
+            lines.append(current)
+        return lines
 
     def text_line(self, text: str, size: float = 10, bold: bool = False, gap: float = 0) -> None:
-        self.set_font("DejaVu", "B" if bold else "", size)
-        self.multi_cell(0, size * 0.5, text, new_x="LMARGIN", new_y="NEXT")
+        font = FONTS[bold]
+        height = size * LINE_HEIGHT_PER_PT_MM
+        for line in self._wrap(text, font, size):
+            if self.y + height > PAGE_HEIGHT_MM - BOTTOM_MARGIN_MM:
+                self.add_page()
+            baseline = self.y + height / 2 + 0.3 * size * MM_PER_PT
+            self._canvas.setFont(font, size)
+            self._canvas.drawString((self._left + CELL_PADDING_MM) * mm, (PAGE_HEIGHT_MM - baseline) * mm, line)
+            self.y += height
         if gap:
             self.ln(gap)
 
@@ -130,9 +204,13 @@ class _Pdf(FPDF):
         self.text_line(text, 13, bold=True, gap=1)
 
     def columns(self, left: float, right: float) -> None:
-        self.set_left_margin(left)
-        self.set_right_margin(right)
-        self.set_x(left)
+        self._left = left
+        self._right = right
+
+    def output(self) -> bytes:
+        self._canvas.showPage()
+        self._canvas.save()
+        return self._buffer.getvalue()
 
 
 def _pdf_header(pdf: _Pdf, profile: Profile, contacts_inline: bool) -> None:
@@ -173,7 +251,7 @@ def render_pdf_classic(profile: Profile, as_of: tuple[int, int]) -> bytes:
         pdf.text_line(line)
     pdf.heading("О себе")
     pdf.text_line(profile.about)
-    return bytes(pdf.output())
+    return pdf.output()
 
 
 def render_pdf_sidebar(profile: Profile, as_of: tuple[int, int]) -> bytes:
@@ -184,7 +262,6 @@ def render_pdf_sidebar(profile: Profile, as_of: tuple[int, int]) -> bytes:
     # Left column: contacts, skills one per line, languages.
     pdf.columns(10, 145)
     pdf.set_y(top)
-    pdf.set_x(10)
     pdf.heading("Контакты")
     for line in (profile.city, profile.email, profile.phone):
         pdf.text_line(line, 9)
@@ -197,7 +274,6 @@ def render_pdf_sidebar(profile: Profile, as_of: tuple[int, int]) -> bytes:
     # Right column: experience, education, about.
     pdf.columns(75, 10)
     pdf.set_y(top)
-    pdf.set_x(75)
     if profile.jobs:
         pdf.heading("Опыт работы")
         for job in profile.jobs:
@@ -211,7 +287,7 @@ def render_pdf_sidebar(profile: Profile, as_of: tuple[int, int]) -> bytes:
     _pdf_education(pdf, profile, "Образование")
     pdf.heading("Обо мне")
     pdf.text_line(profile.about, 9)
-    return bytes(pdf.output())
+    return pdf.output()
 
 
 def render_pdf_hh(profile: Profile, as_of: tuple[int, int]) -> bytes:
@@ -226,13 +302,13 @@ def render_pdf_hh(profile: Profile, as_of: tuple[int, int]) -> bytes:
                 pdf.add_page()
             top = pdf.get_y()
             pdf.columns(10, 150)
-            pdf.set_xy(10, top)
+            pdf.set_y(top)
             if _dated(profile):
                 pdf.text_line(format_period("month_word_ru", job, "—").replace("настоящее", "по настоящее"), 8)
                 pdf.text_line(duration_ru(_job_months(job, as_of)), 8)
             left_bottom = pdf.get_y()
             pdf.columns(65, 10)
-            pdf.set_xy(65, top)
+            pdf.set_y(top)
             pdf.text_line(job.organization, 10, bold=True)
             pdf.text_line(job.title, 10, bold=True, gap=1)
             for line in job.lines:
@@ -248,7 +324,7 @@ def render_pdf_hh(profile: Profile, as_of: tuple[int, int]) -> bytes:
         pdf.text_line(line, 9)
     pdf.heading("Дополнительная информация")
     pdf.text_line(profile.about, 9)
-    return bytes(pdf.output())
+    return pdf.output()
 
 
 # --- DOCX ---------------------------------------------------------------------------------------------------------

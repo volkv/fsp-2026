@@ -4,7 +4,7 @@ version = "1.0.0"
 description = "Quality evaluation harness: synthetic resumes with independent labels, metrics of the product's pipeline"
 requires-python = "==3.13.*"
 dependencies = [
-    "fpdf2",
+    "reportlab",
     "python-docx",
 ]
 

@@ -45,13 +45,6 @@ export const LICENSE_EXCEPTIONS: readonly LicenseException[] = [
 			'MIT-CMU (HPND) — разрешительная лицензия семейства MIT: использование и распространение с сохранением уведомления, без копилефта'
 	},
 	{
-		kind: 'python',
-		name: 'fpdf2',
-		license: 'LGPL-3.0-only',
-		reason:
-			'только стенд оценки качества (tools/eval): рисует синтетические резюме в PDF. В образы продукта не входит, используется как неизменённая библиотека — LGPL это допускает'
-	},
-	{
 		kind: 'image',
 		name: 'pgvector/pgvector',
 		license: 'PostgreSQL',
@@ -124,7 +117,6 @@ export const PYTHON_LICENSES: Readonly<Record<string, { license: string; note?: 
 	cryptography: { license: 'Apache-2.0 OR BSD-3-Clause' },
 	defusedxml: { license: 'PSF-2.0' },
 	fonttools: { license: 'MIT' },
-	fpdf2: { license: 'LGPL-3.0-only' },
 	h11: { license: 'MIT' },
 	idna: { license: 'BSD-3-Clause' },
 	lxml: { license: 'BSD-3-Clause' },
@@ -139,6 +131,7 @@ export const PYTHON_LICENSES: Readonly<Record<string, { license: string; note?: 
 	},
 	'python-docx': { license: 'MIT' },
 	'python-multipart': { license: 'Apache-2.0' },
+	reportlab: { license: 'BSD-3-Clause' },
 	starlette: { license: 'BSD-3-Clause' },
 	'typing-extensions': { license: 'PSF-2.0' },
 	uvicorn: { license: 'BSD-3-Clause' }
