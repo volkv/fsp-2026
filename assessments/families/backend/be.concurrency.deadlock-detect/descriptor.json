@@ -1,0 +1,147 @@
+{
+	"key": "be.concurrency.deadlock-detect",
+	"version": 1,
+	"specialization": "backend",
+	"block": "be.concurrency",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"transactions": 2,
+				"rows": "2–3",
+				"turns": "6–14",
+				"rules": 3,
+				"interacting": "только X + граф ожидания из двух транзакций + выбор жертвы"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "older-closes",
+					"form": "A",
+					"description": "цикл замыкает запрос старшей транзакции: откатывается младшая, хотя ход не её"
+				},
+				{
+					"id": "younger-closes",
+					"form": "B",
+					"description": "цикл замыкает запрос младшей: она же и откатывается, старшая дожидается и фиксируется"
+				},
+				{
+					"id": "wait-only",
+					"form": "anchor",
+					"description": "обе берут строки в одном порядке: одна ждёт, пока другая зафиксируется, цикла нет"
+				},
+				{
+					"id": "relock",
+					"form": "X",
+					"description": "транзакция повторно просит X на свою же строку: запрос проходит сразу, ждут только чужие"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"transactions": "3–4",
+				"rows": "3–4",
+				"turns": "10–20",
+				"rules": 5,
+				"interacting": "совместимость S/X + граф ожидания + выбор жертвы"
+			},
+			"constructiveRank": 7,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "x-cycle",
+					"form": "A",
+					"description": "исключительные блокировки в разном порядке замыкают цикл; откатывается самая молодая в цикле"
+				},
+				{
+					"id": "upgrade",
+					"form": "B",
+					"description": "две транзакции читают строку под S и обе повышают до X: цикл из-за повышения"
+				},
+				{
+					"id": "chain",
+					"form": "anchor",
+					"description": "кроме цикла есть ожидающая транзакция вне цикла; она моложе, но жертвой не становится"
+				},
+				{
+					"id": "shared-no-cycle",
+					"form": "X",
+					"description": "транзакции пересекаются в основном по S-блокировкам: S совместимы, ожидания короткие, цикла нет и никто не откатывается"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "имена транзакций и строк" },
+		{ "name": "numbers", "description": "порядок начала транзакций и порядок ходов" }
+	],
+	"essentialParams": [
+		{ "name": "modes", "description": "только X или S с повышением до X" },
+		{ "name": "graph", "description": "цикл один или есть ожидающие вне цикла" },
+		{ "name": "order", "description": "в каком порядке транзакции берут строки и чей запрос замыкает цикл" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"совместимость разделяемых и исключительных блокировок",
+			"строгая двухфазная блокировка: снятие только при фиксации или откате",
+			"повышение S до X при чужой S",
+			"цикл в графе ожидания",
+			"выбор жертвы: самая молодая транзакция цикла"
+		],
+		"doesNotCheck": ["блокировки диапазонов и предикатов", "таймауты ожидания вместо графа"]
+	},
+	"wrongSolutions": [
+		{ "id": "abort-oldest", "defect": "откатывает самую старую транзакцию цикла", "mustBeCaught": true },
+		{
+			"id": "abort-requester",
+			"defect": "откатывает ту транзакцию, чей запрос замкнул цикл, а не самую молодую",
+			"mustBeCaught": true
+		},
+		{
+			"id": "abort-youngest-waiter",
+			"defect": "откатывает самую молодую из всех ожидающих, даже если она не в цикле",
+			"mustBeCaught": true
+		},
+		{
+			"id": "shared-exclusive",
+			"defect": "считает, что две S-блокировки одной строки несовместимы",
+			"mustBeCaught": true
+		},
+		{
+			"id": "upgrade-free",
+			"defect": "считает, что повышение S до X проходит, даже когда строку читает кто-то ещё",
+			"mustBeCaught": true
+		},
+		{
+			"id": "wait-aborts",
+			"defect": "считает любое ожидание блокировки взаимоблокировкой и откатывает младшую из двух",
+			"mustBeCaught": true
+		},
+		{
+			"id": "self-conflict",
+			"defect": "считает, что повторный запрос своей же X-блокировки ждёт сам себя",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 7, "caught": 7 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0021,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

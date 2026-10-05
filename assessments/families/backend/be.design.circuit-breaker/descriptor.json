@@ -1,0 +1,100 @@
+{
+	"key": "be.design.circuit-breaker",
+	"version": 1,
+	"specialization": "backend",
+	"block": "be.design",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"calls": "16–22",
+				"states": "closed / open / half-open",
+				"interacting": "условие срабатывания + время открытия + пробные вызовы"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "consecutive",
+					"form": "A",
+					"description": "срабатывание по ошибкам подряд: успех обнуляет счёт, неудачная проба заново отсчитывает время"
+				},
+				{
+					"id": "window",
+					"form": "B",
+					"description": "срабатывание по числу ошибок в скользящем окне выполненных вызовов; окно очищается при смене состояния"
+				},
+				{
+					"id": "half-open-probes",
+					"form": "anchor",
+					"description": "полуоткрытое состояние пропускает несколько пробных вызовов: закрытие только после всех успешных"
+				},
+				{
+					"id": "slow-calls",
+					"form": "X",
+					"description": "медленные вызовы: успешный, но долгий ответ считается неудачей для выключателя, а вызывающий получает ответ"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "название зависимости" },
+		{ "name": "timeline", "description": "моменты вызовов и ответы зависимости" }
+	],
+	"essentialParams": [
+		{ "name": "trip", "description": "условие срабатывания: ошибки подряд или ошибки в скользящем окне" },
+		{ "name": "probes", "description": "сколько пробных вызовов в полуоткрытом состоянии" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"переходы closed → open → half-open → closed",
+			"граница времени открытого состояния",
+			"счётчик ошибок подряд против скользящего окна",
+			"пробные вызовы и повторное открытие",
+			"порог медленных вызовов"
+		],
+		"doesNotCheck": [
+			"параллельные пробные вызовы",
+			"таймауты как отдельный вид ошибки",
+			"настройка конкретной библиотеки"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "timer-exclusive",
+			"defect": "пропускает пробный вызов только строго позже истечения времени открытия",
+			"mustBeCaught": true
+		},
+		{ "id": "no-reset", "defect": "не обнуляет счёт ошибок после успешного вызова", "mustBeCaught": true },
+		{
+			"id": "timer-not-restarted",
+			"defect": "после неудачной пробы отсчитывает время открытия от первого срабатывания",
+			"mustBeCaught": true
+		},
+		{ "id": "window-kept", "defect": "не очищает окно при открытии и закрытии", "mustBeCaught": true },
+		{
+			"id": "single-probe",
+			"defect": "закрывает выключатель после первого успешного пробного вызова",
+			"mustBeCaught": true
+		},
+		{ "id": "slow-ignored", "defect": "считает медленный успешный вызов удачным для выключателя", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 6, "caught": 6 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0001,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

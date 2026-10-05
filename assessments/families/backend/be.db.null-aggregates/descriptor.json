@@ -1,0 +1,121 @@
+{
+	"key": "be.db.null-aggregates",
+	"version": 1,
+	"specialization": "backend",
+	"block": "be.db",
+	"format": "sql_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": { "tables": 1, "rows": "8–10", "nullColumns": 1, "clauses": "WHERE + агрегат" },
+			"constructiveRank": 2,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "count-column",
+					"form": "A",
+					"description": "COUNT(*) против COUNT(столбец) и SUM при NULL в отфильтрованных строках"
+				},
+				{ "id": "not-equal-null", "form": "B", "description": "сравнение <> с NULL в WHERE отбрасывает строку" },
+				{
+					"id": "avg-null",
+					"form": "anchor",
+					"description": "AVG делит на число не-NULL значений, а не на число строк"
+				},
+				{
+					"id": "null-arithmetic",
+					"form": "X",
+					"description": "NULL в арифметике: price + fee с NULL — NULL, и SUM(price + fee) не равна SUM(price) + SUM(fee)"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": { "tables": 2, "rows": "10–14", "nullColumns": 2, "clauses": "JOIN / GROUP BY / HAVING" },
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "null-group",
+					"form": "A",
+					"description": "NULL в ключе группировки образует свою группу и идёт первой при ORDER BY"
+				},
+				{
+					"id": "left-join-on",
+					"form": "B",
+					"description": "условие в ON у LEFT JOIN сохраняет строки без пары; COUNT(столбец) даёт 0"
+				},
+				{
+					"id": "having-null-sum",
+					"form": "anchor",
+					"description": "SUM группы из одних NULL — NULL, и HAVING её отбрасывает"
+				},
+				{
+					"id": "join-null-key",
+					"form": "X",
+					"description": "NULL в ключе соединения: NULL = NULL не истина, заказ без кода не находит акцию без кода"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "названия таблиц и столбцов, города, имена" },
+		{ "name": "data", "description": "значения, число строк, порядок вставки" }
+	],
+	"essentialParams": [
+		{
+			"name": "null-site",
+			"description": "где стоит NULL: в агрегируемом столбце, в условии, в ключе группировки, в паре соединения"
+		},
+		{
+			"name": "clause",
+			"description": "какая конструкция встречает NULL: COUNT, AVG, <>, GROUP BY, LEFT JOIN … ON, HAVING"
+		}
+	],
+	"language": "sql",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"COUNT(*) и COUNT(столбец), SUM и AVG при NULL",
+			"трёхзначная логика сравнений с NULL",
+			"NULL в ключе группировки и в сортировке SQLite",
+			"LEFT JOIN с условием в ON",
+			"HAVING с агрегатом от одних NULL",
+			"NULL в арифметических выражениях",
+			"NULL в ключе соединения"
+		],
+		"doesNotCheck": ["диалекты, где NULL сортируется последним", "производительность запросов и индексы"]
+	},
+	"wrongSolutions": [
+		{ "id": "count-star", "defect": "считает, что COUNT(столбец) считает и строки с NULL", "mustBeCaught": true },
+		{ "id": "null-matches", "defect": "считает, что NULL <> значение — истина", "mustBeCaught": true },
+		{ "id": "null-as-zero", "defect": "подставляет 0 вместо NULL в агрегатах", "mustBeCaught": true },
+		{
+			"id": "null-group-dropped",
+			"defect": "считает, что строки с NULL в ключе не попадают в группировку",
+			"mustBeCaught": true
+		},
+		{ "id": "on-as-where", "defect": "считает условие в ON у LEFT JOIN фильтром всей выборки", "mustBeCaught": true },
+		{
+			"id": "null-equals-null",
+			"defect": "считает, что NULL = NULL в условии соединения истинно",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 6, "caught": 6 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0171,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

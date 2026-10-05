@@ -1,0 +1,87 @@
+{
+	"key": "be.debug.cache-invalidation",
+	"version": 1,
+	"specialization": "backend",
+	"block": "be.debug",
+	"format": "bug_locate",
+	"answerKind": "line_no",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"units": 4,
+				"lines": "50–75",
+				"defect": "одна строка: ключ кэша, граница или единицы TTL, инвалидация после записи"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "key",
+					"form": "A",
+					"description": "ключ кэша без одного из параметров, неоднозначный или зависящий от порядка"
+				},
+				{
+					"id": "ttl",
+					"form": "B",
+					"description": "срок жизни записи: сравнение на границе, единицы времени или знак разности"
+				},
+				{
+					"id": "invalidation",
+					"form": "anchor",
+					"description": "после записи кэш отдаёт устаревшее значение или кэширует отсутствие ответа"
+				},
+				{
+					"id": "namespace",
+					"form": "X",
+					"description": "инвалидация группы ключей: версия пространства имён не в ключе или не та, префикс сравнивается не так"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "context", "description": "какие ещё кэши модуля показаны и в каком порядке" },
+		{ "name": "header", "description": "заголовок модуля: импорты и константы разной длины" }
+	],
+	"essentialParams": [
+		{ "name": "defect-kind", "description": "вид дефекта: ключ кэша, срок жизни записи, инвалидация" }
+	],
+	"language": "python3",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"ключ кэша включает все параметры результата и однозначен",
+			"граница и единицы срока жизни записи",
+			"инвалидация после записи и ключ инвалидации",
+			"отрицательное кэширование: пустые ответы и ошибки не кэшируются",
+			"кэш хранит то, что реально сохранено"
+		],
+		"doesNotCheck": [
+			"исправление дефекта (только его место)",
+			"конкурентный доступ к кэшу (блок be.concurrency и асинхронные дефекты)",
+			"вытеснение по размеру"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "neighbour-line",
+			"defect": "указывает соседнюю строку того же кэша, где «исправление» не возвращает контракт",
+			"mustBeCaught": true
+		},
+		{ "id": "other-unit", "defect": "указывает похожую строку в другом, исправном кэше", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 2, "caught": 2 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0209,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

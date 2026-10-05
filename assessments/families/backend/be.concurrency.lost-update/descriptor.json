@@ -1,0 +1,143 @@
+{
+	"key": "be.concurrency.lost-update",
+	"version": 1,
+	"specialization": "backend",
+	"block": "be.concurrency",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"threads": "2–3",
+				"turns": "8–16",
+				"rules": 3,
+				"interacting": "чередование чтений и записей + блокировка"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "no-lock",
+					"form": "A",
+					"description": "чтение и запись без блокировки: запись по устаревшему чтению теряет чужие прибавки"
+				},
+				{
+					"id": "partial-lock",
+					"form": "B",
+					"description": "двое берут блокировку, третий пишет без неё: блокировка его не останавливает"
+				},
+				{
+					"id": "transfer",
+					"form": "anchor",
+					"description": "переводы между двумя счетами без блокировки: сумма счетов не сохраняется"
+				},
+				{
+					"id": "check-then-act",
+					"form": "X",
+					"description": "проверка остатка и запись — разные шаги: оба потока видят достаточный остаток, и броней удаётся больше, чем было товара"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"constructive": {
+				"threads": "2–3",
+				"turns": "10–20",
+				"rules": 4,
+				"interacting": "CAS с повтором + порядок ходов + метка версии"
+			},
+			"constructiveRank": 7,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "cas-counter",
+					"form": "A",
+					"description": "счётчик через CAS с повтором: значение не теряется, считаются неудачные CAS"
+				},
+				{
+					"id": "aba-stack",
+					"form": "B",
+					"description": "стек без блокировок, CAS по значению вершины: подмена A→B→A проходит незамеченной и портит стек"
+				},
+				{
+					"id": "tagged-stack",
+					"form": "anchor",
+					"description": "тот же стек с меткой версии у вершины: подмена A→B→A ловится, CAS повторяется"
+				},
+				{
+					"id": "split-transfer",
+					"form": "X",
+					"description": "перевод двумя отдельными CAS: каждый неделим, а пара — нет; аудитор между ними видит сумму счетов без переводимой суммы"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "имена переменных и узлов" },
+		{ "name": "numbers", "description": "начальные значения, прибавки, порядок ходов" }
+	],
+	"essentialParams": [
+		{ "name": "sync", "description": "без синхронизации, блокировка, CAS по значению, CAS с меткой версии" },
+		{ "name": "coverage", "description": "все ли потоки берут блокировку" },
+		{ "name": "structure", "description": "счётчик, пара счетов или стек" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"потерянное обновление при чтении-изменении-записи",
+			"блокировка защищает только тех, кто её берёт",
+			"CAS с повтором и число неудач",
+			"проблема ABA и метка версии",
+			"проверка и действие в разных шагах",
+			"несколько неделимых операций не неделимы вместе"
+		],
+		"doesNotCheck": ["модель памяти и видимость записей", "настоящие потоки и планировщик ОС"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "atomic",
+			"defect": "считает каждое «прочитать — изменить — записать» неделимым и складывает все изменения",
+			"mustBeCaught": true
+		},
+		{ "id": "ignore-lock", "defect": "не учитывает, что поток ждёт занятую блокировку", "mustBeCaught": true },
+		{
+			"id": "lock-guards-data",
+			"defect": "считает, что блокировка не пускает к переменной и поток, который её не берёт",
+			"mustBeCaught": true
+		},
+		{ "id": "cas-as-write", "defect": "считает, что CAS всегда записывает, как обычная запись", "mustBeCaught": true },
+		{ "id": "cas-no-retry", "defect": "после неудачного CAS не повторяет операцию", "mustBeCaught": true },
+		{
+			"id": "aba-detected",
+			"defect": "считает, что CAS по значению заметит, что вершину успели снять и вернуть",
+			"mustBeCaught": true
+		},
+		{
+			"id": "value-only-cas",
+			"defect": "сравнивает в CAS только вершину и не смотрит на метку версии",
+			"mustBeCaught": true
+		},
+		{
+			"id": "check-at-write",
+			"defect": "считает, что условие брони проверяется заново в момент записи",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 8, "caught": 8 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0101,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

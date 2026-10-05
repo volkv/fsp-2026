@@ -1,0 +1,102 @@
+{
+	"key": "be.db.case-coalesce",
+	"version": 1,
+	"specialization": "backend",
+	"block": "be.db",
+	"format": "sql_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": {
+				"tables": 1,
+				"rows": "7–10",
+				"expressions": "1–3",
+				"clauses": "CASE / COALESCE / NULLIF / ORDER BY выражения"
+			},
+			"constructiveRank": 2,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "case-first-match",
+					"form": "A",
+					"description": "CASE берёт первую подходящую ветку, даже если подходит и следующая"
+				},
+				{
+					"id": "coalesce-nullif",
+					"form": "B",
+					"description": "COALESCE пропускает только NULL (пустая строка — значение), NULLIF даёт NULL при равенстве"
+				},
+				{
+					"id": "text-number-compare",
+					"form": "X",
+					"description": "числа в текстовом столбце сравниваются и сортируются как строки: '9' > '20'"
+				},
+				{
+					"id": "order-by-case",
+					"form": "anchor",
+					"description": "сортировка по выражению CASE задаёт свой порядок вместо алфавитного"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "названия таблиц, товары, контакты, задачи" },
+		{ "name": "data", "description": "значения, пороги, порядок вставки" }
+	],
+	"essentialParams": [
+		{
+			"name": "expression",
+			"description": "какое выражение решает ответ: CASE, COALESCE, NULLIF, сравнение текста, ORDER BY по CASE"
+		}
+	],
+	"language": "sql",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"порядок веток CASE",
+			"COALESCE и пустая строка",
+			"NULLIF",
+			"сравнение и сортировка чисел, хранящихся текстом",
+			"сортировка по выражению"
+		],
+		"doesNotCheck": ["правила приведения типов при смешанных сравнениях", "сортировка с учётом локали"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "case-last-match",
+			"defect": "считает, что в CASE побеждает последняя подходящая ветка",
+			"mustBeCaught": true
+		},
+		{ "id": "empty-is-null", "defect": "считает пустую строку NULL в COALESCE", "mustBeCaught": true },
+		{
+			"id": "nullif-inverted",
+			"defect": "считает, что NULLIF даёт NULL, когда значения различаются",
+			"mustBeCaught": true
+		},
+		{
+			"id": "text-as-number",
+			"defect": "сравнивает и сортирует числа в текстовом столбце как числа",
+			"mustBeCaught": true
+		},
+		{
+			"id": "sort-by-label",
+			"defect": "считает, что сортировка идёт по самому значению столбца, а не по выражению CASE",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 5, "caught": 5 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

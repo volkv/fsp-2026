@@ -1,0 +1,142 @@
+{
+	"key": "be.db.join-multiplicity",
+	"version": 1,
+	"specialization": "backend",
+	"block": "be.db",
+	"format": "sql_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": { "tables": 2, "rows": "9–14", "joins": 1, "clauses": "JOIN / LEFT JOIN + ORDER BY" },
+			"constructiveRank": 2,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "left-keeps-unmatched",
+					"form": "A",
+					"description": "LEFT JOIN сохраняет клиента без заказов строкой с NULL и повторяет клиента на каждый заказ"
+				},
+				{
+					"id": "left-side",
+					"form": "B",
+					"description": "сохраняются строки левой таблицы: заказы без клиента остаются, клиенты без заказов — нет"
+				},
+				{
+					"id": "inner-repeats",
+					"form": "anchor",
+					"description": "INNER JOIN один-ко-многим повторяет строку клиента на каждый подходящий заказ"
+				},
+				{
+					"id": "comma-join",
+					"form": "X",
+					"description": "соединение через запятую без условия связи — декартово произведение: каждый клиент с каждым подходящим заказом"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": { "tables": 3, "rows": "14–22", "joins": 2, "clauses": "два соединения + GROUP BY + агрегаты" },
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "sum-fanout",
+					"form": "A",
+					"description": "SUM и COUNT после соединения с двумя «многими» таблицами умножаются на число пар"
+				},
+				{
+					"id": "sum-distinct",
+					"form": "B",
+					"description": "COUNT(DISTINCT id) убирает размножение, а SUM(DISTINCT) схлопывает равные суммы разных заказов"
+				},
+				{
+					"id": "rows-product",
+					"form": "anchor",
+					"description": "число строк клиента после двух LEFT JOIN — произведение, где таблица без пары даёт одну строку"
+				},
+				{
+					"id": "anti-join",
+					"form": "X",
+					"description": "LEFT JOIN … WHERE o.id IS NULL с условием в ON: клиенты без заказов нужного статуса, включая клиентов без заказов"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "имена клиентов, города, названия второй «многой» таблицы" },
+		{ "name": "data", "description": "число клиентов, заказов и обращений, суммы, порядок вставки" }
+	],
+	"essentialParams": [
+		{ "name": "join-kind", "description": "INNER или LEFT JOIN и какая таблица слева" },
+		{ "name": "fan-out", "description": "одна или две таблицы «многих» в соединении и что агрегируется после него" }
+	],
+	"language": "sql",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"INNER JOIN против LEFT JOIN",
+			"какая таблица сохраняется в LEFT JOIN",
+			"повтор строк при соединении один-ко-многим",
+			"размножение SUM и COUNT при двух соединениях один-ко-многим",
+			"COUNT(DISTINCT) и SUM(DISTINCT)",
+			"декартово произведение при соединении без условия",
+			"антисоединение через LEFT JOIN и IS NULL"
+		],
+		"doesNotCheck": ["FULL OUTER JOIN", "соединения по неравенству", "план запроса и индексы"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "left-as-inner",
+			"defect": "считает, что LEFT JOIN без пары строку не даёт (как INNER JOIN)",
+			"mustBeCaught": true
+		},
+		{
+			"id": "one-row-per-left",
+			"defect": "считает, что соединение даёт одну строку на строку левой таблицы",
+			"mustBeCaught": true
+		},
+		{ "id": "wrong-side", "defect": "путает стороны LEFT JOIN: сохраняет строки правой таблицы", "mustBeCaught": true },
+		{
+			"id": "no-fanout",
+			"defect": "считает, что второе соединение один-ко-многим не умножает строки и агрегаты",
+			"mustBeCaught": true
+		},
+		{ "id": "rows-add", "defect": "складывает число строк двух соединений вместо умножения", "mustBeCaught": true },
+		{
+			"id": "distinct-by-row",
+			"defect": "считает, что SUM(DISTINCT) суммирует разные строки, а не разные значения",
+			"mustBeCaught": true
+		},
+		{
+			"id": "distinct-ignored",
+			"defect": "считает, что DISTINCT внутри агрегата размножение не убирает",
+			"mustBeCaught": true
+		},
+		{
+			"id": "implicit-key-join",
+			"defect": "считает, что соединение через запятую само связывает таблицы по ключу",
+			"mustBeCaught": true
+		},
+		{
+			"id": "anti-as-not-equal",
+			"defect": "читает антисоединение как «есть заказ с другим статусом»",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 9, "caught": 9 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.001,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

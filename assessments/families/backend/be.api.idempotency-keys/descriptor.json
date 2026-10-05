@@ -1,0 +1,148 @@
+{
+	"key": "be.api.idempotency-keys",
+	"version": 1,
+	"specialization": "backend",
+	"block": "be.api",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"requests": "5–7",
+				"keys": "2–3",
+				"rules": 4,
+				"interacting": "повтор + тело + незавершённый запрос"
+			},
+			"constructiveRank": 3,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "replay",
+					"form": "A",
+					"description": "повтор с тем же ключом после завершения получает сохранённый ответ, запросы без ключа выполняются"
+				},
+				{
+					"id": "body-mismatch",
+					"form": "B",
+					"description": "тот же ключ с другим телом получает 422, а не сохранённый ответ"
+				},
+				{
+					"id": "in-flight",
+					"form": "anchor",
+					"description": "повтор, пока первый запрос ещё выполняется, получает 409; повтор после — сохранённый ответ"
+				},
+				{
+					"id": "new-key-per-retry",
+					"form": "X",
+					"description": "клиент на каждый повтор создаёт новый ключ: сервер видит разные ключи и создаёт новый платёж"
+				}
+			]
+		},
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"requests": "6–9",
+				"keys": "2–3",
+				"rules": 6,
+				"interacting": "срок жизни ключа + сохранение ошибок + порядок проверок"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "expiry",
+					"form": "A",
+					"description": "срок ключа истёк: повтор выполняется заново, другое тело — уже не 422"
+				},
+				{
+					"id": "failed-first",
+					"form": "B",
+					"description": "ответ 500 не сохраняется и повтор выполняется; ответ 400 сохраняется, исправленное тело — 422"
+				},
+				{
+					"id": "race",
+					"form": "anchor",
+					"description": "два клиента с одним ключом одновременно: другое тело во время выполнения — 422, то же — 409"
+				},
+				{
+					"id": "ttl-from-finish",
+					"form": "X",
+					"description": "повтор приходит позже срока от прихода первого запроса, но раньше срока от его завершения: ответ ещё сохранён"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "клиенты, значения ключей, суммы платежей" },
+		{ "name": "numbers", "description": "моменты запросов, длительность выполнения, срок жизни ключа, номера платежей" }
+	],
+	"essentialParams": [
+		{ "name": "repeat", "description": "когда приходит повтор: во время выполнения, после, после истечения ключа" },
+		{ "name": "body", "description": "совпадает ли тело повтора с запомненным" },
+		{ "name": "outcome", "description": "чем закончилось первое выполнение: 201, 400 или 500" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"повтор с тем же ключом не создаёт второй ресурс",
+			"тот же ключ с другим телом — 422",
+			"повтор во время выполнения — 409",
+			"срок жизни ключа",
+			"какие ответы сервер сохраняет под ключом",
+			"порядок проверок: сначала тело, потом незавершённость"
+		],
+		"doesNotCheck": ["хранение ключей в конкретной базе", "выбор срока жизни ключа"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "no-dedup",
+			"defect": "считает, что каждый POST с ключом выполняется и создаёт платёж",
+			"mustBeCaught": true
+		},
+		{
+			"id": "body-ignored",
+			"defect": "не сравнивает тело: тот же ключ с другим телом получает сохранённый ответ",
+			"mustBeCaught": true
+		},
+		{
+			"id": "inflight-duplicate",
+			"defect": "считает, что повтор во время выполнения первого запроса выполняется ещё раз",
+			"mustBeCaught": true
+		},
+		{ "id": "no-expiry", "defect": "не учитывает срок жизни ключа", "mustBeCaught": true },
+		{ "id": "store-5xx", "defect": "считает, что ответ 500 сохраняется и повторяется", "mustBeCaught": true },
+		{ "id": "forget-4xx", "defect": "считает, что ответ 400 не сохраняется и ключ свободен", "mustBeCaught": true },
+		{
+			"id": "conflict-before-body",
+			"defect": "во время выполнения отвечает 409 и на запрос с другим телом",
+			"mustBeCaught": true
+		},
+		{
+			"id": "dedup-by-body",
+			"defect": "считает, что сервер узнаёт повтор по одинаковому телу, а не по ключу",
+			"mustBeCaught": true
+		},
+		{
+			"id": "ttl-from-start",
+			"defect": "отсчитывает срок жизни ключа от прихода запроса, а не от завершения выполнения",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 9, "caught": 9 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0002,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

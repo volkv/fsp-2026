@@ -1,0 +1,130 @@
+{
+	"key": "be.debug.api-handlers",
+	"version": 1,
+	"specialization": "backend",
+	"block": "be.debug",
+	"format": "bug_locate",
+	"answerKind": "line_no",
+	"levels": [
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"handlers": 5,
+				"lines": "50–70",
+				"defect": "одна строка: код ответа, запись до проверки, пагинация и фильтр, лишние поля в ответе"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "status-code",
+					"form": "A",
+					"description": "код ответа не тот, что требует контракт: 200 вместо 201 или 204, 400 вместо 422, 403 вместо 429"
+				},
+				{
+					"id": "validate-after-write",
+					"form": "B",
+					"description": "состояние меняется до проверки: отклонённый запрос уже записал данные или счётчик"
+				},
+				{
+					"id": "paging-filter",
+					"form": "anchor",
+					"description": "пагинация и фильтр в обработчике: смещение страницы, пропущенный фильтр, total не по фильтру, регистр"
+				},
+				{
+					"id": "field-leak",
+					"form": "X",
+					"description": "лишнее поле в ответе: весь объект вместо белого списка, подробности ошибки шлюза, данные карты"
+				}
+			]
+		},
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"handlers": 4,
+				"lines": "60–90",
+				"defect": "одна строка: идемпотентность, транзакция, ключ повтора, предусловие версии"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "idempotency",
+					"form": "A",
+					"description": "идемпотентность обработчика: ключ ищется не так, повтор с другим телом проходит, повтор меняет ответ или действие"
+				},
+				{
+					"id": "transaction",
+					"form": "B",
+					"description": "транзакция не охватывает обе записи: запись мимо транзакции или фиксация частичного результата при ошибке"
+				},
+				{
+					"id": "retry-no-key",
+					"form": "anchor",
+					"description": "повтор вызова другого сервиса без постоянного ключа идемпотентности: действие выполняется дважды"
+				},
+				{
+					"id": "precondition",
+					"form": "X",
+					"description": "условные запросы: проверка версии If-Match, код 412 и 428, ETag и 304 без тела"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "context", "description": "какие ещё обработчики показаны и в каком порядке" },
+		{ "name": "header", "description": "заголовок модуля: импорты и константы разной длины" }
+	],
+	"essentialParams": [
+		{
+			"name": "defect-kind",
+			"description": "вид дефекта: код ответа, запись до проверки, пагинация и фильтр, утечка поля, идемпотентность, транзакция, ключ повтора, предусловие"
+		}
+	],
+	"language": "python3",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"коды ответов HTTP по контракту обработчика",
+			"проверка входа до любой записи",
+			"пагинация, фильтр и total",
+			"белый список полей ответа",
+			"идемпотентность обработчика и ключ идемпотентности",
+			"границы транзакции",
+			"повтор вызова с постоянным ключом",
+			"условные запросы: If-Match, ETag, 304, 412, 428"
+		],
+		"doesNotCheck": [
+			"исправление дефекта (только его место)",
+			"конкретный веб-фреймворк и маршрутизация",
+			"аутентификация и права доступа"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "neighbour-line",
+			"defect": "указывает соседнюю строку того же обработчика, где «исправление» не возвращает контракт",
+			"mustBeCaught": true
+		},
+		{
+			"id": "other-handler",
+			"defect": "указывает похожую строку в другом, исправном обработчике",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 2, "caught": 2 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0206,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

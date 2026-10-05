@@ -1,0 +1,153 @@
+{
+	"key": "be.db.transactions-savepoint",
+	"version": 1,
+	"specialization": "backend",
+	"block": "be.db",
+	"format": "sql_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": { "statements": "10–14", "savepoints": "1–2", "nesting": 1, "transactions": "1–2" },
+			"constructiveRank": 5,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "rollback-to-keeps-open",
+					"form": "A",
+					"description": "ROLLBACK TO не закрывает точку: повторный откат к ней снова отменяет изменения после неё"
+				},
+				{
+					"id": "release-then-rollback",
+					"form": "B",
+					"description": "RELEASE только сливает изменения точки во внешнюю транзакцию: внешний откат их отменяет"
+				},
+				{
+					"id": "two-transactions",
+					"form": "anchor",
+					"description": "ROLLBACK TO отменяет только изменения после точки; ROLLBACK второй транзакции — всю её"
+				},
+				{
+					"id": "savepoint-opens-transaction",
+					"form": "X",
+					"description": "SAVEPOINT без BEGIN открывает транзакцию: ROLLBACK отменяет всё с этой точки, включая отпущенную вложенную"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"constructive": {
+				"statements": "13–18",
+				"savepoints": "2–3",
+				"nesting": "2–3",
+				"extras": "триггер или выдача id"
+			},
+			"constructiveRank": 7,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "nested-savepoints",
+					"form": "A",
+					"description": "вложенные точки без BEGIN: откат к внешней точке отменяет и отпущенную внутреннюю, RELEASE внешней — фиксация"
+				},
+				{
+					"id": "trigger-audit",
+					"form": "B",
+					"description": "триггер AFTER UPDATE пишет журнал по строке на каждую изменённую строку и откатывается вместе с ней"
+				},
+				{
+					"id": "reused-ids",
+					"form": "anchor",
+					"description": "id из INTEGER PRIMARY KEY после отката выдаются заново: наибольший существующий + 1"
+				},
+				{
+					"id": "duplicate-names",
+					"form": "X",
+					"description": "две открытые точки с одним именем: ROLLBACK TO и RELEASE берут последнюю из них"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "названия таблиц, владельцы счетов, имена точек сохранения" },
+		{ "name": "data", "description": "балансы, суммы изменений, число и порядок операторов" }
+	],
+	"essentialParams": [
+		{
+			"name": "control",
+			"description": "какие операторы управления встречаются и в каком порядке: ROLLBACK TO, RELEASE, ROLLBACK"
+		},
+		{ "name": "nesting", "description": "вложенность точек и открыта ли транзакция BEGIN или первой точкой" },
+		{ "name": "side-effects", "description": "что ещё откатывается: строки триггера, выданные id" }
+	],
+	"language": "sql",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"SAVEPOINT, ROLLBACK TO и RELEASE",
+			"ROLLBACK TO оставляет точку открытой",
+			"RELEASE не фиксирует изменения, если снаружи есть транзакция",
+			"SAVEPOINT без BEGIN открывает транзакцию, RELEASE этой точки её фиксирует",
+			"триггеры откатываются вместе с транзакцией",
+			"выдача id после отката",
+			"повторяющиеся имена точек сохранения"
+		],
+		"doesNotCheck": [
+			"параллельные транзакции и блокировки",
+			"ошибки внутри транзакции и их обработка драйвером",
+			"AUTOINCREMENT и последовательности других СУБД"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "rollback-to-closes",
+			"defect": "считает, что ROLLBACK TO закрывает точку сохранения",
+			"mustBeCaught": true
+		},
+		{
+			"id": "release-commits",
+			"defect": "считает, что RELEASE фиксирует изменения точки окончательно",
+			"mustBeCaught": true
+		},
+		{
+			"id": "rollback-to-whole",
+			"defect": "считает, что ROLLBACK TO откатывает транзакцию с самого начала",
+			"mustBeCaught": true
+		},
+		{
+			"id": "trigger-survives",
+			"defect": "считает, что строки, записанные триггером, переживают откат",
+			"mustBeCaught": true
+		},
+		{
+			"id": "ids-not-reused",
+			"defect": "считает, что выданный и откатанный id больше не выдаётся",
+			"mustBeCaught": true
+		},
+		{
+			"id": "name-finds-outer",
+			"defect": "считает, что имя точки сохранения указывает на первую точку с этим именем",
+			"mustBeCaught": true
+		},
+		{
+			"id": "savepoint-no-transaction",
+			"defect": "считает, что SAVEPOINT без BEGIN транзакцию не открывает и изменения фиксируются сразу",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 7, "caught": 7 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

@@ -1,0 +1,145 @@
+{
+	"key": "be.algo.binary-search",
+	"version": 1,
+	"specialization": "backend",
+	"block": "be.algo",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": { "arrayLength": "7–10", "queries": 3, "repeats": true, "loops": 1 },
+			"constructiveRank": 2,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "lower-bound",
+					"form": "A",
+					"description": "`lo < hi`, `a[mid] < x`: первый индекс, где элемент не меньше x"
+				},
+				{
+					"id": "upper-bound",
+					"form": "B",
+					"description": "`lo < hi`, `a[mid] <= x`: первый индекс, где элемент больше x"
+				},
+				{
+					"id": "closed-search",
+					"form": "anchor",
+					"description": "`lo <= hi` с возвратом при равенстве: среди повторов находится тот, на который попал mid"
+				},
+				{
+					"id": "closed-insert",
+					"form": "X",
+					"description": "`lo <= hi` без возврата при равенстве: lo — позиция вставки, hi после цикла на единицу меньше"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": { "arrayLength": "6–10", "iterations": "4–7", "functions": 2, "loops": 2 },
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "answer-search",
+					"form": "A",
+					"description": "поиск по ответу: минимальная вместимость, при которой груз уложится в заданное число дней"
+				},
+				{
+					"id": "bisect",
+					"form": "B",
+					"description": "bisect_left и bisect_right на повторах и отсутствующих значениях, insort, счёт в отрезке"
+				},
+				{
+					"id": "rotated",
+					"form": "anchor",
+					"description": "поиск в циклически сдвинутом отсортированном массиве с подсчётом шагов"
+				},
+				{
+					"id": "last-at-most",
+					"form": "X",
+					"description": "поиск последнего элемента не больше x: mid с округлением вверх, −1, если таких нет"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "имена функций и переменных" },
+		{ "name": "data", "description": "элементы массива, запросы и их порядок" }
+	],
+	"essentialParams": [
+		{ "name": "invariant", "description": "полуинтервал или отрезок, строгое или нестрогое сравнение" },
+		{ "name": "repeats", "description": "есть ли повторы искомого значения и отсутствующие значения" },
+		{ "name": "search-space", "description": "индексы массива или значения ответа" }
+	],
+	"language": "python3",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"lower bound и upper bound на массиве с повторами",
+			"результат для отсутствующего значения и значения за краем",
+			"классический поиск с повторами",
+			"бинарный поиск по ответу",
+			"модуль bisect",
+			"поиск в сдвинутом массиве",
+			"состояние границ после цикла `lo <= hi`",
+			"поиск последнего не большего с округлением mid вверх"
+		],
+		"doesNotCheck": ["написание бинарного поиска", "поиск по вещественным числам"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "bound-swapped",
+			"defect": "путает lower bound и upper bound: `<` и `<=` в условии сдвига",
+			"mustBeCaught": true
+		},
+		{
+			"id": "not-found-minus-one",
+			"defect": "считает, что для отсутствующего значения функция возвращает −1, а не позицию вставки",
+			"mustBeCaught": true
+		},
+		{
+			"id": "first-occurrence",
+			"defect": "считает, что классический поиск находит первое вхождение из повторов",
+			"mustBeCaught": true
+		},
+		{
+			"id": "strict-capacity",
+			"defect": "считает, что груз, равный оставшейся вместимости, уже не помещается в день",
+			"mustBeCaught": true
+		},
+		{
+			"id": "stop-at-feasible",
+			"defect": "считает, что поиск минимума останавливается на первом подходящем значении",
+			"mustBeCaught": true
+		},
+		{
+			"id": "right-is-last-index",
+			"defect": "считает, что bisect_right возвращает индекс последнего равного элемента, а не позицию за ним",
+			"mustBeCaught": true
+		},
+		{
+			"id": "rotation-blind",
+			"defect": "ведёт поиск как в обычном отсортированном массиве, не замечая проверки отсортированной половины",
+			"mustBeCaught": true
+		},
+		{ "id": "hi-equals-lo", "defect": "считает, что цикл `lo <= hi` заканчивается при lo == hi", "mustBeCaught": true },
+		{ "id": "last-is-first", "defect": "среди равных x возвращает первый, а не последний", "mustBeCaught": true },
+		{ "id": "strict-bound", "defect": "ищет последний элемент строго меньше x, путая `<=` и `<`", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 10, "caught": 10 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0005,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

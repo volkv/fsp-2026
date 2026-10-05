@@ -1,0 +1,160 @@
+{
+	"key": "be.concurrency.queue-redelivery",
+	"version": 1,
+	"specialization": "backend",
+	"block": "be.concurrency",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"messages": "3–5",
+				"actions": "8–14",
+				"rules": 4,
+				"interacting": "таймаут видимости + подтверждение + сбой"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "late-ack",
+					"form": "A",
+					"description": "подтверждение после истечения таймаута отклоняется, сообщение выдаётся и обрабатывается снова"
+				},
+				{
+					"id": "crash-idempotent",
+					"form": "B",
+					"description": "потребитель падает, сообщение возвращается только по таймауту; идемпотентный обработчик не считает повтор"
+				},
+				{
+					"id": "mixed",
+					"form": "anchor",
+					"description": "неидемпотентный обработчик, падения и поздние подтверждения вместе"
+				},
+				{
+					"id": "extend",
+					"form": "X",
+					"description": "потребитель продлевает таймаут видимости: новый срок — момент продления плюс таймаут, а позднее продление не действует"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"messages": "4–6",
+				"actions": "8–15",
+				"rules": 5,
+				"interacting": "группы FIFO + таймаут + DLQ"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "fifo-groups",
+					"form": "A",
+					"description": "очередь FIFO с группами: пока сообщение группы не подтверждено, следующие той же группы не выдаются"
+				},
+				{
+					"id": "dead-letter",
+					"form": "B",
+					"description": "после N выдач сообщение при следующей попытке уходит в DLQ, и выдаётся следующее"
+				},
+				{ "id": "fifo-dlq", "form": "anchor", "description": "группы FIFO и DLQ: перенос в DLQ разблокирует группу" },
+				{
+					"id": "release-dlq",
+					"form": "X",
+					"description": "потребитель возвращает сообщение до таймаута: оно сразу доступно на прежнем месте, а выдача засчитана для DLQ"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "имена потребителей, групп, суммы" },
+		{ "name": "numbers", "description": "моменты действий, таймаут видимости, число выдач до DLQ" }
+	],
+	"essentialParams": [
+		{ "name": "failure", "description": "позднее подтверждение или падение потребителя" },
+		{ "name": "handler", "description": "идемпотентный или нет" },
+		{ "name": "ordering", "description": "обычная очередь или группы FIFO" },
+		{ "name": "dead-letter", "description": "есть ли перенос в DLQ после N выдач" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"таймаут видимости и повторная выдача",
+			"подтверждение с истёкшим таймаутом не удаляет сообщение",
+			"падение потребителя не возвращает сообщение сразу",
+			"идемпотентный обработчик против неидемпотентного",
+			"порядок внутри группы FIFO",
+			"перенос в DLQ после N выдач",
+			"продление таймаута видимости и возврат сообщения в очередь"
+		],
+		"doesNotCheck": ["дедупликация на стороне брокера"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "ack-always-accepted",
+			"defect": "считает, что подтверждение удаляет сообщение и после истечения таймаута",
+			"mustBeCaught": true
+		},
+		{
+			"id": "no-visibility-expiry",
+			"defect": "считает, что выданное сообщение скрыто до подтверждения и само не возвращается",
+			"mustBeCaught": true
+		},
+		{
+			"id": "crash-immediate",
+			"defect": "считает, что при падении потребителя сообщение сразу снова доступно",
+			"mustBeCaught": true
+		},
+		{
+			"id": "idempotent-ignored",
+			"defect": "считает каждую обработку повтора, хотя обработчик идемпотентен",
+			"mustBeCaught": true
+		},
+		{
+			"id": "no-group-blocking",
+			"defect": "выдаёт следующее сообщение группы, пока предыдущее ещё не подтверждено",
+			"mustBeCaught": true
+		},
+		{
+			"id": "global-blocking",
+			"defect": "считает, что неподтверждённое сообщение блокирует всю очередь, а не только свою группу",
+			"mustBeCaught": true
+		},
+		{ "id": "dlq-off-by-one", "defect": "переносит в DLQ на одну выдачу раньше", "mustBeCaught": true },
+		{ "id": "dlq-never", "defect": "не учитывает перенос в DLQ", "mustBeCaught": true },
+		{
+			"id": "extend-adds",
+			"defect": "считает, что продление прибавляет таймаут к прежнему сроку",
+			"mustBeCaught": true
+		},
+		{
+			"id": "release-not-counted",
+			"defect": "считает, что возвращённая выдача не засчитывается в число выдач до DLQ",
+			"mustBeCaught": true
+		},
+		{
+			"id": "release-to-end",
+			"defect": "считает, что возвращённое сообщение встаёт в конец очереди",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 11, "caught": 11 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

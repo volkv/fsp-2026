@@ -1,0 +1,121 @@
+{
+	"key": "be.api.retry-backoff",
+	"version": 1,
+	"specialization": "backend",
+	"block": "be.api",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": { "rules": 3, "attempts": "4–6", "interacting": "потолок + лимит попыток или срок" },
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{ "id": "cap", "form": "A", "description": "успех на поздней попытке: задержки упираются в потолок" },
+				{
+					"id": "deadline",
+					"form": "B",
+					"description": "общий срок: новую попытку нельзя начать, если её таймаут выходит за срок"
+				},
+				{
+					"id": "retry-after",
+					"form": "anchor",
+					"description": "сервер отвечает 503 с Retry-After: ждать надо максимум из паузы и заголовка"
+				},
+				{
+					"id": "final-code",
+					"form": "X",
+					"description": "посреди повторяемых сбоев приходит 4xx: он окончательный, повторы прекращаются сразу"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"rules": 5,
+				"attempts": "5–7",
+				"interacting": "неповторяемые ошибки + ключ идемпотентности + срок"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "post-no-key",
+					"form": "A",
+					"description": "POST без ключа идемпотентности: таймаут и 500 не повторяются, 503 и 429 — повторяются"
+				},
+				{
+					"id": "post-with-key",
+					"form": "B",
+					"description": "POST с ключом идемпотентности: повторяется всё, кроме 4xx, но в пределах срока"
+				},
+				{ "id": "mixed-retry-after", "form": "anchor", "description": "Retry-After, потолок и срок одновременно" },
+				{
+					"id": "exhausted",
+					"form": "X",
+					"description": "POST без ключа получает только 503 и 429: клиент исчерпывает лимит попыток, считая первую"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "название сервиса и операции" },
+		{ "name": "numbers", "description": "базовая задержка, длительности попыток, коды ответов" }
+	],
+	"essentialParams": [
+		{
+			"name": "stop-rule",
+			"description": "что останавливает повторы: успех, лимит попыток, срок, неповторяемая ошибка"
+		},
+		{ "name": "delay-rule", "description": "как считается пауза: удвоение с потолком, Retry-After" },
+		{ "name": "idempotency", "description": "можно ли повторять запрос после таймаута и 500" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"экспоненциальная пауза с потолком",
+			"общий срок запроса и решение не начинать попытку",
+			"Retry-After против собственной паузы",
+			"какие ошибки безопасно повторять без ключа идемпотентности"
+		],
+		"doesNotCheck": ["случайный разброс пауз (jitter)", "настройку конкретной библиотеки клиента"]
+	},
+	"wrongSolutions": [
+		{ "id": "no-cap", "defect": "удваивает паузу без потолка", "mustBeCaught": true },
+		{
+			"id": "pause-from-start",
+			"defect": "отсчитывает паузу от начала попытки, а не от получения ответа",
+			"mustBeCaught": true
+		},
+		{ "id": "ignore-retry-after", "defect": "не учитывает заголовок Retry-After", "mustBeCaught": true },
+		{
+			"id": "retry-everything",
+			"defect": "повторяет POST после таймаута и 500 без ключа идемпотентности",
+			"mustBeCaught": true
+		},
+		{
+			"id": "deadline-at-start",
+			"defect": "начинает попытку, если до срока осталось хоть сколько-то, не глядя на её таймаут",
+			"mustBeCaught": true
+		},
+		{ "id": "retry-4xx", "defect": "повторяет и ответы 4xx, как временные сбои", "mustBeCaught": true },
+		{ "id": "limit-as-retries", "defect": "считает лимит числом повторов после первой попытки", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 7, "caught": 7 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0009,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

@@ -1,0 +1,105 @@
+{
+	"key": "be.api.optimistic-locking",
+	"version": 1,
+	"specialization": "backend",
+	"block": "be.api",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"clients": "3–4",
+				"turns": "10–16",
+				"rules": 5,
+				"interacting": "If-Match + PUT/PATCH + повтор после 412 по чередованию ходов"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "put-lost-update",
+					"form": "A",
+					"description": "PUT без If-Match по устаревшему чтению затирает чужие изменения всех полей"
+				},
+				{
+					"id": "patch-merge",
+					"form": "B",
+					"description": "PATCH без If-Match меняет только своё поле, а PUT с If-Match получает 412 и повторяется"
+				},
+				{
+					"id": "retry-412",
+					"form": "anchor",
+					"description": "все пишут с If-Match относительными изменениями: 412, перечитывание и повтор без потерь"
+				},
+				{
+					"id": "one-read",
+					"form": "X",
+					"description": "клиент читает один раз и пишет несколько изменений с ETag того же GET: после своей же записи этот ETag устарел"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "имена клиентов, ресурс" },
+		{ "name": "numbers", "description": "начальные значения полей, величины изменений, порядок ходов" }
+	],
+	"essentialParams": [
+		{ "name": "precondition", "description": "кто пишет с If-Match, а кто без" },
+		{ "name": "method", "description": "PUT заменяет все поля, PATCH — только переданные" },
+		{ "name": "change", "description": "изменение абсолютное или относительно прочитанного значения" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"If-Match и 412 при устаревшем ETag",
+			"потерянное обновление у клиента без If-Match",
+			"PUT заменяет представление целиком, PATCH — частично",
+			"повтор после 412 с перечитыванием",
+			"смена версии только при успешной записи"
+		],
+		"doesNotCheck": ["слабые ETag и If-None-Match: *", "блокировки на стороне базы данных"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "if-match-ignored",
+			"defect": "считает, что If-Match ни на что не влияет и все записи проходят",
+			"mustBeCaught": true
+		},
+		{
+			"id": "put-as-patch",
+			"defect": "считает, что PUT меняет только изменённое поле, а остальные не трогает",
+			"mustBeCaught": true
+		},
+		{
+			"id": "patch-as-put",
+			"defect": "считает, что PATCH переписывает все поля прочитанными значениями",
+			"mustBeCaught": true
+		},
+		{
+			"id": "version-on-412",
+			"defect": "считает, что отклонённая запись тоже меняет версию ресурса",
+			"mustBeCaught": true
+		},
+		{
+			"id": "own-write-keeps-etag",
+			"defect": "считает, что после своей успешной записи ETag клиента остаётся текущим",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 5, "caught": 5 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

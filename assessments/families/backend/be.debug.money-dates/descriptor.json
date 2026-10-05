@@ -1,0 +1,83 @@
+{
+	"key": "be.debug.money-dates",
+	"version": 1,
+	"specialization": "backend",
+	"block": "be.debug",
+	"format": "bug_locate",
+	"answerKind": "line_no",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": {
+				"functions": 5,
+				"lines": "25–40",
+				"defect": "одна строка: деньги, округление, календарь или разбор даты"
+			},
+			"constructiveRank": 2,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "money",
+					"form": "A",
+					"description": "деньги во float вместо целых копеек: потеря копейки, сравнение сумм, деление счёта"
+				},
+				{
+					"id": "rounding",
+					"form": "B",
+					"description": "округление: банковское round, отбрасывание дробной части, округление по позициям вместо итога"
+				},
+				{
+					"id": "dates",
+					"form": "anchor",
+					"description": "границы дат: срок включительно, последний день месяца, переход через год, день недели"
+				},
+				{
+					"id": "date-parse",
+					"form": "X",
+					"description": "разбор даты из строки: порядок дня и месяца, сравнение дат как строк, формат метки времени"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "context", "description": "какие ещё функции модуля показаны и в каком порядке" },
+		{ "name": "header", "description": "заголовок модуля: импорты и константы разной длины" }
+	],
+	"essentialParams": [
+		{ "name": "defect-kind", "description": "вид дефекта: деньги во float, округление, границы дат, разбор даты" }
+	],
+	"language": "python3",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"деньги в целых копейках вместо float",
+			"правило округления «половина — вверх» и округление итога",
+			"сроки включительно и границы месяцев",
+			"переход через год и високосный февраль",
+			"разбор дат из строк в российском и ISO-формате"
+		],
+		"doesNotCheck": ["исправление дефекта (только его место)", "часовые пояса и переход на летнее время", "курсы валют"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "neighbour-line",
+			"defect": "указывает соседнюю строку той же функции, где «исправление» не возвращает спецификацию",
+			"mustBeCaught": true
+		},
+		{ "id": "other-function", "defect": "указывает похожую строку в другой, исправной функции", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 2, "caught": 2 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0305,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

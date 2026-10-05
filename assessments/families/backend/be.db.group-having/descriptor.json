@@ -1,0 +1,144 @@
+{
+	"key": "be.db.group-having",
+	"version": 1,
+	"specialization": "backend",
+	"block": "be.db",
+	"format": "sql_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": { "tables": "1–2", "rows": "10–14", "filters": "WHERE + HAVING", "aggregates": "2–3" },
+			"constructiveRank": 3,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "where-then-having",
+					"form": "A",
+					"description": "WHERE отбрасывает строки до группировки, и HAVING считает COUNT уже по оставшимся"
+				},
+				{
+					"id": "having-join",
+					"form": "B",
+					"description": "агрегаты по соединению с фильтром строк в WHERE и фильтром групп в HAVING"
+				},
+				{
+					"id": "having-aggregate",
+					"form": "anchor",
+					"description": "HAVING по MAX отбирает группы целиком, а не строки внутри групп"
+				},
+				{
+					"id": "count-distinct",
+					"form": "X",
+					"description": "HAVING по COUNT(DISTINCT project): повторы проекта в группе не считаются"
+				}
+			]
+		},
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": { "tables": 1, "rows": "12–16", "aggregates": "3–4", "conditional": "CASE / FILTER / выражение" },
+			"constructiveRank": 5,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "case-aggregates",
+					"form": "A",
+					"description": "COUNT(CASE … ELSE 0 END) считает все строки, SUM(CASE …) без ELSE в пустой группе — NULL"
+				},
+				{
+					"id": "filter-clause",
+					"form": "B",
+					"description": "FILTER ограничивает только свой агрегат: группа остаётся, COUNT даёт 0, SUM — NULL"
+				},
+				{
+					"id": "group-expression",
+					"form": "anchor",
+					"description": "группировка по CASE-выражению: строке достаётся первая подходящая ветка; HAVING по сумме"
+				},
+				{
+					"id": "integer-division",
+					"form": "X",
+					"description": "SUM / COUNT над целыми — целочисленное деление: среднее отбрасывает дробную часть и в SELECT, и в HAVING"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "названия таблиц, отделов, регионов, статусов, имена" },
+		{ "name": "data", "description": "суммы, пороги, число строк, порядок вставки" }
+	],
+	"essentialParams": [
+		{
+			"name": "filter-stage",
+			"description": "где отсекаются данные: WHERE до группировки, HAVING после, FILTER у агрегата"
+		},
+		{
+			"name": "aggregate",
+			"description": "что агрегируется: COUNT, SUM, условный CASE, MAX в HAVING, выражение группы"
+		}
+	],
+	"language": "sql",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"порядок WHERE → GROUP BY → HAVING",
+			"агрегаты по соединению",
+			"HAVING по агрегату против фильтра строк",
+			"условные агрегаты SUM(CASE …) и COUNT(CASE …)",
+			"FILTER (WHERE …) у агрегата",
+			"группировка по выражению CASE",
+			"COUNT(DISTINCT) в HAVING",
+			"целочисленное деление агрегатов"
+		],
+		"doesNotCheck": ["GROUPING SETS и ROLLUP (в SQLite нет)", "оконные функции", "NULL в ключе группировки"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "having-before-where",
+			"defect": "считает, что HAVING видит строки, отброшенные WHERE",
+			"mustBeCaught": true
+		},
+		{
+			"id": "having-filters-rows",
+			"defect": "применяет условие HAVING к отдельным строкам до группировки",
+			"mustBeCaught": true
+		},
+		{
+			"id": "count-else-zero",
+			"defect": "считает, что COUNT(CASE … ELSE 0 END) считает только совпадения",
+			"mustBeCaught": true
+		},
+		{
+			"id": "empty-sum-zero",
+			"defect": "считает, что SUM без подходящих строк даёт 0, а не NULL",
+			"mustBeCaught": true
+		},
+		{ "id": "filter-as-where", "defect": "переносит условие FILTER в WHERE всего запроса", "mustBeCaught": true },
+		{
+			"id": "case-last-match",
+			"defect": "считает, что в CASE побеждает последняя подходящая ветка",
+			"mustBeCaught": true
+		},
+		{
+			"id": "count-distinct-ignored",
+			"defect": "считает, что COUNT(DISTINCT столбец) считает все строки группы",
+			"mustBeCaught": true
+		},
+		{ "id": "real-division", "defect": "считает, что деление целых в SQLite даёт дробное число", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 8, "caught": 8 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

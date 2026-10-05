@@ -1,0 +1,152 @@
+{
+	"key": "be.api.cors-preflight",
+	"version": 1,
+	"specialization": "backend",
+	"block": "be.api",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"requests": "5–7",
+				"rules": 5,
+				"interacting": "простой запрос или preflight + списки разрешённых + credentials"
+			},
+			"constructiveRank": 3,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "simple-vs-preflight",
+					"form": "A",
+					"description": "какие запросы простые, а какие требуют preflight: JSON и свои заголовки — preflight, заблокированный простой запрос всё равно доходит до сервера"
+				},
+				{
+					"id": "credentials",
+					"form": "B",
+					"description": "запросы с credentials: `*` не подходит, нужен точный Origin и Allow-Credentials"
+				},
+				{
+					"id": "allow-lists",
+					"form": "anchor",
+					"description": "preflight сверяет метод и заголовки со списками; GET, HEAD и POST в списке методов не нужны"
+				},
+				{
+					"id": "same-origin",
+					"form": "X",
+					"description": "тот же ли источник: схема, хост и порт; другой порт или схема — уже cross-origin"
+				}
+			]
+		},
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"constructive": {
+				"requests": "6–9",
+				"rules": 7,
+				"interacting": "кэш preflight по Max-Age + общий кэш CDN без Vary: Origin"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "preflight-cache",
+					"form": "A",
+					"description": "результат preflight живёт Max-Age секунд для пары источник–адрес и покрывает только разрешённые методы и заголовки"
+				},
+				{
+					"id": "vary-origin",
+					"form": "B",
+					"description": "CDN без Vary: Origin отдаёт ответ с чужим Access-Control-Allow-Origin"
+				},
+				{
+					"id": "credentials",
+					"form": "anchor",
+					"description": "credentials с `*` не проходят, неудачный preflight не кэшируется, удачный — кэшируется"
+				},
+				{
+					"id": "max-age-cap",
+					"form": "X",
+					"description": "браузер урезает Max-Age до своего предела: после него preflight повторяется"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "домены страниц и API, пути, имена заголовков" },
+		{ "name": "numbers", "description": "моменты запросов, Max-Age, срок кэша CDN" }
+	],
+	"essentialParams": [
+		{ "name": "request", "description": "простой запрос или требующий preflight: метод, свои заголовки, Content-Type" },
+		{ "name": "policy", "description": "ответ сервера: Allow-Origin, списки методов и заголовков, credentials" },
+		{ "name": "cache", "description": "кэш preflight в браузере и кэш CDN" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"условия простого запроса и preflight",
+			"Content-Type application/json требует preflight",
+			"проверка Access-Control-Allow-Origin, `*` и credentials",
+			"списки Allow-Methods и Allow-Headers",
+			"заблокированный простой запрос всё равно выполняется сервером",
+			"источник — схема, хост и порт",
+			"кэш preflight по Max-Age и его предел",
+			"Vary: Origin в общем кэше"
+		],
+		"doesNotCheck": [
+			"Access-Control-Expose-Headers",
+			"частные сети и Private Network Access",
+			"подстановочные `*` в списках методов и заголовков"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "json-is-simple",
+			"defect": "считает POST с Content-Type application/json простым запросом",
+			"mustBeCaught": true
+		},
+		{
+			"id": "blocked-not-sent",
+			"defect": "считает, что простой запрос, ответ на который заблокирован, не доходит до сервера",
+			"mustBeCaught": true
+		},
+		{
+			"id": "star-with-credentials",
+			"defect": "считает, что Access-Control-Allow-Origin: * подходит и для запросов с credentials",
+			"mustBeCaught": true
+		},
+		{
+			"id": "safelisted-method-listed",
+			"defect": "требует, чтобы GET, HEAD и POST тоже были в Access-Control-Allow-Methods",
+			"mustBeCaught": true
+		},
+		{ "id": "host-same-origin", "defect": "считает источником только хост, без схемы и порта", "mustBeCaught": true },
+		{ "id": "no-preflight-cache", "defect": "не учитывает кэш preflight по Max-Age", "mustBeCaught": true },
+		{
+			"id": "cache-any",
+			"defect": "считает, что кэш preflight покрывает любые методы и заголовки",
+			"mustBeCaught": true
+		},
+		{ "id": "uncapped-max-age", "defect": "не учитывает предел браузера для Max-Age", "mustBeCaught": true },
+		{
+			"id": "vary-harmless",
+			"defect": "считает, что CDN и без Vary: Origin отдаёт каждому источнику свой ответ",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 9, "caught": 9 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0053,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

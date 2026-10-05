@@ -1,0 +1,140 @@
+{
+	"key": "be.db.recursive-cte",
+	"version": 1,
+	"specialization": "backend",
+	"block": "be.db",
+	"format": "sql_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"tables": "1–2",
+				"rows": "7–10",
+				"recursion": "по иерархии",
+				"clauses": "WITH RECURSIVE + JOIN / GROUP BY"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "subordinates-depth",
+					"form": "A",
+					"description": "все подчинённые с глубиной: якорь — сам руководитель с глубиной 0, рекурсия идёт на всю глубину"
+				},
+				{
+					"id": "path-up",
+					"form": "B",
+					"description": "цепочка руководителей вверх: путь собирается присоединением нового звена слева"
+				},
+				{
+					"id": "subtree-totals",
+					"form": "X",
+					"description": "замыкание иерархии: число подчинённых на всю глубину и сумма зарплат поддерева вместе с руководителем"
+				},
+				{
+					"id": "calendar-fill",
+					"form": "anchor",
+					"description": "рекурсивный календарь: дни без продаж дают 0, последний день входит"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"constructive": {
+				"tables": 1,
+				"rows": "8–11 рёбер",
+				"recursion": "по графу с циклами",
+				"clauses": "UNION / UNION ALL, ограничение глубины, путь"
+			},
+			"constructiveRank": 7,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "reach-union",
+					"form": "A",
+					"description": "достижимые вершины ориентированного графа с циклом: UNION отбрасывает повторы и останавливает рекурсию"
+				},
+				{
+					"id": "bounded-walks",
+					"form": "B",
+					"description": "UNION ALL с ограничением глубины считает каждый маршрут отдельно, повторяя вершины"
+				},
+				{
+					"id": "simple-paths",
+					"form": "X",
+					"description": "все простые пути с защитой от цикла по строке пути, не только кратчайший"
+				},
+				{
+					"id": "closure-self",
+					"form": "anchor",
+					"description": "транзитивное замыкание: вершина на цикле достижима из самой себя"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "имена сотрудников, названия вершин графа" },
+		{ "name": "data", "description": "структура иерархии и рёбер, зарплаты, суммы, порядок вставки" }
+	],
+	"essentialParams": [
+		{ "name": "recursion", "description": "что обходится: иерархия вниз или вверх, календарь, граф с циклами" },
+		{
+			"name": "termination",
+			"description": "что останавливает рекурсию: конец иерархии, условие, UNION, глубина, путь"
+		}
+	],
+	"language": "sql",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"WITH RECURSIVE: якорь и рекурсивная часть",
+			"глубина и путь в иерархии",
+			"замыкание иерархии",
+			"генерация последовательности",
+			"UNION против UNION ALL в рекурсии",
+			"ограничение глубины",
+			"защита от циклов по пути"
+		],
+		"doesNotCheck": ["синтаксис CYCLE и SEARCH других СУБД", "производительность рекурсивных запросов"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "one-level",
+			"defect": "считает, что рекурсия даёт только прямых подчинённых или соседей",
+			"mustBeCaught": true
+		},
+		{ "id": "anchor-excluded", "defect": "считает, что строка якоря не входит в результат", "mustBeCaught": true },
+		{ "id": "path-reversed", "defect": "собирает путь в обратном порядке", "mustBeCaught": true },
+		{ "id": "self-excluded", "defect": "не включает в итог саму вершину или руководителя", "mustBeCaught": true },
+		{
+			"id": "stops-early",
+			"defect": "считает, что последний шаг, на котором условие ещё истинно, в результат не попадает",
+			"mustBeCaught": true
+		},
+		{ "id": "left-as-inner", "defect": "считает, что LEFT JOIN без пары строку не даёт", "mustBeCaught": true },
+		{ "id": "edges-undirected", "defect": "считает рёбра графа ненаправленными", "mustBeCaught": true },
+		{
+			"id": "union-dedups-all",
+			"defect": "считает, что UNION ALL в рекурсии тоже отбрасывает повторы",
+			"mustBeCaught": true
+		},
+		{ "id": "limit-off-by-one", "defect": "ошибается на единицу в ограничении глубины", "mustBeCaught": true },
+		{ "id": "shortest-only", "defect": "оставляет только кратчайшие пути", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 10, "caught": 10 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0005,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

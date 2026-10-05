@@ -1,0 +1,110 @@
+{
+	"key": "be.api.webhook-signatures",
+	"version": 1,
+	"specialization": "backend",
+	"block": "be.api",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"deliveries": "6–8",
+				"rules": 5,
+				"interacting": "подпись по строке t.body + окно допуска + повтор по id + ротация секретов"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "tolerance",
+					"form": "A",
+					"description": "окно допуска в обе стороны: метка времени из будущего за пределом окна тоже отклоняется"
+				},
+				{
+					"id": "rotation",
+					"form": "B",
+					"description": "ротация секретов: старый принимается до конца льготного срока, при нескольких подписях достаточно одной верной"
+				},
+				{
+					"id": "replay",
+					"form": "anchor",
+					"description": "повтор по id отклоняется, только если событие уже принято; отклонённую доставку можно прислать снова"
+				},
+				{
+					"id": "tampered",
+					"form": "X",
+					"description": "подписана строка «метка.тело»: подменённая метка времени ломает подпись так же, как подменённое тело"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "id событий, тела, имена секретов" },
+		{ "name": "numbers", "description": "моменты получения и метки времени, окно допуска" }
+	],
+	"essentialParams": [
+		{ "name": "signature", "description": "каким секретом и по какой строке сделана подпись" },
+		{ "name": "time", "description": "разница между меткой времени и моментом получения" },
+		{ "name": "history", "description": "принималось ли событие с этим id раньше" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"HMAC-подпись по строке «метка.тело»",
+			"окно допуска метки времени в обе стороны",
+			"защита от повтора по id",
+			"ротация секретов с льготным сроком",
+			"любая из нескольких подписей",
+			"порядок проверок"
+		],
+		"doesNotCheck": ["вычисление HMAC вручную", "сравнение подписей за постоянное время"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "future-ok",
+			"defect": "проверяет только возраст метки и принимает метки из будущего за пределом окна",
+			"mustBeCaught": true
+		},
+		{
+			"id": "old-secret-forever",
+			"defect": "принимает подписи старым секретом и после конца льготного срока",
+			"mustBeCaught": true
+		},
+		{
+			"id": "all-signatures",
+			"defect": "требует, чтобы верными были все подписи в заголовке, а не хотя бы одна",
+			"mustBeCaught": true
+		},
+		{
+			"id": "record-on-reject",
+			"defect": "запоминает id и у отклонённой доставки, и потом отклоняет законный повтор",
+			"mustBeCaught": true
+		},
+		{
+			"id": "no-replay-check",
+			"defect": "не отклоняет повторную доставку уже принятого события",
+			"mustBeCaught": true
+		},
+		{
+			"id": "timestamp-not-signed",
+			"defect": "считает, что подписано только тело, и не замечает подмены метки времени",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 6, "caught": 6 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0002,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

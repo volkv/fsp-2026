@@ -1,0 +1,107 @@
+{
+	"key": "be.design.queue-backlog",
+	"version": 1,
+	"specialization": "backend",
+	"block": "be.design",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"intervals": "6–8 с поступлением, до опустошения очереди",
+				"rules": "поток и обработка + один механизм: масштабирование, партиции или повторы",
+				"interacting": 3
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "autoscale",
+					"form": "A",
+					"description": "автомасштабирование: новый потребитель работает с задержкой, заказанные учитываются в максимуме"
+				},
+				{ "id": "partitions", "form": "B", "description": "потребителей больше, чем партиций: лишние простаивают" },
+				{
+					"id": "retries",
+					"form": "anchor",
+					"description": "часть обработанных сообщений возвращается в очередь через задержку повтора"
+				},
+				{
+					"id": "hot-partition",
+					"form": "X",
+					"description": "горячая партиция: у каждой партиции свой потребитель, простаивающие не помогают перегруженной"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "название очереди и потребителя" },
+		{ "name": "numbers", "description": "поступление по интервалам, производительность потребителя" }
+	],
+	"essentialParams": [
+		{
+			"name": "mechanism",
+			"description": "что меняет пропускную способность: масштабирование с задержкой, предел партиций, повторы"
+		}
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"баланс очереди по интервалам: пришло, обработано, отставание",
+			"задержка запуска нового потребителя и предел масштабирования",
+			"параллелизм потребителей ограничен числом партиций",
+			"повторная обработка сообщений с задержкой",
+			"неравномерное распределение ключей по партициям"
+		],
+		"doesNotCheck": ["порядок сообщений внутри партиции", "гарантии доставки и дубли", "стоимость масштабирования"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "late-arrivals",
+			"defect": "обрабатывает сообщения интервала только со следующего интервала",
+			"mustBeCaught": true
+		},
+		{
+			"id": "no-start-delay",
+			"defect": "считает, что новый потребитель работает сразу со следующего интервала",
+			"mustBeCaught": true
+		},
+		{
+			"id": "ignore-ordered",
+			"defect": "сравнивает с максимумом только работающих потребителей, забывая уже заказанные",
+			"mustBeCaught": true
+		},
+		{
+			"id": "ignore-partitions",
+			"defect": "считает, что работают все потребители, даже сверх числа партиций",
+			"mustBeCaught": true
+		},
+		{ "id": "no-retries", "defect": "не возвращает сообщения с ошибкой в очередь", "mustBeCaught": true },
+		{
+			"id": "retry-next-interval",
+			"defect": "возвращает сообщения с ошибкой сразу в следующий интервал",
+			"mustBeCaught": true
+		},
+		{
+			"id": "pooled-partitions",
+			"defect": "складывает пропускную способность всех потребителей, как будто они разбирают общую очередь",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 7, "caught": 7 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0062,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

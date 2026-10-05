@@ -1,0 +1,106 @@
+{
+	"key": "be.api.webhook-delivery",
+	"version": 1,
+	"specialization": "backend",
+	"block": "be.api",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"deliveries": "9–14",
+				"orders": "2–3",
+				"rules": 4,
+				"interacting": "дедупликация по id + номер последовательности + сбои потребителя"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "reorder",
+					"form": "A",
+					"description": "смены статуса приходят не по порядку: устаревшие по номеру заказа отбрасываются"
+				},
+				{
+					"id": "failures",
+					"form": "B",
+					"description": "потребитель падает на доставке: событие не записано, и повтор применяется; дубли — нет"
+				},
+				{
+					"id": "refunds",
+					"form": "anchor",
+					"description": "возвраты суммируются ровно один раз и не зависят от порядка, статусы — по номеру"
+				},
+				{
+					"id": "reissued",
+					"form": "X",
+					"description": "часть повторов приходит с новым id: дедупликация по id их не узнаёт, возврат применяется второй раз, а статус отсекает только номер"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "номера заказов и id событий" },
+		{ "name": "numbers", "description": "суммы возвратов, порядок доставок" }
+	],
+	"essentialParams": [
+		{ "name": "order", "description": "насколько перемешан порядок доставок" },
+		{ "name": "failures", "description": "на каких доставках потребитель падает" },
+		{ "name": "kinds", "description": "есть ли среди событий возвраты, применяемые без учёта порядка" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"доставка «хотя бы один раз» и дубли",
+			"дедупликация по id события",
+			"отбрасывание устаревших событий по номеру последовательности заказа",
+			"необработанная доставка не помечает событие обработанным",
+			"коммутативные события против событий состояния"
+		],
+		"doesNotCheck": ["подпись вебхуков", "расписание повторов у отправителя"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "apply-in-arrival-order",
+			"defect": "применяет смены статуса в порядке прихода, не глядя на номер",
+			"mustBeCaught": true
+		},
+		{
+			"id": "seq-global",
+			"defect": "сравнивает номер с последним применённым по всем заказам, а не по своему",
+			"mustBeCaught": true
+		},
+		{
+			"id": "mark-on-failure",
+			"defect": "считает событие обработанным, даже если потребитель упал на доставке",
+			"mustBeCaught": true
+		},
+		{ "id": "no-dedup", "defect": "не отбрасывает повторную доставку того же события", "mustBeCaught": true },
+		{
+			"id": "refund-seq-checked",
+			"defect": "проверяет номер и у возвратов и отбрасывает их как устаревшие",
+			"mustBeCaught": true
+		},
+		{
+			"id": "reissue-detected",
+			"defect": "считает повтор с новым id тем же событием, раз совпадают заказ, номер и содержимое",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 6, "caught": 6 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

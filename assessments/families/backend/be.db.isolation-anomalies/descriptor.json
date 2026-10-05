@@ -1,0 +1,125 @@
+{
+	"key": "be.db.isolation-anomalies",
+	"version": 1,
+	"specialization": "backend",
+	"block": "be.db",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"constructive": {
+				"transactions": "2–3",
+				"steps": "8–13",
+				"rules": "видимость по уровню + запись поверх чужой фиксации + проверка циклов",
+				"interacting": "чтение в приложении против UPDATE в базе"
+			},
+			"constructiveRank": 7,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "read-committed",
+					"form": "A",
+					"description": "READ COMMITTED: чтение и UPDATE v = v + d видят и то, что зафиксировано после начала транзакции"
+				},
+				{
+					"id": "repeatable-read",
+					"form": "B",
+					"description": "REPEATABLE READ: запись строки, изменённой после снимка другой транзакцией, откатывает всю транзакцию"
+				},
+				{
+					"id": "serializable",
+					"form": "anchor",
+					"description": "SERIALIZABLE: цикл зависимостей чтение—запись (write skew) откатывает фиксирующуюся второй"
+				},
+				{
+					"id": "rr-write-skew",
+					"form": "X",
+					"description": "REPEATABLE READ пропускает write skew на разных строках: обе транзакции фиксируются, ограничение нарушено"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "имена строк, начальные значения, суммы изменений" },
+		{ "name": "schedule", "description": "порядок операций транзакций в расписании" }
+	],
+	"essentialParams": [
+		{ "name": "level", "description": "уровень изоляции: READ COMMITTED, REPEATABLE READ, SERIALIZABLE" },
+		{
+			"name": "write-kind",
+			"description": "запись значения, вычисленного приложением, или UPDATE с выражением от текущего значения"
+		},
+		{ "name": "dependency", "description": "какие строки читает и пишет каждая транзакция и пересекаются ли они" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"видимость зафиксированных изменений в READ COMMITTED",
+			"неповторяемое чтение: повторное чтение после чужой фиксации в READ COMMITTED",
+			"UPDATE … SET v = v + d в READ COMMITTED берёт свежее значение",
+			"запись значения, вычисленного приложением, поверх чужой фиксации",
+			"снимок и ошибка сериализации при параллельном обновлении в REPEATABLE READ",
+			"откат всей транзакции при ошибке сериализации",
+			"write skew и его обнаружение в SERIALIZABLE",
+			"write skew под REPEATABLE READ"
+		],
+		"doesNotCheck": [
+			"ожидание блокировок и взаимные блокировки (расписание их исключает)",
+			"ложные срабатывания SERIALIZABLE по страницам и предикатам",
+			"READ UNCOMMITTED и уровни других СУБД"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "rc-snapshot-reads",
+			"defect": "считает, что в READ COMMITTED чтения видят снимок на момент начала транзакции",
+			"mustBeCaught": true
+		},
+		{
+			"id": "increment-lost",
+			"defect": "считает, что UPDATE … SET v = v + d в READ COMMITTED считает от значения на начало транзакции",
+			"mustBeCaught": true
+		},
+		{
+			"id": "rr-overwrites",
+			"defect": "считает, что REPEATABLE READ не мешает записать строку, изменённую после снимка",
+			"mustBeCaught": true
+		},
+		{
+			"id": "statement-rollback",
+			"defect": "считает, что при ошибке сериализации откатывается только упавший оператор, а транзакция фиксируется",
+			"mustBeCaught": true
+		},
+		{
+			"id": "skew-undetected",
+			"defect": "считает, что SERIALIZABLE не ловит write skew на разных строках",
+			"mustBeCaught": true
+		},
+		{
+			"id": "any-dependency-aborts",
+			"defect": "считает, что SERIALIZABLE откатывает при любой зависимости чтение—запись, без цикла",
+			"mustBeCaught": true
+		},
+		{
+			"id": "rr-detects-skew",
+			"defect": "считает, что REPEATABLE READ ловит write skew так же, как SERIALIZABLE",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 7, "caught": 7 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0003,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

@@ -1,0 +1,140 @@
+{
+	"key": "be.algo.graph-traversal",
+	"version": 1,
+	"specialization": "backend",
+	"block": "be.algo",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": { "vertices": "6–7", "edges": "8–12", "structures": 1, "mechanisms": 1 },
+			"constructiveRank": 2,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "bfs-order",
+					"form": "A",
+					"description": "BFS очередью: соседи в порядке списка, отметка при постановке в очередь"
+				},
+				{ "id": "dfs-recursive", "form": "B", "description": "рекурсивный DFS: порядок входа и порядок выхода" },
+				{
+					"id": "bfs-levels",
+					"form": "anchor",
+					"description": "BFS считает расстояние в рёбрах, недостижимые вершины — −1"
+				},
+				{
+					"id": "components",
+					"form": "X",
+					"description": "неориентированный граф из списка рёбер: компоненты связности BFS по порядку вершин"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": { "vertices": "7–8", "edges": "9–14", "structures": 2, "mechanisms": 2 },
+			"constructiveRank": 4,
+			"timeNormSec": 330,
+			"classes": [
+				{
+					"id": "kahn-min",
+					"form": "A",
+					"description": "алгоритм Кана с кучей: из готовых вершин всегда берётся наименьшая"
+				},
+				{
+					"id": "kahn-cycle",
+					"form": "B",
+					"description": "алгоритм Кана на графе с циклом: остаются вершины цикла и всё, что достижимо из него"
+				},
+				{
+					"id": "dfs-stack",
+					"form": "anchor",
+					"description": "DFS со стеком: соседи кладутся по порядку, а снимаются в обратном"
+				},
+				{
+					"id": "bfs-path",
+					"form": "X",
+					"description": "кратчайший путь по родителям BFS: родитель — тот, кто первым обнаружил вершину"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "labels", "description": "имена вершин и переменных" },
+		{ "name": "layout", "description": "порядок вершин в словаре смежности" }
+	],
+	"essentialParams": [
+		{ "name": "container", "description": "очередь, стек, рекурсия или куча" },
+		{ "name": "neighbour-order", "description": "порядок соседей в списках смежности" },
+		{ "name": "structure", "description": "достижимость, ацикличность, цикл" }
+	],
+	"language": "python3",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"порядок обхода BFS и DFS по спискам смежности",
+			"порядок входа и выхода рекурсивного DFS",
+			"расстояния BFS и недостижимые вершины",
+			"топологическая сортировка Кана с выбором наименьшей вершины",
+			"обнаружение цикла алгоритмом Кана",
+			"итеративный DFS со стеком",
+			"компоненты связности неориентированного графа",
+			"восстановление пути по родителям BFS"
+		],
+		"doesNotCheck": ["взвешенные графы", "сложность обходов", "написание обхода"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "sorted-neighbours",
+			"defect": "перебирает соседей по алфавиту, а не в порядке списка",
+			"mustBeCaught": true
+		},
+		{ "id": "queue-as-stack", "defect": "снимает вершины с конца очереди, как со стека", "mustBeCaught": true },
+		{
+			"id": "post-is-reversed-pre",
+			"defect": "считает, что порядок выхода DFS — перевёрнутый порядок входа",
+			"mustBeCaught": true
+		},
+		{ "id": "dfs-depth", "defect": "принимает глубину в дереве DFS за расстояние BFS", "mustBeCaught": true },
+		{
+			"id": "kahn-fifo",
+			"defect": "берёт готовые вершины в порядке появления, как из обычной очереди",
+			"mustBeCaught": true
+		},
+		{
+			"id": "cycle-only",
+			"defect": "считает, что после алгоритма Кана остаются только вершины самого цикла",
+			"mustBeCaught": true
+		},
+		{
+			"id": "stack-as-recursion",
+			"defect": "считает, что DFS со стеком обходит соседей в порядке списка, как рекурсивный",
+			"mustBeCaught": true
+		},
+		{
+			"id": "one-way-edges",
+			"defect": "не замечает, что каждое ребро добавлено в обе стороны, и обходит граф как ориентированный",
+			"mustBeCaught": true
+		},
+		{
+			"id": "last-parent",
+			"defect": "считает родителем последнюю вершину, из которой видно ребро, а не первую, обнаружившую вершину",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 9, "caught": 9 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0025,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

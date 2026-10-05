@@ -1,0 +1,171 @@
+{
+	"key": "be.lang.generators-iterators",
+	"version": 1,
+	"specialization": "backend",
+	"block": "be.lang",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": { "statements": "8–14", "iterators": "1–2", "mechanisms": 2, "sideEffects": true },
+			"constructiveRank": 3,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "exhausted",
+					"form": "A",
+					"description": "итератор проходится один раз: next, in и sum продолжают с того места, где остановились"
+				},
+				{
+					"id": "late-lookup",
+					"form": "B",
+					"description": "генераторное выражение берёт первый итерируемый объект сразу, а остальные имена — при обходе"
+				},
+				{
+					"id": "interleaving",
+					"form": "anchor",
+					"description": "тело генератора и yield from выполняются по шагам вперемешку с циклом-потребителем"
+				},
+				{
+					"id": "short-circuit",
+					"form": "X",
+					"description": "any и all останавливаются на первом решающем элементе и оставляют остаток итератора; all от пустого — True"
+				}
+			]
+		},
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"constructive": { "statements": "10–18", "iterators": "2–3", "mechanisms": 3, "protocol": "send/StopIteration" },
+			"constructiveRank": 5,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "send-return",
+					"form": "A",
+					"description": "send возвращает следующее значение yield, return генератора — значение yield from и StopIteration.value"
+				},
+				{
+					"id": "zip-pull",
+					"form": "B",
+					"description": "zip тянет элементы по порядку аргументов и теряет уже взятый элемент, когда другой итератор кончился"
+				},
+				{
+					"id": "groupby",
+					"form": "anchor",
+					"description": "groupby группирует только соседние элементы, сохранённые группы пустеют при продвижении"
+				},
+				{
+					"id": "zip-same",
+					"form": "X",
+					"description": "zip от одного и того же итератора режет данные на части, неполный хвост отбрасывается"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "имена функций и переменных" },
+		{ "name": "numbers", "description": "данные, границы, шаги" }
+	],
+	"essentialParams": [
+		{ "name": "consumption", "description": "кто и сколько элементов забирает из итератора" },
+		{ "name": "binding-time", "description": "когда вычисляется выражение: при создании или при обходе" },
+		{ "name": "protocol", "description": "next, send, return и StopIteration" }
+	],
+	"language": "python3",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"однократность итератора и потребление через next, in, sum",
+			"генераторное выражение: что связывается сразу, а что при обходе",
+			"порядок выполнения тела генератора и yield from",
+			"send, значение return генератора, yield from как выражение",
+			"zip с генераторами разной длины, islice",
+			"groupby на неотсортированных данных и жизнь групп",
+			"короткое замыкание any и all на итераторе",
+			"zip от одного итератора"
+		],
+		"doesNotCheck": ["асинхронные генераторы", "throw и close генератора"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "iter-restarts",
+			"defect": "считает, что итератор при новом обходе начинается сначала, как список",
+			"mustBeCaught": true
+		},
+		{ "id": "in-no-consume", "defect": "считает, что проверка `in` не продвигает итератор", "mustBeCaught": true },
+		{
+			"id": "eager-genexp",
+			"defect": "считает, что генераторное выражение вычисляется целиком в момент создания",
+			"mustBeCaught": true
+		},
+		{
+			"id": "all-late",
+			"defect": "считает, что и первый итерируемый объект генераторного выражения ищется по имени при обходе",
+			"mustBeCaught": true
+		},
+		{
+			"id": "runs-on-call",
+			"defect": "считает, что тело генератора начинает выполняться при вызове функции",
+			"mustBeCaught": true
+		},
+		{
+			"id": "eager-body",
+			"defect": "считает, что генератор выдаёт все значения сразу, до первой итерации цикла",
+			"mustBeCaught": true
+		},
+		{
+			"id": "send-returns-previous",
+			"defect": "считает, что send возвращает значение предыдущего yield, а не следующего",
+			"mustBeCaught": true
+		},
+		{ "id": "yield-from-none", "defect": "считает, что выражение yield from всегда равно None", "mustBeCaught": true },
+		{ "id": "stop-value-lost", "defect": "считает, что значение return генератора теряется", "mustBeCaught": true },
+		{
+			"id": "zip-no-overconsume",
+			"defect": "считает, что zip не забирает лишний элемент у итераторов, стоящих до кончившегося",
+			"mustBeCaught": true
+		},
+		{
+			"id": "groupby-global",
+			"defect": "считает, что groupby собирает все равные ключи в одну группу, как GROUP BY",
+			"mustBeCaught": true
+		},
+		{
+			"id": "groups-persist",
+			"defect": "считает, что сохранённые группы groupby остаются доступными после продвижения",
+			"mustBeCaught": true
+		},
+		{
+			"id": "any-consumes-all",
+			"defect": "считает, что any() читает итератор до конца, даже найдя истинный элемент",
+			"mustBeCaught": true
+		},
+		{
+			"id": "all-empty-false",
+			"defect": "считает, что all() от пустой последовательности — False",
+			"mustBeCaught": true
+		},
+		{
+			"id": "zip-same-duplicates",
+			"defect": "считает, что zip(it, it) даёт пары из одного и того же элемента",
+			"mustBeCaught": true
+		},
+		{ "id": "zip-pads-tail", "defect": "считает, что zip выдаёт и неполный последний кортеж", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 16, "caught": 16 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.001,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

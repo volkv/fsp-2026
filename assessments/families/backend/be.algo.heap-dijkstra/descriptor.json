@@ -1,0 +1,105 @@
+{
+	"key": "be.algo.heap-dijkstra",
+	"version": 1,
+	"specialization": "backend",
+	"block": "be.algo",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"constructive": {
+				"vertices": "6–7",
+				"edges": "10–13",
+				"rules": 3,
+				"interacting": "порядок кучи + ленивое удаление"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "ties",
+					"form": "A",
+					"description": "равные предварительные расстояния: из кучи раньше выходит вершина с меньшим номером"
+				},
+				{
+					"id": "stale",
+					"form": "B",
+					"description": "расстояния улучшаются после первой постановки в кучу: устаревшие записи пропускаются"
+				},
+				{
+					"id": "equal-paths",
+					"form": "anchor",
+					"description": "второй путь той же длины не улучшает расстояние и новой записи в кучу не даёт"
+				},
+				{
+					"id": "early-stop",
+					"form": "X",
+					"description": "остановка, когда целевая вершина попала в done: её расстояние окончательно только при извлечении, а не при первом обнаружении"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "numbering", "description": "номера вершин и порядок перечисления рёбер" },
+		{ "name": "weights", "description": "веса рёбер в пределах класса" }
+	],
+	"essentialParams": [
+		{ "name": "ties", "description": "есть ли в куче записи с равным расстоянием" },
+		{ "name": "improvements", "description": "улучшается ли расстояние вершины, уже стоящей в куче" },
+		{ "name": "equal-paths", "description": "есть ли два пути одинаковой длины" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"порядок извлечения из кучи пар (расстояние, вершина)",
+			"ленивое удаление устаревших записей",
+			"строгое улучшение расстояния при релаксации",
+			"жадная фиксация вершины только при извлечении",
+			"ранняя остановка на целевой вершине"
+		],
+		"doesNotCheck": ["отрицательные веса", "восстановление пути", "сложность алгоритма"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "fifo-ties",
+			"defect": "при равных расстояниях берёт из кучи запись, добавленную раньше, а не вершину с меньшим номером",
+			"mustBeCaught": true
+		},
+		{
+			"id": "no-stale",
+			"defect": "считает, что улучшение расстояния заменяет запись в куче и устаревших записей не бывает",
+			"mustBeCaught": true
+		},
+		{
+			"id": "first-discovery",
+			"defect": "фиксирует расстояние вершины при первом обнаружении и больше его не улучшает",
+			"mustBeCaught": true
+		},
+		{
+			"id": "relax-on-equal",
+			"defect": "добавляет запись в кучу и при пути той же длины, а не только при строго меньшем",
+			"mustBeCaught": true
+		},
+		{
+			"id": "stop-at-discovery",
+			"defect": "считает расстояние до цели окончательным при первом обнаружении и останавливается там",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 5, "caught": 5 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0019,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

@@ -1,0 +1,108 @@
+{
+	"key": "be.lang.collections-trace",
+	"version": 1,
+	"specialization": "backend",
+	"block": "be.lang",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": { "statements": "5–9", "outputs": "3–4", "mechanisms": 2 },
+			"constructiveRank": 2,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "count-sort",
+					"form": "A",
+					"description": "подсчёт словарём: порядок ключей — порядок первого появления, сортировка по ключу сохраняет его при равенстве"
+				},
+				{
+					"id": "slices",
+					"form": "B",
+					"description": "срезы с отрицательными индексами и шагом: конец не включается, отсчёт с конца с −1"
+				},
+				{
+					"id": "zip-enumerate",
+					"form": "anchor",
+					"description": "zip останавливается на кратчайшем, enumerate начинает со start, повторный ключ dict берёт последнее значение"
+				},
+				{
+					"id": "setdefault-get",
+					"form": "X",
+					"description": "setdefault кладёт значение по умолчанию в словарь, get с умолчанием — нет"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "слова, имена, переменные" },
+		{ "name": "numbers", "description": "элементы списков и границы срезов" }
+	],
+	"essentialParams": [
+		{ "name": "order", "description": "какой порядок даёт операция: вставки, сортировки, исходный" },
+		{ "name": "bounds", "description": "где кончается обход: граница среза, кратчайшая последовательность" }
+	],
+	"language": "python3",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"dict.get для подсчёта и порядок ключей словаря",
+			"sorted с key и устойчивость при равных ключах",
+			"срезы: исключённый конец, отрицательные индексы, шаг",
+			"zip останавливается на кратчайшем",
+			"enumerate с start",
+			"dict из пар с повторяющимся ключом",
+			"setdefault против get с умолчанием"
+		],
+		"doesNotCheck": ["collections.Counter и defaultdict", "множества и их порядок"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "ties-alpha",
+			"defect": "считает, что при равном ключе sorted упорядочивает элементы по алфавиту",
+			"mustBeCaught": true
+		},
+		{
+			"id": "dict-sorted",
+			"defect": "считает, что словарь печатается в порядке сортировки ключей",
+			"mustBeCaught": true
+		},
+		{ "id": "stop-inclusive", "defect": "считает, что конец среза включается", "mustBeCaught": true },
+		{
+			"id": "negative-off-by-one",
+			"defect": "отсчитывает отрицательный индекс с конца с нуля: −1 — предпоследний элемент",
+			"mustBeCaught": true
+		},
+		{
+			"id": "zip-longest",
+			"defect": "считает, что zip идёт до самой длинной последовательности, дополняя None",
+			"mustBeCaught": true
+		},
+		{ "id": "enumerate-from-zero", "defect": "не учитывает start у enumerate", "mustBeCaught": true },
+		{
+			"id": "dict-first-wins",
+			"defect": "считает, что при повторе ключа словарь сохраняет первое значение",
+			"mustBeCaught": true
+		},
+		{
+			"id": "get-stores-default",
+			"defect": "считает, что get со значением по умолчанию сохраняет его в словаре, как setdefault",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 8, "caught": 8 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0001,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

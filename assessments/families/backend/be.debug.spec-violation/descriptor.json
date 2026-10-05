@@ -1,0 +1,97 @@
+{
+	"key": "be.debug.spec-violation",
+	"version": 1,
+	"specialization": "backend",
+	"block": "be.debug",
+	"format": "bug_locate",
+	"answerKind": "line_no",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": { "functions": 5, "lines": "25–35", "defect": "одна строка: граница, арифметика или условие" },
+			"constructiveRank": 2,
+			"timeNormSec": 240,
+			"classes": [
+				{ "id": "boundary", "form": "A", "description": "граница диапазона или сравнения сдвинута на единицу" },
+				{ "id": "arithmetic", "form": "B", "description": "целочисленное деление и округление считают не то" },
+				{ "id": "condition", "form": "anchor", "description": "логическое условие перевёрнуто или ослаблено" },
+				{
+					"id": "falsy-zero",
+					"form": "X",
+					"description": "проверка истинности: 0 или пустое значение принимается за отсутствие значения (None)"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"functions": 6,
+				"lines": "40–55",
+				"defect": "одна строка: общая изменяемая ссылка, обход коллекции, обработка ошибок"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{ "id": "aliasing", "form": "A", "description": "общая изменяемая ссылка вместо копии" },
+				{
+					"id": "iteration",
+					"form": "B",
+					"description": "обход коллекции: изменение во время обхода, потеря порядка или хвоста"
+				},
+				{
+					"id": "errors",
+					"form": "anchor",
+					"description": "обработка ошибок и повторов: перехват лишнего, потерянное исключение"
+				},
+				{
+					"id": "late-binding",
+					"form": "X",
+					"description": "переменная цикла: замыкание или код после цикла видит последнее значение, а не нужное"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "context", "description": "какие ещё функции модуля показаны и в каком порядке" },
+		{ "name": "function", "description": "в какой функции класса дефект" }
+	],
+	"essentialParams": [
+		{ "name": "defect-kind", "description": "вид дефекта: граница, арифметика, условие, ссылка, обход, ошибки" }
+	],
+	"language": "python3",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"чтение спецификации из документации функции",
+			"границы диапазонов и срезов",
+			"целочисленная арифметика",
+			"изменяемые значения по умолчанию и копии",
+			"изменение коллекции во время обхода",
+			"перехват исключений и повторы"
+		],
+		"doesNotCheck": ["исправление дефекта (только его место)", "стиль кода"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "neighbour-line",
+			"defect": "указывает соседнюю строку той же функции, где «исправление» не возвращает спецификацию",
+			"mustBeCaught": true
+		},
+		{ "id": "other-function", "defect": "указывает похожую строку в другой, исправной функции", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 2, "caught": 2 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0312,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

@@ -1,0 +1,169 @@
+{
+	"key": "be.lang.mutable-aliasing",
+	"version": 1,
+	"specialization": "backend",
+	"block": "be.lang",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": { "names": 3, "statements": "5–8", "nesting": 1, "mechanisms": 1 },
+			"constructiveRank": 2,
+			"timeNormSec": 180,
+			"classes": [
+				{
+					"id": "alias-copy",
+					"form": "A",
+					"description": "присваивание даёт второе имя тому же списку, срез и list() — новый список"
+				},
+				{
+					"id": "plus-equals",
+					"form": "B",
+					"description": "`+=` меняет список на месте, `x = x + [...]` создаёт новый"
+				},
+				{
+					"id": "nested-grid",
+					"form": "anchor",
+					"description": "`[[0] * n] * m` повторяет ссылку на одну строку, замена строки разрывает связь"
+				},
+				{
+					"id": "loop-var",
+					"form": "X",
+					"description": "присваивание переменной цикла не меняет список, изменение элемента-списка на месте — меняет"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": { "names": "3–5", "statements": "8–12", "nesting": 2, "mechanisms": 2 },
+			"constructiveRank": 4,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "shallow-deep",
+					"form": "A",
+					"description": "поверхностная копия вложенного списка делит внутренние списки, глубокая — нет"
+				},
+				{
+					"id": "default-arg",
+					"form": "B",
+					"description": "изменяемое значение по умолчанию создаётся один раз и копит изменения между вызовами"
+				},
+				{
+					"id": "call-mutation",
+					"form": "anchor",
+					"description": "функция меняет переданный список на месте, а после переприсваивания параметра — уже свой"
+				},
+				{
+					"id": "dict-fromkeys",
+					"form": "X",
+					"description": "dict.fromkeys с изменяемым значением даёт всем ключам один список, генератор словаря — свои"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "имена переменных и функций" },
+		{ "name": "numbers", "description": "элементы списков, индексы, размеры" },
+		{ "name": "copy-form", "description": "чем снята копия: срез, list(), .copy(), copy.copy" }
+	],
+	"essentialParams": [
+		{
+			"name": "binding",
+			"description": "что создаёт операция: новое имя того же объекта, новый объект или изменение на месте"
+		},
+		{ "name": "depth", "description": "на каком уровне вложенности объект общий" },
+		{ "name": "lifetime", "description": "когда создаётся объект: при определении функции, при вызове, при операции" }
+	],
+	"language": "python3",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"присваивание не копирует список",
+			"срез, list() и copy — поверхностные копии",
+			"`+=` на списке против `x = x + [...]`",
+			"`[[0] * n] * m` и независимые строки",
+			"copy.copy против copy.deepcopy",
+			"изменяемое значение по умолчанию",
+			"изменение и переприсваивание параметра в функции",
+			"переменная цикла и элементы списка",
+			"dict.fromkeys с изменяемым значением"
+		],
+		"doesNotCheck": ["кортежи и неизменяемые типы внутри списков", "копирование пользовательских объектов"]
+	},
+	"wrongSolutions": [
+		{ "id": "assign-copies", "defect": "считает, что присваивание `b = a` копирует список", "mustBeCaught": true },
+		{
+			"id": "copy-aliases",
+			"defect": "считает, что срез и list() дают тот же список, а не копию",
+			"mustBeCaught": true
+		},
+		{
+			"id": "iadd-rebinds",
+			"defect": "считает, что `+=` на списке создаёт новый список, как `x = x + [...]`",
+			"mustBeCaught": true
+		},
+		{ "id": "plus-mutates", "defect": "считает, что `x = x + [...]` меняет исходный список", "mustBeCaught": true },
+		{
+			"id": "rows-independent",
+			"defect": "считает строки `[[0] * n] * m` независимыми списками",
+			"mustBeCaught": true
+		},
+		{
+			"id": "shallow-is-deep",
+			"defect": "считает, что поверхностная копия копирует и вложенные списки",
+			"mustBeCaught": true
+		},
+		{
+			"id": "shallow-is-alias",
+			"defect": "считает поверхностную копию тем же объектом, что и оригинал",
+			"mustBeCaught": true
+		},
+		{
+			"id": "default-fresh",
+			"defect": "считает, что значение по умолчанию создаётся заново при каждом вызове",
+			"mustBeCaught": true
+		},
+		{
+			"id": "snapshot-at-return",
+			"defect": "считает, что переменная хранит снимок списка на момент возврата, а не ссылку на общий список",
+			"mustBeCaught": true
+		},
+		{
+			"id": "pass-by-value",
+			"defect": "считает, что функция получает копию списка и не меняет переданный",
+			"mustBeCaught": true
+		},
+		{
+			"id": "rebind-visible",
+			"defect": "считает, что переприсваивание параметра внутри функции видно вызывающему",
+			"mustBeCaught": true
+		},
+		{
+			"id": "loop-var-writes-back",
+			"defect": "считает, что присваивание переменной цикла записывает значение обратно в список",
+			"mustBeCaught": true
+		},
+		{
+			"id": "fromkeys-copies",
+			"defect": "считает, что dict.fromkeys создаёт для каждого ключа свой список",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 13, "caught": 13 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

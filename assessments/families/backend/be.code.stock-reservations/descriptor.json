@@ -1,0 +1,147 @@
+{
+	"key": "be.code.stock-reservations",
+	"version": 1,
+	"specialization": "backend",
+	"block": "be.code",
+	"format": "practice_code",
+	"answerKind": "code",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.8 },
+			"constructive": { "warehouses": 1, "statuses": 4, "expiry": "anchor", "changeStep": "лимит резервов клиента" },
+			"constructiveRank": 5,
+			"timeNormSec": 2700,
+			"classes": [
+				{ "id": "all-or-nothing", "form": "A", "description": "резерв удовлетворяется целиком или отклоняется" },
+				{ "id": "partial", "form": "B", "description": "резерв получает min(q, остаток), при нуле отклоняется" },
+				{
+					"id": "expiring",
+					"form": "anchor",
+					"description": "резерв целиком, неподтверждённый истекает через T до событий своего момента"
+				},
+				{
+					"id": "backorder",
+					"form": "X",
+					"description": "нехватка ставит резерв в очередь товара, очередь обслуживается строго по порядку при поставке и снятии"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.8 },
+			"constructive": {
+				"warehouses": "2–6",
+				"statuses": 4,
+				"expiry": "anchor",
+				"changeStep": "лимит резервов клиента"
+			},
+			"constructiveRank": 7,
+			"timeNormSec": 3300,
+			"classes": [
+				{
+					"id": "all-or-nothing",
+					"form": "A",
+					"description": "резерв целиком с первого по приоритету склада, где хватает товара"
+				},
+				{
+					"id": "partial",
+					"form": "B",
+					"description": "резерв набирается по складам в порядке приоритета, снятие возвращает по складам"
+				},
+				{
+					"id": "expiring",
+					"form": "anchor",
+					"description": "резерв целиком с первого подходящего склада, истекает через T и возвращается туда же"
+				},
+				{
+					"id": "backorder",
+					"form": "X",
+					"description": "нехватка ставит резерв в очередь товара, очередь обслуживается строго по порядку с первого подходящего склада"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "data", "description": "товары, склады, клиенты, номера резервов, моменты и количества" },
+		{ "name": "sizes", "description": "число событий, товаров и складов, T и лимит клиента в пределах условия" }
+	],
+	"essentialParams": [
+		{ "name": "grant", "description": "резерв целиком, частично, целиком с истечением или через очередь ожидания" },
+		{ "name": "warehouses", "description": "Senior: несколько складов с приоритетом" },
+		{ "name": "client-limit", "description": "шаг «измени своё решение»: лимит активных резервов клиента" }
+	],
+	"language": null,
+	"practice": { "languages": ["python3", "go", "java21", "javascript", "typescript", "cpp17"], "hiddenTestGroups": 5 },
+	"qa": null,
+	"changeStep": {
+		"description": "Новое условие: у каждого клиента суммарное количество в активных резервах не больше C; резерв, который превысил бы лимит, отклоняется (частичный — урезается до лимита), снятие, подтверждение и истечение лимит освобождают.",
+		"weight": 0.3
+	},
+	"rubric": { "kind": "groups" },
+	"coverage": {
+		"checks": [
+			"жизненный цикл резерва: активен, снят, подтверждён, отклонён, истёк",
+			"повторное и запоздалое снятие не возвращает товар",
+			"подтверждённый резерв не возвращает товар",
+			"граница «остаток ровно равен запросу»",
+			"истечение до событий того же момента (опорный класс)",
+			"строгая очередь ожидания без обгона (резервный класс)",
+			"выбор склада по приоритету и возврат на свои склады (Senior)",
+			"доработка решения под новое существенное условие"
+		],
+		"doesNotCheck": ["хранение состояния в базе и транзакции", "параллельную обработку событий"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "stale-release",
+			"defect": "не проверяет, что резерв ещё активен: повторное или запоздалое снятие снова возвращает товар",
+			"mustBeCaught": true
+		},
+		{
+			"id": "exact-stock",
+			"defect": "принимает резерв, только если остаток строго больше запроса",
+			"mustBeCaught": true
+		},
+		{
+			"id": "release-requested",
+			"defect": "частичный резерв при снятии и истечении возвращает запрошенное количество, а не выданное",
+			"mustBeCaught": true
+		},
+		{
+			"id": "late-expiry",
+			"defect": "истекает резерв после событий своего момента, а не до них",
+			"mustBeCaught": true
+		},
+		{
+			"id": "single-warehouse",
+			"defect": "Senior: смотрит только первый по приоритету склад, где товар есть",
+			"mustBeCaught": true
+		},
+		{
+			"id": "confirm-returns",
+			"defect": "подтверждение резерва возвращает товар в свободный остаток, как снятие",
+			"mustBeCaught": true
+		},
+		{
+			"id": "queue-jump",
+			"defect": "класс очереди: новый резерв берёт товар сразу, обгоняя ожидающие заявки",
+			"mustBeCaught": true
+		},
+		{
+			"id": "skip-ahead",
+			"defect": "класс очереди: обслуживает любую подходящую заявку, а не только первую в очереди",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 8, "caught": 8 },
+		"hiddenTestsMutationScore": 1,
+		"answerCollision": 0,
+		"transfer": 0,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

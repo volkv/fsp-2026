@@ -1,0 +1,135 @@
+{
+	"key": "be.db.upsert-conflict",
+	"version": 1,
+	"specialization": "backend",
+	"block": "be.db",
+	"format": "sql_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": { "statements": "4–6", "conflictKinds": 1, "uniqueKeys": 1 },
+			"constructiveRank": 4,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "replace-row",
+					"form": "A",
+					"description": "INSERT OR REPLACE удаляет конфликтную строку и вставляет новую: новый id, непереданные столбцы — по умолчанию"
+				},
+				{
+					"id": "do-update",
+					"form": "B",
+					"description": "ON CONFLICT … DO UPDATE: `excluded.x` — вставляемое значение, `x` — значение в таблице"
+				},
+				{
+					"id": "ignore-first-wins",
+					"form": "anchor",
+					"description": "INSERT OR IGNORE оставляет первую строку, пропущенная вставка id не тратит"
+				},
+				{
+					"id": "primary-key-replace",
+					"form": "X",
+					"description": "конфликт по первичному ключу: REPLACE с явным id заменяет всю строку с этим id, IGNORE её не трогает"
+				}
+			]
+		},
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": { "statements": "5–8", "conflictKinds": "1–3", "uniqueKeys": "составной ключ или условие" },
+			"constructiveRank": 5,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "composite-null",
+					"form": "A",
+					"description": "составной UNIQUE: конфликт только при совпадении всех столбцов, NULL с NULL не конфликтует"
+				},
+				{
+					"id": "update-where",
+					"form": "B",
+					"description": "DO UPDATE … WHERE: при ложном условии строка не меняется и новая не вставляется"
+				},
+				{
+					"id": "mixed-series",
+					"form": "anchor",
+					"description": "серия из IGNORE, REPLACE и DO UPDATE над одной таблицей: каждое правило в свой момент"
+				},
+				{
+					"id": "multi-row-upsert",
+					"form": "X",
+					"description": "один INSERT на несколько строк: строка конфликтует и со строкой, вставленной раньше в том же операторе"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "названия таблиц и столбцов, адреса, артикулы, имена" },
+		{ "name": "data", "description": "значения, число и порядок операторов" }
+	],
+	"essentialParams": [
+		{ "name": "resolution", "description": "как разрешается конфликт: IGNORE, REPLACE, DO UPDATE, DO UPDATE … WHERE" },
+		{ "name": "key", "description": "по какому ключу конфликт: первичный, UNIQUE, составной UNIQUE с NULL" }
+	],
+	"language": "sql",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"INSERT OR IGNORE",
+			"INSERT OR REPLACE как удаление и вставка",
+			"ON CONFLICT … DO UPDATE и псевдотаблица excluded",
+			"составной UNIQUE и NULL в нём",
+			"DO UPDATE … WHERE",
+			"конфликт по первичному ключу",
+			"upsert из нескольких строк одного оператора"
+		],
+		"doesNotCheck": [
+			"синтаксис MERGE и ON DUPLICATE KEY других СУБД",
+			"триггеры и внешние ключи при REPLACE",
+			"конкурентные вставки"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "replace-as-update",
+			"defect": "считает, что REPLACE обновляет строку на месте: id и непереданные столбцы сохраняются",
+			"mustBeCaught": true
+		},
+		{
+			"id": "ignore-overwrites",
+			"defect": "считает, что OR IGNORE перезаписывает существующую строку",
+			"mustBeCaught": true
+		},
+		{
+			"id": "excluded-is-old",
+			"defect": "путает `excluded.x` (новое значение) и `x` (значение в таблице)",
+			"mustBeCaught": true
+		},
+		{
+			"id": "upsert-overwrites",
+			"defect": "считает, что DO UPDATE просто записывает вставляемые значения",
+			"mustBeCaught": true
+		},
+		{
+			"id": "null-conflicts",
+			"defect": "считает, что NULL в уникальном ключе конфликтует с NULL",
+			"mustBeCaught": true
+		},
+		{ "id": "where-ignored", "defect": "не учитывает условие WHERE у DO UPDATE", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 6, "caught": 6 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

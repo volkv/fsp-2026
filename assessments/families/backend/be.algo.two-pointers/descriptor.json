@@ -1,0 +1,158 @@
+{
+	"key": "be.algo.two-pointers",
+	"version": 1,
+	"specialization": "backend",
+	"block": "be.algo",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": { "arrayLength": "7–10", "pointers": 2, "calls": "1–2", "mechanisms": 1 },
+			"constructiveRank": 2,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "fixed-window",
+					"form": "A",
+					"description": "окно фиксированной длины: сумма пересчитывается сдвигом, запоминается первое лучшее окно"
+				},
+				{
+					"id": "merge",
+					"form": "B",
+					"description": "слияние двух отсортированных списков: при равенстве первым идёт элемент первого списка, хвост дописывается"
+				},
+				{
+					"id": "compact",
+					"form": "anchor",
+					"description": "сжатие повторов на месте указателем записи: хвост списка остаётся прежним"
+				},
+				{
+					"id": "pair-sum",
+					"form": "X",
+					"description": "пары с заданной суммой встречными указателями: после совпадения сдвигаются оба, повторы дают не все пары"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"arrayLength": "7–12",
+				"pointers": 2,
+				"calls": "3–4",
+				"mechanisms": 2,
+				"edgeCases": "пустое и одноэлементное окно"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 330,
+			"classes": [
+				{
+					"id": "longest-unique",
+					"form": "A",
+					"description": "самая длинная подстрока без повторов: левая граница прыгает за прошлое вхождение, но не назад"
+				},
+				{
+					"id": "min-window",
+					"form": "B",
+					"description": "самое короткое окно с суммой не меньше заданной: сжатие в цикле, 0 — если такого окна нет"
+				},
+				{
+					"id": "count-windows",
+					"form": "anchor",
+					"description": "число окон с суммой не больше предела: на каждом шаге добавляются все окна, оканчивающиеся в right"
+				},
+				{
+					"id": "at-most-k",
+					"form": "X",
+					"description": "самое длинное окно не более чем с k различными: k = 0 даёт пустое окно, большое k — весь список"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "имена функций и переменных" },
+		{ "name": "data", "description": "элементы списков и строк, параметры вызовов" }
+	],
+	"essentialParams": [
+		{ "name": "window", "description": "окно фиксированной или переменной длины, условие расширения и сжатия" },
+		{ "name": "pointers", "description": "указатели навстречу, в одну сторону или указатель записи" },
+		{ "name": "edges", "description": "равенства, пустое окно, недостижимое условие" }
+	],
+	"language": "python3",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"скользящее окно фиксированной длины",
+			"слияние отсортированных списков и устойчивость",
+			"встречные указатели для пар с суммой",
+			"сжатие повторов на месте",
+			"окно переменной длины: расширение и сжатие",
+			"пустое и одноэлементное окно, недостижимое условие"
+		],
+		"doesNotCheck": ["написание алгоритмов самостоятельно", "асимптотическая сложность"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "last-max",
+			"defect": "при равных суммах окна запоминает последнее окно, а не первое",
+			"mustBeCaught": true
+		},
+		{ "id": "start-off-by-one", "defect": "считает началом окна индекс i − k, а не i − k + 1", "mustBeCaught": true },
+		{
+			"id": "ties-from-b",
+			"defect": "при равных элементах слияния берёт сначала элемент второго списка",
+			"mustBeCaught": true
+		},
+		{
+			"id": "tail-dropped",
+			"defect": "не учитывает дописывание остатка списка после цикла слияния",
+			"mustBeCaught": true
+		},
+		{
+			"id": "all-pairs",
+			"defect": "считает, что два указателя находят все пары индексов с нужной суммой, включая повторы",
+			"mustBeCaught": true
+		},
+		{
+			"id": "array-truncated",
+			"defect": "считает, что после сжатия список укорачивается и хвост пропадает",
+			"mustBeCaught": true
+		},
+		{
+			"id": "left-moves-back",
+			"defect": "сдвигает левую границу к прошлому вхождению символа, даже если оно уже вне окна",
+			"mustBeCaught": true
+		},
+		{
+			"id": "shrink-once",
+			"defect": "сжимает окно только на один шаг за итерацию, как при if вместо while",
+			"mustBeCaught": true
+		},
+		{ "id": "exactly-k", "defect": "ищет окно ровно с k различными элементами, а не не более k", "mustBeCaught": true },
+		{
+			"id": "window-never-empty",
+			"defect": "считает, что окно не бывает пустым и при k = 0 длина равна 1",
+			"mustBeCaught": true
+		},
+		{
+			"id": "one-per-step",
+			"defect": "добавляет к счёту одно окно на шаг, а не все окна, оканчивающиеся в right",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 11, "caught": 11 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0099,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

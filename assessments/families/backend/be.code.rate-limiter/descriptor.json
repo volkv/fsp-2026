@@ -1,0 +1,107 @@
+{
+	"key": "be.code.rate-limiter",
+	"version": 1,
+	"specialization": "backend",
+	"block": "be.code",
+	"format": "practice_code",
+	"answerKind": "code",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.8 },
+			"constructive": { "algorithm": 1, "cost": false, "clients": "1–40", "changeStep": "общий лимит" },
+			"constructiveRank": 4,
+			"timeNormSec": 2700,
+			"classes": [
+				{ "id": "fixed-window", "form": "A", "description": "фиксированные окна [kP, (k+1)P) по каждому клиенту" },
+				{
+					"id": "sliding-log",
+					"form": "B",
+					"description": "скользящее окно (t − P, t] по журналу разрешённых запросов"
+				},
+				{
+					"id": "token-bucket",
+					"form": "anchor",
+					"description": "ведро токенов: ёмкость L, один токен каждые P мс от первого запроса"
+				},
+				{
+					"id": "sliding-counter",
+					"form": "X",
+					"description": "счётчик скользящего окна: предыдущее окно с весом (P − e)/P плюс текущее, не больше L"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.8 },
+			"constructive": { "algorithm": 1, "cost": true, "clients": "1–60", "changeStep": "общий лимит со стоимостью" },
+			"constructiveRank": 6,
+			"timeNormSec": 3000,
+			"classes": [
+				{ "id": "fixed-window", "form": "A", "description": "фиксированные окна, запрос расходует свою стоимость" },
+				{ "id": "sliding-log", "form": "B", "description": "скользящее окно по сумме стоимостей разрешённых запросов" },
+				{
+					"id": "token-bucket",
+					"form": "anchor",
+					"description": "ведро токенов, запрос забирает столько токенов, сколько стоит"
+				},
+				{
+					"id": "sliding-counter",
+					"form": "X",
+					"description": "счётчик скользящего окна по стоимостям: prev·(P − e) + (cur + c)·P ≤ L·P"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "data", "description": "имена клиентов, моменты запросов, стоимости" },
+		{ "name": "sizes", "description": "число запросов, лимит, длина периода" }
+	],
+	"essentialParams": [
+		{
+			"name": "algorithm",
+			"description": "фиксированное окно, скользящий журнал, ведро токенов или счётчик скользящего окна"
+		},
+		{ "name": "cost", "description": "Senior: запросы разной стоимости" },
+		{ "name": "global-limit", "description": "шаг «измени своё решение»: общий лимит поверх лимита клиента" }
+	],
+	"language": null,
+	"practice": { "languages": ["python3", "go", "java21", "javascript", "typescript", "cpp17"], "hiddenTestGroups": 5 },
+	"qa": null,
+	"changeStep": {
+		"description": "Новое условие: поверх лимита клиента действует общий лимит G на всех клиентов по тому же алгоритму; запрос разрешён, только если его разрешают оба, и только разрешённый запрос расходует оба лимита.",
+		"weight": 0.3
+	},
+	"rubric": { "kind": "groups" },
+	"coverage": {
+		"checks": [
+			"точная семантика границы окна",
+			"отклонённый запрос не расходует лимит",
+			"состояние по каждому клиенту",
+			"ведро токенов с дискретным пополнением",
+			"взвешенный счётчик скользящего окна (резервный класс)",
+			"стоимость запроса (Senior)",
+			"доработка решения под новое существенное условие"
+		],
+		"doesNotCheck": ["распределённый лимитер и хранилище состояния", "реальное время и часы"]
+	},
+	"wrongSolutions": [
+		{ "id": "denied-counts", "defect": "отклонённый запрос тоже расходует лимит окна", "mustBeCaught": true },
+		{
+			"id": "window-edge",
+			"defect": "граница окна или пополнения сдвинута: включает начало вместо конца",
+			"mustBeCaught": true
+		},
+		{ "id": "shared-limit", "defect": "один лимит на всех клиентов вместо лимита на клиента", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 3, "caught": 3 },
+		"hiddenTestsMutationScore": 0.9888,
+		"answerCollision": 0,
+		"transfer": 0,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

@@ -21,7 +21,11 @@ describe('trajectory report', () => {
 	it.each(['backend', 'qa'] as const)(
 		'%s: every grade meets the trajectory acceptance, the curve grows with the true level',
 		(specialization) => {
-			const report = trajectoryReport(release(specialization).id, fixtureFamilies(specialization), specialization);
+			const report = trajectoryReport(
+				{ releaseId: release(specialization).id, seed: 'fixture' },
+				fixtureFamilies(specialization),
+				specialization
+			);
 			expect(trajectoryReportProblems(report, release(specialization), PROCEDURE)).toEqual([]);
 			for (const grade of report.grades) {
 				const confirmed = grade.points.map((p) => p.confirmed);
@@ -33,7 +37,11 @@ describe('trajectory report', () => {
 
 	it('fails when the practice is rated at the borderline of its gate', () => {
 		// A practice whose estimate sits at the gate is failed by a borderline-plus candidate too often.
-		const report = trajectoryReport('backend@x', fixtureFamilies('backend', { practiceAngoff: 0.45 }), 'backend');
+		const report = trajectoryReport(
+			{ releaseId: 'backend@x', seed: 'fixture' },
+			fixtureFamilies('backend', { practiceAngoff: 0.45 }),
+			'backend'
+		);
 		const problems = trajectoryReportProblems(
 			{ ...report, releaseId: release('backend').id },
 			release('backend'),
@@ -66,7 +74,7 @@ describe('trajectory report', () => {
 			score
 		});
 		expect(second.served.filter((key) => first.served.includes(key))).toEqual([]);
-		const small = () => trajectoryReport('r', families, 'backend', { runs: 30 });
+		const small = () => trajectoryReport({ releaseId: 'r', seed: 'r' }, families, 'backend', { runs: 30 });
 		expect(small()).toEqual(small());
 	}, 60_000);
 });

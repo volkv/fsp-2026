@@ -1,0 +1,180 @@
+{
+	"key": "be.concurrency.asyncio-order",
+	"version": 1,
+	"specialization": "backend",
+	"block": "be.concurrency",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"tasks": "2–3",
+				"lines": "20–30",
+				"rules": 3,
+				"interacting": "планирование задач + sleep(0) + ожидание"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "create-task",
+					"form": "A",
+					"description": "create_task только ставит задачу в очередь: она начнёт, когда main уступит управление"
+				},
+				{
+					"id": "gather-results",
+					"form": "B",
+					"description": "gather печатает результаты в порядке аргументов, хотя задачи заканчиваются в другом"
+				},
+				{
+					"id": "queue-event",
+					"form": "anchor",
+					"description": "производитель и потребитель: set() и put() будят ожидающего только через цикл событий"
+				},
+				{
+					"id": "await-direct",
+					"form": "X",
+					"description": "await корутины без create_task выполняет её сразу внутри main, а созданные задачи идут, только пока она стоит на sleep(0)"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"constructive": {
+				"tasks": "3–5",
+				"lines": "30–45",
+				"rules": 5,
+				"interacting": "отмена в разных состояниях + блокировка или shield + порядок пробуждения"
+			},
+			"constructiveRank": 7,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "cancel-states",
+					"form": "A",
+					"description": "отмена задачи, которая ещё не начиналась, ждёт на sleep(0) или уже завершилась: что печатают except и finally"
+				},
+				{
+					"id": "lock-fairness",
+					"form": "B",
+					"description": "Lock будит ожидающих по очереди: опоздавший не обгоняет разбуженного, даже если замок свободен"
+				},
+				{
+					"id": "shield",
+					"form": "anchor",
+					"description": "отмена задачи, ждущей другую задачу, отменяет и её; через shield внутренняя задача продолжает работу"
+				},
+				{
+					"id": "cancel-swallow",
+					"form": "X",
+					"description": "задача перехватывает CancelledError и возвращает значение: она не отменена, await получает результат, cancelled() — False"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "имена задач и значения в очереди" },
+		{ "name": "numbers", "description": "число шагов задач, места sleep(0) в main" }
+	],
+	"essentialParams": [
+		{ "name": "primitive", "description": "create_task, gather, Queue и Event, Lock, cancel, shield" },
+		{ "name": "state", "description": "в каком состоянии задача в момент отмены или пробуждения" }
+	],
+	"language": "python3",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"create_task не запускает задачу сразу",
+			"sleep(0) уступает управление",
+			"gather возвращает результаты в порядке аргументов",
+			"get() непустой очереди и wait() установленного события не уступают управление",
+			"отмена до старта, во время ожидания и после завершения",
+			"справедливость asyncio.Lock",
+			"распространение отмены и shield"
+		],
+		"doesNotCheck": ["реальные таймауты и задержки", "потоки и процессы", "eager task factory"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "eager-create",
+			"defect": "считает, что create_task сразу выполняет задачу до первого await",
+			"mustBeCaught": true
+		},
+		{
+			"id": "lazy-tasks",
+			"defect": "считает, что задача выполняется, только когда её ждут через await",
+			"mustBeCaught": true
+		},
+		{
+			"id": "gather-completion-order",
+			"defect": "считает, что gather возвращает результаты в порядке завершения",
+			"mustBeCaught": true
+		},
+		{
+			"id": "get-always-yields",
+			"defect": "считает, что await q.get() уступает управление, даже когда в очереди есть элемент",
+			"mustBeCaught": true
+		},
+		{
+			"id": "set-switches",
+			"defect": "считает, что event.set() тут же передаёт управление ожидающей задаче",
+			"mustBeCaught": true
+		},
+		{
+			"id": "unstarted-runs",
+			"defect": "считает, что отменённая до старта задача выполнится до первого await и обработает отмену",
+			"mustBeCaught": true
+		},
+		{
+			"id": "cancel-immediate",
+			"defect": "считает, что cancel() сразу выполняет обработчик отмены в задаче, до продолжения main",
+			"mustBeCaught": true
+		},
+		{
+			"id": "lock-barging",
+			"defect": "считает, что свободный замок берёт тот, кто первым попросил, даже если разбуженный ждёт своей очереди",
+			"mustBeCaught": true
+		},
+		{
+			"id": "release-switches",
+			"defect": "считает, что release() тут же передаёт управление следующему ожидающему",
+			"mustBeCaught": true
+		},
+		{
+			"id": "shield-cancels-inner",
+			"defect": "считает, что отмена ждущего через shield отменяет и внутреннюю задачу",
+			"mustBeCaught": true
+		},
+		{
+			"id": "no-propagation",
+			"defect": "считает, что отмена задачи, ждущей другую задачу, не затрагивает ту, которую ждут",
+			"mustBeCaught": true
+		},
+		{
+			"id": "await-coro-as-task",
+			"defect": "считает, что await корутины ставит её в очередь, как create_task",
+			"mustBeCaught": true
+		},
+		{
+			"id": "swallow-still-cancelled",
+			"defect": "считает задачу отменённой, даже если она перехватила CancelledError и вернула значение",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 13, "caught": 13 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0007,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

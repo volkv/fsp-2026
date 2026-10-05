@@ -1,0 +1,99 @@
+{
+	"key": "be.lang.numbers-strings",
+	"version": 1,
+	"specialization": "backend",
+	"block": "be.lang",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": { "expressions": "5–6", "negativeOperands": true, "mechanisms": 2 },
+			"constructiveRank": 2,
+			"timeNormSec": 210,
+			"classes": [
+				{
+					"id": "floor-mod",
+					"form": "A",
+					"description": "`//` округляет вниз, знак `%` — как у делителя; int(a / b) отбрасывает дробную часть"
+				},
+				{
+					"id": "round-int",
+					"form": "B",
+					"description": "round() округляет половины к чётному, int() от float отбрасывает дробь к нулю, от строки — допускает пробелы"
+				},
+				{
+					"id": "split-slice",
+					"form": "anchor",
+					"description": "split() без аргумента схлопывает пробелы, split(\" \") даёт пустые строки; срезы строки"
+				},
+				{
+					"id": "str-methods",
+					"form": "X",
+					"description": "strip(chars) снимает с краёв любые символы набора, count считает непересекающиеся вхождения"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "numbers", "description": "операнды выражений и их порядок" },
+		{ "name": "words", "description": "слова строки, число пробелов между ними" }
+	],
+	"essentialParams": [
+		{ "name": "sign", "description": "знаки операндов: где округление вниз и к нулю расходятся" },
+		{ "name": "halves", "description": "есть ли значения ровно посередине и чётна ли целая часть" },
+		{ "name": "separators", "description": "повторные и крайние пробелы в строке" }
+	],
+	"language": "python3",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"// и % с отрицательными операндами, divmod",
+			"int() от float и строки",
+			"банковское округление round()",
+			"split() против split(\" \")",
+			"срезы строк с отрицательными индексами и шагом",
+			"strip с набором символов, count без пересечений"
+		],
+		"doesNotCheck": ["погрешность float (0.1 + 0.2)", "форматирование строк", "Decimal и Fraction"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "truncating-division",
+			"defect": "считает, что // отбрасывает дробную часть к нулю, а знак % — как у делимого (как в C и Java)",
+			"mustBeCaught": true
+		},
+		{ "id": "half-up", "defect": "округляет половины от нуля, как в школе", "mustBeCaught": true },
+		{ "id": "int-floors", "defect": "считает, что int() от отрицательного float округляет вниз", "mustBeCaught": true },
+		{
+			"id": "split-collapses",
+			"defect": "считает, что split(\" \") схлопывает повторные пробелы, как split()",
+			"mustBeCaught": true
+		},
+		{ "id": "stop-inclusive", "defect": "считает, что конец среза включается", "mustBeCaught": true },
+		{
+			"id": "strip-substring",
+			"defect": "считает, что strip(chars) снимает с краёв именно подстроку chars, один раз",
+			"mustBeCaught": true
+		},
+		{
+			"id": "count-overlapping",
+			"defect": "считает, что count учитывает пересекающиеся вхождения",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 7, "caught": 7 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0005,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

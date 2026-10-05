@@ -1,0 +1,187 @@
+{
+	"key": "be.lang.exceptions-flow",
+	"version": 1,
+	"specialization": "backend",
+	"block": "be.lang",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": { "calls": "3–4", "handlers": "2–3", "clauses": "try/except/else/finally", "mechanisms": 1 },
+			"constructiveRank": 2,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "handler-order",
+					"form": "A",
+					"description": "срабатывает первый подходящий обработчик, базовый класс перехватывает подкласс"
+				},
+				{
+					"id": "return-else",
+					"form": "B",
+					"description": "return в try пропускает else, finally печатает раньше, чем вызывающий получит значение"
+				},
+				{
+					"id": "reraise",
+					"form": "anchor",
+					"description": "обработчик пишет в журнал и повторно бросает исключение, finally выполняется до внешнего обработчика"
+				},
+				{
+					"id": "loop-jump",
+					"form": "X",
+					"description": "continue и break внутри try: finally выполняется и при переходе, else цикла — только без break"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": { "calls": "4–5", "handlers": "2–3", "clauses": "вложенные пути выхода", "mechanisms": 2 },
+			"constructiveRank": 4,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "finally-return",
+					"form": "A",
+					"description": "return в finally перекрывает возврат и гасит исключение, значение return вычислено до finally"
+				},
+				{
+					"id": "raise-in-except",
+					"form": "B",
+					"description": "исключение из обработчика не ловится соседним except того же try"
+				},
+				{
+					"id": "chain",
+					"form": "anchor",
+					"description": "`raise … from` задаёт __cause__, исключение внутри except — только __context__"
+				},
+				{
+					"id": "finally-raise",
+					"form": "X",
+					"description": "исключение из finally заменяет и возврат, и летящее исключение, которое остаётся в __context__"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "имена функций, ключи, сообщения в выводе" },
+		{ "name": "data", "description": "входные значения вызовов и их порядок" }
+	],
+	"essentialParams": [
+		{ "name": "exit-path", "description": "как блок try завершается: нормально, return, исключение" },
+		{ "name": "handlers", "description": "порядок обработчиков и иерархия классов исключений" },
+		{
+			"name": "propagation",
+			"description": "всплывает ли исключение: повторный raise, исключение в except, return в finally"
+		}
+	],
+	"language": "python3",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"выбор первого подходящего обработчика с учётом иерархии исключений",
+			"когда выполняется else",
+			"порядок finally относительно возврата и внешнего обработчика",
+			"повторный raise",
+			"return в finally",
+			"исключение, брошенное в обработчике",
+			"__cause__ и __context__",
+			"finally при continue и break, else у цикла",
+			"исключение, брошенное в finally"
+		],
+		"doesNotCheck": ["групповые исключения (except*)", "контекстные менеджеры", "трассировка стека"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "most-specific",
+			"defect": "считает, что срабатывает самый точный обработчик, а не первый подходящий по порядку",
+			"mustBeCaught": true
+		},
+		{
+			"id": "else-after-except",
+			"defect": "считает, что else выполняется и после обработанного исключения",
+			"mustBeCaught": true
+		},
+		{
+			"id": "else-after-return",
+			"defect": "считает, что else выполняется, даже если try завершился через return",
+			"mustBeCaught": true
+		},
+		{
+			"id": "finally-after-caller",
+			"defect": "считает, что finally выполняется после того, как вызывающий код получил результат",
+			"mustBeCaught": true
+		},
+		{
+			"id": "reraise-handled",
+			"defect": "считает, что после raise в обработчике исключение уже обработано и не всплывает",
+			"mustBeCaught": true
+		},
+		{
+			"id": "finally-before-except",
+			"defect": "считает, что finally выполняется до обработчика",
+			"mustBeCaught": true
+		},
+		{
+			"id": "try-return-wins",
+			"defect": "считает, что return из finally не перекрывает возврат try",
+			"mustBeCaught": true
+		},
+		{
+			"id": "finally-keeps-exception",
+			"defect": "считает, что исключение всплывает, даже если finally сделал return",
+			"mustBeCaught": true
+		},
+		{
+			"id": "return-reads-late",
+			"defect": "считает, что значение return вычисляется после finally",
+			"mustBeCaught": true
+		},
+		{
+			"id": "sibling-handler",
+			"defect": "считает, что исключение из обработчика ловит соседний except того же try",
+			"mustBeCaught": true
+		},
+		{
+			"id": "cause-implicit",
+			"defect": "считает, что исключение, брошенное внутри except, получает __cause__",
+			"mustBeCaught": true
+		},
+		{
+			"id": "from-clears-context",
+			"defect": "считает, что `raise … from` задаёт только __cause__, а __context__ остаётся None",
+			"mustBeCaught": true
+		},
+		{
+			"id": "finally-skipped-on-jump",
+			"defect": "считает, что continue и break внутри try пропускают finally",
+			"mustBeCaught": true
+		},
+		{ "id": "loop-else-always", "defect": "считает, что else цикла выполняется и после break", "mustBeCaught": true },
+		{
+			"id": "first-exception-wins",
+			"defect": "считает, что исключение из finally не отменяет уже начатый возврат или летящее исключение",
+			"mustBeCaught": true
+		},
+		{
+			"id": "context-lost",
+			"defect": "считает, что заменённое исключение пропадает и не попадает в __context__ нового",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 16, "caught": 16 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0012,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

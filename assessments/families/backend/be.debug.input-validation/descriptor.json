@@ -1,0 +1,117 @@
+{
+	"key": "be.debug.input-validation",
+	"version": 1,
+	"specialization": "backend",
+	"block": "be.debug",
+	"format": "bug_locate",
+	"answerKind": "line_no",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": {
+				"functions": 5,
+				"lines": "35–50",
+				"defect": "одна строка: граница, обязательное поле или нормализация"
+			},
+			"constructiveRank": 2,
+			"timeNormSec": 300,
+			"classes": [
+				{ "id": "bounds", "form": "A", "description": "граница допустимого диапазона длины или числа сдвинута" },
+				{
+					"id": "required",
+					"form": "B",
+					"description": "обязательное поле или тип значения проверяется не так, как требует спецификация"
+				},
+				{
+					"id": "normalize",
+					"form": "anchor",
+					"description": "нормализация email или телефона: регистр, пробелы, разделители, префикс"
+				},
+				{
+					"id": "allowed-values",
+					"form": "X",
+					"description": "допустимое значение из набора: проверка подстрокой вместо членства, регистр"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"functions": 6,
+				"lines": "50–70",
+				"defect": "одна строка: проверка пропускает опасное значение"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "dangerous-amount",
+					"form": "A",
+					"description": "опасная сумма проходит: ноль, отрицательное значение, превышение лимита по сумме операций"
+				},
+				{
+					"id": "blank-after-strip",
+					"form": "B",
+					"description": "строка из пробелов или пустой элемент проходит: проверка до очистки или не той очисткой"
+				},
+				{
+					"id": "type-coercion",
+					"form": "anchor",
+					"description": "значение не того типа проходит: bool как int, float вместо int, NaN, истинность строки"
+				},
+				{
+					"id": "pattern",
+					"form": "X",
+					"description": "регулярное выражение проверяет не всю строку или не тот набор символов"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "context", "description": "какие ещё проверки входа показаны и в каком порядке" },
+		{ "name": "header", "description": "заголовок модуля: импорты и константы разной длины" }
+	],
+	"essentialParams": [
+		{
+			"name": "defect-kind",
+			"description": "вид дефекта: граница, обязательное поле, нормализация, опасная сумма, пустая строка, приведение типов"
+		}
+	],
+	"language": "python3",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"чтение спецификации проверки входа",
+			"границы диапазонов включительно и исключительно",
+			"обязательные поля и None",
+			"нормализация email и телефона",
+			"ноль, отрицательные суммы и лимиты по сумме операций",
+			"строки из пробелов после очистки",
+			"bool как подкласс int, float и NaN в проверках"
+		],
+		"doesNotCheck": ["исправление дефекта (только его место)", "формат сообщений об ошибках"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "neighbour-line",
+			"defect": "указывает соседнюю строку той же функции, где «исправление» не возвращает спецификацию",
+			"mustBeCaught": true
+		},
+		{ "id": "other-function", "defect": "указывает похожую строку в другой, исправной функции", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 2, "caught": 2 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0222,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

@@ -1,0 +1,106 @@
+{
+	"key": "qa.mutants.pricing-rules",
+	"version": 1,
+	"specialization": "qa",
+	"block": "qa.mutants",
+	"format": "qa_mutation",
+	"answerKind": "test_cases",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.8 },
+			"constructive": { "rules": 4, "multiConditionRules": 0, "mutants": "6–9" },
+			"constructiveRank": 4,
+			"timeNormSec": 1200,
+			"classes": [
+				{
+					"id": "delivery",
+					"form": "A",
+					"description": "доставка: ступени веса, надбавка за расстояние, скидка участнику"
+				},
+				{
+					"id": "discount",
+					"form": "B",
+					"description": "корзина: стоимость от суммы, скидки по сумме и числу товаров"
+				},
+				{ "id": "ticket", "form": "anchor", "description": "билет: льготы по возрасту и ночная надбавка" },
+				{
+					"id": "subscription",
+					"form": "X",
+					"description": "подписка: доплата за пользователей сверх включённых, скидка за срок"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.8 },
+			"constructive": { "rules": 5, "multiConditionRules": 2, "mutants": "8–12" },
+			"constructiveRank": 6,
+			"timeNormSec": 1500,
+			"classes": [
+				{ "id": "delivery", "form": "A", "description": "доставка с правилами по двум условиям сразу (и / или)" },
+				{ "id": "discount", "form": "B", "description": "корзина со скидками, которые зависят от двух условий" },
+				{ "id": "ticket", "form": "anchor", "description": "билет: возраст и время в одном правиле" },
+				{
+					"id": "subscription",
+					"form": "X",
+					"description": "подписка: доплата за пользователей сверх включённых, скидка за срок и правило по двум условиям"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "thresholds", "description": "пороги, суммы, проценты правил" },
+		{ "name": "plot", "description": "название программы и величин" }
+	],
+	"essentialParams": [
+		{ "name": "rules", "description": "набор правил и их порядок: какие величины и границы надо проверить" },
+		{ "name": "conditions", "description": "Junior: правила с двумя условиями, где нужны комбинации значений" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": {
+		"budget": { "min": 5, "max": 8 },
+		"mutants": [
+			{ "id": "boundary", "operator": "строгое сравнение заменено нестрогим или наоборот" },
+			{ "id": "logic", "operator": "«и» заменено на «или» или наоборот" },
+			{ "id": "constant", "operator": "значение правила изменено" },
+			{ "id": "skip", "operator": "правило не применяется" },
+			{ "id": "over", "operator": "отсчёт сверх порога сдвинут на единицу" },
+			{ "id": "order", "operator": "два соседних правила переставлены" }
+		]
+	},
+	"changeStep": null,
+	"rubric": {
+		"kind": "mutants",
+		"levels": [
+			{ "minKillRatio": 0.6, "score": 0.5 },
+			{ "minKillRatio": 0.8, "score": 0.75 },
+			{ "minKillRatio": 1, "score": 1 }
+		]
+	},
+	"coverage": {
+		"checks": [
+			"граничные значения каждого порога",
+			"комбинации условий в правилах с «и» и «или» (Junior)",
+			"точный ожидаемый результат по спецификации",
+			"экономный набор: 5–8 кейсов"
+		],
+		"doesNotCheck": ["оформление тест-кейсов в системе управления тестированием", "автоматизацию тестов в коде"]
+	},
+	"wrongSolutions": [
+		{ "id": "typical-only", "defect": "проверяет только типичные значения, без границ", "mustBeCaught": true },
+		{ "id": "wrong-expected", "defect": "в одном кейсе ожидаемый результат посчитан неверно", "mustBeCaught": true },
+		{ "id": "exhaustive", "defect": "перебирает входы вместо анализа границ — больше 8 кейсов", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 3, "caught": 3 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

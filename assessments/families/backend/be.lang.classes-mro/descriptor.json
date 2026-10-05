@@ -1,0 +1,123 @@
+{
+	"key": "be.lang.classes-mro",
+	"version": 1,
+	"specialization": "backend",
+	"block": "be.lang",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": { "classes": "2–5", "statements": "15–25", "mechanisms": 2, "protocol": "MRO, __eq__/__hash__" },
+			"constructiveRank": 5,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "class-attrs",
+					"form": "A",
+					"description": "изменяемый атрибут класса общий для экземпляров, `self.x += 1` создаёт атрибут экземпляра"
+				},
+				{
+					"id": "mro-super",
+					"form": "B",
+					"description": "super() вызывает следующий класс в MRO экземпляра, а не базовый класс из объявления"
+				},
+				{
+					"id": "eq-hash",
+					"form": "anchor",
+					"description": "равные по __eq__ и __hash__ объекты — один ключ; __eq__ без __hash__ делает класс нехешируемым"
+				},
+				{
+					"id": "attribute-lookup",
+					"form": "X",
+					"description": "свойство с сеттером перехватывает присваивание, __getattr__ зовётся только для отсутствующих атрибутов"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "имена классов, методов, атрибутов" },
+		{ "name": "data", "description": "значения, строки ключей, порядок операций" }
+	],
+	"essentialParams": [
+		{ "name": "lookup", "description": "где ищется атрибут: экземпляр, класс, следующий класс MRO" },
+		{ "name": "write-target", "description": "куда пишет присваивание: экземпляр или класс" },
+		{ "name": "identity", "description": "равенство по значению или по идентичности, хешируемость" }
+	],
+	"language": "python3",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"атрибуты класса и экземпляра, затенение",
+			"изменяемый атрибут класса",
+			"C3-линеаризация и super() в ромбе",
+			"@property",
+			"__eq__ и __hash__ для ключей словаря и элементов множества",
+			"класс с __eq__ без __hash__ нехешируемый",
+			"сеттер свойства",
+			"__getattr__ только для отсутствующих атрибутов"
+		],
+		"doesNotCheck": ["метаклассы", "дескрипторы помимо property", "__slots__"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "class-attr-per-instance",
+			"defect": "считает, что каждый экземпляр получает свою копию атрибутов класса при создании",
+			"mustBeCaught": true
+		},
+		{
+			"id": "iadd-updates-class",
+			"defect": "считает, что `self.count += 1` увеличивает атрибут класса",
+			"mustBeCaught": true
+		},
+		{
+			"id": "dfs-mro",
+			"defect": "строит порядок поиска обходом в глубину слева направо, а не C3-линеаризацией",
+			"mustBeCaught": true
+		},
+		{
+			"id": "super-is-parent",
+			"defect": "считает, что super() вызывает базовый класс из объявления, а не следующий в MRO",
+			"mustBeCaught": true
+		},
+		{
+			"id": "identity-only",
+			"defect": "считает, что словарь и множество сравнивают объекты только по идентичности",
+			"mustBeCaught": true
+		},
+		{
+			"id": "key-replaced",
+			"defect": "считает, что присваивание по равному ключу заменяет и сам объект-ключ",
+			"mustBeCaught": true
+		},
+		{
+			"id": "eq-only-hashable",
+			"defect": "считает, что класс с __eq__ без __hash__ остаётся хешируемым по идентичности",
+			"mustBeCaught": true
+		},
+		{
+			"id": "setter-bypassed",
+			"defect": "считает, что присваивание свойству кладёт значение в экземпляр в обход сеттера",
+			"mustBeCaught": true
+		},
+		{
+			"id": "getattr-always",
+			"defect": "считает, что __getattr__ перехватывает обращение к любому атрибуту",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 9, "caught": 9 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0006,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

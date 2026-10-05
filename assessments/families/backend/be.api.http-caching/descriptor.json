@@ -1,0 +1,159 @@
+{
+	"key": "be.api.http-caching",
+	"version": 1,
+	"specialization": "backend",
+	"block": "be.api",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"resources": "1–2",
+				"requests": "7–9",
+				"rules": 4,
+				"interacting": "свежесть + перепроверка по ETag"
+			},
+			"constructiveRank": 3,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "max-age-etag",
+					"form": "A",
+					"description": "max-age с ETag: несвежий ответ перепроверяется условным запросом, 304 продлевает свежесть"
+				},
+				{
+					"id": "no-cache-no-store",
+					"form": "B",
+					"description": "no-cache хранится и перепроверяется каждый раз (304), no-store не хранится (всегда 200)"
+				},
+				{
+					"id": "without-etag",
+					"form": "anchor",
+					"description": "у одного ресурса нет ETag: несвежий ответ запрашивается заново целиком"
+				},
+				{
+					"id": "expires",
+					"form": "X",
+					"description": "рядом с max-age пришёл Expires: срок свежести берётся из max-age, а у ресурса только с Expires — из Expires"
+				}
+			]
+		},
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"resources": "1–2",
+				"requests": "8–10",
+				"rules": 6,
+				"interacting": "общий кэш + Vary, s-maxage, private или stale-while-revalidate"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "vary",
+					"form": "A",
+					"description": "Vary: Accept-Language — у каждого значения заголовка своя запись в кэше"
+				},
+				{
+					"id": "s-maxage-private",
+					"form": "B",
+					"description": "общий кэш живёт по s-maxage, а ответ с private не хранит вовсе"
+				},
+				{
+					"id": "swr",
+					"form": "anchor",
+					"description": "stale-while-revalidate: в окне клиент сразу получает старый ответ, перепроверка идёт в фоне и обновляет кэш"
+				},
+				{
+					"id": "stale-if-error",
+					"form": "X",
+					"description": "stale-if-error: пока сервер отвечает 500, кэш отдаёт старый ответ только в пределах окна после истечения свежести"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "пути ресурсов, клиенты, языки" },
+		{ "name": "numbers", "description": "моменты запросов, сроки свежести, моменты изменения ресурсов" }
+	],
+	"essentialParams": [
+		{ "name": "directives", "description": "какие директивы Cache-Control у ресурса" },
+		{ "name": "validator", "description": "есть ли ETag для условного запроса" },
+		{ "name": "cache", "description": "кэш клиента или общий кэш перед сервером" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"срок свежести max-age от момента получения ответа",
+			"условный запрос If-None-Match и ответ 304",
+			"продление свежести после 304",
+			"no-cache против no-store",
+			"Vary и ключ записи кэша",
+			"s-maxage и private для общего кэша",
+			"stale-while-revalidate",
+			"Expires против max-age",
+			"stale-if-error при отказе сервера"
+		],
+		"doesNotCheck": ["эвристическая свежесть по Last-Modified", "заголовок Age от вышестоящих кэшей"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "stale-full-fetch",
+			"defect": "запрашивает несвежий ответ целиком, не используя ETag",
+			"mustBeCaught": true
+		},
+		{ "id": "no-refresh-304", "defect": "после 304 не продлевает свежесть сохранённого ответа", "mustBeCaught": true },
+		{
+			"id": "revalidate-without-etag",
+			"defect": "ждёт 304 и для ответа без ETag, хотя условному запросу не с чем сравнивать",
+			"mustBeCaught": true
+		},
+		{ "id": "no-cache-not-stored", "defect": "считает no-cache тем же, что no-store", "mustBeCaught": true },
+		{ "id": "no-cache-as-fresh", "defect": "отдаёт ответ с no-cache из кэша без перепроверки", "mustBeCaught": true },
+		{ "id": "ignore-vary", "defect": "держит одну запись на путь, не глядя на Vary", "mustBeCaught": true },
+		{ "id": "ignore-s-maxage", "defect": "в общем кэше считает свежесть по max-age", "mustBeCaught": true },
+		{ "id": "private-cached", "defect": "хранит ответ с private в общем кэше", "mustBeCaught": true },
+		{
+			"id": "swr-blocking",
+			"defect": "в окне stale-while-revalidate ждёт перепроверки и отдаёт её результат",
+			"mustBeCaught": true
+		},
+		{
+			"id": "swr-no-background",
+			"defect": "в окне stale-while-revalidate отдаёт старый ответ, но не перепроверяет его",
+			"mustBeCaught": true
+		},
+		{
+			"id": "expires-wins",
+			"defect": "считает срок свежести по Expires, даже когда есть max-age",
+			"mustBeCaught": true
+		},
+		{
+			"id": "error-passthrough",
+			"defect": "при ошибке сервера отдаёт клиенту 500, не глядя на stale-if-error",
+			"mustBeCaught": true
+		},
+		{
+			"id": "stale-forever",
+			"defect": "при ошибке сервера отдаёт сохранённый ответ, как бы давно ни истёк его срок",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 13, "caught": 13 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0049,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

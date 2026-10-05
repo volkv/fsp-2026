@@ -7,6 +7,9 @@
 // category follows; a seeded attempt takes the same path without the sandbox. The bank is the fixture bank (tests/helpers/families.ts).
 import { execFileSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { and, asc, desc, eq } from 'drizzle-orm';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -53,7 +56,7 @@ import { createLogger } from '$lib/server/jobs/log';
 import { cancelWaitingJobs, claimJob, completeJob, failJob, type ClaimedJob } from '$lib/server/jobs/queue';
 import { JOB_TYPES } from '$lib/server/jobs/registry';
 import type { RunRequest, RunResponse, SandboxRunner, Verdict } from '$lib/server/sandbox/types';
-import { publishBankReleases } from '../../scripts/release-bank';
+import { checkBankTree, fileTrajectoryStore, publishBankReleases } from '../../scripts/release-bank';
 import { declareGrade, releaseFixtureBank, type FixtureBank } from '../helpers/bank';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
 import { createCandidate } from '../helpers/factories';
@@ -841,20 +844,42 @@ describe('a seeded attempt', () => {
 describe('the release of the bank', () => {
 	it('releases a bank that passes, keeps the same content, replaces a changed one or changed shared code, refuses one that runs out', async () => {
 		const client = postgres(database.url, { max: 1, onnotice: () => {} });
+		const dir = await mkdtemp(join(tmpdir(), 'trajectories-'));
+		// The start never simulates; the check and `db:release-bank` simulate what is missing and store it.
+		const atStart = fileTrajectoryStore(dir, false);
+		const simulating = fileTrajectoryStore(dir, true);
 		const bank = (families: ReturnType<typeof fixtureFamilies>, sharedSha256 = '0'.repeat(64)) =>
 			new Map([['data_ml' as const, { families, sharedSha256 }]]);
 		try {
 			const families = fixtureFamilies('data_ml');
-			const first = await publishBankReleases(client, bank(families));
+			expect(await publishBankReleases(client, bank(families), atStart)).toEqual([
+				{ specialization: 'data_ml', outcome: 'unchecked', id: null, problems: [] }
+			]);
+			expect(await checkBankTree(bank(families), simulating)).toMatchObject([{ outcome: 'unchanged', problems: [] }]);
+			const stored = JSON.parse(await readFile(join(dir, 'data_ml.json'), 'utf8')) as {
+				report: { grades: unknown };
+			};
+
+			const first = await publishBankReleases(client, bank(families), atStart);
 			expect(first).toMatchObject([{ specialization: 'data_ml', outcome: 'released', id: `data_ml@${V}-1` }]);
-			expect(await publishBankReleases(client, bank(families))).toMatchObject([
+			const [released] = await database.db
+				.select({ manifest: bankReleases.manifest })
+				.from(bankReleases)
+				.where(eq(bankReleases.id, `data_ml@${V}-1`));
+			// The stored report, under the id of this release.
+			expect((released?.manifest as { trajectories: unknown }).trajectories).toMatchObject({
+				releaseId: `data_ml@${V}-1`,
+				grades: stored.report.grades
+			});
+			expect(await publishBankReleases(client, bank(families), atStart)).toMatchObject([
 				{ outcome: 'unchanged', id: `data_ml@${V}-1` }
 			]);
 			const changed = families.map((f, i) => (i === 0 ? { ...f, generatorSha256: 'f'.repeat(64) } : f));
-			expect(await publishBankReleases(client, bank(changed))).toMatchObject([
+			expect(await publishBankReleases(client, bank(changed), atStart)).toMatchObject([{ outcome: 'unchecked' }]);
+			expect(await publishBankReleases(client, bank(changed), simulating)).toMatchObject([
 				{ outcome: 'released', id: `data_ml@${V}-2` }
 			]);
-			expect(await publishBankReleases(client, bank(changed, 'e'.repeat(64)))).toMatchObject([
+			expect(await publishBankReleases(client, bank(changed, 'e'.repeat(64)), simulating)).toMatchObject([
 				{ outcome: 'released', id: `data_ml@${V}-3` }
 			]);
 			const releases = await database.db
@@ -869,15 +894,16 @@ describe('the release of the bank', () => {
 			]);
 			expect(releases[0]?.shared).toBe('e'.repeat(64));
 			const lacking = families.filter((f) => f.descriptor.key !== 'ds.stats.intern-0');
-			const [refused] = await publishBankReleases(client, bank(lacking));
+			const [refused] = await publishBankReleases(client, bank(lacking), simulating);
 			expect(refused?.outcome).toBe('refused');
 			expect(
 				refused?.problems.some((p) => p.code === 'defect' && /intern .* runs out: .*ds\.stats/.test(p.message))
 			).toBe(true);
 		} finally {
 			await client.end({ timeout: 5 });
+			await rm(dir, { recursive: true, force: true });
 		}
-	}, 120_000);
+	}, 180_000);
 });
 
 describe('objections through the owner of objections and the engine', () => {

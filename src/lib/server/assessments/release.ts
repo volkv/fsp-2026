@@ -160,15 +160,22 @@ export function servingProblems(family: LoadedFamily): ValidationProblem[] {
 	return problems;
 }
 
-/** The release of a specialization from its loaded families, numbered `n`, with every problem that keeps it out. */
+/**
+ * The release of a specialization from its loaded families, numbered `n`, with every problem that keeps it out. The
+ * trajectory report is simulated, seeded by the content hash, unless `trajectories` brings the report made earlier for
+ * this very content (the caller matches it by content, catalog, procedure and simulation code); it is then taken under
+ * this release's id and checked like a fresh one. Every other check runs each time.
+ */
 export function assembleRelease(
 	specialization: SpecializationKey,
 	families: readonly LoadedFamily[],
 	sharedSha256: string,
 	n: number,
-	options: { params?: ProcedureParams; runs?: number } = {}
+	options: { params?: ProcedureParams; runs?: number; trajectories?: TrajectoryReport } = {}
 ): AssembledRelease {
 	const params = options.params ?? PROCEDURE;
+	const manifestFamilies = families.map((f) => ({ descriptor: f.descriptor, generatorSha256: f.generatorSha256 }));
+	const contentSha256 = releaseContentSha256(manifestFamilies, sharedSha256);
 	const release: BankRelease = {
 		id: releaseId(specialization, n),
 		specialization,
@@ -185,13 +192,16 @@ export function assembleRelease(
 		gates[family.descriptor.key] = [...familyProblems(family.descriptor, family.sourceSha256), ...problems];
 		serving.push(...problems);
 	}
+	const stored = options.trajectories;
 	const trajectories =
-		serving.length === 0
-			? trajectoryReport(release.id, families, specialization, {
-					params,
-					...(options.runs === undefined ? {} : { runs: options.runs })
-				})
-			: null;
+		serving.length > 0
+			? null
+			: stored
+				? { ...stored, releaseId: release.id }
+				: trajectoryReport({ releaseId: release.id, seed: contentSha256 }, families, specialization, {
+						params,
+						...(options.runs === undefined ? {} : { runs: options.runs })
+					});
 	const problems = [...serving];
 	if (trajectories) problems.push(...releaseProblems(release, params, trajectories));
 	const anchors = {} as Record<GradeKey, string[]>;
@@ -202,7 +212,6 @@ export function assembleRelease(
 			.map((f) => f.key);
 		byBlock[grade] = Object.fromEntries(levelsByBlock(release, grade));
 	}
-	const manifestFamilies = families.map((f) => ({ descriptor: f.descriptor, generatorSha256: f.generatorSha256 }));
 	return {
 		release,
 		manifest: {
@@ -215,7 +224,7 @@ export function assembleRelease(
 			levelsByBlock: byBlock,
 			trajectories
 		},
-		contentSha256: releaseContentSha256(manifestFamilies, sharedSha256),
+		contentSha256,
 		problems
 	};
 }

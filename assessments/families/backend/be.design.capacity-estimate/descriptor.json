@@ -1,0 +1,109 @@
+{
+	"key": "be.design.capacity-estimate",
+	"version": 1,
+	"specialization": "backend",
+	"block": "be.design",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"rules": 5,
+				"interacting": "пик + узкое место инстанса + целевая загрузка + отказ зоны",
+				"rounding": "вниз для ёмкости, вверх для числа инстансов"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "cpu-mix",
+					"form": "A",
+					"description": "узкое место — процессор, запросы двух видов: среднее время взвешивается по долям"
+				},
+				{ "id": "db-pool", "form": "B", "description": "узкое место — пул соединений с базой, а не процессор" },
+				{
+					"id": "memory",
+					"form": "anchor",
+					"description": "узкое место — память на запрос в обработке: число одновременных запросов и закон Литтла"
+				},
+				{
+					"id": "fanout-cache",
+					"form": "X",
+					"description": "нагрузка на сервис выводится из пользовательской: веер обращений на запрос и доля попаданий кэша перед сервисом"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "название сервиса" },
+		{ "name": "numbers", "description": "нагрузка, пиковый коэффициент, параметры инстанса, загрузка, число зон" }
+	],
+	"essentialParams": [
+		{
+			"name": "bottleneck",
+			"description": "что ограничивает инстанс: процессор со смесью запросов, пул соединений, память"
+		}
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"пиковая нагрузка вместо средней",
+			"узкое место инстанса: минимум из ограничений",
+			"взвешенное среднее стоимости запросов",
+			"пул соединений и память на запрос через закон Литтла",
+			"запас по целевой загрузке",
+			"резерв N+1 по зонам доступности",
+			"веер обращений и кэш перед сервисом"
+		],
+		"doesNotCheck": ["стоимость инфраструктуры", "автомасштабирование во времени", "очереди и задержки при перегрузке"]
+	},
+	"wrongSolutions": [
+		{ "id": "average-load", "defect": "считает по средней нагрузке, а не по пиковой", "mustBeCaught": true },
+		{
+			"id": "no-zone-loss",
+			"defect": "делит нужные инстансы на все зоны, не оставляя запаса на отказ зоны",
+			"mustBeCaught": true
+		},
+		{
+			"id": "full-utilization",
+			"defect": "загружает инстансы на 100 %, игнорируя целевую загрузку",
+			"mustBeCaught": true
+		},
+		{
+			"id": "cpu-only",
+			"defect": "считает ёмкость только по процессору, не видя пула или памяти",
+			"mustBeCaught": true
+		},
+		{
+			"id": "simple-mean-cost",
+			"defect": "берёт простое среднее стоимостей запросов вместо взвешенного",
+			"mustBeCaught": true
+		},
+		{
+			"id": "ignore-fanout",
+			"defect": "считает одно обращение к сервису на пользовательский запрос",
+			"mustBeCaught": true
+		},
+		{
+			"id": "hits-as-load",
+			"defect": "пропускает к сервису долю попаданий кэша, а не долю промахов",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 7, "caught": 7 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0005,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

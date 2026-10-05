@@ -1,0 +1,131 @@
+{
+	"key": "be.db.window-functions",
+	"version": 1,
+	"specialization": "backend",
+	"block": "be.db",
+	"format": "sql_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": { "rows": "8–12", "partitions": "2–3", "windows": "2–3", "frame": "по умолчанию, без равных" },
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "rank-ties",
+					"form": "A",
+					"description": "RANK пропускает места после равных, DENSE_RANK — нет; фильтр по рангу во внешнем запросе"
+				},
+				{
+					"id": "running-total",
+					"form": "B",
+					"description": "SUM с ORDER BY в окне — накопительная сумма раздела, без ORDER BY — сумма всего раздела"
+				},
+				{
+					"id": "lag-lead",
+					"form": "anchor",
+					"description": "LAG и LEAD внутри раздела: на краях NULL или значение по умолчанию"
+				},
+				{
+					"id": "where-before-window",
+					"form": "X",
+					"description": "WHERE отбирает строки до оконных функций: ROW_NUMBER нумерует только оставшиеся строки"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"constructive": { "rows": "9–13", "partitions": "2–3", "windows": 3, "frame": "RANGE с равными, ROWS, смещения" },
+			"constructiveRank": 6,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "range-peers",
+					"form": "A",
+					"description": "рамка по умолчанию — RANGE до текущей строки: в неё входят все равные по ORDER BY"
+				},
+				{
+					"id": "range-offset",
+					"form": "B",
+					"description": "RANGE n PRECEDING считает по значению ключа с пропусками, ROWS — по числу строк"
+				},
+				{
+					"id": "frame-values",
+					"form": "anchor",
+					"description": "NTH_VALUE и LAST_VALUE видят только рамку; SUM по убыванию с равными включает равных"
+				},
+				{
+					"id": "window-after-group",
+					"form": "X",
+					"description": "окно поверх GROUP BY и HAVING: SUM(SUM(…)) OVER и RANK по сумме считаются только по группам, прошедшим HAVING"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "названия таблиц, счетов, отделов, имена" },
+		{ "name": "data", "description": "суммы, дни, баллы, порядок вставки" }
+	],
+	"essentialParams": [
+		{ "name": "function", "description": "ранжирующая функция, агрегат в окне, LAG/LEAD, NTH_VALUE/LAST_VALUE" },
+		{
+			"name": "frame",
+			"description": "какая рамка: по умолчанию с равными или без, ROWS, RANGE со смещением, весь раздел"
+		}
+	],
+	"language": "sql",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"ROW_NUMBER, RANK и DENSE_RANK при равных значениях",
+			"накопительная сумма и сумма раздела",
+			"LAG и LEAD с границами раздела",
+			"рамка по умолчанию RANGE … CURRENT ROW и равные строки",
+			"ROWS против RANGE со смещением",
+			"NTH_VALUE и LAST_VALUE в рамке по умолчанию",
+			"порядок WHERE → оконные функции",
+			"оконные функции над результатом GROUP BY и HAVING"
+		],
+		"doesNotCheck": ["GROUPS и EXCLUDE в рамке", "дробные результаты (AVG, PERCENT_RANK)", "производительность"]
+	},
+	"wrongSolutions": [
+		{ "id": "rank-no-gaps", "defect": "считает, что RANK после равных не пропускает места", "mustBeCaught": true },
+		{ "id": "dense-gaps", "defect": "считает, что DENSE_RANK пропускает места после равных", "mustBeCaught": true },
+		{ "id": "no-order-running", "defect": "считает окно без ORDER BY тоже накопительным", "mustBeCaught": true },
+		{ "id": "ignores-partition", "defect": "не учитывает границы раздела PARTITION BY", "mustBeCaught": true },
+		{ "id": "lag-lead-swapped", "defect": "путает LAG (предыдущая строка) и LEAD (следующая)", "mustBeCaught": true },
+		{
+			"id": "frame-is-rows",
+			"defect": "считает рамку по умолчанию построчной (ROWS): равные строки не входят",
+			"mustBeCaught": true
+		},
+		{ "id": "frame-whole-partition", "defect": "считает, что рамка по умолчанию — весь раздел", "mustBeCaught": true },
+		{ "id": "range-as-rows", "defect": "читает RANGE n PRECEDING как n предыдущих строк", "mustBeCaught": true },
+		{
+			"id": "window-before-where",
+			"defect": "считает, что оконная функция нумерует строки до фильтра WHERE",
+			"mustBeCaught": true
+		},
+		{
+			"id": "window-before-having",
+			"defect": "считает, что окно над группами видит и группы, отброшенные HAVING",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 10, "caught": 10 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

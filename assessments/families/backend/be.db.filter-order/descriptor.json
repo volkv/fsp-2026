@@ -1,0 +1,89 @@
+{
+	"key": "be.db.filter-order",
+	"version": 1,
+	"specialization": "backend",
+	"block": "be.db",
+	"format": "sql_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": {
+				"tables": 1,
+				"rows": "9–12",
+				"conditions": "3–4",
+				"clauses": "WHERE + ORDER BY (+ LIMIT/OFFSET)"
+			},
+			"constructiveRank": 2,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "and-or",
+					"form": "A",
+					"description": "AND без скобок связывает сильнее OR: условие делится на группы по AND"
+				},
+				{
+					"id": "between-like",
+					"form": "B",
+					"description": "BETWEEN включает обе границы, `_` в LIKE — ровно один символ, `%` — любое их число"
+				},
+				{
+					"id": "order-limit",
+					"form": "anchor",
+					"description": "DESC относится только к своему ключу; OFFSET пропускает строки, LIMIT берёт следующие"
+				},
+				{
+					"id": "not-precedence",
+					"form": "X",
+					"description": "NOT без скобок отрицает только ближайшее сравнение, а не всё условие"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "название таблицы, категории, коды товаров" },
+		{ "name": "data", "description": "цены, остатки, рейтинги, порядок вставки, границы и шаблон" }
+	],
+	"essentialParams": [
+		{ "name": "clause", "description": "что решает ответ: приоритет AND/OR, BETWEEN и LIKE, сортировка с LIMIT/OFFSET" }
+	],
+	"language": "sql",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"приоритет AND над OR в условии без скобок",
+			"включительные границы BETWEEN",
+			"шаблоны LIKE с `_` и `%`",
+			"сортировка по нескольким ключам с DESC у одного из них",
+			"LIMIT и OFFSET",
+			"приоритет NOT над AND и OR"
+		],
+		"doesNotCheck": ["регистр в LIKE (данные в нижнем регистре)", "сортировка NULL", "индексы и план запроса"]
+	},
+	"wrongSolutions": [
+		{ "id": "left-to-right", "defect": "вычисляет AND и OR слева направо как равноправные", "mustBeCaught": true },
+		{ "id": "between-exclusive", "defect": "считает границы BETWEEN не входящими в диапазон", "mustBeCaught": true },
+		{ "id": "underscore-any", "defect": "читает `_` в LIKE как любое число символов", "mustBeCaught": true },
+		{ "id": "desc-all-keys", "defect": "применяет DESC ко всем ключам сортировки", "mustBeCaught": true },
+		{ "id": "offset-one-based", "defect": "считает OFFSET номером первой строки (с единицы)", "mustBeCaught": true },
+		{
+			"id": "not-whole-condition",
+			"defect": "считает, что NOT без скобок отрицает всё условие справа",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 6, "caught": 6 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

@@ -1,0 +1,97 @@
+{
+	"key": "be.api.rest-semantics",
+	"version": 1,
+	"specialization": "backend",
+	"block": "be.api",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"requests": "6–8",
+				"rules": 6,
+				"interacting": "метод + существование ресурса + проверки по порядку"
+			},
+			"constructiveRank": 3,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "put-upsert",
+					"form": "A",
+					"description": "PUT по адресу без ресурса создаёт его (201), по существующему — заменяет целиком: поля, которых нет в теле, сбрасываются"
+				},
+				{
+					"id": "delete-repeat",
+					"form": "B",
+					"description": "повторный DELETE отвечает 404, удалённый ресурс не находится, а номера POST не переиспользуются"
+				},
+				{
+					"id": "validation-order",
+					"form": "anchor",
+					"description": "проверки идут по порядку: невалидное тело — 422 раньше, чем занятый sku — 409"
+				},
+				{
+					"id": "method-not-allowed",
+					"form": "X",
+					"description": "метод, которого у адреса нет, — 405 ещё до поиска ресурса, даже если ресурса нет"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "название ресурса, артикулы" },
+		{ "name": "numbers", "description": "номера ресурсов, количества" }
+	],
+	"essentialParams": [
+		{ "name": "method", "description": "PUT, PATCH, DELETE, POST и неподдерживаемые методы" },
+		{ "name": "existence", "description": "есть ли ресурс по адресу в момент запроса" },
+		{ "name": "validity", "description": "валидно ли тело и свободен ли sku" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"PUT создаёт или заменяет целиком, PATCH меняет только переданное",
+			"DELETE повторно — 404",
+			"Location и номер нового ресурса у POST",
+			"порядок проверок 405, 404, 422, 409",
+			"номера ресурсов не переиспользуются"
+		],
+		"doesNotCheck": ["условные запросы и ETag", "коды 3xx и кэширование"]
+	},
+	"wrongSolutions": [
+		{ "id": "put-missing-404", "defect": "считает, что PUT по адресу без ресурса отвечает 404", "mustBeCaught": true },
+		{ "id": "put-merges", "defect": "считает, что PUT меняет только переданные поля, как PATCH", "mustBeCaught": true },
+		{
+			"id": "delete-repeat-204",
+			"defect": "считает, что повторный DELETE тоже отвечает 204, раз DELETE идемпотентен",
+			"mustBeCaught": true
+		},
+		{
+			"id": "id-reuse",
+			"defect": "выдаёт новому ресурсу номер на 1 больше наибольшего из существующих",
+			"mustBeCaught": true
+		},
+		{ "id": "conflict-first", "defect": "проверяет занятость sku раньше валидности тела", "mustBeCaught": true },
+		{
+			"id": "not-allowed-as-404",
+			"defect": "для отсутствующего ресурса отвечает 404 раньше, чем 405 на неподдерживаемый метод",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 6, "caught": 6 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

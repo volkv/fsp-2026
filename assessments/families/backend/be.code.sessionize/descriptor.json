@@ -1,0 +1,136 @@
+{
+	"key": "be.code.sessionize",
+	"version": 1,
+	"specialization": "backend",
+	"block": "be.code",
+	"format": "practice_code",
+	"answerKind": "code",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.8 },
+			"constructive": { "rules": 2, "logout": false, "topK": false, "groups": 5 },
+			"constructiveRank": 3,
+			"timeNormSec": 1800,
+			"classes": [
+				{
+					"id": "gap",
+					"form": "A",
+					"description": "новая сессия, если пауза от прошлого события пользователя больше G"
+				},
+				{
+					"id": "window",
+					"form": "B",
+					"description": "сессия — события пользователя в одном выровненном окне [kW, (k+1)W)"
+				},
+				{
+					"id": "gap-capped",
+					"form": "anchor",
+					"description": "новая сессия при паузе больше G или если длительность сессии превысила бы L"
+				},
+				{
+					"id": "gap-daily",
+					"form": "X",
+					"description": "новая сессия при паузе больше G или при переходе в другие сутки [kD, (k+1)D)"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.8 },
+			"constructive": { "rules": 4, "logout": true, "topK": true, "groups": 5 },
+			"constructiveRank": 5,
+			"timeNormSec": 2400,
+			"classes": [
+				{
+					"id": "gap",
+					"form": "A",
+					"description": "сессии по паузе больше G, logout закрывает сессию; топ-K по сумме длительностей"
+				},
+				{
+					"id": "window",
+					"form": "B",
+					"description": "сессии по выровненным окнам W, logout закрывает сессию; топ-K по сумме длительностей"
+				},
+				{
+					"id": "gap-capped",
+					"form": "anchor",
+					"description": "сессии по паузе G с пределом длительности L, logout закрывает сессию; топ-K по сумме"
+				},
+				{
+					"id": "gap-daily",
+					"form": "X",
+					"description": "сессии по паузе G, logout закрывает сессию, сессия не переходит границу суток D; топ-K по сумме"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "data", "description": "имена пользователей, моменты и действия событий" },
+		{ "name": "sizes", "description": "число событий, G, W, L и K в пределах условия" }
+	],
+	"essentialParams": [
+		{
+			"name": "split",
+			"description": "что начинает новую сессию: пауза, выровненное окно, пауза с пределом длительности, пауза с границей суток"
+		},
+		{ "name": "logout", "description": "Junior: событие logout закрывает сессию" },
+		{ "name": "order", "description": "Junior: отбор K лучших с правилом равенства" }
+	],
+	"language": null,
+	"practice": { "languages": ["python3", "go", "java21", "javascript", "typescript", "cpp17"], "hiddenTestGroups": 5 },
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "groups" },
+	"coverage": {
+		"checks": [
+			"состояние по каждому пользователю в словаре",
+			"точная граница паузы, окна и предела длительности",
+			"длительность сессии от первого до последнего события",
+			"учёт последней, ещё не закрытой сессии",
+			"закрытие сессии событием logout (Junior)",
+			"отбор K лучших с правилом равенства (Junior)",
+			"обработка тысяч строк за один проход"
+		],
+		"doesNotCheck": ["работу с базой данных и сетью", "архитектуру и стиль кода"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "boundary",
+			"defect": "граница сдвинута: пауза ровно G или длительность ровно L рвёт сессию, момент kW или kD относится к прежнему окну",
+			"mustBeCaught": true
+		},
+		{
+			"id": "global-gap",
+			"defect": "паузу считает от прошлого события любого пользователя, а не этого",
+			"mustBeCaught": true
+		},
+		{ "id": "sliding-window", "defect": "окно отсчитывает от начала сессии, а не по сетке kW", "mustBeCaught": true },
+		{ "id": "ignores-logout", "defect": "Junior: logout не закрывает сессию", "mustBeCaught": true },
+		{
+			"id": "no-tie-break",
+			"defect": "Junior: сортирует только по сумме длительностей, равные остаются в порядке появления",
+			"mustBeCaught": true
+		},
+		{
+			"id": "unclosed-last",
+			"defect": "учитывает длительность сессии только когда её прервала следующая — последняя сессия пользователя теряется",
+			"mustBeCaught": true
+		},
+		{
+			"id": "ignores-day",
+			"defect": "класс суток: режет сессии только по паузе, сессия переходит через границу суток",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 7, "caught": 7 },
+		"hiddenTestsMutationScore": 1,
+		"answerCollision": 0,
+		"transfer": 0,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

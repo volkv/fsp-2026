@@ -1,0 +1,137 @@
+{
+	"key": "be.lang.closure-capture",
+	"version": 1,
+	"specialization": "backend",
+	"block": "be.lang",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": { "functions": "3–4", "scopes": 1, "rebinding": false, "mechanisms": 1 },
+			"constructiveRank": 2,
+			"timeNormSec": 180,
+			"classes": [
+				{
+					"id": "loop-late",
+					"form": "A",
+					"description": "лямбды в цикле читают переменную цикла при вызове — все видят последнее значение"
+				},
+				{
+					"id": "default-arg",
+					"form": "B",
+					"description": "значение переменной цикла зафиксировано аргументом по умолчанию при создании"
+				},
+				{ "id": "factory", "form": "anchor", "description": "функция-фабрика: у каждого вызова своя переменная" },
+				{
+					"id": "call-time",
+					"form": "X",
+					"description": "одна и та же лямбда вызвана в цикле и после переприсваивания переменной цикла: видит значение на момент вызова"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": { "functions": "5–7", "scopes": 2, "rebinding": true, "mechanisms": 2 },
+			"constructiveRank": 3,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "scopes-late",
+					"form": "A",
+					"description": "лямбды из генератора списка видят свою переменную генератора, лямбды из цикла — глобальную, переприсвоенную после цикла"
+				},
+				{
+					"id": "default-mixed",
+					"form": "B",
+					"description": "генератор списка фиксирует значения аргументом по умолчанию, цикл — поздно и видит переприсваивание"
+				},
+				{
+					"id": "nonlocal",
+					"form": "anchor",
+					"description": "два счётчика-замыкания с nonlocal и ссылка на один из них"
+				},
+				{
+					"id": "unbound-local",
+					"form": "X",
+					"description": "присваивание во вложенной функции без nonlocal делает имя локальным — UnboundLocalError; чтение видит позднее значение"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "имена списков, переменных цикла, аргументов и фабрик" },
+		{ "name": "numbers", "description": "границы диапазонов, аргумент вызова, шаги счётчиков" },
+		{ "name": "operator", "description": "арифметическая операция в теле функции (+, −, ×)" }
+	],
+	"essentialParams": [
+		{
+			"name": "capture",
+			"description": "как функция получает значение: поздно по имени, аргументом по умолчанию, через фабрику"
+		},
+		{
+			"name": "scope",
+			"description": "в какой области живёт захваченное имя: генератор списка, модуль, вызов фабрики"
+		},
+		{ "name": "rebinding", "description": "переприсваивается ли имя после создания функций" }
+	],
+	"language": "python3",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"позднее связывание имён в замыканиях",
+			"аргумент по умолчанию вычисляется при создании функции",
+			"своя область видимости генератора списка",
+			"nonlocal и независимое состояние замыканий фабрики",
+			"присваивание во вложенной функции без nonlocal"
+		],
+		"doesNotCheck": ["умение написать замыкание самостоятельно", "замыкания в других языках"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "capture-by-value",
+			"defect": "считает, что замыкание запоминает значение переменной в момент создания",
+			"mustBeCaught": true
+		},
+		{
+			"id": "scope-leak",
+			"defect": "не учитывает, что у генератора списка своя переменная, и подставляет переприсвоенное глобальное имя",
+			"mustBeCaught": true
+		},
+		{
+			"id": "default-at-call",
+			"defect": "считает, что аргумент по умолчанию вычисляется при каждом вызове",
+			"mustBeCaught": true
+		},
+		{
+			"id": "shared-factory-state",
+			"defect": "считает, что замыкания одной фабрики делят общее состояние",
+			"mustBeCaught": true
+		},
+		{
+			"id": "frozen-at-loop-end",
+			"defect": "считает, что замыкание видит последнее значение цикла и не замечает переприсваивания после цикла",
+			"mustBeCaught": true
+		},
+		{
+			"id": "assign-reads-outer",
+			"defect": "считает, что без nonlocal вложенная функция читает внешнее имя и заводит свою копию",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 6, "caught": 6 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0144,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

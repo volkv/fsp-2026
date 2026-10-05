@@ -1,0 +1,124 @@
+{
+	"key": "be.debug.resource-timeouts",
+	"version": 1,
+	"specialization": "backend",
+	"block": "be.debug",
+	"format": "bug_locate",
+	"answerKind": "line_no",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"functions": 4,
+				"lines": "35–55",
+				"defect": "одна строка: единицы времени, освобождение ресурса, ширина перехвата исключения"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "units",
+					"form": "A",
+					"description": "единицы времени: миллисекунды вместо секунд, целочисленное деление, значение по умолчанию"
+				},
+				{
+					"id": "cleanup",
+					"form": "B",
+					"description": "ресурс освобождается не на всех путях: не в finally или вызов закрытия не выполняется"
+				},
+				{
+					"id": "broad-except",
+					"form": "anchor",
+					"description": "перехват слишком широкого исключения скрывает ошибку, которая должна выйти наружу"
+				},
+				{
+					"id": "backoff",
+					"form": "X",
+					"description": "расчёт паузы повтора: степень не от того номера попытки, потолок, накопление моментов"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"functions": 4,
+				"lines": "55–80",
+				"defect": "одна строка: общий срок, повтор неидемпотентной операции, что и сколько раз повторяется"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "deadline",
+					"form": "A",
+					"description": "общий срок не уменьшается между попытками или пауза выходит за срок"
+				},
+				{
+					"id": "idempotency",
+					"form": "B",
+					"description": "повтор неидемпотентной операции: после потерянного ответа или с новым ключом идемпотентности"
+				},
+				{
+					"id": "retry-scope",
+					"form": "anchor",
+					"description": "повторяется не то или не столько: лишняя попытка, повтор окончательного ответа, потеря ошибки"
+				},
+				{
+					"id": "retry-budget",
+					"form": "X",
+					"description": "бюджет повторов: граница токенов, потолок пополнения, общий бюджет вместо бюджета на ключ"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "context", "description": "какие ещё функции клиента показаны и в каком порядке" },
+		{ "name": "header", "description": "заголовок модуля: импорты и константы разной длины" }
+	],
+	"essentialParams": [
+		{
+			"name": "defect-kind",
+			"description": "вид дефекта: единицы времени, освобождение ресурса, широкий перехват, общий срок, идемпотентность, область повтора"
+		}
+	],
+	"language": "python3",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"единицы времени в таймаутах и паузах",
+			"освобождение ресурса в finally",
+			"какие исключения перехватывать",
+			"общий срок запроса на все попытки",
+			"безопасность повтора неидемпотентных операций и ключ идемпотентности",
+			"число попыток и какая ошибка выходит наружу"
+		],
+		"doesNotCheck": [
+			"исправление дефекта (только его место)",
+			"реальные часы и сеть (время и ресурсы подставлены)",
+			"случайный разброс пауз (jitter)"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "neighbour-line",
+			"defect": "указывает соседнюю строку той же функции, где «исправление» не возвращает контракт",
+			"mustBeCaught": true
+		},
+		{ "id": "other-function", "defect": "указывает похожую строку в другой, исправной функции", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 2, "caught": 2 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0255,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

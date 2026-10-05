@@ -9,6 +9,7 @@ import { familySourceSha256 } from './contract/bank';
 import { familyProblems } from './contract/validate';
 import { loadBankTree, loadSpecializationFamilies, sharedCodeSha256 } from './families';
 import { assembleRelease, gradeJudgements, releaseContentSha256, releaseId } from './release';
+import { simulationModules, simulationSha256 } from './simulation-key';
 
 const FIXTURE_TREE = fileURLToPath(new URL('../../../../tests/fixtures/families', import.meta.url));
 
@@ -168,6 +169,38 @@ describe('release assembly', () => {
 		});
 		expect(clampHarness).toBeTypeOf('function');
 	}, 120_000);
+
+	it('seeds the trajectory report by the content: the same bank as another release gives the same report', () => {
+		const families = fixtureFamilies('frontend');
+		const first = assembleRelease('frontend', families, SHARED, 1).manifest.trajectories;
+		const again = assembleRelease('frontend', families, SHARED, 7);
+		expect(again.manifest.trajectories).toEqual({ ...first, releaseId: releaseId('frontend', 7) });
+		// A stored report is taken under the id of the release and checked like a fresh one.
+		const reused = assembleRelease('frontend', families, SHARED, 8, { trajectories: first ?? undefined });
+		expect(reused.manifest.trajectories).toEqual({ ...first, releaseId: releaseId('frontend', 8) });
+		expect(reused.problems).toEqual(again.problems);
+		const weak = first && { ...first, grades: first.grades.map((g) => ({ ...g, consistency: [] })) };
+		expect(
+			assembleRelease('frontend', families, SHARED, 9, { trajectories: weak ?? undefined }).problems.some(
+				(p) => p.code === 'defect' && p.message.startsWith('trajectory report')
+			)
+		).toBe(true);
+	}, 120_000);
+
+	it('keys a stored report by the code of the simulation: simulate.ts and every module it imports', async () => {
+		const paths = (await simulationModules()).map((m) => m.path);
+		for (const path of [
+			'simulate.ts',
+			'select.ts',
+			'score.ts',
+			'families.ts',
+			'contract/procedure.ts',
+			'contract/bank.ts'
+		])
+			expect(paths).toContain(path);
+		expect(paths).not.toContain('release.ts');
+		expect(await simulationSha256()).toMatch(/^[0-9a-f]{64}$/);
+	});
 
 	it('checks the trajectory report it makes: too few runs per point keep the release out', () => {
 		const assembled = assembleRelease('frontend', fixtureFamilies('frontend'), SHARED, 1, { runs: 200 });

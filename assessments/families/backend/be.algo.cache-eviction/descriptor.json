@@ -1,0 +1,110 @@
+{
+	"key": "be.algo.cache-eviction",
+	"version": 1,
+	"specialization": "backend",
+	"block": "be.algo",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": { "capacity": "3–4", "requests": "14–16", "keys": "5–6", "rules": "2–3" },
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "lru",
+					"form": "A",
+					"description": "LRU: попадание обновляет давность, вытесняется давно не использованный"
+				},
+				{
+					"id": "lfu",
+					"form": "B",
+					"description": "LFU: вытесняется ключ с наименьшим числом обращений, при равенстве — давно не использованный; счётчик живёт, пока ключ в кэше"
+				},
+				{
+					"id": "fifo",
+					"form": "anchor",
+					"description": "FIFO: вытесняется ключ, попавший в кэш раньше всех; попадание порядок не меняет"
+				},
+				{
+					"id": "clock",
+					"form": "X",
+					"description": "«часы» (второй шанс): стрелка сбрасывает биты обращения и вытесняет первый ключ с битом 0"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "keys", "description": "имена ключей" },
+		{ "name": "plot", "description": "что кэшируется: страницы, ответы API, сессии" }
+	],
+	"essentialParams": [
+		{ "name": "policy", "description": "политика вытеснения" },
+		{ "name": "pattern", "description": "повторы в последовательности: ближние, дальние, частые ключи" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"LRU и обновление давности при попадании",
+			"LFU с разрешением равенства по давности",
+			"сброс счётчика LFU при вытеснении",
+			"FIFO не реагирует на попадания",
+			"подсчёт промахов, включая первые обращения",
+			"алгоритм «часы» с битом обращения"
+		],
+		"doesNotCheck": ["TTL и инвалидация", "кэши с весами", "реализация структур данных кэша"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "lru-no-refresh",
+			"defect": "не обновляет давность ключа при попадании (LRU как FIFO)",
+			"mustBeCaught": true
+		},
+		{
+			"id": "fifo-refresh",
+			"defect": "при попадании переносит ключ в конец очереди (FIFO как LRU)",
+			"mustBeCaught": true
+		},
+		{
+			"id": "lfu-tie-fifo",
+			"defect": "при равных счётчиках LFU вытесняет ключ, попавший в кэш раньше, а не давно не использованный",
+			"mustBeCaught": true
+		},
+		{
+			"id": "lfu-keeps-history",
+			"defect": "сохраняет счётчик обращений ключа после его вытеснения",
+			"mustBeCaught": true
+		},
+		{
+			"id": "cold-misses-ignored",
+			"defect": "не считает промахами первые обращения к ключам, когда кэш ещё не заполнен",
+			"mustBeCaught": true
+		},
+		{
+			"id": "clock-as-fifo",
+			"defect": "не учитывает биты обращения и вытесняет по кругу, как FIFO",
+			"mustBeCaught": true
+		},
+		{
+			"id": "clock-as-lru",
+			"defect": "считает «часы» точным LRU и вытесняет давно не использованный ключ",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 7, "caught": 7 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0009,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

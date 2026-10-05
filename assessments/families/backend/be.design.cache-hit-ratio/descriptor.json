@@ -1,0 +1,105 @@
+{
+	"key": "be.design.cache-hit-ratio",
+	"version": 1,
+	"specialization": "backend",
+	"block": "be.design",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"operations": "14–18",
+				"rules": "TTL с записью через кэш, LRU с записью через кэш или LRU с инвалидацией",
+				"interacting": 2
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "ttl",
+					"form": "A",
+					"description": "срок жизни записи: граница срока, попадание не продлевает, запись через кэш обновляет срок"
+				},
+				{
+					"id": "lru",
+					"form": "B",
+					"description": "вытеснение давно не использованной записи при заполненном кэше, запись через кэш — использование"
+				},
+				{
+					"id": "invalidate",
+					"form": "anchor",
+					"description": "запись в обход кэша: запись удаляет ключ из кэша, следующее чтение — промах"
+				},
+				{
+					"id": "lru-ttl",
+					"form": "X",
+					"description": "LRU и срок жизни вместе: просроченная запись занимает место, пока её не прочтут или не вытеснят по давности использования"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "keys", "description": "имена ключей и их порядок в трассе" },
+		{ "name": "times", "description": "моменты обращений" }
+	],
+	"essentialParams": [
+		{ "name": "expiry", "description": "ограничивает ли записи срок жизни" },
+		{ "name": "capacity", "description": "ограничен ли размер кэша и вытесняются ли записи" },
+		{
+			"name": "write-policy",
+			"description": "запись через кэш (write-through) или в обход с инвалидацией (write-around)"
+		}
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"граница срока жизни записи",
+			"продление срока при попадании и при записи",
+			"вытеснение LRU и что считается использованием",
+			"write-through против write-around",
+			"нагрузка на базу как число промахов",
+			"сочетание LRU и срока жизни: просроченные записи занимают место"
+		],
+		"doesNotCheck": [
+			"конкурентный доступ к кэшу",
+			"распределённый кэш и шардирование",
+			"вероятностные модели попаданий"
+		]
+	},
+	"wrongSolutions": [
+		{ "id": "ttl-sliding", "defect": "считает, что попадание продлевает срок жизни записи", "mustBeCaught": true },
+		{ "id": "ttl-inclusive", "defect": "считает запись действующей и в момент истечения срока", "mustBeCaught": true },
+		{
+			"id": "fifo",
+			"defect": "вытесняет самую старую по помещению запись, не учитывая попадания",
+			"mustBeCaught": true
+		},
+		{ "id": "write-ignored", "defect": "не учитывает влияние записи на кэш", "mustBeCaught": true },
+		{
+			"id": "around-as-through",
+			"defect": "считает, что запись в обход кэша кладёт новое значение в кэш",
+			"mustBeCaught": true
+		},
+		{
+			"id": "expired-first",
+			"defect": "при заполненном кэше сначала выбрасывает просроченные записи, а не давно не использованную",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 6, "caught": 6 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0002,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

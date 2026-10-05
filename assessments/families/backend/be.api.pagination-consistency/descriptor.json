@@ -1,0 +1,161 @@
+{
+	"key": "be.api.pagination-consistency",
+	"version": 1,
+	"specialization": "backend",
+	"block": "be.api",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": {
+				"rows": "11–16",
+				"rules": 3,
+				"interacting": "сортировка с дополнительным ключом + номер страницы"
+			},
+			"constructiveRank": 2,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "asc-ties",
+					"form": "A",
+					"description": "сортировка по возрастанию цены, равные цены упорядочивает id, а не порядок в таблице"
+				},
+				{
+					"id": "desc-ties",
+					"form": "B",
+					"description": "сортировка по убыванию цены, но равные цены — по возрастанию id"
+				},
+				{
+					"id": "filtered",
+					"form": "anchor",
+					"description": "фильтр по статусу применяется до разбиения на страницы, число страниц — от отфильтрованных"
+				},
+				{
+					"id": "two-keys",
+					"form": "X",
+					"description": "сортировка по двум ключам с разным направлением: категория по возрастанию, внутри — цена по убыванию, затем id"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"rows": "9–12",
+				"requests": 3,
+				"rules": 4,
+				"interacting": "изменения данных между запросами + способ пагинации"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "offset-shift",
+					"form": "A",
+					"description": "пагинация по смещению: вставки сверху дают повторы, удаления — пропуски"
+				},
+				{
+					"id": "keyset-changes",
+					"form": "B",
+					"description": "курсорная пагинация: вставки выше курсора не видны, запись задним числом ниже курсора — видна"
+				},
+				{
+					"id": "keyset-ties",
+					"form": "anchor",
+					"description": "курсорная пагинация с одинаковым created_at на границе страницы: сравнивается пара (created_at, id)"
+				},
+				{
+					"id": "keyset-ascending",
+					"form": "X",
+					"description": "курсор по возрастанию времени: новые записи попадают в конец и видны на следующих страницах, удаление увиденной не сдвигает"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "ресурс API и названия полей" },
+		{ "name": "numbers", "description": "id, цены, моменты создания, размер страницы, номер страницы" }
+	],
+	"essentialParams": [
+		{ "name": "order", "description": "направление сортировки и дополнительный ключ при равенстве" },
+		{ "name": "filter", "description": "есть ли фильтр до разбиения на страницы" },
+		{ "name": "method", "description": "пагинация по смещению или по курсору (created_at, id)" },
+		{ "name": "changes", "description": "какие записи добавляются и удаляются между запросами страниц" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"страница k при limit и нумерации страниц с 1",
+			"число страниц с неполной последней страницей",
+			"дополнительный ключ сортировки при равенстве основного",
+			"фильтр до пагинации",
+			"повторы и пропуски пагинации по смещению при изменении данных",
+			"устойчивость курсорной пагинации по паре (created_at, id)"
+		],
+		"doesNotCheck": ["производительность OFFSET на больших таблицах", "формат курсора и его подпись"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "page-from-zero",
+			"defect": "считает смещение страницы k как k·limit, будто страницы нумеруются с нуля",
+			"mustBeCaught": true
+		},
+		{ "id": "pages-floor", "defect": "округляет число страниц вниз и теряет неполную последнюю", "mustBeCaught": true },
+		{
+			"id": "ignore-tiebreak",
+			"defect": "оставляет записи с равным ключом в порядке таблицы, не глядя на id",
+			"mustBeCaught": true
+		},
+		{
+			"id": "tiebreak-reversed",
+			"defect": "при сортировке по убыванию разворачивает и дополнительный ключ id",
+			"mustBeCaught": true
+		},
+		{
+			"id": "filter-after-page",
+			"defect": "сначала берёт страницу из всех записей, а потом фильтрует",
+			"mustBeCaught": true
+		},
+		{
+			"id": "frozen-snapshot",
+			"defect": "считает, что клиент листает снимок данных на момент первого запроса",
+			"mustBeCaught": true
+		},
+		{
+			"id": "offset-as-keyset",
+			"defect": "считает, что пагинация по смещению продолжает с последней показанной записи без повторов и пропусков",
+			"mustBeCaught": true
+		},
+		{
+			"id": "keyset-as-offset",
+			"defect": "считает, что курсорная пагинация сдвигается при вставках и удалениях так же, как смещение",
+			"mustBeCaught": true
+		},
+		{
+			"id": "cursor-created-only",
+			"defect": "сравнивает с курсором только created_at и теряет записи с тем же моментом",
+			"mustBeCaught": true
+		},
+		{
+			"id": "direction-all-keys",
+			"defect": "применяет направление DESC ко всем ключам сортировки, а не к одному",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 10, "caught": 10 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0027,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

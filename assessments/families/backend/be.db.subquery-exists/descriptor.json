@@ -1,0 +1,141 @@
+{
+	"key": "be.db.subquery-exists",
+	"version": 1,
+	"specialization": "backend",
+	"block": "be.db",
+	"format": "sql_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": { "tables": 2, "rows": "9–14", "subqueries": 1, "clauses": "IN / NOT IN / EXISTS" },
+			"constructiveRank": 2,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "in-no-duplicates",
+					"form": "A",
+					"description": "IN с подзапросом даёт строку клиента один раз, сколько бы заказов ни подошло"
+				},
+				{
+					"id": "not-in-null",
+					"form": "B",
+					"description": "NOT IN со списком, где есть NULL, не бывает истиной — остаются только строки по другому условию OR"
+				},
+				{
+					"id": "exists-null-column",
+					"form": "X",
+					"description": "EXISTS проверяет наличие строки: что подзапрос выбирает, хоть NULL, неважно"
+				},
+				{
+					"id": "exists-correlated",
+					"form": "anchor",
+					"description": "коррелированный EXISTS проверяет заказы именно этого клиента"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"tables": 2,
+				"rows": "12–18",
+				"subqueries": "1–2",
+				"clauses": "скалярный и коррелированный подзапрос"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "scalar-subquery",
+					"form": "A",
+					"description": "скалярные подзапросы в SELECT: у клиента без заказов COUNT — 0, MAX — NULL, строка остаётся"
+				},
+				{
+					"id": "correlated-avg",
+					"form": "B",
+					"description": "сравнение со средним по заказам того же клиента, а не по всем"
+				},
+				{
+					"id": "max-per-group-ties",
+					"form": "X",
+					"description": "равенство MAX подзапроса оставляет все заказы-рекордсмены клиента, включая равные"
+				},
+				{
+					"id": "in-group-count",
+					"form": "anchor",
+					"description": "IN не размножает клиентов перед GROUP BY, в отличие от JOIN"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "имена клиентов, города, статусы" },
+		{ "name": "data", "description": "суммы, число заказов, порядок вставки" }
+	],
+	"essentialParams": [
+		{ "name": "subquery", "description": "вид подзапроса: IN, NOT IN, EXISTS, скалярный, коррелированный" },
+		{ "name": "null-site", "description": "есть ли NULL в списке или в выбираемом столбце" }
+	],
+	"language": "sql",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"IN против JOIN",
+			"NOT IN со списком, содержащим NULL",
+			"EXISTS и выбираемое значение",
+			"коррелированные подзапросы",
+			"скалярный подзапрос в SELECT",
+			"сравнение с агрегатом подзапроса"
+		],
+		"doesNotCheck": ["ANY и ALL (в SQLite нет)", "производительность подзапросов"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "in-duplicates",
+			"defect": "считает, что IN повторяет строку на каждое совпадение, как JOIN",
+			"mustBeCaught": true
+		},
+		{
+			"id": "not-in-skips-null",
+			"defect": "считает, что NULL в списке NOT IN просто не учитывается",
+			"mustBeCaught": true
+		},
+		{
+			"id": "exists-checks-value",
+			"defect": "считает, что EXISTS ложен, если подзапрос выбирает NULL",
+			"mustBeCaught": true
+		},
+		{
+			"id": "exists-uncorrelated",
+			"defect": "не замечает связь подзапроса EXISTS с внешней строкой",
+			"mustBeCaught": true
+		},
+		{
+			"id": "scalar-as-join",
+			"defect": "считает, что клиент без заказов пропадает из результата, как при JOIN",
+			"mustBeCaught": true
+		},
+		{ "id": "empty-max-zero", "defect": "считает, что MAX по пустому набору — 0", "mustBeCaught": true },
+		{
+			"id": "uncorrelated-avg",
+			"defect": "сравнивает со средним по всей таблице, а не по клиенту",
+			"mustBeCaught": true
+		},
+		{ "id": "one-per-group", "defect": "оставляет один заказ на клиента при равных максимумах", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 8, "caught": 8 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0012,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

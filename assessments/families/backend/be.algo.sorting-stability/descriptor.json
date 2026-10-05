@@ -1,0 +1,150 @@
+{
+	"key": "be.algo.sorting-stability",
+	"version": 1,
+	"specialization": "backend",
+	"block": "be.algo",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": { "records": "6–7", "sorts": "2–3", "keys": 1, "mechanisms": 2 },
+			"constructiveRank": 2,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "stable-key",
+					"form": "A",
+					"description": "sorted с key сохраняет исходный порядок равных; list.sort возвращает None"
+				},
+				{
+					"id": "reverse-ties",
+					"form": "B",
+					"description": "reverse=True и отрицание ключа сохраняют порядок равных, разворот результата — нет"
+				},
+				{ "id": "tuple-key", "form": "anchor", "description": "ключ-кортеж: второе поле решает при равенстве первого" },
+				{
+					"id": "string-order",
+					"form": "X",
+					"description": "строки сравниваются посимвольно: числа-строки не по величине, заглавные буквы раньше строчных"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": { "records": "6–8", "sorts": "2–3", "keys": "2–3", "mechanisms": 2 },
+			"constructiveRank": 4,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "multi-pass",
+					"form": "A",
+					"description": "сортировка в несколько проходов: последний проход — главный ключ, прежние решают равенства"
+				},
+				{
+					"id": "reverse-pass",
+					"form": "B",
+					"description": "проход с reverse=True не переворачивает порядок равных, оставленный прежним проходом"
+				},
+				{
+					"id": "min-max-ties",
+					"form": "anchor",
+					"description": "max и min возвращают первый из равных, последний элемент отсортированного — последний из равных"
+				},
+				{
+					"id": "alias-sort",
+					"form": "X",
+					"description": "sort через второе имя меняет тот же список, а sorted с reverse=True по нему сохраняет порядок равных"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "имена людей, отделов, переменных" },
+		{ "name": "data", "description": "значения полей и порядок записей" }
+	],
+	"essentialParams": [
+		{ "name": "ties", "description": "сколько равных ключей и в каком исходном порядке" },
+		{ "name": "direction", "description": "reverse=True, отрицание ключа или разворот результата" },
+		{ "name": "passes", "description": "один ключ, кортеж или несколько проходов" }
+	],
+	"language": "python3",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"устойчивость sorted и list.sort",
+			"reverse=True против разворота результата",
+			"ключ-кортеж и отрицание числового поля",
+			"сортировка в несколько проходов",
+			"min и max с key при равных ключах",
+			"list.sort возвращает None",
+			"лексикографический порядок строк и регистр",
+			"list.sort на общем списке"
+		],
+		"doesNotCheck": ["сложность сортировок", "cmp_to_key", "сортировку строк с учётом локали"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "ties-alpha",
+			"defect": "считает, что равные по ключу элементы упорядочиваются по алфавиту",
+			"mustBeCaught": true
+		},
+		{
+			"id": "sort-returns-list",
+			"defect": "считает, что list.sort возвращает отсортированный список",
+			"mustBeCaught": true
+		},
+		{
+			"id": "reverse-flips-ties",
+			"defect": "считает, что reverse=True — это сортировка с разворотом, и порядок равных переворачивается",
+			"mustBeCaught": true
+		},
+		{
+			"id": "slice-reverse-stable",
+			"defect": "считает, что разворот [::-1] сохраняет порядок равных",
+			"mustBeCaught": true
+		},
+		{ "id": "first-field-only", "defect": "не учитывает второе поле ключа-кортежа", "mustBeCaught": true },
+		{
+			"id": "last-pass-only",
+			"defect": "считает, что после последнего прохода равные стоят в исходном порядке, а прежние проходы забыты",
+			"mustBeCaught": true
+		},
+		{
+			"id": "first-pass-primary",
+			"defect": "считает главным ключом первый проход, а не последний",
+			"mustBeCaught": true
+		},
+		{ "id": "max-last", "defect": "считает, что max возвращает последний из равных элементов", "mustBeCaught": true },
+		{
+			"id": "numeric-strings",
+			"defect": "считает, что строки из цифр сортируются по числовому значению",
+			"mustBeCaught": true
+		},
+		{
+			"id": "case-insensitive-default",
+			"defect": "считает, что сортировка строк по умолчанию не различает регистр",
+			"mustBeCaught": true
+		},
+		{
+			"id": "sort-copies",
+			"defect": "считает, что list.sort через другое имя не меняет исходный список",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 11, "caught": 11 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0003,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

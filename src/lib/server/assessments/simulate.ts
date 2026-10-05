@@ -188,9 +188,13 @@ const tally = (outcomes: readonly DecisionOutcome[]): Shares => ({
 const agreement = (a: Shares, b: Shares): number =>
 	a.confirmed * b.confirmed + a.undetermined * b.undetermined + a.notConfirmed * b.notConfirmed;
 
-/** The trajectory report of a release (`TrajectoryReport` of the contract), every grade, A then the retake on B. */
+/**
+ * The trajectory report of a release (`TrajectoryReport` of the contract), every grade, A then the retake on B. The runs
+ * draw from `seed`, not from the id of the release: the same content under the same procedure gives the same report
+ * whatever number the release gets, so a report made once is reused for that content (`scripts/release-bank.ts`).
+ */
 export function trajectoryReport(
-	releaseId: string,
+	{ releaseId, seed }: { releaseId: string; seed: string },
 	families: readonly LoadedFamily[],
 	specialization: SpecializationKey,
 	options: { runs?: number; shifts?: readonly number[]; params?: ProcedureParams } = {}
@@ -207,7 +211,7 @@ export function trajectoryReport(
 			const first: DecisionOutcome[] = [];
 			const retake: DecisionOutcome[] = [];
 			for (let run = 0; run < runs; run += 1) {
-				const label = `${releaseId}:${grade}:${shift}:${run}`;
+				const label = `${seed}:${grade}:${shift}:${run}`;
 				const random = labelRandom(label);
 				const score: ClusterScorer = (instance, family, angoff) =>
 					simulatedScore(instance, family, angoff, shift, rho, random);

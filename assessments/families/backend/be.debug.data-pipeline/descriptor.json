@@ -1,0 +1,109 @@
+{
+	"key": "be.debug.data-pipeline",
+	"version": 1,
+	"specialization": "backend",
+	"block": "be.debug",
+	"format": "bug_locate",
+	"answerKind": "line_no",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": {
+				"functions": 5,
+				"lines": "35–55",
+				"defect": "одна строка: аккумулятор, разбор строки или ключ"
+			},
+			"constructiveRank": 2,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "accumulator",
+					"form": "A",
+					"description": "аккумулятор сбрасывается не там или последняя группа не попадает в результат"
+				},
+				{ "id": "parsing", "form": "B", "description": "разбор строки: strip, split и разделители полей" },
+				{ "id": "grouping", "form": "anchor", "description": "неверный ключ группировки или правило свёртки группы" },
+				{
+					"id": "sorting",
+					"form": "X",
+					"description": "сортировка: неверный ключ, направление или числа, сравниваемые как строки"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"functions": 6,
+				"lines": "50–75",
+				"defect": "одна строка: пустые поля и заголовок, типы, порядок шагов конвейера"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 420,
+			"classes": [
+				{ "id": "empty-fields", "form": "A", "description": "пустые поля, пустые строки и строка заголовка CSV" },
+				{
+					"id": "types",
+					"form": "B",
+					"description": "преобразование типов: строки вместо чисел, сравнение и форматирование"
+				},
+				{
+					"id": "order",
+					"form": "anchor",
+					"description": "порядок шагов конвейера: сортировка, фильтр, ограничение и дедупликация не в том порядке"
+				},
+				{
+					"id": "merge",
+					"form": "X",
+					"description": "слияние двух источников: приоритет, перезапись пустым значением, потеря записей, порча входа"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "context", "description": "какие ещё функции конвейера показаны и в каком порядке" },
+		{ "name": "header", "description": "заголовок модуля: импорты и константы разной длины" }
+	],
+	"essentialParams": [
+		{
+			"name": "defect-kind",
+			"description": "вид дефекта: аккумулятор, разбор, группировка, пустые поля, типы, порядок шагов"
+		}
+	],
+	"language": "python3",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"чтение спецификации функции обработки данных",
+			"сброс и сохранение аккумулятора при свёртке групп",
+			"разбор строк: strip, split, partition",
+			"ключ группировки и правило свёртки",
+			"пустые поля и строка заголовка CSV",
+			"преобразование строк в числа и обратно",
+			"порядок шагов конвейера"
+		],
+		"doesNotCheck": ["исправление дефекта (только его место)", "производительность на больших данных"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "neighbour-line",
+			"defect": "указывает соседнюю строку той же функции, где «исправление» не возвращает спецификацию",
+			"mustBeCaught": true
+		},
+		{ "id": "other-function", "defect": "указывает похожую строку в другой, исправной функции", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 2, "caught": 2 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0216,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

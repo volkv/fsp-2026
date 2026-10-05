@@ -1,0 +1,100 @@
+{
+	"key": "be.design.quorum-consistency",
+	"version": 1,
+	"specialization": "backend",
+	"block": "be.design",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"events": "11–15",
+				"replicas": "3 или 5",
+				"interacting": "кворумы R и W + отказы по расписанию + механизм восстановления"
+			},
+			"constructiveRank": 7,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "strict",
+					"form": "A",
+					"description": "строгий кворум: запись недоступна без W живых реплик, чтение видит только опрошенные"
+				},
+				{
+					"id": "sloppy",
+					"form": "B",
+					"description": "нестрогий кворум с hinted handoff: запасные узлы засчитываются в W и отдают версию после восстановления"
+				},
+				{
+					"id": "read-repair",
+					"form": "anchor",
+					"description": "строгий кворум с read repair: чтение догоняет отставшие опрошенные реплики"
+				},
+				{
+					"id": "lww",
+					"form": "X",
+					"description": "строгий кворум с last write wins по меткам координаторов: из-за расхождения часов поздняя запись может проиграть"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "имена узлов и ключа" },
+		{ "name": "schedule", "description": "порядок отказов, восстановлений, записей и чтений" }
+	],
+	"essentialParams": [
+		{
+			"name": "quorum-mode",
+			"description": "строгий кворум, нестрогий кворум с hinted handoff или строгий с read repair"
+		},
+		{ "name": "quorums", "description": "число реплик N и кворумы R и W" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"доступность записи и чтения при отказах узлов",
+			"какие реплики видят запись и что вернёт чтение",
+			"R + W > N не гарантирует свежего чтения после отказов и восстановлений",
+			"нестрогий кворум и передача подсказок",
+			"read repair",
+			"last write wins и расхождение часов координаторов"
+		],
+		"doesNotCheck": [
+			"векторные часы и разрешение конфликтов параллельных записей",
+			"фоновая синхронизация (anti-entropy)",
+			"сетевые разделения, при которых узлы видят друг друга по-разному"
+		]
+	},
+	"wrongSolutions": [
+		{ "id": "write-to-down", "defect": "считает, что отказавшая реплика тоже получает запись", "mustBeCaught": true },
+		{ "id": "read-all-up", "defect": "читает со всех доступных реплик, а не с первых R", "mustBeCaught": true },
+		{
+			"id": "strict-in-sloppy",
+			"defect": "в нестрогом кворуме не засчитывает запасные узлы в W",
+			"mustBeCaught": true
+		},
+		{ "id": "no-handoff", "defect": "не передаёт подсказанные версии восстановившейся реплике", "mustBeCaught": true },
+		{ "id": "no-repair", "defect": "не обновляет отставшие реплики после чтения", "mustBeCaught": true },
+		{
+			"id": "issue-order-wins",
+			"defect": "считает победившей последнюю по порядку запись, а не запись с наибольшей меткой времени",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 6, "caught": 6 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0032,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

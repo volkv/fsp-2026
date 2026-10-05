@@ -1,0 +1,153 @@
+{
+	"key": "be.concurrency.sync-primitives",
+	"version": 1,
+	"specialization": "backend",
+	"block": "be.concurrency",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"tasks": "3–5",
+				"lines": "20–35",
+				"rules": 3,
+				"interacting": "примитив синхронизации + порядок пробуждения через цикл событий"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "semaphore",
+					"form": "A",
+					"description": "Semaphore пускает k задач, освободившееся место отдаётся первой ждущей, опоздавший встаёт в очередь"
+				},
+				{
+					"id": "bounded-queue",
+					"form": "B",
+					"description": "Queue с maxsize: put на полной очереди ждёт, get будит ждущего производителя через цикл событий"
+				},
+				{
+					"id": "event-clear",
+					"form": "anchor",
+					"description": "set будит всех ждущих, и clear до их запуска пробуждение не отменяет; ждущий после clear ждёт следующего set"
+				},
+				{
+					"id": "condition-notify",
+					"form": "X",
+					"description": "Condition.notify(n) будит n первых ждущих, и каждый ещё должен снова взять замок"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"constructive": {
+				"tasks": "4–6",
+				"lines": "30–45",
+				"rules": 5,
+				"interacting": "ограниченная очередь с несколькими производителями + отмена + Condition.wait_for"
+			},
+			"constructiveRank": 7,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "multi-producer",
+					"form": "A",
+					"description": "несколько производителей на очереди с maxsize: место получают по очереди ожидания, первым — дольше всех ждущий"
+				},
+				{
+					"id": "cancel-blocked-put",
+					"form": "B",
+					"description": "отмена производителя, ждущего на put: его элемент в очередь не попадает"
+				},
+				{
+					"id": "condition-wait-for",
+					"form": "anchor",
+					"description": "wait_for перепроверяет условие после каждого пробуждения: notify_all не значит, что дождались все"
+				},
+				{
+					"id": "queue-join",
+					"form": "X",
+					"description": "join ждёт task_done по каждому элементу, а не пустую очередь"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "имена задач и значения элементов" },
+		{ "name": "numbers", "description": "ёмкость очереди и семафора, длительность работы, места sleep(0)" }
+	],
+	"essentialParams": [
+		{ "name": "primitive", "description": "Semaphore, Queue с maxsize, Event, Condition, join" },
+		{ "name": "state", "description": "кто ждёт и кого будят в момент освобождения, отмены или уведомления" }
+	],
+	"language": "python3",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"очередь ожидания Semaphore",
+			"put на полной очереди и пробуждение производителя",
+			"Event.set и clear",
+			"Condition.notify и повторный захват замка",
+			"wait_for перепроверяет условие",
+			"отмена задачи, ждущей на put",
+			"Queue.join и task_done"
+		],
+		"doesNotCheck": ["отмена задач, ждущих Semaphore или Condition", "потоки и примитивы threading", "Queue.shutdown"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "sem-barging",
+			"defect": "считает, что свободное место семафора берёт тот, кто попросил первым после освобождения, даже если в очереди уже ждут",
+			"mustBeCaught": true
+		},
+		{ "id": "put-never-blocks", "defect": "считает, что put в очередь с maxsize не ждёт", "mustBeCaught": true },
+		{
+			"id": "wake-switches",
+			"defect": "считает, что get или put тут же передаёт управление разбуженной задаче",
+			"mustBeCaught": true
+		},
+		{
+			"id": "clear-cancels-wakeup",
+			"defect": "считает, что clear до запуска разбуженной задачи снова усыпляет её",
+			"mustBeCaught": true
+		},
+		{ "id": "set-switches", "defect": "считает, что set сразу передаёт управление ждущим", "mustBeCaught": true },
+		{ "id": "notify-wakes-all", "defect": "считает, что notify(n) будит всех ждущих", "mustBeCaught": true },
+		{
+			"id": "putters-newest-first",
+			"defect": "считает, что освободившееся место получает последний вставший в ожидание производитель",
+			"mustBeCaught": true
+		},
+		{
+			"id": "cancelled-put-enqueued",
+			"defect": "считает, что элемент отменённого на put производителя всё равно попадает в очередь",
+			"mustBeCaught": true
+		},
+		{
+			"id": "wait-for-no-recheck",
+			"defect": "считает, что wait_for возвращается после первого уведомления, не проверяя условие снова",
+			"mustBeCaught": true
+		},
+		{
+			"id": "join-on-empty",
+			"defect": "считает, что join возвращается, когда очередь опустела, не дожидаясь task_done",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 10, "caught": 10 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0005,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

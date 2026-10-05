@@ -1,0 +1,125 @@
+{
+	"key": "be.debug.async-races",
+	"version": 1,
+	"specialization": "backend",
+	"block": "be.debug",
+	"format": "bug_locate",
+	"answerKind": "line_no",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"classes": 3,
+				"lines": "50–70",
+				"defect": "одна строка: проверка и запись разделены await, забытый await, ресурс не освобождён"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "check-then-act",
+					"form": "A",
+					"description": "проверка и запись разделены await: значение или решение устаревает до записи"
+				},
+				{
+					"id": "missing-await",
+					"form": "B",
+					"description": "забытый await: корутина не выполнена или вместо результата используется объект корутины"
+				},
+				{
+					"id": "lock-release",
+					"form": "anchor",
+					"description": "блокировка или ресурс не освобождаются при исключении или освобождаются раньше работы"
+				},
+				{
+					"id": "task-errors",
+					"form": "X",
+					"description": "ошибка задачи теряется: исключение считается результатом, перехвачено слишком широко или задача не дождана"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"classes": 4,
+				"lines": "70–100",
+				"defect": "одна строка: общий изменяемый кэш, область блокировки, порядок публикации состояния"
+			},
+			"constructiveRank": 7,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "shared-cache",
+					"form": "A",
+					"description": "общий изменяемый кэш: выдача общей ссылки или запись устаревшего значения после инвалидации"
+				},
+				{
+					"id": "lock-scope",
+					"form": "B",
+					"description": "блокировка не той области: новый объект на вызов, неверный ключ или другая блокировка"
+				},
+				{
+					"id": "publish-order",
+					"form": "anchor",
+					"description": "состояние публикуется или ожидание завершается раньше, чем работа закончена"
+				},
+				{
+					"id": "cancellation",
+					"form": "X",
+					"description": "отмена задачи: CancelledError проглатывается или очистка не выполняется при отмене"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "context", "description": "какие ещё классы сервиса показаны и в каком порядке" },
+		{ "name": "header", "description": "заголовок модуля: импорты и константы разной длины" }
+	],
+	"essentialParams": [
+		{
+			"name": "defect-kind",
+			"description": "вид дефекта: check-then-act, забытый await, освобождение ресурса, общий кэш, область блокировки, порядок публикации"
+		}
+	],
+	"language": "python3",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"чередование корутин в точках await",
+			"проверка и запись под одной блокировкой",
+			"забытый await и объект корутины в условии",
+			"освобождение блокировки и ресурса в finally",
+			"общие изменяемые объекты в кэше и их копии",
+			"область и ключ блокировки",
+			"порядок публикации результата и сигнала о готовности"
+		],
+		"doesNotCheck": [
+			"исправление дефекта (только его место)",
+			"потоки и процессы ОС (только asyncio)",
+			"реальные задержки и таймауты"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "neighbour-line",
+			"defect": "указывает соседнюю строку того же метода, где «исправление» не возвращает контракт",
+			"mustBeCaught": true
+		},
+		{ "id": "other-class", "defect": "указывает похожую строку в другом, исправном классе", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 2, "caught": 2 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0247,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

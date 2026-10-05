@@ -1,0 +1,124 @@
+{
+	"key": "be.code.order-summary",
+	"version": 1,
+	"specialization": "backend",
+	"block": "be.code",
+	"format": "practice_code",
+	"answerKind": "code",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.8 },
+			"constructive": { "rules": 2, "updates": false, "topK": false, "groups": 5 },
+			"constructiveRank": 3,
+			"timeNormSec": 1800,
+			"classes": [
+				{ "id": "paid-sum", "form": "A", "description": "сумма оплаченных заказов клиента; порядок — по имени" },
+				{
+					"id": "active-count",
+					"form": "B",
+					"description": "число неотменённых заказов; порядок — по числу убыв., затем по имени"
+				},
+				{
+					"id": "max-paid",
+					"form": "anchor",
+					"description": "наибольший оплаченный заказ; порядок — по сумме убыв., затем по имени"
+				},
+				{
+					"id": "paid-streak",
+					"form": "X",
+					"description": "самая длинная серия подряд оплаченных заказов клиента в порядке журнала; порядок — по длине убыв., затем по имени"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.8 },
+			"constructive": { "rules": 4, "updates": true, "topK": true, "groups": 5 },
+			"constructiveRank": 5,
+			"timeNormSec": 2400,
+			"classes": [
+				{
+					"id": "top-paid",
+					"form": "A",
+					"description": "после обновлений — K клиентов с наибольшей суммой оплаченного"
+				},
+				{
+					"id": "top-orders",
+					"form": "B",
+					"description": "после обновлений — K клиентов с наибольшим числом оплаченных заказов, с суммой"
+				},
+				{
+					"id": "top-average",
+					"form": "anchor",
+					"description": "после обновлений — K клиентов с наибольшим средним оплаченным заказом (вниз до целого)"
+				},
+				{
+					"id": "cancel-after-paid",
+					"form": "X",
+					"description": "после обновлений — K клиентов с наибольшим числом заказов, отменённых после оплаты, с суммой"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "data", "description": "имена клиентов, номера и суммы заказов, порядок строк" },
+		{ "name": "sizes", "description": "число строк и K в пределах условия" }
+	],
+	"essentialParams": [
+		{
+			"name": "measure",
+			"description": "что считается по клиенту: сумма, число, максимум, среднее, серия подряд, отмена после оплаты"
+		},
+		{ "name": "filter", "description": "какие статусы входят в расчёт" },
+		{ "name": "order", "description": "ключ сортировки и правило равенства" }
+	],
+	"language": null,
+	"practice": { "languages": ["python3", "go", "java21", "javascript", "typescript", "cpp17"], "hiddenTestGroups": 5 },
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "groups" },
+	"coverage": {
+		"checks": [
+			"разбор построчного ввода",
+			"группировка в словаре и агрегаты",
+			"фильтр по статусу",
+			"сортировка по составному ключу с правилом равенства",
+			"суммы больше 2³¹ (64-битные целые)",
+			"обновление записи по ключу (Junior)",
+			"K больше числа клиентов (Junior)",
+			"обработка тысяч строк без квадратичных проходов"
+		],
+		"doesNotCheck": ["работу с базой данных и сетью", "архитектуру и стиль кода"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "no-tie-break",
+			"defect": "сортирует только по основному ключу, равные остаются в порядке ввода",
+			"mustBeCaught": true
+		},
+		{ "id": "ignores-status", "defect": "не фильтрует заказы по статусу", "mustBeCaught": true },
+		{
+			"id": "first-wins",
+			"defect": "Junior: не применяет обновления заказа — учитывает первую строку с номером",
+			"mustBeCaught": true
+		},
+		{ "id": "keeps-empty", "defect": "Intern: печатает клиентов, у которых нечего считать", "mustBeCaught": true },
+		{ "id": "int32-sum", "defect": "копит сумму в 32-битном целом: большие суммы переполняются", "mustBeCaught": true },
+		{
+			"id": "streak-no-reset",
+			"defect": "класс серий: заказ с другим статусом не прерывает серию",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 6, "caught": 6 },
+		"hiddenTestsMutationScore": 1,
+		"answerCollision": 0,
+		"transfer": 0,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}
