@@ -1,9 +1,10 @@
-import { readFile } from 'node:fs/promises';
+import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { clampHarness, fixtureFamilies } from '../../../../tests/helpers/families';
-import { familyModule, GeneratorMismatch } from './bank-store';
+import { bankTreeFamilies, familyModule, GeneratorMismatch } from './bank-store';
 import { familySourceSha256 } from './contract/bank';
 import { familyProblems } from './contract/validate';
 import { loadBankTree, loadSpecializationFamilies, sharedCodeSha256 } from './families';
@@ -46,6 +47,25 @@ describe('bank tree', () => {
 		).rejects.toBeInstanceOf(GeneratorMismatch);
 	});
 
+	it('tells the families of the tree that await judgements from the defective ones', async () => {
+		expect(await bankTreeFamilies(FIXTURE_TREE)).toEqual([
+			{ specialization: 'backend', families: 1, defects: [], awaiting: [] }
+		]);
+		const root = await mkdtemp(join(tmpdir(), 'bank-tree-'));
+		try {
+			await cp(FIXTURE_TREE, root, { recursive: true });
+			const path = join(root, 'backend', 'be.lang.fixture-sum', 'descriptor.json');
+			const descriptor = JSON.parse(await readFile(path, 'utf8')) as { gates: { rubricReviews: unknown[] } };
+			descriptor.gates.rubricReviews = [];
+			await writeFile(path, JSON.stringify(descriptor));
+			const [backend] = await bankTreeFamilies(root);
+			expect(backend?.defects).toEqual([]);
+			expect(backend?.awaiting.map((p) => p.code)).toEqual(['awaiting_reviews']);
+		} finally {
+			await rm(root, { recursive: true, force: true });
+		}
+	});
+
 	it('has nothing for a specialization without a directory', async () => {
 		expect(await loadSpecializationFamilies(FIXTURE_TREE, 'devops')).toEqual([]);
 	});
@@ -82,8 +102,11 @@ describe('release assembly', () => {
 		const edited = families.map((f, i) => (i === 0 ? { ...f, sourceSha256: 'e'.repeat(64) } : f));
 		const key = families[0]?.descriptor.key ?? '';
 		const problems = assembleRelease('qa', edited, SHARED, 1).problems;
-		expect(problems.some((p) => p.includes(key) && p.includes('rate again'))).toBe(true);
-		expect(problems.some((p) => p.includes(key) && p.includes('on the current sources'))).toBe(true);
+		// Not a defect: the edited family awaits its ratings and reviews; the release is not admitted meanwhile.
+		const of = (code: string) => problems.filter((p) => p.code === code && p.message.includes(key));
+		expect(of('awaiting_raters').length).toBeGreaterThan(0);
+		expect(of('awaiting_reviews')).toHaveLength(1);
+		expect(of('defect')).toEqual([]);
 
 		const signed = assembleRelease('qa', fixtureFamilies('qa', { signedBy: 'person' }), SHARED, 1);
 		expect(signed.problems).toEqual([]);
@@ -96,7 +119,9 @@ describe('release assembly', () => {
 		const families = fixtureFamilies('qa');
 		const lacking = families.filter((f) => f.descriptor.key !== 'qa.design.junior-0');
 		expect(
-			assembleRelease('qa', lacking, SHARED, 1).problems.some((p) => /junior .* runs out: .*qa\.design/.test(p))
+			assembleRelease('qa', lacking, SHARED, 1).problems.some(
+				(p) => p.code === 'defect' && /junior .* runs out: .*qa\.design/.test(p.message)
+			)
 		).toBe(true);
 		let calls = 0;
 		const drifting = families.map((f) =>
@@ -112,22 +137,26 @@ describe('release assembly', () => {
 					}
 				: f
 		);
-		expect(assembleRelease('qa', drifting, SHARED, 1).problems).toContain(
-			'family qa.design.intern-0@intern/a: generate is not deterministic'
-		);
+		expect(assembleRelease('qa', drifting, SHARED, 1).problems).toContainEqual({
+			code: 'defect',
+			message: 'family qa.design.intern-0@intern/a: generate is not deterministic'
+		});
 		const noHarness = families.map((f) =>
 			f.descriptor.format === 'qa_mutation' && f.descriptor.levels[0]?.grade === 'junior'
 				? { ...f, module: { generate: f.module.generate } }
 				: f
 		);
-		expect(assembleRelease('qa', noHarness, SHARED, 1).problems).toContain(
-			'family qa.mutants.junior-0: QA needs harness()'
-		);
+		expect(assembleRelease('qa', noHarness, SHARED, 1).problems).toContainEqual({
+			code: 'defect',
+			message: 'family qa.mutants.junior-0: QA needs harness()'
+		});
 		expect(clampHarness).toBeTypeOf('function');
 	}, 120_000);
 
 	it('checks the trajectory report it makes: too few runs per point keep the release out', () => {
 		const assembled = assembleRelease('frontend', fixtureFamilies('frontend'), SHARED, 1, { runs: 200 });
-		expect(assembled.problems.some((p) => p.includes('has 200 runs, 1000 required'))).toBe(true);
+		expect(
+			assembled.problems.some((p) => p.code === 'defect' && p.message.includes('has 200 runs, 1000 required'))
+		).toBe(true);
 	}, 60_000);
 });

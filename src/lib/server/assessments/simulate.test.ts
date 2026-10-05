@@ -39,7 +39,7 @@ describe('trajectory report', () => {
 			release('backend'),
 			PROCEDURE
 		);
-		expect(problems.some((p) => p.includes('true confirmation'))).toBe(true);
+		expect(problems.some((p) => p.code === 'defect' && p.message.includes('true confirmation'))).toBe(true);
 	}, 60_000);
 
 	it('keeps the retake off the classes of the first attempt and is reproducible', () => {

@@ -21,7 +21,8 @@ import {
 	instanceProblems,
 	levelsByBlock,
 	releaseProblems,
-	type TrajectoryReport
+	type TrajectoryReport,
+	type ValidationProblem
 } from './contract/validate.ts';
 import { sha256Hex, type LoadedFamily } from './families.ts';
 import { trajectoryReport } from './simulate.ts';
@@ -49,7 +50,7 @@ export interface ReleaseManifest {
 	/** `judgementProvenance` of the family-levels, by grade. */
 	judgement: Record<GradeKey, GradeJudgement>;
 	/** Admission problems of every family (empty lists in an admitted release). */
-	gates: Record<string, string[]>;
+	gates: Record<string, ValidationProblem[]>;
 	capacityChecks: CapacityCheck[];
 	/** Family-levels with an anchor class, by grade. */
 	anchors: Record<GradeKey, string[]>;
@@ -63,7 +64,8 @@ export interface AssembledRelease {
 	release: BankRelease;
 	manifest: ReleaseManifest;
 	contentSha256: string;
-	problems: string[];
+	/** Defects and pending judgements (`ValidationProblem` codes): a release is admitted with neither. */
+	problems: ValidationProblem[];
 }
 
 /** Seed of the sample instances the release builds of every class to check the generator. */
@@ -86,15 +88,19 @@ export function releaseContentSha256(families: readonly ManifestFamily[], shared
 export const releaseId = (specialization: SpecializationKey, n: number): string =>
 	`${specialization}@${CATALOG.version}-${n}`;
 
-/** What the engine needs beyond the contract: generators that produce valid instances, a QA harness, a scorable rubric. */
-export function servingProblems(family: LoadedFamily): string[] {
+/**
+ * What the engine needs beyond the contract: generators that produce valid instances, a QA harness, a scorable rubric.
+ * Every one is a defect.
+ */
+export function servingProblems(family: LoadedFamily): ValidationProblem[] {
 	const { descriptor, module } = family;
 	const where = `family ${descriptor.key}`;
-	const problems: string[] = [];
+	const problems: ValidationProblem[] = [];
+	const defect = (message: string) => problems.push({ code: 'defect', message });
 	if (descriptor.rubric.kind === 'parts') {
-		problems.push(`${where}: a rubric of parts needs an answer per part, which an instance does not carry`);
+		defect(`${where}: a rubric of parts needs an answer per part, which an instance does not carry`);
 	}
-	if (descriptor.format === 'qa_mutation' && !module.harness) problems.push(`${where}: QA needs harness()`);
+	if (descriptor.format === 'qa_mutation' && !module.harness) defect(`${where}: QA needs harness()`);
 	for (const level of descriptor.levels) {
 		for (const cls of level.classes) {
 			for (const seed of SAMPLE_SEEDS) {
@@ -102,29 +108,29 @@ export function servingProblems(family: LoadedFamily): string[] {
 				try {
 					instance = module.generate({ seed, grade: level.grade, classId: cls.id });
 				} catch (error) {
-					problems.push(`${where}@${level.grade}/${cls.id}: generate failed: ${(error as Error).message}`);
+					defect(`${where}@${level.grade}/${cls.id}: generate failed: ${(error as Error).message}`);
 					continue;
 				}
 				problems.push(...instanceProblems(instance, descriptor));
 				if (instance.seed !== seed || instance.classId !== cls.id || instance.grade !== level.grade) {
-					problems.push(`${where}@${level.grade}/${cls.id}: the instance does not echo its seed, grade and class`);
+					defect(`${where}@${level.grade}/${cls.id}: the instance does not echo its seed, grade and class`);
 				}
 				const again = module.generate({ seed, grade: level.grade, classId: cls.id });
 				if (canonicalJson(again) !== canonicalJson(instance)) {
-					problems.push(`${where}@${level.grade}/${cls.id}: generate is not deterministic`);
+					defect(`${where}@${level.grade}/${cls.id}: generate is not deterministic`);
 				}
 				for (const markdown of [instance.statement.markdown, instance.changeStep?.markdown ?? '']) {
 					try {
 						parseStatement(markdown);
 					} catch (error) {
-						problems.push(`${where}@${level.grade}/${cls.id}: statement: ${(error as Error).message}`);
+						defect(`${where}@${level.grade}/${cls.id}: statement: ${(error as Error).message}`);
 					}
 				}
 				if (descriptor.format === 'qa_mutation' && module.harness) {
 					for (const part of instance.changeStep?.qa ? (['task', 'change_step'] as const) : (['task'] as const)) {
 						for (const mode of ['reference', 'mutants'] as const) {
 							if (module.harness(instance, mode, part).source.trim() === '') {
-								problems.push(`${where}@${level.grade}/${cls.id}: the ${part} harness of ${mode} is empty`);
+								defect(`${where}@${level.grade}/${cls.id}: the ${part} harness of ${mode} is empty`);
 							}
 						}
 					}
@@ -153,8 +159,8 @@ export function assembleRelease(
 		sharedSha256,
 		familySources: Object.fromEntries(families.map((f) => [f.descriptor.key, f.sourceSha256]))
 	};
-	const gates: Record<string, string[]> = {};
-	const serving: string[] = [];
+	const gates: Record<string, ValidationProblem[]> = {};
+	const serving: ValidationProblem[] = [];
 	for (const family of families) {
 		const problems = servingProblems(family);
 		gates[family.descriptor.key] = [...familyProblems(family.descriptor, family.sourceSha256), ...problems];

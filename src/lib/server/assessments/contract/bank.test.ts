@@ -23,7 +23,19 @@ import {
 	type ItemInstance
 } from './bank';
 import { PROCEDURE, maxLength } from './procedure';
-import { familyProblems, instanceProblems, levelsByBlock, releaseProblems, type TrajectoryReport } from './validate';
+import {
+	familyProblems as familyCoded,
+	instanceProblems as instanceCoded,
+	levelsByBlock,
+	releaseProblems as releaseCoded,
+	type TrajectoryReport,
+	type ValidationProblem
+} from './validate';
+
+const text = (problems: ValidationProblem[]) => problems.map((p) => p.message);
+const familyProblems = (...args: Parameters<typeof familyCoded>) => text(familyCoded(...args));
+const instanceProblems = (...args: Parameters<typeof instanceCoded>) => text(instanceCoded(...args));
+const releaseProblems = (...args: Parameters<typeof releaseCoded>) => text(releaseCoded(...args));
 
 const GENERATOR = 'export function generate() {}';
 const STALE = '0'.repeat(64);
@@ -373,7 +385,7 @@ describe('family descriptor', () => {
 			]
 		};
 		expect(check(gap)).toEqual([
-			'family be.db.null-aggregate@junior: ratings differ by more than 0.2 — the second round is required'
+			'family be.db.null-aggregate@junior: ratings differ by more than 0.2 — awaits the second round'
 		]);
 		const stillApart: FamilyDescriptor = {
 			...gap,
@@ -387,7 +399,7 @@ describe('family descriptor', () => {
 			levels: [{ ...level, angoff: { round: 1, ratings: [rate(person('А'), 0.6)], mean: 0.6 } }]
 		};
 		expect(check(single)).toEqual([
-			'family be.db.null-aggregate@junior: Angoff needs 2 independent raters (models of different lineages or persons)'
+			'family be.db.null-aggregate@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.6)'
 		]);
 	});
 
@@ -470,7 +482,7 @@ describe('independent reviews', () => {
 		const sealed = seal(valid);
 		const edited = { ...sealed, coverage: { ...sealed.coverage, checks: ['граничные значения', 'NULL в агрегате'] } };
 		expect(familyProblems(edited, familySourceSha256(edited, GENERATOR))).toEqual([
-			'family be.db.null-aggregate@junior: an Angoff rating was made on other sources of the family — rate again',
+			'family be.db.null-aggregate@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.6)',
 			NEEDS
 		]);
 		expect(familySourceSha256(valid, GENERATOR + ' ')).not.toBe(hash);
@@ -485,8 +497,55 @@ describe('independent reviews', () => {
 			levels: [{ ...level, angoff: { round: 1, ratings: [rate(MODEL_A, 0.6), rate(sameLineage, 0.6)], mean: 0.6 } }]
 		};
 		expect(check(family)).toEqual([
-			'family be.db.null-aggregate@junior: Angoff needs 2 independent raters (models of different lineages or persons)',
-			'family be.db.null-aggregate@junior: a rater (or a model lineage) rated twice'
+			'family be.db.null-aggregate@junior: a rater (or a model lineage) rated twice',
+			'family be.db.null-aggregate@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.6)'
+		]);
+	});
+
+	it('tells a pending judgement from a defect by its code: no ratings, no reviews', () => {
+		const level = valid.levels[0];
+		if (!level) throw new Error('level');
+		const pending: FamilyDescriptor = {
+			...valid,
+			levels: [{ ...level, angoff: { round: 1, ratings: [], mean: 0.65 } }],
+			gates: { ...valid.gates, rubricReviews: [] }
+		};
+		expect(familyCoded(pending, hash).map((p) => p.code)).toEqual(['awaiting_raters', 'awaiting_reviews']);
+		const practice = practiceFamily('be.code', 'handler', 'junior');
+		const practiceLevel = practice.levels[0];
+		if (!practiceLevel) throw new Error('level');
+		const at = (mean: number): FamilyDescriptor => ({
+			...practice,
+			levels: [{ ...practiceLevel, angoff: { round: 1, ratings: [], mean } }],
+			gates: { ...practice.gates, rubricReviews: [] }
+		});
+		const practiceHash = familySourceSha256(at(0.8), GENERATOR);
+		expect(familyCoded(at(0.8), practiceHash).map((p) => p.code)).toEqual(['awaiting_raters', 'awaiting_reviews']);
+		expect(familyCoded(at(0.6), practiceHash)).toContainEqual({
+			code: 'defect',
+			message:
+				'family be.code.handler@junior: a practice cluster is a gate the borderline candidate passes: Angoff 0.75–0.9'
+		});
+		expect(familyCoded(at(0.83), practiceHash)).toContainEqual({
+			code: 'defect',
+			message: 'family be.code.handler@junior: Angoff mean 0.83 is not on the 1/20 scale'
+		});
+	});
+
+	it('refuses an author of the family as its rater or reviewer', () => {
+		const byModel: FamilyDescriptor = {
+			...valid,
+			authorship: { draftedBy: 'model', authors: ['claude-sonnet (anthropic)'] }
+		};
+		expect(check(byModel)).toEqual([
+			'family be.db.null-aggregate: claude-sonnet (anthropic) is an author of the family and cannot judge it'
+		]);
+		const byPerson: FamilyDescriptor = {
+			...withReviews([review(person('Павел'))]),
+			authorship: { draftedBy: 'team', authors: ['Павел'] }
+		};
+		expect(familyProblems(byPerson, hash)).toEqual([
+			'family be.db.null-aggregate: Павел is an author of the family and cannot judge it'
 		]);
 	});
 

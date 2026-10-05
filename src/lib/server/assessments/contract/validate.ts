@@ -301,6 +301,22 @@ const instanceSchema = z.strictObject({
 	timeNormSec: positiveInt
 });
 
+/**
+ * A problem of the bank's data. `defect` — the data is wrong and must be fixed; `awaiting_raters` — a level waits for its
+ * independent Angoff ratings on the current sources (its `mean` is the authors' provisional cut meanwhile);
+ * `awaiting_reviews` — the family waits for the approvals of its rubric. Consumers tell a pending judgement from a defect
+ * by the code, never by the text.
+ */
+export type ProblemCode = 'defect' | 'awaiting_raters' | 'awaiting_reviews';
+
+export interface ValidationProblem {
+	code: ProblemCode;
+	message: string;
+}
+
+const defects = (messages: readonly string[]): ValidationProblem[] =>
+	messages.map((message) => ({ code: 'defect', message }));
+
 /** Problems of a parse as `path: message` lines. */
 function shapeProblems(schema: z.ZodType, value: unknown, prefix: string): string[] {
 	const parsed = schema.safeParse(value);
@@ -445,12 +461,15 @@ export function familyProblems(
 	family: FamilyDescriptor,
 	sourceSha256: string,
 	gates: FamilyGates = FAMILY_GATES
-): string[] {
+): ValidationProblem[] {
 	const where = `family ${family.key}`;
 	const problems = shapeProblems(familySchema, family, where);
-	if (problems.length) return problems;
+	if (problems.length) return defects(problems);
 	const block = CATALOG.blocks.find((b) => b.code === family.block);
-	if (!block) return [`${where}: unknown block ${family.block}`];
+	if (!block) return defects([`${where}: unknown block ${family.block}`]);
+	const awaiting: ValidationProblem[] = [];
+	for (const conflict of authorConflicts(family))
+		problems.push(`${where}: ${conflict} is an author of the family and cannot judge it`);
 	if (block.specialization !== family.specialization)
 		problems.push(`${where}: block ${family.block} is not of ${family.specialization}`);
 	if (!family.key.startsWith(`${family.block}.`)) problems.push(`${where}: key must start with its block`);
@@ -468,36 +487,50 @@ export function familyProblems(
 		if (!definition?.blocks.some((q) => q.block === family.block)) {
 			problems.push(`${lw}: the ${level.grade} test of ${family.specialization} has no ${family.block} slots`);
 		}
-		const raters = level.angoff.ratings.map((r) => reviewerIdentity(r.rater));
-		if (new Set(raters).size < gates.angoffRatersMin)
-			problems.push(
-				`${lw}: Angoff needs ${gates.angoffRatersMin} independent raters (models of different lineages or persons)`
-			);
+		const ratings = level.angoff.ratings;
+		const raters = ratings.map((r) => reviewerIdentity(r.rater));
 		if (duplicates(raters).length) problems.push(`${lw}: a rater (or a model lineage) rated twice`);
-		if (level.angoff.ratings.some((r) => r.sourceSha256 !== sourceSha256))
-			problems.push(`${lw}: an Angoff rating was made on other sources of the family — rate again`);
-		for (const rating of level.angoff.ratings) {
+		for (const rating of ratings) {
 			if (!onAngoffScale(rating.p)) problems.push(`${lw}: Angoff rating ${rating.p} is not on the 0.05 scale`);
 		}
-		const ps = level.angoff.ratings.map((r) => r.p);
-		const mean = ps.reduce((sum, p) => sum + p, 0) / Math.max(ps.length, 1);
-		// The cut of the level is the mean on the procedure's scale, ties rounded up (the stricter cut).
-		const scaled = Math.floor(mean * SCALE + 0.5 + 1e-9) / SCALE;
-		if (Math.abs(scaled - level.angoff.mean) > 1e-9)
-			problems.push(
-				`${lw}: Angoff mean ${level.angoff.mean} is not ${scaled.toFixed(2)} (mean ${mean.toFixed(3)} on the 1/20 scale)`
-			);
-		if (isPractice(family.format) && (scaled < gates.practiceAngoff.min || scaled > gates.practiceAngoff.max)) {
+		// The cut in force: the mean of the current ratings once enough independent raters judged the sources; until then
+		// `mean` is the authors' provisional cut — only its scale and, for a practice, its range are checked.
+		const current = ratings.filter((r) => r.sourceSha256 === sourceSha256);
+		const rated = new Set(current.map((r) => reviewerIdentity(r.rater))).size >= gates.angoffRatersMin;
+		if (!rated && !onScale(level.angoff.mean))
+			problems.push(`${lw}: Angoff mean ${level.angoff.mean} is not on the 1/20 scale`);
+		if (
+			isPractice(family.format) &&
+			(level.angoff.mean < gates.practiceAngoff.min - 1e-9 || level.angoff.mean > gates.practiceAngoff.max + 1e-9)
+		) {
 			problems.push(
 				`${lw}: a practice cluster is a gate the borderline candidate passes: Angoff ${gates.practiceAngoff.min}–${gates.practiceAngoff.max}`
 			);
 		}
-		if (Math.max(...ps) - Math.min(...ps) > gates.angoffGapMax + 1e-9) {
+		const gap =
+			rated && Math.max(...current.map((r) => r.p)) - Math.min(...current.map((r) => r.p)) > gates.angoffGapMax + 1e-9;
+		if (!rated) {
+			awaiting.push({
+				code: 'awaiting_raters',
+				message: `${lw}: awaits ${gates.angoffRatersMin} independent Angoff ratings on the current sources (provisional cut ${level.angoff.mean})`
+			});
+		} else if (gap && level.angoff.round !== 2) {
+			awaiting.push({
+				code: 'awaiting_raters',
+				message: `${lw}: ratings differ by more than ${gates.angoffGapMax} — awaits the second round`
+			});
+		} else if (gap) {
 			problems.push(
-				level.angoff.round === 2
-					? `${lw}: ratings still differ by more than ${gates.angoffGapMax} after the second round — not admitted`
-					: `${lw}: ratings differ by more than ${gates.angoffGapMax} — the second round is required`
+				`${lw}: ratings still differ by more than ${gates.angoffGapMax} after the second round — not admitted`
 			);
+		} else {
+			const mean = current.reduce((sum, r) => sum + r.p, 0) / current.length;
+			// The cut of the level is the mean on the procedure's scale, ties rounded up (the stricter cut).
+			const scaled = Math.floor(mean * SCALE + 0.5 + 1e-9) / SCALE;
+			if (Math.abs(scaled - level.angoff.mean) > 1e-9)
+				problems.push(
+					`${lw}: Angoff mean ${level.angoff.mean} is not ${scaled.toFixed(2)} (mean ${mean.toFixed(3)} on the 1/20 scale)`
+				);
 		}
 		const ids = level.classes.map((c) => c.id);
 		for (const id of duplicates(ids)) problems.push(`${lw}: class ${id} twice`);
@@ -573,15 +606,40 @@ export function familyProblems(
 	if (family.wrongSolutions.length < minimum) problems.push(`${where}: fewer than ${minimum} wrong solutions`);
 	for (const id of duplicates(family.wrongSolutions.map((w) => w.id)))
 		problems.push(`${where}: wrong solution ${id} twice`);
-	problems.push(...gateProblems(family, sourceSha256, gates));
-	return problems;
+	const gate = gateProblems(family, sourceSha256, gates);
+	return [...defects([...problems, ...gate.defects]), ...awaiting, ...gate.awaiting];
+}
+
+/**
+ * Judges who are authors of the family: a person named among the authors, or a model whose name or lineage an author
+ * entry names (an author drafted by a model is written with its model and provider).
+ */
+function authorConflicts(family: FamilyDescriptor): string[] {
+	const authors = family.authorship.authors.map((a) => a.toLowerCase());
+	const judges = [
+		...family.gates.rubricReviews.map((r) => r.reviewer),
+		...family.levels.flatMap((l) => l.angoff.ratings.map((r) => r.rater))
+	];
+	const conflicts = judges.filter((judge) =>
+		judge.kind === 'person'
+			? authors.includes(judge.name.toLowerCase())
+			: authors.some((a) => a.includes(judge.model.toLowerCase()) || a.includes(judge.lineage.toLowerCase()))
+	);
+	return [
+		...new Set(conflicts.map((judge) => (judge.kind === 'person' ? judge.name : `${judge.model} (${judge.lineage})`)))
+	];
 }
 
 /** The admission gates of a family: reference, wrong solutions, hidden tests, collisions, transfer, rubric review. */
-function gateProblems(family: FamilyDescriptor, sourceSha256: string, gates: FamilyGates): string[] {
+function gateProblems(
+	family: FamilyDescriptor,
+	sourceSha256: string,
+	gates: FamilyGates
+): { defects: string[]; awaiting: ValidationProblem[] } {
 	const where = `family ${family.key}: gate`;
 	const report = family.gates;
 	const problems: string[] = [];
+	const awaiting: ValidationProblem[] = [];
 	if (report.reference.seeds < gates.referenceSeedsMin || report.reference.failures > 0) {
 		problems.push(`${where} reference on ${report.reference.seeds} seeds with ${report.reference.failures} failures`);
 	}
@@ -610,15 +668,20 @@ function gateProblems(family: FamilyDescriptor, sourceSha256: string, gates: Fam
 		approved.filter((x) => x.reviewer.kind === 'model').map((x) => reviewerIdentity(x.reviewer))
 	);
 	if (persons.size < gates.reviewsNeeded.persons && lineages.size < gates.reviewsNeeded.models) {
-		problems.push(
-			`${where} rubric needs ${gates.reviewsNeeded.models} approvals by models of different lineages or ${gates.reviewsNeeded.persons} by a person on the current sources`
-		);
+		awaiting.push({
+			code: 'awaiting_reviews',
+			message: `${where} rubric needs ${gates.reviewsNeeded.models} approvals by models of different lineages or ${gates.reviewsNeeded.persons} by a person on the current sources`
+		});
 	}
-	return problems;
+	return { defects: problems, awaiting };
 }
 
 /** A generated instance against its descriptor: the same family, level, class, format and answer kind, a usable answer. */
-export function instanceProblems(instance: ItemInstance, family: FamilyDescriptor): string[] {
+export function instanceProblems(instance: ItemInstance, family: FamilyDescriptor): ValidationProblem[] {
+	return defects(instanceDefects(instance, family));
+}
+
+function instanceDefects(instance: ItemInstance, family: FamilyDescriptor): string[] {
 	const where = `instance ${instance.family}/${instance.seed}`;
 	const problems = shapeProblems(instanceSchema, instance, where);
 	if (problems.length) return problems;
@@ -694,7 +757,11 @@ export function trajectoryReportProblems(
 	report: TrajectoryReport,
 	release: BankRelease,
 	procedure: ProcedureParams
-): string[] {
+): ValidationProblem[] {
+	return defects(trajectoryDefects(report, release, procedure));
+}
+
+function trajectoryDefects(report: TrajectoryReport, release: BankRelease, procedure: ProcedureParams): string[] {
 	const where = `trajectory report of ${release.id}`;
 	const acceptance = procedure.trajectoryAcceptance;
 	const problems: string[] = [];
@@ -739,9 +806,10 @@ export function releaseProblems(
 	procedure: ProcedureParams,
 	report: TrajectoryReport,
 	gates: FamilyGates = FAMILY_GATES
-): string[] {
+): ValidationProblem[] {
 	const where = `release ${release.id}`;
 	const problems: string[] = [];
+	const judged: ValidationProblem[] = [];
 	if (release.catalogVersion !== CATALOG.version)
 		problems.push(`${where}: catalog ${release.catalogVersion}, current ${CATALOG.version}`);
 	if (release.procedureVersion !== procedure.version)
@@ -755,7 +823,7 @@ export function releaseProblems(
 			problems.push(`${where}: ${family.key} is of ${family.specialization}`);
 		const source = release.familySources[family.key];
 		if (source === undefined) problems.push(`${where}: no source hash of ${family.key}`);
-		else problems.push(...familyProblems(family, source, gates));
+		else judged.push(...familyProblems(family, source, gates));
 	}
 	for (const g of GRADE_KEYS) {
 		const anchors = release.families.filter((f) =>
@@ -778,8 +846,7 @@ export function releaseProblems(
 		const steps = [...new Set(check.shortages.map((s) => `${s.step} in ${s.block}`))].join(', ');
 		problems.push(`${where}: ${check.grade} ${check.scenario.join('→')} runs out: ${steps}`);
 	}
-	problems.push(...trajectoryReportProblems(report, release, procedure));
-	return problems;
+	return [...defects(problems), ...judged, ...trajectoryReportProblems(report, release, procedure)];
 }
 
 /** The family-levels of a grade a release has, by block: what the factory reports against the quotas. */

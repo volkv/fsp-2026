@@ -4,7 +4,8 @@
 // a new release `<specialization>@<catalog>-<n>` that replaces the one in force, only if it has no problem
 // (`releaseProblems` of the contract): every family passes its admission gates, generators produce valid instances, every
 // extreme history is served (`capacityChecks`) and the engine's trajectory report meets `trajectoryAcceptance`. A bank with problems is not
-// released and its specialization stays closed (`specializationOpen`); the problems are printed.
+// released and its specialization stays closed (`specializationOpen`); the problems are printed, defects apart from the
+// judgements the bank still awaits (Angoff ratings, rubric reviews).
 //
 // `--check` only checks the tree and exits with 1 on any problem, without a database. Runs with plain Node.
 import { fileURLToPath } from 'node:url';
@@ -12,6 +13,7 @@ import postgres from 'postgres';
 import { loadBankTree, type LoadedBank } from '../src/lib/server/assessments/families.ts';
 import { assembleRelease, releaseContentSha256 } from '../src/lib/server/assessments/release.ts';
 import type { SpecializationKey } from '../src/lib/server/assessments/contract/catalog.ts';
+import type { ValidationProblem } from '../src/lib/server/assessments/contract/validate.ts';
 
 export const BANK_TREE = fileURLToPath(new URL('../assessments/families', import.meta.url));
 
@@ -19,7 +21,7 @@ export interface ReleaseOutcome {
 	specialization: SpecializationKey;
 	outcome: 'released' | 'unchanged' | 'refused';
 	id: string | null;
-	problems: string[];
+	problems: ValidationProblem[];
 }
 
 /** Publishes the releases in one transaction under an advisory lock; concurrent starts publish once. */
@@ -69,7 +71,12 @@ function report(outcomes: readonly ReleaseOutcome[]): void {
 	if (outcomes.length === 0) console.log('Bank releases: no families in the bank tree');
 	for (const outcome of outcomes) {
 		console.log(`Bank release ${outcome.specialization}: ${outcome.outcome}${outcome.id ? ` ${outcome.id}` : ''}`);
-		for (const problem of outcome.problems) console.error(`  ${problem}`);
+		const defects = outcome.problems.filter((p) => p.code === 'defect');
+		const awaiting = outcome.problems.filter((p) => p.code !== 'defect');
+		if (defects.length > 0) console.error(`  defects (${defects.length}):`);
+		for (const problem of defects) console.error(`    ${problem.message}`);
+		if (awaiting.length > 0) console.error(`  awaiting judgements (${awaiting.length}):`);
+		for (const problem of awaiting) console.error(`    ${problem.code}: ${problem.message}`);
 	}
 }
 

@@ -34,7 +34,8 @@ export async function releaseFixtureBank(
 	const families = fixtureFamilies(specialization, options);
 	const sharedSha256 = '0'.repeat(64);
 	const assembled = assembleRelease(specialization, families, sharedSha256, options.n ?? 1);
-	if (assembled.problems.length > 0) throw new Error(`fixture bank: ${assembled.problems.join('; ')}`);
+	if (assembled.problems.length > 0)
+		throw new Error(`fixture bank: ${assembled.problems.map((p) => `${p.code}: ${p.message}`).join('; ')}`);
 	await db.insert(bankReleases).values({
 		id: assembled.release.id,
 		specialization,

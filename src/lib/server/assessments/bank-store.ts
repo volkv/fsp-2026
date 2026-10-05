@@ -14,9 +14,9 @@ import {
 	type SpecializationKey
 } from './contract/catalog';
 import type { FamilyModule, Reviewer } from './contract/bank';
-import type { TrajectoryReport } from './contract/validate';
-import { loadFamily, sharedCodeSha256 } from './families';
-import type { GradeJudgement, ManifestFamily, ReleaseManifest } from './release';
+import { familyProblems, type TrajectoryReport, type ValidationProblem } from './contract/validate';
+import { loadBankTree, loadFamily, sharedCodeSha256 } from './families';
+import { servingProblems, type GradeJudgement, type ManifestFamily, type ReleaseManifest } from './release';
 
 /** The bank tree next to the application: the repository in development, `/app` in the image. */
 export const BANK_ROOT = resolve(process.cwd(), 'assessments/families');
@@ -159,6 +159,33 @@ export async function confirmingBlocks(
 		}
 	}
 	return result;
+}
+
+/** The families of a specialization in the bank tree on disk, by what keeps each out of a release. */
+export interface TreeFamilies {
+	specialization: SpecializationKey;
+	families: number;
+	/** Data to fix: the contract's gates and what the engine needs to serve. */
+	defects: string[];
+	/** Judgements the families wait for: independent Angoff ratings and rubric reviews on the current sources. */
+	awaiting: ValidationProblem[];
+}
+
+/**
+ * The families of the bank tree checked one by one (`familyProblems` and `servingProblems`), defects apart from pending
+ * judgements. The checks of a whole release — capacity, anchors, trajectories — run when the bank is released.
+ */
+export async function bankTreeFamilies(root: string = BANK_ROOT): Promise<TreeFamilies[]> {
+	const tree = await loadBankTree(root);
+	return [...tree].map(([specialization, { families }]) => {
+		const problems = families.flatMap((f) => [...familyProblems(f.descriptor, f.sourceSha256), ...servingProblems(f)]);
+		return {
+			specialization,
+			families: families.length,
+			defects: problems.filter((p) => p.code === 'defect').map((p) => p.message),
+			awaiting: problems.filter((p) => p.code !== 'defect')
+		};
+	});
 }
 
 /** The reviews and Angoff ratings of a family in a release, each marked whether it was made on the recorded sources. */

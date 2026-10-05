@@ -1,5 +1,5 @@
 import { adminRequest } from '$lib/server/admin/http';
-import { bankReleasesOverview } from '$lib/server/assessments/bank-store';
+import { bankReleasesOverview, bankTreeFamilies } from '$lib/server/assessments/bank-store';
 import { CATALOG } from '$lib/server/assessments/contract/catalog';
 import { requirePermission } from '$lib/server/companies/context';
 import { db } from '$lib/server/db';
@@ -13,6 +13,7 @@ export const load: PageServerLoad = async (event) => {
 		requirePermission(subject, 'policy.manage', null);
 		return {
 			releases: await bankReleasesOverview(db()),
+			tree: await bankTreeFamilies(),
 			specializations: CATALOG.specializations.map((s) => ({
 				key: s.key,
 				title: s.title,

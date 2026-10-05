@@ -41,6 +41,53 @@
 	</Card.Content>
 </Card.Root>
 
+<Card.Root data-testid="bank-tree">
+	<Card.Header>
+		<Card.Title>Семейства в банке</Card.Title>
+		<Card.Description>
+			Каждое семейство проверено отдельно. Дефект — данные надо исправить; ожидание — семейство ждёт независимых
+			Angoff-оценок или ревью рубрики на текущих исходниках. Выпуск не допускается ни с тем, ни с другим.
+		</Card.Description>
+	</Card.Header>
+	<Card.Content class="grid gap-3 text-sm">
+		{#each data.tree as spec (spec.specialization)}
+			<div class="grid gap-1" data-testid="bank-tree-specialization" data-key={spec.specialization}>
+				<p class="flex flex-wrap items-center gap-2">
+					<span class="font-medium">{spec.specialization}</span>
+					<span class="text-muted-foreground">семейств {spec.families}</span>
+					<StatusPill label={`дефектов ${spec.defects.length}`} tone={spec.defects.length > 0 ? 'danger' : 'success'} />
+					<StatusPill
+						label={`ждут оценок и ревью ${spec.awaiting.length}`}
+						tone={spec.awaiting.length > 0 ? 'warning' : 'success'}
+					/>
+				</p>
+				{#if spec.defects.length > 0}
+					<details data-testid="bank-tree-defects">
+						<summary class="cursor-pointer">Дефекты</summary>
+						<ul class="mt-1 grid gap-0.5">
+							{#each spec.defects as message, index (index)}<li>{message}</li>{/each}
+						</ul>
+					</details>
+				{/if}
+				{#if spec.awaiting.length > 0}
+					<details data-testid="bank-tree-awaiting">
+						<summary class="cursor-pointer">Ожидают суждений</summary>
+						<ul class="mt-1 grid gap-0.5">
+							{#each spec.awaiting as problem, index (index)}
+								<li>
+									{problem.code === 'awaiting_raters' ? 'оценки Angoff' : 'ревью рубрики'}: {problem.message}
+								</li>
+							{/each}
+						</ul>
+					</details>
+				{/if}
+			</div>
+		{:else}
+			<p class="text-muted-foreground">В дереве банка нет семейств.</p>
+		{/each}
+	</Card.Content>
+</Card.Root>
+
 {#each data.releases as release (release.id)}
 	<Card.Root data-testid="bank-release" data-status={release.status}>
 		<Card.Header>

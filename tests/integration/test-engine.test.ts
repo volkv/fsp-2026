@@ -843,7 +843,9 @@ describe('the release of the bank', () => {
 			const lacking = families.filter((f) => f.descriptor.key !== 'ds.stats.intern-0');
 			const [refused] = await publishBankReleases(client, bank(lacking));
 			expect(refused?.outcome).toBe('refused');
-			expect(refused?.problems.some((p) => /intern .* runs out: .*ds\.stats/.test(p))).toBe(true);
+			expect(
+				refused?.problems.some((p) => p.code === 'defect' && /intern .* runs out: .*ds\.stats/.test(p.message))
+			).toBe(true);
 		} finally {
 			await client.end({ timeout: 5 });
 		}
