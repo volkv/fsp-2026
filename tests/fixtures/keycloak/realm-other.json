@@ -1,0 +1,48 @@
+{
+	"realm": "other",
+	"enabled": true,
+	"sslRequired": "none",
+	"registrationAllowed": false,
+	"loginWithEmailAllowed": true,
+	"clients": [
+		{
+			"clientId": "fsp-career-test",
+			"name": "FSP Career",
+			"enabled": true,
+			"protocol": "openid-connect",
+			"publicClient": false,
+			"clientAuthenticatorType": "client-secret",
+			"secret": "keycloak-test-client-secret-0123456789abcdef",
+			"standardFlowEnabled": true,
+			"implicitFlowEnabled": false,
+			"directAccessGrantsEnabled": false,
+			"serviceAccountsEnabled": false,
+			"consentRequired": false,
+			"redirectUris": ["http://app.test/auth/fsp/callback"],
+			"webOrigins": [],
+			"attributes": {
+				"pkce.code.challenge.method": "S256"
+			},
+			"defaultClientScopes": ["basic", "profile", "email"],
+			"optionalClientScopes": []
+		}
+	],
+	"users": [
+		{
+			"username": "ivan.petrov",
+			"enabled": true,
+			"email": "ivan.petrov@example.org",
+			"emailVerified": true,
+			"firstName": "Иван",
+			"lastName": "Петров",
+			"requiredActions": [],
+			"credentials": [
+				{
+					"type": "password",
+					"value": "keycloak-test-password",
+					"temporary": false
+				}
+			]
+		}
+	]
+}
