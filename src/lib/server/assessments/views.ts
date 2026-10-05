@@ -264,6 +264,23 @@ async function attemptJudgement(
 	return judgement;
 }
 
+/**
+ * How the clusters of the attempt of a decision were judged: what the result screen and the confirmation of a category
+ * by QR (domain 12.9) both say. A decision that is not recorded is a defect of the caller.
+ */
+export async function decisionJudgement(db: Executor, decisionId: string): Promise<JudgementProvenance> {
+	const [decision] = await db
+		.select({
+			attemptId: gradeDecisions.attemptId,
+			bankReleaseId: gradeDecisions.bankReleaseId,
+			grade: gradeDecisions.grade
+		})
+		.from(gradeDecisions)
+		.where(eq(gradeDecisions.id, decisionId));
+	if (!decision) throw new Error(`decision ${decisionId} is not recorded`);
+	return attemptJudgement(db, decision.attemptId, decision.bankReleaseId, decision.grade as GradeKey);
+}
+
 /** The candidate's decision with its explanation, from the stored decision without recomputing. */
 export async function decisionView(
 	db: Executor,

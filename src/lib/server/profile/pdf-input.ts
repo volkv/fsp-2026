@@ -108,7 +108,7 @@ export async function buildProfilePdf(
 	const survey = surveys[0] ?? null;
 	const declaration = survey === null ? null : await currentDeclaration(deps.db, candidateId, survey.specialization);
 
-	const categories = attestations.map(({ category, handle }) => {
+	const categories = attestations.map(({ category, handle, judgementNote }) => {
 		const title = categoryTitle(category.specialization, category.grade);
 		return {
 			title: `${title.specialization} · ${title.grade}`,
@@ -118,6 +118,7 @@ export async function buildProfilePdf(
 			catalogVersion: category.catalogVersion,
 			bankReleaseId: category.bankReleaseId,
 			verifyUrl: attestationUrl(deps.signer.issuer, handle),
+			judgementNote,
 			doesNotAssert: [
 				...CATALOG.commonDoesNotCheck,
 				...gradeDefinition(category.specialization, category.grade).doesNotCheck,

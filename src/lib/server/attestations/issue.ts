@@ -5,6 +5,7 @@
 // answers `superseded` or `annulled` at its check.
 import { createHash, randomBytes } from 'node:crypto';
 import { eq, inArray } from 'drizzle-orm';
+import { decisionJudgement } from '$lib/server/assessments/views';
 import { activeCategories, type ActiveCategory } from '$lib/server/categories/read';
 import { base32 } from '$lib/server/crypto/encoding';
 import type { Executor, Transaction } from '$lib/server/db';
@@ -12,7 +13,9 @@ import { categoryAttestations } from '$lib/server/db/schema';
 import type { ReceiptSigner } from '$lib/server/fsp/receipts';
 import { canonicalJson } from '$lib/server/json/canonical';
 import type { FullName } from '$lib/server/profile/contacts';
-import { categoryStatement, commitmentOfName } from './statement';
+import { attestationStatementSchema, categoryStatement, commitmentOfName } from './statement';
+
+const noteOf = (statement: unknown): string | null => attestationStatementSchema.parse(statement).judgement.note;
 
 export interface IssuedAttestation {
 	handle: string;
@@ -21,6 +24,8 @@ export interface IssuedAttestation {
 	holderCode: string;
 	/** `true` — issued now; `false` — the confirmation of this assignment existed. */
 	issued: boolean;
+	/** The note on how the clusters of the attempt were judged, as the statement says it; `null` — signed by people. */
+	judgementNote: string | null;
 }
 
 /**
@@ -38,7 +43,8 @@ export async function ensureAttestations(
 		.select({
 			categoryId: categoryAttestations.categoryId,
 			handle: categoryAttestations.handle,
-			holderNonce: categoryAttestations.holderNonce
+			holderNonce: categoryAttestations.holderNonce,
+			statement: categoryAttestations.statement
 		})
 		.from(categoryAttestations)
 		.where(
@@ -52,7 +58,13 @@ export async function ensureAttestations(
 	for (const category of categories) {
 		const found = byCategory.get(category.id);
 		if (found) {
-			result.push({ handle: found.handle, category, holderCode: base32(found.holderNonce), issued: false });
+			result.push({
+				handle: found.handle,
+				category,
+				holderCode: base32(found.holderNonce),
+				issued: false,
+				judgementNote: noteOf(found.statement)
+			});
 			continue;
 		}
 		const nonce = randomBytes(32);
@@ -60,7 +72,8 @@ export async function ensureAttestations(
 			holderCommitment: commitmentOfName(input.holder, nonce),
 			issuer: signer.issuer,
 			signingKeyId: signer.keyId,
-			issuedAt: input.now
+			issuedAt: input.now,
+			judgement: await decisionJudgement(tx, category.decisionId)
 		});
 		const canonical = canonicalJson(statement);
 		const handle = base32(randomBytes(16));
@@ -83,15 +96,31 @@ export async function ensureAttestations(
 			.onConflictDoNothing({ target: categoryAttestations.categoryId })
 			.returning({ handle: categoryAttestations.handle });
 		if (inserted.length > 0) {
-			result.push({ handle, category, holderCode: base32(nonce), issued: true });
+			result.push({
+				handle,
+				category,
+				holderCode: base32(nonce),
+				issued: true,
+				judgementNote: statement.judgement.note
+			});
 			continue;
 		}
 		const [concurrent] = await tx
-			.select({ handle: categoryAttestations.handle, holderNonce: categoryAttestations.holderNonce })
+			.select({
+				handle: categoryAttestations.handle,
+				holderNonce: categoryAttestations.holderNonce,
+				statement: categoryAttestations.statement
+			})
 			.from(categoryAttestations)
 			.where(eq(categoryAttestations.categoryId, category.id));
 		if (!concurrent) throw new Error(`the confirmation of category ${category.id} conflicted and is missing`);
-		result.push({ handle: concurrent.handle, category, holderCode: base32(concurrent.holderNonce), issued: false });
+		result.push({
+			handle: concurrent.handle,
+			category,
+			holderCode: base32(concurrent.holderNonce),
+			issued: false,
+			judgementNote: noteOf(concurrent.statement)
+		});
 	}
 	return result;
 }

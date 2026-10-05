@@ -100,6 +100,10 @@
 				решение
 				{day(data.statement.decidedOn)}
 			</dd>
+			{#if data.statement.judgementNote}
+				<dt class="text-muted-foreground">Проверка заданий</dt>
+				<dd data-testid="attestation-judgement">{data.statement.judgementNote}</dd>
+			{/if}
 			<dt class="text-muted-foreground">Не проверяется</dt>
 			<dd>
 				<ul class="grid list-disc gap-1 pl-4">

@@ -52,6 +52,7 @@ export const load: PageServerLoad = async (event) => {
 			decidedOn: statement.decided_on,
 			issuedOn: statement.issued_on,
 			doesNotAssert: statement.does_not_assert,
+			judgementNote: statement.judgement.note,
 			holderCommitment: statement.holder_commitment,
 			issuer: statement.issuer.platform
 		},

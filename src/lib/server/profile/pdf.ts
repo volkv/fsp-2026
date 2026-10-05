@@ -15,6 +15,8 @@ export interface ProfilePdfCategory {
 	catalogVersion: string;
 	bankReleaseId: string;
 	verifyUrl: string;
+	/** How the clusters of the attempt were judged (domain 10.8); `null` — signed by people. */
+	judgementNote: string | null;
 	doesNotAssert: string[];
 }
 
@@ -132,6 +134,7 @@ function category(doc: Doc, item: ProfilePdfCategory): void {
 		size: 9,
 		width: textWidth
 	});
+	if (item.judgementNote !== null) paragraph(doc, item.judgementNote, { muted: true, size: 9, width: textWidth });
 	paragraph(doc, `Не проверяется: ${item.doesNotAssert.join('; ')}.`, { muted: true, size: 9, width: textWidth });
 	doc
 		.font('regular')

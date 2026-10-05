@@ -22,6 +22,7 @@ const input: ProfilePdfInput = {
 			catalogVersion: '2026.10.2',
 			bankReleaseId: 'bank-2026.10.1',
 			verifyUrl: VERIFY_URL,
+			judgementNote: 'Рубрики заданий проверены независимыми моделями — их подтверждают эксперты.',
 			doesNotAssert: ['Работу в команде']
 		}
 	],

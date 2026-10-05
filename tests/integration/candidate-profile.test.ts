@@ -718,7 +718,20 @@ describe('PDF profile and the confirmation of the category', () => {
 		const response = await checkThroughApi(attestation.handle);
 		expect(response.status).toBe(200);
 		const body = (await response.json()) as { status: string; statement: Record<string, unknown>; signature: string };
-		expect(body).toMatchObject({ status: 'valid', statement: { specialization: 'backend', grade: 'junior' } });
+		// The decision of the helper serves no cluster: nothing was judged by models, the note is absent.
+		expect(body).toMatchObject({
+			status: 'valid',
+			statement: {
+				specialization: 'backend',
+				grade: 'junior',
+				judgement: {
+					rubric_by_models_only: false,
+					angoff_provisional: false,
+					same_vendor_reviewer: false,
+					note: null
+				}
+			}
+		});
 		expect(checkReceiptSignature(body.statement, body.signature, 'test-1', keySet)).toBe('valid');
 		const published = JSON.stringify(body);
 		for (const secret of ['Иванова', 'Мария', '9123456789', 'maria', candidate.id, candidate.userId]) {

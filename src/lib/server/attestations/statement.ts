@@ -12,6 +12,8 @@ import {
 	type GradeKey,
 	type SpecializationKey
 } from '$lib/server/assessments/contract/catalog';
+import type { JudgementProvenance } from '$lib/server/assessments/contract/bank';
+import { judgementNote } from '$lib/server/assessments/explain';
 import type { ActiveCategory } from '$lib/server/categories/read';
 import { normalizedFullName, type FullName } from '$lib/server/profile/contacts';
 
@@ -39,7 +41,14 @@ const day = (moment: Date): string => moment.toISOString().slice(0, 10);
 /** The statement of an assignment, as signed. */
 export function categoryStatement(
 	category: ActiveCategory,
-	input: { holderCommitment: string; issuer: string; signingKeyId: string; issuedAt: Date }
+	input: {
+		holderCommitment: string;
+		issuer: string;
+		signingKeyId: string;
+		issuedAt: Date;
+		/** How the clusters of the attempt of the decision were judged (domain 10.8). */
+		judgement: JudgementProvenance;
+	}
 ) {
 	const definition = gradeDefinition(category.specialization, category.grade);
 	return {
@@ -53,6 +62,12 @@ export function categoryStatement(
 		bank_release_id: category.bankReleaseId,
 		decided_on: day(category.assignedAt),
 		does_not_assert: [...CATALOG.commonDoesNotCheck, ...definition.doesNotCheck, ...ATTESTATION_LIMITS],
+		judgement: {
+			rubric_by_models_only: input.judgement.rubricByModelsOnly,
+			angoff_provisional: input.judgement.angoffProvisional,
+			same_vendor_reviewer: input.judgement.sameVendorReviewer,
+			note: judgementNote(input.judgement)
+		},
 		holder_commitment: input.holderCommitment,
 		issued_on: day(input.issuedAt),
 		issuer: { platform: input.issuer, signing_key_id: input.signingKeyId }
@@ -74,6 +89,21 @@ export const attestationStatementSchema = z
 		bank_release_id: z.string().describe('Выпуск банка заданий, на котором принято решение'),
 		decided_on: z.string().describe('День решения теста'),
 		does_not_assert: z.array(z.string()).describe('Что подтверждение не подтверждает'),
+		judgement: z
+			.object({
+				rubric_by_models_only: z.boolean().describe('Рубрика хоть одного задания попытки одобрена только моделями'),
+				angoff_provisional: z
+					.boolean()
+					.describe('Порог хоть одного задания попытки — по оценкам моделей, предварительный'),
+				same_vendor_reviewer: z
+					.boolean()
+					.describe('Одна из моделей-рецензентов — того же поставщика, что модель-автор заданий'),
+				note: z
+					.string()
+					.nullable()
+					.describe('Подпись о проверке заданий словами; `null` — все задания попытки подписаны людьми')
+			})
+			.describe('Как проверены задания попытки решения (рубрики, пороги, рецензенты)'),
 		holder_commitment: z
 			.string()
 			.describe('SHA-256 от ФИО владельца и секретной соли: само ФИО по нему не восстановить'),

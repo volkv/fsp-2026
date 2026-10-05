@@ -13,6 +13,10 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { AccessSubject } from '$lib/server/access/permissions';
 import { annulAttempt } from '$lib/server/assessments/annul';
 import { judgementNote } from '$lib/server/assessments/explain';
+import { ensureAttestations } from '$lib/server/attestations/issue';
+import { attestationStatementSchema } from '$lib/server/attestations/statement';
+import { verifyAttestation } from '$lib/server/attestations/verify';
+import { createReceiptSigner } from '$lib/server/fsp/receipts';
 import type { ItemInstance } from '$lib/server/assessments/contract/bank';
 import { CATALOG, type SpecializationKey } from '$lib/server/assessments/contract/catalog';
 import type { CategoryChange } from '$lib/server/assessments/contract/policy';
@@ -419,6 +423,26 @@ describe('a whole attempt', () => {
 		expect(judgementNote(view.judgement)).toBe(
 			'Рубрики заданий проверены независимыми моделями, пороги предварительные — их подтверждают эксперты.'
 		);
+		// The confirmation of the category by QR says the same in its signed statement (domain 12.9).
+		const [attestation] = await database.db.transaction((tx) =>
+			ensureAttestations(
+				tx,
+				createReceiptSigner({ issuer: 'http://localhost', keyId: 'test-1', seed: randomBytes(32) }),
+				{
+					candidateId,
+					holder: { last: 'Тестова', first: 'Анна', middle: null },
+					now: new Date()
+				}
+			)
+		);
+		const verified = await verifyAttestation(database.db, attestation?.handle ?? '');
+		expect(attestationStatementSchema.parse(verified?.statement).judgement).toEqual({
+			rubric_by_models_only: true,
+			angoff_provisional: true,
+			same_vendor_reviewer: false,
+			note: judgementNote(view.judgement)
+		});
+		expect(attestation?.judgementNote).toBe(judgementNote(view.judgement));
 		expect(judgementNote({ ...view.judgement, sameVendorReviewer: true })).toBe(
 			'Рубрики заданий проверены независимыми моделями, пороги предварительные — их подтверждают эксперты; ' +
 				'одна из моделей-рецензентов — того же поставщика, что автор заданий.'
