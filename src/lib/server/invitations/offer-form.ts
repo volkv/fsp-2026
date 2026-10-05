@@ -3,10 +3,12 @@
 // preferences the card shows — and the reading of the posted form into the input of the sending. The service checks
 // every source again: a point the form names is not trusted for being on the page.
 import { AWARDS, DISCIPLINES } from '$lib/components/product/model.js';
+import { CATALOG } from '$lib/server/assessments/contract/catalog';
 import { formText } from '$lib/server/auth/http';
 import { loadCompanyProfile } from '$lib/server/companies/public-profile';
 import type { Executor } from '$lib/server/db';
 import { searchableVacancies } from '$lib/server/employer/vacancies';
+import type { CompanyNeedMatch } from '$lib/server/matching/search';
 import type { Vocabulary } from '$lib/server/employer/vocabulary';
 import type { CandidateCard } from '$lib/server/visibility/projections';
 import { currentPolicy } from './policies';
@@ -69,6 +71,79 @@ export function whyYouOptions(
 		options.push(option('Готов к переезду', { kind: 'preference', ref: 'relocation' }));
 	}
 	return options;
+}
+
+/** What a reason of a shortlist needs to be worded: names of skills, formats, blocks and categories. */
+export interface ShortlistNames {
+	skills: Readonly<Record<string, string>>;
+	workFormats: Readonly<Record<string, string>>;
+	specializations: Readonly<Record<string, string>>;
+	grades: Readonly<Record<string, string>>;
+}
+
+/**
+ * Points of «why you» from the reasons a shortlist gave for the candidate (domain 13.10): a block of the test by its
+ * code, a claimed skill by its key, the work format; an FSP result by the receipts the card issued to the company. A
+ * reason with no source an offer accepts (a public profile) gives no point. The strongest reasons come first.
+ */
+export function whyYouFromShortlist(
+	match: CompanyNeedMatch,
+	cardOptions: readonly WhyYouOption[],
+	names: ShortlistNames
+): WhyYouOption[] {
+	const skill = (key: string) => names.skills[key] ?? key;
+	const category = (specialization: string, grade: string) =>
+		`${names.specializations[specialization] ?? specialization} ${names.grades[grade] ?? grade}`;
+	const block = (code: string) => CATALOG.blocks.find((b) => b.code === code)?.title ?? code;
+	const points: WhyYouOption[] = [];
+	for (const reason of match.reasons) {
+		const source = reason.source;
+		switch (reason.code) {
+			case 'skills_test':
+				if (source.kind === 'test_block') {
+					const text = `Тест подтвердил: ${reason.skill_keys.map(skill).join(', ')} — блок «${block(source.ref)}», ${category(source.specialization, source.grade)}`;
+					points.push(option(text, { kind: 'test_block', ref: source.ref }));
+				}
+				break;
+			case 'test_result':
+				if (source.kind === 'test_block') {
+					const text = `Категория ${category(source.specialization, source.grade)} подтверждена тестом; сильнее всего — блок «${block(source.ref)}»`;
+					points.push(option(text, { kind: 'test_block', ref: source.ref }));
+				}
+				break;
+			case 'confirmed_recently':
+				if (source.kind === 'test_block') {
+					const text = `Категория ${category(source.specialization, source.grade)} подтверждена тестом ${reason.days} дн. назад`;
+					points.push(option(text, { kind: 'test_block', ref: source.ref }));
+				}
+				break;
+			case 'skills_fsp':
+			case 'fsp_related':
+				points.push(...cardOptions.filter((card) => card.source.kind === 'fsp_fact'));
+				break;
+			case 'skills_claimed':
+			case 'skills_claimed_untestable': {
+				const [first] = reason.skill_keys;
+				if (first !== undefined) {
+					points.push(option(`В профиле — ${skill(first)} (заявлено)`, { kind: 'declared_skill', ref: first }));
+				}
+				break;
+			}
+			case 'format_fits':
+				points.push(
+					option(`Подходящий формат работы: ${names.workFormats[reason.format] ?? reason.format}`, {
+						kind: 'preference',
+						ref: 'work_formats'
+					})
+				);
+				break;
+			case 'skills_platform':
+			case 'skills_public_profile':
+				break;
+		}
+	}
+	const seen = new Set<string>();
+	return points.filter((point) => !seen.has(point.key) && seen.add(point.key));
 }
 
 const KINDS: readonly WhyYouSourceKind[] = [

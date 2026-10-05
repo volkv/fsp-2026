@@ -17,7 +17,10 @@ const needParams = z.strictObject({ need_id: id('Потребность') });
 const needForm = z
 	.object({
 		specialization: z.enum(SPECIALIZATION_KEYS).optional(),
-		grade: z.enum(GRADE_KEYS).optional(),
+		grade: z
+			.object({ min: z.enum(GRADE_KEYS), max: z.enum(GRADE_KEYS) })
+			.optional()
+			.describe('Диапазон грейдов: «Middle» — `{min: middle, max: middle}`, «от Junior» — junior–senior'),
 		skill_keys: z.array(key).describe('Обязательные навыки — ключи таксономии'),
 		nice_skill_keys: z.array(key).describe('Желательные навыки'),
 		team: z.string().optional().describe('О команде, до 500 символов'),

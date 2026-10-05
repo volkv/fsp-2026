@@ -79,7 +79,12 @@ describe('rate limit', () => {
 			'/api/v1/candidates/k-7f3a',
 			'/api/v1/vacancies/0192/matches',
 			'/api/v1/vacancies/0192/matches/k-7f3a',
-			'/api/v1/partner-pools/0193/candidates'
+			'/api/v1/partner-pools/0193/candidates',
+			'/company/shortlists/0194',
+			'/company/shortlists/0194/__data.json',
+			'/company/shortlists/0194/evaluate',
+			'/api/v1/shortlists/0194',
+			'/api/v1/shortlists/0194/what-if'
 		]) {
 			expect(accountRuleFor('GET', path), path).toBe(RATE_LIMIT_RULES.catalog);
 		}

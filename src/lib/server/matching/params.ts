@@ -71,7 +71,64 @@ export const matchRulesetParamsSchema = z.strictObject({
 	/** How the reranker reports relevance: a probability in [0, 1] or an unbounded logit. */
 	reranker: z.strictObject({ scale: z.enum(['probability', 'logit']) }),
 	/** «In the pool N confirmed candidates» counts pairs at or above this score (domain 13.3). */
-	poolThreshold: unit
+	poolThreshold: unit,
+	/** Ranking of a shortlist for a hiring need and of the catalog without one (domain 13.10). */
+	need: z.strictObject({
+		/**
+		 * Weights of the two levels. Fit to the need: `required`, `nice` — coverage of the need's skills; `format` — the
+		 * work format and region of the need against the candidate's preferences. Strength of the confirmed profile:
+		 * `test` — the result of the test by blocks; `fsp` — an FSP result that confirms a skill of the need; `freshness`
+		 * — how recent the last confirmed action is. A component the need does not ask for (no nice skills, no format,
+		 * FSP marked as irrelevant) is out of the score of every candidate of the need, so the denominator is one for
+		 * all of them and each contribution is exact. The catalog without a need ranks by the strength weights alone.
+		 */
+		weights: z
+			.strictObject({
+				required: z.number().nonnegative(),
+				nice: z.number().nonnegative(),
+				format: z.number().nonnegative(),
+				test: z.number().nonnegative(),
+				fsp: z.number().nonnegative(),
+				freshness: z.number().nonnegative()
+			})
+			.refine((w) => w.test + w.fsp + w.freshness > 0, 'the strength level has a positive weight'),
+		/**
+		 * Value of a skill of the need by its best basis: a skill of the confirmed stack of a category in force (the test)
+		 * is worth `test`; a direct FSP or platform confirmation — the band value; a verified public profile — the band
+		 * value times `publicProfileFactor`; a claim or a derivation from the resume — the band value, but never more than
+		 * `claimedCeiling`, so what the candidate says of themselves cannot outweigh a check. A skill no block of the
+		 * need's specializations can confirm (ClickHouse, Kafka) has no check to outweigh: its claim is capped by
+		 * `untestableClaimedCeiling`, still below a verified public profile.
+		 */
+		skill: z.strictObject({
+			test: positiveUnit,
+			publicProfileFactor: unit,
+			claimedCeiling: unit,
+			untestableClaimedCeiling: unit
+		}),
+		/**
+		 * The test by blocks: the margin of a block is `(S − C) / (20 · items)`, shrunk toward zero as `items / (items +
+		 * shrinkItems)` so that a lucky short block counts less; blocks whose skills the need asks for weigh
+		 * `needBlockFactor` times more; the value is `0.5 + marginScale · mean margin`, clamped to [0, 1] — 0.5 is a
+		 * result exactly at the cut. Without a readable result the value is `unknownValue`.
+		 */
+		test: z.strictObject({
+			shrinkItems: z.number().nonnegative(),
+			needBlockFactor: z.number().min(1),
+			marginScale: z.number().positive(),
+			unknownValue: unit
+		}),
+		/** Freshness halves every `halfLifeDays` days since the last confirmed action. */
+		freshness: z.strictObject({ halfLifeDays: z.number().positive() }),
+		/**
+		 * The work format: 1 when the candidate accepts the need's format (and, for an office or hybrid need with a
+		 * region, lives there); `relocation` when only ready to relocate; 0 otherwise; `unknownValue` when the candidate
+		 * stated no formats — an unknown is not a mismatch.
+		 */
+		format: z.strictObject({ relocation: unit, unknownValue: unit }),
+		/** Scores closer than this are almost equal: their order is decided by the semantic similarity to the need. */
+		nearTie: z.number().min(0).max(0.1)
+	})
 });
 
 export type MatchRulesetParams = z.infer<typeof matchRulesetParamsSchema>;

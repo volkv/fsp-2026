@@ -1,7 +1,8 @@
 """One evaluation run: render the split, run the product over it through the bridge, compare with the labels and the
-baselines, categorize the people with FSP achievements again with them (the ablation), rank the people of the split for
-the vacancies of the matching layer, check the thresholds fixed beforehand, write the report and, when asked, the
-`eval_runs` row with the report file. A run on the holdout needs its entry in the holdout journal first (holdout.py).
+baselines, compute the evidence of the people with FSP achievements with them (the FSP levels), shortlist the people of
+the split for the needs of the matching layer, check the thresholds fixed beforehand, write the report and, when asked,
+the `eval_runs` row with the report file. A run on the holdout needs its entry in the holdout journal first
+(holdout.py).
 """
 
 import hashlib
@@ -14,35 +15,41 @@ from typing import Any, Literal, Protocol
 
 from fsp_eval.baselines import (
     NameDictionary,
-    majority_role_and_grade,
-    taxonomy_grades,
     taxonomy_names,
     taxonomy_spellings,
 )
 from fsp_eval.dataset import build, load_manifest, write_documents
 from fsp_eval.families import Split
 from fsp_eval.fsp import FspRecord, build_layer, load_layer
-from fsp_eval.gold import Gold, unfamiliar_skills
+from fsp_eval.gold import unfamiliar_skills
 from fsp_eval.holdout import registered_access
 from fsp_eval.lexicon import DISTRACTORS, SKILL_SURFACES, fold_spelling
-from fsp_eval.matching import NEEDS_MODEL, VARIANTS, World, build_matching, load_matching, matching_metrics
+from fsp_eval.matching import (
+    NEEDS_MODEL,
+    VARIANTS,
+    GradeResult,
+    World,
+    block_sums,
+    build_matching,
+    load_matching,
+    matching_metrics,
+    need_text,
+    product_pool,
+)
 from fsp_eval.metrics import (
-    AblationCase,
-    Category,
+    FspLevelCase,
     MetricTable,
     NormalizationPair,
-    ablation_metrics,
-    categorization_metrics,
+    fsp_level_metrics,
     fsp_levels_of,
     normalization_metrics,
     performance_metrics,
     predicted_fields,
-    primary_category,
     quote_metrics,
     resume_metrics,
 )
 
-HARNESS_VERSION = "fsp-eval/2"
+HARNESS_VERSION = "fsp-eval/3"
 THRESHOLDS_FILE = Path(__file__).resolve().parents[2] / "thresholds.json"
 
 Mode = Literal["rules_only", "model"]
@@ -59,7 +66,7 @@ class RunOptions:
     dataset_id: str
     split: Split
     mode: Mode
-    # FSP achievements over the dataset for the ablation; `None` — no ablation.
+    # FSP achievements over the dataset: the FSP levels and the matching world; `None` — none.
     fsp_layer: str | None
     # Vacancies and the truth of the people for matching; `None` — no matching.
     matching: str | None
@@ -141,30 +148,21 @@ def empty_snapshot(profile_id: str) -> dict[str, Any]:
     }
 
 
-@dataclass(frozen=True)
-class Ablation:
-    cases: list[AblationCase]
-    # Profile id → the answer with FSP achievements.
-    answers: dict[str, Any]
-
-
-def run_ablation(
+def run_fsp_levels(
     bridge: BridgeLike,
     *,
     as_of: str,
     records: dict[str, FspRecord],
-    golds: dict[str, Gold],
     documents: dict[str, dict[str, Any]],
-    answers: dict[str, Any],
-) -> Ablation:
-    """The people of the split with FSP achievements, categorized once more with them; without them — the answers of
-    the main categorization (a resume not read is a refusal there and an empty snapshot here)."""
+) -> tuple[list[FspLevelCase], dict[str, Any]]:
+    """The evidence of the people of the split with FSP achievements — their resume snapshot (an empty one for a resume
+    not read) with the achievements — and the FSP levels it gives, against the labels of the records."""
     people = [profile_id for profile_id in documents if profile_id in records]
     if not people:
-        return Ablation([], {})
-    categorized = bridge.call(
+        return [], {}
+    answered = bridge.call(
         {
-            "command": "categorize",
+            "command": "evidence",
             "as_of": as_of,
             "profiles": [
                 {
@@ -178,44 +176,42 @@ def run_ablation(
             ],
         }
     )["profiles"]
-    with_fsp = {answer["id"]: answer for answer in categorized}
-    cases = [
-        AblationCase(
-            gold=golds[profile_id],
-            fsp=records[profile_id].gold,
-            without=primary_category(answers.get(profile_id)),
-            with_fsp=primary_category(with_fsp[profile_id]),
-            with_levels=fsp_levels_of(with_fsp[profile_id]),
-        )
-        for profile_id in people
-    ]
-    return Ablation(cases, with_fsp)
+    answers = {answer["id"]: answer for answer in answered}
+    cases = [FspLevelCase(fsp=records[pid].gold, levels=fsp_levels_of(answers[pid])) for pid in people]
+    return cases, answers
 
 
-# Evidence of a candidate in a ranking variant: (with FSP achievements, with platform tests).
-EVIDENCE: dict[tuple[bool, bool], str] = {
-    (True, True): "resume+fsp+tests",
-    (False, True): "resume+tests",
-    (True, False): "resume+fsp",
-    (False, False): "resume",
-}
+# Evidence of a candidate in a ranking variant: with FSP achievements or without; the test result is always there.
+EVIDENCE: dict[bool, str] = {True: "resume+fsp+tests", False: "resume+tests"}
 
 
 @dataclass(frozen=True)
 class Ranked:
-    # Variant → vacancy id → profile ids, best first.
+    # Variant → need id → profile ids of the shortlist, best first.
     rankings: dict[str, dict[str, list[str]]]
-    reranker_used: bool
     semantic_used: bool
     answer: dict[str, Any]
 
 
-def _used(answer: dict[str, Any], component: str, vacancies: int) -> bool:
-    """Whether the full ranking had the component for every vacancy; for some of them only is not a measurement."""
-    used = answer[component]["full"]["used"]
-    if 0 < used < vacancies:
-        raise RunError(f"the {component} served {used} of {vacancies} vacancies: a mixed run is not a measurement")
-    return used == vacancies
+def _semantic_used(answer: dict[str, Any]) -> bool:
+    """Whether the full ranking ordered the almost equal by meaning: a need of one candidate has nothing to order
+    (`no_query`); any other reason on some needs only is not a measurement."""
+    usage = answer["semantic"]["full"]
+    failed = {reason: n for reason, n in usage["unavailable"].items() if reason != "no_query"}
+    if usage["used"] > 0 and failed:
+        raise RunError(f"the semantic similarity served some needs only: {failed}")
+    return usage["used"] > 0
+
+
+def _test_result(
+    seed: int, profile_id: str, test: GradeResult, definitions: dict[tuple[str, str], dict[str, Any]], skills: list[str]
+) -> dict[str, Any]:
+    """A test result as contracts 11.1 has it, with the blocks of a confirmed one drawn by the harness."""
+    result: dict[str, Any] = {"specialization": test.specialization, "grade": test.grade, "outcome": test.outcome}
+    if test.outcome == "confirmed":
+        definition = definitions[(test.specialization, test.grade)]
+        result["blocks"] = block_sums(seed, profile_id, test, definition["defining"], skills)
+    return result
 
 
 def run_ranking(
@@ -224,13 +220,16 @@ def run_ranking(
     as_of: str,
     split: Split,
     world: World,
+    seed: int,
     records: dict[str, FspRecord],
     documents: dict[str, dict[str, Any]],
+    categories: list[dict[str, Any]],
     semantic: bool,
 ) -> Ranked:
-    """The people of the split as candidates of a fresh catalog, once per evidence set, and the product's ranking of
-    each set for every vacancy of the split; the reranker and the semantic similarity are on or off by the variant,
-    the semantic similarity only in a run asked for it."""
+    """The people of the split as candidates of a fresh catalog, once with their FSP achievements and once without, and
+    the product's shortlist of every need of the split; the semantic similarity is on or off by the variant, and only in
+    a run asked for it."""
+    definitions = {(c["specialization"], c["grade"]): c for c in categories}
     candidates = []
     for profile_id, document in documents.items():
         resume = (
@@ -238,41 +237,33 @@ def run_ranking(
             if document["ok"]
             else None
         )
-        for (with_fsp, with_tests), evidence in EVIDENCE.items():
+        tests = world.tests[profile_id]
+        test = (
+            _test_result(seed, profile_id, tests[0], definitions, list(world.truths[profile_id].skills))
+            if tests
+            else None
+        )
+        for with_fsp, evidence in EVIDENCE.items():
             record = records.get(profile_id) if with_fsp else None
-            tests = world.tests[profile_id] if with_tests else ()
             candidates.append(
                 {
                     "id": f"{profile_id}/{evidence}",
                     "resume": resume,
                     "fsp": None if record is None else record.page,
-                    "tests": [{"assessment": t.assessment, "level": t.level} for t in tests],
+                    "test_result": test,
                 }
             )
-    vacancies = world.vacancies_of(split)
+    needs = world.vacancies_of(split)
     answer = bridge.call(
         {
             "command": "rank",
             "as_of": as_of,
             "candidates": candidates,
-            "vacancies": [
-                {
-                    "id": v.id,
-                    "title": v.title,
-                    "description": v.description,
-                    "role_key": v.role,
-                    "grade_min": v.grade_min,
-                    "grade_max": v.grade_max,
-                    "required_skill_keys": list(v.required),
-                    "nice_skill_keys": list(v.nice),
-                }
-                for v in vacancies
-            ],
+            "needs": [{"id": v.id, "text": need_text(v)} for v in needs],
             "rankings": [
                 {
                     "name": name,
-                    "candidates": [f"{pid}/{EVIDENCE[(spec['fsp'], spec['tests'])]}" for pid in documents],
-                    "reranker": spec["reranker"],
+                    "candidates": [f"{pid}/{EVIDENCE[spec['fsp']]}" for pid in documents],
                     "semantic": spec["semantic"] and semantic,
                 }
                 for name, spec in VARIANTS.items()
@@ -281,15 +272,14 @@ def run_ranking(
         }
     )
     rankings = {
-        name: {vacancy_id: [cid.split("/", 1)[0] for cid in order] for vacancy_id, order in by_vacancy.items()}
-        for name, by_vacancy in answer["rankings"].items()
+        name: {need_id: [cid.split("/", 1)[0] for cid in order] for need_id, order in by_need.items()}
+        for name, by_need in answer["rankings"].items()
     }
-    reranker_used = _used(answer, "reranker", len(vacancies))
-    semantic_used = _used(answer, "semantic", len(vacancies))
+    semantic_used = _semantic_used(answer)
     if semantic and not semantic_used:
         reasons = answer["semantic"]["full"]["unavailable"]
         raise RunError(f"the run asked for semantic similarity and the ranking had none: {reasons}")
-    return Ranked(rankings, reranker_used, semantic_used, answer)
+    return Ranked(rankings, semantic_used, answer)
 
 
 def execute(options: RunOptions, bridge: BridgeLike) -> dict[str, Any]:
@@ -335,42 +325,25 @@ def execute(options: RunOptions, bridge: BridgeLike) -> dict[str, Any]:
     normalized = bridge.call({"command": "normalize", "surfaces": [pair.surface for pair in pairs]})["results"]
 
     parsed = [document for document in documents if document["ok"]]
-    answers: dict[str, Any] = {}
-    if parsed:
-        categorized = bridge.call(
-            {
-                "command": "categorize",
-                "as_of": manifest.as_of,
-                "profiles": [{"id": document["id"], "snapshot": document["snapshot"]} for document in parsed],
-            }
-        )["profiles"]
-        answers = {answer["id"]: answer for answer in categorized}
-    categories = [primary_category(answers.get(profile.id)) for profile in profiles]
     by_profile = {profile.id: document for profile, document in zip(profiles, documents, strict=True)}
-    ablation = run_ablation(
-        bridge,
-        as_of=manifest.as_of,
-        records=records,
-        golds={gold.profile_id: gold for gold in golds},
-        documents=by_profile,
-        answers=answers,
-    )
+    fsp_cases, fsp_answers = run_fsp_levels(bridge, as_of=manifest.as_of, records=records, documents=by_profile)
     ranked = (
         run_ranking(
             bridge,
             as_of=manifest.as_of,
             split=options.split,
             world=world,
+            seed=matching.seed,
             records=records,
             documents=by_profile,
+            categories=info["categories"],
             semantic=options.semantic,
         )
-        if world is not None
+        if world is not None and matching is not None
         else None
     )
 
     dictionary = NameDictionary(taxonomy_names(taxonomy_dir))
-    majority_role, majority_grade = majority_role_and_grade([dataset.golds[p.id] for p in dataset.split("dev")])
     table = MetricTable()
     resume_metrics(
         table,
@@ -385,30 +358,38 @@ def execute(options: RunOptions, bridge: BridgeLike) -> dict[str, Any]:
         [result["skill_key"] for result in normalized],
         [dictionary.normalize(pair.surface) for pair in pairs],
     )
-    categorization_metrics(
-        table,
-        golds,
-        categories,
-        grade_order=taxonomy_grades(taxonomy_dir),
-        majority_role=majority_role,
-        majority_grade=majority_grade,
-    )
     if layer is not None:
-        ablation_metrics(table, ablation.cases, grade_order=taxonomy_grades(taxonomy_dir))
+        fsp_level_metrics(table, fsp_cases)
     matching_report = None
     if world is not None and ranked is not None and matching is not None:
+        pool = product_pool(world, [profile.id for profile in profiles])
         matching_report = matching_metrics(
             table,
             seed=matching.seed,
             vacancies=world.vacancies_of(options.split),
             truths=world.truths,
-            pool=[profile.id for profile in profiles],
-            texts={pid: d["text"] if d["ok"] else None for pid, d in by_profile.items()},
+            pool=pool,
+            texts={pid: by_profile[pid]["text"] if by_profile[pid]["ok"] else None for pid in pool},
             rankings=ranked.rankings,
             top=ranked.answer["top"],
-            reranker_used=ranked.reranker_used,
             semantic_used=ranked.semantic_used,
+            with_fsp=frozenset(records),
         )
+        # The same shortlists against rubric v2, side by side, under keys of their own (`matching_v2.*`).
+        second = matching_metrics(
+            table,
+            seed=matching.seed,
+            vacancies=world.vacancies_of(options.split),
+            truths=world.truths,
+            pool=pool,
+            texts={pid: by_profile[pid]["text"] if by_profile[pid]["ok"] else None for pid in pool},
+            rankings=ranked.rankings,
+            top=ranked.answer["top"],
+            semantic_used=ranked.semantic_used,
+            with_fsp=frozenset(records),
+            rubric="v2",
+        )
+        matching_report["rubric_v2"] = {key: value for key, value in second.items() if key != "per_vacancy"}
         matching_report["bridge"] = {
             key: value for key, value in ranked.answer.items() if key not in {"rankings", "top"}
         }
@@ -469,13 +450,10 @@ def execute(options: RunOptions, bridge: BridgeLike) -> dict[str, Any]:
                 "model_failure": document.get("model_failure"),
                 "gold": gold.to_json(),
                 "predicted": predicted_fields(document),
-                "category": asdict(category),
                 "quote_failures": [asdict(check) for check in checks if not check.supports],
-                "fsp": _fsp_report(records.get(profile.id), ablation.answers.get(profile.id)),
+                "fsp": _fsp_report(records.get(profile.id), fsp_answers.get(profile.id)),
             }
-            for profile, file, document, gold, category, checks in zip(
-                profiles, files, documents, golds, categories, quotes, strict=True
-            )
+            for profile, file, document, gold, checks in zip(profiles, files, documents, golds, quotes, strict=True)
         ],
     }
     return _write(options, f"{manifest.id}-{options.split}-{options.mode}", report, bridge)
@@ -516,8 +494,7 @@ def _write(options: RunOptions, name: str, report: dict[str, Any], bridge: Bridg
 def _fsp_report(record: FspRecord | None, answer: dict[str, Any] | None) -> dict[str, Any] | None:
     if record is None:
         return None
-    category: Category = primary_category(answer)
-    return {"gold": record.gold.to_json(), "with_fsp": asdict(category), "with_fsp_levels": fsp_levels_of(answer)}
+    return {"gold": record.gold.to_json(), "with_fsp_levels": fsp_levels_of(answer)}
 
 
 def summary(report: dict[str, Any]) -> str:
@@ -554,9 +531,15 @@ def summary(report: dict[str, Any]) -> str:
         f" at concurrency {timing['concurrency']}"
     )
     if report["matching"] is not None:
-        for name, delta in report["matching"]["deltas"].items():
-            low, high = delta["ci95"]
-            lines.append(f"{name:52} {delta['mean']:+.4f}  95% CI [{low:+.4f}, {high:+.4f}]  n={delta['n']}")
+        for rubric, deltas in (
+            ("v1", report["matching"]["deltas"]),
+            ("v2", report["matching"].get("rubric_v2", {}).get("deltas", {})),
+        ):
+            for name, delta in deltas.items():
+                low, high = delta["ci95"]
+                lines.append(
+                    f"{rubric} {name:49} {delta['mean']:+.4f}  95% CI [{low:+.4f}, {high:+.4f}]  n={delta['n']}"
+                )
     if "recorded" in report:
         lines.append(f"eval_runs row {report['recorded']['id']}: {report['recorded']}")
     lines.append(f"report: {report['report_path']}")

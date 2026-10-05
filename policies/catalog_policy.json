@@ -1,6 +1,6 @@
 {
 	"kind": "catalog_policy",
-	"source": "docs/domain.md §7.4, §13.3, §13.8",
+	"source": "docs/domain.md §7.4, §13.3, §13.8, §13.10",
 	"versions": [
 		{
 			"version": 1,
@@ -10,6 +10,22 @@
 			},
 			"basis": {
 				"small_count_threshold": "docs/domain.md §13.3: счётчик пула показывается с порогом «< 5»"
+			}
+		},
+		{
+			"version": 2,
+			"effective_from": "2026-10-05T00:00:00Z",
+			"params": {
+				"small_count_threshold": 5,
+				"salary_bins": [
+					{ "until": 300000, "step": 25000 },
+					{ "until": 600000, "step": 50000 },
+					{ "until": null, "step": 100000 }
+				]
+			},
+			"basis": {
+				"small_count_threshold": "docs/domain.md §13.3: счётчик пула показывается с порогом «< 5»; §13.10: агрегат когорты округляется вниз до кратного 5",
+				"salary_bins": "docs/domain.md §13.10: шкала интервалов ожиданий и вилки — 25 000 ₽ до 300 000, 50 000 ₽ до 600 000, далее 100 000 ₽"
 			}
 		}
 	]

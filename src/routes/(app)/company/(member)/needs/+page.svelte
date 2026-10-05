@@ -36,7 +36,7 @@
 <div class="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
 	<Card.Root>
 		<Card.Header>
-			<Card.Title><h2 class="font-heading text-h3">Новая потребность</h2></Card.Title>
+			<Card.Title><h2 class="font-heading text-h3">Опишите, кого ищете</h2></Card.Title>
 			<Card.Description>Поля формы, которые вы заполните, сохранятся поверх подсказки разбора.</Card.Description>
 		</Card.Header>
 		<Card.Content>

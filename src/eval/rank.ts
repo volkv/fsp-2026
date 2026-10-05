@@ -1,32 +1,45 @@
-// `rank` of the bridge: the product's category path for vacancies (docs/domain.md, sections 12.4, 12.7, 13.4) over a
-// catalog of its own. A temporary database is created next to the application's one, migrated from this checkout, and
-// gets the taxonomy release of the checkout. Every candidate is stored the way the product stores its evidence — the
-// resume rows `resume.extract` inserts, the FSP facts and claims the synchronization drafts (without the FSP ID link and
-// receipts, which do not enter a score) — and its evidence is computed by the `evidence.compute` handler from the job
-// queue. A test result of the harness becomes a grade decision applied by the one owner of categories
-// (`applyGradeDecisions`), so a candidate holds a category exactly when the product would give one. Each ranking then
-// takes, for every vacancy, the categories it admits, the candidates of the ranking holding one of them, and
-// `scoreCandidatesForVacancy` over those, with the reranker of the configured model adapter or with it switched off;
-// the candidates without any category are answered apart («категория не подтверждена»). When a ranking asks for
-// semantic similarity, the catalog gets vectors the way the stand does — the space of `EMBED_SPACE_ID` registered and
-// built by the `embedding.reindex` handler with the configured embedder — and each ranking runs with that space active
-// or with none (the FTS-only mode). Vectors exist only for candidates whose processing consent is in effect, so every
-// candidate of such a catalog is an adult who gave it. The database is dropped when the command ends, whatever the
-// outcome.
+// `rank` of the bridge: the product's path from a hiring need to its shortlist (docs/domain.md, sections 12.4, 12.7,
+// 13.10; contracts 11.1) over a catalog of its own. A temporary database is created next to the application's one,
+// migrated from this checkout, and gets the taxonomy release of the checkout. Every candidate is stored the way the
+// product stores its evidence — the resume rows `resume.extract` inserts, the FSP facts and claims the synchronization
+// drafts (without the FSP ID link and receipts, which do not enter a score) — and its evidence is computed by the
+// `evidence.compute` handler from the job queue. A test result of the harness is written where the engine writes a
+// decision — a decided attempt marked synthetic and its row of `grade_decisions` with the sums of its blocks, under a
+// release of the harness that opens the specialization — and brought to the category by the one owner of categories
+// (`applyGradeDecisions`), so a candidate holds a category exactly when the product would give one. Every need is a
+// text parsed by the product's rules (`parseNeedText` with the model off), its categories are the ones a new shortlist
+// takes by default (`defaultCategories`), the candidates of the ranking holding one of them are ranked by
+// `rankForNeed` — the ranking of a shortlist, reading the blocks from `grade_decisions` — and the candidates without
+// any category are answered apart («категория не подтверждена»). When a ranking asks for semantic similarity, the
+// catalog gets vectors the way the stand does — the space of `EMBED_SPACE_ID` registered and built by the
+// `embedding.reindex` handler with the configured embedder — and the text of the need orders the almost equal; without
+// it the ranking runs in the FTS-only mode. Vectors exist only for candidates whose processing consent is in effect, so
+// every candidate of such a catalog is an adult who gave it. The database is dropped when the command ends, whatever
+// the outcome.
 import { createHash, randomBytes } from 'node:crypto';
-import { and, countDistinct, eq } from 'drizzle-orm';
+import { and, countDistinct, eq, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import postgres from 'postgres';
 import { z } from 'zod';
-import { CATALOG, GRADE_KEYS, SPECIALIZATION_KEYS } from '$lib/server/assessments/contract/catalog';
-import { admitCandidates, admittedCategories } from '$lib/server/categories/admission';
-import { MemoryDecisions, type DecisionRecord } from '$lib/server/categories/decisions';
+import {
+	CATALOG,
+	GRADE_KEYS,
+	gradeDefinition,
+	SPECIALIZATION_KEYS,
+	type GradeKey,
+	type SpecializationKey
+} from '$lib/server/assessments/contract/catalog';
+import { GRADE_POLICY } from '$lib/server/assessments/contract/policy';
+import { PROCEDURE } from '$lib/server/assessments/contract/procedure';
+import { GRADE_DECISIONS } from '$lib/server/categories/decisions';
 import { applyGradeDecisions } from '$lib/server/categories/publish';
+import { categoryPredicate } from '$lib/server/categories/read';
 import type { EmbedConfig } from '$lib/server/config';
 import type { Database, Transaction } from '$lib/server/db';
 import * as schema from '$lib/server/db/schema';
 import {
+	bankReleases,
 	candidateCategories,
 	candidates,
 	claims,
@@ -34,13 +47,14 @@ import {
 	embeddings,
 	evidenceRuns,
 	experienceEntries,
+	gradeDecisions,
 	legalDocuments,
 	mlResults,
 	pdOperators,
 	searchSettings,
 	sourceFacts,
-	users,
-	vacancies
+	testAttempts,
+	users
 } from '$lib/server/db/schema';
 import { createEmbeddingReindexHandler } from '$lib/server/embeddings/reindex';
 import { createEvidenceHandler } from '$lib/server/evidence/job';
@@ -53,16 +67,20 @@ import { createLogger } from '$lib/server/jobs/log';
 import { claimJob, completeJob } from '$lib/server/jobs/queue';
 import { JOB_TYPES } from '$lib/server/jobs/registry';
 import { canonicalJson } from '$lib/server/json/canonical';
-import { loadGradeOrdinals, loadVacancySnapshot } from '$lib/server/matching/evidence';
-import { scoreCandidatesForVacancy } from '$lib/server/matching/rank';
+import { rankForNeed } from '$lib/server/matching/rank';
 import { loadActiveMatchRuleset } from '$lib/server/matching/ruleset';
+import type { NeedSpec } from '$lib/server/matching/score';
 import type { MatchingModels } from '$lib/server/matching/semantic';
+import { GRADE_DECISION_RESULTS } from '$lib/server/matching/test-results';
+import type { ModelAdapter } from '$lib/server/ml/adapter';
 import { fail } from '$lib/server/ml/result';
+import { parseNeedText } from '$lib/server/needs/parse';
+import { defaultCategories } from '$lib/server/shortlists/service';
+import { openSpecializations } from '$lib/server/assessments/bank-store';
 import { RESUME_SCHEMA_VERSION } from '$lib/server/resumes/extract-job';
 import { recordEvidenceChange } from '$lib/server/resumes/revision';
 import { publishTaxonomy } from '$lib/server/taxonomy/publish';
 import { buildRelease, readTaxonomyDatasets } from '$lib/server/taxonomy/release';
-import { checkVacancyText } from '$lib/server/vacancies/text-check';
 import { fspPageSchema, pageFacts } from './evidence';
 
 const isoDate = z.iso.date().transform((value) => new Date(`${value}T00:00:00Z`));
@@ -127,13 +145,24 @@ const evidenceSchema = z.strictObject({
 });
 
 /**
- * A test result of the harness (contracts 11.1): the specialization and grade tested and the outcome. The confirmed
- * stack follows from the grade (`confirmedStack`), not from the scores of the attempt.
+ * A test result of the harness (contracts 11.1): the specialization and grade tested, the outcome and the sums of its
+ * blocks. The confirmed stack follows from the grade (`confirmedStack`), not from the scores of the attempt; the blocks
+ * are the strength of the result the ranking reads.
  */
 const testResultSchema = z.strictObject({
 	specialization: z.enum(SPECIALIZATION_KEYS),
 	grade: z.enum(GRADE_KEYS),
-	outcome: z.enum(['confirmed', 'not_confirmed', 'undetermined'])
+	outcome: z.enum(['confirmed', 'not_confirmed', 'undetermined']),
+	blocks: z
+		.array(
+			z.strictObject({
+				block: z.string().min(1),
+				items: z.int().min(1),
+				score: z.int().nonnegative(),
+				cut: z.int().nonnegative()
+			})
+		)
+		.optional()
 });
 
 export const rankRequestSchema = z.strictObject({
@@ -162,26 +191,13 @@ export const rankRequestSchema = z.strictObject({
 			})
 		)
 		.min(1),
-	vacancies: z
-		.array(
-			z.strictObject({
-				id: z.string().min(1),
-				title: z.string().min(1),
-				description: z.string().min(1),
-				role_key: z.string().min(1),
-				grade_min: z.string().min(1),
-				grade_max: z.string().min(1),
-				required_skill_keys: z.array(z.string().min(1)).min(1),
-				nice_skill_keys: z.array(z.string().min(1))
-			})
-		)
-		.min(1),
+	/** Hiring needs as an employer writes them: the text is parsed by the product's rules. */
+	needs: z.array(z.strictObject({ id: z.string().min(1), text: z.string().min(1).max(5000) })).min(1),
 	rankings: z
 		.array(
 			z.strictObject({
 				name: z.string().min(1),
 				candidates: z.array(z.string().min(1)).min(1),
-				reranker: z.boolean(),
 				/** Semantic similarity in the space of the configured embedder; `false` — the FTS-only mode. */
 				semantic: z.boolean()
 			})
@@ -196,7 +212,7 @@ export interface RankDeps {
 	databaseUrl: string;
 	migrationsDir: string;
 	taxonomyDir: string;
-	/** The configured model adapter: the reranker of a ranking with `reranker: true` and the embedder of the catalog. */
+	/** The configured model adapter: the embedder of a ranking with semantic similarity. */
 	models: MatchingModels;
 	/** The configured embedder (`EMBED_*`); `null` — none, and a ranking with `semantic: true` is refused. */
 	embed: CatalogEmbedder | null;
@@ -216,19 +232,28 @@ export interface ComponentUsage {
 
 export interface RankAnswer {
 	/**
-	 * Ranking → vacancy id → the candidate ids of the request holding a category the vacancy admits, best first; a
-	 * vacancy no category admits (no role of a specialization, a grade no test confirms) has none.
+	 * Ranking → need id → the candidate ids of the request holding a category of the need's shortlist, best first; a
+	 * need with no category (no open specialization, no skill a test confirms) has none.
 	 */
 	rankings: Record<string, Record<string, string[]>>;
-	/** Ranking → vacancy id → the candidates of the ranking without any category, apart and unranked (domain 12.7). */
+	/** Ranking → need id → the candidates of the ranking without any category, apart and unranked (domain 12.7). */
 	unconfirmed: Record<string, Record<string, string[]>>;
-	/** Ranking → vacancy id → the first ten with their score and the value of every component (`null` — unknown). */
+	/** Ranking → need id → the first ten with their score and the contribution of every component. */
 	top: Record<string, Record<string, { id: string; score: number; components: Record<string, number | null> }[]>>;
-	/** Ranking → vacancies the reranker scored, and the reasons it did not. */
-	reranker: Record<string, ComponentUsage>;
-	/** Ranking → vacancies with the semantic component, and the reasons `scoreCandidatesForVacancy` gives otherwise. */
+	/** Ranking → needs whose almost equal the semantic similarity could order, and the reasons it could not. */
 	semantic: Record<string, ComponentUsage>;
-	models: { match_ruleset: string; reranker: string; embedding_space: string };
+	/** Need id → what the rules read of its text and the categories of its shortlist. */
+	needs: Record<
+		string,
+		{
+			specialization: string | null;
+			grade: string | null;
+			skill_keys: string[];
+			nice_skill_keys: string[];
+			categories: string[];
+		}
+	>;
+	models: { match_ruleset: string; embedding_space: string };
 	catalog: {
 		candidates: number;
 		/** Candidates with an evidence run published, and evidence jobs discarded as stale. */
@@ -244,10 +269,11 @@ export interface RankAnswer {
 	seconds: { catalog: number; embedding: number; ranking: number };
 }
 
-/** Models switched off: the ranking without the reranker; the semantic component reads stored vectors only. */
-const MODELS_OFF: MatchingModels = {
+/** Models switched off: the FTS-only mode and the need parsed by the rules. */
+const MODELS_OFF: MatchingModels & Pick<ModelAdapter, 'extract'> = {
 	embed: () => Promise.resolve(fail('disabled', 'embed: switched off', { reason: 'switched_off' })),
-	rerank: () => Promise.resolve(fail('disabled', 'rerank: switched off', { reason: 'switched_off' }))
+	rerank: () => Promise.resolve(fail('disabled', 'rerank: switched off', { reason: 'switched_off' })),
+	extract: () => Promise.resolve(fail('disabled', 'extract: switched off', { reason: 'switched_off' }))
 };
 
 const SYSTEM = { kind: 'system' } as const;
@@ -464,34 +490,94 @@ function decisionId(requestId: string): string {
 	return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-7${hex.slice(13, 16)}-8${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
 }
 
-/** The release the decisions of the harness name: they are not drawn from a bank. */
-const EVAL_RELEASE = 'eval-test-results';
+/** The release of the harness's tests in a specialization: its decisions are synthetic, not drawn from a bank. */
+const evalRelease = (specialization: SpecializationKey) => `eval-${specialization}`;
 
 /**
- * The grade decision a test result of the harness stands for, as the engine of the test would record it (domain
- * 10.7): not a step of a confident result, with the practice solved in the first language of the specialization when
- * the result is confirmed.
+ * Releases a test of every specialization of the catalog the request tests, so that the product sees them open
+ * (`specializationOpen`) exactly as after a released bank. The release has no families: the harness never serves items,
+ * it writes decisions.
  */
-function decisionOf(requestId: string, result: TestResult, decidedAt: Date): DecisionRecord {
-	const specialization = CATALOG.specializations.find((s) => s.key === result.specialization);
-	if (!specialization) throw new Error(`catalog ${CATALOG.version} has no specialization ${result.specialization}`);
+async function releaseHarnessTests(db: Database, specializations: ReadonlySet<SpecializationKey>, now: Date) {
+	const zero = '0'.repeat(64);
+	for (const specialization of specializations) {
+		await db.insert(bankReleases).values({
+			id: evalRelease(specialization),
+			specialization,
+			catalogVersion: CATALOG.version,
+			procedureVersion: PROCEDURE.version,
+			contentSha256: zero,
+			sharedSha256: zero,
+			manifest: { families: [] },
+			status: 'released',
+			releasedAt: now
+		});
+	}
+}
+
+/**
+ * The decision a test result of the harness stands for, written where the engine writes one (domain 10.7): a decided
+ * attempt marked synthetic (`seeded`, 23.3) without served items, and its row of `grade_decisions` with the sums of its
+ * blocks — the strength the ranking reads. Not a step of a confident result.
+ */
+async function recordDecision(
+	tx: Transaction,
+	candidateId: string,
+	requestId: string,
+	result: TestResult,
+	decidedAt: Date
+): Promise<void> {
+	const blocks = result.blocks ?? [];
 	const confirmed = result.outcome === 'confirmed';
-	const language = specialization.practiceLanguages[0];
-	if (confirmed && !language) throw new Error(`specialization ${result.specialization} has no practice language`);
-	return {
+	const definition = gradeDefinition(result.specialization, result.grade);
+	const [attempt] = await tx
+		.insert(testAttempts)
+		.values({
+			candidateId,
+			purpose: 'grade',
+			specialization: result.specialization,
+			grade: result.grade,
+			catalogVersion: CATALOG.version,
+			bankReleaseId: evalRelease(result.specialization),
+			procedureVersion: PROCEDURE.version,
+			policyVersion: GRADE_POLICY.version,
+			form: 'A',
+			seed: createHash('sha256').update(`eval-attempt:${requestId}`).digest('hex').slice(0, 32),
+			status: 'decided',
+			startedAt: decidedAt,
+			deadlineAt: decidedAt,
+			endedAt: decidedAt,
+			seeded: true
+		})
+		.returning({ id: testAttempts.id });
+	if (!attempt) throw new Error('attempt was not inserted');
+	const sum = (pick: (block: (typeof blocks)[number]) => number) => blocks.reduce((total, b) => total + pick(b), 0);
+	await tx.insert(gradeDecisions).values({
 		id: decisionId(requestId),
+		attemptId: attempt.id,
+		candidateId,
 		specialization: result.specialization,
 		grade: result.grade,
 		outcome: result.outcome,
+		reason: confirmed ? 'sprt_upper' : result.outcome === 'not_confirmed' ? 'sprt_lower' : 'band_after_extension',
 		confident: false,
-		viaConfidentUpgrade: false,
-		decidedAt,
-		valid: true,
-		bankReleaseId: EVAL_RELEASE,
-		catalogVersion: CATALOG.version,
-		practiceLanguage: confirmed ? (language ?? null) : null,
-		invalidReason: null
-	};
+		llr: 0,
+		scoreSum: sum((b) => b.score),
+		cutSum: sum((b) => b.cut),
+		items: sum((b) => b.items),
+		extensionUsed: false,
+		practice: confirmed ? { score: 1, gateMinScore: definition.practice.gateMinScore, passed: true } : null,
+		blocks: blocks.map((b) => ({
+			...b,
+			verdict: b.score > b.cut ? 'above' : b.score === b.cut ? 'at' : 'below',
+			defining: definition.defining.includes(b.block),
+			passed: definition.defining.includes(b.block) && b.score >= b.cut
+		})),
+		procedureVersion: PROCEDURE.version,
+		bankReleaseId: evalRelease(result.specialization),
+		status: 'valid',
+		decidedAt
+	});
 }
 
 /** Runs `evidence.compute` jobs until the queue has none, four at a time. */
@@ -635,6 +721,32 @@ async function activateSpace(db: Database, spaceId: string | null): Promise<void
 	await db.update(searchSettings).set({ activeEmbeddingSpaceId: spaceId });
 }
 
+/** The candidates of `ids` holding a category in force — of one of the pairs, or (`null`) any. */
+async function holdersOf(
+	db: Database,
+	ids: readonly string[],
+	pairs: readonly { specialization: SpecializationKey; grade: GradeKey }[] | null
+): Promise<Set<string>> {
+	if (ids.length === 0 || pairs?.length === 0) return new Set();
+	const holds =
+		pairs === null
+			? categoryPredicate(sql`c.id`)
+			: sql`(${sql.join(
+					pairs.map((pair) =>
+						categoryPredicate(sql`c.id`, { specializations: [pair.specialization], grades: [pair.grade] })
+					),
+					sql` or `
+				)})`;
+	const list = sql`array[${sql.join(
+		ids.map((id) => sql`${id}::uuid`),
+		sql`, `
+	)}]`;
+	const rows = await db.execute<{ id: string }>(
+		sql`select c.id::text as id from unnest(${list}) as c(id) where ${holds}`
+	);
+	return new Set(rows.map((row) => row.id));
+}
+
 export async function rankCandidates(request: RankRequest, deps: RankDeps): Promise<RankAnswer> {
 	const now = request.as_of;
 	const semanticRankings = request.rankings.some((ranking) => ranking.semantic);
@@ -649,11 +761,13 @@ export async function rankCandidates(request: RankRequest, deps: RankDeps): Prom
 		const projection = await loadProjectionTaxonomy(db);
 		if (!projection) throw new Error('the taxonomy release was not published');
 		const ruleset = await loadActiveMatchRuleset(db);
-		const ordinals = (await loadGradeOrdinals(db, [published.taxonomyVersionId])).get(published.taxonomyVersionId);
-		if (!ordinals) throw new Error('grade ordinals of the release were not loaded');
 
 		const idOf = new Map<string, string>();
-		const decisions = new MemoryDecisions();
+		await releaseHarnessTests(
+			db,
+			new Set(request.candidates.flatMap((c) => (c.test_result ? [c.test_result.specialization] : []))),
+			now
+		);
 		let facts = 0;
 		let testResults = 0;
 		const indexOf = new Map(request.candidates.map((candidate, index) => [candidate.id, index]));
@@ -721,14 +835,13 @@ export async function rankCandidates(request: RankRequest, deps: RankDeps): Prom
 					});
 				}
 				if (candidate.test_result !== null) {
-					const decision = decisionOf(candidate.id, candidate.test_result, now);
-					decisions.record(row.id, decision);
+					await recordDecision(tx, row.id, candidate.id, candidate.test_result, now);
 					await applyGradeDecisions(
 						tx,
 						row.id,
-						decision.specialization,
+						candidate.test_result.specialization,
 						{ requestId: 'eval-rank', actor: SYSTEM },
-						decisions
+						GRADE_DECISIONS
 					);
 					testResults++;
 				}
@@ -746,28 +859,30 @@ export async function rankCandidates(request: RankRequest, deps: RankDeps): Prom
 			.from(evidenceRuns)
 			.where(eq(evidenceRuns.status, 'published'));
 
-		const vacancyIds = new Map<string, string>();
-		for (const vacancy of request.vacancies) {
-			const [row] = await db
-				.insert(vacancies)
-				.values({
-					origin: 'external',
-					externalOrg: { name: 'Оценка качества', source_org_ids: [] },
-					title: vacancy.title,
-					description: vacancy.description,
-					taxonomyVersionId: published.taxonomyVersionId,
-					roleKey: vacancy.role_key,
-					gradeMin: vacancy.grade_min,
-					gradeMax: vacancy.grade_max,
-					gradeBasis: 'stated',
-					requiredSkillKeys: vacancy.required_skill_keys,
-					niceSkillKeys: vacancy.nice_skill_keys,
-					textCheck: checkVacancyText({ title: vacancy.title, description: vacancy.description }),
-					status: 'active'
-				})
-				.returning({ id: vacancies.id });
-			if (!row) throw new Error('vacancy was not inserted');
-			vacancyIds.set(vacancy.id, row.id);
+		// Each need as the employer writes it, read by the rules, with the categories its shortlist takes.
+		const needs: RankAnswer['needs'] = {};
+		const specs = new Map<string, { spec: NeedSpec; text: string }>();
+		for (const need of request.needs) {
+			const { form } = await parseNeedText({ db, models: MODELS_OFF }, { id: uuidv7(), companyId: 'eval' }, need.text);
+			const categories = defaultCategories(form, await openSpecializations(db));
+			needs[need.id] = {
+				specialization: form.specialization ?? null,
+				grade: form.grade ? `${form.grade.min}–${form.grade.max}` : null,
+				skill_keys: form.skill_keys,
+				nice_skill_keys: form.nice_skill_keys,
+				categories: categories.map((c) => `${c.specialization}:${c.grade}`)
+			};
+			specs.set(need.id, {
+				text: need.text,
+				spec: {
+					requiredSkillKeys: form.skill_keys,
+					niceSkillKeys: form.nice_skill_keys,
+					workFormat: form.work_format ?? null,
+					regionCode: form.region_code ?? null,
+					fspRelevant: form.fsp_relevant !== false,
+					categories
+				}
+			});
 		}
 		const catalogSeconds = (performance.now() - started) / 1000;
 		const embeddingStarted = performance.now();
@@ -778,9 +893,7 @@ export async function rankCandidates(request: RankRequest, deps: RankDeps): Prom
 		const rankings: RankAnswer['rankings'] = {};
 		const unconfirmed: RankAnswer['unconfirmed'] = {};
 		const top: RankAnswer['top'] = {};
-		const reranker: RankAnswer['reranker'] = {};
 		const semantic: RankAnswer['semantic'] = {};
-		let rerankerModel: string | null = null;
 		const rankingStarted = performance.now();
 		for (const ranking of request.rankings) {
 			await activateSpace(db, ranking.semantic && space !== null ? space.spaceId : null);
@@ -789,67 +902,57 @@ export async function rankCandidates(request: RankRequest, deps: RankDeps): Prom
 				if (stored === undefined) throw new Error(`ranking ${ranking.name} names an unknown candidate ${id}`);
 				return stored;
 			});
-			const byVacancy: Record<string, string[]> = {};
+			const categorized = await holdersOf(db, ids, null);
+			const byNeed: Record<string, string[]> = {};
 			const apart: Record<string, string[]> = {};
 			const topOf: RankAnswer['top'][string] = {};
-			const usage: ComponentUsage = { used: 0, unavailable: {} };
 			const semanticUsage: ComponentUsage = { used: 0, unavailable: {} };
-			for (const vacancy of request.vacancies) {
-				const snapshot = await loadVacancySnapshot(db, vacancyIds.get(vacancy.id) as string);
-				if (!snapshot) throw new Error(`vacancy ${vacancy.id} is not readable`);
-				const admission = await admitCandidates(db, ids, admittedCategories(snapshot, ordinals));
-				apart[vacancy.id] = admission.unconfirmed.map((id) => requestIdOf.get(id) as string);
-				const scoring = await scoreCandidatesForVacancy(
-					db,
-					ranking.reranker ? deps.models : MODELS_OFF,
-					snapshot,
-					admission.admitted,
-					{ ruleset, priority: 'background' }
-				);
-				if (scoring.ranked.length !== admission.admitted.length) {
-					throw new Error(
-						`vacancy ${vacancy.id}: ${scoring.ranked.length} of ${admission.admitted.length} candidates ranked`
-					);
+			for (const need of request.needs) {
+				const { spec, text } = specs.get(need.id) ?? {};
+				if (!spec || text === undefined) throw new Error(`need ${need.id} was not read`);
+				apart[need.id] = ids.filter((id) => !categorized.has(id)).map((id) => requestIdOf.get(id) as string);
+				const holders = await holdersOf(db, ids, spec.categories);
+				const admitted = ids.filter((id) => holders.has(id));
+				const result = await rankForNeed(db, ranking.semantic ? deps.models : MODELS_OFF, spec, admitted, {
+					ruleset,
+					testResults: GRADE_DECISION_RESULTS,
+					now,
+					semanticText: ranking.semantic ? text : null,
+					priority: 'background'
+				});
+				if (result.ranked.length !== admitted.length) {
+					throw new Error(`need ${need.id}: ${result.ranked.length} of ${admitted.length} candidates ranked`);
 				}
-				byVacancy[vacancy.id] = scoring.ranked.map((entry) => requestIdOf.get(entry.snapshot.id) as string);
-				topOf[vacancy.id] = scoring.ranked.slice(0, 10).map((entry) => ({
+				byNeed[need.id] = result.ranked.map((entry) => requestIdOf.get(entry.snapshot.id) as string);
+				topOf[need.id] = result.ranked.slice(0, 10).map((entry) => ({
 					id: requestIdOf.get(entry.snapshot.id) as string,
 					score: entry.result.score,
 					components: Object.fromEntries(
-						Object.entries(entry.result.components).map(([key, component]) => [key, component.value])
+						Object.entries(entry.result.components).map(([key, component]) => [
+							key,
+							component.applicable ? component.contribution : null
+						])
 					)
 				}));
-				if (scoring.reranker.status === 'used') {
-					usage.used++;
-					const scored = scoring.ranked.find((entry) => entry.result.components.reranker.status === 'computed');
-					rerankerModel ??= scored?.result.components.reranker.details.model_id ?? null;
-				} else {
-					const reason = scoring.reranker.reason ?? 'unknown';
-					usage.unavailable[reason] = (usage.unavailable[reason] ?? 0) + 1;
-				}
-				if (scoring.semantic.reason === null) semanticUsage.used++;
+				// A need of one candidate has nothing to order: `no_query`.
+				if (result.semantic.reason === null) semanticUsage.used++;
 				else {
-					const reason = scoring.semantic.reason;
+					const reason = result.semantic.reason;
 					semanticUsage.unavailable[reason] = (semanticUsage.unavailable[reason] ?? 0) + 1;
 				}
 			}
-			rankings[ranking.name] = byVacancy;
+			rankings[ranking.name] = byNeed;
 			unconfirmed[ranking.name] = apart;
 			top[ranking.name] = topOf;
-			reranker[ranking.name] = usage;
 			semantic[ranking.name] = semanticUsage;
 		}
 		return {
 			rankings,
 			unconfirmed,
 			top,
-			reranker,
 			semantic,
-			models: {
-				match_ruleset: String(ruleset.version),
-				reranker: rerankerModel ?? 'none',
-				embedding_space: space?.spaceId ?? 'none'
-			},
+			needs,
+			models: { match_ruleset: String(ruleset.version), embedding_space: space?.spaceId ?? 'none' },
 			catalog: {
 				candidates: request.candidates.length,
 				evidence: runs?.n ?? 0,

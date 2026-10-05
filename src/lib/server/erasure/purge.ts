@@ -56,6 +56,7 @@ import {
 	passwordCredentials,
 	representations,
 	resumeDocuments,
+	shortlistMarks,
 	skillInferences,
 	sourceFacts,
 	telegramLinkTokens,
@@ -487,6 +488,16 @@ async function eraseInvitations(tx: Transaction, candidateId: string, ids: Perso
 	}
 }
 
+/** The marks of companies' shortlists naming the candidate, with the companies' notes about them (domain 23.2). */
+async function eraseShortlistMarks(tx: Transaction, candidateId: string, removal: Removal): Promise<void> {
+	removal.add(
+		await tx
+			.delete(shortlistMarks)
+			.where(eq(shortlistMarks.candidateId, candidateId))
+			.returning({ shortlistId: shortlistMarks.shortlistId })
+	);
+}
+
 /**
  * Consents go except the events a disclosure refers to; representations go with their links and the representative's
  * data unless an authority document inside its retention period or a kept consent event still refers to them.
@@ -650,6 +661,7 @@ async function eraseAccount(
 		facts = await eraseEvidence(tx, candidateId, ids, removal);
 		await eraseGradeChoices(tx, candidateId, removal);
 		await eraseInvitations(tx, candidateId, ids, at, removal);
+		await eraseShortlistMarks(tx, candidateId, removal);
 		evidenceKeptUntil = await eraseConsents(tx, candidateId, ids, today, removal);
 	}
 	if (pending.length > 0) {

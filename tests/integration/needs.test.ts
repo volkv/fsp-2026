@@ -111,7 +111,11 @@ describe('a hiring need', () => {
 		const need = await createNeed(deps(), subject, meta, {
 			text: 'Ищем QA-инженера уровня junior.\nНужны SQL и Python. Удалённо, вилка 120–150 тыс. ₽ на руки.'
 		});
-		expect(need.form).toMatchObject({ specialization: 'qa', grade: 'junior', work_format: 'remote' });
+		expect(need.form).toMatchObject({
+			specialization: 'qa',
+			grade: { min: 'junior', max: 'junior' },
+			work_format: 'remote'
+		});
 		expect(need.form.skill_keys).toEqual(expect.arrayContaining(['sql', 'python']));
 		expect(need.form.salary).toEqual({ min: 120_000, max: 150_000, currency: 'RUB', period: 'month', tax_base: 'net' });
 		expect(need.parse).toMatchObject({ mode: 'rules', model_failure: 'disabled' });
@@ -127,15 +131,33 @@ describe('a hiring need', () => {
 		expect(need.status).toBe('draft');
 	});
 
+	it('reads a range of grades: «Middle/Senior», «от Junior», a grade above the catalog as its top', async () => {
+		const { subject } = await employer();
+		const read = async (text: string) => (await createNeed(deps(), subject, meta, { text })).form.grade;
+		expect(await read('Ищем бэкенд-разработчика Middle/Senior.\nНужны Go и PostgreSQL.')).toEqual({
+			min: 'middle',
+			max: 'senior'
+		});
+		expect(await read('Бэкенд-разработчик от Junior\nНужны Go и PostgreSQL.')).toEqual({
+			min: 'junior',
+			max: 'senior'
+		});
+		expect(await read('Senior/Lead бэкенд-разработчик\nНужны Go и PostgreSQL.')).toEqual({
+			min: 'senior',
+			max: 'senior'
+		});
+		expect(await read('Senior C++ разработчик\nНужен C++.')).toEqual({ min: 'senior', max: 'senior' });
+	});
+
 	it('keeps what the employer filled over the suggestion and does not suggest a closed specialization', async () => {
 		const { subject } = await employer();
 		const need = await createNeed(deps(), subject, meta, {
 			text: 'Ищем Android-разработчика уровня middle на Kotlin.',
-			form: { skill_keys: ['kotlin'], nice_skill_keys: [], grade: 'senior' }
+			form: { skill_keys: ['kotlin'], nice_skill_keys: [], grade: { min: 'senior', max: 'senior' } }
 		});
 		// Mobile is switched off in the catalog: not suggested; the grade is the employer's.
 		expect(need.form.specialization).toBeUndefined();
-		expect(need.form.grade).toBe('senior');
+		expect(need.form.grade).toEqual({ min: 'senior', max: 'senior' });
 		expect(need.form.skill_keys).toEqual(['kotlin']);
 
 		const closed = await apiError(
@@ -192,7 +214,12 @@ describe('recommended categories of a need', () => {
 	it('count only the candidates the company sees, small numbers as «< 5»', async () => {
 		const { subject } = await employer();
 		const need = await createNeed(deps(), subject, meta, {
-			form: { specialization: 'backend', grade: 'middle', skill_keys: ['go'], nice_skill_keys: [] }
+			form: {
+				specialization: 'backend',
+				grade: { min: 'middle', max: 'middle' },
+				skill_keys: ['go'],
+				nice_skill_keys: []
+			}
 		});
 		const seen = [];
 		for (let i = 0; i < 6; i++) seen.push(await listed());
@@ -222,7 +249,7 @@ describe('recommended categories of a need', () => {
 	it('count only categories in force: a revoked one is not counted', async () => {
 		const { subject } = await employer();
 		const need = await createNeed(deps(), subject, meta, {
-			form: { specialization: 'frontend', grade: 'junior', skill_keys: [], nice_skill_keys: [] }
+			form: { specialization: 'frontend', grade: { min: 'junior', max: 'junior' }, skill_keys: [], nice_skill_keys: [] }
 		});
 		const person = await listed();
 		const { decision } = await decide(database.db, person.id, { specialization: 'frontend', grade: 'junior' });

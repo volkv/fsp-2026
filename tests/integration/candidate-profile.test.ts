@@ -2,6 +2,7 @@
 // a resume suggesting the name, the contacts and the soft skills with their quotes, accepted or rejected by the
 // candidate; the block list of companies as the catalog applies it; the PDF profile with the QR code of a signed
 // confirmation of the category whose status follows the category; and refusals on someone else's rows.
+import { GRADE_DECISION_RESULTS } from '$lib/server/matching/test-results';
 import { randomBytes } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { and, eq } from 'drizzle-orm';
@@ -585,7 +586,8 @@ describe('block list', () => {
 			rerank: () => Promise.resolve(fail('disabled', 'rerank: off in the test', { reason: 'test' }))
 		},
 		pseudonym: (candidateId, companyId) => `${candidateId}@${companyId}`,
-		now
+		now,
+		testResults: GRADE_DECISION_RESULTS
 	});
 	const listed = async (subject: AccessSubject, candidateId: string) =>
 		(await searchCandidates(matching(), subject, { limit: 100 })).items.some(

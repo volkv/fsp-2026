@@ -129,7 +129,11 @@ const filterQuery = {
 	uncategorized: z
 		.enum(['true', 'false'])
 		.optional()
-		.describe('Фасет «категория не подтверждена»: только кандидаты без действующей категории')
+		.describe('Фасет «категория не подтверждена»: только кандидаты без действующей категории'),
+	has_fsp: z
+		.enum(['true', 'false'])
+		.optional()
+		.describe('Только кандидаты с подтверждёнными достижениями ФСП (действующий факт ФСП)')
 };
 
 type FilterInput = z.output<z.ZodObject<typeof filterQuery>>;
@@ -163,7 +167,8 @@ function filtersOf(query: FilterInput, regions: RegionReference): CandidateSearc
 			: { fspLevel: { discipline: query.fsp_discipline, minLevel: query.fsp_min_level } }),
 		...(query.work_format === undefined ? {} : { workFormats: query.work_format }),
 		...(query.region_code === undefined ? {} : { regionCodes: query.region_code }),
-		...(query.uncategorized === 'true' ? { uncategorized: true } : {})
+		...(query.uncategorized === 'true' ? { uncategorized: true } : {}),
+		...(query.has_fsp === 'true' ? { fspConfirmed: true } : {})
 	};
 }
 

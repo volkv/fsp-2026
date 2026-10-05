@@ -87,11 +87,11 @@ export function ruleFor(method: string, pathname: string): RateLimitRule | null 
 
 /** Catalog pages of the employer cabinet and their `__data.json`. */
 const CATALOG_PAGE =
-	/^\/company\/(?:candidates(?:\/[^/]+)?|vacancies\/[^/]+\/candidates(?:\/[^/]+)?|partner-pools\/[^/]+)(?:\/__data\.json)?$/u;
+	/^\/company\/(?:candidates(?:\/[^/]+)?|vacancies\/[^/]+\/candidates(?:\/[^/]+)?|partner-pools\/[^/]+|shortlists\/[^/]+(?:\/evaluate)?)(?:\/__data\.json)?$/u;
 
 /** Catalog reads of the API (contracts 5.5). */
 const CATALOG_API =
-	/^\/api\/v1\/(?:catalog\/[^/]+|candidates\/[^/]+|vacancies\/[^/]+\/matches(?:\/[^/]+)?|partner-pools\/[^/]+\/candidates)$/u;
+	/^\/api\/v1\/(?:catalog\/[^/]+|candidates\/[^/]+|vacancies\/[^/]+\/matches(?:\/[^/]+)?|partner-pools\/[^/]+\/candidates|shortlists\/[^/]+(?:\/what-if)?)$/u;
 
 /** The export of the candidate's own data: the file of the page and the same document in the API (contracts 5.5). */
 const DATA_EXPORT_PATHS = new Set(['/me/export/download', '/api/v1/me/data']);

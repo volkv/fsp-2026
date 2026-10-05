@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { GRADE_DECISION_RESULTS } from '$lib/server/matching/test-results';
 import type { AccessSubject } from '$lib/server/access/permissions';
 import { auditEvents } from '$lib/server/db/schema';
 import { readSeedData, seedsDirectory, type SeedData } from '$lib/server/demo/data';
@@ -105,7 +106,13 @@ describe('employer catalog page', () => {
 	it('refuses a region code the reference does not know, without searching', async () => {
 		const unreachable = () => Promise.reject(new Error('a refused query reaches no model'));
 		const models: MatchingModels = { embed: unreachable, rerank: unreachable };
-		const deps = { db: database.db, models, pseudonym: () => 'p', now: () => new Date() };
+		const deps = {
+			db: database.db,
+			models,
+			pseudonym: () => 'p',
+			now: () => new Date(),
+			testResults: GRADE_DECISION_RESULTS
+		};
 		const subject: AccessSubject = {
 			userId: uuidv7(),
 			via: 'session',

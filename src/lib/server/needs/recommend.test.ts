@@ -11,11 +11,27 @@ const empty = { skill_keys: [], nice_skill_keys: [] };
 
 describe('recommendCategories', () => {
 	it('gives the pair of the form and its neighbouring grades', () => {
-		const categories = recommendCategories({ ...empty, specialization: 'backend', grade: 'middle' }, open);
+		const categories = recommendCategories(
+			{ ...empty, specialization: 'backend', grade: { min: 'middle', max: 'middle' } },
+			open
+		);
 		expect(categories.map((c) => [c.specialization, c.grade, c.basis])).toEqual([
 			['backend', 'middle', 'form'],
 			['backend', 'junior', 'neighbour_grade'],
 			['backend', 'senior', 'neighbour_grade']
+		]);
+	});
+
+	it('gives every grade of a range and the neighbours of the range', () => {
+		const categories = recommendCategories(
+			{ ...empty, specialization: 'backend', grade: { min: 'junior', max: 'middle' } },
+			open
+		);
+		expect(categories.map((c) => [c.grade, c.basis])).toEqual([
+			['junior', 'form'],
+			['middle', 'form'],
+			['intern', 'neighbour_grade'],
+			['senior', 'neighbour_grade']
 		]);
 	});
 
@@ -25,14 +41,19 @@ describe('recommendCategories', () => {
 	});
 
 	it('goes by the required skills the blocks confirm when the form names no specialization', () => {
-		const categories = recommendCategories({ ...empty, skill_keys: ['sql'], grade: 'intern' }, open);
+		const categories = recommendCategories(
+			{ ...empty, skill_keys: ['sql'], grade: { min: 'intern', max: 'intern' } },
+			open
+		);
 		expect(categories.length).toBeGreaterThan(0);
 		expect(categories.every((c) => c.basis !== 'form' && c.coveredSkills.includes('sql'))).toBe(true);
 		expect(categories.filter((c) => c.basis === 'skills').every((c) => c.grade === 'intern')).toBe(true);
 	});
 
 	it('suggests no closed specialization and nothing without a basis', () => {
-		expect(recommendCategories({ ...empty, specialization: 'devops', grade: 'middle' }, open)).toEqual([]);
+		expect(
+			recommendCategories({ ...empty, specialization: 'devops', grade: { min: 'middle', max: 'middle' } }, open)
+		).toEqual([]);
 		expect(recommendCategories(empty, open)).toEqual([]);
 		expect(recommendCategories({ ...empty, skill_keys: ['no_such_skill'] }, open)).toEqual([]);
 	});

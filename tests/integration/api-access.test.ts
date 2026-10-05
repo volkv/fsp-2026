@@ -10,6 +10,7 @@ import { eq } from 'drizzle-orm';
 import postgres from 'postgres';
 import { createClient } from 'redis';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
+import { GRADE_DECISION_RESULTS } from '$lib/server/matching/test-results';
 import type { Actor } from '$lib/server/access/actor';
 import type { Permission } from '$lib/server/access/permissions';
 import { runOperation, type Operation } from '$lib/server/api/operation';
@@ -158,7 +159,8 @@ beforeAll(async () => {
 		},
 		receiptSigner,
 		appOrigin: 'http://app.test',
-		now: () => new Date()
+		now: () => new Date(),
+		testResults: GRADE_DECISION_RESULTS
 	};
 });
 
@@ -1039,7 +1041,7 @@ describe('company profile and hiring needs through the API', () => {
 		expect(created.status, created.text).toBe(201);
 		expect(created.json).toMatchObject({
 			status: 'draft',
-			form: { specialization: 'backend', grade: 'middle', work_format: 'remote' },
+			form: { specialization: 'backend', grade: { min: 'middle', max: 'middle' }, work_format: 'remote' },
 			parse: { mode: 'rules', model_failure: 'disabled' }
 		});
 		const form = created.json.form as { skill_keys: string[]; nice_skill_keys: string[] };

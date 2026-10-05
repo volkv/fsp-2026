@@ -21,6 +21,7 @@ import * as needs from '$lib/server/api/v1/needs';
 import * as operator from '$lib/server/api/v1/operator';
 import * as partnerPools from '$lib/server/api/v1/partner-pools';
 import * as profile from '$lib/server/api/v1/profile';
+import * as shortlists from '$lib/server/api/v1/shortlists';
 import * as taxonomy from '$lib/server/api/v1/taxonomy';
 import * as tests from '$lib/server/api/v1/tests';
 import * as vacancies from '$lib/server/api/v1/vacancies';
@@ -48,6 +49,7 @@ const exported = new Map<string, Operation>(
 		...operator,
 		...profile,
 		...partnerPools,
+		...shortlists,
 		...taxonomy,
 		...vacancies,
 		...verify

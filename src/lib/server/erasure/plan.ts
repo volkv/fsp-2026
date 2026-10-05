@@ -69,6 +69,7 @@ export const ERASURE_PLAN: Readonly<Record<string, ErasureDecision>> = {
 	'test_attempts.candidate_id': erased,
 	'grade_decisions.candidate_id': erased,
 	'hiring_processes.candidate_id': erased,
+	'shortlist_marks.candidate_id': erased,
 	'representations.candidate_id': kept('a representation with an authority document inside its retention period'),
 	'consent_events.subject_candidate_id': kept('the events a disclosure refers to (domain 6.5), until its retention'),
 	'disclosures.candidate_id': kept('proof of a lawful transfer (domain 6.5), until `disclosure_retention_months`'),

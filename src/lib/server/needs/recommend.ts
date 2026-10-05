@@ -19,7 +19,7 @@ import { candidates, skillInferences, sourceFacts } from '$lib/server/db/schema'
 import { loadCatalogViewer, loadVisibilityFacts, loadVisibilityPolicy } from '$lib/server/matching/visibility';
 import { smallCell, smallCountThreshold, type SmallCell } from '$lib/server/operator/small-numbers';
 import { canShow } from '$lib/server/visibility/can-show';
-import type { NeedForm } from './form';
+import { gradesOf, type NeedForm, type NeedGrade } from './form';
 
 export type RecommendationBasis = 'form' | 'neighbour_grade' | 'skills';
 
@@ -31,9 +31,11 @@ export interface RecommendedCategory {
 	coveredSkills: string[];
 }
 
-function neighbours(grade: GradeKey): GradeKey[] {
-	const ordinal = gradeOrdinal(grade);
-	return GRADE_KEYS.filter((key) => Math.abs(gradeOrdinal(key) - ordinal) === 1);
+/** The grades just below and just above the range. */
+function neighbours(range: NeedGrade): GradeKey[] {
+	const low = gradeOrdinal(range.min) - 1;
+	const high = gradeOrdinal(range.max) + 1;
+	return GRADE_KEYS.filter((key) => gradeOrdinal(key) === low || gradeOrdinal(key) === high);
 }
 
 function coveredBy(specialization: SpecializationKey, skills: readonly string[]): string[] {
@@ -43,18 +45,21 @@ function coveredBy(specialization: SpecializationKey, skills: readonly string[])
 	return skills.filter((skill) => confirmed.has(skill));
 }
 
-/** The categories of one specialization: the grade of the form and its neighbours, or every grade without one. */
+/**
+ * The categories of one specialization: every grade of the range of the form and the neighbours of the range, or every
+ * grade without a range.
+ */
 function categoriesOf(
 	specialization: SpecializationKey,
-	grade: GradeKey | undefined,
+	range: NeedGrade | undefined,
 	basis: 'form' | 'skills',
 	covered: string[]
 ): RecommendedCategory[] {
-	if (grade === undefined)
+	if (range === undefined)
 		return GRADE_KEYS.map((key) => ({ specialization, grade: key, basis, coveredSkills: covered }));
 	return [
-		{ specialization, grade, basis, coveredSkills: covered },
-		...neighbours(grade).map((key) => ({
+		...gradesOf(range).map((grade) => ({ specialization, grade, basis, coveredSkills: covered })),
+		...neighbours(range).map((key) => ({
 			specialization,
 			grade: key,
 			basis: 'neighbour_grade' as const,

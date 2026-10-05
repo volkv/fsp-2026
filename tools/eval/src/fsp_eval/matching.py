@@ -1,5 +1,6 @@
-"""Matching of the synthetic people with vacancies: a layer over a resume dataset and its FSP achievements for
-`matching.ndcg_at_10` — the product's ranking of candidates for a vacancy against a relevance the harness decides.
+"""Matching of the synthetic people with hiring needs: a layer over a resume dataset and its FSP achievements for
+`matching.ndcg_at_10` and `matching.precision_at_10` — the product's shortlist of a need (the need read by the rules,
+its categories, the candidates holding one, their ranking) against a relevance the harness decides.
 
 The layer decides the truth before anything is ranked, by its own rubric, never from the product:
 
@@ -10,14 +11,19 @@ The layer decides the truth before anything is ranked, by its own rubric, never 
   above, with probability 0.5 at L1 and 0.1 without a record: the model of the world in which the product's premise —
   a competition result tells a real skill — holds, and the only place the FSP layer enters the truth;
 - the person's grade — the generator's; a student without experience is an intern;
-- platform tests: half of the people take one or two tests of the bank in skills they claim or have; a test is passed at
-  the person's level with probability 0.9 when the skill is real and at the junior level with probability 0.05 when it
-  is not. Only a passed test reaches the product, as the platform records it.
+- the test on the grade (generator 2): 0.6 of the people of a role with a tested specialization take the test of
+  that specialization on their own grade (a lead — on senior); it is confirmed with probability 0.9 when the person
+  really holds at least half of the skills of the role's stacks, and 0.3 otherwise; the true share of the test the
+  person scores is decided with it. The sums of the defining blocks of the category are drawn from that share when the
+  catalog of the product is known (the bridge's `info`), at the time of the request: a block whose skills the person
+  holds goes higher, one they do not — lower; a confirmed result never fails a defining block. Only a confirmed test
+  gives a category; a person without one is not in any shortlist (domain 12.7).
 
-Vacancies are drawn from the roles and stacks of the lexicon: the stack's language and two more of its skills required,
-two nice to have, a grade range of one or two grades; some engineering vacancies also require algorithms. Relevance of
-a person for a vacancy, 0–3: no relevance below half of the required skills really held; otherwise 1, plus 1 when every
-required skill is held, plus 1 when the grade is inside the range; a person of another role is at most 1.
+Needs are the vacancies of the lexicon written as an employer writes them — a title with the level and the role, the
+required skills, the nice ones — and read by the product's rules: the stack's language and two more of its skills
+required, two nice to have, a grade range of one or two grades; some engineering needs also require algorithms.
+Relevance of a person for a need, 0–3: no relevance below half of the required skills really held; otherwise 1, plus 1
+when every required skill is held, plus 1 when the grade is inside the range; a person of another role is at most 1.
 """
 
 import hashlib
@@ -37,33 +43,38 @@ from fsp_eval.lexicon import GRADES, LEVEL_WORDS, ROLES, SKILL_SURFACES, RoleSpe
 from fsp_eval.metrics import MetricTable
 from fsp_eval.profiles import Profile
 
-GENERATOR_VERSION = 1
+GENERATOR_VERSION = 2
 
 LISTED_REAL = 0.7
 OMITTED_REAL = 0.15
 ALGORITHMS_REAL = {"strong": 1.0, "participant": 0.5, "none": 0.1}
-TEST_TAKERS = 0.5
-TEST_PASS = {"real": 0.9, "not_real": 0.05}
+TEST_TAKERS = 0.6
+# A test is confirmed with this probability: the person holds at least half of the role's stack skills, or not.
+TEST_CONFIRMED = {"holds": 0.9, "lacks": 0.3}
 ALGORITHMIC_ROLES = frozenset({"backend", "data_engineer", "data_scientist", "ml_engineer"})
 ALGORITHMIC_SHARE = 0.3
 
-# Assessments of the bank by skill: the quiz sets the level itself; a code task confirms one level.
-QUIZZES: dict[str, str] = {
-    "python": "quiz-python",
-    "go": "quiz-go",
-    "javascript": "quiz-javascript",
-    "sql": "quiz-sql",
+# The specialization of the catalog a person of the role takes the test of: the harness's people choose it, as a person
+# chooses in the survey. Roles not here take no test (analysts, data engineers; mobile and DevOps are closed).
+TEST_SPECIALIZATION: dict[str, str] = {
+    "backend": "backend",
+    "fullstack": "backend",
+    "frontend": "frontend",
+    "qa_manual": "qa",
+    "qa_automation": "qa",
+    "data_scientist": "data_ml",
+    "ml_engineer": "data_ml",
 }
-CODE_TASKS: dict[str, dict[str, str]] = {"java": {"junior": "java-grade-report", "middle": "java-lru-cache"}}
-TESTABLE: frozenset[str] = frozenset(QUIZZES) | frozenset(CODE_TASKS)
-# Level of a test a person of the grade reaches.
-TEST_LEVEL: dict[str, str] = {
-    "intern": "junior",
+# The grade of the test a person of the grade takes: the catalog has no lead.
+TEST_GRADE: dict[str, str] = {
+    "intern": "intern",
     "junior": "junior",
     "middle": "middle",
     "senior": "senior",
     "lead": "senior",
 }
+# Angoff estimate of a cluster of the harness: the cut of a block is this share of its items.
+BLOCK_CUT = 0.6
 # How a vacancy writes a skill the resumes never write.
 VACANCY_NAMES: dict[str, str] = {"algorithms": "Алгоритмы и структуры данных"}
 
@@ -94,17 +105,19 @@ class Truth:
 
 
 @dataclass(frozen=True)
-class TestResult:
-    skill: str
-    assessment: str
-    level: str
+class GradeResult:
+    specialization: str
+    grade: str
+    outcome: str
+    # The true share of the test the person scores, 0–1: the blocks are drawn from it.
+    share: float
 
 
 @dataclass(frozen=True)
 class World:
     vacancies: tuple[Vacancy, ...]
     truths: dict[str, Truth]
-    tests: dict[str, tuple[TestResult, ...]]
+    tests: dict[str, tuple[GradeResult, ...]]
 
     def vacancies_of(self, split: Split) -> tuple[Vacancy, ...]:
         return tuple(vacancy for vacancy in self.vacancies if vacancy.split == split)
@@ -160,31 +173,41 @@ def truth_of(seed: int, profile: Profile, record: FspRecord | None) -> Truth:
     )
 
 
-def tests_of(seed: int, profile: Profile, truth: Truth) -> tuple[TestResult, ...]:
-    """Passed tests of the person; a failed attempt gives the product no evidence and is not listed."""
+def tests_of(seed: int, profile: Profile, truth: Truth) -> tuple[GradeResult, ...]:
+    """The test of the person on their grade, if they take one: its outcome and the share they score."""
     rng = random.Random(f"{seed}:tests:{profile.id}")
-    if rng.random() >= TEST_TAKERS:
+    specialization = TEST_SPECIALIZATION.get(truth.role) if truth.role is not None else None
+    if specialization is None or rng.random() >= TEST_TAKERS:
         return ()
-    claimed = {m.key for m in profile.skills} | {
-        m.key for job in profile.jobs for line in job.lines for m in line.mentions
-    }
-    options = sorted((claimed | set(truth.skills)) & TESTABLE)
-    if not options:
-        return ()
-    rng.shuffle(options)
-    results = []
-    for skill in options[: rng.randint(1, 2)]:
-        real = skill in truth.skills
-        if rng.random() >= TEST_PASS["real" if real else "not_real"]:
-            continue
-        level = TEST_LEVEL[truth.grade] if real else "junior"
-        if skill in QUIZZES:
-            results.append(TestResult(skill, QUIZZES[skill], level))
-        else:
-            tasks = CODE_TASKS[skill]
-            task_level = level if level in tasks else max(tasks, key=GRADES.index)
-            results.append(TestResult(skill, tasks[task_level], task_level))
-    return tuple(results)
+    stack = {key for s in _role_spec(profile.role).stacks for key in s.skills}
+    holds = len(stack & set(truth.skills)) >= len(stack) / 2
+    confirmed = rng.random() < TEST_CONFIRMED["holds" if holds else "lacks"]
+    share = (0.78 if holds else 0.58) + rng.uniform(-0.1, 0.1)
+    share = max(share, BLOCK_CUT + 0.02) if confirmed else min(share, BLOCK_CUT - 0.02)
+    return (
+        GradeResult(
+            specialization, TEST_GRADE[truth.grade], "confirmed" if confirmed else "not_confirmed", round(share, 2)
+        ),
+    )
+
+
+def block_sums(
+    seed: int, profile_id: str, result: GradeResult, defining: Sequence[Mapping[str, Any]], skills: Sequence[str]
+) -> list[dict[str, Any]]:
+    """The sums of the defining blocks of a confirmed result, in twentieths: the share of the result, higher on a block
+    whose skills the person holds, lower on one they do not, never under the cut of a confirmed decision."""
+    held = set(skills)
+    blocks = []
+    for block in defining:
+        rng = random.Random(f"{seed}:block:{profile_id}:{block['block']}")
+        keys = set(block["skill_keys"])
+        lean = 0.08 if not keys or keys & held else -0.08
+        items = max(int(block["items"]), 1)
+        cut = round(items * 20 * BLOCK_CUT)
+        share = min(1.0, max(0.0, result.share + lean + rng.uniform(-0.05, 0.05)))
+        score = max(cut, round(items * 20 * share))
+        blocks.append({"block": block["block"], "items": items, "score": score, "cut": cut})
+    return blocks
 
 
 # --- Vacancies --------------------------------------------------------------------------------------------------------
@@ -192,6 +215,19 @@ def tests_of(seed: int, profile: Profile, truth: Truth) -> tuple[TestResult, ...
 
 def vacancy_name(key: str) -> str:
     return VACANCY_NAMES.get(key) or SKILL_SURFACES[key][0]
+
+
+def need_text(vacancy: Vacancy) -> str:
+    """The need as an employer writes it: the title with the grades and the role — a range of two grades as
+    «Middle/Senior» — then the skills."""
+    if vacancy.grade_min == vacancy.grade_max:
+        return f"{vacancy.title}\n{vacancy.description}"
+
+    def word(grade: str) -> str:
+        return next(w for w in LEVEL_WORDS[grade][1] if w)
+
+    role = vacancy.title.split(" ", 1)[1]
+    return f"{word(vacancy.grade_min)}/{word(vacancy.grade_max)} {role}\n{vacancy.description}"
 
 
 def _vacancy(seed: int, split: Split, index: int) -> Vacancy:
@@ -303,9 +339,32 @@ def build_matching(
 # --- Relevance and nDCG -----------------------------------------------------------------------------------------------
 
 
-def relevance(vacancy: Vacancy, truth: Truth, *, role_matters: bool = True) -> int:
-    """The rubric's relevance, 0–3. `role_matters=False` — the same without the cap for another role: a reading of
-    the rubric that asks only for skills and grade, reported next to the main one."""
+def product_pool(world: World, people: Sequence[str]) -> list[str]:
+    """The pool of the lane «as in the product» (contracts 11.1): the people with a confirmed test. The product
+    shortlists by the categories a test gives (ТЗ: the output is formed from the categories, not from self-described
+    resumes), so a person without one is in no shortlist by definition and is not a relevant miss of it; the keyword
+    search competes on the same pool. A person without a test is the subject of the separate `resume_only` experiment,
+    not of this one."""
+    return [pid for pid in people if any(t.outcome == "confirmed" for t in world.tests[pid])]
+
+
+# Versions of the relevance rubric, each fixed before the runs that use it (methodology, contracts 11.2):
+# - v1 (2026-09-25): 0 below half of the required skills really held; otherwise 1, plus 1 when every required skill is
+#   held, plus 1 when the grade is inside the need's range; a person of another role is at most 1;
+# - v2 (2026-10-05, before its first run): as v1, and a person whose grade is outside the need's range is at most 1
+#   too — the employer states the grades of the need, so the range is a requirement of the need like the role, not a
+#   property of the system. Both are reported side by side; neither is chosen as «the» number.
+RUBRICS: dict[str, str] = {
+    "v1": "role caps at 1; grade in range adds 1",
+    "v2": "role and grade range both cap at 1",
+}
+
+
+def relevance(vacancy: Vacancy, truth: Truth, *, role_matters: bool = True, rubric: str = "v1") -> int:
+    """The rubric's relevance, 0–3, by the rubric version. `role_matters=False` — the same without the cap for another
+    role: a reading of the rubric that asks only for skills and grade, reported next to the main one."""
+    if rubric not in RUBRICS:
+        raise ValueError(f"unknown rubric {rubric}")
     held = set(truth.skills)
     covered = sum(key in held for key in vacancy.required) / len(vacancy.required)
     if covered < 0.5:
@@ -313,6 +372,8 @@ def relevance(vacancy: Vacancy, truth: Truth, *, role_matters: bool = True) -> i
     order = {grade: index for index, grade in enumerate(GRADES)}
     in_range = order[vacancy.grade_min] <= order[truth.grade] <= order[vacancy.grade_max]
     points = 1 + (covered == 1) + in_range
+    if rubric == "v2" and not in_range:
+        points = min(points, 1)
     return points if not role_matters or truth.role == vacancy.role else min(points, 1)
 
 
@@ -330,11 +391,19 @@ def _ideal(rels: Mapping[str, int], k: int) -> float:
 
 
 def ndcg(order: Sequence[str], rels: Mapping[str, int], k: int = K) -> float:
-    """nDCG@k of an order of the whole pool; the caller skips a vacancy without a relevant person."""
-    if sorted(order) != sorted(rels):
-        raise ValueError("the ranking does not hold the pool exactly")
+    """nDCG@k of an order of people of the pool against the ideal order of the whole pool. A shortlist holds only the
+    people of its categories: a shorter order is not completed, the positions it lacks gain nothing. The caller skips a
+    need without a relevant person."""
+    if len(set(order)) != len(order) or not set(order) <= set(rels):
+        raise ValueError("the ranking holds people outside the pool or repeats one")
     dcg = sum(_gain(rels[pid]) * _discount(i) for i, pid in enumerate(order[:k]))
     return dcg / _ideal(rels, k)
+
+
+def precision_at(order: Sequence[str], rels: Mapping[str, int], k: int = K) -> float:
+    """Precision@k with the denominator k (contracts 11.2): the share of relevance 2 or 3 among k positions; a shorter
+    order does not count higher."""
+    return sum(rels[pid] >= 2 for pid in order[:k]) / k
 
 
 def random_ndcg(rels: Mapping[str, int], k: int = K) -> float:
@@ -364,18 +433,16 @@ def keyword_order(vacancy: Vacancy, texts: Mapping[str, str | None], seed: int) 
 
 # --- Metrics ----------------------------------------------------------------------------------------------------------
 
-# Product variants of the ranking: which evidence the candidates carry and whether the reranker and the semantic
-# similarity are on. A run without an embedder has no semantic similarity in any variant and no `without_semantic`.
+# Product variants of the ranking: whether the candidates carry their FSP achievements and whether the semantic
+# similarity orders the almost equal. Every variant carries the test results: without a confirmed test there is no
+# category and no shortlist (domain 12.7). A run without an embedder has no `without_semantic`.
 VARIANTS: dict[str, dict[str, bool]] = {
-    "full": {"fsp": True, "tests": True, "reranker": True, "semantic": True},
-    "without_fsp": {"fsp": False, "tests": True, "reranker": True, "semantic": True},
-    "without_tests": {"fsp": True, "tests": False, "reranker": True, "semantic": True},
-    "resume_only": {"fsp": False, "tests": False, "reranker": True, "semantic": True},
-    "without_reranker": {"fsp": True, "tests": True, "reranker": False, "semantic": True},
-    "without_semantic": {"fsp": True, "tests": True, "reranker": True, "semantic": False},
+    "full": {"fsp": True, "semantic": True},
+    "without_fsp": {"fsp": False, "semantic": True},
+    "without_semantic": {"fsp": True, "semantic": False},
 }
 # Variants a run computes only with the model the variant switches off.
-NEEDS_MODEL: dict[str, str] = {"without_reranker": "reranker", "without_semantic": "semantic"}
+NEEDS_MODEL: dict[str, str] = {"without_semantic": "semantic"}
 BOOTSTRAP_SAMPLES = 2000
 
 
@@ -402,26 +469,35 @@ def matching_metrics(
     texts: Mapping[str, str | None],
     rankings: Mapping[str, Mapping[str, Sequence[str]]],
     top: Mapping[str, Mapping[str, Sequence[Mapping[str, Any]]]],
-    reranker_used: bool,
     semantic_used: bool,
+    with_fsp: frozenset[str] = frozenset(),
+    rubric: str = "v1",
 ) -> dict[str, Any]:
-    """nDCG@10 of the product's ranking and of its variants over the same vacancies and the same pool, with the
-    baselines, and the report part: per vacancy values and paired bootstrap intervals of the differences.
+    """nDCG@10 and Precision@10 of the product's shortlists and of its variants over the same needs and the same pool,
+    with the baselines, the exposure of people without FSP results, and the report part: per need values and paired
+    bootstrap intervals of the differences.
 
-    - `matching.ndcg_at_10` — the product with everything the run has (resume, FSP, tests, the reranker and the
-      semantic similarity when the run has them); baseline — the keyword search;
+    - `matching.ndcg_at_10` — the shortlist of each need with everything the run has; baseline — the keyword search
+      over the whole pool;
     - `.lift_over_keywords` — the lower bound of the 95 % paired bootstrap interval of «the product minus the keyword
       search»: above zero — the product is better than the search a recruiter has without it;
     - `.keywords` (baseline — random order), `.random` — the baselines;
-    - `.resume_only` — the product on the resume alone; baseline — the keyword search;
-    - `.without_fsp`, `.without_tests`, `.without_reranker`, `.without_semantic` — the product without one source;
-      baseline — the full product, so the delta is what the source adds (negative — it helps). A run without the
-      reranker or the embedder does not compute the variant without it.
+    - `.without_fsp`, `.without_semantic` — the product without one source; baseline — the full product, so the delta
+      is what the source adds. A run without the embedder does not compute the variant without it;
+    - `matching.precision_at_10` — the share of relevance 2–3 among ten positions (out of ten); baseline — keywords;
+    - `matching.without_fsp_share_top10` — the share of people without FSP results among the first ten of the shortlist;
+      baseline — their share among all candidates of the shortlist: what the ranking does to their exposure.
     """
-    used = {"reranker": reranker_used, "semantic": semantic_used}
+    used = {"semantic": semantic_used}
 
     def scores(vacancy: Vacancy, rels: Mapping[str, int]) -> dict[str, float]:
-        found = {"keywords": ndcg(keyword_order(vacancy, texts, seed), rels), "random": random_ndcg(rels)}
+        keywords = keyword_order(vacancy, texts, seed)
+        found = {
+            "keywords": ndcg(keywords, rels),
+            "random": random_ndcg(rels),
+            "precision_keywords": precision_at(keywords, rels),
+            "precision_full": precision_at(rankings["full"][vacancy.id], rels),
+        }
         for name in VARIANTS:
             if name not in NEEDS_MODEL or used[NEEDS_MODEL[name]]:
                 found[name] = ndcg(rankings[name][vacancy.id], rels)
@@ -429,40 +505,62 @@ def matching_metrics(
 
     rated = []
     for vacancy in vacancies:
-        rels = {pid: relevance(vacancy, truths[pid]) for pid in pool}
+        rels = {pid: relevance(vacancy, truths[pid], rubric=rubric) for pid in pool}
         if any(rels.values()):
             rated.append((vacancy, rels))
     per_vacancy: dict[str, dict[str, Any]] = {}
-    values: dict[str, list[float]] = {name: [] for name in ("keywords", "random", *VARIANTS)}
+    series = ("keywords", "random", "precision_keywords", "precision_full", *VARIANTS)
+    values: dict[str, list[float]] = {name: [] for name in series}
     # The same rankings against the rubric read without the role: what changes when only skills and grade count.
     role_agnostic: dict[str, list[float]] = {name: [] for name in values}
+    exposure: list[tuple[float, float]] = []
     for vacancy, rels in rated:
         found = scores(vacancy, rels)
         for name, value in found.items():
             values[name].append(value)
-        agnostic = {pid: relevance(vacancy, truths[pid], role_matters=False) for pid in pool}
+        agnostic = {pid: relevance(vacancy, truths[pid], role_matters=False, rubric=rubric) for pid in pool}
         for name, value in scores(vacancy, agnostic).items():
             role_agnostic[name].append(value)
+        shortlist = rankings["full"][vacancy.id]
+        if shortlist:
+            first = shortlist[:K]
+            exposure.append(
+                (
+                    sum(pid not in with_fsp for pid in first) / len(first),
+                    sum(pid not in with_fsp for pid in shortlist) / len(shortlist),
+                )
+            )
         per_vacancy[vacancy.id] = {
             "relevant": {str(level): sum(r == level for r in rels.values()) for level in (1, 2, 3)},
             "algorithmic": vacancy.algorithmic,
+            "shortlist": len(shortlist),
             **found,
             "top10": _top10(vacancy, rels, top, keyword_order(vacancy, texts, seed)[:K]),
         }
     n = len(rated)
-    mean = {name: _mean(series) for name, series in values.items()}
+    mean = {name: _mean(series_) for name, series_ in values.items()}
     deltas = _deltas(seed, values)
-    table.put("matching.ndcg_at_10", mean["full"], n, mean["keywords"], with_baseline=True)
+    # The keys of v1 are the committed ones; another rubric reports under a group of its own.
+    group = "matching" if rubric == "v1" else f"matching_{rubric}"
+    table.put(f"{group}.ndcg_at_10", mean["full"], n, mean["keywords"], with_baseline=True)
     lift = deltas.get("full_minus_keywords")
     table.put(
-        "matching.ndcg_at_10.lift_over_keywords", None if lift is None else lift["ci95"][0], n, with_baseline=False
+        f"{group}.ndcg_at_10.lift_over_keywords", None if lift is None else lift["ci95"][0], n, with_baseline=False
     )
-    table.put("matching.ndcg_at_10.keywords", mean["keywords"], n, mean["random"], with_baseline=True)
-    table.put("matching.ndcg_at_10.random", mean["random"], n, with_baseline=False)
-    table.put("matching.ndcg_at_10.resume_only", mean["resume_only"], n, mean["keywords"], with_baseline=True)
-    for name in ("without_fsp", "without_tests", "without_reranker", "without_semantic"):
+    table.put(f"{group}.ndcg_at_10.keywords", mean["keywords"], n, mean["random"], with_baseline=True)
+    table.put(f"{group}.ndcg_at_10.random", mean["random"], n, with_baseline=False)
+    for name in ("without_fsp", "without_semantic"):
         computed = bool(values[name])
-        table.put(f"matching.ndcg_at_10.{name}", mean[name], n if computed else 0, mean["full"], with_baseline=True)
+        table.put(f"{group}.ndcg_at_10.{name}", mean[name], n if computed else 0, mean["full"], with_baseline=True)
+    table.put(f"{group}.precision_at_10", mean["precision_full"], n, mean["precision_keywords"], with_baseline=True)
+    table.put(f"{group}.precision_at_10.keywords", mean["precision_keywords"], n, with_baseline=False)
+    table.put(
+        f"{group}.without_fsp_share_top10",
+        _mean([top_share for top_share, _ in exposure]),
+        len(exposure),
+        _mean([pool_share for _, pool_share in exposure]),
+        with_baseline=True,
+    )
     by_kind = {
         kind: {
             name: _mean([row[name] for row in per_vacancy.values() if row["algorithmic"] == flag and name in row])
@@ -471,13 +569,13 @@ def matching_metrics(
         for kind, flag in (("algorithmic", True), ("other", False))
     }
     return {
-        "vacancies": len(vacancies),
-        "rated_vacancies": n,
+        "rubric": rubric,
+        "needs": len(vacancies),
+        "rated_needs": n,
         "pool": len(pool),
-        "reranker_used": reranker_used,
         "semantic_used": semantic_used,
         "deltas": deltas,
-        "role_agnostic": {name: _mean(series) for name, series in role_agnostic.items()},
+        "role_agnostic": {name: _mean(series_) for name, series_ in role_agnostic.items()},
         "by_kind": by_kind,
         "per_vacancy": per_vacancy,
     }
@@ -509,7 +607,7 @@ def _top10(
 def _deltas(seed: int, values: Mapping[str, Sequence[float]]) -> dict[str, dict[str, Any]]:
     """The full product minus each other variant, per vacancy, with a paired bootstrap interval."""
     deltas = {}
-    for other in ("keywords", "random", "resume_only", *(name for name in VARIANTS if name.startswith("without_"))):
+    for other in ("keywords", "random", *(name for name in VARIANTS if name.startswith("without_"))):
         if not values[other]:
             continue
         paired = [full - value for full, value in zip(values["full"], values[other], strict=True)]

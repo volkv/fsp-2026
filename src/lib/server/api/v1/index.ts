@@ -16,6 +16,7 @@ import * as needs from './needs';
 import * as operator from './operator';
 import * as partnerPools from './partner-pools';
 import * as profile from './profile';
+import * as shortlists from './shortlists';
 import * as taxonomy from './taxonomy';
 import * as tests from './tests';
 import * as vacancies from './vacancies';
@@ -55,6 +56,7 @@ export const API_OPERATIONS: readonly Operation[] = [
 	...Object.values(tests),
 	...Object.values(companyProfile),
 	...Object.values(needs),
+	...Object.values(shortlists),
 	...Object.values(categories),
 	...Object.values(grades),
 	...Object.values(invitations),

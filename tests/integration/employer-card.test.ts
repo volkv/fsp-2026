@@ -4,6 +4,7 @@
 import { randomBytes } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { GRADE_DECISION_RESULTS } from '$lib/server/matching/test-results';
 import type { AccessSubject } from '$lib/server/access/permissions';
 import {
 	candidateCompanyBlocks,
@@ -258,7 +259,8 @@ function deps(models: MatchingModels = recordingModels().models): MatchingDeps {
 		db: database.db,
 		models,
 		pseudonym: (candidateId, companyId) => `${candidateId}@${companyId}`,
-		now: () => new Date()
+		now: () => new Date(),
+		testResults: GRADE_DECISION_RESULTS
 	};
 }
 

@@ -107,7 +107,12 @@ const GROUPS = {
 		'hiring.reported',
 		'match.viewed',
 		'need.created',
-		'need.updated'
+		'need.updated',
+		'shortlist.created',
+		'shortlist.revised',
+		'shortlist.marked',
+		'shortlist.unmarked',
+		'shortlist.evaluated'
 	],
 	aggregator: [
 		'vacancies.import_completed',

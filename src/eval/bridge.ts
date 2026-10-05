@@ -1,16 +1,18 @@
 // Commands of the evaluation bridge: the harness in tools/eval sends one JSON request on stdin and reads one JSON answer
 // on stdout (main.ts). Each command runs the product code of this build — no reimplementation — over inputs the harness
 // generated, so the metrics describe what the product does.
-//   info       — versions of everything that shapes a result;
+//   info       — versions of everything that shapes a result, and the definitions of the categories (the defining
+//                blocks of every pair with their items and skills) the harness draws test results for;
 //   extract    — resume files → parse, extraction, evidence rows and the evidence snapshot they give;
 //   normalize  — skill mentions → taxonomy keys;
 //   evidence   — profile snapshots, optionally with FSP achievements → FSP levels and inferred skills;
-//   rank       — candidates (resume rows, FSP achievements, test results) and vacancies → the product's category path
-//                for every vacancy — admitted categories, the candidates holding one, their ranking — and the
-//                candidates without a category apart, in a catalog of a temporary database;
+//   rank       — candidates (resume rows, FSP achievements, test results by blocks) and needs as texts → the product's
+//                path of a shortlist for every need — the need read by the rules, the categories of its shortlist, the
+//                candidates holding one, their ranking — and the candidates without a category apart, in a catalog of
+//                a temporary database;
 //   record     — a finished run → a row of `eval_runs` in the format of the quality panel, with its report file.
 import { z } from 'zod';
-import { CATALOG } from '$lib/server/assessments/contract/catalog';
+import { blockDefinition, CATALOG } from '$lib/server/assessments/contract/catalog';
 import type { Docparse } from '$lib/server/documents/docparse';
 import type { ModelAdapter } from '$lib/server/ml/adapter';
 import { RESUME_SCHEMA_VERSION } from '$lib/server/resumes/extract-job';
@@ -95,7 +97,19 @@ export async function handle(raw: unknown, deps: BridgeDeps): Promise<unknown> {
 					catalog: CATALOG.version,
 					resume_rules: RULES_VERSION,
 					resume_schema: RESUME_SCHEMA_VERSION
-				}
+				},
+				categories: CATALOG.definitions.map((definition) => ({
+					specialization: definition.specialization,
+					grade: definition.grade,
+					open: CATALOG.specializations.some(
+						(s) => s.key === definition.specialization && s.availability === 'enabled'
+					),
+					defining: definition.defining.map((code) => ({
+						block: code,
+						items: definition.blocks.find((quota) => quota.block === code)?.items ?? 0,
+						skill_keys: [...blockDefinition(code).skillKeys]
+					}))
+				}))
 			};
 		}
 		case 'extract': {

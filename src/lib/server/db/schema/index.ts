@@ -21,5 +21,6 @@ export * from './ml';
 export * from './notifications';
 export * from './policies';
 export * from './profile';
+export * from './shortlists';
 export * from './taxonomy';
 export * from './vacancies';

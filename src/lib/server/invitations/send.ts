@@ -6,6 +6,7 @@
 import { and, count, eq, gt, inArray, sql } from 'drizzle-orm';
 import { can, type AccessSubject } from '$lib/server/access/permissions';
 import { recordAuditEvent } from '$lib/server/audit/record';
+import { gradeDefinition } from '$lib/server/assessments/contract/catalog';
 import { activeCategories } from '$lib/server/categories/read';
 import { primarySpecializationOfRole } from '$lib/server/categories/roles';
 import { loadCompanyAdmission, admissionRefusal } from '$lib/server/companies/gate';
@@ -163,8 +164,10 @@ function validOffer(input: OfferInput): ValidOffer {
 
 /**
  * Every point of «why you» rests on what the company sees in the profile. An FSP result is named by the receipt the
- * company was issued for this candidate; a preference by the key the card shows. Sources of the test, of a confirmation
- * and of a challenge solution are accepted once their modules connect them to offers.
+ * company was issued for this candidate; a preference by the key the card shows; a block of the test by its code, which
+ * must be a defining block or the practice of a category in force of the candidate, which its confirmation passed (the
+ * shortlist names them, domain 13.10). Sources of a confirmation and of a challenge solution are accepted once their modules connect them to
+ * offers.
  */
 async function checkSources(
 	tx: Transaction,
@@ -199,7 +202,18 @@ async function checkSources(
 			case 'declared_skill':
 				if (!/^[a-z0-9_]+$/u.test(point.source.ref)) throw invalid(`${path}.ref`, 'Навык называется ключом');
 				break;
-			case 'test_block':
+			case 'test_block': {
+				const categories = (await activeCategories(tx, [pair.candidateId])).get(pair.candidateId) ?? [];
+				// The defining blocks of the grade and its practice, passed for every confirmation (domain 10.6).
+				const confirmed = categories.flatMap((category) => [
+					...category.confirmedBlocks,
+					gradeDefinition(category.specialization, category.grade).practice.block
+				]);
+				if (!confirmed.includes(point.source.ref)) {
+					throw invalid(`${path}.ref`, 'Блок не подтверждён тестом действующей категории кандидата');
+				}
+				break;
+			}
 			case 'confirmation':
 			case 'challenge_solution':
 				throw invalid(`${path}.kind`, 'Этот источник пока не подключён к предложениям');

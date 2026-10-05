@@ -339,6 +339,30 @@ export const DEMO_CLONE_PLAN: Readonly<Record<string, TableDecision>> = {
 		copy: true,
 		edges: { process_id: 'owner', reported_by_user_id: 'mention', supersedes_report_id: 'owner' }
 	},
+	// Shortlists of needs (domain 13.10, 23.2).
+	shortlists: {
+		kind: 'owned',
+		copy: true,
+		edges: { company_id: 'owner', need_id: 'owner', created_by_member_id: 'owner' }
+	},
+	shortlist_revisions: { kind: 'owned', copy: true, edges: { shortlist_id: 'owner', created_by_member_id: 'owner' } },
+	shortlist_marks: {
+		kind: 'owned',
+		copy: true,
+		edges: { shortlist_id: 'owner', candidate_id: 'owner', marked_by_member_id: 'owner' }
+	},
+	shortlist_evaluations: {
+		kind: 'owned',
+		copy: false,
+		edges: { shortlist_id: 'owner', created_by_member_id: 'owner' },
+		why: 'a judgement of the visitor of the session, not of the scenario'
+	},
+	salary_cohort_snapshots: {
+		kind: 'owned',
+		copy: false,
+		edges: { company_id: 'owner' },
+		why: 'a daily aggregate the clone takes anew over the candidates its company sees'
+	},
 
 	// Files, parsing, models.
 	files: { kind: 'owned', copy: true, edges: { owner_user_id: 'owner' } },

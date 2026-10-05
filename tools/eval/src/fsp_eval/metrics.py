@@ -1,9 +1,10 @@
 """Metrics of a run: predictions of the product against the labels, each with its baseline and the items counted.
 
 Keys follow the format the quality panel reads (`<group>.<metric>[.<variant>]`): `resume.*` — reading a resume and
-the quotes of what was read, `skills.*` — skill normalization, `categorization.*` — role, grade range, sufficiency and
-refusals, and the FSP ablation (variants `.with_fsp` / `.without_fsp`), `performance.*` — time per document. The
-matching group (matching.py) extends the same table: `matching.ndcg_at_10`, its baselines and its variants.
+the quotes of what was read, `skills.*` — skill normalization, `categorization.fsp_level_*` — the FSP level the
+evidence calculation gives by discipline, `performance.*` — time per document. The product assigns no category from a
+resume (only a test does, domain 12.4), so role and grade are not read from a resume and not measured here. The
+matching group (matching.py) extends the same table: the shortlist of a need, its baselines and its variants.
 """
 
 import math
@@ -253,100 +254,6 @@ def normalization_metrics(
     )
 
 
-@dataclass(frozen=True)
-class Category:
-    """The primary assignment of a categorization answer; `None` fields — the axis is not established."""
-
-    role: str | None
-    grade_min: str | None
-    grade_max: str | None
-
-
-def primary_category(answer: dict[str, Any] | None) -> Category:
-    """No answer (the document failed to parse) is a refusal on every axis."""
-    if answer is None or not answer["assignments"]:
-        return Category(None, None, None)
-    primary = next(a for a in answer["assignments"] if a["rank"] == "primary")
-    role = primary["role_key"] if primary["role_status"] == "established" else None
-    if primary["grade_status"] != "established":
-        return Category(role, None, None)
-    return Category(role, primary["grade_min"], primary["grade_max"])
-
-
-def categorization_metrics(
-    table: MetricTable,
-    golds: Sequence[Gold],
-    categories: Sequence[Category],
-    *,
-    grade_order: Sequence[str],
-    majority_role: str,
-    majority_grade: str,
-) -> None:
-    rank = {grade: index for index, grade in enumerate(grade_order)}
-    role_rows = [(g, c) for g, c in zip(golds, categories, strict=True) if g.role_sufficient]
-    grade_rows = [(g, c) for g, c in zip(golds, categories, strict=True) if g.grade_sufficient]
-
-    table.put(
-        "categorization.role_accuracy",
-        _share([c.role == g.role for g, c in role_rows]),
-        len(role_rows),
-        _share([majority_role == g.role for g, _ in role_rows]),
-        with_baseline=True,
-    )
-
-    def in_range(gold: Gold, category: Category) -> bool:
-        if gold.grade is None or category.grade_min is None or category.grade_max is None:
-            return False
-        return rank[category.grade_min] <= rank[gold.grade] <= rank[category.grade_max]
-
-    table.put(
-        "categorization.grade_in_range",
-        _share([in_range(g, c) for g, c in grade_rows]),
-        len(grade_rows),
-        _share([g.grade == majority_grade for g, _ in grade_rows]),
-        with_baseline=True,
-    )
-    widths = [
-        rank[c.grade_max] - rank[c.grade_min] + 1
-        for c in categories
-        if c.grade_min is not None and c.grade_max is not None
-    ]
-    table.put(
-        "categorization.grade_range_width",
-        sum(widths) / len(widths) if widths else None,
-        len(widths),
-        1.0,
-        with_baseline=True,
-    )
-    pairs = list(zip(golds, categories, strict=True))
-    for axis, gold_says, product_says in (
-        ("role", lambda g: g.role_sufficient, lambda c: c.role is not None),
-        ("grade", lambda g: g.grade_sufficient, lambda c: c.grade_min is not None),
-    ):
-        table.put(
-            f"categorization.sufficiency_accuracy.{axis}",
-            _share([gold_says(g) == product_says(c) for g, c in pairs]),
-            len(pairs),
-            # The baseline never refuses: every resume is taken as sufficient.
-            _share([gold_says(g) for g, _ in pairs]),
-            with_baseline=True,
-        )
-    table.put(
-        "categorization.refusal_rate",
-        _share([c.role is None for c in categories]),
-        len(categories),
-        0.0,
-        with_baseline=True,
-    )
-    table.put(
-        "categorization.false_refusal_rate",
-        _share([c.role is None for _, c in role_rows]),
-        len(role_rows),
-        0.0,
-        with_baseline=True,
-    )
-
-
 # --- Quotes -----------------------------------------------------------------------------------------------------------
 
 # Refusals of an extracted item because its quote does not stand in the document or does not say what the item says.
@@ -439,7 +346,7 @@ def performance_metrics(table: MetricTable, documents: Sequence[dict[str, Any]])
         table.put(f"performance.extract_ms.{name}", _percentile(times, share), len(times), with_baseline=False)
 
 
-# --- FSP ablation -----------------------------------------------------------------------------------------------------
+# --- FSP levels -------------------------------------------------------------------------------------------------------
 
 
 def fsp_levels_of(answer: dict[str, Any] | None) -> dict[str, str]:
@@ -447,94 +354,21 @@ def fsp_levels_of(answer: dict[str, Any] | None) -> dict[str, str]:
 
 
 @dataclass(frozen=True)
-class AblationCase:
-    """One person with FSP achievements: the labels and what the product answered without and with them."""
+class FspLevelCase:
+    """One person with FSP achievements: the labels of the record and the levels the evidence calculation gave."""
 
-    gold: Gold
     fsp: FspGold
-    without: Category
-    with_fsp: Category
-    with_levels: dict[str, str]
+    levels: dict[str, str]
 
 
-Share = tuple[float | None, int]
-
-
-def _variant_rows(cases: Sequence[AblationCase], rank: dict[str, int], *, with_fsp: bool) -> dict[str, Share]:
-    """One variant over the same people as the other: every denominator is a set of people fixed by the labels, never
-    by what the variant's evidence grounds, so the two values of a metric compare the same people."""
-
-    def category(case: AblationCase) -> Category:
-        return case.with_fsp if with_fsp else case.without
-
-    # People whose role the full evidence grounds: the resume, or the record with a specialization naming the role.
-    groundable = [c for c in cases if c.gold.role_sufficient or c.fsp.role_grounded]
-    dated = [c for c in cases if c.gold.grade_sufficient]
-
-    def in_range(case: AblationCase) -> bool:
-        found = category(case)
-        if case.gold.grade is None or found.grade_min is None or found.grade_max is None:
-            return False
-        return rank[found.grade_min] <= rank[case.gold.grade] <= rank[found.grade_max]
-
-    def wrong(case: AblationCase) -> bool:
-        role = category(case).role
-        return role is not None and role != case.fsp.role
-
-    n = len(cases)
-    return {
-        "role_established": (_share([category(c).role is not None for c in cases]), n),
-        "role_found": (_share([category(c).role == c.fsp.role for c in cases]), n),
-        "role_accuracy": (_share([category(c).role == c.fsp.role for c in groundable]), len(groundable)),
-        "role_wrong_rate": (_share([wrong(c) for c in cases]), n),
-        "refusal_rate": (_share([category(c).role is None for c in cases]), n),
-        "grade_established": (_share([category(c).grade_min is not None for c in cases]), n),
-        "grade_in_range": (_share([in_range(c) for c in dated]), len(dated)),
-    }
-
-
-ABLATION_METRICS = (
-    "role_established",
-    "role_found",
-    "role_accuracy",
-    "role_wrong_rate",
-    "refusal_rate",
-    "grade_established",
-    "grade_in_range",
-)
-
-
-def ablation_metrics(table: MetricTable, cases: Sequence[AblationCase], *, grade_order: Sequence[str]) -> None:
-    """Categorization of the people with FSP achievements twice: `.without_fsp` — on their resume alone, `.with_fsp` —
-    with the achievements; the baseline of `.with_fsp` is the value `.without_fsp`, so the difference is what the FSP
-    data changed. Both values of a metric are counted on the same people:
-
-    - `role_established`, `grade_established` — share of all the people with the axis set;
-    - `role_found` — share of all the people put into their own role: findability by role;
-    - `role_accuracy` — the person's role among the people whose role the full evidence grounds (the resume, or the
-      record with a product-discipline result and a specialization naming the role); a refusal is a miss, so a role
-      only the record grounds counts against the variant without it;
-    - `role_wrong_rate` — share of all the people put into a role that is not theirs (lower is better);
-    - `refusal_rate` — share of all the people without a role;
-    - `grade_in_range` — as in the resume table: the grade inside the range, on people with dated experience.
-
-    The FSP level is not part of the comparison: without the record there is no level by construction. It is measured
-    on its own, with the record: `categorization.fsp_level_accuracy` — the person's level in each discipline of the
-    record (and each level given besides) equal to the product's; `categorization.fsp_level_coverage` — share of the
-    people with a record who got a level at all.
-    """
-    rank = {grade: index for index, grade in enumerate(grade_order)}
-    without = _variant_rows(cases, rank, with_fsp=False)
-    with_fsp = _variant_rows(cases, rank, with_fsp=True)
-    for name in ABLATION_METRICS:
-        value, n = without[name]
-        table.put(f"categorization.{name}.without_fsp", value, n, with_baseline=False)
-        gained, n = with_fsp[name]
-        table.put(f"categorization.{name}.with_fsp", gained, n, value, with_baseline=True)
+def fsp_level_metrics(table: MetricTable, cases: Sequence[FspLevelCase]) -> None:
+    """The FSP level of the evidence calculation, on the people with a record: `categorization.fsp_level_accuracy` — the
+    person's level in each discipline of the record (and each level given besides) equal to the product's;
+    `categorization.fsp_level_coverage` — share of the people with a record who got a level at all."""
     level_pairs = [
-        (dict(c.fsp.levels).get(discipline), c.with_levels.get(discipline))
+        (dict(c.fsp.levels).get(discipline), c.levels.get(discipline))
         for c in cases
-        for discipline in sorted(set(dict(c.fsp.levels)) | set(c.with_levels))
+        for discipline in sorted(set(dict(c.fsp.levels)) | set(c.levels))
     ]
     table.put(
         "categorization.fsp_level_accuracy",
@@ -544,7 +378,7 @@ def ablation_metrics(table: MetricTable, cases: Sequence[AblationCase], *, grade
     )
     table.put(
         "categorization.fsp_level_coverage",
-        _share([bool(c.with_levels) for c in cases]),
+        _share([bool(c.levels) for c in cases]),
         len(cases),
         with_baseline=False,
     )

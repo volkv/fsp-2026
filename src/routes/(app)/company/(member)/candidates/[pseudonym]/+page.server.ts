@@ -1,4 +1,5 @@
 import { error, redirect } from '@sveltejs/kit';
+import { formText } from '$lib/server/auth/http';
 import { companyAdmission } from '$lib/server/access/permissions';
 import { db } from '$lib/server/db';
 import { findInCatalog, journalCardView, loadCatalogCard } from '$lib/server/employer/card';
@@ -8,15 +9,24 @@ import { searchableVacancies } from '$lib/server/employer/vacancies';
 import { currentVocabulary, labelsOf } from '$lib/server/employer/vocabulary';
 import { configuredReceiptSigner } from '$lib/server/fsp/receipts';
 import { invitationDeps } from '$lib/server/invitations/deps';
-import { offerFormContext, offerFromForm, whyYouOptions } from '$lib/server/invitations/offer-form';
+import {
+	offerFormContext,
+	offerFromForm,
+	whyYouFromShortlist,
+	whyYouOptions,
+	type WhyYouOption
+} from '$lib/server/invitations/offer-form';
 import { listInvitations } from '$lib/server/invitations/read';
 import { createInvitation } from '$lib/server/invitations/send';
 import { matchingDeps } from '$lib/server/matching/deps';
+import { configuredShortlistDeps } from '$lib/server/shortlists/page';
+import { shortlistMatchOf } from '$lib/server/shortlists/service';
 import type { Actions, PageServerLoad } from './$types';
 
 /**
  * The catalog card outside a vacancy, and the offer from it: the company writes first, a vacancy is optional
- * (domain 13.5). The match is computed for a vacancy, on the page of the card in its context.
+ * (domain 13.5). The match is computed for a vacancy, on the page of the card in its context. Opened from a shortlist
+ * (`?shortlist=`), the offer starts with the reasons of the shortlist as points of «why you» and names its need.
  */
 export const load: PageServerLoad = async (event) => {
 	const { subject, meta } = await employerRequest(event);
@@ -47,13 +57,32 @@ export const load: PageServerLoad = async (event) => {
 		const existing = (await listInvitations(invitationDeps(), subject, 'company')).find(
 			(invitation) => invitation.candidatePseudonym === item.pseudonym
 		);
+		const fromCard = whyYouOptions(card.card, { skills: labels.skills, workFormats: labels.terms.work_format });
+		const shortlistId = event.url.searchParams.get('shortlist');
+		const fromShortlist = shortlistId
+			? await shortlistMatchOf(configuredShortlistDeps(), subject, shortlistId, item.candidateId, event.request.signal)
+			: null;
+		const suggested: WhyYouOption[] = fromShortlist
+			? whyYouFromShortlist(fromShortlist.match, fromCard, {
+					skills: labels.skills,
+					workFormats: labels.terms.work_format,
+					specializations: labels.specializations,
+					grades: labels.grades
+				})
+			: [];
+		const suggestedKeys = new Set(suggested.map((option) => option.key));
 		return {
 			pseudonym: item.pseudonym,
 			...card,
 			labels,
 			vacancies: await searchableVacancies(database, membership.companyId),
 			offer: await offerFormContext(database, membership.companyId, vocabulary, now),
-			whyYouOptions: whyYouOptions(card.card, { skills: labels.skills, workFormats: labels.terms.work_format }),
+			whyYouOptions: [...suggested, ...fromCard.filter((option) => !suggestedKeys.has(option.key))],
+			fromShortlist: fromShortlist && {
+				shortlistId,
+				needId: fromShortlist.needId,
+				preselected: suggested.slice(0, 5).map((option) => option.key)
+			},
 			invitation: existing ? { id: existing.id, status: existing.status } : null
 		};
 	} catch (cause) {
@@ -74,7 +103,11 @@ export const actions: Actions = {
 				invitationDeps(),
 				subject,
 				{ ...meta, sessionHash },
-				{ ...offerFromForm(form), candidateId: found.candidateId }
+				{
+					...offerFromForm(form),
+					candidateId: found.candidateId,
+					...(formText(form, 'needId') === '' ? {} : { needId: formText(form, 'needId') })
+				}
 			);
 			invitationId = sent.invitationId;
 		} catch (cause) {

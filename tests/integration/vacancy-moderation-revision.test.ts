@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { and, eq } from 'drizzle-orm';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { GRADE_DECISION_RESULTS } from '$lib/server/matching/test-results';
 import type { AccessSubject } from '$lib/server/access/permissions';
 import { runOperation, type Operation } from '$lib/server/api/operation';
 import type { ApiServices } from '$lib/server/api/services';
@@ -71,7 +72,8 @@ beforeAll(async () => {
 		},
 		receiptSigner: createReceiptSigner({ issuer: 'http://app.test', keyId: 'test-1', seed: Buffer.alloc(32, 5) }),
 		appOrigin: 'http://app.test',
-		now: () => new Date()
+		now: () => new Date(),
+		testResults: GRADE_DECISION_RESULTS
 	};
 });
 

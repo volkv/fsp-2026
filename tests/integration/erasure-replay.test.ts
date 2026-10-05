@@ -22,6 +22,9 @@ import {
 	files,
 	gradeDeclarations,
 	profileExperienceEntries,
+	hiringNeeds,
+	shortlistMarks,
+	shortlists,
 	staffRoles,
 	users
 } from '$lib/server/db/schema';
@@ -43,7 +46,14 @@ import { createReceiptSigner } from '$lib/server/fsp/receipts';
 import { decide } from '../helpers/categories';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
 import { testEnvironment } from '../helpers/environment';
-import { createCandidate, createTaxonomyVersion, createUser, randomSha256 } from '../helpers/factories';
+import {
+	createCandidate,
+	createCompany,
+	createMember,
+	createTaxonomyVersion,
+	createUser,
+	randomSha256
+} from '../helpers/factories';
 
 const REDIS_DATABASE = 13;
 
@@ -171,6 +181,32 @@ beforeAll(async () => {
 		)
 	);
 	people.attestation = attestations[0]?.handle ?? '';
+	// A company's mark with its note about the candidate in a shortlist (domain 23.2): erased again by the replay.
+	const company = await createCompany(db);
+	const member = await createMember(db, company.id);
+	const [need] = await db
+		.insert(hiringNeeds)
+		.values({
+			companyId: company.id,
+			createdByMemberId: member.id,
+			form: { skill_keys: ['go'], nice_skill_keys: [] },
+			textCheck: { result: 'clean', phrases: [] },
+			status: 'active'
+		})
+		.returning({ id: hiringNeeds.id });
+	if (!need) throw new Error('need not inserted');
+	const [shortlist] = await db
+		.insert(shortlists)
+		.values({ companyId: company.id, needId: need.id, createdByMemberId: member.id, status: 'open' })
+		.returning({ id: shortlists.id });
+	if (!shortlist) throw new Error('shortlist not inserted');
+	await db.insert(shortlistMarks).values({
+		shortlistId: shortlist.id,
+		candidateId: candidate.id,
+		markedByMemberId: member.id,
+		markedAt: new Date(),
+		note: 'сильный SQL'
+	});
 	people.bystander = (await createCandidate(db)).userId;
 	const staff = await createCandidate(db);
 	people.staff = staff.userId;
@@ -289,6 +325,9 @@ describe('the erasure ledger after a restore', () => {
 		).toEqual([]);
 		expect(people.attestation).not.toBe('');
 		expect(await verifyAttestation(restored, people.attestation)).toBeNull();
+		expect(
+			await restored.select().from(shortlistMarks).where(eq(shortlistMarks.candidateId, people.candidateProfile))
+		).toEqual([]);
 		// The deletion began again as the system's act, not the person's.
 		const requested = await restored
 			.select({ actorKind: auditEvents.actorKind, cause: sql<string>`${auditEvents.details} ->> 'cause'` })

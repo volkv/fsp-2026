@@ -253,10 +253,32 @@ export const POLICY_PARAMS = {
 		enabled: z.boolean(),
 		authority_methods: z.array(z.enum(REPRESENTATIVE_AUTHORITY_METHODS)).min(1)
 	}),
-	catalog_policy: z.strictObject({
-		/** Counts below this value are shown as «< N» (domain 7.4). */
-		small_count_threshold: positiveInt
-	}),
+	// Version 2 adds the intervals salary expectations and ranges are brought to in the answers about a cohort (13.10).
+	catalog_policy: z.union([
+		z.strictObject({
+			/** Counts below this value are shown as «< N» (domain 7.4). */
+			small_count_threshold: positiveInt
+		}),
+		z.strictObject({
+			small_count_threshold: positiveInt,
+			/**
+			 * The scale of roubles per month: up to `until` (exclusive) intervals of `step`; the last part has no end. An
+			 * expectation or a range is known to an answer only by its interval.
+			 */
+			salary_bins: z
+				.array(z.strictObject({ until: positiveInt.nullable(), step: positiveInt }))
+				.min(1)
+				.refine(
+					(parts) =>
+						parts.every((part, index) => (part.until === null) === (index === parts.length - 1)) &&
+						parts.every((part, index) => {
+							const from = index === 0 ? 0 : (parts[index - 1]?.until ?? 0);
+							return part.until === null || (part.until > from && (part.until - from) % part.step === 0);
+						}),
+					'intervals cover the scale in whole steps and only the last part has no end'
+				)
+		})
+	]),
 	market_policy: z.strictObject({
 		window_days: positiveInt,
 		min_sample: positiveInt

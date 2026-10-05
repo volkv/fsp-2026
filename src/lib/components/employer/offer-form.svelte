@@ -37,6 +37,10 @@
 			whyYou: string[];
 		};
 		responseWindowHours: number | null;
+		/** Keys of the points picked to start with when there is no previous version (an offer from a shortlist). */
+		preselected?: string[];
+		/** The need the offer is made for (an offer from a shortlist). */
+		needId?: string | null;
 		/** Field problems by the path of the service (`title`, `salary_min`, `why_you.0.text`, …). */
 		problems?: Record<string, string>;
 		submitLabel?: string;
@@ -49,6 +53,8 @@
 		whyYouOptions,
 		initial,
 		responseWindowHours,
+		preselected = [],
+		needId = null,
 		problems = {},
 		submitLabel = 'Отправить предложение'
 	}: Props = $props();
@@ -78,6 +84,7 @@
 
 <form method="POST" {action} use:enhance class="grid gap-4" data-testid="offer-form">
 	<CsrfInput />
+	{#if needId}<input type="hidden" name="needId" value={needId} />{/if}
 	<Field.Field data-invalid={problems.title !== undefined}>
 		<Field.Label for="{id}-title">Название предложения</Field.Label>
 		<Input id="{id}-title" name="title" maxlength={120} value={initial?.title ?? ''} required />
@@ -203,7 +210,7 @@
 					name="whyYou"
 					value={option.key}
 					aria-label={`Включить пункт: ${option.text}`}
-					checked={initial?.whyYou.includes(option.key) ?? false}
+					checked={initial?.whyYou.includes(option.key) ?? preselected.includes(option.key)}
 				/>
 				<Input name={`whyYouText:${option.key}`} maxlength={300} value={option.text} aria-label="Текст пункта" />
 			</div>

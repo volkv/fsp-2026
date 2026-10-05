@@ -1,7 +1,7 @@
 {
-	"id": "synthetic-matching-v1",
+	"id": "synthetic-matching-v2",
 	"provenance": "synthetic",
-	"generator": 1,
+	"generator": 2,
 	"seed": 20261003,
 	"base_dataset": "synthetic-resumes-v2",
 	"fsp_layer": "fsp-achievements-v2",
@@ -9,5 +9,5 @@
 		"dev": 40,
 		"holdout": 40
 	},
-	"labels_sha256": "8282f05774f8c58459436ec9d85a63f8458f4b047c32d2ef3b0fe08a4f021ccd"
+	"labels_sha256": "de1a5083127bd41a647a4d6eeb305ad00127b50a244ff4b78cec94e93ebf4d07"
 }

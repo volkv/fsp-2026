@@ -26,7 +26,7 @@ MANIFEST = load_manifest("synthetic-resumes-v2")
 DATASET = build(MANIFEST)
 LAYER = load_layer("fsp-achievements-v2")
 RECORDS = build_layer(LAYER, DATASET)
-MATCHING = load_matching("synthetic-matching-v1")
+MATCHING = load_matching("synthetic-matching-v2")
 WORLD = build_matching(MATCHING, DATASET, LAYER.id, RECORDS)
 KEY = re.compile(r"^[a-z][a-z0-9_]*(\.[a-z0-9_]+)+$")
 REVISION = "0123456789abcdef0123456789abcdef01234567"
@@ -52,27 +52,25 @@ def _period(key: str) -> dict:
 
 
 class LabelEcho:
-    """A bridge that answers with the labels themselves, optionally with the roles swapped for another one (with FSP
-    achievements, `wrong_fsp_role`); it ranks the people by the relevance the rubric gives them, or in the reverse order
-    (`reverse_ranking`); the reranker ranks as many vacancies as `reranked` says (all by default), the semantic
-    similarity serves a ranking that asks for it on as many as `embedded` says (all by default); it reports the product
-    revision `revision`."""
+    """A bridge that answers with the labels themselves, optionally with every FSP level one step off (`wrong_levels`);
+    it shortlists for a need the people of the need's role with a confirmed test, by the relevance the rubric gives
+    them, or in the reverse order (`reverse_ranking`); with `everyone` it shortlists every person with a confirmed test,
+    whatever the role; the semantic similarity serves a ranking that asks for it on as many needs as `embedded` says
+    (all by default); it reports the product revision `revision`."""
 
     def __init__(
         self,
-        wrong_role: str | None = None,
-        wrong_fsp_role: str | None = None,
         *,
+        wrong_levels: bool = False,
         reverse_ranking: bool = False,
-        reranked: int | None = None,
+        everyone: bool = False,
         embedded: int | None = None,
         revision: str = REVISION,
     ) -> None:
         self.revision = revision
-        self.wrong_role = wrong_role
-        self.wrong_fsp_role = wrong_fsp_role
+        self.wrong_levels = wrong_levels
         self.reverse_ranking = reverse_ranking
-        self.reranked = reranked
+        self.everyone = everyone
         self.embedded = embedded
         self.requests: list[dict] = []
 
@@ -80,14 +78,27 @@ class LabelEcho:
         self.requests.append(request)
         match request["command"]:
             case "info":
-                return {"product_revision": self.revision, "versions": {"taxonomy": "test"}}
+                return {
+                    "product_revision": self.revision,
+                    "versions": {"taxonomy": "test"},
+                    "categories": [
+                        {
+                            "specialization": specialization,
+                            "grade": grade,
+                            "open": True,
+                            "defining": [{"block": f"{specialization}.a", "items": 3, "skill_keys": ["python"]}],
+                        }
+                        for specialization in ("backend", "frontend", "qa", "data_ml")
+                        for grade in ("intern", "junior", "middle", "senior")
+                    ],
+                }
             case "extract":
                 return {"documents": [self._document(d["id"]) for d in request["documents"]]}
             case "normalize":
                 keys = {s: k for g in DATASET.golds.values() for s, k, _ in g.mentions}
                 return {"results": [{"skill_key": keys.get(s)} for s in request["surfaces"]]}
-            case "categorize":
-                return {"profiles": [self._category(p["id"], fsp="fsp" in p) for p in request["profiles"]]}
+            case "evidence":
+                return {"profiles": [self._evidence(p["id"]) for p in request["profiles"]]}
             case "rank":
                 return self._rank(request)
             case "record":
@@ -95,41 +106,42 @@ class LabelEcho:
         raise AssertionError(request["command"])
 
     def _rank(self, request: dict) -> dict:
-        vacancies = {v.id: v for v in WORLD.vacancies}
-        rankings, top, reranker, semantic = {}, {}, {}, {}
+        needs = {v.id: v for v in WORLD.vacancies}
+        by_id = {c["id"]: c for c in request["candidates"]}
+        rankings, top, semantic = {}, {}, {}
         for ranking in request["rankings"]:
-            by_vacancy = {}
-            for vacancy in request["vacancies"]:
-                rated = vacancies[vacancy["id"]]
+            by_need = {}
+            for need in request["needs"]:
+                rated = needs[need["id"]]
 
                 def rel(cid: str, rated=rated) -> int:
                     return relevance(rated, WORLD.truths[cid.split("/", 1)[0]])
 
-                order = sorted(ranking["candidates"], key=lambda cid, rel=rel: (-rel(cid), cid))
-                by_vacancy[vacancy["id"]] = order[::-1] if self.reverse_ranking else order
-            rankings[ranking["name"]] = by_vacancy
+                confirmed = [
+                    cid
+                    for cid in ranking["candidates"]
+                    if (by_id[cid]["test_result"] or {}).get("outcome") == "confirmed"
+                    and (self.everyone or WORLD.truths[cid.split("/", 1)[0]].role == rated.role)
+                ]
+                order = sorted(confirmed, key=lambda cid, rel=rel: (-rel(cid), cid))
+                by_need[need["id"]] = order[::-1] if self.reverse_ranking else order
+            rankings[ranking["name"]] = by_need
             top[ranking["name"]] = {
-                vid: [{"id": cid, "score": 0.5, "components": {"required": 0.5}} for cid in order[:10]]
-                for vid, order in by_vacancy.items()
+                nid: [{"id": cid, "score": 0.5, "components": {"required": 0.5}} for cid in order[:10]]
+                for nid, order in by_need.items()
             }
-            used = len(request["vacancies"]) if self.reranked is None else self.reranked
-            reranker[ranking["name"]] = (
-                {"used": used, "unavailable": {}}
-                if ranking["reranker"]
-                else {"used": 0, "unavailable": {"disabled": 1}}
-            )
-            embedded = len(request["vacancies"]) if self.embedded is None else self.embedded
+            embedded = len(request["needs"]) if self.embedded is None else self.embedded
             semantic[ranking["name"]] = (
-                {"used": embedded, "unavailable": {}}
+                {"used": embedded, "unavailable": {} if embedded == len(request["needs"]) else {"timeout": 1}}
                 if ranking["semantic"]
-                else {"used": 0, "unavailable": {"no_active_space": len(request["vacancies"])}}
+                else {"used": 0, "unavailable": {"no_query": len(request["needs"])}}
             )
         return {
             "rankings": rankings,
             "top": top,
-            "reranker": reranker,
             "semantic": semantic,
-            "models": {"match_ruleset": "3", "reranker": "reranker@test", "embedding_space": "none"},
+            "needs": {},
+            "models": {"match_ruleset": "11", "embedding_space": "none"},
         }
 
     def _document(self, profile_id: str) -> dict:
@@ -199,30 +211,15 @@ class LabelEcho:
             "evidence": {"fact": {"id": profile_id}, "claims": [], "entries": []},
         }
 
-    def _category(self, profile_id: str, *, fsp: bool) -> dict:
-        gold = DATASET.golds[profile_id]
-        record = RECORDS[profile_id] if fsp else None
-        levels = [{"discipline": d, "level": level} for d, level in record.gold.levels] if record else []
-        role = gold.role
-        if record is not None:
-            role = record.gold.role if gold.role_sufficient or record.gold.role_grounded else None
-            role = self.wrong_fsp_role or role
-        if role is None:
-            return {"id": profile_id, "assignments": [], "fsp_levels": levels}
-        grade = gold.grade if gold.grade_sufficient else None
+    def _evidence(self, profile_id: str) -> dict:
+        levels = RECORDS[profile_id].gold.levels
+        step = {"L1": "L2", "L2": "L3", "L3": "L4", "L4": "L5", "L5": "L1"}
         return {
             "id": profile_id,
-            "assignments": [
-                {
-                    "rank": "primary",
-                    "role_status": "established",
-                    "role_key": self.wrong_role or role,
-                    "grade_status": "established" if grade else "insufficient_data",
-                    "grade_min": grade,
-                    "grade_max": grade,
-                }
+            "fsp_levels": [
+                {"discipline": d, "level": step[level] if self.wrong_levels else level} for d, level in levels
             ],
-            "fsp_levels": levels,
+            "skills": [],
         }
 
 
@@ -269,7 +266,7 @@ def options(tmp_path):
 
 def test_answers_equal_to_the_labels_meet_every_threshold(options, monkeypatch, tmp_path):
     thresholds = tmp_path / "thresholds.json"
-    thresholds.write_text(json.dumps({"thresholds": {"categorization.role_accuracy": {"min": 0.9}}}))
+    thresholds.write_text(json.dumps({"thresholds": {"categorization.fsp_level_accuracy": {"min": 0.9}}}))
     monkeypatch.setattr(run_module, "THRESHOLDS_FILE", thresholds)
     bridge = LabelEcho()
     report = execute(options, bridge)
@@ -283,50 +280,35 @@ def test_answers_equal_to_the_labels_meet_every_threshold(options, monkeypatch, 
         "resume.skills_f1",
         "resume.fields_f1",
         "skills.normalization_accuracy",
-        "categorization.role_accuracy",
-        "categorization.grade_in_range",
-        "categorization.sufficiency_accuracy.role",
-        "categorization.sufficiency_accuracy.grade",
+        "categorization.fsp_level_accuracy",
     ):
         assert values[key] == 1.0, key
-    assert values["categorization.false_refusal_rate"] == 0.0
+    # Coverage is the share of records with a level at all: an answer equal to the labels gives exactly that.
+    holdout = [RECORDS[p.id] for p in DATASET.split("holdout") if p.id in RECORDS]
+    assert values["categorization.fsp_level_coverage"] == round(
+        sum(bool(r.gold.levels) for r in holdout) / len(holdout), 4
+    )
     assert values["resume.quote_validity"] == 1.0
     assert values["resume.quote_refusal_rate"] == 0.0
-    for key in (
-        "categorization.role_accuracy.with_fsp",
-        "categorization.fsp_level_accuracy",
-        "categorization.grade_in_range.with_fsp",
-    ):
-        assert values[key] == 1.0, key
-    assert values["categorization.role_wrong_rate.with_fsp"] == 0.0
-    # People nothing grounds a role for stay unfound even by an answer equal to the labels.
-    assert values["categorization.role_found.without_fsp"] < values["categorization.role_found.with_fsp"] < 1.0
-    # Both variants of the ablation count the same people.
-    for key in (k for k in row["metrics"] if k.endswith(".with_fsp")):
-        assert row["metrics"][key]["n"] == row["metrics"][key.replace("with_fsp", "without_fsp")]["n"], key
+    # The product reads no role or grade from a resume: nothing of the kind is measured.
+    assert not any(key.startswith("categorization.role") or "grade" in key for key in row["metrics"])
     assert row["versions"]["fsp_layer"] == LAYER.id
     # Only the holdout split is rendered and sent; achievements go only with the people who have them.
     sent = {d["id"] for d in bridge.requests[1]["documents"]}
     assert sent == {p.id for p in DATASET.split("holdout")}
-    with_fsp = next(r for r in bridge.requests if r["command"] == "categorize" and "fsp" in r["profiles"][0])
-    assert {p["id"] for p in with_fsp["profiles"]} == sent & set(RECORDS)
-    assert len(with_fsp["profiles"]) == LAYER.participants["holdout"]
+    evidence = next(r for r in bridge.requests if r["command"] == "evidence")
+    assert {p["id"] for p in evidence["profiles"]} == sent & set(RECORDS)
+    assert len(evidence["profiles"]) == LAYER.participants["holdout"]
+    assert all("fsp" in p for p in evidence["profiles"])
     assert Path(report["report_path"]).is_file()
     assert "ok {'min': 0.9}" in summary(report)
     assert report["threshold_failures"] == []
 
-    wrong = execute(options, LabelEcho(wrong_role="qa_manual"))
-    assert wrong["row"]["metrics"]["categorization.role_accuracy"]["value"] < 0.2
+    wrong = execute(options, LabelEcho(wrong_levels=True))
+    accuracy = wrong["row"]["metrics"]["categorization.fsp_level_accuracy"]["value"]
+    assert accuracy == 0.0
     assert "FAIL" in summary(wrong)
-    assert wrong["threshold_failures"] == [
-        f"categorization.role_accuracy: {wrong['row']['metrics']['categorization.role_accuracy']['value']} "
-        "outside {'min': 0.9}"
-    ]
-    # A product that FSP achievements lead to another role: the resume metrics hold, the ablation shows the loss.
-    misled = execute(options, LabelEcho(wrong_fsp_role="algo_engineer"))["row"]["metrics"]
-    assert misled["categorization.role_accuracy"]["value"] == 1.0
-    assert misled["categorization.role_found.with_fsp"]["value"] == 0.0
-    assert misled["categorization.role_found.with_fsp"]["baseline"] > 0.5
+    assert wrong["threshold_failures"] == [f"categorization.fsp_level_accuracy: {accuracy} outside {{'min': 0.9}}"]
     # The worst order of the pool: every variant falls below the keyword search.
     reversed_rows = execute(options, LabelEcho(reverse_ranking=True))["row"]["metrics"]
     assert reversed_rows["matching.ndcg_at_10"]["value"] < reversed_rows["matching.ndcg_at_10"]["baseline"]
@@ -337,17 +319,18 @@ def test_the_run_ranks_every_evidence_set_and_records_the_report(options):
     report = execute(options, bridge)
     row = report["row"]
     values = {key: metric["value"] for key, metric in row["metrics"].items()}
-    # A ranking by the rubric's own relevance is ideal in every variant and beats both baselines.
-    for name in (name for name in VARIANTS if name != "without_semantic"):
-        key = "matching.ndcg_at_10" if name == "full" else f"matching.ndcg_at_10.{name}"
-        assert values[key] == 1.0, key
-    assert values["matching.ndcg_at_10.random"] < values["matching.ndcg_at_10.keywords"] < 1.0
-    assert values["matching.ndcg_at_10.lift_over_keywords"] > 0
+    # A shortlist of the people with a confirmed test of the need's role, by the rubric's own relevance: both variants
+    # rank the same way, and the shortlist holds fewer people than the pool, so it is not ideal.
+    assert values["matching.ndcg_at_10"] == values["matching.ndcg_at_10.without_fsp"]
+    assert 0 < values["matching.ndcg_at_10"] < 1.0
+    assert values["matching.ndcg_at_10.random"] < values["matching.ndcg_at_10.keywords"]
+    assert 0 <= values["matching.precision_at_10"] <= 1
+    assert values["matching.without_fsp_share_top10"] is not None
     # Without an embedder in the run the variant without it is neither ranked nor computed.
     assert values["matching.ndcg_at_10.without_semantic"] is None
-    assert row["metrics"]["matching.ndcg_at_10"]["n"] == report["matching"]["rated_vacancies"]
+    assert row["metrics"]["matching.ndcg_at_10"]["n"] == report["matching"]["rated_needs"]
     assert row["versions"]["matching_layer"] == MATCHING.id
-    assert row["versions"]["reranker"] == "reranker@test"
+    assert row["versions"]["match_ruleset"] == "11"
     assert report["recorded"]["id"] == "run-1"
     record = bridge.requests[-1]
     assert record["command"] == "record"
@@ -363,24 +346,21 @@ def test_the_run_ranks_every_evidence_set_and_records_the_report(options):
     assert "documents" not in brief
     assert "per_vacancy" not in brief["matching"]
     sent = {p.id for p in DATASET.split("holdout")}
-    # Each person enters the catalog once per evidence set; FSP and tests only with the sets that carry them.
+    # Each person enters the catalog once with FSP achievements and once without; the test result is in both.
     rank = next(r for r in bridge.requests if r["command"] == "rank")
     assert not any(ranking["semantic"] for ranking in rank["rankings"])
     assert "without_semantic" not in {ranking["name"] for ranking in rank["rankings"]}
-    assert len(rank["candidates"]) == 4 * len(sent)
-    assert {v["id"] for v in rank["vacancies"]} == {v.id for v in WORLD.vacancies_of("holdout")}
-    resume_only = [c for c in rank["candidates"] if c["id"].endswith("/resume")]
-    assert all(c["fsp"] is None and c["tests"] == [] for c in resume_only)
+    assert len(rank["candidates"]) == 2 * len(sent)
+    assert {n["id"] for n in rank["needs"]} == {v.id for v in WORLD.vacancies_of("holdout")}
+    without = [c for c in rank["candidates"] if c["id"].endswith("/resume+tests")]
+    assert all(c["fsp"] is None for c in without)
     full = {c["id"].split("/")[0]: c for c in rank["candidates"] if c["id"].endswith("/resume+fsp+tests")}
     assert all((full[pid]["fsp"] is not None) == (pid in RECORDS) for pid in full)
-
-
-def test_a_reranker_that_ranked_some_vacancies_stops_the_run(options):
-    with pytest.raises(RunError, match="mixed run"):
-        execute(options, LabelEcho(reranked=3))
-    # Without a reranker at all the variant without it is not computed.
-    row = execute(options, LabelEcho(reranked=0))["row"]
-    assert row["metrics"]["matching.ndcg_at_10.without_reranker"] == {"value": None, "n": 0, "baseline": 1.0}
+    # A confirmed test carries the blocks of its category; another outcome — none.
+    tested = [c["test_result"] for c in full.values() if c["test_result"] is not None]
+    assert tested
+    for result in tested:
+        assert ("blocks" in result) == (result["outcome"] == "confirmed")
 
 
 def test_a_run_with_semantic_similarity_ranks_every_variant_with_it_but_one(options):
@@ -391,15 +371,16 @@ def test_a_run_with_semantic_similarity_ranks_every_variant_with_it_but_one(opti
     assert {r["name"]: r["semantic"] for r in rank["rankings"]} == {
         name: name != "without_semantic" for name in VARIANTS
     }
-    assert report["row"]["metrics"]["matching.ndcg_at_10.without_semantic"] == {
-        "value": 1.0,
-        "n": report["matching"]["rated_vacancies"],
-        "baseline": 1.0,
+    metrics = report["row"]["metrics"]
+    assert metrics["matching.ndcg_at_10.without_semantic"] == {
+        "value": metrics["matching.ndcg_at_10"]["value"],
+        "n": report["matching"]["rated_needs"],
+        "baseline": metrics["matching.ndcg_at_10"]["value"],
     }
-    # Asked for and absent, or served for some vacancies only: no measurement of the product as configured.
+    # Asked for and absent, or served for some needs only: no measurement of the product as configured.
     with pytest.raises(RunError, match="had none"):
         execute(semantic, LabelEcho(embedded=0))
-    with pytest.raises(RunError, match="mixed run"):
+    with pytest.raises(RunError, match="some needs only"):
         execute(semantic, LabelEcho(embedded=5))
 
 
@@ -411,7 +392,8 @@ def test_a_product_worse_than_the_keyword_search_fails_the_relative_threshold(op
     lift = report["row"]["metrics"]["matching.ndcg_at_10.lift_over_keywords"]
     assert lift["value"] == round(report["matching"]["deltas"]["full_minus_keywords"]["ci95"][0], 4) < 0
     assert any(f.startswith("matching.ndcg_at_10.lift_over_keywords:") for f in report["threshold_failures"])
-    passed = execute(options, LabelEcho())["threshold_failures"]
+    # The rubric's own order of the whole pool beats the keyword search.
+    passed = execute(options, LabelEcho(everyone=True))["threshold_failures"]
     assert not any(f.startswith("matching.ndcg_at_10.lift_over_keywords:") for f in passed)
 
 
@@ -472,25 +454,25 @@ def test_a_failed_threshold_or_a_metric_not_computed_at_one_fails_the_command(op
         )
 
     thresholds = tmp_path / "thresholds.json"
-    thresholds.write_text(json.dumps({"thresholds": {"categorization.role_accuracy": {"min": 0.9}}}))
+    thresholds.write_text(json.dumps({"thresholds": {"categorization.fsp_level_accuracy": {"min": 0.9}}}))
     monkeypatch.setattr(run_module, "THRESHOLDS_FILE", thresholds)
     assert command(LabelEcho()) == 0
-    assert command(LabelEcho(wrong_role="qa_manual")) == 1
+    assert command(LabelEcho(wrong_levels=True)) == 1
     # A threshold on a variant the run could not compute is a failure too, not a pass.
-    thresholds.write_text(json.dumps({"thresholds": {"matching.ndcg_at_10.without_reranker": {"min": 0.1}}}))
-    assert command(LabelEcho(reranked=0)) == 1
+    thresholds.write_text(json.dumps({"thresholds": {"matching.ndcg_at_10.without_semantic": {"min": 0.1}}}))
+    assert command(LabelEcho()) == 1
 
 
-def test_a_run_without_the_fsp_layer_has_no_ablation(options, monkeypatch, tmp_path):
+def test_a_run_without_the_fsp_layer_has_no_fsp_levels(options, monkeypatch, tmp_path):
     bare = dataclasses.replace(options, fsp_layer=None, matching=None)
     # The committed thresholds include matching: a run without it is refused, not passed.
     with pytest.raises(RunError, match=r"matching\.ndcg_at_10"):
         execute(bare, LabelEcho())
     thresholds = tmp_path / "thresholds.json"
-    thresholds.write_text(json.dumps({"thresholds": {"categorization.role_accuracy": {"min": 0.9}}}))
+    thresholds.write_text(json.dumps({"thresholds": {"resume.skills_f1": {"min": 0.9}}}))
     monkeypatch.setattr(run_module, "THRESHOLDS_FILE", thresholds)
     row = execute(bare, LabelEcho())["row"]
-    assert not any(key.endswith(("with_fsp", "without_fsp")) for key in row["metrics"])
+    assert not any(key.startswith("categorization.fsp_level") for key in row["metrics"])
     assert not any(key.startswith("matching.") for key in row["metrics"])
     assert "fsp_layer" not in row["versions"]
 

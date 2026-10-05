@@ -3,17 +3,12 @@
 - skills in a resume: canonical skill names of the taxonomy looked up as whole words in the parsed text — no
   spellings, no fuzzy matching, no sections, no negation;
 - normalization: a spelling equal to a canonical name (case aside) is that skill, anything else is not a skill;
-- role and grade: the most frequent role and grade of the dev split (majority class), grade as a one-grade range;
-- sufficiency and refusals: never refuse.
 """
 
 import json
 import re
-from collections import Counter
-from collections.abc import Sequence
 from pathlib import Path
 
-from fsp_eval.gold import Gold
 from fsp_eval.lexicon import fold_spelling
 
 
@@ -30,11 +25,6 @@ def taxonomy_spellings(taxonomy_dir: Path) -> set[str]:
     return {fold_spelling(spelling) for skill in skills for spelling in (skill["name"], *skill.get("aliases", []))}
 
 
-def taxonomy_grades(taxonomy_dir: Path) -> list[str]:
-    grades = json.loads((taxonomy_dir / "grades.json").read_text(encoding="utf-8"))["grades"]
-    return [grade["key"] for grade in sorted(grades, key=lambda grade: grade["ordinal"])]
-
-
 class NameDictionary:
     def __init__(self, names: dict[str, str]) -> None:
         self._names = names
@@ -49,14 +39,3 @@ class NameDictionary:
 
     def normalize(self, surface: str) -> str | None:
         return self._names.get(surface.strip().casefold())
-
-
-def majority(values: Sequence[str]) -> str:
-    counts = Counter(values)
-    return min(counts, key=lambda value: (-counts[value], value))
-
-
-def majority_role_and_grade(dev_golds: Sequence[Gold]) -> tuple[str, str]:
-    roles = [gold.role for gold in dev_golds if gold.role is not None]
-    grades = [gold.grade for gold in dev_golds if gold.grade is not None]
-    return majority(roles), majority(grades)

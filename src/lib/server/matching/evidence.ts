@@ -18,7 +18,7 @@ import {
 } from '$lib/server/db/schema';
 import { companyInDemoScope } from '$lib/server/demo/scope';
 import { parsePreferences, salaryExpectation, type CandidatePreferences } from '$lib/server/candidates/preferences';
-import type { CandidateEvidence, MatchCandidate, MatchVacancy, SkillEvidence } from './score';
+import type { CandidateEvidence, ConfirmedCategory, MatchCandidate, MatchVacancy, SkillEvidence } from './score';
 
 export interface CandidateSnapshot extends MatchCandidate {
 	id: string;
@@ -26,6 +26,8 @@ export interface CandidateSnapshot extends MatchCandidate {
 	revision: number;
 	evidenceFloorRevision: number;
 	preferences: CandidatePreferences;
+	/** The categories in force with what their tests confirmed: the ranking for a need reads them (domain 13.10). */
+	confirmed: ConfirmedCategory[];
 }
 
 export interface VacancySnapshot extends MatchVacancy {
@@ -144,12 +146,21 @@ export async function loadCandidateSnapshots(
 			evidence = { status: 'available', runId: run.id, skills: skillsByRun.get(run.id) ?? [] };
 		}
 		const preferences = parsePreferences(row.id, row.preferences);
+		const held = categories.get(row.id) ?? [];
 		result.set(row.id, {
 			id: row.id,
 			revision: row.revision,
 			evidenceFloorRevision: row.floor,
 			evidence,
-			categories: (categories.get(row.id) ?? []).map((c) => ({ specialization: c.specialization, grade: c.grade })),
+			categories: held.map((c) => ({ specialization: c.specialization, grade: c.grade })),
+			confirmed: held.map((c) => ({
+				specialization: c.specialization,
+				grade: c.grade,
+				decisionId: c.decisionId,
+				confirmedBlocks: c.confirmedBlocks,
+				confirmedSkillKeys: c.confirmedSkillKeys,
+				assignedAt: c.assignedAt
+			})),
 			preferences,
 			salaryExpectation: salaryExpectation(preferences)
 		});

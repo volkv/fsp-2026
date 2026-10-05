@@ -1,20 +1,17 @@
 import pytest
 
-from fsp_eval.baselines import NameDictionary, majority, majority_role_and_grade
+from fsp_eval.baselines import NameDictionary
 from fsp_eval.dataset import build, load_manifest
 from fsp_eval.gold import Gold, unfamiliar_skills
 from fsp_eval.lexicon import fold_spelling
 from fsp_eval.metrics import (
-    Category,
     MetricTable,
     NormalizationPair,
     Tally,
-    categorization_metrics,
     containment_counts,
     exact_counts,
     normalization_metrics,
     predicted_fields,
-    primary_category,
     resume_metrics,
 )
 
@@ -225,77 +222,3 @@ def test_a_skill_is_unfamiliar_only_when_every_mention_of_it_is():
     assert unfamiliar_skills(profile, everything - theirs) == {key}
     # A skill a title names is never in the slice: the title writes it in its own way.
     assert not unfamiliar_skills(profile, set()) & titled
-
-
-def answer(role=None, grade=None):
-    assignments = []
-    if role or grade:
-        assignments.append(
-            {
-                "rank": "primary",
-                "role_status": "established" if role else "insufficient_data",
-                "role_key": role,
-                "grade_status": "established" if grade else "insufficient_data",
-                "grade_min": grade[0] if grade else None,
-                "grade_max": grade[1] if grade else None,
-            }
-        )
-    return {"assignments": assignments}
-
-
-def test_primary_category_of_an_answer():
-    assert primary_category(answer("backend", ("junior", "middle"))) == Category("backend", "junior", "middle")
-    assert primary_category(answer(None, ("junior", "junior"))) == Category(None, "junior", "junior")
-    assert primary_category(answer("backend")) == Category("backend", None, None)
-    assert primary_category(answer()) == Category(None, None, None)
-    assert primary_category(None) == Category(None, None, None)
-
-
-def run_categorization(golds, categories):
-    table = MetricTable()
-    categorization_metrics(
-        table, golds, categories, grade_order=GRADES, majority_role="backend", majority_grade="middle"
-    )
-    return {key: row["value"] for key, row in table.rows.items()}, table.rows
-
-
-def test_categorization_against_role_grade_and_sufficiency():
-    golds = [
-        gold(),
-        gold(profile_id="p2", role="frontend", grade="senior"),
-        gold(profile_id="p3", role=None, role_sufficient=False, grade=None, grade_sufficient=False),
-    ]
-    right = [
-        Category("backend", "junior", "middle"),
-        Category("frontend", "senior", "senior"),
-        Category(None, None, None),
-    ]
-    values, rows = run_categorization(golds, right)
-    assert values["categorization.role_accuracy"] == 1.0
-    assert values["categorization.grade_in_range"] == 1.0
-    assert values["categorization.grade_range_width"] == 1.5
-    assert values["categorization.sufficiency_accuracy.role"] == 1.0
-    assert values["categorization.sufficiency_accuracy.grade"] == 1.0
-    assert values["categorization.refusal_rate"] == 0.3333
-    assert values["categorization.false_refusal_rate"] == 0.0
-    # Baselines: the majority role and grade of dev, never refusing.
-    assert rows["categorization.role_accuracy"]["baseline"] == 0.5
-    assert rows["categorization.grade_in_range"]["baseline"] == 0.5
-    assert rows["categorization.sufficiency_accuracy.role"]["baseline"] == 0.6667
-
-    wrong = [
-        Category("frontend", "senior", "lead"),
-        Category(None, None, None),
-        Category("qa_manual", "junior", "junior"),
-    ]
-    values, _ = run_categorization(golds, wrong)
-    assert values["categorization.role_accuracy"] == 0.0
-    assert values["categorization.grade_in_range"] == 0.0
-    assert values["categorization.sufficiency_accuracy.role"] == pytest.approx(0.3333)
-    assert values["categorization.false_refusal_rate"] == 0.5
-
-
-def test_majority_baselines_are_deterministic():
-    assert majority(["b", "a", "b", "a"]) == "a"
-    golds = [gold(), gold(role="frontend"), gold(role="frontend", grade="senior")]
-    assert majority_role_and_grade(golds) == ("frontend", "middle")

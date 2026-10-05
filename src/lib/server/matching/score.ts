@@ -6,10 +6,19 @@
 // evidence was read and covers none of the vacancy's skills; the other components still count, so it can outrank a
 // read profile that loses on role, grade or salary.
 import { scoredWithoutValue, type EvidenceUnavailableReason } from '$lib/matching/evidence-components';
-import type { GradeKey, SpecializationKey } from '$lib/server/assessments/contract/catalog';
+import {
+	blockDefinition,
+	CATALOG,
+	gradeDefinition,
+	gradeOrdinal,
+	PRACTICE_LANGUAGE_SKILLS,
+	type GradeKey,
+	type SpecializationKey
+} from '$lib/server/assessments/contract/catalog';
 import { specializationsOfRole } from '$lib/server/categories/roles';
 import { compareSalary, type SalaryComparison, type SalaryTerms } from '$lib/server/salary/compare';
 import type { ComponentKey, ComponentStatus, MatchRulesetParams } from './params';
+import type { TestBlockResult } from './test-results';
 
 export type StrengthBand = 'weak' | 'moderate' | 'strong';
 export type Attestation = 'direct' | 'derived' | 'claimed';
@@ -585,4 +594,512 @@ export function qualifiesForPool(
 	params: MatchRulesetParams
 ): boolean {
 	return score >= params.poolThreshold && trust.status === 'computed' && (trust.value ?? 0) > 0;
+}
+
+// --- Ranking for a hiring need and the strength of the confirmed profile (domain 13.10) ------------------------------
+//
+// Two levels in one additive score: the fit to the need (its skills by the best basis of each, the work format) and the
+// strength of the confirmed profile (the test by blocks, an FSP result that relates to the need, how recent the last
+// confirmed action is). The denominator is the weight of the components the need asks for — the same for every
+// candidate of the need — so a contribution is `weight × value / denominator`, exactly, and the absence of FSP is the
+// absence of its bonus, never a penalty. The catalog without a need ranks by the strength level alone. The salary
+// expectation of a candidate is hidden from a company and never enters a score a company sees (domain 13.10).
+
+export const NEED_COMPONENT_KEYS = ['required', 'nice', 'format', 'test', 'fsp', 'freshness'] as const;
+export type NeedComponentKey = (typeof NEED_COMPONENT_KEYS)[number];
+
+/** The level of a component: the fit to the need or the strength of the confirmed profile. */
+export const NEED_LEVEL: Readonly<Record<NeedComponentKey, 'need' | 'strength'>> = {
+	required: 'need',
+	nice: 'need',
+	format: 'need',
+	test: 'strength',
+	fsp: 'strength',
+	freshness: 'strength'
+};
+
+export type NeedWorkFormat = 'office' | 'hybrid' | 'remote';
+
+/** What the ranking reads of a need; `categories` — the categories of the shortlist the candidate is ranked in. */
+export interface NeedSpec {
+	requiredSkillKeys: readonly string[];
+	niceSkillKeys: readonly string[];
+	workFormat: NeedWorkFormat | null;
+	regionCode: string | null;
+	/** `false` — the employer said results of FSP do not matter for the need: the FSP component is out of its score. */
+	fspRelevant: boolean;
+	categories: readonly CandidateCategory[];
+}
+
+/** A category in force with what its test confirmed (domain 12.4). */
+export interface ConfirmedCategory extends CandidateCategory {
+	decisionId: string;
+	confirmedBlocks: readonly string[];
+	confirmedSkillKeys: readonly string[];
+	assignedAt: Date;
+}
+
+/** The blocks of the candidate's decisions, by decision id; a decision without them is absent. */
+export type CandidateTestResults = ReadonlyMap<string, readonly TestBlockResult[]>;
+
+export interface NeedCandidate {
+	evidence: CandidateEvidence;
+	categories: readonly ConfirmedCategory[];
+	/** What the card shows of the preferences: formats, region, readiness to relocate. */
+	preferences: { workFormats: readonly string[]; regionCode: string | null; relocation: boolean | null };
+	tests: CandidateTestResults;
+}
+
+export interface NeedScoreInput {
+	/** `null` — the catalog without a need: the strength level alone. */
+	need: NeedSpec | null;
+	candidate: NeedCandidate;
+	params: MatchRulesetParams['need'];
+	skillBandValue: MatchRulesetParams['skillBandValue'];
+	now: Date;
+	/** Score the candidate as if they had no FSP results: «без ФСП — позиция N». */
+	withoutFsp?: boolean;
+}
+
+/** The best basis of a skill of the need; `claimed` covers a derivation from the resume too. */
+/**
+ * The best basis of a skill of the need; `claimed` covers a derivation from the resume too. `claimed_untestable` — a
+ * claim of a skill no block of the need's specializations can confirm: the resume is the best evidence there is.
+ */
+export type SkillBasis = 'test' | 'fsp' | 'platform' | 'public_profile' | 'claimed_untestable' | 'claimed' | 'missing';
+
+export interface SkillReading {
+	skill_key: string;
+	requirement: 'required' | 'nice';
+	basis: SkillBasis;
+	value: number;
+	band: StrengthBand | null;
+	/** The block of the test that confirmed the skill (`basis = test`). */
+	block: string | null;
+	/** Internal fact ids of the inference: a company sees receipts instead. */
+	fact_ids: string[];
+}
+
+export interface NeedComponent {
+	level: 'need' | 'strength';
+	/** The need asks for the component; one it does not ask for has no weight in any score of the need. */
+	applicable: boolean;
+	status: 'computed' | 'unknown' | 'unavailable';
+	/** The value the score counts with: computed, or the rule set's value for an unknown. */
+	value: number;
+	weight: number;
+	/** `weight × value / denominator`. */
+	contribution: number;
+	reason: string | null;
+}
+
+/** Where a reason of «почему подходит» comes from; the offer takes the transferable ones into «почему вы» (13.5). */
+export type NeedReasonSource =
+	| { kind: 'test_block'; ref: string; specialization: SpecializationKey; grade: GradeKey }
+	| { kind: 'fsp_fact'; fact_ids: string[] }
+	| { kind: 'evidence'; fact_ids: string[] }
+	| { kind: 'declared_skill'; ref: string }
+	| { kind: 'preference'; ref: 'work_formats' | 'region_code' | 'relocation' };
+
+/** Skills of the need grouped by their basis. */
+export interface SkillsReason {
+	code:
+		| 'skills_test'
+		| 'skills_fsp'
+		| 'skills_platform'
+		| 'skills_public_profile'
+		| 'skills_claimed_untestable'
+		| 'skills_claimed';
+	skill_keys: string[];
+	contribution: number;
+	source: NeedReasonSource;
+}
+
+export type NeedReason =
+	| SkillsReason
+	| {
+			code: 'test_result';
+			specialization: SpecializationKey;
+			grade: GradeKey;
+			/** Mean shrunk margin over the blocks, per item: 0 — exactly at the cut. */
+			margin: number;
+			contribution: number;
+			source: NeedReasonSource;
+	  }
+	| { code: 'fsp_related'; skill_keys: string[]; contribution: number; source: NeedReasonSource }
+	| { code: 'format_fits'; format: NeedWorkFormat; contribution: number; source: NeedReasonSource }
+	| { code: 'confirmed_recently'; days: number; contribution: number; source: NeedReasonSource };
+
+export interface NeedResult {
+	score: number;
+	/** The sum of the contributions of each level. */
+	levels: { need: number; strength: number };
+	components: Record<NeedComponentKey, NeedComponent>;
+	skills: SkillReading[];
+	/** 3–5 strongest positive contributions, each with its source. */
+	reasons: NeedReason[];
+	/** Required skills with no basis at all. */
+	gaps: string[];
+	/** Skills of the need resting only on the candidate's words: to check at the interview. */
+	toVerify: string[];
+	/** The category the strength is read from; `null` — none of the shortlist's categories (or none at all). */
+	category: ConfirmedCategory | null;
+}
+
+const REASONS_MAX = 5;
+const BASIS_ORDER: readonly SkillBasis[] = [
+	'test',
+	'fsp',
+	'platform',
+	'public_profile',
+	'claimed_untestable',
+	'claimed',
+	'missing'
+];
+const DAY_MS = 86_400_000;
+
+function blockOfSkill(category: ConfirmedCategory, skillKey: string): string {
+	const block = category.confirmedBlocks.find((code) => blockDefinition(code).skillKeys.includes(skillKey));
+	return block ?? gradeDefinition(category.specialization, category.grade).practice.block;
+}
+
+/** The best basis of each skill: the test's confirmed stack, then confirmations by trust, then what was claimed. */
+function readSkill(
+	skillKey: string,
+	requirement: 'required' | 'nice',
+	candidate: NeedCandidate,
+	skills: ReadonlyMap<string, SkillEvidence>,
+	testable: ReadonlySet<string>,
+	input: Pick<NeedScoreInput, 'params' | 'skillBandValue' | 'withoutFsp'>
+): SkillReading {
+	const options: SkillReading[] = [];
+	const tested = candidate.categories.find((category) => category.confirmedSkillKeys.includes(skillKey));
+	if (tested) {
+		options.push({
+			skill_key: skillKey,
+			requirement,
+			basis: 'test',
+			value: input.params.skill.test,
+			band: null,
+			block: blockOfSkill(tested, skillKey),
+			fact_ids: []
+		});
+	}
+	const inference = skills.get(skillKey);
+	if (inference) {
+		const band = input.skillBandValue[inference.band];
+		const trust = inference.attestation === 'direct' ? inference.badgeTrust : null;
+		let basis: SkillBasis;
+		let value: number;
+		if (trust === 'fsp_verified') [basis, value] = ['fsp', band];
+		else if (trust === 'platform_verified') [basis, value] = ['platform', band];
+		else if (trust === 'public_verifiable')
+			[basis, value] = ['public_profile', band * input.params.skill.publicProfileFactor];
+		else if (testable.has(skillKey)) [basis, value] = ['claimed', Math.min(band, input.params.skill.claimedCeiling)];
+		else [basis, value] = ['claimed_untestable', Math.min(band, input.params.skill.untestableClaimedCeiling)];
+		if (!(basis === 'fsp' && input.withoutFsp)) {
+			options.push({
+				skill_key: skillKey,
+				requirement,
+				basis,
+				value,
+				band: inference.band,
+				block: null,
+				fact_ids: [...inference.factIds]
+			});
+		}
+	}
+	const best = options.sort(
+		(a, b) => b.value - a.value || BASIS_ORDER.indexOf(a.basis) - BASIS_ORDER.indexOf(b.basis)
+	)[0];
+	return (
+		best ?? { skill_key: skillKey, requirement, basis: 'missing', value: 0, band: null, block: null, fact_ids: [] }
+	);
+}
+
+/** The category the strength is read from: of the shortlist's categories (or any), the highest grade. */
+function strengthCategory(
+	categories: readonly ConfirmedCategory[],
+	wanted: readonly CandidateCategory[] | null
+): ConfirmedCategory | null {
+	const eligible =
+		wanted === null || wanted.length === 0
+			? categories
+			: categories.filter((c) => wanted.some((w) => w.specialization === c.specialization && w.grade === c.grade));
+	return (
+		[...eligible].sort(
+			(a, b) => gradeOrdinal(b.grade) - gradeOrdinal(a.grade) || a.specialization.localeCompare(b.specialization)
+		)[0] ?? null
+	);
+}
+
+interface TestReading {
+	status: NeedComponent['status'];
+	value: number;
+	reason: string | null;
+	margin: number | null;
+	strongestBlock: string | null;
+}
+
+/** The result of the test by blocks; blocks confirming skills of the need weigh more. */
+function readTest(
+	category: ConfirmedCategory | null,
+	tests: CandidateTestResults,
+	needSkills: ReadonlySet<string>,
+	params: MatchRulesetParams['need']['test']
+): TestReading {
+	if (category === null)
+		return { status: 'computed', value: 0, reason: 'no_category', margin: null, strongestBlock: null };
+	const blocks = tests.get(category.decisionId);
+	if (!blocks || blocks.length === 0) {
+		return {
+			status: 'unavailable',
+			value: params.unknownValue,
+			reason: 'test_result_missing',
+			margin: null,
+			strongestBlock: category.confirmedBlocks[0] ?? null
+		};
+	}
+	let weighted = 0;
+	let weights = 0;
+	let strongest: { block: string; margin: number } | null = null;
+	for (const block of blocks) {
+		const margin =
+			((block.score - block.cut) / (20 * block.items)) * (block.items / (block.items + params.shrinkItems));
+		const related = CATALOG.blocks
+			.find((b) => b.code === block.block)
+			?.skillKeys.some((skill) => needSkills.has(skill));
+		const weight = block.items * (related ? params.needBlockFactor : 1);
+		weighted += weight * margin;
+		weights += weight;
+		if (strongest === null || margin > strongest.margin) strongest = { block: block.block, margin };
+	}
+	const margin = weighted / weights;
+	return {
+		status: 'computed',
+		value: Math.min(1, Math.max(0, 0.5 + params.marginScale * margin)),
+		reason: null,
+		margin,
+		strongestBlock: strongest?.block ?? null
+	};
+}
+
+function readFormat(
+	need: NeedSpec,
+	preferences: NeedCandidate['preferences'],
+	params: MatchRulesetParams['need']['format']
+): { status: NeedComponent['status']; value: number; reason: string | null } {
+	const format = need.workFormat;
+	if (format === null) throw new Error('the format is read only for a need with a format');
+	if (preferences.workFormats.length === 0) {
+		return { status: 'unknown', value: params.unknownValue, reason: 'candidate_formats_unknown' };
+	}
+	if (!preferences.workFormats.includes(format)) return { status: 'computed', value: 0, reason: 'format_other' };
+	if (format === 'remote' || need.regionCode === null) return { status: 'computed', value: 1, reason: null };
+	if (preferences.regionCode === need.regionCode) return { status: 'computed', value: 1, reason: null };
+	if (preferences.relocation === true) return { status: 'computed', value: params.relocation, reason: 'relocation' };
+	if (preferences.regionCode === null) {
+		return { status: 'unknown', value: params.unknownValue, reason: 'candidate_region_unknown' };
+	}
+	return { status: 'computed', value: 0, reason: 'region_other' };
+}
+
+const round4 = (value: number) => Math.round(value * 10_000) / 10_000;
+
+export function needScore(input: NeedScoreInput): NeedResult {
+	const { need, candidate, params, now } = input;
+	const evidence = candidate.evidence;
+	const skills = new Map(evidence.status === 'available' ? evidence.skills.map((s) => [s.skillKey, s]) : []);
+	// Skills a test of the need's specializations can confirm: a claim of one of them is capped low, as the check exists.
+	const specializations = new Set((need?.categories ?? []).map((c) => c.specialization));
+	const testable = new Set(
+		CATALOG.blocks
+			.filter((block) => specializations.size === 0 || specializations.has(block.specialization))
+			.flatMap((block) => block.skillKeys)
+	);
+	for (const definition of CATALOG.definitions) {
+		if (specializations.size > 0 && !specializations.has(definition.specialization)) continue;
+		for (const language of CATALOG.specializations.find((s) => s.key === definition.specialization)
+			?.practiceLanguages ?? []) {
+			testable.add(PRACTICE_LANGUAGE_SKILLS[language]);
+		}
+	}
+	const required = (need?.requiredSkillKeys ?? []).map((key) =>
+		readSkill(key, 'required', candidate, skills, testable, input)
+	);
+	const nice = (need?.niceSkillKeys ?? [])
+		.filter((key) => !need?.requiredSkillKeys.includes(key))
+		.map((key) => readSkill(key, 'nice', candidate, skills, testable, input));
+	const needSkills = new Set([...required, ...nice].map((s) => s.skill_key));
+	const category = strengthCategory(candidate.categories, need?.categories ?? null);
+	const test = readTest(category, candidate.tests, needSkills, params.test);
+
+	// FSP relating to the need: a skill of the need confirmed directly by an FSP result; without a need, any.
+	const fspSkills = [...skills.values()].filter(
+		(s) =>
+			s.attestation === 'direct' &&
+			s.badgeTrust === 'fsp_verified' &&
+			(need === null || needSkills.size === 0 || needSkills.has(s.skillKey))
+	);
+	const related = input.withoutFsp ? [] : fspSkills;
+	const fspValue = related.reduce((best, s) => Math.max(best, input.skillBandValue[s.band]), 0);
+
+	const lastConfirmed = candidate.categories.reduce<Date | null>(
+		(latest, c) => (latest === null || c.assignedAt > latest ? c.assignedAt : latest),
+		null
+	);
+	const days =
+		lastConfirmed === null ? null : Math.max(0, Math.floor((now.getTime() - lastConfirmed.getTime()) / DAY_MS));
+	const freshness = days === null ? 0 : Math.pow(0.5, days / params.freshness.halfLifeDays);
+
+	const mean = (list: readonly SkillReading[]) => list.reduce((sum, s) => sum + s.value, 0) / list.length;
+	const format = need?.workFormat ? readFormat(need, candidate.preferences, params.format) : null;
+	const raw: Record<NeedComponentKey, Omit<NeedComponent, 'level' | 'weight' | 'contribution'>> = {
+		required:
+			required.length > 0
+				? { applicable: true, status: 'computed', value: mean(required), reason: null }
+				: { applicable: false, status: 'unknown', value: 0, reason: 'no_required_skills' },
+		nice:
+			nice.length > 0
+				? { applicable: true, status: 'computed', value: mean(nice), reason: null }
+				: { applicable: false, status: 'unknown', value: 0, reason: 'no_nice_skills' },
+		format: format
+			? { applicable: true, ...format }
+			: { applicable: false, status: 'unknown', value: 0, reason: 'no_work_format' },
+		test: { applicable: true, status: test.status, value: test.value, reason: test.reason },
+		fsp:
+			need !== null && !need.fspRelevant
+				? { applicable: false, status: 'unknown', value: 0, reason: 'need_fsp_not_relevant' }
+				: {
+						applicable: true,
+						status: 'computed',
+						value: fspValue,
+						reason: related.length === 0 ? (input.withoutFsp ? 'without_fsp' : 'no_related_fsp') : null
+					},
+		freshness: {
+			applicable: true,
+			status: 'computed',
+			value: freshness,
+			reason: days === null ? 'no_category' : null
+		}
+	};
+	// Without a need only the strength level counts.
+	if (need === null) {
+		for (const key of NEED_COMPONENT_KEYS) if (NEED_LEVEL[key] === 'need') raw[key].applicable = false;
+	}
+	const weights = params.weights;
+	const denominator = NEED_COMPONENT_KEYS.reduce((sum, key) => sum + (raw[key].applicable ? weights[key] : 0), 0);
+	if (denominator <= 0) throw new Error('the need asks for no component with a weight');
+	const components = Object.fromEntries(
+		NEED_COMPONENT_KEYS.map((key) => {
+			const entry = raw[key];
+			const weight = entry.applicable ? weights[key] : 0;
+			return [
+				key,
+				{ ...entry, level: NEED_LEVEL[key], weight, contribution: (weight * entry.value) / denominator }
+			] satisfies [NeedComponentKey, NeedComponent];
+		})
+	) as Record<NeedComponentKey, NeedComponent>;
+	const score = NEED_COMPONENT_KEYS.reduce((sum, key) => sum + components[key].contribution, 0);
+	const level = (name: 'need' | 'strength') =>
+		round4(
+			NEED_COMPONENT_KEYS.reduce((sum, key) => sum + (NEED_LEVEL[key] === name ? components[key].contribution : 0), 0)
+		);
+
+	// Reasons: skills grouped by basis, then the strength components, the strongest contributions first.
+	const reasons: NeedReason[] = [];
+	const skillShare = (reading: SkillReading) => {
+		const component = components[reading.requirement];
+		const count = reading.requirement === 'required' ? required.length : nice.length;
+		return (component.weight * reading.value) / denominator / count;
+	};
+	const groups: [SkillBasis, SkillsReason['code']][] = [
+		['test', 'skills_test'],
+		['fsp', 'skills_fsp'],
+		['platform', 'skills_platform'],
+		['public_profile', 'skills_public_profile'],
+		['claimed_untestable', 'skills_claimed_untestable'],
+		['claimed', 'skills_claimed']
+	];
+	for (const [basis, code] of groups) {
+		const group = [...required, ...nice].filter((s) => s.basis === basis);
+		const first = group[0];
+		if (!first) continue;
+		const contribution = group.reduce((sum, s) => sum + skillShare(s), 0);
+		let source: NeedReasonSource;
+		if (basis === 'test') {
+			const holder = candidate.categories.find((c) => c.confirmedSkillKeys.includes(first.skill_key));
+			if (!holder || first.block === null) throw new Error('a skill confirmed by the test has no category');
+			source = { kind: 'test_block', ref: first.block, specialization: holder.specialization, grade: holder.grade };
+		} else if (basis === 'fsp') source = { kind: 'fsp_fact', fact_ids: group.flatMap((s) => s.fact_ids) };
+		else if (basis === 'claimed' || basis === 'claimed_untestable') {
+			source = { kind: 'declared_skill', ref: first.skill_key };
+		} else source = { kind: 'evidence', fact_ids: group.flatMap((s) => s.fact_ids) };
+		reasons.push({ code, skill_keys: group.map((s) => s.skill_key), contribution, source });
+	}
+	if (category !== null && test.status === 'computed' && test.margin !== null && test.strongestBlock !== null) {
+		reasons.push({
+			code: 'test_result',
+			specialization: category.specialization,
+			grade: category.grade,
+			margin: round4(test.margin),
+			contribution: components.test.contribution,
+			source: {
+				kind: 'test_block',
+				ref: test.strongestBlock,
+				specialization: category.specialization,
+				grade: category.grade
+			}
+		});
+	}
+	if (components.fsp.applicable && related.length > 0) {
+		reasons.push({
+			code: 'fsp_related',
+			skill_keys: related.map((s) => s.skillKey).sort(),
+			contribution: components.fsp.contribution,
+			source: { kind: 'fsp_fact', fact_ids: related.flatMap((s) => [...s.factIds]) }
+		});
+	}
+	if (need?.workFormat && components.format.status === 'computed' && components.format.value > 0) {
+		reasons.push({
+			code: 'format_fits',
+			format: need.workFormat,
+			contribution: components.format.contribution,
+			source: { kind: 'preference', ref: 'work_formats' }
+		});
+	}
+	if (category !== null && days !== null) {
+		const block = category.confirmedBlocks[0];
+		if (block !== undefined) {
+			reasons.push({
+				code: 'confirmed_recently',
+				days,
+				contribution: components.freshness.contribution,
+				source: { kind: 'test_block', ref: block, specialization: category.specialization, grade: category.grade }
+			});
+		}
+	}
+	const shown = reasons
+		.filter((reason) => reason.contribution > 0)
+		.sort((a, b) => b.contribution - a.contribution)
+		.slice(0, REASONS_MAX)
+		.map((reason) => ({ ...reason, contribution: round4(reason.contribution) }));
+
+	return {
+		score: round4(score),
+		levels: { need: level('need'), strength: level('strength') },
+		components: Object.fromEntries(
+			NEED_COMPONENT_KEYS.map((key) => [
+				key,
+				{ ...components[key], value: round4(components[key].value), contribution: round4(components[key].contribution) }
+			])
+		) as Record<NeedComponentKey, NeedComponent>,
+		skills: [...required, ...nice],
+		reasons: shown,
+		gaps: required.filter((s) => s.basis === 'missing').map((s) => s.skill_key),
+		toVerify: [...required, ...nice]
+			.filter((s) => s.basis === 'claimed' || s.basis === 'claimed_untestable')
+			.map((s) => s.skill_key),
+		category
+	};
 }

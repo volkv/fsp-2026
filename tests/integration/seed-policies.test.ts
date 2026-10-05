@@ -2,7 +2,7 @@
 // policy the modules read is in force after the seed, a repeat changes nothing, a published version is never edited,
 // sources arrive disabled and keep the administrator's switch.
 import { fileURLToPath } from 'node:url';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { publishPolicies, readPolicyRelease, type PolicyVersion } from '../../scripts/seed-policies';
@@ -42,6 +42,7 @@ describe('product policies seed', () => {
 		expect(release.map((p) => `${p.kind} v${p.version}`).sort()).toEqual([
 			'assessment_policy v1',
 			'catalog_policy v1',
+			'catalog_policy v2',
 			'hiring_policy v1',
 			'invitation_policy v1',
 			'market_policy v1',
@@ -64,7 +65,15 @@ describe('product policies seed', () => {
 		const now = new Date();
 		expect((await requiredPolicy(database.db, 'invitation_policy', now)).params.response_window_hours).toBe(72);
 		expect((await requiredPolicy(database.db, 'hiring_policy', now)).params.stages).toHaveLength(4);
-		expect((await requiredPolicy(database.db, 'catalog_policy', now)).params.small_count_threshold).toBe(5);
+		// The catalog policy in force states the salary intervals of the cohort answers (domain 13.10).
+		expect((await requiredPolicy(database.db, 'catalog_policy', now)).params).toEqual({
+			small_count_threshold: 5,
+			salary_bins: [
+				{ until: 300_000, step: 25_000 },
+				{ until: 600_000, step: 50_000 },
+				{ until: null, step: 100_000 }
+			]
+		});
 		expect(await loadStaleAfterDays(database.db, now)).toBe(7);
 		expect(await minorsAllowed(database.db, now)).toBe(true);
 		expect(await loadMarketPolicy(database.db, now)).toMatchObject({
@@ -97,13 +106,13 @@ describe('product policies seed', () => {
 
 	it('refuses a published version with other parameters: a change is a new version', async () => {
 		const changed = release.map((p) =>
-			p.kind === 'catalog_policy' ? { ...p, params: { small_count_threshold: 3 } } : p
+			p.kind === 'catalog_policy' && p.version === 1 ? { ...p, params: { small_count_threshold: 3 } } : p
 		);
 		await expect(publishPolicies(client, changed)).rejects.toThrow(/catalog_policy v1 is published with other/);
 		const [catalog] = await database.db
 			.select({ params: productPolicies.params })
 			.from(productPolicies)
-			.where(eq(productPolicies.kind, 'catalog_policy'));
+			.where(and(eq(productPolicies.kind, 'catalog_policy'), eq(productPolicies.version, 1)));
 		expect(catalog?.params).toEqual({ small_count_threshold: 5 });
 	});
 });

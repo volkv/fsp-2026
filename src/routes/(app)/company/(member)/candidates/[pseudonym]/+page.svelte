@@ -19,7 +19,14 @@
 	description="Псевдоним виден только вашей компании. Имя и контакты — после принятия предложения и только с согласия кандидата."
 >
 	{#snippet eyebrow()}
-		<a class="text-link underline-offset-4 hover:underline" href={resolve('/company/candidates')}>Кандидаты</a>
+		{#if data.fromShortlist?.shortlistId}
+			<a
+				class="text-link underline-offset-4 hover:underline"
+				href={resolve('/(app)/company/(member)/shortlists/[id]', { id: data.fromShortlist.shortlistId })}>Подборка</a
+			>
+		{:else}
+			<a class="text-link underline-offset-4 hover:underline" href={resolve('/company/candidates')}>Кандидаты</a>
+		{/if}
 	{/snippet}
 </PageHeader>
 
@@ -32,6 +39,9 @@
 				<Card.Title><h2 class="font-heading text-h3">Предложить работу</h2></Card.Title>
 				<Card.Description>
 					Компания пишет первой: описание, вилка в рублях, способ связи и «почему вы». Вакансия — по желанию.
+					{#if data.fromShortlist}
+						Пункты «почему вы» отмечены по подборке — каждый со своим источником.
+					{/if}
 				</Card.Description>
 			</Card.Header>
 			<Card.Content class="grid gap-4">
@@ -62,6 +72,8 @@
 						vacancies={data.offer.vacancies}
 						workFormats={data.offer.workFormats}
 						whyYouOptions={data.whyYouOptions}
+						preselected={data.fromShortlist?.preselected ?? []}
+						needId={data.fromShortlist?.needId ?? null}
 						responseWindowHours={data.offer.responseWindowHours}
 						problems={problem?.fields ?? {}}
 					/>

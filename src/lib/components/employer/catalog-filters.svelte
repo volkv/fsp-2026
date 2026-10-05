@@ -24,6 +24,7 @@
 		formats: string[];
 		regions: string[];
 		uncategorized: boolean;
+		hasFsp: boolean;
 	}
 
 	let {
@@ -144,6 +145,11 @@
 	</fieldset>
 
 	<RegionFilter {regions} value={values.regions} />
+
+	<label class="flex items-start gap-2 text-sm">
+		<input type="checkbox" name="hasFsp" checked={values.hasFsp} class="mt-0.5 size-4 accent-primary" />
+		<span>Только с подтверждёнными достижениями ФСП</span>
+	</label>
 
 	<label class="flex items-start gap-2 text-sm">
 		<input type="checkbox" name="uncategorized" checked={values.uncategorized} class="mt-0.5 size-4 accent-primary" />

@@ -10,8 +10,10 @@ import type { InvitationDeps } from '$lib/server/invitations/deps';
 import { mailer, type Mailer } from '$lib/server/mail/mailer';
 import type { MatchingDeps } from '$lib/server/matching/deps';
 import type { MatchingModels } from '$lib/server/matching/semantic';
+import { GRADE_DECISION_RESULTS, type TestResultReader } from '$lib/server/matching/test-results';
 import { modelAdapter } from '$lib/server/ml';
 import type { NeedDeps } from '$lib/server/needs/service';
+import type { ShortlistDeps } from '$lib/server/shortlists/service';
 import type { ModelAdapter } from '$lib/server/ml/adapter';
 import { redis, type Redis } from '$lib/server/redis';
 
@@ -27,6 +29,8 @@ export interface ApiServices {
 	receiptSigner: ReceiptSigner;
 	/** Origin of links in letters. */
 	appOrigin: string;
+	/** Results of the test by blocks for the ranking of shortlists and the catalog (domain 13.10). */
+	testResults: TestResultReader;
 	now: () => Date;
 }
 
@@ -42,6 +46,7 @@ export function apiServices(): ApiServices {
 		models: modelAdapter(),
 		receiptSigner: configuredReceiptSigner(),
 		appOrigin: config().appOrigin,
+		testResults: GRADE_DECISION_RESULTS,
 		now: () => new Date()
 	};
 	return configured;
@@ -72,5 +77,8 @@ export const matchingDeps = (s: ApiServices): MatchingDeps => ({
 	db: s.db,
 	models: s.models,
 	pseudonym: (candidateId, companyId) => s.crypto.pseudonym(candidateId, companyId),
-	now: s.now
+	now: s.now,
+	testResults: s.testResults
 });
+
+export const shortlistDeps = (s: ApiServices): ShortlistDeps => ({ ...matchingDeps(s), db: s.db });

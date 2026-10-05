@@ -24,6 +24,8 @@ export interface TestDecisionInput {
 	/** The attempt started on the right of a confident result. */
 	viaConfidentUpgrade?: boolean;
 	decidedAt?: Date;
+	/** The blocks of the decision as the engine records them (`BlockSummary`); none by default. */
+	blocks?: { block: string; items: number; score: number; cut: number }[];
 }
 
 /** A decision of the test, confirmed unless said otherwise, with the first practice language of the specialization. */
@@ -110,7 +112,7 @@ export async function recordDecisionIn(
 		items: 7,
 		extensionUsed: false,
 		practice: { score: 1, gateMinScore: 0.4, passed: true },
-		blocks: [],
+		blocks: input.blocks ?? [],
 		procedureVersion: PROCEDURE.version,
 		bankReleaseId: TEST_RELEASE,
 		status: 'valid',

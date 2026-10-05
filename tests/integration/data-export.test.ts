@@ -5,6 +5,7 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 import { and, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { GRADE_DECISION_RESULTS } from '$lib/server/matching/test-results';
 import type { Actor } from '$lib/server/access/actor';
 import type { AccessSubject } from '$lib/server/access/permissions';
 import { runOperation } from '$lib/server/api/operation';
@@ -171,7 +172,8 @@ async function exportThroughApi(userId: string): Promise<{ status: number; json:
 		},
 		receiptSigner: createReceiptSigner({ issuer: 'http://app.test', keyId: 'test-1', seed: Buffer.alloc(32, 5) }),
 		appOrigin: 'http://app.test',
-		now: () => new Date()
+		now: () => new Date(),
+		testResults: GRADE_DECISION_RESULTS
 	};
 	const actor: Actor = {
 		kind: 'session',

@@ -45,7 +45,8 @@ export async function needFormFromPost(form: FormData): Promise<Record<string, u
 	const min = formText(form, 'salary_min');
 	const max = formText(form, 'salary_max');
 	const specialization = optional(formText(form, 'specialization'));
-	const grade = optional(formText(form, 'grade'));
+	const gradeMin = optional(formText(form, 'grade_min'));
+	const gradeMax = optional(formText(form, 'grade_max'));
 	const team = optional(formText(form, 'team'));
 	const workFormat = optional(formText(form, 'work_format'));
 	const region = optional(formText(form, 'region_code'));
@@ -53,7 +54,7 @@ export async function needFormFromPost(form: FormData): Promise<Record<string, u
 		skill_keys: [...new Set(skillKeys)],
 		nice_skill_keys: [...new Set(niceSkillKeys)],
 		...(specialization === undefined ? {} : { specialization }),
-		...(grade === undefined ? {} : { grade }),
+		...(gradeMin === undefined ? {} : { grade: { min: gradeMin, max: gradeMax ?? gradeMin } }),
 		...(team === undefined ? {} : { team }),
 		...(workFormat === undefined ? {} : { work_format: workFormat }),
 		...(region === undefined ? {} : { region_code: region }),

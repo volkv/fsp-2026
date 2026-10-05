@@ -211,6 +211,13 @@
       "when": 1791205818355,
       "tag": "0029_profile_attestations",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1791208751489,
+      "tag": "0030_shortlists",
+      "breakpoints": true
     }
   ]
 }

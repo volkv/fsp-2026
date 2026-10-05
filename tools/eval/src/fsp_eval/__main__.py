@@ -47,12 +47,12 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument(
         "--fsp-layer",
         default="fsp-achievements-v2",
-        help="FSP achievements over the dataset for the ablation («none» — no ablation)",
+        help="FSP achievements over the dataset: FSP levels and the matching world («none» — none)",
     )
     run.add_argument(
         "--matching",
-        default="synthetic-matching-v1",
-        help="vacancies and the truth of the people for matching over the dataset and the FSP layer («none» — none)",
+        default="synthetic-matching-v2",
+        help="needs and the truth of the people for matching over the dataset and the FSP layer («none» — none)",
     )
 
     render = commands.add_parser("render", help="write the documents of a split for a look")

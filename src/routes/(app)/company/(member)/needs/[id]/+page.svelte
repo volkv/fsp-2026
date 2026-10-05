@@ -19,6 +19,8 @@
 	const skillName = (key: string) => data.options.skillNames[key] ?? key;
 	const specializationTitle = (key: string) => data.options.specializations.find((s) => s.key === key)?.title ?? key;
 	const gradeTitle = (key: string) => data.options.grades.find((g) => g.key === key)?.title ?? key;
+	const gradeRangeTitle = (range: { min: string; max: string }) =>
+		range.min === range.max ? gradeTitle(range.min) : `${gradeTitle(range.min)}–${gradeTitle(range.max)}`;
 	const FIELDS: Record<string, string> = {
 		specialization: 'Специализация',
 		grade: 'Грейд',
@@ -37,7 +39,9 @@
 
 	function fieldValue(path: string, value: unknown): string {
 		if (path === 'specialization' && typeof value === 'string') return specializationTitle(value);
-		if (path === 'grade' && typeof value === 'string') return gradeTitle(value);
+		if (path === 'grade' && typeof value === 'object' && value !== null && 'min' in value && 'max' in value) {
+			return gradeRangeTitle({ min: String(value.min), max: String(value.max) });
+		}
 		if (path.endsWith('skill_keys') && typeof value === 'string') return skillName(value);
 		if (path === 'work_format' && typeof value === 'string') {
 			return data.options.workFormats.find((f) => f.key === value)?.name ?? value;
@@ -175,46 +179,98 @@
 		</Card.Root>
 	</div>
 
-	<Card.Root class="content-start" data-testid="need-categories">
-		<Card.Header>
-			<Card.Title><h2 class="font-heading text-h3">Рекомендованные категории</h2></Card.Title>
-			<Card.Description>
-				Число — кандидаты с подтверждённой категорией, которых ваша компания видит в каталоге; меньше пяти показывается
-				как «&lt; 5».
-			</Card.Description>
-		</Card.Header>
-		<Card.Content>
-			{#if data.categories.length === 0}
-				<p class="text-sm text-muted-foreground">
-					Укажите специализацию или обязательные навыки, которые проверяет тест платформы, — тогда появятся категории.
-				</p>
-			{:else}
-				<div class="overflow-x-auto">
-					<Table.Root label="Рекомендованные категории">
-						<Table.Header>
-							<Table.Row>
-								<Table.Head>Категория</Table.Head>
-								<Table.Head>Кандидатов</Table.Head>
-								<Table.Head>С ФСП</Table.Head>
-							</Table.Row>
-						</Table.Header>
-						<Table.Body>
-							{#each data.categories as category (`${category.specialization}:${category.grade}`)}
-								<Table.Row data-category={`${category.specialization}:${category.grade}`}>
-									<Table.Cell>
-										<span class="font-medium"
-											>{specializationTitle(category.specialization)} · {gradeTitle(category.grade)}</span
-										>
-										<span class="block text-xs text-muted-foreground">{BASIS[category.basis]}</span>
-									</Table.Cell>
-									<Table.Cell>{count(category.candidates)}</Table.Cell>
-									<Table.Cell>{count(category.withFsp)}</Table.Cell>
+	<div class="grid content-start gap-6">
+		<Card.Root class="content-start" data-testid="need-categories">
+			<Card.Header>
+				<Card.Title><h2 class="font-heading text-h3">Рекомендованные категории</h2></Card.Title>
+				<Card.Description>
+					Число — кандидаты с подтверждённой категорией, которых ваша компания видит в каталоге; меньше пяти
+					показывается как «&lt; 5».
+				</Card.Description>
+			</Card.Header>
+			<Card.Content>
+				{#if data.categories.length === 0}
+					<p class="text-sm text-muted-foreground">
+						Укажите специализацию или обязательные навыки, которые проверяет тест платформы, — тогда появятся категории.
+					</p>
+				{:else}
+					<div class="overflow-x-auto">
+						<Table.Root label="Рекомендованные категории">
+							<Table.Header>
+								<Table.Row>
+									<Table.Head>Категория</Table.Head>
+									<Table.Head>Кандидатов</Table.Head>
+									<Table.Head>С ФСП</Table.Head>
 								</Table.Row>
+							</Table.Header>
+							<Table.Body>
+								{#each data.categories as category (`${category.specialization}:${category.grade}`)}
+									<Table.Row data-category={`${category.specialization}:${category.grade}`}>
+										<Table.Cell>
+											<span class="font-medium"
+												>{specializationTitle(category.specialization)} · {gradeTitle(category.grade)}</span
+											>
+											<span class="block text-xs text-muted-foreground">{BASIS[category.basis]}</span>
+										</Table.Cell>
+										<Table.Cell>{count(category.candidates)}</Table.Cell>
+										<Table.Cell>{count(category.withFsp)}</Table.Cell>
+									</Table.Row>
+								{/each}
+							</Table.Body>
+						</Table.Root>
+					</div>
+				{/if}
+			</Card.Content>
+		</Card.Root>
+		<Card.Root class="content-start" data-testid="need-shortlists">
+			<Card.Header>
+				<Card.Title><h2 class="font-heading text-h3">Подборка кандидатов</h2></Card.Title>
+				<Card.Description>
+					Кандидаты отмеченных категорий, ранжированные по соответствию потребности и силе подтверждённого профиля, с
+					объяснением «почему подходит». Уточнения сохраняются шагами — подборка не теряется.
+				</Card.Description>
+			</Card.Header>
+			<Card.Content class="grid gap-4">
+				{#if need.status !== 'closed' && data.categories.length > 0}
+					<form method="POST" action="?/shortlist" use:enhance class="grid gap-3" data-testid="shortlist-create">
+						<CsrfInput />
+						<fieldset class="grid gap-2">
+							<legend class="mb-1 text-sm font-medium">Категории подборки</legend>
+							{#each data.categories as category (`${category.specialization}:${category.grade}`)}
+								<label class="flex items-center gap-2 text-sm">
+									<input
+										type="checkbox"
+										class="size-4"
+										name="category"
+										value={`${category.specialization}:${category.grade}`}
+										checked={category.basis !== 'neighbour_grade'}
+									/>
+									{specializationTitle(category.specialization)} · {gradeTitle(category.grade)}
+									<span class="text-xs text-muted-foreground">({count(category.candidates)})</span>
+								</label>
 							{/each}
-						</Table.Body>
-					</Table.Root>
-				</div>
-			{/if}
-		</Card.Content>
-	</Card.Root>
+						</fieldset>
+						<Button type="submit" class="justify-self-start">Собрать подборку</Button>
+					</form>
+				{/if}
+				{#if data.shortlists.length > 0}
+					<ul class="grid gap-2" data-testid="shortlist-list">
+						{#each data.shortlists as shortlist (shortlist.id)}
+							<li>
+								<a
+									class="text-sm font-medium text-link underline-offset-4 hover:underline"
+									href={resolve('/(app)/company/(member)/shortlists/[id]', { id: shortlist.id })}
+								>
+									Подборка от {new Intl.DateTimeFormat('ru-RU', { dateStyle: 'medium' }).format(shortlist.createdAt)}
+								</a>
+								<span class="text-xs text-muted-foreground"> · шагов: {shortlist.steps}</span>
+							</li>
+						{/each}
+					</ul>
+				{:else if data.categories.length === 0}
+					<p class="text-sm text-muted-foreground">Подборка появится, когда у потребности будут категории.</p>
+				{/if}
+			</Card.Content>
+		</Card.Root>
+	</div>
 </div>

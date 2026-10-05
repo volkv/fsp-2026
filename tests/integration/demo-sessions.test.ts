@@ -13,6 +13,7 @@ import { createClient } from 'redis';
 import { afterAll, beforeAll, describe, expect, inject, it, vi } from 'vitest';
 import { publishLegalDocuments, readLegalRelease } from '../../scripts/seed-legal';
 import { publishPolicies, readPolicyRelease } from '../../scripts/seed-policies';
+import { GRADE_DECISION_RESULTS } from '$lib/server/matching/test-results';
 import { searchVacancyIds, visibleVacancyId } from '$lib/server/api/read/vacancies';
 import type { Actor } from '$lib/server/access/actor';
 import { requireStandChange, standChangesLocked } from '$lib/server/access/demo-actor';
@@ -434,7 +435,8 @@ describe('demo sessions', () => {
 				db: database.db,
 				models: MODELS_OFF,
 				pseudonym: (candidateId: string, companyId: string) => crypto.pseudonym(candidateId, companyId),
-				now: () => new Date()
+				now: () => new Date(),
+				testResults: GRADE_DECISION_RESULTS
 			};
 			const partner = role('recruiter@teply-stek.example');
 			const originals = await castOriginals(database.db, crypto, castRoles(data));
@@ -475,7 +477,8 @@ describe('demo sessions', () => {
 			db: database.db,
 			models: MODELS_OFF,
 			pseudonym: (candidateId: string, companyId: string) => crypto.pseudonym(candidateId, companyId),
-			now: () => new Date()
+			now: () => new Date(),
+			testResults: GRADE_DECISION_RESULTS
 		};
 		const sessionCandidates = async (sessionId: string) =>
 			new Set(

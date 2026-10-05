@@ -24,7 +24,7 @@ import { roleOfTitle } from '$lib/server/vacancies/normalize';
 import { loadVacancyTaxonomy, resolveSkill, vacancyLexicon } from '$lib/server/vacancies/taxonomy';
 import { extractVacancyByRules, VACANCY_TEXT_RULES_VERSION } from '$lib/server/vacancies/text-rules';
 import { OFFER_WORK_FORMATS } from '$lib/server/invitations/terms';
-import { EMPTY_FORM, type NeedForm } from './form';
+import { EMPTY_FORM, type NeedGrade, type NeedForm } from './form';
 
 /** Version of the reading of a need on top of the rules of a vacancy text: any change of what it suggests is new. */
 export const NEED_RULES_VERSION = `need-rules/1+${VACANCY_TEXT_RULES_VERSION}`;
@@ -59,6 +59,34 @@ function catalogGrade(grade: string | null): GradeKey | null {
 	return GRADE_KEYS.find((key) => key === grade) ?? null;
 }
 
+/** Words of a grade of the catalog, as a text of a need writes them. */
+const GRADE_WORD =
+	'(?:intern|стаж\\p{L}*|junior|джун\\p{L}*|младш\\p{L}*|middle|мидл\\p{L}*|senior|сеньор\\p{L}*|синьор\\p{L}*|старш\\p{L}*)';
+/** «от Junior», «Junior+», «Junior и выше»: the range has no upper end. */
+const OPEN_ABOVE = new RegExp(
+	`(?:^|[^\\p{L}])(?:от|from)\\s+${GRADE_WORD}|${GRADE_WORD}\\s*\\+|${GRADE_WORD}\\s+и\\s+выше`,
+	'iu'
+);
+/** «до Middle», «не выше Middle»: the range has no lower end. */
+const OPEN_BELOW = new RegExp(`(?:^|[^\\p{L}])(?:до|up\\s+to|не\\s+выше)\\s+${GRADE_WORD}`, 'iu');
+
+/**
+ * The range of the catalog a read grade range stands for: grades above the catalog (lead, principal) are its top,
+ * senior; a range only above it is none. The words of the quote open a range: «от Junior» — junior to senior, «до
+ * Middle» — intern to middle.
+ */
+function catalogRange(value: { min: string | null; max: string | null }, quote: string): NeedGrade | null {
+	const top = GRADE_KEYS[GRADE_KEYS.length - 1] ?? 'senior';
+	const [bottom] = GRADE_KEYS;
+	const min = catalogGrade(value.min);
+	const max = catalogGrade(value.max) ?? (value.max === null ? min : top);
+	if (min === null || max === null) return null;
+	return {
+		min: OPEN_BELOW.test(quote) && min === max ? bottom : min,
+		max: OPEN_ABOVE.test(quote) && min === max ? top : max
+	};
+}
+
 /** The suggested form of the read fields: only what the text states, the specialization only among the open ones. */
 async function suggestion(
 	fields: VacancyTextFields,
@@ -85,10 +113,10 @@ async function suggestion(
 		parsed.push({ path: 'specialization', value: specialization.key, quote: specialization.quote });
 	}
 
-	const grade = fields.grade && (catalogGrade(fields.grade.value.min) ?? catalogGrade(fields.grade.value.max));
-	if (fields.grade && grade) {
-		form.grade = grade;
-		parsed.push({ path: 'grade', value: grade, quote: quoteText(fields.grade.quote) });
+	const range = fields.grade && catalogRange(fields.grade.value, quoteText(fields.grade.quote));
+	if (fields.grade && range) {
+		form.grade = range;
+		parsed.push({ path: 'grade', value: range, quote: quoteText(fields.grade.quote) });
 	}
 
 	for (const [path, skills] of [

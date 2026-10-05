@@ -18,11 +18,23 @@ import type { MatchingDeps } from './deps';
 import { candidateDocuments } from './documents';
 import { vacancySnapshot, type VacancySnapshot } from './evidence';
 import { paginate, queryFingerprint, type Page, type PageRequest } from './page';
-import { scoreCandidatesForVacancy } from './rank';
+import { rankForNeed, scoreCandidatesForVacancy, type RankedForNeed } from './rank';
 import { loadActiveMatchRuleset } from './ruleset';
-import type { ExplanationMatch, MatchComponent, MatchComponents, MatchExplanation } from './score';
+import type {
+	CandidateCategory,
+	ExplanationMatch,
+	MatchComponent,
+	MatchComponents,
+	MatchExplanation,
+	NeedComponent,
+	NeedComponentKey,
+	NeedReason,
+	NeedSpec,
+	SkillReading
+} from './score';
 import { candidateSimilarities, embedQuery, loadActiveSpace, type ActiveSpace, type MatchingModels } from './semantic';
 import { textList } from './sql';
+import type { TestResultReader } from './test-results';
 import { loadCatalogViewer, loadVisibilityFacts, loadVisibilityPolicy, type CatalogViewer } from './visibility';
 
 const FSP_LEVELS = ['L1', 'L2', 'L3', 'L4', 'L5'] as const;
@@ -40,11 +52,24 @@ export interface CandidateSearchFilters {
 	regionCodes?: string[];
 	/** The facet «категория не подтверждена»: only candidates without a category in force (domain 12.7). */
 	uncategorized?: boolean;
+	/** A category in force of any of these pairs «specialization × grade» (the categories of a shortlist). */
+	categories?: CandidateCategory[];
+	/** Only candidates with an FSP result in force (contracts 5.5, `has_fsp`). */
+	fspConfirmed?: boolean;
+}
+
+/** A shortlist's need: what it is ranked for, the text its almost equal are ordered by, and the step it is of. */
+export interface NeedSearch {
+	spec: NeedSpec;
+	semanticText: string | null;
+	shortlist: { id: string; revision: number };
 }
 
 export interface CandidateSearchQuery extends PageRequest {
 	/** A vacancy of the viewer's company: ranking by the match with it, and the context of `canShow`. */
 	vacancyId?: string;
+	/** A hiring need: ranking by the fit to it and the strength of the confirmed profile (domain 13.10). */
+	need?: NeedSearch;
 	text?: string;
 	filters?: CandidateSearchFilters;
 }
@@ -77,6 +102,11 @@ export interface CandidateSearchItem {
 	extras: ShowExtra[];
 	/** With a vacancy: the match decomposition; without one: `null`. */
 	match: CompanyMatch | null;
+	/**
+	 * Without a vacancy: the fit to the need with the strength of the confirmed profile, or — in the catalog without a
+	 * need — the strength alone; with a vacancy: `null`.
+	 */
+	needMatch: CompanyNeedMatch | null;
 	relevance: { fts: number | null; semantic: number | null };
 	/** The candidate has a category in force; without one the card is marked «категория не подтверждена» (12.7). */
 	categoryConfirmed: boolean;
@@ -84,6 +114,60 @@ export interface CandidateSearchItem {
 
 export interface CandidateSearchResult extends Page<CandidateSearchItem> {
 	mode: SearchMode;
+}
+
+/** A reason of «почему подходит» as a company sees it: internal fact ids are dropped, receipts name FSP results. */
+export type CompanyNeedReason = NeedReason extends infer R
+	? R extends { source: infer S }
+		? Omit<R, 'source'> & {
+				source: S extends { fact_ids: string[] } ? Omit<S, 'fact_ids'> : S;
+			}
+		: never
+	: never;
+
+/** The decomposition of a ranking for a need (or by strength) as a company sees it. */
+export interface CompanyNeedMatch {
+	score: number;
+	levels: { need: number; strength: number };
+	components: Record<NeedComponentKey, NeedComponent>;
+	skills: Omit<SkillReading, 'fact_ids'>[];
+	reasons: CompanyNeedReason[];
+	gaps: string[];
+	toVerify: string[];
+	category: CandidateCategory | null;
+	semantic: number | null;
+	tieBrokenBySemantic: boolean;
+	position: number;
+	positionWithoutFsp: number;
+}
+
+export function companyNeedMatch(entry: RankedForNeed): CompanyNeedMatch {
+	const { result } = entry;
+	return {
+		score: result.score,
+		levels: result.levels,
+		components: result.components,
+		skills: result.skills.map((skill) => ({
+			skill_key: skill.skill_key,
+			requirement: skill.requirement,
+			basis: skill.basis,
+			value: skill.value,
+			band: skill.band,
+			block: skill.block
+		})),
+		reasons: result.reasons.map((reason) => {
+			const { source } = reason;
+			const shown = 'fact_ids' in source ? { kind: source.kind } : source;
+			return { ...reason, source: shown };
+		}),
+		gaps: result.gaps,
+		toVerify: result.toVerify,
+		category: result.category && { specialization: result.category.specialization, grade: result.category.grade },
+		semantic: entry.semantic,
+		tieBrokenBySemantic: entry.tieBrokenBySemantic,
+		position: entry.position,
+		positionWithoutFsp: entry.positionWithoutFsp
+	};
 }
 
 /** Nearest candidates by meaning added to the full-text matches of a query. */
@@ -127,23 +211,43 @@ interface Listed {
 async function prefilter(
 	executor: Executor,
 	viewer: { companyId: string; demoSessionId: string | null },
-	filters: CandidateSearchFilters
+	filters: CandidateSearchFilters,
+	among?: readonly string[]
 ): Promise<Listed[]> {
 	const { companyId } = viewer;
+	if (among?.length === 0) return [];
 	const conditions: SQL[] = [
+		...(among ? [sql`c.id::text in ${textList(among)}`] : []),
 		demoScope({ demoSessionId: sql`c.demo_session_id`, demoOriginal: sql`c.demo_original` }, viewer.demoSessionId),
 		listedInCatalog(candidateAt('c')),
 		sql`not exists (select 1 from candidate_company_blocks b where b.candidate_id = c.id and b.company_id = ${companyId})`
 	];
-	const nonEmpty = <T extends string>(path: string, values: readonly T[] | undefined) => {
+	const nonEmpty = <T>(path: string, values: readonly T[] | undefined) => {
 		if (values?.length === 0) throw validationError(path, 'Пустой список');
 		return values;
 	};
 	const specializations = nonEmpty('filters.specializations', filters.specializations);
 	const grades = nonEmpty('filters.grades', filters.grades);
 	const confirmedSkillKeys = nonEmpty('filters.confirmedSkillKeys', filters.confirmedSkillKeys);
-	const byCategory = specializations !== undefined || grades !== undefined || confirmedSkillKeys !== undefined;
-	if (byCategory) {
+	const pairs = nonEmpty('filters.categories', filters.categories);
+	const byCategory =
+		specializations !== undefined || grades !== undefined || confirmedSkillKeys !== undefined || pairs !== undefined;
+	if (pairs) {
+		// One category in force of one of the pairs, holding the confirmed stack asked for.
+		conditions.push(
+			sql`(${sql.join(
+				pairs.map((pair) =>
+					categoryPredicate(sql`c.id`, {
+						specializations: [pair.specialization],
+						grades: [pair.grade],
+						...(confirmedSkillKeys ? { confirmedSkillKeys } : {})
+					})
+				),
+				sql` or `
+			)})`
+		);
+	}
+	if (byCategory && (specializations || grades || (confirmedSkillKeys && !pairs))) {
 		// One category in force meets every category filter at once; without a category, never in this result (12.7).
 		conditions.push(
 			categoryPredicate(sql`c.id`, {
@@ -152,6 +256,10 @@ async function prefilter(
 				...(confirmedSkillKeys ? { confirmedSkillKeys } : {})
 			})
 		);
+	}
+	if (filters.fspConfirmed) {
+		conditions.push(sql`exists (select 1 from source_facts sf where sf.candidate_id = c.id and sf.source = 'fsp'
+			and sf.status = 'active')`);
 	}
 	if (filters.fspLevel) {
 		if (!FSP_LEVELS.includes(filters.fspLevel.minLevel)) throw validationError('filters.fspLevel.minLevel', 'L1–L5');
@@ -285,12 +393,13 @@ async function visibleOf(
 	return visible;
 }
 
-/** A place in a ranking: what the query and the vacancy made of the candidate, whoever looks. */
+/** A place in a ranking: what the query and the vacancy or the need made of the candidate, whoever looks. */
 interface RankedEntry {
 	candidateId: string;
 	fts: number | null;
 	semantic: number | null;
 	match: CompanyMatch | null;
+	needMatch: CompanyNeedMatch | null;
 }
 
 interface Ranking {
@@ -300,18 +409,51 @@ interface Ranking {
 
 /**
  * Ranks the visible candidates: with a vacancy, `matchScore` of every pair (a query narrows the list by words, the match
- * ranks it); without one, the query by words and by meaning, the nearest candidates by meaning joining the word
- * matches. The heavy part of a search — documents, vectors, the reranker — is here, and only here.
+ * ranks it); with a need, its fit and the strength of the confirmed profile (domain 13.10); without either, the query
+ * by words and by meaning, the nearest candidates by meaning joining the word matches, at equal relevance the stronger
+ * confirmed profile first — and without a query, the strength of the confirmed profile alone. The heavy part of a
+ * search — documents, vectors, the reranker — is here, and only here.
  */
 async function computeRanking(
 	deps: MatchingDeps,
-	vacancy: VacancySnapshot | null,
+	context: SearchContext,
 	text: string | null,
+	need: NeedSearch | null,
 	visible: ReadonlyMap<string, Visible>,
 	signal: AbortSignal | undefined
 ): Promise<Ranking> {
+	const { vacancy } = context;
 	const visibleIds = [...visible.keys()];
 	const { db: executor } = deps;
+	const ruleset = await loadActiveMatchRuleset(executor);
+	const notApplicable = { status: 'not_applicable' as const, reason: null };
+
+	if (need) {
+		const ranking = await rankForNeed(executor, deps.models, need.spec, visibleIds, {
+			ruleset,
+			testResults: deps.testResults,
+			now: context.now,
+			semanticText: need.semanticText,
+			priority: 'interactive',
+			...(signal ? { signal } : {})
+		});
+		return {
+			entries: ranking.ranked.map((entry) => ({
+				candidateId: entry.snapshot.id,
+				fts: null,
+				semantic: entry.semantic,
+				match: null,
+				needMatch: companyNeedMatch(entry)
+			})),
+			mode: {
+				searchMode: ranking.semantic.space ? 'hybrid' : 'fts_only',
+				embeddingSpaceId: ranking.semantic.space?.id ?? null,
+				semanticReason: ranking.semantic.reason,
+				reranker: notApplicable
+			}
+		};
+	}
+
 	// Full-text search over catalog documents built from evidence active right now. Without a query there is nothing
 	// to match or rank by words: no documents are built, and the reranker reads only those of its window.
 	const documents = text === null ? null : await candidateDocuments(executor, visibleIds, text);
@@ -325,7 +467,7 @@ async function computeRanking(
 			vacancy,
 			text === null ? visibleIds : visibleIds.filter(ftsMatched),
 			{
-				ruleset: await loadActiveMatchRuleset(executor),
+				ruleset,
 				...(documents ? { documents } : {}),
 				priority: 'interactive',
 				...(signal ? { signal } : {})
@@ -341,7 +483,8 @@ async function computeRanking(
 					coverage: result.coverage,
 					components: result.components,
 					explanation: companyExplanation(result.explanation)
-				}
+				},
+				needMatch: null
 			})),
 			mode: {
 				searchMode: scoring.semantic.space ? 'hybrid' : 'fts_only',
@@ -371,17 +514,39 @@ async function computeRanking(
 		const selected = new Set([...visibleIds.filter(ftsMatched), ...neighbors]);
 		candidateIds = visibleIds.filter((id) => selected.has(id));
 	}
-	// Relevance of the query; without a query, the stable order of the catalog.
-	const ranked = candidateIds.map((id) => {
-		const entry: RankedEntry = { candidateId: id, fts: fts(id), semantic: similarities.get(id) ?? null, match: null };
-		const parts = [entry.fts, entry.semantic].filter((v): v is number => v !== null);
-		return { entry, order: parts.length ? parts.reduce((a, b) => a + b, 0) / parts.length : 0 };
+	// The strength of the confirmed profile (domain 13.10): the order without a query, the next key with one.
+	const strength = await rankForNeed(executor, deps.models, null, candidateIds, {
+		ruleset,
+		testResults: deps.testResults,
+		now: context.now,
+		semanticText: null,
+		priority: 'interactive',
+		...(signal ? { signal } : {})
 	});
-	// At equal relevance a candidate with a category in force comes first (domain 12.7).
+	const strengthOf = new Map(strength.ranked.map((entry) => [entry.snapshot.id, entry]));
+	const ranked = candidateIds.map((id) => {
+		const ofStrength = strengthOf.get(id);
+		if (!ofStrength) throw new Error('a listed candidate has no strength');
+		const entry: RankedEntry = {
+			candidateId: id,
+			fts: fts(id),
+			semantic: similarities.get(id) ?? null,
+			match: null,
+			needMatch: companyNeedMatch(ofStrength)
+		};
+		const parts = [entry.fts, entry.semantic].filter((v): v is number => v !== null);
+		return {
+			entry,
+			order: parts.length ? parts.reduce((a, b) => a + b, 0) / parts.length : 0,
+			strength: ofStrength.result.score
+		};
+	});
+	// At equal relevance the stronger confirmed profile, then a candidate with a category in force (domain 12.7).
 	const confirmed = (id: string) => (visible.get(id)?.categoryConfirmed ? 1 : 0);
 	ranked.sort(
 		(a, b) =>
 			b.order - a.order ||
+			b.strength - a.strength ||
 			confirmed(b.entry.candidateId) - confirmed(a.entry.candidateId) ||
 			(a.entry.candidateId < b.entry.candidateId ? -1 : 1)
 	);
@@ -391,7 +556,7 @@ async function computeRanking(
 			searchMode: usedSpace ? 'hybrid' : 'fts_only',
 			embeddingSpaceId: usedSpace?.id ?? null,
 			semanticReason,
-			reranker: { status: 'not_applicable', reason: null }
+			reranker: notApplicable
 		}
 	};
 }
@@ -529,13 +694,19 @@ export class RankingCache {
 	}
 }
 
-const rankingCaches = new WeakMap<MatchingModels, RankingCache>();
+const rankingCaches = new WeakMap<MatchingModels, WeakMap<TestResultReader, RankingCache>>();
 
-function rankingCacheOf(models: MatchingModels): RankingCache {
-	let cache = rankingCaches.get(models);
+/** The rankings made with these models and this reader of test results: a ranking made with others is not theirs. */
+function rankingCacheOf(models: MatchingModels, testResults: TestResultReader): RankingCache {
+	let byReader = rankingCaches.get(models);
+	if (!byReader) {
+		byReader = new WeakMap();
+		rankingCaches.set(models, byReader);
+	}
+	let cache = byReader.get(testResults);
 	if (!cache) {
 		cache = new RankingCache();
-		rankingCaches.set(models, cache);
+		byReader.set(testResults, cache);
 	}
 	return cache;
 }
@@ -563,6 +734,7 @@ async function rankingKey(
 	executor: Executor,
 	context: SearchContext,
 	text: string | null,
+	need: NeedSearch | null,
 	listed: readonly Listed[],
 	visible: ReadonlyMap<string, Visible>,
 	reranker: RerankerState | null
@@ -574,7 +746,11 @@ async function rankingKey(
 		companyId: context.companyId,
 		demoSessionId: context.viewer.viewer.demoSessionId,
 		vacancy: vacancy && { id: vacancy.id, revision: vacancy.revision, taxonomyVersionId: vacancy.taxonomyVersionId },
-		matchRulesetId: vacancy && (await loadActiveMatchRuleset(executor)).id,
+		// The need a shortlist ranks for and its step (domain 13.10): another step or another need is another key.
+		need,
+		matchRulesetId: (await loadActiveMatchRuleset(executor)).id,
+		// The freshness of a confirmed profile is counted in days.
+		day: context.now.toISOString().slice(0, 10),
 		reranker,
 		text,
 		space: space && { id: space.id, vectors: await vectorsStamp(executor, space, visibleIds, vacancy?.id ?? null) },
@@ -589,29 +765,32 @@ async function rankingKey(
  * The whole ranked list of visible candidates for the query. Visibility is decided on every request; the ranking of the
  * visible set is computed once per key and served from the cache while the key holds.
  */
-async function rankCandidates(
+export async function rankCandidates(
 	deps: MatchingDeps,
 	subject: AccessSubject,
 	query: Omit<CandidateSearchQuery, 'limit' | 'cursor'>,
 	signal?: AbortSignal
 ): Promise<{ ranked: CandidateSearchItem[]; mode: SearchMode }> {
 	const { db: executor } = deps;
+	const need = query.need ?? null;
+	if (need !== null && (query.vacancyId !== undefined || query.text !== undefined)) {
+		throw new Error('a ranking for a need has neither a vacancy nor a query');
+	}
 	const context = await searchContext(deps, subject, query.vacancyId);
 	const text = query.text?.trim() ? query.text.trim() : null;
 	const listed = await prefilter(executor, context.viewer.viewer, query.filters ?? {});
 	const visible = await visibleOf(executor, context, listed);
 	const visibleIds = [...visible.keys()];
 
-	// Without a vacancy and a query the order is the catalog's own: there is nothing to compute or to keep.
-	const keyed = (context.vacancy !== null || text !== null) && visibleIds.length > 0;
-	const cache = rankingCacheOf(deps.models);
+	const keyed = visibleIds.length > 0;
+	const cache = rankingCacheOf(deps.models, deps.testResults);
 	// Only a ranking for a vacancy asks the reranker.
 	const reranker = keyed && context.vacancy !== null ? await rerankerState(deps.models, signal) : null;
-	const key = keyed ? await rankingKey(executor, context, text, listed, visible, reranker) : null;
+	const key = keyed ? await rankingKey(executor, context, text, need, listed, visible, reranker) : null;
 	const at = context.now.getTime();
 	let ranking = key === null ? null : cache.get(key, at);
 	if (!ranking) {
-		ranking = await computeRanking(deps, context.vacancy, text, visible, signal);
+		ranking = await computeRanking(deps, context, text, need, visible, signal);
 		const ttl = key === null ? null : lifetime(ranking.mode, reranker);
 		if (key !== null && ttl !== null) cache.set(key, ranking, at, ttl);
 	}
@@ -626,12 +805,50 @@ async function rankCandidates(
 				projection: 'catalog',
 				extras: shown.extras,
 				match: entry.match,
+				needMatch: entry.needMatch,
 				relevance: { fts: entry.fts, semantic: entry.semantic },
 				categoryConfirmed: shown.categoryConfirmed
 			};
 		}),
 		mode: ranking.mode
 	};
+}
+
+/**
+ * Which of these candidates the viewer sees in the catalog right now, by their pseudonyms for the company: the same
+ * listing, block list and `canShow` as the search, without its filters. A shortlist checks its marked candidates so.
+ */
+export async function visibleAmong(
+	deps: MatchingDeps,
+	subject: AccessSubject,
+	candidateIds: readonly string[]
+): Promise<Map<string, string>> {
+	const context = await searchContext(deps, subject, undefined);
+	const listed = await prefilter(deps.db, context.viewer.viewer, {}, candidateIds);
+	const visible = await visibleOf(deps.db, context, listed);
+	return new Map([...visible.keys()].map((id) => [id, deps.pseudonym(id, context.companyId)]));
+}
+
+/**
+ * The baseline of «Оцените подбор» (contracts 11.2): plain keyword search over the whole catalog the viewer sees —
+ * the words of the query against the catalog documents, by full-text relevance alone, ties by id. No category, no
+ * strength, no meaning: what a recruiter has without the platform's ranking.
+ */
+export async function keywordSearch(
+	deps: MatchingDeps,
+	subject: AccessSubject,
+	text: string,
+	limit: number
+): Promise<{ candidateId: string; pseudonym: string }[]> {
+	const context = await searchContext(deps, subject, undefined);
+	const listed = await prefilter(deps.db, context.viewer.viewer, {});
+	const visible = await visibleOf(deps.db, context, listed);
+	const documents = await candidateDocuments(deps.db, [...visible.keys()], text);
+	return [...documents.entries()]
+		.filter(([, document]) => document.matched)
+		.sort(([a, x], [b, y]) => (y.rank ?? 0) - (x.rank ?? 0) || (a < b ? -1 : 1))
+		.slice(0, limit)
+		.map(([candidateId]) => ({ candidateId, pseudonym: deps.pseudonym(candidateId, context.companyId) }));
 }
 
 /** One page of the catalog search. */

@@ -42,6 +42,8 @@ export interface CatalogQueryValues {
 	/** Codes of the reference of regions. */
 	regions: string[];
 	uncategorized: boolean;
+	/** Only candidates with an FSP result in force. */
+	hasFsp: boolean;
 }
 
 interface CatalogQuery {
@@ -70,13 +72,15 @@ function catalogQueryOf(url: URL, taxonomy: VacancyTaxonomy, regions: RegionRefe
 		fspLevel: url.searchParams.get('fspLevel') ?? '',
 		formats: list(url, 'format'),
 		regions: [...new Set(list(url, 'region'))],
-		uncategorized: url.searchParams.get('uncategorized') === 'on'
+		uncategorized: url.searchParams.get('uncategorized') === 'on',
+		hasFsp: url.searchParams.get('hasFsp') === 'on'
 	};
 	const filters: CandidateSearchFilters = {};
 	const unknownStack: string[] = [];
 	const specializations = values.specializations.filter(isSpecializationKey);
 	const grades = values.grades.filter(isGradeKey);
 	if (values.uncategorized) filters.uncategorized = true;
+	if (values.hasFsp) filters.fspConfirmed = true;
 	if (specializations.length > 0) filters.specializations = specializations;
 	if (grades.length > 0) filters.grades = grades;
 	const stack: string[] = [];

@@ -9,6 +9,7 @@ import { createClient } from 'redis';
 import { afterAll, beforeAll, describe, expect, inject, it, vi } from 'vitest';
 import { publishLegalDocuments, readLegalRelease } from '../../scripts/seed-legal';
 import { publishPolicies, readPolicyRelease } from '../../scripts/seed-policies';
+import { GRADE_DECISION_RESULTS } from '$lib/server/matching/test-results';
 import { loadAccessSubject } from '$lib/server/companies/subject';
 import { createFieldCrypto } from '$lib/server/crypto/fields';
 import {
@@ -365,7 +366,8 @@ describe('demo seed', () => {
 				db,
 				models: MODELS_OFF,
 				pseudonym: (candidateId, companyId) => crypto.pseudonym(candidateId, companyId),
-				now: () => new Date()
+				now: () => new Date(),
+				testResults: GRADE_DECISION_RESULTS
 			},
 			await loadAccessSubject(db, {
 				kind: 'session',

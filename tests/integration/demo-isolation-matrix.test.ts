@@ -1135,6 +1135,31 @@ const REGISTRY: Record<string, Entry> = {
 	'api/v1/needs/+server.ts': exempt('needs of the own company — api-access.test.ts'),
 	'api/v1/needs/[need_id]/+server.ts': exempt('a need of the own company, another one is 404 — api-access.test.ts'),
 	'api/v1/needs/[need_id]/categories/+server.ts': exempt('counts through canShow, which keeps the demo scope'),
+	'(app)/company/(member)/shortlists/[id]/+page.server.ts': exempt(
+		'a shortlist of the own company, another one is 404; its candidates go through the search, which keeps the demo scope — shortlists.test.ts'
+	),
+	'(app)/company/(member)/shortlists/[id]/evaluate/+page.server.ts': exempt(
+		'a shortlist of the own company; both lists of the comparison go through the search, which keeps the demo scope'
+	),
+	'api/v1/needs/[need_id]/shortlists/+server.ts': exempt(
+		'shortlists of the own need, another one is 404 — shortlists.test.ts'
+	),
+	'api/v1/shortlists/[shortlist_id]/+server.ts': exempt(
+		'a shortlist of the own company ranked through the search, which keeps the demo scope — shortlists.test.ts'
+	),
+	'api/v1/shortlists/[shortlist_id]/revisions/+server.ts': exempt('a step of the own shortlist — shortlists.test.ts'),
+	'api/v1/shortlists/[shortlist_id]/marks/[pseudonym]/+server.ts': exempt(
+		'a candidate the company sees in the catalog (findInCatalog keeps the demo scope) — shortlists.test.ts'
+	),
+	'api/v1/shortlists/[shortlist_id]/what-if/+server.ts': exempt(
+		'candidates through the search; the range only by a cohort of the candidates the company sees — shortlists.test.ts'
+	),
+	'api/v1/shortlists/[shortlist_id]/evaluations/+server.ts': exempt(
+		'both lists go through the search, which keeps the demo scope — shortlists.test.ts'
+	),
+	'api/v1/shortlists/[shortlist_id]/evaluations/[evaluation_id]/judgement/+server.ts': exempt(
+		'positions of an own evaluation, no candidate is read — shortlists.test.ts'
+	),
 
 	// Sign-in, registration and the links sent by mail: bound to a token, not to a place.
 	'(auth)/login/+page.server.ts': exempt('sign-in'),

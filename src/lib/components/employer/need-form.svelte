@@ -5,7 +5,7 @@
 	import NativeSelect from './native-select.svelte';
 
 	/**
-	 * The fields of a hiring need (domain 13.10): specialization and grade of the catalog of categories, skills by their
+	 * The fields of a hiring need (domain 13.10): specialization and the range of grades of the catalog of categories, skills by their
 	 * names, the team, the format, the region, a range in roubles per month and whether FSP results matter. The parent
 	 * form posts them; the server resolves skill names by the taxonomy.
 	 */
@@ -18,7 +18,7 @@
 		};
 		values?: {
 			specialization?: string;
-			grade?: string;
+			grade?: { min: string; max: string };
 			skills: string;
 			niceSkills: string;
 			team?: string;
@@ -46,14 +46,24 @@
 			</NativeSelect>
 			{#if problems['form.specialization']}<Field.Error>{problems['form.specialization']}</Field.Error>{/if}
 		</Field.Field>
-		<Field.Field>
-			<Field.Label for="{id}-grade">Грейд</Field.Label>
-			<NativeSelect id="{id}-grade" name="grade" value={values?.grade ?? ''}>
-				<option value="">Не указан</option>
-				{#each options.grades as item (item.key)}
-					<option value={item.key}>{item.title}</option>
-				{/each}
-			</NativeSelect>
+		<Field.Field data-invalid={problems['form.grade.max'] !== undefined}>
+			<Field.Label for="{id}-grade-min">Грейд: от и до</Field.Label>
+			<div class="grid grid-cols-2 gap-2">
+				<NativeSelect id="{id}-grade-min" name="grade_min" value={values?.grade?.min ?? ''} aria-label="Грейд от">
+					<option value="">Не указан</option>
+					{#each options.grades as item (item.key)}
+						<option value={item.key}>{item.title}</option>
+					{/each}
+				</NativeSelect>
+				<NativeSelect name="grade_max" value={values?.grade?.max ?? ''} aria-label="Грейд до">
+					<option value="">Тот же</option>
+					{#each options.grades as item (item.key)}
+						<option value={item.key}>{item.title}</option>
+					{/each}
+				</NativeSelect>
+			</div>
+			<Field.Description>Подборка возьмёт категории всех грейдов диапазона.</Field.Description>
+			{#if problems['form.grade.max']}<Field.Error>{problems['form.grade.max']}</Field.Error>{/if}
 		</Field.Field>
 	</div>
 	<Field.Field data-invalid={problems['form.skill_keys'] !== undefined}>

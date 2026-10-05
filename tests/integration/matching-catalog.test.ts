@@ -1,5 +1,6 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 import { and, eq, inArray, sql } from 'drizzle-orm';
+import { GRADE_DECISION_RESULTS } from '$lib/server/matching/test-results';
 import type { GradeKey, SpecializationKey } from '$lib/server/assessments/contract/catalog';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import type { AccessSubject } from '$lib/server/access/permissions';
@@ -432,7 +433,8 @@ function deps(models: MatchingModels = fakeModels()): MatchingDeps {
 		db: database.db,
 		models,
 		pseudonym: (candidateId, companyId) => `${candidateId}@${companyId}`,
-		now: () => new Date()
+		now: () => new Date(),
+		testResults: GRADE_DECISION_RESULTS
 	};
 }
 
@@ -944,7 +946,8 @@ describe('catalog search: the kept ranking and the comparison', () => {
 				candidateId: `candidate-${index}`,
 				fts: 0.5,
 				semantic: null,
-				match: null
+				match: null,
+				needMatch: null
 			})),
 			mode: {
 				searchMode: 'fts_only' as const,

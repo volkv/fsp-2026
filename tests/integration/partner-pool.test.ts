@@ -11,6 +11,7 @@ import { and, eq } from 'drizzle-orm';
 import postgres from 'postgres';
 import { createClient } from 'redis';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
+import { GRADE_DECISION_RESULTS } from '$lib/server/matching/test-results';
 import type { Actor } from '$lib/server/access/actor';
 import type { AccessSubject, Permission } from '$lib/server/access/permissions';
 import { runOperation, type Operation } from '$lib/server/api/operation';
@@ -81,7 +82,8 @@ const matching = (): MatchingDeps => ({
 	db: database.db,
 	models: services.models,
 	pseudonym: (candidateId, companyId) => crypto.pseudonym(candidateId, companyId),
-	now: () => new Date()
+	now: () => new Date(),
+	testResults: GRADE_DECISION_RESULTS
 });
 
 const companyDeps = (): CompanyDeps => ({
@@ -131,7 +133,8 @@ beforeAll(async () => {
 		},
 		receiptSigner: createReceiptSigner({ issuer: 'http://app.test', keyId: 'test-1', seed: Buffer.alloc(32, 5) }),
 		appOrigin: 'http://app.test',
-		now: () => new Date()
+		now: () => new Date(),
+		testResults: GRADE_DECISION_RESULTS
 	};
 	operator = await subjectOf((await createUser(db)).id, { operator: true });
 });
