@@ -564,19 +564,49 @@ export function familySourceSha256(family: FamilyDescriptor, generatorSource: st
 	return createHash('sha256').update(canonical(sources)).update('\n').update(generatorSource).digest('hex');
 }
 
-/** How a family-level was judged, for the labels of the product (domain 10.2): by models only, or with a person. */
+/**
+ * An entry of `authorship.authors`: a model written as `<model> (<vendor>)`, otherwise a person or a group by name.
+ */
+export type FamilyAuthor = { kind: 'model'; model: string; vendor: string } | { kind: 'person'; name: string };
+
+export function parseAuthor(entry: string): FamilyAuthor {
+	const match = /^(.+?)\s*\(([^()]+)\)$/.exec(entry.trim());
+	return match?.[1] && match[2]
+		? { kind: 'model', model: match[1].trim(), vendor: match[2].trim() }
+		: { kind: 'person', name: entry.trim() };
+}
+
+/** Whether a judge is the author itself: the same person, or the same model (another model of the vendor is not). */
+export function isAuthor(judge: Reviewer, family: FamilyDescriptor): boolean {
+	return family.authorship.authors
+		.map(parseAuthor)
+		.some((author) =>
+			judge.kind === 'person'
+				? author.kind === 'person' && author.name.toLowerCase() === judge.name.toLowerCase()
+				: author.kind === 'model' && author.model.toLowerCase() === judge.model.toLowerCase()
+		);
+}
+
+/** How a family-level was judged, for the labels of the product (domain 10.8). */
 export interface JudgementProvenance {
 	/** The rubric and the reference were approved by models only. */
 	rubricByModelsOnly: boolean;
 	/** The Angoff cut rests on model ratings only: a provisional cut. */
 	angoffProvisional: boolean;
+	/** One of the approving or rating models is another model of the vendor of the model that wrote the family. */
+	sameVendorReviewer: boolean;
 }
 
 export function judgementProvenance(family: FamilyDescriptor, grade: GradeKey): JudgementProvenance {
 	const approved = family.gates.rubricReviews.filter((r) => r.verdict === 'approved');
 	const level = family.levels.find((l) => l.grade === grade);
+	const vendors = new Set(
+		family.authorship.authors.map(parseAuthor).flatMap((a) => (a.kind === 'model' ? [a.vendor.toLowerCase()] : []))
+	);
+	const judges = [...approved.map((r) => r.reviewer), ...(level?.angoff.ratings.map((r) => r.rater) ?? [])];
 	return {
 		rubricByModelsOnly: !approved.some((r) => r.reviewer.kind === 'person'),
-		angoffProvisional: !level || level.angoff.ratings.every((r) => r.rater.kind === 'model')
+		angoffProvisional: !level || level.angoff.ratings.every((r) => r.rater.kind === 'model'),
+		sameVendorReviewer: judges.some((j) => j.kind === 'model' && vendors.has(j.lineage.toLowerCase()))
 	};
 }

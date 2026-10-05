@@ -532,28 +532,92 @@ describe('independent reviews', () => {
 		});
 	});
 
-	it('refuses an author of the family as its rater or reviewer', () => {
-		const byModel: FamilyDescriptor = {
+	describe('a family written by claude-opus (anthropic)', () => {
+		const OPUS: Reviewer = { kind: 'model', model: 'claude-opus', lineage: 'anthropic' };
+		const CODEX_MINI: Reviewer = { kind: 'model', model: 'codex-mini', lineage: 'openai' };
+		const byOpus: FamilyDescriptor = {
 			...valid,
-			authorship: { draftedBy: 'model', authors: ['claude-sonnet (anthropic)'] }
+			authorship: { draftedBy: 'model', authors: ['claude-opus (anthropic)'] }
 		};
-		expect(check(byModel)).toEqual([
-			'family be.db.null-aggregate: claude-sonnet (anthropic) is an author of the family and cannot judge it'
-		]);
-		const byPerson: FamilyDescriptor = {
-			...withReviews([review(person('Павел'))]),
-			authorship: { draftedBy: 'team', authors: ['Павел'] }
+		const opusHash = familySourceSha256(byOpus, GENERATOR);
+		const judgedBy = (first: Reviewer, second: Reviewer): FamilyDescriptor => {
+			const level = byOpus.levels[0];
+			if (!level) throw new Error('level');
+			return {
+				...byOpus,
+				levels: [
+					{
+						...level,
+						angoff: {
+							round: 1,
+							ratings: [rate(first, 0.55), rate(second, 0.65)].map((x) => ({ ...x, sourceSha256: opusHash })),
+							mean: 0.6
+						}
+					}
+				],
+				gates: {
+					...byOpus.gates,
+					rubricReviews: [review(first), review(second)].map((x) => ({ ...x, sourceSha256: opusHash }))
+				}
+			};
 		};
-		expect(familyProblems(byPerson, hash)).toEqual([
-			'family be.db.null-aggregate: Павел is an author of the family and cannot judge it'
-		]);
+		const codes = (family: FamilyDescriptor) => familyCoded(family, opusHash).map((p) => p.code);
+
+		it('accepts codex and claude-sonnet: another model of the author vendor, and another vendor', () => {
+			expect(familyCoded(judgedBy(MODEL_A, MODEL_B), opusHash)).toEqual([]);
+			expect(judgementProvenance(judgedBy(MODEL_A, MODEL_B), 'junior')).toEqual({
+				rubricByModelsOnly: true,
+				angoffProvisional: true,
+				sameVendorReviewer: true
+			});
+		});
+
+		it('refuses claude-sonnet with the author model claude-opus', () => {
+			expect(familyCoded(judgedBy(MODEL_B, OPUS), opusHash)).toEqual([
+				{
+					code: 'defect',
+					message: 'family be.db.null-aggregate: claude-opus (anthropic) is an author of the family and cannot judge it'
+				},
+				{ code: 'defect', message: 'family be.db.null-aggregate@junior: a rater (or a model lineage) rated twice' },
+				{
+					code: 'awaiting_raters',
+					message:
+						'family be.db.null-aggregate@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.6)'
+				},
+				{
+					code: 'awaiting_reviews',
+					message:
+						'family be.db.null-aggregate: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources'
+				}
+			]);
+		});
+
+		it('refuses two models of one vendor (codex and codex-mini)', () => {
+			expect(codes(judgedBy(MODEL_A, CODEX_MINI))).toEqual(['defect', 'awaiting_raters', 'awaiting_reviews']);
+		});
+
+		it('refuses a person author as a reviewer', () => {
+			const byPerson: FamilyDescriptor = {
+				...withReviews([review(person('Павел'))]),
+				authorship: { draftedBy: 'team', authors: ['Павел'] }
+			};
+			expect(familyProblems(byPerson, hash)).toEqual([
+				'family be.db.null-aggregate: Павел is an author of the family and cannot judge it',
+				'family be.db.null-aggregate: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources'
+			]);
+		});
 	});
 
 	it('labels model-only judgements for the product', () => {
-		expect(judgementProvenance(seal(valid), 'junior')).toEqual({ rubricByModelsOnly: true, angoffProvisional: true });
+		expect(judgementProvenance(seal(valid), 'junior')).toEqual({
+			rubricByModelsOnly: true,
+			angoffProvisional: true,
+			sameVendorReviewer: false
+		});
 		expect(judgementProvenance(withReviews([review(person('Павел'))]), 'junior')).toEqual({
 			rubricByModelsOnly: false,
-			angoffProvisional: true
+			angoffProvisional: true,
+			sameVendorReviewer: false
 		});
 	});
 });

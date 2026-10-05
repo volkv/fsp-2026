@@ -343,7 +343,10 @@ export const getGradeDecision = defineOperation({
 							.describe('Рубрика хотя бы одного задания попытки одобрена только независимыми моделями'),
 						angoff_provisional: z
 							.boolean()
-							.describe('Порог хотя бы одного задания попытки — по оценкам моделей: предварительный')
+							.describe('Порог хотя бы одного задания попытки — по оценкам моделей: предварительный'),
+						same_vendor_reviewer: z
+							.boolean()
+							.describe('Одна из моделей-рецензентов — того же поставщика, что модель-автор заданий')
 					})
 					.describe('Как проверены задания попытки (domain 10.8); интерфейс показывает подпись'),
 				next: z.array(
@@ -388,7 +391,8 @@ export const getGradeDecision = defineOperation({
 			},
 			judgement: {
 				rubric_by_models_only: view.judgement.rubricByModelsOnly,
-				angoff_provisional: view.judgement.angoffProvisional
+				angoff_provisional: view.judgement.angoffProvisional,
+				same_vendor_reviewer: view.judgement.sameVendorReviewer
 			},
 			next: view.next.map((option) => ({
 				grade: option.grade,
@@ -479,14 +483,19 @@ export const listBankReleases = defineOperation({
 									grade,
 									levels: z.int(),
 									rubric_by_models_only: z.int(),
-									angoff_provisional: z.int()
+									angoff_provisional: z.int(),
+									same_vendor_reviewer: z.int()
 								})
 							)
-							.describe('Семейства-уровни грейда: всего, с рубрикой только от моделей, с предварительным порогом'),
+							.describe(
+								'Семейства-уровни грейда: всего, с рубрикой только от моделей, с предварительным порогом, ' +
+									'с рецензентом того же поставщика, что модель-автор'
+							),
 						reviews: z.array(
 							z.object({
 								family: z.string(),
 								source_sha256: z.string().describe('Хэш исходников семейства в выпуске'),
+								authors: z.array(z.string()).describe('Авторы семейства; модель — `<модель> (<поставщик>)`'),
 								rubric_reviews: z.array(
 									z.object({
 										reviewer: reviewerSchema,
@@ -501,6 +510,7 @@ export const listBankReleases = defineOperation({
 										grade,
 										round: z.int(),
 										mean: z.number(),
+										same_vendor_reviewer: z.boolean(),
 										ratings: z.array(
 											z.object({
 												rater: reviewerSchema,
@@ -553,11 +563,13 @@ export const listBankReleases = defineOperation({
 					grade: g,
 					levels: r.judgement[g].levels,
 					rubric_by_models_only: r.judgement[g].rubricByModelsOnly,
-					angoff_provisional: r.judgement[g].angoffProvisional
+					angoff_provisional: r.judgement[g].angoffProvisional,
+					same_vendor_reviewer: r.judgement[g].sameVendorReviewer
 				})),
 				reviews: r.reviews.map((family) => ({
 					family: family.key,
 					source_sha256: family.sourceSha256,
+					authors: [...family.authors],
 					rubric_reviews: family.rubricReviews.map((review) => ({
 						reviewer: review.reviewer,
 						reviewed_at: review.reviewedAt,
@@ -569,6 +581,7 @@ export const listBankReleases = defineOperation({
 						grade: level.grade,
 						round: level.round,
 						mean: level.mean,
+						same_vendor_reviewer: level.sameVendorReviewer,
 						ratings: level.ratings.map((rating) => ({
 							rater: rating.rater,
 							p: rating.p,

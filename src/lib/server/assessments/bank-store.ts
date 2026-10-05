@@ -13,10 +13,16 @@ import {
 	type GradeKey,
 	type SpecializationKey
 } from './contract/catalog';
-import type { FamilyModule, Reviewer } from './contract/bank';
+import { judgementProvenance, type FamilyModule, type Reviewer } from './contract/bank';
 import { familyProblems, type TrajectoryReport, type ValidationProblem } from './contract/validate';
 import { loadBankTree, loadFamily, sharedCodeSha256 } from './families';
-import { servingProblems, type GradeJudgement, type ManifestFamily, type ReleaseManifest } from './release';
+import {
+	gradeJudgements,
+	servingProblems,
+	type GradeJudgement,
+	type ManifestFamily,
+	type ReleaseManifest
+} from './release';
 
 /** The bank tree next to the application: the repository in development, `/app` in the image. */
 export const BANK_ROOT = resolve(process.cwd(), 'assessments/families');
@@ -192,6 +198,8 @@ export async function bankTreeFamilies(root: string = BANK_ROOT): Promise<TreeFa
 export interface FamilyJudgements {
 	key: string;
 	sourceSha256: string;
+	/** `authorship.authors`: a model as `<model> (<vendor>)`. */
+	authors: readonly string[];
 	rubricReviews: {
 		reviewer: Reviewer;
 		reviewedAt: string;
@@ -203,6 +211,8 @@ export interface FamilyJudgements {
 		grade: GradeKey;
 		round: 1 | 2;
 		mean: number;
+		/** A judging model is another model of the vendor of the authoring one (`judgementProvenance`). */
+		sameVendorReviewer: boolean;
 		ratings: { rater: Reviewer; p: number; ratedAt: string; onCurrentSources: boolean }[];
 	}[];
 }
@@ -240,6 +250,7 @@ function familyJudgements(manifest: ReleaseManifest): FamilyJudgements[] {
 		return {
 			key: descriptor.key,
 			sourceSha256,
+			authors: descriptor.authorship.authors,
 			rubricReviews: descriptor.gates.rubricReviews.map((review) => ({
 				reviewer: review.reviewer,
 				reviewedAt: review.reviewedAt,
@@ -251,6 +262,7 @@ function familyJudgements(manifest: ReleaseManifest): FamilyJudgements[] {
 				grade: level.grade,
 				round: level.angoff.round,
 				mean: level.angoff.mean,
+				sameVendorReviewer: judgementProvenance(descriptor, level.grade).sameVendorReviewer,
 				ratings: level.angoff.ratings.map((rating) => ({
 					rater: rating.rater,
 					p: rating.p,
@@ -287,7 +299,8 @@ export async function bankReleasesOverview(executor: Executor): Promise<BankRele
 				shortages: check.shortages
 			})),
 			trajectories: manifest.trajectories,
-			judgement: manifest.judgement,
+			// From the descriptors with the contract in force, not the summary the release stored.
+			judgement: gradeJudgements(manifest.families.map((f) => f.descriptor)),
 			reviews: familyJudgements(manifest)
 		};
 	});

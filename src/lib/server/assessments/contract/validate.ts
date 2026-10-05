@@ -24,6 +24,7 @@ import {
 	ANSWER_KINDS,
 	FAMILY_GATES,
 	blockTestPairs,
+	isAuthor,
 	reviewerIdentity,
 	capacityChecks,
 	type BankRelease,
@@ -495,7 +496,7 @@ export function familyProblems(
 		}
 		// The cut in force: the mean of the current ratings once enough independent raters judged the sources; until then
 		// `mean` is the authors' provisional cut — only its scale and, for a practice, its range are checked.
-		const current = ratings.filter((r) => r.sourceSha256 === sourceSha256);
+		const current = ratings.filter((r) => r.sourceSha256 === sourceSha256 && !isAuthor(r.rater, family));
 		const rated = new Set(current.map((r) => reviewerIdentity(r.rater))).size >= gates.angoffRatersMin;
 		if (!rated && !onScale(level.angoff.mean))
 			problems.push(`${lw}: Angoff mean ${level.angoff.mean} is not on the 1/20 scale`);
@@ -611,22 +612,20 @@ export function familyProblems(
 }
 
 /**
- * Judges who are authors of the family: a person named among the authors, or a model whose name or lineage an author
- * entry names (an author drafted by a model is written with its model and provider).
+ * Judges who are authors of the family (`isAuthor`): the same person, or the same model as an author entry
+ * `<model> (<vendor>)`. Another model of the author's vendor may judge; the product says so (`sameVendorReviewer`).
  */
 function authorConflicts(family: FamilyDescriptor): string[] {
-	const authors = family.authorship.authors.map((a) => a.toLowerCase());
 	const judges = [
 		...family.gates.rubricReviews.map((r) => r.reviewer),
 		...family.levels.flatMap((l) => l.angoff.ratings.map((r) => r.rater))
 	];
-	const conflicts = judges.filter((judge) =>
-		judge.kind === 'person'
-			? authors.includes(judge.name.toLowerCase())
-			: authors.some((a) => a.includes(judge.model.toLowerCase()) || a.includes(judge.lineage.toLowerCase()))
-	);
 	return [
-		...new Set(conflicts.map((judge) => (judge.kind === 'person' ? judge.name : `${judge.model} (${judge.lineage})`)))
+		...new Set(
+			judges
+				.filter((judge) => isAuthor(judge, family))
+				.map((judge) => (judge.kind === 'person' ? judge.name : `${judge.model} (${judge.lineage})`))
+		)
 	];
 }
 
@@ -660,7 +659,8 @@ function gateProblems(
 	const current = report.rubricReviews.filter((review) => review.sourceSha256 === sourceSha256);
 	if (current.some((review) => review.verdict === 'changes_requested'))
 		problems.push(`${where} a review of the current sources requests changes`);
-	const approved = current.filter((review) => review.verdict === 'approved');
+	// The author's own judgements never count (they are a defect besides).
+	const approved = current.filter((review) => review.verdict === 'approved' && !isAuthor(review.reviewer, family));
 	const persons = new Set(
 		approved.filter((x) => x.reviewer.kind === 'person').map((x) => reviewerIdentity(x.reviewer))
 	);

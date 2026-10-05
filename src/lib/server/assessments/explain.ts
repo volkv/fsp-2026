@@ -39,15 +39,23 @@ export const REASON_TEXTS: Record<DecisionReason, string> = {
 
 /**
  * The label a result carries while its clusters were judged by models only (domain 10.8): rubrics approved only by
- * independent models, cuts from model ratings only. `null` — every cluster was signed by a person.
+ * independent models, cuts from model ratings only, and whether a judging model is of the vendor of the authoring one.
+ * `null` — every cluster was signed by a person.
  */
 export function judgementNote(judgement: JudgementProvenance): string | null {
-	const { rubricByModelsOnly, angoffProvisional } = judgement;
+	const note = judgementBasis(judgement);
+	if (note === null) return null;
+	return judgement.sameVendorReviewer
+		? `${note}; одна из моделей-рецензентов — того же поставщика, что автор заданий.`
+		: `${note}.`;
+}
+
+function judgementBasis({ rubricByModelsOnly, angoffProvisional }: JudgementProvenance): string | null {
 	if (rubricByModelsOnly && angoffProvisional) {
-		return 'Рубрики заданий проверены независимыми моделями, пороги предварительные — их подтверждают эксперты.';
+		return 'Рубрики заданий проверены независимыми моделями, пороги предварительные — их подтверждают эксперты';
 	}
-	if (rubricByModelsOnly) return 'Рубрики заданий проверены независимыми моделями — их подтверждают эксперты.';
-	if (angoffProvisional) return 'Пороги заданий предварительные — их подтверждают эксперты.';
+	if (rubricByModelsOnly) return 'Рубрики заданий проверены независимыми моделями — их подтверждают эксперты';
+	if (angoffProvisional) return 'Пороги заданий предварительные — их подтверждают эксперты';
 	return null;
 }
 

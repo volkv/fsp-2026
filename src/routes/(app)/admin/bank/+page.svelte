@@ -147,7 +147,7 @@
 					{#each Object.entries(release.judgement) as [grade, j] (grade)}
 						<li>
 							{grade}: семейств-уровней {j.levels}, рубрика только от моделей — {j.rubricByModelsOnly}, предварительный
-							порог — {j.angoffProvisional}
+							порог — {j.angoffProvisional}, рецензент того же поставщика, что автор — {j.sameVendorReviewer}
 						</li>
 					{/each}
 				</ul>
@@ -158,7 +158,9 @@
 					{#each release.reviews as family (family.key)}
 						<li class="grid gap-1" data-testid="bank-family-review" data-key={family.key}>
 							<span class="font-medium">{family.key}</span>
-							<span class="text-muted-foreground">исходники sha256 {family.sourceSha256.slice(0, 12)}</span>
+							<span class="text-muted-foreground">
+								авторы: {family.authors.join(', ')} · исходники sha256 {family.sourceSha256.slice(0, 12)}
+							</span>
 							<ul class="grid gap-0.5 pl-4">
 								{#each family.rubricReviews as review, index (index)}
 									<li>
@@ -171,7 +173,9 @@
 								{/each}
 								{#each family.levels as level (level.grade)}
 									<li>
-										Angoff {level.grade}, раунд {level.round}, среднее {points(level.mean)}:
+										Angoff {level.grade}, раунд {level.round}, среднее {points(level.mean)}{level.sameVendorReviewer
+											? ' · рецензент того же поставщика, что автор'
+											: ''}:
 										{level.ratings
 											.map((r) => `${reviewerName(r.rater)} — ${points(r.p)}${stale(r.onCurrentSources)}`)
 											.join('; ')}

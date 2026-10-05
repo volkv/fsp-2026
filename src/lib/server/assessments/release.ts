@@ -41,6 +41,25 @@ export interface GradeJudgement {
 	rubricByModelsOnly: number;
 	/** Family-levels whose Angoff cut rests on model ratings only. */
 	angoffProvisional: number;
+	/** Family-levels judged by another model of the vendor of the model that wrote the family. */
+	sameVendorReviewer: number;
+}
+
+/** `judgementProvenance` of the family-levels of every grade, counted. */
+export function gradeJudgements(families: readonly FamilyDescriptor[]): Record<GradeKey, GradeJudgement> {
+	const judgement = {} as Record<GradeKey, GradeJudgement>;
+	for (const grade of GRADE_KEYS) {
+		const judged = families
+			.filter((f) => f.levels.some((l) => l.grade === grade))
+			.map((f) => judgementProvenance(f, grade));
+		judgement[grade] = {
+			levels: judged.length,
+			rubricByModelsOnly: judged.filter((j) => j.rubricByModelsOnly).length,
+			angoffProvisional: judged.filter((j) => j.angoffProvisional).length,
+			sameVendorReviewer: judged.filter((j) => j.sameVendorReviewer).length
+		};
+	}
+	return judgement;
 }
 
 export interface ReleaseManifest {
@@ -177,16 +196,7 @@ export function assembleRelease(
 	if (trajectories) problems.push(...releaseProblems(release, params, trajectories));
 	const anchors = {} as Record<GradeKey, string[]>;
 	const byBlock = {} as Record<GradeKey, Record<string, number>>;
-	const judgement = {} as Record<GradeKey, GradeJudgement>;
 	for (const grade of GRADE_KEYS) {
-		const judged = release.families
-			.filter((f) => f.levels.some((l) => l.grade === grade))
-			.map((f) => judgementProvenance(f, grade));
-		judgement[grade] = {
-			levels: judged.length,
-			rubricByModelsOnly: judged.filter((j) => j.rubricByModelsOnly).length,
-			angoffProvisional: judged.filter((j) => j.angoffProvisional).length
-		};
 		anchors[grade] = release.families
 			.filter((f) => f.levels.some((l) => l.grade === grade && l.classes.some((c) => c.form === 'anchor')))
 			.map((f) => f.key);
@@ -198,7 +208,7 @@ export function assembleRelease(
 		manifest: {
 			families: manifestFamilies,
 			familySources: { ...release.familySources },
-			judgement,
+			judgement: gradeJudgements(release.families),
 			gates,
 			capacityChecks: capacityChecks(release, params),
 			anchors,

@@ -8,7 +8,7 @@ import { bankTreeFamilies, familyModule, GeneratorMismatch } from './bank-store'
 import { familySourceSha256 } from './contract/bank';
 import { familyProblems } from './contract/validate';
 import { loadBankTree, loadSpecializationFamilies, sharedCodeSha256 } from './families';
-import { assembleRelease, releaseContentSha256, releaseId } from './release';
+import { assembleRelease, gradeJudgements, releaseContentSha256, releaseId } from './release';
 
 const FIXTURE_TREE = fileURLToPath(new URL('../../../../tests/fixtures/families', import.meta.url));
 
@@ -92,7 +92,12 @@ describe('release assembly', () => {
 		// Reviewed and rated by models only: every family-level of every grade rests on models.
 		for (const j of Object.values(assembled.manifest.judgement)) {
 			expect(j.levels).toBeGreaterThan(0);
-			expect(j).toEqual({ levels: j.levels, rubricByModelsOnly: j.levels, angoffProvisional: j.levels });
+			expect(j).toEqual({
+				levels: j.levels,
+				rubricByModelsOnly: j.levels,
+				angoffProvisional: j.levels,
+				sameVendorReviewer: 0
+			});
 		}
 	}, 60_000);
 
@@ -111,7 +116,18 @@ describe('release assembly', () => {
 		const signed = assembleRelease('qa', fixtureFamilies('qa', { signedBy: 'person' }), SHARED, 1);
 		expect(signed.problems).toEqual([]);
 		for (const j of Object.values(signed.manifest.judgement)) {
-			expect(j).toEqual({ levels: j.levels, rubricByModelsOnly: 0, angoffProvisional: 0 });
+			expect(j).toEqual({ levels: j.levels, rubricByModelsOnly: 0, angoffProvisional: 0, sameVendorReviewer: 0 });
+		}
+		// Written by another model of the vendor of a reviewer: admitted, and counted as judged by the same vendor.
+		const byVendor = fixtureFamilies('qa').map((f) => f.descriptor);
+		const sameVendor = byVendor.map((f) => ({
+			...f,
+			authorship: { ...f.authorship, authors: ['writer-model (lineage-one)'] }
+		}));
+		const counted = gradeJudgements(sameVendor);
+		for (const grade of ['intern', 'junior', 'middle', 'senior'] as const) {
+			expect(counted[grade].sameVendorReviewer).toBe(counted[grade].levels);
+			expect(gradeJudgements(byVendor)[grade].sameVendorReviewer).toBe(0);
 		}
 	}, 120_000);
 

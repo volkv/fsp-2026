@@ -415,9 +415,13 @@ describe('a whole attempt', () => {
 		expect(view.explanation.blocks.filter((b) => b.defining).every((b) => b.passed)).toBe(true);
 		expect(view.explanation.doesNotCheck).toContain('Коммерческий опыт и его длительность');
 		// The fixture bank is reviewed and rated by models of two lineages: the result says so.
-		expect(view.judgement).toEqual({ rubricByModelsOnly: true, angoffProvisional: true });
+		expect(view.judgement).toEqual({ rubricByModelsOnly: true, angoffProvisional: true, sameVendorReviewer: false });
 		expect(judgementNote(view.judgement)).toBe(
 			'Рубрики заданий проверены независимыми моделями, пороги предварительные — их подтверждают эксперты.'
+		);
+		expect(judgementNote({ ...view.judgement, sameVendorReviewer: true })).toBe(
+			'Рубрики заданий проверены независимыми моделями, пороги предварительные — их подтверждают эксперты; ' +
+				'одна из моделей-рецензентов — того же поставщика, что автор заданий.'
 		);
 	});
 

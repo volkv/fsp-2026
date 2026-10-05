@@ -246,7 +246,11 @@ async function attemptJudgement(
 		.selectDistinct({ familyKey: testItems.familyKey })
 		.from(testItems)
 		.where(eq(testItems.attemptId, attemptId));
-	const judgement: JudgementProvenance = { rubricByModelsOnly: false, angoffProvisional: false };
+	const judgement: JudgementProvenance = {
+		rubricByModelsOnly: false,
+		angoffProvisional: false,
+		sameVendorReviewer: false
+	};
 	if (keys.length === 0) return judgement;
 	const release = await releaseById(db, releaseId);
 	for (const { familyKey } of keys) {
@@ -255,6 +259,7 @@ async function attemptJudgement(
 		const provenance = judgementProvenance(family.descriptor, grade);
 		judgement.rubricByModelsOnly ||= provenance.rubricByModelsOnly;
 		judgement.angoffProvisional ||= provenance.angoffProvisional;
+		judgement.sameVendorReviewer ||= provenance.sameVendorReviewer;
 	}
 	return judgement;
 }
