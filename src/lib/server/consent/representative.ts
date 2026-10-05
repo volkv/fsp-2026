@@ -479,7 +479,7 @@ export async function signConsentsByRepresentative(
 			}
 			// The profile is processed from now on (or with another scope): the categorization and the matches catch up.
 			await recordProfileChange(tx, contact.candidateId, {
-				categorizationInput: kinds.includes('pd_processing'),
+				evidenceInput: kinds.includes('pd_processing'),
 				createdBy: { kind: 'system' }
 			});
 			await notify(tx, {
@@ -679,7 +679,7 @@ export async function revokeConsentsByRepresentative(
 					.set({ visibility: 'hidden' })
 					.where(and(eq(candidates.id, contact.candidateId), eq(candidates.visibility, 'catalog')));
 				await recordProfileChange(tx, contact.candidateId, {
-					categorizationInput: false,
+					evidenceInput: false,
 					createdBy: { kind: 'system' }
 				});
 			}

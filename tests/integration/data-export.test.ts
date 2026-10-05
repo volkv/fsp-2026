@@ -25,6 +25,7 @@ import {
 	auditEvents,
 	authorityChecks,
 	candidateCompanyBlocks,
+	candidateSurveys,
 	categorizationRulesets,
 	evidenceRuns,
 	claims,
@@ -34,6 +35,7 @@ import {
 	externalIdentities,
 	files,
 	fspLevelAssignments,
+	gradeDeclarations,
 	legalRepresentatives,
 	matchRulesets,
 	matchScores,
@@ -685,6 +687,31 @@ describe('the export of own data', () => {
 		const { db } = database;
 		const anna = await candidate('Анна');
 		const boris = await candidate('Борис');
+		// The way to a category: two versions of the survey and a declaration with its hint.
+		const [, currentSurvey] = await db
+			.insert(candidateSurveys)
+			.values(
+				[1, 2].map((version) => ({
+					candidateId: anna.id,
+					version,
+					catalogVersion: '2026.10.1',
+					taxonomyVersionId,
+					direction: 'development' as const,
+					specialization: version === 1 ? ('frontend' as const) : ('backend' as const),
+					declaredSkillKeys: ['go', 'sql'],
+					preferences: { work_formats: ['remote'] }
+				}))
+			)
+			.returning({ id: candidateSurveys.id });
+		if (!currentSurvey) throw new Error('survey not inserted');
+		await db.insert(gradeDeclarations).values({
+			candidateId: anna.id,
+			surveyId: currentSurvey.id,
+			specialization: 'backend',
+			grade: 'middle',
+			hint: { version: 1, suggested: 'middle', bases: [], caveats: [] },
+			declaredAt: new Date()
+		});
 		const company = await createCompany(db, { displayName: 'Видимый работодатель' });
 		const member = await createMember(db, company.id);
 		const visible = await createOwnVacancy(db, { companyId: company.id, memberId: member.id, taxonomyVersionId });
@@ -805,11 +832,20 @@ describe('the export of own data', () => {
 		const api = await exportThroughApi(anna.userId);
 		expect(api.status, JSON.stringify(api.json)).toBe(200);
 		expect(api.json.format).toBe('fsp-career-data-export/v3');
+		expect(document.surveys.map((survey) => [survey.version, survey.specialization])).toEqual([
+			[1, 'frontend'],
+			[2, 'backend']
+		]);
+		expect(document.grade_declarations).toEqual([
+			expect.objectContaining({ survey_id: currentSurvey.id, specialization: 'backend', grade: 'middle' })
+		]);
 		expect(Object.keys(api.json).sort()).toEqual(Object.keys(document).sort());
 		const sections = [
 			'athlete_links',
 			'notification_channels',
 			'notification_preferences',
+			'surveys',
+			'grade_declarations',
 			'evidence',
 			'categories',
 			'objections',

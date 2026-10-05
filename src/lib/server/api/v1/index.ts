@@ -6,6 +6,7 @@ import { openApiDocument, type ExternalRoute, type OpenApiDocument } from '../op
 import * as catalog from './catalog';
 import * as categories from './categories';
 import * as companies from './companies';
+import * as grades from './grades';
 import * as hiring from './hiring';
 import * as integrations from './integrations';
 import * as invitations from './invitations';
@@ -47,6 +48,7 @@ export const API_OPERATIONS: readonly Operation[] = [
 	...Object.values(partnerPools),
 	...Object.values(me),
 	...Object.values(categories),
+	...Object.values(grades),
 	...Object.values(invitations),
 	...Object.values(hiring),
 	...Object.values(verify),

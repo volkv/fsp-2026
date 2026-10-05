@@ -227,6 +227,14 @@ export const DEMO_CLONE_PLAN: Readonly<Record<string, TableDecision>> = {
 	candidate_categories: { kind: 'owned', copy: true, edges: { candidate_id: 'owner' } },
 	assessment_objections: { kind: 'owned', copy: true, edges: { candidate_id: 'owner', assignee_id: 'mention' } },
 
+	// The survey and the declared grade (domain 12.2, 23.2).
+	candidate_surveys: {
+		kind: 'owned',
+		copy: true,
+		edges: { candidate_id: 'owner', taxonomy_version_id: 'reference' }
+	},
+	grade_declarations: { kind: 'owned', copy: true, edges: { candidate_id: 'owner', survey_id: 'owner' } },
+
 	// Vacancies, matches, invitations, hiring.
 	vacancies: {
 		kind: 'owned',

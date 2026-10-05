@@ -309,7 +309,7 @@ export async function resolveAgeConflict(
 		}
 		// The regime changes who sees the profile and which vacancies match it: the counters and matches are recomputed.
 		await recordProfileChange(tx, candidateId, {
-			categorizationInput: false,
+			evidenceInput: false,
 			createdBy: { kind: 'user', id: operatorId }
 		});
 		const outcome: AgeDecisionOutcome = {

@@ -111,6 +111,8 @@ export const DEMO_RESET_PLAN: Readonly<Record<string, TableDecision>> = {
 	fsp_level_assignments: clear,
 	candidate_categories: clear,
 	assessment_objections: clear,
+	candidate_surveys: clear,
+	grade_declarations: clear,
 	unknown_skill_mentions: clear,
 	// Vacancies, matches, invitations and hiring (domain 13).
 	vacancies: clear,

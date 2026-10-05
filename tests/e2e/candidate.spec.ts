@@ -371,8 +371,12 @@ test('a candidate sees the achievement with its receipt, a category without a gr
 	);
 	await expectNoAxeViolations(page);
 
-	// Category: only a test on the grade gives one — the FSP result and the resume do not.
+	// Category: without a survey, a declaration and a test there is none — the step to it starts with the survey.
 	await page.goto('/me/category');
+	await expect(page.getByTestId('next-step')).toHaveAttribute('data-next', 'survey');
+	await expect(page.locator('[data-step="test"]')).toHaveAttribute('data-done', 'false');
+	await expect(page.getByRole('link', { name: 'Пройти опрос' })).toHaveAttribute('href', '/onboarding/survey');
+	// Only a test on the grade gives a category — the FSP result and the resume do not.
 	await expect(page.getByTestId('categories').locator('[data-category-state="not_confirmed"]')).toBeVisible();
 	await expect(page.locator('[data-notice="recommendation"]')).toBeVisible();
 	await expectNoAxeViolations(page);
@@ -412,7 +416,7 @@ test('a candidate sees the achievement with its receipt, a category without a gr
 	await expect(page.getByTestId('invitation-list').locator('a[data-invitation-status="accepted"]')).toHaveCount(1);
 });
 
-test('a candidate states the search terms, sees vacancies with the match and objects to the category', async ({
+test('a candidate states the search terms, sees vacancies with the match and what the category asks for', async ({
 	page
 }) => {
 	const candidate = await seedCandidate({ birthDate: yearsAgo(30), name: 'Дмитрий Тестов' });

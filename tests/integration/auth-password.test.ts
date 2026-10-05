@@ -26,6 +26,8 @@ import { createFieldCrypto } from '$lib/server/crypto/fields';
 import {
 	auditEvents,
 	candidates,
+	candidateSurveys,
+	gradeDeclarations,
 	companies,
 	companyMembers,
 	consentEvents,
@@ -39,7 +41,7 @@ import {
 import { createSmtpMailer } from '$lib/server/mail/mailer';
 import type { Redis } from '$lib/server/redis';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
-import { createPublishedDocument } from '../helpers/factories';
+import { createPublishedDocument, createTaxonomyVersion } from '../helpers/factories';
 
 const MAILPIT_IMAGE = 'axllent/mailpit:v1.31.2';
 const APP_ORIGIN = 'http://app.test';
@@ -375,7 +377,40 @@ describe('age on the registration path', () => {
 		// The steps of the candidate are done; the address is still waiting for its confirmation.
 		expect(state.complete).toBe(false);
 		await verifyEmail(deps(), meta(), await tokenFromLetter(account.email, 'Подтвердите почту'));
-		expect((await onboardingState(deps(), account.userId)).complete).toBe(true);
+		// The survey and the declared grade complete the registration (domain 12.2).
+		state = await onboardingState(deps(), account.userId);
+		expect(state.candidate).toMatchObject({ survey: null, declaredGrade: null });
+		expect(state.complete).toBe(false);
+		const profileId = candidate?.id ?? '';
+		const [survey] = await database.db
+			.insert(candidateSurveys)
+			.values({
+				candidateId: profileId,
+				version: 1,
+				catalogVersion: '2026.10.1',
+				taxonomyVersionId: (await createTaxonomyVersion(database.db)).id,
+				direction: 'development',
+				specialization: 'frontend',
+				declaredSkillKeys: ['javascript'],
+				preferences: {}
+			})
+			.returning({ id: candidateSurveys.id });
+		if (!survey) throw new Error('survey not inserted');
+		expect((await onboardingState(deps(), account.userId)).complete).toBe(false);
+		await database.db.insert(gradeDeclarations).values({
+			candidateId: profileId,
+			surveyId: survey.id,
+			specialization: 'frontend',
+			grade: 'intern',
+			hint: { version: 1, suggested: null, bases: [], caveats: [] },
+			declaredAt: new Date()
+		});
+		state = await onboardingState(deps(), account.userId);
+		expect(state.candidate).toMatchObject({
+			survey: { version: 1, specialization: 'frontend' },
+			declaredGrade: 'intern'
+		});
+		expect(state.complete).toBe(true);
 
 		const token = await tokenFromLetter(parent, 'законного представителя');
 		expect(await confirmRepresentativeContact(deps(), meta(), token)).toEqual({ ok: true });

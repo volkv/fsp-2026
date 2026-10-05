@@ -12,6 +12,7 @@ import * as v1 from '$lib/server/api/v1';
 import * as catalog from '$lib/server/api/v1/catalog';
 import * as categories from '$lib/server/api/v1/categories';
 import * as companies from '$lib/server/api/v1/companies';
+import * as grades from '$lib/server/api/v1/grades';
 import * as hiring from '$lib/server/api/v1/hiring';
 import * as invitations from '$lib/server/api/v1/invitations';
 import * as me from '$lib/server/api/v1/me';
@@ -33,6 +34,7 @@ const exported = new Map<string, Operation>(
 		...catalog,
 		...categories,
 		...companies,
+		...grades,
 		...hiring,
 		...invitations,
 		...me,

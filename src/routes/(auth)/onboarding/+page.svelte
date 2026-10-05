@@ -34,7 +34,9 @@
 
 <AuthPage
 	title="Шаги регистрации"
-	description={state.complete ? 'Всё готово.' : 'Осталось несколько шагов — их можно пройти в любом порядке.'}
+	description={state.complete
+		? 'Регистрация завершена. Категория появится после теста на заявленный грейд.'
+		: 'Осталось несколько шагов. Опрос и грейд открываются после согласия на обработку профиля.'}
 >
 	{#if data.letterFailed}
 		<FormMessage
@@ -123,6 +125,50 @@
 					{/if}
 				</section>
 			{/if}
+			<section class="grid gap-3" data-step="survey" data-done={candidate.survey !== null}>
+				<OnboardingStep
+					done={candidate.survey !== null}
+					title="Опрос"
+					text={candidate.survey
+						? `Пройден: ${data.specializationTitles[candidate.survey.specialization]}.`
+						: 'Направление, специализация, стек и формат работы — по ним строится подсказка грейда и тест.'}
+				/>
+				{#if candidate.status === 'active'}
+					<a
+						href={resolve('/onboarding/survey')}
+						class="{buttonVariants({
+							size: 'sm',
+							variant: candidate.survey ? 'outline' : 'default'
+						})} ml-8 justify-self-start"
+					>
+						{candidate.survey ? 'Пройти заново' : 'Пройти опрос'}
+					</a>
+				{:else}
+					<p class="pl-8 text-sm text-muted-foreground">Откроется после согласия на обработку профиля.</p>
+				{/if}
+			</section>
+			<section class="grid gap-3" data-step="grade" data-done={candidate.declaredGrade !== null}>
+				<OnboardingStep
+					done={candidate.declaredGrade !== null}
+					title="Заявленный грейд"
+					text={candidate.declaredGrade
+						? `Заявлен: ${data.gradeTitles[candidate.declaredGrade]}. Дальше — тест на этот грейд.`
+						: 'Подсказка по резюме, ФСП и публичным профилям советует грейд, заявляете вы. Без теста категории нет.'}
+				/>
+				{#if candidate.survey}
+					<div class="ml-8 flex flex-wrap gap-2">
+						<a
+							href={resolve('/onboarding/grade')}
+							class={buttonVariants({ size: 'sm', variant: candidate.declaredGrade ? 'outline' : 'default' })}
+						>
+							{candidate.declaredGrade ? 'Изменить грейд' : 'Заявить грейд'}
+						</a>
+						{#if candidate.declaredGrade}
+							<a href={resolve('/me/tests')} class={buttonVariants({ size: 'sm' })}>Перейти к тесту</a>
+						{/if}
+					</div>
+				{/if}
+			</section>
 		{/if}
 	{:else if state.company}
 		<section class="grid gap-3" data-step="company">

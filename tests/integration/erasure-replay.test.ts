@@ -15,10 +15,12 @@ import * as schema from '$lib/server/db/schema';
 import {
 	auditEvents,
 	candidates,
+	candidateSurveys,
 	consentEvents,
 	demoSessions,
 	erasureLedger,
 	files,
+	gradeDeclarations,
 	staffRoles,
 	users
 } from '$lib/server/db/schema';
@@ -36,7 +38,7 @@ import type { Redis } from '$lib/server/redis';
 import type { ObjectStore, StoredObject } from '$lib/server/storage/object-store';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
 import { testEnvironment } from '../helpers/environment';
-import { createCandidate, createUser, randomSha256 } from '../helpers/factories';
+import { createCandidate, createTaxonomyVersion, createUser, randomSha256 } from '../helpers/factories';
 
 const REDIS_DATABASE = 13;
 
@@ -108,6 +110,29 @@ beforeAll(async () => {
 		status: 'ready'
 	});
 	await store.put(people.resumeKey, new Uint8Array([1, 2, 3]));
+	// The survey and the declared grade: append-only rows the replay must erase again.
+	const [survey] = await db
+		.insert(candidateSurveys)
+		.values({
+			candidateId: candidate.id,
+			version: 1,
+			catalogVersion: '2026.10.1',
+			taxonomyVersionId: (await createTaxonomyVersion(db)).id,
+			direction: 'development',
+			specialization: 'backend',
+			declaredSkillKeys: ['go'],
+			preferences: {}
+		})
+		.returning({ id: candidateSurveys.id });
+	if (!survey) throw new Error('survey not inserted');
+	await db.insert(gradeDeclarations).values({
+		candidateId: candidate.id,
+		surveyId: survey.id,
+		specialization: 'backend',
+		grade: 'junior',
+		hint: { version: 1, suggested: null, bases: [], caveats: [] },
+		declaredAt: new Date()
+	});
 	people.bystander = (await createCandidate(db)).userId;
 	const staff = await createCandidate(db);
 	people.staff = staff.userId;
@@ -192,6 +217,9 @@ describe('the erasure ledger after a restore', () => {
 		expect(await statusOf(people.staff)).toBe('active');
 		expect(await statusOf(people.clone)).toBe('active');
 		expect(await restored.select().from(erasureLedger)).toEqual([]);
+		expect(
+			await restored.select().from(gradeDeclarations).where(eq(gradeDeclarations.candidateId, people.candidateProfile))
+		).toHaveLength(1);
 
 		const summary = await replayLedger(deps(restored), parseLedger(exported), 'replay-test:restore');
 
@@ -207,6 +235,12 @@ describe('the erasure ledger after a restore', () => {
 		expect(store.objects.has(people.resumeKey)).toBe(false);
 		expect(
 			await restored.select().from(consentEvents).where(eq(consentEvents.subjectCandidateId, people.candidateProfile))
+		).toEqual([]);
+		expect(
+			await restored.select().from(candidateSurveys).where(eq(candidateSurveys.candidateId, people.candidateProfile))
+		).toEqual([]);
+		expect(
+			await restored.select().from(gradeDeclarations).where(eq(gradeDeclarations.candidateId, people.candidateProfile))
 		).toEqual([]);
 		// The deletion began again as the system's act, not the person's.
 		const requested = await restored

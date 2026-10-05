@@ -24,6 +24,7 @@ import {
 	candidateCategories,
 	candidateCompanyBlocks,
 	candidates,
+	candidateSurveys,
 	claims,
 	consentEvents,
 	disclosures,
@@ -38,6 +39,7 @@ import {
 	externalProfiles,
 	files,
 	fspLevelAssignments,
+	gradeDeclarations,
 	hiringProcesses,
 	hiringReports,
 	invitationResponses,
@@ -257,6 +259,22 @@ async function eraseAccountRows(tx: Transaction, ids: PersonIds, removal: Remova
 			)
 		);
 	}
+}
+
+/** The surveys and the declared grades with their hint snapshots (domain 12.2, 23.2): append-only, by the retention role. */
+async function eraseGradeChoices(tx: Transaction, candidateId: string, removal: Removal): Promise<void> {
+	removal.add(
+		await asRetentionRole(tx, async () => [
+			...(await tx
+				.delete(gradeDeclarations)
+				.where(eq(gradeDeclarations.candidateId, candidateId))
+				.returning({ id: gradeDeclarations.id })),
+			...(await tx
+				.delete(candidateSurveys)
+				.where(eq(candidateSurveys.candidateId, candidateId))
+				.returning({ id: candidateSurveys.id }))
+		])
+	);
 }
 
 /** The evidence layers, the category, the vectors and the matches of the profile, with the model results behind them. */
@@ -603,6 +621,7 @@ async function eraseAccount(
 	const { candidateId } = ids;
 	if (candidateId !== null) {
 		facts = await eraseEvidence(tx, candidateId, ids, removal);
+		await eraseGradeChoices(tx, candidateId, removal);
 		await eraseInvitations(tx, candidateId, ids, at, removal);
 		evidenceKeptUntil = await eraseConsents(tx, candidateId, ids, today, removal);
 	}

@@ -10,6 +10,7 @@ export * from './demo';
 export * from './documents';
 export * from './evidence';
 export * from './evidence-runs';
+export * from './grades';
 export * from './hiring';
 export * from './identity';
 export * from './integrations';

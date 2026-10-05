@@ -1,9 +1,17 @@
 import { fail, redirect } from '@sveltejs/kit';
+import { CATALOG } from '$lib/server/assessments/contract/catalog';
 import { authDeps } from '$lib/server/auth/context';
 import { formText, requireSession } from '$lib/server/auth/http';
 import { onboardingState, redeclareBirthDate } from '$lib/server/auth/onboarding';
 import { resendVerification } from '$lib/server/auth/verification';
 import type { Actions, PageServerLoad } from './$types';
+
+/** Titles of the catalog by key, for the steps of the survey and the grade. */
+function titles<K extends string>(entries: readonly { key: K; title: string }[]): Record<K, string> {
+	const out = {} as Record<K, string>;
+	for (const entry of entries) out[entry.key] = entry.title;
+	return out;
+}
 
 export const load: PageServerLoad = async (event) => {
 	const session = requireSession(event);
@@ -12,6 +20,8 @@ export const load: PageServerLoad = async (event) => {
 	if (state.complete && event.url.searchParams.size === 0) redirect(303, '/account');
 	return {
 		state,
+		specializationTitles: titles(CATALOG.specializations),
+		gradeTitles: titles(CATALOG.grades),
 		today: deps.now().toISOString().slice(0, 10),
 		letterFailed: event.url.searchParams.get('letter') === 'failed',
 		representativeSent: event.url.searchParams.get('representative')

@@ -183,7 +183,7 @@ export async function grantCatalogVisibility(
 			details: { kind: 'catalog_visibility', document_version: document.version, scope_fields: scopeFields },
 			occurredAt: now
 		});
-		await recordProfileChange(tx, candidateId, { categorizationInput: false, createdBy: { kind: 'user', id: userId } });
+		await recordProfileChange(tx, candidateId, { evidenceInput: false, createdBy: { kind: 'user', id: userId } });
 	});
 }
 
@@ -233,7 +233,7 @@ export async function revokeCatalogVisibility(
 			details: { kind: 'catalog_visibility' },
 			occurredAt: now
 		});
-		await recordProfileChange(tx, candidateId, { categorizationInput: false, createdBy: { kind: 'user', id: userId } });
+		await recordProfileChange(tx, candidateId, { evidenceInput: false, createdBy: { kind: 'user', id: userId } });
 	});
 }
 

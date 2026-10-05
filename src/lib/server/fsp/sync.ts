@@ -354,7 +354,7 @@ export async function applyFacts(tx: Transaction, context: FactsUpdate): Promise
 	} else if (birthDateChanged) {
 		// The age regime decides which vacancies the profile matches: the matches and their counters are recomputed.
 		summary.profileRevision = await recordProfileChange(tx, grounds.candidateId, {
-			categorizationInput: false,
+			evidenceInput: false,
 			createdBy: context.createdBy
 		});
 	}

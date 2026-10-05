@@ -183,6 +183,13 @@
       "when": 1791196011224,
       "tag": "0025_candidate_categories",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1791199618256,
+      "tag": "0026_grade_survey_declarations",
+      "breakpoints": true
     }
   ]
 }

@@ -1,8 +1,8 @@
 // «Мои данные» (docs/domain.md, sections 6.5, 18.2; contracts 5.5): everything the platform keeps about the candidate,
 // in one JSON document the candidate downloads — the account with its sign-in, FSP ID and notification settings, the
-// profile, the resumes with their extracted text, the facts with their claims, experience and receipts, every evidence
-// run with its skills and FSP levels, the categories with their history, the objections to test results, the blocked
-// companies, the matches
+// profile, the resumes with their extracted text, the facts with their claims, experience and receipts, the surveys
+// and the grade declarations with their hints, every evidence run with its skills and FSP levels, the categories with
+// their history, the objections to test results, the blocked companies, the matches
 // with the vacancies the candidate sees, the consents with who signed them, the accepted agreements, the invitations
 // with their terms and answers, what was handed to which company, the hiring processes, the tests with their artifacts,
 // the notifications, and the journal of actions about the candidate. Other people are named only by what the candidate
@@ -29,6 +29,7 @@ import {
 	authorityChecks,
 	candidateCompanyBlocks,
 	candidates,
+	candidateSurveys,
 	categorizationRulesets,
 	evidenceRuns,
 	claims,
@@ -42,6 +43,7 @@ import {
 	externalProfiles,
 	files,
 	fspLevelAssignments,
+	gradeDeclarations,
 	hiringProcesses,
 	hiringReports,
 	invitationResponses,
@@ -76,6 +78,8 @@ import { storedComponent } from '$lib/server/matching/storage';
  * v2: `category` is the whole history of categorization runs, not the published one alone. v3: a category is confirmed
  * by a test — `categories` with their history and `objections` to test results; the calculation over the profile is
  * `evidence` (skills, FSP levels, experience) and assigns no category.
+ * Also in v3: the way to a category (domain 23.2) — every version of the survey and every grade declaration with its
+ * hint.
  */
 export const DATA_EXPORT_FORMAT = 'fsp-career-data-export/v3';
 
@@ -93,6 +97,8 @@ export interface DataExport {
 	facts: Record<string, unknown>[];
 	experience: Record<string, unknown>[];
 	external_profiles: Record<string, unknown>[];
+	surveys: Record<string, unknown>[];
+	grade_declarations: Record<string, unknown>[];
 	evidence: Record<string, unknown>[];
 	categories: Record<string, unknown>[];
 	objections: Record<string, unknown>[];
@@ -237,6 +243,16 @@ async function buildDataExport(
 		.from(experienceEntries)
 		.where(eq(experienceEntries.candidateId, candidateId));
 	const profiles = await executor.select().from(externalProfiles).where(eq(externalProfiles.candidateId, candidateId));
+	const surveys = await executor
+		.select()
+		.from(candidateSurveys)
+		.where(eq(candidateSurveys.candidateId, candidateId))
+		.orderBy(asc(candidateSurveys.version));
+	const declarations = await executor
+		.select()
+		.from(gradeDeclarations)
+		.where(eq(gradeDeclarations.candidateId, candidateId))
+		.orderBy(asc(gradeDeclarations.declaredAt), asc(gradeDeclarations.id));
 
 	// Every run computed about the candidate, the one in force and the history before it.
 	const runs = await executor
@@ -650,6 +666,24 @@ async function buildDataExport(
 			handle: profile.handle,
 			ownership: profile.ownershipStatus,
 			verified_at: iso(profile.verifiedAt)
+		})),
+		surveys: surveys.map((survey) => ({
+			id: survey.id,
+			version: survey.version,
+			catalog_version: survey.catalogVersion,
+			direction: survey.direction,
+			specialization: survey.specialization,
+			declared_skill_keys: survey.declaredSkillKeys,
+			preferences: survey.preferences,
+			created_at: iso(survey.createdAt)
+		})),
+		grade_declarations: declarations.map((declaration) => ({
+			id: declaration.id,
+			survey_id: declaration.surveyId,
+			specialization: declaration.specialization,
+			grade: declaration.grade,
+			hint: declaration.hint,
+			declared_at: iso(declaration.declaredAt)
 		})),
 		evidence: runs.map(({ run, rulesetVersion }) => ({
 			id: run.id,

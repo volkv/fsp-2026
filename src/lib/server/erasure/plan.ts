@@ -63,6 +63,8 @@ export const ERASURE_PLAN: Readonly<Record<string, ErasureDecision>> = {
 	'evidence_runs.candidate_id': erased,
 	'candidate_categories.candidate_id': erased,
 	'assessment_objections.candidate_id': erased,
+	'candidate_surveys.candidate_id': erased,
+	'grade_declarations.candidate_id': erased,
 	'match_scores.candidate_id': erased,
 	'resume_documents.candidate_id': erased,
 	'assessment_attempts.candidate_id': erased,

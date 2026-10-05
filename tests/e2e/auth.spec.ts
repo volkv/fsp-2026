@@ -65,8 +65,12 @@ test('a candidate registers, confirms the address, gives the consent and signs o
 	await page.getByRole('link', { name: 'Прочитать и дать согласие' }).click();
 	await expect(page.getByTestId('consent-text')).toBeVisible();
 	await page.getByRole('button', { name: 'Даю согласие' }).click();
-	// Every step is done: the person lands on the account.
-	await expect(page).toHaveURL(/\/account$/);
+	// The registration goes on with the survey and the declared grade (domain 12.2): they open after the consent.
+	await expect(page).toHaveURL(/\/onboarding$/);
+	await expect(page.locator('[data-step="consent"]')).toHaveAttribute('data-done', 'true');
+	await expect(page.locator('[data-step="survey"]')).toHaveAttribute('data-done', 'false');
+	await expect(page.getByRole('link', { name: 'Пройти опрос' })).toHaveAttribute('href', '/onboarding/survey');
+	await page.goto('/account');
 	await expect(page.getByTestId('account-email')).toHaveText(email);
 
 	// A state-changing request of the session without its CSRF token is refused.
@@ -81,7 +85,8 @@ test('a candidate registers, confirms the address, gives the consent and signs o
 	await page.getByLabel('Почта').fill(email);
 	await page.getByLabel('Пароль').fill(PASSWORD);
 	await page.getByRole('button', { name: 'Войти', exact: true }).click();
-	await expect(page).toHaveURL(/\/account$/);
+	// The registration is not complete without the survey: the sign-in leads back to its steps.
+	await expect(page).toHaveURL(/\/onboarding$/);
 });
 
 /** Signs in at the simulator with a demo account, unless its session is still alive there. */

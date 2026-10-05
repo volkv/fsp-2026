@@ -118,6 +118,7 @@ const GROUPS = {
 	],
 	partners: ['partnership.opened', 'partnership.ended', 'partner_pool.viewed'],
 	notifications: ['notification.channel_linked', 'notification.channel_unlinked'],
+	grades: ['survey.submitted', 'grade.declared'],
 	categories: [
 		'evidence.blocked',
 		'category.assigned',

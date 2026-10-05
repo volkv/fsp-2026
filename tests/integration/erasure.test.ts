@@ -61,6 +61,9 @@ import { foreignKeyColumns } from '$lib/server/demo/graph';
 import { drainJobs } from '$lib/server/demo/queue';
 import { compareWithErasurePlan, erasedColumns, ERASURE_PLAN } from '$lib/server/erasure/plan';
 import { createAccountPurgeHandler } from '$lib/server/erasure/purge';
+import { declareGrade } from '$lib/server/grades/declarations';
+import { gradeSources, type GradeSources } from '$lib/server/grades/sources';
+import { submitSurvey } from '$lib/server/grades/surveys';
 import { requestAccountDeletion } from '$lib/server/erasure/request';
 import { HttpAchievementsSource } from '$lib/server/fsp/adapter';
 import { ServiceGrantIssuer } from '$lib/server/fsp/grant';
@@ -460,6 +463,19 @@ describe('deleting a candidate with the whole pipeline behind the profile', () =
 			},
 			meta
 		);
+		// The survey and the declared grade with the snapshot of the hint (domain 12.2).
+		const grades: GradeSources = {
+			...gradeSources,
+			releasedSpecializations: () => Promise.resolve(new Set(['backend']))
+		};
+		await submitSurvey(
+			db,
+			grades,
+			hero.subject,
+			{ direction: 'development', specialization: 'backend', declaredSkillKeys: ['go'], preferences: {} },
+			meta
+		);
+		await declareGrade(db, grades, hero.subject, { specialization: 'backend', grade: 'middle' }, meta, new Date());
 		// FSP achievements under the import consent, through the simulator.
 		const fspId = await mock.heroId('Капитан, backend, МС');
 		const [identity] = await db

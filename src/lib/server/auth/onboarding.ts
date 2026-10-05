@@ -1,10 +1,14 @@
-// The rest of the registration path (domain 3.6, 6.3, 6.4, 7.3): the personal-data consent on its own screen, the
-// legal representative of a candidate aged 14–17 (the invitation only — authority is checked by an FSP operator), and
-// the return of a person refused for age once the day of eligibility has come.
+// The rest of the registration path (domain 3.6, 6.3, 6.4, 7.3, 12.2): the personal-data consent on its own screen, the
+// legal representative of a candidate aged 14–17 (the invitation only — authority is checked by an FSP operator), the
+// return of a person refused for age once the day of eligibility has come, and the state of the survey and the declared
+// grade, which complete the registration of a candidate.
 import { and, desc, eq, ne } from 'drizzle-orm';
 import { z } from 'zod';
+import type { GradeKey, SpecializationKey } from '$lib/server/assessments/contract/catalog';
 import { recordAuditEvent } from '$lib/server/audit/record';
 import { recordProfileChange } from '$lib/server/candidates/settings';
+import { currentDeclaration } from '$lib/server/grades/policy';
+import { latestSurvey } from '$lib/server/grades/surveys';
 import { consentSides } from '$lib/server/consent/effective';
 import type { Executor } from '$lib/server/db';
 import {
@@ -40,6 +44,10 @@ export interface OnboardingState {
 		profileConsent: boolean;
 		/** The current representation, if any was requested and has not ended. */
 		representative: RepresentationStatus | null;
+		/** The survey in force (domain 12.2); `null` — not taken yet. */
+		survey: { version: number; specialization: SpecializationKey } | null;
+		/** The current declaration of the survey's specialization; `null` — not declared yet. */
+		declaredGrade: GradeKey | null;
 	} | null;
 	company: {
 		id: string;
@@ -81,6 +89,8 @@ export async function onboardingState(deps: AuthDeps, userId: string): Promise<O
 			.limit(1);
 		const minor = isMinorBand(band);
 		const representative = representation?.status ?? null;
+		const survey = await latestSurvey(deps.db, candidate.id);
+		const declaration = survey && (await currentDeclaration(deps.db, candidate.id, survey.specialization));
 		return {
 			emailVerified,
 			role: 'candidate',
@@ -90,10 +100,18 @@ export async function onboardingState(deps: AuthDeps, userId: string): Promise<O
 				eligibleFrom: candidate.eligibleFrom,
 				minor,
 				profileConsent,
-				representative
+				representative,
+				survey: survey && { version: survey.version, specialization: survey.specialization },
+				declaredGrade: declaration?.grade ?? null
 			},
 			company: null,
-			complete: emailVerified && candidate.status === 'active' && (!minor || representative !== null)
+			// Registration of a candidate is complete with a survey and a declaration (domain 12.2).
+			complete:
+				emailVerified &&
+				candidate.status === 'active' &&
+				(!minor || representative !== null) &&
+				survey !== null &&
+				declaration !== null
 		};
 	}
 
@@ -185,7 +203,7 @@ export async function grantProfileConsent(
 		if (!consent) throw new Error('consent event was not inserted');
 		if (renewal) {
 			await recordProfileChange(tx, candidate.id, {
-				categorizationInput: true,
+				evidenceInput: true,
 				createdBy: { kind: 'user', id: userId }
 			});
 		} else {

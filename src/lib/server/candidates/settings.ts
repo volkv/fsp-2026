@@ -32,14 +32,14 @@ const creatorOf = (subject: AccessSubject): JobCreator =>
 
 /**
  * Moves `profile_revision` of a changed profile and enqueues what reads it: the matches always; the evidence
- * calculation (`evidence.compute`) when its input changed (`categorizationInput`), and also when a calculation is
+ * calculation (`evidence.compute`) when its input changed (`evidenceInput`), and also when a calculation is
  * running now — it read the previous revision and its result will be discarded as stale, so the new revision needs its
  * own run (domain 17.1).
  */
 export async function recordProfileChange(
 	tx: Transaction,
 	candidateId: string,
-	change: { categorizationInput: boolean; createdBy: JobCreator }
+	change: { evidenceInput: boolean; createdBy: JobCreator }
 ): Promise<number> {
 	const [row] = await tx
 		.update(candidates)
@@ -48,15 +48,15 @@ export async function recordProfileChange(
 		.returning({ revision: candidates.profileRevision });
 	if (!row) throw new Error(`candidate ${candidateId} is missing`);
 	const inputVersion = String(row.revision);
-	let categorize = change.categorizationInput;
-	if (!categorize) {
+	let recompute = change.evidenceInput;
+	if (!recompute) {
 		const [running] = await tx
 			.select({ id: jobs.id })
 			.from(jobs)
 			.where(and(eq(jobs.dedupKey, `evidence:${candidateId}`), eq(jobs.status, 'running')));
-		categorize = running !== undefined;
+		recompute = running !== undefined;
 	}
-	if (categorize) {
+	if (recompute) {
 		await enqueueJob(
 			tx,
 			'evidence.compute',
@@ -137,7 +137,7 @@ export async function updateProfileSettings(
 			current.desired.length !== desired.length || current.desired.some((key, index) => key !== desired[index]);
 		await tx.update(candidates).set({ preferences, desiredRoleKeys: desired }).where(eq(candidates.id, candidateId));
 		const createdBy = creatorOf(subject);
-		const revision = await recordProfileChange(tx, candidateId, { categorizationInput: false, createdBy });
+		const revision = await recordProfileChange(tx, candidateId, { evidenceInput: false, createdBy });
 		// Desired roles are a line of the profile text the section vectors are built from; work terms are not in it.
 		if (desiredChanged) await enqueueProfileEmbed(tx, candidateId, revision, createdBy);
 	});
@@ -161,6 +161,6 @@ export async function setSearchStatus(db: Database, subject: AccessSubject, stat
 		if (!current) throw new ApiError('not_found');
 		if (current.status === status) return;
 		await tx.update(candidates).set({ searchStatus: status }).where(eq(candidates.id, candidateId));
-		await recordProfileChange(tx, candidateId, { categorizationInput: false, createdBy: creatorOf(subject) });
+		await recordProfileChange(tx, candidateId, { evidenceInput: false, createdBy: creatorOf(subject) });
 	});
 }

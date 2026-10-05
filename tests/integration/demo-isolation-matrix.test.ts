@@ -27,12 +27,14 @@ import {
 	assessmentAttempts,
 	assessmentVersions,
 	assessmentObjections,
+	candidateSurveys,
 	categorizationRulesets,
 	evidenceRuns,
 	companyVerifications,
 	competitionPartnerships,
 	consentEvents,
 	demoSessions,
+	gradeDeclarations,
 	hiringProcesses,
 	invitations,
 	invitationTerms,
@@ -132,6 +134,8 @@ interface Place {
 	operatorUserId: string;
 	submitted: { companyId: string; verificationId: string };
 	objectionId: string;
+	/** The candidate's declared grade over a survey (domain 12.2). */
+	declarationId: string;
 	minor: { id: string; representationId: string };
 	claimId: string;
 	moderatedVacancyId: string;
@@ -403,6 +407,32 @@ async function place(
 		})
 		.returning({ id: assessmentObjections.id });
 	if (!objection) throw new Error('objection not inserted');
+	const [survey] = await db
+		.insert(candidateSurveys)
+		.values({
+			candidateId: candidate.id,
+			version: 1,
+			catalogVersion: '2026.10.1',
+			taxonomyVersionId,
+			direction: 'development',
+			specialization: 'backend',
+			declaredSkillKeys: ['go'],
+			preferences: {}
+		})
+		.returning({ id: candidateSurveys.id });
+	if (!survey) throw new Error('survey not inserted');
+	const [declaration] = await db
+		.insert(gradeDeclarations)
+		.values({
+			candidateId: candidate.id,
+			surveyId: survey.id,
+			specialization: 'backend',
+			grade: 'junior',
+			hint: { version: 1, suggested: null, bases: [], caveats: [] },
+			declaredAt: new Date()
+		})
+		.returning({ id: gradeDeclarations.id });
+	if (!declaration) throw new Error('declaration not inserted');
 
 	const minorUser = await account(session, `Подросток ${tag}`);
 	const minor = await createCandidate(db, {
@@ -521,6 +551,7 @@ async function place(
 		operatorUserId: operator.id,
 		submitted: { companyId: submitted.id, verificationId: verification.id },
 		objectionId: objection.id,
+		declarationId: declaration.id,
 		minor: { id: minor.id, representationId: representation.id },
 		claimId: claim.id,
 		moderatedVacancyId: moderated.id,
@@ -591,6 +622,7 @@ function markersOf(target: Place, viewer: Place): string[] {
 		target.submitted.companyId,
 		target.submitted.verificationId,
 		target.objectionId,
+		target.declarationId,
 		target.minor.id,
 		target.minor.representationId,
 		target.claimId,
@@ -1091,6 +1123,11 @@ const REGISTRY: Record<string, Entry> = {
 	'(auth)/onboarding/+page.server.ts': exempt('own onboarding'),
 	'(auth)/onboarding/consent/+page.server.ts': exempt('own onboarding'),
 	'(auth)/onboarding/representative/+page.server.ts': exempt('own onboarding'),
+	'(auth)/onboarding/survey/+page.server.ts': exempt('own onboarding'),
+	'(auth)/onboarding/grade/+page.server.ts': exempt('own onboarding'),
+	'api/v1/catalog/categories/+server.ts': exempt('catalog of categories of the stand'),
+	'api/v1/me/grade-hint/+server.ts': exempt('own grade hint: texts over the own evidence'),
+	'api/v1/me/grade-options/+server.ts': exempt('own grade options: grades of the catalog only'),
 	'(auth)/representative/confirm/+page.server.ts': exempt('link sent by mail'),
 	'(auth)/representative/consent/+page.server.ts': exempt('link sent by mail'),
 	'(auth)/representative/disclosure/+page.server.ts': exempt('link sent by mail'),
@@ -1120,6 +1157,8 @@ const REGISTRY: Record<string, Entry> = {
 	'api/v1/invitations/[invitation_id]/withdrawal/+server.ts': WRITES,
 	'api/v1/me/objections/[objection_id]/withdrawal/+server.ts': WRITES,
 	'api/v1/me/tests/decisions/[decision_id]/objections/+server.ts': WRITES,
+	'api/v1/me/grade-declarations/+server.ts': WRITES,
+	'api/v1/me/surveys/+server.ts': WRITES,
 	'api/v1/operator/ages/[candidate_id]/decision/+server.ts': WRITES,
 	'api/v1/operator/assessments/attempts/[attempt_id]/annulment/+server.ts': WRITES,
 	'api/v1/operator/moderation/vacancies/[vacancy_id]/decision/+server.ts': WRITES,

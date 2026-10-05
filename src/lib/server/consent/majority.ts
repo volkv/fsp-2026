@@ -169,7 +169,7 @@ async function applyMajority(
 
 	// The catalog is switched on again by the adult on the visibility page (domain 7.3).
 	await tx.update(candidates).set({ visibility: 'hidden' }).where(eq(candidates.id, candidateId));
-	await recordProfileChange(tx, candidateId, { categorizationInput: false, createdBy: { kind: 'system' } });
+	await recordProfileChange(tx, candidateId, { evidenceInput: false, createdBy: { kind: 'system' } });
 	await notify(tx, {
 		userId: candidate.userId,
 		type: 'candidate.majority_reached',

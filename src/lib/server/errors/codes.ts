@@ -24,7 +24,8 @@ export const POLICY_VIOLATION_CODES = {
 	salary_below_vacancy: 'Нижняя граница предложения ниже вилки вакансии',
 	reopen_cooldown: 'Повторное предложение этому кандидату пока недоступно',
 	minor_age_mismatch: 'Вакансия не подходит кандидату по возрасту',
-	scope_fields_minor: 'Кандидату младше 18 лет расширенный состав карточки недоступен'
+	scope_fields_minor: 'Кандидату младше 18 лет расширенный состав карточки недоступен',
+	specialization_closed: 'Специализация закрыта: её тест ещё не выпущен или выключен'
 } as const;
 
 export type PolicyViolationCode = keyof typeof POLICY_VIOLATION_CODES;
