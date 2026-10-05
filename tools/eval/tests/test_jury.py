@@ -79,6 +79,9 @@ def test_the_example_is_read_and_run_in_both_lanes(tmp_path):
     assert first["lanes"]["as_product"]["category_not_confirmed"] == ["c"]
     assert [r["candidate_id"] for r in first["lanes"]["resume_only"]["ranked"]] == ["d", "c", "b", "a"]
     assert first["lanes"]["resume_only"]["title"].startswith("эксперимент без теста")
+    # Nobody has a category in the lane without a test: it names who the grade hint left out — here nobody.
+    assert first["lanes"]["resume_only"]["not_admitted_by_grade_hint"] == []
+    assert "category_not_confirmed" not in first["lanes"]["resume_only"]
     assert set(first["lanes"]["keywords_same_text"]["ranked"][0]) == {"candidate_id", "position"}
     # The resume-only lane goes without tests and is admitted by the grade hint; the product lane by categories.
     rank = next(r for r in bridge.requests if r["command"] == "rank")

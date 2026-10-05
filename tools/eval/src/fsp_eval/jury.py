@@ -227,15 +227,7 @@ def jury_run(
                             | (_explained(top[system][key]) if system in LANES and key in top[system] else {})
                             for position, key in enumerate(order)
                         ],
-                        **(
-                            {
-                                "category_not_confirmed": sorted(
-                                    name[cid.split("/", 1)[0]] for cid in answer["unconfirmed"][system][nk]
-                                )
-                            }
-                            if system in LANES
-                            else {}
-                        ),
+                        **_apart(system, order, members[nk], name, answer["unconfirmed"].get(system, {}).get(nk, [])),
                     }
                     for system, order in orders.items()
                 },
@@ -269,6 +261,18 @@ def jury_run(
         (directory / "metrics.json").write_text(json.dumps(metrics, ensure_ascii=False, indent=1), encoding="utf-8")
         run["metrics"] = metrics
     return run
+
+
+def _apart(
+    system: str, order: Sequence[str], members: Sequence[str], name: Mapping[str, str], unconfirmed: Sequence[str]
+) -> dict[str, list[str]]:
+    """Who a lane leaves out, and why: the product's lane — the candidates without a confirmed category (domain 12.7);
+    the lane without a test — nobody there has one, so the candidates whose grade hint is outside the need's grades."""
+    if system == "as_product":
+        return {"category_not_confirmed": sorted(name[cid.split("/", 1)[0]] for cid in unconfirmed)}
+    if system == "resume_only":
+        return {"not_admitted_by_grade_hint": sorted(name[key] for key in members if key not in set(order))}
+    return {}
 
 
 def _explained(entry: Mapping[str, Any]) -> dict[str, Any]:

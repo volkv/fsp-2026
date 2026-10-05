@@ -281,7 +281,7 @@ pnpm eval:run --split holdout --mode rules_only --semantic        # только
 pnpm check:eval                                                   # ruff и pytest в тестовом образе, без сети
 ```
 
-Режим оценки жюри — раздел ниже.
+Режим оценки жюри (`pnpm eval:jury-run`, `pnpm eval:jury-metrics`) — раздел ниже.
 
 Прямой вызов образа — `python -m fsp_eval run --repo <checkout> --out <каталог> --split dev|holdout
 [--mode rules_only|model] [--semantic] [--record <почта администратора>] [--fsp-layer <id>|none] [--matching <id>|none]
@@ -314,18 +314,17 @@ pnpm check:eval                                                   # ruff и pyte
 `CREATEDB`) и `docparse`; данных приложения прогон не трогает — ранжирует во временной базе моста и удаляет её.
 
 ```sh
-pnpm eval:build && pnpm eval:image
-docker run --rm --network host -u "$(id -u):$(id -g)" -v "$PWD:/repo:ro" -v "$PWD/tools/eval/out:/out" fsp-eval:local \
-  jury-run --repo /repo --out /out --input /repo/tools/eval/jury/example.jsonl
-docker run --rm --network none -u "$(id -u):$(id -g)" -v "$PWD:/repo:ro" -v "$PWD/tools/eval/out:/out" fsp-eval:local \
-  jury-metrics --run /out/jury/<прогон> --labels /repo/<разметка>.jsonl
+pnpm eval:jury-run --input /repo/tools/eval/jury/example.jsonl                 # обе дорожки и лист слепой разметки
+pnpm eval:jury-metrics --run /out/jury/<прогон> --labels /repo/<разметка>.jsonl # метрики по разметке жюри
 ```
+
+Пути — внутри образа: checkout смонтирован в `/repo` только для чтения, `tools/eval/out` — в `/out`.
 
 `jury-run` пишет в `out/jury/<время>/`:
 
 - `results.json` — по каждой потребности, что продукт из неё прочитал, и три выдачи, каждая подписана: `as_product` —
   как в продукте, категория только из подтверждённого теста, кандидаты без неё — отдельным списком «категория не
-  подтверждена»; `resume_only` — эксперимент без теста, категория из подсказки грейда по резюме, не подтверждена;
+  подтверждена»; `resume_only` — эксперимент без теста, категория из подсказки грейда по резюме, не подтверждена, а кого подсказка грейда не допустила (вне грейдов потребности или без подсказки — нет данных), — списком «не допущены подсказкой грейда»;
   `keywords_same_text` — поиск по тому же тексту потребности (BM25) среди тех же кандидатов. У первой десятки дорожек
   продукта — балл, разложение, основания с источником, пробелы и «проверить на интервью»;
 - `judging.jsonl` — лист слепой разметки: объединение первых десяток всех трёх выдач по каждой потребности,
