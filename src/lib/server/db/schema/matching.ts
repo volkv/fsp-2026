@@ -15,7 +15,7 @@ import {
 import { COMPONENT_KEYS, COMPONENT_STATUS_CODES } from '../../matching/params';
 import { id, ts } from './_columns';
 import { candidates } from './candidates';
-import { categorizationRuns } from './categorization';
+import { evidenceRuns } from './evidence-runs';
 import { jobs } from './jobs';
 import { embeddingSpaces } from './ml';
 import { matchRulesets } from './taxonomy';
@@ -35,7 +35,7 @@ export const matchScores = pgTable(
 			.notNull()
 			.references(() => candidates.id),
 		candidateRevision: bigint({ mode: 'number' }).notNull(),
-		categorizationRunId: uuid().references(() => categorizationRuns.id),
+		evidenceRunId: uuid().references(() => evidenceRuns.id),
 		matchRulesetId: uuid()
 			.notNull()
 			.references(() => matchRulesets.id),
@@ -74,10 +74,11 @@ export const matchScores = pgTable(
 				sql` and `
 			)
 		),
-		// The candidate side of a snapshot is the profile revision together with the published category it read: a
-		// category recomputed, replaced or blocked at the same revision is another snapshot. No category is one value.
+		// The candidate side of a snapshot is the profile revision together with the evidence run it read: a run
+		// recomputed, replaced or blocked at the same revision is another snapshot. No run is one value. A change of the
+		// category moves the profile revision (domain 12.4).
 		unique('match_scores_snapshot')
-			.on(t.vacancyId, t.vacancyRevision, t.candidateId, t.candidateRevision, t.categorizationRunId, t.matchRulesetId)
+			.on(t.vacancyId, t.vacancyRevision, t.candidateId, t.candidateRevision, t.evidenceRunId, t.matchRulesetId)
 			.nullsNotDistinct(),
 		index('match_scores_candidate').on(t.candidateId, t.candidateRevision)
 	]

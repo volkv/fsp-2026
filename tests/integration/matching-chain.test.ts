@@ -1,7 +1,7 @@
 // The chain from FSP achievements to matches, with each job run the way the worker runs it: `fsp.sync` against the
-// simulator `services/fsp-mock` → `categorization.compute` from the handler registry → a published category →
+// simulator `services/fsp-mock` → `evidence.compute` from the handler registry → a published evidence run →
 // `match.refresh` of the candidate and of the vacancy → `match_scores` and the pool counter. A result annulled at the
-// source blocks the category at once and the recalculation drops its contribution.
+// source blocks the run at once and the recalculation drops its contribution.
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { and, desc, eq } from 'drizzle-orm';
@@ -10,7 +10,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
 	athleteLinks,
 	candidates,
-	categorizationRuns,
+	evidenceRuns,
 	consentEvents,
 	externalIdentities,
 	jobs,
@@ -201,9 +201,9 @@ async function enqueueSync(linkId: string): Promise<void> {
 async function runsOf(candidateId: string) {
 	return database.db
 		.select()
-		.from(categorizationRuns)
-		.where(eq(categorizationRuns.candidateId, candidateId))
-		.orderBy(categorizationRuns.id);
+		.from(evidenceRuns)
+		.where(eq(evidenceRuns.candidateId, candidateId))
+		.orderBy(evidenceRuns.id);
 }
 
 /** The stored match of the pair, if significant, and the facts behind its skill matches as the pair is read now. */
@@ -243,13 +243,13 @@ describe('achievements to matches', () => {
 	let vacancyId: string;
 	/** A fact behind the matched skill, whose result the source annuls. */
 	let annulledFactId: string;
-	/** Score of the pair while its category was published. */
+	/** Score of the pair while its evidence run was published. */
 	let pooledScore: number;
 
 	beforeAll(async () => {
 		const { db } = database;
 		hero = await linkHero();
-		// The algorithm role is only desired: FSP results confirm skills, they do not establish a kind of work.
+		// The algorithm role is only desired: FSP results confirm skills, a category comes from the tests alone.
 		await db
 			.update(candidates)
 			.set({ desiredRoleKeys: ['algo_engineer'] })
@@ -267,20 +267,20 @@ describe('achievements to matches', () => {
 	});
 
 	it('registers the chain in the worker handler registry', () => {
-		for (const type of ['fsp.sync', 'categorization.compute', 'match.refresh'] as const) {
+		for (const type of ['fsp.sync', 'evidence.compute', 'match.refresh'] as const) {
 			expect(JOB_HANDLERS.get(type)?.type).toBe(type);
 		}
 	});
 
-	it('turns synced achievements into a category, matches and a pool', async () => {
+	it('turns synced achievements into an evidence run, matches and a pool', async () => {
 		const { db } = database;
-		// Achievements → facts; the sync asks for the category and nothing else.
+		// Achievements → facts; the sync asks for the evidence and nothing else.
 		await enqueueSync(hero.linkId);
 		expect(await runNext('fsp.sync', fspSync)).toBe('succeeded');
 		expect(await queued(`match:candidate:${hero.candidateId}`)).toEqual([]);
 
-		// Category: published by the registered handler, which asks for the candidate's matches in the same write.
-		expect(await runNext('categorization.compute', registered('categorization.compute'))).toBe('succeeded');
+		// The evidence run: published by the registered handler, which asks for the candidate's matches in the same write.
+		expect(await runNext('evidence.compute', registered('evidence.compute'))).toBe('succeeded');
 		const [first] = await runsOf(hero.candidateId);
 		expect(first).toMatchObject({ status: 'published', inputRevision: 1 });
 		const [algorithms] = await db
@@ -294,13 +294,16 @@ describe('achievements to matches', () => {
 		expect(await runNext('match.refresh', matchRefresh)).toBe('succeeded');
 		const match = await currentMatch(vacancyId, hero.candidateId);
 		pooledScore = match.result.score;
-		expect(match.row).toMatchObject({ candidateRevision: 1, categorizationRunId: first?.id });
+		expect(match.row).toMatchObject({ candidateRevision: 1, evidenceRunId: first?.id });
 		expect(Number(match.row?.score)).toBe(match.result.score);
+		// FSP results and a desired role do not give a category, and no test of the catalog checks the algorithm role:
+		// the role component does not count, and the category is named among what to verify.
 		expect(match.result.components.role).toMatchObject({
-			status: 'computed',
-			value: (await loadActiveMatchRuleset(db)).params.role.desired,
-			details: { vacancy: 'algo_engineer', candidate: [], basis: 'desired' }
+			status: 'unknown',
+			value: null,
+			details: { vacancy: 'algo_engineer', specializations: [], reason: 'vacancy_role_without_specialization' }
 		});
+		expect(match.result.explanation.to_verify).toContainEqual({ code: 'category_not_confirmed' });
 		// The stored decomposition is the one read now, the role component included.
 		const row = match.row;
 		if (!row) throw new Error('the pair is not stored');
@@ -323,7 +326,7 @@ describe('achievements to matches', () => {
 		annulledFactId = contributing.id;
 	});
 
-	it('blocks the category at once when a result is annulled at the source and takes the pair out of the pool', async () => {
+	it('blocks the evidence run at once when a result is annulled at the source and takes the pair out of the pool', async () => {
 		const { db } = database;
 		const [fact] = await db.select().from(sourceFacts).where(eq(sourceFacts.id, annulledFactId));
 		const resultId = (fact?.payload as { result: Result }).result.id;
@@ -331,17 +334,17 @@ describe('achievements to matches', () => {
 		await enqueueSync(hero.linkId);
 		expect(await runNext('fsp.sync', fspSync)).toBe('succeeded');
 
-		// The withdrawal blocks the category in its own transaction and asks for the category and the matches.
+		// The withdrawal blocks the run in its own transaction and asks for the evidence and the matches.
 		const [candidate] = await db
 			.select({ revision: candidates.profileRevision, floor: candidates.evidenceFloorRevision })
 			.from(candidates)
 			.where(eq(candidates.id, hero.candidateId));
 		expect(candidate).toEqual({ revision: 2, floor: 2 });
 		expect((await runsOf(hero.candidateId)).map((r) => r.status)).toEqual(['blocked']);
-		expect(await queued(`categorization:${hero.candidateId}`)).toHaveLength(1);
+		expect(await queued(`evidence:${hero.candidateId}`)).toHaveLength(1);
 		expect(await queued(`match:candidate:${hero.candidateId}`)).toHaveLength(1);
 
-		// Without a published category nothing confirms the requirement: the pair leaves the pool, its row of the old
+		// Without a published run nothing confirms the requirement: the pair leaves the pool, its row of the old
 		// snapshot goes and the new one is below the store threshold; read, it says there is not enough data, and the
 		// skills it can no longer read count as unconfirmed instead of leaving the score to the rest.
 		expect(await runNext('match.refresh', matchRefresh)).toBe('succeeded');
@@ -358,14 +361,14 @@ describe('achievements to matches', () => {
 		expect(await poolCount(vacancyId)).toBe(0);
 	});
 
-	it('recomputes the matches from the category published without the annulled result', async () => {
-		expect(await runNext('categorization.compute', registered('categorization.compute'))).toBe('succeeded');
+	it('recomputes the matches from the run published without the annulled result', async () => {
+		expect(await runNext('evidence.compute', registered('evidence.compute'))).toBe('succeeded');
 		const second = (await runsOf(hero.candidateId)).find((r) => r.status === 'published');
 		expect(second).toMatchObject({ inputRevision: 2 });
 		expect(await queued(`match:candidate:${hero.candidateId}`)).toHaveLength(1);
 		expect(await runNext('match.refresh', matchRefresh)).toBe('succeeded');
 		const after = await currentMatch(vacancyId, hero.candidateId);
-		expect(after.row).toMatchObject({ candidateRevision: 2, categorizationRunId: second?.id });
+		expect(after.row).toMatchObject({ candidateRevision: 2, evidenceRunId: second?.id });
 		expect(after.factIds.size).toBeGreaterThan(0);
 		expect(after.factIds.has(annulledFactId)).toBe(false);
 		expect(await runNext('match.refresh', matchRefresh)).toBe('succeeded');

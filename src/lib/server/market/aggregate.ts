@@ -1,82 +1,64 @@
-// Category market indicators (docs/domain.md, section 12.5) as pure functions: which category keys a record counts
+// Category market indicators (docs/domain.md, section 12.8) as pure functions: which category keys a record counts
 // in, which salary value it contributes, and the quantiles of each group. Three indicators of different origin are
 // never mixed: a group is one indicator, one category key, one currency, period and tax base, one method and one
 // provenance. `gross`, `net` and `unknown` are separate groups; demonstration records form their own `synthetic`
 // groups and never enter a `live` one.
+import { GRADE_KEYS, type GradeKey, type SpecializationKey } from '$lib/server/assessments/contract/catalog';
 import type { marketSnapshots } from '$lib/server/db/schema';
 import type { SalaryTerms } from '$lib/server/salary/compare';
 
 export const MARKET_INDICATORS = ['candidate_expectations', 'vacancy_ranges', 'external_reference'] as const;
 export type MarketIndicator = (typeof MARKET_INDICATORS)[number];
 
-/** The combination the data was collected for, as stored in `market_snapshots.category_key`. */
+/**
+ * The combination the data was collected for, as stored in `market_snapshots.category_key` (domain 12.8): a category —
+ * a specialization and a grade of the catalog — or the specialization as a whole, a broader combination labelled as
+ * such wherever it stands in for a category.
+ */
 export interface CategoryKey {
-	role_key: string;
-	grade_key?: string;
-	/** Sorted, without duplicates; absent — any stack. */
-	stack_skill_keys?: string[];
+	specialization: SpecializationKey;
+	grade?: GradeKey;
 }
 
-/** Stacks of up to this many skills get their own key: a record with a larger stack counts in each subset. */
-export const MAX_STACK_KEY_SIZE = 2;
-
-export function categoryKey(input: { roleKey: string; gradeKey?: string | null; stackSkillKeys?: readonly string[] }) {
-	const stack = [...new Set(input.stackSkillKeys ?? [])].sort();
-	const key: CategoryKey = { role_key: input.roleKey };
-	if (input.gradeKey) key.grade_key = input.gradeKey;
-	if (stack.length > 0) key.stack_skill_keys = stack;
-	return key;
+export function categoryKey(input: { specialization: SpecializationKey; grade?: GradeKey | null }): CategoryKey {
+	return input.grade
+		? { specialization: input.specialization, grade: input.grade }
+		: { specialization: input.specialization };
 }
 
 /** Text identity of a key: two keys are the same combination exactly when their ids are equal. */
 export function categoryKeyId(key: CategoryKey): string {
-	return `${key.role_key}|${key.grade_key ?? ''}|${(key.stack_skill_keys ?? []).join(',')}`;
+	return `${key.specialization}|${key.grade ?? ''}`;
 }
 
-function subsets(items: readonly string[], maxSize: number): string[][] {
-	const sorted = [...new Set(items)].sort();
-	const result: string[][] = [];
-	const walk = (start: number, current: string[]) => {
-		if (current.length > 0) result.push(current);
-		if (current.length === maxSize) return;
-		for (let i = start; i < sorted.length; i++) walk(i + 1, [...current, sorted[i] as string]);
-	};
-	walk(0, []);
-	return result;
+/** Every key a record counts in: each specialization alone and with each of its grades. */
+export function categoryKeysOf(record: {
+	specializations: readonly SpecializationKey[];
+	grades: readonly GradeKey[];
+}): CategoryKey[] {
+	return [...new Set(record.specializations)].flatMap((specialization) => [
+		categoryKey({ specialization }),
+		...[...new Set(record.grades)].map((grade) => categoryKey({ specialization, grade }))
+	]);
 }
 
 /**
- * Every key a record counts in: the role alone, the role with each grade of its established range, the role with each
- * stack subset, and both. An axis the record does not establish (grade unknown, empty stack) yields no keys on that
- * axis: the record counts only where its data says something, never in a guessed grade.
+ * The grades of the catalog a range of the taxonomy scale `[min, max]` covers; unknown bounds or an inverted range
+ * give none. Grades the catalog does not confirm (Lead) are not a category and count nowhere.
  */
-export function categoryKeysOf(record: {
-	roleKey: string;
-	gradeKeys: readonly string[];
-	stackSkillKeys: readonly string[];
-}): CategoryKey[] {
-	const stacks = subsets(record.stackSkillKeys, MAX_STACK_KEY_SIZE);
-	const grades = [...new Set(record.gradeKeys)];
-	const keys: CategoryKey[] = [categoryKey({ roleKey: record.roleKey })];
-	for (const gradeKey of grades) keys.push(categoryKey({ roleKey: record.roleKey, gradeKey }));
-	for (const stack of stacks) {
-		keys.push(categoryKey({ roleKey: record.roleKey, stackSkillKeys: stack }));
-		for (const gradeKey of grades) keys.push(categoryKey({ roleKey: record.roleKey, gradeKey, stackSkillKeys: stack }));
-	}
-	return keys;
-}
-
-/** Grade keys of an ordinal range `[min, max]`; unknown bounds or an inverted range give none. */
-export function gradeKeysBetween(
+export function catalogGradesBetween(
 	ordinals: ReadonlyMap<string, number>,
 	min: string | null,
 	max: string | null
-): string[] {
+): GradeKey[] {
 	if (min === null || max === null) return [];
 	const from = ordinals.get(min);
 	const to = ordinals.get(max);
 	if (from === undefined || to === undefined || from > to) return [];
-	return [...ordinals].filter(([, ordinal]) => ordinal >= from && ordinal <= to).map(([key]) => key);
+	return GRADE_KEYS.filter((grade) => {
+		const ordinal = ordinals.get(grade);
+		return ordinal !== undefined && ordinal >= from && ordinal <= to;
+	});
 }
 
 /**

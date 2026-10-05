@@ -7,7 +7,7 @@ import { operatorRequest } from '$lib/server/operator/http';
 import type { PageServerLoad } from './$types';
 
 /** The filters the page offers; the query parameters are named after the dimensions. */
-const FILTERS = ['fsp_discipline', 'fsp_level', 'role', 'region'] as const satisfies readonly FunnelFilter[];
+const FILTERS = ['fsp_discipline', 'fsp_level', 'specialization', 'region'] as const satisfies readonly FunnelFilter[];
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 function dateParam(value: string | null): string | null {
@@ -36,7 +36,7 @@ export const load: PageServerLoad = async (event) => {
 				...(from === null ? {} : { from: new Date(`${from}T00:00:00Z`) }),
 				...(to === null ? {} : { to: new Date(`${to}T00:00:00Z`) })
 			}),
-			roles: labels.roles,
+			specializations: labels.specializations,
 			grades: labels.grades
 		};
 	} catch (cause) {

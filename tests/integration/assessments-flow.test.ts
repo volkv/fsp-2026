@@ -1,6 +1,6 @@
 // Platform assessments against the database: publishing the bank, the adaptive quiz from the first answer to the fact
 // of the profile and its recalculation, the limits of `assessment_policy`, who may read attempt artifacts, their
-// retention, and a level test that confirms or caps the grade but never raises it.
+// retention.
 import { randomBytes } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { and, eq, sql } from 'drizzle-orm';
@@ -18,7 +18,7 @@ import { candidateAssessment, candidateAttempt, candidateCatalog } from '$lib/se
 import { loadVersion } from '$lib/server/assessments/versions';
 import type { RequestMeta } from '$lib/server/auth/context';
 import { loadSelfEvidence } from '$lib/server/candidates/profile';
-import { createCategorizationHandler } from '$lib/server/categorization/job';
+import { createEvidenceHandler } from '$lib/server/evidence/job';
 import {
 	assessmentArtifacts,
 	assessmentAttempts,
@@ -27,10 +27,8 @@ import {
 	assessmentVersions,
 	auditEvents,
 	candidates,
-	categorizationRuns,
-	categoryAssignments,
+	evidenceRuns,
 	claims,
-	experienceEntries,
 	jobs,
 	productPolicies,
 	sourceFacts,
@@ -165,17 +163,17 @@ async function passQuiz(subject: AccessSubject, key: string, knows: Knows, now =
 	throw new Error('the quiz did not end in 20 answers');
 }
 
-const handler = createCategorizationHandler(() => NOW);
+const handler = createEvidenceHandler(() => NOW);
 
 /** Runs waiting categorizations the way the worker does, until the one of the candidate has run. */
 async function runCategorization(candidateId: string): Promise<void> {
 	for (;;) {
-		const claimed = await claimJob(database.db, `worker-${randomBytes(3).toString('hex')}`, ['categorization.compute']);
-		if (claimed?.type !== 'categorization.compute') throw new Error(`no categorization job of ${candidateId} to run`);
-		const job: ClaimedJob<'categorization.compute'> = {
+		const claimed = await claimJob(database.db, `worker-${randomBytes(3).toString('hex')}`, ['evidence.compute']);
+		if (claimed?.type !== 'evidence.compute') throw new Error(`no categorization job of ${candidateId} to run`);
+		const job: ClaimedJob<'evidence.compute'> = {
 			...claimed,
-			type: 'categorization.compute',
-			payload: JOB_TYPES['categorization.compute'].payload.parse(claimed.payload)
+			type: 'evidence.compute',
+			payload: JOB_TYPES['evidence.compute'].payload.parse(claimed.payload)
 		};
 		const result = await handler.run({
 			job,
@@ -271,7 +269,7 @@ describe('adaptive quiz', () => {
 		const queued = await database.db
 			.select()
 			.from(jobs)
-			.where(and(eq(jobs.type, 'categorization.compute'), eq(jobs.dedupKey, `categorization:${candidateId}`)));
+			.where(and(eq(jobs.type, 'evidence.compute'), eq(jobs.dedupKey, `evidence:${candidateId}`)));
 		expect(queued.map((job) => [job.status, job.inputVersion])).toEqual([
 			['queued', String(candidate?.profileRevision)]
 		]);
@@ -287,10 +285,7 @@ describe('adaptive quiz', () => {
 
 		// Categorization reads the fact: python becomes a skill confirmed by the platform.
 		await runCategorization(candidateId);
-		const [run] = await database.db
-			.select()
-			.from(categorizationRuns)
-			.where(eq(categorizationRuns.candidateId, candidateId));
+		const [run] = await database.db.select().from(evidenceRuns).where(eq(evidenceRuns.candidateId, candidateId));
 		expect(run?.status).toBe('published');
 
 		// The profile shows the fact as a test of the platform, with the version of the task and the attempt.
@@ -352,7 +347,7 @@ describe('adaptive quiz', () => {
 		const queued = await database.db
 			.select()
 			.from(jobs)
-			.where(eq(jobs.dedupKey, `categorization:${candidateIdOf(subject)}`));
+			.where(eq(jobs.dedupKey, `evidence:${candidateIdOf(subject)}`));
 		expect(queued).toEqual([]);
 	});
 
@@ -541,85 +536,6 @@ describe('access to attempt artifacts', () => {
 		await expect(
 			database.db.update(assessmentArtifacts).set({ content: null }).where(eq(assessmentArtifacts.attemptId, attemptId))
 		).rejects.toThrow();
-	});
-});
-
-describe('a level test and the grade', () => {
-	/** A confirmed resume with a backend position from `from` to now. */
-	async function addExperience(candidateId: string, from: string) {
-		await database.db.transaction(async (tx) => {
-			const [fact] = await tx
-				.insert(sourceFacts)
-				.values({
-					candidateId,
-					source: 'resume',
-					factType: 'resume_document',
-					sourceRecordRef: `resume:${randomBytes(8).toString('hex')}`,
-					trustLevel: 'claimed',
-					ownershipBasis: 'self_upload',
-					payload: {},
-					payloadSha256: randomSha256(),
-					observedAt: NOW,
-					lastVerifiedAt: NOW,
-					status: 'active'
-				})
-				.returning({ id: sourceFacts.id });
-			if (!fact) throw new Error('resume fact not inserted');
-			await tx.insert(experienceEntries).values({
-				candidateId,
-				factId: fact.id,
-				roleKey: 'backend',
-				periodFrom: from,
-				periodFromPrecision: 'month',
-				isCurrent: true,
-				appliedSkillKeys: ['python', 'sql'],
-				quotes: [
-					{ extraction_id: '00000000-0000-7000-8000-000000000001', block_id: 'b1', start: 0, end: 6, text: 'Python' }
-				],
-				periodStatus: 'valid',
-				candidateReview: 'confirmed',
-				status: 'active'
-			});
-		});
-	}
-
-	async function gradeOf(candidateId: string) {
-		const [run] = await database.db
-			.select({ id: categorizationRuns.id })
-			.from(categorizationRuns)
-			.where(and(eq(categorizationRuns.candidateId, candidateId), eq(categorizationRuns.status, 'published')));
-		const [assignment] = await database.db
-			.select()
-			.from(categoryAssignments)
-			.where(and(eq(categoryAssignments.runId, run?.id ?? ''), eq(categoryAssignments.rank, 'primary')));
-		return assignment;
-	}
-
-	it('a senior quiz result does not lift a grade that experience puts at junior', async () => {
-		const subject = await candidateSubject();
-		const candidateId = candidateIdOf(subject);
-		await addExperience(candidateId, '2026-06-01');
-		await passQuiz(subject, 'quiz-python', 'senior');
-		const [fact] = await database.db
-			.select({ payload: sourceFacts.payload })
-			.from(sourceFacts)
-			.where(and(eq(sourceFacts.candidateId, candidateId), eq(sourceFacts.source, 'platform_test')));
-		expect(fact?.payload).toMatchObject({ gradeKey: 'senior' });
-		await runCategorization(candidateId);
-		const assignment = await gradeOf(candidateId);
-		expect(assignment?.gradeMin).toBe('intern');
-		expect(assignment?.gradeMax).toBe('junior');
-	});
-
-	it('a junior quiz result caps a grade that experience puts at middle to senior', async () => {
-		const subject = await candidateSubject();
-		const candidateId = candidateIdOf(subject);
-		await addExperience(candidateId, '2023-01-01');
-		await passQuiz(subject, 'quiz-python', 'junior');
-		await runCategorization(candidateId);
-		const assignment = await gradeOf(candidateId);
-		expect(assignment?.gradeMin).toBe('middle');
-		expect(assignment?.gradeMax).toBe('middle');
 	});
 });
 

@@ -144,7 +144,7 @@ describe('vacancy from text', () => {
 		]);
 	});
 
-	it('compares with the market only the recognized required skills and the range the text states', () => {
+	it('compares with the market the role, the grade and the range the text states', () => {
 		const fields = fieldsFromItems(
 			[
 				item({ kind: 'role_title', rawText: 'Python-разработчик' }),
@@ -166,7 +166,6 @@ describe('vacancy from text', () => {
 			roleKey: 'backend',
 			gradeMin: 'middle',
 			gradeMax: null,
-			requiredSkillKeys: ['python'],
 			// An unknown tax base stays unknown: the comparison says «несравнимо», not a guess.
 			salary: { min: 250_000, max: null, currency: 'RUB', period: 'month', taxBase: 'unknown' }
 		});

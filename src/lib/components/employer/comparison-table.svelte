@@ -46,7 +46,8 @@
 		within: 'в диапазоне вакансии',
 		below: 'ниже диапазона',
 		above: 'выше диапазона',
-		candidate_grade_not_established: 'не установлен — проверить на собеседовании',
+		category_not_confirmed: 'категория не подтверждена — проверить на собеседовании',
+		specialization_other: 'категория другой специализации',
 		vacancy_grade_unknown: 'у вакансии не указан'
 	};
 	const SALARY: Record<string, string> = {
@@ -59,11 +60,10 @@
 		vacancy_salary_missing: 'у вакансии нет вилки'
 	};
 	const ROLE_BASIS: Record<string, string> = {
-		primary: 'основная роль кандидата',
-		secondary: 'дополнительная роль кандидата',
-		desired: 'только желаемая — основаниями не подтверждена',
-		candidate_role_not_established: 'роль не установлена — проверить на собеседовании',
-		vacancy_role_unknown: 'у вакансии не указана'
+		same_specialization: 'категория специализации вакансии подтверждена тестом',
+		category_not_confirmed: 'категория не подтверждена — проверить на собеседовании',
+		vacancy_role_unknown: 'у вакансии не указана',
+		vacancy_role_without_specialization: 'роль вакансии не относится к специализациям тестов'
 	};
 	const BAND: Record<string, string> = { weak: 'слабо', moderate: 'средне', strong: 'сильно' };
 
@@ -87,7 +87,7 @@
 				case 'missing':
 					return { kind: 'text', text: 'не подтверждён', muted: true };
 				case 'unavailable':
-					return { kind: 'text', text: 'неизвестно: профиль без категории', muted: true };
+					return { kind: 'text', text: 'неизвестно: доказательства профиля не рассчитаны', muted: true };
 			}
 		}
 		const words = cell.kind === 'grade' ? GRADE : SALARY;
@@ -100,22 +100,17 @@
 		};
 	}
 
-	/** The role row: the candidate's own role when it is another one. */
+	/** The role row: the specializations of the candidate's categories when none is the vacancy's. */
 	function roleShown(role: Component<RoleDetails>): Shown {
-		if (role.status === 'unavailable') return { kind: 'text', text: 'неизвестно: профиль без категории', muted: true };
-		if (role.details.basis === 'none') {
-			const own = role.details.candidate?.[0];
-			return {
-				kind: 'text',
-				text: own === undefined ? 'другая роль' : `другая роль: ${labelOf(labels.roles, own)}`,
-				muted: true
-			};
+		if (role.details.basis === 'other_specialization') {
+			const own = (role.details.candidate ?? []).map((key) => labelOf(labels.specializations, key)).join(', ');
+			return { kind: 'text', text: `категория другой специализации: ${own}`, muted: true };
 		}
 		const key = role.details.basis ?? role.details.reason;
 		return {
 			kind: 'text',
 			text: key === undefined ? 'неизвестно' : labelOf(ROLE_BASIS, key),
-			muted: role.details.basis !== 'primary' && role.details.basis !== 'secondary'
+			muted: role.details.basis !== 'same_specialization'
 		};
 	}
 

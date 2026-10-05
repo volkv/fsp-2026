@@ -52,7 +52,7 @@
 		<aside class="lg:sticky lg:top-20 lg:self-start">
 			<CatalogFilters
 				values={catalog.query}
-				roles={data.filters.roles}
+				specializations={data.filters.specializations}
 				grades={data.filters.grades}
 				formats={data.filters.formats}
 				regions={data.filters.regions}
@@ -74,7 +74,6 @@
 						pseudonym={item.pseudonym}
 						summary={item.summary}
 						match={null}
-						gradeGroup={item.gradeGroup}
 						labels={data.labels}
 						href={resolve('/(app)/company/(member)/candidates/[pseudonym]', { pseudonym: item.pseudonym })}
 					/>

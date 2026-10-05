@@ -14,14 +14,7 @@ import {
 	RECONCILED_TYPES,
 	type ReconciledType
 } from '$lib/server/derivations/reconcile';
-import {
-	candidates,
-	categorizationRulesets,
-	categorizationRuns,
-	jobs,
-	matchRulesets,
-	users
-} from '$lib/server/db/schema';
+import { candidates, categorizationRulesets, evidenceRuns, jobs, matchRulesets, users } from '$lib/server/db/schema';
 import { createLogger } from '$lib/server/jobs/log';
 import { claimJob, completeJob, enqueueJob, type ClaimedJob } from '$lib/server/jobs/queue';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
@@ -41,7 +34,7 @@ beforeAll(async () => {
 });
 
 afterEach(async () => {
-	await database.db.delete(categorizationRuns);
+	await database.db.delete(evidenceRuns);
 	await database.db.delete(jobs);
 });
 
@@ -50,8 +43,8 @@ afterAll(async () => {
 });
 
 const dedupKey = (type: ReconciledType, candidateId: string) =>
-	type === 'categorization.compute'
-		? `categorization:${candidateId}`
+	type === 'evidence.compute'
+		? `evidence:${candidateId}`
 		: type === 'profile.embed'
 			? `profile.embed:${candidateId}`
 			: `match:candidate:${candidateId}`;
@@ -148,7 +141,7 @@ describe('derivations.reconcile', () => {
 		await upToDate(behind.id, 2);
 		const waiting = await createCandidate(db, { profileRevision: 3 });
 		await upToDate(waiting.id, 2);
-		await history('categorization.compute', waiting.id, 3, 'queued');
+		await history('evidence.compute', waiting.id, 3, 'queued');
 		await history('match.refresh', waiting.id, 2, 'running');
 		const lost = await createCandidate(db, { profileRevision: 3 });
 		await upToDate(lost.id, 3);
@@ -173,7 +166,7 @@ describe('derivations.reconcile', () => {
 		expect(summary).toMatchObject({ joined: 0, capped: false });
 	});
 
-	it('counts the published category as processed at its input revision', async () => {
+	it('counts the published evidence run as processed at its input revision', async () => {
 		const { db } = database;
 		const taxonomy = await createTaxonomyVersion(db);
 		const [ruleset] = await db
@@ -184,8 +177,8 @@ describe('derivations.reconcile', () => {
 		const published = async (revision: number, status: 'published' | 'blocked') => {
 			const candidate = await createCandidate(db, { profileRevision: 5 });
 			await upToDate(candidate.id, 5);
-			await db.delete(jobs).where(eq(jobs.dedupKey, dedupKey('categorization.compute', candidate.id)));
-			await db.insert(categorizationRuns).values({
+			await db.delete(jobs).where(eq(jobs.dedupKey, dedupKey('evidence.compute', candidate.id)));
+			await db.insert(evidenceRuns).values({
 				candidateId: candidate.id,
 				inputRevision: revision,
 				inputSnapshotSha256: randomSha256(),
@@ -194,9 +187,6 @@ describe('derivations.reconcile', () => {
 				rulesetId: ruleset.id,
 				asOf: new Date(),
 				computedAt: new Date(),
-				origin: 'automatic',
-				outcome: 'insufficient_data',
-				missing: { role: [], grade: [], stack: [] },
 				experienceSummary: {},
 				status
 			});
@@ -211,8 +201,8 @@ describe('derivations.reconcile', () => {
 
 		expect(await reconciled([shown, older, blocked])).toEqual({
 			[shown]: [],
-			[older]: ['categorization.compute@5'],
-			[blocked]: ['categorization.compute@5']
+			[older]: ['evidence.compute@5'],
+			[blocked]: ['evidence.compute@5']
 		});
 	});
 
@@ -225,7 +215,7 @@ describe('derivations.reconcile', () => {
 
 		// Its jobs still wait: the next hour adds nothing.
 		const next = await reconcile('2026-10-06T13');
-		expect(next).toMatchObject({ categorization: 0, embed: 0, match: 0 });
+		expect(next).toMatchObject({ evidence: 0, embed: 0, match: 0 });
 
 		// They failed: the revision is not retried every hour, the failure stays visible.
 		await db
@@ -257,7 +247,7 @@ describe('derivations.reconcile', () => {
 
 		const candidate = await createCandidate(db, { profileRevision: 2 });
 		await upToDate(candidate.id, 2);
-		await db.insert(categorizationRuns).values({
+		await db.insert(evidenceRuns).values({
 			candidateId: candidate.id,
 			inputRevision: 2,
 			inputSnapshotSha256: randomSha256(),
@@ -266,9 +256,6 @@ describe('derivations.reconcile', () => {
 			rulesetId: categorizationV1,
 			asOf: new Date(),
 			computedAt: new Date(),
-			origin: 'automatic',
-			outcome: 'insufficient_data',
-			missing: { role: [], grade: [], stack: [] },
 			experienceSummary: {},
 			status: 'published'
 		});
@@ -322,14 +309,14 @@ describe('derivations.reconcile', () => {
 		await ruleset(matchRulesets, 2);
 		await reconcile('2026-10-07T11');
 		expect(await enqueued()).toEqual({
-			candidate: ['categorization.compute@2', 'match.refresh@2'],
+			candidate: ['evidence.compute@2', 'match.refresh@2'],
 			vacancy: [String(vacancy.revision)]
 		});
 
 		// Waiting, then failed: neither is enqueued again under the same rule sets.
 		await reconcile('2026-10-07T12');
 		expect(await enqueued()).toEqual({
-			candidate: ['categorization.compute@2', 'match.refresh@2'],
+			candidate: ['evidence.compute@2', 'match.refresh@2'],
 			vacancy: [String(vacancy.revision)]
 		});
 		await db

@@ -33,7 +33,8 @@ const decision = z.enum(['accept', 'decline']);
 const flag = z.boolean().optional();
 const hoursLeft = z.int().positive();
 const verificationDecision = z.enum(['approved', 'rejected', 'needs_info']);
-const disputeStatus = z.enum(['resolved_upheld', 'resolved_changed']);
+const objectionOutcome = z.enum(['upheld', 'annulled', 'rescored']);
+const revokeReason = z.enum(['decision_annulled', 'objection_annulled', 'objection_rescored']);
 const authorityResult = z.enum(['verified', 'rejected']);
 const moderationOutcome = z.enum(['published', 'returned', 'rejected']);
 const moderatedStatus = z.enum(['published', 'paused', 'draft', 'closed']);
@@ -43,9 +44,11 @@ const annulReason = z.enum(assessmentAttempts.annulReason.enumValues);
 type DecisionType =
 	| 'company.verification_decided'
 	| 'vacancy.moderation_decided'
-	| 'dispute.decided'
-	| 'dispute.due_soon'
-	| 'dispute.overdue'
+	| 'objection.decided'
+	| 'objection.due_soon'
+	| 'objection.overdue'
+	| 'category.assigned'
+	| 'category.revoked'
 	| 'representation.decided'
 	| 'representation.consents_signed'
 	| 'representation.consents_revoked'
@@ -135,31 +138,66 @@ function bodyOf(type: NotificationType, facts: NotificationFacts, payload: Paylo
 		case 'vacancy.moderation_decided':
 			if (facts.object !== 'vacancy') unsupported(type, facts);
 			return moderationBody(`«${facts.vacancyTitle}»`, payload);
-		case 'dispute.decided': {
-			if (facts.object !== 'category_dispute') unsupported(type, facts);
-			const changed = disputeStatus.parse(payload.status) === 'resolved_changed';
+		case 'objection.decided': {
+			if (facts.object !== 'assessment_objection' || facts.side !== 'candidate') unsupported(type, facts);
+			const outcome = objectionOutcome.parse(payload.outcome);
 			return {
-				subject: changed ? 'Возражение рассмотрено: категория изменена' : 'Возражение рассмотрено: категория оставлена',
+				subject: {
+					upheld: 'Возражение рассмотрено: результат теста оставлен',
+					annulled: 'Возражение рассмотрено: попытка аннулирована',
+					rescored: 'Возражение рассмотрено: результат теста пересчитан'
+				}[outcome],
 				paragraphs: [
-					changed
-						? 'Оператор ФСП рассмотрел ваше возражение и заменил категорию своим решением.'
-						: 'Оператор ФСП рассмотрел ваше возражение и оставил категорию без изменений.',
-					'Ответ оператора — на странице категории.'
+					{
+						upheld: 'Оператор ФСП рассмотрел ваше возражение и оставил решение теста без изменений.',
+						annulled:
+							'Оператор ФСП рассмотрел ваше возражение и аннулировал попытку: она не засчитывается, тест можно пройти снова.',
+						rescored: 'Оператор ФСП рассмотрел ваше возражение, исправил оценку заданий и пересчитал решение теста.'
+					}[outcome],
+					'Объяснение оператора — на странице категории и грейда.'
 				],
-				action: 'Открыть категорию'
+				action: 'Открыть категорию и грейд'
 			};
 		}
-		case 'dispute.due_soon':
-		case 'dispute.overdue': {
-			if (facts.object !== 'category_dispute' || facts.side !== 'staff') unsupported(type, facts);
-			const due = facts.dueOn.split('-').reverse().join('.');
-			const overdue = type === 'dispute.overdue';
+		case 'category.assigned':
+			if (facts.object !== 'candidate_category') unsupported(type, facts);
 			return {
-				subject: overdue ? 'Просрочен ответ на возражение по категории' : 'Скоро истекает срок ответа на возражение',
+				subject: 'Категория подтверждена тестом',
+				paragraphs: [
+					'Тест подтвердил вашу категорию: теперь работодатели находят вас в выдаче этой категории.',
+					'Что подтверждено и что тест не проверяет — на странице категории и грейда.'
+				],
+				action: 'Открыть категорию и грейд'
+			};
+		case 'category.revoked': {
+			if (facts.object !== 'candidate_category') unsupported(type, facts);
+			const reason = revokeReason.parse(payload.reason);
+			return {
+				subject: 'Категория отозвана',
+				paragraphs: [
+					reason === 'decision_annulled'
+						? 'Решение теста, которым была назначена категория, аннулировано, и категория отозвана.'
+						: 'По итогам рассмотрения возражения решение теста изменено, и назначенная им категория отозвана.',
+					payload.restored === true
+						? 'Действует прежняя категория этой специализации: провал или аннулирование теста выше не понижает подтверждённый грейд.'
+						: 'Подробности и доступные тесты — на странице категории и грейда.'
+				],
+				action: 'Открыть категорию и грейд'
+			};
+		}
+		case 'objection.due_soon':
+		case 'objection.overdue': {
+			if (facts.object !== 'assessment_objection' || facts.side !== 'staff') unsupported(type, facts);
+			const due = facts.dueOn.split('-').reverse().join('.');
+			const overdue = type === 'objection.overdue';
+			return {
+				subject: overdue
+					? 'Просрочен ответ на возражение по результату теста'
+					: 'Скоро истекает срок ответа на возражение',
 				paragraphs: [
 					overdue
-						? `Срок ответа на возражение кандидата по категории истёк ${due}, ответа ещё нет.`
-						: `Срок ответа на возражение кандидата по категории истекает ${due}, ответа ещё нет.`,
+						? `Срок ответа на возражение кандидата по результату теста истёк ${due}, ответа ещё нет.`
+						: `Срок ответа на возражение кандидата по результату теста истекает ${due}, ответа ещё нет.`,
 					facts.role === 'operator'
 						? 'Возражение ждёт ответа в очереди возражений кабинета оператора.'
 						: 'Проверьте, что возражением занимается оператор ФСП: при необходимости выдайте роль оператора.'

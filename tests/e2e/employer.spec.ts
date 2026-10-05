@@ -1,12 +1,12 @@
 // The employer cabinet in the browser against the local infrastructure (`make infra`) with the models switched off:
 // an employer registers, the operator's decision makes the company verified, a candidate visible in the catalog is
-// seeded in the database the way the categorization job stores it, and the employer goes from pasted vacancy text (the
+// seeded in the database with a category confirmed by a test, and the employer goes from pasted vacancy text (the
 // rules mode without the model) to the candidates for the vacancy, the catalog card and the invitation. An
 // unverified company cannot publish. The main screens have no accessibility violations.
 //
 // Employers register through the form: their password, address and session need the field keys of the application,
 // which only the running application holds. Everything else is written directly, since it is state the product
-// receives from other parts (the operator's decision, the categorization run, the published policies).
+// receives from other parts (the operator's decision, the evidence run, the grade decision, the published policies).
 import { randomBytes, randomUUID } from 'node:crypto';
 import AxeBuilder from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
@@ -17,8 +17,7 @@ import {
 	auditEvents,
 	candidates,
 	categorizationRulesets,
-	categorizationRuns,
-	categoryAssignments,
+	evidenceRuns,
 	companies,
 	consentEvents,
 	fspLevelAssignments,
@@ -28,6 +27,7 @@ import {
 	taxonomyVersions,
 	users
 } from '$lib/server/db/schema';
+import { decideIn } from '../helpers/categories';
 
 const PASSWORD = 'e2e passphrase long';
 
@@ -100,21 +100,21 @@ async function currentDocument(kind: 'pd_processing' | 'catalog_visibility'): Pr
 const sha256 = () => randomBytes(32).toString('hex');
 
 /**
- * An adult candidate in the catalog with the consents, an FSP result and the published categorization run as the
- * categorization job writes them: backend by confirmed Go, grade not established (FSP does not set a grade). Other
+ * An adult candidate in the catalog with the consents, an FSP result and the published evidence run as the evidence
+ * job writes them, and a backend middle category confirmed by a test. Other
  * candidates of the database may share its region: the test finds this one by its pseudonym for the company.
  * Returns its internal ids, which must never reach a company.
  */
 async function seedCandidate(region: string): Promise<{ candidateId: string; factId: string }> {
 	const [taxonomy] = await db()
-		.select({ id: taxonomyVersions.id, label: taxonomyVersions.label })
+		.select({ id: taxonomyVersions.id })
 		.from(taxonomyVersions)
 		.where(eq(taxonomyVersions.status, 'published'))
 		.orderBy(desc(taxonomyVersions.publishedAt))
 		.limit(1);
 	if (!taxonomy) throw new Error('no published taxonomy: run scripts/seed-taxonomy.ts');
 	const [ruleset] = await db()
-		.select({ id: categorizationRulesets.id, version: categorizationRulesets.version })
+		.select({ id: categorizationRulesets.id })
 		.from(categorizationRulesets)
 		.where(eq(categorizationRulesets.taxonomyVersionId, taxonomy.id))
 		.orderBy(desc(categorizationRulesets.version))
@@ -212,7 +212,7 @@ async function seedCandidate(region: string): Promise<{ candidateId: string; fac
 			.returning({ id: sourceFacts.id });
 		if (!fact) throw new Error('fact not inserted');
 		const [run] = await tx
-			.insert(categorizationRuns)
+			.insert(evidenceRuns)
 			.values({
 				candidateId: candidate.id,
 				inputRevision: 1,
@@ -222,9 +222,6 @@ async function seedCandidate(region: string): Promise<{ candidateId: string; fac
 				rulesetId: ruleset.id,
 				asOf: new Date(),
 				computedAt: new Date(),
-				origin: 'automatic',
-				outcome: 'partial',
-				missing: { role: [], grade: [{ code: 'no_dated_experience' }], stack: [] },
 				experienceSummary: {
 					total: { min_months: 0, max_months: 0 },
 					by_role: {},
@@ -234,7 +231,7 @@ async function seedCandidate(region: string): Promise<{ candidateId: string; fac
 				},
 				status: 'published'
 			})
-			.returning({ id: categorizationRuns.id });
+			.returning({ id: evidenceRuns.id });
 		if (!run) throw new Error('run not inserted');
 		const inference = (skillKey: string, band: 'weak' | 'moderate' | 'strong', attestation: 'direct' | 'derived') => ({
 			runId: run.id,
@@ -249,41 +246,7 @@ async function seedCandidate(region: string): Promise<{ candidateId: string; fac
 		await tx
 			.insert(skillInferences)
 			.values([inference('go', 'strong', 'direct'), inference('postgresql', 'moderate', 'derived')]);
-		await tx.insert(categoryAssignments).values({
-			runId: run.id,
-			rank: 'primary',
-			roleStatus: 'established',
-			roleKey: 'backend',
-			score: '0.78',
-			gradeStatus: 'insufficient_data',
-			stackStatus: 'established',
-			stackSkillKeys: ['go'],
-			explanation: {
-				ruleset_version: ruleset.version,
-				taxonomy_version: taxonomy.label,
-				role: {
-					role_key: 'backend',
-					score: 0.78,
-					skill_fit: 0.8,
-					role_evidence: 0.7,
-					core_groups: [],
-					unconfirmed_core_groups: [],
-					contributions: []
-				},
-				grade: {
-					status: 'insufficient_data',
-					scope: 'all_experience',
-					signals: [],
-					ignored: [{ code: 'fsp_does_not_set_grade', fact_ids: [fact.id] }],
-					disagreements: [],
-					missing: [{ code: 'no_dated_experience' }],
-					next_grade: null
-				},
-				stack: { status: 'established', skills: [], missing: [] },
-				desired_roles: [],
-				fsp_markers: []
-			}
-		});
+		await decideIn(tx, candidate.id, { specialization: 'backend', grade: 'middle' });
 		await tx.insert(fspLevelAssignments).values({
 			runId: run.id,
 			discipline: 'product',
@@ -387,19 +350,19 @@ test('a verified company turns pasted text into a vacancy, finds a candidate and
 	await expect(page.getByTestId('search-mode')).toHaveAttribute('data-search-mode', 'fts_only');
 	const row = page.locator(`[data-candidate="${pseudonym}"]`);
 	await expect(row).toHaveCount(1);
-	await expect(row).toContainText('Бэкенд');
-	await expect(row).toContainText('грейд не установлен');
+	await expect(row).toContainText('Backend · Средний');
+	await expect(row.getByTestId('category-not-confirmed')).toHaveCount(0);
 	await expect(row).toContainText('Уровень ФСП');
 	await row.getByText('Разложение соответствия').click();
 	await expect(row.getByText('Что подходит и чем подтверждено')).toBeVisible();
 	await expectNoAxeViolations(page);
 
-	// The catalog card: pseudonym only, category by axes, confirmed skills, the FSP result, the invitation.
+	// The catalog card: pseudonym only, the category confirmed by the test, confirmed skills, the FSP result, the invitation.
 	await row.getByRole('link', { name: 'Открыть карточку' }).click();
 	await expect(page.getByRole('heading', { level: 1 })).toContainText('Кандидат');
 	const card = page.getByTestId('candidate-card');
 	await expect(card).toBeVisible();
-	await expect(card.locator('[data-axis="grade"]')).toHaveAttribute('data-status', 'insufficient_data');
+	await expect(card.locator('[data-category="backend"]')).toContainText('Backend · Средний');
 	await expect(card.locator('[data-skill="go"]')).toContainText('ФСП');
 	await expect(card).toContainText('Кубок России по спортивному программированию, финал');
 	await expect(card).not.toContainText('Кандидат e2e');

@@ -1,6 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
+import { CATALOG } from '$lib/server/assessments/contract/catalog';
 import { formText } from '$lib/server/auth/http';
 import { minorTermsAcceptance } from '$lib/server/companies/profile';
 import { db, type Executor } from '$lib/server/db';
@@ -36,17 +37,15 @@ import type { Actions, PageServerLoad } from './$types';
 
 type Labels = ReturnType<typeof labelsOf>;
 
-function categoryLabel(key: CategoryKey, labels: Labels): string {
-	return [
-		labels.roles[key.role_key] ?? key.role_key,
-		...(key.grade_key === undefined ? [] : [labels.grades[key.grade_key] ?? key.grade_key]),
-		...(key.stack_skill_keys ?? []).map((skill) => labels.skills[skill] ?? skill)
-	].join(' · ');
+function categoryLabel(key: CategoryKey): string {
+	const specialization = CATALOG.specializations.find((s) => s.key === key.specialization)?.title ?? key.specialization;
+	const grade = key.grade === undefined ? null : (CATALOG.grades.find((g) => g.key === key.grade)?.title ?? key.grade);
+	return grade === null ? `${specialization} · все грейды` : `${specialization} · ${grade}`;
 }
 
 /** The position of the range for the page: the words of `positionText` and what each figure stands on. */
-function marketPositionView(position: VacancyMarketPosition, taxBase: SalaryTerms['taxBase'], labels: Labels) {
-	if (position.status === 'no_role') return { state: 'no_role' as const, items: [] };
+function marketPositionView(position: VacancyMarketPosition, taxBase: SalaryTerms['taxBase']) {
+	if (position.status === 'no_specialization') return { state: 'no_specialization' as const, items: [] };
 	return {
 		state: 'evaluated' as const,
 		items: position.positions.map((item) => ({
@@ -54,7 +53,7 @@ function marketPositionView(position: VacancyMarketPosition, taxBase: SalaryTerm
 			status: item.status,
 			comparison: item.status === 'compared' ? item.comparison : null,
 			text: positionText(item, taxBase),
-			category: item.status === 'insufficient_data' ? null : categoryLabel(item.categoryKey, labels),
+			category: item.status === 'insufficient_data' ? null : categoryLabel(item.categoryKey),
 			basis:
 				item.status === 'compared'
 					? {
@@ -181,7 +180,7 @@ export const actions: Actions = {
 					textCheck: draft.textCheck,
 					...prefilled
 				},
-				marketPosition: marketPositionView(draft.marketPosition, positionInput(draft.fields).salary.taxBase, labels),
+				marketPosition: marketPositionView(draft.marketPosition, positionInput(draft.fields).salary.taxBase),
 				pool,
 				text,
 				derivedFromVacancyId
@@ -213,7 +212,6 @@ export const actions: Actions = {
 					roleKey: input.roleKey === '' ? null : input.roleKey,
 					gradeMin: input.gradeMin === '' ? null : input.gradeMin,
 					gradeMax: input.gradeMax === '' ? null : input.gradeMax,
-					requiredSkillKeys: input.requiredSkillKeys,
 					salary: input.salary
 				},
 				new Date()
@@ -227,7 +225,7 @@ export const actions: Actions = {
 				values,
 				mlResultId,
 				derivedFromVacancyId,
-				marketPosition: marketPositionView(position, input.salary.taxBase, labels),
+				marketPosition: marketPositionView(position, input.salary.taxBase),
 				pool
 			};
 		} catch (cause) {

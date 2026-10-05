@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { candidateMatchView, type MatchResultData } from './match';
 
-const labels = { roles: {}, grades: {}, skills: {}, workFormats: {}, employmentForms: {} };
+const labels = { roles: {}, specializations: {}, grades: {}, skills: {}, workFormats: {}, employmentForms: {} };
 
 function withTrust(details: MatchResultData['components']['trust']['details']): MatchResultData {
 	const off = { value: null, weight: 0.1, status: 'unknown' as const, details: { reason: 'no_nice_skills' } };

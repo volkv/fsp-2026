@@ -71,7 +71,7 @@ export const telegramLinkTokens = pgTable(
 	(t) => [sha256Check('telegram_link_tokens', 'token_hash', t.tokenHash)]
 );
 
-export const NOTIFICATION_CATEGORIES = ['invitations', 'hiring', 'deadlines', 'disputes', 'account'] as const;
+export const NOTIFICATION_CATEGORIES = ['invitations', 'hiring', 'deadlines', 'objections', 'account'] as const;
 
 export const notificationPreferences = pgTable(
 	'notification_preferences',

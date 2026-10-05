@@ -3,7 +3,7 @@
 	import FileSearchIcon from '@lucide/svelte/icons/file-search';
 	import {
 		AchievementBadge,
-		CategoryAxes,
+		CategoryList,
 		SalaryRange,
 		TrustChip,
 		VerificationReceipt
@@ -23,21 +23,9 @@
 	} from '$lib/components/product/model.js';
 	import { assertion } from '$lib/components/candidate/model.js';
 	import * as Card from '$lib/components/ui/card/index.js';
-	import { categoryAxesView, disciplineName, labelOf, type Labels, type NamedKey } from './model.js';
+	import { categoryBadges, disciplineName, fspLevelChips, labelOf, type CardCategory, type Labels } from './model.js';
 
 	/** The catalog card of a candidate: what the company may see before contacts, with the grounds of every claim. */
-	interface Category {
-		rank: 'primary' | 'secondary';
-		role: { status: 'established'; key: string } | { status: 'insufficient_data' };
-		grade: { status: 'established'; min: string; max: string } | { status: 'insufficient_data' };
-		stack: { status: 'established'; skillKeys: string[] } | { status: 'insufficient_data' };
-		explanation: unknown;
-	}
-	interface Explanation {
-		role: { score: number; unconfirmedCoreGroups: string[][] } | { missing: string[] };
-		grade: { confidence: number | null; signals: string[]; ignored: string[]; missing: string[] };
-		stack: { missing: string[] };
-	}
 	interface Achievement {
 		/** Handles of this achievement's receipts among `receipts`. */
 		receiptHandles: string[];
@@ -73,7 +61,7 @@
 				taxBase: 'gross' | 'net' | 'unknown';
 			} | null;
 		};
-		categories?: Category[];
+		categories?: CardCategory[];
 		desiredRoleKeys?: string[];
 		fspLevels?: { discipline: string; level: string; lastResultOn: string | null }[];
 		skills?: {
@@ -104,20 +92,16 @@
 
 	interface Props {
 		card: Card;
-		categoryState: 'available' | 'recalculating' | 'none';
+		/** The evidence of the profile (skills, FSP levels) is in force, being recalculated, or not computed yet. */
+		evidenceState: 'available' | 'recalculating' | 'none';
 		receipts: Receipt[];
 		labels: Labels & { terms: { work_format: Record<string, string>; employment_form: Record<string, string> } };
-		grades: NamedKey[];
 	}
 
-	let { card, categoryState, receipts, labels, grades }: Props = $props();
+	let { card, evidenceState, receipts, labels }: Props = $props();
 
 	const BANDS = { weak: 'слабое основание', moderate: 'среднее основание', strong: 'сильное основание' } as const;
 	const SEARCH = { active: 'Ищет работу', open_to_offers: 'Открыт к предложениям', not_looking: 'Не ищет' } as const;
-	const IGNORED: Record<string, string> = {
-		fsp_does_not_set_grade: 'результаты и разряды ФСП не устанавливают грейд',
-		fsp_marker_not_a_grade_signal: 'роль в команде на соревновании не сигнал грейда'
-	};
 
 	const skillName = (key: string) => labels.skills[key] ?? key;
 	const months = (range: { minMonths: number; maxMonths: number }) => {
@@ -197,62 +181,24 @@
 		<Card.Header>
 			<Card.Title><h2 class="font-heading text-h3">Категория</h2></Card.Title>
 			<Card.Description>
-				Оси независимы: неизвестная ось не отменяет известные. Уровень ФСП — отдельный показатель, не грейд.
+				Специализация и грейд, подтверждённые тестом на грейд, с определяющими блоками грейда. Уровень ФСП и навыки из
+				резюме — доказательства профиля: они уточняют ранжирование, но категорию не назначают.
 			</Card.Description>
 		</Card.Header>
-		<Card.Content class="grid gap-6">
-			{#if categoryState === 'recalculating'}
+		<Card.Content class="grid gap-3">
+			<CategoryList
+				categories={categoryBadges(card.categories ?? [], labels)}
+				fspLevels={fspLevelChips(card.fspLevels ?? [])}
+			/>
+			{#if desiredRole}
+				<p class="text-sm text-muted-foreground">Желаемые роли: {desiredRole}</p>
+			{/if}
+			{#if evidenceState === 'recalculating'}
 				<p class="text-sm text-muted-foreground">
-					Профиль пересчитывается после изменения доказательств — категория появится после пересчёта.
-				</p>
-			{:else if (card.categories ?? []).length === 0}
-				<p class="text-sm">
-					<span class="font-medium">Категория не установлена: недостаточно данных.</span>
-					<span class="text-muted-foreground">Кандидат остаётся в каталоге и находится по навыкам и уровню ФСП.</span>
+					Доказательства профиля пересчитываются после изменения — навыки и уровень ФСП появятся после пересчёта.
+					Категория от этого не зависит.
 				</p>
 			{/if}
-			{#each card.categories ?? [] as category (category.rank)}
-				{@const explanation = category.explanation as Explanation}
-				<div class="grid gap-3">
-					{#if (card.categories ?? []).length > 1}
-						<p class="text-sm font-medium">
-							{category.rank === 'primary' ? 'Основная категория' : 'Дополнительная категория'}
-						</p>
-					{/if}
-					<CategoryAxes
-						category={categoryAxesView(
-							{ ...category, explanation },
-							grades,
-							labels,
-							category.rank === 'primary' ? (card.fspLevels ?? []) : [],
-							category.rank === 'primary' ? desiredRole : null
-						)}
-					/>
-					<details class="rounded-lg border text-sm">
-						<summary class="cursor-pointer px-3 py-2 font-medium">Почему такая категория</summary>
-						<div class="grid gap-2 border-t p-3 text-muted-foreground">
-							{#if 'score' in explanation.role}
-								<p>Роль установлена по подтверждённым навыкам ядра роли.</p>
-								{#if explanation.role.unconfirmedCoreGroups.length > 0}
-									<p>
-										Не подтверждены группы ядра: {explanation.role.unconfirmedCoreGroups
-											.map((group) => group.map(skillName).join(' / '))
-											.join('; ')}.
-									</p>
-								{/if}
-							{:else}
-								<p>Роль не установлена: недостаточно подтверждённых навыков роли.</p>
-							{/if}
-							{#if explanation.grade.signals.length > 0}
-								<p>Грейд — по коммерческому опыту и тестам уровня.</p>
-							{/if}
-							{#each explanation.grade.ignored as code (code)}
-								<p>Не учитывается для грейда: {IGNORED[code] ?? code}.</p>
-							{/each}
-						</div>
-					</details>
-				</div>
-			{/each}
 		</Card.Content>
 	</Card.Root>
 

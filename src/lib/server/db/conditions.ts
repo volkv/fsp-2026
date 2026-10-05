@@ -2,11 +2,12 @@
 // it speaks of — the Drizzle tables, or the columns of a raw query's alias (`runAt('r')`, `candidateAt('c')`) — so the
 // same text serves the query builder and raw SQL.
 //
-// The run in force (docs/domain.md, 12.1, 17.3): the published categorization run while its input is at or above the
+// The evidence run in force (docs/domain.md, 12.6, 17.3): the published evidence run while its input is at or above the
 // candidate's `evidence_floor_revision`. A withdrawal raises the floor in its own transaction, so from that moment the
 // run shows nothing even before it is blocked. `publishedRun` alone is the state of the run — which run a
 // recalculation supersedes, a withdrawal blocks, the reconciliation counts as processed; what a card, the catalog,
-// a match or an aggregate shows is `runInForce`.
+// a match or an aggregate shows of the evidence is `runInForce`. The category is not here: it is read only through
+// `$lib/server/categories/read` (domain 12.4).
 //
 // Listed in the catalog (domain 7.4): an active profile the candidate put in the catalog and that is not «not
 // looking». It is the part of `canShow` SQL can decide before the pure function decides the rest; `canShow` holds the
@@ -29,7 +30,7 @@ export interface CandidateColumns {
 
 const at = (alias: string, column: string): SQL => sql`${sql.identifier(alias)}.${sql.identifier(column)}`;
 
-/** The columns of `categorization_runs` under the alias of a raw query. */
+/** The columns of `evidence_runs` under the alias of a raw query. */
 export function runAt(alias: string): RunColumns {
 	return { status: at(alias, 'status'), inputRevision: at(alias, 'input_revision') };
 }
@@ -44,7 +45,7 @@ export function candidateAt(alias: string): CandidateColumns {
 	};
 }
 
-/** The run is the published one of its candidate: at most one is (`categorization_runs_published`). */
+/** The run is the published one of its candidate: at most one is (`evidence_runs_published`). */
 export function publishedRun(run: Pick<RunColumns, 'status'>): SQL<boolean> {
 	return sql<boolean>`(${run.status} = 'published')`;
 }

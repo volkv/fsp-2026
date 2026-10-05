@@ -176,6 +176,13 @@
       "when": 1790397631600,
       "tag": "0024_receipt_limits_by_result",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1791196011224,
+      "tag": "0025_candidate_categories",
+      "breakpoints": true
     }
   ]
 }

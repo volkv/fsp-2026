@@ -338,23 +338,20 @@ export interface AchievementView {
 	};
 }
 
-/** An axis that is either established by its own evidence or honestly unknown (domain §12.2). */
-export type Axis<T> = ({ status: 'established' } & T) | { status: 'insufficient_data'; hint?: string };
-
-export interface CategoryView {
-	role: Axis<{ label: string }>;
-	grade: Axis<{
-		/** Grade scale of the taxonomy, lowest first; the range is inclusive indices into it. */
-		scale: string[];
-		min: number;
-		max: number;
-		/** 0…1 */
-		confidence: number;
-	}>;
-	stack: Axis<{ skills: string[] }>;
-	/** Role the candidate wants, when it differs from the inferred one. */
-	desiredRole?: string;
-	fspLevels?: { discipline: DisciplineCode; level: FspLevel }[];
+/** A category in force as the interface shows it (domain §12.4): a specialization and a grade a test confirmed. */
+export interface CategoryBadgeView {
+	/** Key of the specialization. */
+	key: string;
+	/** Name of the specialization. */
+	specialization: string;
+	/** Name of the grade. */
+	grade: string;
+	/** The confirmed stack by name: skills of the grade's defining blocks and the practice language. */
+	skills: string[];
+	/** Defining blocks of the grade the test confirmed. */
+	blocks: number;
+	/** ISO date of the assignment. */
+	assignedOn: string;
 }
 
 /** Stored match result with its decomposition (domain §13.4). */

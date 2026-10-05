@@ -1,8 +1,7 @@
 /**
- * Wording of the candidate cabinet: the codes the services store (fact sources, explanation codes of the category,
- * statuses, reasons) and the words the candidate reads. The cabinet speaks to the candidate on «ты»; the sport
- * register is allowed here and nowhere else (CONCEPT). A hint of growth names concrete requirements of the rules and
- * never promises a grade.
+ * Wording of the candidate cabinet: the codes the services store (fact sources, statuses of objections, reasons) and
+ * the words the candidate reads. The cabinet speaks to the candidate on «ты»; the sport register is allowed here and
+ * nowhere else (CONCEPT).
  */
 import {
 	AWARDS,
@@ -10,7 +9,6 @@ import {
 	COMPETITION_LEVELS,
 	DISCIPLINES,
 	EVSK_RANKS,
-	pluralize,
 	type Award,
 	type CompetitionLevel,
 	type DisciplineCode,
@@ -20,6 +18,8 @@ import {
 /** Key → name maps of the taxonomy version the page shows (roles, grades, skills, work terms). */
 export interface Labels {
 	roles: Record<string, string>;
+	/** Specializations of the catalog of categories. */
+	specializations: Record<string, string>;
 	grades: Record<string, string>;
 	skills: Record<string, string>;
 	workFormats: Record<string, string>;
@@ -34,15 +34,14 @@ export const gradeName = (labels: Labels, key: string) => nameOr(labels.grades, 
 
 // --- Facts and their sources --------------------------------------------------------------------------------------
 
-export type FactSource = 'fsp' | 'platform_test' | 'codeforces' | 'github' | 'resume' | 'self_declared';
+export type FactSource = 'fsp' | 'platform_test' | 'codeforces' | 'github' | 'resume';
 
 export const FACT_SOURCES: Record<FactSource, string> = {
 	fsp: 'Федерация спортивного программирования',
 	platform_test: 'Тест платформы',
 	codeforces: 'Codeforces',
 	github: 'GitHub',
-	resume: 'Резюме',
-	self_declared: 'Указано тобой'
+	resume: 'Резюме'
 };
 
 /** `source_facts.ownership_basis`: how the fact is tied to you. */
@@ -195,118 +194,8 @@ export function assertion(key: string, value: string | number): { label: string;
 
 // --- Category ----------------------------------------------------------------------------------------------------
 
-/** A stored code of a missing ground with its parameters (`categorization_runs.missing`, explanations). */
-export interface MissingItem {
-	code: string;
-	[parameter: string]: unknown;
-}
-
-const percent = new Intl.NumberFormat('ru-RU', { style: 'percent', maximumFractionDigits: 0 });
-
 const strings = (value: unknown): string[] =>
 	Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
-const groups = (value: unknown): string[][] => (Array.isArray(value) ? value.map(strings) : []);
-const num = (value: unknown): number | null => (typeof value === 'number' ? value : null);
-const str = (value: unknown): string | null => (typeof value === 'string' ? value : null);
-
-/** «Go или Python» for a group of alternative skills. */
-export function skillGroup(labels: Labels, group: readonly string[]): string {
-	return group.map((key) => skillName(labels, key)).join(' или ');
-}
-
-/** The concrete missing grounds of an axis in words (codes of `categorize`). */
-export function missingText(item: MissingItem, labels: Labels): string {
-	const role = str(item.role_key);
-	switch (item.code) {
-		case 'no_role_evidence':
-			return 'Нет оснований ни для одной роли: нужны результаты ФСП, опыт работы из резюме или тест платформы.';
-		case 'role_below_threshold': {
-			const score = num(item.score);
-			const min = num(item.min_score);
-			const core = groups(item.unconfirmed_core_groups);
-			return `Роль «${role ? roleName(labels, role) : '—'}»: оснований ${score === null ? '—' : percent.format(score)} из нужных ${min === null ? '—' : percent.format(min)}${core.length > 0 ? `; не подтверждено: ${core.map((g) => skillGroup(labels, g)).join('; ')}` : ''}.`;
-		}
-		case 'desired_role_not_inferred': {
-			const core = groups(item.unconfirmed_core_groups);
-			if (item.known_role === false) return `Желаемой роли «${role ?? '—'}» нет в справочнике этой версии.`;
-			return `Желаемая роль «${role ? roleName(labels, role) : '—'}» пока не выведена${core.length > 0 ? `: не подтверждено ${core.map((g) => skillGroup(labels, g)).join('; ')}` : ''}.`;
-		}
-		case 'no_skill_in_band': {
-			const below = Array.isArray(item.below_band) ? item.below_band : [];
-			const near = below
-				.map((entry: unknown) =>
-					typeof entry === 'object' && entry !== null ? str((entry as MissingItem).skill_key) : null
-				)
-				.filter((key): key is string => key !== null)
-				.map((key) => skillName(labels, key));
-			return `Ни один навык не набрал умеренных оснований для ядра стека${near.length > 0 ? `; ближе всего: ${near.join(', ')}` : ''}.`;
-		}
-		case 'no_dated_experience':
-			return 'Нет опыта работы с датами: грейд считается только по производственному опыту, результаты соревнований его не задают.';
-		case 'no_role_experience':
-			return `Нет датированного опыта в роли «${role ? roleName(labels, role) : '—'}».`;
-		case 'experience_period_missing':
-			return 'У одного из мест работы не указан период.';
-		case 'experience_period_invalid':
-			return 'Период одного из мест работы указан с ошибкой.';
-		default:
-			return `Не хватает оснований (код правила «${item.code}»).`;
-	}
-}
-
-export interface NextGradeRequirement {
-	code: string;
-	[parameter: string]: unknown;
-}
-
-const MARKERS: Record<string, string> = {
-	mentoring: 'наставничество',
-	team_lead: 'руководство командой',
-	architecture: 'архитектурные решения'
-};
-
-/** «Апсолв до следующего грейда»: one requirement of the rules in words — a requirement, not a promise. */
-export function requirementText(item: NextGradeRequirement, labels: Labels): string {
-	switch (item.code) {
-		case 'role_experience': {
-			const role = str(item.role_key);
-			const need = num(item.months_required) ?? 0;
-			const now = num(item.months_now) ?? 0;
-			return `Опыт${role ? ` в роли «${roleName(labels, role)}»` : ''} от ${need} ${pluralize(need, ['месяца', 'месяцев', 'месяцев'])} — сейчас ${now}.`;
-		}
-		case 'responsibility_marker':
-			return `Подтверждённая ответственность: ${strings(item.markers)
-				.map((marker) => MARKERS[marker] ?? marker)
-				.join(', ')}.`;
-		case 'level_test': {
-			const grade = str(item.grade);
-			return `Тест платформы уровня «${grade ? gradeName(labels, grade) : '—'}».`;
-		}
-		case 'role_skills': {
-			const core = groups(item.core_groups).map((group) => skillGroup(labels, group));
-			const typical = strings(item.typical_skills).map((key) => skillName(labels, key));
-			const parts = [
-				...(core.length > 0 ? [`ключевые навыки роли: ${core.join('; ')}`] : []),
-				...(typical.length > 0 ? [`типичные навыки: ${typical.join(', ')}`] : [])
-			];
-			return `Подтвердить ${parts.join('; ')}.`;
-		}
-		default:
-			return `Требование правила «${item.code}».`;
-	}
-}
-
-export const GRADE_SIGNALS: Record<string, string> = {
-	role_experience: 'опыт в роли',
-	responsibility_marker: 'подтверждённая ответственность',
-	level_test: 'тест уровня на платформе'
-};
-
-export const IGNORED_EVIDENCE: Record<string, string> = {
-	fsp_does_not_set_grade: 'Результаты ФСП грейд не задают: они показаны отдельно — уровнем ФСП.',
-	fsp_marker_not_a_grade_signal:
-		'Роль в команде на соревновании (например, капитан) видна работодателю, но грейд не двигает.'
-};
 
 export const FSP_LEVELS: Record<string, string> = {
 	L5: 'МС или основной состав сборной',
@@ -316,16 +205,16 @@ export const FSP_LEVELS: Record<string, string> = {
 	L1: 'официальный результат в дисциплине'
 };
 
-export type DisputeStatus = 'open' | 'in_review' | 'resolved_upheld' | 'resolved_changed' | 'withdrawn';
+export type ObjectionStatus = 'open' | 'in_review' | 'resolved' | 'withdrawn';
 
-export const DISPUTE_STATUSES: Record<
-	DisputeStatus,
+/** Statuses of an objection to a test result (domain 12.5), as the candidate reads them. */
+export const OBJECTION_STATUSES: Record<
+	ObjectionStatus,
 	{ label: string; tone: 'info' | 'success' | 'neutral' | 'warning' }
 > = {
 	open: { label: 'Подано, ждёт оператора', tone: 'info' },
 	in_review: { label: 'На рассмотрении у оператора ФСП', tone: 'info' },
-	resolved_upheld: { label: 'Категория оставлена', tone: 'neutral' },
-	resolved_changed: { label: 'Категория изменена оператором', tone: 'success' },
+	resolved: { label: 'Рассмотрено', tone: 'success' },
 	withdrawn: { label: 'Отозвано тобой', tone: 'neutral' }
 };
 
@@ -439,7 +328,7 @@ export const NOTIFICATION_CATEGORIES: Record<string, { label: string; hint: stri
 	invitations: { label: 'Приглашения', hint: 'новые приглашения, изменения условий, ответы' },
 	deadlines: { label: 'Сроки', hint: 'напоминания о сроке ответа' },
 	hiring: { label: 'Процесс найма', hint: 'просьбы сообщить исход, расхождения' },
-	disputes: { label: 'Возражения', hint: 'ответ оператора по категории' },
+	objections: { label: 'Возражения', hint: 'сроки ответа на возражения по результатам тестов — сотрудникам ФСП' },
 	account: { label: 'Учётная запись', hint: 'безопасность и вход — всегда на почту' }
 };
 

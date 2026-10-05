@@ -1,5 +1,5 @@
 // A new release of the rule sets or of the taxonomy (docs/domain.md, sections 11, 13.4, 17.3): the derivations computed
-// on the previous ones — the category, the match rows, the pool counter of a vacancy — are found by
+// on the previous ones — the evidence run, the match rows, the pool counter of a vacancy — are found by
 // `derivations.reconcile`, which the publication enqueues at once, and recalculated, once, and the pool converges. Until then a read does not mix versions: the
 // search document of a candidate names roles from one taxonomy version.
 import { fileURLToPath } from 'node:url';
@@ -8,8 +8,7 @@ import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
 	categorizationRulesets,
-	categorizationRuns,
-	categoryAssignments,
+	evidenceRuns,
 	consentEvents,
 	experienceEntries,
 	jobs,
@@ -76,7 +75,7 @@ function changedRelease(change: (copy: TaxonomyDatasets) => void): TaxonomyRelea
 	return buildRelease(copy);
 }
 
-/** An adult candidate in the catalog with a published category: a directly confirmed strong `algorithms`. */
+/** An adult candidate in the catalog with a published evidence run: a directly confirmed strong `algorithms`. */
 async function catalogCandidate() {
 	const { db } = database;
 	const row = await createCandidate(db, {
@@ -120,7 +119,7 @@ async function catalogCandidate() {
 		.limit(1);
 	if (!ruleset) throw new Error('no categorization rule set');
 	const [run] = await db
-		.insert(categorizationRuns)
+		.insert(evidenceRuns)
 		.values({
 			candidateId: row.id,
 			inputRevision: 1,
@@ -130,9 +129,6 @@ async function catalogCandidate() {
 			rulesetId: ruleset.id,
 			asOf: new Date(),
 			computedAt: new Date(),
-			origin: 'automatic',
-			outcome: 'partial',
-			missing: {},
 			experienceSummary: {},
 			status: 'published'
 		})
@@ -147,17 +143,6 @@ async function catalogCandidate() {
 		attestation: 'direct',
 		badgeTrust: 'fsp_verified',
 		contributions: [{ fact_id: fact.id, attestation: 'direct' }]
-	});
-	await db.insert(categoryAssignments).values({
-		runId: run.id,
-		rank: 'primary',
-		roleStatus: 'established',
-		roleKey: 'algo_engineer',
-		score: '0.8',
-		gradeStatus: 'insufficient_data',
-		stackStatus: 'established',
-		stackSkillKeys: ['algorithms'],
-		explanation: {}
 	});
 	return row;
 }
@@ -270,8 +255,8 @@ describe('a new match rule set', () => {
 		const vacancy = await algorithmsVacancy();
 		const vacancyKey = `match:vacancy:${vacancy.id}`;
 		const candidateKey = `match:candidate:${person.id}`;
-		const categorizationKey = `categorization:${person.id}`;
-		const keys = [vacancyKey, candidateKey, categorizationKey];
+		const evidenceKey = `evidence:${person.id}`;
+		const keys = [vacancyKey, candidateKey, evidenceKey];
 		const shipped = datasets.matchRuleset.version;
 
 		await db.transaction(async (tx) => {
@@ -314,7 +299,7 @@ describe('a new match rule set', () => {
 		expect(await waitingReconciles()).toHaveLength(1);
 		await runReconcile();
 		const enqueued = await jobsOf(keys);
-		// The category stands on the categorization rule set in force; the matches and the pool do not.
+		// The evidence run stands on the categorization rule set in force; the matches and the pool do not.
 		expect(enqueued.queued).toEqual([`${candidateKey}@1`, `${vacancyKey}@${vacancy.revision}`].sort());
 
 		// The next hour adds nothing while they wait.
@@ -346,15 +331,15 @@ describe('a new match rule set', () => {
 });
 
 describe('a new taxonomy release', () => {
-	it('recategorizes and, until then, names roles from one taxonomy version per search document', async () => {
+	it('recomputes the evidence and, until then, names roles from one taxonomy version per search document', async () => {
 		const { db } = database;
-		const categorized = await catalogCandidate();
-		// Without a category: a desired role and an experience role, named by the version in force.
-		const uncategorized = await createCandidate(db, { profileRevision: 1, desiredRoleKeys: ['algo_engineer'] });
+		const withRun = await catalogCandidate();
+		// Without a run: a desired role and an experience role, named by the version in force.
+		const withoutRun = await createCandidate(db, { profileRevision: 1, desiredRoleKeys: ['algo_engineer'] });
 		const [fact] = await db
 			.insert(sourceFacts)
 			.values({
-				candidateId: uncategorized.id,
+				candidateId: withoutRun.id,
 				source: 'resume',
 				factType: 'resume_document',
 				sourceRecordRef: `resume:${randomSha256().slice(0, 12)}`,
@@ -369,7 +354,7 @@ describe('a new taxonomy release', () => {
 			.returning();
 		if (!fact) throw new Error('fact not inserted');
 		await db.insert(experienceEntries).values({
-			candidateId: uncategorized.id,
+			candidateId: withoutRun.id,
 			factId: fact.id,
 			roleKey: 'backend',
 			isCurrent: false,
@@ -397,20 +382,20 @@ describe('a new taxonomy release', () => {
 			matchRuleset: { outcome: 'created' }
 		});
 
-		const documents = await candidateDocuments(db, [categorized.id, uncategorized.id], null);
+		const documents = await candidateDocuments(db, [withRun.id, withoutRun.id], null);
 		const occurrences = (text: string, part: string) => text.split(part).length - 1;
-		const categorizedBody = documents.get(categorized.id)?.body ?? '';
-		const uncategorizedBody = documents.get(uncategorized.id)?.body ?? '';
-		// The category was computed on the first release: its document keeps the names of that release, once each.
-		expect(occurrences(categorizedBody, 'новое название')).toBe(0);
-		expect(occurrences(categorizedBody, before.algo_engineer ?? '-')).toBeGreaterThan(0);
-		// Without a category the version in force names both the desired and the experience role, the old name never.
-		expect(occurrences(uncategorizedBody, 'новое название')).toBe(2);
-		expect(occurrences(uncategorizedBody, before.algo_engineer ?? '-')).toBe(1);
-		expect(occurrences(uncategorizedBody, before.backend ?? '-')).toBe(1);
+		const withRunBody = documents.get(withRun.id)?.body ?? '';
+		const unwithRunBody = documents.get(withoutRun.id)?.body ?? '';
+		// The run was computed on the first release: its document keeps the names of that release, once each.
+		expect(occurrences(withRunBody, 'новое название')).toBe(0);
+		expect(occurrences(withRunBody, before.algo_engineer ?? '-')).toBeGreaterThan(0);
+		// Without a run the version in force names both the desired and the experience role, the old name never.
+		expect(occurrences(unwithRunBody, 'новое название')).toBe(2);
+		expect(occurrences(unwithRunBody, before.algo_engineer ?? '-')).toBe(1);
+		expect(occurrences(unwithRunBody, before.backend ?? '-')).toBe(1);
 
 		expect(await waitingReconciles()).toEqual([{ kind: 'system', id: 'taxonomy.publish' }]);
 		await runReconcile();
-		expect((await jobsOf([`categorization:${categorized.id}`])).queued).toEqual([`categorization:${categorized.id}@1`]);
+		expect((await jobsOf([`evidence:${withRun.id}`])).queued).toEqual([`evidence:${withRun.id}@1`]);
 	});
 });

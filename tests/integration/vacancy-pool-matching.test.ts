@@ -7,12 +7,12 @@ import { eq } from 'drizzle-orm';
 import postgres from 'postgres';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { readAssessmentBank } from '$lib/server/assessments/bank';
+import type { SpecializationKey } from '$lib/server/assessments/contract/catalog';
 import { publishAssessmentBank } from '$lib/server/assessments/publish';
 import {
 	candidates,
 	categorizationRulesets,
-	categorizationRuns,
-	categoryAssignments,
+	evidenceRuns,
 	consentEvents,
 	grades,
 	jobs,
@@ -38,6 +38,7 @@ import type { NormalizedPosting } from '$lib/server/vacancies/normalize';
 import { loadPoolCount, loadPoolCounter } from '$lib/server/vacancies/pool';
 import { HABR_SOURCE_KEY, registerVacancySources } from '$lib/server/vacancies/sources/definitions';
 import shippedMatchRuleset from '../../taxonomy/match-ruleset.json';
+import { decide } from '../helpers/categories';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
 import {
 	createCandidate,
@@ -158,10 +159,11 @@ async function consent(
 
 type Skill = { key: string; band: 'weak' | 'moderate' | 'strong'; attestation: 'direct' | 'claimed' };
 
-/** An adult of the catalog with a published run: the skills, a middle grade and the role of the primary category. */
-async function candidate(skillsOf: Skill[], roleKey = 'backend') {
+/** An adult of the catalog with a published run of the skills and the category of the specialization, grade middle. */
+async function candidate(skillsOf: Skill[], specialization: SpecializationKey = 'backend') {
 	const { db } = database;
-	const row = await createCandidate(db, { birthDate: '1996-01-15', visibility: 'catalog', profileRevision: 1 });
+	// The grade decision moves the profile to revision 1, the one of the run.
+	const row = await createCandidate(db, { birthDate: '1996-01-15', visibility: 'catalog', profileRevision: 0 });
 	await consent(row.id, row.userId, 'pd_processing');
 	await consent(row.id, row.userId, 'catalog_visibility');
 	const [fact] = await db
@@ -182,7 +184,7 @@ async function candidate(skillsOf: Skill[], roleKey = 'backend') {
 		.returning();
 	if (!fact) throw new Error('fact not inserted');
 	const [run] = await db
-		.insert(categorizationRuns)
+		.insert(evidenceRuns)
 		.values({
 			candidateId: row.id,
 			inputRevision: 1,
@@ -192,9 +194,6 @@ async function candidate(skillsOf: Skill[], roleKey = 'backend') {
 			rulesetId: categorizationRulesetId,
 			asOf: new Date(),
 			computedAt: new Date(),
-			origin: 'automatic',
-			outcome: 'complete',
-			missing: {},
 			experienceSummary: {},
 			status: 'published'
 		})
@@ -212,20 +211,7 @@ async function candidate(skillsOf: Skill[], roleKey = 'backend') {
 			contributions: [{ fact_id: fact.id, attestation: skill.attestation }]
 		}))
 	);
-	await db.insert(categoryAssignments).values({
-		runId: run.id,
-		rank: 'primary',
-		roleStatus: 'established',
-		roleKey,
-		score: '0.8',
-		gradeStatus: 'established',
-		gradeMin: 'middle',
-		gradeMax: 'middle',
-		gradeConfidence: '0.70',
-		stackStatus: 'established',
-		stackSkillKeys: skillsOf.slice(0, 1).map((skill) => skill.key),
-		explanation: {}
-	});
+	await decide(db, row.id, { specialization, grade: 'middle' });
 	return row;
 }
 
@@ -299,8 +285,8 @@ describe('pool of a vacancy and the matching candidates without confirmation', (
 		] satisfies Skill[];
 		await candidate(claimed);
 		const leaving = await candidate(claimed);
-		// Another role and none of the required skills: below the pool threshold, counted nowhere.
-		await candidate([{ key: 'python', band: 'weak', attestation: 'claimed' }], 'data_scientist');
+		// Another specialization and none of the required skills: below the pool threshold, counted nowhere.
+		await candidate([{ key: 'python', band: 'weak', attestation: 'claimed' }], 'data_ml');
 
 		await refresh(vacancy.id);
 		expect(await loadPoolCounter(database.db, vacancy.id, new Date())).toEqual({

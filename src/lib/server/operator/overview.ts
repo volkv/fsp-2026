@@ -10,7 +10,7 @@ import { requirePermission } from '$lib/server/companies/context';
 import { REVIEW_DUE_HOURS } from '$lib/server/companies/verification';
 import type { Executor } from '$lib/server/db';
 import {
-	categoryDisputes,
+	assessmentObjections,
 	companies,
 	companyVerifications,
 	representations,
@@ -19,11 +19,11 @@ import {
 import { ageConflictCount } from './ages';
 import { pendingVacancyModeration } from './vacancies';
 
-const DISPUTE_WARN_DAYS = 5;
+const OBJECTION_WARN_DAYS = 5;
 
 export interface OperatorOverview {
 	companies: { open: number; overdue: number };
-	disputes: { open: number; unassigned: number; overdue: number; dueSoon: number };
+	objections: { open: number; unassigned: number; overdue: number; dueSoon: number };
 	representatives: { awaiting: number };
 	claims: { pending: number };
 	vacancies: { pending: number };
@@ -42,7 +42,7 @@ export async function operatorOverview(
 	now: Date
 ): Promise<OperatorOverview> {
 	requirePermission(subject, 'company.review', { companyStatus: 'submitted' });
-	requirePermission(subject, 'dispute.manage', null);
+	requirePermission(subject, 'objection.manage', null);
 	requirePermission(subject, 'representation.review', null);
 	requirePermission(subject, 'vacancy_claim.review', { status: 'pending_review' });
 	requirePermission(subject, 'vacancy.moderate', null);
@@ -60,16 +60,21 @@ export async function operatorOverview(
 		.where(
 			and(isNull(companyVerifications.decision), eq(companies.status, 'submitted'), reach.rows(companies.demoSessionId))
 		);
-	const warnAt = new Date(now.getTime() + DISPUTE_WARN_DAYS * 86_400_000);
-	const [disputes] = await executor
+	const warnAt = new Date(now.getTime() + OBJECTION_WARN_DAYS * 86_400_000);
+	const [objections] = await executor
 		.select({
 			open: count(),
-			unassigned: sql<number>`count(*) filter (where ${categoryDisputes.assigneeId} is null)::int`,
-			overdue: sql<number>`count(*) filter (where ${categoryDisputes.dueAt} <= ${now.toISOString()}::timestamptz)::int`,
-			dueSoon: sql<number>`count(*) filter (where ${categoryDisputes.dueAt} > ${now.toISOString()}::timestamptz and ${categoryDisputes.dueAt} <= ${warnAt.toISOString()}::timestamptz)::int`
+			unassigned: sql<number>`count(*) filter (where ${assessmentObjections.assigneeId} is null)::int`,
+			overdue: sql<number>`count(*) filter (where ${assessmentObjections.dueAt} <= ${now.toISOString()}::timestamptz)::int`,
+			dueSoon: sql<number>`count(*) filter (where ${assessmentObjections.dueAt} > ${now.toISOString()}::timestamptz and ${assessmentObjections.dueAt} <= ${warnAt.toISOString()}::timestamptz)::int`
 		})
-		.from(categoryDisputes)
-		.where(and(inArray(categoryDisputes.status, ['open', 'in_review']), reach.candidate(categoryDisputes.candidateId)));
+		.from(assessmentObjections)
+		.where(
+			and(
+				inArray(assessmentObjections.status, ['open', 'in_review']),
+				reach.candidate(assessmentObjections.candidateId)
+			)
+		);
 	const [awaiting] = await executor
 		.select({ n: count() })
 		.from(representations)
@@ -85,11 +90,11 @@ export async function operatorOverview(
 		.where(and(eq(vacancyClaims.status, 'pending_review'), reach.company(vacancyClaims.companyId)));
 	return {
 		companies: { open: verification?.open ?? 0, overdue: verification?.overdue ?? 0 },
-		disputes: {
-			open: disputes?.open ?? 0,
-			unassigned: disputes?.unassigned ?? 0,
-			overdue: disputes?.overdue ?? 0,
-			dueSoon: disputes?.dueSoon ?? 0
+		objections: {
+			open: objections?.open ?? 0,
+			unassigned: objections?.unassigned ?? 0,
+			overdue: objections?.overdue ?? 0,
+			dueSoon: objections?.dueSoon ?? 0
 		},
 		representatives: { awaiting: awaiting?.n ?? 0 },
 		claims: { pending: claims?.n ?? 0 },

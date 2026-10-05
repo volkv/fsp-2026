@@ -1,6 +1,6 @@
 // Responsibility markers of a resume (docs/domain.md, section 9.2): mentoring, leading a team, designing architecture.
 // A marker is a signal of the grade axis only through the rule set; here it is recognised in the quoted phrase.
-import type { Marker } from '$lib/server/categorization/params';
+import type { Marker } from '$lib/server/evidence/params';
 
 const MARKER_PATTERNS: readonly [Marker, RegExp][] = [
 	[

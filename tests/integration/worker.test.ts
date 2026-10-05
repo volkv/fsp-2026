@@ -118,16 +118,16 @@ describe('worker', () => {
 		const { db } = database;
 		// Lower priority first in the queue; the worker takes the higher one first.
 		const low = await enqueue(db, 'profile.embed', { candidate_id: randomUUID() });
-		const high = await enqueue(db, 'categorization.compute', { candidate_id: randomUUID() });
+		const high = await enqueue(db, 'evidence.compute', { candidate_id: randomUUID() });
 		const worker = launch({
-			handlers: handlerRegistry([handler('profile.embed'), handler('categorization.compute')]),
-			types: ['profile.embed', 'categorization.compute']
+			handlers: handlerRegistry([handler('profile.embed'), handler('evidence.compute')]),
+			types: ['profile.embed', 'evidence.compute']
 		});
 		await waitFor(
 			'both jobs',
 			async () => (await jobRow(low)).status === 'succeeded' && (await jobRow(high)).status === 'succeeded'
 		);
-		expect(order[0]).toBe('categorization.compute');
+		expect(order[0]).toBe('evidence.compute');
 		expect(written.sort()).toEqual([low, high].sort());
 		expect(await jobRow(high)).toMatchObject({ attempts: 1, leaseOwner: null });
 		expect(worker.metrics().types['profile.embed']).toMatchObject({ claimed: 1, succeeded: 1, inFlight: 0 });
@@ -136,16 +136,16 @@ describe('worker', () => {
 
 	it('retries a failing job with growing backoff and fails it after the last attempt', async () => {
 		const { db } = database;
-		const id = await enqueue(db, 'categorization.compute', { candidate_id: randomUUID() });
+		const id = await enqueue(db, 'evidence.compute', { candidate_id: randomUUID() });
 		const worker = launch({
 			handlers: handlerRegistry([
 				{
-					type: 'categorization.compute',
+					type: 'evidence.compute',
 					concurrency: 1,
 					run: () => Promise.reject(new JobFailure('model_unavailable', 'model timed out', { retryable: true }))
 				}
 			]),
-			types: ['categorization.compute']
+			types: ['evidence.compute']
 		});
 		// Attempt 1 → back in the queue for 5 s, attempt 2 → 10 s: the worker does not touch it before that.
 		for (const [attempt, backoff] of [
@@ -170,7 +170,7 @@ describe('worker', () => {
 		}
 		await waitFor('failed', async () => (await jobRow(id)).status === 'failed');
 		expect(await jobRow(id)).toMatchObject({ attempts: 3, leaseOwner: null });
-		expect(worker.metrics().types['categorization.compute']).toMatchObject({ claimed: 3, retried: 2, failed: 1 });
+		expect(worker.metrics().types['evidence.compute']).toMatchObject({ claimed: 3, retried: 2, failed: 1 });
 	});
 
 	it('fails at once on a permanent failure and keeps only the class of an unexpected error', async () => {

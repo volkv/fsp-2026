@@ -21,7 +21,7 @@
 	const allTabs: Tab[] = [
 		{ href: resolve('/operator'), label: 'Обзор', exact: true },
 		{ href: resolve('/operator/companies'), label: 'Компании', exact: false },
-		{ href: resolve('/operator/disputes'), label: 'Возражения', exact: false },
+		{ href: resolve('/operator/objections'), label: 'Возражения', exact: false },
 		{ href: resolve('/operator/representatives'), label: 'Представители', exact: false },
 		{ href: resolve('/operator/ages'), label: 'Конфликты возраста', exact: false },
 		{ href: resolve('/operator/vacancies'), label: 'Модерация вакансий', exact: false },

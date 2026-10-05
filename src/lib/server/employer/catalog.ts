@@ -1,20 +1,17 @@
-// The employer catalog page (docs/domain.md, sections 12.2, 12.4, 13.4, 14): the query from the address of the page,
-// the search of the matching service, and a short summary of each found candidate for the list — the primary category,
-// FSP levels and directly confirmed skills of the valid published run. The candidate id never leaves the server.
+// The employer catalog page (docs/domain.md, sections 12.4, 12.7, 13.4, 14): the query from the address of the page,
+// the search of the matching service, and a short summary of each found candidate for the list — the categories in
+// force, FSP levels and directly confirmed skills of the valid evidence run. The candidate id never leaves the server.
 import { and, eq, inArray } from 'drizzle-orm';
 import type { AccessSubject } from '$lib/server/access/permissions';
+import type { GradeKey, SpecializationKey } from '$lib/server/assessments/contract/catalog';
 import { recordAuditEvent } from '$lib/server/audit/record';
 import type { RequestMeta } from '$lib/server/auth/context';
+import { isGradeKey, isSpecializationKey } from '$lib/server/categories/labels';
+import { activeCategories } from '$lib/server/categories/read';
 import { auditActorOf } from '$lib/server/companies/context';
 import type { Executor } from '$lib/server/db';
 import { publishedRun, runInForce } from '$lib/server/db/conditions';
-import {
-	candidates,
-	categorizationRuns,
-	categoryAssignments,
-	fspLevelAssignments,
-	skillInferences
-} from '$lib/server/db/schema';
+import { candidates, evidenceRuns, fspLevelAssignments, skillInferences } from '$lib/server/db/schema';
 import type { MatchingDeps } from '$lib/server/matching/deps';
 import { ApiError } from '$lib/server/errors/api-error';
 import {
@@ -35,9 +32,9 @@ type FspLevel = (typeof FSP_LEVELS)[number];
 /** The filters as the page form holds them, so the form shows what was searched. */
 export interface CatalogQueryValues {
 	text: string;
-	roles: string[];
+	specializations: string[];
 	grades: string[];
-	includeGradeUnknown: boolean;
+	/** Skills confirmed by a test, as typed. */
 	stack: string;
 	fspDiscipline: string;
 	fspLevel: string;
@@ -54,7 +51,9 @@ interface CatalogQuery {
 	cursor: string | undefined;
 	/** Stack skills the taxonomy does not know: the filter is not applied and the page says so. */
 	unknownStack: string[];
-	/** Region codes the reference does not know: the query is refused, not searched with nothing to find. */
+	/** Specializations and grades the catalog of categories does not know: the query is refused, not searched empty. */
+	unknownCategories: string[];
+	/** Region codes the reference does not know: the query is refused the same way. */
 	unknownRegions: string[];
 }
 
@@ -64,9 +63,8 @@ const list = (url: URL, name: string) => url.searchParams.getAll(name).filter((v
 function catalogQueryOf(url: URL, taxonomy: VacancyTaxonomy, regions: RegionReference): CatalogQuery {
 	const values: CatalogQueryValues = {
 		text: url.searchParams.get('q') ?? '',
-		roles: list(url, 'role'),
-		grades: list(url, 'grade'),
-		includeGradeUnknown: url.searchParams.get('gradeUnknown') === 'on',
+		specializations: [...new Set(list(url, 'specialization'))],
+		grades: [...new Set(list(url, 'grade'))],
 		stack: url.searchParams.get('stack') ?? '',
 		fspDiscipline: url.searchParams.get('fspDiscipline') ?? '',
 		fspLevel: url.searchParams.get('fspLevel') ?? '',
@@ -76,22 +74,20 @@ function catalogQueryOf(url: URL, taxonomy: VacancyTaxonomy, regions: RegionRefe
 	};
 	const filters: CandidateSearchFilters = {};
 	const unknownStack: string[] = [];
+	const specializations = values.specializations.filter(isSpecializationKey);
+	const grades = values.grades.filter(isGradeKey);
 	if (values.uncategorized) filters.uncategorized = true;
-	else {
-		if (values.roles.length > 0) filters.roleKeys = values.roles;
-		if (values.grades.length > 0) {
-			filters.grade = { keys: values.grades, includeNotEstablished: values.includeGradeUnknown };
-		}
-		const stack: string[] = [];
-		for (const raw of values.stack.split(',')) {
-			const item = raw.trim();
-			if (item === '') continue;
-			const key = resolveSkill(taxonomy, item);
-			if (key === null) unknownStack.push(item);
-			else if (!stack.includes(key)) stack.push(key);
-		}
-		if (stack.length > 0) filters.stackSkillKeys = stack;
+	if (specializations.length > 0) filters.specializations = specializations;
+	if (grades.length > 0) filters.grades = grades;
+	const stack: string[] = [];
+	for (const raw of values.stack.split(',')) {
+		const item = raw.trim();
+		if (item === '') continue;
+		const key = resolveSkill(taxonomy, item);
+		if (key === null) unknownStack.push(item);
+		else if (!stack.includes(key)) stack.push(key);
 	}
+	if (stack.length > 0) filters.confirmedSkillKeys = stack;
 	if (values.fspDiscipline !== '' && (FSP_LEVELS as readonly string[]).includes(values.fspLevel)) {
 		filters.fspLevel = { discipline: values.fspDiscipline, minLevel: values.fspLevel as FspLevel };
 	}
@@ -103,46 +99,46 @@ function catalogQueryOf(url: URL, taxonomy: VacancyTaxonomy, regions: RegionRefe
 		filters,
 		cursor: url.searchParams.get('cursor') ?? undefined,
 		unknownStack,
+		unknownCategories: [
+			...values.specializations.filter((key) => !isSpecializationKey(key)),
+			...values.grades.filter((key) => !isGradeKey(key))
+		],
 		unknownRegions: values.regions.filter((code) => !regions.has(code))
 	};
 }
 
 export interface CandidateSummary {
-	/** `available` — a valid published run; `recalculating` — below the evidence floor; `none` — no run. */
-	categoryState: 'available' | 'recalculating' | 'none';
-	primary: {
-		roleKey: string | null;
-		grade: { min: string; max: string } | null;
-		stackSkillKeys: string[];
-	} | null;
+	/** Categories in force: a specialization and a grade confirmed by a test, with the confirmed stack. */
+	categories: { specialization: SpecializationKey; grade: GradeKey; confirmedSkillKeys: string[] }[];
+	/** `available` — a valid evidence run; `recalculating` — below the evidence floor; `none` — no run. */
+	evidenceState: 'available' | 'recalculating' | 'none';
 	fspLevels: { discipline: string; level: string }[];
 	/** Skills with a direct attestation and their trust badge. */
 	confirmedSkills: { skillKey: string; badgeTrust: string }[];
 }
 
-/** Summaries of the listed candidates in three queries for the whole page. */
+/** Summaries of the listed candidates in four queries for the whole page. */
 async function candidateSummaries(
 	executor: Executor,
 	candidateIds: readonly string[]
 ): Promise<Map<string, CandidateSummary>> {
 	const result = new Map<string, CandidateSummary>();
 	if (candidateIds.length === 0) return result;
-	const runs = await executor
-		.select({
-			candidateId: categorizationRuns.candidateId,
-			runId: categorizationRuns.id,
-			valid: runInForce(categorizationRuns, candidates)
-		})
-		.from(categorizationRuns)
-		.innerJoin(candidates, eq(candidates.id, categorizationRuns.candidateId))
-		.where(and(inArray(categorizationRuns.candidateId, [...candidateIds]), publishedRun(categorizationRuns)));
+	const [runs, categories] = await Promise.all([
+		executor
+			.select({
+				candidateId: evidenceRuns.candidateId,
+				runId: evidenceRuns.id,
+				valid: runInForce(evidenceRuns, candidates)
+			})
+			.from(evidenceRuns)
+			.innerJoin(candidates, eq(candidates.id, evidenceRuns.candidateId))
+			.where(and(inArray(evidenceRuns.candidateId, [...candidateIds]), publishedRun(evidenceRuns))),
+		activeCategories(executor, candidateIds)
+	]);
 	const validRuns = runs.filter((run) => run.valid).map((run) => run.runId);
-	const [assignments, levels, skills] = validRuns.length
+	const [levels, skills] = validRuns.length
 		? await Promise.all([
-				executor
-					.select()
-					.from(categoryAssignments)
-					.where(and(inArray(categoryAssignments.runId, validRuns), eq(categoryAssignments.rank, 'primary'))),
 				executor.select().from(fspLevelAssignments).where(inArray(fspLevelAssignments.runId, validRuns)),
 				executor
 					.select({
@@ -153,39 +149,29 @@ async function candidateSummaries(
 					.from(skillInferences)
 					.where(and(inArray(skillInferences.runId, validRuns), eq(skillInferences.attestation, 'direct')))
 			])
-		: [[], [], []];
+		: [[], []];
 	for (const id of candidateIds) {
 		const run = runs.find((row) => row.candidateId === id);
-		if (!run?.valid) {
-			result.set(id, {
-				categoryState: run ? 'recalculating' : 'none',
-				primary: null,
-				fspLevels: [],
-				confirmedSkills: []
-			});
-			continue;
-		}
-		const primary = assignments.find((row) => row.runId === run.runId);
+		const valid = run?.valid === true ? run : null;
 		result.set(id, {
-			categoryState: 'available',
-			primary: primary
-				? {
-						roleKey: primary.roleStatus === 'established' ? primary.roleKey : null,
-						grade:
-							primary.gradeStatus === 'established' && primary.gradeMin !== null && primary.gradeMax !== null
-								? { min: primary.gradeMin, max: primary.gradeMax }
-								: null,
-						stackSkillKeys: primary.stackSkillKeys
-					}
-				: null,
-			fspLevels: levels
-				.filter((row) => row.runId === run.runId)
-				.map((row) => ({ discipline: row.discipline, level: row.level })),
-			confirmedSkills: skills.flatMap((row) =>
-				row.runId === run.runId && row.badgeTrust !== null
-					? [{ skillKey: row.skillKey, badgeTrust: row.badgeTrust }]
-					: []
-			)
+			categories: (categories.get(id) ?? []).map((c) => ({
+				specialization: c.specialization,
+				grade: c.grade,
+				confirmedSkillKeys: c.confirmedSkillKeys
+			})),
+			evidenceState: valid ? 'available' : run ? 'recalculating' : 'none',
+			fspLevels: valid
+				? levels
+						.filter((row) => row.runId === valid.runId)
+						.map((row) => ({ discipline: row.discipline, level: row.level }))
+				: [],
+			confirmedSkills: valid
+				? skills.flatMap((row) =>
+						row.runId === valid.runId && row.badgeTrust !== null
+							? [{ skillKey: row.skillKey, badgeTrust: row.badgeTrust }]
+							: []
+					)
+				: []
 		});
 	}
 	return result;
@@ -195,7 +181,8 @@ export interface CatalogItem {
 	pseudonym: string;
 	extras: ShowExtra[];
 	match: CompanyMatch | null;
-	gradeGroup: 'in_range' | 'not_established' | null;
+	/** Without a category in force the row is marked «категория не подтверждена» (domain 12.7). */
+	categoryConfirmed: boolean;
 	summary: CandidateSummary;
 }
 
@@ -246,7 +233,7 @@ async function catalogPage(
 				pseudonym: item.pseudonym,
 				extras: item.extras,
 				match: item.match,
-				gradeGroup: item.gradeGroup,
+				categoryConfirmed: item.categoryConfirmed,
 				summary
 			};
 		}),
@@ -282,8 +269,14 @@ export async function catalogView(
 	const compared = [...new Set(url.searchParams.getAll('compare'))].slice(0, 10);
 	let page: CatalogPage | null = null;
 	let problem: string | null = null;
-	if (query.unknownRegions.length > 0) {
-		problem = `Таких регионов нет в справочнике: ${query.unknownRegions.join(', ')}`;
+	const refusals = [
+		...(query.unknownCategories.length > 0
+			? [`Таких специализаций и грейдов нет в справочнике категорий: ${query.unknownCategories.join(', ')}`]
+			: []),
+		...(query.unknownRegions.length > 0 ? [`Таких регионов нет в справочнике: ${query.unknownRegions.join(', ')}`] : [])
+	];
+	if (refusals.length > 0) {
+		problem = refusals.join('. ');
 	} else {
 		try {
 			page = await catalogPage(

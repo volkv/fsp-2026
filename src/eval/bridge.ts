@@ -2,20 +2,21 @@
 // on stdout (main.ts). Each command runs the product code of this build — no reimplementation — over inputs the harness
 // generated, so the metrics describe what the product does.
 //   info       — versions of everything that shapes a result;
-//   extract    — resume files → parse, extraction, evidence rows and the categorization snapshot they give;
+//   extract    — resume files → parse, extraction, evidence rows and the evidence snapshot they give;
 //   normalize  — skill mentions → taxonomy keys;
-//   categorize — profile snapshots, optionally with FSP achievements → role, grade range, stack, FSP levels and what
-//                is missing;
-//   rank       — candidates (resume rows, FSP achievements, passed tests) and vacancies → the product's ranking of
-//                each set of candidates for every vacancy, in a catalog of a temporary database;
+//   evidence   — profile snapshots, optionally with FSP achievements → FSP levels and inferred skills;
+//   rank       — candidates (resume rows, FSP achievements, test results) and vacancies → the product's category path
+//                for every vacancy — admitted categories, the candidates holding one, their ranking — and the
+//                candidates without a category apart, in a catalog of a temporary database;
 //   record     — a finished run → a row of `eval_runs` in the format of the quality panel, with its report file.
 import { z } from 'zod';
+import { CATALOG } from '$lib/server/assessments/contract/catalog';
 import type { Docparse } from '$lib/server/documents/docparse';
 import type { ModelAdapter } from '$lib/server/ml/adapter';
 import { RESUME_SCHEMA_VERSION } from '$lib/server/resumes/extract-job';
 import { RULES_VERSION } from '$lib/server/resumes/rules';
 import { matchSkill } from '$lib/server/taxonomy/normalize';
-import { categorizeProfile, fspPageSchema, snapshotSchema, withFsp } from './categorize';
+import { fspPageSchema, profileEvidence, snapshotSchema, withFsp } from './evidence';
 import { extractDocument, type ExtractedDocument } from './extract';
 import { rankCandidates, rankRequestSchema, type RankDeps } from './rank';
 import { recordRun, reportFileSchema, runRowSchema, type RecordDeps } from './record';
@@ -37,7 +38,7 @@ export const requestSchema = z.discriminatedUnion('command', [
 	}),
 	z.strictObject({ command: z.literal('normalize'), surfaces: z.array(z.string()).min(1) }),
 	z.strictObject({
-		command: z.literal('categorize'),
+		command: z.literal('evidence'),
 		as_of: isoDate,
 		profiles: z
 			.array(
@@ -91,6 +92,7 @@ export async function handle(raw: unknown, deps: BridgeDeps): Promise<unknown> {
 					taxonomy: taxonomy.label,
 					taxonomy_sha256: taxonomy.contentSha256,
 					categorization_ruleset: taxonomy.rules.rulesetVersion,
+					catalog: CATALOG.version,
 					resume_rules: RULES_VERSION,
 					resume_schema: RESUME_SCHEMA_VERSION
 				}
@@ -119,11 +121,11 @@ export async function handle(raw: unknown, deps: BridgeDeps): Promise<unknown> {
 				})
 			};
 		}
-		case 'categorize': {
+		case 'evidence': {
 			const { rules, projection } = await deps.taxonomy();
 			return {
 				profiles: request.profiles.map((profile) =>
-					categorizeProfile(
+					profileEvidence(
 						profile.id,
 						profile.fsp === undefined ? profile.snapshot : withFsp(profile.snapshot, profile.fsp, projection),
 						rules,

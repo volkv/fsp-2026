@@ -19,13 +19,7 @@
 </PageHeader>
 
 <div class="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-	<CandidateCard
-		card={data.card}
-		categoryState={data.categoryState}
-		receipts={data.receipts}
-		labels={data.labels}
-		grades={data.grades}
-	/>
+	<CandidateCard card={data.card} evidenceState={data.evidenceState} receipts={data.receipts} labels={data.labels} />
 	<aside class="grid content-start gap-4 lg:sticky lg:top-20 lg:self-start">
 		<RecommendationNotice compact />
 		<Card.Root>

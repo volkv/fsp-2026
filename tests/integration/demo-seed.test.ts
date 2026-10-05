@@ -16,7 +16,6 @@ import { createFieldCrypto } from '$lib/server/crypto/fields';
 import {
 	athleteLinks,
 	candidates,
-	categoryDisputes,
 	companies,
 	competitionPartnerships,
 	consentEvents,
@@ -185,7 +184,7 @@ async function census() {
 		'invitation_terms',
 		'hiring_processes',
 		'hiring_reports',
-		'category_disputes',
+		'assessment_objections',
 		'representations',
 		'competition_partnerships'
 	];
@@ -329,10 +328,10 @@ describe('demo seed', () => {
 		expect(facts.length).toBeGreaterThan(0);
 		expect(new Set(facts.map((f) => f.version?.split('.')[0])).size).toBe(1);
 		expect((await db.select().from(athleteLinks)).length).toBeGreaterThanOrEqual(first.counts.candidatesWithFsp);
-		const [category] = await db.execute<{ n: number }>(
-			sql`select count(*)::int as n from categorization_runs where status = 'published'`
+		const [evidence] = await db.execute<{ n: number }>(
+			sql`select count(*)::int as n from evidence_runs where status = 'published'`
 		);
-		expect(category?.n).toBeGreaterThan(0);
+		expect(evidence?.n).toBeGreaterThan(0);
 		const [matches] = await db.execute<{ n: number }>(sql`select count(*)::int as n from match_scores`);
 		expect(matches?.n).toBeGreaterThan(0);
 		expect(await db.select().from(marketSnapshots).limit(1)).toHaveLength(1);
@@ -470,16 +469,6 @@ describe('demo seed', () => {
 			.orderBy(invitationTerms.version);
 		expect(versions.map((v) => v.version)).toEqual([1, 2]);
 		expect(Number(versions[1]?.min)).toBeLessThan(Number(versions[0]?.min));
-
-		// К-3: an open dispute of the category.
-		const timur = await candidateOf('gleb.sokolov@fsp-career.example');
-		const disputes = await db.select({ status: categoryDisputes.status }).from(categoryDisputes);
-		expect(disputes).toEqual([{ status: 'open' }]);
-		const [timurDispute] = await db
-			.select({ id: categoryDisputes.id })
-			.from(categoryDisputes)
-			.where(eq(categoryDisputes.candidateId, timur.id));
-		expect(timurDispute).toBeDefined();
 
 		// К-4: the representative confirmed the address and waits for the operator; the profile is hidden.
 		const eva = await candidateOf('alisa.zakharova@fsp-career.example');

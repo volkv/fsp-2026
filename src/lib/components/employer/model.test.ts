@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { matchView, trustNote, type CompanyMatchData } from './model';
 
-const labels = { roles: {}, grades: {}, skills: {} };
+const labels = { roles: {}, specializations: {}, grades: {}, skills: {} };
 
 type Components = CompanyMatchData['components'];
 
@@ -45,13 +45,13 @@ describe('trustNote', () => {
 			public_profile: 0,
 			confirmed_coverage: 0.5,
 			grade_agreement: null,
-			grade_agreement_reason: 'candidate_grade_not_established' as const
+			grade_agreement_reason: 'candidate_grade_not_confirmed' as const
 		};
 		expect(trustNote(unset, 'company')).toBe(
-			'подтверждено ФСП или тестом: 1 из 2; грейд не установлен — доверие снижено'
+			'подтверждено ФСП или тестом: 1 из 2; грейд в специализации вакансии тестом не подтверждён — доверие снижено'
 		);
 		expect(trustNote(unset, 'candidate')).toBe(
-			'подтверждено ФСП или тестом: 1 из 2; твой грейд не установлен — доверие снижено'
+			'подтверждено ФСП или тестом: 1 из 2; твой грейд в специализации вакансии тестом не подтверждён — доверие снижено'
 		);
 		expect(trustNote({ reason: 'no_required_skills' }, 'company')).toBeUndefined();
 	});
@@ -66,7 +66,7 @@ describe('matchView', () => {
 				...computed(0.1, 0.5),
 				details: { direct: 1, total: 2, public_profile: 0, confirmed_coverage: 0.5, grade_agreement: null }
 			},
-			role: { ...computed(0.1), details: { basis: 'primary' } },
+			role: { ...computed(0.1), details: { basis: 'same_specialization', candidate: ['backend'] } },
 			grade: { value: null, weight: 0.1, status: 'unknown', details: { reason: 'vacancy_grade_unknown' } },
 			salary: computed(0.1),
 			semantic: computed(0.1),
@@ -105,7 +105,7 @@ describe('matchView', () => {
 		}
 	});
 
-	it('says the profile has no category instead of treating its skills as checked', () => {
+	it('says the evidence is not computed instead of treating its skills as checked', () => {
 		const data = match(
 			{
 				required: unread(0.4),
@@ -120,7 +120,7 @@ describe('matchView', () => {
 			[{ code: 'profile_insufficient_data' }]
 		);
 		expect(matchView(data, labels).toVerify).toEqual([
-			'Недостаточно данных: у кандидата нет действующей категории — навыки не подтверждены и в счёт идут как неподтверждённые, проверьте их на собеседовании'
+			'Недостаточно данных: доказательства профиля ещё не рассчитаны — навыки в счёт идут как неподтверждённые, проверьте их на собеседовании'
 		]);
 	});
 });

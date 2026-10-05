@@ -26,7 +26,9 @@ export const COMPONENT_STATUS_CODES = {
 export const matchRulesetParamsSchema = z.strictObject({
 	/**
 	 * Weight of each component. A component that is not computed drops out and the rest are renormalized, except the
-	 * components of the evidence itself when the candidate has no usable categorization run (`unavailableEvidenceValue`).
+	 * components of the evidence itself when the candidate has no usable evidence run (`unavailableEvidenceValue`). The
+	 * role component is 1 when a category in force is of the vacancy's specialization and 0 when only of another one
+	 * (domain 13.4); without a category it is unknown.
 	 */
 	weights: z
 		.strictObject({
@@ -46,23 +48,18 @@ export const matchRulesetParamsSchema = z.strictObject({
 	 */
 	skillBandValue: z.strictObject({ weak: positiveUnit, moderate: positiveUnit, strong: positiveUnit }),
 	/**
-	 * The role of the vacancy against the candidate's: the primary category's role is 1, a secondary category's role and
-	 * a desired role that the evidence does not establish are worth these values, any other established role is 0.
-	 */
-	role: z.strictObject({ secondary: unit, desired: unit }),
-	/**
 	 * Trust in the score: the share of the required skills covered by directly confirmed inferences (by their band),
-	 * scaled by the agreement of the candidate's grade range with the vacancy's. `gradeWeight` is how much of the trust
-	 * rests on that agreement (below 1, so that a confirmed skill always keeps some trust); `unknownGradeAgreement` stands
-	 * for the agreement of a candidate whose grade is not established.
+	 * scaled by the agreement of the confirmed grade of the candidate's category with the vacancy's range. `gradeWeight` is
+	 * how much of the trust rests on that agreement (below 1, so that a confirmed skill always keeps some trust);
+	 * `unknownGradeAgreement` stands for the agreement of a candidate without a category of the vacancy's specialization.
 	 */
 	trust: z.strictObject({ gradeWeight: z.number().min(0).lt(1), unknownGradeAgreement: unit }),
 	/**
-	 * Value that the required, nice-to-have and trust components count with while the candidate has no usable
-	 * categorization run (none published, or evidence withdrawn after it). They stay `unavailable` without a value, but
-	 * their weight stays in the score: a candidate whose evidence was read always has them computed, so dropping them
-	 * would let a profile with nothing read outrank one whose skills were checked. 0 scores such a candidate as one
-	 * without confirmed skills; role and grade drop out as they do for a read candidate without an established one.
+	 * Value that the required, nice-to-have and trust components count with while the candidate has no usable evidence
+	 * run (none published, or evidence withdrawn after it). They stay `unavailable` without a value, but their weight
+	 * stays in the score: a candidate whose evidence was read always has them computed, so dropping them would let a
+	 * profile with nothing read outrank one whose skills were checked. 0 scores such a candidate as one without
+	 * confirmed skills; role and grade come from the category, which does not depend on the evidence run.
 	 */
 	unavailableEvidenceValue: unit,
 	/** Grade ranges that do not intersect lose this much per grade step between them. */

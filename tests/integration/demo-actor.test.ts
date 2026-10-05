@@ -38,9 +38,7 @@ import {
 	assessments,
 	authorityChecks,
 	candidates,
-	categorizationRulesets,
-	categorizationRuns,
-	categoryDisputes,
+	assessmentObjections,
 	companyVerifications,
 	competitionPartnerships,
 	demoSessions,
@@ -63,7 +61,7 @@ import { batchHistory, importBatch, previewBatch, type BatchDeps } from '$lib/se
 import { RATE_LIMIT_RULES } from '$lib/server/http/rate-limit';
 import { resolveAgeConflict } from '$lib/server/operator/ages';
 import { decideClaim } from '$lib/server/operator/claims';
-import { takeDispute } from '$lib/server/operator/disputes';
+import { takeObjection } from '$lib/server/operator/objections';
 import { openPartnershipFromForm } from '$lib/server/operator/partnership-forms';
 import { decideAuthority } from '$lib/server/operator/representatives';
 import type { Redis } from '$lib/server/redis';
@@ -129,7 +127,6 @@ let redis: Redis;
 let data: SeedData;
 const store = new MemoryStore();
 let taxonomyVersionId: string;
-let rulesetId: string;
 let assessmentVersionId: string;
 
 /** What one place of the stand holds: a demo session, or the stand outside sessions (`session: null`). */
@@ -140,7 +137,7 @@ interface Place {
 	verificationId: string;
 	verificationFileId: string;
 	verifiedCompanyId: string;
-	disputeId: string;
+	objectionId: string;
 	representationId: string;
 	authorityFileId: string;
 	claimId: string;
@@ -245,39 +242,20 @@ async function place(session: string | null): Promise<Place> {
 	const recruiter = await createMember(db, verified.id, { userId: await account() });
 	if (!recruiter.userId) throw new Error('member without user');
 
-	const disputing = await createCandidate(db, { userId: await account(), demoSessionId: session });
-	const [run] = await db
-		.insert(categorizationRuns)
-		.values({
-			candidateId: disputing.id,
-			inputRevision: 0,
-			inputSnapshotSha256: randomSha256(),
-			inputRefs: { facts: [], claims: [] },
-			taxonomyVersionId,
-			rulesetId,
-			asOf: new Date(),
-			computedAt: new Date(),
-			origin: 'automatic',
-			outcome: 'insufficient_data',
-			missing: { role: [], grade: [], stack: [] },
-			experienceSummary: {},
-			status: 'published'
-		})
-		.returning();
-	if (!run) throw new Error('run not inserted');
+	const objecting = await createCandidate(db, { userId: await account(), demoSessionId: session });
 	const openedAt = new Date();
-	const [dispute] = await db
-		.insert(categoryDisputes)
+	const [objection] = await db
+		.insert(assessmentObjections)
 		.values({
-			candidateId: disputing.id,
-			runId: run.id,
-			reason: 'Не согласен с категорией',
+			candidateId: objecting.id,
+			decisionId: randomUUID(),
+			reason: 'Не согласен с оценкой задания',
 			openedAt,
 			dueAt: new Date(openedAt.getTime() + 30 * DAY),
 			status: 'open'
 		})
 		.returning();
-	if (!dispute) throw new Error('dispute not inserted');
+	if (!objection) throw new Error('objection not inserted');
 
 	const minor = await createCandidate(db, {
 		userId: await account(),
@@ -359,7 +337,7 @@ async function place(session: string | null): Promise<Place> {
 		verificationId: verification.id,
 		verificationFileId,
 		verifiedCompanyId: verified.id,
-		disputeId: dispute.id,
+		objectionId: objection.id,
 		representationId: representation.id,
 		authorityFileId,
 		claimId: claim.id,
@@ -400,12 +378,6 @@ beforeAll(async () => {
 	data = await readSeedData(path('seeds'));
 	const { db } = database;
 	taxonomyVersionId = (await createTaxonomyVersion(db)).id;
-	const [ruleset] = await db
-		.insert(categorizationRulesets)
-		.values({ version: 1, taxonomyVersionId, params: {} })
-		.returning();
-	if (!ruleset) throw new Error('ruleset not inserted');
-	rulesetId = ruleset.id;
 	const [assessment] = await db
 		.insert(assessments)
 		.values({ kind: 'quiz', title: 'test', skillKeys: ['go'] })
@@ -481,15 +453,15 @@ describe('a clone of the FSP operator', () => {
 
 	it('takes the objections of its own session only', async () => {
 		for (const other of others()) {
-			await expect(takeDispute(database.db, first.operator, meta, other.disputeId)).rejects.toMatchObject({
+			await expect(takeObjection(database.db, first.operator, meta, other.objectionId)).rejects.toMatchObject({
 				code: 'not_found'
 			});
 		}
-		await takeDispute(database.db, first.operator, meta, first.disputeId);
+		await takeObjection(database.db, first.operator, meta, first.objectionId);
 		const [taken] = await database.db
-			.select({ assignee: categoryDisputes.assigneeId })
-			.from(categoryDisputes)
-			.where(eq(categoryDisputes.id, first.disputeId));
+			.select({ assignee: assessmentObjections.assigneeId })
+			.from(assessmentObjections)
+			.where(eq(assessmentObjections.id, first.objectionId));
 		expect(taken?.assignee).toBe(first.operator.userId);
 	});
 

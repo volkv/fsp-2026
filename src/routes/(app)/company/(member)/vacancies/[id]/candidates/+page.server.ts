@@ -1,3 +1,4 @@
+import { CATEGORY_OPTIONS } from '$lib/server/categories/labels';
 import { db } from '$lib/server/db';
 import { catalogView } from '$lib/server/employer/catalog';
 import { employerRequest, membershipOf } from '$lib/server/employer/http';
@@ -35,8 +36,8 @@ export const load: PageServerLoad = async (event) => {
 			},
 			labels,
 			filters: {
-				roles: current.roles,
-				grades: current.grades,
+				specializations: CATEGORY_OPTIONS.specializations,
+				grades: CATEGORY_OPTIONS.grades,
 				formats: current.terms.work_format,
 				regions: regions.regions
 			}

@@ -4,19 +4,13 @@
 // fact ids never reach a company.
 import { z } from 'zod';
 import { can, type AccessSubject } from '$lib/server/access/permissions';
+import { GRADE_KEYS, SPECIALIZATION_KEYS } from '$lib/server/assessments/contract/catalog';
 import { recordAuditEvent, type AuditActor } from '$lib/server/audit/record';
 import { findInCatalog, loadCatalogCard, type CatalogCandidate } from '$lib/server/employer/card';
 import { ApiError } from '$lib/server/errors/api-error';
-import {
-	categoryKey,
-	categoryKeyId,
-	categoryKeysOf,
-	gradeKeysBetween,
-	MARKET_INDICATORS,
-	MAX_STACK_KEY_SIZE
-} from '$lib/server/market/aggregate';
+import { activeCategories } from '$lib/server/categories/read';
+import { categoryKey, categoryKeyId, categoryKeysOf, MARKET_INDICATORS } from '$lib/server/market/aggregate';
 import { loadCategoryMarket } from '$lib/server/market/read';
-import { loadGradeOrdinals } from '$lib/server/matching/evidence';
 import {
 	compareCandidates,
 	searchCandidates,
@@ -28,7 +22,6 @@ import { loadCatalogViewer } from '$lib/server/matching/visibility';
 import { regionReference, type RegionReference } from '$lib/server/regions';
 import { defineOperation } from '../operation';
 import { cardSchema, cardView } from '../read/catalog-card';
-import { ownCategory } from '../read/category';
 import {
 	companyMatch,
 	id,
@@ -57,10 +50,9 @@ const searchModeSchema = {
 const searchItemSchema = z
 	.object({
 		pseudonym,
-		grade_group: z
-			.enum(['in_range', 'not_established'])
-			.nullable()
-			.describe('С фильтром грейда: в диапазоне или «грейд не установлен»'),
+		category_confirmed: z
+			.boolean()
+			.describe('`false` — категория не подтверждена: кандидат найден поиском по всей базе (без фильтров категории)'),
 		relevance: z.object({ fts: z.number().nullable(), semantic: z.number().nullable() }),
 		match: companyMatch.nullable().describe('С вакансией — соответствие ей'),
 		card: cardSchema
@@ -111,13 +103,21 @@ async function cardOf(ctx: BaseContext, companyId: string, item: CatalogCandidat
 
 const filterQuery = {
 	text: z.string().max(500).optional().describe('Полнотекстовый и смысловой запрос'),
-	role_key: z.array(key).max(20).optional().describe('Установленная роль любой категории (параметр повторяется)'),
-	grade: z.array(key).max(10).optional().describe('Грейд внутри установленного диапазона (параметр повторяется)'),
-	include_grade_not_established: z
-		.enum(['true', 'false'])
+	specialization: z
+		.array(z.enum(SPECIALIZATION_KEYS))
+		.max(SPECIALIZATION_KEYS.length)
 		.optional()
-		.describe('С фильтром грейда вернуть и кандидатов без установленного грейда — отдельной группой'),
-	stack_skill_key: z.array(key).max(10).optional().describe('Все эти навыки — в ядре стека одной категории'),
+		.describe('Специализация действующей категории (параметр повторяется)'),
+	grade: z
+		.array(z.enum(GRADE_KEYS))
+		.max(GRADE_KEYS.length)
+		.optional()
+		.describe('Грейд действующей категории; вместе со специализацией — одной категории (параметр повторяется)'),
+	confirmed_skill_key: z
+		.array(key)
+		.max(10)
+		.optional()
+		.describe('Все эти навыки — в подтверждённом тестом стеке одной действующей категории'),
 	fsp_discipline: z.string().max(64).optional().describe('Дисциплина уровня ФСП; вместе с `fsp_min_level`'),
 	fsp_min_level: z.enum(['L1', 'L2', 'L3', 'L4', 'L5']).optional(),
 	work_format: z.array(key).max(10).optional(),
@@ -126,7 +126,10 @@ const filterQuery = {
 		.max(20)
 		.optional()
 		.describe('Регион из справочника регионов, код вида `RU-MOW` (параметр повторяется); неизвестный код — отказ'),
-	uncategorized: z.enum(['true', 'false']).optional().describe('Фасет «без категории / недостаточно данных»')
+	uncategorized: z
+		.enum(['true', 'false'])
+		.optional()
+		.describe('Фасет «категория не подтверждена»: только кандидаты без действующей категории')
 };
 
 type FilterInput = z.output<z.ZodObject<typeof filterQuery>>;
@@ -151,17 +154,10 @@ function filtersOf(query: FilterInput, regions: RegionReference): CandidateSearc
 			]
 		});
 	}
-	if (query.include_grade_not_established !== undefined && query.grade === undefined) {
-		throw new ApiError('validation_failed', {
-			details: [{ path: 'grade', code: 'required', message: 'Группа «грейд не установлен» — часть фильтра грейда' }]
-		});
-	}
 	return {
-		...(query.role_key === undefined ? {} : { roleKeys: query.role_key }),
-		...(query.grade === undefined
-			? {}
-			: { grade: { keys: query.grade, includeNotEstablished: query.include_grade_not_established === 'true' } }),
-		...(query.stack_skill_key === undefined ? {} : { stackSkillKeys: query.stack_skill_key }),
+		...(query.specialization === undefined ? {} : { specializations: query.specialization }),
+		...(query.grade === undefined ? {} : { grades: query.grade }),
+		...(query.confirmed_skill_key === undefined ? {} : { confirmedSkillKeys: query.confirmed_skill_key }),
 		...(query.fsp_discipline === undefined || query.fsp_min_level === undefined
 			? {}
 			: { fspLevel: { discipline: query.fsp_discipline, minLevel: query.fsp_min_level } }),
@@ -191,7 +187,7 @@ async function runSearch(ctx: BaseContext, query: SearchQuery, vacancyId: string
 	const items = await Promise.all(
 		result.items.map(async (item) => ({
 			pseudonym: item.pseudonym,
-			grade_group: item.gradeGroup,
+			category_confirmed: item.categoryConfirmed,
 			relevance: item.relevance,
 			match: item.match && matchView(item.match),
 			card: await cardOf(ctx, member.companyId, item)
@@ -341,18 +337,31 @@ export const getVacancyMatch = defineOperation({
 
 const componentStatus = z.enum(['computed', 'unknown', 'unavailable', 'not_comparable']);
 
-/** The role component of a pair (domain 13.4): the vacancy's role against the candidate's established and desired ones. */
+/**
+ * The role component of a pair (domain 13.4): the specializations of the vacancy's role against the specializations of
+ * the candidate's categories in force.
+ */
 const comparedRole = z.object({
 	status: componentStatus,
 	value: z.number().nullable(),
 	details: z.object({
-		vacancy: key.optional(),
-		candidate: z.array(key).optional().describe('Установленные роли кандидата, основная первой'),
-		basis: z
-			.enum(['primary', 'secondary', 'desired', 'none'])
+		vacancy: key.optional().describe('Роль вакансии'),
+		specializations: z
+			.array(z.enum(SPECIALIZATION_KEYS))
 			.optional()
-			.describe('Почему роль подходит: основная, дополнительная, только желаемая; `none` — другая роль'),
-		reason: z.string().optional()
+			.describe('Специализации справочника, к которым относится роль вакансии'),
+		candidate: z
+			.array(z.enum(SPECIALIZATION_KEYS))
+			.optional()
+			.describe('Специализации действующих категорий кандидата'),
+		basis: z
+			.enum(['same_specialization', 'other_specialization'])
+			.optional()
+			.describe('Категория специализации вакансии или только другой'),
+		reason: z
+			.string()
+			.optional()
+			.describe('`category_not_confirmed` — у кандидата нет действующей категории; роль вакансии не распознана')
 	})
 });
 
@@ -371,8 +380,11 @@ const comparedTrust = z.object({
 				.int()
 				.describe('Обязательных навыков, подтверждённых только публичным профилем: в доверие не входят'),
 			confirmed_coverage: z.number().describe('Доля обязательных, покрытая подтверждениями ФСП или теста по полосе'),
-			grade_agreement: z.number().nullable().describe('Доля диапазона грейда кандидата внутри диапазона вакансии'),
-			grade_agreement_reason: z.enum(['candidate_grade_not_established', 'vacancy_grade_unknown']).optional()
+			grade_agreement: z
+				.number()
+				.nullable()
+				.describe('Подтверждённый грейд категории в диапазоне вакансии: 1 — внутри, 0 — вне'),
+			grade_agreement_reason: z.enum(['candidate_grade_not_confirmed', 'vacancy_grade_unknown']).optional()
 		}),
 		z.object({ reason: z.string().describe('Почему доверие не вычислено') })
 	])
@@ -459,28 +471,12 @@ export const compareCatalogCandidates = defineOperation({
 const indicatorList = (description: string) =>
 	z.array(marketFigure).describe(`${description}; пустой список — данных по этой комбинации нет`);
 
-/**
- * Ids of every combination the candidate's valid published run places them in: each established role with the grades
- * of its range and the subsets of its stack, as the market counts the candidate (`categoryKeysOf`).
- */
+/** Ids of every combination the candidate's categories in force place them in, as the market counts them. */
 async function ownCategoryKeyIds(ctx: BaseContext, candidateId: string): Promise<Set<string>> {
-	const category = await ownCategory(ctx.services.db, candidateId);
-	if (category.run === null) return new Set();
-	const ordinals =
-		(await loadGradeOrdinals(ctx.services.db, [category.run.taxonomyVersionId])).get(category.run.taxonomyVersionId) ??
-		new Map<string, number>();
+	const categories = (await activeCategories(ctx.services.db, [candidateId])).get(candidateId) ?? [];
 	return new Set(
-		category.assignments.flatMap((assignment) =>
-			assignment.roleStatus === 'established' && assignment.roleKey !== null
-				? categoryKeysOf({
-						roleKey: assignment.roleKey,
-						gradeKeys:
-							assignment.gradeStatus === 'established'
-								? gradeKeysBetween(ordinals, assignment.gradeMin, assignment.gradeMax)
-								: [],
-						stackSkillKeys: assignment.stackStatus === 'established' ? assignment.stackSkillKeys : []
-					}).map(categoryKeyId)
-				: []
+		categories.flatMap((category) =>
+			categoryKeysOf({ specializations: [category.specialization], grades: [category.grade] }).map(categoryKeyId)
 		)
 	);
 }
@@ -495,18 +491,14 @@ export const getCategoryMarket = defineOperation({
 		'Три показателя раздельно — ожидания доступных кандидатов, вилки вакансий и внешний ориентир; они не ' +
 		'смешиваются и не усредняются. У каждого — выборка, окно, география, налоговая база, метод, пометка «оценка» и ' +
 		'статус: меньше порога — `insufficient_data` без числа. Медиана — только для запрошенной комбинации. Ожидания ' +
-		'кандидатов для компании считаются по тем, кого она видит в каталоге. Участник проверенной компании читает ' +
-		'любую категорию, кандидат — только свою (иначе `403`).',
+		'кандидатов — только с действующей категорией, для компании — по тем, кого она видит в каталоге. Вилки вакансий ' +
+		'— по специализациям их ролей, внешний ориентир — по опорной роли специализации. Участник проверенной компании ' +
+		'читает любую категорию, кандидат — только свою (иначе `403`).',
 	auth: 'account',
 	permission: 'market.read',
 	query: z.strictObject({
-		role_key: key.describe('Роль'),
-		grade_key: key.optional().describe('Грейд; без него — роль целиком'),
-		stack_skill_key: z
-			.array(key)
-			.max(MAX_STACK_KEY_SIZE)
-			.optional()
-			.describe(`Навыки стека (параметр повторяется), до ${MAX_STACK_KEY_SIZE}`)
+		specialization: z.enum(SPECIALIZATION_KEYS).describe('Специализация категории'),
+		grade: z.enum(GRADE_KEYS).optional().describe('Грейд категории; без него — специализация целиком')
 	}),
 	errors: [],
 	response: {
@@ -524,11 +516,7 @@ export const getCategoryMarket = defineOperation({
 	async handle(ctx) {
 		const subject = await ctx.subject();
 		const now = ctx.services.now();
-		const category = {
-			roleKey: ctx.query.role_key,
-			gradeKey: ctx.query.grade_key ?? null,
-			stackSkillKeys: ctx.query.stack_skill_key ?? []
-		};
+		const category = categoryKey({ specialization: ctx.query.specialization, grade: ctx.query.grade ?? null });
 		const company = can(subject, 'market.read', { ownCategory: false });
 		let viewer = null;
 		if (company.allowed) {
@@ -536,8 +524,7 @@ export const getCategoryMarket = defineOperation({
 			if (viewer === null) throw new Error('a member allowed to read the market is not a catalog viewer');
 		} else {
 			const own =
-				subject.candidate !== null &&
-				(await ownCategoryKeyIds(ctx, subject.candidate.id)).has(categoryKeyId(categoryKey(category)));
+				subject.candidate !== null && (await ownCategoryKeyIds(ctx, subject.candidate.id)).has(categoryKeyId(category));
 			const decision = can(subject, 'market.read', { ownCategory: own });
 			if (!decision.allowed) {
 				throw new ApiError(decision.reason === 'unauthenticated' ? 'unauthenticated' : 'forbidden');

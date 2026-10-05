@@ -1,22 +1,22 @@
 // The candidate card of the employer catalog (docs/domain.md, sections 9, 12, 14): found by the pseudonym of the company
-// with the same checks and `canShow` as the list, read from the valid published categorization run and the active
-// facts, and cut by `projectCandidate` to the catalog projection. Fact ids never leave this module: a company sees
+// with the same checks and `canShow` as the list, read from the categories in force, the valid evidence run and the
+// active facts, and cut by `projectCandidate` to the catalog projection. Fact ids never leave this module: a company sees
 // categories, skills, achievements and the receipts issued for it, linked to the achievements by the receipt handles.
 // The card is the one DTO of the company's view: the pages serialize it as is, the API renames its fields.
 import { and, eq, inArray } from 'drizzle-orm';
 import { can, type AccessSubject } from '$lib/server/access/permissions';
 import { recordAuditEvent } from '$lib/server/audit/record';
 import type { RequestMeta } from '$lib/server/auth/context';
-import { experienceMonths } from '$lib/server/categorization/experience';
-import type { AssignmentExplanation, ExperienceSummary, MissingItem } from '$lib/server/categorization/types';
+import { experienceMonths } from '$lib/server/evidence/experience';
+import type { ExperienceSummary } from '$lib/server/evidence/types';
 import { parsePreferences } from '$lib/server/candidates/preferences';
+import { activeCategories, categoryViews } from '$lib/server/categories/read';
 import { auditActorOf } from '$lib/server/companies/context';
 import type { Executor } from '$lib/server/db';
 import { listedInCatalog, publishedRun, runInForce } from '$lib/server/db/conditions';
 import {
 	candidates,
-	categorizationRuns,
-	categoryAssignments,
+	evidenceRuns,
 	experienceEntries,
 	externalProfiles,
 	fspLevelAssignments,
@@ -48,7 +48,6 @@ import {
 	projectCandidate,
 	type CandidateCard,
 	type CandidateCardSource,
-	type CategoryView,
 	type FspAchievement
 } from '$lib/server/visibility/projections';
 
@@ -138,46 +137,6 @@ export async function findInCatalog(
 	return { candidateId, pseudonym, projection: 'catalog', extras: show.extras, match };
 }
 
-/** What a company is told about a category: the axes and the rules applied, without the facts behind them. */
-export interface CategoryExplanationView {
-	role: { score: number; unconfirmedCoreGroups: string[][] } | { missing: string[] };
-	grade: {
-		/** 0…1 of an established grade; `null` when the grade is not established. */
-		confidence: number | null;
-		signals: string[];
-		/** Evidence that exists but by the rules does not move a grade (FSP results, ranks, team roles). */
-		ignored: string[];
-		missing: string[];
-		nextGrade: { target: string; requirements: string[] } | null;
-	};
-	stack: { missing: string[] };
-}
-
-const codes = (items: readonly MissingItem[]) => items.map((item) => item.code);
-
-function explanationView(explanation: AssignmentExplanation, confidence: string | null): CategoryExplanationView {
-	const role = explanation.role;
-	return {
-		role:
-			'status' in role
-				? { missing: codes(role.missing) }
-				: { score: role.score, unconfirmedCoreGroups: role.unconfirmed_core_groups },
-		grade: {
-			confidence: confidence === null ? null : Number(confidence),
-			signals: explanation.grade.signals.map((signal) => signal.signal),
-			ignored: explanation.grade.ignored.map((item) => item.code),
-			missing: codes(explanation.grade.missing),
-			nextGrade: explanation.grade.next_grade
-				? {
-						target: explanation.grade.next_grade.target,
-						requirements: explanation.grade.next_grade.requirements.map((r) => r.code)
-					}
-				: null
-		},
-		stack: { missing: codes(explanation.stack.missing) }
-	};
-}
-
 /** A receipt of the company's audience as the card shows it; its status is computed when the card is read. */
 export interface CardReceipt {
 	handle: string;
@@ -193,8 +152,8 @@ export interface CardReceipt {
 
 export interface EmployerCard {
 	card: CandidateCard;
-	/** The published run is below the evidence floor or absent: the profile is being recalculated or has no category. */
-	categoryState: 'available' | 'recalculating' | 'none';
+	/** The evidence run is valid, below the evidence floor (being recalculated) or absent. */
+	evidenceState: 'available' | 'recalculating' | 'none';
 	receipts: CardReceipt[];
 }
 
@@ -261,22 +220,21 @@ export async function loadCatalogCard(
 
 	const [run] = await executor
 		.select({
-			id: categorizationRuns.id,
-			inForce: runInForce(categorizationRuns, candidates),
-			experienceSummary: categorizationRuns.experienceSummary
+			id: evidenceRuns.id,
+			inForce: runInForce(evidenceRuns, candidates),
+			experienceSummary: evidenceRuns.experienceSummary
 		})
-		.from(categorizationRuns)
-		.innerJoin(candidates, eq(candidates.id, categorizationRuns.candidateId))
-		.where(and(eq(categorizationRuns.candidateId, candidateId), publishedRun(categorizationRuns)));
+		.from(evidenceRuns)
+		.innerJoin(candidates, eq(candidates.id, evidenceRuns.candidateId))
+		.where(and(eq(evidenceRuns.candidateId, candidateId), publishedRun(evidenceRuns)));
 	const validRun = run?.inForce ? run : null;
+	const categories = categoryViews((await activeCategories(executor, [candidateId])).get(candidateId) ?? []);
 
-	let categories: CategoryView[] = [];
 	let skills: CandidateCardSource['skills'] = [];
 	let fspLevels: CandidateCardSource['fspLevels'] = [];
 	let experienceSummary: CandidateCardSource['experienceSummary'] = null;
 	if (validRun) {
-		const [assignments, inferences, levels] = await Promise.all([
-			executor.select().from(categoryAssignments).where(eq(categoryAssignments.runId, validRun.id)),
+		const [inferences, levels] = await Promise.all([
 			executor
 				.select({
 					skillKey: skillInferences.skillKey,
@@ -295,24 +253,6 @@ export async function loadCatalogCard(
 				.from(fspLevelAssignments)
 				.where(eq(fspLevelAssignments.runId, validRun.id))
 		]);
-		categories = assignments
-			.sort((a, b) => (a.rank === b.rank ? 0 : a.rank === 'primary' ? -1 : 1))
-			.map((a) => ({
-				rank: a.rank,
-				role:
-					a.roleStatus === 'established' && a.roleKey !== null
-						? { status: 'established', key: a.roleKey }
-						: { status: 'insufficient_data' },
-				grade:
-					a.gradeStatus === 'established' && a.gradeMin !== null && a.gradeMax !== null
-						? { status: 'established', min: a.gradeMin, max: a.gradeMax }
-						: { status: 'insufficient_data' },
-				stack:
-					a.stackStatus === 'established'
-						? { status: 'established', skillKeys: a.stackSkillKeys }
-						: { status: 'insufficient_data' },
-				explanation: explanationView(a.explanation as AssignmentExplanation, a.gradeConfidence)
-			}));
 		skills = inferences.sort((a, b) => a.skillKey.localeCompare(b.skillKey));
 		fspLevels = levels;
 		const summary = validRun.experienceSummary as ExperienceSummary;
@@ -403,7 +343,6 @@ export async function loadCatalogCard(
 				: null
 		},
 		categories,
-		categoryMissing: null,
 		desiredRoleKeys: candidate.desiredRoleKeys,
 		fspLevels,
 		skills,
@@ -439,7 +378,7 @@ export async function loadCatalogCard(
 	const shownHandles = new Set((card.receipts ?? []).map((receipt) => receipt.handle));
 	return {
 		card,
-		categoryState: validRun ? 'available' : run ? 'recalculating' : 'none',
+		evidenceState: validRun ? 'available' : run ? 'recalculating' : 'none',
 		receipts: receiptRows
 			.filter((row) => shownHandles.has(row.handle))
 			.map((row) => {

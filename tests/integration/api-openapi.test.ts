@@ -10,6 +10,7 @@ import { openApiDocument, type OpenApiDocument } from '$lib/server/api/openapi';
 import type { Operation } from '$lib/server/api/operation';
 import * as v1 from '$lib/server/api/v1';
 import * as catalog from '$lib/server/api/v1/catalog';
+import * as categories from '$lib/server/api/v1/categories';
 import * as companies from '$lib/server/api/v1/companies';
 import * as hiring from '$lib/server/api/v1/hiring';
 import * as invitations from '$lib/server/api/v1/invitations';
@@ -30,6 +31,7 @@ const exported = new Map<string, Operation>(
 	Object.entries({
 		getOpenApiDocument: v1.getOpenApiDocument,
 		...catalog,
+		...categories,
 		...companies,
 		...hiring,
 		...invitations,
@@ -180,9 +182,8 @@ describe('OpenAPI document of /api/v1', () => {
 		};
 		expect(market.security).toEqual([{ session: [] }, { apiKey: [] }]);
 		expect(market.parameters.filter((p) => p.in === 'query').map((p) => [p.name, p.required])).toEqual([
-			['role_key', true],
-			['grade_key', false],
-			['stack_skill_key', false]
+			['specialization', true],
+			['grade', false]
 		]);
 		expect(Object.keys(market.responses)).toEqual(expect.arrayContaining(['200', '401', '403']));
 		const { schemas } = document.components;
@@ -210,7 +211,8 @@ describe('OpenAPI document of /api/v1', () => {
 		};
 		const candidate = schema.properties.candidates.items.properties;
 		expect(Object.keys(candidate)).toEqual(expect.arrayContaining(['role', 'trust']));
-		expect(JSON.stringify(candidate.role)).toContain('desired');
+		expect(JSON.stringify(candidate.role)).toContain('same_specialization');
+		expect(JSON.stringify(candidate.role)).toContain('other_specialization');
 		expect(JSON.stringify(candidate.trust)).toContain('grade_agreement');
 		expect(JSON.stringify(candidate.trust)).toContain('public_profile');
 	});

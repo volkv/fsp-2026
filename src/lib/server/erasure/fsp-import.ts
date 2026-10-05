@@ -1,10 +1,11 @@
 // Revocation of `fsp_import` (docs/domain.md, sections 6.3, 17.3, 19.1). In the transaction of the revocation the
 // imports stop — the athlete links end and their waiting `fsp.sync` jobs are cancelled, a running one is refused by its
 // write check — and every fact the revoked grants brought leaves the profile as `withdrawn` with its claims, so their
-// receipts answer `not_valid`; the evidence floor rises, the published category is blocked and the recalculations
-// are enqueued. `consent.revocation_cleanup` then removes physically what the revoked grants brought: the facts with
-// their payload, claims and receipts, and the derivatives computed from them — vectors, matches, model results and
-// categorization runs of revisions below the evidence floor that nothing else refers to. The unlinking of FSP ID
+// receipts answer `not_valid`; the evidence floor rises, the published evidence run is blocked and the recalculations
+// are enqueued — the category, confirmed by a test, stays (domain 12.4). `consent.revocation_cleanup` then removes
+// physically what the revoked grants brought: the facts with their payload, claims and receipts, and the derivatives
+// computed from them — vectors, matches, model results and evidence runs of revisions below the evidence floor that
+// nothing else refers to. The unlinking of FSP ID
 // (`$lib/server/auth/identities`) ends its athlete links and withdraws every fact imported through them — superseded
 // and annulled versions too — with the same `retireFacts` and `recordEvidenceChange`, and enqueues the same cleanup for
 // each ended link.
@@ -14,12 +15,10 @@ import type { Database, Transaction } from '$lib/server/db';
 import {
 	athleteLinks,
 	candidates,
-	categorizationRuns,
-	categoryAssignments,
-	categoryDisputes,
 	claims,
 	consentEvents,
 	embeddings,
+	evidenceRuns,
 	experienceEntries,
 	fspLevelAssignments,
 	matchScores,
@@ -183,50 +182,30 @@ async function cleanUpFspFacts(
 			.where(and(eq(matchScores.candidateId, candidateId), lt(matchScores.candidateRevision, floor)))
 			.returning({ id: matchScores.id })
 	).length;
-	// Runs of those revisions go unless an objection or a kept match refers to them: the dispute keeps its subject.
+	// Runs of those revisions go unless a kept match refers to them.
 	const runs = await tx
-		.select({ id: categorizationRuns.id })
-		.from(categorizationRuns)
+		.select({ id: evidenceRuns.id })
+		.from(evidenceRuns)
 		.where(
 			and(
-				eq(categorizationRuns.candidateId, candidateId),
-				ne(categorizationRuns.status, 'published'),
-				lt(categorizationRuns.inputRevision, floor),
+				eq(evidenceRuns.candidateId, candidateId),
+				ne(evidenceRuns.status, 'published'),
+				lt(evidenceRuns.inputRevision, floor),
 				notInArray(
-					categorizationRuns.id,
+					evidenceRuns.id,
 					tx
-						.select({ id: categoryDisputes.runId })
-						.from(categoryDisputes)
-						.where(eq(categoryDisputes.candidateId, candidateId))
-				),
-				notInArray(
-					categorizationRuns.id,
-					tx
-						.select({ id: sql<string>`${categoryDisputes.resultingRunId}` })
-						.from(categoryDisputes)
-						.where(
-							and(eq(categoryDisputes.candidateId, candidateId), sql`${categoryDisputes.resultingRunId} is not null`)
-						)
-				),
-				notInArray(
-					categorizationRuns.id,
-					tx
-						.select({ id: sql<string>`${matchScores.categorizationRunId}` })
+						.select({ id: sql<string>`${matchScores.evidenceRunId}` })
 						.from(matchScores)
-						.where(and(eq(matchScores.candidateId, candidateId), sql`${matchScores.categorizationRunId} is not null`))
+						.where(and(eq(matchScores.candidateId, candidateId), sql`${matchScores.evidenceRunId} is not null`))
 				)
 			)
 		);
 	const runIds = runs.map((run) => run.id);
 	if (runIds.length > 0) {
 		await tx.delete(skillInferences).where(inArray(skillInferences.runId, runIds));
-		await tx.delete(categoryAssignments).where(inArray(categoryAssignments.runId, runIds));
 		await tx.delete(fspLevelAssignments).where(inArray(fspLevelAssignments.runId, runIds));
 		derived += (
-			await tx
-				.delete(categorizationRuns)
-				.where(inArray(categorizationRuns.id, runIds))
-				.returning({ id: categorizationRuns.id })
+			await tx.delete(evidenceRuns).where(inArray(evidenceRuns.id, runIds)).returning({ id: evidenceRuns.id })
 		).length;
 	}
 	await recordAuditEvent(tx, {

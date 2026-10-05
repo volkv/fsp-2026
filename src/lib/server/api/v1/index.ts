@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { defineOperation, type Operation } from '../operation';
 import { openApiDocument, type ExternalRoute, type OpenApiDocument } from '../openapi';
 import * as catalog from './catalog';
+import * as categories from './categories';
 import * as companies from './companies';
 import * as hiring from './hiring';
 import * as integrations from './integrations';
@@ -45,6 +46,7 @@ export const API_OPERATIONS: readonly Operation[] = [
 	...Object.values(catalog),
 	...Object.values(partnerPools),
 	...Object.values(me),
+	...Object.values(categories),
 	...Object.values(invitations),
 	...Object.values(hiring),
 	...Object.values(verify),

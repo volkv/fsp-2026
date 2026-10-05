@@ -9,15 +9,15 @@
 	import RegionFilter from './region-filter.svelte';
 
 	/**
-	 * Filters of the catalog by the category axes (role, grade with the «grade not established» group, stack core), the
-	 * FSP level facet separate from the grade, work format, region and the «no category» facet. A GET form: the address
-	 * of the page is the query.
+	 * Filters of the catalog by the category in force (specialization, grade, the stack a test confirmed), the FSP level
+	 * facet apart from the category, work format, region and the facet «категория не подтверждена». A GET form: the
+	 * address of the page is the query. Without category filters the search goes over the whole base, and a candidate
+	 * without a category is marked in the list.
 	 */
 	interface Values {
 		text: string;
-		roles: string[];
+		specializations: string[];
 		grades: string[];
-		includeGradeUnknown: boolean;
 		stack: string;
 		fspDiscipline: string;
 		fspLevel: string;
@@ -28,13 +28,14 @@
 
 	let {
 		values,
-		roles,
+		specializations,
 		grades,
 		formats,
 		regions
 	}: {
 		values: Values;
-		roles: NamedKey[];
+		/** Specializations and grades of the catalog of categories. */
+		specializations: NamedKey[];
 		grades: NamedKey[];
 		formats: NamedKey[];
 		regions: readonly { code: string; name: string }[];
@@ -65,17 +66,17 @@
 	</Field.Field>
 
 	<Field.Field>
-		<Field.Label for="{id}-role">Роль</Field.Label>
-		<NativeSelect id="{id}-role" name="role" value={values.roles[0] ?? ''}>
+		<Field.Label for="{id}-specialization">Специализация категории</Field.Label>
+		<NativeSelect id="{id}-specialization" name="specialization" value={values.specializations[0] ?? ''}>
 			<option value="">Любая</option>
-			{#each roles as role (role.key)}
-				<option value={role.key}>{role.name}</option>
+			{#each specializations as specialization (specialization.key)}
+				<option value={specialization.key}>{specialization.name}</option>
 			{/each}
 		</NativeSelect>
 	</Field.Field>
 
 	<fieldset class="grid gap-2">
-		<legend class="mb-1 text-sm font-medium">Грейд</legend>
+		<legend class="mb-1 text-sm font-medium">Грейд категории</legend>
 		<div class="flex flex-wrap gap-x-4 gap-y-2">
 			{#each grades as grade (grade.key)}
 				<label class="flex items-center gap-2 text-sm">
@@ -90,14 +91,10 @@
 				</label>
 			{/each}
 		</div>
-		<label class="flex items-center gap-2 text-sm">
-			<input type="checkbox" name="gradeUnknown" checked={values.includeGradeUnknown} class="size-4 accent-primary" />
-			И кандидаты с неустановленным грейдом — отдельной группой
-		</label>
 	</fieldset>
 
 	<Field.Field>
-		<Field.Label for="{id}-stack">Ядро стека</Field.Label>
+		<Field.Label for="{id}-stack">Стек, подтверждённый тестом</Field.Label>
 		<Input
 			id="{id}-stack"
 			name="stack"
@@ -105,11 +102,13 @@
 			placeholder="Go, PostgreSQL"
 			aria-describedby="{id}-stack-hint"
 		/>
-		<Field.Description id="{id}-stack-hint">Все навыки из списка — в ядре одной категории.</Field.Description>
+		<Field.Description id="{id}-stack-hint"
+			>Все навыки из списка — в подтверждённом стеке одной категории.</Field.Description
+		>
 	</Field.Field>
 
 	<fieldset class="grid gap-2">
-		<legend class="mb-1 text-sm font-medium">Уровень ФСП (отдельно от грейда)</legend>
+		<legend class="mb-1 text-sm font-medium">Уровень ФСП (отдельно от категории)</legend>
 		<div class="grid gap-2 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
 			<NativeSelect name="fspDiscipline" value={values.fspDiscipline} aria-label="Дисциплина">
 				<option value="">Любая дисциплина</option>
@@ -150,7 +149,9 @@
 		<input type="checkbox" name="uncategorized" checked={values.uncategorized} class="mt-0.5 size-4 accent-primary" />
 		<span>
 			Только без категории
-			<span class="block text-xs text-muted-foreground">недостаточно данных для роли, грейда и стека</span>
+			<span class="block text-xs text-muted-foreground"
+				>кандидаты, ещё не прошедшие тест на грейд; не сочетается с фильтрами категории</span
+			>
 		</span>
 	</label>
 

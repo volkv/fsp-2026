@@ -2,6 +2,7 @@
 // who consented to show the card to this company, each card in the catalog projection with the result of the
 // competition exact. A partnership of another company is `404`; an own one that is not open is `403`.
 import { z } from 'zod';
+import { GRADE_KEYS, SPECIALIZATION_KEYS } from '$lib/server/assessments/contract/catalog';
 import { AWARDS } from '$lib/fsp/awards';
 import type { AuditActor } from '$lib/server/audit/record';
 import { loadCatalogCard } from '$lib/server/employer/card';
@@ -9,7 +10,7 @@ import { ApiError } from '$lib/server/errors/api-error';
 import { journalPoolView, readPartnerPool } from '$lib/server/partner-pool/pool';
 import { defineOperation } from '../operation';
 import { cardSchema, cardView } from '../read/catalog-card';
-import { date, id, key, pageOf, pageQuery, pseudonym } from '../schemas';
+import { date, id, pageOf, pageQuery, pseudonym } from '../schemas';
 import { matchingDeps } from '../services';
 import { activeMembership } from './context';
 
@@ -45,8 +46,16 @@ export const listPartnerPoolCandidates = defineOperation({
 	permission: 'partner_pool.read',
 	params: z.strictObject({ partnership_id: id('Партнёрство компании') }),
 	query: z.strictObject({
-		role_key: z.array(key).max(20).optional().describe('Установленная роль любой категории (параметр повторяется)'),
-		grade: z.array(key).max(10).optional().describe('Грейд внутри установленного диапазона (параметр повторяется)'),
+		specialization: z
+			.array(z.enum(SPECIALIZATION_KEYS))
+			.max(SPECIALIZATION_KEYS.length)
+			.optional()
+			.describe('Специализация действующей категории (параметр повторяется)'),
+		grade: z
+			.array(z.enum(GRADE_KEYS))
+			.max(GRADE_KEYS.length)
+			.optional()
+			.describe('Грейд действующей категории; со специализацией — одной категории (параметр повторяется)'),
 		...pageQuery
 	}),
 	errors: ['not_found'],
@@ -74,15 +83,15 @@ export const listPartnerPoolCandidates = defineOperation({
 		const subject = await ctx.subject();
 		const membership = activeMembership(subject);
 		if (membership === null || subject.userId === null) throw new ApiError('forbidden');
-		const { cursor, limit, role_key: roleKeys, grade: gradeKeys } = ctx.query;
+		const { cursor, limit, specialization: specializations, grade: grades } = ctx.query;
 		const pool = await readPartnerPool(matchingDeps(ctx.services), subject, ctx.params.partnership_id, {
-			...(roleKeys === undefined ? {} : { roleKeys }),
-			...(gradeKeys === undefined ? {} : { gradeKeys })
+			...(specializations === undefined ? {} : { specializations }),
+			...(grades === undefined ? {} : { grades })
 		});
 		const page = pageOf(
 			pool.members,
 			{ limit, ...(cursor === undefined ? {} : { cursor }) },
-			{ partnership: pool.partnership.id, roleKeys, gradeKeys }
+			{ partnership: pool.partnership.id, specializations, grades }
 		);
 		const now = ctx.services.now();
 		const items = await Promise.all(

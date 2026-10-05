@@ -18,7 +18,7 @@ export type Viewer =
 	  }
 	| { kind: 'staff'; userId: string; role: 'operator' | 'admin'; demoSessionId: string | null };
 
-export type CaseType = 'dispute' | 'moderation' | 'authority' | 'assessment';
+export type CaseType = 'objection' | 'moderation' | 'authority' | 'assessment';
 
 export type ViewContext =
 	| { kind: 'self' }

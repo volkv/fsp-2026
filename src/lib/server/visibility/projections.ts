@@ -3,6 +3,7 @@
 // the source's keys only: a card links an achievement to its receipts by the receipt handles, which are issued per
 // audience, so the same fact in the cards of two viewers carries nothing in common.
 import type { Award } from '$lib/fsp/awards';
+import type { GradeKey, SpecializationKey } from '$lib/server/assessments/contract/catalog';
 import type { DisclosureField, PublicScopeField } from '$lib/server/consent/kinds';
 import type { Projection, ShowExtra } from './can-show';
 
@@ -19,12 +20,16 @@ export interface MonthsRange {
 	maxMonths: number;
 }
 
+/** A category in force (domain 12.4): what the test confirmed, as every projection that shows categories shows it. */
 export interface CategoryView {
-	rank: 'primary' | 'secondary';
-	role: { status: 'established'; key: string } | { status: 'insufficient_data' };
-	grade: { status: 'established'; min: string; max: string } | { status: 'insufficient_data' };
-	stack: { status: 'established'; skillKeys: string[] } | { status: 'insufficient_data' };
-	explanation: unknown;
+	specialization: SpecializationKey;
+	grade: GradeKey;
+	/** Defining blocks of the grade and the confirmed stack. */
+	confirmedBlocks: string[];
+	confirmedSkillKeys: string[];
+	/** Day of the assignment and the bank release of the decision: the version of the ground. */
+	assignedOn: string;
+	bankReleaseId: string;
 }
 
 export interface FspAchievement {
@@ -116,9 +121,8 @@ export interface CandidateCardSource {
 		searchStatus: 'active' | 'open_to_offers' | 'not_looking';
 		salaryExpectation: SalaryRange | null;
 	};
+	/** Categories in force; empty — the category is not confirmed (domain 12.7). */
 	categories: CategoryView[];
-	/** What is missing per axis and how to add it (`categorization_runs.missing`). */
-	categoryMissing: unknown;
 	desiredRoleKeys: string[];
 	fspLevels: { discipline: string; level: string; lastResultOn: string | null }[];
 	skills: {
@@ -159,7 +163,6 @@ export interface CandidateCard {
 	regionName?: string | null;
 	preferences?: CandidateCardSource['preferences'];
 	categories?: CategoryView[];
-	categoryMissing?: unknown;
 	desiredRoleKeys?: string[];
 	fspLevels?: CandidateCardSource['fspLevels'];
 	skills?: CandidateCardSource['skills'];
@@ -232,8 +235,7 @@ export function catalogExactFacts(
 }
 
 function selfCard(source: CandidateCardSource): CandidateCard {
-	const { candidateId, fullName, email, phone, birthDate, isMinor, city, preferences, categories, categoryMissing } =
-		source;
+	const { candidateId, fullName, email, phone, birthDate, isMinor, city, preferences, categories } = source;
 	const shown = shownReceipts(source.receipts);
 	return {
 		projection: 'self',
@@ -246,7 +248,6 @@ function selfCard(source: CandidateCardSource): CandidateCard {
 		city,
 		preferences,
 		categories,
-		categoryMissing,
 		desiredRoleKeys: source.desiredRoleKeys,
 		fspLevels: source.fspLevels,
 		skills: source.skills,
@@ -385,7 +386,6 @@ function operatorCard(source: CandidateCardSource, context: ProjectionContext): 
 		regionName: source.regionName,
 		preferences: source.preferences,
 		categories: source.categories,
-		categoryMissing: source.categoryMissing,
 		desiredRoleKeys: source.desiredRoleKeys,
 		fspLevels: source.fspLevels,
 		skills: source.skills,

@@ -1,7 +1,7 @@
 // Platform tests in the browser against the local infrastructure (`make infra`, migrated database with the published
 // taxonomy, legal documents, product policies and assessment bank from the webServer seed (playwright.config.ts):
 // `scripts/seed-legal.ts`, `scripts/seed-policies.ts` and `scripts/seed-assessments.ts`. The candidate passes the
-// adaptive quiz and finds the result in the profile after the categorization job; a practical task is submitted and waits in the queue — the sandbox is not part of the e2e
+// adaptive quiz and finds the result in the profile after the evidence job; a practical task is submitted and waits in the queue — the sandbox is not part of the e2e
 // stand, so its run is covered by `tests/integration/assessments-sandbox.test.ts`.
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
@@ -11,7 +11,7 @@ import { expect, test } from './helpers/test';
 import { APP_ORIGIN } from './helpers/ports';
 import { and, desc, eq, lte } from 'drizzle-orm';
 import { readAssessmentBank, type BankEntry } from '$lib/server/assessments/bank';
-import { categorizationCompute } from '$lib/server/categorization/job';
+import { evidenceCompute } from '$lib/server/evidence/job';
 import { hashPassword } from '$lib/server/auth/password';
 import {
 	assessmentArtifacts,
@@ -116,25 +116,25 @@ async function signIn(page: Page, email: string): Promise<void> {
 	await page.waitForURL((url) => url.pathname !== '/login');
 }
 
-/** Runs the categorization the quiz enqueued, the way the worker does. */
-async function runQueuedCategorization(candidateId: string): Promise<void> {
+/** Runs the evidence computation the quiz enqueued, the way the worker does. */
+async function runQueuedEvidence(candidateId: string): Promise<void> {
 	const database = db();
 	const [captured] = await database
 		.update(jobs)
 		.set({ status: 'running', leaseOwner: 'e2e', leaseExpiresAt: new Date(Date.now() + 120_000), attempts: 1 })
-		.where(and(eq(jobs.dedupKey, `categorization:${candidateId}`), eq(jobs.status, 'queued')))
+		.where(and(eq(jobs.dedupKey, `evidence:${candidateId}`), eq(jobs.status, 'queued')))
 		.returning();
-	if (!captured) throw new Error('the quiz did not enqueue the categorization');
-	const job: ClaimedJob<'categorization.compute'> = {
+	if (!captured) throw new Error('the quiz did not enqueue the evidence computation');
+	const job: ClaimedJob<'evidence.compute'> = {
 		id: captured.id,
-		type: 'categorization.compute',
+		type: 'evidence.compute',
 		payload: { candidate_id: candidateId },
 		inputVersion: captured.inputVersion,
 		attempt: 1,
 		maxAttempts: captured.maxAttempts,
 		leaseOwner: 'e2e'
 	};
-	const result = await categorizationCompute.run({
+	const result = await evidenceCompute.run({
 		job,
 		db: database,
 		signal: new AbortController().signal,
@@ -215,7 +215,7 @@ test('a candidate passes the adaptive quiz and finds the confirmed skill in the 
 	await expect(page.getByTestId('honest-note')).not.toContainText('песочниц');
 
 	// The profile after the recalculation: the fact of the platform test counts toward Python.
-	await runQueuedCategorization(hero.candidateId);
+	await runQueuedEvidence(hero.candidateId);
 	await page.goto('/me/profile');
 	const fact = page.getByTestId('fact-card').filter({ hasText: 'Тест платформы' });
 	await expect(fact).toHaveCount(1);

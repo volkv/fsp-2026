@@ -493,11 +493,11 @@ describe('the representative of a minor, by the links of letters', () => {
 		expect(signed[0]?.evidence).toHaveProperty('document_sha256');
 		expect(await processingAllowed(database.db, teen.id, clock)).toBe(true);
 		expect(await notificationTypes(teen.userId)).toContain('representation.consents_signed');
-		// The processing starts: the categorization catches up with the profile.
+		// The processing starts: the evidence computation catches up with the profile.
 		const queued = await database.db
 			.select({ type: jobs.type })
 			.from(jobs)
-			.where(eq(jobs.dedupKey, `categorization:${teen.id}`));
+			.where(eq(jobs.dedupKey, `evidence:${teen.id}`));
 		expect(queued).toHaveLength(1);
 
 		// The profile is shown for the internship open to minors once the candidate shows it in the catalog too.

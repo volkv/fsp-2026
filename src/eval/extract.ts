@@ -1,13 +1,13 @@
 // `extract` of the bridge: a resume file goes the product's way — `docparse` through its client, the blocks to the
 // extractor (the model's `resume-extract/v2`, or the deterministic rules), the items through the same quote checks and
 // into evidence rows (src/lib/server/resumes/parse-job.ts, extract-job.ts). Nothing is written: the rows come back
-// together with the categorization snapshot they would give (the shape `loadSnapshot` reads them in), the quote of every
+// together with the evidence snapshot they would give (the shape `loadSnapshot` reads them in), the quote of every
 // claim with the blocks it points into, the refusals by reason and how long each step took. `rank` stores the rows
 // themselves (`evidence`) in the catalog it ranks.
 import { readFile } from 'node:fs/promises';
 import { performance } from 'node:perf_hooks';
 import { setTimeout as sleep } from 'node:timers/promises';
-import type { CategorizationSnapshot } from '$lib/server/categorization/types';
+import type { EvidenceSnapshot } from '$lib/server/evidence/types';
 import type { Docparse, ParseResponse } from '$lib/server/documents/docparse';
 import { uuidv7 } from '$lib/server/ids';
 import type { ModelAdapter } from '$lib/server/ml/adapter';
@@ -88,7 +88,7 @@ export type ExtractedDocument =
 			rejected: Record<string, number>;
 			/** Wall time of the parse and of the extraction (model or rules) with its checks, milliseconds. */
 			timing: { parse_ms: number; extract_ms: number };
-			snapshot: CategorizationSnapshot;
+			snapshot: EvidenceSnapshot;
 			/** The rows `resume.extract` would insert. */
 			evidence: Pick<EvidencePlan, 'fact' | 'claims' | 'entries'>;
 	  }
@@ -143,11 +143,10 @@ async function extractItems(deps: ExtractDeps, blocks: RuleBlock[], extractionId
 }
 
 /** The snapshot the evidence rows give once stored: what `resume.extract` inserts, as `loadSnapshot` reads it. */
-export function snapshotOf(plan: EvidencePlan, mode: ExtractMode, candidateId: string): CategorizationSnapshot {
+export function snapshotOf(plan: EvidencePlan, mode: ExtractMode, candidateId: string): EvidenceSnapshot {
 	return {
 		candidateId,
 		revision: 1,
-		desiredRoleKeys: [],
 		facts: [
 			{
 				id: plan.fact.id,

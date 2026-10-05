@@ -49,7 +49,8 @@ export const PERMISSIONS = {
 	// Decisions on own vacancies the text check sent to moderation (domain 13.1).
 	'vacancy.moderate': { roles: ['operator'], apiKey: false },
 	'representation.review': { roles: ['operator'], apiKey: false },
-	'dispute.manage': { roles: ['operator'], apiKey: false },
+	// Objections to test results (domain 12.5).
+	'objection.manage': { roles: ['operator'], apiKey: false },
 	// Reading an attempt in full and annulling it (domain 10.2, 10.4).
 	'assessment.review': { roles: ['operator'], apiKey: false },
 	// Resolving a conflict of the birth date by a document (domain 7.2).
@@ -118,7 +119,7 @@ export interface PermissionObjects {
 	'company.moderate': { companyStatus: CompanyStatus };
 	'vacancy.moderate': null;
 	'representation.review': null;
-	'dispute.manage': null;
+	'objection.manage': null;
 	'assessment.review': null;
 	'age.review': null;
 	'audit.read': null;

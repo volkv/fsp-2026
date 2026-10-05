@@ -26,10 +26,9 @@ import type { Actor } from '$lib/server/access/actor';
 import {
 	assessmentAttempts,
 	assessmentVersions,
+	assessmentObjections,
 	categorizationRulesets,
-	categorizationRuns,
-	categoryAssignments,
-	categoryDisputes,
+	evidenceRuns,
 	companyVerifications,
 	competitionPartnerships,
 	consentEvents,
@@ -57,6 +56,7 @@ import { publishTaxonomy } from '$lib/server/taxonomy/publish';
 import { PENDING_NORMALIZATION, PENDING_VERSION } from '$lib/server/vacancies/clusters';
 import { HABR_SOURCE_KEY, registerVacancySources } from '$lib/server/vacancies/sources/definitions';
 import { buildRelease, readTaxonomyDatasets } from '$lib/server/taxonomy/release';
+import { decide } from '../helpers/categories';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
 import {
 	createCandidate,
@@ -126,12 +126,12 @@ interface Place {
 	companyId: string;
 	owner: { userId: string; memberId: string };
 	vacancyId: string;
-	candidate: { id: string; userId: string; runId: string };
+	candidate: { id: string; userId: string; decisionId: string };
 	invitationId: string;
 	processId: string;
 	operatorUserId: string;
 	submitted: { companyId: string; verificationId: string };
-	disputeId: string;
+	objectionId: string;
 	minor: { id: string; representationId: string };
 	claimId: string;
 	moderatedVacancyId: string;
@@ -183,7 +183,7 @@ async function grant(candidateId: string, userId: string, kind: 'pd_processing' 
 	});
 }
 
-/** A backend developer of the catalog with a published category resting on an FSP result. */
+/** A backend developer of the catalog with an FSP result and a category confirmed by a test. */
 async function catalogCandidate(session: string | null, original: boolean, tag: string) {
 	const { db } = database;
 	const user = await account(session, `Кандидат ${tag}`);
@@ -236,7 +236,7 @@ async function catalogCandidate(session: string | null, original: boolean, tag: 
 		.returning({ id: sourceFacts.id });
 	if (!fact) throw new Error('fact not inserted');
 	const [run] = await db
-		.insert(categorizationRuns)
+		.insert(evidenceRuns)
 		.values({
 			candidateId: person.id,
 			inputRevision: 1,
@@ -246,9 +246,6 @@ async function catalogCandidate(session: string | null, original: boolean, tag: 
 			rulesetId,
 			asOf: new Date(),
 			computedAt: new Date(),
-			origin: 'automatic',
-			outcome: 'partial',
-			missing: { role: [], grade: [], stack: [] },
 			experienceSummary: {
 				total: { min_months: 0, max_months: 0 },
 				by_role: {},
@@ -258,7 +255,7 @@ async function catalogCandidate(session: string | null, original: boolean, tag: 
 			},
 			status: 'published'
 		})
-		.returning({ id: categorizationRuns.id });
+		.returning({ id: evidenceRuns.id });
 	if (!run) throw new Error('run not inserted');
 	await db.insert(skillInferences).values({
 		runId: run.id,
@@ -270,42 +267,8 @@ async function catalogCandidate(session: string | null, original: boolean, tag: 
 		badgeTrust: 'fsp_verified',
 		contributions: [{ fact_id: fact.id, source: 'fsp', attestation: 'direct' }]
 	});
-	await db.insert(categoryAssignments).values({
-		runId: run.id,
-		rank: 'primary',
-		roleStatus: 'established',
-		roleKey: 'backend',
-		score: '0.8',
-		gradeStatus: 'insufficient_data',
-		stackStatus: 'established',
-		stackSkillKeys: ['go'],
-		explanation: {
-			ruleset_version: 1,
-			taxonomy_version: 'test',
-			role: {
-				role_key: 'backend',
-				score: 0.8,
-				skill_fit: 0.8,
-				role_evidence: 0.8,
-				core_groups: [],
-				unconfirmed_core_groups: [],
-				contributions: [{ fact_id: fact.id }]
-			},
-			grade: {
-				status: 'insufficient_data',
-				scope: 'role',
-				signals: [],
-				ignored: [],
-				disagreements: [],
-				missing: [{ code: 'role_experience_missing' }],
-				next_grade: null
-			},
-			stack: { status: 'established', skills: [], missing: [] },
-			desired_roles: [],
-			fsp_markers: []
-		}
-	});
-	return { id: person.id, userId: user.id, runId: run.id };
+	const { decision } = await decide(db, person.id, { specialization: 'backend', grade: 'middle' });
+	return { id: person.id, userId: user.id, decisionId: decision.id };
 }
 
 /** An invitation of the company to the candidate, accepted with the contacts handed over, and its hiring process. */
@@ -428,18 +391,18 @@ async function place(
 	if (!verification) throw new Error('verification not inserted');
 
 	const openedAt = new Date();
-	const [dispute] = await db
-		.insert(categoryDisputes)
+	const [objection] = await db
+		.insert(assessmentObjections)
 		.values({
 			candidateId: candidate.id,
-			runId: candidate.runId,
+			decisionId: candidate.decisionId,
 			reason: `Не согласен ${tag}`,
 			openedAt,
 			dueAt: new Date(openedAt.getTime() + 30 * DAY),
 			status: 'open'
 		})
-		.returning({ id: categoryDisputes.id });
-	if (!dispute) throw new Error('dispute not inserted');
+		.returning({ id: assessmentObjections.id });
+	if (!objection) throw new Error('objection not inserted');
 
 	const minorUser = await account(session, `Подросток ${tag}`);
 	const minor = await createCandidate(db, {
@@ -557,7 +520,7 @@ async function place(
 		processId,
 		operatorUserId: operator.id,
 		submitted: { companyId: submitted.id, verificationId: verification.id },
-		disputeId: dispute.id,
+		objectionId: objection.id,
 		minor: { id: minor.id, representationId: representation.id },
 		claimId: claim.id,
 		moderatedVacancyId: moderated.id,
@@ -627,7 +590,7 @@ function markersOf(target: Place, viewer: Place): string[] {
 		target.operatorUserId,
 		target.submitted.companyId,
 		target.submitted.verificationId,
-		target.disputeId,
+		target.objectionId,
 		target.minor.id,
 		target.minor.representationId,
 		target.claimId,
@@ -963,7 +926,7 @@ const REGISTRY: Record<string, Entry> = {
 		(_, t) => ({ attemptId: t.attemptId })
 	),
 	'(app)/me/category/+page.server.ts': list('candidate', 'own', () => '/me/category'),
-	'api/v1/me/category/+server.ts': list('candidate', 'own', () => '/api/v1/me/category'),
+	'api/v1/me/categories/+server.ts': list('candidate', 'own', () => '/api/v1/me/categories'),
 	'(app)/me/profile/+page.server.ts': list('candidate', 'own', () => '/me/profile'),
 	'(app)/me/invitations/+page.server.ts': list('candidate', 'own', () => '/me/invitations'),
 	'(app)/me/invitations/[id]/+page.server.ts': target(
@@ -987,12 +950,11 @@ const REGISTRY: Record<string, Entry> = {
 		(_, t) => `/operator/companies/requests/${t.submitted.verificationId}`,
 		(_, t) => ({ id: t.submitted.verificationId })
 	),
-	'(app)/operator/disputes/+page.server.ts': list('operator', 'reach', () => '/operator/disputes'),
-	'(app)/operator/disputes/[id]/+page.server.ts': target(
-		'operator',
-		'reach',
-		(_, t) => `/operator/disputes/${t.disputeId}`,
-		(_, t) => ({ id: t.disputeId })
+	'(app)/operator/objections/+page.server.ts': list('operator', 'reach', () => '/operator/objections'),
+	'api/v1/operator/objections/+server.ts': list('operator', 'reach', () => '/api/v1/operator/objections'),
+	// The case reads the objected decision from the engine of the test, which is not wired in yet.
+	'(app)/operator/objections/[id]/+page.server.ts': exempt(
+		'case of one objection, within the reach — demo-isolation.test.ts'
 	),
 	'(app)/operator/representatives/+page.server.ts': list('operator', 'reach', () => '/operator/representatives'),
 	'(app)/operator/representatives/[id]/+page.server.ts': target(
@@ -1044,7 +1006,6 @@ const REGISTRY: Record<string, Entry> = {
 	// Files of the cases: read from the storage by the case they belong to, within the same reach as the case.
 	'(app)/operator/companies/requests/[id]/evidence/+server.ts': exempt('case file — demo-actor.test.ts'),
 	'(app)/operator/representatives/[id]/evidence/+server.ts': exempt('case file — demo-actor.test.ts'),
-	'(app)/operator/disputes/[id]/resume/+server.ts': exempt('case file — demo-actor.test.ts'),
 	'(app)/operator/fsp-import/files/[id]/+server.ts': exempt('batch file of the stand — demo-actor.test.ts'),
 	'(app)/operator/fsp-import/+page.server.ts': exempt('batches of the stand, none to a clone — demo-actor.test.ts'),
 
@@ -1157,10 +1118,13 @@ const REGISTRY: Record<string, Entry> = {
 	'api/v1/invitations/[invitation_id]/terms/+server.ts': WRITES,
 	'api/v1/invitations/[invitation_id]/viewed/+server.ts': WRITES,
 	'api/v1/invitations/[invitation_id]/withdrawal/+server.ts': WRITES,
-	'api/v1/me/category/disputes/+server.ts': WRITES,
+	'api/v1/me/objections/[objection_id]/withdrawal/+server.ts': WRITES,
+	'api/v1/me/tests/decisions/[decision_id]/objections/+server.ts': WRITES,
 	'api/v1/operator/ages/[candidate_id]/decision/+server.ts': WRITES,
 	'api/v1/operator/assessments/attempts/[attempt_id]/annulment/+server.ts': WRITES,
 	'api/v1/operator/moderation/vacancies/[vacancy_id]/decision/+server.ts': WRITES,
+	'api/v1/operator/objections/[objection_id]/assign/+server.ts': WRITES,
+	'api/v1/operator/objections/[objection_id]/resolution/+server.ts': WRITES,
 	'api/v1/vacancies/[vacancy_id]/claims/+server.ts': WRITES,
 	'api/v1/vacancies/[vacancy_id]/claims/[claim_id]/withdrawal/+server.ts': WRITES,
 	'api/v1/vacancies/[vacancy_id]/close/+server.ts': WRITES,

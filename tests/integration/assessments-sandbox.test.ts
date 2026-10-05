@@ -253,11 +253,11 @@ describe('a code task attempt', () => {
 			language: 'typescript'
 		});
 		const [candidate] = await database.db.select().from(candidates).where(eq(candidates.id, candidateId));
-		const [categorization] = await database.db
+		const [recalculation] = await database.db
 			.select()
 			.from(jobs)
-			.where(eq(jobs.dedupKey, `categorization:${candidateId}`));
-		expect(categorization).toMatchObject({ status: 'queued', inputVersion: String(candidate?.profileRevision) });
+			.where(eq(jobs.dedupKey, `evidence:${candidateId}`));
+		expect(recalculation).toMatchObject({ status: 'queued', inputVersion: String(candidate?.profileRevision) });
 
 		// The candidate sees open tests in full and hidden tests by verdict only.
 		const detail = await candidateAttempt(database.db, subject, attemptId, NOW);
@@ -307,7 +307,7 @@ describe('a code task attempt', () => {
 			await database.db
 				.select()
 				.from(jobs)
-				.where(eq(jobs.dedupKey, `categorization:${candidateId}`))
+				.where(eq(jobs.dedupKey, `evidence:${candidateId}`))
 		).toEqual([]);
 	});
 

@@ -1,6 +1,7 @@
 // Schemas shared by the operations of the public API: identifiers, pages, money and the error envelope. Every schema
 // that names a reusable object carries an `id`: the document lists it once under `components.schemas`.
 import { z } from 'zod';
+import { GRADE_KEYS, SPECIALIZATION_KEYS } from '$lib/server/assessments/contract/catalog';
 import { API_ERRORS } from '$lib/server/errors/codes';
 import { paginate, queryFingerprint, MAX_PAGE_SIZE, DEFAULT_PAGE_SIZE } from '$lib/server/matching/page';
 import { SALARY_PERIODS, SALARY_TAX_BASES } from '$lib/server/db/schema/_columns';
@@ -194,8 +195,11 @@ export const isoOrNull = (value: Date | null): string | null => (value === null 
 // --- Market figures --------------------------------------------------------------------------------------------------
 
 export const marketCategoryKey = z
-	.object({ role_key: key, grade_key: key.optional(), stack_skill_keys: z.array(key).optional() })
-	.meta({ id: 'MarketCategoryKey', description: 'Комбинация роль × грейд × стек, по которой собраны данные' });
+	.object({ specialization: z.enum(SPECIALIZATION_KEYS), grade: z.enum(GRADE_KEYS).optional() })
+	.meta({
+		id: 'MarketCategoryKey',
+		description: 'Категория (специализация × грейд) или специализация целиком, по которой собраны данные'
+	});
 
 /** The unit, method and origin every market figure carries. */
 const figureBasis = {
@@ -203,7 +207,7 @@ const figureBasis = {
 	currency: z.string(),
 	period: salaryPeriod,
 	tax_base: taxBase.describe('Налоговая база показателя: у каждой базы своя строка, `gross` и `net` не смешиваются'),
-	method: z.string().describe('`observed_median`, `observed_median_from`, `estimated_stack_adjustment`, …'),
+	method: z.string().describe('`observed_median`, `observed_median_from`, `observed_median_to`'),
 	estimated: z.boolean().describe('Расчётная поправка, а не наблюдение по этой комбинации: подпись «оценка»'),
 	provenance: z
 		.enum(['live', 'synthetic', 'mixed'])

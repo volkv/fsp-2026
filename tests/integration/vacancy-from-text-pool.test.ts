@@ -9,8 +9,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import {
 	candidates,
 	categorizationRulesets,
-	categorizationRuns,
-	categoryAssignments,
+	evidenceRuns,
 	consentEvents,
 	demoSessions,
 	jobs,
@@ -32,6 +31,7 @@ import { buildRelease, readTaxonomyDatasets } from '$lib/server/taxonomy/release
 import { extractVacancyFromText, unsavedVacancyOf } from '$lib/server/vacancies/from-text';
 import { createOwnVacancy, type VacancyAuthor } from '$lib/server/vacancies/own';
 import { estimateVacancyPool, loadPoolCount, type UnsavedVacancy } from '$lib/server/vacancies/pool';
+import { decide } from '../helpers/categories';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
 import {
 	createCandidate,
@@ -125,7 +125,8 @@ async function candidate(attestation: Attestation, demoSessionId: string | null 
 	const row = await createCandidate(db, {
 		birthDate: '1996-01-15',
 		visibility: 'catalog',
-		profileRevision: 1,
+		// The grade decision moves the profile to revision 1, the one of the run.
+		profileRevision: 0,
 		demoSessionId
 	});
 	await consent(row.id, row.userId, 'pd_processing');
@@ -148,7 +149,7 @@ async function candidate(attestation: Attestation, demoSessionId: string | null 
 		.returning();
 	if (!fact) throw new Error('fact not inserted');
 	const [run] = await db
-		.insert(categorizationRuns)
+		.insert(evidenceRuns)
 		.values({
 			candidateId: row.id,
 			inputRevision: 1,
@@ -158,9 +159,6 @@ async function candidate(attestation: Attestation, demoSessionId: string | null 
 			rulesetId: categorizationRulesetId,
 			asOf: new Date(),
 			computedAt: new Date(),
-			origin: 'automatic',
-			outcome: 'complete',
-			missing: {},
 			experienceSummary: {},
 			status: 'published'
 		})
@@ -178,20 +176,7 @@ async function candidate(attestation: Attestation, demoSessionId: string | null 
 			contributions: [{ fact_id: fact.id, attestation }]
 		}))
 	);
-	await db.insert(categoryAssignments).values({
-		runId: run.id,
-		rank: 'primary',
-		roleStatus: 'established',
-		roleKey: 'backend',
-		score: '0.8',
-		gradeStatus: 'established',
-		gradeMin: 'senior',
-		gradeMax: 'senior',
-		gradeConfidence: '0.70',
-		stackStatus: 'established',
-		stackSkillKeys: ['python'],
-		explanation: {}
-	});
+	await decide(db, row.id, { specialization: 'backend', grade: 'senior' });
 	return row;
 }
 

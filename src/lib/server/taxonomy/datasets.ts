@@ -1,7 +1,7 @@
 // Schemas of the taxonomy source files in `taxonomy/` (docs/domain.md sections 9, 11, 12).
 // Imported by plain Node (scripts/seed-taxonomy.ts): relative imports with extensions, erasable syntax only.
 import { z } from 'zod';
-import { categorizationParamsSchema, MARKERS, SKILL_KINDS } from '../categorization/params.ts';
+import { categorizationParamsSchema, MARKERS, SKILL_KINDS } from '../evidence/params.ts';
 import { matchRulesetParamsSchema } from '../matching/params.ts';
 
 /** Discipline codes of the FSP adapter (docs/contracts.md 1.3). */

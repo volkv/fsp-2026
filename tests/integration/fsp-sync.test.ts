@@ -12,7 +12,7 @@ import {
 	auditEvents,
 	candidates,
 	categorizationRulesets,
-	categorizationRuns,
+	evidenceRuns,
 	claims,
 	consentEvents,
 	demoSessions,
@@ -435,7 +435,7 @@ describe('fsp.sync', () => {
 		const recalculations = await database.db
 			.select()
 			.from(jobs)
-			.where(and(eq(jobs.type, 'categorization.compute'), eq(jobs.dedupKey, `categorization:${hero.candidateId}`)));
+			.where(and(eq(jobs.type, 'evidence.compute'), eq(jobs.dedupKey, `evidence:${hero.candidateId}`)));
 		expect(recalculations).toHaveLength(1);
 		// The imported evidence is a new revision of the profile: its vectors are recomputed too.
 		const embeds = await database.db
@@ -466,7 +466,7 @@ describe('fsp.sync', () => {
 		const [taxonomy] = await db.select().from(categorizationRulesets);
 		if (!taxonomy) throw new Error('no rule set');
 		const [published] = await db
-			.insert(categorizationRuns)
+			.insert(evidenceRuns)
 			.values({
 				candidateId: hero.candidateId,
 				inputRevision: 1,
@@ -476,9 +476,6 @@ describe('fsp.sync', () => {
 				rulesetId: taxonomy.id,
 				asOf: new Date(),
 				computedAt: new Date(),
-				origin: 'automatic',
-				outcome: 'partial',
-				missing: {},
 				experienceSummary: {},
 				status: 'published'
 			})
@@ -525,7 +522,7 @@ describe('fsp.sync', () => {
 		const { profile, floor } = await revisions(hero.candidateId);
 		expect(profile).toBe(2);
 		expect(floor).toBe(profile);
-		const [run] = await db.select().from(categorizationRuns).where(eq(categorizationRuns.id, published.id));
+		const [run] = await db.select().from(evidenceRuns).where(eq(evidenceRuns.id, published.id));
 		expect(run?.status).toBe('blocked');
 	});
 

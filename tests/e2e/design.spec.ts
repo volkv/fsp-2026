@@ -74,8 +74,8 @@ test('showcase renders every component group without errors', async ({ page }) =
 	await expect(page.locator('[data-receipt-status="valid"]').first()).toBeVisible();
 	await expect(page.locator('[data-receipt-status="annulled"]')).toBeVisible();
 	await expect(page.locator('[data-award]')).toHaveCount(4);
-	await expect(page.locator('[data-axis="grade"][data-status="insufficient_data"]').first()).toBeVisible();
-	await expect(page.locator('[data-category-outcome="insufficient_data"]')).toBeVisible();
+	await expect(page.locator('[data-category-state="confirmed"]').first()).toBeVisible();
+	await expect(page.locator('[data-category-state="not_confirmed"]').first()).toBeVisible();
 	await expect(page.locator('[data-salary="not_stated"]')).toHaveText('Зарплата не указана');
 	await expect(page.locator('[data-comparison="not_comparable"]')).toBeVisible();
 	for (const status of ['sent', 'viewed', 'accepted', 'declined', 'expired', 'withdrawn']) {

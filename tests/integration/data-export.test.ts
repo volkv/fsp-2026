@@ -12,11 +12,12 @@ import type { ApiServices } from '$lib/server/api/services';
 import { getMyData } from '$lib/server/api/v1/me';
 import { recordAuditEvent } from '$lib/server/audit/record';
 import { DATA_EXPORT_FORMAT, exportOwnData, type DataExport } from '$lib/server/candidates/data-export';
-import { assignDispute } from '$lib/server/categorization/disputes';
+import { assignObjection } from '$lib/server/categories/objections';
 import { registryNotConfigured } from '$lib/server/companies/registry';
 import { createFieldCrypto } from '$lib/server/crypto/fields';
 import {
 	assessmentArtifacts,
+	assessmentObjections,
 	assessmentAttempts,
 	assessments,
 	assessmentVersions,
@@ -25,9 +26,7 @@ import {
 	authorityChecks,
 	candidateCompanyBlocks,
 	categorizationRulesets,
-	categorizationRuns,
-	categoryAssignments,
-	categoryDisputes,
+	evidenceRuns,
 	claims,
 	consentEvents,
 	documentAcceptances,
@@ -56,6 +55,7 @@ import { COMPONENT_KEYS, matchRulesetParamsSchema } from '$lib/server/matching/p
 import { createReceiptSigner } from '$lib/server/fsp/receipts';
 import { fail } from '$lib/server/ml/result';
 import shippedMatchRuleset from '../../taxonomy/match-ruleset.json';
+import { decide } from '../helpers/categories';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
 import { testEnvironment } from '../helpers/environment';
 import {
@@ -306,12 +306,12 @@ async function seedTheRest(person: Person, mark: string, scene: { visible: strin
 		.insert(notifications)
 		.values({
 			userId: person.userId,
-			type: 'dispute.decided',
-			category: 'disputes',
-			objectType: 'category_dispute',
+			type: 'objection.decided',
+			category: 'account',
+			objectType: 'assessment_objection',
 			objectId,
-			dedupKey: `dispute.decided:${objectId}`,
-			payload: { dispute_id: objectId, mark }
+			dedupKey: `objection.decided:${objectId}`,
+			payload: { objection_id: objectId, mark }
 		})
 		.returning();
 	if (!notification) throw new Error('notification not inserted');
@@ -333,11 +333,11 @@ async function seedTheRest(person: Person, mark: string, scene: { visible: strin
 		.insert(sourceFacts)
 		.values({
 			candidateId: person.id,
-			source: 'self_declared',
-			factType: 'questionnaire',
-			sourceRecordRef: `questionnaire:${mark}`,
+			source: 'resume',
+			factType: 'resume_document',
+			sourceRecordRef: `resume:${mark}`,
 			trustLevel: 'claimed',
-			ownershipBasis: 'self_declared',
+			ownershipBasis: 'self_upload',
 			payload: { answer: mark },
 			payloadSha256: randomSha256(),
 			observedAt: new Date(),
@@ -348,7 +348,7 @@ async function seedTheRest(person: Person, mark: string, scene: { visible: strin
 	if (!fact) throw new Error('fact not inserted');
 	const run = async (status: 'superseded' | 'published', computedAt: Date) => {
 		const [row] = await db
-			.insert(categorizationRuns)
+			.insert(evidenceRuns)
 			.values({
 				candidateId: person.id,
 				inputRevision: 0,
@@ -358,24 +358,11 @@ async function seedTheRest(person: Person, mark: string, scene: { visible: strin
 				rulesetId: categorizationRulesetId,
 				asOf: computedAt,
 				computedAt,
-				origin: 'automatic',
-				outcome: 'complete',
-				missing: {},
 				experienceSummary: {},
 				status
 			})
 			.returning();
 		if (!row) throw new Error('run not inserted');
-		await db.insert(categoryAssignments).values({
-			runId: row.id,
-			rank: 'primary',
-			roleStatus: 'established',
-			roleKey: 'backend',
-			gradeStatus: 'insufficient_data',
-			stackStatus: 'insufficient_data',
-			score: '0.7',
-			explanation: { mark }
-		});
 		await db.insert(skillInferences).values({
 			runId: row.id,
 			candidateId: person.id,
@@ -390,16 +377,24 @@ async function seedTheRest(person: Person, mark: string, scene: { visible: strin
 			.values({ runId: row.id, discipline: `discipline-${mark}`, level: 'L3', basisFactIds: [fact.id] });
 		return row;
 	};
-	const earlier = await run('superseded', new Date(Date.now() - 86_400_000));
+	await run('superseded', new Date(Date.now() - 86_400_000));
 	const current = await run('published', new Date());
+	// Categories come from tests: middle, then senior in its place; the candidate objected to the first decision.
+	const { decision: middle } = await decide(db, person.id, {
+		specialization: 'backend',
+		grade: 'middle',
+		decidedAt: new Date(Date.now() - 2 * 86_400_000)
+	});
+	await decide(db, person.id, { specialization: 'backend', grade: 'senior' });
 	const openedAt = new Date(Date.now() - 3_600_000);
-	await db.insert(categoryDisputes).values({
+	await db.insert(assessmentObjections).values({
 		candidateId: person.id,
-		runId: earlier.id,
+		decisionId: middle.id,
 		reason: `возражение ${mark}`,
 		openedAt,
 		dueAt: new Date(openedAt.getTime() + 30 * 86_400_000),
-		status: 'resolved_upheld',
+		status: 'resolved',
+		outcome: 'upheld',
 		resolution: `ответ оператора ${mark}`,
 		resolvedAt: new Date()
 	});
@@ -536,7 +531,7 @@ async function seedTheRest(person: Person, mark: string, scene: { visible: strin
 		vacancyRevision: 1,
 		candidateId: person.id,
 		candidateRevision: 0,
-		categorizationRunId: current.id,
+		evidenceRunId: current.id,
 		matchRulesetId,
 		score: '0.640',
 		// Only the required skills are computed; every other component is unknown.
@@ -545,7 +540,7 @@ async function seedTheRest(person: Person, mark: string, scene: { visible: strin
 		computedAt: new Date()
 	});
 	await db.insert(matchScores).values([score(scene.visible), score(scene.hidden)]);
-	return { operatorUserId: operator.id, blockedCompanyId: blocked.id };
+	return { operatorUserId: operator.id, blockedCompanyId: blocked.id, currentRunId: current.id };
 }
 
 describe('the export of own data', () => {
@@ -557,11 +552,11 @@ describe('the export of own data', () => {
 			.insert(sourceFacts)
 			.values({
 				candidateId: anna.id,
-				source: 'self_declared',
-				factType: 'questionnaire',
-				sourceRecordRef: 'questionnaire:1',
+				source: 'resume',
+				factType: 'resume_document',
+				sourceRecordRef: 'resume:1',
 				trustLevel: 'claimed',
-				ownershipBasis: 'self_declared',
+				ownershipBasis: 'self_upload',
 				payload: { answer: 'Go' },
 				payloadSha256: randomSha256(),
 				observedAt: new Date(),
@@ -641,7 +636,7 @@ describe('the export of own data', () => {
 		});
 		expect(document.facts).toHaveLength(1);
 		expect(document.facts[0]).toMatchObject({
-			source: 'self_declared',
+			source: 'resume',
 			payload: { answer: 'Go' },
 			claims: [{ type: 'skill_mention', raw_text: 'Go', skill_key: 'go' }]
 		});
@@ -726,9 +721,11 @@ describe('the export of own data', () => {
 		expect(document.notification_preferences).toEqual([
 			expect.objectContaining({ category: 'hiring', channels: ['telegram'] })
 		]);
-		expect(document.notifications).toHaveLength(1);
-		expect(document.notifications[0]).toMatchObject({
-			type: 'dispute.decided',
+		// The categories from tests notified the candidate too.
+		const objectionNotifications = document.notifications.filter((row) => row.type === 'objection.decided');
+		expect(objectionNotifications).toHaveLength(1);
+		expect(objectionNotifications[0]).toMatchObject({
+			type: 'objection.decided',
 			payload: { mark: 'anna-mark' },
 			deliveries: [{ channel: 'telegram', status: 'sent' }]
 		});
@@ -737,20 +734,25 @@ describe('the export of own data', () => {
 			document: { kind: 'user_agreement' },
 			user_agent: 'browser-anna-mark'
 		});
-		expect(document.category.map((run) => run.status)).toEqual(['superseded', 'published']);
-		expect(document.category[1]).toMatchObject({
-			assignments: [{ rank: 'primary', role_key: 'backend', role_score: 0.7 }],
+		expect(document.evidence.map((run) => run.status)).toEqual(['superseded', 'published']);
+		expect(document.evidence[1]).toMatchObject({
 			skills: [{ skill_key: 'skill-anna-mark', strength: 0.8, band: 'strong', attestation: 'claimed' }],
 			fsp_levels: [{ discipline: 'discipline-anna-mark', level: 'L3' }]
 		});
-		expect(document.category_disputes).toEqual([
+		expect(document.categories).toEqual([
+			expect.objectContaining({ specialization: 'backend', grade: 'middle', status: 'superseded' }),
+			expect.objectContaining({ specialization: 'backend', grade: 'senior', status: 'active' })
+		]);
+		expect(document.objections).toEqual([
 			expect.objectContaining({
-				run_id: document.category[0]?.id,
+				decision_id: document.categories[0]?.decision_id,
 				reason: 'возражение anna-mark',
-				status: 'resolved_upheld',
+				status: 'resolved',
+				outcome: 'upheld',
 				resolution: 'ответ оператора anna-mark'
 			})
 		]);
+		expect(document.matches[0]).toMatchObject({ evidence_run_id: annas.currentRunId });
 		expect(document.company_blocks).toEqual([
 			expect.objectContaining({ company: { id: annas.blockedCompanyId, name: 'Блок anna-mark' } })
 		]);
@@ -802,14 +804,15 @@ describe('the export of own data', () => {
 		// The API gives the same document: its response schema keeps every section.
 		const api = await exportThroughApi(anna.userId);
 		expect(api.status, JSON.stringify(api.json)).toBe(200);
-		expect(api.json.format).toBe('fsp-career-data-export/v2');
+		expect(api.json.format).toBe('fsp-career-data-export/v3');
 		expect(Object.keys(api.json).sort()).toEqual(Object.keys(document).sort());
 		const sections = [
 			'athlete_links',
 			'notification_channels',
 			'notification_preferences',
-			'category',
-			'category_disputes',
+			'evidence',
+			'categories',
+			'objections',
 			'company_blocks',
 			'matches',
 			'document_acceptances',
@@ -837,39 +840,21 @@ describe('the export of own data', () => {
 		const { db } = database;
 		const person = await candidate('Вера');
 		const operator = await createUser(db);
-		const [run] = await db
-			.insert(categorizationRuns)
-			.values({
-				candidateId: person.id,
-				inputRevision: 0,
-				inputSnapshotSha256: randomSha256(),
-				inputRefs: { facts: [], claims: [] },
-				taxonomyVersionId,
-				rulesetId: categorizationRulesetId,
-				asOf: new Date(),
-				computedAt: new Date(),
-				origin: 'automatic',
-				outcome: 'complete',
-				missing: {},
-				experienceSummary: {},
-				status: 'published'
-			})
-			.returning();
-		if (!run) throw new Error('run not inserted');
+		const { decision } = await decide(db, person.id, { specialization: 'backend', grade: 'junior' });
 		const openedAt = new Date();
-		const [dispute] = await db
-			.insert(categoryDisputes)
+		const [objection] = await db
+			.insert(assessmentObjections)
 			.values({
 				candidateId: person.id,
-				runId: run.id,
+				decisionId: decision.id,
 				reason: 'не согласна',
 				openedAt,
 				dueAt: new Date(openedAt.getTime() + 30 * 86_400_000),
 				status: 'open'
 			})
 			.returning();
-		if (!dispute) throw new Error('dispute not inserted');
-		await assignDispute(db, { disputeId: dispute.id, operatorId: operator.id, requestId: 'assign' });
+		if (!objection) throw new Error('objection not inserted');
+		await assignObjection(db, { objectionId: objection.id, operatorId: operator.id, requestId: 'assign' });
 
 		const document = await exportOwnData(db, crypto, {
 			userId: person.userId,
@@ -881,7 +866,7 @@ describe('the export of own data', () => {
 			channel: 'ui'
 		});
 		expect(document.journal).toContainEqual(
-			expect.objectContaining({ action: 'dispute.assigned', actor: 'platform_staff' })
+			expect.objectContaining({ action: 'objection.assigned', actor: 'platform_staff' })
 		);
 		expect(JSON.stringify(document)).not.toContain(operator.id);
 	});

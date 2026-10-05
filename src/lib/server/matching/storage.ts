@@ -114,7 +114,7 @@ export interface ComputedPair {
 	vacancyRevision: number;
 	candidateId: string;
 	candidateRevision: number;
-	categorizationRunId: string | null;
+	evidenceRunId: string | null;
 	result: MatchResult;
 	/** Space of the semantic component when it was computed. */
 	spaceId: string | null;
@@ -159,7 +159,7 @@ export async function writePairs(
 		vacancyRevision: pair.vacancyRevision,
 		candidateId: pair.candidateId,
 		candidateRevision: pair.candidateRevision,
-		categorizationRunId: pair.categorizationRunId,
+		evidenceRunId: pair.evidenceRunId,
 		matchRulesetId: ruleset.id,
 		embeddingSpaceId: pair.spaceId,
 		rerankerModelId:
@@ -176,7 +176,7 @@ export async function writePairs(
 		matchScores.vacancyRevision,
 		matchScores.candidateId,
 		matchScores.candidateRevision,
-		matchScores.categorizationRunId,
+		matchScores.evidenceRunId,
 		matchScores.matchRulesetId
 	];
 	let written = 0;
@@ -227,7 +227,7 @@ export async function storeInvitedPair(
 					eq(matchScores.vacancyRevision, vacancy.revision),
 					eq(matchScores.candidateId, candidateId),
 					eq(matchScores.candidateRevision, candidate.revision),
-					sql`${matchScores.categorizationRunId} is not distinct from ${runId}::uuid`,
+					sql`${matchScores.evidenceRunId} is not distinct from ${runId}::uuid`,
 					eq(matchScores.matchRulesetId, ruleset.id)
 				)
 			);
@@ -259,7 +259,7 @@ export async function storeInvitedPair(
 				vacancyRevision: vacancy.revision,
 				candidateId,
 				candidateRevision: candidate.revision,
-				categorizationRunId: runId,
+				evidenceRunId: runId,
 				result,
 				spaceId: result.components.semantic.status === 'computed' ? (space?.id ?? null) : null
 			}
@@ -303,7 +303,7 @@ export async function pruneVacancy(
 			vacancy_revision: pair.vacancyRevision,
 			candidate_id: pair.candidateId,
 			candidate_revision: pair.candidateRevision,
-			run_id: pair.categorizationRunId
+			run_id: pair.evidenceRunId
 		}))
 	);
 	return deleteRows(
@@ -313,7 +313,7 @@ export async function pruneVacancy(
 				candidate_revision bigint, run_id uuid)
 			where k.vacancy_revision = ${matchScores.vacancyRevision} and k.candidate_id = ${matchScores.candidateId}
 				and k.candidate_revision = ${matchScores.candidateRevision}
-				and k.run_id is not distinct from ${matchScores.categorizationRunId}))`
+				and k.run_id is not distinct from ${matchScores.evidenceRunId}))`
 	);
 }
 
@@ -324,13 +324,13 @@ export async function pruneVacancy(
  */
 export async function pruneCandidate(
 	tx: Transaction,
-	snapshot: { candidateId: string; revision: number; categorizationRunId: string | null },
+	snapshot: { candidateId: string; revision: number; evidenceRunId: string | null },
 	computedVacancyIds: readonly string[],
 	kept: readonly ComputedPair[],
 	ruleset: MatchRuleset
 ): Promise<number> {
 	const current = sql`${matchScores.candidateRevision} = ${snapshot.revision}
-		and ${matchScores.categorizationRunId} is not distinct from ${snapshot.categorizationRunId}::uuid
+		and ${matchScores.evidenceRunId} is not distinct from ${snapshot.evidenceRunId}::uuid
 		and ${matchScores.matchRulesetId} = ${ruleset.id}`;
 	const keys = JSON.stringify(
 		kept.map((pair) => ({ vacancy_id: pair.vacancyId, vacancy_revision: pair.vacancyRevision }))

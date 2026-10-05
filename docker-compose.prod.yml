@@ -509,7 +509,7 @@ services:
       - node
       - --enable-source-maps
       - build/worker/main.js
-      - '--types=retention.sweep,fsp.sync,external_profile.refresh,categorization.compute,match.refresh,derivations.reconcile,dispute.deadline_watch,company.registry_lookup,invitation.expire,invitation.remind_due,hiring.outcome_request,vacancies.import,vacancies.freshness_check,vacancy.normalize,vacancies.text_recheck,vacancy.embed,profile.embed,embedding.reindex,resume.parse,resume.extract,assessment.run,market.refresh,notification.deliver,demo.reset,demo.purge,consent.revocation_cleanup,account.purge,candidate.majority_transition'
+      - '--types=retention.sweep,fsp.sync,external_profile.refresh,evidence.compute,match.refresh,derivations.reconcile,objection.deadline_watch,company.registry_lookup,invitation.expire,invitation.remind_due,hiring.outcome_request,vacancies.import,vacancies.freshness_check,vacancy.normalize,vacancies.text_recheck,vacancy.embed,profile.embed,embedding.reindex,resume.parse,resume.extract,assessment.run,market.refresh,notification.deliver,demo.reset,demo.purge,consent.revocation_cleanup,account.purge,candidate.majority_transition'
     environment: *app-environment
     read_only: true
     tmpfs:

@@ -4,15 +4,15 @@
  */
 import type {
 	AchievementView,
-	CategoryView,
+	CategoryBadgeView,
+	DisciplineCode,
+	FspLevel,
 	HiringView,
 	MatchView,
 	ReceiptView,
 	SalaryComparison,
 	SalaryView
 } from '$lib/components/product/model.js';
-
-const GRADES = ['Стажёр', 'Младший', 'Средний', 'Старший', 'Ведущий', 'Главный'];
 
 export const receipts: { caption: string; receipt: ReceiptView }[] = [
 	{
@@ -122,39 +122,54 @@ export const achievements: { caption: string; achievement: AchievementView }[] =
 	}
 ];
 
-export const categories: { caption: string; category: CategoryView }[] = [
+export const categories: {
+	caption: string;
+	categories: CategoryBadgeView[];
+	fspLevels: { discipline: DisciplineCode; level: FspLevel }[];
+}[] = [
 	{
-		caption: 'Все оси установлены',
-		category: {
-			role: { status: 'established', label: 'Бэкенд-разработчик' },
-			grade: { status: 'established', scale: GRADES, min: 1, max: 2, confidence: 0.72 },
-			stack: { status: 'established', skills: ['Go', 'PostgreSQL', 'Kafka'] },
-			fspLevels: [{ discipline: 'product', level: 'L3' }]
-		}
+		caption: 'Подтверждена тестом',
+		categories: [
+			{
+				key: 'backend',
+				specialization: 'Backend',
+				grade: 'Middle',
+				skills: ['Go', 'SQL', 'REST', 'Многопоточность'],
+				blocks: 5,
+				assignedOn: '2026-10-02'
+			}
+		],
+		fspLevels: [{ discipline: 'product', level: 'L3' }]
 	},
 	{
-		caption: 'Грейд не установлен, желаемая роль отличается',
-		category: {
-			role: { status: 'established', label: 'Бэкенд-разработчик' },
-			grade: {
-				status: 'insufficient_data',
-				hint: 'Нет мест работы с датами. Добавьте опыт в резюме или пройдите тест уровня.'
+		caption: 'Две специализации',
+		categories: [
+			{
+				key: 'backend',
+				specialization: 'Backend',
+				grade: 'Junior',
+				skills: ['Python', 'SQL'],
+				blocks: 4,
+				assignedOn: '2026-09-28'
 			},
-			stack: { status: 'established', skills: ['C++', 'Python'] },
-			desiredRole: 'ML-инженер',
-			fspLevels: [
-				{ discipline: 'algorithmic', level: 'L4' },
-				{ discipline: 'product', level: 'L2' }
-			]
-		}
+			{
+				key: 'data_ml',
+				specialization: 'Data Science / ML',
+				grade: 'Intern',
+				skills: ['Статистика', 'Python'],
+				blocks: 3,
+				assignedOn: '2026-10-03'
+			}
+		],
+		fspLevels: [
+			{ discipline: 'algorithmic', level: 'L4' },
+			{ discipline: 'product', level: 'L2' }
+		]
 	},
 	{
-		caption: 'Ни одна ось не установлена',
-		category: {
-			role: { status: 'insufficient_data', hint: 'Загрузите резюме или подключите ФСП ID.' },
-			grade: { status: 'insufficient_data' },
-			stack: { status: 'insufficient_data', hint: 'Подтвердите хотя бы один навык.' }
-		}
+		caption: 'Категория не подтверждена',
+		categories: [],
+		fspLevels: [{ discipline: 'algorithmic', level: 'L2' }]
 	}
 ];
 

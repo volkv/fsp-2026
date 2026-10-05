@@ -1,7 +1,7 @@
 // What the candidate states about the search (docs/domain.md, sections 7.1, 13.4): work terms, salary expectation,
 // desired roles and the search status. Matching reads all of them, so every change moves `profile_revision` and enqueues
-// the recalculation of the candidate's matches in the same transaction; desired roles are an input of the
-// categorization and of the profile vectors as well. Permission checks are `candidate.self.write`.
+// the recalculation of the candidate's matches in the same transaction; desired roles are an input of the profile
+// vectors as well. Permission checks are `candidate.self.write`.
 import { and, eq, sql } from 'drizzle-orm';
 import { can, type AccessSubject } from '$lib/server/access/permissions';
 import type { Database, Transaction } from '$lib/server/db';
@@ -31,9 +31,10 @@ const creatorOf = (subject: AccessSubject): JobCreator =>
 	subject.userId === null ? { kind: 'system' } : { kind: 'user', id: subject.userId };
 
 /**
- * Moves `profile_revision` of a changed profile and enqueues what reads it: the matches always; the categorization when
- * its input changed, and also when a calculation is running now — it read the previous revision and its result will be
- * discarded as stale, so the new revision needs its own run (domain 17.1).
+ * Moves `profile_revision` of a changed profile and enqueues what reads it: the matches always; the evidence
+ * calculation (`evidence.compute`) when its input changed (`categorizationInput`), and also when a calculation is
+ * running now — it read the previous revision and its result will be discarded as stale, so the new revision needs its
+ * own run (domain 17.1).
  */
 export async function recordProfileChange(
 	tx: Transaction,
@@ -52,13 +53,13 @@ export async function recordProfileChange(
 		const [running] = await tx
 			.select({ id: jobs.id })
 			.from(jobs)
-			.where(and(eq(jobs.dedupKey, `categorization:${candidateId}`), eq(jobs.status, 'running')));
+			.where(and(eq(jobs.dedupKey, `evidence:${candidateId}`), eq(jobs.status, 'running')));
 		categorize = running !== undefined;
 	}
 	if (categorize) {
 		await enqueueJob(
 			tx,
-			'categorization.compute',
+			'evidence.compute',
 			{ candidate_id: candidateId },
 			{ inputVersion, createdBy: change.createdBy }
 		);
@@ -136,7 +137,7 @@ export async function updateProfileSettings(
 			current.desired.length !== desired.length || current.desired.some((key, index) => key !== desired[index]);
 		await tx.update(candidates).set({ preferences, desiredRoleKeys: desired }).where(eq(candidates.id, candidateId));
 		const createdBy = creatorOf(subject);
-		const revision = await recordProfileChange(tx, candidateId, { categorizationInput: desiredChanged, createdBy });
+		const revision = await recordProfileChange(tx, candidateId, { categorizationInput: false, createdBy });
 		// Desired roles are a line of the profile text the section vectors are built from; work terms are not in it.
 		if (desiredChanged) await enqueueProfileEmbed(tx, candidateId, revision, createdBy);
 	});

@@ -3,8 +3,7 @@
 	export type DemandSkillStatus = 'missing' | 'claimed' | 'derived' | 'public_profile';
 
 	export interface DemandCohortView {
-		roleKey: string;
-		roleBasis: 'established' | 'desired';
+		specialization: string;
 		gradeKeys: string[] | null;
 		widenedFrom: { gradeKeys: string[]; vacancies: number } | null;
 	}
@@ -22,7 +21,7 @@
 
 	export type DemandView =
 		| { status: 'no_category' }
-		| { status: 'no_role' }
+		| { status: 'evidence_recalculating' }
 		| { status: 'insufficient_data'; cohort: DemandCohortView; vacancies: number; threshold: number; asOf: Date }
 		| {
 				status: 'available';
@@ -48,12 +47,12 @@
 	import StatusPill from '$lib/components/forms/status-pill.svelte';
 	import { InsufficientData } from '$lib/components/product/index.js';
 	import { formatDate, pluralize } from '$lib/components/product/model.js';
-	import { disciplineShort, gradeName, roleName, skillName, type Labels } from './model.js';
+	import { disciplineShort, gradeName, skillName, type Labels } from './model.js';
 	import SectionCard from './section-card.svelte';
 
 	/**
-	 * «Что ищет рынок в твоей категории»: the most required skills of the active vacancies of the candidate's role and
-	 * grade that the candidate has not confirmed, with their share of the vacancies, where the count comes from, and how
+	 * «Что ищет рынок в твоей категории»: the most required skills of the active vacancies of the candidate's category —
+	 * of the roles its specialization serves, of its grade and the next one — that the candidate has not confirmed, with their share of the vacancies, where the count comes from, and how
 	 * each skill can be confirmed. A share is the market's demand, never a promise of an invitation or a grade.
 	 */
 	let { demand, labels }: { demand: DemandView; labels: Labels } = $props();
@@ -77,8 +76,10 @@
 	}
 
 	function cohortLabel(cohort: DemandCohortView): string {
-		const role = roleName(labels, cohort.roleKey);
-		return cohort.gradeKeys === null ? `${role} · все грейды` : `${role} · ${grades(cohort.gradeKeys)}`;
+		const specialization = labels.specializations[cohort.specialization] ?? cohort.specialization;
+		return cohort.gradeKeys === null
+			? `${specialization} · все грейды`
+			: `${specialization} · ${grades(cohort.gradeKeys)}`;
 	}
 
 	/** The available result, narrowed once for the template. */
@@ -89,18 +90,17 @@
 
 <SectionCard
 	title="Что ищет рынок в твоей категории"
-	description="Самые частые обязательные навыки активных вакансий твоей роли и грейда — те, которых у тебя нет или которые не подтверждены. Доля — это спрос рынка, а не гарантия: подтверждённый навык не обещает ни приглашения, ни повышения грейда."
+	description="Самые частые обязательные навыки активных вакансий твоей категории — её специализации, твоего грейда и следующего — те, которых у тебя нет или которые не подтверждены. Доля — это спрос рынка, а не гарантия: подтверждённый навык не обещает ни приглашения, ни повышения грейда."
 	testId="market-demand"
 >
 	{#if demand.status === 'no_category'}
 		<InsufficientData
-			hint="Категория пересчитывается — спрос посчитаем, когда станет известно, что у тебя подтверждено."
+			hint="Категория не подтверждена — спрос рынка категории посчитаем, когда тест подтвердит специализацию и грейд."
 		/>
-	{:else if demand.status === 'no_role'}
-		<div class="grid gap-2" data-demand-state="no_role">
-			<InsufficientData hint="Роль не установлена и желаемая роль не указана — не по чему выбрать вакансии." />
-			<a class="text-sm text-link underline underline-offset-4" href={resolve('/me/settings')}>Указать желаемую роль</a>
-		</div>
+	{:else if demand.status === 'evidence_recalculating'}
+		<InsufficientData
+			hint="Основания профиля пересчитываются — спрос посчитаем, когда станет известно, что у тебя подтверждено."
+		/>
 	{:else if demand.status === 'insufficient_data'}
 		<div class="grid gap-2" data-demand-state="insufficient_data">
 			<InsufficientData
@@ -109,7 +109,7 @@
 			{#if demand.cohort.widenedFrom}
 				<p class="text-xs text-muted-foreground">
 					В грейдах {grades(demand.cohort.widenedFrom.gradeKeys)} — {demand.cohort.widenedFrom.vacancies}, поэтому
-					посчитаны все грейды роли.
+					посчитаны все грейды специализации.
 				</p>
 			{/if}
 		</div>
@@ -129,17 +129,13 @@
 					)}{/if}.
 				{#if available.source.synthetic}Среди них есть демонстрационные вакансии стенда.{/if}
 			</p>
-			{#if available.cohort.roleBasis === 'desired'}
-				<p class="text-sm">
-					Роль по основаниям пока не выведена — считаем по желаемой роли «{roleName(labels, available.cohort.roleKey)}».
-				</p>
-			{/if}
 			{#if available.cohort.widenedFrom}
 				<p class="text-sm">
 					В грейдах {grades(available.cohort.widenedFrom.gradeKeys)} активных {vacanciesWord(
 						available.cohort.widenedFrom.vacancies
 					)}
-					{available.cohort.widenedFrom.vacancies} — меньше {available.threshold}, поэтому посчитаны все грейды роли.
+					{available.cohort.widenedFrom.vacancies} — меньше {available.threshold}, поэтому посчитаны все грейды
+					специализации.
 				</p>
 			{/if}
 

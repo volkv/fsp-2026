@@ -1,27 +1,16 @@
 // The candidate's own profile (docs/domain.md, sections 9, 12, 14, projection `self`): every fact with where it came
-// from and its receipt, the skills of the published category with their trust and the facts behind them, and the
-// category itself with what is missing and the objections. A category below the evidence floor is not shown as
-// current: the profile is being recalculated (domain 17.3).
+// from and its receipt, and the skills of the evidence in force with their trust and the facts behind them. Evidence
+// below the evidence floor is not shown as current: the profile is being recalculated (domain 17.3).
 import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
 import { can, type AccessSubject } from '$lib/server/access/permissions';
-import type {
-	AssignmentExplanation,
-	Contribution,
-	ExperienceSummary,
-	ManualOverrideExplanation,
-	MissingByAxis
-} from '$lib/server/categorization/types';
+import type { Contribution } from '$lib/server/evidence/types';
 import { parsePreferences, type CandidatePreferences } from '$lib/server/candidates/preferences';
 import type { Executor } from '$lib/server/db';
 import { publishedRun, runInForce } from '$lib/server/db/conditions';
 import {
 	athleteLinks,
 	candidates,
-	categorizationRulesets,
-	categorizationRuns,
-	categoryAssignments,
-	categoryDisputes,
-	fspLevelAssignments,
+	evidenceRuns,
 	skillInferences,
 	sourceFacts,
 	users,
@@ -100,7 +89,7 @@ export type FactDetail =
 
 export interface SelfFact {
 	id: string;
-	source: 'fsp' | 'platform_test' | 'codeforces' | 'github' | 'resume' | 'self_declared';
+	source: 'fsp' | 'platform_test' | 'codeforces' | 'github' | 'resume';
 	trustLevel: TrustLevel;
 	/** How the fact is tied to the candidate (`ownership_basis`): the answer to «where did this come from». */
 	ownershipBasis: string;
@@ -111,7 +100,7 @@ export interface SelfFact {
 	occurredOn: string | null;
 	detail: FactDetail;
 	receipt: SelfReceipt | null;
-	/** Skills of the published category this fact contributes to. */
+	/** Skills of the evidence in force this fact contributes to. */
 	supports: { skillKey: string; attestation: 'direct' | 'derived' | 'claimed' }[];
 }
 
@@ -178,31 +167,23 @@ async function candidateHeader(executor: Executor, candidateId: string, now: Dat
 	};
 }
 
-/** The published run while it is valid: at or above the evidence floor (domain 17.3). */
+/** The published evidence run while it is valid: at or above the evidence floor (domain 17.3). */
 async function runInForceOf(executor: Executor, candidateId: string) {
 	const [run] = await executor
 		.select({
-			id: categorizationRuns.id,
-			inForce: runInForce(categorizationRuns, candidates),
-			inputRevision: categorizationRuns.inputRevision,
-			taxonomyVersionId: categorizationRuns.taxonomyVersionId,
-			origin: categorizationRuns.origin,
-			outcome: categorizationRuns.outcome,
-			missing: categorizationRuns.missing,
-			experienceSummary: categorizationRuns.experienceSummary,
-			overrideReason: categorizationRuns.overrideReason,
-			computedAt: categorizationRuns.computedAt,
-			rulesetVersion: categorizationRulesets.version
+			id: evidenceRuns.id,
+			inForce: runInForce(evidenceRuns, candidates),
+			taxonomyVersionId: evidenceRuns.taxonomyVersionId,
+			experienceSummary: evidenceRuns.experienceSummary
 		})
-		.from(categorizationRuns)
-		.innerJoin(categorizationRulesets, eq(categorizationRulesets.id, categorizationRuns.rulesetId))
-		.innerJoin(candidates, eq(candidates.id, categorizationRuns.candidateId))
-		.where(and(eq(categorizationRuns.candidateId, candidateId), publishedRun(categorizationRuns)));
+		.from(evidenceRuns)
+		.innerJoin(candidates, eq(candidates.id, evidenceRuns.candidateId))
+		.where(and(eq(evidenceRuns.candidateId, candidateId), publishedRun(evidenceRuns)));
 	if (!run) {
 		const [blocked] = await executor
-			.select({ id: categorizationRuns.id })
-			.from(categorizationRuns)
-			.where(and(eq(categorizationRuns.candidateId, candidateId), eq(categorizationRuns.status, 'blocked')))
+			.select({ id: evidenceRuns.id })
+			.from(evidenceRuns)
+			.where(and(eq(evidenceRuns.candidateId, candidateId), eq(evidenceRuns.status, 'blocked')))
 			.limit(1);
 		return { state: (blocked ? 'recalculating' : 'none') as RunState, run: null };
 	}
@@ -312,7 +293,7 @@ export interface SelfEvidence {
 	fspLinked: boolean;
 	facts: SelfFact[];
 	skills: SelfSkill[];
-	/** Whether the skills come from a valid published category. */
+	/** Whether the skills come from a valid published evidence run. */
 	skillsState: RunState;
 	labels: VocabularyLabels;
 }
@@ -457,124 +438,6 @@ export async function loadSelfEvidence(executor: Executor, subject: AccessSubjec
 		skills,
 		skillsState: state,
 		labels: vocabularyLabels(vocabulary)
-	};
-}
-
-export interface SelfAssignment {
-	rank: 'primary' | 'secondary';
-	role: { status: 'established'; key: string; score: number | null } | { status: 'insufficient_data' };
-	grade: { status: 'established'; min: string; max: string; confidence: number } | { status: 'insufficient_data' };
-	stack: { status: 'established'; skillKeys: string[] } | { status: 'insufficient_data' };
-	explanation: AssignmentExplanation | ManualOverrideExplanation;
-}
-
-export interface SelfDispute {
-	id: string;
-	runId: string;
-	status: 'open' | 'in_review' | 'resolved_upheld' | 'resolved_changed' | 'withdrawn';
-	reason: string;
-	openedAt: Date;
-	dueAt: Date;
-	resolution: string | null;
-	resolvedAt: Date | null;
-}
-
-export interface SelfCategory {
-	state: RunState;
-	run: {
-		id: string;
-		origin: 'automatic' | 'manual_override';
-		outcome: 'complete' | 'partial' | 'insufficient_data';
-		computedAt: Date;
-		rulesetVersion: number;
-		overrideReason: string | null;
-	} | null;
-	assignments: SelfAssignment[];
-	missing: MissingByAxis | null;
-	fspLevels: { discipline: string; level: 'L1' | 'L2' | 'L3' | 'L4' | 'L5'; lastResultOn: string | null }[];
-	experience: ExperienceSummary | null;
-	desiredRoleKeys: string[];
-	disputes: SelfDispute[];
-	/** Grade scale of the run's taxonomy, lowest first. */
-	gradeScale: NamedKey[];
-	labels: VocabularyLabels;
-	taxonomyLabel: string | null;
-}
-
-export async function loadSelfCategory(executor: Executor, subject: AccessSubject, now: Date): Promise<SelfCategory> {
-	const candidateId = readableCandidate(subject);
-	const header = await candidateHeader(executor, candidateId, now);
-	const { state, run } = await runInForceOf(executor, candidateId);
-	const disputes = await executor
-		.select({
-			id: categoryDisputes.id,
-			runId: categoryDisputes.runId,
-			status: categoryDisputes.status,
-			reason: categoryDisputes.reason,
-			openedAt: categoryDisputes.openedAt,
-			dueAt: categoryDisputes.dueAt,
-			resolution: categoryDisputes.resolution,
-			resolvedAt: categoryDisputes.resolvedAt
-		})
-		.from(categoryDisputes)
-		.where(eq(categoryDisputes.candidateId, candidateId))
-		.orderBy(desc(categoryDisputes.openedAt));
-	const vocabulary = run
-		? await candidateVocabularyOf(executor, run.taxonomyVersionId)
-		: await currentCandidateVocabulary(executor);
-	const base = {
-		desiredRoleKeys: header.desiredRoleKeys,
-		disputes,
-		gradeScale: vocabulary?.grades ?? [],
-		labels: vocabularyLabels(vocabulary),
-		taxonomyLabel: vocabulary?.taxonomyLabel ?? null
-	};
-	if (!run) return { ...base, state, run: null, assignments: [], missing: null, fspLevels: [], experience: null };
-
-	const [assignmentRows, levelRows] = await Promise.all([
-		executor.select().from(categoryAssignments).where(eq(categoryAssignments.runId, run.id)),
-		executor
-			.select({
-				discipline: fspLevelAssignments.discipline,
-				level: fspLevelAssignments.level,
-				lastResultOn: fspLevelAssignments.lastResultOn
-			})
-			.from(fspLevelAssignments)
-			.where(eq(fspLevelAssignments.runId, run.id))
-	]);
-	const assignments: SelfAssignment[] = assignmentRows
-		.sort((a, b) => (a.rank === b.rank ? 0 : a.rank === 'primary' ? -1 : 1))
-		.map((a) => ({
-			rank: a.rank,
-			role:
-				a.roleStatus === 'established' && a.roleKey !== null
-					? { status: 'established', key: a.roleKey, score: a.score === null ? null : Number(a.score) }
-					: { status: 'insufficient_data' },
-			grade:
-				a.gradeStatus === 'established' && a.gradeMin !== null && a.gradeMax !== null && a.gradeConfidence !== null
-					? { status: 'established', min: a.gradeMin, max: a.gradeMax, confidence: Number(a.gradeConfidence) }
-					: { status: 'insufficient_data' },
-			stack:
-				a.stackStatus === 'established'
-					? { status: 'established', skillKeys: a.stackSkillKeys }
-					: { status: 'insufficient_data' },
-			explanation: a.explanation as AssignmentExplanation | ManualOverrideExplanation
-		}));
-	return {
-		...base,
-		state,
-		run: {
-			id: run.id,
-			origin: run.origin,
-			outcome: run.outcome,
-			computedAt: run.computedAt,
-			rulesetVersion: run.rulesetVersion,
-			overrideReason: run.overrideReason
-		},
-		assignments,
-		missing: run.missing as MissingByAxis,
-		fspLevels: levelRows.sort((a, b) => a.discipline.localeCompare(b.discipline)),
-		experience: run.experienceSummary as ExperienceSummary
 	};
 }
 

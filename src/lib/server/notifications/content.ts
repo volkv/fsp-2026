@@ -2,18 +2,18 @@
 // has access to the object, on which side of it they are, and the current data a letter to them may name. A withdrawn
 // or purged invitation, or a recipient who left the company, makes the object not visible: no letter about it. The same
 // holds for the operator's decisions: a company or a vacancy decision reaches only an active member of the company, a
-// dispute or a representation decision only the candidate it concerns, and so do the representative's revocation, the
-// verified birth date and an annulled attempt of a test. The deadline of an objection reaches the FSP staff while the
+// decision on an objection, a change of the category or a representation decision only the candidate it concerns, and
+// so do the representative's revocation, the verified birth date and an annulled attempt of a test. The deadline of an objection reaches the FSP staff while the
 // objection is still open and the recipient still holds a staff role; it names no candidate data.
 import { and, eq, inArray, isNull } from 'drizzle-orm';
 import type { FieldCrypto } from '$lib/server/crypto/fields';
 import type { Executor } from '$lib/server/db';
 import {
 	assessmentAttempts,
+	assessmentObjections,
 	assessments,
 	assessmentVersions,
 	candidates,
-	categoryDisputes,
 	companies,
 	companyMembers,
 	hiringProcesses,
@@ -23,8 +23,9 @@ import {
 	staffRoles,
 	vacancies
 } from '$lib/server/db/schema';
+import { categoryOwner } from '$lib/server/categories/read';
 import type { VacancySnapshot } from '$lib/server/invitations/terms';
-import { isDisputeDeadline, type NotificationType } from './types';
+import { isObjectionDeadline, type NotificationType } from './types';
 
 export type RecipientSide = 'candidate' | 'company';
 
@@ -45,13 +46,15 @@ export type NotificationFacts =
 	| { object: 'company'; side: 'company'; companyName: string }
 	/** A moderation decision on the company's own vacancy, to a member of the company. */
 	| { object: 'vacancy'; side: 'company'; vacancyTitle: string }
-	/** The operator's answer to the candidate's own objection. */
-	| { object: 'category_dispute'; side: 'candidate' }
+	/** The operator's answer to the candidate's own objection to a test result. */
+	| { object: 'assessment_objection'; side: 'candidate' }
 	/**
 	 * The answer to an objection is due soon or overdue, to a member of the FSP staff: an operator answers it, an admin
 	 * sees to it that someone does. `dueOn` — the UTC date of `due_at`.
 	 */
-	| { object: 'category_dispute'; side: 'staff'; role: 'operator' | 'admin'; dueOn: string }
+	| { object: 'assessment_objection'; side: 'staff'; role: 'operator' | 'admin'; dueOn: string }
+	/** The candidate's own category was assigned or revoked. */
+	| { object: 'candidate_category'; side: 'candidate' }
 	/** The operator's decision on the authority of the candidate's representative, to the candidate. */
 	| { object: 'representation'; side: 'candidate' }
 	/** About the candidate's own profile: majority, the coming removal for inactivity, the verified birth date. */
@@ -94,19 +97,19 @@ export async function activeStaffRole(executor: Executor, userId: string): Promi
 }
 
 /** The deadline facts of an objection still waiting for its answer, for a member of the staff. */
-async function disputeDeadlineFacts(
+async function objectionDeadlineFacts(
 	executor: Executor,
-	disputeId: string,
+	objectionId: string,
 	userId: string
 ): Promise<NotificationFacts | null> {
-	const [dispute] = await executor
-		.select({ dueAt: categoryDisputes.dueAt })
-		.from(categoryDisputes)
-		.where(and(eq(categoryDisputes.id, disputeId), inArray(categoryDisputes.status, ['open', 'in_review'])));
-	if (!dispute) return null;
+	const [objection] = await executor
+		.select({ dueAt: assessmentObjections.dueAt })
+		.from(assessmentObjections)
+		.where(and(eq(assessmentObjections.id, objectionId), inArray(assessmentObjections.status, ['open', 'in_review'])));
+	if (!objection) return null;
 	const role = await activeStaffRole(executor, userId);
 	if (role === null) return null;
-	return { object: 'category_dispute', side: 'staff', role, dueOn: dispute.dueAt.toISOString().slice(0, 10) };
+	return { object: 'assessment_objection', side: 'staff', role, dueOn: objection.dueAt.toISOString().slice(0, 10) };
 }
 
 interface Target {
@@ -160,16 +163,21 @@ export async function notificationFacts(
 			}
 			return { object: 'vacancy', side: 'company', vacancyTitle: vacancy.title };
 		}
-		case 'category_dispute': {
-			if (isDisputeDeadline(notification.type)) {
-				return disputeDeadlineFacts(executor, notification.objectId, notification.userId);
+		case 'assessment_objection': {
+			if (isObjectionDeadline(notification.type)) {
+				return objectionDeadlineFacts(executor, notification.objectId, notification.userId);
 			}
-			const [dispute] = await executor
-				.select({ candidateId: categoryDisputes.candidateId })
-				.from(categoryDisputes)
-				.where(eq(categoryDisputes.id, notification.objectId));
-			if (!dispute || !(await isCandidateUser(executor, dispute.candidateId, notification.userId))) return null;
-			return { object: 'category_dispute', side: 'candidate' };
+			const [objection] = await executor
+				.select({ candidateId: assessmentObjections.candidateId })
+				.from(assessmentObjections)
+				.where(eq(assessmentObjections.id, notification.objectId));
+			if (!objection || !(await isCandidateUser(executor, objection.candidateId, notification.userId))) return null;
+			return { object: 'assessment_objection', side: 'candidate' };
+		}
+		case 'candidate_category': {
+			const candidateId = await categoryOwner(executor, notification.objectId);
+			if (candidateId === null || !(await isCandidateUser(executor, candidateId, notification.userId))) return null;
+			return { object: 'candidate_category', side: 'candidate' };
 		}
 		case 'representation': {
 			const [representation] = await executor

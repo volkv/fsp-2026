@@ -1,6 +1,6 @@
 // The demo seed (docs/domain.md, sections 7.1, 12.5, 21): accounts of every role, companies of the scenario and of the
 // background, candidates on real FSP competitions of the simulator's dataset, own and external vacancies, and the
-// states the scenario starts from. Data flow through the product: FSP sync → facts → claims → categorization →
+// states the scenario starts from. Data flow through the product: FSP sync → facts → claims → evidence →
 // matches, resume parse → extraction, vacancy import → normalization, invitations → hiring. Every record the seed
 // creates carries the batch id. The seed is deterministic and idempotent: its batch id is a hash of its inputs, a
 // finished batch is recorded in the journal and not seeded again, and a stopped one continues where it stopped.
@@ -8,14 +8,14 @@ import { createHash } from 'node:crypto';
 import { and, count, eq, inArray, lte, max, sql } from 'drizzle-orm';
 import { recordAuditEvent } from '$lib/server/audit/record';
 import { currentDocument, type CurrentDocument } from '$lib/server/auth/documents';
-import { createCategorizationHandler } from '$lib/server/categorization/job';
+import { createEvidenceHandler } from '$lib/server/evidence/job';
 import { companyRegistryLookup } from '$lib/server/companies/registry-check';
 import { registryNotConfigured } from '$lib/server/companies/registry';
 import type { DocumentKind } from '$lib/server/consent/kinds';
 import {
 	auditEvents,
 	candidates,
-	categorizationRuns,
+	evidenceRuns,
 	companies,
 	documentExtractions,
 	legalDocuments,
@@ -107,7 +107,7 @@ const CHAIN: readonly JobType[] = [
 	'fsp.sync',
 	'resume.parse',
 	'resume.extract',
-	'categorization.compute',
+	'evidence.compute',
 	'match.refresh',
 	'vacancy.normalize',
 	'company.registry_lookup',
@@ -156,7 +156,7 @@ function seedExtract(services: DemoServices, heroCandidateIds: ReadonlySet<strin
 function seedHandlers(services: DemoServices, heroCandidateIds: ReadonlySet<string>) {
 	return handlerRegistry([
 		createFspSyncHandler(() => services.fsp),
-		createCategorizationHandler(),
+		createEvidenceHandler(),
 		createMatchRefreshHandler(() => MODELS_OFF),
 		createResumeParseHandler({ store: () => services.store, parser: () => services.parser }),
 		createResumeExtractHandler({ adapter: () => seedExtract(services, heroCandidateIds), now: () => new Date() }),
@@ -172,7 +172,7 @@ interface SeedCounts {
 	candidates: number;
 	candidatesWithFsp: number;
 	sourceFacts: number;
-	publishedCategories: number;
+	publishedEvidenceRuns: number;
 	companies: number;
 	vacancies: number;
 	ownVacancies: number;
@@ -233,8 +233,8 @@ async function seedCounts(services: DemoServices, batch: string): Promise<SeedCo
 				.where(eq(sourceFacts.source, 'fsp'))
 		),
 		sourceFacts: await one(db.select({ n: count() }).from(sourceFacts)),
-		publishedCategories: await one(
-			db.select({ n: count() }).from(categorizationRuns).where(eq(categorizationRuns.status, 'published'))
+		publishedEvidenceRuns: await one(
+			db.select({ n: count() }).from(evidenceRuns).where(eq(evidenceRuns.status, 'published'))
 		),
 		companies: await one(db.select({ n: count() }).from(companies).where(eq(companies.seedBatchId, batch))),
 		vacancies: await one(db.select({ n: count() }).from(vacancies).where(eq(vacancies.seedBatchId, batch))),
@@ -434,8 +434,8 @@ export async function seedDemo(services: DemoServices): Promise<SeedSummary> {
 		{ verify: true, operatorUserId }
 	);
 	await showMinorInCatalog(ctx, minorCandidate);
-	// Sources first: the categorization each candidate's settings enqueued is still waiting when the facts arrive, so
-	// the facts join it and each profile is categorized once.
+	// Sources first: the evidence calculation each candidate's settings enqueued is still waiting when the facts arrive,
+	// so the facts join it and each profile is computed once.
 	await drain('candidate sources', ['fsp.sync', 'resume.parse', 'resume.extract']);
 	await drain('candidates');
 
@@ -466,10 +466,7 @@ export async function seedDemo(services: DemoServices): Promise<SeedSummary> {
 		vacancies: ownVacancies,
 		heroes,
 		background: seededBackground,
-		operatorUserId,
-		disputeReason:
-			data.demo.candidates.find((c) => c.dispute !== undefined)?.dispute ??
-			'Прошу пересмотреть категорию: результаты соревнований учтены не полностью.'
+		operatorUserId
 	};
 	await stageScenario(ctx, cast);
 	await stageFunnel(ctx, cast, Math.min(150, Math.max(10, Math.round(settings.candidates / 20))), batch);

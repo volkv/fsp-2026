@@ -1046,7 +1046,7 @@ type ShowDecision =
 |---|---|---|---|
 | `id` | `id` | да | |
 | `candidate_id` | `id` | да | |
-| `source` | `enum` | да | `fsp` · `platform_test` · `codeforces` · `github` · `resume`. Заявленное кандидатом в факты не пишется: заявленный стек — в опросе (12.2); значения `self_declared` и `questionnaire` удаляются из перечислений (A1a) |
+| `source` | `enum` | да | `fsp` · `platform_test` · `codeforces` · `github` · `resume`. Заявленное кандидатом в факты не пишется: заявленный стек — в опросе (12.2); значений `self_declared` и `questionnaire` в перечислениях нет |
 | `fact_type` | `enum` | да | `competition_result` · `qualification` · `national_team` · `platform_rating` · `test_score` · `test_block` · `repo_languages` · `resume_document` |
 | `source_record_ref` | `text` | да | ключ записи в источнике — собственный ID записи источника, не составной ключ из наших полей: `fsp:result:{resultId}`, `fsp:qualification:{qualificationId}`, `test:score:{scoreId}`, `resume:{resumeDocumentId}` (`contracts.md` 1.4) |
 | `event_key` | `text` | нет | ключ события реального мира для групп зависимых доказательств: `fsp:competition:{competitionId}` у результата и у разряда, присвоенного по этому соревнованию; `test:{specialization}` у всех решений о грейде специализации, `test:block:{block}` у подтверждений блока (раздел 9.3) |
@@ -1984,9 +1984,10 @@ test:{specialization}` — все решения специализации од
 
 ### 12.4. Назначение категории (`candidate_categories`)
 
-Один владелец — модуль категорий: только он пишет `candidate_categories`, и только из решений теста. Движок теста после записи,
-аннулирования или замены решения в той же транзакции вызывает `applyGradeDecisions(tx, candidateId, specialization)`: она читает все
-решения специализации, считает `resolveCategory` и приводит к нему категорию, факт теста (10.9), QR-подтверждения и ревизию профиля.
+Один владелец — модуль категорий (`src/lib/server/categories/`): только он пишет `candidate_categories`, и только из решений теста.
+Движок теста после записи, аннулирования или замены решения в той же транзакции вызывает `applyGradeDecisions(tx, candidateId,
+specialization)`: она читает все решения специализации, считает `resolveCategory` и приводит к нему категорию, факт теста (10.9),
+QR-подтверждения и ревизию профиля.
 
 | Поле | Тип | Обяз. | Смысл |
 |---|---|---|---|
@@ -2031,10 +2032,31 @@ test:{specialization}` — все решения специализации од
 - `categoryPredicate(alias, filter?)` — SQL-условие «у кандидата есть действующая категория [этой специализации, этого грейда]» для поиска,
   счётчиков и выдачи.
 
+Состав модуля (`categories/`):
+- `read.ts` — `activeCategories`, `categoryPredicate` (фильтр — списки `specializations`, `grades`, `confirmedSkillKeys`; пустой список —
+  ошибка вызова, а не «ничего»), `categoryHistory` (все назначения кандидата для его кабинета и дела оператора), `policyCategory(executor,
+  candidateId, specialization)` — действующая категория в форме политики грейда (12.3);
+- `publish.ts` — `applyGradeDecisions(tx, candidateId, specialization, journal)`: читает все решения специализации, переход называет
+  `categoryChange` контракта; категория решения, переставшего действовать, — `revoked` с причиной этого решения; поддержанная
+  оставшимися — новая строка или возврат заменённой (`superseded → active` с прежним `assigned_at`); стек — `confirmedStack`, блоки —
+  `defining` грейда; право уверенного результата — как его считает `resolveCategory` (использованное снимается повторным вызовом).
+  Повторный вызов ничего не меняет. Каждое изменение — событие журнала `category.assigned` · `category.superseded` · `category.revoked`,
+  уведомление кандидату `category.assigned` (назначение, замена) или `category.revoked` (отзыв, возврат прежней; категория `account`),
+  `profile_revision + 1` и задания `evidence.compute`, `match.refresh`;
+- `decisions.ts` — чтение решений: `GradeDecisionReader.decisionsOf(executor, candidateId, specialization)` возвращает решения в форме
+  `CategoryDecision` контракта с выпуском, версией справочника, языком практики и причиной, по которой решение перестало действовать
+  (`decision_annulled` · `objection_annulled` · `objection_rescored`). Читатель `grade_decisions` появляется с движком теста; до того
+  `GRADE_DECISIONS` отвечает `DecisionsUnavailable`. `MemoryDecisions` — решения в памяти для оценки качества (11) и тестов;
+- `admission.ts` — допуск по категориям потребности: `admittedCategories(vacancy, ordinals)`, `admitCandidates(executor, ids, admitted)`
+  делит кандидатов на допущенных и без подтверждённой категории;
+- `roles.ts` — отнесение ролей к специализациям (12.10).
+
+Факт теста (10.9) и QR-подтверждения (12.9) приводятся к решениям вместе с категорией, когда их таблицы появятся (B1, D1).
+
 Потребители (переводятся на эту функцию задачей владельца категории): условия каталога и поиска (`db/conditions.ts`,
 `matching/{search,evidence,documents}.ts`), каталог и карточка работодателя (`employer/{catalog,card}.ts`), проекции
 (`visibility/projections.ts`, `components/candidate/model.ts`), рынок и спрос (`market/inputs.ts`, `candidates/demand.ts`), профиль и
-выгрузка (`candidates/{profile,data-export}.ts`), сверка (`derivations/reconcile.ts`), оператор (`operator/{disputes,skills-feedback}.ts`),
+выгрузка (`candidates/{profile,data-export}.ts`), сверка (`derivations/reconcile.ts`), оператор (`operator/{objections,skills-feedback}.ts`),
 пул партнёра (`partner-pool/pool.ts`), воронка (`hiring/funnel.ts`), API (`api/read/category.ts`), демо (`demo/{seed,scenes,reset,clone-plan}.ts`),
 удаление (`erasure/{plan,purge,fsp-import}.ts`), оценка качества (`src/eval/*`: категоризация для пар идёт через ту же функцию, ранжирование
 — через фактический путь «потребность → категории → доступные кандидаты → ранжирование»).
@@ -2060,7 +2082,14 @@ test:{specialization}` — все решения специализации од
 | `resulting_decision_id` | `id` | нет | для `rescored` — новое решение (`supersedes_decision_id`) |
 | `resolved_at`, `notified_at` | `ts` | нет | |
 
-**Что видит оператор** (дело `case_type = assessment`, `operator.case_access`): решение со всеми полями, план попытки, каждый кластер —
+**Экран возражения у оператора** (`/operator/objections`, право `objection.manage`; дело `case_type = objection`, `operator.case_access`
+при каждом открытии активного дела) — очередь по сроку, ответственный, формулировка кандидата, оспариваемое решение и категории
+кандидата; ответ — `upheld` · `annulled` · `rescored` с объяснением. Само решение, аннулирование и пересчёт — функции движка теста:
+модуль возражений получает их через порт `ObjectionDecisions` (`find`, `annul`, `rescore` и чтение решений `decisionsOf`) и в той же
+транзакции ответа приводит категорию к оставшимся решениям (`applyGradeDecisions`); пока движка нет, порт отвечает
+`DecisionsUnavailable`.
+
+**Что видит оператор в деле попытки** (дело `case_type = assessment`, `operator.case_access`): решение со всеми полями, план попытки, каждый кластер —
 экземпляр целиком (условие, ответ генератора, скрытые тесты и мутанты), ответ и артефакты кандидата, балл и его разбор, Angoff-оценки,
 версия выпуска, журнал сигналов. Идентифицирующих данных кандидата сверх нужного делу — нет.
 
@@ -2083,7 +2112,8 @@ test:{specialization}` — все решения специализации од
 ### 12.6. Доказательства профиля (`evidence_runs`)
 
 Расчёт над доказательствами профиля сохраняется, но **категорию больше не назначает**: таблица переименовывается из
-`categorization_runs` в `evidence_runs`, назначения по осям «роль × диапазон грейда × стек» (`category_assignments`) и возражения против
+`categorization_runs` в `evidence_runs` (без колонок происхождения, ручной правки, исхода и недостающих данных — они описывали назначение
+категории), назначения по осям «роль × диапазон грейда × стек» (`category_assignments`) и возражения против
 них (`category_disputes`) удаляются. Расчёт даёт:
 - выводы о навыках (`skill_inferences`, раздел 9.3) — для соответствия потребности, «почему подходит» и подтверждения навыков ФСП;
 - уровень ФСП по дисциплинам (`fsp_level_assignments`) — фасет поиска и бонус внутри категории;
@@ -2142,6 +2172,9 @@ test:{specialization}` — все решения специализации од
 
 Окно, пороги выборки, источники внешнего ориентира — параметры `market_policy`.
 
+Ключ снимка рынка — категория (`specialization`, `grade`); внешний зарплатный ориентир (`salary_references`, по ролям) для категории
+берётся по опорной роли специализации (`REFERENCE_ROLES`, 12.10).
+
 ### 12.9. Подтверждение категории по QR (`category_attestations`)
 
 PDF-профиль кандидата несёт QR со ссылкой на **подтверждение категории** — подписанное платформой заявление о конкретном назначении.
@@ -2170,6 +2203,33 @@ PDF-профиль кандидата несёт QR со ссылкой на **�
 нового подтверждения; новое назначение — новое подтверждение, старое отвечает `superseded`.
 
 ---
+
+### 12.10. Роль и специализация
+
+Роль справочника (вакансии, резюме, внешнего ориентира) относится к специализациям одной таблицей модуля категорий
+(`categories/roles.ts`, `ROLE_SPECIALIZATIONS`, версия `ROLE_SPECIALIZATIONS_VERSION`); других копий отнесения в коде нет.
+
+| Роль | Специализации |
+|---|---|
+| `backend` | `backend` |
+| `frontend` | `frontend` |
+| `fullstack` | `backend`, `frontend` |
+| `mobile` | `mobile` |
+| `data_scientist`, `ml_engineer`, `cv_engineer` | `data_ml` |
+| `mlops` | `data_ml`, `devops` |
+| `qa_manual`, `qa_automation` | `qa` |
+| `devops`, `sre` | `devops` |
+| остальные роли справочника | — (вакансия с такой ролью не сопоставляется по специализации: `vacancy_role_without_specialization`) |
+
+- `specializationsOfRole(role)` — все специализации роли; неизвестная роль — ошибка, а не пустой список;
+- `primarySpecializationOfRole(role)` — первая из них или `null`: специализация потребности по роли вакансии;
+- `rolesOfSpecialization(specialization)` — обратное отнесение (подсказка грейда по стажу в ролях специализации);
+- `REFERENCE_ROLES` — опорная роль специализации для внешнего ориентира (12.8): `backend`, `frontend`, `mobile`, `data_scientist` для
+  `data_ml`, `qa_automation` для `qa`, `devops`.
+
+Компонент соответствия `role` (13.4) сравнивает специализации роли вакансии со специализациями действующих категорий кандидата: та же
+специализация — `same_specialization`, полный вклад; другая — `other_specialization`, ноль и пробел `specialization_other`; у роли нет
+специализации или у кандидата нет категории — `unknown` с причиной `vacancy_role_without_specialization` или `category_not_confirmed`.
 
 ## 13. Вакансии, агрегатор, соответствие, приглашения, найм
 

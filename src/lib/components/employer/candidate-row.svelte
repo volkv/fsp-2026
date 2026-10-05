@@ -4,12 +4,12 @@
 	import { MatchBreakdown, TrustChip } from '$lib/components/product/index.js';
 	import type { TrustLevel } from '$lib/components/product/model.js';
 	import { cn } from '$lib/components/utils.js';
-	import { disciplineName, matchView, type CompanyMatchData, type Labels } from './model.js';
+	import { categoryLine, disciplineName, matchView, type CompanyMatchData, type Labels } from './model.js';
 
-	/** A found candidate in the list: pseudonym, category axes, FSP level, confirmed skills and why they fit. */
+	/** A found candidate in the list: pseudonym, categories in force, FSP level, confirmed skills and why they fit. */
 	interface Summary {
-		categoryState: 'available' | 'recalculating' | 'none';
-		primary: { roleKey: string | null; grade: { min: string; max: string } | null; stackSkillKeys: string[] } | null;
+		categories: { specialization: string; grade: string; confirmedSkillKeys: string[] }[];
+		evidenceState: 'available' | 'recalculating' | 'none';
 		fspLevels: { discipline: string; level: string }[];
 		confirmedSkills: { skillKey: string; badgeTrust: string }[];
 	}
@@ -18,7 +18,6 @@
 		pseudonym: string;
 		summary: Summary;
 		match: CompanyMatchData | null;
-		gradeGroup: 'in_range' | 'not_established' | null;
 		labels: Labels;
 		href: ResolvedPathname;
 		/** The id of the comparison form the checkbox belongs to; absent — no comparison on this page. */
@@ -26,21 +25,12 @@
 		compared?: boolean;
 	}
 
-	let { pseudonym, summary, match, gradeGroup, labels, href, compareForm, compared = false }: Props = $props();
+	let { pseudonym, summary, match, labels, href, compareForm, compared = false }: Props = $props();
 
 	const percent = new Intl.NumberFormat('ru-RU', { style: 'percent', maximumFractionDigits: 0 });
-	const role = $derived(
-		summary.primary?.roleKey ? (labels.roles[summary.primary.roleKey] ?? summary.primary.roleKey) : null
-	);
-	const grade = $derived.by(() => {
-		const range = summary.primary?.grade;
-		if (!range) return null;
-		const min = labels.grades[range.min] ?? range.min;
-		const max = labels.grades[range.max] ?? range.max;
-		return min === max ? min : `${min}–${max}`;
-	});
+	const line = $derived(categoryLine(summary.categories, labels));
 	const view = $derived(match ? matchView(match, labels) : null);
-	/** Without a published category the score rests on no evidence: the row says so instead of a percent. */
+	/** Without an evidence run the score rests on no evidence: the row says so instead of a percent. */
 	const insufficientData = $derived(
 		match?.explanation.to_verify.some((item) => item.code === 'profile_insufficient_data') ?? false
 	);
@@ -53,15 +43,9 @@
 				<a class="hover:underline" {href} data-sveltekit-preload-data="tap">Кандидат {pseudonym}</a>
 			</h3>
 			<p class="text-sm text-muted-foreground">
-				{#if summary.categoryState === 'available' && summary.primary}
-					{role ?? 'роль не установлена'} · {grade ?? 'грейд не установлен'}
-					{#if summary.primary.stackSkillKeys.length > 0}
-						· {summary.primary.stackSkillKeys.map((key) => labels.skills[key] ?? key).join(', ')}
-					{/if}
-				{:else if summary.categoryState === 'recalculating'}
-					Профиль пересчитывается после изменения доказательств
-				{:else}
-					Без категории: недостаточно данных
+				{line ?? 'Категория не подтверждена: тест на грейд не пройден'}
+				{#if summary.evidenceState === 'recalculating'}
+					· профиль пересчитывается после изменения доказательств
 				{/if}
 			</p>
 		</div>
@@ -83,9 +67,10 @@
 	</div>
 
 	<div class="flex flex-wrap items-center gap-2">
-		{#if gradeGroup === 'not_established'}
-			<span class="rounded-full border border-dashed px-2 py-0.5 text-xs text-muted-foreground"
-				>грейд не установлен</span
+		{#if summary.categories.length === 0}
+			<span
+				class="rounded-full border border-dashed px-2 py-0.5 text-xs text-muted-foreground"
+				data-testid="category-not-confirmed">категория не подтверждена</span
 			>
 		{/if}
 		{#each summary.fspLevels as item (item.discipline)}

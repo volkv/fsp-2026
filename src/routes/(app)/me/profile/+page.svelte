@@ -30,13 +30,12 @@
 	 * Every fact of the profile has its place on the page, by its source: a skill names the facts it rests on and opens
 	 * them by their anchors, so no fact may be left without one.
 	 */
-	const SECTIONS: Record<FactSource, 'fsp' | 'tests' | 'public' | 'resume' | 'declared'> = {
+	const SECTIONS: Record<FactSource, 'fsp' | 'tests' | 'public' | 'resume'> = {
 		fsp: 'fsp',
 		platform_test: 'tests',
 		codeforces: 'public',
 		github: 'public',
-		resume: 'resume',
-		self_declared: 'declared'
+		resume: 'resume'
 	};
 	const factsOf = (section: (typeof SECTIONS)[FactSource]): FactView[] =>
 		evidence.facts.filter((fact) => SECTIONS[fact.source] === section);
@@ -47,8 +46,7 @@
 	const profileFactIds = $derived(new Set(data.externalProfiles.map((profile) => profile.factId)));
 	const publicFacts = $derived(factsOf('public').filter((fact) => !profileFactIds.has(fact.id)));
 	// An upload supersedes the fact of the previous resume, so the one resume fact in force is the current resume's.
-	const [resumeFact = null, ...otherResumeFacts] = $derived(factsOf('resume'));
-	const declaredFacts = $derived([...otherResumeFacts, ...factsOf('declared')]);
+	const [resumeFact = null, ...earlierResumeFacts] = $derived(factsOf('resume'));
 	const profileResult = $derived(form && 'target' in form ? form : null);
 
 	const CONSENT_STATES = {
@@ -233,9 +231,9 @@
 			</Empty.Content>
 		</Empty.Root>
 	{/if}
-	{#if declaredFacts.length > 0}
-		<ul class="grid gap-4 lg:grid-cols-2" aria-label="Заявленные факты">
-			{#each declaredFacts as fact (fact.id)}
+	{#if earlierResumeFacts.length > 0}
+		<ul class="grid gap-4 lg:grid-cols-2" aria-label="Факты прежних резюме">
+			{#each earlierResumeFacts as fact (fact.id)}
 				<li id="fact-{fact.id}" class="scroll-mt-32">
 					<FactCard {fact} labels={evidence.labels} />
 				</li>

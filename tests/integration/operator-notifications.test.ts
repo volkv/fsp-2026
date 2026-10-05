@@ -2,21 +2,24 @@
 // are one transaction; a letter names the decision and not its reasons, the operator's notes or the representative's
 // document; the link leads to where the result is read, and only while the recipient still has access to the object.
 import { fileURLToPath } from 'node:url';
-import { randomBytes, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { and, eq, sql } from 'drizzle-orm';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { AccessSubject } from '$lib/server/access/permissions';
 import type { RequestMeta } from '$lib/server/auth/context';
-import { assignDispute, changeCategory, openDispute, upholdCategory } from '$lib/server/categorization/disputes';
-import { createCategorizationHandler } from '$lib/server/categorization/job';
+import {
+	assignObjection,
+	openObjection,
+	resolveObjection,
+	type ObjectionDecisions
+} from '$lib/server/categories/objections';
 import type { CompanyDeps } from '$lib/server/companies/context';
 import { registryNotConfigured } from '$lib/server/companies/registry';
 import { decideVerification } from '$lib/server/companies/verification';
 import { createFieldCrypto } from '$lib/server/crypto/fields';
 import {
-	categorizationRuns,
-	categoryDisputes,
+	assessmentObjections,
 	companies,
 	companyMembers,
 	companyVerifications,
@@ -25,9 +28,6 @@ import {
 	productPolicies,
 	representations
 } from '$lib/server/db/schema';
-import { createLogger } from '$lib/server/jobs/log';
-import { claimJob, completeJob, enqueueJob, type ClaimedJob } from '$lib/server/jobs/queue';
-import { JOB_TYPES } from '$lib/server/jobs/registry';
 import { notificationFacts } from '$lib/server/notifications/content';
 import { notificationLinks } from '$lib/server/notifications/deliver';
 import { openNotification } from '$lib/server/notifications/inbox';
@@ -36,6 +36,7 @@ import { isNotificationType } from '$lib/server/notifications/types';
 import { decideAuthority } from '$lib/server/operator/representatives';
 import { publishTaxonomy } from '$lib/server/taxonomy/publish';
 import { buildRelease, readTaxonomyDatasets } from '$lib/server/taxonomy/release';
+import { decide, testDecisions } from '../helpers/categories';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
 import { createCandidate, createCompany, createMember, createUser } from '../helpers/factories';
 
@@ -217,100 +218,111 @@ describe('company verification decisions', () => {
 	});
 });
 
-describe('dispute decisions', () => {
-	const handler = createCategorizationHandler(() => new Date());
+describe('objection decisions', () => {
+	const decisions: ObjectionDecisions = {
+		decisionsOf: (executor, candidateId, specialization) =>
+			testDecisions.decisionsOf(executor, candidateId, specialization),
+		find: (_, id) =>
+			Promise.resolve(
+				decided.get(id) === undefined
+					? null
+					: {
+							id,
+							candidateId: decided.get(id) as string,
+							attemptId: id,
+							specialization: 'backend',
+							grade: 'middle',
+							outcome: 'confirmed',
+							status: 'valid',
+							decidedAt: new Date(),
+							artifactsKeptUntil: new Date(Date.now() + 90 * 86_400_000)
+						}
+			),
+		annul: (_, decision) => {
+			testDecisions.invalidate(decision.candidateId, decision.id, 'objection_annulled');
+			return Promise.resolve();
+		},
+		rescore: () => Promise.reject(new Error('not used'))
+	};
+	const decided = new Map<string, string>();
 
-	/** A candidate with a category published by the calculation, and an objection taken into review. */
-	async function disputeInReview() {
+	/** A candidate with a category confirmed by a test, and an objection to the decision taken into review. */
+	async function objectionInReview() {
 		const { db } = database;
 		const candidate = await createCandidate(db);
-		await db.transaction((tx) =>
-			enqueueJob(
-				tx,
-				'categorization.compute',
-				{ candidate_id: candidate.id },
-				{ inputVersion: '0', createdBy: { kind: 'system' } }
-			)
-		);
-		const claimed = await claimJob(db, `worker-${randomBytes(3).toString('hex')}`, ['categorization.compute']);
-		if (claimed?.type !== 'categorization.compute') throw new Error('no categorization job to run');
-		const job: ClaimedJob<'categorization.compute'> = {
-			...claimed,
-			type: 'categorization.compute',
-			payload: JOB_TYPES['categorization.compute'].payload.parse(claimed.payload)
-		};
-		const result = await handler.run({
-			job,
-			db,
-			signal: new AbortController().signal,
-			requestId: `job:${job.id}`,
-			log: createLogger({ service: 'test' }).child({ job_id: job.id })
-		});
-		expect(await completeJob(db, job, result)).toBe('succeeded');
-		const [run] = await db
-			.select({ id: categorizationRuns.id })
-			.from(categorizationRuns)
-			.where(and(eq(categorizationRuns.candidateId, candidate.id), eq(categorizationRuns.status, 'published')));
-		if (!run) throw new Error('no published run');
-		const dispute = await openDispute(db, {
+		const { decision } = await decide(db, candidate.id, { specialization: 'backend', grade: 'middle' });
+		decided.set(decision.id, candidate.id);
+		const objection = await openObjection(db, decisions, {
 			candidateId: candidate.id,
 			userId: candidate.userId,
-			runId: run.id,
-			reason: 'Я третий год пишу бэкенд на Go',
-			requestId: 'r'
+			decisionId: decision.id,
+			reason: 'Второе задание оценено неверно',
+			requestId: 'r',
+			now: new Date()
 		});
 		const reviewer = await createUser(db);
-		await assignDispute(db, { disputeId: dispute.id, operatorId: reviewer.id, requestId: 'r' });
-		return { candidate, dispute, reviewerId: reviewer.id };
+		await assignObjection(db, { objectionId: objection.id, operatorId: reviewer.id, requestId: 'r' });
+		return { candidate, objection, reviewerId: reviewer.id };
 	}
 
-	it('tell the candidate that the category was upheld and lead to the category page', async () => {
-		const { candidate, dispute, reviewerId } = await disputeInReview();
-		const resolution = 'Опыт в резюме не подтверждён источниками';
-		await upholdCategory(database.db, { disputeId: dispute.id, operatorId: reviewerId, resolution, requestId: 'r' });
+	it('tell the candidate that the decision was upheld and lead to the category page', async () => {
+		const { candidate, objection, reviewerId } = await objectionInReview();
+		const resolution = 'Оценка верна по сохранённым артефактам';
+		await resolveObjection(database.db, decisions, {
+			objectionId: objection.id,
+			operatorId: reviewerId,
+			answer: { outcome: 'upheld', resolution },
+			requestId: 'r'
+		});
 
-		const sent = await notificationsOf(dispute.id);
+		const sent = await notificationsOf(objection.id);
 		expect(sent.map((n) => [n.userId, n.type, n.category, n.objectType, n.payload])).toEqual([
-			[
-				candidate.userId,
-				'dispute.decided',
-				'disputes',
-				'category_dispute',
-				{ dispute_id: dispute.id, status: 'resolved_upheld' }
-			]
+			[candidate.userId, 'objection.decided', 'account', 'assessment_objection', { outcome: 'upheld' }]
 		]);
-		const [row] = await database.db.select().from(categoryDisputes).where(eq(categoryDisputes.id, dispute.id));
+		const [row] = await database.db
+			.select()
+			.from(assessmentObjections)
+			.where(eq(assessmentObjections.id, objection.id));
 		expect(row?.notifiedAt).not.toBeNull();
 		const [notification] = sent;
 		if (!notification) throw new Error('no notification');
 		const messages = await messagesOf(notification);
-		expect(messages?.letter.subject).toBe('Возражение рассмотрено: категория оставлена — ФСП | Карьера');
+		expect(messages?.letter.subject).toBe('Возражение рассмотрено: результат теста оставлен — ФСП | Карьера');
 		expect(messages?.letter.text).not.toContain(resolution);
-		expect(messages?.telegram).toBe('Ответ на возражение по категории — ФСП | Карьера');
+		expect(messages?.telegram).toBe('Ответ на возражение по результату теста — ФСП | Карьера');
 		expect(await targetOf(notification)).toEqual({ kind: 'candidate_category' });
 		// Another user cannot open the candidate's notification.
 		const stranger = await createUser(database.db);
 		expect(await openNotification(database.db, stranger.id, notification.id, new Date())).toBeNull();
 	});
 
-	it('tell the candidate that the category was replaced by the operator’s decision', async () => {
-		const { candidate, dispute, reviewerId } = await disputeInReview();
-		await changeCategory(database.db, {
-			disputeId: dispute.id,
+	it('tell the candidate that the attempt was annulled and that the category was revoked', async () => {
+		const { candidate, objection, reviewerId } = await objectionInReview();
+		await resolveObjection(database.db, decisions, {
+			objectionId: objection.id,
 			operatorId: reviewerId,
-			resolution: 'Опыт подтверждён документами',
-			axes: { roleKey: 'backend', grade: { min: 'junior', max: 'middle', confidence: 0.6 }, stackSkillKeys: ['go'] },
+			answer: { outcome: 'annulled', resolution: 'Задание с дефектом' },
 			requestId: 'r'
 		});
-		const sent = await notificationsOf(dispute.id);
+		const sent = await notificationsOf(objection.id);
 		expect(sent.map((n) => [n.userId, n.type, n.payload])).toEqual([
-			[candidate.userId, 'dispute.decided', { dispute_id: dispute.id, status: 'resolved_changed' }]
+			[candidate.userId, 'objection.decided', { outcome: 'annulled' }]
 		]);
 		const [notification] = sent;
 		if (!notification) throw new Error('no notification');
 		expect((await messagesOf(notification))?.letter.subject).toBe(
-			'Возражение рассмотрено: категория изменена — ФСП | Карьера'
+			'Возражение рассмотрено: попытка аннулирована — ФСП | Карьера'
 		);
+
+		const [revoked] = await database.db
+			.select()
+			.from(notifications)
+			.where(and(eq(notifications.userId, candidate.userId), eq(notifications.type, 'category.revoked')));
+		if (!revoked) throw new Error('no notification of the revoked category');
+		expect(revoked.payload).toEqual({ reason: 'objection_annulled', restored: false });
+		const letter = await messagesOf(revoked);
+		expect(letter?.letter.subject).toBe('Категория отозвана — ФСП | Карьера');
+		expect(await targetOf(revoked)).toEqual({ kind: 'candidate_category' });
 	});
 });
 

@@ -9,8 +9,7 @@ import {
 	candidateCompanyBlocks,
 	candidates,
 	categorizationRulesets,
-	categorizationRuns,
-	categoryAssignments,
+	evidenceRuns,
 	consentEvents,
 	documentAcceptances,
 	grades,
@@ -36,6 +35,7 @@ import type { MatchingModels } from '$lib/server/matching/semantic';
 import { ok } from '$lib/server/ml/result';
 import shippedMatchRuleset from '../../taxonomy/match-ruleset.json';
 import shippedTemplates from '../../taxonomy/receipt-templates.json';
+import { decide } from '../helpers/categories';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
 import {
 	createCandidate,
@@ -164,7 +164,7 @@ async function grant(
 	});
 }
 
-/** A candidate of the catalog with a published run: `go` confirmed by an FSP result, grade middle. */
+/** A candidate of the catalog with a published run, `go` confirmed by an FSP result, and the category backend middle. */
 async function candidate(
 	setup: {
 		birthYearsAgo?: number;
@@ -179,7 +179,8 @@ async function candidate(
 		birthDate: yearsAgo(setup.birthYearsAgo ?? 28),
 		visibility: setup.visibility ?? 'catalog',
 		searchStatus: setup.searchStatus ?? 'active',
-		profileRevision: 1
+		// The grade decision below moves the profile to revision 1, the one of the run.
+		profileRevision: 0
 	});
 	if (setup.consents !== false) {
 		await grant(row.id, row.userId, 'pd_processing');
@@ -203,7 +204,7 @@ async function candidate(
 		.returning();
 	if (!fact) throw new Error('fact not inserted');
 	const [run] = await db
-		.insert(categorizationRuns)
+		.insert(evidenceRuns)
 		.values({
 			candidateId: row.id,
 			inputRevision: 1,
@@ -213,9 +214,6 @@ async function candidate(
 			rulesetId: categorizationRulesetId,
 			asOf: new Date(),
 			computedAt: new Date(),
-			origin: 'automatic',
-			outcome: 'complete',
-			missing: {},
 			experienceSummary: {},
 			status: 'published'
 		})
@@ -232,20 +230,7 @@ async function candidate(
 		badgeTrust: 'fsp_verified',
 		contributions: [{ fact_id: fact.id, attestation: 'direct' }]
 	});
-	await db.insert(categoryAssignments).values({
-		runId: run.id,
-		rank: 'primary',
-		roleStatus: 'established',
-		roleKey: 'backend',
-		score: '0.8',
-		gradeStatus: 'established',
-		gradeMin: 'middle',
-		gradeMax: 'middle',
-		gradeConfidence: '0.70',
-		stackStatus: 'established',
-		stackSkillKeys: [skillKey],
-		explanation: {}
-	});
+	await decide(db, row.id, { specialization: 'backend', grade: 'middle' });
 	return { ...row, factId: fact.id };
 }
 

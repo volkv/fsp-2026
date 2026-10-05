@@ -1,7 +1,7 @@
 <script lang="ts">
 	import {
 		AchievementBadge,
-		CategoryAxes,
+		CategoryList,
 		DegradedModeNotice,
 		HiringStages,
 		InsufficientData,
@@ -87,7 +87,7 @@
 	<div class="grid gap-4">
 		{#each categories as item (item.caption)}
 			<Specimen title="Категория: {item.caption}">
-				<CategoryAxes category={item.category} />
+				<CategoryList categories={item.categories} fspLevels={item.fspLevels} />
 			</Specimen>
 		{/each}
 		<Specimen title="Недостаточно данных — отдельно">

@@ -97,7 +97,7 @@ export const WORKSPACES: Record<Workspace, WorkspaceNav> = {
 		label: 'Оператор ФСП',
 		items: [
 			{ label: 'Компании', icon: ShieldCheckIcon, href: resolve('/operator/companies') },
-			{ label: 'Возражения', icon: MessageSquareWarningIcon, href: resolve('/operator/disputes') },
+			{ label: 'Возражения', icon: MessageSquareWarningIcon, href: resolve('/operator/objections') },
 			{ label: 'Заявки', icon: BadgeCheckIcon, href: resolve('/operator/claims') },
 			{ label: 'Представители', icon: BookOpenCheckIcon, href: resolve('/operator/representatives') },
 			{ label: 'Вакансии', icon: ScanTextIcon, href: resolve('/operator/vacancies') },

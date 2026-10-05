@@ -1,8 +1,8 @@
 // States the demo scenario starts from, reached through the product's own actions: invitations with versions of terms,
-// answers with disclosed contacts, hiring processes on every stage and with outcomes that differ, an open dispute of a
-// category, representatives of minors who sign by the links of their letters, a revoked catalog consent and the pool of
-// a competition partner: the heroes of the cast who are its finalists consent to it, so that the clones of a demo
-// session show the pool of the session's partner (domain 19.3).
+// answers with disclosed contacts, hiring processes on every stage and with outcomes that differ, representatives of
+// minors who sign by the links of their letters, a revoked catalog consent and the pool of a competition partner: the
+// heroes of the cast who are its finalists consent to it, so that the clones of a demo session show the pool of the
+// session's partner (domain 19.3).
 import { and, asc, desc, eq, inArray, ne, sql } from 'drizzle-orm';
 import { confirmRepresentativeContact, inviteRepresentative } from '$lib/server/auth/onboarding';
 import {
@@ -13,12 +13,9 @@ import {
 } from '$lib/server/candidates/consents';
 import { consentSides } from '$lib/server/consent/effective';
 import { sendConsentLetter, signConsentsByRepresentative } from '$lib/server/consent/representative';
-import { openDispute } from '$lib/server/categorization/disputes';
-import { listedInCatalog, publishedRun } from '$lib/server/db/conditions';
+import { listedInCatalog } from '$lib/server/db/conditions';
 import {
 	candidates,
-	categorizationRuns,
-	categoryDisputes,
 	consentEvents,
 	hiringProcesses,
 	hiringReports,
@@ -248,8 +245,6 @@ interface Cast {
 	heroes: ReadonlyMap<string, SeededCandidate>;
 	background: readonly SeededCandidate[];
 	operatorUserId: string;
-	/** What the algorithmist writes in his dispute (`seeds/demo.json`). */
-	disputeReason: string;
 }
 
 function required<T>(value: T | undefined, what: string): T {
@@ -259,8 +254,8 @@ function required<T>(value: T | undefined, what: string): T {
 
 /**
  * The hero states of the scenario (`seeds/demo.json`): an open invitation to the senior Python developer from the main
- * employer, a revised offer to the Go developer after he accepted the first one, the open dispute of the algorithmist's
- * category, and a process whose sides reported different outcomes.
+ * employer, a revised offer to the Go developer after he accepted the first one, and a process whose sides reported
+ * different outcomes.
  */
 export async function stageScenario(ctx: SeedContext, cast: Cast): Promise<void> {
 	const main = required(cast.companies.get('severny_kod'), 'the main employer');
@@ -304,29 +299,6 @@ export async function stageScenario(ctx: SeedContext, cast: Cast): Promise<void>
 	for (const company of cast.companies.values()) {
 		if (company.competitionRef === null) continue;
 		for (const hero of cast.heroes.values()) await consentToPool(ctx, company.competitionRef, hero);
-	}
-
-	// The algorithmist disputes his category.
-	const timur = required(cast.heroes.get('k3'), 'К-3');
-	const [run] = await ctx.services.db
-		.select({ id: categorizationRuns.id })
-		.from(categorizationRuns)
-		.where(and(eq(categorizationRuns.candidateId, timur.candidateId), publishedRun(categorizationRuns)))
-		.orderBy(desc(categorizationRuns.id))
-		.limit(1);
-	if (!run) throw new Error('К-3 has no published category to dispute');
-	const [dispute] = await ctx.services.db
-		.select({ id: categoryDisputes.id })
-		.from(categoryDisputes)
-		.where(eq(categoryDisputes.candidateId, timur.candidateId));
-	if (!dispute) {
-		await openDispute(ctx.services.db, {
-			candidateId: timur.candidateId,
-			userId: timur.userId,
-			runId: run.id,
-			reason: cast.disputeReason,
-			requestId: ctx.meta.requestId
-		});
 	}
 }
 

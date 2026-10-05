@@ -212,24 +212,20 @@ export const DEMO_CLONE_PLAN: Readonly<Record<string, TableDecision>> = {
 		edges: { attempt_id: 'owner', supersedes_score_id: 'owner', reviewer_id: 'mention' }
 	},
 	assessment_artifacts: { kind: 'owned', copy: true, edges: { attempt_id: 'owner', file_id: 'owner' } },
-	categorization_runs: {
+	evidence_runs: {
 		kind: 'owned',
 		copy: true,
 		edges: {
 			candidate_id: 'owner',
 			taxonomy_version_id: 'reference',
 			ruleset_id: 'reference',
-			job_id: 'reference',
-			override_by: 'mention'
+			job_id: 'reference'
 		}
 	},
-	category_assignments: { kind: 'owned', copy: true, edges: { run_id: 'owner' } },
 	fsp_level_assignments: { kind: 'owned', copy: true, edges: { run_id: 'owner' } },
-	category_disputes: {
-		kind: 'owned',
-		copy: true,
-		edges: { candidate_id: 'owner', run_id: 'owner', assignee_id: 'mention', resulting_run_id: 'owner' }
-	},
+	// Categories and objections (domain 23.2); `decision_id` becomes an `owner` edge with its foreign key.
+	candidate_categories: { kind: 'owned', copy: true, edges: { candidate_id: 'owner' } },
+	assessment_objections: { kind: 'owned', copy: true, edges: { candidate_id: 'owner', assignee_id: 'mention' } },
 
 	// Vacancies, matches, invitations, hiring.
 	vacancies: {
@@ -270,7 +266,7 @@ export const DEMO_CLONE_PLAN: Readonly<Record<string, TableDecision>> = {
 		edges: {
 			vacancy_id: 'owner',
 			candidate_id: 'owner',
-			categorization_run_id: 'owner',
+			evidence_run_id: 'owner',
 			match_ruleset_id: 'reference',
 			embedding_space_id: 'reference',
 			job_id: 'reference'
@@ -354,7 +350,8 @@ export const DEMO_CLONE_PLAN: Readonly<Record<string, TableDecision>> = {
 			type: 't.object_type',
 			id: 't.object_id::text',
 			targets: {
-				category_dispute: 'category_disputes',
+				assessment_objection: 'assessment_objections',
+				candidate_category: 'candidate_categories',
 				company: 'companies',
 				hiring_process: 'hiring_processes',
 				invitation: 'invitations',

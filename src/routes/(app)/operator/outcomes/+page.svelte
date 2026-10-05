@@ -29,7 +29,7 @@
 	const empty = $derived('value' in funnel.total.invited && funnel.total.invited.value === 0);
 	const synthetic = $derived(funnel.total.synthetic);
 	const names = $derived<FunnelNames>({
-		roles: data.roles,
+		specializations: data.specializations,
 		grades: data.grades,
 		competitions: funnel.competitions,
 		discipline: (code: string) => disciplineName(code, 'short')
@@ -108,13 +108,13 @@
 			</NativeSelect>
 		</Field.Field>
 		<Field.Field class="w-52">
-			<Field.Label for="funnel-role">Роль категории</Field.Label>
-			<NativeSelect id="funnel-role" name="role" value={data.filters.where.role ?? ''}>
+			<Field.Label for="funnel-specialization">Специализация категории</Field.Label>
+			<NativeSelect id="funnel-specialization" name="specialization" value={data.filters.where.specialization ?? ''}>
 				<option value="">Любая</option>
-				{#each Object.entries(data.roles) as [key, name] (key)}
+				{#each Object.entries(data.specializations) as [key, name] (key)}
 					<option value={key}>{name}</option>
 				{/each}
-				<option value="none">Роль не установлена</option>
+				<option value="none">Категория не подтверждена</option>
 			</NativeSelect>
 		</Field.Field>
 		<Field.Field class="w-44">

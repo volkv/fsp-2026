@@ -1,15 +1,13 @@
-// The candidate's own side (contracts 5.5; domain 12, 13.4, 18.2): the category with its full explanation and what is
-// missing, an objection to it, the match with vacancies with the gaps and what to improve, and everything the platform
-// keeps about the candidate («Мои данные»). Browser session only.
+// The candidate's own side (contracts 5.5; domain 13.4, 18.2): the match with vacancies with the gaps and what to
+// improve, and everything the platform keeps about the candidate («Мои данные»). Categories and objections are in
+// `categories.ts`. Browser session only.
 import { z } from 'zod';
 import { can, type AccessSubject } from '$lib/server/access/permissions';
 import { DATA_EXPORT_FORMAT, exportOwnData } from '$lib/server/candidates/data-export';
-import { openDispute } from '$lib/server/categorization/disputes';
 import { ApiError } from '$lib/server/errors/api-error';
 import { recommendVacancies } from '$lib/server/matching/recommendations';
 import { defineOperation } from '../operation';
-import { ownCategory } from '../read/category';
-import { candidateMatch, date, dateTime, iso, key, pageQuery } from '../schemas';
+import { candidateMatch, dateTime, key, pageQuery } from '../schemas';
 import type { BaseContext } from './context';
 
 const TAG = 'Кандидат';
@@ -28,140 +26,6 @@ async function selfCandidate(
 	if (!decision.allowed) throw new ApiError('forbidden');
 	return { subject, candidateId, userId: subject.userId };
 }
-
-const disputeSchema = z
-	.object({
-		id: z.uuid(),
-		run_id: z.uuid(),
-		status: z.enum(['open', 'in_review', 'resolved_upheld', 'resolved_changed', 'withdrawn']),
-		opened_at: dateTime,
-		due_at: dateTime.describe('Срок ответа: 30 дней')
-	})
-	.meta({ id: 'CategoryDispute', description: 'Возражение против категории' });
-
-export const getMyCategory = defineOperation({
-	id: 'getMyCategory',
-	method: 'GET',
-	path: '/me/category',
-	tag: TAG,
-	summary: 'Моя категория',
-	description:
-		'Опубликованная категория по осям роли, грейда и стека с полным объяснением, уровни ФСП и чего не хватает. ' +
-		'`recalculating` — часть доказательств отозвана, категория пересчитывается и до пересчёта не показывается.',
-	auth: 'session',
-	permission: 'candidate.self.read',
-	errors: [],
-	response: {
-		status: 200,
-		description: 'Категория',
-		schema: z.object({
-			state: z.enum(['available', 'recalculating', 'none']),
-			run: z
-				.object({
-					id: z.uuid().describe('На эту версию подаётся возражение'),
-					outcome: z.enum(['complete', 'partial', 'insufficient_data']),
-					origin: z.enum(['automatic', 'manual_override']),
-					computed_at: dateTime,
-					missing: json.describe('Чего не хватает по каждой оси и как это добавить'),
-					experience_summary: json
-				})
-				.nullable(),
-			categories: z.array(
-				z.object({
-					rank: z.enum(['primary', 'secondary']),
-					role: z.object({ status: z.enum(['established', 'insufficient_data']), key: key.nullable() }),
-					grade: z.object({
-						status: z.enum(['established', 'insufficient_data']),
-						min: key.nullable(),
-						max: key.nullable(),
-						confidence: z.number().nullable()
-					}),
-					stack: z.object({ status: z.enum(['established', 'insufficient_data']), skill_keys: z.array(key) }),
-					explanation: json.describe('Объяснение по осям: сигналы, правила, желаемые роли, маркеры ФСП')
-				})
-			),
-			fsp_levels: z.array(z.object({ discipline: z.string(), level: z.string(), last_result_on: date.nullable() })),
-			open_dispute: disputeSchema.nullable()
-		})
-	},
-	async handle(ctx) {
-		const { candidateId } = await selfCandidate(ctx, 'candidate.self.read');
-		const category = await ownCategory(ctx.services.db, candidateId);
-		const { run, dispute } = category;
-		return {
-			state: category.state,
-			run: run && {
-				id: run.id,
-				outcome: run.outcome,
-				origin: run.origin,
-				computed_at: iso(run.computedAt),
-				missing: run.missing as Record<string, unknown>,
-				experience_summary: run.experienceSummary as Record<string, unknown>
-			},
-			categories: category.assignments.map((a) => ({
-				rank: a.rank,
-				role: { status: a.roleStatus, key: a.roleKey },
-				grade: {
-					status: a.gradeStatus,
-					min: a.gradeMin,
-					max: a.gradeMax,
-					confidence: a.gradeConfidence === null ? null : Number(a.gradeConfidence)
-				},
-				stack: { status: a.stackStatus, skill_keys: a.stackSkillKeys },
-				explanation: a.explanation as Record<string, unknown>
-			})),
-			fsp_levels: category.levels.map((level) => ({
-				discipline: level.discipline,
-				level: level.level,
-				last_result_on: level.lastResultOn
-			})),
-			open_dispute: dispute && {
-				id: dispute.id,
-				run_id: dispute.runId,
-				status: dispute.status,
-				opened_at: iso(dispute.openedAt),
-				due_at: iso(dispute.dueAt)
-			}
-		};
-	}
-});
-
-export const openCategoryDispute = defineOperation({
-	id: 'openCategoryDispute',
-	method: 'POST',
-	path: '/me/category/disputes',
-	tag: TAG,
-	summary: 'Возразить против категории',
-	description:
-		'Возражение против опубликованной категории (`run_id` из `GET /me/category`). Оператор ФСП отвечает в течение 30 ' +
-		'дней: оставляет категорию или заменяет её решением. Одно открытое возражение на версию.',
-	auth: 'session',
-	permission: 'candidate.self.write',
-	idempotent: true,
-	body: z.strictObject({
-		run_id: z.uuid(),
-		reason: z.string().describe('Почему категория неверна; до 4000 символов')
-	}),
-	errors: ['not_found', 'conflict'],
-	response: { status: 201, description: 'Возражение принято', schema: disputeSchema },
-	async handle(ctx) {
-		const { candidateId, userId } = await selfCandidate(ctx, 'candidate.self.write');
-		const dispute = await openDispute(ctx.services.db, {
-			candidateId,
-			userId,
-			runId: ctx.body.run_id,
-			reason: ctx.body.reason,
-			requestId: ctx.meta.requestId
-		});
-		return {
-			id: dispute.id,
-			run_id: dispute.runId,
-			status: dispute.status,
-			opened_at: iso(dispute.openedAt),
-			due_at: iso(dispute.dueAt)
-		};
-	}
-});
 
 export const listMyMatches = defineOperation({
 	id: 'listMyMatches',
@@ -266,8 +130,9 @@ export const getMyData = defineOperation({
 			facts: records,
 			experience: records,
 			external_profiles: records,
-			category: records,
-			category_disputes: records,
+			evidence: records,
+			categories: records,
+			objections: records,
 			company_blocks: records,
 			matches: records,
 			consents: records,

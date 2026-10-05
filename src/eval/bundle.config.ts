@@ -45,7 +45,7 @@ export function bridgeRevision(state: CheckoutState, fromEnv: string | undefined
 }
 
 /**
- * The bridge build into `outDir`. The bundle finds the checkout — `taxonomy/`, `assessments/` and the migrations — by
+ * The bridge build into `outDir`. The bundle finds the checkout — `taxonomy/` and the migrations — by
  * the path from its own directory, computed here from `outDir` (`__EVAL_CHECKOUT_DIR__`): the checkout is mounted
  * anywhere, and only the build knows where the bundle lies in it.
  */

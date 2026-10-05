@@ -10,8 +10,8 @@ import { and, count, desc, eq, isNull, lt, or } from 'drizzle-orm';
 import type { Database } from '$lib/server/db';
 import {
 	assessmentAttempts,
+	assessmentObjections,
 	candidates,
-	categoryDisputes,
 	companies,
 	companyMembers,
 	hiringProcesses,
@@ -20,8 +20,9 @@ import {
 	representations,
 	vacancies
 } from '$lib/server/db/schema';
+import { categoryOwner } from '$lib/server/categories/read';
 import { activeStaffRole } from './content';
-import { NOTIFICATION_TYPES, isDisputeDeadline, isNotificationType, type NotificationCategory } from './types';
+import { NOTIFICATION_TYPES, isNotificationType, isObjectionDeadline, type NotificationCategory } from './types';
 
 export const INBOX_PAGE_SIZE = 30;
 
@@ -96,7 +97,7 @@ export type NotificationTarget =
 	| { kind: 'company_profile' }
 	/** The company's own vacancy with the moderation decision and its reason. */
 	| { kind: 'company_vacancy'; vacancyId: string }
-	/** The candidate's category page with the operator's answer to the objection. */
+	/** The candidate's page «Категория и грейд»: the answer to an objection, a category assigned or revoked. */
 	| { kind: 'candidate_category' }
 	/** The candidate's visibility page: the representative's authority is confirmed. */
 	| { kind: 'candidate_visibility' }
@@ -110,7 +111,7 @@ export type NotificationTarget =
 	/** The candidate's own attempt of a test: the operator annulled it. */
 	| { kind: 'candidate_attempt'; attemptId: string }
 	/** The operator's queue of objections: an answer is due soon or overdue. */
-	| { kind: 'operator_disputes' }
+	| { kind: 'operator_objections' }
 	/** The admin's staff management: an objection waits for its answer. */
 	| { kind: 'admin_staff' }
 	/** The object is gone or the recipient no longer has access to it. */
@@ -187,18 +188,24 @@ async function targetOf(
 				? { kind: 'company_vacancy', vacancyId: objectId }
 				: { kind: 'unavailable' };
 		}
-		case 'category_dispute': {
-			if (isNotificationType(notification.type) && isDisputeDeadline(notification.type)) {
+		case 'assessment_objection': {
+			if (isNotificationType(notification.type) && isObjectionDeadline(notification.type)) {
 				// Decided now: a revoked role leads nowhere; an answered objection is read in the queue as well.
 				const role = await activeStaffRole(db, userId);
 				if (role === null) return { kind: 'unavailable' };
-				return role === 'operator' ? { kind: 'operator_disputes' } : { kind: 'admin_staff' };
+				return role === 'operator' ? { kind: 'operator_objections' } : { kind: 'admin_staff' };
 			}
-			const [dispute] = await db
-				.select({ candidateId: categoryDisputes.candidateId })
-				.from(categoryDisputes)
-				.where(eq(categoryDisputes.id, objectId));
-			return dispute && (await candidateUserOf(db, dispute.candidateId)) === userId
+			const [objection] = await db
+				.select({ candidateId: assessmentObjections.candidateId })
+				.from(assessmentObjections)
+				.where(eq(assessmentObjections.id, objectId));
+			return objection && (await candidateUserOf(db, objection.candidateId)) === userId
+				? { kind: 'candidate_category' }
+				: { kind: 'unavailable' };
+		}
+		case 'candidate_category': {
+			const candidateId = await categoryOwner(db, objectId);
+			return candidateId !== null && (await candidateUserOf(db, candidateId)) === userId
 				? { kind: 'candidate_category' }
 				: { kind: 'unavailable' };
 		}

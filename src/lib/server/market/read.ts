@@ -1,8 +1,10 @@
-// The market of a category as a viewer reads it (docs/domain.md, section 12.5; contracts `GET /catalog/market`) and
+// The market of a category as a viewer reads it (docs/domain.md, section 12.8; contracts `GET /catalog/market`) and
 // the position of a vacancy's salary range against it. Each indicator keeps its own sample, window, geography, tax
 // base and method; a number is shown only for the exact combination it was collected for and only at or above the
 // threshold; demonstration data is labelled as such.
 import { and, eq, sql } from 'drizzle-orm';
+import { GRADE_KEYS, type GradeKey, type SpecializationKey } from '$lib/server/assessments/contract/catalog';
+import { specializationsOfRole } from '$lib/server/categories/roles';
 import type { Executor } from '$lib/server/db';
 import { marketSnapshots } from '$lib/server/db/schema';
 import type { CatalogViewer } from '$lib/server/matching/visibility';
@@ -22,7 +24,7 @@ import {
 } from './aggregate';
 import { loadCandidateRecords } from './inputs';
 import { loadMarketPolicy } from './policy';
-import { candidateInputs, ESTIMATED_METHOD, MARKET_GEOGRAPHY } from './refresh';
+import { candidateInputs, MARKET_GEOGRAPHY } from './refresh';
 
 interface FigureCommon {
 	indicator: MarketIndicator;
@@ -123,7 +125,7 @@ async function viewerCandidateRows(
 	now: Date
 ): Promise<SnapshotRow[]> {
 	const id = categoryKeyId(key);
-	const records = (await loadCandidateRecords(executor, key.role_key))
+	const records = (await loadCandidateRecords(executor, key.specialization))
 		.map((record) => ({ ...record, keys: record.keys.filter((k) => categoryKeyId(k) === id) }))
 		.filter((record) => record.keys.length > 0);
 	const facts = await loadVisibilityFacts(
@@ -159,7 +161,7 @@ async function viewerCandidateRows(
 export async function loadCategoryMarket(
 	executor: Executor,
 	input: {
-		category: { roleKey: string; gradeKey?: string | null; stackSkillKeys?: readonly string[] };
+		category: CategoryKey;
 		viewer: CatalogViewer | null;
 		now: Date;
 	}
@@ -189,7 +191,6 @@ export interface VacancyForPosition {
 	roleKey: string | null;
 	gradeMin: string | null;
 	gradeMax: string | null;
-	requiredSkillKeys: readonly string[];
 	salary: SalaryTerms;
 }
 
@@ -217,27 +218,26 @@ export type IndicatorPosition =
 	  }
 	| { indicator: 'vacancy_ranges' | 'external_reference'; status: 'insufficient_data' };
 
-export type VacancyMarketPosition = { status: 'no_role' } | { status: 'evaluated'; positions: IndicatorPosition[] };
+/** `no_specialization` — the vacancy has no role, or its role is of no specialization (domain 12.10). */
+export type VacancyMarketPosition =
+	{ status: 'no_specialization' } | { status: 'evaluated'; positions: IndicatorPosition[] };
 
 /**
- * Keys from the vacancy's own combination to broader ones: the role with the grade (only a single-grade vacancy has
- * one) and each required skill, the role with the grade, the role alone.
+ * Keys from the vacancy's own combination to broader ones, for each specialization of its role: the category (only a
+ * single-grade vacancy has one), then the specialization alone.
  */
-function positionKeys(vacancy: VacancyForPosition & { roleKey: string }): CategoryKey[] {
-	const grade = vacancy.gradeMin !== null && vacancy.gradeMin === vacancy.gradeMax ? vacancy.gradeMin : null;
-	const keys = [...new Set(vacancy.requiredSkillKeys)]
-		.sort()
-		.map((skill) => categoryKey({ roleKey: vacancy.roleKey, gradeKey: grade, stackSkillKeys: [skill] }));
-	if (grade !== null) keys.push(categoryKey({ roleKey: vacancy.roleKey, gradeKey: grade }));
-	keys.push(categoryKey({ roleKey: vacancy.roleKey }));
-	return keys;
+function positionKeys(specializations: readonly SpecializationKey[], vacancy: VacancyForPosition): CategoryKey[] {
+	const single = vacancy.gradeMin !== null && vacancy.gradeMin === vacancy.gradeMax ? vacancy.gradeMin : null;
+	const grade = single !== null && (GRADE_KEYS as readonly string[]).includes(single) ? (single as GradeKey) : null;
+	return specializations.flatMap((specialization) => [
+		...(grade === null ? [] : [categoryKey({ specialization, grade })]),
+		categoryKey({ specialization })
+	]);
 }
 
-/** The figure a range is compared with: full-range vacancies or an observed reference before an estimate. */
+/** The figure a range is compared with: full-range vacancies, an observed reference. */
 function comparableMethod(indicator: IndicatorPosition['indicator'], figure: MarketFigure): boolean {
-	return indicator === 'vacancy_ranges'
-		? figure.method === RANGE_METHODS.full
-		: figure.method === 'observed_median' || figure.method === ESTIMATED_METHOD;
+	return indicator === 'vacancy_ranges' ? figure.method === RANGE_METHODS.full : figure.method === 'observed_median';
 }
 
 function positionAgainst(
@@ -310,11 +310,12 @@ export async function vacancyMarketPosition(
 	vacancy: VacancyForPosition,
 	now: Date
 ): Promise<VacancyMarketPosition> {
-	if (vacancy.roleKey === null) return { status: 'no_role' };
+	const specializations = vacancy.roleKey === null ? [] : specializationsOfRole(vacancy.roleKey);
+	if (specializations.length === 0) return { status: 'no_specialization' };
 	const range = normalizedRange(vacancy.salary);
 	const positions: IndicatorPosition[] = [];
 	const figuresOf = new Map<string, CategoryMarket>();
-	const keys = positionKeys({ ...vacancy, roleKey: vacancy.roleKey });
+	const keys = positionKeys(specializations, vacancy);
 	for (const indicator of ['vacancy_ranges', 'external_reference'] as const) {
 		if (range.min === null && range.max === null) {
 			positions.push({
@@ -331,15 +332,7 @@ export async function vacancyMarketPosition(
 			const id = categoryKeyId(key);
 			let market = figuresOf.get(id);
 			if (!market) {
-				market = await loadCategoryMarket(executor, {
-					category: {
-						roleKey: key.role_key,
-						gradeKey: key.grade_key ?? null,
-						stackSkillKeys: key.stack_skill_keys ?? []
-					},
-					viewer: null,
-					now
-				});
+				market = await loadCategoryMarket(executor, { category: key, viewer: null, now });
 				figuresOf.set(id, market);
 			}
 			const figures = market.indicators[indicator];

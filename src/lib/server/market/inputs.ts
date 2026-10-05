@@ -1,79 +1,65 @@
-// Records the category market is computed from (docs/domain.md, section 12.5): salary expectations of catalog
-// candidates by the categories of their valid published run, salary ranges of own published and fresh external
-// vacancies, and the external salary reference of the published taxonomy version. Clones of demo sessions and the
+// Records the category market is computed from (docs/domain.md, section 12.8): salary expectations of catalog
+// candidates by their categories in force, salary ranges of own published and fresh external vacancies by the
+// specializations of their roles (domain 12.10), and the external salary reference of the published taxonomy version. Clones of demo sessions and the
 // vacancies of their companies are not counted: they copy the cast, which is counted already (domain 19.3).
 import { eq, sql } from 'drizzle-orm';
 import { parsePreferences, salaryExpectation } from '$lib/server/candidates/preferences';
 import type { Executor } from '$lib/server/db';
-import { candidateAt, listedInCatalog, runAt, runInForce } from '$lib/server/db/conditions';
+import type { GradeKey, SpecializationKey } from '$lib/server/assessments/contract/catalog';
+import { activeCategoryRows } from '$lib/server/categories/read';
+import { specializationsOfRole } from '$lib/server/categories/roles';
+import { candidateAt, listedInCatalog } from '$lib/server/db/conditions';
 import { salaryReferences } from '$lib/server/db/schema';
 import { companySession, outsideDemoSessions } from '$lib/server/demo/scope';
 import { loadGradeOrdinals } from '$lib/server/matching/evidence';
 import { latestPublishedVersion } from '$lib/server/taxonomy/vocabulary';
 import type { SalaryTerms } from '$lib/server/salary/compare';
-import { categoryKeysOf, gradeKeysBetween, type CategoryKey } from './aggregate';
+import { catalogGradesBetween, categoryKeysOf, type CategoryKey } from './aggregate';
 
 export interface CandidateRecord {
 	candidateId: string;
 	synthetic: boolean;
 	salary: SalaryTerms;
-	/** Category keys of every established role of the valid published run. */
+	/** Keys of every category in force of the candidate. */
 	keys: CategoryKey[];
 }
 
-interface AssignmentRow extends Record<string, unknown> {
+interface CategoryRow extends Record<string, unknown> {
 	candidate_id: string;
 	preferences: unknown;
 	seed_batch_id: string | null;
-	taxonomy_version_id: string;
-	role_key: string;
-	grade_status: string;
-	grade_min: string | null;
-	grade_max: string | null;
-	stack_status: string;
-	stack_skill_keys: string[];
+	specialization: SpecializationKey;
+	grade: GradeKey;
 }
 
 /**
  * Candidates the catalog may show at all (active, in the catalog, looking) with a salary expectation, each with the
- * categories of its valid published run. Whether a given viewer sees them is decided by the caller with `canShow`.
- * `roleKey` narrows the read to one role.
+ * keys of their categories in force (domain 12.8); a candidate without a category counts in no market. Whether a given
+ * viewer sees them is decided by the caller with `canShow`. `specialization` narrows the read to one specialization.
  */
-export async function loadCandidateRecords(executor: Executor, roleKey?: string): Promise<CandidateRecord[]> {
-	const rows = await executor.execute<AssignmentRow>(sql`
-		select c.id::text as candidate_id, c.preferences, c.seed_batch_id, r.taxonomy_version_id::text as taxonomy_version_id,
-			a.role_key, a.grade_status, a.grade_min, a.grade_max, a.stack_status, a.stack_skill_keys
+export async function loadCandidateRecords(
+	executor: Executor,
+	specialization?: SpecializationKey
+): Promise<CandidateRecord[]> {
+	const rows = await executor.execute<CategoryRow>(sql`
+		select c.id::text as candidate_id, c.preferences, c.seed_batch_id, k.specialization, k.grade
 		from candidates c
-		join categorization_runs r on r.candidate_id = c.id and ${runInForce(runAt('r'), candidateAt('c'))}
-		join category_assignments a on a.run_id = r.id and a.role_status = 'established' and a.role_key is not null
+		join ${activeCategoryRows} k on k.candidate_id = c.id
 		where ${listedInCatalog(candidateAt('c'))}
 			and c.preferences ? 'salary_expectation' and ${outsideDemoSessions(sql`c.demo_session_id`)}
-			${roleKey === undefined ? sql`` : sql`and a.role_key = ${roleKey}`}
+			${specialization === undefined ? sql`` : sql`and k.specialization = ${specialization}`}
 	`);
-	const ordinals = await loadGradeOrdinals(
-		executor,
-		rows.map((row) => row.taxonomy_version_id)
-	);
 	const records = new Map<string, CandidateRecord>();
 	for (const row of rows) {
 		const salary = salaryExpectation(parsePreferences(row.candidate_id, row.preferences));
 		if (salary === null) continue;
-		const grades =
-			row.grade_status === 'established'
-				? gradeKeysBetween(ordinals.get(row.taxonomy_version_id) ?? new Map(), row.grade_min, row.grade_max)
-				: [];
-		const keys = categoryKeysOf({
-			roleKey: row.role_key,
-			gradeKeys: grades,
-			stackSkillKeys: row.stack_status === 'established' ? row.stack_skill_keys : []
-		});
 		const record = records.get(row.candidate_id) ?? {
 			candidateId: row.candidate_id,
 			synthetic: row.seed_batch_id !== null,
 			salary,
 			keys: []
 		};
-		record.keys.push(...keys);
+		record.keys.push(...categoryKeysOf({ specializations: [row.specialization], grades: [row.grade] }));
 		records.set(row.candidate_id, record);
 	}
 	return [...records.values()];
@@ -95,7 +81,6 @@ interface VacancyRow extends Record<string, unknown> {
 	role_key: string;
 	grade_min: string | null;
 	grade_max: string | null;
-	required_skill_keys: string[];
 	salary_min: number | null;
 	salary_max: number | null;
 	salary_currency: string | null;
@@ -104,18 +89,14 @@ interface VacancyRow extends Record<string, unknown> {
 }
 
 /**
- * Vacancies of the market window with a recognized role and a salary: own vacancies published now, and external
- * ones in search (active or stale, not replaced by an own vacancy) with a posting confirmed within the window. An
- * external vacancy hidden by the text check or by an operator does not count (domain 13.1).
+ * Vacancies of the market window with a role of some specialization and a salary: own vacancies published now, and
+ * external ones in search (active or stale, not replaced by an own vacancy) with a posting confirmed within the window.
+ * An external vacancy hidden by the text check or by an operator does not count (domain 13.1).
  */
-export async function loadVacancyRecords(
-	executor: Executor,
-	windowFrom: Date,
-	roleKey?: string
-): Promise<VacancyRecord[]> {
+export async function loadVacancyRecords(executor: Executor, windowFrom: Date): Promise<VacancyRecord[]> {
 	const rows = await executor.execute<VacancyRow>(sql`
 		select v.id::text as id, v.origin, v.seed_batch_id, v.taxonomy_version_id::text as taxonomy_version_id,
-			v.role_key, v.grade_min, v.grade_max, v.required_skill_keys,
+			v.role_key, v.grade_min, v.grade_max,
 			v.salary_min, v.salary_max, v.salary_currency, v.salary_period, v.salary_tax_base
 		from vacancies v
 		where v.role_key is not null and ${outsideDemoSessions(companySession(sql`v.company_id`))}
@@ -126,29 +107,33 @@ export async function loadVacancyRecords(
 					and exists (select 1 from vacancy_postings p where p.vacancy_id = v.id and p.freshness <> 'gone'
 						and p.last_checked_at >= ${windowFrom.toISOString()}))
 			)
-			${roleKey === undefined ? sql`` : sql`and v.role_key = ${roleKey}`}
 	`);
 	const ordinals = await loadGradeOrdinals(
 		executor,
 		rows.map((row) => row.taxonomy_version_id)
 	);
-	return rows.map((row) => ({
-		vacancyId: row.id,
-		origin: row.origin,
-		synthetic: row.seed_batch_id !== null,
-		salary: {
-			min: row.salary_min,
-			max: row.salary_max,
-			currency: row.salary_currency,
-			period: row.salary_period,
-			taxBase: row.salary_tax_base
-		},
-		keys: categoryKeysOf({
-			roleKey: row.role_key,
-			gradeKeys: gradeKeysBetween(ordinals.get(row.taxonomy_version_id) ?? new Map(), row.grade_min, row.grade_max),
-			stackSkillKeys: row.required_skill_keys
-		})
-	}));
+	return rows.flatMap((row) => {
+		const specializations = specializationsOfRole(row.role_key);
+		if (specializations.length === 0) return [];
+		return [
+			{
+				vacancyId: row.id,
+				origin: row.origin,
+				synthetic: row.seed_batch_id !== null,
+				salary: {
+					min: row.salary_min,
+					max: row.salary_max,
+					currency: row.salary_currency,
+					period: row.salary_period,
+					taxBase: row.salary_tax_base
+				},
+				keys: categoryKeysOf({
+					specializations,
+					grades: catalogGradesBetween(ordinals.get(row.taxonomy_version_id) ?? new Map(), row.grade_min, row.grade_max)
+				})
+			}
+		];
+	});
 }
 
 export type SalaryReferenceRow = typeof salaryReferences.$inferSelect;

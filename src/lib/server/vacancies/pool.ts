@@ -145,6 +145,7 @@ export async function computeVacancyPool(
 
 /** A vacancy not saved yet, as the draft or the form states it: a field it does not state is `null` or empty. */
 export interface UnsavedVacancy extends VacancyForPosition {
+	requiredSkillKeys: readonly string[];
 	title: string;
 	description: string | null;
 	niceSkillKeys: readonly string[];

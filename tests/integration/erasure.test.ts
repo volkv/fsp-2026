@@ -1,6 +1,6 @@
 // Deleting an account and `account.purge` (docs/domain.md, sections 3.1, 5.3, 19.1, 19.2): a candidate with the whole
-// pipeline behind the profile — a parsed resume in the bucket, FSP achievements with receipts, a published category,
-// section vectors, matches with vacancies, an invitation accepted with contacts handed over and one left open — deletes
+// pipeline behind the profile — a parsed resume in the bucket, FSP achievements with receipts, a published evidence run, a
+// category with an objection, section vectors, matches with vacancies, an invitation accepted with contacts handed over and one left open — deletes
 // the account. The request takes the profile out at once; the purge removes every row that names the person, their
 // objects, sessions and counters, and keeps only what the model keeps: the journal, the disclosure with the consent it
 // proves, the invitation tombstone, the tombstones of the account and the profile, the erasure ledger. A failure of the
@@ -21,7 +21,7 @@ import { registerFailure } from '$lib/server/auth/lockout';
 import { createSession, type SessionRef } from '$lib/server/auth/sessions';
 import { grantCatalogVisibility } from '$lib/server/candidates/consents';
 import { createProfileEmbedHandler } from '$lib/server/candidates/embed-job';
-import { createCategorizationHandler } from '$lib/server/categorization/job';
+import { createEvidenceHandler } from '$lib/server/evidence/job';
 import { processingAllowed } from '$lib/server/consent/processing';
 import { createFieldCrypto } from '$lib/server/crypto/fields';
 import {
@@ -29,8 +29,9 @@ import {
 	athleteLinks,
 	auditEvents,
 	candidates,
-	categorizationRuns,
-	categoryAssignments,
+	evidenceRuns,
+	assessmentObjections,
+	candidateCategories,
 	claims,
 	companyMembers,
 	consentEvents,
@@ -86,6 +87,7 @@ import { buildRelease, readTaxonomyDatasets } from '$lib/server/taxonomy/release
 import { codePointLength } from '$lib/text/offsets';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
 import { testEnvironment } from '../helpers/environment';
+import { decide } from '../helpers/categories';
 import { createCompany, createMember, createOwnVacancy, createUser } from '../helpers/factories';
 import { FSP_MOCK_CREDENTIALS, startFspMock, type FspMock } from '../helpers/fsp-mock';
 import { startStorage, type TestStorage } from '../helpers/storage';
@@ -267,7 +269,7 @@ beforeAll(async () => {
 			}),
 			signer: createReceiptSigner({ issuer: 'http://platform.test', keyId: 'test-1', seed: Buffer.alloc(32, 7) })
 		})),
-		createCategorizationHandler(),
+		createEvidenceHandler(),
 		createProfileEmbedHandler({ models: () => embedder, spaceId: () => SPACE, now: () => new Date() }),
 		createMatchRefreshHandler(() => MODELS_OFF)
 	]);
@@ -529,9 +531,9 @@ describe('deleting a candidate with the whole pipeline behind the profile', () =
 			);
 		expect(receipts.length).toBeGreaterThan(0);
 		const [published] = await db
-			.select({ id: categorizationRuns.id })
-			.from(categorizationRuns)
-			.where(and(eq(categorizationRuns.candidateId, hero.candidateId), eq(categorizationRuns.status, 'published')));
+			.select({ id: evidenceRuns.id })
+			.from(evidenceRuns)
+			.where(and(eq(evidenceRuns.candidateId, hero.candidateId), eq(evidenceRuns.status, 'published')));
 		expect(published).toBeDefined();
 		expect(await db.select().from(embeddings).where(eq(embeddings.ownerId, hero.candidateId))).not.toHaveLength(0);
 		expect(await db.select().from(matchScores).where(eq(matchScores.candidateId, hero.candidateId))).not.toHaveLength(
@@ -561,6 +563,20 @@ describe('deleting a candidate with the whole pipeline behind the profile', () =
 		const [disclosure] = await db.select().from(disclosures).where(eq(disclosures.candidateId, hero.candidateId));
 		if (!disclosure) throw new Error('the acceptance handed over no contacts');
 		expect(await db.select().from(notifications).where(eq(notifications.userId, hero.userId))).not.toHaveLength(0);
+		// A category confirmed by a test and an objection to its decision: both are the candidate's (domain 23.2).
+		const { decision } = await decide(db, hero.candidateId, { specialization: 'backend', grade: 'middle' });
+		const [objection] = await db
+			.insert(assessmentObjections)
+			.values({
+				candidateId: hero.candidateId,
+				decisionId: decision.id,
+				reason: 'Не согласен с оценкой',
+				openedAt: sql`now()`,
+				dueAt: sql`now() + interval '30 days'`,
+				status: 'open'
+			})
+			.returning({ id: assessmentObjections.id });
+		if (!objection) throw new Error('objection not inserted');
 
 		// What the purge must remove, read before it.
 		const resumeFiles = await db
@@ -577,10 +593,7 @@ describe('deleting a candidate with the whole pipeline behind the profile', () =
 		).map((row) => row.id);
 		expect(extractionIds).not.toHaveLength(0);
 		const runIds = (
-			await db
-				.select({ id: categorizationRuns.id })
-				.from(categorizationRuns)
-				.where(eq(categorizationRuns.candidateId, hero.candidateId))
+			await db.select({ id: evidenceRuns.id }).from(evidenceRuns).where(eq(evidenceRuns.candidateId, hero.candidateId))
 		).map((row) => row.id);
 		const invitationIds = [sentAccepted.invitationId, sentOpen.invitationId];
 		const session = await sessionOf(hero.userId);
@@ -590,7 +603,7 @@ describe('deleting a candidate with the whole pipeline behind the profile', () =
 		const waiting = await db.transaction((tx) =>
 			enqueueJob(
 				tx,
-				'categorization.compute',
+				'evidence.compute',
 				{ candidate_id: hero.candidateId },
 				{ inputVersion: 'x', createdBy: { kind: 'system' } }
 			)
@@ -658,7 +671,10 @@ describe('deleting a candidate with the whole pipeline behind the profile', () =
 			)
 		).toBe(0);
 		expect(await count('document_extractions', 'id', extractionIds)).toBe(0);
-		expect(await count('category_assignments', 'run_id', runIds)).toBe(0);
+		expect(await count('fsp_level_assignments', 'run_id', runIds)).toBe(0);
+		expect(await count('skill_inferences', 'run_id', runIds)).toBe(0);
+		expect(await count('candidate_categories', 'decision_id', [decision.id])).toBe(0);
+		expect(await count('assessment_objections', 'id', [objection.id])).toBe(0);
 		expect(await count('invitation_terms', 'invitation_id', invitationIds)).toBe(0);
 		expect(await count('invitation_responses', 'invitation_id', invitationIds)).toBe(0);
 		expect(await count('hiring_processes', 'invitation_id', invitationIds)).toBe(0);
@@ -739,7 +755,10 @@ describe('deleting a candidate with the whole pipeline behind the profile', () =
 		expect(await db.select().from(companyMembers).where(eq(companyMembers.id, company.member.id))).toHaveLength(1);
 		// Claims and runs of other people are untouched by construction; the claims of the hero are gone.
 		expect(await db.select().from(claims).where(eq(claims.candidateId, hero.candidateId))).toEqual([]);
-		expect(await db.select().from(categoryAssignments).where(inArray(categoryAssignments.runId, runIds))).toEqual([]);
+		expect(await db.select().from(evidenceRuns).where(inArray(evidenceRuns.id, runIds))).toEqual([]);
+		expect(
+			await db.select().from(candidateCategories).where(eq(candidateCategories.candidateId, hero.candidateId))
+		).toEqual([]);
 		expect(await db.select().from(resumeDocuments).where(eq(resumeDocuments.candidateId, hero.candidateId))).toEqual(
 			[]
 		);

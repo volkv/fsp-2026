@@ -1,9 +1,8 @@
 // Registered job handlers. A module that implements a job type adds its handler here and the type to the `--types`
 // list of the worker in compose.yaml; a type from the list without a handler stops the worker at start.
 import { assessmentRun } from '$lib/server/assessments/run-job';
-import { disputeDeadlineWatch } from '$lib/server/categorization/disputes';
-import { categorizationCompute } from '$lib/server/categorization/job';
 import { profileEmbed } from '$lib/server/candidates/embed-job';
+import { objectionDeadlineWatch } from '$lib/server/categories/objections';
 import { configuredRegistry } from '$lib/server/companies/registry';
 import { companyRegistryLookup } from '$lib/server/companies/registry-check';
 import { config } from '$lib/server/config';
@@ -12,6 +11,7 @@ import { demoReset } from '$lib/server/demo/job';
 import { demoPurge } from '$lib/server/demo/purge-job';
 import { embeddingReindex } from '$lib/server/embeddings/reindex';
 import { derivationsReconcile } from '$lib/server/derivations/reconcile';
+import { evidenceCompute } from '$lib/server/evidence/job';
 import { consentRevocationCleanup } from '$lib/server/erasure/fsp-import';
 import { accountPurge } from '$lib/server/erasure/purge';
 import { externalProfileRefresh, scheduleExternalProfileRefreshes } from '$lib/server/external-profiles/refresh-job';
@@ -37,10 +37,10 @@ export const JOB_HANDLERS = handlerRegistry([
 	retentionSweep,
 	fspSync,
 	externalProfileRefresh,
-	categorizationCompute,
+	evidenceCompute,
 	matchRefresh,
 	derivationsReconcile,
-	disputeDeadlineWatch,
+	objectionDeadlineWatch,
 	marketRefresh,
 	companyRegistryLookup(() => configuredRegistry(config().companyRegistry)),
 	invitationExpire,

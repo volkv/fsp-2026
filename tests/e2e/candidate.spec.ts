@@ -1,6 +1,6 @@
 // The candidate cabinet in the browser against the local infrastructure (`make infra`, migrated database with the
 // published taxonomy, legal documents from `scripts/seed-legal.ts`). The profile is seeded through the services the
-// import and the worker use — FSP facts with their claims and receipts, the categorization job, an invitation of a
+// import and the worker use — FSP facts with their claims and receipts, the evidence job, an invitation of a
 // verified company — and the candidate then works in the interface.
 import { randomUUID } from 'node:crypto';
 import AxeBuilder from '@axe-core/playwright';
@@ -8,7 +8,7 @@ import type { Page } from '@playwright/test';
 import { expect, test } from './helpers/test';
 import { APP_ORIGIN } from './helpers/ports';
 import { and, desc, eq, lte } from 'drizzle-orm';
-import { categorizationCompute } from '$lib/server/categorization/job';
+import { evidenceCompute } from '$lib/server/evidence/job';
 import { loadAccessSubject } from '$lib/server/companies/subject';
 import type { Database } from '$lib/server/db';
 import {
@@ -238,13 +238,13 @@ async function seedFspResult(candidateId: string, userId: string): Promise<void>
 	});
 }
 
-/** Runs the categorization of the candidate the way the worker does: its own job, captured and completed. */
-async function categorize(candidateId: string): Promise<void> {
+/** Runs the evidence computation of the candidate the way the worker does: its own job, captured and completed. */
+async function computeEvidence(candidateId: string): Promise<void> {
 	const database = db();
 	const { jobId } = await database.transaction((tx) =>
 		enqueueJob(
 			tx,
-			'categorization.compute',
+			'evidence.compute',
 			{ candidate_id: candidateId },
 			{
 				inputVersion: '1',
@@ -257,17 +257,17 @@ async function categorize(candidateId: string): Promise<void> {
 		.set({ status: 'running', leaseOwner: 'e2e', leaseExpiresAt: new Date(Date.now() + 120_000), attempts: 1 })
 		.where(and(eq(jobs.id, jobId), eq(jobs.status, 'queued')))
 		.returning();
-	if (!captured) throw new Error(`categorization job ${jobId} was captured by someone else`);
-	const job: ClaimedJob<'categorization.compute'> = {
+	if (!captured) throw new Error(`evidence job ${jobId} was captured by someone else`);
+	const job: ClaimedJob<'evidence.compute'> = {
 		id: captured.id,
-		type: 'categorization.compute',
+		type: 'evidence.compute',
 		payload: { candidate_id: candidateId },
 		inputVersion: captured.inputVersion,
 		attempt: 1,
 		maxAttempts: captured.maxAttempts,
 		leaseOwner: 'e2e'
 	};
-	const result = await categorizationCompute.run({
+	const result = await evidenceCompute.run({
 		job,
 		db: database,
 		signal: new AbortController().signal,
@@ -349,7 +349,7 @@ test('a candidate sees the achievement with its receipt, a category without a gr
 }) => {
 	const hero = await seedCandidate({ birthDate: yearsAgo(26), name: 'Анна Тестова' });
 	await seedFspResult(hero.candidateId, hero.userId);
-	await categorize(hero.candidateId);
+	await computeEvidence(hero.candidateId);
 	await signIn(page, hero.email);
 
 	// Profile: the achievement, its receipt and the skills it counts toward.
@@ -371,11 +371,9 @@ test('a candidate sees the achievement with its receipt, a category without a gr
 	);
 	await expectNoAxeViolations(page);
 
-	// Category: the grade is honestly unknown, with the concrete missing ground and the FSP level beside it.
+	// Category: only a test on the grade gives one — the FSP result and the resume do not.
 	await page.goto('/me/category');
-	await expect(page.locator('[data-axis="grade"][data-status="insufficient_data"]')).toBeVisible();
-	await expect(page.getByTestId('missing-grounds')).toContainText('Нет опыта работы с датами');
-	await expect(page.getByTestId('fsp-levels')).toContainText('Алгоритмическое');
+	await expect(page.getByTestId('categories').locator('[data-category-state="not_confirmed"]')).toBeVisible();
 	await expect(page.locator('[data-notice="recommendation"]')).toBeVisible();
 	await expectNoAxeViolations(page);
 
@@ -419,7 +417,7 @@ test('a candidate states the search terms, sees vacancies with the match and obj
 }) => {
 	const candidate = await seedCandidate({ birthDate: yearsAgo(30), name: 'Дмитрий Тестов' });
 	await seedFspResult(candidate.candidateId, candidate.userId);
-	await categorize(candidate.candidateId);
+	await computeEvidence(candidate.candidateId);
 	await signIn(page, candidate.email);
 
 	await page.goto('/me/settings');
@@ -452,25 +450,13 @@ test('a candidate states the search terms, sees vacancies with the match and obj
 	await expect(page.getByRole('button', { name: /Откликнуться/ })).toHaveCount(0);
 	await expectNoAxeViolations(page);
 
-	// What the market asks for in the desired role, while the facts establish none: SQL is required and not confirmed,
-	// with the platform quiz to confirm it; algorithms are confirmed by the FSP result.
+	// The market of the category waits for the category: without a test there is no specialization and grade to count.
 	await seedRoleVacancies('backend', 5);
 	await page.goto('/me/category');
-	const demand = page.getByTestId('market-demand');
-	await expect(demand.locator('[data-demand-state="available"]')).toBeVisible();
-	await expect(demand.getByTestId('demand-source')).toContainText('на платформе');
-	await expect(demand).toContainText('считаем по желаемой роли «Бэкенд-разработчик»');
-	const sql = demand.locator('[data-skill="sql"]');
-	await expect(sql).toHaveAttribute('data-status', 'missing');
-	await expect(sql.getByTestId('demand-share')).toContainText(/Обязателен в \d+\s%/);
-	await expect(sql.getByRole('link', { name: /^Квиз «SQL/ })).toHaveAttribute('href', /^\/me\/tests\/[0-9a-f-]+$/);
-	await expect(demand.locator('[data-skill="algorithms"]')).toHaveCount(0);
-	await expect(demand.getByTestId('demand-confirmed')).toBeVisible();
+	await expect(page.getByTestId('market-demand')).toContainText('Категория не подтверждена');
+	await expect(page.getByTestId('market-demand').locator('[data-demand-state="available"]')).toHaveCount(0);
+	await expect(page.getByTestId('objections')).toContainText('Возражений нет.');
 	await expectNoAxeViolations(page);
-
-	await page.getByLabel('Что не так с категорией').fill('Есть опыт работы, резюме загружу позже.');
-	await page.getByRole('button', { name: 'Подать возражение' }).click();
-	await expect(page.getByTestId('active-dispute')).toContainText('Подано, ждёт оператора');
 
 	await page.goto('/account/notifications');
 	await expect(page.getByRole('heading', { level: 1 })).toHaveText('Настройки уведомлений');

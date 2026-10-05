@@ -43,16 +43,16 @@
 	<aside class="lg:sticky lg:top-20 lg:self-start">
 		<form method="GET" class="grid gap-4 rounded-xl border bg-card p-4" aria-label="Фильтры пула">
 			<Field.Field>
-				<Field.Label for="{id}-role">Роль</Field.Label>
-				<NativeSelect id="{id}-role" name="role" value={data.query.roles[0] ?? ''}>
+				<Field.Label for="{id}-specialization">Специализация категории</Field.Label>
+				<NativeSelect id="{id}-specialization" name="specialization" value={data.query.specializations[0] ?? ''}>
 					<option value="">Любая</option>
-					{#each data.filters.roles as role (role.key)}
-						<option value={role.key}>{role.name}</option>
+					{#each data.filters.specializations as specialization (specialization.key)}
+						<option value={specialization.key}>{specialization.name}</option>
 					{/each}
 				</NativeSelect>
 			</Field.Field>
 			<fieldset class="grid gap-2">
-				<legend class="mb-1 text-sm font-medium">Грейд</legend>
+				<legend class="mb-1 text-sm font-medium">Грейд категории</legend>
 				<div class="flex flex-wrap gap-x-4 gap-y-2">
 					{#each data.filters.grades as grade (grade.key)}
 						<label class="flex items-center gap-2 text-sm">
@@ -60,7 +60,7 @@
 								type="checkbox"
 								name="grade"
 								value={grade.key}
-								checked={data.query.grades.includes(grade.key)}
+								checked={(data.query.grades as readonly string[]).includes(grade.key)}
 								class="size-4 accent-primary"
 							/>
 							{grade.name}
@@ -78,16 +78,14 @@
 				pseudonym={member.pseudonym}
 				result={member.result}
 				categories={member.card.categories ?? []}
-				categoryState={member.categoryState}
 				labels={data.labels}
 				vacancies={member.vacancies}
 			>
 				<CandidateCard
 					card={member.card}
-					categoryState={member.categoryState}
+					evidenceState={member.evidenceState}
 					receipts={member.receipts}
 					labels={data.labels}
-					grades={data.grades}
 				/>
 			</PartnerPoolMember>
 		{:else}

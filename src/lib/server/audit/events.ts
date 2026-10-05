@@ -119,11 +119,13 @@ const GROUPS = {
 	partners: ['partnership.opened', 'partnership.ended', 'partner_pool.viewed'],
 	notifications: ['notification.channel_linked', 'notification.channel_unlinked'],
 	categories: [
-		'category.published',
-		'category.blocked',
-		'dispute.opened',
-		'dispute.assigned',
-		'dispute.resolved',
+		'evidence.blocked',
+		'category.assigned',
+		'category.superseded',
+		'category.revoked',
+		'objection.opened',
+		'objection.assigned',
+		'objection.resolved',
 		'assessment.score_revised',
 		'assessment.annulled',
 		'assessment.artifact_viewed'
@@ -185,7 +187,7 @@ const SPECIFIC_DETAILS: Partial<Record<AuditAction, z.ZodType>> = {
 	'auth.registered': withKeys({ method: z.enum(['password', 'fsp_id']) }),
 	'auth.login': withKeys({ method: z.enum(['password', 'fsp_id']) }),
 	'operator.case_access': withKeys({
-		case_type: z.enum(['dispute', 'moderation', 'authority', 'assessment', 'age']),
+		case_type: z.enum(['objection', 'moderation', 'authority', 'assessment', 'age']),
 		case_id: token
 	}),
 	// A month of the journal removed by `retention.sweep` after the retention period (domain 18.1).

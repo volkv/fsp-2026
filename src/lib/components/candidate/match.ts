@@ -32,8 +32,9 @@ export interface MatchResultData {
 	components: Record<Exclude<MatchComponentKey, 'role' | 'trust'>, ComponentData> & {
 		role: ComponentData<{
 			vacancy?: string;
+			specializations?: string[];
 			candidate?: string[];
-			basis?: 'primary' | 'secondary' | 'desired' | 'none';
+			basis?: 'same_specialization' | 'other_specialization';
 		}>;
 		trust: ComponentData<TrustDetails>;
 	};
@@ -56,7 +57,7 @@ export interface MatchResultData {
 		gaps: (
 			| { code: 'required_skill_missing' | 'nice_skill_missing'; skill_key: string }
 			| { code: 'grade_below'; steps: number }
-			| { code: 'role_other' }
+			| { code: 'specialization_other' }
 		)[];
 	};
 }
@@ -64,12 +65,14 @@ export interface MatchResultData {
 const COMPONENT_REASONS: Record<string, string> = {
 	no_required_skills: 'в вакансии нет обязательных навыков',
 	no_nice_skills: 'в вакансии нет желательных навыков',
-	no_published_run: 'твоя категория ещё не рассчитана',
+	no_published_run: 'основания профиля ещё не рассчитаны',
 	run_below_evidence_floor: 'профиль пересчитывается после изменения оснований',
 	vacancy_grade_unknown: 'грейд вакансии не указан',
-	candidate_grade_not_established: 'твой грейд не установлен',
+	category_not_confirmed: 'твоя категория не подтверждена: пройди тест на грейд',
+	specialization_other: 'твоя категория — другой специализации',
+	candidate_grade_not_confirmed: 'грейд в специализации вакансии тестом не подтверждён',
 	vacancy_role_unknown: 'роль вакансии не указана',
-	candidate_role_not_established: 'твоя роль пока не установлена — мало оснований',
+	vacancy_role_without_specialization: 'роль вакансии не относится к специализациям тестов',
 	candidate_expectation_missing: 'ты не указал ожидания по зарплате',
 	vacancy_salary_missing: 'в вакансии нет вилки',
 	different_terms: 'разные валюта, период или налоговая база — сравнивать нельзя',
@@ -88,14 +91,13 @@ const range = (labels: Labels, value: { min: string; max: string }) =>
 		: `${gradeName(labels, value.min)} – ${gradeName(labels, value.max)}`;
 
 const VERIFY: Record<string, string> = {
-	grade_not_established: 'Грейд не установлен — его уточнят на собеседовании.',
-	role_not_established: 'Роль не установлена — на собеседовании спросят, какой работой ты занимался.',
-	role_desired_only: 'Эту роль ты указал желаемой, но основания её пока не подтверждают — добавь опыт или пройди тест.',
+	category_not_confirmed:
+		'Категория не подтверждена: без теста на грейд тебя видят только в поиске по всей базе — пройди тест.',
 	salary_not_comparable: 'Зарплату сравнить нельзя: разные валюта, период или налоговая база.',
 	salary_expectation_missing: 'Ожидания по зарплате не указаны.',
 	profile_recalculating: 'Профиль пересчитывается — соответствие уточнится.',
 	profile_insufficient_data:
-		'Недостаточно данных: категория не рассчитана — навыки пока не подтверждены, соответствие уточнится после расчёта.'
+		'Недостаточно данных: основания профиля не рассчитаны — навыки пока не подтверждены, соответствие уточнится после расчёта.'
 };
 
 function verifyText(item: { code: string; skill_key?: string }, labels: Labels): string {
@@ -113,7 +115,7 @@ function verifyText(item: { code: string; skill_key?: string }, labels: Labels):
 }
 
 function gapText(item: MatchResultData['explanation']['gaps'][number], labels: Labels): string {
-	if (item.code === 'role_other') return 'Твои основания говорят о другой роли, чем у вакансии.';
+	if (item.code === 'specialization_other') return 'Твоя категория — другой специализации, чем у вакансии.';
 	if (item.code === 'grade_below')
 		return `Грейд ниже требуемого на ${item.steps} ${item.steps === 1 ? 'ступень' : 'ступени'}.`;
 	const skill = skillName(labels, item.skill_key);
@@ -123,18 +125,13 @@ function gapText(item: MatchResultData['explanation']['gaps'][number], labels: L
 }
 
 function roleNote(details: MatchResultData['components']['role']['details'], labels: Labels): string | undefined {
-	const vacancy = details.vacancy === undefined ? '' : roleName(labels, details.vacancy);
+	const names = (keys: readonly string[] | undefined) =>
+		(keys ?? []).map((key) => labels.specializations[key] ?? key).join(', ');
 	switch (details.basis) {
-		case 'primary':
-			return `${vacancy} — твоя основная роль`;
-		case 'secondary':
-			return `${vacancy} — твоя дополнительная роль`;
-		case 'desired':
-			return `${vacancy} — желаемая роль, основаниями пока не подтверждена`;
-		case 'none': {
-			const own = details.candidate?.[0];
-			return own === undefined ? undefined : `твоя роль — ${roleName(labels, own)}`;
-		}
+		case 'same_specialization':
+			return `твоя категория ${names(details.candidate)} — специализация вакансии`;
+		case 'other_specialization':
+			return `твоя категория ${names(details.candidate)}, у вакансии — ${names(details.specializations)}`;
 		default:
 			return undefined;
 	}
@@ -178,13 +175,13 @@ export function candidateMatchView(result: MatchResultData, labels: Labels): Mat
 				case 'role':
 					return {
 						requirement: roleName(labels, item.role_key),
-						evidence: 'роль совпадает с твоей категорией',
+						evidence: 'специализация вакансии — твоя категория',
 						trust: 'derived'
 					};
 				case 'grade':
 					return {
 						requirement: `Грейд ${range(labels, item.vacancy)}`,
-						evidence: `твой диапазон ${range(labels, item.candidate)}`,
+						evidence: `твой грейд ${range(labels, item.candidate)} подтверждён тестом`,
 						trust: 'derived'
 					};
 				case 'salary':

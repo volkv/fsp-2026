@@ -39,7 +39,6 @@ export const load: PageServerLoad = async (event) => {
 			pseudonym: item.pseudonym,
 			...card,
 			labels: labelsOf(vocabulary),
-			grades: vocabulary.grades,
 			vacancies: await searchableVacancies(database, membership.companyId)
 		};
 	} catch (cause) {

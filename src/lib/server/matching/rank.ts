@@ -73,8 +73,13 @@ export async function scoreCandidatesForVacancy(
 			reranker
 		})
 	});
+	// At an equal score a candidate with a category in force comes first (domain 12.7).
+	const confirmed = (entry: ScoredCandidate) => (entry.snapshot.categories.length > 0 ? 1 : 0);
 	const byScore = (list: ScoredCandidate[]) =>
-		list.sort((a, b) => b.result.score - a.result.score || (a.snapshot.id < b.snapshot.id ? -1 : 1));
+		list.sort(
+			(a, b) =>
+				b.result.score - a.result.score || confirmed(b) - confirmed(a) || (a.snapshot.id < b.snapshot.id ? -1 : 1)
+		);
 
 	const present = [...snapshots.values()];
 	const firstPass = byScore(present.map((s) => score(s, { status: 'unavailable', reason: 'not_ranked' })));

@@ -5,30 +5,24 @@
 	import TrophyIcon from '@lucide/svelte/icons/trophy';
 	import { AWARDS, type Award } from '$lib/components/product/model.js';
 	import { POOL_STAGES } from '$lib/components/operator/model.js';
+	import { categoryLine } from './model.js';
 
 	/**
-	 * A finalist of the partner pool: the result the candidate entered the pool with, the primary category, the full
+	 * A finalist of the partner pool: the result the candidate entered the pool with, the categories in force, the full
 	 * catalog card on demand (`children`) and the own vacancies an invitation can go by. Without such a vacancy the row
 	 * says why there is no invitation instead of offering one that the rules would refuse.
 	 */
-	interface Category {
-		rank: 'primary' | 'secondary';
-		role: { status: 'established'; key: string } | { status: 'insufficient_data' };
-		grade: { status: 'established'; min: string; max: string } | { status: 'insufficient_data' };
-	}
-
 	interface Props {
 		pseudonym: string;
 		result: { place: number | null; award?: string; stage: string | null };
-		categories: Category[];
-		categoryState: 'available' | 'recalculating' | 'none';
-		labels: { roles: Record<string, string>; grades: Record<string, string> };
+		categories: { specialization: string; grade: string }[];
+		labels: { specializations: Record<string, string>; grades: Record<string, string> };
 		vacancies: { id: string; title: string }[];
 		/** The catalog card of the candidate. */
 		children: Snippet;
 	}
 
-	let { pseudonym, result, categories, categoryState, labels, vacancies, children }: Props = $props();
+	let { pseudonym, result, categories, labels, vacancies, children }: Props = $props();
 
 	const award = $derived(result.award && result.award in AWARDS ? AWARDS[result.award as Award] : null);
 	const resultText = $derived(
@@ -40,16 +34,7 @@
 			.filter((part) => part !== null)
 			.join(' · ')
 	);
-	const primary = $derived(categories.find((category) => category.rank === 'primary') ?? null);
-	const role = $derived(
-		primary?.role.status === 'established' ? (labels.roles[primary.role.key] ?? primary.role.key) : null
-	);
-	const grade = $derived.by(() => {
-		if (primary?.grade.status !== 'established') return null;
-		const min = labels.grades[primary.grade.min] ?? primary.grade.min;
-		const max = labels.grades[primary.grade.max] ?? primary.grade.max;
-		return min === max ? min : `${min}–${max}`;
-	});
+	const line = $derived(categoryLine(categories, labels));
 </script>
 
 <article class="grid gap-3 rounded-xl border bg-card p-4 sm:p-5" data-pool-candidate={pseudonym}>
@@ -57,13 +42,7 @@
 		<div class="grid gap-1">
 			<h3 class="font-heading text-h3">Кандидат {pseudonym}</h3>
 			<p class="text-sm text-muted-foreground">
-				{#if categoryState === 'available' && primary}
-					{role ?? 'роль не установлена'} · {grade ?? 'грейд не установлен'}
-				{:else if categoryState === 'recalculating'}
-					Профиль пересчитывается после изменения доказательств
-				{:else}
-					Без категории: недостаточно данных
-				{/if}
+				{line ?? 'Категория не подтверждена: тест на грейд не пройден'}
 			</p>
 		</div>
 		<p

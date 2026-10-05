@@ -428,7 +428,7 @@ describe('a PDF resume read by the model', () => {
 		const after = await revisionOf(candidate.id);
 		expect(after.revision).toBe(before.revision + 1);
 		expect(after.floor).toBe(before.floor);
-		expect(await queued('categorization.compute', String(after.revision))).toHaveLength(1);
+		expect(await queued('evidence.compute', String(after.revision))).toHaveLength(1);
 
 		const view = await readOwnResumes(database.db, subjectOf(candidate));
 		expect(view.current?.reading).toEqual({ processingMode: 'model', notice: null, failureCode: null });
@@ -687,7 +687,7 @@ describe('a deleted resume', () => {
 		const after = await revisionOf(candidate.id);
 		expect(after).toEqual({ revision: before.revision + 1, floor: before.revision + 1 });
 		// The recalculation waiting since the extraction takes this change too (one waiting job per key).
-		const waiting = await queued('categorization.compute');
+		const waiting = await queued('evidence.compute');
 		expect(waiting.filter((j) => (j.payload as { candidate_id: string }).candidate_id === candidate.id)).toHaveLength(
 			1
 		);

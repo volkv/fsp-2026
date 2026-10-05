@@ -4,14 +4,14 @@
 // - a company that received the resume by an accepted invitation: `canShow` in the invitation context gives the
 //   recipient projection and the disclosure consent of that invitation lists `resume`;
 // - an operator within a case in its reach (a clone operator of a demo session — a case of its session only, domain
-//   19.3), recorded as case access: the candidate's resume in a category dispute in progress, the authority document
-//   of a company's verification request, the copy of a representative's authority document;
+//   19.3), recorded as case access: the authority document of a company's verification request, the copy of a
+//   representative's authority document;
 // - an administrator: the report file of an evaluation run;
 // - a holder of `fsp.import` (the FSP operator): the source file of an imported batch of FSP results loaded by an
 //   account in its reach — a clone of a demo session loads no batch, so it reads none.
 // The file is streamed from the bucket through the application: a presigned link would outlive a revoked consent and
 // would expose the storage, which is reachable from the internal network only.
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { StaffReach } from '$lib/server/access/demo-actor';
 import { can, rolesOf, type AccessSubject } from '$lib/server/access/permissions';
 import { recordAuditEvent } from '$lib/server/audit/record';
@@ -19,7 +19,6 @@ import type { Database, Executor } from '$lib/server/db';
 import {
 	authorityChecks,
 	candidates,
-	categoryDisputes,
 	companies,
 	companyVerifications,
 	evalRuns,
@@ -40,8 +39,8 @@ export type FileAccessContext =
 	| { kind: 'owner' }
 	| { kind: 'invitation'; invitationId: string }
 	/**
-	 * A case of the FSP operator: `dispute` — a category dispute, `moderation` — a company verification request,
-	 * `authority` — a representation whose authority is checked.
+	 * A case of the FSP operator: `moderation` — a company verification request, `authority` — a representation whose
+	 * authority is checked.
 	 */
 	| { kind: 'case'; caseType: CaseType; caseId: string }
 	/** An evaluation run whose report the administrator reads. */
@@ -49,7 +48,7 @@ export type FileAccessContext =
 	/** The source file of an FSP results batch (an export or a protocol), read by whoever may import batches. */
 	| { kind: 'source_batch' };
 
-type CaseType = 'dispute' | 'moderation' | 'authority';
+type CaseType = 'moderation' | 'authority';
 
 export interface FileAccessDeps {
 	db: Database;
@@ -138,7 +137,7 @@ async function decide(
 
 		case 'case':
 			if (subject.via !== 'session' || !rolesOf(subject).has('operator')) return deny('no_case_access', candidateId);
-			return decideCase(deps, await StaffReach.of(deps.db, subject), file, resume, context);
+			return decideCase(deps, await StaffReach.of(deps.db, subject), file, context);
 
 		case 'eval_report': {
 			if (subject.via !== 'session' || !rolesOf(subject).has('admin')) return deny('not_admin');
@@ -173,7 +172,6 @@ async function decideCase(
 	deps: FileAccessDeps,
 	reach: StaffReach,
 	file: FileRow,
-	resume: { candidateId: string } | null,
 	context: Extract<FileAccessContext, { kind: 'case' }>
 ): Promise<Decision> {
 	const granted = (candidateId: string | null): Decision => ({
@@ -182,21 +180,6 @@ async function decideCase(
 		caseAccess: { caseType: context.caseType, caseId: context.caseId }
 	});
 	switch (context.caseType) {
-		case 'dispute': {
-			if (!resume) return deny('not_resume');
-			const [dispute] = await deps.db
-				.select({ id: categoryDisputes.id })
-				.from(categoryDisputes)
-				.where(
-					and(
-						eq(categoryDisputes.id, context.caseId),
-						eq(categoryDisputes.candidateId, resume.candidateId),
-						inArray(categoryDisputes.status, ['open', 'in_review']),
-						reach.candidate(categoryDisputes.candidateId)
-					)
-				);
-			return dispute ? granted(resume.candidateId) : deny('no_case_access', resume.candidateId);
-		}
 		case 'moderation': {
 			if (file.purpose !== 'company_authority_evidence') return deny('not_case_file');
 			const [verification] = await deps.db

@@ -1,33 +1,33 @@
 import { error, type RequestEvent } from '@sveltejs/kit';
 import { can } from '$lib/server/access/permissions';
 import { formText } from '$lib/server/auth/http';
-import { openDispute, withdrawDispute } from '$lib/server/categorization/disputes';
 import { candidateDemand } from '$lib/server/candidates/demand';
 import { candidateRequest, type CandidateRequest } from '$lib/server/candidates/http';
-import { formFailure, pageError } from '$lib/server/http/page';
-import { loadSelfCategory } from '$lib/server/candidates/profile';
+import { currentCandidateVocabulary, vocabularyLabels } from '$lib/server/candidates/vocabulary';
+import { candidateObjections, withdrawObjection } from '$lib/server/categories/objections';
+import { categoryHistory } from '$lib/server/categories/read';
 import { db } from '$lib/server/db';
+import { formFailure, pageError } from '$lib/server/http/page';
 import type { Actions, PageServerLoad } from './$types';
 
-/**
- * The published category by independent axes, what it rests on, what is missing, what the vacancies of the category
- * require, and the objections to it.
- */
+/** The categories confirmed by tests with their history, the objections to test results, and the market of the category. */
 export const load: PageServerLoad = async (event) => {
-	const { subject } = await candidateRequest(event);
+	const { subject, candidateId } = await candidateRequest(event);
 	try {
-		const now = new Date();
-		const [category, demand] = await Promise.all([
-			loadSelfCategory(db(), subject, now),
-			candidateDemand(db(), subject, now)
+		const executor = db();
+		const [categories, objections, demand, vocabulary] = await Promise.all([
+			categoryHistory(executor, candidateId),
+			candidateObjections(executor, candidateId),
+			candidateDemand(executor, subject, new Date()),
+			currentCandidateVocabulary(executor)
 		]);
-		return { category, demand };
+		return { categories, objections, demand, labels: vocabularyLabels(vocabulary) };
 	} catch (cause) {
 		pageError(event, cause);
 	}
 };
 
-/** Objections are the candidate's own writes: `candidate.self.write` (domain 12.3). */
+/** Withdrawing an objection is the candidate's own write: `candidate.self.write` (domain 12.5). */
 async function writer(event: RequestEvent): Promise<CandidateRequest> {
 	const request = await candidateRequest(event);
 	const access = can(request.subject, 'candidate.self.write', { candidateId: request.candidateId });
@@ -36,29 +36,12 @@ async function writer(event: RequestEvent): Promise<CandidateRequest> {
 }
 
 export const actions: Actions = {
-	dispute: async (event) => {
-		const { candidateId, userId, meta } = await writer(event);
-		const form = await event.request.formData();
-		try {
-			await openDispute(db(), {
-				candidateId,
-				userId,
-				runId: formText(form, 'runId'),
-				reason: formText(form, 'reason'),
-				requestId: meta.requestId
-			});
-		} catch (cause) {
-			return formFailure(cause);
-		}
-		return { disputeOpened: true };
-	},
-
 	withdraw: async (event) => {
 		const { candidateId, userId, meta } = await writer(event);
 		const form = await event.request.formData();
 		try {
-			await withdrawDispute(db(), {
-				disputeId: formText(form, 'disputeId'),
+			await withdrawObjection(db(), {
+				objectionId: formText(form, 'objectionId'),
 				candidateId,
 				userId,
 				requestId: meta.requestId
@@ -66,6 +49,6 @@ export const actions: Actions = {
 		} catch (cause) {
 			return formFailure(cause);
 		}
-		return { disputeWithdrawn: true };
+		return { objectionWithdrawn: true };
 	}
 };

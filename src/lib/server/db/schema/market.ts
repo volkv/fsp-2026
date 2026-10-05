@@ -1,4 +1,4 @@
-// Category market indicators (domain 12.5).
+// Category market indicators (domain 12.8).
 import { sql } from 'drizzle-orm';
 import { boolean, check, date, index, integer, jsonb, pgTable, text } from 'drizzle-orm/pg-core';
 import { enumCheck, id, salaryUnitChecks, salaryUnitColumns, ts } from './_columns';
@@ -34,7 +34,11 @@ export const marketSnapshots = pgTable(
 		...salaryUnitChecks('market_snapshots', t),
 		check('market_snapshots_sample_size', sql`${t.sampleSize} >= 0`),
 		check('market_snapshots_window', sql`${t.windowTo} >= ${t.windowFrom}`),
-		check('market_snapshots_category_role', sql`${t.categoryKey} ? 'role_key'`),
+		// A category (a specialization and a grade) or a specialization as a whole (domain 12.8).
+		check(
+			'market_snapshots_category_specialization',
+			sql`${t.categoryKey} ? 'specialization' and not ${t.categoryKey} ? 'role_key'`
+		),
 		// Below the sample threshold no number is stored (domain 12.5).
 		check(
 			'market_snapshots_values',

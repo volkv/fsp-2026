@@ -92,7 +92,7 @@ export interface VacancyTextDraft {
 	missing: MissingField[];
 	/** The pasted text checked for discriminatory requirements before anything is saved. */
 	textCheck: TextCheck;
-	/** The suggested range against the market of the suggested category; `no_role` — the role is not recognized. */
+	/** The suggested range against the market of the category of the suggested role (domain 12.8, 12.10). */
 	marketPosition: VacancyMarketPosition;
 	taxonomyVersionId: string;
 }
@@ -256,7 +256,7 @@ export function missingFields(fields: VacancyTextFields): MissingField[] {
 }
 
 /**
- * The vacancy the market position is computed for: the suggested role, grade, recognized required skills and range.
+ * The vacancy the market position is computed for: the suggested role, grade and range.
  * A range the text does not state has no bounds, so it is «не сравнимо», never compared as zero.
  */
 export function positionInput(fields: VacancyTextFields): VacancyForPosition {
@@ -265,7 +265,6 @@ export function positionInput(fields: VacancyTextFields): VacancyForPosition {
 		roleKey: fields.roleKey,
 		gradeMin: fields.grade?.value.min ?? null,
 		gradeMax: fields.grade?.value.max ?? null,
-		requiredSkillKeys: fields.requiredSkills.flatMap((skill) => (skill.key === null ? [] : [skill.key])),
 		salary: salary
 			? { min: salary.min, max: salary.max, currency: salary.currency, period: salary.period, taxBase: salary.taxBase }
 			: { min: null, max: null, currency: null, period: null, taxBase: null }
@@ -279,6 +278,7 @@ export function unsavedVacancyOf(
 	const { fields } = draft;
 	return {
 		...positionInput(fields),
+		requiredSkillKeys: fields.requiredSkills.flatMap((skill) => (skill.key === null ? [] : [skill.key])),
 		title: fields.title?.value ?? '',
 		description: draft.blocks.map((block) => block.text).join('\n'),
 		niceSkillKeys: fields.niceSkills.flatMap((skill) => (skill.key === null ? [] : [skill.key])),

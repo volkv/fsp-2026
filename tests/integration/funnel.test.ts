@@ -3,11 +3,11 @@
 // into the tables: the funnel reads them, the hiring flow that writes them is covered by hiring-process.test.ts.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { AccessSubject } from '$lib/server/access/permissions';
+import type { GradeKey, SpecializationKey } from '$lib/server/assessments/contract/catalog';
 import { createFieldCrypto } from '$lib/server/crypto/fields';
 import {
-	categorizationRuns,
+	evidenceRuns,
 	categorizationRulesets,
-	categoryAssignments,
 	demoSessions,
 	fspLevelAssignments,
 	hiringProcesses,
@@ -20,6 +20,7 @@ import {
 import { careerFunnel, type FunnelDimension, type FunnelFilters, type FunnelGroup } from '$lib/server/hiring/funnel';
 import { uuidv7 } from '$lib/server/ids';
 import type { InvitationDeps } from '$lib/server/invitations/deps';
+import { decide } from '../helpers/categories';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
 import {
 	createCandidate,
@@ -69,7 +70,7 @@ interface Person {
 	demoSessionId?: string;
 	region?: string;
 	seed?: boolean;
-	category?: { role: string; grade: [string, string] };
+	category?: { specialization: SpecializationKey; grade: GradeKey };
 	levels?: [string, string][];
 	competitions?: (typeof C1)[];
 }
@@ -105,9 +106,10 @@ async function person(setup: Person) {
 		if (!fact) throw new Error('fact not inserted');
 		factIds.push(fact.id);
 	}
-	if (setup.category || setup.levels) {
+	if (setup.category) await decide(db, row.id, setup.category);
+	if (setup.levels) {
 		const [run] = await db
-			.insert(categorizationRuns)
+			.insert(evidenceRuns)
 			.values({
 				candidateId: row.id,
 				inputRevision: 1,
@@ -117,29 +119,12 @@ async function person(setup: Person) {
 				rulesetId: world.rulesetId,
 				asOf: NOW,
 				computedAt: NOW,
-				origin: 'automatic',
-				outcome: setup.category ? 'complete' : 'insufficient_data',
-				missing: {},
 				experienceSummary: {},
 				status: 'published'
 			})
-			.returning({ id: categorizationRuns.id });
+			.returning({ id: evidenceRuns.id });
 		if (!run) throw new Error('run not inserted');
-		if (setup.category)
-			await db.insert(categoryAssignments).values({
-				runId: run.id,
-				rank: 'primary',
-				roleStatus: 'established',
-				roleKey: setup.category.role,
-				score: '0.8',
-				gradeStatus: 'established',
-				gradeMin: setup.category.grade[0],
-				gradeMax: setup.category.grade[1],
-				gradeConfidence: '0.70',
-				stackStatus: 'insufficient_data',
-				explanation: {}
-			});
-		for (const [discipline, level] of setup.levels ?? [])
+		for (const [discipline, level] of setup.levels)
 			await db.insert(fspLevelAssignments).values({
 				runId: run.id,
 				discipline,
@@ -306,12 +291,12 @@ beforeAll(async () => {
 		vacancyId: (await createOwnVacancy(db, { companyId: company.id, memberId: member.id, taxonomyVersionId })).id
 	};
 
-	// A: six algorithmic L3 backend developers from Moscow, all hired; two of them also have product L1.
+	// A: six algorithmic L3 senior backend developers from Moscow, all hired; two of them also have product L1.
 	for (let i = 0; i < 6; i++) {
 		const both = i < 2;
 		const row = await person({
 			region: 'RU-MOW',
-			category: { role: 'backend', grade: ['middle', 'senior'] },
+			category: { specialization: 'backend', grade: 'senior' },
 			levels: both
 				? [
 						['algorithmic', 'L3'],
@@ -326,7 +311,7 @@ beforeAll(async () => {
 	for (let i = 0; i < 5; i++) {
 		const row = await person({
 			region: 'RU-SPE',
-			category: { role: 'frontend', grade: ['junior', 'junior'] },
+			category: { specialization: 'frontend', grade: 'junior' },
 			levels: [['product', 'L2']],
 			competitions: [C2]
 		});
@@ -373,14 +358,14 @@ describe('career funnel by dimension', () => {
 			['none', 0, { value: 5 }],
 			['__small__', 2, { value: 7 }]
 		]);
-		expect(await by('role')).toEqual([
+		expect(await by('specialization')).toEqual([
 			['backend', 0, { value: 6 }],
 			['frontend', 0, { value: 5 }],
 			['none', 0, { value: 5 }]
 		]);
 		expect(await by('grade')).toEqual([
-			['middle..senior', 0, { value: 6 }],
-			['junior..junior', 0, { value: 5 }],
+			['senior', 0, { value: 6 }],
+			['junior', 0, { value: 5 }],
 			['none', 0, { value: 5 }]
 		]);
 		expect(await by('competition')).toEqual([
@@ -433,7 +418,7 @@ describe('career funnel by dimension', () => {
 		expect(rows(product.groups)).toEqual([['__small__', 2, { value: 7 }]]);
 
 		const algorithmic = await funnel({
-			dimensions: ['role'],
+			dimensions: ['specialization'],
 			where: { fsp_discipline: 'algorithmic', region: 'RU-MOW' }
 		});
 		expect(rows(algorithmic.groups)).toEqual([['backend', 0, { value: 6 }]]);
@@ -443,7 +428,7 @@ describe('career funnel by dimension', () => {
 	});
 
 	it('hides every count of a selection smaller than the threshold, zeros included', async () => {
-		const small = await funnel({ dimensions: ['role'], where: { region: 'RU-KDA' } });
+		const small = await funnel({ dimensions: ['specialization'], where: { region: 'RU-KDA' } });
 		// Three people, none of them accepted: a visible zero would tell that about each of them.
 		expect(small.total).toMatchObject({
 			invited: { below: 5 },

@@ -72,10 +72,10 @@ export const JOB_TYPES = {
 		leaseSeconds: 300,
 		priority: 20
 	}),
-	'categorization.compute': defineJob({
+	'evidence.compute': defineJob({
 		typeVersion: 1,
 		payload: ids('candidate_id'),
-		dedupKey: (p) => `categorization:${p.candidate_id}`,
+		dedupKey: (p) => `evidence:${p.candidate_id}`,
 		maxAttempts: 3,
 		leaseSeconds: 120,
 		priority: 70
@@ -209,10 +209,10 @@ export const JOB_TYPES = {
 		leaseSeconds: 120,
 		priority: 80
 	}),
-	'dispute.deadline_watch': defineJob({
+	'objection.deadline_watch': defineJob({
 		typeVersion: 1,
-		payload: ids('dispute_id'),
-		dedupKey: (p) => `dispute:${p.dispute_id}`,
+		payload: ids('objection_id'),
+		dedupKey: (p) => `objection:${p.objection_id}`,
 		maxAttempts: 5,
 		leaseSeconds: 60,
 		priority: 60

@@ -7,7 +7,7 @@ describe('job registry', () => {
 	it('builds the deduplication keys of the model', () => {
 		const expectations: [JobType, Record<string, unknown>, string][] = [
 			['resume.parse', { resume_document_id: id }, `resume.parse:${id}`],
-			['categorization.compute', { candidate_id: id }, `categorization:${id}`],
+			['evidence.compute', { candidate_id: id }, `evidence:${id}`],
 			['match.refresh', { scope: 'vacancy', vacancy_id: id }, `match:vacancy:${id}`],
 			['match.refresh', { scope: 'candidate', candidate_id: id }, `match:candidate:${id}`],
 			['fsp.sync', { athlete_link_id: id }, `fsp.sync:${id}`],
@@ -30,7 +30,7 @@ describe('job registry', () => {
 
 	it('refuses payloads with personal data or unknown fields', () => {
 		expect(() => jobSpec('resume.parse').payload.parse({ resume_document_id: id, email: 'a@b.c' })).toThrow();
-		expect(() => jobSpec('categorization.compute').payload.parse({ candidate_id: 'not-an-id' })).toThrow();
+		expect(() => jobSpec('evidence.compute').payload.parse({ candidate_id: 'not-an-id' })).toThrow();
 	});
 
 	it('covers every type of the model registry', () => {

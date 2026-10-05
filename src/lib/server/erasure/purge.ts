@@ -16,15 +16,14 @@ import { revokeUserSessions } from '$lib/server/auth/sessions';
 import { db, type Database, type Executor, type Transaction } from '$lib/server/db';
 import {
 	assessmentArtifacts,
+	assessmentObjections,
 	assessmentScores,
 	assessmentAttempts,
 	athleteLinks,
 	authorityChecks,
+	candidateCategories,
 	candidateCompanyBlocks,
 	candidates,
-	categorizationRuns,
-	categoryAssignments,
-	categoryDisputes,
 	claims,
 	consentEvents,
 	disclosures,
@@ -33,6 +32,7 @@ import {
 	emailTokens,
 	embeddings,
 	erasureLedger,
+	evidenceRuns,
 	experienceEntries,
 	externalIdentities,
 	externalProfiles,
@@ -311,20 +311,17 @@ async function eraseEvidence(
 	);
 	removal.add(
 		await tx
-			.delete(categoryDisputes)
-			.where(eq(categoryDisputes.candidateId, candidateId))
-			.returning({ id: categoryDisputes.id })
+			.delete(assessmentObjections)
+			.where(eq(assessmentObjections.candidateId, candidateId))
+			.returning({ id: assessmentObjections.id })
 	);
-	const runs = tx
-		.select({ id: categorizationRuns.id })
-		.from(categorizationRuns)
-		.where(eq(categorizationRuns.candidateId, candidateId));
 	removal.add(
 		await tx
-			.delete(categoryAssignments)
-			.where(inArray(categoryAssignments.runId, runs))
-			.returning({ runId: categoryAssignments.runId })
+			.delete(candidateCategories)
+			.where(eq(candidateCategories.candidateId, candidateId))
+			.returning({ id: candidateCategories.id })
 	);
+	const runs = tx.select({ id: evidenceRuns.id }).from(evidenceRuns).where(eq(evidenceRuns.candidateId, candidateId));
 	removal.add(
 		await tx
 			.delete(fspLevelAssignments)
@@ -332,10 +329,7 @@ async function eraseEvidence(
 			.returning({ runId: fspLevelAssignments.runId })
 	);
 	removal.add(
-		await tx
-			.delete(categorizationRuns)
-			.where(eq(categorizationRuns.candidateId, candidateId))
-			.returning({ id: categorizationRuns.id })
+		await tx.delete(evidenceRuns).where(eq(evidenceRuns.candidateId, candidateId)).returning({ id: evidenceRuns.id })
 	);
 	removal.add(
 		await tx

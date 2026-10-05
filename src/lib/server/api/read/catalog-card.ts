@@ -1,41 +1,41 @@
 // The candidate card in the catalog projection as the API shows it (domain 14): the one DTO of the company's view with
 // the fields renamed, shared by the catalog and the pool of a competition partner. Fact ids are not part of it.
 import { z } from 'zod';
-import type { CategoryExplanationView, EmployerCard } from '$lib/server/employer/card';
+import { GRADE_KEYS, SPECIALIZATION_KEYS } from '$lib/server/assessments/contract/catalog';
+import type { EmployerCard } from '$lib/server/employer/card';
+import type { CategoryView } from '$lib/server/visibility/projections';
 import { date, key, pseudonym, salaryRange } from '../schemas';
 
-const insufficient = z.object({ status: z.literal('insufficient_data') });
-
-const categorySchema = z
+/** A category in force as the API shows it (domain 12.4). */
+export const categorySchema = z
 	.object({
-		rank: z.enum(['primary', 'secondary']),
-		role: z.union([z.object({ status: z.literal('established'), key }), insufficient]),
-		grade: z.union([z.object({ status: z.literal('established'), min: key, max: key }), insufficient]),
-		stack: z.union([z.object({ status: z.literal('established'), skill_keys: z.array(key) }), insufficient]),
-		explanation: z.object({
-			role: z.union([
-				z.object({
-					score: z.number(),
-					unconfirmed_core_groups: z.array(z.array(key)).describe('Группы ключевых навыков роли без подтверждения')
-				}),
-				z.object({ missing: z.array(z.string()) })
-			]),
-			grade: z.object({
-				confidence: z.number().nullable(),
-				signals: z.array(z.string()).describe('Производственные сигналы, на которых стоит грейд'),
-				ignored: z
-					.array(z.string())
-					.describe('Доказательства, которые по правилам не двигают грейд: результаты ФСП, разряды, роли в команде'),
-				missing: z.array(z.string()),
-				next_grade: z.object({ target: key, requirements: z.array(z.string()) }).nullable()
-			}),
-			stack: z.object({ missing: z.array(z.string()) })
-		})
+		specialization: z.enum(SPECIALIZATION_KEYS),
+		grade: z.enum(GRADE_KEYS),
+		confirmed_blocks: z.array(z.string()).describe('Определяющие блоки грейда, подтверждённые тестом'),
+		confirmed_skill_keys: z
+			.array(key)
+			.describe(
+				'Подтверждённый стек: навыки определяющих блоков грейда и язык практики; заявленный стек сюда не входит'
+			),
+		assigned_on: date,
+		bank_release_id: z.string().describe('Выпуск банка заданий решения — версия основания')
 	})
 	.meta({
-		id: 'CatalogCategory',
-		description: 'Категория по трём независимым осям; неустановленная ось — «недостаточно данных»'
+		id: 'Category',
+		description: 'Действующая категория: специализация и грейд, подтверждённые тестом'
 	});
+
+/** The API form of a category of a card. */
+export function categoryView(category: CategoryView) {
+	return {
+		specialization: category.specialization,
+		grade: category.grade,
+		confirmed_blocks: category.confirmedBlocks,
+		confirmed_skill_keys: category.confirmedSkillKeys,
+		assigned_on: category.assignedOn,
+		bank_release_id: category.bankReleaseId
+	};
+}
 
 const receiptSchema = z
 	.object({
@@ -61,9 +61,12 @@ export const cardSchema = z
 	.object({
 		pseudonym,
 		projection: z.literal('catalog'),
-		category_state: z
+		evidence_state: z
 			.enum(['available', 'recalculating', 'none'])
-			.describe('`recalculating` — доказательства изменились, категория пересчитывается; `none` — категории нет'),
+			.describe(
+				'Доказательства профиля (навыки, уровни ФСП): `recalculating` — изменились и пересчитываются; `none` — ' +
+					'расчёта ещё не было. Категорию не затрагивает'
+			),
 		is_minor: z.boolean(),
 		region: z
 			.string()
@@ -77,7 +80,9 @@ export const cardSchema = z
 			search_status: z.enum(['active', 'open_to_offers', 'not_looking']),
 			salary_expectation: salaryRange.nullable()
 		}),
-		categories: z.array(categorySchema),
+		categories: z
+			.array(categorySchema)
+			.describe('Действующие категории; пусто — категория не подтверждена (кандидат найден поиском по всей базе)'),
 		desired_role_keys: z.array(key),
 		fsp_levels: z.array(z.object({ discipline: z.string(), level: z.string(), last_result_on: date.nullable() })),
 		skills: z.array(
@@ -175,7 +180,7 @@ export function cardView(loaded: EmployerCard) {
 	return {
 		pseudonym: card.pseudonym,
 		projection: 'catalog' as const,
-		category_state: loaded.categoryState,
+		evidence_state: loaded.evidenceState,
 		is_minor: card.isMinor,
 		region: card.region,
 		region_name: card.regionName,
@@ -192,35 +197,7 @@ export function cardView(loaded: EmployerCard) {
 				tax_base: salary.taxBase
 			}
 		},
-		categories: card.categories.map((category) => {
-			const explanation = category.explanation as CategoryExplanationView;
-			return {
-				rank: category.rank,
-				role: category.role,
-				grade: category.grade,
-				stack:
-					category.stack.status === 'established'
-						? { status: category.stack.status, skill_keys: category.stack.skillKeys }
-						: category.stack,
-				explanation: {
-					role:
-						'missing' in explanation.role
-							? { missing: explanation.role.missing }
-							: {
-									score: explanation.role.score,
-									unconfirmed_core_groups: explanation.role.unconfirmedCoreGroups
-								},
-					grade: {
-						confidence: explanation.grade.confidence,
-						signals: explanation.grade.signals,
-						ignored: explanation.grade.ignored,
-						missing: explanation.grade.missing,
-						next_grade: explanation.grade.nextGrade
-					},
-					stack: explanation.stack
-				}
-			};
-		}),
+		categories: card.categories.map(categoryView),
 		desired_role_keys: card.desiredRoleKeys,
 		fsp_levels: card.fspLevels.map((level) => ({
 			discipline: level.discipline,

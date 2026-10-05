@@ -1,3 +1,4 @@
+import { CATEGORY_OPTIONS, isGradeKey, isSpecializationKey } from '$lib/server/categories/labels';
 import { db } from '$lib/server/db';
 import { loadCatalogCard } from '$lib/server/employer/card';
 import { employerRequest, membershipOf } from '$lib/server/employer/http';
@@ -20,12 +21,12 @@ export const load: PageServerLoad = async (event) => {
 	const membership = membershipOf(event, subject);
 	const database = db();
 	const now = new Date();
-	const roles = list(event.url, 'role');
-	const grades = list(event.url, 'grade');
+	const specializations = list(event.url, 'specialization').filter(isSpecializationKey);
+	const grades = list(event.url, 'grade').filter(isGradeKey);
 	try {
 		const pool = await readPartnerPool(matchingDeps(), subject, event.params.partnershipId, {
-			...(roles.length > 0 ? { roleKeys: roles } : {}),
-			...(grades.length > 0 ? { gradeKeys: grades } : {})
+			...(specializations.length > 0 ? { specializations } : {}),
+			...(grades.length > 0 ? { grades } : {})
 		});
 		const signer = configuredReceiptSigner();
 		const vacancies = await invitableVacancies(
@@ -60,10 +61,9 @@ export const load: PageServerLoad = async (event) => {
 		return {
 			partnership: pool.partnership,
 			members,
-			query: { roles, grades },
-			filters: { roles: vocabulary.roles, grades: vocabulary.grades },
-			labels: labelsOf(vocabulary),
-			grades: vocabulary.grades
+			query: { specializations, grades },
+			filters: CATEGORY_OPTIONS,
+			labels: labelsOf(vocabulary)
 		};
 	} catch (cause) {
 		pageError(event, cause);

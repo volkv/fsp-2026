@@ -30,7 +30,7 @@ async function changeProfile(db: Executor, candidateId: string): Promise<{ revis
 		if (!row) throw new Error('candidate not found');
 		const { joined } = await enqueueJob(
 			tx,
-			'categorization.compute',
+			'evidence.compute',
 			{ candidate_id: candidateId },
 			{
 				inputVersion: String(row.revision),
@@ -56,7 +56,7 @@ describe('job queue', () => {
 		const candidate = await createCandidate(db);
 
 		expect(await changeProfile(db, candidate.id)).toEqual({ revision: 1, joined: false });
-		const first = await claimJob(db, 'worker-a', ['categorization.compute']);
+		const first = await claimJob(db, 'worker-a', ['evidence.compute']);
 		if (!first) throw new Error('revision 1 was not captured');
 		const seenByFirst = await currentRevision(db, candidate.id);
 
@@ -64,7 +64,7 @@ describe('job queue', () => {
 		expect(await changeProfile(db, candidate.id)).toEqual({ revision: 2, joined: false });
 		expect(await changeProfile(db, candidate.id)).toEqual({ revision: 3, joined: true });
 		// The waiting job is not captured while the job of the same key runs.
-		expect(await claimJob(db, 'worker-b', ['categorization.compute'])).toBeNull();
+		expect(await claimJob(db, 'worker-b', ['evidence.compute'])).toBeNull();
 
 		const written: number[] = [];
 		const firstOutcome = await completeJob(db, first, {
@@ -76,7 +76,7 @@ describe('job queue', () => {
 		});
 		expect(firstOutcome).toBe('discarded_stale');
 
-		const second = await claimJob(db, 'worker-b', ['categorization.compute']);
+		const second = await claimJob(db, 'worker-b', ['evidence.compute']);
 		if (!second) throw new Error('the waiting job was lost');
 		const seenBySecond = await currentRevision(db, candidate.id);
 		expect(seenBySecond).toBe(3);
@@ -93,7 +93,7 @@ describe('job queue', () => {
 		const rows = await db
 			.select({ status: jobs.status })
 			.from(jobs)
-			.where(eq(jobs.dedupKey, `categorization:${candidate.id}`))
+			.where(eq(jobs.dedupKey, `evidence:${candidate.id}`))
 			.orderBy(jobs.createdAt);
 		expect(rows.map((row) => row.status)).toEqual(['discarded_stale', 'succeeded']);
 	});
@@ -105,7 +105,7 @@ describe('job queue', () => {
 			db.transaction(async (tx) => {
 				await enqueueJob(
 					tx,
-					'categorization.compute',
+					'evidence.compute',
 					{ candidate_id: candidate.id },
 					{ inputVersion: '1', createdBy: system }
 				);
@@ -115,7 +115,7 @@ describe('job queue', () => {
 		const rows = await db
 			.select()
 			.from(jobs)
-			.where(eq(jobs.dedupKey, `categorization:${candidate.id}`));
+			.where(eq(jobs.dedupKey, `evidence:${candidate.id}`));
 		expect(rows).toEqual([]);
 	});
 
@@ -123,14 +123,14 @@ describe('job queue', () => {
 		const { db } = database;
 		const candidate = await createCandidate(db);
 		await changeProfile(db, candidate.id);
-		const running = await claimJob(db, 'worker-a', ['categorization.compute']);
+		const running = await claimJob(db, 'worker-a', ['evidence.compute']);
 		if (!running) throw new Error('not captured');
 		await changeProfile(db, candidate.id);
 		await expectDbError(
 			db
 				.update(jobs)
 				.set({ status: 'running', leaseOwner: 'rogue', leaseExpiresAt: sql`now() + interval '1 minute'` })
-				.where(and(eq(jobs.dedupKey, `categorization:${candidate.id}`), eq(jobs.status, 'queued'))),
+				.where(and(eq(jobs.dedupKey, `evidence:${candidate.id}`), eq(jobs.status, 'queued'))),
 			SQLSTATE.uniqueViolation
 		);
 	});

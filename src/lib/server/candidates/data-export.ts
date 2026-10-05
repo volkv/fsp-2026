@@ -1,7 +1,8 @@
 // «Мои данные» (docs/domain.md, sections 6.5, 18.2; contracts 5.5): everything the platform keeps about the candidate,
 // in one JSON document the candidate downloads — the account with its sign-in, FSP ID and notification settings, the
-// profile, the resumes with their extracted text, the facts with their claims, experience and receipts, every
-// categorization run with its skills and FSP levels, the objections to the category, the blocked companies, the matches
+// profile, the resumes with their extracted text, the facts with their claims, experience and receipts, every evidence
+// run with its skills and FSP levels, the categories with their history, the objections to test results, the blocked
+// companies, the matches
 // with the vacancies the candidate sees, the consents with who signed them, the accepted agreements, the invitations
 // with their terms and answers, what was handed to which company, the hiring processes, the tests with their artifacts,
 // the notifications, and the journal of actions about the candidate. Other people are named only by what the candidate
@@ -29,9 +30,7 @@ import {
 	candidateCompanyBlocks,
 	candidates,
 	categorizationRulesets,
-	categorizationRuns,
-	categoryAssignments,
-	categoryDisputes,
+	evidenceRuns,
 	claims,
 	companies,
 	consentEvents,
@@ -65,14 +64,20 @@ import {
 	vacancies,
 	verificationReceipts
 } from '$lib/server/db/schema';
+import { candidateObjections } from '$lib/server/categories/objections';
+import { categoryHistory } from '$lib/server/categories/read';
 import { demoSessionOfUser } from '$lib/server/demo/scope';
 import { organizationOf } from './vacancies';
 import { matchableVacancyFor } from '$lib/server/matching/evidence';
 import { COMPONENT_KEYS } from '$lib/server/matching/params';
 import { storedComponent } from '$lib/server/matching/storage';
 
-/** v2: `category` is the whole history of categorization runs, not the published one alone. */
-export const DATA_EXPORT_FORMAT = 'fsp-career-data-export/v2';
+/**
+ * v2: `category` is the whole history of categorization runs, not the published one alone. v3: a category is confirmed
+ * by a test — `categories` with their history and `objections` to test results; the calculation over the profile is
+ * `evidence` (skills, FSP levels, experience) and assigns no category.
+ */
+export const DATA_EXPORT_FORMAT = 'fsp-career-data-export/v3';
 
 const iso = (value: Date | null) => (value === null ? null : value.toISOString());
 
@@ -88,8 +93,9 @@ export interface DataExport {
 	facts: Record<string, unknown>[];
 	experience: Record<string, unknown>[];
 	external_profiles: Record<string, unknown>[];
-	category: Record<string, unknown>[];
-	category_disputes: Record<string, unknown>[];
+	evidence: Record<string, unknown>[];
+	categories: Record<string, unknown>[];
+	objections: Record<string, unknown>[];
 	company_blocks: Record<string, unknown>[];
 	matches: Record<string, unknown>[];
 	consents: Record<string, unknown>[];
@@ -235,18 +241,14 @@ async function buildDataExport(
 	// Every run computed about the candidate, the one in force and the history before it.
 	const runs = await executor
 		.select({
-			run: categorizationRuns,
+			run: evidenceRuns,
 			rulesetVersion: categorizationRulesets.version
 		})
-		.from(categorizationRuns)
-		.innerJoin(categorizationRulesets, eq(categorizationRulesets.id, categorizationRuns.rulesetId))
-		.where(eq(categorizationRuns.candidateId, candidateId))
-		.orderBy(asc(categorizationRuns.computedAt), asc(categorizationRuns.id));
+		.from(evidenceRuns)
+		.innerJoin(categorizationRulesets, eq(categorizationRulesets.id, evidenceRuns.rulesetId))
+		.where(eq(evidenceRuns.candidateId, candidateId))
+		.orderBy(asc(evidenceRuns.computedAt), asc(evidenceRuns.id));
 	const runIds = runs.map((row) => row.run.id);
-	const assignments =
-		runIds.length === 0
-			? []
-			: await executor.select().from(categoryAssignments).where(inArray(categoryAssignments.runId, runIds));
 	const fspLevels =
 		runIds.length === 0
 			? []
@@ -260,11 +262,8 @@ async function buildDataExport(
 		.from(skillInferences)
 		.where(eq(skillInferences.candidateId, candidateId))
 		.orderBy(asc(skillInferences.skillKey));
-	const disputes = await executor
-		.select()
-		.from(categoryDisputes)
-		.where(eq(categoryDisputes.candidateId, candidateId))
-		.orderBy(asc(categoryDisputes.openedAt));
+	const categories = (await categoryHistory(executor, candidateId)).reverse();
+	const objections = (await candidateObjections(executor, candidateId)).reverse();
 	const blocks = await executor
 		.select()
 		.from(candidateCompanyBlocks)
@@ -282,7 +281,7 @@ async function buildDataExport(
 			vacancyExternalOrg: vacancies.externalOrg,
 			vacancyRevision: matchScores.vacancyRevision,
 			candidateRevision: matchScores.candidateRevision,
-			categorizationRunId: matchScores.categorizationRunId,
+			evidenceRunId: matchScores.evidenceRunId,
 			rulesetVersion: matchRulesets.version,
 			score: matchScores.score,
 			componentStatuses: matchScores.componentStatuses,
@@ -652,7 +651,7 @@ async function buildDataExport(
 			ownership: profile.ownershipStatus,
 			verified_at: iso(profile.verifiedAt)
 		})),
-		category: runs.map(({ run, rulesetVersion }) => ({
+		evidence: runs.map(({ run, rulesetVersion }) => ({
 			id: run.id,
 			status: run.status,
 			computed_at: iso(run.computedAt),
@@ -660,27 +659,7 @@ async function buildDataExport(
 			input_revision: run.inputRevision,
 			input_refs: run.inputRefs,
 			ruleset_version: rulesetVersion,
-			origin: run.origin,
-			// An operator's change after an objection: the reason is the answer to it; the operator is named by role.
-			override_reason: run.overrideReason,
-			outcome: run.outcome,
-			missing: run.missing,
 			experience: run.experienceSummary,
-			assignments: assignments
-				.filter((assignment) => assignment.runId === run.id)
-				.map((assignment) => ({
-					rank: assignment.rank,
-					role_status: assignment.roleStatus,
-					role_key: assignment.roleKey,
-					role_score: assignment.score === null ? null : Number(assignment.score),
-					grade_status: assignment.gradeStatus,
-					grade_min: assignment.gradeMin,
-					grade_max: assignment.gradeMax,
-					grade_confidence: assignment.gradeConfidence === null ? null : Number(assignment.gradeConfidence),
-					stack_status: assignment.stackStatus,
-					stack_skill_keys: assignment.stackSkillKeys,
-					explanation: assignment.explanation
-				})),
 			fsp_levels: fspLevels
 				.filter((level) => level.runId === run.id)
 				.map((level) => ({
@@ -700,17 +679,35 @@ async function buildDataExport(
 					contributions: inference.contributions
 				}))
 		})),
-		category_disputes: disputes.map((dispute) => ({
-			id: dispute.id,
-			run_id: dispute.runId,
-			reason: dispute.reason,
-			status: dispute.status,
-			opened_at: iso(dispute.openedAt),
-			due_at: iso(dispute.dueAt),
-			resolution: dispute.resolution,
-			resulting_run_id: dispute.resultingRunId,
-			resolved_at: iso(dispute.resolvedAt),
-			notified_at: iso(dispute.notifiedAt)
+		categories: categories.map((category) => ({
+			id: category.id,
+			specialization: category.specialization,
+			grade: category.grade,
+			status: category.status,
+			catalog_version: category.catalogVersion,
+			decision_id: category.decisionId,
+			bank_release_id: category.bankReleaseId,
+			confirmed_blocks: category.confirmedBlocks,
+			confirmed_skill_keys: category.confirmedSkillKeys,
+			confident_upgrade_until: iso(category.confidentUpgradeUntil),
+			assigned_at: iso(category.assignedAt),
+			ended_at: iso(category.endedAt),
+			revoke_reason: category.revokeReason
+		})),
+		// The operator who answered is named by role, never by account.
+		objections: objections.map((objection) => ({
+			id: objection.id,
+			decision_id: objection.decisionId,
+			reason: objection.reason,
+			items: objection.items ?? [],
+			status: objection.status,
+			outcome: objection.outcome,
+			opened_at: iso(objection.openedAt),
+			due_at: iso(objection.dueAt),
+			resolution: objection.resolution,
+			resulting_decision_id: objection.resultingDecisionId,
+			resolved_at: iso(objection.resolvedAt),
+			notified_at: iso(objection.notifiedAt)
 		})),
 		company_blocks: blocks.map((block) => ({
 			company: companyOf(block.companyId),
@@ -728,7 +725,7 @@ async function buildDataExport(
 			components: Object.fromEntries(COMPONENT_KEYS.map((key) => [key, storedComponent(row, key)])),
 			vacancy_revision: row.vacancyRevision,
 			profile_revision: row.candidateRevision,
-			category_run_id: row.categorizationRunId,
+			evidence_run_id: row.evidenceRunId,
 			ruleset_version: row.rulesetVersion,
 			computed_at: iso(row.computedAt)
 		})),

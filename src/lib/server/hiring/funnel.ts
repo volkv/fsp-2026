@@ -23,6 +23,7 @@ import { and, eq, gte, inArray, isNull, lt, sql, type SQL } from 'drizzle-orm';
 import { can, type AccessSubject } from '$lib/server/access/permissions';
 import { parsePolicyParams, type PolicyParams } from '$lib/server/consent/kinds';
 import type { Executor } from '$lib/server/db';
+import { activeCategoryRows } from '$lib/server/categories/read';
 import { runAt, runInForce } from '$lib/server/db/conditions';
 import { candidates, hiringProcesses, invitations, productPolicies } from '$lib/server/db/schema';
 import { candidateSession, companySession, outsideDemoSessions } from '$lib/server/demo/scope';
@@ -35,7 +36,7 @@ export const FUNNEL_DIMENSIONS = [
 	'fsp_discipline',
 	'fsp_level',
 	'competition',
-	'role',
+	'specialization',
 	'grade',
 	'region',
 	'month',
@@ -48,7 +49,10 @@ export const FUNNEL_FILTERS = FUNNEL_DIMENSIONS.filter(
 );
 export type FunnelFilter = (typeof FUNNEL_FILTERS)[number];
 
-/** The key of a group of candidates without a value in the dimension: no role, no grade, no FSP level, no region. */
+/**
+ * The key of a group of candidates without a value in the dimension: no category (specialization, grade), no FSP level,
+ * no region.
+ */
 export const NO_VALUE = 'none';
 /** The key of the row that pools the small groups. */
 export const SMALL_GROUPS = '__small__';
@@ -119,8 +123,9 @@ interface InvitationFacts {
 interface CandidateFacets {
 	synthetic: boolean;
 	region: string | null;
-	role: string | null;
-	grade: { min: string; max: string } | null;
+	/** The latest category in force: its specialization and grade. */
+	specialization: string | null;
+	grade: string | null;
 	levels: { discipline: string; level: string }[];
 	competitions: { id: string; title: string; discipline: string; startDate: string | null }[];
 }
@@ -230,7 +235,10 @@ async function loadInvitations(executor: Executor, filters: FunnelFilters, now: 
 	});
 }
 
-/** The facets of every invited candidate: the published category, the FSP levels, the competitions, the region. */
+/**
+ * The facets of every invited candidate: the latest category in force, the FSP levels of the evidence in force, the
+ * competitions, the region.
+ */
 async function loadCandidates(executor: Executor, filters: FunnelFilters): Promise<Map<string, CandidateFacets>> {
 	const invited = executor.selectDistinct({ id: invitations.candidateId }).from(invitations).where(periodOf(filters));
 	const rows = await executor
@@ -238,9 +246,8 @@ async function loadCandidates(executor: Executor, filters: FunnelFilters): Promi
 			id: candidates.id,
 			synthetic: sql<boolean>`${candidates.seedBatchId} is not null`,
 			region: sql<string | null>`${candidates.preferences}->>'region_code'`,
-			role: sql<string | null>`ca.role_key`,
-			gradeMin: sql<string | null>`ca.grade_min`,
-			gradeMax: sql<string | null>`ca.grade_max`,
+			specialization: sql<string | null>`ca.specialization`,
+			grade: sql<string | null>`ca.grade`,
 			levels: sql<{ discipline: string; level: string }[]>`coalesce((
 				select json_agg(json_build_object('discipline', f.discipline, 'level', f.level))
 				from fsp_level_assignments f where f.run_id = run.id
@@ -259,10 +266,14 @@ async function loadCandidates(executor: Executor, filters: FunnelFilters): Promi
 		})
 		.from(candidates)
 		.leftJoin(
-			sql`categorization_runs run`,
+			sql`evidence_runs run`,
 			sql`run.candidate_id = ${candidates.id} and ${runInForce(runAt('run'), candidates)}`
 		)
-		.leftJoin(sql`category_assignments ca`, sql`ca.run_id = run.id and ca.rank = 'primary'`)
+		.leftJoin(
+			sql`lateral (select k.specialization, k.grade from ${activeCategoryRows} k
+				where k.candidate_id = ${candidates.id} order by k.assigned_at desc limit 1) ca`,
+			sql`true`
+		)
 		.where(inArray(candidates.id, invited));
 	return new Map(
 		rows.map((row) => [
@@ -270,8 +281,8 @@ async function loadCandidates(executor: Executor, filters: FunnelFilters): Promi
 			{
 				synthetic: row.synthetic,
 				region: row.region,
-				role: row.role,
-				grade: row.gradeMin !== null && row.gradeMax !== null ? { min: row.gradeMin, max: row.gradeMax } : null,
+				specialization: row.specialization,
+				grade: row.grade,
 				levels: row.levels,
 				competitions: row.competitions
 			}
@@ -295,8 +306,8 @@ function facetsOf(
 	const base = {
 		month: invitation.month,
 		region: candidate.region ?? NO_VALUE,
-		role: candidate.role ?? NO_VALUE,
-		grade: candidate.grade ? `${candidate.grade.min}..${candidate.grade.max}` : NO_VALUE,
+		specialization: candidate.specialization ?? NO_VALUE,
+		grade: candidate.grade ?? NO_VALUE,
 		fsp_participant: candidate.levels.length > 0 ? 'fsp' : 'not_fsp'
 	};
 	const none = { competition: NO_VALUE, fsp_discipline: NO_VALUE, fsp_level: NO_VALUE };

@@ -27,14 +27,18 @@
 	const groups = $derived.by(
 		(): { key: string; title: string | null; items: NonNullable<NonNullable<typeof catalog>['page']>['items'] }[] => {
 			const items = catalog?.page?.items ?? [];
-			const hasGroups = items.some((item) => item.gradeGroup !== null);
-			if (!hasGroups) return [{ key: 'all', title: null, items }];
+			// Without a category a candidate is in the base, not in a category (domain 12.7): listed apart and marked.
+			if (items.every((item) => item.categoryConfirmed)) return [{ key: 'all', title: null, items }];
 			return [
-				{ key: 'in_range', title: 'Грейд в диапазоне', items: items.filter((item) => item.gradeGroup === 'in_range') },
 				{
-					key: 'not_established',
-					title: 'Грейд не установлен',
-					items: items.filter((item) => item.gradeGroup === 'not_established')
+					key: 'confirmed',
+					title: 'С подтверждённой категорией',
+					items: items.filter((item) => item.categoryConfirmed)
+				},
+				{
+					key: 'not_confirmed',
+					title: 'Категория не подтверждена',
+					items: items.filter((item) => !item.categoryConfirmed)
 				}
 			].filter((group) => group.items.length > 0);
 		}
@@ -86,7 +90,7 @@
 		<aside class="lg:sticky lg:top-20 lg:self-start">
 			<CatalogFilters
 				values={catalog.query}
-				roles={data.filters.roles}
+				specializations={data.filters.specializations}
 				grades={data.filters.grades}
 				formats={data.filters.formats}
 				regions={data.filters.regions}
@@ -144,7 +148,6 @@
 								pseudonym={item.pseudonym}
 								summary={item.summary}
 								match={item.match}
-								gradeGroup={item.gradeGroup}
 								{labels}
 								href={resolve('/(app)/company/(member)/vacancies/[id]/candidates/[pseudonym]', {
 									id: vacancy.id,

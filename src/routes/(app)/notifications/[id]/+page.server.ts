@@ -27,7 +27,7 @@ export const load: PageServerLoad = async (event) => {
 	if (target.kind === 'candidate_representative') redirect(303, '/onboarding');
 	if (target.kind === 'candidate_consents') redirect(303, '/me/consents');
 	if (target.kind === 'candidate_attempt') redirect(303, `/me/tests/attempts/${target.attemptId}`);
-	if (target.kind === 'operator_disputes') redirect(303, '/operator/disputes');
+	if (target.kind === 'operator_objections') redirect(303, '/operator/objections');
 	if (target.kind === 'admin_staff') redirect(303, '/admin/staff');
 	return { title: opened.title };
 };

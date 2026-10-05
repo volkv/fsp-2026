@@ -5,7 +5,7 @@
 import { inScore } from '$lib/matching/evidence-components.js';
 import {
 	DISCIPLINES,
-	type CategoryView as CategoryAxesView,
+	type CategoryBadgeView,
 	type DisciplineCode,
 	type FspLevel,
 	type MatchComponentKey,
@@ -107,11 +107,15 @@ interface MatchComponentData<Details> {
 	details: Details & { reason?: string };
 }
 
-/** Details of the role component: the vacancy's role, the candidate's established ones and why the role fits. */
+/**
+ * Details of the role component: the vacancy's role with the specializations it maps to, the specializations of the
+ * candidate's categories and whether one of them is the vacancy's.
+ */
 export interface RoleDetails {
 	vacancy?: string;
+	specializations?: string[];
 	candidate?: string[];
-	basis?: 'primary' | 'secondary' | 'desired' | 'none';
+	basis?: 'same_specialization' | 'other_specialization';
 }
 
 /**
@@ -126,7 +130,7 @@ export type TrustDetails =
 			public_profile: number;
 			confirmed_coverage: number;
 			grade_agreement: number | null;
-			grade_agreement_reason?: 'candidate_grade_not_established' | 'vacancy_grade_unknown';
+			grade_agreement_reason?: 'candidate_grade_not_confirmed' | 'vacancy_grade_unknown';
 	  }
 	| { reason: string };
 
@@ -160,6 +164,7 @@ export interface CompanyMatchData {
 
 export interface Labels {
 	roles: Record<string, string>;
+	specializations: Record<string, string>;
 	grades: Record<string, string>;
 	skills: Record<string, string>;
 }
@@ -185,12 +190,14 @@ function trustOf(attestation: 'direct' | 'derived' | 'claimed', badge: TrustMark
 }
 
 const UNKNOWN_REASONS: Record<string, string> = {
-	no_published_run: 'у кандидата нет действующей категории',
+	no_published_run: 'доказательства профиля ещё не рассчитаны',
 	run_below_evidence_floor: 'профиль пересчитывается после изменения доказательств',
 	vacancy_grade_unknown: 'у вакансии не указан грейд',
-	candidate_grade_not_established: 'грейд кандидата не установлен',
+	category_not_confirmed: 'категория кандидата не подтверждена тестом',
+	specialization_other: 'категория кандидата — другой специализации',
+	candidate_grade_not_confirmed: 'грейд специализации вакансии тестом не подтверждён',
 	vacancy_role_unknown: 'у вакансии не указана роль',
-	candidate_role_not_established: 'роль кандидата не установлена — мало оснований',
+	vacancy_role_without_specialization: 'роль вакансии не относится ни к одной специализации тестов',
 	candidate_expectation_missing: 'кандидат не указал ожидания по зарплате',
 	vacancy_salary_missing: 'у вакансии нет вилки',
 	different_terms: 'разные валюта, период или налоговая база',
@@ -211,12 +218,8 @@ function verifyText(item: { code: string; skill_key?: string }, labels: Labels):
 			return `${skill}: навык выведен из других фактов, прямого подтверждения нет`;
 		case 'skill_weak_evidence':
 			return `${skill}: основание слабое — уточните глубину`;
-		case 'grade_not_established':
-			return 'Грейд не установлен: оцените уровень на собеседовании';
-		case 'role_not_established':
-			return 'Роль кандидата не установлена: уточните, какой работой он занимался';
-		case 'role_desired_only':
-			return 'Роль вакансии кандидат указал желаемой, но основания её пока не подтверждают — уточните опыт';
+		case 'category_not_confirmed':
+			return 'Категория не подтверждена: кандидат не проходил тест на грейд — оцените уровень на собеседовании';
 		case 'salary_not_comparable':
 			return 'Ожидания по зарплате в другой валюте, периоде или налоговой базе — уточните';
 		case 'salary_expectation_missing':
@@ -224,7 +227,7 @@ function verifyText(item: { code: string; skill_key?: string }, labels: Labels):
 		case 'profile_recalculating':
 			return 'Профиль пересчитывается — объяснение может измениться';
 		case 'profile_insufficient_data':
-			return 'Недостаточно данных: у кандидата нет действующей категории — навыки не подтверждены и в счёт идут как неподтверждённые, проверьте их на собеседовании';
+			return 'Недостаточно данных: доказательства профиля ещё не рассчитаны — навыки в счёт идут как неподтверждённые, проверьте их на собеседовании';
 		default:
 			return item.code;
 	}
@@ -239,8 +242,8 @@ function gapText(item: { code: string; skill_key?: string; steps?: number }, lab
 			return `Желательный навык не подтверждён: ${skill}`;
 		case 'grade_below':
 			return `Грейд ниже требуемого на ${item.steps ?? '?'} ступ.`;
-		case 'role_other':
-			return 'Основания кандидата говорят о другой роли';
+		case 'specialization_other':
+			return 'Категория кандидата — другой специализации, чем у вакансии';
 		default:
 			return item.code;
 	}
@@ -248,20 +251,15 @@ function gapText(item: { code: string; skill_key?: string; steps?: number }, lab
 
 const percentOf = (value: number) => `${Math.round(value * 100)} %`;
 
-/** What the role component rests on. */
+/** What the role component rests on: the specializations of the candidate's categories against the vacancy's. */
 function roleNote(details: RoleDetails, labels: Labels): string | undefined {
-	const vacancy = details.vacancy === undefined ? '' : label(labels.roles, details.vacancy);
+	const names = (keys: readonly string[] | undefined) =>
+		(keys ?? []).map((key) => label(labels.specializations, key)).join(', ');
 	switch (details.basis) {
-		case 'primary':
-			return `${vacancy} — основная роль кандидата`;
-		case 'secondary':
-			return `${vacancy} — дополнительная роль кандидата`;
-		case 'desired':
-			return `${vacancy} — желаемая роль кандидата, основаниями не подтверждена`;
-		case 'none': {
-			const own = details.candidate?.[0];
-			return own === undefined ? undefined : `роль кандидата — ${label(labels.roles, own)}`;
-		}
+		case 'same_specialization':
+			return `категория ${names(details.candidate)} — специализация вакансии`;
+		case 'other_specialization':
+			return `категория ${names(details.candidate)}, у вакансии — ${names(details.specializations)}`;
 		default:
 			return undefined;
 	}
@@ -278,8 +276,8 @@ export function trustNote(details: TrustDetails, reader: Reader): string | undef
 			? 'обязательные навыки не подтверждены ФСП или тестом'
 			: `подтверждено ФСП или тестом: ${details.direct} из ${details.total}`) +
 		(details.public_profile > 0 ? `; по публичному профилю: ${details.public_profile}` : '');
-	if (details.grade_agreement_reason === 'candidate_grade_not_established') {
-		return `${confirmed}; ${reader === 'company' ? 'грейд' : 'твой грейд'} не установлен — доверие снижено`;
+	if (details.grade_agreement_reason === 'candidate_grade_not_confirmed') {
+		return `${confirmed}; ${reader === 'company' ? 'грейд' : 'твой грейд'} в специализации вакансии тестом не подтверждён — доверие снижено`;
 	}
 	if (typeof details.grade_agreement === 'number' && details.grade_agreement < 1) {
 		const range = reader === 'company' ? 'диапазон грейда' : 'твой диапазон грейда';
@@ -329,12 +327,16 @@ export function matchView(match: CompanyMatchData, labels: Labels): MatchView {
 						trust: trustOf(item.attestation, item.badge_trust)
 					};
 				case 'role':
-					return { requirement: 'Роль', evidence: label(labels.roles, item.role_key), trust: 'derived' };
+					return {
+						requirement: 'Роль',
+						evidence: `${label(labels.roles, item.role_key)}: категория специализации вакансии подтверждена тестом`,
+						trust: 'platform_verified'
+					};
 				case 'grade':
 					return {
 						requirement: 'Грейд',
-						evidence: `${label(labels.grades, item.candidate.min)}–${label(labels.grades, item.candidate.max)} в диапазоне вакансии`,
-						trust: 'derived'
+						evidence: `${label(labels.grades, item.candidate.min)} подтверждён тестом, в диапазоне вакансии`,
+						trust: 'platform_verified'
 					};
 				case 'salary':
 					return { requirement: 'Зарплата', evidence: SALARY_MATCH[item.comparison], trust: 'claimed' };
@@ -363,55 +365,37 @@ function componentLabel(key: MatchComponentKey): string {
 	return COMPONENT_LABELS[key];
 }
 
-/** A category of the card (catalog projection) as the axes component shows it. */
+/** A category in force of the card (catalog projection), as the services give it. */
 export interface CardCategory {
-	rank: 'primary' | 'secondary';
-	role: { status: 'established'; key: string } | { status: 'insufficient_data' };
-	grade: { status: 'established'; min: string; max: string } | { status: 'insufficient_data' };
-	stack: { status: 'established'; skillKeys: string[] } | { status: 'insufficient_data' };
+	specialization: string;
+	grade: string;
+	confirmedBlocks: string[];
+	confirmedSkillKeys: string[];
+	assignedOn: string;
+}
+
+/** The categories of a card as the category component shows them. */
+export function categoryBadges(categories: readonly CardCategory[], labels: Labels): CategoryBadgeView[] {
+	return categories.map((category) => ({
+		key: category.specialization,
+		specialization: label(labels.specializations, category.specialization),
+		grade: label(labels.grades, category.grade),
+		skills: category.confirmedSkillKeys.map((key) => label(labels.skills, key)),
+		blocks: category.confirmedBlocks.length,
+		assignedOn: category.assignedOn
+	}));
 }
 
 const DISCIPLINE_CODES: readonly string[] = ['algorithmic', 'product', 'uas', 'robotics', 'infosec'];
 const FSP_LEVELS: readonly string[] = ['L1', 'L2', 'L3', 'L4', 'L5'];
 
-export function categoryAxesView(
-	category: CardCategory & { explanation: { grade: { confidence: number | null } } },
-	grades: readonly { key: string; name: string }[],
-	labels: Labels,
-	fspLevels: readonly { discipline: string; level: string }[],
-	desiredRole: string | null
-): CategoryAxesView {
-	const scale = grades.map((grade) => grade.name);
-	const indexOf = (key: string) => grades.findIndex((grade) => grade.key === key);
-	return {
-		role:
-			category.role.status === 'established'
-				? { status: 'established', label: label(labels.roles, category.role.key) }
-				: { status: 'insufficient_data', hint: 'Роль не установлена: мало подтверждённых навыков роли' },
-		grade:
-			category.grade.status === 'established' &&
-			indexOf(category.grade.min) >= 0 &&
-			category.explanation.grade.confidence !== null
-				? {
-						status: 'established',
-						scale,
-						min: indexOf(category.grade.min),
-						max: indexOf(category.grade.max),
-						confidence: category.explanation.grade.confidence
-					}
-				: {
-						status: 'insufficient_data',
-						hint: 'Грейд устанавливается только по коммерческому опыту и тестам уровня, не по соревнованиям'
-					},
-		stack:
-			category.stack.status === 'established'
-				? { status: 'established', skills: category.stack.skillKeys.map((key) => label(labels.skills, key)) }
-				: { status: 'insufficient_data' },
-		...(desiredRole ? { desiredRole } : {}),
-		fspLevels: fspLevels
-			.filter((item) => DISCIPLINE_CODES.includes(item.discipline) && FSP_LEVELS.includes(item.level))
-			.map((item) => ({ discipline: item.discipline as DisciplineCode, level: item.level as FspLevel }))
-	};
+/** FSP levels of known disciplines and levels, for the facet chips. */
+export function fspLevelChips(
+	levels: readonly { discipline: string; level: string }[]
+): { discipline: DisciplineCode; level: FspLevel }[] {
+	return levels
+		.filter((item) => DISCIPLINE_CODES.includes(item.discipline) && FSP_LEVELS.includes(item.level))
+		.map((item) => ({ discipline: item.discipline as DisciplineCode, level: item.level as FspLevel }));
 }
 
 export interface NamedKey {
@@ -539,4 +523,18 @@ export function disciplineName(code: string | null | undefined, form: 'name' | '
 	if (code === null || code === undefined) return 'Дисциплина не передана';
 	const entries: Readonly<Record<string, { name: string; short: string }>> = DISCIPLINES;
 	return Object.hasOwn(entries, code) ? (entries[code]?.[form] ?? code) : code;
+}
+
+/** The categories in force in one line, «Backend · Middle, QA · Junior»; `null` — the category is not confirmed. */
+export function categoryLine(
+	categories: readonly { specialization: string; grade: string }[],
+	labels: Pick<Labels, 'specializations' | 'grades'>
+): string | null {
+	if (categories.length === 0) return null;
+	return categories
+		.map(
+			(category) =>
+				`${label(labels.specializations, category.specialization)} · ${label(labels.grades, category.grade)}`
+		)
+		.join(', ');
 }

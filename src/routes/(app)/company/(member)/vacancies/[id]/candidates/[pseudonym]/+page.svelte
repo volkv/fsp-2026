@@ -38,13 +38,7 @@
 				</Card.Content>
 			</Card.Root>
 		{/if}
-		<CandidateCard
-			card={data.card}
-			categoryState={data.categoryState}
-			receipts={data.receipts}
-			labels={data.labels}
-			grades={data.grades}
-		/>
+		<CandidateCard card={data.card} evidenceState={data.evidenceState} receipts={data.receipts} labels={data.labels} />
 	</div>
 
 	<aside class="grid content-start gap-4 lg:sticky lg:top-20 lg:self-start">

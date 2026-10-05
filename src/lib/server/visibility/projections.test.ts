@@ -19,8 +19,16 @@ function source(overrides: Partial<CandidateCardSource> = {}): CandidateCardSour
 			searchStatus: 'active',
 			salaryExpectation: null
 		},
-		categories: [],
-		categoryMissing: { grade: ['no_dated_experience'] },
+		categories: [
+			{
+				specialization: 'backend',
+				grade: 'middle',
+				confirmedBlocks: ['be.db', 'be.api'],
+				confirmedSkillKeys: ['sql', 'rest'],
+				assignedOn: '2026-10-01',
+				bankReleaseId: 'release-1'
+			}
+		],
 		desiredRoleKeys: ['backend'],
 		fspLevels: [{ discipline: 'algorithmic', level: 'L4', lastResultOn: '2026-04-20' }],
 		skills: [{ skillKey: 'algorithms', strengthBand: 'strong', attestation: 'direct', badgeTrust: 'fsp_verified' }],
@@ -224,10 +232,10 @@ describe('fact ids', () => {
 });
 
 describe('self and operator projections', () => {
-	it('shows the candidate everything including what is missing', () => {
+	it('shows the candidate everything including the categories', () => {
 		const card = projectCandidate(source(), { projection: 'self', extras: [] });
 		expect(card.birthDate).toBe('1999-03-01');
-		expect(card.categoryMissing).toEqual({ grade: ['no_dated_experience'] });
+		expect(card.categories).toEqual([expect.objectContaining({ specialization: 'backend', grade: 'middle' })]);
 	});
 
 	it('shows the operator contacts and the birth date only when the case needs them', () => {

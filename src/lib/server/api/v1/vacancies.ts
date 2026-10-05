@@ -593,7 +593,11 @@ const positionTextSchema = z.string().describe('Положение словам�
 
 const marketPositionSchema = z
 	.discriminatedUnion('status', [
-		z.object({ status: z.literal('no_role').describe('Роль не распознана: категорию рынка не определить') }),
+		z.object({
+			status: z
+				.literal('no_specialization')
+				.describe('Роль не распознана или не относится ни к одной специализации справочника: рынка категории нет')
+		}),
 		z.object({
 			status: z.literal('evaluated'),
 			positions: z.array(
@@ -636,7 +640,7 @@ const marketPositionSchema = z
 	])
 	.meta({
 		id: 'VacancyMarketPosition',
-		description: 'Положение вилки относительно рынка категории (domain 12.5): каждый показатель отдельно'
+		description: 'Положение вилки относительно рынка категории (domain 12.8): каждый показатель отдельно'
 	});
 
 function positionView(position: IndicatorPosition, vacancyTaxBase: Draft['fields']['salary']) {
@@ -672,7 +676,7 @@ function positionView(position: IndicatorPosition, vacancyTaxBase: Draft['fields
 }
 
 function marketPositionView(position: VacancyMarketPosition, salary: Draft['fields']['salary']) {
-	return position.status === 'no_role'
+	return position.status === 'no_specialization'
 		? position
 		: { status: position.status, positions: position.positions.map((item) => positionView(item, salary)) };
 }

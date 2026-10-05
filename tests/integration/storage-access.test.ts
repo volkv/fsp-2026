@@ -1,6 +1,6 @@
 // Stored files against a real object storage: an upload is checked by content before anything is stored, and a file is handed
 // out only to its owner, to a company that received the resume by an accepted invitation, to an operator within a
-// case (a dispute, a company verification, a representative's authority), to an administrator for the report of an
+// case (a company verification, a representative's authority), to an administrator for the report of an
 // evaluation run and to the FSP operator for the source file of a results batch — every attempt in the journal, every
 // refusal answered as «not found».
 import { createHash, randomBytes } from 'node:crypto';
@@ -11,9 +11,6 @@ import type { AccessSubject } from '$lib/server/access/permissions';
 import {
 	auditEvents,
 	authorityChecks,
-	categorizationRulesets,
-	categorizationRuns,
-	categoryDisputes,
 	companyVerifications,
 	consentEvents,
 	evalRuns,
@@ -326,77 +323,6 @@ describe('handing out a file', () => {
 			resumeFileId,
 			{ kind: 'invitation', invitationId: other.invitationId },
 			'not_recipient'
-		);
-	});
-
-	it('gives the resume to an operator only within a dispute of this candidate', async () => {
-		const operatorUser = await createUser(database.db);
-		const operator: AccessSubject = {
-			userId: operatorUser.id,
-			via: 'session',
-			candidate: null,
-			membership: null,
-			staff: { operator: true, admin: false, extraPermissions: [] }
-		};
-		const [ruleset] = await database.db
-			.insert(categorizationRulesets)
-			.values({ version: 1, taxonomyVersionId, params: {} })
-			.returning();
-		if (!ruleset) throw new Error('rule set not inserted');
-		const [run] = await database.db
-			.insert(categorizationRuns)
-			.values({
-				candidateId: candidate.id,
-				inputRevision: 0,
-				inputSnapshotSha256: 'a'.repeat(64),
-				inputRefs: {},
-				taxonomyVersionId,
-				rulesetId: ruleset.id,
-				asOf: new Date(),
-				computedAt: new Date(),
-				origin: 'automatic',
-				outcome: 'insufficient_data',
-				missing: {},
-				experienceSummary: {},
-				status: 'published'
-			})
-			.returning();
-		if (!run) throw new Error('run not inserted');
-		const openedAt = new Date();
-		const [dispute] = await database.db
-			.insert(categoryDisputes)
-			.values({
-				candidateId: candidate.id,
-				runId: run.id,
-				reason: 'Категория не соответствует опыту',
-				openedAt,
-				dueAt: new Date(openedAt.getTime() + 30 * 86_400_000),
-				status: 'open'
-			})
-			.returning();
-		if (!dispute) throw new Error('dispute not inserted');
-
-		await expectRefused(
-			operator,
-			resumeFileId,
-			{ kind: 'case', caseType: 'dispute', caseId: uuidv7() },
-			'no_case_access'
-		);
-		expect(await read(operator, resumeFileId, { kind: 'case', caseType: 'dispute', caseId: dispute.id })).toContain(
-			'Go'
-		);
-		const access = await database.db
-			.select({ details: auditEvents.details })
-			.from(auditEvents)
-			.where(and(eq(auditEvents.action, 'operator.case_access'), eq(auditEvents.subjectCandidateId, candidate.id)));
-		expect(access).toEqual([{ details: { case_type: 'dispute', case_id: dispute.id } }]);
-
-		const notOperator = { ...operator, staff: NO_STAFF };
-		await expectRefused(
-			notOperator,
-			resumeFileId,
-			{ kind: 'case', caseType: 'dispute', caseId: dispute.id },
-			'no_case_access'
 		);
 	});
 

@@ -1,6 +1,7 @@
 // Names of the taxonomy keys an employer sees (docs/domain.md, section 11): roles, grades, skills and work terms of one
 // taxonomy version, for the forms and the labels of the employer cabinet. The interface never prints a raw key where
 // the taxonomy has a name for it.
+import { CATEGORY_OPTIONS } from '$lib/server/categories/labels';
 import type { Executor } from '$lib/server/db';
 import {
 	latestPublishedVersion,
@@ -30,6 +31,8 @@ export async function vocabularyOf(executor: Executor, taxonomyVersionId: string
 /** Key → name maps of a vocabulary, as plain records the pages receive. */
 export interface Labels {
 	roles: Record<string, string>;
+	/** Specializations of the catalog of categories (domain 12.1). */
+	specializations: Record<string, string>;
 	grades: Record<string, string>;
 	skills: Record<string, string>;
 	terms: Record<TermDimension, Record<string, string>>;
@@ -39,6 +42,7 @@ export function labelsOf(vocabulary: Vocabulary): Labels {
 	const record = (list: readonly NamedKey[]) => Object.fromEntries(list.map(({ key, name }) => [key, name]));
 	return {
 		roles: record(vocabulary.roles),
+		specializations: record(CATEGORY_OPTIONS.specializations),
 		grades: record(vocabulary.grades),
 		skills: record(vocabulary.skills),
 		terms: {

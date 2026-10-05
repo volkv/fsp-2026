@@ -4,7 +4,7 @@
 // rules are the rows the release publishes (`fsp_projection_rules`), so FSP achievements become the claims the
 // synchronization writes.
 import { z } from 'zod';
-import type { RulesContext } from '$lib/server/categorization/types';
+import type { RulesContext } from '$lib/server/evidence/types';
 import type { ProjectionTaxonomy } from '$lib/server/fsp/projection';
 import { buildResumeTaxonomy, type ResumeTaxonomy } from '$lib/server/resumes/taxonomy';
 import { buildRelease, readTaxonomyDatasets } from '$lib/server/taxonomy/release';

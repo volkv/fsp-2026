@@ -9,7 +9,7 @@ import { expect, test } from './helpers/test';
 import { APP_ORIGIN } from './helpers/ports';
 import { and, desc, eq, lte } from 'drizzle-orm';
 import { hashPassword } from '$lib/server/auth/password';
-import { categorizationCompute } from '$lib/server/categorization/job';
+import { evidenceCompute } from '$lib/server/evidence/job';
 import {
 	candidates,
 	consentEvents,
@@ -173,7 +173,7 @@ const noModel = new ModelAdapter({
 });
 
 /** Captures the queued job of the type for this input, as the worker would, and completes it with the handler. */
-async function runJob<T extends 'resume.parse' | 'resume.extract' | 'categorization.compute'>(
+async function runJob<T extends 'resume.parse' | 'resume.extract' | 'evidence.compute'>(
 	type: T,
 	inputVersion: string,
 	payload: ClaimedJob<T>['payload'],
@@ -231,14 +231,14 @@ async function extractByRules(resumeDocumentId: string): Promise<void> {
 	await runJob('resume.extract', extraction.id, { extraction_id: extraction.id }, handler);
 }
 
-/** Runs the categorization the extraction queued, so the profile shows the skills of the resume. */
-async function categorize(candidateId: string): Promise<void> {
+/** Runs the evidence computation the extraction queued, so the profile shows the skills of the resume. */
+async function computeEvidence(candidateId: string): Promise<void> {
 	const [queued] = await db()
 		.select({ inputVersion: jobs.inputVersion })
 		.from(jobs)
-		.where(and(eq(jobs.dedupKey, `categorization:${candidateId}`), eq(jobs.status, 'queued')));
-	if (!queued) throw new Error('the extraction queued no categorization');
-	await runJob('categorization.compute', queued.inputVersion, { candidate_id: candidateId }, categorizationCompute);
+		.where(and(eq(jobs.dedupKey, `evidence:${candidateId}`), eq(jobs.status, 'queued')));
+	if (!queued) throw new Error('the extraction queued no evidence computation');
+	await runJob('evidence.compute', queued.inputVersion, { candidate_id: candidateId }, evidenceCompute);
 }
 
 async function upload(page: Page, name: string, content: string | Buffer): Promise<void> {
@@ -299,7 +299,7 @@ test('a candidate uploads a resume, sees where every field comes from, checks an
 
 	// The profile reflects the resume: its reading, the fields with their quotes, and the skills it counts toward,
 	// each opening the very field it rests on.
-	await categorize(hero.candidateId);
+	await computeEvidence(hero.candidateId);
 	await page.goto('/me/profile');
 	const profileResume = page.getByTestId('profile-resume');
 	await expect(profileResume).toContainText('Анна Тестова.txt');

@@ -10,7 +10,8 @@ import { can, type AccessSubject } from '$lib/server/access/permissions';
 import { recordAuditEvent, type AuditActor } from '$lib/server/audit/record';
 import { partnershipAccess, type PoolRule } from '$lib/server/companies/partnerships';
 import type { Executor } from '$lib/server/db';
-import { candidateAt, runAt, runInForce } from '$lib/server/db/conditions';
+import type { GradeKey, SpecializationKey } from '$lib/server/assessments/contract/catalog';
+import { categoryPredicate } from '$lib/server/categories/read';
 import { competitionPartnerships, vacancies } from '$lib/server/db/schema';
 import { demoScope } from '$lib/server/demo/scope';
 import { ApiError } from '$lib/server/errors/api-error';
@@ -29,12 +30,10 @@ import {
 	type CompetitionResult
 } from './membership';
 
-/** Filters of the pool by the category of the valid published run. */
+/** Filters of the pool by the category in force (domain 12.4); one category meets both. */
 export interface PoolFilters {
-	/** An established role of any category. */
-	roleKeys?: string[];
-	/** A grade inside the established range of a category. */
-	gradeKeys?: string[];
+	specializations?: SpecializationKey[];
+	grades?: GradeKey[];
 }
 
 export interface PoolPartnership {
@@ -111,7 +110,7 @@ async function readablePartnership(
 	};
 }
 
-/** Candidates of `ids` in the viewer's demo reach (domain 19.3) whose valid published run passes the filters. */
+/** Candidates of `ids` in the viewer's demo reach (domain 19.3) whose category in force passes the filters. */
 async function filterCandidates(
 	executor: Executor,
 	ids: readonly string[],
@@ -119,10 +118,14 @@ async function filterCandidates(
 	filters: PoolFilters
 ): Promise<Set<string>> {
 	if (ids.length === 0) return new Set();
-	if (filters.roleKeys?.length === 0 || filters.gradeKeys?.length === 0) {
+	if (filters.specializations?.length === 0 || filters.grades?.length === 0) {
 		throw new ApiError('validation_failed', {
 			details: [
-				{ path: filters.roleKeys?.length === 0 ? 'role_key' : 'grade', code: 'invalid', message: 'Пустой список' }
+				{
+					path: filters.specializations?.length === 0 ? 'specialization' : 'grade',
+					code: 'invalid',
+					message: 'Пустой список'
+				}
 			]
 		});
 	}
@@ -130,21 +133,17 @@ async function filterCandidates(
 		sql`c.id in ${textList(ids)}`,
 		demoScope({ demoSessionId: sql`c.demo_session_id`, demoOriginal: sql`c.demo_original` }, viewerSession)
 	];
-	if (filters.roleKeys) {
-		conditions.push(sql`exists (select 1 from category_assignments a where a.run_id = r.id
-			and a.role_status = 'established' and a.role_key in ${textList(filters.roleKeys)})`);
-	}
-	if (filters.gradeKeys) {
-		conditions.push(sql`exists (select 1 from category_assignments a
-			join grades gmin on gmin.taxonomy_version_id = r.taxonomy_version_id and gmin.key = a.grade_min
-			join grades gmax on gmax.taxonomy_version_id = r.taxonomy_version_id and gmax.key = a.grade_max
-			join grades g on g.taxonomy_version_id = r.taxonomy_version_id and g.key in ${textList(filters.gradeKeys)}
-			where a.run_id = r.id and a.grade_status = 'established' and g.ordinal between gmin.ordinal and gmax.ordinal)`);
+	if (filters.specializations || filters.grades) {
+		conditions.push(
+			categoryPredicate(sql`c.id`, {
+				...(filters.specializations ? { specializations: filters.specializations } : {}),
+				...(filters.grades ? { grades: filters.grades } : {})
+			})
+		);
 	}
 	const rows = await executor.execute<{ id: string }>(sql`
 		select c.id::text as id
 		from candidates c
-		left join categorization_runs r on r.candidate_id = c.id and ${runInForce(runAt('r'), candidateAt('c'))}
 		where ${sql.join(conditions, sql` and `)}
 	`);
 	return new Set(rows.map((row) => row.id));

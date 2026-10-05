@@ -81,7 +81,7 @@ function computedPair(
 		vacancyRevision: vacancy.revision,
 		candidateId: candidate.id,
 		candidateRevision: candidate.revision,
-		categorizationRunId: candidate.evidence.status === 'available' ? candidate.evidence.runId : null,
+		evidenceRunId: candidate.evidence.status === 'available' ? candidate.evidence.runId : null,
 		result,
 		spaceId: result.components.semantic.status === 'computed' ? spaceId : null
 	};
@@ -253,7 +253,7 @@ async function refreshCandidate(executor: Executor, candidateId: string, jobId: 
 				{
 					candidateId,
 					revision: snapshot.revision,
-					categorizationRunId: snapshot.evidence.status === 'available' ? snapshot.evidence.runId : null
+					evidenceRunId: snapshot.evidence.status === 'available' ? snapshot.evidence.runId : null
 				},
 				vacancyList.map((v) => v.id),
 				outcome.kept,

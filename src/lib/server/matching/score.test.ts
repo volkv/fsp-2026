@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import matchRuleset from '../../../../taxonomy/match-ruleset.json';
 import { matchRulesetParamsSchema } from './params';
-import { matchScore, qualifiesForPool, type CategoryAxes, type MatchInput, type SkillEvidence } from './score';
+import { matchScore, qualifiesForPool, type CandidateCategory, type MatchInput, type SkillEvidence } from './score';
 
 /** The rule set the product ships. */
 const params = matchRulesetParamsSchema.parse(matchRuleset.params);
@@ -59,10 +59,9 @@ function input(overrides: Partial<MatchInput> = {}): MatchInput {
 						badgeTrust: null,
 						factIds: ['fact-resume']
 					}
-				],
-				categories: [{ rank: 'primary', roleKey: 'backend', grade: { min: 'middle', max: 'middle' } }]
+				]
 			},
-			desiredRoleKeys: [],
+			categories: [{ specialization: 'backend', grade: 'middle' }],
 			salaryExpectation: { min: 300_000, max: null, currency: 'RUB', period: 'month', taxBase: 'gross' }
 		},
 		params,
@@ -79,16 +78,10 @@ function withSkills(skills: SkillEvidence[]): MatchInput {
 	return { ...base, candidate: { ...base.candidate, evidence: { ...base.candidate.evidence, skills } } };
 }
 
-/** The fixture candidate with other categories and desired roles. */
-function withCategories(categories: CategoryAxes[], desiredRoleKeys: string[] = [], base = input()): MatchInput {
-	if (base.candidate.evidence.status !== 'available') throw new Error('fixture evidence must be available');
-	return {
-		...base,
-		candidate: { ...base.candidate, desiredRoleKeys, evidence: { ...base.candidate.evidence, categories } }
-	};
+/** The fixture candidate with other categories in force. */
+function withCategories(categories: CandidateCategory[], base = input()): MatchInput {
+	return { ...base, candidate: { ...base.candidate, categories } };
 }
-
-const middle = { min: 'middle', max: 'middle' };
 
 describe('matchScore', () => {
 	it('computes every component and explains what matches', () => {
@@ -227,41 +220,18 @@ describe('matchScore', () => {
 		expect(result.score).toBe(Math.round(expected * 1000) / 1000);
 	});
 
-	it('treats an unset grade as unknown to verify, not as a mismatch', () => {
-		const base = input();
-		const result = matchScore({
-			...base,
-			candidate: {
-				...base.candidate,
-				evidence: {
-					status: 'available',
-					runId: 'run-1',
-					skills: [goFromFsp],
-					categories: [{ rank: 'primary', roleKey: 'backend', grade: null }]
-				}
-			}
-		});
-		expect(result.components.grade).toMatchObject({
-			status: 'unknown',
-			details: { reason: 'candidate_grade_not_established' }
-		});
-		expect(result.explanation.to_verify).toContainEqual({ code: 'grade_not_established' });
+	it('treats a grade without a category of the vacancy as unknown to verify, not as a mismatch', () => {
+		const none = matchScore(withCategories([]));
+		expect(none.components.grade).toMatchObject({ status: 'unknown', details: { reason: 'category_not_confirmed' } });
+		expect(none.explanation.to_verify).toContainEqual({ code: 'category_not_confirmed' });
+
+		const other = matchScore(withCategories([{ specialization: 'frontend', grade: 'senior' }]));
+		expect(other.components.grade).toMatchObject({ status: 'unknown', details: { reason: 'specialization_other' } });
+		expect(other.explanation.to_verify).not.toContainEqual({ code: 'category_not_confirmed' });
 	});
 
-	it('penalizes each grade step between disjoint ranges and reports the gap', () => {
-		const base = input();
-		const result = matchScore({
-			...base,
-			candidate: {
-				...base.candidate,
-				evidence: {
-					status: 'available',
-					runId: 'run-1',
-					skills: [goFromFsp],
-					categories: [{ rank: 'primary', roleKey: 'backend', grade: { min: 'junior', max: 'junior' } }]
-				}
-			}
-		});
+	it('penalizes each grade step outside the range and reports the gap', () => {
+		const result = matchScore(withCategories([{ specialization: 'backend', grade: 'junior' }]));
 		expect(result.components.grade).toMatchObject({
 			status: 'computed',
 			value: 0.5,
@@ -276,7 +246,9 @@ describe('matchScore', () => {
 			...base,
 			candidate: { ...base.candidate, evidence: { status: 'unavailable', reason: 'run_below_evidence_floor' } }
 		});
-		for (const key of ['required', 'nice', 'role', 'trust', 'grade'] as const) {
+		// The category is not evidence: role and grade stay computed from it.
+		expect(result.components.role).toMatchObject({ status: 'computed', value: 1 });
+		for (const key of ['required', 'nice', 'trust'] as const) {
 			expect(result.components[key]).toMatchObject({
 				status: 'unavailable',
 				details: { reason: 'run_below_evidence_floor' }
@@ -294,17 +266,23 @@ describe('matchScore', () => {
 		} as const;
 		const withoutRun = (reason: 'no_published_run' | 'run_below_evidence_floor') => {
 			const base = input(modelsOff);
-			return matchScore({ ...base, candidate: { ...base.candidate, evidence: { status: 'unavailable', reason } } });
+			return matchScore({
+				...base,
+				candidate: { ...base.candidate, categories: [], evidence: { status: 'unavailable', reason } }
+			});
 		};
 
 		it('ranks below a read candidate whose skills match, and says there is not enough data', () => {
 			const noRun = withoutRun('no_published_run');
 			// Read, with the required skills only claimed in the resume: nothing confirmed directly, the same salary.
 			const read = matchScore({
-				...withSkills([
-					goFromResume,
-					{ skillKey: 'postgresql', band: 'weak', attestation: 'claimed', badgeTrust: null, factIds: ['fact-resume'] }
-				]),
+				...withCategories(
+					[],
+					withSkills([
+						goFromResume,
+						{ skillKey: 'postgresql', band: 'weak', attestation: 'claimed', badgeTrust: null, factIds: ['fact-resume'] }
+					])
+				),
 				...modelsOff
 			});
 
@@ -324,7 +302,7 @@ describe('matchScore', () => {
 		});
 
 		it('scores as a read candidate with no confirmed skills, whatever the reason', () => {
-			const empty = matchScore(withCategories([], [], { ...withSkills([]), ...modelsOff }));
+			const empty = matchScore(withCategories([], { ...withSkills([]), ...modelsOff }));
 			expect(empty.components.role.status).toBe('unknown');
 			expect(empty.components.grade.status).toBe('unknown');
 			expect(withoutRun('no_published_run').score).toBe(empty.score);
@@ -384,81 +362,70 @@ describe('matchScore', () => {
 });
 
 describe('role component', () => {
-	it('is 1 for the primary role, the rule set value for a secondary or only desired one, 0 for another role', () => {
-		const primary = matchScore(input());
-		expect(primary.components.role).toMatchObject({
+	it('is 1 for a category of the vacancy specialization and 0 for a category of another one', () => {
+		const same = matchScore(input());
+		expect(same.components.role).toMatchObject({
 			status: 'computed',
 			value: 1,
-			details: { vacancy: 'backend', candidate: ['backend'], basis: 'primary' }
+			details: {
+				vacancy: 'backend',
+				specializations: ['backend'],
+				candidate: ['backend'],
+				basis: 'same_specialization'
+			}
 		});
+		expect(same.explanation.matches).toContainEqual({ kind: 'role', role_key: 'backend' });
 
-		const secondary = matchScore(
-			withCategories([
-				{ rank: 'primary', roleKey: 'devops', grade: middle },
-				{ rank: 'secondary', roleKey: 'backend', grade: middle }
-			])
-		);
-		expect(secondary.components.role).toMatchObject({
-			value: params.role.secondary,
-			details: { candidate: ['devops', 'backend'], basis: 'secondary' }
+		const other = matchScore(withCategories([{ specialization: 'frontend', grade: 'middle' }]));
+		expect(other.components.role).toMatchObject({
+			status: 'computed',
+			value: 0,
+			details: { candidate: ['frontend'], basis: 'other_specialization' }
 		});
-		expect(secondary.explanation.matches).toContainEqual({ kind: 'role', role_key: 'backend' });
-
-		const desired = matchScore(withCategories([{ rank: 'primary', roleKey: 'devops', grade: middle }], ['backend']));
-		expect(desired.components.role).toMatchObject({ value: params.role.desired, details: { basis: 'desired' } });
-		expect(desired.explanation.matches.some((m) => m.kind === 'role')).toBe(false);
-		expect(desired.explanation.to_verify).toContainEqual({ code: 'role_desired_only' });
-
-		const other = matchScore(withCategories([{ rank: 'primary', roleKey: 'devops', grade: middle }]));
-		expect(other.components.role).toMatchObject({ status: 'computed', value: 0, details: { basis: 'none' } });
-		expect(other.explanation.gaps).toContainEqual({ code: 'role_other' });
-
-		expect(primary.score).toBeGreaterThan(secondary.score);
-		expect(secondary.score).toBeGreaterThan(desired.score);
-		expect(desired.score).toBeGreaterThan(other.score);
+		expect(other.explanation.gaps).toContainEqual({ code: 'specialization_other' });
+		expect(same.score).toBeGreaterThan(other.score);
 	});
 
-	it('keeps a role the categorization did not establish unknown, not penalized', () => {
-		const unset = withCategories([{ rank: 'primary', roleKey: null, grade: middle }]);
+	it('maps a role of several specializations to any of them', () => {
+		const base = withCategories([{ specialization: 'frontend', grade: 'middle' }]);
+		const fullstack = matchScore({ ...base, vacancy: { ...base.vacancy, roleKey: 'fullstack' } });
+		expect(fullstack.components.role).toMatchObject({
+			value: 1,
+			details: { specializations: ['backend', 'frontend'], basis: 'same_specialization' }
+		});
+		expect(fullstack.components.grade).toMatchObject({ status: 'computed', details: { position: 'within' } });
+	});
+
+	it('keeps the role of a candidate without a category unknown, not penalized, and asks to verify', () => {
+		const unset = withCategories([]);
 		const result = matchScore(unset);
 		expect(result.components.role).toMatchObject({
 			status: 'unknown',
 			value: null,
-			details: { reason: 'candidate_role_not_established' }
+			details: { reason: 'category_not_confirmed' }
 		});
-		expect(result.explanation.to_verify).toContainEqual({ code: 'role_not_established' });
-		expect(result.explanation.gaps).not.toContainEqual({ code: 'role_other' });
+		expect(result.explanation.to_verify).toContainEqual({ code: 'category_not_confirmed' });
+		expect(result.explanation.gaps).not.toContainEqual({ code: 'specialization_other' });
 		const withoutRole = matchScore({ ...unset, params: { ...params, weights: { ...params.weights, role: 0 } } });
 		expect(result.score).toBe(withoutRole.score);
 	});
 
-	it('is unknown for a vacancy without a role', () => {
+	it('is unknown for a vacancy without a role or with a role of no specialization', () => {
 		const base = input();
 		const result = matchScore({ ...base, vacancy: { ...base.vacancy, roleKey: null } });
 		expect(result.components.role).toMatchObject({ status: 'unknown', details: { reason: 'vacancy_role_unknown' } });
+		const onec = matchScore({ ...base, vacancy: { ...base.vacancy, roleKey: 'onec' } });
+		expect(onec.components.role).toMatchObject({
+			status: 'unknown',
+			details: { reason: 'vacancy_role_without_specialization' }
+		});
 	});
 
-	it('ranks the candidate of the vacancy role above one of a neighbouring role with the same skills confirmed', () => {
-		const dataVacancy = (base: MatchInput): MatchInput => ({
-			...base,
-			vacancy: { ...base.vacancy, roleKey: 'data_engineer' }
-		});
-		// A data analyst with both required skills confirmed by tests against a data engineer who only claims them.
-		const analyst = dataVacancy(
-			withCategories(
-				[{ rank: 'primary', roleKey: 'data_analyst', grade: middle }],
-				[],
-				withSkills([goFromFsp, { ...goFromFsp, skillKey: 'postgresql' }])
-			)
-		);
-		const engineer = dataVacancy(
-			withCategories(
-				[{ rank: 'primary', roleKey: 'data_engineer', grade: middle }],
-				[],
-				withSkills([goFromResume, { ...goFromResume, skillKey: 'postgresql' }])
-			)
-		);
-		expect(matchScore(engineer).score).toBeGreaterThan(matchScore(analyst).score);
+	it('ranks a category of the vacancy specialization above another one with the same skills confirmed', () => {
+		const skills = [goFromFsp, { ...goFromFsp, skillKey: 'postgresql' }];
+		const backend = withCategories([{ specialization: 'backend', grade: 'middle' }], withSkills(skills));
+		const frontend = withCategories([{ specialization: 'frontend', grade: 'middle' }], withSkills(skills));
+		expect(matchScore(backend).score).toBeGreaterThan(matchScore(frontend).score);
 	});
 });
 
@@ -471,29 +438,22 @@ describe('trust component', () => {
 		});
 	});
 
-	it('scales the confirmed coverage by the share of the candidate grade range inside the vacancy range', () => {
-		const wide = matchScore(
-			withCategories([{ rank: 'primary', roleKey: 'backend', grade: { min: 'junior', max: 'senior' } }])
-		);
-		// Middle and senior of junior–senior lie in the vacancy's middle–senior.
-		const details = wide.components.trust.details;
-		expect('grade_agreement' in details && details.grade_agreement).toBeCloseTo(2 / 3);
-		expect(wide.components.trust.value).toBeCloseTo(0.5 * (1 - params.trust.gradeWeight * (1 / 3)));
+	it('scales the confirmed coverage by whether the confirmed grade lies inside the vacancy range', () => {
+		const inside = matchScore(withCategories([{ specialization: 'backend', grade: 'senior' }]));
+		expect(inside.components.trust).toMatchObject({ value: 0.5, details: { grade_agreement: 1 } });
 
-		const disjoint = matchScore(
-			withCategories([{ rank: 'primary', roleKey: 'backend', grade: { min: 'lead', max: 'lead' } }])
-		);
+		const disjoint = matchScore(withCategories([{ specialization: 'backend', grade: 'junior' }]));
 		expect(disjoint.components.trust).toMatchObject({ details: { grade_agreement: 0 } });
 		// The grade never takes all of the trust: a directly confirmed skill keeps the pair in the pool count.
 		expect(disjoint.components.trust.value).toBeCloseTo(0.5 * (1 - params.trust.gradeWeight));
 		expect(disjoint.components.trust.value ?? 0).toBeGreaterThan(0);
 	});
 
-	it('lowers the trust for a grade that is not established and says so', () => {
-		const result = matchScore(withCategories([{ rank: 'primary', roleKey: 'backend', grade: null }]));
+	it('lowers the trust for a grade no test confirmed in the vacancy specialization and says so', () => {
+		const result = matchScore(withCategories([]));
 		expect(result.components.trust).toMatchObject({
 			status: 'computed',
-			details: { grade_agreement: null, grade_agreement_reason: 'candidate_grade_not_established' }
+			details: { grade_agreement: null, grade_agreement_reason: 'candidate_grade_not_confirmed' }
 		});
 		expect(result.components.trust.value).toBeCloseTo(
 			0.5 * (1 - params.trust.gradeWeight * (1 - params.trust.unknownGradeAgreement))
@@ -506,29 +466,27 @@ describe('trust component', () => {
 		});
 	});
 
-	it('ranks a lead who claims the skills above a junior with both confirmed for a lead vacancy', () => {
+	it('ranks a confirmed senior who claims the skills above a junior with both confirmed for a senior vacancy', () => {
 		// Without the model components, which would dilute what the rules decide.
-		const leadVacancy = (base: MatchInput): MatchInput => ({
+		const seniorVacancy = (base: MatchInput): MatchInput => ({
 			...base,
-			vacancy: { ...base.vacancy, grade: { min: 'lead', max: 'lead' } },
+			vacancy: { ...base.vacancy, grade: { min: 'senior', max: 'senior' } },
 			semantic: { status: 'unavailable', reason: 'disabled' },
 			reranker: { status: 'unavailable', reason: 'disabled' }
 		});
-		const junior = leadVacancy(
+		const junior = seniorVacancy(
 			withCategories(
-				[{ rank: 'primary', roleKey: 'backend', grade: { min: 'junior', max: 'junior' } }],
-				[],
+				[{ specialization: 'backend', grade: 'junior' }],
 				withSkills([goFromFsp, { ...goFromFsp, skillKey: 'postgresql' }])
 			)
 		);
-		const lead = leadVacancy(
+		const senior = seniorVacancy(
 			withCategories(
-				[{ rank: 'primary', roleKey: 'backend', grade: { min: 'lead', max: 'lead' } }],
-				[],
+				[{ specialization: 'backend', grade: 'senior' }],
 				withSkills([goFromResume, { ...goFromResume, skillKey: 'postgresql' }])
 			)
 		);
-		expect(matchScore(lead).score).toBeGreaterThan(matchScore(junior).score);
+		expect(matchScore(senior).score).toBeGreaterThan(matchScore(junior).score);
 	});
 });
 

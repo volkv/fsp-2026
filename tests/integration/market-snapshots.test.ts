@@ -2,9 +2,6 @@ import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
 	candidateCompanyBlocks,
-	categorizationRulesets,
-	categorizationRuns,
-	categoryAssignments,
 	consentEvents,
 	demoSessions,
 	grades,
@@ -17,10 +14,13 @@ import {
 	vacancyPostings,
 	vacancySources
 } from '$lib/server/db/schema';
+import type { SpecializationKey } from '$lib/server/assessments/contract/catalog';
 import type { CatalogViewer } from '$lib/server/matching/visibility';
+import type { CategoryKey } from '$lib/server/market/aggregate';
 import { loadMarketPolicy } from '$lib/server/market/policy';
 import { loadCategoryMarket, positionText, vacancyMarketPosition } from '$lib/server/market/read';
 import { computeMarket, storeMarket } from '$lib/server/market/refresh';
+import { decide } from '../helpers/categories';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
 import {
 	createCandidate,
@@ -36,7 +36,6 @@ import {
 
 let database: TestDatabase;
 let taxonomyVersionId: string;
-let rulesetId: string;
 let documents: { pd: string; catalog: string };
 let employer: { companyId: string; memberId: string; userId: string };
 
@@ -52,6 +51,17 @@ beforeAll(async () => {
 		.insert(grades)
 		.values(['junior', 'middle', 'senior'].map((key, ordinal) => ({ taxonomyVersionId, key, ordinal, name: key })));
 	// The external reference of backend / middle: observed, and a stack premium for Go that the source gives as a median.
+	// QA is referenced by the automation role of the source: its test checks automation from Junior on.
+	await reference({
+		roleKey: 'qa_automation',
+		gradeKey: 'junior',
+		skillKey: null,
+		median: 150_000,
+		p25: 120_000,
+		p75: 190_000,
+		sampleSize: 400,
+		method: 'observed_median'
+	});
 	await reference({
 		gradeKey: 'middle',
 		skillKey: null,
@@ -75,12 +85,6 @@ beforeAll(async () => {
 		.update(taxonomyVersions)
 		.set({ status: 'published', publishedAt: new Date(Date.now() - DAY) })
 		.where(eq(taxonomyVersions.id, taxonomyVersionId));
-	const [ruleset] = await db
-		.insert(categorizationRulesets)
-		.values({ version: 1, taxonomyVersionId, params: {} })
-		.returning();
-	if (!ruleset) throw new Error('ruleset not inserted');
-	rulesetId = ruleset.id;
 	documents = {
 		pd: (await createPublishedDocument(db, 'pd_processing')).id,
 		catalog: (await createPublishedDocument(db, 'catalog_visibility')).id
@@ -121,8 +125,14 @@ beforeEach(async () => {
 
 type Salary = { min: number | null; max: number | null; tax_base: 'gross' | 'net' | 'unknown' };
 
-/** A catalog candidate in backend / middle / Go with a salary expectation; a clone when a demo session is given. */
-async function candidate(salary: Salary, options: { seed?: boolean; roleKey?: string; demoSessionId?: string } = {}) {
+/**
+ * A catalog candidate with the category middle of a specialization (backend unless given) and a salary expectation; a
+ * clone when a demo session is given.
+ */
+async function candidate(
+	salary: Salary,
+	options: { seed?: boolean; specialization?: SpecializationKey; demoSessionId?: string } = {}
+) {
 	const { db } = database;
 	const demoSessionId = options.demoSessionId ?? null;
 	const row = await createCandidate(db, {
@@ -149,39 +159,7 @@ async function candidate(salary: Salary, options: { seed?: boolean; roleKey?: st
 			occurredAt: new Date(Date.now() - DAY)
 		});
 	}
-	const [run] = await db
-		.insert(categorizationRuns)
-		.values({
-			candidateId: row.id,
-			inputRevision: 1,
-			inputSnapshotSha256: randomSha256(),
-			inputRefs: { facts: [], claims: [] },
-			taxonomyVersionId,
-			rulesetId,
-			asOf: new Date(),
-			computedAt: new Date(),
-			origin: 'automatic',
-			outcome: 'complete',
-			missing: {},
-			experienceSummary: {},
-			status: 'published'
-		})
-		.returning();
-	if (!run) throw new Error('run not inserted');
-	await db.insert(categoryAssignments).values({
-		runId: run.id,
-		rank: 'primary',
-		roleStatus: 'established',
-		roleKey: options.roleKey ?? 'backend',
-		score: '0.8',
-		gradeStatus: 'established',
-		gradeMin: 'middle',
-		gradeMax: 'middle',
-		gradeConfidence: '0.70',
-		stackStatus: 'established',
-		stackSkillKeys: ['go'],
-		explanation: {}
-	});
+	await decide(db, row.id, { specialization: options.specialization ?? 'backend', grade: 'middle' });
 	return row;
 }
 
@@ -261,6 +239,7 @@ async function externalVacancy(min: number, max: number, checkedDaysAgo: number)
 }
 
 async function reference(values: {
+	roleKey?: string;
 	gradeKey: string | null;
 	skillKey: string | null;
 	median: number;
@@ -273,12 +252,12 @@ async function reference(values: {
 		taxonomyVersionId,
 		source: 'habr_career_calculator',
 		collectedAt: new Date('2026-09-24T00:00:00Z'),
-		roleKey: 'backend',
 		currency: 'RUB',
 		period: 'month',
 		taxBase: 'net',
 		geography: 'ru',
-		...values
+		...values,
+		roleKey: values.roleKey ?? 'backend'
 	});
 }
 
@@ -289,7 +268,7 @@ async function refresh() {
 	return market;
 }
 
-const middle = { roleKey: 'backend', gradeKey: 'middle' };
+const middle: CategoryKey = { specialization: 'backend', grade: 'middle' };
 
 function viewer(demoSessionId: string | null = null): CatalogViewer {
 	return {
@@ -320,7 +299,7 @@ describe('category market', () => {
 		await ownVacancy(300_000, 400_000, 'gross');
 		await ownVacancy(320_000, 420_000, 'gross');
 		await ownVacancy(340_000, 440_000, 'gross');
-		await refresh();
+		const { skippedReferences } = await refresh();
 
 		const market = await loadCategoryMarket(database.db, { category: middle, viewer: null, now: NOW });
 		const [expectations] = market.indicators.candidate_expectations;
@@ -339,20 +318,22 @@ describe('category market', () => {
 			expect.objectContaining({ status: 'ok', median: 220_000, sampleSize: 900, estimated: false })
 		]);
 
-		// The stack premium is a separate estimated row of its own combination, never the value of the grade.
-		const withStack = await loadCategoryMarket(database.db, {
-			category: { ...middle, stackSkillKeys: ['go'] },
+		// The stack premium is not a category: it is skipped, never stored as the value of the grade or of another key.
+		expect(skippedReferences).toBe(1);
+		const references = await database.db
+			.select({ key: marketSnapshots.categoryKey, method: marketSnapshots.method, median: marketSnapshots.median })
+			.from(marketSnapshots)
+			.where(eq(marketSnapshots.indicator, 'external_reference'));
+		expect(references).toHaveLength(2);
+		expect(references.some((row) => row.method === 'estimated_stack_adjustment')).toBe(false);
+		// The reference of a specialization is that of its reference role.
+		const qa = await loadCategoryMarket(database.db, {
+			category: { specialization: 'qa', grade: 'junior' },
 			viewer: null,
 			now: NOW
 		});
-		expect(withStack.indicators.external_reference).toEqual([
-			expect.objectContaining({
-				estimated: true,
-				method: 'estimated_stack_adjustment',
-				median: 242_000,
-				p25: 187_000,
-				p75: 308_000
-			})
+		expect(qa.indicators.external_reference).toEqual([
+			expect.objectContaining({ status: 'ok', median: 150_000, sampleSize: 400, estimated: false })
 		]);
 	});
 
@@ -383,11 +364,11 @@ describe('category market', () => {
 	});
 
 	it('shows no number below the threshold and hides a small candidate count', async () => {
-		await candidate({ min: 200_000, max: 300_000, tax_base: 'gross' }, { roleKey: 'frontend' });
-		await candidate({ min: 210_000, max: 310_000, tax_base: 'gross' }, { roleKey: 'frontend' });
+		await candidate({ min: 200_000, max: 300_000, tax_base: 'gross' }, { specialization: 'frontend' });
+		await candidate({ min: 210_000, max: 310_000, tax_base: 'gross' }, { specialization: 'frontend' });
 		await refresh();
 		const { indicators } = await loadCategoryMarket(database.db, {
-			category: { roleKey: 'frontend' },
+			category: { specialization: 'frontend' },
 			viewer: null,
 			now: NOW
 		});
@@ -402,9 +383,9 @@ describe('category market', () => {
 	it('counts for a company only the candidates it sees in its catalog', async () => {
 		const rows = [];
 		for (const amount of [200_000, 220_000, 240_000, 260_000, 280_000]) {
-			rows.push(await candidate({ min: amount, max: null, tax_base: 'gross' }, { roleKey: 'mobile' }));
+			rows.push(await candidate({ min: amount, max: null, tax_base: 'gross' }, { specialization: 'mobile' }));
 		}
-		const category = { roleKey: 'mobile' };
+		const category: CategoryKey = { specialization: 'mobile' };
 		const seen = await loadCategoryMarket(database.db, { category, viewer: viewer(), now: NOW });
 		expect(seen.indicators.candidate_expectations).toEqual([
 			expect.objectContaining({ status: 'ok', sampleSize: 5, median: 240_000 })
@@ -447,7 +428,10 @@ describe('category market', () => {
 			userId: (await createUser(db, { demoSessionId: session.id })).id
 		});
 		for (const amount of [200_000, 220_000, 240_000, 260_000, 280_000]) {
-			await candidate({ min: amount, max: null, tax_base: 'gross' }, { roleKey: 'qa', demoSessionId: session.id });
+			await candidate(
+				{ min: amount, max: null, tax_base: 'gross' },
+				{ specialization: 'qa', demoSessionId: session.id }
+			);
 		}
 		await ownVacancy(300_000, 400_000, 'gross');
 		await ownVacancy(300_000, 400_000, 'gross');
@@ -459,7 +443,7 @@ describe('category market', () => {
 
 		const { indicators } = await loadCategoryMarket(database.db, { category: middle, viewer: null, now: NOW });
 		expect(indicators.vacancy_ranges).toEqual([expect.objectContaining({ sampleSize: 3, median: 350_000 })]);
-		const qa = { roleKey: 'qa' };
+		const qa: CategoryKey = { specialization: 'qa' };
 		const stored = await loadCategoryMarket(database.db, { category: qa, viewer: null, now: NOW });
 		expect(stored.indicators.candidate_expectations).toEqual([]);
 		// A company inside the session sees the clones in its catalog, but the market does not count them either.
@@ -473,7 +457,7 @@ describe('category market', () => {
 		await ownVacancy(300_000, 400_000, 'gross');
 		await refresh();
 
-		const base = { roleKey: 'backend', gradeMin: 'middle', gradeMax: 'middle', requiredSkillKeys: ['go'] };
+		const base = { roleKey: 'backend', gradeMin: 'middle', gradeMax: 'middle' };
 		const gross = await vacancyMarketPosition(
 			database.db,
 			{ ...base, salary: { min: 250_000, max: 324_000, currency: 'RUB', period: 'month', taxBase: 'gross' } },
@@ -485,7 +469,7 @@ describe('category market', () => {
 			indicator: 'vacancy_ranges',
 			status: 'compared',
 			percentToMedian: -18,
-			categoryKey: { role_key: 'backend', grade_key: 'middle', stack_skill_keys: ['go'] }
+			categoryKey: { specialization: 'backend', grade: 'middle' }
 		});
 		if (!ranges) throw new Error('no position');
 		expect(positionText(ranges, 'gross')).toBe('Середина вилки на 18 % ниже медианы вилок вакансий');
@@ -502,5 +486,14 @@ describe('category market', () => {
 		expect(positionText(netRanges, 'net')).toBe(
 			'вилки вакансий: несравнимо — вилка указана на руки, показатель — до вычета НДФЛ'
 		);
+	});
+
+	it('places no vacancy whose role is of no specialization', async () => {
+		const salary = { min: 250_000, max: 324_000, currency: 'RUB', period: 'month', taxBase: 'gross' } as const;
+		for (const roleKey of ['gamedev', null]) {
+			expect(
+				await vacancyMarketPosition(database.db, { roleKey, gradeMin: 'middle', gradeMax: 'middle', salary }, NOW)
+			).toEqual({ status: 'no_specialization' });
+		}
 	});
 });

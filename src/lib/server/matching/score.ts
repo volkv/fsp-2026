@@ -1,11 +1,13 @@
 // `matchScore(vacancy, candidate, ruleset)` (docs/domain.md, section 13.4): a pure function over snapshots, the same
 // in both directions. Each component carries a status; computed components enter the weighted score, unknowns are
-// explained instead of being penalized. The one exception is a candidate without a usable categorization run: the
+// explained instead of being penalized. The one exception is a candidate without a usable evidence run: the
 // components of the evidence itself (`scoredWithoutValue`) keep their weight at the rule set's
 // `unavailableEvidenceValue` instead of dropping out. At 0, as shipped, such a profile scores on them as one whose
 // evidence was read and covers none of the vacancy's skills; the other components still count, so it can outrank a
 // read profile that loses on role, grade or salary.
 import { scoredWithoutValue, type EvidenceUnavailableReason } from '$lib/matching/evidence-components';
+import type { GradeKey, SpecializationKey } from '$lib/server/assessments/contract/catalog';
+import { specializationsOfRole } from '$lib/server/categories/roles';
 import { compareSalary, type SalaryComparison, type SalaryTerms } from '$lib/server/salary/compare';
 import type { ComponentKey, ComponentStatus, MatchRulesetParams } from './params';
 
@@ -26,7 +28,7 @@ export interface MatchVacancy {
 	salary: SalaryTerms;
 }
 
-/** One skill inference of the candidate's valid categorization run. */
+/** One skill inference of the candidate's valid evidence run. */
 export interface SkillEvidence {
 	skillKey: string;
 	band: StrengthBand;
@@ -36,25 +38,25 @@ export interface SkillEvidence {
 	factIds: readonly string[];
 }
 
-export interface CategoryAxes {
-	rank: 'primary' | 'secondary';
-	roleKey: string | null;
-	grade: GradeRange | null;
+/** A category in force of the candidate (domain 12.4), as matching reads it. */
+export interface CandidateCategory {
+	specialization: SpecializationKey;
+	grade: GradeKey;
 }
 
 /**
- * Evidence from the published categorization run. The run is unusable when there is none or when evidence was
- * withdrawn after it (`input_revision < evidence_floor_revision`, domain 17.3): then skills and grade are unavailable
- * until the recomputation, and nothing from the withdrawn evidence can reach the score.
+ * Evidence from the published evidence run. The run is unusable when there is none or when evidence was withdrawn
+ * after it (`input_revision < evidence_floor_revision`, domain 17.3): then the skills are unavailable until the
+ * recomputation, and nothing from the withdrawn evidence can reach the score. The category is apart from it.
  */
 export type CandidateEvidence =
-	| { status: 'available'; runId: string; skills: readonly SkillEvidence[]; categories: readonly CategoryAxes[] }
+	| { status: 'available'; runId: string; skills: readonly SkillEvidence[] }
 	| { status: 'unavailable'; reason: EvidenceUnavailableReason };
 
 export interface MatchCandidate {
 	evidence: CandidateEvidence;
-	/** Roles the candidate wants (`candidates.desired_role_keys`): they do not make a category, only a weaker match. */
-	desiredRoleKeys: readonly string[];
+	/** Categories in force (`activeCategories`): the specialization and the grade a test confirmed. */
+	categories: readonly CandidateCategory[];
 	salaryExpectation: SalaryTerms | null;
 }
 
@@ -104,16 +106,18 @@ export interface ComponentDetails {
 	semantic: { cosine?: number; space_id?: string; reason?: string };
 	reranker: { score?: number; model_id?: string; reason?: string };
 	role: {
+		/** The role of the vacancy and the specializations of the catalog it maps to (domain 12.10). */
 		vacancy?: string;
-		/** Roles the published categorization established for the candidate, the primary one first. */
-		candidate?: string[];
-		/** Why the role fits: the primary or a secondary category, or only a desired role; `none` — another role. */
+		specializations?: SpecializationKey[];
+		/** Specializations of the candidate's categories in force. */
+		candidate?: SpecializationKey[];
+		/** A category of the vacancy's specialization, or only of another one. */
 		basis?: RoleBasis;
 		reason?: string;
 	};
 }
 
-export type RoleBasis = 'primary' | 'secondary' | 'desired' | 'none';
+export type RoleBasis = 'same_specialization' | 'other_specialization';
 
 interface TrustBasis {
 	/** Required skills confirmed by an FSP result or a platform test, of all required ones. */
@@ -125,7 +129,7 @@ interface TrustBasis {
 	confirmed_coverage: number;
 	/** Share of the candidate's grade range inside the vacancy's; `null` — see `grade_agreement_reason`. */
 	grade_agreement: number | null;
-	grade_agreement_reason?: 'candidate_grade_not_established' | 'vacancy_grade_unknown';
+	grade_agreement_reason?: 'candidate_grade_not_confirmed' | 'vacancy_grade_unknown';
 	reason?: never;
 }
 
@@ -164,9 +168,7 @@ export type VerifyItem =
 	| { code: 'skill_claimed' | 'skill_derived' | 'skill_weak_evidence'; skill_key: string }
 	| {
 			code:
-				| 'grade_not_established'
-				| 'role_not_established'
-				| 'role_desired_only'
+				| 'category_not_confirmed'
 				| 'salary_not_comparable'
 				| 'salary_expectation_missing'
 				| 'profile_recalculating'
@@ -177,7 +179,7 @@ export type VerifyItem =
 export type GapItem =
 	| { code: 'required_skill_missing' | 'nice_skill_missing'; skill_key: string }
 	| { code: 'grade_below'; steps: number }
-	| { code: 'role_other' };
+	| { code: 'specialization_other' };
 
 export interface MatchExplanation {
 	matches: ExplanationMatch[];
@@ -244,20 +246,31 @@ function unitOf(terms: SalaryTerms): SalaryUnit {
 	return { currency: terms.currency, period: terms.period, tax_base: terms.taxBase };
 }
 
-/**
- * The grade of the candidate for this vacancy: the category whose role is the vacancy role, else the primary one.
- * Grade is set only by production signals (domain 12.2); an unset grade is unknown, never low.
- */
-function candidateGrade(categories: readonly CategoryAxes[], roleKey: string | null): GradeRange | null {
-	const sameRole = roleKey === null ? undefined : categories.find((c) => c.roleKey === roleKey && c.grade !== null);
-	const chosen = sameRole ?? categories.find((c) => c.rank === 'primary');
-	return chosen?.grade ?? null;
+/** The specializations the vacancy's role maps to; `null` — the vacancy has no role. */
+function vacancySpecializations(vacancy: MatchVacancy): readonly SpecializationKey[] | null {
+	return vacancy.roleKey === null ? null : specializationsOfRole(vacancy.roleKey);
 }
 
-/** Established roles of the categories, the primary one first. */
-function establishedRoles(categories: readonly CategoryAxes[]): string[] {
-	const ordered = [...categories].sort((a, b) => (a.rank === b.rank ? 0 : a.rank === 'primary' ? -1 : 1));
-	return [...new Set(ordered.flatMap((c) => (c.roleKey === null ? [] : [c.roleKey])))];
+/**
+ * The category of the candidate the vacancy is compared with (domain 13.4): the one of the vacancy's specialization —
+ * the highest grade if the role maps to several; for a vacancy without a specialization, the candidate's highest
+ * grade. `null` — no category, or none of the vacancy's specialization: the grade is unknown, never low.
+ */
+function comparedCategory(
+	categories: readonly CandidateCategory[],
+	specializations: readonly SpecializationKey[] | null,
+	ordinals: ReadonlyMap<string, number>
+): CandidateCategory | null {
+	const eligible =
+		specializations === null || specializations.length === 0
+			? categories
+			: categories.filter((c) => specializations.includes(c.specialization));
+	return (
+		[...eligible].sort(
+			(a, b) =>
+				ordinalOf(ordinals, b.grade) - ordinalOf(ordinals, a.grade) || (a.specialization < b.specialization ? -1 : 1)
+		)[0] ?? null
+	);
 }
 
 /**
@@ -296,7 +309,9 @@ export function matchScore(input: MatchInput): MatchResult {
 	const required = skillComponent('required', vacancy.requiredSkillKeys);
 	const nice = skillComponent('nice', vacancy.niceSkillKeys);
 
-	const candidateRange = evidence.status === 'available' ? candidateGrade(evidence.categories, vacancy.roleKey) : null;
+	const specializations = vacancySpecializations(vacancy);
+	const compared = comparedCategory(candidate.categories, specializations, gradeOrdinals);
+	const candidateRange: GradeRange | null = compared && { min: compared.grade, max: compared.grade };
 
 	// Trust in the score: how much of the required skills rests on confirmations (an FSP result, a platform test), by
 	// their band, and how well the candidate's grade range agrees with the vacancy's. A claim or a public profile covers a
@@ -316,7 +331,7 @@ export function matchScore(input: MatchInput): MatchResult {
 		).length;
 		const total = vacancy.requiredSkillKeys.length;
 		const confirmedCoverage = confirmed.reduce((sum, value) => sum + value, 0) / total;
-		// A vacancy without a grade asks for no agreement; a candidate without an established grade gets the rule set's.
+		// A vacancy without a grade asks for no agreement; a candidate without a compared category gets the rule set's.
 		let agreement: number;
 		let agreementDetails: Pick<TrustBasis, 'grade_agreement' | 'grade_agreement_reason'>;
 		if (vacancy.grade === null) {
@@ -324,7 +339,7 @@ export function matchScore(input: MatchInput): MatchResult {
 			agreementDetails = { grade_agreement: null, grade_agreement_reason: 'vacancy_grade_unknown' };
 		} else if (candidateRange === null) {
 			agreement = params.trust.unknownGradeAgreement;
-			agreementDetails = { grade_agreement: null, grade_agreement_reason: 'candidate_grade_not_established' };
+			agreementDetails = { grade_agreement: null, grade_agreement_reason: 'candidate_grade_not_confirmed' };
 		} else {
 			agreement = gradeAgreement(gradeOrdinals, vacancy.grade, candidateRange);
 			agreementDetails = { grade_agreement: agreement };
@@ -339,46 +354,44 @@ export function matchScore(input: MatchInput): MatchResult {
 		});
 	}
 
-	// Role: the vacancy's role against the roles the categorization established, then against the desired ones.
+	// Role: the specialization of the vacancy's role against the specializations of the categories in force (13.4).
+	const held = [...new Set(candidate.categories.map((c) => c.specialization))].sort();
 	let role: MatchComponent<'role'>;
-	if (vacancy.roleKey === null) role = component('role', 'unknown', null, { reason: 'vacancy_role_unknown' });
-	else if (evidence.status === 'unavailable')
-		role = component('role', 'unavailable', null, { reason: evidence.reason });
-	else {
-		const vacancyRole = vacancy.roleKey;
-		const established = establishedRoles(evidence.categories);
-		const primary = evidence.categories.find((c) => c.rank === 'primary')?.roleKey ?? null;
-		const desired = candidate.desiredRoleKeys.includes(vacancyRole);
-		const basis: RoleBasis =
-			primary === vacancyRole
-				? 'primary'
-				: established.includes(vacancyRole)
-					? 'secondary'
-					: desired
-						? 'desired'
-						: 'none';
-		if (basis === 'none' && established.length === 0) {
-			role = component('role', 'unknown', null, {
-				vacancy: vacancyRole,
-				candidate: established,
-				reason: 'candidate_role_not_established'
-			});
-		} else {
-			const value = { primary: 1, secondary: params.role.secondary, desired: params.role.desired, none: 0 }[basis];
-			role = component('role', 'computed', value, { vacancy: vacancyRole, candidate: established, basis });
-		}
+	if (vacancy.roleKey === null || specializations === null) {
+		role = component('role', 'unknown', null, { reason: 'vacancy_role_unknown' });
+	} else if (specializations.length === 0) {
+		role = component('role', 'unknown', null, {
+			vacancy: vacancy.roleKey,
+			specializations: [],
+			reason: 'vacancy_role_without_specialization'
+		});
+	} else if (held.length === 0) {
+		role = component('role', 'unknown', null, {
+			vacancy: vacancy.roleKey,
+			specializations: [...specializations],
+			candidate: [],
+			reason: 'category_not_confirmed'
+		});
+	} else {
+		const basis: RoleBasis = held.some((s) => specializations.includes(s))
+			? 'same_specialization'
+			: 'other_specialization';
+		role = component('role', 'computed', basis === 'same_specialization' ? 1 : 0, {
+			vacancy: vacancy.roleKey,
+			specializations: [...specializations],
+			candidate: held,
+			basis
+		});
 	}
 
-	// Grade: intersection of the ranges; each step between disjoint ranges costs `stepPenalty`.
+	// Grade: the vacancy's range against the confirmed grade; each step outside the range costs `stepPenalty`.
 	let grade: MatchComponent<'grade'>;
 	if (vacancy.grade === null) grade = component('grade', 'unknown', null, { reason: 'vacancy_grade_unknown' });
-	else if (evidence.status === 'unavailable')
-		grade = component('grade', 'unavailable', null, { reason: evidence.reason });
 	else {
 		if (candidateRange === null) {
 			grade = component('grade', 'unknown', null, {
 				vacancy: vacancy.grade,
-				reason: 'candidate_grade_not_established'
+				reason: held.length === 0 ? 'category_not_confirmed' : 'specialization_other'
 			});
 		} else {
 			const vMin = ordinalOf(gradeOrdinals, vacancy.grade.min);
@@ -528,14 +541,12 @@ function explain(
 	}
 
 	const role = components.role;
-	if (vacancy.roleKey !== null) {
-		if (role.details.basis === 'primary' || role.details.basis === 'secondary') {
-			matches.push({ kind: 'role', role_key: vacancy.roleKey });
-		}
-		if (role.details.basis === 'desired') toVerify.push({ code: 'role_desired_only' });
-		if (role.details.basis === 'none') gaps.push({ code: 'role_other' });
-		if (role.details.reason === 'candidate_role_not_established') toVerify.push({ code: 'role_not_established' });
+	if (vacancy.roleKey !== null && role.details.basis === 'same_specialization') {
+		matches.push({ kind: 'role', role_key: vacancy.roleKey });
 	}
+	if (role.details.basis === 'other_specialization') gaps.push({ code: 'specialization_other' });
+	// Without a category in force the candidate is in the base, not in a category (domain 12.7): to be checked.
+	if (candidate.categories.length === 0) toVerify.push({ code: 'category_not_confirmed' });
 
 	const grade = components.grade;
 	if (grade.status === 'computed' && vacancy.grade !== null && candidateRange !== null) {
@@ -543,7 +554,6 @@ function explain(
 			matches.push({ kind: 'grade', vacancy: vacancy.grade, candidate: candidateRange });
 		if (grade.details.position === 'below') gaps.push({ code: 'grade_below', steps: grade.details.steps ?? 0 });
 	}
-	if (grade.details.reason === 'candidate_grade_not_established') toVerify.push({ code: 'grade_not_established' });
 
 	if (comparison === 'lower' || comparison === 'equal' || comparison === 'overlap') {
 		matches.push({ kind: 'salary', comparison });

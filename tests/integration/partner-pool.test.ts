@@ -30,9 +30,6 @@ import { loadAccessSubject } from '$lib/server/companies/subject';
 import { createFieldCrypto } from '$lib/server/crypto/fields';
 import {
 	auditEvents,
-	categorizationRulesets,
-	categorizationRuns,
-	categoryAssignments,
 	companies,
 	competitionPartnerships,
 	consentEvents,
@@ -49,6 +46,7 @@ import { invitableVacancies, readPartnerPool } from '$lib/server/partner-pool/po
 import type { Redis } from '$lib/server/redis';
 import { publishTaxonomy } from '$lib/server/taxonomy/publish';
 import { buildRelease, readTaxonomyDatasets } from '$lib/server/taxonomy/release';
+import { decide } from '../helpers/categories';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
 import {
 	createCandidate,
@@ -276,11 +274,11 @@ async function call(
 	operation: Operation,
 	actor: Actor,
 	params: Record<string, string>,
-	query: Record<string, string> = {}
+	query: Record<string, string> | URLSearchParams = {}
 ) {
 	const path = operation.path.replace(/\{(\w+)\}/gu, (_, name: string) => params[name] ?? '');
 	const url = new URL(`http://app.test/api/v1${path}`);
-	for (const [name, value] of Object.entries(query)) url.searchParams.append(name, value);
+	for (const [name, value] of new URLSearchParams(query)) url.searchParams.append(name, value);
 	const response = await runOperation(operation, services, {
 		request: new Request(url, { method: operation.method }),
 		url,
@@ -292,7 +290,7 @@ async function call(
 	return { status: response.status, json: JSON.parse(text) as Answer['json'], text } satisfies Answer;
 }
 
-const readPool = (actor: Actor, partnershipId: string, query: Record<string, string> = {}) =>
+const readPool = (actor: Actor, partnershipId: string, query: Record<string, string> | URLSearchParams = {}) =>
 	call(listPartnerPoolCandidates, actor, { partnership_id: partnershipId }, query);
 
 function pseudonyms(answer: Answer): string[] {
@@ -397,81 +395,36 @@ describe('the pool a partner reads', () => {
 		).toEqual([]);
 	});
 
-	it('filters by the role and the grade of the published category', async () => {
+	it('filters by the specialization and the grade of the category in force', async () => {
 		const contest = competition();
 		const { company, actor } = await partner();
 		const partnershipId = await open(company.id, contest.ref);
 		const person = await finalist(contest);
 		await consent(person, contest.ref);
-		const [ruleset] = await database.db.select({ id: categorizationRulesets.id }).from(categorizationRulesets);
-		if (!ruleset) throw new Error('no categorization rule set');
-		const [run] = await database.db
-			.insert(categorizationRuns)
-			.values({
-				candidateId: person.candidate.id,
-				inputRevision: 0,
-				inputSnapshotSha256: randomSha256(),
-				inputRefs: { facts: [], claims: [] },
-				taxonomyVersionId,
-				rulesetId: ruleset.id,
-				asOf: new Date(),
-				computedAt: new Date(),
-				origin: 'automatic',
-				outcome: 'partial',
-				missing: { role: [], grade: [], stack: [] },
-				experienceSummary: {
-					total: { min_months: 0, max_months: 0 },
-					by_role: {},
-					by_skill: {},
-					counted_entry_ids: [],
-					excluded: []
-				},
-				status: 'published'
-			})
-			.returning({ id: categorizationRuns.id });
-		if (!run) throw new Error('run not inserted');
-		await database.db.insert(categoryAssignments).values({
-			runId: run.id,
-			rank: 'primary',
-			roleStatus: 'established',
-			roleKey: 'backend',
-			score: '0.8',
-			gradeStatus: 'established',
-			gradeMin: 'middle',
-			gradeMax: 'senior',
-			gradeConfidence: '0.7',
-			stackStatus: 'insufficient_data',
-			stackSkillKeys: [],
-			explanation: {
-				ruleset_version: 1,
-				taxonomy_version: 'test',
-				role: {
-					role_key: 'backend',
-					score: 0.8,
-					skill_fit: 0.8,
-					role_evidence: 0.8,
-					core_groups: [],
-					unconfirmed_core_groups: [],
-					contributions: []
-				},
-				grade: {
-					status: 'established',
-					scope: 'role',
-					signals: [],
-					ignored: [],
-					disagreements: [],
-					missing: [],
-					next_grade: null
-				},
-				stack: { status: 'insufficient_data', skills: [], missing: [] },
-				desired_roles: [],
-				fsp_markers: []
-			}
-		});
-		expect(pseudonyms(await readPool(actor, partnershipId, { role_key: 'backend' }))).toHaveLength(1);
-		expect(pseudonyms(await readPool(actor, partnershipId, { role_key: 'frontend' }))).toEqual([]);
-		expect(pseudonyms(await readPool(actor, partnershipId, { grade: 'middle' }))).toHaveLength(1);
-		expect(pseudonyms(await readPool(actor, partnershipId, { grade: 'junior' }))).toEqual([]);
+		await decide(database.db, person.candidate.id, { specialization: 'backend', grade: 'middle' });
+		const read = async (query: [string, string][]) => {
+			const url = new URL('http://app.test');
+			for (const [name, value] of query) url.searchParams.append(name, value);
+			return pseudonyms(await readPool(actor, partnershipId, url.searchParams));
+		};
+		expect(await read([['specialization', 'backend']])).toHaveLength(1);
+		expect(await read([['specialization', 'frontend']])).toEqual([]);
+		expect(await read([['grade', 'middle']])).toHaveLength(1);
+		expect(await read([['grade', 'junior']])).toEqual([]);
+		// Both together name one category: the grade is the grade of that specialization.
+		expect(
+			await read([
+				['specialization', 'backend'],
+				['grade', 'middle']
+			])
+		).toHaveLength(1);
+		expect(
+			await read([
+				['specialization', 'frontend'],
+				['specialization', 'backend'],
+				['grade', 'senior']
+			])
+		).toEqual([]);
 	});
 });
 

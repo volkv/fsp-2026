@@ -21,14 +21,14 @@
 			]
 		},
 		{
-			key: 'disputes',
-			title: 'Возражения по категориям',
-			href: resolve('/operator/disputes'),
-			count: overview.disputes.open,
+			key: 'objections',
+			title: 'Возражения по результатам тестов',
+			href: resolve('/operator/objections'),
+			count: overview.objections.open,
 			lines: [
-				{ text: `просрочено: ${overview.disputes.overdue}`, alert: overview.disputes.overdue > 0 },
-				{ text: `срок в ближайшие 5 дней: ${overview.disputes.dueSoon}`, alert: overview.disputes.dueSoon > 0 },
-				{ text: `без ответственного: ${overview.disputes.unassigned}`, alert: false }
+				{ text: `просрочено: ${overview.objections.overdue}`, alert: overview.objections.overdue > 0 },
+				{ text: `срок в ближайшие 5 дней: ${overview.objections.dueSoon}`, alert: overview.objections.dueSoon > 0 },
+				{ text: `без ответственного: ${overview.objections.unassigned}`, alert: false }
 			]
 		},
 		{

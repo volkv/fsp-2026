@@ -1,20 +1,20 @@
 // «Что ищет рынок в твоей категории» against the database (CONCEPT, promises 3 and 5): the required skills of the open
-// vacancies the candidate can reach, counted in their role and grade with the next one, the gaps among them with the
-// way to confirm each, the whole role when the grade has too few vacancies, and «недостаточно данных» below the
-// minimal sample of `market_policy`. The published taxonomy and assessment bank are the real ones; the categorization
-// runs are written straight into the tables.
+// vacancies the candidate can reach, counted in the roles of the category's specialization and its grade with the next
+// one, the gaps among them with the way to confirm each, the whole specialization when the grade has too few vacancies,
+// and «недостаточно данных» below the minimal sample of `market_policy`. The published taxonomy and assessment bank are
+// the real ones; the evidence runs are written straight into the tables, the categories come from grade decisions.
 import { fileURLToPath } from 'node:url';
 import { and, desc, eq } from 'drizzle-orm';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { AccessSubject } from '$lib/server/access/permissions';
 import { readAssessmentBank } from '$lib/server/assessments/bank';
+import type { GradeKey, SpecializationKey } from '$lib/server/assessments/contract/catalog';
 import { publishAssessmentBank } from '$lib/server/assessments/publish';
 import { candidateDemand, type CandidateDemand } from '$lib/server/candidates/demand';
 import {
 	categorizationRulesets,
-	categorizationRuns,
-	categoryAssignments,
+	evidenceRuns,
 	demoSessions,
 	productPolicies,
 	skillInferences,
@@ -23,6 +23,7 @@ import {
 } from '$lib/server/db/schema';
 import { publishTaxonomy } from '$lib/server/taxonomy/publish';
 import { buildRelease, readTaxonomyDatasets } from '$lib/server/taxonomy/release';
+import { decide } from '../helpers/categories';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
 import {
 	createCandidate,
@@ -53,22 +54,25 @@ type SkillRow = {
 	badgeTrust?: 'fsp_verified' | 'platform_verified' | 'public_verifiable';
 };
 
-/** A candidate with a published run: the primary category, if it establishes an axis, and the inferences given. */
+/**
+ * A candidate with the category given, if any, and — unless `run` is false — a published run of the inferences given.
+ */
 async function categorized(input: {
-	roleKey: string | null;
-	grade?: { min: string; max: string };
+	category: { specialization: SpecializationKey; grade: GradeKey } | null;
 	skills?: SkillRow[];
-	desiredRoleKeys?: string[];
+	run?: boolean;
 	session?: string;
 }): Promise<AccessSubject> {
 	const { db } = database;
 	const user = await createUser(db, input.session ? { demoSessionId: input.session } : {});
 	const person = await createCandidate(db, {
 		userId: user.id,
-		profileRevision: 1,
-		desiredRoleKeys: input.desiredRoleKeys ?? [],
+		// The grade decision moves the profile to revision 1, the one of the run.
+		profileRevision: input.category ? 0 : 1,
 		...(input.session ? { demoSessionId: input.session } : {})
 	});
+	if (input.category) await decide(db, person.id, input.category);
+	if (input.run === false) return subjectOf(user.id, person.id);
 	const [fact] = await db
 		.insert(sourceFacts)
 		.values({
@@ -87,7 +91,7 @@ async function categorized(input: {
 		.returning({ id: sourceFacts.id });
 	if (!fact) throw new Error('fact not inserted');
 	const [run] = await db
-		.insert(categorizationRuns)
+		.insert(evidenceRuns)
 		.values({
 			candidateId: person.id,
 			inputRevision: 1,
@@ -97,31 +101,11 @@ async function categorized(input: {
 			rulesetId,
 			asOf: NOW,
 			computedAt: NOW,
-			origin: 'automatic',
-			outcome: 'partial',
-			missing: {},
 			experienceSummary: {},
 			status: 'published'
 		})
-		.returning({ id: categorizationRuns.id });
+		.returning({ id: evidenceRuns.id });
 	if (!run) throw new Error('run not inserted');
-	// A run that establishes no axis has no assignment at all.
-	if (input.roleKey || input.grade) {
-		await db.insert(categoryAssignments).values({
-			runId: run.id,
-			rank: 'primary',
-			roleStatus: input.roleKey ? 'established' : 'insufficient_data',
-			roleKey: input.roleKey,
-			score: input.roleKey ? '0.8' : null,
-			gradeStatus: input.grade ? 'established' : 'insufficient_data',
-			gradeMin: input.grade?.min ?? null,
-			gradeMax: input.grade?.max ?? null,
-			gradeConfidence: input.grade ? '0.7' : null,
-			stackStatus: 'insufficient_data',
-			stackSkillKeys: [],
-			explanation: {}
-		});
-	}
 	for (const skill of input.skills ?? []) {
 		await db.insert(skillInferences).values({
 			runId: run.id,
@@ -242,23 +226,21 @@ afterAll(async () => {
 });
 
 describe('what the market asks for in the category', () => {
-	const middleBackend = {
-		roleKey: 'backend',
-		grade: { min: 'middle', max: 'middle' },
+	const middleBackend: Parameters<typeof categorized>[0] = {
+		category: { specialization: 'backend', grade: 'middle' },
 		skills: [
 			{ skillKey: 'go', attestation: 'direct', badgeTrust: 'platform_verified' },
 			{ skillKey: 'sql', attestation: 'claimed' },
 			{ skillKey: 'docker', attestation: 'derived' },
 			{ skillKey: 'python', attestation: 'direct', badgeTrust: 'public_verifiable' }
-		] satisfies SkillRow[]
+		]
 	};
 
-	it('counts the reachable vacancies of the role in the grade and the next one, and names the unconfirmed skills', async () => {
+	it('counts the reachable vacancies of the specialization in the grade and the next one, and names the unconfirmed skills', async () => {
 		const result = available(await candidateDemand(database.db, await categorized(middleBackend), NOW));
 
 		expect(result.cohort).toEqual({
-			roleKey: 'backend',
-			roleBasis: 'established',
+			specialization: 'backend',
 			gradeKeys: ['middle', 'senior'],
 			widenedFrom: null
 		});
@@ -292,40 +274,48 @@ describe('what the market asks for in the category', () => {
 		expect(path('kafka')).toEqual({ tests: [], fspDisciplines: [] });
 	});
 
-	it('counts the whole role when the grade has fewer vacancies than the minimal sample', async () => {
-		const lead = await categorized({ roleKey: 'backend', grade: { min: 'lead', max: 'lead' } });
-		const result = available(await candidateDemand(database.db, lead, NOW));
+	it('counts the whole specialization when the grade has fewer vacancies than the minimal sample', async () => {
+		const intern = await categorized({ category: { specialization: 'backend', grade: 'intern' } });
+		const result = available(await candidateDemand(database.db, intern, NOW));
 
-		// Lead and principal meet two vacancies; the role has nine reachable ones, the unknown grade included.
+		// Intern and junior meet one vacancy; backend has nine reachable ones, the unknown grade included.
 		expect(result.cohort).toMatchObject({
+			specialization: 'backend',
 			gradeKeys: null,
-			widenedFrom: { gradeKeys: ['lead', 'principal'], vacancies: 2 }
+			widenedFrom: { gradeKeys: ['intern', 'junior'], vacancies: 1 }
 		});
 		expect(result.source).toMatchObject({ vacancies: 9, own: 7, external: 2 });
 	});
 
-	it('says there is not enough data below the minimal sample, and counts a desired role across grades', async () => {
+	it('says there is not enough data below the minimal sample, across the grades too', async () => {
 		const result = await candidateDemand(
 			database.db,
-			await categorized({ roleKey: null, desiredRoleKeys: ['frontend'] }),
+			await categorized({ category: { specialization: 'frontend', grade: 'middle' } }),
 			NOW
 		);
 
 		expect(result).toMatchObject({
 			status: 'insufficient_data',
-			cohort: { roleKey: 'frontend', roleBasis: 'desired', gradeKeys: null, widenedFrom: null },
+			cohort: {
+				specialization: 'frontend',
+				gradeKeys: null,
+				widenedFrom: { gradeKeys: ['middle', 'senior'], vacancies: 1 }
+			},
 			vacancies: 1,
 			threshold: MIN_SAMPLE
 		});
 	});
 
-	it('has nothing to count without a role or without a category in force', async () => {
-		expect(await candidateDemand(database.db, await categorized({ roleKey: null }), NOW)).toEqual({
-			status: 'no_role'
+	it('has nothing to count without a category in force, and waits for the evidence of a new one', async () => {
+		expect(await candidateDemand(database.db, await categorized({ category: null }), NOW)).toEqual({
+			status: 'no_category'
 		});
 		const { db } = database;
 		const person = await createCandidate(db);
 		expect(await candidateDemand(db, subjectOf(person.userId, person.id), NOW)).toEqual({ status: 'no_category' });
+		// A category is in force, its evidence is not computed yet: what is confirmed is not known.
+		const waiting = await categorized({ category: { specialization: 'backend', grade: 'middle' }, run: false });
+		expect(await candidateDemand(db, waiting, NOW)).toEqual({ status: 'evidence_recalculating' });
 	});
 
 	it('counts the vacancies of a demo session for the session only', async () => {

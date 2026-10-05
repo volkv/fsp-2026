@@ -9,11 +9,11 @@ import { and, desc, eq } from 'drizzle-orm';
 import postgres from 'postgres';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { AccessSubject } from '$lib/server/access/permissions';
-import { createCategorizationHandler } from '$lib/server/categorization/job';
+import { createEvidenceHandler } from '$lib/server/evidence/job';
 import {
 	auditEvents,
 	candidates,
-	categorizationRuns,
+	evidenceRuns,
 	claims,
 	externalProfiles,
 	jobs,
@@ -455,7 +455,7 @@ describe('linking by a one-time code', () => {
 		const [compute] = await database.db
 			.select({ id: jobs.id })
 			.from(jobs)
-			.where(and(eq(jobs.type, 'categorization.compute'), eq(jobs.dedupKey, `categorization:${candidate.id}`)));
+			.where(and(eq(jobs.type, 'evidence.compute'), eq(jobs.dedupKey, `evidence:${candidate.id}`)));
 		expect(compute).toBeDefined();
 		expect((await journal(candidate.id)).map((e) => [e.action, e.outcome])).toEqual([
 			['external_profile.challenge_issued', 'success'],
@@ -790,25 +790,25 @@ describe('a source that does not answer', () => {
 });
 
 describe('evidence of a verified profile', () => {
-	const categorization = () => createCategorizationHandler(() => clock);
+	const categorization = () => createEvidenceHandler(() => clock);
 
 	async function onlyCategorizationOf(candidateId: string) {
 		await database.db
 			.update(jobs)
 			.set({ runAfter: new Date('2100-01-01T00:00:00Z') })
-			.where(and(eq(jobs.type, 'categorization.compute'), eq(jobs.status, 'queued')));
+			.where(and(eq(jobs.type, 'evidence.compute'), eq(jobs.status, 'queued')));
 		await database.db
 			.update(jobs)
 			.set({ runAfter: new Date(0) })
-			.where(and(eq(jobs.dedupKey, `categorization:${candidateId}`), eq(jobs.status, 'queued')));
+			.where(and(eq(jobs.dedupKey, `evidence:${candidateId}`), eq(jobs.status, 'queued')));
 	}
 
 	async function latestInferences(candidateId: string) {
 		const [run] = await database.db
-			.select({ id: categorizationRuns.id })
-			.from(categorizationRuns)
-			.where(eq(categorizationRuns.candidateId, candidateId))
-			.orderBy(desc(categorizationRuns.computedAt), desc(categorizationRuns.id))
+			.select({ id: evidenceRuns.id })
+			.from(evidenceRuns)
+			.where(eq(evidenceRuns.candidateId, candidateId))
+			.orderBy(desc(evidenceRuns.computedAt), desc(evidenceRuns.id))
 			.limit(1);
 		if (!run) throw new Error('no categorization run');
 		return database.db.select().from(skillInferences).where(eq(skillInferences.runId, run.id));
@@ -817,7 +817,7 @@ describe('evidence of a verified profile', () => {
 	it('gives the skills of the rules the badge «public profile», and unlinking takes the contribution away', async () => {
 		const { candidate, profileId } = await linkedCodeforces('Rated_Solver');
 		await onlyCategorizationOf(candidate.id);
-		expect(await runNext('categorization.compute', categorization())).toBe('succeeded');
+		expect(await runNext('evidence.compute', categorization())).toBe('succeeded');
 		const skills = await latestInferences(candidate.id);
 		const cp = skills.find((s) => s.skillKey === 'competitive_programming');
 		expect(cp).toMatchObject({ attestation: 'direct', badgeTrust: 'public_verifiable' });
@@ -828,7 +828,7 @@ describe('evidence of a verified profile', () => {
 
 		await unlinkProfile(deps, subjectOf(candidate), profileId, meta);
 		await onlyCategorizationOf(candidate.id);
-		expect(await runNext('categorization.compute', categorization())).toBe('succeeded');
+		expect(await runNext('evidence.compute', categorization())).toBe('succeeded');
 		const after = await latestInferences(candidate.id);
 		expect(after.filter((s) => s.skillKey === 'competitive_programming' || s.skillKey === 'algorithms')).toEqual([]);
 	});
@@ -840,7 +840,7 @@ describe('evidence of a verified profile', () => {
 		user.gists.push({ description: link.code, files: ['notes.md'] });
 		expect((await confirmLink(deps, subjectOf(candidate), link.profileId, meta)).kind).toBe('verified');
 		await onlyCategorizationOf(candidate.id);
-		expect(await runNext('categorization.compute', categorization())).toBe('succeeded');
+		expect(await runNext('evidence.compute', categorization())).toBe('succeeded');
 		expect((await latestInferences(candidate.id)).find((s) => s.skillKey === 'python')).toMatchObject({
 			attestation: 'direct',
 			badgeTrust: 'public_verifiable'

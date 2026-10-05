@@ -16,6 +16,7 @@ import { runOperation, type Operation } from '$lib/server/api/operation';
 import type { ApiServices } from '$lib/server/api/services';
 import * as v1 from '$lib/server/api/v1';
 import * as catalog from '$lib/server/api/v1/catalog';
+import * as categories from '$lib/server/api/v1/categories';
 import * as companies from '$lib/server/api/v1/companies';
 import * as invitations from '$lib/server/api/v1/invitations';
 import * as me from '$lib/server/api/v1/me';
@@ -27,8 +28,7 @@ import { createFieldCrypto } from '$lib/server/crypto/fields';
 import {
 	auditEvents,
 	categorizationRulesets,
-	categorizationRuns,
-	categoryAssignments,
+	evidenceRuns,
 	consentEvents,
 	productPolicies,
 	skillInferences,
@@ -49,6 +49,7 @@ import { publishTaxonomy } from '$lib/server/taxonomy/publish';
 import { buildRelease, readTaxonomyDatasets } from '$lib/server/taxonomy/release';
 import { PENDING_NORMALIZATION, PENDING_VERSION } from '$lib/server/vacancies/clusters';
 import { HABR_SOURCE_KEY, registerVacancySources } from '$lib/server/vacancies/sources/definitions';
+import { decide } from '../helpers/categories';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
 import {
 	createCandidate,
@@ -334,7 +335,10 @@ const yearsAgo = (years: number) => {
 const LAST_NAME = 'Самойлова';
 const EMAIL_PREFIX = 'samoylova';
 
-/** An adult candidate in the catalog with a published category, an FSP result and a receipt of their own. */
+/**
+ * An adult candidate in the catalog with the category backend middle, a published run, an FSP result and a receipt of
+ * their own.
+ */
 async function catalogCandidate(options: { catalogConsent?: boolean } = {}) {
 	const { db } = database;
 	const email = `${EMAIL_PREFIX}-${randomBytes(4).toString('hex')}@example.org`;
@@ -352,7 +356,8 @@ async function catalogCandidate(options: { catalogConsent?: boolean } = {}) {
 		birthDate: yearsAgo(27),
 		visibility: 'catalog',
 		lastNameEnc: crypto.encrypt(LAST_NAME, 'candidates.last_name'),
-		profileRevision: 1,
+		// The grade decision below moves the profile to revision 1, the one of the run.
+		profileRevision: 0,
 		preferences: { work_formats: ['remote'], region_code: 'RU-MOW' }
 	});
 	const occurredAt = new Date(Date.now() - DAY);
@@ -413,7 +418,7 @@ async function catalogCandidate(options: { catalogConsent?: boolean } = {}) {
 	const [ruleset] = await db.select({ id: categorizationRulesets.id }).from(categorizationRulesets);
 	if (!ruleset) throw new Error('no categorization rule set');
 	const [run] = await db
-		.insert(categorizationRuns)
+		.insert(evidenceRuns)
 		.values({
 			candidateId: candidate.id,
 			inputRevision: 1,
@@ -423,9 +428,6 @@ async function catalogCandidate(options: { catalogConsent?: boolean } = {}) {
 			rulesetId: ruleset.id,
 			asOf: occurredAt,
 			computedAt: occurredAt,
-			origin: 'automatic',
-			outcome: 'partial',
-			missing: { role: [], grade: [{ code: 'role_experience_missing' }], stack: [] },
 			experienceSummary: {
 				total: { min_months: 0, max_months: 0 },
 				by_role: {},
@@ -447,41 +449,7 @@ async function catalogCandidate(options: { catalogConsent?: boolean } = {}) {
 		badgeTrust: 'fsp_verified',
 		contributions: [{ fact_id: fact.id, attestation: 'direct' }]
 	});
-	await db.insert(categoryAssignments).values({
-		runId: run.id,
-		rank: 'primary',
-		roleStatus: 'established',
-		roleKey: 'backend',
-		score: '0.8',
-		gradeStatus: 'insufficient_data',
-		stackStatus: 'established',
-		stackSkillKeys: ['go'],
-		explanation: {
-			ruleset_version: 1,
-			taxonomy_version: 'test',
-			role: {
-				role_key: 'backend',
-				score: 0.8,
-				skill_fit: 0.8,
-				role_evidence: 0.8,
-				core_groups: [],
-				unconfirmed_core_groups: [['postgresql']],
-				contributions: [{ fact_id: fact.id }]
-			},
-			grade: {
-				status: 'insufficient_data',
-				scope: 'role',
-				signals: [],
-				ignored: [{ code: 'fsp_result_not_grade_signal', fact_ids: [fact.id] }],
-				disagreements: [],
-				missing: [{ code: 'role_experience_missing' }],
-				next_grade: null
-			},
-			stack: { status: 'established', skills: [], missing: [] },
-			desired_roles: [],
-			fsp_markers: []
-		}
-	});
+	await decide(db, candidate.id, { specialization: 'backend', grade: 'middle' });
 
 	await db.transaction((tx) =>
 		issueSelfReceipt(
@@ -545,7 +513,7 @@ describe('authentication', () => {
 			403,
 			'forbidden'
 		);
-		expectError(await call(me.getMyCategory, { actor: key }), 403, 'forbidden');
+		expectError(await call(categories.listMyCategories, { actor: key }), 403, 'forbidden');
 	});
 
 	it('loses the key with the membership of its creator', async () => {
@@ -789,10 +757,10 @@ describe('catalog projection', () => {
 		expect(answer.json).toMatchObject({
 			pseudonym,
 			projection: 'catalog',
-			category_state: 'available',
+			evidence_state: 'available',
 			region: 'RU-MOW',
 			region_name: 'Москва',
-			categories: [{ role: { status: 'established', key: 'backend' } }],
+			categories: [{ specialization: 'backend', grade: 'middle', bank_release_id: 'test-release' }],
 			skills: [{ skill_key: 'go', attestation: 'direct' }],
 			fsp_achievements: [
 				{ generalized: { discipline: 'algorithmic', competition_level: 'russian_championship', season: 2025 } }
@@ -863,21 +831,20 @@ describe('catalog projection', () => {
 		expect(answer.status, answer.text).toBe(200);
 		const [compared] = answer.json.candidates as { pseudonym: string; role: unknown; trust: unknown }[];
 		expect(compared?.pseudonym).toBe(pseudonym);
-		// Primary role backend, Go confirmed directly by FSP, the grade not established: the trust says so.
+		// Category backend middle, Go confirmed directly by FSP, the grade inside the vacancy's middle–senior.
 		expect(compared?.role).toEqual({
 			status: 'computed',
 			value: 1,
-			details: { vacancy: 'backend', candidate: ['backend'], basis: 'primary' }
+			details: {
+				vacancy: 'backend',
+				specializations: ['backend'],
+				candidate: ['backend'],
+				basis: 'same_specialization'
+			}
 		});
 		expect(compared?.trust).toMatchObject({
 			status: 'computed',
-			details: {
-				direct: 1,
-				total: 1,
-				public_profile: 0,
-				grade_agreement: null,
-				grade_agreement_reason: 'candidate_grade_not_established'
-			}
+			details: { direct: 1, total: 1, public_profile: 0, grade_agreement: 1 }
 		});
 		expect(answer.text).not.toContain(candidate.id);
 	});
@@ -888,30 +855,34 @@ describe('market of a category', () => {
 		const { actor } = await employer();
 		const answer = await call(catalog.getCategoryMarket, {
 			actor,
-			query: { role_key: 'frontend', grade_key: 'middle', stack_skill_key: ['go'] }
+			query: { specialization: 'frontend', grade: 'middle' }
 		});
 		expect(answer.status, answer.text).toBe(200);
 		expect(answer.json).toEqual({
-			category_key: { role_key: 'frontend', grade_key: 'middle', stack_skill_keys: ['go'] },
+			category_key: { specialization: 'frontend', grade: 'middle' },
 			candidate_expectations: expect.any(Array) as unknown,
 			vacancy_ranges: expect.any(Array) as unknown,
 			external_reference: expect.any(Array) as unknown
 		});
-		expectError(await call(catalog.getCategoryMarket, { query: { role_key: 'backend' } }), 401, 'unauthenticated');
+		expectError(
+			await call(catalog.getCategoryMarket, { query: { specialization: 'backend' } }),
+			401,
+			'unauthenticated'
+		);
 	});
 
 	it('is read by a candidate only for their own category', async () => {
 		const { actor } = await catalogCandidate();
-		// The published run: backend by confirmed Go, grade not established.
-		const own: Call['query'][] = [{ role_key: 'backend' }, { role_key: 'backend', stack_skill_key: ['go'] }];
+		// The category in force: backend middle, and the specialization as a whole.
+		const own: Call['query'][] = [{ specialization: 'backend' }, { specialization: 'backend', grade: 'middle' }];
 		for (const query of own) {
 			const answer = await call(catalog.getCategoryMarket, { actor, query });
 			expect(answer.status, answer.text).toBe(200);
 		}
 		const foreign: Call['query'][] = [
-			{ role_key: 'frontend' },
-			{ role_key: 'backend', grade_key: 'middle' },
-			{ role_key: 'backend', stack_skill_key: ['python'] }
+			{ specialization: 'frontend' },
+			{ specialization: 'frontend', grade: 'middle' },
+			{ specialization: 'backend', grade: 'senior' }
 		];
 		for (const query of foreign) {
 			expectError(await call(catalog.getCategoryMarket, { actor, query }), 403, 'forbidden');

@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
 	aggregate,
 	categoryKeyId,
+	catalogGradesBetween,
 	categoryKeysOf,
-	gradeKeysBetween,
 	quantile,
 	salaryPoint,
 	type MarketInput
@@ -20,48 +20,38 @@ const options = {
 function vacancy(value: number, taxBase: 'gross' | 'net' | 'unknown', synthetic = false): MarketInput {
 	return {
 		indicator: 'vacancy_ranges',
-		keys: [{ role_key: 'backend' }],
+		keys: [{ specialization: 'backend' }],
 		point: { value, currency: 'RUB', period: 'month', taxBase, method: 'observed_median' },
 		synthetic
 	};
 }
 
 describe('categoryKeysOf', () => {
-	it('counts a record in its role, each grade of its range, each stack subset and their combinations', () => {
-		const ids = categoryKeysOf({ roleKey: 'backend', gradeKeys: ['middle'], stackSkillKeys: ['python', 'go'] }).map(
-			categoryKeyId
-		);
-		expect(ids.sort()).toEqual(
-			[
-				'backend||',
-				'backend|middle|',
-				'backend||go',
-				'backend||python',
-				'backend||go,python',
-				'backend|middle|go',
-				'backend|middle|python',
-				'backend|middle|go,python'
-			].sort()
-		);
+	it('counts a record in each specialization alone and with each of its grades', () => {
+		const ids = categoryKeysOf({ specializations: ['backend', 'frontend'], grades: ['middle'] }).map(categoryKeyId);
+		expect(ids.sort()).toEqual(['backend|', 'backend|middle', 'frontend|', 'frontend|middle'].sort());
 	});
 
-	it('puts a record without an established grade in no grade', () => {
-		const ids = categoryKeysOf({ roleKey: 'backend', gradeKeys: [], stackSkillKeys: [] }).map(categoryKeyId);
-		expect(ids).toEqual(['backend||']);
+	it('puts a record without a grade in the specialization alone', () => {
+		const ids = categoryKeysOf({ specializations: ['qa'], grades: [] }).map(categoryKeyId);
+		expect(ids).toEqual(['qa|']);
 	});
 });
 
-describe('gradeKeysBetween', () => {
+describe('catalogGradesBetween', () => {
 	const ordinals = new Map([
+		['intern', 0],
 		['junior', 1],
 		['middle', 2],
-		['senior', 3]
+		['senior', 3],
+		['lead', 4]
 	]);
-	it('expands an ordinal range and refuses unknown or inverted bounds', () => {
-		expect(gradeKeysBetween(ordinals, 'junior', 'middle')).toEqual(['junior', 'middle']);
-		expect(gradeKeysBetween(ordinals, 'senior', 'junior')).toEqual([]);
-		expect(gradeKeysBetween(ordinals, 'junior', null)).toEqual([]);
-		expect(gradeKeysBetween(ordinals, 'lead', 'lead')).toEqual([]);
+	it('expands a range of the taxonomy scale to the grades of the catalog and refuses unknown or inverted bounds', () => {
+		expect(catalogGradesBetween(ordinals, 'junior', 'middle')).toEqual(['junior', 'middle']);
+		expect(catalogGradesBetween(ordinals, 'senior', 'lead')).toEqual(['senior']);
+		expect(catalogGradesBetween(ordinals, 'lead', 'lead')).toEqual([]);
+		expect(catalogGradesBetween(ordinals, 'senior', 'junior')).toEqual([]);
+		expect(catalogGradesBetween(ordinals, 'junior', null)).toEqual([]);
 	});
 });
 

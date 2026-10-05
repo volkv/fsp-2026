@@ -84,7 +84,6 @@ const heroCandidate = z
 			.string()
 			.regex(/^[A-Za-z0-9-]{1,39}$/)
 			.optional(),
-		dispute: z.string().min(20).optional(),
 		/** A platform quiz the hero took, with the ability the answers follow. */
 		quiz: z.strictObject({ skill: z.enum(QUIZ_SKILLS), ability: z.number().min(-3).max(3) }).optional(),
 		representative: z

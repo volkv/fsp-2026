@@ -7,7 +7,7 @@ import type { DocparseResult, ParseResponse } from '$lib/server/documents/docpar
 import type { ModelAdapter } from '$lib/server/ml/adapter';
 import { fail } from '$lib/server/ml/result';
 import { handle, requestSchema, type BridgeDeps } from './bridge';
-import { fspEvidence, fspPageSchema, snapshotSchema } from './categorize';
+import { fspEvidence, fspPageSchema, snapshotSchema } from './evidence';
 import type { ExtractedDocument } from './extract';
 import { loadEvalTaxonomy, type EvalTaxonomy } from './taxonomy';
 
@@ -121,7 +121,7 @@ describe('evaluation bridge', () => {
 		}
 		expect(document.items).toBe(document.claims.length + Object.values(document.rejected).reduce((a, b) => a + b, 0));
 		expect(document.timing.extract_ms).toBeGreaterThanOrEqual(0);
-		// The snapshot is what categorization reads once the rows are stored.
+		// The snapshot is what the evidence calculation reads once the rows are stored.
 		const snapshot = snapshotSchema.parse(document.snapshot);
 		expect(snapshot.facts).toMatchObject([{ source: 'resume', trustLevel: 'claimed' }]);
 		expect(snapshot.claims.every((c) => c.extractor === 'rules' && c.candidateReview === 'pending')).toBe(true);
@@ -130,11 +130,15 @@ describe('evaluation bridge', () => {
 		expect(document.evidence.entries.map((e) => e.id)).toEqual(snapshot.experience.map((e) => e.id));
 		expect(document.evidence.fact.id).toBe(snapshot.facts[0]?.id);
 
-		const categorized = (await handle(
-			{ command: 'categorize', as_of: '2026-09-01', profiles: [{ id: 'p1', snapshot: document.snapshot }] },
+		const computed = (await handle(
+			{ command: 'evidence', as_of: '2026-09-01', profiles: [{ id: 'p1', snapshot: document.snapshot }] },
 			deps()
-		)) as { profiles: { id: string; assignments: { rank: string; role_key: string | null }[] }[] };
-		expect(categorized.profiles[0]?.assignments[0]).toMatchObject({ rank: 'primary', role_key: 'backend' });
+		)) as { profiles: { id: string; skills: { skill_key: string; badge_trust: string | null }[] }[] };
+		// A resume gives skills without a badge of a check; it assigns no category.
+		const inferred = computed.profiles[0]?.skills ?? [];
+		expect(inferred.map((skill) => skill.skill_key)).toContain('python');
+		expect(inferred.every((skill) => skill.badge_trust === null)).toBe(true);
+		expect(computed.profiles[0]).not.toHaveProperty('assignments');
 	});
 
 	it('adds FSP achievements the synchronization way and reports the FSP levels', async () => {
@@ -168,7 +172,7 @@ describe('evaluation bridge', () => {
 			page: { number: 1, size: 100, totalPages: 1, totalResults: 2 },
 			complete: true
 		};
-		const empty = { candidateId: 'x', revision: 1, desiredRoleKeys: [], facts: [], claims: [], experience: [] };
+		const empty = { candidateId: 'x', revision: 1, facts: [], claims: [], experience: [] };
 
 		const evidence = fspEvidence(fspPageSchema.parse(page), taxonomy.projection, 'x');
 		// The annulled result is not an active fact; the official one gives claims of the projection rules.
@@ -182,7 +186,7 @@ describe('evaluation bridge', () => {
 
 		const answer = (await handle(
 			{
-				command: 'categorize',
+				command: 'evidence',
 				as_of: '2026-09-01',
 				profiles: [
 					{ id: 'without', snapshot: empty },
@@ -190,16 +194,16 @@ describe('evaluation bridge', () => {
 				]
 			},
 			deps()
-		)) as { profiles: { assignments: { role_key: string | null }[]; fsp_levels: unknown[] }[] };
+		)) as { profiles: { skills: unknown[]; fsp_levels: unknown[] }[] };
 		const [without, withFsp] = answer.profiles;
-		expect(without).toMatchObject({ assignments: [], fsp_levels: [] });
+		expect(without).toMatchObject({ skills: [], fsp_levels: [] });
 		expect(withFsp?.fsp_levels).toEqual([{ discipline: 'product', level: 'L5' }]);
-		expect(withFsp?.assignments[0]).toMatchObject({ role_key: 'backend' });
+		expect(withFsp?.skills.length).toBeGreaterThan(0);
 
 		// A record spread over pages is not one athlete's whole record.
 		const partial = { ...page, page: { ...page.page, totalPages: 2 } };
 		const request = {
-			command: 'categorize',
+			command: 'evidence',
 			as_of: '2026-09-01',
 			profiles: [{ id: 'p', snapshot: empty, fsp: partial }]
 		};

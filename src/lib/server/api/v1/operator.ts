@@ -82,8 +82,10 @@ export const getFunnel = defineOperation({
 			to: z.iso.date().optional().describe('…и до этой даты, не включая'),
 			dimension: dimension.optional().describe('Разрез строк; без него — только итог'),
 			subdimension: dimension.optional().describe('Разрез внутри каждой строки; только вместе с `dimension`'),
-			role: filterValue.optional().describe('Только кандидаты с этой ролью категории; `none` — без роли'),
-			grade: filterValue.optional().describe('Диапазон грейда `min..max`; `none` — не установлен'),
+			specialization: filterValue
+				.optional()
+				.describe('Специализация последней действующей категории; `none` — категория не подтверждена'),
+			grade: filterValue.optional().describe('Грейд последней действующей категории; `none` — категории нет'),
 			fsp_discipline: filterValue.optional().describe('Дисциплина ФСП; `none` — без уровня ФСП'),
 			fsp_level: filterValue
 				.optional()

@@ -7,8 +7,8 @@
 
 	/** The position of a vacancy range against the market of its category, as the page of the vacancy gives it. */
 	interface MarketPositionView {
-		/** `no_role` — the role is not chosen: the market of a category cannot be found without it. */
-		state: 'no_role' | 'evaluated';
+		/** `no_specialization` — the role is not chosen or is of no specialization: no market of a category. */
+		state: 'no_specialization' | 'evaluated';
 		items: {
 			indicator: 'vacancy_ranges' | 'external_reference';
 			status: 'compared' | 'not_comparable' | 'insufficient_data';
@@ -69,8 +69,10 @@
 		<ChartNoAxesColumnIcon class="size-4 text-muted-foreground" aria-hidden="true" />
 		Вилка и рынок категории
 	</h3>
-	{#if position.state === 'no_role'}
-		<InsufficientData hint="Выберите роль вакансии: рынок считается по категории — роли, грейду и стеку." />
+	{#if position.state === 'no_specialization'}
+		<InsufficientData
+			hint="Рынок считается по категории — специализации и грейду. Выберите роль вакансии, которая относится к одной из специализаций справочника."
+		/>
 	{:else}
 		<ul class="grid gap-3">
 			{#each position.items as item (item.indicator)}

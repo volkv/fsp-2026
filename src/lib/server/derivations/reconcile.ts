@@ -15,7 +15,7 @@ import { enqueueJob, type JobCreator } from '$lib/server/jobs/queue';
 import { jobSpec } from '$lib/server/jobs/registry';
 
 /** The derivations of a candidate's profile the reconciliation keeps up with the profile revision. */
-export const RECONCILED_TYPES = ['categorization.compute', 'profile.embed', 'match.refresh'] as const;
+export const RECONCILED_TYPES = ['evidence.compute', 'profile.embed', 'match.refresh'] as const;
 export type ReconciledType = (typeof RECONCILED_TYPES)[number];
 
 /** Candidates whose derivations are computed; a profile being deleted is left to its removal. */
@@ -40,7 +40,7 @@ function prefixOf(key: string, type: string): string {
 /** The deduplication key prefix of a derivation's job for a candidate, as the registry builds it. */
 function candidateKeyPrefix(type: ReconciledType): string {
 	switch (type) {
-		case 'categorization.compute':
+		case 'evidence.compute':
 		case 'profile.embed':
 			return prefixOf(jobSpec(type).dedupKey({ candidate_id: PROBE_ID }), type);
 		case 'match.refresh':
@@ -106,13 +106,13 @@ function sinceOf(basis: RulesetBasis | null): SQL {
 
 /**
  * The revision the stored result of a derivation stands on, besides its succeeded jobs, for the candidate `b.id` of
- * the page: the published category of the rule set in force, the candidate's vectors in a space being built or in use,
+ * the page: the published evidence run of the rule set in force, the candidate's vectors in a space being built or in use,
  * the candidate's match rows of the rule set in force.
  */
 function storedRevision(type: ReconciledType, bases: Bases): SQL {
 	switch (type) {
-		case 'categorization.compute':
-			return sql`(select max(r.input_revision) from categorization_runs r
+		case 'evidence.compute':
+			return sql`(select max(r.input_revision) from evidence_runs r
 				where r.candidate_id = b.id and ${publishedRun(runAt('r'))}
 					${bases.categorization === null ? sql`` : sql`and r.ruleset_id = ${bases.categorization.id}::uuid`})`;
 		case 'profile.embed':
@@ -128,7 +128,7 @@ function storedRevision(type: ReconciledType, bases: Bases): SQL {
 
 function basisSince(type: ReconciledType, bases: Bases): SQL {
 	switch (type) {
-		case 'categorization.compute':
+		case 'evidence.compute':
 			return sinceOf(bases.categorization);
 		case 'profile.embed':
 			return sinceOf(null);
@@ -339,7 +339,7 @@ export const derivationsReconcile: JobHandler<'derivations.reconcile'> = defineH
 				}
 			},
 			describe: () => ({
-				categorization: count('categorization.compute'),
+				evidence: count('evidence.compute'),
 				embed: count('profile.embed'),
 				match: count('match.refresh'),
 				vacancies: scan.due.filter((item) => item.scope === 'vacancy').length,

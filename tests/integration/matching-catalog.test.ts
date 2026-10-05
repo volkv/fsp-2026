@@ -1,12 +1,12 @@
 import { randomBytes, randomUUID } from 'node:crypto';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
+import type { GradeKey, SpecializationKey } from '$lib/server/assessments/contract/catalog';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import type { AccessSubject } from '$lib/server/access/permissions';
 import {
 	candidates,
 	categorizationRulesets,
-	categorizationRuns,
-	categoryAssignments,
+	evidenceRuns,
 	consentEvents,
 	demoSessions,
 	documentAcceptances,
@@ -52,6 +52,7 @@ import { fail, ok } from '$lib/server/ml/result';
 import { loadPoolCounter } from '$lib/server/vacancies/pool';
 import { matchView } from '$lib/components/employer/model';
 import shippedMatchRuleset from '../../taxonomy/match-ruleset.json';
+import { decide } from '../helpers/categories';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
 import {
 	createCandidate,
@@ -241,11 +242,10 @@ interface CandidateSetup {
 	birthYearsAgo?: number;
 	preferences?: Record<string, unknown>;
 	desiredRoleKeys?: string[];
-	/** Skills of a published run; absent — no categorization run at all. */
+	/** Skills of a published evidence run; absent — no evidence run at all. */
 	skills?: { key: string; band: 'weak' | 'moderate' | 'strong'; attestation: 'direct' | 'derived' | 'claimed' }[];
-	grade?: [string, string] | null;
-	/** Role of the primary category; `backend` when absent. */
-	roleKey?: string;
+	/** The category a confirmed test decision gave; absent — the category is not confirmed. */
+	category?: { specialization: SpecializationKey; grade: GradeKey };
 	fspLevel?: { discipline: string; level: 'L1' | 'L2' | 'L3' | 'L4' | 'L5' };
 	vector?: number[];
 	visibility?: 'hidden' | 'catalog';
@@ -264,8 +264,18 @@ async function candidate(setup: CandidateSetup = {}) {
 		visibility: setup.visibility ?? 'catalog',
 		preferences: setup.preferences ?? {},
 		desiredRoleKeys: setup.desiredRoleKeys ?? [],
-		profileRevision: 1
+		// The decision of the test moves the revision to 1 itself.
+		profileRevision: setup.category ? 0 : 1
 	});
+	if (setup.category) {
+		await decide(db, row.id, setup.category);
+		// The fixture leaves no jobs: each test runs the refreshes it means.
+		await db
+			.delete(jobs)
+			.where(
+				and(eq(jobs.status, 'queued'), inArray(jobs.dedupKey, [`evidence:${row.id}`, `match:candidate:${row.id}`]))
+			);
+	}
 	await grant(row.id, row.userId, 'pd_processing');
 	if (setup.catalogConsent !== false) await grant(row.id, row.userId, 'catalog_visibility');
 
@@ -290,7 +300,7 @@ async function candidate(setup: CandidateSetup = {}) {
 	let runId: string | null = null;
 	if (setup.skills) {
 		const [run] = await db
-			.insert(categorizationRuns)
+			.insert(evidenceRuns)
 			.values({
 				candidateId: row.id,
 				inputRevision: 1,
@@ -300,9 +310,6 @@ async function candidate(setup: CandidateSetup = {}) {
 				rulesetId: categorizationRulesetId,
 				asOf: new Date(),
 				computedAt: new Date(),
-				origin: 'automatic',
-				outcome: setup.grade ? 'complete' : 'partial',
-				missing: {},
 				experienceSummary: {},
 				status: 'published'
 			})
@@ -322,20 +329,6 @@ async function candidate(setup: CandidateSetup = {}) {
 					contributions: [{ fact_id: fact.id, attestation: skill.attestation }]
 				}))
 			);
-			await db.insert(categoryAssignments).values({
-				runId: run.id,
-				rank: 'primary',
-				roleStatus: 'established',
-				roleKey: setup.roleKey ?? 'backend',
-				score: '0.8',
-				gradeStatus: setup.grade ? 'established' : 'insufficient_data',
-				gradeMin: setup.grade?.[0] ?? null,
-				gradeMax: setup.grade?.[1] ?? null,
-				gradeConfidence: setup.grade ? '0.70' : null,
-				stackStatus: 'established',
-				stackSkillKeys: setup.skills.slice(0, 1).map((s) => s.key),
-				explanation: {}
-			});
 		}
 		if (setup.fspLevel) {
 			await db.insert(fspLevelAssignments).values({
@@ -458,18 +451,23 @@ async function ownVacancy(companyId: string, memberId: string, overrides: Partia
 // --- Catalog search -------------------------------------------------------------------------------------------------
 
 describe('catalog search: filters and visibility', () => {
-	it('filters by role, FSP level, format and region, and finds a candidate without a category by its facet', async () => {
+	it('filters by category, FSP level, format and region, and finds a candidate without a category by its facet', async () => {
 		const { subject } = await employer();
 		const categorized = await candidate({
 			skills: [{ key: 'go', band: 'strong', attestation: 'direct' }],
-			grade: ['middle', 'middle'],
+			category: { specialization: 'backend', grade: 'middle' },
 			fspLevel: { discipline: 'algorithms', level: 'L4' },
 			preferences: { work_formats: ['remote'], region_code: 'RU-MOW' }
 		});
 		const uncategorized = await candidate({ desiredRoleKeys: ['backend'], preferences: { work_formats: ['office'] } });
 
-		expect(ids(await search(subject, { filters: { roleKeys: ['backend'] } }))).toContain(categorized.id);
-		expect(ids(await search(subject, { filters: { roleKeys: ['backend'] } }))).not.toContain(uncategorized.id);
+		const backend = ids(await search(subject, { filters: { specializations: ['backend'] } }));
+		expect(backend).toContain(categorized.id);
+		expect(backend).not.toContain(uncategorized.id);
+		expect(ids(await search(subject, { filters: { specializations: ['qa'] } }))).not.toContain(categorized.id);
+		// The confirmed stack is the skills of the passed blocks of the test (SQL among them), not the evidence skills.
+		expect(ids(await search(subject, { filters: { confirmedSkillKeys: ['sql'] } }))).toContain(categorized.id);
+		expect(ids(await search(subject, { filters: { confirmedSkillKeys: ['go'] } }))).not.toContain(categorized.id);
 		expect(
 			ids(await search(subject, { filters: { fspLevel: { discipline: 'algorithms', minLevel: 'L3' } } }))
 		).toContain(categorized.id);
@@ -489,27 +487,32 @@ describe('catalog search: filters and visibility', () => {
 		);
 	});
 
-	it('groups candidates whose grade is not established apart instead of dropping them', async () => {
+	it('finds a candidate without a category only without category filters, marked and after an equal one', async () => {
 		const { subject } = await employer();
-		const middle = await candidate({
-			skills: [{ key: 'go', band: 'strong', attestation: 'direct' }],
-			grade: ['middle', 'senior']
-		});
-		const noGrade = await candidate({ skills: [{ key: 'go', band: 'strong', attestation: 'direct' }], grade: null });
-		const junior = await candidate({
-			skills: [{ key: 'go', band: 'strong', attestation: 'direct' }],
-			grade: ['junior', 'junior']
+		const skills = [{ key: 'go', band: 'strong' as const, attestation: 'direct' as const }];
+		const middle = await candidate({ skills, category: { specialization: 'backend', grade: 'middle' } });
+		const junior = await candidate({ skills, category: { specialization: 'backend', grade: 'junior' } });
+		const none = await candidate({ skills });
+
+		const byGrade = ids(await search(subject, { filters: { grades: ['middle'] } }));
+		expect(byGrade).toContain(middle.id);
+		expect(byGrade).not.toContain(junior.id);
+		expect(byGrade).not.toContain(none.id);
+		// One category meets the specialization and the grade at once.
+		const pair = ids(await search(subject, { filters: { specializations: ['backend'], grades: ['junior'] } }));
+		expect(pair).toContain(junior.id);
+		expect(pair).not.toContain(middle.id);
+		await expect(search(subject, { filters: { uncategorized: true, grades: ['middle'] } })).rejects.toMatchObject({
+			code: 'validation_failed'
 		});
 
-		const strict = await search(subject, { filters: { grade: { keys: ['middle'], includeNotEstablished: false } } });
-		expect(ids(strict)).toContain(middle.id);
-		expect(ids(strict)).not.toContain(noGrade.id);
-		expect(ids(strict)).not.toContain(junior.id);
-
-		const grouped = await search(subject, { filters: { grade: { keys: ['middle'], includeNotEstablished: true } } });
-		expect(grouped.items.find((i) => i.candidateId === middle.id)?.gradeGroup).toBe('in_range');
-		expect(grouped.items.find((i) => i.candidateId === noGrade.id)?.gradeGroup).toBe('not_established');
-		expect(ids(grouped)).not.toContain(junior.id);
+		// The whole base: everybody, the one without a category marked and, at an equal order, after those with one.
+		const all = await search(subject, {});
+		const order = ids(all);
+		expect(all.items.find((i) => i.candidateId === none.id)?.categoryConfirmed).toBe(false);
+		expect(all.items.find((i) => i.candidateId === middle.id)?.categoryConfirmed).toBe(true);
+		expect(order.indexOf(none.id)).toBeGreaterThan(order.indexOf(middle.id));
+		expect(order.indexOf(none.id)).toBeGreaterThan(order.indexOf(junior.id));
 	});
 
 	it('hides a candidate whose catalog consent was revoked', async () => {
@@ -631,7 +634,7 @@ describe('catalog search: match with a vacancy', () => {
 				{ key: 'go', band: 'strong', attestation: 'direct' },
 				{ key: 'postgresql', band: 'moderate', attestation: 'claimed' }
 			],
-			grade: ['middle', 'middle'],
+			category: { specialization: 'backend', grade: 'middle' },
 			vector: [1, 0, 0]
 		});
 		const weak = await candidate({
@@ -695,7 +698,7 @@ describe('catalog search: match with a vacancy', () => {
 		}
 
 		// The shares the company sees add up to what the score rests on: the unread evidence at the rule set's value.
-		const view = matchView(match, { roles: {}, grades: {}, skills: {} });
+		const view = matchView(match, { roles: {}, specializations: {}, grades: {}, skills: {} });
 		const params = matchRulesetParamsSchema.parse(shippedMatchRuleset.params);
 		const rebuilt = view.components.reduce(
 			(sum, component) => sum + (component.weight ?? 0) * (component.value ?? params.unavailableEvidenceValue),
@@ -772,7 +775,7 @@ describe('catalog search: match with a vacancy', () => {
 		await vacancyVector(vacancy.id, [1, 0, 0]);
 		const person = await candidate({
 			skills: [{ key: 'go', band: 'strong', attestation: 'direct' }],
-			grade: ['middle', 'middle'],
+			category: { specialization: 'backend', grade: 'middle' },
 			vector: [1, 0, 0]
 		});
 
@@ -796,8 +799,9 @@ describe('catalog search: match with a vacancy', () => {
 		});
 		expect(after?.match?.explanation.matches.some((m) => m.kind === 'skill')).toBe(false);
 		expect(ids(await search(subject, { text: 'golang' }, fakeModels({ embed: false })))).not.toContain(person.id);
-		// The candidate stays in the catalog without a category.
-		expect(ids(await search(subject, { filters: { uncategorized: true } }))).toContain(person.id);
+		// The category comes from the tests, not from the evidence: the candidate stays in it.
+		expect(ids(await search(subject, { filters: { specializations: ['backend'] } }))).toContain(person.id);
+		expect(ids(await search(subject, { filters: { uncategorized: true } }))).not.toContain(person.id);
 	});
 });
 
@@ -1028,7 +1032,7 @@ describe('recommendations to the candidate', () => {
 		const person = await candidate({
 			visibility: 'hidden',
 			skills: [{ key: 'go', band: 'strong', attestation: 'direct' }],
-			grade: ['middle', 'middle']
+			category: { specialization: 'backend', grade: 'middle' }
 		});
 		const subject = candidateSubject(person);
 
@@ -1117,11 +1121,11 @@ describe('match.refresh', () => {
 		const vacancy = await ownVacancy(company.id, member.id, { requiredSkillKeys: ['go'] });
 		const confirmed = await candidate({
 			skills: [{ key: 'go', band: 'strong', attestation: 'direct' }],
-			grade: ['middle', 'middle']
+			category: { specialization: 'backend', grade: 'middle' }
 		});
 		const claimedOnly = await candidate({
 			skills: [{ key: 'go', band: 'strong', attestation: 'claimed' }],
-			grade: ['middle', 'middle']
+			category: { specialization: 'backend', grade: 'middle' }
 		});
 
 		await enqueueRefresh({ scope: 'vacancy', vacancy_id: vacancy.id });
@@ -1132,7 +1136,7 @@ describe('match.refresh', () => {
 			vacancyRevision: 1,
 			candidateRevision: 1,
 			matchRulesetId: ruleset.id,
-			categorizationRunId: confirmed.runId
+			evidenceRunId: confirmed.runId
 		});
 		if (!row) throw new Error('no stored row');
 		expect(storedComponent(row, 'reranker')).toEqual({ status: 'computed', value: 0.9 });
@@ -1210,13 +1214,12 @@ describe('stored matches', () => {
 		const vacancy = await ownVacancy(company.id, member.id, { requiredSkillKeys: ['go'] });
 		const fits = await candidate({
 			skills: [{ key: 'go', band: 'strong', attestation: 'direct' }],
-			grade: ['middle', 'middle']
+			category: { specialization: 'backend', grade: 'middle' }
 		});
-		// Another role, none of the required skills, a lower grade: nothing of the vacancy fits.
+		// Another specialization, none of the required skills: nothing of the vacancy fits.
 		const misses = await candidate({
 			skills: [{ key: 'python', band: 'strong', attestation: 'direct' }],
-			grade: ['junior', 'junior'],
-			roleKey: 'data_scientist'
+			category: { specialization: 'data_ml', grade: 'junior' }
 		});
 
 		expect(await refresh({ scope: 'vacancy', vacancy_id: vacancy.id })).toBe('succeeded');
@@ -1241,11 +1244,14 @@ describe('stored matches', () => {
 		expect(missing.score).toBeLessThan(STORE_THRESHOLD);
 		expect(Object.keys(missing.components)).toEqual(Object.keys(fitting.components));
 		expect(missing.components.required).toMatchObject({ status: 'computed', value: 0 });
-		expect(missing.components.role).toMatchObject({ status: 'computed', value: 0, details: { basis: 'none' } });
+		expect(missing.components.role).toMatchObject({
+			status: 'computed',
+			value: 0,
+			details: { basis: 'other_specialization' }
+		});
 		expect(missing.explanation.gaps).toEqual([
 			{ code: 'required_skill_missing', skill_key: 'go' },
-			{ code: 'role_other' },
-			{ code: 'grade_below', steps: 1 }
+			{ code: 'specialization_other' }
 		]);
 		// And the candidate sees why the vacancy does not fit.
 		const own = await recommendVacancies({ db: database.db }, candidateSubject(misses), { limit: 100 });
@@ -1259,10 +1265,8 @@ describe('stored matches', () => {
 		const { db } = database;
 		const { company, member } = await employer();
 		const vacancy = await ownVacancy(company.id, member.id, { requiredSkillKeys: ['go'] });
-		const person = await candidate({
-			skills: [{ key: 'go', band: 'strong', attestation: 'direct' }],
-			grade: ['middle', 'middle']
-		});
+		// No category: it would keep the pair significant after the evidence is withdrawn.
+		const person = await candidate({ skills: [{ key: 'go', band: 'strong', attestation: 'direct' }] });
 
 		expect(await refresh({ scope: 'vacancy', vacancy_id: vacancy.id })).toBe('succeeded');
 		const [first] = await storedRows(vacancy.id, person.id);
@@ -1428,8 +1432,12 @@ describe('demo sessions', () => {
 		const real = await employer();
 		const first = await employer({ demoSessionId: s1 });
 		const skills = [{ key: 'go', band: 'strong' as const, attestation: 'direct' as const }];
-		const person = await candidate({ skills, grade: ['middle', 'middle'] });
-		const clone = await candidate({ skills, grade: ['middle', 'middle'], demoSessionId: s1 });
+		const person = await candidate({ skills, category: { specialization: 'backend', grade: 'middle' } });
+		const clone = await candidate({
+			skills,
+			category: { specialization: 'backend', grade: 'middle' },
+			demoSessionId: s1
+		});
 		const own = await ownVacancy(real.company.id, real.member.id, { requiredSkillKeys: ['go'] });
 		const cloned = await ownVacancy(first.company.id, first.member.id, { requiredSkillKeys: ['go'] });
 

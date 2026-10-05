@@ -16,12 +16,12 @@ import {
 } from 'drizzle-orm/pg-core';
 import { bytea, enumCheck, id, sha256Check, timestamps, ts } from './_columns';
 import { candidates } from './candidates';
-import { categorizationRuns } from './categorization';
+import { evidenceRuns } from './evidence-runs';
 import { companies } from './companies';
 import { consentEvents } from './consent';
 import { mlResults } from './ml';
 
-const FACT_SOURCES = ['fsp', 'platform_test', 'codeforces', 'github', 'resume', 'self_declared'] as const;
+const FACT_SOURCES = ['fsp', 'platform_test', 'codeforces', 'github', 'resume'] as const;
 const FACT_TYPES = [
 	'competition_result',
 	'qualification',
@@ -29,8 +29,7 @@ const FACT_TYPES = [
 	'platform_rating',
 	'test_score',
 	'repo_languages',
-	'resume_document',
-	'questionnaire'
+	'resume_document'
 ] as const;
 export const TRUST_LEVELS = ['fsp_verified', 'platform_verified', 'public_verifiable', 'claimed'] as const;
 const OWNERSHIP_BASES = [
@@ -159,7 +158,7 @@ export const skillInferences = pgTable(
 		id: id(),
 		runId: uuid()
 			.notNull()
-			.references((): AnyPgColumn => categorizationRuns.id),
+			.references((): AnyPgColumn => evidenceRuns.id),
 		candidateId: uuid()
 			.notNull()
 			.references(() => candidates.id),

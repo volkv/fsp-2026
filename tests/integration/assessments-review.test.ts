@@ -284,11 +284,7 @@ describe('annulment', () => {
 			.select()
 			.from(jobs)
 			.where(
-				and(
-					eq(jobs.type, 'categorization.compute'),
-					eq(jobs.status, 'queued'),
-					eq(jobs.dedupKey, `categorization:${candidateId}`)
-				)
+				and(eq(jobs.type, 'evidence.compute'), eq(jobs.status, 'queued'), eq(jobs.dedupKey, `evidence:${candidateId}`))
 			);
 		expect(recalculation).toHaveLength(1);
 

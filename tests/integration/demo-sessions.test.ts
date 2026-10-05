@@ -21,7 +21,7 @@ import { readAssessmentBank } from '$lib/server/assessments/bank';
 import { loadSelfEvidence } from '$lib/server/candidates/profile';
 import { publishAssessmentBank } from '$lib/server/assessments/publish';
 import { currentDocument } from '$lib/server/auth/documents';
-import { createCategorizationHandler } from '$lib/server/categorization/job';
+import { createEvidenceHandler } from '$lib/server/evidence/job';
 import { loadAccessSubject } from '$lib/server/companies/subject';
 import { createFieldCrypto } from '$lib/server/crypto/fields';
 import {
@@ -150,7 +150,7 @@ const handlers = handlerRegistry([
 		}),
 		now: () => new Date()
 	}),
-	createCategorizationHandler(),
+	createEvidenceHandler(),
 	createMatchRefreshHandler(() => MODELS_OFF)
 ]);
 
@@ -733,16 +733,11 @@ describe('demo sessions', () => {
 				.where(eq(candidates.id, profile));
 			expect(hidden?.visibility).toBe('hidden');
 
-			await drainJobs(
-				database.db,
-				handlers,
-				['resume.parse', 'resume.extract', 'categorization.compute', 'match.refresh'],
-				{
-					since: new Date(Date.now() - 60_000),
-					log,
-					label: 'own resume'
-				}
-			);
+			await drainJobs(database.db, handlers, ['resume.parse', 'resume.extract', 'evidence.compute', 'match.refresh'], {
+				since: new Date(Date.now() - 60_000),
+				log,
+				label: 'own resume'
+			});
 			const [ownFile] = await database.db
 				.select({ key: files.storageKey })
 				.from(resumeDocuments)

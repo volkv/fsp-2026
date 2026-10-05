@@ -41,7 +41,6 @@ async function main(): Promise<void> {
 			databaseUrl: config().databaseUrl,
 			migrationsDir: inCheckout('src/lib/server/db/migrations/'),
 			taxonomyDir: inCheckout('taxonomy/'),
-			assessmentsDir: inCheckout('assessments/'),
 			models: modelAdapter(),
 			embed: catalogEmbedder()
 		}),

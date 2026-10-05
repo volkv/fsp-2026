@@ -13,15 +13,14 @@ import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import type { AccessSubject } from '$lib/server/access/permissions';
 import { confirmFspAchievements } from '$lib/server/auth/identities';
 import { loadSelfEvidence } from '$lib/server/candidates/profile';
+import type { ObjectionDecisions } from '$lib/server/categories/objections';
 import type { CompanyDeps } from '$lib/server/companies/context';
 import { registryNotConfigured } from '$lib/server/companies/registry';
 import { verificationCase, verificationQueue } from '$lib/server/companies/verification';
 import { createFieldCrypto } from '$lib/server/crypto/fields';
 import {
 	athleteLinks,
-	categorizationRulesets,
-	categorizationRuns,
-	categoryDisputes,
+	assessmentObjections,
 	companyVerifications,
 	consentEvents,
 	demoSessions,
@@ -32,7 +31,7 @@ import {
 } from '$lib/server/db/schema';
 import { claimQueue } from '$lib/server/operator/claims';
 import { companyDirectory, moderationCard } from '$lib/server/operator/companies';
-import { disputeCase, disputeQueueView } from '$lib/server/operator/disputes';
+import { objectionCase, objectionQueueView } from '$lib/server/operator/objections';
 import { operatorOverview } from '$lib/server/operator/overview';
 import { representationCase, representationQueue } from '$lib/server/operator/representatives';
 import type { Redis } from '$lib/server/redis';
@@ -61,7 +60,32 @@ const crypto = createFieldCrypto({
 let database: TestDatabase;
 let redis: Redis;
 let taxonomyVersionId: string;
-let rulesetId: string;
+
+/** Decisions of the test engine the objections refer to: the id of a decision → its candidate. */
+const decided = new Map<string, string>();
+const decisions: ObjectionDecisions = {
+	decisionsOf: () => Promise.reject(new Error('not used')),
+	find: (_, id) => {
+		const candidateId = decided.get(id);
+		return Promise.resolve(
+			candidateId === undefined
+				? null
+				: {
+						id,
+						candidateId,
+						attemptId: id,
+						specialization: 'backend',
+						grade: 'middle',
+						outcome: 'confirmed',
+						status: 'valid',
+						decidedAt: new Date(),
+						artifactsKeptUntil: new Date(Date.now() + 90 * DAY)
+					}
+		);
+	},
+	annul: () => Promise.reject(new Error('not used')),
+	rescore: () => Promise.reject(new Error('not used'))
+};
 
 /** What each place of the stand holds: a demo session, or the stand outside sessions (`session: null`), the originals of
  * the cast among it. */
@@ -70,7 +94,7 @@ interface Place {
 	operator: AccessSubject;
 	submittedCompanyId: string;
 	verifiedCompanyId: string;
-	disputeId: string;
+	objectionId: string;
 	representationId: string;
 	claimId: string;
 }
@@ -131,39 +155,22 @@ async function place(session: string | null, demoOriginal = false): Promise<Plac
 	const recruiter = await member(verified.id);
 	if (!recruiter.userId) throw new Error('member without user');
 
-	const disputing = await profile(session, undefined, demoOriginal);
-	const [run] = await db
-		.insert(categorizationRuns)
-		.values({
-			candidateId: disputing.id,
-			inputRevision: 0,
-			inputSnapshotSha256: randomSha256(),
-			inputRefs: { facts: [], claims: [] },
-			taxonomyVersionId,
-			rulesetId,
-			asOf: new Date(),
-			computedAt: new Date(),
-			origin: 'automatic',
-			outcome: 'insufficient_data',
-			missing: { role: [], grade: [], stack: [] },
-			experienceSummary: {},
-			status: 'published'
-		})
-		.returning();
-	if (!run) throw new Error('run not inserted');
+	const objecting = await profile(session, undefined, demoOriginal);
+	const decisionId = randomUUID();
+	decided.set(decisionId, objecting.id);
 	const openedAt = new Date();
-	const [dispute] = await db
-		.insert(categoryDisputes)
+	const [objection] = await db
+		.insert(assessmentObjections)
 		.values({
-			candidateId: disputing.id,
-			runId: run.id,
-			reason: 'Не согласен с категорией',
+			candidateId: objecting.id,
+			decisionId,
+			reason: 'Не согласен с оценкой задания',
 			openedAt,
 			dueAt: new Date(openedAt.getTime() + 30 * DAY),
 			status: 'open'
 		})
 		.returning();
-	if (!dispute) throw new Error('dispute not inserted');
+	if (!objection) throw new Error('objection not inserted');
 
 	const minor = await profile(session, `${new Date().getUTCFullYear() - 16}-03-01`, demoOriginal);
 	const [representative] = await db
@@ -206,7 +213,7 @@ async function place(session: string | null, demoOriginal = false): Promise<Plac
 		operator,
 		submittedCompanyId: submitted.id,
 		verifiedCompanyId: verified.id,
-		disputeId: dispute.id,
+		objectionId: objection.id,
 		representationId: representation.id,
 		claimId: claim.id
 	};
@@ -218,12 +225,6 @@ beforeAll(async () => {
 	await redis.connect();
 	const { db } = database;
 	taxonomyVersionId = (await createTaxonomyVersion(db)).id;
-	const [ruleset] = await db
-		.insert(categorizationRulesets)
-		.values({ version: 1, taxonomyVersionId, params: {} })
-		.returning();
-	if (!ruleset) throw new Error('ruleset not inserted');
-	rulesetId = ruleset.id;
 	stand = await place(null);
 	cast = await place(null, true);
 	first = await place(await demoSession());
@@ -243,7 +244,7 @@ describe('operator cases across demo sessions', () => {
 			const overview = await operatorOverview(database.db, who.operator, new Date());
 			return [
 				overview.companies.open,
-				overview.disputes.open,
+				overview.objections.open,
 				overview.representatives.awaiting,
 				overview.claims.pending
 			];
@@ -313,22 +314,16 @@ describe('operator cases across demo sessions', () => {
 	});
 
 	it('queues the objections and the representations of the own session only', async () => {
-		const disputes = async (who: Place) =>
-			sorted((await disputeQueueView(database.db, who.operator, new Date())).items.map((item) => item.id));
-		expect(await disputes(stand)).toEqual(sorted([stand.disputeId, cast.disputeId]));
-		expect(await disputes(first)).toEqual([first.disputeId]);
-		await expect(disputeCase(database.db, first.operator, meta, stand.disputeId, new Date())).rejects.toMatchObject({
-			code: 'not_found'
-		});
-		await expect(disputeCase(database.db, second.operator, meta, first.disputeId, new Date())).rejects.toMatchObject({
-			code: 'not_found'
-		});
-		expect(
-			(await disputeCase(database.db, first.operator, meta, first.disputeId, new Date())).candidate
-		).not.toBeNull();
-		await expect(disputeCase(database.db, first.operator, meta, cast.disputeId, new Date())).rejects.toMatchObject({
-			code: 'not_found'
-		});
+		const objections = async (who: Place) =>
+			sorted((await objectionQueueView(database.db, who.operator, new Date())).items.map((item) => item.id));
+		expect(await objections(stand)).toEqual(sorted([stand.objectionId, cast.objectionId]));
+		expect(await objections(first)).toEqual([first.objectionId]);
+		const open = (who: Place, objectionId: string) =>
+			objectionCase(database.db, decisions, who.operator, meta, objectionId, new Date());
+		await expect(open(first, stand.objectionId)).rejects.toMatchObject({ code: 'not_found' });
+		await expect(open(second, first.objectionId)).rejects.toMatchObject({ code: 'not_found' });
+		expect((await open(first, first.objectionId)).candidate).not.toBeNull();
+		await expect(open(first, cast.objectionId)).rejects.toMatchObject({ code: 'not_found' });
 
 		const awaiting = async (who: Place) =>
 			sorted((await representationQueue(database.db, who.operator, new Date())).map((item) => item.id));

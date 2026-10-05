@@ -1,7 +1,9 @@
-// `market.refresh` (docs/domain.md, sections 12.5, 17.2): recomputes `market_snapshots` of every category the data
+// `market.refresh` (docs/domain.md, sections 12.8, 17.2): recomputes `market_snapshots` of every category the data
 // speaks about and replaces the previous set in one transaction. The candidate indicator here counts candidates any
 // verified company could find in the catalog; a company sees the indicator over the candidates it sees, computed on
 // request (`read.ts`).
+import { GRADE_KEYS, SPECIALIZATION_KEYS, type GradeKey } from '$lib/server/assessments/contract/catalog';
+import { REFERENCE_ROLES } from '$lib/server/categories/roles';
 import { marketSnapshots } from '$lib/server/db/schema';
 import type { Executor, Transaction } from '$lib/server/db';
 import { defineHandler, JobFailure } from '$lib/server/jobs/handler';
@@ -21,72 +23,59 @@ const isoDate = (value: Date) => value.toISOString().slice(0, 10);
 const BATCH = 500;
 
 const OBSERVED_METHOD = 'observed_median';
-export const ESTIMATED_METHOD = 'estimated_stack_adjustment';
 
 /**
- * Snapshot rows of the external reference. An observed row is stored as the source gives it. An estimated row
- * (a stack premium applied to the role × grade median) carries only a median in the source; its quartiles are the
- * quartiles of the same role × grade scaled by the same premium, so the whole row stays one estimate with
- * `estimated = true`. An estimated row without an observed base with quartiles is not stored.
+ * Snapshot rows of the external reference (domain 12.8): for each specialization, the observed references of its
+ * reference role (`REFERENCE_ROLES`) — of the role as a whole and of each grade of the catalog — stored as the source
+ * gives them. References of a stack (a skill) and of grades the catalog does not confirm are not a category and are
+ * counted as skipped.
  */
 export function referenceSnapshots(
 	references: readonly SalaryReferenceRow[],
 	threshold: number,
 	computedAt: Date
 ): { rows: SnapshotRow[]; skipped: number } {
-	const baseOf = new Map(
-		references
-			.filter((r) => r.method === OBSERVED_METHOD && r.skillKey === null)
-			.map((r) => [`${r.roleKey}|${r.gradeKey ?? ''}|${r.currency}|${r.period}|${r.taxBase}|${r.source}`, r])
-	);
 	const rows: SnapshotRow[] = [];
 	let skipped = 0;
-	for (const reference of references) {
-		if (reference.method !== OBSERVED_METHOD && reference.method !== ESTIMATED_METHOD) {
-			throw new Error(`salary reference ${reference.id} has an unknown method ${reference.method}`);
-		}
-		const estimated = reference.method === ESTIMATED_METHOD;
-		let quartiles: { p25: number | null; p75: number | null } = { p25: reference.p25, p75: reference.p75 };
-		if (estimated) {
-			const base = baseOf.get(
-				`${reference.roleKey}|${reference.gradeKey ?? ''}|${reference.currency}|${reference.period}|${reference.taxBase}|${reference.source}`
-			);
-			if (reference.median === null || !base?.median || base.p25 === null || base.p75 === null) {
+	for (const specialization of SPECIALIZATION_KEYS) {
+		const role = REFERENCE_ROLES[specialization];
+		for (const reference of references) {
+			if (reference.roleKey !== role) continue;
+			const grade = reference.gradeKey;
+			if (
+				reference.method !== OBSERVED_METHOD ||
+				reference.skillKey !== null ||
+				(grade !== null && !(GRADE_KEYS as readonly string[]).includes(grade))
+			) {
 				skipped++;
 				continue;
 			}
-			const premium = reference.median / base.median;
-			quartiles = { p25: Math.round(base.p25 * premium), p75: Math.round(base.p75 * premium) };
+			const enough =
+				reference.sampleSize >= threshold &&
+				reference.median !== null &&
+				reference.p25 !== null &&
+				reference.p75 !== null;
+			const collected = isoDate(reference.collectedAt);
+			rows.push({
+				indicator: 'external_reference',
+				categoryKey: categoryKey({ specialization, grade: grade as GradeKey | null }),
+				geography: reference.geography,
+				currency: reference.currency,
+				period: reference.period,
+				taxBase: reference.taxBase,
+				sampleSize: reference.sampleSize,
+				median: enough ? reference.median : null,
+				p25: enough ? reference.p25 : null,
+				p75: enough ? reference.p75 : null,
+				windowFrom: collected,
+				windowTo: collected,
+				method: reference.method,
+				estimated: false,
+				status: enough ? 'ok' : 'insufficient_data',
+				provenance: 'live',
+				computedAt
+			});
 		}
-		const enough =
-			reference.sampleSize >= threshold &&
-			reference.median !== null &&
-			quartiles.p25 !== null &&
-			quartiles.p75 !== null;
-		const collected = isoDate(reference.collectedAt);
-		rows.push({
-			indicator: 'external_reference',
-			categoryKey: categoryKey({
-				roleKey: reference.roleKey,
-				gradeKey: reference.gradeKey,
-				stackSkillKeys: reference.skillKey === null ? [] : [reference.skillKey]
-			}),
-			geography: reference.geography,
-			currency: reference.currency,
-			period: reference.period,
-			taxBase: reference.taxBase,
-			sampleSize: reference.sampleSize,
-			median: enough ? reference.median : null,
-			p25: enough ? quartiles.p25 : null,
-			p75: enough ? quartiles.p75 : null,
-			windowFrom: collected,
-			windowTo: collected,
-			method: reference.method,
-			estimated,
-			status: enough ? 'ok' : 'insufficient_data',
-			provenance: 'live',
-			computedAt
-		});
 	}
 	return { rows, skipped };
 }

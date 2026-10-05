@@ -1,11 +1,13 @@
 // Text documents of full-text search (PostgreSQL `russian` configuration: Russian morphology, English stems for Latin
 // words) and of the reranker. A candidate document holds only what the catalog projection shows (domain 14): skills
-// and roles of the valid categorization run, FSP disciplines, roles and applied skills of experience groups, desired
-// roles — never titles as written, organizations, the headline or resume text. It is built at query time from evidence
-// active at that moment, so a withdrawal removes its words from search immediately (domain 17.3). Names come from one
-// taxonomy version per document: the one of the categorization run, or the version in force without a run — never
-// several versions at once while a new release is being recalculated.
+// of the valid evidence run, the categories in force with their confirmed stack, FSP disciplines, roles and applied
+// skills of experience groups, desired roles — never titles as written, organizations, the headline or resume text. It
+// is built at query time from evidence active at that moment, so a withdrawal removes its words from search
+// immediately (domain 17.3). Names come from one taxonomy version per document: the one of the evidence run, or the
+// version in force without a run — never several versions at once while a new release is being recalculated.
 import { sql, type SQL } from 'drizzle-orm';
+import { CATALOG } from '$lib/server/assessments/contract/catalog';
+import { activeCategoryRows } from '$lib/server/categories/read';
 import type { Executor } from '$lib/server/db';
 import { candidateAt, runAt, runInForce } from '$lib/server/db/conditions';
 import { textList } from './sql';
@@ -19,6 +21,12 @@ export interface SearchDocument {
 }
 
 const RANK_NORMALIZATION = 32; // ts_rank_cd flag: rank / (rank + 1), a value in [0, 1).
+
+/** Titles of the specializations and grades of the catalog as a `values` list: they are words of the document. */
+const catalogTitles = sql`(values ${sql.join(
+	[...CATALOG.specializations, ...CATALOG.grades].map((entry) => sql`(${entry.key}, ${entry.title})`),
+	sql`, `
+)})`;
 
 /**
  * The documents of `d` with the relevance of `text`. `d` must be materialized: an inlined one would build the text of a
@@ -59,7 +67,7 @@ export async function candidateDocuments(
 		base as (
 			select c.id, c.desired_role_keys, r.id as run_id, coalesce(r.taxonomy_version_id, (select id from active)) as tv
 			from candidates c
-			left join categorization_runs r on r.candidate_id = c.id and ${runInForce(runAt('r'), candidateAt('c'))}
+			left join evidence_runs r on r.candidate_id = c.id and ${runInForce(runAt('r'), candidateAt('c'))}
 			where c.id::text in ${textList(candidateIds)}
 		),
 		aliases as materialized (
@@ -78,10 +86,12 @@ export async function candidateDocuments(
 					from skill_inferences i
 					left join skills s on s.taxonomy_version_id = b.tv and s.key = i.skill_key
 					where i.run_id = b.run_id),
-				(select string_agg(concat_ws(' ', a.role_key, ro.name_ru, array_to_string(a.stack_skill_keys, ' ')), ' ')
-					from category_assignments a
-					left join roles ro on ro.taxonomy_version_id = b.tv and ro.key = a.role_key
-					where a.run_id = b.run_id),
+				(select string_agg(concat_ws(' ', k.specialization, st.text, k.grade, gt.text,
+						array_to_string(k.confirmed_skill_keys, ' ')), ' ')
+					from ${activeCategoryRows} k
+					left join ${catalogTitles} st(key, text) on st.key = k.specialization
+					left join ${catalogTitles} gt(key, text) on gt.key = k.grade
+					where k.candidate_id = b.id),
 				(select string_agg(fl.discipline, ' ') from fsp_level_assignments fl where fl.run_id = b.run_id),
 				(select string_agg(concat_ws(' ', e.role_key,
 						(select ro.name_ru from roles ro where ro.taxonomy_version_id = b.tv and ro.key = e.role_key),

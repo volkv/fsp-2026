@@ -41,23 +41,19 @@ export const DECISIONS: Record<'approved' | 'rejected' | 'needs_info', { label: 
 	needs_info: { label: 'Возвращена на уточнение', tone: 'warning' }
 };
 
-export const DISPUTE_STATUSES: Record<string, { label: string; tone: Tone }> = {
+/** Statuses of an objection to a test result in the operator's queue (domain 12.5). */
+export const OBJECTION_STATUSES: Record<string, { label: string; tone: Tone }> = {
 	open: { label: 'Ждёт оператора', tone: 'info' },
 	in_review: { label: 'На рассмотрении', tone: 'info' },
-	resolved_upheld: { label: 'Категория оставлена', tone: 'neutral' },
-	resolved_changed: { label: 'Категория заменена ручным решением', tone: 'success' },
+	resolved: { label: 'Рассмотрено', tone: 'success' },
 	withdrawn: { label: 'Отозвано кандидатом', tone: 'neutral' }
 };
 
-export const RUN_OUTCOMES: Record<string, string> = {
-	complete: 'все оси установлены',
-	partial: 'часть осей установлена',
-	insufficient_data: 'недостаточно данных'
-};
-
-export const RUN_ORIGINS: Record<string, string> = {
-	automatic: 'автоматический расчёт',
-	manual_override: 'ручное решение оператора'
+/** Outcomes of an objection: what the answer did to the decision of the test. */
+export const OBJECTION_OUTCOMES: Record<string, { label: string; tone: Tone }> = {
+	upheld: { label: 'Решение оставлено', tone: 'neutral' },
+	annulled: { label: 'Попытка аннулирована', tone: 'warning' },
+	rescored: { label: 'Решение пересчитано', tone: 'success' }
 };
 
 export const RELATIONS: Record<string, string> = {
@@ -188,7 +184,7 @@ export const FUNNEL_DIMENSIONS: Record<string, string> = {
 	fsp_discipline: 'Дисциплина ФСП',
 	fsp_level: 'Уровень ФСП',
 	competition: 'Соревнование ФСП',
-	role: 'Категория: роль',
+	specialization: 'Категория: специализация',
 	grade: 'Категория: грейд',
 	region: 'Регион',
 	month: 'Месяц приглашения',
@@ -210,7 +206,7 @@ const monthFormat = new Intl.DateTimeFormat('ru-RU', { month: 'long', year: 'num
 
 /** What the funnel page names its keys with. */
 export interface FunnelNames {
-	roles: Readonly<Record<string, string>>;
+	specializations: Readonly<Record<string, string>>;
 	grades: Readonly<Record<string, string>>;
 	competitions: Readonly<Record<string, { title: string; startDate: string | null }>>;
 	discipline: (code: string) => string;
@@ -228,14 +224,10 @@ export function funnelGroupName(
 	switch (dimension) {
 		case 'month':
 			return /^\d{4}-\d{2}$/.test(key) ? monthFormat.format(new Date(`${key}-01T00:00:00Z`)) : key;
-		case 'role':
-			return key === 'none' ? 'Роль не установлена' : (names.roles[key] ?? key);
-		case 'grade': {
-			if (key === 'none') return 'Грейд не установлен';
-			const [min = key, max = key] = key.split('..');
-			const name = (grade: string) => names.grades[grade] ?? grade;
-			return min === max ? name(min) : `${name(min)} – ${name(max)}`;
-		}
+		case 'specialization':
+			return key === 'none' ? 'Категория не подтверждена' : (names.specializations[key] ?? key);
+		case 'grade':
+			return key === 'none' ? 'Категория не подтверждена' : (names.grades[key] ?? key);
 		case 'fsp_participant':
 			return key === 'fsp' ? 'Участники ФСП' : 'Без результатов ФСП';
 		case 'fsp_discipline':

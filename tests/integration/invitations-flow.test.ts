@@ -446,7 +446,7 @@ describe('the reverse flow', () => {
 			vacancyRevision: company.vacancy.revision,
 			candidateId: person.id,
 			candidateRevision: person.profileRevision,
-			categorizationRunId: null,
+			evidenceRunId: null,
 			jobId: null
 		});
 		expect(Number(match?.score)).toBeLessThan(0.3);

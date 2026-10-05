@@ -57,7 +57,6 @@ export const load: PageServerLoad = async (event) => {
 			match: item.match,
 			...card,
 			labels: labelsOf(vocabulary),
-			grades: vocabulary.grades,
 			invitation: existing ? { id: existing.id, status: existing.status } : null,
 			responseWindowHours: policy?.params.response_window_hours ?? null
 		};

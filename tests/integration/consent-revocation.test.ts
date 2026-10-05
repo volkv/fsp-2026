@@ -20,7 +20,7 @@ import { currentDocument } from '$lib/server/auth/documents';
 import { confirmFspAchievements, unlinkFspIdentity } from '$lib/server/auth/identities';
 import { createSession, type SessionRef } from '$lib/server/auth/sessions';
 import { revokeFspImportConsent } from '$lib/server/candidates/consents';
-import { createCategorizationHandler } from '$lib/server/categorization/job';
+import { createEvidenceHandler } from '$lib/server/evidence/job';
 import { effectiveConsentOf } from '$lib/server/consent/effective';
 import { processingAllowed } from '$lib/server/consent/processing';
 import { revokeConsentsByRepresentative, sendConsentLetter } from '$lib/server/consent/representative';
@@ -29,7 +29,7 @@ import {
 	athleteLinks,
 	auditEvents,
 	candidates,
-	categorizationRuns,
+	evidenceRuns,
 	claims,
 	consentEvents,
 	embeddingSpaces,
@@ -135,7 +135,7 @@ beforeAll(async () => {
 			}),
 			signer: createReceiptSigner({ issuer: 'http://platform.test', keyId: 'test-1', seed: Buffer.alloc(32, 7) })
 		})),
-		createCategorizationHandler()
+		createEvidenceHandler()
 	]);
 }, 240_000);
 
@@ -155,7 +155,7 @@ async function documentId(kind: 'pd_processing' | 'fsp_import') {
 	return document.id;
 }
 
-async function drain(types: readonly ('fsp.sync' | 'categorization.compute')[]) {
+async function drain(types: readonly ('fsp.sync' | 'evidence.compute')[]) {
 	await drainJobs(database.db, pipeline, types, { since: new Date(0), log, label: 'revocation-test' });
 }
 
@@ -273,7 +273,7 @@ async function importAchievements(who: Awaited<ReturnType<typeof person>>, hero:
 		documentId: await documentId('fsp_import')
 	});
 	if (!confirmed.ok) throw new Error(`the achievements were not confirmed: ${confirmed.reason}`);
-	await drain(['fsp.sync', 'categorization.compute']);
+	await drain(['fsp.sync', 'evidence.compute']);
 	return confirmed.linkId;
 }
 
@@ -310,12 +310,12 @@ describe('revoking fsp_import', () => {
 			.insert(sourceFacts)
 			.values({
 				candidateId: who.candidateId,
-				source: 'self_declared',
-				factType: 'questionnaire',
-				sourceRecordRef: 'questionnaire:1',
+				source: 'resume',
+				factType: 'resume_document',
+				sourceRecordRef: 'resume:own-1',
 				trustLevel: 'claimed',
-				ownershipBasis: 'self_declared',
-				payload: { answers: 1 },
+				ownershipBasis: 'self_upload',
+				payload: {},
 				payloadSha256: randomSha256(),
 				observedAt: new Date(),
 				lastVerifiedAt: new Date(),
@@ -337,9 +337,9 @@ describe('revoking fsp_import', () => {
 		expect(receipts.length).toBeGreaterThan(0);
 		expect((await verifyReceipt(db, receipts[0]?.handle ?? ''))?.status).toBe('valid');
 		const [published] = await db
-			.select({ id: categorizationRuns.id })
-			.from(categorizationRuns)
-			.where(and(eq(categorizationRuns.candidateId, who.candidateId), eq(categorizationRuns.status, 'published')));
+			.select({ id: evidenceRuns.id })
+			.from(evidenceRuns)
+			.where(and(eq(evidenceRuns.candidateId, who.candidateId), eq(evidenceRuns.status, 'published')));
 		if (!published) throw new Error('no published category');
 		const [before] = await db.select().from(candidates).where(eq(candidates.id, who.candidateId));
 		if (!before) throw new Error('candidate disappeared');
@@ -395,7 +395,7 @@ describe('revoking fsp_import', () => {
 			.where(and(eq(jobs.type, 'fsp.sync'), sql`${jobs.payload} ->> 'athlete_link_id' = ${linkId}`));
 		expect(syncs.map((job) => job.status)).toContain('cancelled');
 		expect(syncs.map((job) => job.status)).not.toContain('queued');
-		const [run] = await db.select().from(categorizationRuns).where(eq(categorizationRuns.id, published.id));
+		const [run] = await db.select().from(evidenceRuns).where(eq(evidenceRuns.id, published.id));
 		expect(run?.status).toBe('blocked');
 		const [candidate] = await db.select().from(candidates).where(eq(candidates.id, who.candidateId));
 		expect(candidate?.evidenceFloorRevision).toBe(candidate?.profileRevision);
@@ -426,7 +426,7 @@ describe('revoking fsp_import', () => {
 		expect(await db.select().from(embeddings).where(eq(embeddings.ownerId, who.candidateId))).toEqual([]);
 		expect(await db.select().from(mlResults).where(eq(mlResults.id, envelope.id))).toEqual([]);
 		// The blocked run of the withdrawn revision is gone; the fact of another source stays.
-		expect(await db.select().from(categorizationRuns).where(eq(categorizationRuns.id, published.id))).toEqual([]);
+		expect(await db.select().from(evidenceRuns).where(eq(evidenceRuns.id, published.id))).toEqual([]);
 		const [kept] = await db.select().from(sourceFacts).where(eq(sourceFacts.id, own.id));
 		expect(kept?.status).toBe('active');
 		const [purged] = await db

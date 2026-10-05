@@ -1,5 +1,5 @@
 export { default as AchievementBadge } from './achievement-badge.svelte';
-export { default as CategoryAxes } from './category-axes.svelte';
+export { default as CategoryList } from './category-list.svelte';
 export { default as DegradedModeNotice } from './degraded-mode-notice.svelte';
 export { default as DemoLockNotice } from './demo-lock-notice.svelte';
 export { default as HiringStages } from './hiring-stages.svelte';

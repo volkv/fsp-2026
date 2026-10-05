@@ -10,8 +10,7 @@ import { afterAll, beforeAll, describe, expect, inject, it, vi } from 'vitest';
 import type { Actor } from '$lib/server/access/actor';
 import {
 	categorizationRulesets,
-	categorizationRuns,
-	categoryAssignments,
+	evidenceRuns,
 	consentEvents,
 	productPolicies,
 	skillInferences,
@@ -21,6 +20,7 @@ import {
 import type { Competition, Result } from '$lib/server/fsp/types';
 import { publishTaxonomy } from '$lib/server/taxonomy/publish';
 import { buildRelease, readTaxonomyDatasets } from '$lib/server/taxonomy/release';
+import { decide } from '../helpers/categories';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
 import {
 	createCandidate,
@@ -135,13 +135,14 @@ function competitionResult(title: string, discipline: Competition['discipline'],
 	return payload;
 }
 
-/** An adult candidate in the catalog with a published category and two FSP results. */
+/** An adult candidate in the catalog with a category, a published evidence run and two FSP results. */
 async function catalogCandidate() {
 	const { db } = database;
 	const candidate = await createCandidate(db, {
 		birthDate: '1998-04-10',
 		visibility: 'catalog',
-		profileRevision: 1,
+		// The grade decision below moves the profile to revision 1, the one of the run.
+		profileRevision: 0,
 		preferences: { work_formats: ['remote'], region_code: 'RU-MOW' }
 	});
 	const occurredAt = new Date(Date.now() - DAY);
@@ -186,7 +187,7 @@ async function catalogCandidate() {
 	const [ruleset] = await db.select({ id: categorizationRulesets.id }).from(categorizationRulesets);
 	if (!ruleset) throw new Error('no categorization rule set');
 	const [run] = await db
-		.insert(categorizationRuns)
+		.insert(evidenceRuns)
 		.values({
 			candidateId: candidate.id,
 			inputRevision: 1,
@@ -196,9 +197,6 @@ async function catalogCandidate() {
 			rulesetId: ruleset.id,
 			asOf: occurredAt,
 			computedAt: occurredAt,
-			origin: 'automatic',
-			outcome: 'partial',
-			missing: { role: [], grade: [{ code: 'role_experience_missing' }], stack: [] },
 			experienceSummary: {
 				total: { min_months: 0, max_months: 0 },
 				by_role: {},
@@ -220,41 +218,7 @@ async function catalogCandidate() {
 		badgeTrust: 'fsp_verified',
 		contributions: factIds.map((id) => ({ fact_id: id, attestation: 'direct' }))
 	});
-	await db.insert(categoryAssignments).values({
-		runId: run.id,
-		rank: 'primary',
-		roleStatus: 'established',
-		roleKey: 'backend',
-		score: '0.8',
-		gradeStatus: 'insufficient_data',
-		stackStatus: 'established',
-		stackSkillKeys: ['go'],
-		explanation: {
-			ruleset_version: 1,
-			taxonomy_version: 'test',
-			role: {
-				role_key: 'backend',
-				score: 0.8,
-				skill_fit: 0.8,
-				role_evidence: 0.8,
-				core_groups: [],
-				unconfirmed_core_groups: [],
-				contributions: factIds.map((id) => ({ fact_id: id }))
-			},
-			grade: {
-				status: 'insufficient_data',
-				scope: 'role',
-				signals: [],
-				ignored: [{ code: 'fsp_result_not_grade_signal', fact_ids: factIds }],
-				disagreements: [],
-				missing: [{ code: 'role_experience_missing' }],
-				next_grade: null
-			},
-			stack: { status: 'established', skills: [], missing: [] },
-			desired_roles: [],
-			fsp_markers: []
-		}
-	});
+	await decide(db, candidate.id, { specialization: 'backend', grade: 'middle' });
 	return candidate;
 }
 

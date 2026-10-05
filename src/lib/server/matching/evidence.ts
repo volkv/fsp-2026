@@ -1,14 +1,15 @@
-// Snapshots `matchScore` reads (docs/domain.md, sections 12.2, 13.1, 13.4, 17.3): the vacancy at its revision and the
-// candidate at the current profile revision with the evidence of the published categorization run, if it is valid.
+// Snapshots `matchScore` reads (docs/domain.md, sections 12.4, 12.6, 13.1, 13.4, 17.3): the vacancy at its revision and
+// the candidate at the current profile revision with the evidence of the published evidence run, if it is valid, and
+// the categories in force.
 import { and, eq, inArray, sql, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Executor } from '$lib/server/db';
 import { publishedRun, runInForce } from '$lib/server/db/conditions';
+import { activeCategories } from '$lib/server/categories/read';
 import {
 	candidates,
-	categorizationRuns,
 	companies,
-	categoryAssignments,
+	evidenceRuns,
 	grades,
 	skillInferences,
 	sourceFacts,
@@ -16,7 +17,7 @@ import {
 } from '$lib/server/db/schema';
 import { companyInDemoScope } from '$lib/server/demo/scope';
 import { parsePreferences, salaryExpectation, type CandidatePreferences } from '$lib/server/candidates/preferences';
-import type { CandidateEvidence, CategoryAxes, MatchCandidate, MatchVacancy, SkillEvidence } from './score';
+import type { CandidateEvidence, MatchCandidate, MatchVacancy, SkillEvidence } from './score';
 
 export interface CandidateSnapshot extends MatchCandidate {
 	id: string;
@@ -49,9 +50,10 @@ export interface VacancySnapshot extends MatchVacancy {
 const factIdsSchema = z.array(z.uuid());
 
 /**
- * Candidates at the current revision. The published run is used only while `input_revision ≥ evidence_floor_revision`:
- * a withdrawal raises the floor in its own transaction, so from that moment nothing of the run reaches a score, even
- * before the run is blocked and recomputed. Fact ids of an inference are limited to facts active right now.
+ * Candidates at the current revision with their categories in force. The published evidence run is used only while
+ * `input_revision ≥ evidence_floor_revision`: a withdrawal raises the floor in its own transaction, so from that moment
+ * nothing of the run reaches a score, even before the run is blocked and recomputed. Fact ids of an inference are
+ * limited to facts active right now.
  */
 export async function loadCandidateSnapshots(
 	executor: Executor,
@@ -66,36 +68,23 @@ export async function loadCandidateSnapshots(
 			id: candidates.id,
 			revision: candidates.profileRevision,
 			floor: candidates.evidenceFloorRevision,
-			preferences: candidates.preferences,
-			desiredRoleKeys: candidates.desiredRoleKeys
+			preferences: candidates.preferences
 		})
 		.from(candidates)
 		.where(inArray(candidates.id, ids));
 
 	const runs = await executor
 		.select({
-			id: categorizationRuns.id,
-			candidateId: categorizationRuns.candidateId,
-			inForce: runInForce(categorizationRuns, candidates)
+			id: evidenceRuns.id,
+			candidateId: evidenceRuns.candidateId,
+			inForce: runInForce(evidenceRuns, candidates)
 		})
-		.from(categorizationRuns)
-		.innerJoin(candidates, eq(candidates.id, categorizationRuns.candidateId))
-		.where(and(inArray(categorizationRuns.candidateId, ids), publishedRun(categorizationRuns)));
+		.from(evidenceRuns)
+		.innerJoin(candidates, eq(candidates.id, evidenceRuns.candidateId))
+		.where(and(inArray(evidenceRuns.candidateId, ids), publishedRun(evidenceRuns)));
 	const runByCandidate = new Map(runs.map((run) => [run.candidateId, run]));
 	const validRunIds = runs.filter((run) => run.inForce).map((run) => run.id);
-
-	const assignments = validRunIds.length
-		? await executor
-				.select({
-					runId: categoryAssignments.runId,
-					rank: categoryAssignments.rank,
-					roleKey: categoryAssignments.roleKey,
-					gradeMin: categoryAssignments.gradeMin,
-					gradeMax: categoryAssignments.gradeMax
-				})
-				.from(categoryAssignments)
-				.where(inArray(categoryAssignments.runId, validRunIds))
-		: [];
+	const categories = await activeCategories(executor, ids);
 	const inferences = validRunIds.length
 		? await executor
 				.select({
@@ -131,16 +120,6 @@ export async function loadCandidateSnapshots(
 			: []
 	);
 
-	const categoriesByRun = new Map<string, CategoryAxes[]>();
-	for (const a of assignments) {
-		const list = categoriesByRun.get(a.runId) ?? [];
-		list.push({
-			rank: a.rank,
-			roleKey: a.roleKey,
-			grade: a.gradeMin !== null && a.gradeMax !== null ? { min: a.gradeMin, max: a.gradeMax } : null
-		});
-		categoriesByRun.set(a.runId, list);
-	}
 	const skillsByRun = new Map<string, SkillEvidence[]>();
 	for (const [inference, factIds] of factIdsOf) {
 		const list = skillsByRun.get(inference.runId) ?? [];
@@ -161,12 +140,7 @@ export async function loadCandidateSnapshots(
 		if (!run) evidence = { status: 'unavailable', reason: 'no_published_run' };
 		else if (!valid.has(run.id)) evidence = { status: 'unavailable', reason: 'run_below_evidence_floor' };
 		else {
-			evidence = {
-				status: 'available',
-				runId: run.id,
-				skills: skillsByRun.get(run.id) ?? [],
-				categories: categoriesByRun.get(run.id) ?? []
-			};
+			evidence = { status: 'available', runId: run.id, skills: skillsByRun.get(run.id) ?? [] };
 		}
 		const preferences = parsePreferences(row.id, row.preferences);
 		result.set(row.id, {
@@ -174,7 +148,7 @@ export async function loadCandidateSnapshots(
 			revision: row.revision,
 			evidenceFloorRevision: row.floor,
 			evidence,
-			desiredRoleKeys: row.desiredRoleKeys,
+			categories: (categories.get(row.id) ?? []).map((c) => ({ specialization: c.specialization, grade: c.grade })),
 			preferences,
 			salaryExpectation: salaryExpectation(preferences)
 		});

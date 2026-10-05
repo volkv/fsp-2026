@@ -8,7 +8,8 @@ type NotificationObjectType =
 	| 'hiring_process'
 	| 'company'
 	| 'vacancy'
-	| 'category_dispute'
+	| 'assessment_objection'
+	| 'candidate_category'
 	| 'representation'
 	| 'candidate'
 	| 'assessment_attempt';
@@ -64,20 +65,30 @@ export const NOTIFICATION_TYPES = {
 		objectType: 'vacancy',
 		title: 'Решение модерации по вакансии'
 	},
-	'dispute.decided': {
-		category: 'disputes',
-		objectType: 'category_dispute',
-		title: 'Ответ на возражение по категории'
+	'objection.decided': {
+		category: 'account',
+		objectType: 'assessment_objection',
+		title: 'Ответ на возражение по результату теста'
 	},
-	'dispute.due_soon': {
-		category: 'disputes',
-		objectType: 'category_dispute',
+	'objection.due_soon': {
+		category: 'objections',
+		objectType: 'assessment_objection',
 		title: 'Скоро истекает срок ответа на возражение'
 	},
-	'dispute.overdue': {
-		category: 'disputes',
-		objectType: 'category_dispute',
+	'objection.overdue': {
+		category: 'objections',
+		objectType: 'assessment_objection',
 		title: 'Просрочен ответ на возражение'
+	},
+	'category.assigned': {
+		category: 'account',
+		objectType: 'candidate_category',
+		title: 'Категория подтверждена тестом'
+	},
+	'category.revoked': {
+		category: 'account',
+		objectType: 'candidate_category',
+		title: 'Категория отозвана'
 	},
 	'representation.decided': {
 		category: 'account',
@@ -122,7 +133,7 @@ export function isNotificationType(value: string): value is NotificationType {
 	return Object.hasOwn(NOTIFICATION_TYPES, value);
 }
 
-/** The deadline of an objection, to the FSP staff (domain 12.3): the responsible operator or the operators, and admins. */
-export function isDisputeDeadline(type: NotificationType): type is 'dispute.due_soon' | 'dispute.overdue' {
-	return type === 'dispute.due_soon' || type === 'dispute.overdue';
+/** The deadline of an objection, to the FSP staff (domain 12.5): the responsible operator or the operators, and admins. */
+export function isObjectionDeadline(type: NotificationType): type is 'objection.due_soon' | 'objection.overdue' {
+	return type === 'objection.due_soon' || type === 'objection.overdue';
 }

@@ -369,12 +369,12 @@ describe('canShow: partner pool, public page, cases', () => {
 	it('gives staff the operator projection only within a case', () => {
 		const staff: Viewer = { kind: 'staff', userId: 'u-s', role: 'operator', demoSessionId: null };
 		expect(
-			canShow(adultFacts({ caseAccess: true }), staff, { kind: 'case', caseType: 'dispute', caseId: 'd-1' })
+			canShow(adultFacts({ caseAccess: true }), staff, { kind: 'case', caseType: 'objection', caseId: 'd-1' })
 		).toMatchObject({
 			allowed: true,
 			projection: 'operator'
 		});
-		expect(canShow(adultFacts(), staff, { kind: 'case', caseType: 'dispute', caseId: 'd-1' })).toEqual({
+		expect(canShow(adultFacts(), staff, { kind: 'case', caseType: 'objection', caseId: 'd-1' })).toEqual({
 			allowed: false,
 			reason: 'no_case_access'
 		});
@@ -402,7 +402,7 @@ describe('demo sessions', () => {
 		role: 'operator',
 		demoSessionId: session
 	});
-	const dispute = { kind: 'case', caseType: 'dispute', caseId: 'd-1' } as const;
+	const objection = { kind: 'case', caseType: 'objection', caseId: 'd-1' } as const;
 
 	it('shows a profile of a session inside that session only', () => {
 		expect(canShow(inSession(SESSION), memberIn(SESSION), { kind: 'catalog' })).toMatchObject({ allowed: true });
@@ -414,11 +414,11 @@ describe('demo sessions', () => {
 			allowed: false,
 			reason: 'not_visible'
 		});
-		expect(canShow(inSession(SESSION), staffIn('session-b'), dispute)).toEqual({
+		expect(canShow(inSession(SESSION), staffIn('session-b'), objection)).toEqual({
 			allowed: false,
 			reason: 'not_visible'
 		});
-		expect(canShow(inSession(SESSION), staffIn(SESSION), dispute)).toMatchObject({ projection: 'operator' });
+		expect(canShow(inSession(SESSION), staffIn(SESSION), objection)).toMatchObject({ projection: 'operator' });
 	});
 
 	it('shows a profile outside sessions to viewers inside and outside them', () => {
@@ -433,9 +433,9 @@ describe('demo sessions', () => {
 			allowed: false,
 			reason: 'not_visible'
 		});
-		expect(canShow(original, staffIn(SESSION), dispute)).toEqual({ allowed: false, reason: 'not_visible' });
+		expect(canShow(original, staffIn(SESSION), objection)).toEqual({ allowed: false, reason: 'not_visible' });
 		expect(canShow(original, memberIn(null), { kind: 'catalog' })).toMatchObject({ allowed: true });
-		expect(canShow(original, staffIn(null), dispute)).toMatchObject({ projection: 'operator' });
+		expect(canShow(original, staffIn(null), objection)).toMatchObject({ projection: 'operator' });
 		expect(canShow(original, { kind: 'user', userId: 'u-c' }, { kind: 'self' })).toMatchObject({ projection: 'self' });
 	});
 

@@ -1,6 +1,7 @@
-// «Что ищет рынок в твоей категории» (CONCEPT, promises 3 and 5; docs/domain.md 13.9): how often the vacancies of the
-// candidate's role — and of their grade with the next one — require each skill, and which of the most required skills
-// the candidate has not confirmed yet, with the way to confirm each: a platform test or an FSP result. The share is
+// «Что ищет рынок в твоей категории» (CONCEPT, promises 3 and 5; docs/domain.md 12.10, 13.9): how often the vacancies
+// of the candidate's category — of the roles its specialization serves, and of its grade with the next one — require
+// each skill, and which of the most required skills the candidate has not confirmed yet, with the way to confirm each:
+// a platform test or an FSP result. The share is
 // the market's demand, not a promise: confirming a skill neither guarantees an invitation nor raises the grade.
 //
 // The counting of required skills over a set of vacancies is shared with the operator's feedback «market ↔ FSP»
@@ -9,9 +10,12 @@
 // operator counts every vacancy seen in the window outside demo sessions.
 import { and, eq, inArray, sql, type SQL } from 'drizzle-orm';
 import { can, type AccessSubject } from '$lib/server/access/permissions';
+import type { SpecializationKey } from '$lib/server/assessments/contract/catalog';
 import { publishedVersions } from '$lib/server/assessments/versions';
+import { activeCategories } from '$lib/server/categories/read';
+import { rolesOfSpecialization } from '$lib/server/categories/roles';
 import type { Executor } from '$lib/server/db';
-import { categorizationRuns, fspProjectionRules, vacancies } from '$lib/server/db/schema';
+import { evidenceRuns, fspProjectionRules, vacancies } from '$lib/server/db/schema';
 import { demoSessionOfUser } from '$lib/server/demo/scope';
 import { ApiError } from '$lib/server/errors/api-error';
 import { loadMarketPolicy } from '$lib/server/market/policy';
@@ -90,20 +94,19 @@ export interface DemandGap {
 }
 
 export interface DemandCohort {
-	roleKey: string;
-	/** The role of the category, or the desired one while the category has none. */
-	roleBasis: 'established' | 'desired';
-	/** Grades the cohort spans — the candidate's range and the next grade; `null` — every grade of the role. */
+	/** The specialization of the category: its vacancies are those of the roles it serves (domain 12.10). */
+	specialization: SpecializationKey;
+	/** Grades the cohort spans — the confirmed grade and the next one; `null` — every grade of the specialization. */
 	gradeKeys: string[] | null;
-	/** The grade cohort had fewer vacancies than the threshold, so the whole role was counted instead. */
+	/** The grade cohort had fewer vacancies than the threshold, so the whole specialization was counted instead. */
 	widenedFrom: { gradeKeys: string[]; vacancies: number } | null;
 }
 
 export type CandidateDemand =
-	/** No category in force: the candidate's own side is unknown. */
+	/** No category in force: the market of a category is not the candidate's yet (domain 12.7). */
 	| { status: 'no_category' }
-	/** Neither an established nor a desired role: no cohort to count. */
-	| { status: 'no_role' }
+	/** The evidence of the profile is being recalculated: what is confirmed is not known right now. */
+	| { status: 'evidence_recalculating' }
 	| { status: 'insufficient_data'; cohort: DemandCohort; vacancies: number; threshold: number; asOf: Date }
 	| {
 			status: 'available';
@@ -150,46 +153,35 @@ export async function candidateDemand(executor: Executor, subject: AccessSubject
 	const candidateId = readableCandidate(subject);
 	const snapshot = (await loadCandidateSnapshots(executor, [candidateId])).get(candidateId);
 	if (!snapshot) throw new ApiError('not_found');
+	// The latest category in force: where the candidate stands now and grows from.
+	const category = (await activeCategories(executor, [candidateId])).get(candidateId)?.at(-1);
+	if (!category) return { status: 'no_category' };
 	const evidence = snapshot.evidence;
-	if (evidence.status !== 'available') return { status: 'no_category' };
+	if (evidence.status !== 'available') return { status: 'evidence_recalculating' };
 
-	const primary = evidence.categories.find((category) => category.rank === 'primary') ?? null;
-	const desired = snapshot.desiredRoleKeys[0];
-	const roleKey = primary?.roleKey ?? desired ?? null;
-	if (roleKey === null) return { status: 'no_role' };
-	const roleBasis = primary?.roleKey ? 'established' : 'desired';
-
-	// The grade window: the candidate's range and the next grade — where the growth hint looks. The desired role has no
-	// grade of its own, so it is counted across grades.
+	// The grade window: the confirmed grade and the next one — where the growth hint looks.
 	const [run] = await executor
-		.select({ taxonomyVersionId: categorizationRuns.taxonomyVersionId })
-		.from(categorizationRuns)
-		.where(eq(categorizationRuns.id, evidence.runId));
+		.select({ taxonomyVersionId: evidenceRuns.taxonomyVersionId })
+		.from(evidenceRuns)
+		.where(eq(evidenceRuns.id, evidence.runId));
 	if (!run) throw new Error(`run ${evidence.runId} disappeared`);
 	const ordinals = (await loadGradeOrdinals(executor, [run.taxonomyVersionId])).get(run.taxonomyVersionId);
 	if (!ordinals) throw new Error('grade ordinals were not loaded');
 	const scale = [...ordinals.entries()].sort((a, b) => a[1] - b[1]).map(([key]) => key);
-	let gradeWindow: string[] | null = null;
-	if (roleBasis === 'established' && primary?.grade) {
-		const low = scale.indexOf(primary.grade.min);
-		const high = scale.indexOf(primary.grade.max);
-		if (low < 0 || high < 0)
-			throw new Error(`grade range ${primary.grade.min}–${primary.grade.max} is not in the scale`);
-		gradeWindow = scale.slice(low, Math.min(high + 2, scale.length));
-	}
+	const low = scale.indexOf(category.grade);
+	if (low < 0) throw new Error(`grade ${category.grade} is not in the scale of the taxonomy`);
+	const gradeWindow = scale.slice(low, Math.min(low + 2, scale.length));
 
 	const policy = await loadMarketPolicy(executor, now);
 	const threshold = policy.threshold.vacancy_ranges;
+	const roles = rolesOfSpecialization(category.specialization);
 	const reachable = and(
 		matchableVacancyFor(await demoSessionOfUser(executor, subject.userId)),
-		eq(vacancies.roleKey, roleKey)
+		inArray(vacancies.roleKey, roles)
 	);
-	let demand = await vacancySkillDemand(
-		executor,
-		gradeWindow === null ? reachable : and(reachable, gradeOverlap(scale, gradeWindow))
-	);
-	let cohort: DemandCohort = { roleKey, roleBasis, gradeKeys: gradeWindow, widenedFrom: null };
-	if (gradeWindow !== null && demand.vacancies < threshold) {
+	let demand = await vacancySkillDemand(executor, and(reachable, gradeOverlap(scale, gradeWindow)));
+	let cohort: DemandCohort = { specialization: category.specialization, gradeKeys: gradeWindow, widenedFrom: null };
+	if (demand.vacancies < threshold) {
 		const widenedFrom = { gradeKeys: gradeWindow, vacancies: demand.vacancies };
 		demand = await vacancySkillDemand(executor, reachable);
 		cohort = { ...cohort, gradeKeys: null, widenedFrom };

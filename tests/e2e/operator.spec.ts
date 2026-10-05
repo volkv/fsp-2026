@@ -1,38 +1,34 @@
 // The FSP operator cabinet in the browser against the local infrastructure (`make infra`): an employer submits its
 // company, the operator approves it from the queue and the employer is notified; the operator downloads the authority
-// document of a request; a candidate's objection to the category is taken into review and answered; a conflict of the
-// birth date is resolved by a document; a stuck test attempt is read in full and annulled; the career outcomes
+// document of a request; a candidate's objection to a test result waits in the queue with its due date; a conflict of
+// the birth date is resolved by a document; a stuck test attempt is read in full and annulled; the career outcomes
 // (also by region) and the skills feedback render with their notices. Somebody who is not an operator does not get into
 // the cabinet or its documents. The main screens have no accessibility violations.
 //
 // People register through the forms (their passwords and addresses need the keys of the running application). The
-// operator role, the candidate with a published category and the objection are written directly: they are state the
-// cabinet receives from other parts (the administrator's grant, the categorization job, the candidate cabinet).
+// operator role, the candidate and the objection are written directly: they are state the cabinet receives from other
+// parts (the administrator's grant, the candidate cabinet).
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import AxeBuilder from '@axe-core/playwright';
 import type { Browser, Page } from '@playwright/test';
 import { expect, test } from './helpers/test';
 import { APP_ORIGIN } from './helpers/ports';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import {
 	assessmentArtifacts,
+	assessmentObjections,
 	assessmentAttempts,
 	assessments,
 	assessmentVersions,
 	auditEvents,
 	candidates,
-	categorizationRulesets,
-	categorizationRuns,
-	categoryAssignments,
-	categoryDisputes,
 	companies,
 	companyMembers,
 	companyVerifications,
 	files,
 	productPolicies,
 	staffRoles,
-	taxonomyVersions,
 	users
 } from '$lib/server/db/schema';
 
@@ -131,25 +127,11 @@ async function ensureCatalogPolicy(): Promise<void> {
 const sha256 = () => randomBytes(32).toString('hex');
 
 /**
- * An adult candidate with a published category (backend, grade not established) and an open objection to it, in a
- * region of the reference (seeds/regions.json) like any stored one. Other candidates of the database may share its
- * region: the tests find this one by the id of its objection.
+ * An adult candidate with an open objection to a decision of a test about the grade, in a region of the reference
+ * (seeds/regions.json) like any stored one. Other candidates of the database may share its region: the tests find this
+ * one by the id of its objection.
  */
-async function seedDispute(reason: string): Promise<string> {
-	const [taxonomy] = await db()
-		.select({ id: taxonomyVersions.id, label: taxonomyVersions.label })
-		.from(taxonomyVersions)
-		.where(eq(taxonomyVersions.status, 'published'))
-		.orderBy(desc(taxonomyVersions.publishedAt))
-		.limit(1);
-	if (!taxonomy) throw new Error('no published taxonomy: run scripts/seed-taxonomy.ts');
-	const [ruleset] = await db()
-		.select({ id: categorizationRulesets.id, version: categorizationRulesets.version })
-		.from(categorizationRulesets)
-		.where(eq(categorizationRulesets.taxonomyVersionId, taxonomy.id))
-		.orderBy(desc(categorizationRulesets.version))
-		.limit(1);
-	if (!ruleset) throw new Error('no categorization rule set of the published taxonomy');
+async function seedObjection(reason: string): Promise<string> {
 	return db().transaction(async (tx) => {
 		const [user] = await tx
 			.insert(users)
@@ -179,80 +161,20 @@ async function seedDispute(reason: string): Promise<string> {
 			})
 			.returning({ id: candidates.id });
 		if (!candidate) throw new Error('candidate not inserted');
-		const [run] = await tx
-			.insert(categorizationRuns)
-			.values({
-				candidateId: candidate.id,
-				inputRevision: 1,
-				inputSnapshotSha256: sha256(),
-				inputRefs: { facts: [], claims: [], experience_entries: [], desired_role_keys: ['backend'] },
-				taxonomyVersionId: taxonomy.id,
-				rulesetId: ruleset.id,
-				asOf: new Date(),
-				computedAt: new Date(),
-				origin: 'automatic',
-				outcome: 'partial',
-				missing: { role: [], grade: [{ code: 'no_dated_experience' }], stack: [] },
-				experienceSummary: {
-					total: { min_months: 0, max_months: 0 },
-					by_role: {},
-					by_skill: {},
-					counted_entry_ids: [],
-					excluded: []
-				},
-				status: 'published'
-			})
-			.returning({ id: categorizationRuns.id });
-		if (!run) throw new Error('run not inserted');
-		await tx.insert(categoryAssignments).values({
-			runId: run.id,
-			rank: 'primary',
-			roleStatus: 'established',
-			roleKey: 'backend',
-			score: '0.70',
-			gradeStatus: 'insufficient_data',
-			stackStatus: 'established',
-			stackSkillKeys: ['go'],
-			explanation: {
-				ruleset_version: ruleset.version,
-				taxonomy_version: taxonomy.label,
-				role: {
-					role_key: 'backend',
-					score: 0.7,
-					skill_fit: 0.7,
-					role_evidence: 0.7,
-					core_groups: [],
-					unconfirmed_core_groups: [],
-					contributions: []
-				},
-				grade: {
-					status: 'insufficient_data',
-					scope: 'all_experience',
-					signals: [],
-					ignored: [],
-					disagreements: [],
-					missing: [{ code: 'no_dated_experience' }],
-					next_grade: null
-				},
-				stack: { status: 'established', skills: [], missing: [] },
-				desired_roles: [],
-				fsp_markers: []
-			}
-		});
 		const openedAt = new Date();
-		const [dispute] = await tx
-			.insert(categoryDisputes)
+		const [objection] = await tx
+			.insert(assessmentObjections)
 			.values({
 				candidateId: candidate.id,
-				runId: run.id,
+				decisionId: randomUUID(),
 				reason,
 				openedAt,
 				dueAt: new Date(openedAt.getTime() + 30 * 86_400_000),
 				status: 'open'
 			})
-			.returning({ id: categoryDisputes.id });
-		if (!dispute) throw new Error('dispute not inserted');
-		return dispute.id;
+			.returning({ id: assessmentObjections.id });
+		if (!objection) throw new Error('objection not inserted');
+		return objection.id;
 	});
 }
 
@@ -390,74 +312,17 @@ test('the operator downloads the authority document of a request; others get no 
 	await operator.context().close();
 });
 
-test('the operator takes an objection into review and keeps the category with an answer', async ({ browser }) => {
+test('the operator sees an objection to a test result in the queue with its due date', async ({ browser }) => {
 	await ensureCatalogPolicy();
-	const disputeId = await seedDispute('Я работал бэкендером два года, грейд должен быть установлен.');
+	const objectionId = await seedObjection('Второе задание оценено неверно: ответ совпадает с эталоном.');
 	const operator = await signInOperator(browser);
 
-	await operator.goto('/operator/disputes');
-	const row = operator.locator(`[data-dispute="${disputeId}"]`);
+	await operator.goto('/operator/objections');
+	await expect(operator.getByRole('heading', { level: 1 })).toHaveText('Возражения по результатам тестов');
+	const row = operator.locator(`[data-objection="${objectionId}"]`);
 	await expect(row).toContainText('не назначен');
 	await expect(row.locator('[data-due]')).toHaveAttribute('data-due', 'in_time');
 	await expectNoAxeViolations(operator);
-
-	await row.getByRole('link').click();
-	await expect(operator.getByTestId('dispute-reason')).toContainText('грейд должен быть установлен');
-	await expect(operator.locator('[data-axis="grade"]').first()).toHaveAttribute('data-status', 'insufficient_data');
-	await expectNoAxeViolations(operator);
-	// Opening the case with the candidate's data is journaled.
-	const access = await db()
-		.select({ id: auditEvents.id })
-		.from(auditEvents)
-		.where(and(eq(auditEvents.action, 'operator.case_access'), eq(auditEvents.objectId, disputeId)));
-	expect(access.length).toBeGreaterThan(0);
-
-	await operator.getByRole('button', { name: 'Взять в работу' }).click();
-	await expect(operator.getByText('Возражение у вас в работе')).toBeVisible();
-	await operator
-		.getByLabel('Ответ кандидату')
-		.fill('Грейд ставится по датированному опыту: добавьте периоды работы в резюме.');
-	await operator.getByRole('button', { name: 'Оставить категорию' }).click();
-	await expect(operator.getByText('Ответ отправлен: категория оставлена.')).toBeVisible();
-	await expect(operator.getByTestId('resolution')).toContainText('датированному опыту');
-
-	const [dispute] = await db()
-		.select({ status: categoryDisputes.status })
-		.from(categoryDisputes)
-		.where(eq(categoryDisputes.id, disputeId));
-	expect(dispute?.status).toBe('resolved_upheld');
-	await operator.context().close();
-});
-
-test('the operator replaces a category by a manual decision with its grounds', async ({ browser }) => {
-	await ensureCatalogPolicy();
-	const disputeId = await seedDispute('Есть коммерческий опыт на Go, прошу установить грейд.');
-	const operator = await signInOperator(browser);
-
-	await operator.goto(`/operator/disputes/${disputeId}`);
-	await operator.getByRole('button', { name: 'Взять в работу' }).click();
-	await expect(operator.getByText('Возражение у вас в работе')).toBeVisible();
-	await operator.getByRole('radio', { name: 'Заменить ручным решением' }).check();
-	await operator.getByLabel('Грейд от').selectOption('junior');
-	await operator.getByLabel('до', { exact: true }).selectOption('middle');
-	await operator.getByLabel('Уверенность').fill('0,6');
-	await operator
-		.getByLabel('Ответ кандидату')
-		.fill('Сверили трудовую книжку по видеосвязи: опыт на Go — полтора года.');
-	await operator.getByRole('button', { name: 'Заменить категорию' }).click();
-	await expect(operator.getByText('Категория заменена ручным решением.')).toBeVisible();
-
-	const [dispute] = await db()
-		.select({ status: categoryDisputes.status, resultingRunId: categoryDisputes.resultingRunId })
-		.from(categoryDisputes)
-		.where(eq(categoryDisputes.id, disputeId));
-	expect(dispute?.status).toBe('resolved_changed');
-	if (!dispute?.resultingRunId) throw new Error('no resulting run');
-	const [assignment] = await db()
-		.select({ gradeMin: categoryAssignments.gradeMin, gradeMax: categoryAssignments.gradeMax })
-		.from(categoryAssignments)
-		.where(eq(categoryAssignments.runId, dispute.resultingRunId));
-	expect(assignment).toEqual({ gradeMin: 'junior', gradeMax: 'middle' });
 	await operator.context().close();
 });
 
@@ -473,10 +338,10 @@ test('the operator sees the career funnel by stage, the skills feedback and the 
 	await expect(operator.getByTestId('funnel-stages').or(operator.getByTestId('funnel-empty'))).toBeVisible();
 	await expectNoAxeViolations(operator);
 
-	await operator.getByLabel('Разрез').selectOption('role');
+	await operator.getByLabel('Разрез').selectOption('specialization');
 	await operator.getByRole('button', { name: 'Показать' }).click();
-	await expect(operator).toHaveURL(/by=role/);
-	await expect(operator.getByRole('heading', { level: 2, name: /Категория: роль/ })).toBeVisible();
+	await expect(operator).toHaveURL(/by=specialization/);
+	await expect(operator.getByRole('heading', { level: 2, name: /Категория: специализация/ })).toBeVisible();
 
 	await operator.getByLabel('Разрез').selectOption('region');
 	await operator.getByRole('button', { name: 'Показать' }).click();
@@ -748,6 +613,6 @@ test('an operator reads the journal only with the right the administrator grants
 });
 
 test('an anonymous visitor is sent to sign in instead of the cabinet', async ({ page }) => {
-	await page.goto('/operator/disputes');
-	await expect(page).toHaveURL(/\/login\?returnTo=%2Foperator%2Fdisputes/);
+	await page.goto('/operator/objections');
+	await expect(page).toHaveURL(/\/login\?returnTo=%2Foperator%2Fobjections/);
 });

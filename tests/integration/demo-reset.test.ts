@@ -183,7 +183,7 @@ describe('demo reset', () => {
 		await db.transaction(async (tx) => {
 			await enqueueJob(
 				tx,
-				'categorization.compute',
+				'evidence.compute',
 				{ candidate_id: candidate.id },
 				{ inputVersion: '1', createdBy: { kind: 'system' } }
 			);
@@ -298,7 +298,7 @@ describe('demo reset and the real staff', () => {
 			await db.insert(notificationChannels).values({ userId, kind: 'email', status: 'active', linkedAt: new Date() });
 		}
 		for (const userId of [operator.id, visitor.id]) {
-			await db.insert(notificationPreferences).values({ userId, category: 'disputes', channels: [] });
+			await db.insert(notificationPreferences).values({ userId, category: 'objections', channels: [] });
 		}
 		const [hashBefore] = await db
 			.select({ hash: passwordCredentials.hash })

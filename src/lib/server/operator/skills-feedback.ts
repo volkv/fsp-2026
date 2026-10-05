@@ -1,6 +1,6 @@
 // Feedback «what the market asks for ↔ what FSP gives» (docs/domain.md 13.9) for disciplines and competition cases:
 // demand is how often a skill is required by vacancies seen in the window, supply is how many candidates have the
-// skill inferred from their FSP results in the published categorization. It is a correlation of two counts, not a
+// skill inferred from their FSP results in the evidence run in force. It is a correlation of two counts, not a
 // measured value of a skill, and the page says so. Counts below the threshold are «< N»; seeded demo records mark the
 // numbers they enter as synthetic. Nothing is stored: every call counts from live data. Clones of demo sessions and the
 // vacancies of their companies are left out: they repeat the cast, which is counted already (domain 19.3).
@@ -10,7 +10,7 @@ import { requirePermission } from '$lib/server/companies/context';
 import { vacancySeenAt, vacancySkillDemand } from '$lib/server/candidates/demand';
 import type { Executor } from '$lib/server/db';
 import { runInForce } from '$lib/server/db/conditions';
-import { candidates, categorizationRuns, skillInferences, vacancies } from '$lib/server/db/schema';
+import { candidates, evidenceRuns, skillInferences, vacancies } from '$lib/server/db/schema';
 import { companySession, outsideDemoSessions } from '$lib/server/demo/scope';
 import { smallCell, type SmallCell } from './small-numbers';
 
@@ -68,7 +68,7 @@ export async function skillFeedback(
 	// Inferences of the published run of a live candidate that rest on at least one FSP fact.
 	const fromFsp = sql`${skillInferences.contributions} @> '[{"source": "fsp"}]'::jsonb`;
 	const liveCandidate = and(
-		runInForce(categorizationRuns, candidates),
+		runInForce(evidenceRuns, candidates),
 		eq(candidates.status, 'active'),
 		outsideDemoSessions(candidates.demoSessionId)
 	);
@@ -78,7 +78,7 @@ export async function skillFeedback(
 			seeded: sql<boolean>`coalesce(bool_or(${candidates.seedBatchId} is not null), false)`
 		})
 		.from(skillInferences)
-		.innerJoin(categorizationRuns, eq(categorizationRuns.id, skillInferences.runId))
+		.innerJoin(evidenceRuns, eq(evidenceRuns.id, skillInferences.runId))
 		.innerJoin(candidates, eq(candidates.id, skillInferences.candidateId))
 		.where(and(liveCandidate, fromFsp));
 	const supplyRows = await executor
@@ -88,7 +88,7 @@ export async function skillFeedback(
 			direct: sql<number>`count(distinct ${skillInferences.candidateId}) filter (where ${skillInferences.attestation} = 'direct')::int`
 		})
 		.from(skillInferences)
-		.innerJoin(categorizationRuns, eq(categorizationRuns.id, skillInferences.runId))
+		.innerJoin(evidenceRuns, eq(evidenceRuns.id, skillInferences.runId))
 		.innerJoin(candidates, eq(candidates.id, skillInferences.candidateId))
 		.where(and(liveCandidate, fromFsp))
 		.groupBy(skillInferences.skillKey);

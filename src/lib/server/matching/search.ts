@@ -1,9 +1,13 @@
-// Catalog search for a company (docs/domain.md, sections 7.4, 12.4, 13.4, 14, 16; contracts 5.4–5.5): filters by the
-// category axes, FSP level, format and region, the «no category» facet; full-text search plus exact vector search;
-// with a vacancy of the company, ranking by `matchScore` with the reranker as one component. Every candidate passes
-// `canShow` in the catalog context of the vacancy, so a minor appears only for a suitable vacancy of the viewer.
+// Catalog search for a company (docs/domain.md, sections 7.4, 12.4, 12.7, 13.4, 14, 16; contracts 5.4–5.5): filters by
+// the category in force (specialization, grade, confirmed stack), FSP level, format and region, the facet «категория не
+// подтверждена»; full-text search plus exact vector search; with a vacancy of the company, ranking by `matchScore` with
+// the reranker as one component. A candidate without a category is found only without category filters and is marked;
+// at equal relevance or score the candidates with a category come first (domain 12.7). Every candidate passes `canShow`
+// in the catalog context of the vacancy, so a minor appears only for a suitable vacancy of the viewer.
 import { and, eq, ne, sql, type SQL } from 'drizzle-orm';
 import { can, type AccessSubject } from '$lib/server/access/permissions';
+import type { GradeKey, SpecializationKey } from '$lib/server/assessments/contract/catalog';
+import { categoryPredicate } from '$lib/server/categories/read';
 import type { Executor } from '$lib/server/db';
 import { candidateAt, listedInCatalog, runAt, runInForce } from '$lib/server/db/conditions';
 import { vacancies } from '$lib/server/db/schema';
@@ -24,20 +28,17 @@ import { loadCatalogViewer, loadVisibilityFacts, loadVisibilityPolicy, type Cata
 const FSP_LEVELS = ['L1', 'L2', 'L3', 'L4', 'L5'] as const;
 
 export interface CandidateSearchFilters {
-	/** An established role of any category of the candidate. */
-	roleKeys?: string[];
-	/**
-	 * Grades inside the established range of a category. With `includeNotEstablished`, candidates whose grade is not
-	 * established are returned as a separate group instead of being dropped (domain 12.2).
-	 */
-	grade?: { keys: string[]; includeNotEstablished: boolean };
-	/** All of these skills are in the stack core of one category. */
-	stackSkillKeys?: string[];
+	/** A category in force of any of these specializations. */
+	specializations?: SpecializationKey[];
+	/** A category in force of any of these grades — of one of `specializations`, when both are given. */
+	grades?: GradeKey[];
+	/** All of these skills are in the confirmed stack of one category in force (domain 12.4). */
+	confirmedSkillKeys?: string[];
 	fspLevel?: { discipline: string; minLevel: (typeof FSP_LEVELS)[number] };
 	/** Any of these work formats among the candidate's preferences. */
 	workFormats?: string[];
 	regionCodes?: string[];
-	/** The facet «no category / insufficient data»: no valid run or a run without assignments (domain 12.4). */
+	/** The facet «категория не подтверждена»: only candidates without a category in force (domain 12.7). */
 	uncategorized?: boolean;
 }
 
@@ -77,8 +78,8 @@ export interface CandidateSearchItem {
 	/** With a vacancy: the match decomposition; without one: `null`. */
 	match: CompanyMatch | null;
 	relevance: { fts: number | null; semantic: number | null };
-	/** Group of the grade filter: inside the range or «grade not established»; `null` without a grade filter. */
-	gradeGroup: 'in_range' | 'not_established' | null;
+	/** The candidate has a category in force; without one the card is marked «категория не подтверждена» (12.7). */
+	categoryConfirmed: boolean;
 }
 
 export interface CandidateSearchResult extends Page<CandidateSearchItem> {
@@ -106,23 +107,17 @@ export function companyExplanation(explanation: MatchExplanation): CompanyMatch[
 	};
 }
 
-const textArray = (values: readonly string[]) =>
-	sql`array[${sql.join(
-		values.map((value) => sql`${value}`),
-		sql`, `
-	)}]::text[]`;
-
 function validationError(path: string, message: string): ApiError {
 	return new ApiError('validation_failed', { details: [{ path, code: 'invalid', message }] });
 }
 
 /**
  * A candidate passing the filters SQL can decide, with what their ranking is computed from: the profile revision, the
- * evidence floor and the run in force (`null` — none).
+ * evidence floor and the run in force (`null` — none), and whether a category is in force.
  */
 interface Listed {
 	id: string;
-	gradeEstablished: boolean | null;
+	categoryConfirmed: boolean;
 	revision: number;
 	floor: number;
 	runId: string | null;
@@ -140,20 +135,22 @@ async function prefilter(
 		listedInCatalog(candidateAt('c')),
 		sql`not exists (select 1 from candidate_company_blocks b where b.candidate_id = c.id and b.company_id = ${companyId})`
 	];
-	const nonEmpty = (path: string, values: readonly string[] | undefined) => {
+	const nonEmpty = <T extends string>(path: string, values: readonly T[] | undefined) => {
 		if (values?.length === 0) throw validationError(path, 'Пустой список');
 		return values;
 	};
-	const roles = nonEmpty('filters.roleKeys', filters.roleKeys);
-	if (roles) {
+	const specializations = nonEmpty('filters.specializations', filters.specializations);
+	const grades = nonEmpty('filters.grades', filters.grades);
+	const confirmedSkillKeys = nonEmpty('filters.confirmedSkillKeys', filters.confirmedSkillKeys);
+	const byCategory = specializations !== undefined || grades !== undefined || confirmedSkillKeys !== undefined;
+	if (byCategory) {
+		// One category in force meets every category filter at once; without a category, never in this result (12.7).
 		conditions.push(
-			sql`exists (select 1 from category_assignments a where a.run_id = r.id and a.role_key in ${textList(roles)})`
-		);
-	}
-	const stack = nonEmpty('filters.stackSkillKeys', filters.stackSkillKeys);
-	if (stack) {
-		conditions.push(
-			sql`exists (select 1 from category_assignments a where a.run_id = r.id and a.stack_skill_keys @> ${textArray(stack)})`
+			categoryPredicate(sql`c.id`, {
+				...(specializations ? { specializations } : {}),
+				...(grades ? { grades } : {}),
+				...(confirmedSkillKeys ? { confirmedSkillKeys } : {})
+			})
 		);
 	}
 	if (filters.fspLevel) {
@@ -170,42 +167,28 @@ async function prefilter(
 	const regions = nonEmpty('filters.regionCodes', filters.regionCodes);
 	if (regions) conditions.push(sql`c.preferences->>'region_code' in ${textList(regions)}`);
 	if (filters.uncategorized) {
-		if (roles || stack || filters.grade) {
+		if (byCategory) {
 			throw validationError('filters.uncategorized', 'Фасет «без категории» не сочетается с фильтрами категории');
 		}
-		conditions.push(sql`(r.id is null or not exists (select 1 from category_assignments a where a.run_id = r.id))`);
-	}
-
-	let gradeEstablished = sql`null::boolean`;
-	if (filters.grade) {
-		const keys = nonEmpty('filters.grade.keys', filters.grade.keys) ?? [];
-		const inRange = sql`exists (select 1 from category_assignments a
-			join grades gmin on gmin.taxonomy_version_id = r.taxonomy_version_id and gmin.key = a.grade_min
-			join grades gmax on gmax.taxonomy_version_id = r.taxonomy_version_id and gmax.key = a.grade_max
-			join grades g on g.taxonomy_version_id = r.taxonomy_version_id and g.key in ${textList(keys)}
-			where a.run_id = r.id and a.grade_status = 'established' and g.ordinal between gmin.ordinal and gmax.ordinal)`;
-		const notEstablished = sql`not exists (select 1 from category_assignments a
-			where a.run_id = r.id and a.grade_status = 'established')`;
-		conditions.push(filters.grade.includeNotEstablished ? sql`(${inRange} or ${notEstablished})` : inRange);
-		gradeEstablished = inRange;
+		conditions.push(sql`not ${categoryPredicate(sql`c.id`)}`);
 	}
 
 	const rows = await executor.execute<{
 		id: string;
-		grade_established: boolean | null;
+		category_confirmed: boolean;
 		revision: string;
 		floor: string;
 		run_id: string | null;
 	}>(sql`
-		select c.id::text as id, ${gradeEstablished} as grade_established, c.profile_revision::text as revision,
-			c.evidence_floor_revision::text as floor, r.id::text as run_id
+		select c.id::text as id, ${categoryPredicate(sql`c.id`)} as category_confirmed,
+			c.profile_revision::text as revision, c.evidence_floor_revision::text as floor, r.id::text as run_id
 		from candidates c
-		left join categorization_runs r on r.candidate_id = c.id and ${runInForce(runAt('r'), candidateAt('c'))}
+		left join evidence_runs r on r.candidate_id = c.id and ${runInForce(runAt('r'), candidateAt('c'))}
 		where ${sql.join(conditions, sql` and `)}
 	`);
 	return rows.map((row) => ({
 		id: row.id,
-		gradeEstablished: row.grade_established,
+		categoryConfirmed: row.category_confirmed,
 		revision: Number(row.revision),
 		floor: Number(row.floor),
 		runId: row.run_id
@@ -258,7 +241,7 @@ async function searchContext(
 
 interface Visible {
 	extras: ShowExtra[];
-	gradeEstablished: boolean | null;
+	categoryConfirmed: boolean;
 }
 
 /** Of the listed candidates, those the viewer sees: the same `canShow` as the card, in the catalog context of the vacancy. */
@@ -296,7 +279,7 @@ async function visibleOf(
 		if (!fact) continue;
 		const show = canShow(fact, viewer.viewer, showContext);
 		if (show.allowed && show.projection === 'catalog') {
-			visible.set(row.id, { extras: show.extras, gradeEstablished: row.gradeEstablished });
+			visible.set(row.id, { extras: show.extras, categoryConfirmed: row.categoryConfirmed });
 		}
 	}
 	return visible;
@@ -324,9 +307,10 @@ async function computeRanking(
 	deps: MatchingDeps,
 	vacancy: VacancySnapshot | null,
 	text: string | null,
-	visibleIds: readonly string[],
+	visible: ReadonlyMap<string, Visible>,
 	signal: AbortSignal | undefined
 ): Promise<Ranking> {
+	const visibleIds = [...visible.keys()];
 	const { db: executor } = deps;
 	// Full-text search over catalog documents built from evidence active right now. Without a query there is nothing
 	// to match or rank by words: no documents are built, and the reranker reads only those of its window.
@@ -393,7 +377,14 @@ async function computeRanking(
 		const parts = [entry.fts, entry.semantic].filter((v): v is number => v !== null);
 		return { entry, order: parts.length ? parts.reduce((a, b) => a + b, 0) / parts.length : 0 };
 	});
-	ranked.sort((a, b) => b.order - a.order || (a.entry.candidateId < b.entry.candidateId ? -1 : 1));
+	// At equal relevance a candidate with a category in force comes first (domain 12.7).
+	const confirmed = (id: string) => (visible.get(id)?.categoryConfirmed ? 1 : 0);
+	ranked.sort(
+		(a, b) =>
+			b.order - a.order ||
+			confirmed(b.entry.candidateId) - confirmed(a.entry.candidateId) ||
+			(a.entry.candidateId < b.entry.candidateId ? -1 : 1)
+	);
 	return {
 		entries: ranked.map((r) => r.entry),
 		mode: {
@@ -620,7 +611,7 @@ async function rankCandidates(
 	const at = context.now.getTime();
 	let ranking = key === null ? null : cache.get(key, at);
 	if (!ranking) {
-		ranking = await computeRanking(deps, context.vacancy, text, visibleIds, signal);
+		ranking = await computeRanking(deps, context.vacancy, text, visible, signal);
 		const ttl = key === null ? null : lifetime(ranking.mode, reranker);
 		if (key !== null && ttl !== null) cache.set(key, ranking, at, ttl);
 	}
@@ -636,7 +627,7 @@ async function rankCandidates(
 				extras: shown.extras,
 				match: entry.match,
 				relevance: { fts: entry.fts, semantic: entry.semantic },
-				gradeGroup: shown.gradeEstablished === null ? null : shown.gradeEstablished ? 'in_range' : 'not_established'
+				categoryConfirmed: shown.categoryConfirmed
 			};
 		}),
 		mode: ranking.mode

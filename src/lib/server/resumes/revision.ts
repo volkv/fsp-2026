@@ -1,11 +1,11 @@
-// How a change of the resume evidence reaches the categorization and the profile vectors (docs/domain.md, sections
-// 7.1, 16, 17.1, 17.3): every change of the input moves `profile_revision` and enqueues the recalculations in the same
-// transaction; a change that takes a ground away also raises `evidence_floor_revision` and takes the published category
-// off the card at once.
+// How a change of the profile evidence reaches the evidence calculation and the profile vectors (docs/domain.md,
+// sections 7.1, 12.6, 16, 17.1, 17.3): every change of the input moves `profile_revision` and enqueues the
+// recalculations in the same transaction; a change that takes a ground away also raises `evidence_floor_revision` and
+// takes the published evidence off the card at once. The category is never touched: it rests on a test (domain 12.4).
 import { and, eq, inArray, sql, type SQL } from 'drizzle-orm';
 import type { AuditActor } from '$lib/server/audit/record';
 import { enqueueProfileEmbed } from '$lib/server/candidates/embed-job';
-import { blockPublishedCategory } from '$lib/server/categorization/job';
+import { blockPublishedEvidence } from '$lib/server/evidence/job';
 import type { Transaction } from '$lib/server/db';
 import { candidates, claims, documentExtractions, experienceEntries, sourceFacts } from '$lib/server/db/schema';
 import { cancelWaitingJobs, enqueueJob, type JobCreator } from '$lib/server/jobs/queue';
@@ -14,14 +14,14 @@ export interface RevisionChange {
 	candidateId: string;
 	/** The change removes or weakens a ground: derivatives of earlier revisions stop counting (domain 17.3). */
 	withdrawal: boolean;
-	/** Why the published category is blocked, for the journal. */
+	/** Why the published evidence is blocked, for the journal. */
 	reason: string;
 	requestId: string;
 	actor: AuditActor;
 	createdBy: JobCreator;
 }
 
-/** Moves the revision, raises the floor on a withdrawal, and enqueues `categorization.compute` and `profile.embed`. */
+/** Moves the revision, raises the floor on a withdrawal, and enqueues `evidence.compute` and `profile.embed`. */
 export async function recordEvidenceChange(tx: Transaction, change: RevisionChange): Promise<number> {
 	const [row] = await tx
 		.update(candidates)
@@ -33,15 +33,11 @@ export async function recordEvidenceChange(tx: Transaction, change: RevisionChan
 		.returning({ profileRevision: candidates.profileRevision });
 	if (!row) throw new Error(`candidate ${change.candidateId} is missing`);
 	if (change.withdrawal) {
-		await blockPublishedCategory(tx, change.candidateId, {
-			requestId: change.requestId,
-			actor: change.actor,
-			reason: change.reason
-		});
+		await blockPublishedEvidence(tx, change.candidateId, change);
 	}
 	await enqueueJob(
 		tx,
-		'categorization.compute',
+		'evidence.compute',
 		{ candidate_id: change.candidateId },
 		{ inputVersion: String(row.profileRevision), createdBy: change.createdBy }
 	);

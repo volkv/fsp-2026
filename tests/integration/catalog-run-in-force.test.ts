@@ -1,18 +1,17 @@
-// The category a reader shows is the run in force (docs/domain.md, 12.1, 17.3): the published run while its input is at
+// The evidence a reader counts is the run in force (docs/domain.md, 12.1, 17.3): the published run while its input is at
 // or above the candidate's evidence floor. A withdrawal raises the floor in its own transaction, before the run is
-// blocked and recomputed; from that moment the run stops counting in the operator's career funnel and in the feedback
-// «market ↔ FSP», and an objection against it is no longer opened. The world is written straight into the tables, and
-// the withdrawal only raises the floor, leaving the run `published`.
+// blocked and recomputed; from that moment the run's FSP levels stop counting in the operator's career funnel and its
+// skills in the feedback «market ↔ FSP». The category comes from a test and does not rest on the run: it stays. The
+// world is written straight into the tables, and the withdrawal only raises the floor, leaving the run `published`.
 import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { AccessSubject } from '$lib/server/access/permissions';
-import { openDispute } from '$lib/server/categorization/disputes';
 import { createFieldCrypto } from '$lib/server/crypto/fields';
 import {
 	candidates,
 	categorizationRulesets,
-	categorizationRuns,
-	categoryAssignments,
+	evidenceRuns,
+	fspLevelAssignments,
 	invitations,
 	invitationTerms,
 	productPolicies,
@@ -22,6 +21,7 @@ import {
 import { careerFunnel } from '$lib/server/hiring/funnel';
 import { uuidv7 } from '$lib/server/ids';
 import { skillFeedback } from '$lib/server/operator/skills-feedback';
+import { decide } from '../helpers/categories';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
 import {
 	createCandidate,
@@ -104,7 +104,10 @@ afterAll(async () => {
 	await database.drop();
 });
 
-/** A backend developer with a published run resting on an FSP result, invited by the company of the world. */
+/**
+ * A backend developer confirmed by a test, with a published run resting on an FSP result, invited by the company of
+ * the world.
+ */
 async function invitedDeveloper() {
 	const { db } = database;
 	const person = await createCandidate(db, { profileRevision: 1 });
@@ -126,7 +129,7 @@ async function invitedDeveloper() {
 		.returning({ id: sourceFacts.id });
 	if (!fact) throw new Error('fact not inserted');
 	const [run] = await db
-		.insert(categorizationRuns)
+		.insert(evidenceRuns)
 		.values({
 			candidateId: person.id,
 			inputRevision: 1,
@@ -136,25 +139,15 @@ async function invitedDeveloper() {
 			rulesetId: world.rulesetId,
 			asOf: NOW,
 			computedAt: NOW,
-			origin: 'automatic',
-			outcome: 'partial',
-			missing: {},
 			experienceSummary: {},
 			status: 'published'
 		})
-		.returning({ id: categorizationRuns.id });
+		.returning({ id: evidenceRuns.id });
 	if (!run) throw new Error('run not inserted');
-	await db.insert(categoryAssignments).values({
-		runId: run.id,
-		rank: 'primary',
-		roleStatus: 'established',
-		roleKey: 'backend',
-		score: '0.8',
-		gradeStatus: 'insufficient_data',
-		stackStatus: 'established',
-		stackSkillKeys: ['go'],
-		explanation: {}
-	});
+	await db
+		.insert(fspLevelAssignments)
+		.values({ runId: run.id, discipline: 'product', level: 'L2', basisFactIds: [fact.id] });
+	await decide(db, person.id, { specialization: 'backend', grade: 'middle' });
 	await db.insert(skillInferences).values({
 		runId: run.id,
 		candidateId: person.id,
@@ -195,7 +188,7 @@ async function invitedDeveloper() {
 			createdAt: sentAt
 		});
 	});
-	return { ...person, runId: run.id };
+	return person;
 }
 
 /** What the withdrawal transaction does first (domain 17.3): revision and floor up, the run still `published`. */
@@ -216,34 +209,26 @@ const crypto = createFieldCrypto({
 });
 
 describe('a run below the evidence floor', () => {
-	it('stops counting in the funnel and the feedback, and is not objected to', async () => {
-		const kept = await invitedDeveloper();
+	it('stops counting in the funnel and the feedback, while the category stays', async () => {
+		await invitedDeveloper();
 		const withdrawn = await invitedDeveloper();
-		const byRole = async () =>
+		const invitedBy = async (dimension: 'fsp_participant' | 'specialization') =>
 			Object.fromEntries(
 				(
-					await careerFunnel({ db: database.db, crypto, now: () => NOW }, operator, { dimensions: ['role'] })
+					await careerFunnel({ db: database.db, crypto, now: () => NOW }, operator, { dimensions: [dimension] })
 				).groups.map((group) => [group.key, group.invited])
 			);
 		const fspCandidates = async () =>
 			(await skillFeedback(database.db, operator, { windowDays: 90, now: NOW, threshold: 1 })).fspCandidates;
 
-		expect(await byRole()).toEqual({ backend: { value: 2 } });
+		expect(await invitedBy('fsp_participant')).toEqual({ fsp: { value: 2 } });
+		expect(await invitedBy('specialization')).toEqual({ backend: { value: 2 } });
 		expect(await fspCandidates()).toEqual({ value: 2 });
 
 		await raiseFloor(withdrawn.id);
 
-		expect(await byRole()).toEqual({ backend: { value: 1 }, none: { value: 1 } });
+		expect(await invitedBy('fsp_participant')).toEqual({ fsp: { value: 1 }, not_fsp: { value: 1 } });
+		expect(await invitedBy('specialization')).toEqual({ backend: { value: 2 } });
 		expect(await fspCandidates()).toEqual({ value: 1 });
-		const objection = (person: typeof kept) =>
-			openDispute(database.db, {
-				candidateId: person.id,
-				userId: person.userId,
-				runId: person.runId,
-				reason: 'Категория не отражает мой опыт',
-				requestId: 'run-in-force-test'
-			});
-		await expect(objection(withdrawn)).rejects.toMatchObject({ code: 'not_found' });
-		await expect(objection(kept)).resolves.toMatchObject({ runId: kept.runId });
 	});
 });

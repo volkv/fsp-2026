@@ -1574,7 +1574,7 @@ interface NotificationChannel {
 `SMTP_URL`, `MAIL_FROM`; в разработке и на демо — Mailpit. Шаблоны — по типу уведомления; в письмах категорий кроме `account` —
 ссылка на настройки уведомлений. Временная ошибка SMTP (4xx) — `unavailable`, повтор; постоянная (5xx) — `rejected`, доставка `failed`.
 
-Решения оператора — категория `account`: `company.verification_decided`, `vacancy.moderation_decided`, `dispute.decided`,
+Решения оператора — категория `account`: `company.verification_decided`, `vacancy.moderation_decided`, `objection.decided`, `category.assigned`, `category.revoked`,
 `representation.decided`. Письмо называет только исход и объект адресата (компанию, вакансию своей компании), причину читают в
 продукте. `vacancy.moderation_decided` получают автор вакансии и владельцы компании, по одному на дело модерации; `payload` —
 `{ vacancy_id, decision: published | returned | rejected, status }`, ссылка ведёт на вакансию в кабинете компании
@@ -1686,8 +1686,9 @@ interface NotificationChannel {
 | `GET /api/v1/me/tests/{attempt_id}` | состояние попытки: поданные кластеры (условия без ключей), ответы кандидата, текущий кластер, срок | `404` чужая |
 | `POST /api/v1/me/tests/{attempt_id}/items/{seq}/answer` | ответ на кластер: `{answer}` для вычисляемого, `{language, source}` для практики, `{cases: [{input, expected}]}` для QA, `{change_step: …}` для шага → следующий шаг процедуры (`continue` со следующим кластером, `extend`, `decided` с решением) | `409` кластер уже отвечен или не текущий; `422 qa_budget_too_small` / `qa_budget_exceeded`; `202` — ждёт песочницу |
 | `GET /api/v1/me/tests/decisions/{decision_id}` | решение и объяснение (domain 10.6): итог, причина, `S`, `C`, блоки, практика, что не проверяется, что дальше | `404` чужое |
-| `POST /api/v1/me/tests/decisions/{decision_id}/objections` | возражение `{reason, items?}` (domain 12.5) → `201` | `409` открытое возражение уже есть |
-| `GET /api/v1/me/categories` | действующие и прошлые категории с блоками, стеком и статусом | — |
+| `POST /api/v1/me/tests/decisions/{decision_id}/objections` | возражение `{reason, items?}` (domain 12.5) → `201` | `404` чужое решение; `409` открытое возражение уже есть, решение аннулировано или срок хранения попытки истёк |
+| `POST /api/v1/me/objections/{objection_id}/withdrawal` | кандидат отзывает своё открытое возражение → `200` (`withdrawn`) | `404` чужое; `409` уже решено или отозвано |
+| `GET /api/v1/me/categories` | действующие и прошлые категории с блоками, стеком, статусом и причиной отзыва | — |
 | `GET /api/v1/me/confirmation-requests`, `POST …/{id}/accept`, `POST …/{id}/decline` | запросы подтверждения (domain 13.11); `accept` начинает блок-тест (`vacancy_block`) или, если есть действующий результат того же блока на том же или более высоком грейде, закрывает запрос им | `409` срок истёк или уже отвечен; `409 bank_capacity_exhausted` |
 | `PUT /api/v1/me/block-confirmations/{id}/visibility` | `{visibility: requester \| all_companies}` — кому виден результат блок-теста | `404` чужой |
 | `GET /api/v1/me/challenges`, `POST /api/v1/me/challenges/{delivery_id}/solutions`, `DELETE …/solutions/{id}` | доставленные вызовы, решение, отзыв решения (domain 13.12) | `409` вызов закрыт |
@@ -1716,7 +1717,7 @@ interface NotificationChannel {
 |---|---|---|
 | `GET /api/v1/verify/categories/{handle}` | все, без аутентификации; лимит частоты по адресу | подтверждение категории (domain 12.9): `{status: valid \| superseded \| annulled, statement, signature, signing_key_id, current_grade?}`; без ПДн |
 | `POST /api/v1/verify/categories/{handle}/holder` | все; лимит частоты | `{full_name, nonce}` от предъявителя → `{matches: boolean}`; ни ФИО, ни соль не сохраняются и в журнал не пишутся |
-| `GET /api/v1/operator/objections`, `POST …/{id}/assign`, `POST …/{id}/resolution` | оператор (`objection.manage`, сессия) | очередь возражений, дело попытки, исход `{outcome: upheld \| annulled \| rescored, resolution, rescored_items?: [{seq, score, reason}]}` |
+| `GET /api/v1/operator/objections`, `POST …/{id}/assign`, `POST …/{id}/resolution` | оператор (`objection.manage`, сессия) | очередь возражений по сроку; `assign` — взять в работу (`204`, `409` уже взято другим или закрыто); исход `{outcome: upheld \| annulled \| rescored, resolution, rescored_items?: [{seq, score, reason}]}` — только ответственный оператор, `409` иначе; дело попытки — `/operator/assessments/{attempt_id}` |
 | `GET /api/v1/admin/bank-releases` | администратор | выпуски банка с отчётами ворот и вместимости |
 | `POST /api/v1/eval/jury-runs` | администратор или оценщик (сессия) | режим оценки жюри (раздел 11) |
 
