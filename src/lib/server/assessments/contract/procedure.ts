@@ -40,8 +40,12 @@ export interface OperatingAcceptance {
 
 /** The model of answers the acceptance of whole trajectories is computed under (domain 10.6, «модель ответов»). */
 export interface TrajectoryModel {
-	/** Angoff estimate of every computed item. */
-	itemAngoff: number;
+	/**
+	 * Profiles of the Angoff estimates of computed items: a simulated attempt draws each item's estimate from one profile.
+	 * Real banks put cuts anywhere from 0.45 to 0.65 and mix neighbouring values within a grade; the integer bands make
+	 * the characteristic depend on the cut, so the acceptance holds for every profile, not for one convenient cut.
+	 */
+	itemAngoffProfiles: readonly (readonly number[])[];
 	/** Angoff estimate of the practice cluster: the practice is designed to be passed by the borderline candidate. */
 	practiceAngoff: number;
 	/** Hidden test groups of a practice program. */
@@ -60,10 +64,12 @@ export interface ProcedureParams {
 	alpha: number;
 	beta: number;
 	/**
-	 * Forced decision bands in fortieths of a point per item: at `nMax` the difference S − C decides when
-	 * `2·(S₂₀ − C₂₀) ≥ atMax·n` (or ≤ −atMax·n); after the extension — with `final`.
+	 * Forced decision bands in fortieths of a point per item. At `nMax`: confirmed when `2·(S₂₀ − C₂₀) ≥ atMax·n`, not
+	 * confirmed when `≤ −atMax·n`, otherwise the extension. After the extension: confirmed when `≥ finalConfirm·n`, not
+	 * confirmed when `≤ −finalReject·n`, otherwise «не определено» — with `finalReject = 0` a score at or under the cut is
+	 * «не подтверждено», and «не определено» means «above the cut, but not by the band».
 	 */
-	bands: { atMax: number; final: number };
+	bands: { atMax: number; finalConfirm: number; finalReject: number };
 	/** A confirmed result is confident when S₂₀ − C₂₀ ≥ confidentMargin·n (twentieths per item: 3 = 0.15). */
 	confidentMargin: number;
 	/** Margin of a block's verdict «выше / ниже порога» in the explanation, in twentieths of a point (10 = 0.5). */
@@ -92,6 +98,15 @@ export interface ProcedureParams {
 	/** Acceptance of whole trajectories under `model`: practice gate, defining blocks, real plans of the catalog. */
 	trajectoryAcceptance: OperatingAcceptance & {
 		model: TrajectoryModel;
+		/**
+		 * The settlement of a Monte Carlo estimate, fixed in advance: every grade is simulated at `runSchedule[0]` attempts
+		 * per point; while some check of the grade lies within `settleZ` standard errors of its bound (the error taken at
+		 * the bound, `acceptanceCheckSettled`), the grade is simulated again at the next count of the schedule. The
+		 * estimate decides only when every check is settled or the last count is reached, so a release is accepted or
+		 * refused by its bank, not by the seed of the simulation.
+		 */
+		runSchedule: readonly number[];
+		settleZ: number;
 		/** P(подтверждено) of a candidate at the cut + 0.15 whose one defining block is at the cut − 0.40. */
 		weakDefiningBlockConfirmMax: number;
 		consistencyMin: readonly { shift: number; min: number }[];
@@ -99,50 +114,68 @@ export interface ProcedureParams {
 }
 
 export const PROCEDURE: ProcedureParams = {
-	version: 'sprt-2',
+	version: 'sprt-3',
 	delta: 0.45,
 	alpha: 0.1,
 	beta: 0.1,
-	bands: { atMax: 2, final: 1 },
+	bands: { atMax: 2, finalConfirm: 1, finalReject: 0 },
 	confidentMargin: 3,
 	blockVerdictMargin: 10,
 	definingMinItems: 3,
 	definingFailMargin: 6,
 	grades: {
-		intern: { nMin: 6, nMax: 11, extension: 4 },
-		junior: { nMin: 6, nMax: 11, extension: 6 },
-		middle: { nMin: 6, nMax: 11, extension: 6 },
-		senior: { nMin: 6, nMax: 11, extension: 6 }
+		intern: { nMin: 6, nMax: 14, extension: 3 },
+		junior: { nMin: 6, nMax: 14, extension: 3 },
+		middle: { nMin: 6, nMax: 14, extension: 3 },
+		senior: { nMin: 6, nMax: 14, extension: 3 }
 	},
 	homogeneousAcceptance: {
 		cuts: [0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8],
-		falseConfirmMax: { intern: 0.15, junior: 0.14, middle: 0.14, senior: 0.14 },
-		trueConfirmMin: { intern: 0.82, junior: 0.83, middle: 0.83, senior: 0.83 },
-		undeterminedMax: 0.13,
+		falseConfirmMax: { intern: 0.11, junior: 0.11, middle: 0.11, senior: 0.11 },
+		trueConfirmMin: { intern: 0.86, junior: 0.86, middle: 0.86, senior: 0.86 },
+		undeterminedMax: 0.2,
 		indifferenceErrorsMax: {
-			intern: { atP0Confirmed: 0.26, atP1NotConfirmed: 0.25 },
-			junior: { atP0Confirmed: 0.24, atP1NotConfirmed: 0.24 },
-			middle: { atP0Confirmed: 0.24, atP1NotConfirmed: 0.24 },
-			senior: { atP0Confirmed: 0.24, atP1NotConfirmed: 0.24 }
+			intern: { atP0Confirmed: 0.2, atP1NotConfirmed: 0.22 },
+			junior: { atP0Confirmed: 0.2, atP1NotConfirmed: 0.22 },
+			middle: { atP0Confirmed: 0.2, atP1NotConfirmed: 0.22 },
+			senior: { atP0Confirmed: 0.2, atP1NotConfirmed: 0.22 }
 		},
 		biasSensitivity: [
-			{ bias: -0.1, falseConfirmMax: 0.04, trueConfirmMin: 0.55 },
-			{ bias: -0.05, falseConfirmMax: 0.08, trueConfirmMin: 0.7 },
-			{ bias: 0.05, falseConfirmMax: 0.25, trueConfirmMin: 0.9 },
-			{ bias: 0.1, falseConfirmMax: 0.38, trueConfirmMin: 0.95 }
+			{ bias: -0.1, falseConfirmMax: 0.03, trueConfirmMin: 0.57 },
+			{ bias: -0.05, falseConfirmMax: 0.06, trueConfirmMin: 0.76 },
+			{ bias: 0.05, falseConfirmMax: 0.21, trueConfirmMin: 0.93 },
+			{ bias: 0.1, falseConfirmMax: 0.35, trueConfirmMin: 0.97 }
 		],
 		consistencyMin: [
-			{ shift: -0.15, min: 0.65 },
-			{ shift: 0, min: 0.39 },
-			{ shift: 0.15, min: 0.69 }
+			{ shift: -0.15, min: 0.76 },
+			{ shift: 0, min: 0.36 },
+			{ shift: 0.15, min: 0.76 }
 		]
 	},
 	trajectoryAcceptance: {
-		model: { itemAngoff: 0.6, practiceAngoff: 0.8, practiceGroups: 5, rho: 0.5, changeStepWeight: 0.3 },
+		model: {
+			itemAngoffProfiles: [
+				[0.45],
+				[0.5],
+				[0.55],
+				[0.6],
+				[0.65],
+				[0.45, 0.5, 0.55],
+				[0.5, 0.55],
+				[0.55, 0.6, 0.65],
+				[0.6, 0.65]
+			],
+			practiceAngoff: 0.8,
+			practiceGroups: 5,
+			rho: 0.5,
+			changeStepWeight: 0.3
+		},
+		runSchedule: [1000, 4000, 16000],
+		settleZ: 3,
 		falseConfirmMax: { intern: 0.1, junior: 0.1, middle: 0.1, senior: 0.1 },
 		trueConfirmMin: { intern: 0.75, junior: 0.75, middle: 0.75, senior: 0.75 },
 		undeterminedMax: 0.12,
-		weakDefiningBlockConfirmMax: 0.3,
+		weakDefiningBlockConfirmMax: 0.35,
 		consistencyMin: [
 			{ shift: -0.15, min: 0.78 },
 			{ shift: 0.15, min: 0.62 }
@@ -428,8 +461,8 @@ export function nextStep(
 		return { kind: 'extend' };
 	}
 	if (n === nMax + extension) {
-		if (doubled >= params.bands.final * n) return decided('confirmed', 'forced_upper_final');
-		if (doubled <= -params.bands.final * n) return decided('not_confirmed', 'forced_lower_final');
+		if (doubled >= params.bands.finalConfirm * n) return decided('confirmed', 'forced_upper_final');
+		if (doubled <= -params.bands.finalReject * n) return decided('not_confirmed', 'forced_lower_final');
 		return decided('undetermined', 'band_after_extension');
 	}
 	return { kind: 'continue' };
@@ -500,8 +533,12 @@ export function operatingPoint(params: ProcedureParams, grade: GradeKey, cut: nu
 				if (doubled >= params.bands.atMax * n) outcome = 'confirmed';
 				else if (doubled <= -params.bands.atMax * n) outcome = 'not_confirmed';
 			} else if (n === nMax + extension) {
-				const band = params.bands.final * n;
-				outcome = doubled >= band ? 'confirmed' : doubled <= -band ? 'not_confirmed' : 'undetermined';
+				outcome =
+					doubled >= params.bands.finalConfirm * n
+						? 'confirmed'
+						: doubled <= -params.bands.finalReject * n
+							? 'not_confirmed'
+							: 'undetermined';
 			}
 			if (outcome === null) {
 				alive.set(s, probability);
@@ -527,7 +564,7 @@ export function decisionConsistency(point: OperatingPoint): number {
 /** A small reproducible generator of uniform numbers (sfc32) from four 32-bit words. */
 export function seededRandom(seed: readonly [number, number, number, number]): () => number {
 	let [a, b, c, d] = seed.map((x) => x >>> 0) as [number, number, number, number];
-	return () => {
+	const next = () => {
 		const t = (((a + b) >>> 0) + d) >>> 0;
 		d = (d + 1) >>> 0;
 		a = b ^ (b >>> 9);
@@ -536,7 +573,12 @@ export function seededRandom(seed: readonly [number, number, number, number]): (
 		c = (c + t) >>> 0;
 		return t / 4294967296;
 	};
+	// The first outputs of sfc32 follow small seeds closely (seed [1, 0, 0, 0] starts at ≈0): they are discarded.
+	for (let i = 0; i < SEED_WARMUP; i += 1) next();
+	return next;
 }
+
+const SEED_WARMUP = 15;
 
 /** Gamma(shape, 1) by Marsaglia–Tsang (with the boost for shape < 1). */
 function gamma(random: () => number, shape: number): number {
@@ -564,9 +606,110 @@ export interface SimulatedPoint extends OperatingPoint {
 	runs: number;
 }
 
+/** One bound of the acceptance against one Monte Carlo estimate. */
+export interface AcceptanceCheck {
+	/** What is checked, as the problem names it: `false confirmation`, `undetermined at 0`, `consistency at 0.15`. */
+	label: string;
+	estimate: number;
+	bound: number;
+	/** `max`: the estimate must not exceed the bound; `min`: must not fall under it. */
+	side: 'max' | 'min';
+	runs: number;
+	/**
+	 * Variance of the estimate at the bound b, in units of b(1 − b)/runs: 1 for a share; 2 for a consistency
+	 * Σ aᵢbᵢ of two independent shares (each of the two terms of its delta-method variance is at most c(1 − c)/runs).
+	 */
+	spread: 1 | 2;
+}
+
+export function acceptanceCheckPasses(check: AcceptanceCheck): boolean {
+	return check.side === 'max' ? check.estimate <= check.bound : check.estimate >= check.bound;
+}
+
+/** The estimate is at least `z` standard errors (taken at the bound) away from the bound. */
+export function acceptanceCheckSettled(check: AcceptanceCheck, z: number): boolean {
+	const error = Math.sqrt((check.spread * check.bound * (1 - check.bound)) / check.runs);
+	return Math.abs(check.estimate - check.bound) >= z * error;
+}
+
+/**
+ * The checks of `trajectoryAcceptance` on the points of one grade (shares of the first attempt at each shift) and the
+ * consistency of two attempts at the shifts of `consistencyMin`; a missing point gives no check (the report's
+ * validation names it).
+ */
+export function trajectoryChecks(
+	params: ProcedureParams,
+	grade: GradeKey,
+	points: readonly { shift: number; runs: number; confirmed: number; undetermined: number }[],
+	consistency: readonly { shift: number; value: number }[]
+): AcceptanceCheck[] {
+	const acceptance = params.trajectoryAcceptance;
+	const at = (shift: number) => points.find((p) => Math.abs(p.shift - shift) < 1e-9);
+	const checks: AcceptanceCheck[] = [];
+	const low = at(-0.15);
+	const high = at(0.15);
+	if (low) {
+		checks.push({
+			label: 'false confirmation',
+			estimate: low.confirmed,
+			bound: acceptance.falseConfirmMax[grade],
+			side: 'max',
+			runs: low.runs,
+			spread: 1
+		});
+	}
+	if (high) {
+		checks.push({
+			label: 'true confirmation',
+			estimate: high.confirmed,
+			bound: acceptance.trueConfirmMin[grade],
+			side: 'min',
+			runs: high.runs,
+			spread: 1
+		});
+	}
+	for (const point of points) {
+		checks.push({
+			label: `undetermined at ${point.shift}`,
+			estimate: point.undetermined,
+			bound: acceptance.undeterminedMax,
+			side: 'max',
+			runs: point.runs,
+			spread: 1
+		});
+	}
+	for (const { shift, min } of acceptance.consistencyMin) {
+		const value = consistency.find((c) => Math.abs(c.shift - shift) < 1e-9)?.value;
+		const point = at(shift);
+		if (value === undefined || !point) continue;
+		checks.push({
+			label: `consistency at ${shift}`,
+			estimate: value,
+			bound: min,
+			side: 'min',
+			runs: point.runs,
+			spread: 2
+		});
+	}
+	return checks;
+}
+
+/**
+ * The count of attempts per point the grade needs next under `runSchedule`: null when the checks made at `runs` decide
+ * (every one settled, or `runs` is the last count).
+ */
+export function nextRunCount(params: ProcedureParams, runs: number, checks: readonly AcceptanceCheck[]): number | null {
+	const { runSchedule, settleZ } = params.trajectoryAcceptance;
+	const index = runSchedule.indexOf(runs);
+	if (index < 0) throw new ProcedureError(`${runs} runs are not on the schedule ${runSchedule.join(', ')}`);
+	const next = runSchedule[index + 1];
+	if (next === undefined || checks.every((check) => acceptanceCheckSettled(check, settleZ))) return null;
+	return next;
+}
+
 /**
  * Monte Carlo of whole trajectories of one grade definition under `model`: the plan's slots in order, items with chance
- * `itemAngoff + shift` (one defining block may be shifted further by `definingBlockShift`), the practice cluster scored as
+ * `angoff + shift`, the estimate drawn per item from `profile` (one defining block may be shifted further by `definingBlockShift`), the practice cluster scored as
  * the share of `practiceGroups` groups passed with a common latent chance q ~ Beta(mean `practiceAngoff + shift`, ICC
  * `rho`) and, from Middle up, the change step weighted in; every step decided by `nextStep` itself.
  */
@@ -577,7 +720,12 @@ export function simulateTrajectories(
 	model: TrajectoryModel,
 	shift: number,
 	runs: number,
-	options: { seed: readonly [number, number, number, number]; definingBlockShift?: number }
+	options: {
+		seed: readonly [number, number, number, number];
+		/** The Angoff estimates the items draw from (one of `model.itemAngoffProfiles`). */
+		profile: readonly number[];
+		definingBlockShift?: number;
+	}
 ): SimulatedPoint {
 	const random = seededRandom(options.seed);
 	const weakBlock = definition.defining[0];
@@ -603,8 +751,10 @@ export function simulateTrajectories(
 			} else {
 				const extra =
 					options.definingBlockShift !== undefined && slot.block === weakBlock ? options.definingBlockShift : 0;
-				const success = random() < clip(model.itemAngoff + shift + extra);
-				clusters.push({ block: slot.block, angoff: model.itemAngoff, score: success ? 1 : 0, practice: false });
+				const angoff = options.profile[Math.floor(random() * options.profile.length)];
+				if (angoff === undefined) throw new ProcedureError('an empty Angoff profile');
+				const success = random() < clip(angoff + shift + extra);
+				clusters.push({ block: slot.block, angoff, score: success ? 1 : 0, practice: false });
 			}
 			const step = nextStep(params, definition, clusters);
 			if (step.kind === 'decided') {

@@ -18,8 +18,10 @@ import {
 	PROCEDURE,
 	exhaustedDecision,
 	maxLength,
+	nextRunCount,
 	nextStep,
 	seededRandom,
+	trajectoryChecks,
 	type ClusterResult,
 	type DecisionOutcome,
 	type GradeDecision,
@@ -31,8 +33,6 @@ import { chooseForSlot, seenKey, slotsOf, type AttemptForm } from './select.ts';
 
 /** Shifts the report carries: the two the acceptance reads and the cut itself. */
 export const REPORT_SHIFTS = [-0.15, 0, 0.15] as const;
-/** Runs per point: the contract asks for at least 1000. */
-export const REPORT_RUNS = 1000;
 
 /** A reproducible generator from a string label (the contract's sfc32, seeded by SHA-256 of the label). */
 export function labelRandom(label: string): () => number {
@@ -192,6 +192,9 @@ const agreement = (a: Shares, b: Shares): number =>
  * The trajectory report of a release (`TrajectoryReport` of the contract), every grade, A then the retake on B. The runs
  * draw from `seed`, not from the id of the release: the same content under the same procedure gives the same report
  * whatever number the release gets, so a report made once is reused for that content (`scripts/release-bank.ts`).
+ * Each grade follows the contract's `runSchedule`: it is extended to the next count while some check is within the
+ * Monte Carlo error of its bound (`nextRunCount`); run i of a point is the same at any count. `runs` fixes one count
+ * instead (the report is then valid only if that count settles it).
  */
 export function trajectoryReport(
 	{ releaseId, seed }: { releaseId: string; seed: string },
@@ -200,49 +203,63 @@ export function trajectoryReport(
 	options: { runs?: number; shifts?: readonly number[]; params?: ProcedureParams } = {}
 ): TrajectoryReport {
 	const params = options.params ?? PROCEDURE;
-	const runs = options.runs ?? REPORT_RUNS;
 	const shifts = options.shifts ?? REPORT_SHIFTS;
 	const { rho, practiceGroups } = params.trajectoryAcceptance.model;
 	const shiftsOfConsistency = params.trajectoryAcceptance.consistencyMin.map((c) => c.shift);
+	const allShifts = [...new Set([...shifts, ...shiftsOfConsistency])].sort((a, b) => a - b);
 	const grades = GRADE_KEYS.map((grade) => {
-		const points = [];
-		const consistency = [];
-		for (const shift of [...new Set([...shifts, ...shiftsOfConsistency])].sort((a, b) => a - b)) {
-			const first: DecisionOutcome[] = [];
-			const retake: DecisionOutcome[] = [];
-			for (let run = 0; run < runs; run += 1) {
-				const label = `${seed}:${grade}:${shift}:${run}`;
-				const random = labelRandom(label);
-				const score: ClusterScorer = (instance, family, angoff) =>
-					simulatedScore(instance, family, angoff, shift, rho, random);
-				const a = runAttempt({
-					families,
-					specialization,
-					grade,
-					form: 'A',
-					seen: new Set(),
-					attemptSeed: `${label}:A`,
-					score,
-					params
-				});
-				const b = runAttempt({
-					families,
-					specialization,
-					grade,
-					form: 'B',
-					seen: new Set(a.served),
-					attemptSeed: `${label}:B`,
-					score,
-					params
-				});
-				first.push(a.decision.outcome);
-				retake.push(b.decision.outcome);
+		const outcomes = new Map(
+			allShifts.map((shift) => [shift, { first: [] as DecisionOutcome[], retake: [] as DecisionOutcome[] }])
+		);
+		const simulate = (runs: number) => {
+			const points = [];
+			const consistency = [];
+			for (const shift of allShifts) {
+				const kept = outcomes.get(shift);
+				if (!kept) throw new Error(`no outcomes kept for the shift ${shift}`);
+				const { first, retake } = kept;
+				for (let run = first.length; run < runs; run += 1) {
+					const label = `${seed}:${grade}:${shift}:${run}`;
+					const random = labelRandom(label);
+					const score: ClusterScorer = (instance, family, angoff) =>
+						simulatedScore(instance, family, angoff, shift, rho, random);
+					const a = runAttempt({
+						families,
+						specialization,
+						grade,
+						form: 'A',
+						seen: new Set(),
+						attemptSeed: `${label}:A`,
+						score,
+						params
+					});
+					const b = runAttempt({
+						families,
+						specialization,
+						grade,
+						form: 'B',
+						seen: new Set(a.served),
+						attemptSeed: `${label}:B`,
+						score,
+						params
+					});
+					first.push(a.decision.outcome);
+					retake.push(b.decision.outcome);
+				}
+				const sharesA = tally(first);
+				if (shifts.includes(shift)) points.push({ shift, runs, ...sharesA });
+				if (shiftsOfConsistency.includes(shift)) consistency.push({ shift, value: agreement(sharesA, tally(retake)) });
 			}
-			const sharesA = tally(first);
-			if (shifts.includes(shift)) points.push({ shift, runs, ...sharesA });
-			if (shiftsOfConsistency.includes(shift)) consistency.push({ shift, value: agreement(sharesA, tally(retake)) });
+			return { grade, points, consistency };
+		};
+		if (options.runs !== undefined) return simulate(options.runs);
+		let runs: number | null = params.trajectoryAcceptance.runSchedule[0] ?? null;
+		if (runs === null) throw new Error('an empty run schedule');
+		for (;;) {
+			const entry = simulate(runs);
+			runs = nextRunCount(params, runs, trajectoryChecks(params, grade, entry.points, entry.consistency));
+			if (runs === null) return entry;
 		}
-		return { grade, points, consistency };
 	});
 	return { releaseId, procedureVersion: params.version, model: { rho, practiceGroups }, grades };
 }

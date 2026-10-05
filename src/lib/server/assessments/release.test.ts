@@ -202,10 +202,13 @@ describe('release assembly', () => {
 		expect(await simulationSha256()).toMatch(/^[0-9a-f]{64}$/);
 	});
 
-	it('checks the trajectory report it makes: too few runs per point keep the release out', () => {
+	it('checks the trajectory report it makes: a count of runs off the schedule keeps the release out', () => {
 		const assembled = assembleRelease('frontend', fixtureFamilies('frontend'), SHARED, 1, { runs: 200 });
 		expect(
-			assembled.problems.some((p) => p.code === 'defect' && p.message.includes('has 200 runs, 1000 required'))
+			assembled.problems.some(
+				(p) =>
+					p.code === 'defect' && p.message.includes('has 200 runs per point, one count of 1000, 4000, 16000 required')
+			)
 		).toBe(true);
 	}, 60_000);
 });

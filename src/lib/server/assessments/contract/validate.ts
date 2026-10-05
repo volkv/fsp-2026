@@ -32,7 +32,15 @@ import {
 	type FamilyGates,
 	type ItemInstance
 } from './bank.ts';
-import { SCALE, maxLength, type ProcedureParams, type TrajectoryModel } from './procedure.ts';
+import {
+	SCALE,
+	acceptanceCheckPasses,
+	maxLength,
+	nextRunCount,
+	trajectoryChecks,
+	type ProcedureParams,
+	type TrajectoryModel
+} from './procedure.ts';
 import type { GradePolicy } from './policy.ts';
 
 const text = z.string().trim().min(1);
@@ -106,7 +114,7 @@ const procedureSchema = z.strictObject({
 	delta: z.number().positive(),
 	alpha: z.number().gt(0).lt(0.5),
 	beta: z.number().gt(0).lt(0.5),
-	bands: z.strictObject({ atMax: positiveInt, final: positiveInt }),
+	bands: z.strictObject({ atMax: positiveInt, finalConfirm: positiveInt, finalReject: z.int().min(0) }),
 	confidentMargin: positiveInt,
 	blockVerdictMargin: positiveInt,
 	definingMinItems: positiveInt,
@@ -134,13 +142,18 @@ const procedureSchema = z.strictObject({
 	trajectoryAcceptance: z.strictObject({
 		...acceptanceSchema,
 		model: z.strictObject({
-			itemAngoff: scaledShare,
+			itemAngoffProfiles: z.array(z.array(scaledShare.refine((x) => x > 0 && x < 1, 'in (0, 1)')).min(1)).min(1),
 			practiceAngoff: scaledShare,
 			practiceGroups: positiveInt,
 			rho: share,
 			changeStepWeight: scaledShare
 		}),
 		weakDefiningBlockConfirmMax: share,
+		runSchedule: z
+			.array(positiveInt)
+			.min(1)
+			.refine((counts) => counts.every((n, i) => i === 0 || n > (counts[i - 1] ?? 0)), 'strictly increasing'),
+		settleZ: z.number().positive(),
 		consistencyMin: consistency
 	})
 });
@@ -755,8 +768,6 @@ export interface TrajectoryReport {
 	}[];
 }
 
-const RUNS_MIN = 1000;
-
 /** The release's trajectory report against `trajectoryAcceptance`: every grade, every bound, enough runs. */
 export function trajectoryReportProblems(
 	report: TrajectoryReport,
@@ -780,24 +791,31 @@ function trajectoryDefects(report: TrajectoryReport, release: BankRelease, proce
 			problems.push(`${where}: no ${g}`);
 			continue;
 		}
-		const low = at(entry.points, -0.15);
-		const high = at(entry.points, 0.15);
-		if (!low || !high) problems.push(`${where}: ${g} lacks the points at −0.15 and +0.15`);
-		if (low && low.confirmed > acceptance.falseConfirmMax[g])
-			problems.push(`${where}: ${g} false confirmation ${low.confirmed} > ${acceptance.falseConfirmMax[g]}`);
-		if (high && high.confirmed < acceptance.trueConfirmMin[g])
-			problems.push(`${where}: ${g} true confirmation ${high.confirmed} < ${acceptance.trueConfirmMin[g]}`);
-		for (const point of entry.points) {
-			if (point.runs < RUNS_MIN)
-				problems.push(`${where}: ${g} at ${point.shift} has ${point.runs} runs, ${RUNS_MIN} required`);
-			if (point.undetermined > acceptance.undeterminedMax)
-				problems.push(`${where}: ${g} at ${point.shift} undetermined ${point.undetermined}`);
+		if (!at(entry.points, -0.15) || !at(entry.points, 0.15))
+			problems.push(`${where}: ${g} lacks the points at −0.15 and +0.15`);
+		const checks = trajectoryChecks(procedure, g, entry.points, entry.consistency);
+		for (const { shift } of acceptance.consistencyMin) {
+			if (!checks.some((c) => c.label === `consistency at ${shift}`))
+				problems.push(`${where}: ${g} consistency at ${shift} is missing`);
 		}
-		for (const { shift, min } of acceptance.consistencyMin) {
-			const value = entry.consistency.find((c) => Math.abs(c.shift - shift) < 1e-9)?.value;
-			if (value === undefined || value < min)
-				problems.push(`${where}: ${g} consistency at ${shift} is ${value ?? 'missing'}, ${min} required`);
+		for (const check of checks) {
+			if (acceptanceCheckPasses(check)) continue;
+			problems.push(
+				`${where}: ${g} ${check.label} ${check.estimate} ${check.side === 'max' ? '>' : '<'} ${check.bound}`
+			);
 		}
+		const counts = [...new Set(entry.points.map((p) => p.runs))];
+		const runs = counts[0];
+		if (runs === undefined) continue;
+		if (counts.length > 1 || !acceptance.runSchedule.includes(runs)) {
+			problems.push(
+				`${where}: ${g} has ${counts.join(', ')} runs per point, one count of ${acceptance.runSchedule.join(', ')} required`
+			);
+			continue;
+		}
+		const next = nextRunCount(procedure, runs, checks);
+		if (next !== null)
+			problems.push(`${where}: ${g} is within the Monte Carlo error of a bound at ${runs} runs, ${next} required`);
 	}
 	return problems;
 }

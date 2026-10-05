@@ -228,8 +228,8 @@ function passingReport(r: BankRelease): TrajectoryReport {
 		grades: GRADE_KEYS.map((grade) => ({
 			grade,
 			points: [
-				{ shift: -0.15, runs: 2000, confirmed: 0.07, undetermined: 0.06, notConfirmed: 0.87 },
-				{ shift: 0.15, runs: 2000, confirmed: 0.79, undetermined: 0.06, notConfirmed: 0.15 }
+				{ shift: -0.15, runs: 4000, confirmed: 0.07, undetermined: 0.06, notConfirmed: 0.87 },
+				{ shift: 0.15, runs: 4000, confirmed: 0.79, undetermined: 0.06, notConfirmed: 0.15 }
 			],
 			consistency: [
 				{ shift: -0.15, value: 0.81 },
@@ -279,11 +279,11 @@ describe('bank release', () => {
 		);
 		expect(sizes).toEqual({
 			backend: [20, 23, 23, 21],
-			frontend: [18, 23, 21, 21],
-			mobile: [19, 21, 24, 19],
-			data_ml: [17, 23, 22, 19],
+			frontend: [20, 23, 21, 21],
+			mobile: [21, 21, 24, 19],
+			data_ml: [20, 23, 22, 19],
 			qa: [18, 21, 22, 21],
-			devops: [17, 23, 21, 19]
+			devops: [19, 23, 21, 19]
 		});
 	});
 
@@ -298,7 +298,7 @@ describe('bank release', () => {
 		counts.set('intern|be.algo', 3);
 		const r = release('backend', counts);
 		const problems = releaseProblems(r, PROCEDURE, passingReport(r));
-		expect(problems).toContain('release backend@2026.10.2-1: be.algo@intern has 3 families, a block test needs 4');
+		expect(problems).toContain('release backend@2026.10.3-1: be.algo@intern has 3 families, a block test needs 4');
 		expect(problems.some((p) => p.includes('block:be.algo in be.algo'))).toBe(true);
 	});
 
@@ -339,10 +339,30 @@ describe('bank release', () => {
 			)
 		};
 		expect(releaseProblems({ ...r, sharedSha256: 'x' }, PROCEDURE, bad)).toEqual([
-			'release backend@2026.10.2-1: sharedSha256 is not a SHA-256',
-			'trajectory report of backend@2026.10.2-1: middle true confirmation 0.6 < 0.75',
-			'trajectory report of backend@2026.10.2-1: middle at 0.15 has 500 runs, 1000 required'
+			'release backend@2026.10.3-1: sharedSha256 is not a SHA-256',
+			'trajectory report of backend@2026.10.3-1: middle true confirmation 0.6 < 0.75',
+			'trajectory report of backend@2026.10.3-1: middle has 4000, 500 runs per point, one count of 1000, 4000, 16000 required'
 		]);
+	});
+	it('settles a trajectory report by the schedule fixed in advance, not by the seed', () => {
+		const r = release('backend', minimalCounts('backend'));
+		const report = passingReport(r);
+		// False confirmation 0.088 against the bound 0.10: within three standard errors at 1000 and 4000 runs, settled at 16000.
+		const at = (runs: number): TrajectoryReport => ({
+			...report,
+			grades: report.grades.map((g) =>
+				g.grade === 'intern'
+					? { ...g, points: g.points.map((p) => ({ ...p, runs, ...(p.shift < 0 ? { confirmed: 0.088 } : {}) })) }
+					: g
+			)
+		});
+		expect(releaseProblems(r, PROCEDURE, at(1000))).toEqual([
+			'trajectory report of backend@2026.10.3-1: intern is within the Monte Carlo error of a bound at 1000 runs, 4000 required'
+		]);
+		expect(releaseProblems(r, PROCEDURE, at(4000))).toEqual([
+			'trajectory report of backend@2026.10.3-1: intern is within the Monte Carlo error of a bound at 4000 runs, 16000 required'
+		]);
+		expect(releaseProblems(r, PROCEDURE, at(16000))).toEqual([]);
 	});
 });
 

@@ -167,7 +167,7 @@ const SENIOR_DOES_NOT_CHECK = [
 ] as const;
 
 export const CATALOG: Catalog = {
-	version: '2026.10.2',
+	version: '2026.10.3',
 	directions: [
 		{ key: 'development', title: 'Разработка' },
 		{ key: 'data', title: 'Данные и машинное обучение' },
@@ -653,8 +653,8 @@ export const CATALOG: Catalog = {
 			blocks: [
 				{ block: 'be.lang', items: 5 },
 				{ block: 'be.algo', items: 3 },
-				{ block: 'be.db', items: 3 },
-				{ block: 'be.debug', items: 3 },
+				{ block: 'be.db', items: 4 },
+				{ block: 'be.debug', items: 4 },
 				{ block: 'be.api', items: 1 },
 				{ block: 'be.code', items: 1 }
 			],
@@ -742,9 +742,9 @@ export const CATALOG: Catalog = {
 			],
 			blocks: [
 				{ block: 'fe.js', items: 6 },
-				{ block: 'fe.async', items: 3 },
+				{ block: 'fe.async', items: 4 },
 				{ block: 'fe.dom', items: 4 },
-				{ block: 'fe.state', items: 2 },
+				{ block: 'fe.state', items: 3 },
 				{ block: 'fe.code', items: 1 }
 			],
 			practice: { block: 'fe.code', position: 4, changeStep: false, gateMinScore: 0.4 },
@@ -831,8 +831,8 @@ export const CATALOG: Catalog = {
 			blocks: [
 				{ block: 'mob.kotlin', items: 7 },
 				{ block: 'mob.lifecycle', items: 3 },
-				{ block: 'mob.ui', items: 3 },
-				{ block: 'mob.data', items: 2 },
+				{ block: 'mob.ui', items: 4 },
+				{ block: 'mob.data', items: 3 },
 				{ block: 'mob.code', items: 1 }
 			],
 			practice: { block: 'mob.code', position: 4, changeStep: false, gateMinScore: 0.4 },
@@ -920,8 +920,8 @@ export const CATALOG: Catalog = {
 			blocks: [
 				{ block: 'ds.stats', items: 5 },
 				{ block: 'ds.metrics', items: 4 },
-				{ block: 'ds.data', items: 4 },
-				{ block: 'ds.sql', items: 2 },
+				{ block: 'ds.data', items: 5 },
+				{ block: 'ds.sql', items: 3 },
 				{ block: 'ds.code', items: 1 }
 			],
 			practice: { block: 'ds.code', position: 4, changeStep: false, gateMinScore: 0.4 },
@@ -1007,8 +1007,8 @@ export const CATALOG: Catalog = {
 			],
 			blocks: [
 				{ block: 'qa.design', items: 6 },
-				{ block: 'qa.defects', items: 4 },
-				{ block: 'qa.api', items: 3 },
+				{ block: 'qa.defects', items: 5 },
+				{ block: 'qa.api', items: 4 },
 				{ block: 'qa.sql', items: 2 },
 				{ block: 'qa.mutants', items: 1 }
 			],
@@ -1095,8 +1095,8 @@ export const CATALOG: Catalog = {
 			blocks: [
 				{ block: 'ops.linux', items: 6 },
 				{ block: 'ops.net', items: 4 },
-				{ block: 'ops.containers', items: 4 },
-				{ block: 'ops.cicd', items: 1 },
+				{ block: 'ops.containers', items: 5 },
+				{ block: 'ops.cicd', items: 2 },
 				{ block: 'ops.code', items: 1 }
 			],
 			practice: { block: 'ops.code', position: 4, changeStep: false, gateMinScore: 0.4 },

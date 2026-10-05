@@ -13,6 +13,10 @@ import {
 	operatingPoint,
 	redecide,
 	simulateTrajectories,
+	acceptanceCheckPasses,
+	nextRunCount,
+	trajectoryChecks,
+	type AcceptanceCheck,
 	type ClusterResult,
 	type DecisionRule,
 	type ProcedureParams
@@ -131,27 +135,27 @@ describe('exact operating characteristic (homogeneous binary items)', () => {
 			expect(confirmed).toBeCloseTo(exact.confirmed, 12);
 			expect(undetermined).toBeCloseTo(exact.undetermined, 12);
 		}
-	});
+	}, 120_000);
 });
 
 describe('integer arithmetic of the bands', () => {
 	it('decides exactly on the band (inclusive), whatever the order of the items', () => {
-		// Far boundaries leave the decision to the band: at nMax = 11 it is 2·(S₂₀ − C₂₀) ≥ 2·11.
+		// Far boundaries leave the decision to the band: at nMax = 14 it is 2·(S₂₀ − C₂₀) ≥ 2·14.
 		const params: ProcedureParams = { ...PROCEDURE, alpha: 1e-6, beta: 1e-6, definingFailMargin: 20 };
 		const definition = gradeDefinition('backend', 'junior');
-		// Angoff 0.6 on 11 items: C₂₀ = 132; seven right answers and one at 0.15 give S₂₀ = 143 = C₂₀ + 11, on the band.
-		const onBand = [1, 1, 1, 0, 1, 0, 1, 0, 1, 0.15, 1];
-		const reordered = [0, 1, 0.15, 1, 1, 0, 1, 1, 0, 1, 1];
-		const under = [1, 1, 1, 0, 1, 0, 1, 0, 1, 0.1, 1];
+		// Angoff 0.6 on 14 items: C₂₀ = 168; nine right answers and one at 0.1 give S₂₀ = 182 = C₂₀ + 14, on the band.
+		const onBand = [1, 1, 1, 0, 1, 0, 1, 0, 1, 0.1, 1, 0, 1, 1];
+		const reordered = [0, 1, 0.1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1];
+		const under = [1, 1, 1, 0, 1, 0, 1, 0, 1, 0.05, 1, 0, 1, 1];
 		const last = (scores: number[]) => {
 			const { clusters } = trajectory(definition, scores, 1);
 			return nextStep(params, definition, clusters);
 		};
 		expect(last(onBand)).toMatchObject({
 			kind: 'decided',
-			decision: { outcome: 'confirmed', reason: 'forced_upper_at_max', scoreSum: 143, cutSum: 132 }
+			decision: { outcome: 'confirmed', reason: 'forced_upper_at_max', scoreSum: 182, cutSum: 168 }
 		});
-		expect(last(reordered)).toMatchObject({ kind: 'decided', decision: { outcome: 'confirmed', scoreSum: 143 } });
+		expect(last(reordered)).toMatchObject({ kind: 'decided', decision: { outcome: 'confirmed', scoreSum: 182 } });
 		expect(last(under)).toEqual({ kind: 'extend' });
 	});
 
@@ -211,7 +215,7 @@ describe('nextStep', () => {
 
 	it('refuses a confirmation when a defining block fails', () => {
 		// be.db items are slots 1, 3, 6 of the plan; all three wrong, the rest right.
-		const scores = [0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1];
+		const scores = [0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1];
 		const { clusters } = trajectory(definition, scores, 1);
 		let decision = null;
 		for (let k = 1; k <= clusters.length && !decision; k += 1) {
@@ -229,14 +233,25 @@ describe('nextStep', () => {
 		});
 	});
 
-	it('extends inside the band at the end of the main part and ends undetermined inside the final band', () => {
+	it('extends inside the band at the end of the main part; at the end only a margin above the cut is undetermined', () => {
 		const { nMax, extension } = PROCEDURE.grades.senior;
 		const senior = gradeDefinition('backend', 'senior');
 		const even = (n: number) => Array.from({ length: n }, () => 0.6);
-		expect(nextStep(PROCEDURE, senior, trajectory(senior, even(nMax), 1).clusters)).toEqual({ kind: 'extend' });
-		expect(nextStep(PROCEDURE, senior, trajectory(senior, even(nMax + extension), 1).clusters)).toMatchObject({
+		const end = nMax + extension;
+		const final = (scores: number[]) => nextStep(PROCEDURE, senior, trajectory(senior, scores, 1).clusters);
+		expect(final(even(nMax))).toEqual({ kind: 'extend' });
+		// 17 items at Angoff 0.6: C₂₀ = 204. The final band is 0 < 2·(S₂₀ − C₂₀) < 17.
+		expect(final(even(end))).toMatchObject({
 			kind: 'decided',
-			decision: { outcome: 'undetermined', reason: 'band_after_extension', extensionUsed: true }
+			decision: { outcome: 'not_confirmed', reason: 'forced_lower_final', extensionUsed: true }
+		});
+		expect(final([...even(end - 1), 0.85])).toMatchObject({
+			kind: 'decided',
+			decision: { outcome: 'undetermined', reason: 'band_after_extension', scoreSum: 209, cutSum: 204 }
+		});
+		expect(final([...even(end - 2), 1, 1])).toMatchObject({
+			kind: 'decided',
+			decision: { outcome: 'confirmed', reason: 'forced_upper_final', scoreSum: 220 }
 		});
 	});
 
@@ -303,30 +318,75 @@ describe('redecide', () => {
 
 describe('whole trajectories under the answer model', () => {
 	const T = PROCEDURE.trajectoryAcceptance;
-	const RUNS = 2000;
+	const plans = CATALOG.definitions.map((d) => [`${d.specialization} × ${d.grade}`, d] as const);
 
-	it('meets the trajectory acceptance on every plan of the catalog', () => {
-		let seed = 1;
-		for (const definition of CATALOG.definitions) {
-			const slots = slotSequence(definition);
-			const run = (shift: number, extra?: number) =>
-				simulateTrajectories(PROCEDURE, definition, slots, T.model, shift, RUNS, {
-					seed: [seed++, 7, 11, 13],
-					...(extra === undefined ? {} : { definingBlockShift: extra })
-				});
-			const low = run(-0.15);
-			const mid = run(0);
-			const high = run(0.15);
-			const pair = `${definition.specialization} × ${definition.grade}`;
-			expect(low.confirmed, `${pair} FC`).toBeLessThanOrEqual(T.falseConfirmMax[definition.grade]);
-			expect(high.confirmed, `${pair} TC`).toBeGreaterThanOrEqual(T.trueConfirmMin[definition.grade]);
-			for (const point of [low, mid, high]) expect(point.undetermined, pair).toBeLessThanOrEqual(T.undeterminedMax);
-			for (const { shift, min } of T.consistencyMin) {
-				expect(decisionConsistency(shift < 0 ? low : high), `${pair} consistency ${shift}`).toBeGreaterThanOrEqual(min);
-			}
-			expect(run(0.15, -0.55).confirmed, `${pair} weak defining block`).toBeLessThanOrEqual(
-				T.weakDefiningBlockConfirmMax
-			);
+	/**
+	 * Checks of one plan under one profile of Angoff estimates, settled by the contract's own schedule: recomputed at the
+	 * next count while some check is within the Monte Carlo error of its bound.
+	 */
+	function settle(make: (runs: number) => AcceptanceCheck[]): AcceptanceCheck[] {
+		let runs: number | null = T.runSchedule[0] ?? null;
+		let checks: AcceptanceCheck[] = [];
+		while (runs !== null) {
+			checks = make(runs);
+			runs = nextRunCount(PROCEDURE, runs, checks);
 		}
-	});
+		return checks;
+	}
+
+	const simulate = (
+		definition: (typeof CATALOG.definitions)[number],
+		profile: readonly number[],
+		seed: number,
+		runs: number,
+		shift: number,
+		definingBlockShift?: number
+	) =>
+		simulateTrajectories(PROCEDURE, definition, slotSequence(definition), T.model, shift, runs, {
+			seed: [seed, Math.round(shift * 100) + 100, definingBlockShift === undefined ? 0 : 1, runs],
+			profile,
+			...(definingBlockShift === undefined ? {} : { definingBlockShift })
+		});
+
+	it.each(plans)(
+		'%s meets the trajectory acceptance under every profile of Angoff estimates',
+		(_, definition) => {
+			T.model.itemAngoffProfiles.forEach((profile, i) => {
+				const checks = settle((runs) => {
+					const points = [-0.15, 0, 0.15].map((shift) => simulate(definition, profile, i + 1, runs, shift));
+					const consistency = T.consistencyMin.map(({ shift }) => {
+						const point = points.find((p) => p.shift === shift);
+						if (!point) throw new Error(`no point at ${shift}`);
+						return { shift, value: decisionConsistency(point) };
+					});
+					return trajectoryChecks(PROCEDURE, definition.grade, points, consistency);
+				});
+				for (const check of checks) {
+					expect(acceptanceCheckPasses(check), `[${profile.join(', ')}] ${check.label} ${check.estimate}`).toBe(true);
+				}
+			});
+		},
+		120_000
+	);
+
+	it.each(plans)(
+		'%s: a weak defining block keeps the confirmation within its bound under every profile',
+		(_, definition) => {
+			T.model.itemAngoffProfiles.forEach((profile, i) => {
+				const [check] = settle((runs) => [
+					{
+						label: 'weak defining block',
+						estimate: simulate(definition, profile, i + 1, runs, 0.15, -0.55).confirmed,
+						bound: T.weakDefiningBlockConfirmMax,
+						side: 'max',
+						runs,
+						spread: 1
+					}
+				]);
+				if (!check) throw new Error('no check');
+				expect(acceptanceCheckPasses(check), `[${profile.join(', ')}] ${check.label} ${check.estimate}`).toBe(true);
+			});
+		},
+		120_000
+	);
 });
