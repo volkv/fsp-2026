@@ -57,6 +57,7 @@ const candidate = (overrides: Partial<NeedCandidate> = {}): NeedCandidate => ({
 	categories: [backendMiddle()],
 	preferences: { workFormats: [], regionCode: null, relocation: null },
 	tests: new Map(),
+	lastConfirmedAction: null,
 	...overrides
 });
 
@@ -288,6 +289,24 @@ describe('the strength of the confirmed profile', () => {
 		const none = score({ need: null, candidate: candidate({ categories: [] }) });
 		expect(none.score).toBe(0);
 		expect(none.components.test).toMatchObject({ value: 0, reason: 'no_category' });
+	});
+
+	it('refreshes the profile by a submitted solution or a block result, not only by the category (domain 13.12)', () => {
+		const stale = score({ need: null, candidate: candidate() });
+		const solved = score({ need: null, candidate: candidate({ lastConfirmedAction: NOW }) });
+		expect(solved.components.freshness.value).toBe(1);
+		expect(solved.components.freshness.value).toBeGreaterThan(stale.components.freshness.value);
+		// «Подтверждено N дн. назад» names the category only when its assignment is the latest action.
+		expect(solved.reasons.some((reason) => reason.code === 'confirmed_recently')).toBe(false);
+		const older = score({
+			need: null,
+			candidate: candidate({ lastConfirmedAction: new Date(NOW.getTime() - 90 * DAY) })
+		});
+		expect(older.components.freshness.value).toBe(stale.components.freshness.value);
+		const withoutAny = score({ need: null, candidate: candidate({ categories: [] }) });
+		expect(withoutAny.components.freshness).toMatchObject({ value: 0, reason: 'no_confirmed_action' });
+		const onlySolution = score({ need: null, candidate: candidate({ categories: [], lastConfirmedAction: NOW }) });
+		expect(onlySolution.components.freshness).toMatchObject({ value: 1, reason: null });
 	});
 });
 

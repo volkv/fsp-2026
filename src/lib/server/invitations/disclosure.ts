@@ -412,7 +412,7 @@ export async function grantDisclosureByRepresentative(
 				fields: pending.fields
 			}
 		});
-		const effective = await effectiveDisclosure(tx, invitation.candidateId, invitation.id, now);
+		const effective = await effectiveDisclosure(tx, invitation.candidateId, { invitationId: invitation.id }, now);
 		if (!effective) throw new Error(`the disclosure of invitation ${invitation.id} is not in effect after both grants`);
 		const candidateUserId = await candidateUserOf(tx, invitation.candidateId);
 		const result = await finishAcceptance(tx, {

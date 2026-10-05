@@ -71,7 +71,7 @@
 
 <PageHeader
 	title="Вакансии для тебя"
-	description="Никаких откликов вслепую: ты видишь вакансии и своё соответствие им, а контакт начинает работодатель — сразу с вакансией, зарплатой и сроком ответа."
+	description="Ты видишь вакансии и своё соответствие им. Обычно контакт начинает работодатель — сразу с зарплатой и сроком ответа; на вакансию компании платформы можно откликнуться и самому, с тем же соответствием."
 >
 	{#snippet eyebrow()}<a class="underline underline-offset-4" href={resolve('/me/profile')}>Профиль</a>{/snippet}
 	{#snippet actions()}
@@ -79,6 +79,7 @@
 			<InboxIcon aria-hidden="true" />
 			Приглашения
 		</a>
+		<a href={resolve('/me/applications')} class={buttonVariants({ variant: 'outline' })}>Мои отклики</a>
 	{/snippet}
 </PageHeader>
 
@@ -231,6 +232,13 @@
 						<span class="text-muted-foreground">Обязательные навыки:</span>
 						{item.requiredSkillKeys.map((key) => skillName(labels, key)).join(', ')}
 					</p>
+				{/if}
+				{#if item.origin === 'own'}
+					<a
+						class="justify-self-start text-sm text-link underline underline-offset-4"
+						href={resolve('/(app)/me/vacancies/[id]', { id: item.vacancyId })}
+						data-testid="vacancy-apply">Вакансия и отклик</a
+					>
 				{/if}
 				{#if item.invitation}
 					<p class="flex flex-wrap items-center gap-2 text-sm">

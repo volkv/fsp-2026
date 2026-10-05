@@ -86,6 +86,18 @@
 			class={buttonVariants()}>Открыть результат</a
 		>
 	</div>
+{:else if attempt.purpose === 'vacancy_block' && attempt.status === 'decided'}
+	<div class="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4" data-testid="block-decided">
+		<p class="flex items-center gap-2 text-sm">
+			<CircleCheckIcon class="size-4 text-success" aria-hidden="true" />Блок-тест завершён: результат передан компании
+			запроса. Категория не меняется.
+		</p>
+		<a href={resolve('/me/confirmations')} class={buttonVariants()}>Открыть результат</a>
+	</div>
+{:else if attempt.purpose === 'vacancy_block' && attempt.status === 'expired'}
+	<p class="rounded-xl border p-4 text-sm">
+		Время блок-теста истекло до результата. Категория не меняется; запрос компании закроется по сроку.
+	</p>
 {:else if attempt.status === 'expired'}
 	<p class="rounded-xl border p-4 text-sm">
 		Время попытки истекло до решения: попытка засчитывается как неудачная, решения по ней нет.

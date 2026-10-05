@@ -4,7 +4,7 @@
 import { and, asc, desc, eq, inArray } from 'drizzle-orm';
 import type { AccessSubject } from '$lib/server/access/permissions';
 import type { Executor } from '$lib/server/db';
-import { gradeDecisions, testArtifacts, testAttempts, testItems } from '$lib/server/db/schema';
+import { confirmationRequests, gradeDecisions, testArtifacts, testAttempts, testItems } from '$lib/server/db/schema';
 import { ApiError } from '$lib/server/errors/api-error';
 import { openSpecializations, releaseById } from './bank-store';
 import { judgementProvenance, type ItemInstance, type JudgementProvenance } from './contract/bank';
@@ -20,6 +20,8 @@ import { gradeSources } from '$lib/server/grades/sources';
 
 export interface AttemptSummary {
 	id: string;
+	/** `vacancy_block` — the block test of an employer's request (domain 13.11): no grade decision, a block result. */
+	purpose: (typeof testAttempts.$inferSelect)['purpose'];
 	specialization: SpecializationKey;
 	grade: GradeKey;
 	title: string;
@@ -41,21 +43,26 @@ export interface TestsOverview {
 
 async function attemptSummaries(executor: Executor, candidateId: string): Promise<AttemptSummary[]> {
 	const rows = await executor
-		.select({ attempt: testAttempts, decision: gradeDecisions })
+		.select({ attempt: testAttempts, decision: gradeDecisions, block: confirmationRequests.block })
 		.from(testAttempts)
 		.leftJoin(gradeDecisions, eq(gradeDecisions.attemptId, testAttempts.id))
+		.leftJoin(confirmationRequests, eq(confirmationRequests.id, testAttempts.confirmationRequestId))
 		.where(eq(testAttempts.candidateId, candidateId))
 		.orderBy(desc(testAttempts.startedAt), desc(gradeDecisions.decidedAt));
 	const seen = new Set<string>();
 	const summaries: AttemptSummary[] = [];
-	for (const { attempt, decision } of rows) {
+	for (const { attempt, decision, block } of rows) {
 		if (seen.has(attempt.id)) continue;
 		seen.add(attempt.id);
 		summaries.push({
 			id: attempt.id,
+			purpose: attempt.purpose,
 			specialization: attempt.specialization as SpecializationKey,
 			grade: attempt.grade as GradeKey,
-			title: testTitle(attempt.specialization, attempt.grade),
+			title:
+				block === null
+					? testTitle(attempt.specialization, attempt.grade)
+					: `Блок-тест «${blockDefinition(block).title}», ${testTitle(attempt.specialization, attempt.grade)}`,
 			form: attempt.form,
 			status: attempt.status,
 			startedAt: attempt.startedAt,

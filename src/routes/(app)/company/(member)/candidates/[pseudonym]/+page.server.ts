@@ -12,6 +12,7 @@ import { invitationDeps } from '$lib/server/invitations/deps';
 import {
 	offerFormContext,
 	offerFromForm,
+	pointOption,
 	whyYouFromShortlist,
 	whyYouOptions,
 	type WhyYouOption
@@ -20,6 +21,14 @@ import { listInvitations } from '$lib/server/invitations/read';
 import { createInvitation } from '$lib/server/invitations/send';
 import { matchingDeps } from '$lib/server/matching/deps';
 import { configuredShortlistDeps } from '$lib/server/shortlists/page';
+import { solutionsOfCandidate } from '$lib/server/challenges/company';
+import {
+	companyRequests,
+	requestableBlocks,
+	requestConfirmation,
+	resultsVisibleTo
+} from '$lib/server/confirmations/requests';
+import { catalogNames, contactPageDeps } from '$lib/server/contact/page';
 import { shortlistMatchOf } from '$lib/server/shortlists/service';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -71,18 +80,48 @@ export const load: PageServerLoad = async (event) => {
 				})
 			: [];
 		const suggestedKeys = new Set(suggested.map((option) => option.key));
+		// Points of the contact itself (domain 13.11, 13.12): the block results the company sees and the solutions of its
+		// calls; opened from a solution (`?solution=`), the offer starts with that point.
+		const pair = { candidateId: item.candidateId, companyId: membership.companyId };
+		const results = await resultsVisibleTo(database, membership.companyId, item.candidateId, { confirmedOnly: true });
+		const solutions = await solutionsOfCandidate(database, pair);
+		const names = catalogNames();
+		const contactOptions: WhyYouOption[] = [
+			...results.map((result) =>
+				pointOption(
+					`Подтвердил блок «${names.blocks[result.block] ?? result.block}» на грейде ${names.grades[result.grade] ?? result.grade}`,
+					{
+						kind: 'confirmation',
+						ref: result.id
+					}
+				)
+			),
+			...solutions.map((solution) =>
+				pointOption(`Решение вызова «${solution.challengeTitle}»`, { kind: 'challenge_solution', ref: solution.id })
+			)
+		];
+		const fromSolution = event.url.searchParams.get('solution');
+		const solutionPoint = contactOptions.find(
+			(option) => option.source.kind === 'challenge_solution' && option.source.ref === fromSolution
+		);
+		const confirmations = await companyRequests(contactPageDeps(), subject, item.candidateId);
 		return {
+			contactOptions,
+			requestable: await requestableBlocks(database, item.candidateId),
+			confirmations,
+			names,
 			pseudonym: item.pseudonym,
 			...card,
 			labels,
 			vacancies: await searchableVacancies(database, membership.companyId),
 			offer: await offerFormContext(database, membership.companyId, vocabulary, now),
-			whyYouOptions: [...suggested, ...fromCard.filter((option) => !suggestedKeys.has(option.key))],
+			whyYouOptions: [...contactOptions, ...suggested, ...fromCard.filter((option) => !suggestedKeys.has(option.key))],
 			fromShortlist: fromShortlist && {
 				shortlistId,
 				needId: fromShortlist.needId,
 				preselected: suggested.slice(0, 5).map((option) => option.key)
 			},
+			preselected: solutionPoint ? [solutionPoint.key] : [],
 			invitation: existing ? { id: existing.id, status: existing.status } : null
 		};
 	} catch (cause) {
@@ -91,6 +130,23 @@ export const load: PageServerLoad = async (event) => {
 };
 
 export const actions: Actions = {
+	/** A request to confirm a block the category does not cover (domain 13.11). */
+	requestConfirmation: async (event) => {
+		const { subject, meta } = await employerRequest(event);
+		membershipOf(event, subject);
+		const form = await event.request.formData();
+		const found = await findInCatalog(matchingDeps(), subject, event.params.pseudonym, undefined, event.request.signal);
+		if (!found) error(404, { message: 'Кандидат не найден', requestId: event.locals.requestId });
+		try {
+			const outcome = await requestConfirmation(contactPageDeps(), subject, meta, {
+				candidateId: found.candidateId,
+				block: formText(form, 'block')
+			});
+			return { confirmation: outcome.kind === 'result' ? 'result' : outcome.created ? 'created' : 'existing' };
+		} catch (cause) {
+			return formFailure(cause);
+		}
+	},
 	offer: async (event) => {
 		const { subject, meta, sessionHash } = await employerRequest(event);
 		membershipOf(event, subject);

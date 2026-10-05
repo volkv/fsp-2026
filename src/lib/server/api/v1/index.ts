@@ -3,10 +3,14 @@
 import { z } from 'zod';
 import { defineOperation, type Operation } from '../operation';
 import { openApiDocument, type ExternalRoute, type OpenApiDocument } from '../openapi';
+import * as applications from './applications';
 import * as catalog from './catalog';
 import * as categories from './categories';
+import * as challenges from './challenges';
 import * as companies from './companies';
 import * as companyProfile from './company-profile';
+import * as confirmations from './confirmations';
+import * as demand from './demand';
 import * as grades from './grades';
 import * as hiring from './hiring';
 import * as integrations from './integrations';
@@ -62,7 +66,11 @@ export const API_OPERATIONS: readonly Operation[] = [
 	...Object.values(invitations),
 	...Object.values(hiring),
 	...Object.values(verify),
-	...Object.values(operator)
+	...Object.values(operator),
+	...Object.values(confirmations),
+	...Object.values(challenges),
+	...Object.values(applications),
+	...Object.values(demand)
 ];
 
 export const EXTERNAL_ROUTES: readonly ExternalRoute[] = Object.values(integrations);

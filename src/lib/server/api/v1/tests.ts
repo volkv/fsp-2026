@@ -124,6 +124,10 @@ const stepSchema = z
 					'`expired` — срок попытки истёк'
 			),
 		decision_id: z.uuid().nullable(),
+		confirmation_id: z
+			.uuid()
+			.nullable()
+			.describe('Результат блок-теста по запросу работодателя (`decided` попытки `vacancy_block`)'),
 		attempt: attemptSchema
 	})
 	.meta({ id: 'TestStep' });
@@ -136,6 +140,7 @@ function stepKind(outcome: AdvanceOutcome): 'continue' | 'awaiting_sandbox' | 'd
 		case 'waiting_sandbox':
 			return 'awaiting_sandbox';
 		case 'decided':
+		case 'block_decided':
 			return 'decided';
 		case 'expired':
 			return 'expired';
@@ -275,6 +280,7 @@ export const answerTestItem = defineOperation({
 		return {
 			kind: stepKind(outcome),
 			decision_id: outcome.kind === 'decided' ? outcome.decisionId : null,
+			confirmation_id: outcome.kind === 'block_decided' ? outcome.confirmationId : null,
 			attempt: attemptOut(await attemptState(ctx.services.db, subject, result.attemptId, now))
 		};
 	}

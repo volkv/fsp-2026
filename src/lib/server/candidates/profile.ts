@@ -84,6 +84,15 @@ export type FactDetail =
 			bankReleaseId: string;
 			decidedOn: string;
 	  }
+	| {
+			kind: 'test_block';
+			/** «Блок-тест «API», Backend Middle»: the block confirmed at the request of an employer. */
+			title: string;
+			/** The skills the block covers: the area of the result. */
+			skillKeys: string[];
+			bankReleaseId: string;
+			decidedOn: string;
+	  }
 	| { kind: 'other'; factType: string };
 
 export interface SelfFact {
@@ -207,6 +216,16 @@ interface TestScorePayload {
 	decidedOn: string;
 }
 
+/** What a `test_block` fact stores (`confirmations/fact.ts`, domain 13.11). */
+interface TestBlockPayload {
+	specialization: string;
+	block: string;
+	grade: string;
+	skillKeys: string[];
+	bankReleaseId: string;
+	decidedOn: string;
+}
+
 function detailOf(factType: string, payload: unknown): FactDetail {
 	switch (factType) {
 		case 'competition_result': {
@@ -269,6 +288,16 @@ function detailOf(factType: string, payload: unknown): FactDetail {
 				attemptId: test.attemptId,
 				decisionId: test.decisionId,
 				blocks: test.blocks.map((code) => blockDefinition(code).title),
+				bankReleaseId: test.bankReleaseId,
+				decidedOn: test.decidedOn
+			};
+		}
+		case 'test_block': {
+			const test = payload as TestBlockPayload;
+			return {
+				kind: 'test_block',
+				title: `Блок-тест «${blockDefinition(test.block).title}», ${testTitle(test.specialization, test.grade)}`,
+				skillKeys: test.skillKeys,
 				bankReleaseId: test.bankReleaseId,
 				decidedOn: test.decidedOn
 			};

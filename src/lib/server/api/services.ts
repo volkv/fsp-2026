@@ -13,6 +13,9 @@ import type { MatchingModels } from '$lib/server/matching/semantic';
 import { GRADE_DECISION_RESULTS, type TestResultReader } from '$lib/server/matching/test-results';
 import { modelAdapter } from '$lib/server/ml';
 import type { NeedDeps } from '$lib/server/needs/service';
+import type { ApplicationDeps } from '$lib/server/applications/service';
+import type { ChallengeDeps } from '$lib/server/challenges/company';
+import type { ConfirmationDeps } from '$lib/server/confirmations/requests';
 import type { ShortlistDeps } from '$lib/server/shortlists/service';
 import type { ModelAdapter } from '$lib/server/ml/adapter';
 import { redis, type Redis } from '$lib/server/redis';
@@ -82,3 +85,10 @@ export const matchingDeps = (s: ApiServices): MatchingDeps => ({
 });
 
 export const shortlistDeps = (s: ApiServices): ShortlistDeps => ({ ...matchingDeps(s), db: s.db });
+
+/** Requests of a confirmation, calls of companies and applications (domain 13.11, 13.12, 13.5). */
+export const contactDeps = (s: ApiServices): ConfirmationDeps & ChallengeDeps & ApplicationDeps => ({
+	db: s.db,
+	crypto: s.crypto,
+	now: s.now
+});

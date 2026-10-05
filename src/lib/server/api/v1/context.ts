@@ -2,7 +2,9 @@
 import type { AccessSubject } from '$lib/server/access/permissions';
 import type { ActionContext } from '$lib/server/companies/context';
 import type { RequestMeta as InvitationMeta } from '$lib/server/invitations/deps';
+import { ApiError } from '$lib/server/errors/api-error';
 import type { OperationContext } from '../operation';
+import { candidateOfPseudonym } from '../read/pseudonyms';
 
 type AnyContext = OperationContext<unknown, unknown, unknown>;
 
@@ -31,4 +33,17 @@ export function invitationMeta(ctx: Pick<AnyContext, 'meta'>): InvitationMeta {
 /** The active membership of the subject, or `null`. */
 export function activeMembership(subject: AccessSubject) {
 	return subject.membership?.status === 'active' ? subject.membership : null;
+}
+
+/** The subject of a company member and the candidate a pseudonym of their company names; `404` — none. */
+export async function candidateOfPseudonymFor(
+	ctx: Pick<AnyContext, 'services' | 'subject'>,
+	pseudonym: string
+): Promise<{ subject: AccessSubject; candidateId: string }> {
+	const subject = await ctx.subject();
+	const membership = activeMembership(subject);
+	if (membership === null) throw new ApiError('forbidden');
+	const candidateId = await candidateOfPseudonym(ctx.services.db, ctx.services.crypto, membership.companyId, pseudonym);
+	if (candidateId === null) throw new ApiError('not_found');
+	return { subject, candidateId };
 }

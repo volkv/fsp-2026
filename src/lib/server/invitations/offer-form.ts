@@ -25,11 +25,16 @@ export interface WhyYouOption {
 const keyOf = (source: WhyYouPoint['source']) =>
 	[source.kind, source.ref, source.receipt_handle ?? ''].map(encodeURIComponent).join('|');
 
-const option = (text: string, source: WhyYouPoint['source']): WhyYouOption => ({ key: keyOf(source), text, source });
+/** A point of «why you» the page offers, keyed by its source. */
+export const pointOption = (text: string, source: WhyYouPoint['source']): WhyYouOption => ({
+	key: keyOf(source),
+	text,
+	source
+});
 
 /** Points of an already sent version, offered again in its revision. */
 export function optionsOfPoints(points: readonly WhyYouPoint[]): WhyYouOption[] {
-	return points.map((point) => option(point.text, point.source));
+	return points.map((point) => pointOption(point.text, point.source));
 }
 
 /**
@@ -53,22 +58,22 @@ export function whyYouOptions(
 					: discipline;
 		const award = resultGroup === undefined ? null : AWARDS[resultGroup];
 		const text = [`${disciplineName}${season === undefined ? '' : `, ${season}`}`, award].filter(Boolean).join(' — ');
-		options.push(option(`Результат ФСП: ${text}`, { kind: 'fsp_fact', ref: handle, receipt_handle: handle }));
+		options.push(pointOption(`Результат ФСП: ${text}`, { kind: 'fsp_fact', ref: handle, receipt_handle: handle }));
 	}
 	for (const skill of card.skills ?? []) {
 		const name = names.skills[skill.skillKey] ?? skill.skillKey;
-		options.push(option(`В профиле — ${name}`, { kind: 'declared_skill', ref: skill.skillKey }));
+		options.push(pointOption(`В профиле — ${name}`, { kind: 'declared_skill', ref: skill.skillKey }));
 	}
 	const preferences = card.preferences;
 	if (preferences && preferences.workFormats.length > 0) {
 		const formats = preferences.workFormats.map((key) => names.workFormats[key] ?? key).join(', ');
-		options.push(option(`Подходящий формат работы: ${formats}`, { kind: 'preference', ref: 'work_formats' }));
+		options.push(pointOption(`Подходящий формат работы: ${formats}`, { kind: 'preference', ref: 'work_formats' }));
 	}
 	if (card.regionName) {
-		options.push(option(`Регион: ${card.regionName}`, { kind: 'preference', ref: 'region_code' }));
+		options.push(pointOption(`Регион: ${card.regionName}`, { kind: 'preference', ref: 'region_code' }));
 	}
 	if (preferences?.relocation === true) {
-		options.push(option('Готов к переезду', { kind: 'preference', ref: 'relocation' }));
+		options.push(pointOption('Готов к переезду', { kind: 'preference', ref: 'relocation' }));
 	}
 	return options;
 }
@@ -102,19 +107,19 @@ export function whyYouFromShortlist(
 			case 'skills_test':
 				if (source.kind === 'test_block') {
 					const text = `Тест подтвердил: ${reason.skill_keys.map(skill).join(', ')} — блок «${block(source.ref)}», ${category(source.specialization, source.grade)}`;
-					points.push(option(text, { kind: 'test_block', ref: source.ref }));
+					points.push(pointOption(text, { kind: 'test_block', ref: source.ref }));
 				}
 				break;
 			case 'test_result':
 				if (source.kind === 'test_block') {
 					const text = `Категория ${category(source.specialization, source.grade)} подтверждена тестом; сильнее всего — блок «${block(source.ref)}»`;
-					points.push(option(text, { kind: 'test_block', ref: source.ref }));
+					points.push(pointOption(text, { kind: 'test_block', ref: source.ref }));
 				}
 				break;
 			case 'confirmed_recently':
 				if (source.kind === 'test_block') {
 					const text = `Категория ${category(source.specialization, source.grade)} подтверждена тестом ${reason.days} дн. назад`;
-					points.push(option(text, { kind: 'test_block', ref: source.ref }));
+					points.push(pointOption(text, { kind: 'test_block', ref: source.ref }));
 				}
 				break;
 			case 'skills_fsp':
@@ -125,13 +130,13 @@ export function whyYouFromShortlist(
 			case 'skills_claimed_untestable': {
 				const [first] = reason.skill_keys;
 				if (first !== undefined) {
-					points.push(option(`В профиле — ${skill(first)} (заявлено)`, { kind: 'declared_skill', ref: first }));
+					points.push(pointOption(`В профиле — ${skill(first)} (заявлено)`, { kind: 'declared_skill', ref: first }));
 				}
 				break;
 			}
 			case 'format_fits':
 				points.push(
-					option(`Подходящий формат работы: ${names.workFormats[reason.format] ?? reason.format}`, {
+					pointOption(`Подходящий формат работы: ${names.workFormats[reason.format] ?? reason.format}`, {
 						kind: 'preference',
 						ref: 'work_formats'
 					})

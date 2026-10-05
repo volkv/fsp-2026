@@ -76,7 +76,7 @@ export async function showInInvitationContext(
 	invitation: InvitationRow,
 	now: Date
 ): Promise<VisibilityOutcome & { disclosure: EffectiveDisclosure | null }> {
-	const disclosure = await effectiveDisclosure(executor, invitation.candidateId, invitation.id, now);
+	const disclosure = await effectiveDisclosure(executor, invitation.candidateId, { invitationId: invitation.id }, now);
 	const viewer = await loadCatalogViewer(executor, subject, now);
 	if (!viewer) return { decision: { allowed: false, reason: 'not_member' }, viewer: null, disclosure };
 	const vacancy = await currentVacancy(executor, invitation);

@@ -561,6 +561,30 @@ describe('rule set versions and determinism', () => {
 	});
 });
 
+describe('a block test fact', () => {
+	it('confirms only the skills of its block, directly, with the platform badge', () => {
+		const work = resume({ entries: [{ periodFrom: '2021-01-01', appliedSkillKeys: ['go', 'sql'] }] });
+		const block = {
+			facts: [
+				{
+					id: nextId(),
+					source: 'platform_test' as const,
+					factType: 'test_block',
+					sourceRecordRef: `test:block:${nextId()}`,
+					eventKey: 'test:block:be.db',
+					trustLevel: 'platform_verified' as const,
+					occurredOn: '2026-09-01',
+					payload: { block: 'be.db', skillKeys: ['sql'], grade: 'middle' }
+				}
+			],
+			claims: []
+		};
+		const evidence = compute(snapshotOf(work, block));
+		expect(inference(evidence, 'sql')).toMatchObject({ attestation: 'direct', badgeTrust: 'platform_verified' });
+		expect(inference(evidence, 'go')?.badgeTrust ?? null).not.toBe('platform_verified');
+	});
+});
+
 describe('a platform test fact', () => {
 	it('confirms the skills it checks directly, with the platform badge', () => {
 		const work = resume({ entries: [{ periodFrom: '2021-01-01', appliedSkillKeys: ['go', 'sql'] }] });

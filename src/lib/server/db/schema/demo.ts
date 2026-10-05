@@ -2,7 +2,7 @@
 // the scenario cast. Accounts, profiles and companies of a sandbox carry its id, and so do the letters it sent; everything
 // else of it is found from them through the owner references of the clone plan (src/lib/server/demo/clone-plan.ts).
 import { sql } from 'drizzle-orm';
-import { check, index, pgTable, text, uuid } from 'drizzle-orm/pg-core';
+import { check, index, integer, pgTable, text, uuid } from 'drizzle-orm/pg-core';
 import { bytea, enumCheck, id, sha256Check, timestamps, ts } from './_columns';
 
 export const demoSessions = pgTable(
@@ -17,10 +17,16 @@ export const demoSessions = pgTable(
 		expiresAt: ts().notNull(),
 		/** First upload of the visitor's own resume: the sandbox then lives no longer than the resume may. */
 		ownResumeAt: ts(),
+		/**
+		 * The shift of the session's clock for the regular jobs of its rows (domain 13.12): «промотать неделю» moves it on,
+		 * and the delivery of calls of the session's companies runs at `now + clock_offset_seconds`.
+		 */
+		clockOffsetSeconds: integer().notNull().default(0),
 		...timestamps()
 	},
 	(t) => [
 		sha256Check('demo_sessions', 'join_token_sha256', t.joinTokenSha256),
+		check('demo_sessions_clock_offset', sql`${t.clockOffsetSeconds} >= 0`),
 		check('demo_sessions_expiry', sql`${t.expiresAt} > ${t.createdAt}`)
 	]
 );

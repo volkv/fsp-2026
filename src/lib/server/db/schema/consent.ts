@@ -26,6 +26,7 @@ import { bytea, enumCheck, id, sha256Check, subsetOf, timestamps, ts } from './_
 import { candidates } from './candidates';
 import { companies, companyMembers } from './companies';
 import { files } from './documents';
+import { applications } from './applications';
 import { invitations } from './hiring';
 import { users } from './identity';
 
@@ -129,6 +130,8 @@ export const consentEvents = pgTable(
 		representationId: uuid().references((): AnyPgColumn => representations.id),
 		scopeCompanyId: uuid().references((): AnyPgColumn => companies.id),
 		scopeInvitationId: uuid().references((): AnyPgColumn => invitations.id),
+		/** The candidate's own application the disclosure is given by (domain 13.6); one of it and the invitation. */
+		scopeApplicationId: uuid().references((): AnyPgColumn => applications.id),
 		scopeCompetitionRef: text(),
 		scopeFields: text().array(),
 		choices: jsonb(),
@@ -157,9 +160,9 @@ export const consentEvents = pgTable(
 		check(
 			'consent_events_scope',
 			sql`case ${t.kind}
-				when 'contact_disclosure' then ${t.scopeCompanyId} is not null and ${t.scopeInvitationId} is not null and ${t.scopeCompetitionRef} is null
-				when 'partner_pool' then ${t.scopeCompetitionRef} is not null and ${t.scopeCompanyId} is null and ${t.scopeInvitationId} is null
-				else ${t.scopeCompanyId} is null and ${t.scopeInvitationId} is null and ${t.scopeCompetitionRef} is null end`
+				when 'contact_disclosure' then ${t.scopeCompanyId} is not null and num_nonnulls(${t.scopeInvitationId}, ${t.scopeApplicationId}) = 1 and ${t.scopeCompetitionRef} is null
+				when 'partner_pool' then ${t.scopeCompetitionRef} is not null and ${t.scopeCompanyId} is null and ${t.scopeInvitationId} is null and ${t.scopeApplicationId} is null
+				else ${t.scopeCompanyId} is null and ${t.scopeInvitationId} is null and ${t.scopeApplicationId} is null and ${t.scopeCompetitionRef} is null end`
 		),
 		check(
 			'consent_events_scope_fields',
@@ -298,9 +301,9 @@ export const disclosures = pgTable(
 		recipientMemberId: uuid()
 			.notNull()
 			.references(() => companyMembers.id),
-		invitationId: uuid()
-			.notNull()
-			.references((): AnyPgColumn => invitations.id),
+		/** The basis of the disclosure: an accepted invitation or the candidate's own application, exactly one. */
+		invitationId: uuid().references((): AnyPgColumn => invitations.id),
+		applicationId: uuid().references((): AnyPgColumn => applications.id),
 		consentEventId: uuid()
 			.notNull()
 			.references(() => consentEvents.id),
@@ -311,7 +314,9 @@ export const disclosures = pgTable(
 	(t) => [
 		enumCheck('disclosures', 'channel', t.channel, DISCLOSURE_CHANNELS),
 		check('disclosures_fields', sql`cardinality(${t.fields}) > 0 and ${subsetOf(t.fields, DISCLOSURE_FIELDS)}`),
+		check('disclosures_basis', sql`num_nonnulls(${t.invitationId}, ${t.applicationId}) = 1`),
 		index('disclosures_candidate').on(t.candidateId),
-		index('disclosures_invitation').on(t.invitationId)
+		index('disclosures_invitation').on(t.invitationId),
+		index('disclosures_application').on(t.applicationId)
 	]
 );

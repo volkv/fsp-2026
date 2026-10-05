@@ -20,6 +20,9 @@ import {
 	sourceFacts,
 	verificationReceipts
 } from '$lib/server/db/schema';
+import { applicationBasis, markApplicationsInvited } from '$lib/server/applications/service';
+import { markSolutionsInvited, solutionOfPair } from '$lib/server/challenges/company';
+import { resultsVisibleTo } from '$lib/server/confirmations/requests';
 import { uuidv7 } from '$lib/server/ids';
 import { notify } from '$lib/server/notifications/notify';
 import { compareSalary } from '$lib/server/salary/compare';
@@ -166,8 +169,8 @@ function validOffer(input: OfferInput): ValidOffer {
  * Every point of «why you» rests on what the company sees in the profile. An FSP result is named by the receipt the
  * company was issued for this candidate; a preference by the key the card shows; a block of the test by its code, which
  * must be a defining block or the practice of a category in force of the candidate, which its confirmation passed (the
- * shortlist names them, domain 13.10). Sources of a confirmation and of a challenge solution are accepted once their modules connect them to
- * offers.
+ * shortlist names them, domain 13.10); a result of a block test by its id, confirmed, valid and seen by the company
+ * (domain 13.11); a solution of a call of this company by its id, while the candidate keeps it (domain 13.12).
  */
 async function checkSources(
 	tx: Transaction,
@@ -214,11 +217,36 @@ async function checkSources(
 				}
 				break;
 			}
-			case 'confirmation':
-			case 'challenge_solution':
-				throw invalid(`${path}.kind`, 'Этот источник пока не подключён к предложениям');
+			case 'confirmation': {
+				// A confirmed valid result of a block test the company sees (domain 13.11).
+				const visible = await resultsVisibleTo(tx, pair.companyId, pair.candidateId, { confirmedOnly: true });
+				if (!visible.some((row) => row.id === point.source.ref))
+					throw invalid(`${path}.ref`, 'Результат блок-теста не подтверждён или не виден компании');
+				break;
+			}
+			case 'challenge_solution': {
+				// A solution of the candidate, not withdrawn, to a call of this company (domain 13.12).
+				if (!(await solutionOfPair(tx, point.source.ref, pair))) {
+					throw invalid(`${path}.ref`, 'Решение вызова не найдено или отозвано кандидатом');
+				}
+				break;
+			}
 		}
 	}
+}
+
+/** The company invited from the solutions and applications the version rests on (domain 13.12, 13.5). */
+async function markSources(
+	tx: Transaction,
+	points: readonly WhyYouPoint[],
+	pair: { candidateId: string; companyId: string; memberId: string; invitationId: string },
+	journal: { actor: Parameters<typeof recordAuditEvent>[1]['actor']; requestId: string; now: Date }
+): Promise<void> {
+	const solutionIds = points
+		.filter((point) => point.source.kind === 'challenge_solution')
+		.map((point) => point.source.ref);
+	await markSolutionsInvited(tx, solutionIds, { ...pair, ...journal });
+	await markApplicationsInvited(tx, pair, journal);
 }
 
 /** Description, line of business and the text check of the version (domain 13.5): blocked text is not sent. */
@@ -227,6 +255,9 @@ function checkText(offer: ValidOffer): TextCheck {
 	if (check.result === 'blocked') throw violation('text_blocked', 'description');
 	return check;
 }
+
+/** Refusals of the catalog itself: the candidate keeps the profile out of the catalog, not out of contact. */
+const CATALOG_ONLY_REFUSALS: ReadonlySet<string> = new Set(['hidden_by_candidate', 'no_catalog_consent']);
 
 interface Authorized {
 	vacancy: VacancyRow | null;
@@ -279,8 +310,16 @@ async function authorizeSending(
 	}
 
 	const { decision } = await showInOfferContext(tx, subject, candidateId, vacancy, now);
-	if (!decision.allowed) throw refuse('not_found', decision.reason);
-	const access = can(subject, 'invitation.create', { invitability, show: decision });
+	// The candidate's own application to this company is their consent to contact with it (domain 13.13): a profile
+	// hidden from the catalog is still offered to by the company it applied to — that company only, while the application
+	// is open and its disclosure consent holds. Every other refusal (blocked company, inactive profile, no processing
+	// consent, the company closed) stands.
+	const ownApplication =
+		!decision.allowed &&
+		CATALOG_ONLY_REFUSALS.has(decision.reason) &&
+		(await applicationBasis(tx, { companyId: member.companyId, candidateId }, now)) !== null;
+	if (!decision.allowed && !ownApplication) throw refuse('not_found', decision.reason);
+	const access = can(subject, 'invitation.create', { invitability, show: decision, ownApplication });
 	if (!access.allowed) throw refuse('forbidden', `access_${access.reason}`);
 	await checkSources(tx, offer.whyYou, { candidateId, companyId: member.companyId });
 	return { vacancy, invitability };
@@ -458,6 +497,12 @@ export async function createInvitation(
 				});
 
 				await scheduleTermsJobs(tx, { id: termsId, responseDueAt }, now, { kind: 'user', id: member.userId });
+				await markSources(
+					tx,
+					content.whyYou,
+					{ candidateId: input.candidateId, companyId: member.companyId, memberId: member.memberId, invitationId },
+					{ actor: auditActor(subject, meta, 'company'), requestId: meta.requestId, now }
+				);
 				await notify(tx, {
 					userId: await candidateUserId(tx, input.candidateId),
 					type: 'invitation.received',
@@ -569,6 +614,17 @@ async function sendVersion(
 
 	if (invitation.currentTermsId !== null) await cancelTermsJobs(tx, invitation.currentTermsId);
 	await scheduleTermsJobs(tx, { id: termsId, responseDueAt }, now, { kind: 'user', id: member.userId });
+	await markSources(
+		tx,
+		content.whyYou,
+		{
+			candidateId: invitation.candidateId,
+			companyId: invitation.companyId,
+			memberId: member.memberId,
+			invitationId: invitation.id
+		},
+		{ actor: auditActor(subject, meta, 'company'), requestId: meta.requestId, now }
+	);
 	await notify(tx, {
 		userId: await candidateUserId(tx, invitation.candidateId),
 		type: 'invitation.terms_revised',

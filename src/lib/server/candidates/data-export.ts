@@ -6,6 +6,7 @@
 // readings of the resumes suggested for the profile fields, the confirmations of the categories, the matches
 // with the vacancies the candidate sees, the consents with who signed them, the accepted agreements, the invitations
 // with their terms and answers, what was handed to which company, the hiring processes, the tests with their artifacts,
+// the requests of a confirmation with the block results, the calls with the candidate's solutions, the applications,
 // the notifications, and the journal of actions about the candidate. Other people are named only by what the candidate
 // already sees: companies by name, the candidate's own representative; members of companies and operators — by role,
 // never by account.
@@ -21,14 +22,20 @@ import { base32 } from '$lib/server/crypto/encoding';
 import type { FieldCrypto } from '$lib/server/crypto/fields';
 import type { Database, Executor } from '$lib/server/db';
 import {
+	applications,
 	athleteLinks,
 	auditEvents,
+	blockConfirmations,
 	authorityChecks,
 	candidateCompanyBlocks,
 	candidates,
 	candidateSurveys,
 	categorizationRulesets,
 	categoryAttestations,
+	challengeDeliveries,
+	challengeSolutions,
+	companyChallenges,
+	confirmationRequests,
 	evidenceRuns,
 	claims,
 	companies,
@@ -83,9 +90,11 @@ import { storedComponent } from '$lib/server/matching/storage';
  * by a test — `categories` with their history and `objections` to test results; the calculation over the profile is
  * `evidence` (skills, FSP levels, experience) and assigns no category.
  * Also in v3: the way to a category (domain 23.2) — every version of the survey and every grade declaration with its
- * hint.
+ * hint. v5: the requests of a confirmation with the results of the block tests, the calls delivered with the
+ * candidate's solutions and the candidate's own applications (domain 23.2); a disclosure names its invitation or
+ * application.
  */
-export const DATA_EXPORT_FORMAT = 'fsp-career-data-export/v4';
+export const DATA_EXPORT_FORMAT = 'fsp-career-data-export/v5';
 
 const iso = (value: Date | null) => (value === null ? null : value.toISOString());
 
@@ -118,6 +127,10 @@ export interface DataExport {
 	disclosures: Record<string, unknown>[];
 	hiring: Record<string, unknown>[];
 	tests: Record<string, unknown>[];
+	confirmation_requests: Record<string, unknown>[];
+	block_confirmations: Record<string, unknown>[];
+	challenges: Record<string, unknown>[];
+	applications: Record<string, unknown>[];
 	notifications: Record<string, unknown>[];
 	journal: Record<string, unknown>[];
 }
@@ -493,6 +506,30 @@ async function buildDataExport(
 					.where(inArray(gradeDecisions.attemptId, attemptIds))
 					.orderBy(asc(gradeDecisions.decidedAt));
 
+	const requests = await executor
+		.select()
+		.from(confirmationRequests)
+		.where(eq(confirmationRequests.candidateId, candidateId))
+		.orderBy(asc(confirmationRequests.createdAt));
+	const blockResults = await executor
+		.select()
+		.from(blockConfirmations)
+		.where(eq(blockConfirmations.candidateId, candidateId))
+		.orderBy(asc(blockConfirmations.decidedAt));
+	const delivered = await executor
+		.select({ delivery: challengeDeliveries, challenge: companyChallenges, solution: challengeSolutions })
+		.from(challengeDeliveries)
+		.innerJoin(companyChallenges, eq(companyChallenges.id, challengeDeliveries.challengeId))
+		.leftJoin(challengeSolutions, eq(challengeSolutions.deliveryId, challengeDeliveries.id))
+		.where(eq(challengeDeliveries.candidateId, candidateId))
+		.orderBy(asc(challengeDeliveries.deliveredAt));
+	const applied = await executor
+		.select({ application: applications, vacancyTitle: vacancies.title })
+		.from(applications)
+		.innerJoin(vacancies, eq(vacancies.id, applications.vacancyId))
+		.where(eq(applications.candidateId, candidateId))
+		.orderBy(asc(applications.submittedAt));
+
 	const received = await executor
 		.select()
 		.from(notifications)
@@ -544,6 +581,9 @@ async function buildDataExport(
 		...invited.map((row) => row.companyId),
 		...handedOver.map((row) => row.companyId),
 		...processes.map((row) => row.companyId),
+		...requests.map((row) => row.companyId),
+		...delivered.map((row) => row.challenge.companyId),
+		...applied.map((row) => row.application.companyId),
 		...journal.flatMap((row) => present(row.actorCompanyId))
 	]);
 	const companyOf = (id: string | null) => (id === null ? null : { id, name: names.get(id) ?? null });
@@ -896,6 +936,7 @@ async function buildDataExport(
 		disclosures: handedOver.map((row) => ({
 			company: companyOf(row.companyId),
 			invitation_id: row.invitationId,
+			application_id: row.applicationId,
 			fields: row.fields,
 			channel: row.channel,
 			disclosed_at: iso(row.disclosedAt)
@@ -968,6 +1009,59 @@ async function buildDataExport(
 					status: decision.status,
 					decided_at: iso(decision.decidedAt)
 				}))
+		})),
+		confirmation_requests: requests.map((row) => ({
+			id: row.id,
+			company: companyOf(row.companyId),
+			specialization: row.specialization,
+			block: row.block,
+			grade: row.grade,
+			status: row.status,
+			confirmation_id: row.confirmationId,
+			created_at: iso(row.createdAt),
+			answered_at: iso(row.answeredAt),
+			expires_at: iso(row.expiresAt)
+		})),
+		block_confirmations: blockResults.map((row) => ({
+			id: row.id,
+			specialization: row.specialization,
+			block: row.block,
+			grade: row.grade,
+			verdict: row.verdict,
+			score_sum: row.scoreSum,
+			cut_sum: row.cutSum,
+			bank_release_id: row.bankReleaseId,
+			status: row.status,
+			visibility: row.visibility,
+			decided_at: iso(row.decidedAt)
+		})),
+		challenges: delivered.map(({ delivery, challenge, solution }) => ({
+			company: companyOf(challenge.companyId),
+			title: challenge.title,
+			status: delivery.status,
+			delivered_at: iso(delivery.deliveredAt),
+			opened_at: iso(delivery.openedAt),
+			reminded_at: iso(delivery.remindedAt),
+			solution: solution && {
+				status: solution.status,
+				content: solution.content,
+				submitted_at: iso(solution.submittedAt),
+				withdrawn_at: iso(solution.withdrawnAt),
+				company_decision: solution.companyDecision
+			}
+		})),
+		applications: applied.map(({ application, vacancyTitle }) => ({
+			id: application.id,
+			company: companyOf(application.companyId),
+			vacancy: { id: application.vacancyId, title: vacancyTitle },
+			status: application.status,
+			message: application.message,
+			match: application.match,
+			invitation_id: application.invitationId,
+			submitted_at: iso(application.submittedAt),
+			viewed_at: iso(application.viewedAt),
+			decided_at: iso(application.decidedAt),
+			closed_at: iso(application.closedAt)
 		})),
 		notifications: received.map((row) => ({
 			type: row.type,

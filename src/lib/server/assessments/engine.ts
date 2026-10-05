@@ -13,7 +13,14 @@ import { and, asc, eq, gt, inArray, lte, max, sql } from 'drizzle-orm';
 import { can, type AccessSubject } from '$lib/server/access/permissions';
 import { requireProcessingConsent } from '$lib/server/consent/processing';
 import type { Database, Executor, Transaction } from '$lib/server/db';
-import { candidates, gradeDecisions, testArtifacts, testAttempts, testItems } from '$lib/server/db/schema';
+import {
+	candidates,
+	confirmationRequests,
+	gradeDecisions,
+	testArtifacts,
+	testAttempts,
+	testItems
+} from '$lib/server/db/schema';
 import { ApiError, policyViolation } from '$lib/server/errors/api-error';
 import { uuidv7 } from '$lib/server/ids';
 import type { JobCreator } from '$lib/server/jobs/queue';
@@ -22,6 +29,14 @@ import { canonicalJson } from '$lib/server/json/canonical';
 import { codeSubmissionArtifact } from '$lib/server/sandbox/artifacts';
 import { MAX_SOURCE_BYTES } from '$lib/server/sandbox/request';
 import { familyModule, releaseById, releaseInForce, type ModuleSource, type ServedRelease } from './bank-store';
+import {
+	blockTestAllowed,
+	blockTestDurationMs,
+	blockTestInWindow,
+	blockTestServable,
+	blockTestSlots,
+	recordBlockResult
+} from './block-test';
 import type { FamilyDescriptor, ItemInstance } from './contract/bank';
 import { CATALOG, GRADE_KEYS, gradeDefinition, type GradeKey, type SpecializationKey } from './contract/catalog';
 import { GRADE_POLICY } from './contract/policy';
@@ -231,7 +246,10 @@ async function writeDecision(
 	return row.id;
 }
 
-/** Serves slot `seq`: the family-level by the rule of 10.4, the instance generated and stored. `null` — nothing eligible. */
+/**
+ * Serves slot `seq` of the plan — of the grade, or of the block test (`slot` given): the family-level by the rule of
+ * 10.4, the instance generated and stored. `null` — nothing eligible.
+ */
 async function serveSlot(
 	tx: Transaction,
 	deps: EngineDeps,
@@ -239,10 +257,11 @@ async function serveSlot(
 	release: ServedRelease,
 	usedFamilies: ReadonlySet<string>,
 	seq: number,
-	now: Date
+	now: Date,
+	blockSlot?: { block: string; practice: false }
 ): Promise<ItemRow | null> {
 	const grade = gradeOf(attempt);
-	const slot = slotsOf(release.specialization, grade)[seq - 1];
+	const slot = blockSlot ?? slotsOf(release.specialization, grade)[seq - 1];
 	if (!slot) throw new Error(`no slot ${seq} of ${release.specialization} ${grade}`);
 	const choice = chooseForSlot({
 		families: release.families.map((f) => f.descriptor),
@@ -288,6 +307,8 @@ export type AdvanceOutcome =
 	/** Every served item is answered and the procedure needs a cluster the sandbox is still scoring. */
 	| { kind: 'waiting_sandbox' }
 	| { kind: 'decided'; decisionId: string }
+	/** The four clusters of a block test are scored: its result (`block_confirmations`), never a grade decision. */
+	| { kind: 'block_decided'; confirmationId: string }
 	| { kind: 'expired' };
 
 /**
@@ -306,6 +327,7 @@ export async function advance(
 		.from(testItems)
 		.where(eq(testItems.attemptId, attempt.id))
 		.orderBy(asc(testItems.seq));
+	if (attempt.purpose === 'vacancy_block') return advanceBlockTest(tx, deps, attempt, items, context);
 	const grade = gradeOf(attempt);
 	const rule = ruleOf(attempt);
 	const prefix: ClusterResult[] = [];
@@ -348,6 +370,53 @@ export async function advance(
 	if (!allScored) return { kind: 'waiting_sandbox' };
 	const decision = exhaustedDecision(PROCEDURE, rule, items.map(clusterOf));
 	return { kind: 'decided', decisionId: await writeDecision(tx, deps, attempt, decision, context) };
+}
+
+/**
+ * A block test (domain 13.11) moves on clusters of its block only: the next one when the candidate answered the current
+ * one, the result when all four are scored. Its clusters have no practice, so nothing waits for the sandbox.
+ */
+async function advanceBlockTest(
+	tx: Transaction,
+	deps: EngineDeps,
+	attempt: AttemptRow,
+	items: readonly ItemRow[],
+	context: { now: Date; requestId: string }
+): Promise<AdvanceOutcome> {
+	const { now } = context;
+	const slots = blockTestSlots(await requestBlockOf(tx, attempt));
+	if (items.length === slots.length && items.every((item) => item.status === 'scored')) {
+		return { kind: 'block_decided', confirmationId: await recordBlockResult(tx, attempt, context) };
+	}
+	if (attempt.deadlineAt <= now) return expire(tx, attempt, now);
+	const open = items.find((i) => i.status !== 'scored');
+	if (open) return { kind: 'waiting_candidate', item: open };
+	const slot = slots[items.length];
+	if (!slot) throw new Error(`block test ${attempt.id} has more clusters than its plan`);
+	const release = await releaseById(tx, attempt.bankReleaseId);
+	const item = await serveSlot(
+		tx,
+		deps,
+		attempt,
+		release,
+		new Set(items.map((i) => i.familyKey)),
+		items.length + 1,
+		now,
+		slot
+	);
+	// The whole block test was checked servable when it started; the families it used are its own.
+	if (!item) throw new Error(`block test ${attempt.id}: the release ran out of the block it was checked to serve`);
+	return { kind: 'next', item };
+}
+
+async function requestBlockOf(tx: Transaction, attempt: AttemptRow): Promise<string> {
+	if (attempt.confirmationRequestId === null) throw new Error(`block test ${attempt.id} names no request`);
+	const [request] = await tx
+		.select({ block: confirmationRequests.block })
+		.from(confirmationRequests)
+		.where(eq(confirmationRequests.id, attempt.confirmationRequestId));
+	if (!request) throw new Error(`request of block test ${attempt.id} is missing`);
+	return request.block;
 }
 
 async function expire(tx: Transaction, attempt: AttemptRow, now: Date): Promise<AdvanceOutcome> {
@@ -435,6 +504,82 @@ export async function startAttemptIn(
 						input.grade
 					)
 			),
+			seeded: options.seeded ?? false
+		})
+		.returning();
+	if (!attempt) throw new Error('attempt was not inserted');
+	const outcome = await advance(tx, deps, attempt, {
+		now,
+		requestId: options.requestId,
+		createdBy: { kind: 'user', id: options.userId }
+	});
+	return { attempt, outcome };
+}
+
+/** What a block test starts from: the accepted request of the employer (domain 13.11). */
+export interface BlockTestInput {
+	requestId: string;
+	specialization: SpecializationKey;
+	block: string;
+	grade: GradeKey;
+}
+
+/**
+ * Starts the block test of an accepted request in the caller's transaction: the candidate row is locked (one attempt
+ * in progress), the pair must have a block test, one block test of the pair within the window of forms, the release
+ * in force must serve all four clusters to this candidate (`409 bank_capacity_exhausted` otherwise), the first cluster
+ * is served. The grade policy does not apply: a block test decides no grade.
+ */
+export async function startBlockAttemptIn(
+	tx: Transaction,
+	deps: EngineDeps,
+	candidateId: string,
+	input: BlockTestInput,
+	options: StartOptions
+): Promise<{ attempt: AttemptRow; outcome: AdvanceOutcome }> {
+	const { now } = options;
+	await lockCandidateRow(tx, candidateId);
+	await requireProcessingConsent(tx, candidateId, now);
+	await expireOverdue(tx, candidateId, now);
+	if (!blockTestAllowed(input.specialization, input.block, input.grade)) {
+		throw policyViolation('block_not_testable', 'block');
+	}
+	const [running] = await tx
+		.select({ id: testAttempts.id })
+		.from(testAttempts)
+		.where(and(eq(testAttempts.candidateId, candidateId), eq(testAttempts.status, 'in_progress')));
+	if (running) throw conflict('attempt_in_progress', 'Сначала завершите начатую попытку теста');
+	const earlier = await blockTestInWindow(tx, candidateId, input, now);
+	if (earlier !== null) {
+		const from = new Date(earlier.getTime() + GRADE_POLICY.formWindowDays * 86_400_000);
+		throw conflict('block_test_window', 'Блок-тест этого блока на этом грейде уже проходился', {
+			available_from: from.toISOString().slice(0, 10)
+		});
+	}
+	const release = await releaseInForce(tx, input.specialization);
+	if (!release) throw policyViolation('specialization_closed', 'block');
+	const families = release.families.map((f) => f.descriptor);
+	const seed = randomBytes(16).toString('hex');
+	if (!blockTestServable(families, input.grade, input.block, await seenClasses(tx, candidateId, now), seed)) {
+		throw conflict('bank_capacity_exhausted', 'Для этого блока сейчас нет свободных заданий: попробуйте позже');
+	}
+	const [attempt] = await tx
+		.insert(testAttempts)
+		.values({
+			candidateId,
+			purpose: 'vacancy_block',
+			specialization: input.specialization,
+			grade: input.grade,
+			catalogVersion: CATALOG.version,
+			bankReleaseId: release.id,
+			procedureVersion: PROCEDURE.version,
+			policyVersion: GRADE_POLICY.version,
+			form: null,
+			seed,
+			status: 'in_progress',
+			startedAt: now,
+			deadlineAt: new Date(now.getTime() + blockTestDurationMs(families, input.grade, input.block)),
+			confirmationRequestId: input.requestId,
 			seeded: options.seeded ?? false
 		})
 		.returning();

@@ -658,6 +658,11 @@ export interface NeedCandidate {
 	/** What the card shows of the preferences: formats, region, readiness to relocate. */
 	preferences: { workFormats: readonly string[]; regionCode: string | null; relocation: boolean | null };
 	tests: CandidateTestResults;
+	/**
+	 * The latest confirmed action besides the assignment of a category — a valid result of a block test or a submitted
+	 * solution of a call (domain 13.12); `null` — none. Freshness counts from the latest of it and the categories.
+	 */
+	lastConfirmedAction: Date | null;
 }
 
 export interface NeedScoreInput {
@@ -1003,10 +1008,12 @@ export function needScore(input: NeedScoreInput): NeedResult {
 	const related = input.withoutFsp ? [] : fspSkills;
 	const fspValue = related.reduce((best, s) => Math.max(best, input.skillBandValue[s.band]), 0);
 
-	const lastConfirmed = candidate.categories.reduce<Date | null>(
+	const lastAssigned = candidate.categories.reduce<Date | null>(
 		(latest, c) => (latest === null || c.assignedAt > latest ? c.assignedAt : latest),
 		null
 	);
+	const action = candidate.lastConfirmedAction;
+	const lastConfirmed = action !== null && (lastAssigned === null || action > lastAssigned) ? action : lastAssigned;
 	const days =
 		lastConfirmed === null ? null : Math.max(0, Math.floor((now.getTime() - lastConfirmed.getTime()) / DAY_MS));
 	const freshness = days === null ? 0 : Math.pow(0.5, days / params.freshness.halfLifeDays);
@@ -1039,7 +1046,7 @@ export function needScore(input: NeedScoreInput): NeedResult {
 			applicable: true,
 			status: 'computed',
 			value: freshness,
-			reason: days === null ? 'no_category' : null
+			reason: days === null ? 'no_confirmed_action' : null
 		}
 	};
 	// Without a need only the strength level counts.
@@ -1127,7 +1134,8 @@ export function needScore(input: NeedScoreInput): NeedResult {
 			source: { kind: 'preference', ref: 'work_formats' }
 		});
 	}
-	if (category !== null && days !== null) {
+	// «Подтверждено N дн. назад» names the category: only when its assignment is the latest confirmed action.
+	if (category !== null && days !== null && lastConfirmed === lastAssigned) {
 		const block = category.confirmedBlocks[0];
 		if (block !== undefined) {
 			reasons.push({

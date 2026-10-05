@@ -113,7 +113,8 @@ export const getMyData = defineOperation({
 		'владельца; ' +
 		'соответствия видимым кандидату вакансиям; согласия с подписантами и принятые соглашения; представитель с ' +
 		'проверками полномочий; приглашения с условиями и ответами, кому и что передано, процессы найма; тесты с ' +
-		'артефактами; уведомления с доставками и журнал действий с данными кандидата. Сотрудники компаний и платформы ' +
+		'артефактами; запросы подтверждения и результаты блок-тестов; доставленные вызовы с решениями; собственные ' +
+		'отклики; уведомления с доставками и журнал действий с данными кандидата. Сотрудники компаний и платформы ' +
 		'названы ролью или компанией, не учётной записью. Каждая выгрузка записывается в журнал (`data.exported`).',
 	auth: 'session',
 	permission: 'candidate.self.read',
@@ -150,6 +151,10 @@ export const getMyData = defineOperation({
 			disclosures: records,
 			hiring: records,
 			tests: records,
+			confirmation_requests: records,
+			block_confirmations: records,
+			challenges: records,
+			applications: records,
 			notifications: records,
 			journal: records
 		})

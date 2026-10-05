@@ -5,6 +5,7 @@ import type { Transaction } from '$lib/server/db';
 import {
 	athleteLinks,
 	candidates,
+	confirmationRequests,
 	documentExtractions,
 	hiringProcesses,
 	invitations,
@@ -28,6 +29,8 @@ export interface PersonIds {
 	processIds: string[];
 	representationIds: string[];
 	notificationIds: string[];
+	/** Requests of a confirmation to the candidate: their expiry jobs go with them. */
+	confirmationRequestIds: string[];
 }
 
 const idsOf = (rows: readonly { id: string }[]) => rows.map((row) => row.id);
@@ -58,7 +61,8 @@ export async function personIds(tx: Transaction, userId: string): Promise<Person
 			invitationIds: [],
 			processIds: [],
 			representationIds: [],
-			notificationIds
+			notificationIds,
+			confirmationRequestIds: []
 		};
 	}
 	const resumeIds = idsOf(
@@ -106,6 +110,12 @@ export async function personIds(tx: Transaction, userId: string): Promise<Person
 			.from(representations)
 			.where(eq(representations.candidateId, candidateId))
 	);
+	const confirmationRequestIds = idsOf(
+		await tx
+			.select({ id: confirmationRequests.id })
+			.from(confirmationRequests)
+			.where(eq(confirmationRequests.candidateId, candidateId))
+	);
 	return {
 		userId,
 		candidateId,
@@ -117,7 +127,8 @@ export async function personIds(tx: Transaction, userId: string): Promise<Person
 		invitationIds,
 		processIds,
 		representationIds,
-		notificationIds
+		notificationIds,
+		confirmationRequestIds
 	};
 }
 
@@ -136,7 +147,8 @@ export async function cancelJobsOfPerson(tx: Transaction, ids: PersonIds): Promi
 		...ids.artifactIds,
 		...ids.invitationIds,
 		...ids.processIds,
-		...ids.notificationIds
+		...ids.notificationIds,
+		...ids.confirmationRequestIds
 	];
 	const cancelled = await tx.execute<{ id: string }>(sql`
 		update jobs set status = 'cancelled', finished_at = now()

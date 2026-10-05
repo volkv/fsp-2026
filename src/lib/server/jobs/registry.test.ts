@@ -20,7 +20,9 @@ describe('job registry', () => {
 			['consent.revocation_cleanup', { athlete_link_id: id }, `revocation:link:${id}`],
 			['demo.reset', { date: '2026-10-12' }, 'demo.reset:2026-10-12'],
 			['demo.purge', { period: '2026-10-12T15' }, 'demo.purge:2026-10-12T15'],
-			['vacancies.text_recheck', { validator_version: 'text-check/2' }, 'vacancies.text_recheck:text-check/2']
+			['vacancies.text_recheck', { validator_version: 'text-check/2' }, 'vacancies.text_recheck:text-check/2'],
+			['challenge.deliver', { period: '2026-10-12T15' }, 'challenge.deliver:2026-10-12T15'],
+			['confirmation.expire', { request_id: id }, `confirmation.expire:${id}`]
 		];
 		for (const [type, payload, key] of expectations) {
 			const spec = jobSpec(type);
@@ -34,6 +36,6 @@ describe('job registry', () => {
 	});
 
 	it('covers every type of the model registry', () => {
-		expect(Object.keys(JOB_TYPES)).toHaveLength(28);
+		expect(Object.keys(JOB_TYPES)).toHaveLength(30);
 	});
 });

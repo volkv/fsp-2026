@@ -1,7 +1,7 @@
 // «Вакансии для меня» (docs/domain.md, section 13.4; CONCEPT, promise 4): vacancies ranked by the same `matchScore` the
 // companies use, with what the candidate sees of each vacancy — title, company or organization, range, format and
-// grade — and the invitation of this vacancy if a company already sent one. There is no «apply»: contact starts with
-// the company.
+// grade — and the invitation of this vacancy if a company already sent one. Contact starts with the company; the
+// candidate's own application to an own vacancy is the secondary way (`applications/service.ts`).
 import { and, eq, inArray, isNull } from 'drizzle-orm';
 import type { AccessSubject } from '$lib/server/access/permissions';
 import type { Executor } from '$lib/server/db';

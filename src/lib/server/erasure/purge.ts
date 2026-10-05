@@ -6,7 +6,8 @@
 //
 // What stays, each with its own ground and period: the journal (identifiers and codes only); disclosures and the consent
 // events they refer to, until `disclosure_retention_months` (`retention.sweep`); invitations as tombstones of id,
-// company and status, since disclosures refer to them; the copy of a representative's authority document until its
+// company and status, and applications as tombstones of id, company, vacancy and status, since disclosures refer to
+// them; the copy of a representative's authority document until its
 // own `evidence_retention_until` — the purge enqueues itself for the day after it; the account and the profile as
 // tombstones without personal data; the entry of the erasure ledger, which a restore from a backup applies again.
 import { and, eq, inArray, isNull, ne, notInArray, or, sql, type SQL } from 'drizzle-orm';
@@ -15,8 +16,13 @@ import { clearAccountFailures } from '$lib/server/auth/lockout';
 import { revokeUserSessions } from '$lib/server/auth/sessions';
 import { db, type Database, type Executor, type Transaction } from '$lib/server/db';
 import {
+	applications,
 	assessmentObjections,
 	athleteLinks,
+	blockConfirmations,
+	challengeDeliveries,
+	challengeSolutions,
+	confirmationRequests,
 	authorityChecks,
 	candidateCategories,
 	categoryAttestations,
@@ -488,6 +494,57 @@ async function eraseInvitations(tx: Transaction, candidateId: string, ids: Perso
 	}
 }
 
+/**
+ * The results of the candidate's block tests (domain 23.2): before the attempts they name. The requests they closed name
+ * them by a key checked at commit and go after the attempts (`eraseContact`).
+ */
+async function eraseBlockResults(tx: Transaction, candidateId: string, removal: Removal): Promise<void> {
+	removal.add(
+		await tx
+			.delete(blockConfirmations)
+			.where(eq(blockConfirmations.candidateId, candidateId))
+			.returning({ id: blockConfirmations.id })
+	);
+}
+
+/**
+ * The requests of a confirmation to the candidate, the calls delivered to them with their solutions (the text with the
+ * row), and the applications: an application becomes a tombstone of id, company, vacancy and status — the disclosure
+ * made by it refers to it (domain 19.2, 23.2).
+ */
+async function eraseContact(tx: Transaction, candidateId: string, at: Date, removal: Removal): Promise<void> {
+	removal.add(
+		await tx
+			.delete(confirmationRequests)
+			.where(eq(confirmationRequests.candidateId, candidateId))
+			.returning({ id: confirmationRequests.id })
+	);
+	const deliveries = tx
+		.select({ id: challengeDeliveries.id })
+		.from(challengeDeliveries)
+		.where(eq(challengeDeliveries.candidateId, candidateId));
+	removal.add(
+		await tx
+			.delete(challengeSolutions)
+			.where(inArray(challengeSolutions.deliveryId, deliveries))
+			.returning({ id: challengeSolutions.id })
+	);
+	removal.add(
+		await tx
+			.delete(challengeDeliveries)
+			.where(eq(challengeDeliveries.candidateId, candidateId))
+			.returning({ id: challengeDeliveries.id })
+	);
+	await tx
+		.update(applications)
+		.set({ status: 'withdrawn', closedAt: sql`coalesce(${applications.closedAt}, ${at.toISOString()}::timestamptz)` })
+		.where(and(eq(applications.candidateId, candidateId), inArray(applications.status, ['submitted', 'viewed'])));
+	await tx
+		.update(applications)
+		.set({ message: null, match: null, purgedAt: at })
+		.where(and(eq(applications.candidateId, candidateId), isNull(applications.purgedAt)));
+}
+
 /** The marks of companies' shortlists naming the candidate, with the companies' notes about them (domain 23.2). */
 async function eraseShortlistMarks(tx: Transaction, candidateId: string, removal: Removal): Promise<void> {
 	removal.add(
@@ -658,8 +715,10 @@ async function eraseAccount(
 	let evidenceKeptUntil: string | null = null;
 	const { candidateId } = ids;
 	if (candidateId !== null) {
+		await eraseBlockResults(tx, candidateId, removal);
 		facts = await eraseEvidence(tx, candidateId, ids, removal);
 		await eraseGradeChoices(tx, candidateId, removal);
+		await eraseContact(tx, candidateId, at, removal);
 		await eraseInvitations(tx, candidateId, ids, at, removal);
 		await eraseShortlistMarks(tx, candidateId, removal);
 		evidenceKeptUntil = await eraseConsents(tx, candidateId, ids, today, removal);

@@ -23,8 +23,10 @@ import ScrollTextIcon from '@lucide/svelte/icons/scroll-text';
 import ScanTextIcon from '@lucide/svelte/icons/scan-text';
 import RssIcon from '@lucide/svelte/icons/rss';
 import SearchIcon from '@lucide/svelte/icons/search';
+import SendIcon from '@lucide/svelte/icons/send';
 import ShieldCheckIcon from '@lucide/svelte/icons/shield-check';
 import SlidersHorizontalIcon from '@lucide/svelte/icons/sliders-horizontal';
+import SwordsIcon from '@lucide/svelte/icons/swords';
 import TagIcon from '@lucide/svelte/icons/tag';
 import TargetIcon from '@lucide/svelte/icons/target';
 import Trash2Icon from '@lucide/svelte/icons/trash-2';
@@ -72,6 +74,7 @@ export const WORKSPACES: Record<Workspace, WorkspaceNav> = {
 			{ label: 'Резюме', icon: FileUserIcon, href: resolve('/me/resume') },
 			{ label: 'Вакансии', icon: BriefcaseIcon, href: resolve('/me/vacancies') },
 			{ label: 'Приглашения', icon: InboxIcon, href: resolve('/me/invitations') },
+			{ label: 'Вызовы', icon: SwordsIcon, href: resolve('/me/challenges') },
 			{ label: 'Тесты', icon: ClipboardCheckIcon, href: resolve('/me/tests') },
 			{ label: 'Мои данные', icon: DownloadIcon, href: resolve('/me/export') },
 			{ label: 'Удалить учётную запись', icon: Trash2Icon, href: resolve('/account/delete') }
@@ -85,6 +88,8 @@ export const WORKSPACES: Record<Workspace, WorkspaceNav> = {
 			{ label: 'Вакансии', icon: BriefcaseIcon, href: resolve('/company/vacancies') },
 			{ label: 'Внешние вакансии', icon: GlobeIcon, href: resolve('/company/vacancies/external') },
 			{ label: 'Приглашения', icon: InboxIcon, href: resolve('/company/invitations') },
+			{ label: 'Отклики', icon: SendIcon, href: resolve('/company/applications') },
+			{ label: 'Вызовы', icon: SwordsIcon, href: resolve('/company/challenges') },
 			{ label: 'Найм', icon: ListChecksIcon, href: resolve('/company/hiring') },
 			{
 				label: 'Пул партнёра',

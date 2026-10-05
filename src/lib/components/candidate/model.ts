@@ -432,6 +432,7 @@ export type FactDetailView =
 			bankReleaseId: string;
 			decidedOn: string;
 	  }
+	| { kind: 'test_block'; title: string; skillKeys: string[]; bankReleaseId: string; decidedOn: string }
 	| { kind: 'other'; factType: string };
 
 export interface ReceiptData {
@@ -498,6 +499,8 @@ export function factTitle(detail: FactDetailView): string {
 			return `Аккаунт ${detail.platform}`;
 		case 'test_score':
 			return `Тест на грейд ${detail.title}`;
+		case 'test_block':
+			return detail.title;
 		case 'other':
 			return detail.factType === 'resume_document' ? 'Резюме' : 'Факт профиля';
 	}

@@ -162,7 +162,7 @@ export async function pendingRepresentativeDisclosure(
 		.orderBy(desc(consentEvents.occurredAt), desc(consentEvents.id))
 		.limit(1);
 	if (last?.action !== 'grant' || last.occurredAt < terms.createdAt) return null;
-	if (await effectiveDisclosure(executor, invitation.candidateId, invitation.id, now)) return null;
+	if (await effectiveDisclosure(executor, invitation.candidateId, { invitationId: invitation.id }, now)) return null;
 	return {
 		termsId: terms.id,
 		subjectGrantId: last.id,
@@ -348,7 +348,7 @@ export async function recordDecline(
 	if (status === 'declined') {
 		await tx.update(invitations).set({ status, closedAt: now }).where(eq(invitations.id, invitation.id));
 	}
-	const disclosure = await effectiveDisclosure(tx, invitation.candidateId, invitation.id, now);
+	const disclosure = await effectiveDisclosure(tx, invitation.candidateId, { invitationId: invitation.id }, now);
 	return {
 		status,
 		processId: await processIdOf(tx, invitation.id),
@@ -393,7 +393,7 @@ async function accept(
 	const chosen = disclosureChoice(input.discloseFields);
 	const candidateUserId = subject.userId;
 	if (candidateUserId === null) throw new Error('an answer is given by a signed-in candidate');
-	const before = await effectiveDisclosure(tx, invitation.candidateId, invitation.id, now);
+	const before = await effectiveDisclosure(tx, invitation.candidateId, { invitationId: invitation.id }, now);
 	if (!before && (await pendingRepresentativeDisclosure(tx, invitation, now))) {
 		throw refuse('conflict', 'awaiting_representative', [
 			{
@@ -445,7 +445,7 @@ async function accept(
 
 	// Without the disclosure consent in effect there is no acceptance. For ages 14–17 the verified representative
 	// grants it for this invitation as well (domain 6.3): the candidate's side is kept and the answer waits for them.
-	const effective = await effectiveDisclosure(tx, invitation.candidateId, invitation.id, now);
+	const effective = await effectiveDisclosure(tx, invitation.candidateId, { invitationId: invitation.id }, now);
 	if (!effective) {
 		const [candidate] = await tx
 			.select({

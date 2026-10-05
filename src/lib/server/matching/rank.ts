@@ -177,7 +177,8 @@ export function needCandidateOf(snapshot: CandidateSnapshot, results: TestResult
 				const blocks = results.get(c.decisionId);
 				return blocks ? [[c.decisionId, blocks] as const] : [];
 			})
-		)
+		),
+		lastConfirmedAction: snapshot.lastConfirmedAction
 	};
 }
 

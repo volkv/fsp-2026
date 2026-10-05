@@ -13,8 +13,14 @@ import { afterAll, beforeAll, describe, expect, inject, it, vi } from 'vitest';
 import type { Database } from '$lib/server/db';
 import * as schema from '$lib/server/db/schema';
 import {
+	applications,
 	auditEvents,
+	blockConfirmations,
 	candidates,
+	challengeDeliveries,
+	challengeSolutions,
+	companyChallenges,
+	confirmationRequests,
 	candidateSurveys,
 	consentEvents,
 	demoSessions,
@@ -26,8 +32,12 @@ import {
 	shortlistMarks,
 	shortlists,
 	staffRoles,
+	testAttempts,
 	users
 } from '$lib/server/db/schema';
+import { CATALOG } from '$lib/server/assessments/contract/catalog';
+import { GRADE_POLICY } from '$lib/server/assessments/contract/policy';
+import { PROCEDURE } from '$lib/server/assessments/contract/procedure';
 import { ensureAttestations } from '$lib/server/attestations/issue';
 import { verifyAttestation } from '$lib/server/attestations/verify';
 import { purgeDemoSession } from '$lib/server/demo/purge';
@@ -50,6 +60,7 @@ import {
 	createCandidate,
 	createCompany,
 	createMember,
+	createOwnVacancy,
 	createTaxonomyVersion,
 	createUser,
 	randomSha256
@@ -95,7 +106,8 @@ const people = {
 	bystander: '',
 	staff: '',
 	clone: '',
-	session: ''
+	session: '',
+	application: ''
 };
 let exported = '';
 let requestedAt: Date;
@@ -207,6 +219,126 @@ beforeAll(async () => {
 		markedAt: new Date(),
 		note: 'сильный SQL'
 	});
+	// A call delivered with the candidate's solution, a request of a confirmation closed by a block result, and an
+	// application (domain 23.2): the replay erases them again and leaves the application a tombstone.
+	const [challenge] = await db
+		.insert(companyChallenges)
+		.values({
+			companyId: company.id,
+			createdByMemberId: member.id,
+			title: 'Идемпотентность платежей',
+			statement:
+				'Сервис принимает платёж и иногда получает один и тот же запрос дважды. Как сделать приём идемпотентным?',
+			answerKind: 'approach',
+			specialization: 'backend',
+			grades: ['junior'],
+			salaryMin: 150_000,
+			salaryMax: 200_000,
+			salaryCurrency: 'RUB',
+			salaryPeriod: 'month',
+			salaryTaxBase: 'gross',
+			goal: 'Найти инженера',
+			timeLimitMinutes: 15,
+			status: 'active',
+			startsAt: new Date(),
+			endsAt: new Date(Date.now() + 86_400_000),
+			textCheck: { validator_version: 'test', result: 'clean', phrases: [], warnings_confirmed: null, moderation: null }
+		})
+		.returning({ id: companyChallenges.id });
+	if (!challenge) throw new Error('challenge not inserted');
+	const [delivery] = await db
+		.insert(challengeDeliveries)
+		.values({
+			challengeId: challenge.id,
+			candidateId: candidate.id,
+			deliveredAt: new Date(),
+			status: 'solved',
+			openedAt: new Date()
+		})
+		.returning({ id: challengeDeliveries.id });
+	if (!delivery) throw new Error('delivery not inserted');
+	await db
+		.insert(challengeSolutions)
+		.values({ deliveryId: delivery.id, content: 'ключ идемпотентности', submittedAt: new Date(), status: 'submitted' });
+	await db.transaction(async (tx) => {
+		const [request] = await tx
+			.insert(confirmationRequests)
+			.values({
+				companyId: company.id,
+				requestedByMemberId: member.id,
+				candidateId: candidate.id,
+				specialization: 'backend',
+				block: 'be.api',
+				grade: 'junior',
+				status: 'accepted',
+				answeredAt: new Date(),
+				expiresAt: new Date(Date.now() + 86_400_000)
+			})
+			.returning({ id: confirmationRequests.id });
+		if (!request) throw new Error('request not inserted');
+		const [attempt] = await tx
+			.insert(testAttempts)
+			.values({
+				candidateId: candidate.id,
+				purpose: 'vacancy_block',
+				specialization: 'backend',
+				grade: 'junior',
+				catalogVersion: CATALOG.version,
+				bankReleaseId: 'test-release',
+				procedureVersion: PROCEDURE.version,
+				policyVersion: GRADE_POLICY.version,
+				seed: randomBytes(16).toString('hex'),
+				status: 'decided',
+				startedAt: new Date(),
+				deadlineAt: new Date(),
+				endedAt: new Date(),
+				confirmationRequestId: request.id
+			})
+			.returning({ id: testAttempts.id });
+		if (!attempt) throw new Error('attempt not inserted');
+		const [result] = await tx
+			.insert(blockConfirmations)
+			.values({
+				candidateId: candidate.id,
+				attemptId: attempt.id,
+				specialization: 'backend',
+				block: 'be.api',
+				grade: 'junior',
+				verdict: 'confirmed',
+				scoreSum: 60,
+				cutSum: 48,
+				bankReleaseId: 'test-release',
+				status: 'valid',
+				visibility: 'requester',
+				decidedAt: new Date()
+			})
+			.returning({ id: blockConfirmations.id });
+		if (!result) throw new Error('result not inserted');
+		await tx
+			.update(confirmationRequests)
+			.set({ status: 'completed', confirmationId: result.id })
+			.where(eq(confirmationRequests.id, request.id));
+	});
+	const taxonomy = await createTaxonomyVersion(db);
+	const vacancy = await createOwnVacancy(db, {
+		companyId: company.id,
+		memberId: member.id,
+		taxonomyVersionId: taxonomy.id
+	});
+	const [application] = await db
+		.insert(applications)
+		.values({
+			candidateId: candidate.id,
+			companyId: company.id,
+			vacancyId: vacancy.id,
+			message: 'Работал с платежами',
+			match: { score: 0.5 },
+			status: 'submitted',
+			submittedAt: new Date()
+		})
+		.returning({ id: applications.id });
+	if (!application) throw new Error('application not inserted');
+	people.application = application.id;
 	people.bystander = (await createCandidate(db)).userId;
 	const staff = await createCandidate(db);
 	people.staff = staff.userId;
@@ -328,6 +460,13 @@ describe('the erasure ledger after a restore', () => {
 		expect(
 			await restored.select().from(shortlistMarks).where(eq(shortlistMarks.candidateId, people.candidateProfile))
 		).toEqual([]);
+		for (const table of [challengeDeliveries, confirmationRequests, blockConfirmations] as const) {
+			expect(await restored.select().from(table).where(eq(table.candidateId, people.candidateProfile))).toEqual([]);
+		}
+		expect(await restored.select().from(challengeSolutions)).toEqual([]);
+		const [application] = await restored.select().from(applications).where(eq(applications.id, people.application));
+		expect(application).toMatchObject({ status: 'withdrawn', message: null, match: null });
+		expect(application?.purgedAt).not.toBeNull();
 		// The deletion began again as the system's act, not the person's.
 		const requested = await restored
 			.select({ actorKind: auditEvents.actorKind, cause: sql<string>`${auditEvents.details} ->> 'cause'` })

@@ -1,5 +1,6 @@
-// `effectiveConsent(candidate, contact_disclosure, invitation, at)` (docs/domain.md, sections 6.3, 13.6): the consent to
-// hand identifying data to the company of one invitation. Grants of other invitations give this company nothing.
+// `effectiveConsent(candidate, contact_disclosure, invitation | application, at)` (docs/domain.md, sections 6.3, 13.6):
+// the consent to hand identifying data to the company of one invitation or of one application of the candidate. Grants
+// of other invitations and applications give this company nothing.
 import { and, asc, desc, eq, inArray, isNotNull, isNull, lte } from 'drizzle-orm';
 import { effectiveConsent, type ConsentEventFacts } from '$lib/server/consent/effective';
 import { DISCLOSURE_FIELDS, type DisclosureField } from '$lib/server/consent/kinds';
@@ -31,11 +32,14 @@ function disclosureFields(event: DisclosureEvent): DisclosureField[] {
 	});
 }
 
-/** The disclosure consent in effect for the invitation at `at`; `null` — none (never given, revoked, lapsed). */
+/**
+ * The disclosure consent in effect at `at` for an invitation or for the candidate's own application (domain 13.6);
+ * `null` — none (never given, revoked, lapsed).
+ */
 export async function effectiveDisclosure(
 	executor: Executor,
 	candidateId: string,
-	invitationId: string,
+	scope: { invitationId: string } | { applicationId: string },
 	at: Date
 ): Promise<EffectiveDisclosure | null> {
 	const [candidate] = await executor
@@ -66,7 +70,9 @@ export async function effectiveDisclosure(
 			and(
 				eq(consentEvents.subjectCandidateId, candidateId),
 				eq(consentEvents.kind, 'contact_disclosure'),
-				eq(consentEvents.scopeInvitationId, invitationId),
+				'invitationId' in scope
+					? eq(consentEvents.scopeInvitationId, scope.invitationId)
+					: eq(consentEvents.scopeApplicationId, scope.applicationId),
 				lte(consentEvents.occurredAt, at)
 			)
 		)

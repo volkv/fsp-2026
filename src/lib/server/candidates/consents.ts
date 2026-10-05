@@ -558,7 +558,7 @@ async function disclosureConsents(db: Database, candidateId: string, now: Date):
 		.orderBy(asc(disclosures.disclosedAt));
 	const views: DisclosureConsentView[] = [];
 	for (const row of rows) {
-		const effective = await effectiveDisclosure(db, candidateId, row.id, now);
+		const effective = await effectiveDisclosure(db, candidateId, { invitationId: row.id }, now);
 		views.push({
 			invitationId: row.id,
 			companyName: row.companyName,

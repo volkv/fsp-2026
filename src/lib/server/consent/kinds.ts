@@ -210,7 +210,8 @@ export const POLICY_KINDS = [
 	'sourcing_policy',
 	'assessment_policy',
 	'retention_policy',
-	'matching_policy'
+	'matching_policy',
+	'challenge_policy'
 ] as const;
 
 export type PolicyKind = (typeof POLICY_KINDS)[number];
@@ -309,6 +310,15 @@ export const POLICY_PARAMS = {
 		 * Not above the pool threshold of the match rule set: the pool is counted from the stored pairs too.
 		 */
 		store_threshold: z.number().min(0).max(1)
+	}),
+	// Regular delivery of the calls of companies (domain 13.12).
+	challenge_policy: z.strictObject({
+		/** A call is offered to new candidates once in this many hours. */
+		period_hours: positiveInt,
+		/** A candidate gets no call within this many days after the previous one. */
+		candidate_interval_days: positiveInt,
+		/** At most this many deliveries of one call per run. */
+		per_run_per_challenge: positiveInt
 	})
 } as const satisfies Record<PolicyKind, z.ZodType>;
 

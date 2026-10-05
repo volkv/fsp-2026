@@ -7,6 +7,7 @@ import { ADMITTED_COMPANY_STATUSES } from '$lib/server/access/permissions';
 import type { Executor } from '$lib/server/db';
 import { publishedRun, runInForce } from '$lib/server/db/conditions';
 import { activeCategories } from '$lib/server/categories/read';
+import { lastConfirmedActions } from '$lib/server/challenges/freshness';
 import {
 	candidates,
 	companies,
@@ -28,6 +29,8 @@ export interface CandidateSnapshot extends MatchCandidate {
 	preferences: CandidatePreferences;
 	/** The categories in force with what their tests confirmed: the ranking for a need reads them (domain 13.10). */
 	confirmed: ConfirmedCategory[];
+	/** The latest valid block result or submitted solution of a call: the freshness of the ranking (domain 13.12). */
+	lastConfirmedAction: Date | null;
 }
 
 export interface VacancySnapshot extends MatchVacancy {
@@ -88,6 +91,7 @@ export async function loadCandidateSnapshots(
 	const runByCandidate = new Map(runs.map((run) => [run.candidateId, run]));
 	const validRunIds = runs.filter((run) => run.inForce).map((run) => run.id);
 	const categories = await activeCategories(executor, ids);
+	const actions = await lastConfirmedActions(executor, ids);
 	const inferences = validRunIds.length
 		? await executor
 				.select({
@@ -162,7 +166,8 @@ export async function loadCandidateSnapshots(
 				assignedAt: c.assignedAt
 			})),
 			preferences,
-			salaryExpectation: salaryExpectation(preferences)
+			salaryExpectation: salaryExpectation(preferences),
+			lastConfirmedAction: actions.get(row.id) ?? null
 		});
 	}
 	return result;

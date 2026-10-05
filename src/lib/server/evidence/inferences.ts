@@ -44,6 +44,15 @@ const testScorePayload = z.looseObject({
 	gradeKey: z.string().min(1).nullable().optional()
 });
 
+/**
+ * Payload of a `test_block` fact (domain 13.11): the confirmed block of a block test and the skills it covers — the
+ * area of the result.
+ */
+const testBlockPayload = z.looseObject({
+	block: z.string().min(1),
+	skillKeys: z.array(z.string().min(1))
+});
+
 /** Payload of a Codeforces fact of a verified profile (src/lib/server/external-profiles/facts.ts): what the rules read. */
 const codeforcesPayload = z.looseObject({
 	account: z.looseObject({ rating: z.int().nullable() }),
@@ -254,6 +263,39 @@ export function collectEvidence(snapshot: EvidenceSnapshot, rules: RulesContext,
 			if (gradeKey !== null) {
 				if (gradeKeys.has(gradeKey)) evidence.levelTests.push({ fact_id: fact.id, gradeKey });
 				else evidence.unused.push({ fact_id: fact.id, claim_id: null, code: 'grade_not_in_taxonomy' });
+			}
+			continue;
+		}
+
+		if (fact.source === 'platform_test' && fact.factType === 'test_block') {
+			// A block confirmed by a block test of an employer's request (domain 13.11): the skills of that block only, at the
+			// grade of the test — the area of the result; the category is not touched.
+			const payload = testBlockPayload.parse(fact.payload);
+			for (const skill of [...new Set(payload.skillKeys)].sort()) {
+				if (!skillKeys.has(skill)) {
+					evidence.unused.push({ fact_id: fact.id, claim_id: null, code: 'skill_not_in_taxonomy' });
+					continue;
+				}
+				push(evidence.skills, skill, {
+					basis: 'platform_test',
+					source: fact.source,
+					fact_id: fact.id,
+					claim_id: null,
+					experience_entry_id: null,
+					group_key: fact.eventKey ?? `test:block:${payload.block}`,
+					rule_id: `${rulesetRef}:platformTest`,
+					rule_version: String(rules.rulesetVersion),
+					weight: weights.platformTest,
+					strength_of_result: 1,
+					format_factor: null,
+					team_factor: null,
+					recency_factor: round(recency, 6),
+					computed_indicator: null,
+					via_skill: null,
+					contribution: weights.platformTest * recency,
+					trust_level: fact.trustLevel,
+					attestation: attestationOf('direct', fact.trustLevel)
+				});
 			}
 			continue;
 		}

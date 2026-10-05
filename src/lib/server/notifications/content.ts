@@ -6,12 +6,17 @@
 // so do the representative's revocation, the verified birth date and an annulled attempt of a test. The deadline of an objection reaches the FSP staff while the
 // objection is still open and the recipient still holds a staff role; it names no candidate data.
 import { and, eq, inArray, isNull } from 'drizzle-orm';
+import { CATALOG } from '$lib/server/assessments/contract/catalog';
 import { testTitle } from '$lib/server/assessments/titles';
 import type { FieldCrypto } from '$lib/server/crypto/fields';
 import type { Executor } from '$lib/server/db';
 import {
+	applications,
 	assessmentObjections,
 	candidates,
+	challengeDeliveries,
+	companyChallenges,
+	confirmationRequests,
 	companies,
 	companyMembers,
 	hiringProcesses,
@@ -58,7 +63,17 @@ export type NotificationFacts =
 	/** About the candidate's own profile: majority, the coming removal for inactivity, the verified birth date. */
 	| { object: 'candidate'; side: 'candidate' }
 	/** The operator annulled the candidate's own attempt; `title` — of the test, the candidate's own data. */
-	| { object: 'assessment_attempt'; side: 'candidate'; title: string };
+	| { object: 'assessment_attempt'; side: 'candidate'; title: string }
+	/** A company asks the candidate to confirm a block: the company is named to the candidate, as in an offer. */
+	| { object: 'confirmation_request'; side: 'candidate'; companyName: string; blockTitle: string }
+	/** The result of the block test reached the company that asked: the candidate by pseudonym. */
+	| { object: 'confirmation_request'; side: 'company'; candidatePseudonym: string; blockTitle: string }
+	/** A call of a company delivered to the candidate. */
+	| { object: 'challenge_delivery'; side: 'candidate'; companyName: string; challengeTitle: string }
+	/** The candidate's own application: the company of the vacancy decided on it. */
+	| { object: 'application'; side: 'candidate'; companyName: string; vacancyTitle: string }
+	/** An application to the company's own vacancy: the candidate by pseudonym. */
+	| { object: 'application'; side: 'company'; candidatePseudonym: string; vacancyTitle: string };
 
 async function isActiveMember(executor: Executor, companyId: string, userId: string): Promise<boolean> {
 	const [member] = await executor
@@ -207,8 +222,88 @@ export async function notificationFacts(
 				title: testTitle(attempt.specialization, attempt.grade)
 			};
 		}
+		case 'confirmation_request':
+			return confirmationFacts(executor, crypto, notification);
+		case 'challenge_delivery': {
+			const [delivery] = await executor
+				.select({
+					candidateId: challengeDeliveries.candidateId,
+					title: companyChallenges.title,
+					companyName: companies.displayName
+				})
+				.from(challengeDeliveries)
+				.innerJoin(companyChallenges, eq(companyChallenges.id, challengeDeliveries.challengeId))
+				.innerJoin(companies, eq(companies.id, companyChallenges.companyId))
+				.where(eq(challengeDeliveries.id, notification.objectId));
+			if (!delivery || !(await isCandidateUser(executor, delivery.candidateId, notification.userId))) return null;
+			return {
+				object: 'challenge_delivery',
+				side: 'candidate',
+				companyName: delivery.companyName,
+				challengeTitle: delivery.title
+			};
+		}
+		case 'application': {
+			const [application] = await executor
+				.select({
+					candidateId: applications.candidateId,
+					companyId: applications.companyId,
+					purgedAt: applications.purgedAt,
+					vacancyTitle: vacancies.title,
+					companyName: companies.displayName
+				})
+				.from(applications)
+				.innerJoin(vacancies, eq(vacancies.id, applications.vacancyId))
+				.innerJoin(companies, eq(companies.id, applications.companyId))
+				.where(eq(applications.id, notification.objectId));
+			if (!application || application.purgedAt !== null) return null;
+			if (await isCandidateUser(executor, application.candidateId, notification.userId)) {
+				return {
+					object: 'application',
+					side: 'candidate',
+					companyName: application.companyName,
+					vacancyTitle: application.vacancyTitle
+				};
+			}
+			if (!(await isActiveMember(executor, application.companyId, notification.userId))) return null;
+			return {
+				object: 'application',
+				side: 'company',
+				candidatePseudonym: crypto.pseudonym(application.candidateId, application.companyId),
+				vacancyTitle: application.vacancyTitle
+			};
+		}
 	}
 	return invitationFacts(executor, crypto, notification);
+}
+
+async function confirmationFacts(
+	executor: Executor,
+	crypto: FieldCrypto,
+	notification: { objectId: string; userId: string }
+): Promise<NotificationFacts | null> {
+	const [request] = await executor
+		.select({
+			candidateId: confirmationRequests.candidateId,
+			companyId: confirmationRequests.companyId,
+			block: confirmationRequests.block,
+			companyName: companies.displayName
+		})
+		.from(confirmationRequests)
+		.innerJoin(companies, eq(companies.id, confirmationRequests.companyId))
+		.where(eq(confirmationRequests.id, notification.objectId));
+	if (!request) return null;
+	const blockTitle = CATALOG.blocks.find((block) => block.code === request.block)?.title ?? request.block;
+	if (await isCandidateUser(executor, request.candidateId, notification.userId)) {
+		return { object: 'confirmation_request', side: 'candidate', companyName: request.companyName, blockTitle };
+	}
+	if (!(await isActiveMember(executor, request.companyId, notification.userId))) return null;
+	return {
+		object: 'confirmation_request',
+		side: 'company',
+		candidatePseudonym: crypto.pseudonym(request.candidateId, request.companyId),
+		blockTitle
+	};
 }
 
 async function invitationFacts(

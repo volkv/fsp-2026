@@ -3,10 +3,17 @@
 // sees the company with its profile and the label of its check, and every version with its differences. Across demo
 // sessions the candidate sees the invitations of the companies within their reach (domain 19.3): an invitation a clone
 // company sent to an original of the cast is not the original's.
-import { and, asc, desc, eq, isNull, type SQL } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNull, type SQL } from 'drizzle-orm';
 import { can, type AccessSubject } from '$lib/server/access/permissions';
 import type { Executor } from '$lib/server/db';
-import { companies, hiringProcesses, invitationResponses, invitations, invitationTerms } from '$lib/server/db/schema';
+import {
+	blockConfirmations,
+	companies,
+	hiringProcesses,
+	invitationResponses,
+	invitations,
+	invitationTerms
+} from '$lib/server/db/schema';
 import type { DisclosureField } from '$lib/server/consent/kinds';
 import { companyInDemoScope, demoSessionOfUser, inDemoScope } from '$lib/server/demo/scope';
 import { loadCompanyProfile, type CompanyPublicProfile } from '$lib/server/companies/public-profile';
@@ -35,7 +42,11 @@ export interface TermsVersionView {
 	salary: OfferedSalary;
 	workFormat: string;
 	contactMethod: ContactMethod;
-	whyYou: WhyYouPoint[];
+	/**
+	 * The points as sent; `basisAnnulled` — a point naming the result of a block test whose attempt was annulled since
+	 * (domain 13.11): the sent version stays as it was, the reading marks the point.
+	 */
+	whyYou: (WhyYouPoint & { basisAnnulled: boolean })[];
 	message: string | null;
 	responseDueAt: Date;
 	changes: TermsChanges | null;
@@ -72,6 +83,8 @@ export interface InvitationView {
 	awaitingRepresentative: { requestedAt: Date; dueAt: Date; fields: DisclosureField[] | null } | null;
 }
 
+const isUuid = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u.test(value);
+
 function sideOf(subject: AccessSubject, invitation: InvitationRow): 'company' | 'candidate' {
 	const access = can(subject, 'invitation.read', {
 		companyId: invitation.companyId,
@@ -88,12 +101,36 @@ async function versionsOf(executor: Executor, invitationId: string): Promise<Ter
 		.from(invitationResponses)
 		.where(eq(invitationResponses.invitationId, invitationId));
 	const responseOf = new Map(responses.map((r) => [r.termsId, r]));
+	const confirmationRefs = [
+		...new Set(
+			history.flatMap((terms) =>
+				termsContent(terms)
+					.whyYou.filter((point) => point.source.kind === 'confirmation')
+					.map((point) => point.source.ref)
+			)
+		)
+	].filter(isUuid);
+	const annulled = new Set(
+		confirmationRefs.length === 0
+			? []
+			: (
+					await executor
+						.select({ id: blockConfirmations.id })
+						.from(blockConfirmations)
+						.where(and(inArray(blockConfirmations.id, confirmationRefs), eq(blockConfirmations.status, 'annulled')))
+				).map((row) => row.id)
+	);
 	return history.map((terms: TermsRow) => {
 		const response = responseOf.get(terms.id);
+		const content = termsContent(terms);
 		return {
 			id: terms.id,
 			version: terms.version,
-			...termsContent(terms),
+			...content,
+			whyYou: content.whyYou.map((point) => ({
+				...point,
+				basisAnnulled: point.source.kind === 'confirmation' && annulled.has(point.source.ref)
+			})),
 			responseDueAt: terms.responseDueAt,
 			changes: terms.changes as TermsChanges | null,
 			createdAt: terms.createdAt,

@@ -165,7 +165,26 @@ const GROUPS = {
 		'external_profile.sync_failed'
 	],
 	models: ['ml.mode_changed'],
-	demo: ['demo.reset', 'demo.seeded', 'demo.session_opened', 'demo.session_purged']
+	demo: ['demo.reset', 'demo.seeded', 'demo.session_opened', 'demo.session_purged', 'demo.clock_advanced'],
+	// Requests of a confirmation, calls of companies and the candidate's own applications (domain 13.11, 13.12, 18.2).
+	contact: [
+		'confirmation.requested',
+		'confirmation.answered',
+		'confirmation.completed',
+		'confirmation.expired',
+		'confirmation.visibility_changed',
+		'challenge.published',
+		'challenge.updated',
+		'challenge.closed',
+		'challenge.delivered',
+		'challenge.solution_submitted',
+		'challenge.solution_withdrawn',
+		'challenge.solution_dismissed',
+		'challenge.invited_from_solution',
+		'application.submitted',
+		'application.withdrawn',
+		'application.decided'
+	]
 } as const;
 
 export type AuditAction = (typeof GROUPS)[keyof typeof GROUPS][number];
@@ -331,6 +350,13 @@ const SPECIFIC_DETAILS: Partial<Record<AuditAction, z.ZodType>> = {
 		jobs_cancelled: count,
 		references_detached: count
 	}),
+	// The result of a block test closed the request (domain 13.11).
+	'confirmation.completed': withKeys({ verdict: z.enum(['confirmed', 'not_confirmed']), confirmation_id: token }),
+	// A run of the delivery of one call (domain 13.12): how many candidates got it and how many were reminded.
+	'challenge.delivered': withKeys({ delivered: count, reminded: count, expired: count }),
+	'application.decided': withKeys({ decision: z.enum(['viewed', 'invited', 'rejected']) }),
+	// «Промотать неделю» of a demo session: the new shift of the session's clock in seconds.
+	'demo.clock_advanced': withKeys({ clock_offset_seconds: count }),
 	'ml.mode_changed': withKeys({
 		operation: z.enum(['extract', 'embed', 'rerank']),
 		from: z.enum(['on', 'off']),

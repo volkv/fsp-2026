@@ -40,6 +40,8 @@ const moderationOutcome = z.enum(['published', 'returned', 'rejected']);
 const moderatedStatus = z.enum(['published', 'paused', 'draft', 'closed']);
 const ageRegime = z.enum(['adult', 'minor']);
 const annulReason = z.enum(ANNUL_REASONS);
+const blockVerdict = z.enum(['confirmed', 'not_confirmed']);
+const applicationDecision = z.enum(['invited', 'rejected']);
 
 type DecisionType =
 	| 'company.verification_decided'
@@ -55,7 +57,13 @@ type DecisionType =
 	| 'candidate.age_verified'
 	| 'assessment.annulled'
 	| 'candidate.majority_reached'
-	| 'candidate.inactive_purge_scheduled';
+	| 'candidate.inactive_purge_scheduled'
+	| 'confirmation.requested'
+	| 'confirmation.completed'
+	| 'challenge.delivered'
+	| 'challenge.reminder'
+	| 'application.received'
+	| 'application.decided';
 type InvitationType = Exclude<NotificationType, DecisionType>;
 
 function unsupported(type: NotificationType, facts: NotificationFacts): never {
@@ -309,6 +317,63 @@ function bodyOf(type: NotificationType, facts: NotificationFacts, payload: Paylo
 					'Чтобы сохранить профиль, просто войдите на платформу до этой даты.'
 				],
 				action: 'Войти и сохранить профиль'
+			};
+		}
+		case 'confirmation.requested':
+			if (facts.object !== 'confirmation_request' || facts.side !== 'candidate') unsupported(type, facts);
+			return {
+				subject: 'Компания просит подтвердить навык',
+				paragraphs: [
+					`Компания «${facts.companyName}» просит подтвердить блок «${facts.blockTitle}» коротким блок-тестом из четырёх заданий.`,
+					'Пройти его или отказаться — решаете вы: отказ ни на что не влияет, категория не меняется ни при каком исходе.'
+				],
+				action: 'Открыть запрос'
+			};
+		case 'confirmation.completed': {
+			if (facts.object !== 'confirmation_request' || facts.side !== 'company') unsupported(type, facts);
+			const confirmed = blockVerdict.parse(payload.verdict) === 'confirmed';
+			return {
+				subject: confirmed ? 'Кандидат подтвердил блок' : 'Блок-тест не подтвердил блок',
+				paragraphs: [
+					confirmed
+						? `Кандидат ${facts.candidatePseudonym} подтвердил блок «${facts.blockTitle}»: результат можно назвать в «почему вы» нового предложения.`
+						: `Блок-тест кандидата ${facts.candidatePseudonym} по блоку «${facts.blockTitle}» завершён без подтверждения.`
+				],
+				action: 'Открыть запросы подтверждения'
+			};
+		}
+		case 'challenge.delivered':
+		case 'challenge.reminder':
+			if (facts.object !== 'challenge_delivery') unsupported(type, facts);
+			return {
+				subject: type === 'challenge.delivered' ? 'Новый вызов компании' : 'Напоминание о вызове компании',
+				paragraphs: [
+					`Компания «${facts.companyName}» предлагает короткую задачу «${facts.challengeTitle}» кандидатам вашей категории.`,
+					'Вилка и цель видны сразу; решение или подход видит компания без вашего имени и может пригласить по нему.'
+				],
+				action: 'Открыть вызов'
+			};
+		case 'application.received':
+			if (facts.object !== 'application' || facts.side !== 'company') unsupported(type, facts);
+			return {
+				subject: 'Новый отклик на вакансию',
+				paragraphs: [
+					`Кандидат ${facts.candidatePseudonym} откликнулся на вакансию «${facts.vacancyTitle}».`,
+					'Соответствие и контакты, которые кандидат раскрыл с откликом, — в карточке отклика.'
+				],
+				action: 'Открыть отклик'
+			};
+		case 'application.decided': {
+			if (facts.object !== 'application' || facts.side !== 'candidate') unsupported(type, facts);
+			const invited = applicationDecision.parse(payload.decision) === 'invited';
+			return {
+				subject: invited ? 'Компания пригласила вас по отклику' : 'Компания ответила на отклик',
+				paragraphs: [
+					invited
+						? `Компания «${facts.companyName}» отправила вам предложение по отклику на вакансию «${facts.vacancyTitle}».`
+						: `Компания «${facts.companyName}» не готова продолжить по отклику на вакансию «${facts.vacancyTitle}».`
+				],
+				action: invited ? 'Открыть предложение' : 'Открыть мои отклики'
 			};
 		}
 		default:

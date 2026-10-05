@@ -4,6 +4,7 @@
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
 	import DemandBlock from '$lib/components/candidate/demand-block.svelte';
+	import NeedDemandBlock from '$lib/components/candidate/need-demand-block.svelte';
 	import { OBJECTION_STATUSES } from '$lib/components/candidate/model.js';
 	import SectionCard from '$lib/components/candidate/section-card.svelte';
 	import CsrfInput from '$lib/components/forms/csrf-input.svelte';
@@ -208,6 +209,7 @@
 	{/if}
 </SectionCard>
 
+<NeedDemandBlock demand={data.needs} {labels} />
 <DemandBlock demand={data.demand} {labels} />
 
 <SectionCard

@@ -5,7 +5,7 @@ import { parsePolicyParams, type PolicyParams } from '$lib/server/consent/kinds'
 import type { Executor } from '$lib/server/db';
 import { productPolicies } from '$lib/server/db/schema';
 
-type Kind = 'invitation_policy' | 'hiring_policy' | 'notification_policy' | 'catalog_policy';
+type Kind = 'invitation_policy' | 'hiring_policy' | 'notification_policy' | 'catalog_policy' | 'challenge_policy';
 
 export interface PolicyVersion<K extends Kind> {
 	id: string;

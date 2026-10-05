@@ -71,7 +71,7 @@ export async function candidateInvitationCard(
 		.where(eq(invitations.id, invitation.id));
 	if (!row) throw new Error(`invitation ${invitation.id} disappeared`);
 	const policy = await policyById(deps.db, 'invitation_policy', row.policyId);
-	const disclosure = await effectiveDisclosure(deps.db, row.candidateId, invitation.id, now);
+	const disclosure = await effectiveDisclosure(deps.db, row.candidateId, { invitationId: invitation.id }, now);
 	const document = await currentDocument(deps.db, 'contact_disclosure', now);
 	const process = invitation.hiringProcessId ? await getHiringProcess(deps, subject, invitation.hiringProcessId) : null;
 	let hiringPolicy: InvitationCard['hiringPolicy'] = null;

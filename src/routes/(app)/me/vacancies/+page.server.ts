@@ -34,7 +34,8 @@ function searchOf(url: URL) {
 }
 
 /**
- * Vacancies ranked by the candidate's match, and the readiness to receive offers; there is no «apply». An external
+ * Vacancies ranked by the candidate's match, and the readiness to receive offers; an own vacancy of a company of the
+ * platform leads to its page with the application (domain 13.5), an external one has none. An external
  * vacancy comes with its postings: the source, its attribution, the link to the original and the last freshness check.
  * The search narrows the list by words, origin, role and work format; the match stays the same.
  */

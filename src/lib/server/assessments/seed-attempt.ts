@@ -73,5 +73,6 @@ export async function runSeededAttempt(
 		outcome = await advance(tx, deps, attempt, context);
 	}
 	if (outcome.kind === 'waiting_sandbox') throw new Error(`seeded attempt ${attempt.id} waits for the sandbox`);
+	if (outcome.kind === 'block_decided') throw new Error(`seeded attempt ${attempt.id} is a block test`);
 	return { attemptId: attempt.id, outcome };
 }

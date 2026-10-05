@@ -30,6 +30,9 @@
 >
 	{#snippet eyebrow()}<a class="underline underline-offset-4" href={resolve('/me/category')}>Категория и грейд</a
 		>{/snippet}
+	{#snippet actions()}
+		<a href={resolve('/me/confirmations')} class={buttonVariants({ variant: 'outline' })}>Запросы подтверждения</a>
+	{/snippet}
 </PageHeader>
 
 <p class="max-w-3xl text-sm text-muted-foreground">{HOW_IT_DECIDES}</p>

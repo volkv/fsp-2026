@@ -43,6 +43,7 @@ describe('product policies seed', () => {
 			'assessment_policy v1',
 			'catalog_policy v1',
 			'catalog_policy v2',
+			'challenge_policy v1',
 			'hiring_policy v1',
 			'invitation_policy v1',
 			'market_policy v1',

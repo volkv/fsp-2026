@@ -225,6 +225,13 @@
       "when": 1791225926182,
       "tag": "0031_evaluation_scope",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1791237877676,
+      "tag": "0032_challenges_confirmations_applications",
+      "breakpoints": true
     }
   ]
 }

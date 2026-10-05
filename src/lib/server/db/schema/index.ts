@@ -1,9 +1,11 @@
 // Barrel of all Drizzle tables: drizzle-kit reads this folder, and `db()` passes the exports as its schema.
 // One module per aggregate of docs/domain.md, section 2.
+export * from './applications';
 export * from './assessments';
 export * from './audit';
 export * from './candidates';
 export * from './categories';
+export * from './challenges';
 export * from './companies';
 export * from './consent';
 export * from './demo';

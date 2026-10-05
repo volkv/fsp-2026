@@ -3,9 +3,11 @@
 import { testRun } from '$lib/server/assessments/run-job';
 import { profileEmbed } from '$lib/server/candidates/embed-job';
 import { objectionDeadlineWatch } from '$lib/server/categories/objections';
+import { challengeDeliver } from '$lib/server/challenges/deliver';
 import { configuredRegistry } from '$lib/server/companies/registry';
 import { companyRegistryLookup } from '$lib/server/companies/registry-check';
 import { config } from '$lib/server/config';
+import { confirmationExpire } from '$lib/server/confirmations/requests';
 import { candidateMajorityTransition, scheduleMajorityTransitions } from '$lib/server/consent/majority';
 import { demoReset } from '$lib/server/demo/job';
 import { demoPurge } from '$lib/server/demo/purge-job';
@@ -61,7 +63,9 @@ export const JOB_HANDLERS = handlerRegistry([
 	demoPurge,
 	consentRevocationCleanup,
 	accountPurge,
-	candidateMajorityTransition
+	candidateMajorityTransition,
+	challengeDeliver,
+	confirmationExpire
 ]);
 
 /** Schedules with their own timetables, ticked by a worker that runs their job type. */

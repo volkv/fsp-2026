@@ -31,7 +31,10 @@
 		'match.read': 'Соответствие кандидатов вакансиям',
 		'market.read': 'Рынок категорий',
 		'partner_pool.read': 'Пул финалистов партнёрского соревнования',
-		'receipt.verify': 'Проверка квитанций'
+		'receipt.verify': 'Проверка квитанций',
+		'challenge.manage': 'Вызовы компании и решения',
+		'confirmation.request': 'Запросы подтверждения блоков',
+		'application.manage': 'Входящие отклики'
 	};
 
 	function keyState(key: (typeof data.keys)[number]): { label: string; tone: 'success' | 'neutral' | 'danger' } {

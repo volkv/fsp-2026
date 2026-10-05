@@ -1227,7 +1227,58 @@ const REGISTRY: Record<string, Entry> = {
 	'api/v1/vacancies/[vacancy_id]/pause/+server.ts': WRITES,
 	'api/v1/vacancies/[vacancy_id]/publish/+server.ts': WRITES,
 	'api/v1/vacancies/[vacancy_id]/resume/+server.ts': WRITES,
-	'api/v1/vacancies/drafts/from-text/+server.ts': WRITES
+	'api/v1/vacancies/drafts/from-text/+server.ts': WRITES,
+
+	// Requests of a confirmation, calls and applications (domain 13.11, 13.12, 13.5). The rows are the company's own or
+	// the candidate's own; a request and a delivery are made only to a candidate `canShow` lets the company see, so a
+	// session never reaches across — the services check the reach again on every read (confirmation-requests.test.ts,
+	// challenges.test.ts, applications.test.ts).
+	'(app)/me/vacancies/[id]/+page.server.ts': target(
+		'candidate',
+		'scope',
+		(_, t) => `/me/vacancies/${t.vacancyId}`,
+		(_, t) => ({ id: t.vacancyId })
+	),
+	'(app)/me/challenges/+page.server.ts': exempt('deliveries of the own profile — challenges.test.ts'),
+	'(app)/me/challenges/[deliveryId]/+page.server.ts': exempt('a delivery of the own profile — challenges.test.ts'),
+	'(app)/me/confirmations/+page.server.ts': exempt('requests to the own profile — confirmation-requests.test.ts'),
+	'(app)/me/applications/+page.server.ts': exempt('the own applications — applications.test.ts'),
+	'(app)/company/(member)/challenges/+page.server.ts': exempt('calls of the own company — challenges.test.ts'),
+	'(app)/company/(member)/challenges/[id]/+page.server.ts': exempt(
+		'a call of the own company, its solutions through canShow — challenges.test.ts'
+	),
+	'(app)/company/(member)/applications/+page.server.ts': exempt(
+		'applications to the own company — applications.test.ts'
+	),
+	'(app)/company/(member)/applications/[id]/+page.server.ts': exempt(
+		'an application to the own company — applications.test.ts'
+	),
+	'(app)/company/(member)/confirmations/+page.server.ts': exempt(
+		'requests of the own company — confirmation-requests.test.ts'
+	),
+	'api/v1/confirmation-requests/+server.ts': exempt('requests of the own company — confirmation-requests.test.ts'),
+	'api/v1/me/confirmation-requests/+server.ts': exempt('requests to the own profile — confirmation-requests.test.ts'),
+	'api/v1/me/confirmation-requests/[request_id]/accept/+server.ts': WRITES,
+	'api/v1/me/confirmation-requests/[request_id]/decline/+server.ts': WRITES,
+	'api/v1/me/block-confirmations/[confirmation_id]/visibility/+server.ts': WRITES,
+	'api/v1/challenges/+server.ts': exempt('calls of the own company — challenges.test.ts'),
+	'api/v1/challenges/[challenge_id]/+server.ts': exempt('a call of the own company — challenges.test.ts'),
+	'api/v1/challenges/[challenge_id]/solutions/+server.ts': exempt(
+		'solutions of a call of the own company through canShow — challenges.test.ts'
+	),
+	'api/v1/challenges/[challenge_id]/solutions/[solution_id]/dismissal/+server.ts': WRITES,
+	'api/v1/me/challenges/+server.ts': exempt('deliveries of the own profile — challenges.test.ts'),
+	'api/v1/me/challenges/[delivery_id]/viewed/+server.ts': WRITES,
+	'api/v1/me/challenges/[delivery_id]/solutions/+server.ts': WRITES,
+	'api/v1/me/challenges/[delivery_id]/solutions/[solution_id]/+server.ts': WRITES,
+	'api/v1/me/challenges/[delivery_id]/dismissal/+server.ts': WRITES,
+	'api/v1/demo/clock/+server.ts': WRITES,
+	'api/v1/me/applications/+server.ts': exempt('the own applications — applications.test.ts'),
+	'api/v1/me/applications/[application_id]/withdrawal/+server.ts': WRITES,
+	'api/v1/applications/+server.ts': exempt('applications to the own company — applications.test.ts'),
+	'api/v1/applications/[application_id]/+server.ts': exempt('an application to the own company — applications.test.ts'),
+	'api/v1/applications/[application_id]/rejection/+server.ts': WRITES,
+	'api/v1/me/demand/+server.ts': exempt('an aggregate of the needs within reach — need-demand.test.ts')
 };
 
 // --- The matrix ------------------------------------------------------------------------------------------------------

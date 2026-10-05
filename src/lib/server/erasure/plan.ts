@@ -77,7 +77,12 @@ export const ERASURE_PLAN: Readonly<Record<string, ErasureDecision>> = {
 	// The candidate's own profile fields and the confirmations of the categories (domain 12.9, 23.2).
 	'profile_experience_entries.candidate_id': erased,
 	'profile_suggestions.candidate_id': erased,
-	'category_attestations.candidate_id': erased
+	'category_attestations.candidate_id': erased,
+	// Calls, requests of a confirmation, results of block tests, applications (domain 13.11, 13.12, 23.2).
+	'challenge_deliveries.candidate_id': erased,
+	'confirmation_requests.candidate_id': erased,
+	'block_confirmations.candidate_id': erased,
+	'applications.candidate_id': kept('a tombstone of id, company, vacancy and status: a disclosure by it refers to it')
 };
 
 /** A single-column foreign key of the schema. */

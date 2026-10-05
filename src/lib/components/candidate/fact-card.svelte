@@ -152,6 +152,13 @@
 		<p class="text-sm text-muted-foreground">
 			Рейтинг {detail.rating ?? 'не передан'} — в уровень ФСП не входит: шкала платформы не сверена.
 		</p>
+	{:else if detail.kind === 'test_block'}
+		<p class="font-heading text-lg">{detail.title}</p>
+		<p class="text-sm" data-testid="test-block">
+			Подтверждено по запросу работодателя, выпуск банка {detail.bankReleaseId}, {formatDate(detail.decidedOn)}.
+			Покрывает только навыки блока: {detail.skillKeys.join(', ') || 'навыков в справочнике нет'}; грейд и категорию не
+			меняет.
+		</p>
 	{:else if detail.kind === 'test_score'}
 		<p class="font-heading text-lg">Тест на грейд {detail.title}</p>
 		<dl class="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2" data-testid="test-score">

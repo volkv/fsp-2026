@@ -19,6 +19,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { enumCheck, id, sha256Check, timestamps, ts } from './_columns';
 import { candidates } from './candidates';
+import { confirmationRequests } from './challenges';
 import { files } from './documents';
 import { users } from './identity';
 
@@ -90,7 +91,7 @@ export const testAttempts = pgTable(
 		deadlineAt: ts().notNull(),
 		endedAt: ts(),
 		/** For `vacancy_block`: the employer's request (domain 13.11). */
-		confirmationRequestId: uuid(),
+		confirmationRequestId: uuid().references((): AnyPgColumn => confirmationRequests.id),
 		integritySignals: jsonb(),
 		/** A seeded attempt (domain 23.3): scores by the deterministic verdict, nothing run in the sandbox. */
 		seeded: boolean().notNull().default(false),

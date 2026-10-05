@@ -30,7 +30,10 @@ export const POLICY_VIOLATION_CODES = {
 	scope_fields_minor: 'Кандидату младше 18 лет расширенный состав карточки недоступен',
 	specialization_closed: 'Специализация закрыта: её тест ещё не выпущен или выключен',
 	qa_budget_too_small: 'Слишком мало тест-кейсов: нужно не меньше, чем требует задание',
-	qa_budget_exceeded: 'Слишком много тест-кейсов: выберите самые важные в пределах бюджета задания'
+	qa_budget_exceeded: 'Слишком много тест-кейсов: выберите самые важные в пределах бюджета задания',
+	confirmation_block_confirmed: 'Этот блок уже подтверждён тестом действующей категории кандидата',
+	block_not_testable: 'Этот блок тестом платформы на этом грейде не проверяется',
+	application_adult_only: 'Откликнуться можно с 18 лет: до совершеннолетия компания выходит на кандидата сама'
 } as const;
 
 export type PolicyViolationCode = keyof typeof POLICY_VIOLATION_CODES;

@@ -27,6 +27,12 @@ export const PERMISSIONS = {
 	'hiring.report': { roles: [...EMPLOYER, 'candidate'], apiKey: true },
 	// Hiring needs of the company and the categories recommended for them (domain 13.10).
 	'need.manage': { roles: EMPLOYER, apiKey: true },
+	// Calls of the company and the solutions to them (domain 13.12).
+	'challenge.manage': { roles: EMPLOYER, apiKey: true },
+	// A request of a missing confirmation to a candidate the company sees (domain 13.11).
+	'confirmation.request': { roles: EMPLOYER, apiKey: true },
+	// Applications of candidates to the company's own vacancies (domain 13.5, 13.6).
+	'application.manage': { roles: EMPLOYER, apiKey: true },
 	'vacancy.external.read': { roles: EVERYONE, apiKey: true },
 	'vacancy_claim.create': { roles: EMPLOYER, apiKey: false },
 	'vacancy_claim.review': { roles: ['operator'], apiKey: false },
@@ -127,12 +133,16 @@ export interface PermissionObjects {
 	'candidate.card.read': { show: ShowDecision };
 	'vacancy.write': { origin: 'own' | 'external'; companyId: string | null };
 	/** `invitability` — of the vacancy the version names; `null` — an offer without a vacancy (domain 13.5). */
-	'invitation.create': { invitability: Invitability | null; show: ShowDecision };
+	/** `ownApplication` — the candidate applied to this company (domain 13.13): the offer needs no catalog visibility. */
+	'invitation.create': { invitability: Invitability | null; show: ShowDecision; ownApplication?: boolean };
 	'invitation.revise': { companyId: string; revisable: boolean };
 	'invitation.read': { companyId: string; candidateId: string };
 	'invitation.respond': { candidateId: string };
 	'hiring.report': { companyId: string; candidateId: string };
 	'need.manage': { companyId: string };
+	'challenge.manage': { companyId: string };
+	'confirmation.request': { show: ShowDecision };
+	'application.manage': { companyId: string };
 	'vacancy.external.read': null;
 	'vacancy_claim.create': null;
 	'vacancy_claim.review': { status: string };
@@ -218,7 +228,11 @@ function objectRule<P extends Permission>(
 		}
 		case 'invitation.create': {
 			const facts = o as PermissionObjects['invitation.create'];
-			return admittedMember(subject) && (facts.invitability?.invitable ?? true) && facts.show.allowed;
+			return (
+				admittedMember(subject) &&
+				(facts.invitability?.invitable ?? true) &&
+				(facts.show.allowed || facts.ownApplication === true)
+			);
 		}
 		case 'invitation.revise': {
 			const facts = o as PermissionObjects['invitation.revise'];
@@ -264,7 +278,11 @@ function objectRule<P extends Permission>(
 		case 'notification.channel.manage':
 			return subject.userId === (o as PermissionObjects['notification.channel.manage']).ownerUserId;
 		case 'need.manage':
-			return admittedMember(subject) && ownCompany(subject, (o as PermissionObjects['need.manage']).companyId);
+		case 'challenge.manage':
+		case 'application.manage':
+			return admittedMember(subject) && ownCompany(subject, (o as { companyId: string }).companyId);
+		case 'confirmation.request':
+			return admittedMember(subject) && (o as PermissionObjects['confirmation.request']).show.allowed;
 		case 'company.profile.manage':
 		case 'company.profile.read':
 		case 'company.members.manage':

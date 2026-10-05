@@ -9,10 +9,14 @@ import { DOCS_CSP, DOCS_HTML, docsAsset } from '$lib/server/api/docs';
 import { openApiDocument, type OpenApiDocument } from '$lib/server/api/openapi';
 import type { Operation } from '$lib/server/api/operation';
 import * as v1 from '$lib/server/api/v1';
+import * as applications from '$lib/server/api/v1/applications';
 import * as catalog from '$lib/server/api/v1/catalog';
 import * as categories from '$lib/server/api/v1/categories';
+import * as challenges from '$lib/server/api/v1/challenges';
 import * as companies from '$lib/server/api/v1/companies';
 import * as companyProfile from '$lib/server/api/v1/company-profile';
+import * as confirmations from '$lib/server/api/v1/confirmations';
+import * as demand from '$lib/server/api/v1/demand';
 import * as grades from '$lib/server/api/v1/grades';
 import * as hiring from '$lib/server/api/v1/hiring';
 import * as invitations from '$lib/server/api/v1/invitations';
@@ -52,7 +56,11 @@ const exported = new Map<string, Operation>(
 		...shortlists,
 		...taxonomy,
 		...vacancies,
-		...verify
+		...verify,
+		...confirmations,
+		...challenges,
+		...applications,
+		...demand
 	})
 );
 

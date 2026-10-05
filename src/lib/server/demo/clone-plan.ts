@@ -161,7 +161,8 @@ export const DEMO_CLONE_PLAN: Readonly<Record<string, TableDecision>> = {
 			signer_user_id: 'mention',
 			representation_id: 'owner',
 			scope_company_id: 'owner',
-			scope_invitation_id: 'owner'
+			scope_invitation_id: 'owner',
+			scope_application_id: 'owner'
 		}
 	},
 	representations: { kind: 'owned', copy: true, edges: { candidate_id: 'owner', representative_id: 'reference' } },
@@ -178,6 +179,7 @@ export const DEMO_CLONE_PLAN: Readonly<Record<string, TableDecision>> = {
 			company_id: 'owner',
 			recipient_member_id: 'owner',
 			invitation_id: 'owner',
+			application_id: 'owner',
 			consent_event_id: 'owner'
 		}
 	},
@@ -203,7 +205,13 @@ export const DEMO_CLONE_PLAN: Readonly<Record<string, TableDecision>> = {
 	test_attempts: {
 		kind: 'owned',
 		copy: true,
-		edges: { candidate_id: 'owner', bank_release_id: 'reference', annulled_by: 'mention' }
+		edges: {
+			candidate_id: 'owner',
+			bank_release_id: 'reference',
+			// The one link of an attempt and a request (domain 23.2): no cycle of owners.
+			confirmation_request_id: 'owner',
+			annulled_by: 'mention'
+		}
 	},
 	test_items: { kind: 'owned', copy: true, edges: { attempt_id: 'owner' } },
 	test_artifacts: { kind: 'owned', copy: true, edges: { attempt_id: 'owner', item_id: 'owner', file_id: 'owner' } },
@@ -363,6 +371,37 @@ export const DEMO_CLONE_PLAN: Readonly<Record<string, TableDecision>> = {
 		edges: { company_id: 'owner' },
 		why: 'a daily aggregate the clone takes anew over the candidates its company sees'
 	},
+	// Calls of companies, requests of a confirmation, results of block tests, applications (domain 13.11, 13.12, 23.2).
+	// New deliveries of a session are made by the delivery job: the pair «call × candidate» is unique, so no duplicates.
+	company_challenges: { kind: 'owned', copy: true, edges: { company_id: 'owner', created_by_member_id: 'owner' } },
+	challenge_deliveries: { kind: 'owned', copy: true, edges: { challenge_id: 'owner', candidate_id: 'owner' } },
+	challenge_solutions: {
+		kind: 'owned',
+		copy: true,
+		edges: { delivery_id: 'owner', decided_by_member_id: 'mention' }
+	},
+	confirmation_requests: {
+		kind: 'owned',
+		copy: true,
+		edges: {
+			company_id: 'owner',
+			candidate_id: 'owner',
+			requested_by_member_id: 'owner',
+			invitation_id: 'owner',
+			need_id: 'owner',
+			confirmation_id: 'mention'
+		}
+	},
+	block_confirmations: {
+		kind: 'owned',
+		copy: true,
+		edges: { candidate_id: 'owner', attempt_id: 'owner', bank_release_id: 'reference' }
+	},
+	applications: {
+		kind: 'owned',
+		copy: true,
+		edges: { candidate_id: 'owner', company_id: 'owner', vacancy_id: 'owner', invitation_id: 'mention' }
+	},
 
 	// Files, parsing, models.
 	files: { kind: 'owned', copy: true, edges: { owner_user_id: 'owner' } },
@@ -416,7 +455,10 @@ export const DEMO_CLONE_PLAN: Readonly<Record<string, TableDecision>> = {
 				company: 'companies',
 				hiring_process: 'hiring_processes',
 				invitation: 'invitations',
-				representation: 'representations'
+				representation: 'representations',
+				confirmation_request: 'confirmation_requests',
+				challenge_delivery: 'challenge_deliveries',
+				application: 'applications'
 			}
 		}
 	},

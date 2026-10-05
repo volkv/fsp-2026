@@ -53,6 +53,11 @@ export const PERIODIC_JOBS: readonly AnyPeriodicJob[] = [
 		enabled: () => config().demo?.nightlyReset === true
 	},
 	{
+		// Hourly: every active call runs on its own clock and is delivered once in its period (domain 13.12).
+		type: 'challenge.deliver',
+		due: (now) => ({ payload: { period: utcHour(now) }, inputVersion: utcHour(now) })
+	},
+	{
 		// Hourly on a demonstration stand: demo sessions whose time is over are removed (domain 19.3).
 		type: 'demo.purge',
 		due: (now) => ({ payload: { period: utcHour(now) }, inputVersion: utcHour(now) }),

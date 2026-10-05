@@ -136,6 +136,13 @@ export const DEMO_RESET_PLAN: Readonly<Record<string, TableDecision>> = {
 	shortlist_marks: clear,
 	shortlist_evaluations: clear,
 	salary_cohort_snapshots: clear,
+	// Calls, requests of a confirmation, block results, applications (domain 13.11, 13.12, 13.5).
+	company_challenges: clear,
+	challenge_deliveries: clear,
+	challenge_solutions: clear,
+	confirmation_requests: clear,
+	block_confirmations: clear,
+	applications: clear,
 	// Files, parsing, models (domain 15, 16).
 	files: {
 		kind: 'clear_except',

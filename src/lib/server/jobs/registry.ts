@@ -252,6 +252,25 @@ export const JOB_TYPES = {
 		leaseSeconds: 1800,
 		priority: 100
 	}),
+	// Calls of companies (domain 13.12): the hourly run delivers each active call whose period of the challenge policy
+	// passed on its own clock — the shifted clock of a demo session for the calls of the session's companies.
+	'challenge.deliver': defineJob({
+		typeVersion: 1,
+		payload: z.strictObject({ period }),
+		dedupKey: (p) => `challenge.deliver:${p.period}`,
+		maxAttempts: 3,
+		leaseSeconds: 600,
+		priority: 30
+	}),
+	// A request of a confirmation (domain 13.11) not completed by its deadline expires.
+	'confirmation.expire': defineJob({
+		typeVersion: 1,
+		payload: ids('request_id'),
+		dedupKey: (p) => `confirmation.expire:${p.request_id}`,
+		maxAttempts: 5,
+		leaseSeconds: 60,
+		priority: 50
+	}),
 	// Demonstration stand only (domain 19.3): removes the demo sessions whose time is over. `period` — the hour of the run.
 	'demo.purge': defineJob({
 		typeVersion: 1,

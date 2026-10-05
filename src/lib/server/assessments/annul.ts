@@ -23,6 +23,7 @@ import {
 import { ApiError } from '$lib/server/errors/api-error';
 import { cancelWaitingJobs } from '$lib/server/jobs/queue';
 import { notify } from '$lib/server/notifications/notify';
+import { annulBlockResults } from './block-test';
 import type { SpecializationKey } from './contract/catalog';
 import { GRADE_POLICY, type CategoryChange } from './contract/policy';
 import { ownCandidateId } from './engine';
@@ -137,6 +138,8 @@ export async function annulAttemptIn(
 			endedAt: attempt.endedAt ?? input.now
 		})
 		.where(eq(testAttempts.id, attempt.id));
+	// The result of a block test goes with its attempt (domain 13.11); a block test has no grade decision.
+	if (attempt.purpose === 'vacancy_block') await annulBlockResults(tx, [attempt.id]);
 	const decisions = await tx
 		.update(gradeDecisions)
 		.set({ status: 'annulled' })

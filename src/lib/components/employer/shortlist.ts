@@ -190,7 +190,8 @@ export const COMPONENT_REASONS: Record<string, string> = {
 	format_other: 'другой формат',
 	region_other: 'другой регион',
 	relocation: 'готов к переезду',
-	no_category: 'категория не подтверждена'
+	no_category: 'категория не подтверждена',
+	no_confirmed_action: 'нет подтверждённых действий: ни категории, ни блок-теста, ни решения вызова'
 };
 
 export const OFFER_FIT: Record<string, string> = {

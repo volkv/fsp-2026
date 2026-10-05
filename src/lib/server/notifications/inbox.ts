@@ -9,9 +9,12 @@
 import { and, count, desc, eq, isNull, lt, or } from 'drizzle-orm';
 import type { Database } from '$lib/server/db';
 import {
+	applications,
 	assessmentObjections,
 	candidates,
+	challengeDeliveries,
 	companies,
+	confirmationRequests,
 	companyMembers,
 	hiringProcesses,
 	invitations,
@@ -110,6 +113,16 @@ export type NotificationTarget =
 	| { kind: 'candidate_consents' }
 	/** The candidate's own attempt of a test: the operator annulled it. */
 	| { kind: 'candidate_attempt'; attemptId: string }
+	/** The candidate's requests of a confirmation and block results. */
+	| { kind: 'candidate_confirmations' }
+	/** The requests of a confirmation of the company with their results. */
+	| { kind: 'company_confirmations' }
+	/** A call delivered to the candidate. */
+	| { kind: 'candidate_challenge'; deliveryId: string }
+	/** The candidate's own applications. */
+	| { kind: 'candidate_applications' }
+	/** An application to the company's own vacancy. */
+	| { kind: 'company_application'; applicationId: string }
 	/** The operator's queue of objections: an answer is due soon or overdue. */
 	| { kind: 'operator_objections' }
 	/** The admin's staff management: an objection waits for its answer. */
@@ -240,6 +253,41 @@ async function targetOf(
 				.where(eq(testAttempts.id, objectId));
 			return attempt && (await candidateUserOf(db, attempt.candidateId)) === userId
 				? { kind: 'candidate_attempt', attemptId: objectId }
+				: { kind: 'unavailable' };
+		}
+		case 'confirmation_request': {
+			const [request] = await db
+				.select({ candidateId: confirmationRequests.candidateId, companyId: confirmationRequests.companyId })
+				.from(confirmationRequests)
+				.where(eq(confirmationRequests.id, objectId));
+			if (!request) return { kind: 'unavailable' };
+			if ((await candidateUserOf(db, request.candidateId)) === userId) return { kind: 'candidate_confirmations' };
+			return (await isActiveMember(db, request.companyId, userId))
+				? { kind: 'company_confirmations' }
+				: { kind: 'unavailable' };
+		}
+		case 'challenge_delivery': {
+			const [delivery] = await db
+				.select({ candidateId: challengeDeliveries.candidateId })
+				.from(challengeDeliveries)
+				.where(eq(challengeDeliveries.id, objectId));
+			return delivery && (await candidateUserOf(db, delivery.candidateId)) === userId
+				? { kind: 'candidate_challenge', deliveryId: objectId }
+				: { kind: 'unavailable' };
+		}
+		case 'application': {
+			const [application] = await db
+				.select({
+					candidateId: applications.candidateId,
+					companyId: applications.companyId,
+					purgedAt: applications.purgedAt
+				})
+				.from(applications)
+				.where(eq(applications.id, objectId));
+			if (!application || application.purgedAt !== null) return { kind: 'unavailable' };
+			if ((await candidateUserOf(db, application.candidateId)) === userId) return { kind: 'candidate_applications' };
+			return (await isActiveMember(db, application.companyId, userId))
+				? { kind: 'company_application', applicationId: objectId }
 				: { kind: 'unavailable' };
 		}
 	}

@@ -10,7 +10,8 @@ import type { PageServerLoad } from './$types';
  * to the page where its result is read (a moderation decision — to the company's vacancy); a notice about the
  * candidate's own profile (majority, removal for inactivity, the verified birth date, the representative's revocation)
  * — to the consents; an annulled attempt — to the attempt; the deadline of an objection — an operator to the queue of
- * objections, an admin to the staff management.
+ * objections, an admin to the staff management; a request of a confirmation, a call or an application — to its page on
+ * the recipient's side.
  */
 export const load: PageServerLoad = async (event) => {
 	const session = requireSession(event);
@@ -29,5 +30,10 @@ export const load: PageServerLoad = async (event) => {
 	if (target.kind === 'candidate_attempt') redirect(303, `/me/tests/attempts/${target.attemptId}`);
 	if (target.kind === 'operator_objections') redirect(303, '/operator/objections');
 	if (target.kind === 'admin_staff') redirect(303, '/admin/staff');
+	if (target.kind === 'candidate_confirmations') redirect(303, '/me/confirmations');
+	if (target.kind === 'company_confirmations') redirect(303, '/company/confirmations');
+	if (target.kind === 'candidate_challenge') redirect(303, `/me/challenges/${target.deliveryId}`);
+	if (target.kind === 'candidate_applications') redirect(303, '/me/applications');
+	if (target.kind === 'company_application') redirect(303, `/company/applications/${target.applicationId}`);
 	return { title: opened.title };
 };

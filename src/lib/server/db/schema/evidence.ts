@@ -28,6 +28,7 @@ const FACT_TYPES = [
 	'national_team',
 	'platform_rating',
 	'test_score',
+	'test_block',
 	'repo_languages',
 	'resume_document'
 ] as const;

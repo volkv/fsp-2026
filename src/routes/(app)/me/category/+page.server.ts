@@ -4,6 +4,7 @@ import { CATALOG, type GradeKey } from '$lib/server/assessments/contract/catalog
 import type { GradeOption } from '$lib/server/assessments/contract/policy';
 import { formText } from '$lib/server/auth/http';
 import { candidateDemand } from '$lib/server/candidates/demand';
+import { needDemand } from '$lib/server/candidates/need-demand';
 import { candidateRequest, type CandidateRequest } from '$lib/server/candidates/http';
 import { currentCandidateVocabulary, vocabularyLabels } from '$lib/server/candidates/vocabulary';
 import { candidateObjections, withdrawObjection } from '$lib/server/categories/objections';
@@ -24,18 +25,20 @@ function nextOption(options: readonly GradeOption[], grade: GradeKey): GradeOpti
 /**
  * «Категория и грейд» (domain 12.3, 12.5, 12.7): the step to a category, the declared and the confirmed grade, the tests
  * the grade policy opens now and why the others are closed, the categories in force and their history, the objections
- * to test results, the history of surveys and declarations, and what the vacancies of the category ask for.
+ * to test results, the history of surveys and declarations, what the vacancies of the category ask for and how many
+ * needs of companies match it.
  */
 export const load: PageServerLoad = async (event) => {
 	const { subject, candidateId } = await candidateRequest(event);
 	try {
 		const executor = db();
 		const now = new Date();
-		const [standing, categories, objections, demand, vocabulary] = await Promise.all([
+		const [standing, categories, objections, demand, needs, vocabulary] = await Promise.all([
 			loadGradeStanding(executor, gradeSources, candidateId, now),
 			categoryHistory(executor, candidateId),
 			candidateObjections(executor, candidateId),
 			candidateDemand(executor, subject, now),
+			needDemand(executor, subject, now),
 			currentCandidateVocabulary(executor)
 		]);
 		const next = standing.next;
@@ -98,6 +101,7 @@ export const load: PageServerLoad = async (event) => {
 			categories,
 			objections,
 			demand,
+			needs,
 			labels: vocabularyLabels(vocabulary)
 		};
 	} catch (cause) {

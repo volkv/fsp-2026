@@ -12,7 +12,10 @@ type NotificationObjectType =
 	| 'candidate_category'
 	| 'representation'
 	| 'candidate'
-	| 'assessment_attempt';
+	| 'assessment_attempt'
+	| 'confirmation_request'
+	| 'challenge_delivery'
+	| 'application';
 
 interface TypeSpec {
 	category: NotificationCategory;
@@ -124,7 +127,26 @@ export const NOTIFICATION_TYPES = {
 		category: 'account',
 		objectType: 'candidate',
 		title: 'Профиль будет удалён за неактивность'
-	}
+	},
+	// Requests of a confirmation, calls of companies, applications (domain 13.11, 13.12).
+	'confirmation.requested': {
+		category: 'invitations',
+		objectType: 'confirmation_request',
+		title: 'Компания просит подтвердить навык'
+	},
+	'confirmation.completed': {
+		category: 'invitations',
+		objectType: 'confirmation_request',
+		title: 'Результат по запросу подтверждения'
+	},
+	'challenge.delivered': { category: 'invitations', objectType: 'challenge_delivery', title: 'Новый вызов компании' },
+	'challenge.reminder': {
+		category: 'deadlines',
+		objectType: 'challenge_delivery',
+		title: 'Напоминание о вызове компании'
+	},
+	'application.received': { category: 'invitations', objectType: 'application', title: 'Новый отклик на вакансию' },
+	'application.decided': { category: 'invitations', objectType: 'application', title: 'Ответ компании на отклик' }
 } as const satisfies Record<string, TypeSpec>;
 
 export type NotificationType = keyof typeof NOTIFICATION_TYPES;
