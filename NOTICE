@@ -1,0 +1,19 @@
+ФСП Карьера
+Copyright (c) 2026 Wine Coding Team
+
+Код этого репозитория распространяется по лицензии MIT (файл LICENSE). Лицензия MIT не распространяется на перечисленное ниже.
+
+Товарные знаки и логотипы
+  Наименование, товарные знаки, логотипы и элементы фирменного стиля Федерации спортивного программирования России
+  принадлежат их правообладателю и используются в интерфейсе решения только для его обозначения. Права на них этим
+  репозиторием не передаются.
+
+Шрифты
+  static/fonts/inter           Inter, (c) The Inter Project Authors — SIL Open Font License 1.1 (static/fonts/inter/OFL.txt)
+  static/fonts/jetbrains-mono  JetBrains Mono, (c) The JetBrains Mono Project Authors — SIL Open Font License 1.1
+                               (static/fonts/jetbrains-mono/OFL.txt)
+
+Сторонние компоненты
+  Зависимости npm и Python, контейнерные образы, пакеты ОС и модели распространяются по своим лицензиям и в этот
+  репозиторий не копируются: они ставятся по lock-файлам и Dockerfile. Перечень с версиями и лицензиями, разрешённые
+  лицензии и исключения с причинами формирует `pnpm docs:licenses` (scripts/docs/license-data.ts).

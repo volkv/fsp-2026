@@ -15,5 +15,7 @@ playwright-report/
 __pycache__/
 .ruff_cache/
 .pytest_cache/
+# Documentation build: generated from lock files and the API code on every build
+docs/submission/generated/
 # Evaluation runs: rendered documents and reports
 tools/eval/out/

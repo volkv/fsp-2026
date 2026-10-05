@@ -105,4 +105,10 @@ http://localhost:57300/api/health. Остановить — `make down`.
 - [`docs/contracts.md`](docs/contracts.md) — контракты адаптеров, внешних сервисов и публичного API.
 - [`docs/models.md`](docs/models.md) — модели в закрытом контуре: рантайм, флаги запуска, память, настройки `LLM_*`/`EMBED_*`/`RERANK_*`, режим без модели.
 - [`docs/development.md`](docs/development.md) — разработка: окружение, команды, порты, соглашения.
+- [`docs/submission/`](docs/submission) — разделы сопроводительной документации; PDF и DOCX собирает `pnpm docs:build` в `build/docs/`.
 - [`docs/deploy.md`](docs/deploy.md) — демо-стенд https://fsp-career.volkv.com: выкатка, откат, секреты, бэкап, бюджет памяти.
+
+## Лицензия
+
+Код — [MIT](LICENSE). Товарные знаки и логотипы ФСП, шрифты и сторонние компоненты — [`NOTICE`](NOTICE); полная таблица
+компонентов с версиями и лицензиями — `pnpm docs:licenses`.

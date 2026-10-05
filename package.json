@@ -2,6 +2,7 @@
 	"name": "fsp-career",
 	"version": "0.1.0",
 	"private": true,
+	"license": "MIT",
 	"type": "module",
 	"packageManager": "pnpm@12.5.1",
 	"engines": {
@@ -44,6 +45,8 @@
 		"check:eval": "docker build --build-context taxonomy=taxonomy --target test -t fsp-eval:check tools/eval && docker run --rm --network none --read-only --tmpfs /tmp:rw,size=512m --memory 2g --cpus 2 --security-opt no-new-privileges --cap-drop ALL fsp-eval:check",
 		"fsp-mock:install": "pnpm -C services/fsp-mock install --frozen-lockfile",
 		"check:fsp-mock": "pnpm fsp-mock:install && pnpm -C services/fsp-mock check && docker build -t fsp-mock:check services/fsp-mock",
+		"docs:licenses": "node scripts/docs/licenses.ts",
+		"docs:build": "node scripts/docs/build.ts",
 		"check:sandbox": "vitest run --project integration tests/integration/sandbox.test.ts",
 		"check:fast": "pnpm lint && pnpm check && pnpm test:unit",
 		"check:all": "pnpm check:fast && pnpm test:integration && pnpm build && docker compose up -d --wait postgres redis storage mailpit fsp-mock && pnpm test:e2e && pnpm check:image && pnpm check:docparse && pnpm check:eval && pnpm check:fsp-mock"

@@ -1,0 +1,215 @@
+/* Print style of the submission documentation (HTML from pandoc, printed to PDF by Chromium). */
+@font-face {
+	font-family: 'Inter';
+	font-style: normal;
+	font-weight: 100 900;
+	src: url('fonts/inter/inter-cyrillic-ext-wght-normal.woff2') format('woff2');
+	unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+@font-face {
+	font-family: 'Inter';
+	font-style: normal;
+	font-weight: 100 900;
+	src: url('fonts/inter/inter-cyrillic-wght-normal.woff2') format('woff2');
+	unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+@font-face {
+	font-family: 'Inter';
+	font-style: normal;
+	font-weight: 100 900;
+	src: url('fonts/inter/inter-latin-ext-wght-normal.woff2') format('woff2');
+	unicode-range:
+		U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F,
+		U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+	font-family: 'Inter';
+	font-style: normal;
+	font-weight: 100 900;
+	src: url('fonts/inter/inter-latin-wght-normal.woff2') format('woff2');
+	unicode-range:
+		U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC,
+		U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+	font-family: 'JetBrains Mono';
+	font-style: normal;
+	font-weight: 400;
+	src: url('fonts/jetbrains-mono/JetBrainsMono-Regular.woff2') format('woff2');
+}
+
+:root {
+	--text: #1a1d23;
+	--muted: #5b6270;
+	--accent: #0b4f9c;
+	--rule: #d5d9e0;
+	--fill: #f3f5f8;
+}
+
+html {
+	font-family: 'Inter', system-ui, sans-serif;
+	font-size: 10.5pt;
+	line-height: 1.5;
+	color: var(--text);
+	font-feature-settings: 'cv11', 'ss01';
+	hyphens: auto;
+}
+
+body {
+	max-width: none;
+	margin: 0;
+	padding: 0;
+	background: #fff;
+}
+
+#title-block-header {
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	min-height: 230mm;
+	break-after: page;
+}
+#title-block-header .title {
+	break-before: auto;
+	border-bottom: none;
+	font-size: 28pt;
+	line-height: 1.15;
+	font-weight: 700;
+	color: var(--accent);
+	margin: 0 0 8mm;
+}
+#title-block-header .subtitle {
+	font-size: 14pt;
+	font-weight: 500;
+	margin: 0 0 16mm;
+}
+#title-block-header .date {
+	color: var(--muted);
+	font-size: 10pt;
+}
+
+nav#TOC {
+	break-after: page;
+}
+nav#TOC h2 {
+	font-size: 16pt;
+	margin-top: 0;
+}
+nav#TOC ul {
+	list-style: none;
+	padding-left: 0;
+}
+nav#TOC ul ul {
+	padding-left: 1.4em;
+}
+nav#TOC li {
+	margin: 0.15em 0;
+}
+nav#TOC a {
+	color: var(--text);
+	text-decoration: none;
+}
+nav#TOC > ul > li > a {
+	font-weight: 600;
+}
+
+h1,
+h2,
+h3,
+h4 {
+	font-weight: 650;
+	line-height: 1.25;
+	break-after: avoid;
+}
+h1 {
+	break-before: page;
+	font-size: 20pt;
+	color: var(--accent);
+	margin: 0 0 6mm;
+	padding-bottom: 2mm;
+	border-bottom: 1.5pt solid var(--accent);
+}
+h2 {
+	font-size: 14pt;
+	margin: 7mm 0 3mm;
+}
+h3 {
+	font-size: 12pt;
+	margin: 5mm 0 2mm;
+}
+.header-section-number {
+	color: var(--muted);
+	margin-right: 0.5em;
+}
+
+p,
+li {
+	orphans: 3;
+	widows: 3;
+}
+
+a {
+	color: var(--accent);
+}
+
+code {
+	font-family: 'JetBrains Mono', ui-monospace, monospace;
+	font-size: 0.88em;
+	background: var(--fill);
+	padding: 0.05em 0.25em;
+	border-radius: 2px;
+	hyphens: none;
+}
+pre {
+	background: var(--fill);
+	padding: 3mm 4mm;
+	border-radius: 3px;
+	white-space: pre-wrap;
+	break-inside: avoid;
+}
+pre code {
+	background: none;
+	padding: 0;
+}
+
+table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 8.5pt;
+	line-height: 1.35;
+	margin: 3mm 0 5mm;
+}
+thead {
+	display: table-header-group;
+}
+tr {
+	break-inside: avoid;
+}
+th,
+td {
+	text-align: left;
+	vertical-align: top;
+	padding: 1.2mm 2mm;
+	border-bottom: 0.5pt solid var(--rule);
+	overflow-wrap: anywhere;
+}
+th {
+	font-weight: 600;
+	background: var(--fill);
+	border-bottom: 1pt solid var(--muted);
+}
+
+figure {
+	margin: 4mm 0;
+	text-align: center;
+	break-inside: avoid;
+}
+figure img,
+p > img {
+	max-width: 100%;
+	max-height: 220mm;
+}
+figcaption {
+	color: var(--muted);
+	font-size: 9pt;
+}

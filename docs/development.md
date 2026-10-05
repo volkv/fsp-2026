@@ -70,7 +70,7 @@ http://localhost:57300/api/health. Контейнер приложения пр�
 | — | `pnpm build`, `pnpm preview` | сборка adapter-node в `build/` и её просмотр |
 | — | `pnpm lint`, `pnpm format` | Prettier и ESLint; `format` исправляет форматирование |
 | — | `pnpm check` | `svelte-kit sync` и `svelte-check` (предупреждения — ошибки) |
-| — | `pnpm test:unit` | unit-тесты (`src/**/*.test.ts`) |
+| — | `pnpm test:unit` | unit-тесты (`src/**/*.test.ts`, `scripts/**/*.test.ts`) |
 | — | `pnpm test:integration` | integration-тесты (`tests/integration`) в контейнерах Testcontainers; нужен Docker |
 | — | `pnpm test:e2e` | Playwright против собранного `build/`; нужны `pnpm build`, `.env` и поднятые PostgreSQL, Valkey, Mailpit и `fsp-mock` (`make infra`). База — своя (раздел «Своя база e2e»): сервер e2e пересоздаёт её пустой, мигрирует и публикует таксономию, правовые документы, политики и банк заданий. Порты — из `tests/e2e/helpers/ports.ts` (слот `E2E_PORT`, ниже); формы и вход через ФСП ID тесты открывают на `http://localhost:<порт слота>` — этот `redirect_uri` знает имитатор |
 | `make check-fast` | `pnpm check:fast` | lint, svelte-check, unit |
@@ -84,6 +84,8 @@ http://localhost:57300/api/health. Контейнер приложения пр�
 | — | `pnpm check:eval` | стенд оценки: ruff (lint и формат) и pytest в его тестовом образе, без сети |
 | — | `pnpm eval:lock` | пересобрать `tools/eval/uv.lock` после правки `tools/eval/pyproject.toml` |
 | — | `pnpm check:image` | собирает образ приложения (`pnpm docker:build`) и запускает его стартовой командой, как стенд (`scripts/check-image.sh`): своя пустая PostgreSQL и Valkey во временной внутренней сети, миграции, публикации, пространство эмбеддингов, начальный администратор, демо-режим — красное, если сервер не стал healthy за 180 с; с `.env` и стендом разработки не пересекается |
+| — | `pnpm docs:build` | сопроводительная документация: `build/docs/fsp-career-documentation.{pdf,docx}` и `openapi.json` из разделов `docs/submission/NN-*.md` (порядок — `SECTIONS` в `scripts/docs/build.ts`, диаграммы — блоки ` ```mermaid `); нужны Docker (`pandoc/core` и `minlag/mermaid-cli`, закреплены в `scripts/docs/images.ts`) и Chromium Playwright |
+| — | `pnpm docs:licenses` | таблица технологий с версиями и лицензиями в `docs/submission/generated/technologies.md` (делает и `docs:build`); красное на лицензии вне разрешённого списка. Новая лицензия вне списка — исключение с причиной в `LICENSE_EXCEPTIONS`, новый Python-пакет, образ или пакет ОС — запись в таблицу там же (`scripts/docs/license-data.ts`) |
 | `make check-all` | `pnpm check:all` | полный гейт: check-fast, integration (вместе с песочницей), build, e2e (сам поднимает PostgreSQL и Valkey из compose), check-image, check-docparse, check-eval, check-fsp-mock |
 
 **Полный гейт** перед коммитом в `main` — `make check-all` (`pnpm check:all`). Нужны Docker, `.env` и свободные порты
