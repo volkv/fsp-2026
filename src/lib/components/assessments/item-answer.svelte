@@ -125,6 +125,24 @@
 				signals.recordPaste(event);
 			}}
 		/>
+	{:else if answerKind === 'line_no'}
+		<Label for="{fieldId}-answer">Номер строки</Label>
+		<Input
+			id="{fieldId}-answer"
+			name="answer"
+			bind:value={answer}
+			inputmode="numeric"
+			pattern="[0-9]+"
+			autocomplete="off"
+			class="w-32 font-mono"
+			aria-describedby="{fieldId}-line-hint"
+			onpaste={(event: ClipboardEvent) => {
+				signals.recordPaste(event);
+			}}
+		/>
+		<p id="{fieldId}-line-hint" class="text-xs text-muted-foreground">
+			Одно число — номер строки в коде задания, как он пронумерован выше (с 1).
+		</p>
 	{:else}
 		<Label for="{fieldId}-answer">Ответ</Label>
 		<Input

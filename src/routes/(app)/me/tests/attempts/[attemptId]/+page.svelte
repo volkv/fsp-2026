@@ -3,6 +3,7 @@
 	import LoaderIcon from '@lucide/svelte/icons/loader-circle';
 	import { invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import CodeListing from '$lib/components/assessments/code-listing.svelte';
 	import HonestNote from '$lib/components/assessments/honest-note.svelte';
 	import ItemAnswer from '$lib/components/assessments/item-answer.svelte';
 	import { ANNUL_REASONS, ATTEMPT_STATUSES, languageName } from '$lib/components/assessments/model.js';
@@ -120,9 +121,7 @@
 	>
 		<StatementView blocks={current.blocks} />
 		{#if current.statement.code}
-			<pre
-				class="overflow-x-auto rounded-lg bg-muted p-3 font-mono text-xs leading-5 [tab-size:4]"
-				data-language={current.statement.code.language}>{current.statement.code.source}</pre>
+			<CodeListing code={current.statement.code} numbered={current.answerKind === 'line_no'} testId="statement-code" />
 		{/if}
 		{#if current.qa}
 			<div class="grid gap-1 rounded-lg border p-3 text-sm">
@@ -175,8 +174,7 @@
 						<div class="mt-2 grid gap-2">
 							<StatementView blocks={item.blocks} />
 							{#if item.statement.code}
-								<pre class="overflow-x-auto rounded-lg bg-muted p-3 font-mono text-xs leading-5">{item.statement.code
-										.source}</pre>
+								<CodeListing code={item.statement.code} numbered={item.answerKind === 'line_no'} />
 							{/if}
 							{#each item.answers as answer, index (index)}
 								{@const shown = answerText(answer.content)}
