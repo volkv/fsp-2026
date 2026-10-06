@@ -1,0 +1,166 @@
+{
+	"key": "ops.observability.error-budget",
+	"version": 1,
+	"specialization": "devops",
+	"block": "ops.observability",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": {
+				"sli": "по времени",
+				"incidents": "3–6",
+				"interacting": "доля ошибок инцидента + граница окна или превышение бюджета"
+			},
+			"constructiveRank": 3,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "partial-share",
+					"form": "A",
+					"description": "инциденты с частичной долей ошибок: время инцидента умножается на долю ошибок"
+				},
+				{
+					"id": "overspent",
+					"form": "B",
+					"description": "бюджет превышен: остаток отрицательный, израсходованная доля больше 100 %"
+				},
+				{
+					"id": "window-boundary",
+					"form": "anchor",
+					"description": "скользящее окно: инцидент на границе окна учитывается только своей частью внутри окна, более ранний — не учитывается"
+				},
+				{
+					"id": "bad-minutes",
+					"form": "X",
+					"description": "SLI по минутам: минута плохая целиком, если доля ошибок не меньше порога, иначе не расходует бюджет"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"sli": "по запросам",
+				"traffic": "день и ночь с разной нагрузкой",
+				"interacting": "неравномерный трафик + плановые работы, граница окна или второй SLO"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "uneven-traffic",
+					"form": "A",
+					"description": "бюджет в запросах при разном трафике днём и ночью; инцидент переходит границу дня и ночи"
+				},
+				{
+					"id": "maintenance",
+					"form": "B",
+					"description": "плановые работы исключены из окна: их запросы не входят ни в бюджет, ни в израсходованное"
+				},
+				{
+					"id": "rolling-window",
+					"form": "anchor",
+					"description": "скользящее окно при неравномерном трафике: инцидент на границе окна учитывается частично"
+				},
+				{
+					"id": "two-slo",
+					"form": "X",
+					"description": "два SLO одного сервиса — доступность и задержка: у каждого свой бюджет и свои плохие запросы"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "название сервиса, даты окна и инцидентов" },
+		{ "name": "numbers", "description": "SLO, длительности и доли ошибок инцидентов, нагрузка" }
+	],
+	"essentialParams": [
+		{
+			"name": "sli",
+			"description": "что расходует бюджет: время, взвешенное долей ошибок, плохие минуты по порогу или неуспешные запросы"
+		},
+		{
+			"name": "window",
+			"description": "календарное окно или скользящее с границей внутри инцидента; исключённые плановые работы"
+		},
+		{ "name": "slo-count", "description": "один SLO или два SLO одного сервиса со своими бюджетами" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"бюджет ошибок SLO по времени и по запросам",
+			"вклад инцидента с частичной долей ошибок",
+			"SLI по плохим минутам с порогом",
+			"скользящее окно и инцидент на его границе",
+			"неравномерный трафик и исключённые плановые работы",
+			"несколько SLO одного сервиса"
+		],
+		"doesNotCheck": [
+			"выбор SLO под бизнес-требования",
+			"настройку конкретной системы мониторинга",
+			"политику заморозки релизов при исчерпании бюджета"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "full-duration",
+			"defect": "считает весь инцидент полным отказом, не умножая на долю ошибок",
+			"mustBeCaught": true
+		},
+		{ "id": "clamp", "defect": "при превышении бюджета пишет остаток 0 и долю 100 %", "mustBeCaught": true },
+		{
+			"id": "whole-incidents",
+			"defect": "учитывает инциденты целиком, не обрезая их границей окна",
+			"mustBeCaught": true
+		},
+		{
+			"id": "share-weighted",
+			"defect": "при SLI по минутам умножает время на долю ошибок вместо сравнения с порогом",
+			"mustBeCaught": true
+		},
+		{
+			"id": "strict-threshold",
+			"defect": "считает минуту плохой только при доле ошибок строго выше порога",
+			"mustBeCaught": true
+		},
+		{
+			"id": "average-rate",
+			"defect": "считает все инциденты при средней нагрузке суток, не различая день и ночь",
+			"mustBeCaught": true
+		},
+		{
+			"id": "band-by-start",
+			"defect": "относит весь инцидент к нагрузке того интервала, в котором он начался",
+			"mustBeCaught": true
+		},
+		{
+			"id": "maintenance-errors",
+			"defect": "засчитывает ошибки во время плановых работ в израсходованный бюджет",
+			"mustBeCaught": true
+		},
+		{
+			"id": "maintenance-in-total",
+			"defect": "не исключает запросы плановых работ из числа запросов окна, от которого считается бюджет",
+			"mustBeCaught": true
+		},
+		{ "id": "errors-in-latency", "defect": "засчитывает неуспешные запросы и в SLO задержки", "mustBeCaught": true },
+		{ "id": "shared-budget", "defect": "делит плохие запросы задержки на бюджет SLO доступности", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 11, "caught": 11 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0013,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

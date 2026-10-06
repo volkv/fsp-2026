@@ -1,0 +1,162 @@
+{
+	"key": "ops.containers.entrypoint-cmd",
+	"version": 1,
+	"specialization": "devops",
+	"block": "ops.containers",
+	"format": "config_eval",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": {
+				"instructions": "5–8",
+				"rules": "exec- и shell-форма, ENTRYPOINT + CMD, аргументы docker run, --entrypoint"
+			},
+			"constructiveRank": 2,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "exec-pair",
+					"form": "A",
+					"description": "ENTRYPOINT и CMD в exec-форме: аргументы `docker run` заменяют CMD, ENTRYPOINT остаётся"
+				},
+				{
+					"id": "shell-entrypoint",
+					"form": "B",
+					"description": "ENTRYPOINT в shell-форме: процесс — `/bin/sh -c \"…\"`, CMD или аргументы дописываются позиционными"
+				},
+				{
+					"id": "cmd-only",
+					"form": "anchor",
+					"description": "только CMD: аргументы `docker run` заменяют всю команду"
+				},
+				{
+					"id": "entrypoint-flag",
+					"form": "X",
+					"description": "`--entrypoint` заменяет ENTRYPOINT и отбрасывает CMD образа"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"instructions": "5–8",
+				"rules": "наследование ENTRYPOINT/CMD/USER/WORKDIR от базы, сброс унаследованного CMD, -u и -w"
+			},
+			"constructiveRank": 3,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "inherit-entrypoint",
+					"form": "A",
+					"description": "дочерний образ задаёт только CMD: ENTRYPOINT базового образа остаётся впереди"
+				},
+				{
+					"id": "reset-cmd",
+					"form": "B",
+					"description": "дочерний образ задаёт ENTRYPOINT: унаследованный CMD сбрасывается"
+				},
+				{
+					"id": "exec-ep-shell-cmd",
+					"form": "anchor",
+					"description": "ENTRYPOINT в exec-форме и CMD в shell-форме: к ENTRYPOINT дописывается `/bin/sh -c \"…\"`"
+				},
+				{
+					"id": "user-workdir",
+					"form": "X",
+					"description": "относительный WORKDIR от унаследованного каталога, USER и их замена флагами `-u`/`-w`"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "app", "description": "gunicorn, Node.js, бинарный сервис или nginx; порты, флаги, имена образов" },
+		{ "name": "base", "description": "конфигурация базового образа и необязательные ENV/USER/EXPOSE" }
+	],
+	"essentialParams": [
+		{ "name": "forms", "description": "exec- или shell-форма ENTRYPOINT и CMD" },
+		{ "name": "run", "description": "аргументы `docker run`, `--entrypoint`, `-u`, `-w`" },
+		{ "name": "inheritance", "description": "что задано в базовом образе и что сбрасывает новый ENTRYPOINT" }
+	],
+	"language": "dockerfile",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"exec- и shell-форму ENTRYPOINT и CMD",
+			"как аргументы `docker run` заменяют CMD",
+			"действие `--entrypoint`",
+			"наследование конфигурации от базового образа и сброс CMD",
+			"рабочий каталог и пользователь процесса"
+		],
+		"doesNotCheck": [
+			"обработку сигналов и PID 1",
+			"ENTRYPOINT/CMD на Windows-контейнерах",
+			"скрипты точки входа, которые сами разбирают аргументы"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "args-append",
+			"defect": "дописывает аргументы `docker run` после CMD вместо замены",
+			"mustBeCaught": true
+		},
+		{
+			"id": "shell-as-exec",
+			"defect": "разбивает shell-форму на слова, как exec-форму, без `/bin/sh -c`",
+			"mustBeCaught": true
+		},
+		{
+			"id": "shell-drops-args",
+			"defect": "считает, что к shell-форме ENTRYPOINT ничего не дописывается",
+			"mustBeCaught": true
+		},
+		{
+			"id": "entrypoint-keeps-cmd",
+			"defect": "считает, что `--entrypoint` сохраняет CMD образа",
+			"mustBeCaught": true
+		},
+		{ "id": "first-wins", "defect": "берёт первую инструкцию CMD, а не последнюю", "mustBeCaught": true },
+		{ "id": "exec-expands-vars", "defect": "подставляет переменные окружения в exec-форму", "mustBeCaught": true },
+		{
+			"id": "drop-base-entrypoint",
+			"defect": "забывает унаследованный ENTRYPOINT, когда дочерний образ задаёт только CMD",
+			"mustBeCaught": true
+		},
+		{
+			"id": "inherit-cmd-after-entrypoint",
+			"defect": "оставляет унаследованный CMD после нового ENTRYPOINT",
+			"mustBeCaught": true
+		},
+		{
+			"id": "entrypoint-resets-own-cmd",
+			"defect": "считает, что ENTRYPOINT сбрасывает и CMD, заданный раньше в том же файле",
+			"mustBeCaught": true
+		},
+		{
+			"id": "shell-cmd-words",
+			"defect": "дописывает shell-форму CMD к ENTRYPOINT отдельными словами, без `/bin/sh -c`",
+			"mustBeCaught": true
+		},
+		{
+			"id": "workdir-from-root",
+			"defect": "отсчитывает относительный WORKDIR от корня, а не от унаследованного каталога",
+			"mustBeCaught": true
+		},
+		{ "id": "run-flags-ignored", "defect": "не учитывает `-u`/`-w` в `docker run`", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 12, "caught": 12 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.027,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

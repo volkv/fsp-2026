@@ -1,0 +1,144 @@
+{
+	"key": "ops.net.subnet-plan",
+	"version": 1,
+	"specialization": "devops",
+	"block": "ops.net",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": { "values": 5, "rules": "адрес сети по адресу узла, границы, число узлов" },
+			"constructiveRank": 3,
+			"timeNormSec": 300,
+			"classes": [
+				{ "id": "last-octet", "form": "A", "description": "префикс /25–/30: все границы в последнем октете" },
+				{
+					"id": "cross-octet",
+					"form": "B",
+					"description": "префикс /17–/23: биты узла заходят в третий октет, широковещательный адрес кончается на .255"
+				},
+				{
+					"id": "wide",
+					"form": "anchor",
+					"description": "префикс /9–/15: граница проходит во втором октете, число узлов — сотни тысяч"
+				},
+				{
+					"id": "p2p",
+					"form": "X",
+					"description": "префикс /31 или /32: нет адреса сети и широковещательного в обычном смысле, узлов 2 или 1"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"segments": "4–5",
+				"rules": "размер под число узлов, порядок по убыванию, выравнивание, занятые участки, переполнение"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "descending",
+					"form": "A",
+					"description": "сегменты перечислены не по размеру: выделять крупные первыми, выдавать ответ в порядке таблицы"
+				},
+				{
+					"id": "reserved",
+					"form": "B",
+					"description": "часть блока уже занята: подсеть выравнивается по своему размеру и обходит занятый участок"
+				},
+				{
+					"id": "exact-fit",
+					"form": "anchor",
+					"description": "потребности на границе степени двойки (2^k − 2, 2^k − 1, 2^k): размер с учётом адреса сети и широковещательного"
+				},
+				{
+					"id": "overflow",
+					"form": "X",
+					"description": "места не хватает, занятый участок дробит блок: крупная подсеть не помещается, а меньшие после неё — помещаются"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "имена сегментов" },
+		{ "name": "numbers", "description": "адрес блока и узла, потребности сегментов, порядок строк таблицы" }
+	],
+	"essentialParams": [
+		{ "name": "prefix", "description": "где проходит граница: последний октет, третий, второй, /31–/32" },
+		{ "name": "sizing", "description": "потребности в узлах у границ степени двойки" },
+		{ "name": "free-space", "description": "свободный блок, занятый участок, нехватка места" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"адрес сети и широковещательный по адресу узла и длине префикса",
+			"первый и последний адреса узлов и их число, особые /31 и /32",
+			"подбор размера подсети под число узлов",
+			"выравнивание подсети по границе своего размера и обход занятых участков",
+			"разбиение блока на подсети переменной длины (VLSM) и остаток адресов"
+		],
+		"doesNotCheck": ["IPv6-адресацию", "резервирование адресов под шлюз и службы", "планирование роста сегментов"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "count-no-subtract",
+			"defect": "считает число узлов равным размеру блока, не вычитая адрес сети и широковещательный",
+			"mustBeCaught": true
+		},
+		{ "id": "count-minus-one", "defect": "вычитает из размера блока только один адрес", "mustBeCaught": true },
+		{
+			"id": "octet-round-down",
+			"defect": "округляет маску вниз до границы октета (/20 — как /16)",
+			"mustBeCaught": true
+		},
+		{
+			"id": "host-bits-kept",
+			"defect": "принимает адрес узла за адрес сети и отсчитывает блок от него",
+			"mustBeCaught": true
+		},
+		{
+			"id": "bcast-next-network",
+			"defect": "называет широковещательным адрес следующей сети (адрес сети плюс размер блока)",
+			"mustBeCaught": true
+		},
+		{
+			"id": "p2p-like-others",
+			"defect": "в /31 и /32 вычитает адрес сети и широковещательный, как в остальных подсетях",
+			"mustBeCaught": true
+		},
+		{
+			"id": "listed-order",
+			"defect": "выделяет подсети в порядке таблицы, а не по убыванию размера",
+			"mustBeCaught": true
+		},
+		{
+			"id": "no-alignment",
+			"defect": "ставит подсеть сразу за занятым участком, не выравнивая по границе её размера",
+			"mustBeCaught": true
+		},
+		{
+			"id": "stop-on-overflow",
+			"defect": "после первого непоместившегося сегмента перестаёт выделять и меньшие",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 9, "caught": 9 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0015,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

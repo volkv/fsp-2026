@@ -1,0 +1,167 @@
+{
+	"key": "ops.linux.permissions",
+	"version": 1,
+	"specialization": "devops",
+	"block": "ops.linux",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": { "commands": "4–6", "rules": "1–2", "files": "3–5" },
+			"constructiveRank": 2,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "umask-create",
+					"form": "A",
+					"description": "umask при создании: файл от 666, каталог от 777, биты маски снимаются, а не вычитаются"
+				},
+				{
+					"id": "chmod-symbolic",
+					"form": "B",
+					"description": "chmod символьно: + и - относительно текущих прав, = задаёт заново; один файл — числом"
+				},
+				{
+					"id": "cp-mode",
+					"form": "anchor",
+					"description": "cp в новый файл — права источника под umask, cp -p — как у источника, cp поверх файла — права цели"
+				},
+				{
+					"id": "mkdir-m",
+					"form": "X",
+					"description": "mkdir -m задаёт права без umask и только последнему каталогу; родители mkdir -p — по umask"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": { "commands": "2–9", "rules": "2–3", "files": "3–7" },
+			"constructiveRank": 4,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "chmod-recursive",
+					"form": "A",
+					"description": "chmod -R с X: каталоги получают x, файлы — только если x уже есть с учётом предыдущих частей режима"
+				},
+				{
+					"id": "install",
+					"form": "B",
+					"description": "install -m и install -d задают права точно, без -m — 755; cp поверх файла сохраняет права цели"
+				},
+				{
+					"id": "subshell-umask",
+					"form": "anchor",
+					"description": "umask в подоболочке и подстановке команды не влияет на родителя, в функции — влияет"
+				},
+				{
+					"id": "chmod-no-who",
+					"form": "X",
+					"description": "chmod +x/-w без указания кому: как a, но биты из umask не меняются; копирование прав o=u"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "имена файлов и каталогов, порядок команд и строк stat" },
+		{ "name": "modes", "description": "исходные права файлов, значения umask и -m" }
+	],
+	"essentialParams": [
+		{
+			"name": "source",
+			"description": "откуда берутся права: umask при создании, chmod, копирование, install, mkdir -m"
+		},
+		{
+			"name": "scope",
+			"description": "на что действует правило: подоболочка или функция, родители mkdir -p, рекурсия chmod"
+		}
+	],
+	"language": "shell",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"umask при создании файлов и каталогов",
+			"chmod числом и символьно: +, -, =, X, копирование прав, режим без указания кому",
+			"права при cp, cp -p, копировании поверх существующего файла",
+			"mkdir -m и mkdir -p, install -m и install -d",
+			"umask в подоболочке, подстановке команды и функции"
+		],
+		"doesNotCheck": [
+			"проверку прав при доступе от имени обычного пользователя",
+			"владельцев, группы и ACL",
+			"биты setuid, setgid и sticky"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "umask-subtract",
+			"defect": "вычитает umask из 666 или 777 как число, а не снимает биты",
+			"mustBeCaught": true
+		},
+		{ "id": "file-from-777", "defect": "считает, что файл создаётся от 777, как каталог", "mustBeCaught": true },
+		{ "id": "equals-adds", "defect": "считает, что = добавляет права, как +", "mustBeCaught": true },
+		{ "id": "relative-as-absolute", "defect": "считает, что + и - задают права заново, как =", "mustBeCaught": true },
+		{ "id": "cp-preserves", "defect": "считает, что cp без -p сохраняет права источника", "mustBeCaught": true },
+		{
+			"id": "cp-as-new-file",
+			"defect": "считает, что копия получает права нового файла (666 под umask)",
+			"mustBeCaught": true
+		},
+		{
+			"id": "cp-overwrites-mode",
+			"defect": "считает, что cp поверх существующего файла меняет его права",
+			"mustBeCaught": true
+		},
+		{ "id": "mkdir-m-masked", "defect": "считает, что umask действует и на mkdir -m", "mustBeCaught": true },
+		{
+			"id": "mkdir-m-all-parents",
+			"defect": "считает, что mkdir -p -m задаёт права и родительским каталогам",
+			"mustBeCaught": true
+		},
+		{ "id": "X-as-x", "defect": "считает, что X даёт x всем файлам", "mustBeCaught": true },
+		{
+			"id": "X-original-mode",
+			"defect": "проверяет X по правам до chmod, не учитывая x, добавленный предыдущей частью режима",
+			"mustBeCaught": true
+		},
+		{ "id": "X-dirs-only", "defect": "считает, что X действует только на каталоги", "mustBeCaught": true },
+		{
+			"id": "install-like-cp",
+			"defect": "считает, что install без -m берёт права как cp или mkdir — под umask",
+			"mustBeCaught": true
+		},
+		{ "id": "install-m-masked", "defect": "считает, что umask действует и на install -m", "mustBeCaught": true },
+		{ "id": "subshell-leaks", "defect": "считает, что umask из подоболочки остаётся в родителе", "mustBeCaught": true },
+		{
+			"id": "function-scoped",
+			"defect": "считает, что umask, заданный в функции, действует только внутри неё",
+			"mustBeCaught": true
+		},
+		{
+			"id": "no-who-ignores-umask",
+			"defect": "считает, что chmod +x без указания кому меняет биты всех, как a+x",
+			"mustBeCaught": true
+		},
+		{
+			"id": "no-who-user-only",
+			"defect": "считает, что chmod +x без указания кому меняет только владельца",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 18, "caught": 18 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0004,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

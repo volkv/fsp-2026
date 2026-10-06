@@ -1,0 +1,148 @@
+{
+	"key": "ops.net.subnet-membership",
+	"version": 1,
+	"specialization": "devops",
+	"block": "ops.net",
+	"format": "compute",
+	"answerKind": "set",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": {
+				"subnets": 1,
+				"addresses": "6–8",
+				"rules": "маска не по границе октета, адрес сети и широковещательный"
+			},
+			"constructiveRank": 2,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "octet-27",
+					"form": "A",
+					"description": "префикс /25–/29 внутри последнего октета: соседние адреса того же /24 в подсеть не входят"
+				},
+				{
+					"id": "cross-octet",
+					"form": "B",
+					"description": "префикс /17–/23: граница подсети проходит внутри третьего октета, считать надо по битам, а не по октетам"
+				},
+				{
+					"id": "hosts-only",
+					"form": "anchor",
+					"description": "вопрос об адресах узлов: адрес сети и широковещательный принадлежат подсети, но узлам не назначаются"
+				},
+				{
+					"id": "interface-address",
+					"form": "X",
+					"description": "подсеть задана адресом интерфейса с ненулевыми битами узла: сначала найти адрес сети"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"subnets": 4,
+				"addresses": 4,
+				"rules": "пересекающиеся подсети, маски точечной и префиксной записью вперемешку"
+			},
+			"constructiveRank": 3,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "dotted-masks",
+					"form": "A",
+					"description": "маски в точечной записи с неполным октетом (255.255.240.0, 255.255.255.192): перевести в длину префикса"
+				},
+				{
+					"id": "nested",
+					"form": "B",
+					"description": "вложенные подсети: адрес входит во все объемлющие подсети, а не только в самую узкую"
+				},
+				{
+					"id": "p2p-hosts",
+					"form": "anchor",
+					"description": "вопрос об адресах узлов в подсетях /28–/32: /31 и /32 — особые случаи без адреса сети и широковещательного"
+				},
+				{
+					"id": "interface-address",
+					"form": "X",
+					"description": "подсети заданы адресами интерфейсов с ненулевыми битами узла и масками разной записи"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "имена подсетей и интерфейсов" },
+		{ "name": "numbers", "description": "адреса сетей, порядок адресов в списке" }
+	],
+	"essentialParams": [
+		{ "name": "prefix", "description": "длина префикса: внутри октета, через границу октета, /31–/32" },
+		{ "name": "notation", "description": "префиксная или точечная запись маски, адрес сети или адрес интерфейса" },
+		{ "name": "question", "description": "принадлежность диапазону подсети или пригодность адреса для узла" },
+		{ "name": "overlap", "description": "одна подсеть или несколько пересекающихся и вложенных" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"границы подсети по длине префикса, в том числе через границу октета",
+			"перевод точечной маски в длину префикса",
+			"адрес сети по адресу интерфейса",
+			"адрес сети и широковещательный против адресов узлов, особые /31 и /32",
+			"принадлежность адреса нескольким пересекающимся подсетям"
+		],
+		"doesNotCheck": ["IPv6-адресацию", "несмежные (wildcard) маски", "настройку адресов в конкретной ОС"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "octet-round-down",
+			"defect": "сравнивает целые октеты: маска округляется вниз до границы октета (/27 — как /24, /20 — как /16)",
+			"mustBeCaught": true
+		},
+		{
+			"id": "octet-round-up",
+			"defect": "округляет маску вверх до границы октета (/20 — как /24)",
+			"mustBeCaught": true
+		},
+		{
+			"id": "hosts-include-endpoints",
+			"defect": "считает адрес сети и широковещательный адресами узлов",
+			"mustBeCaught": true
+		},
+		{
+			"id": "start-from-given",
+			"defect": "считает диапазон подсети от записанного адреса интерфейса, а не от адреса сети",
+			"mustBeCaught": true
+		},
+		{
+			"id": "dotted-ones-octets",
+			"defect": "в точечной маске учитывает только октеты 255 (255.255.240.0 — как /16)",
+			"mustBeCaught": true
+		},
+		{
+			"id": "longest-only",
+			"defect": "относит адрес только к самой узкой подходящей подсети, как при выборе маршрута",
+			"mustBeCaught": true
+		},
+		{
+			"id": "p2p-like-others",
+			"defect": "исключает адрес сети и широковещательный и в /31 и /32, оставляя их без адресов узлов",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 7, "caught": 7 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

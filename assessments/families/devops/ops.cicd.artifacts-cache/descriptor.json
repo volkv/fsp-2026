@@ -1,0 +1,151 @@
+{
+	"key": "ops.cicd.artifacts-cache",
+	"version": 1,
+	"specialization": "devops",
+	"block": "ops.cicd",
+	"format": "config_eval",
+	"answerKind": "set",
+	"levels": [
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"jobs": "5–8",
+				"pipelines": 1,
+				"rules": "чистый клон, needs, dependencies, артефакты стадий, простой кэш"
+			},
+			"constructiveRank": 3,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "needs-only",
+					"form": "A",
+					"description": "needs ограничивает артефакты перечисленными заданиями, остальные предыдущие стадии не скачиваются"
+				},
+				{
+					"id": "stage-default",
+					"form": "B",
+					"description": "без needs и dependencies скачиваются артефакты всех предыдущих стадий, но не своей"
+				},
+				{
+					"id": "dependencies",
+					"form": "anchor",
+					"description": "dependencies, в том числе пустой: файлы заданий без артефактов в рабочий каталог не попадают"
+				},
+				{
+					"id": "needs-artifacts-false",
+					"form": "X",
+					"description": "элемент needs с artifacts: false ждёт задание, но его артефакты не скачивает"
+				}
+			]
+		},
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"jobs": "5–8",
+				"pipelines": "1–2",
+				"rules": "ключ кэша от lock-файла, политики, момент загрузки, срок артефактов вместе с правилами артефактов"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "cache-key-change",
+					"form": "A",
+					"description": "во втором конвейере изменён lock-файл: новый ключ, старый кэш не виден, новый ещё не загружен"
+				},
+				{
+					"id": "pull-before-push",
+					"form": "B",
+					"description": "кэш загружается заданием стадии не раньше потребителя: потребителю он не виден"
+				},
+				{
+					"id": "expired",
+					"form": "anchor",
+					"description": "ручное задание запущено позже срока артефактов своей зависимости: оно завершается ошибкой"
+				},
+				{
+					"id": "push-no-download",
+					"form": "X",
+					"description": "у задания политика кэша push: кэш оно не скачивает, видит только артефакты"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "jobs", "description": "имена и состав заданий, создаваемые пути, ключ кэша" },
+		{ "name": "commits", "description": "какие файлы изменили коммиты конвейеров, задержка ручного запуска" }
+	],
+	"essentialParams": [
+		{
+			"name": "artifact-source",
+			"description": "откуда скачиваются артефакты: needs, dependencies, предыдущие стадии"
+		},
+		{ "name": "cache-flow", "description": "ключ, политика и момент загрузки кэша" },
+		{ "name": "expiry", "description": "истёк ли срок нужных артефактов" }
+	],
+	"language": "yaml",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"чистый рабочий каталог каждого задания",
+			"источники артефактов: needs, needs с artifacts: false, dependencies, предыдущие стадии",
+			"ключ кэша от хеша lock-файла и ключ-строка",
+			"политики кэша pull, push, pull-push и момент загрузки",
+			"срок хранения артефактов"
+		],
+		"doesNotCheck": [
+			"cache:fallback_keys и unprotect",
+			"артефакты отчётов (artifacts:reports) и when: on_failure",
+			"распределённый кэш раннеров"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "workspace-persists",
+			"defect": "считает, что файлы предыдущих заданий остаются в рабочем каталоге без артефактов",
+			"mustBeCaught": true
+		},
+		{
+			"id": "needs-plus-stages",
+			"defect": "при needs скачивает ещё и артефакты всех предыдущих стадий",
+			"mustBeCaught": true
+		},
+		{ "id": "same-stage-artifacts", "defect": "скачивает артефакты заданий своей же стадии", "mustBeCaught": true },
+		{
+			"id": "artifacts-false-ignored",
+			"defect": "скачивает артефакты и у элемента needs с artifacts: false",
+			"mustBeCaught": true
+		},
+		{
+			"id": "cache-key-static",
+			"defect": "считает, что после изменения lock-файла под ключом лежит прежний кэш",
+			"mustBeCaught": true
+		},
+		{
+			"id": "push-downloads",
+			"defect": "считает, что задание с политикой push тоже скачивает кэш",
+			"mustBeCaught": true
+		},
+		{ "id": "expiry-ignored", "defect": "не учитывает срок хранения артефактов", "mustBeCaught": true },
+		{
+			"id": "cache-instant",
+			"defect": "считает кэш общим для всего конвейера: видит загрузки заданий своей и следующих стадий",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 8, "caught": 8 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0255,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

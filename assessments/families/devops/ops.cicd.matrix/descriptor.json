@@ -1,0 +1,138 @@
+{
+	"key": "ops.cicd.matrix",
+	"version": 1,
+	"specialization": "devops",
+	"block": "ops.cicd",
+	"format": "config_eval",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": { "keys": 2, "jobs": "4–9", "rules": "exclude, include, fail-fast по умолчанию, max-parallel" },
+			"constructiveRank": 4,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "exclude",
+					"form": "A",
+					"description": "exclude убирает сочетания; fail-fast не указан и по умолчанию отменяет ещё идущие задания"
+				},
+				{
+					"id": "max-parallel",
+					"form": "B",
+					"description": "max-parallel держит задания в очереди: при падении отменяются и выполняющиеся, и не начатые"
+				},
+				{
+					"id": "include-new",
+					"form": "anchor",
+					"description": "объект include с новым значением исходного ключа становится новым заданием, другой — расширяет сочетания"
+				},
+				{
+					"id": "include-extend",
+					"form": "X",
+					"description": "объекты include только добавляют ключ к подходящим сочетаниям: число заданий не растёт"
+				}
+			]
+		},
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"keys": "2–3",
+				"jobs": "5–13",
+				"rules": "include с перезаписью добавленного, continue-on-error, таймлайн max-parallel и fail-fast"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "include-overwrite",
+					"form": "A",
+					"description": "include не может менять исходные значения (новое задание), но перезаписывает добавленные раньше"
+				},
+				{
+					"id": "continue-on-error",
+					"form": "B",
+					"description": "экспериментальное задание с continue-on-error падает, но fail-fast не запускает"
+				},
+				{
+					"id": "timeline",
+					"form": "anchor",
+					"description": "три ключа, max-parallel и fail-fast: отмена зависит от того, какие задания уже успели завершиться"
+				},
+				{
+					"id": "exclude-include",
+					"form": "X",
+					"description": "include применяется после exclude и возвращает исключённое сочетание новым заданием в конце"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "keys", "description": "ключи и значения матрицы: ОС, версии языка, база данных, архитектура" },
+		{ "name": "numbers", "description": "длительности заданий и какие сочетания падают" }
+	],
+	"essentialParams": [
+		{ "name": "expansion", "description": "как exclude и include меняют набор сочетаний" },
+		{ "name": "cancellation", "description": "fail-fast, max-parallel и continue-on-error при падении" }
+	],
+	"language": "yaml",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"декартово произведение ключей матрицы и exclude",
+			"правила include: расширение сочетаний, новое сочетание, перезапись добавленных значений",
+			"fail-fast по умолчанию и отмена выполняющихся и ожидающих заданий",
+			"max-parallel и очередь заданий",
+			"continue-on-error в матрице"
+		],
+		"doesNotCheck": ["матрицу из выражений fromJSON", "повторный запуск упавших заданий", "лимиты раннеров организации"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "exclude-after-include",
+			"defect": "применяет exclude после include и убирает добавленные include сочетания",
+			"mustBeCaught": true
+		},
+		{ "id": "include-always-new", "defect": "считает каждый объект include новым заданием", "mustBeCaught": true },
+		{
+			"id": "include-overwrites-original",
+			"defect": "считает, что include переписывает исходное значение у сочетаний с тем же первым ключом",
+			"mustBeCaught": true
+		},
+		{
+			"id": "cancel-only-queued",
+			"defect": "считает, что fail-fast отменяет только не начатые задания, а выполняющиеся доходят до конца",
+			"mustBeCaught": true
+		},
+		{
+			"id": "coe-cancels",
+			"defect": "считает, что падение задания с continue-on-error тоже отменяет остальные",
+			"mustBeCaught": true
+		},
+		{
+			"id": "no-max-parallel",
+			"defect": "запускает все задания сразу, не глядя на max-parallel",
+			"mustBeCaught": true
+		},
+		{
+			"id": "fail-fast-default-off",
+			"defect": "считает, что без явного fail-fast задания при падении не отменяются",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 7, "caught": 7 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0077,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

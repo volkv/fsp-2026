@@ -1,0 +1,163 @@
+{
+	"key": "ops.linux.exit-status",
+	"version": 1,
+	"specialization": "devops",
+	"block": "ops.linux",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": { "statements": "5–10", "rules": "1–2", "setE": "только в X" },
+			"constructiveRank": 2,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "and-or",
+					"form": "A",
+					"description": "списки && и || с равным приоритетом, слева направо; провал && не отменяет следующее ||"
+				},
+				{
+					"id": "pipeline",
+					"form": "B",
+					"description": "$? конвейера — статус последней команды; ! обращает статус конвейера"
+				},
+				{
+					"id": "functions-subshell",
+					"form": "anchor",
+					"description": "( exit N ) не завершает скрипт; функция без return возвращает статус последней команды; echo обнуляет $?"
+				},
+				{
+					"id": "set-e-basic",
+					"form": "X",
+					"description": "set -e завершает скрипт на провале простой команды, но не в условии if и не в начале списка && / ||"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": { "statements": "6–12", "rules": "2–3", "setE": "с исключениями" },
+			"constructiveRank": 4,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "set-e-exceptions",
+					"form": "A",
+					"description": "исключения set -e: функция в условии if работает без -e, не последняя команда списка, конвейер, !"
+				},
+				{
+					"id": "pipefail",
+					"form": "B",
+					"description": "set -o pipefail: статус — самая правая ненулевая команда конвейера"
+				},
+				{
+					"id": "pipestatus",
+					"form": "anchor",
+					"description": "PIPESTATUS хранит статусы последнего конвейера и затирается следующей командой; ! его не меняет"
+				},
+				{
+					"id": "local-masks",
+					"form": "X",
+					"description": "local и export с подстановкой команды возвращают свой статус 0, простое присваивание — статус подстановки"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "labels", "description": "слова в выводе echo, имена функций и переменных" },
+		{ "name": "codes", "description": "коды ( exit N ) и return N" }
+	],
+	"essentialParams": [
+		{
+			"name": "status-source",
+			"description": "откуда берётся статус: список, конвейер, подоболочка, функция, присваивание"
+		},
+		{ "name": "errexit", "description": "включены ли set -e и pipefail и в каком контексте исполняется команда" }
+	],
+	"language": "shell",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"порядок вычисления списков && и ||",
+			"$? после конвейера, после echo, после функции и подоболочки",
+			"! перед конвейером",
+			"set -e и его исключения: if, списки, конвейеры, функции в условии",
+			"set -o pipefail и PIPESTATUS",
+			"статус local/export с подстановкой команды"
+		],
+		"doesNotCheck": ["shopt inherit_errexit и set -E", "поведение других оболочек (dash, zsh)"]
+	},
+	"wrongSolutions": [
+		{ "id": "and-binds-tighter", "defect": "считает, что && связывает сильнее ||, как в C", "mustBeCaught": true },
+		{
+			"id": "fail-skips-line",
+			"defect": "считает, что провал перед && отменяет всю оставшуюся строку, включая ||",
+			"mustBeCaught": true
+		},
+		{ "id": "pipe-first-status", "defect": "берёт статус конвейера от первой команды", "mustBeCaught": true },
+		{
+			"id": "pipe-any-failure",
+			"defect": "считает, что конвейер проваливается, если провалилась любая его команда",
+			"mustBeCaught": true
+		},
+		{ "id": "echo-keeps-status", "defect": "считает, что echo не меняет $?", "mustBeCaught": true },
+		{
+			"id": "subshell-exit-ends-script",
+			"defect": "считает, что exit в подоболочке ( … ) завершает весь скрипт",
+			"mustBeCaught": true
+		},
+		{ "id": "function-status-zero", "defect": "считает, что функция без return возвращает 0", "mustBeCaught": true },
+		{ "id": "set-e-ignored", "defect": "не знает, что set -e завершает скрипт на провале", "mustBeCaught": true },
+		{
+			"id": "set-e-exits-in-list",
+			"defect": "считает, что set -e срабатывает и на провале не последней команды списка && / ||",
+			"mustBeCaught": true
+		},
+		{
+			"id": "set-e-exits-in-if",
+			"defect": "считает, что set -e срабатывает на ложном условии if",
+			"mustBeCaught": true
+		},
+		{
+			"id": "set-e-in-condition-function",
+			"defect": "считает, что внутри функции, вызванной в условии if, set -e продолжает действовать",
+			"mustBeCaught": true
+		},
+		{
+			"id": "set-e-pipeline-any",
+			"defect": "считает, что set -e без pipefail срабатывает на провале любой команды конвейера",
+			"mustBeCaught": true
+		},
+		{ "id": "set-e-exits-on-not", "defect": "считает, что set -e срабатывает на ! true", "mustBeCaught": true },
+		{
+			"id": "pipefail-leftmost",
+			"defect": "считает, что pipefail возвращает статус первой провалившейся команды",
+			"mustBeCaught": true
+		},
+		{ "id": "pipefail-ignored", "defect": "не учитывает pipefail: статус последней команды", "mustBeCaught": true },
+		{ "id": "pipefail-max", "defect": "считает, что pipefail возвращает наибольший статус", "mustBeCaught": true },
+		{
+			"id": "pipestatus-persists",
+			"defect": "считает, что PIPESTATUS хранит последний конвейер, пока не выполнится новый конвейер",
+			"mustBeCaught": true
+		},
+		{ "id": "pipestatus-negated", "defect": "считает, что ! обращает и значения в PIPESTATUS", "mustBeCaught": true },
+		{ "id": "local-keeps-status", "defect": "считает, что local x=$(cmd) возвращает статус cmd", "mustBeCaught": true },
+		{ "id": "assignment-zero", "defect": "считает, что присваивание x=$(cmd) всегда успешно", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 20, "caught": 20 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0001,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

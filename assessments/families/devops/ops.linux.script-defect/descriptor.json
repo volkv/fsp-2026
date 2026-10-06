@@ -1,0 +1,102 @@
+{
+	"key": "ops.linux.script-defect",
+	"version": 1,
+	"specialization": "devops",
+	"block": "ops.linux",
+	"format": "bug_locate",
+	"answerKind": "line_no",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": { "functions": "3–4", "lines": "20–35", "defectKinds": 1 },
+			"constructiveRank": 2,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "quoting",
+					"form": "A",
+					"description": "незакавыченная переменная с пробелами в значении: разбиение на слова"
+				},
+				{
+					"id": "compare",
+					"form": "B",
+					"description": "числа сравниваются как строки или > в [ ] становится перенаправлением"
+				},
+				{ "id": "args", "form": "anchor", "description": "путаница $#, $1, \"$@\" и \"$*\"" },
+				{ "id": "off-by-one", "form": "X", "description": "tail -n +K, head -n и граница цикла сдвинуты на единицу" }
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": { "functions": "4–5", "lines": "28–45", "defectKinds": 1 },
+			"constructiveRank": 3,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "read-raw",
+					"form": "A",
+					"description": "while read без -r теряет обратные косые черты, без IFS= — начальные пробелы"
+				},
+				{
+					"id": "empty-var",
+					"form": "B",
+					"description": "незакавыченная пустая переменная в [ ]: [ -n ] истинно, [ != x ] — ошибка"
+				},
+				{
+					"id": "rm-scope",
+					"form": "anchor",
+					"description": "команда работает не в том каталоге: cd без проверки, find без пути"
+				},
+				{
+					"id": "arith-octal",
+					"form": "X",
+					"description": "число с ведущим нулём в $(( )) читается как восьмеричное: 08 и 09 — ошибка"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "functions", "description": "какие исправные функции окружают ошибочную и в каком порядке" },
+		{ "name": "header", "description": "длина шапки скрипта: заголовок и константы" },
+		{ "name": "data", "description": "аргументы и файлы проверочных запусков" }
+	],
+	"essentialParams": [{ "name": "defect", "description": "вид нарушения спецификации" }],
+	"language": "shell",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"кавычки вокруг переменных и разбиение на слова",
+			"сравнение чисел в [ ] и [[ ]]",
+			"позиционные параметры $#, $1, \"$@\", \"$*\"",
+			"границы tail -n +K, head -n, циклов",
+			"while IFS= read -r",
+			"пустые переменные в [ ]",
+			"каталог, в котором работают cd, rm и find",
+			"восьмеричные числа в арифметике bash"
+		],
+		"doesNotCheck": ["умение написать скрипт самостоятельно", "shellcheck и стиль кода", "переносимость на sh"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "neighbour-line",
+			"defect": "указывает соседнюю строку той же функции, похожую на ошибочную, но верную (например, присваивание без кавычек)",
+			"mustBeCaught": true
+		},
+		{ "id": "other-function", "defect": "указывает строку в другой, исправной функции", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 2, "caught": 2 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0345,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

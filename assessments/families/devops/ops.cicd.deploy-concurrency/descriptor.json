@@ -1,0 +1,109 @@
+{
+	"key": "ops.cicd.deploy-concurrency",
+	"version": 1,
+	"specialization": "devops",
+	"block": "ops.cicd",
+	"format": "config_eval",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"pushes": "3–5",
+				"rules": "группа concurrency, cancel-in-progress, вытеснение ожидающего, подтверждение с таймаутом, re-run",
+				"interacting": "моменты готовности, занятость группы и откат при перезапуске"
+			},
+			"constructiveRank": 7,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "cancel-true",
+					"form": "A",
+					"description": "cancel-in-progress: true — каждый новый деплой отменяет идущий; выкатывается последний доживший"
+				},
+				{
+					"id": "queue-replace",
+					"form": "B",
+					"description": "cancel-in-progress: false — идущий доделывается, из ожидающих остаётся только последний"
+				},
+				{
+					"id": "approval",
+					"form": "anchor",
+					"description": "окружение с подтверждением: ожидание одобрения занимает группу, без одобрения — failure по таймауту"
+				},
+				{
+					"id": "rerun",
+					"form": "X",
+					"description": "перезапуск старого запуска после новых выкатывает старый коммит последним"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "timeline", "description": "коммиты, моменты push, длительности сборки и деплоя" },
+		{ "name": "names", "description": "имя группы, команда сборки" }
+	],
+	"essentialParams": [
+		{ "name": "group-policy", "description": "cancel-in-progress и вытеснение ожидающего" },
+		{ "name": "gate", "description": "подтверждение окружения и таймаут" },
+		{ "name": "rerun", "description": "перезапуск старого запуска" }
+	],
+	"language": "yaml",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"группа concurrency: один выполняющийся и один ожидающий",
+			"cancel-in-progress: true и false",
+			"вытеснение ожидающего задания новым",
+			"ожидание подтверждения окружения и его таймаут",
+			"перезапуск старого запуска и откат выкаченной версии"
+		],
+		"doesNotCheck": [
+			"concurrency на уровне workflow вместе с уровнем задания",
+			"правила защиты окружений, кроме подтверждения",
+			"ошибки самих команд сборки и деплоя"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "queue-all",
+			"defect": "ставит все ожидающие деплои в очередь и выполняет их по порядку",
+			"mustBeCaught": true
+		},
+		{
+			"id": "cancel-false-cancels",
+			"defect": "считает, что и при cancel-in-progress: false новый деплой отменяет идущий",
+			"mustBeCaught": true
+		},
+		{
+			"id": "cancel-true-waits",
+			"defect": "считает, что при cancel-in-progress: true новый деплой ждёт окончания идущего",
+			"mustBeCaught": true
+		},
+		{
+			"id": "waiting-not-holding",
+			"defect": "считает, что ожидающий одобрения деплой не занимает группу",
+			"mustBeCaught": true
+		},
+		{ "id": "rerun-ignored", "defect": "не учитывает перезапуск старого запуска", "mustBeCaught": true },
+		{
+			"id": "deployed-latest-commit",
+			"defect": "считает выкаченным коммит последнего push, а не последнего успешного деплоя",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 6, "caught": 6 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

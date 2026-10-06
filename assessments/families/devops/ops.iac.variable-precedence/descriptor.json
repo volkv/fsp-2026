@@ -1,0 +1,96 @@
+{
+	"key": "ops.iac.variable-precedence",
+	"version": 1,
+	"specialization": "devops",
+	"block": "ops.iac",
+	"format": "config_eval",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"sources": "5–8",
+				"rules": "default, переменные окружения, terraform.tfvars, *.auto.tfvars, -var и -var-file",
+				"interacting": "порядок источников + выражение count от трёх переменных"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "auto-order",
+					"form": "A",
+					"description": "несколько *.auto.tfvars: порядок имён файлов лексикографический, а не числовой"
+				},
+				{
+					"id": "cli-order",
+					"form": "B",
+					"description": "-var и -var-file вперемешку: побеждает то, что позже в командной строке"
+				},
+				{
+					"id": "env-lowest",
+					"form": "anchor",
+					"description": "TF_VAR_ — самый слабый источник после default; файл .tfvars без -var-file не читается"
+				},
+				{
+					"id": "count-off",
+					"form": "X",
+					"description": "переключатель enabled задан в -var и в файле -var-file: от их порядка зависит, создаст ли count хоть один экземпляр"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "имена файлов, значения переменных" },
+		{ "name": "layout", "description": "какие переменные задаёт каждый источник" }
+	],
+	"essentialParams": [
+		{ "name": "sources", "description": "какие источники задают одну переменную и в каком порядке они применяются" },
+		{ "name": "files", "description": "автоматически загружаемые файлы и файлы, которые читаются только по -var-file" }
+	],
+	"language": "hcl",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"порядок применения источников значений переменных",
+			"лексикографический порядок *.auto.tfvars",
+			"порядок -var и -var-file в командной строке",
+			"какие файлы загружаются автоматически",
+			"число ресурсов count, зависящее от итоговых значений"
+		],
+		"doesNotCheck": ["переменные модулей и их проброс", "проверку значений переменных блоками validation"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "numeric-order",
+			"defect": "упорядочивает *.auto.tfvars по числу в начале имени, а не по алфавиту",
+			"mustBeCaught": true
+		},
+		{ "id": "tfvars-over-auto", "defect": "считает terraform.tfvars сильнее *.auto.tfvars", "mustBeCaught": true },
+		{
+			"id": "var-beats-var-file",
+			"defect": "считает, что -var всегда сильнее -var-file, независимо от порядка",
+			"mustBeCaught": true
+		},
+		{ "id": "first-wins", "defect": "считает, что в командной строке побеждает первое значение", "mustBeCaught": true },
+		{ "id": "env-highest", "defect": "считает переменные окружения TF_VAR_ самыми сильными", "mustBeCaught": true },
+		{
+			"id": "all-tfvars-loaded",
+			"defect": "считает, что любой файл .tfvars в каталоге загружается автоматически",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 6, "caught": 6 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0062,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

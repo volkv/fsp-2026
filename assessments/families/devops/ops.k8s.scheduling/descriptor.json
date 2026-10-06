@@ -1,0 +1,146 @@
+{
+	"key": "ops.k8s.scheduling",
+	"version": 1,
+	"specialization": "devops",
+	"block": "ops.k8s",
+	"format": "config_eval",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"nodes": 3,
+				"pods": "4–5",
+				"rules": "ресурсы + nodeSelector + taints",
+				"choice": "задано в условии"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "resources",
+					"form": "A",
+					"description": "поды, размещённые раньше, занимают ресурсы узла: следующий под туда уже не помещается"
+				},
+				{
+					"id": "taints",
+					"form": "B",
+					"description": "taints NoSchedule и tolerations Equal и Exists: значение и эффект должны совпасть"
+				},
+				{ "id": "node-selector", "form": "anchor", "description": "nodeSelector требует все пары меток узла" },
+				{ "id": "memory-bound", "form": "X", "description": "CPU хватает, а памяти нет: под не помещается по памяти" }
+			]
+		},
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"nodes": 4,
+				"pods": "4–5",
+				"rules": "ресурсы + required/preferred nodeAffinity + podAntiAffinity по hostname",
+				"choice": "оценка по весам, задана в условии"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "required-affinity",
+					"form": "A",
+					"description": "nodeSelectorTerms соединяются через ИЛИ, выражения внутри — через И; NotIn пропускает узел без ключа"
+				},
+				{
+					"id": "preferred-weights",
+					"form": "B",
+					"description": "веса preferred nodeAffinity перевешивают свободный CPU"
+				},
+				{
+					"id": "anti-affinity",
+					"form": "anchor",
+					"description": "required podAntiAffinity по hostname учитывает и реплики, размещённые только что; лишняя реплика ждёт в Pending"
+				},
+				{
+					"id": "preferred-anti",
+					"form": "X",
+					"description": "вес preferred podAntiAffinity против веса preferred nodeAffinity"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "имена узлов, подов, ключей и значений меток и taints" },
+		{ "name": "numbers", "description": "allocatable, уже запрошенные ресурсы, requests подов, веса" }
+	],
+	"essentialParams": [
+		{
+			"name": "constraint",
+			"description": "что решает размещение: ресурсы с накоплением, память, nodeSelector, taints и tolerations, nodeAffinity, podAntiAffinity, веса"
+		}
+	],
+	"language": "yaml",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"requests пода против allocatable узла за вычетом requests уже размещённых подов, по CPU и памяти",
+			"nodeSelector, taints NoSchedule и PreferNoSchedule, tolerations Equal и Exists с эффектом",
+			"required и preferred nodeAffinity: термы через ИЛИ, выражения через И, In, NotIn, Exists, DoesNotExist",
+			"required и preferred podAntiAffinity по kubernetes.io/hostname с учётом только что размещённых подов"
+		],
+		"doesNotCheck": [
+			"настоящие плагины оценки kube-scheduler и их веса — правило выбора задано в условии",
+			"вытеснение по приоритету (preemption) и topologySpreadConstraints",
+			"симметрию affinity уже запущенных подов"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "no-accumulate",
+			"defect": "не учитывает ресурсы, которые заняли поды, размещённые раньше в этой же очереди",
+			"mustBeCaught": true
+		},
+		{ "id": "cpu-only", "defect": "проверяет только CPU, память не сверяет", "mustBeCaught": true },
+		{ "id": "ignore-taints", "defect": "не учитывает taints узлов", "mustBeCaught": true },
+		{
+			"id": "equal-key-only",
+			"defect": "считает, что toleration с оператором Equal допускает taint с тем же ключом при любом значении",
+			"mustBeCaught": true
+		},
+		{ "id": "ignore-effect", "defect": "не сверяет эффект toleration с эффектом taint", "mustBeCaught": true },
+		{
+			"id": "prefer-blocks",
+			"defect": "считает, что taint PreferNoSchedule запрещает размещение",
+			"mustBeCaught": true
+		},
+		{
+			"id": "selector-any",
+			"defect": "считает nodeSelector выполненным, если совпала хотя бы одна пара",
+			"mustBeCaught": true
+		},
+		{ "id": "terms-and", "defect": "соединяет nodeSelectorTerms через И", "mustBeCaught": true },
+		{
+			"id": "notin-requires-key",
+			"defect": "считает, что узел без ключа не проходит выражение NotIn",
+			"mustBeCaught": true
+		},
+		{ "id": "ignore-preferred", "defect": "не учитывает веса preferred nodeAffinity", "mustBeCaught": true },
+		{
+			"id": "anti-existing-only",
+			"defect": "в podAntiAffinity учитывает только поды, запущенные до начала, а не реплики, размещённые только что",
+			"mustBeCaught": true
+		},
+		{ "id": "ignore-preferred-anti", "defect": "не учитывает веса preferred podAntiAffinity", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 12, "caught": 12 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.009,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

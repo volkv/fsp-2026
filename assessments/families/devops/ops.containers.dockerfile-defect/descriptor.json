@@ -1,0 +1,118 @@
+{
+	"key": "ops.containers.dockerfile-defect",
+	"version": 1,
+	"specialization": "devops",
+	"block": "ops.containers",
+	"format": "bug_locate",
+	"answerKind": "line_no",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": {
+				"stages": 1,
+				"lines": "14–24",
+				"requirements": "не root, порт на всех интерфейсах, кэш зависимостей, секрет"
+			},
+			"constructiveRank": 2,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "root",
+					"form": "A",
+					"description": "пользователь итоговой стадии — root: `USER root`, `USER 0` или закомментированный USER"
+				},
+				{
+					"id": "port",
+					"form": "B",
+					"description": "сервис слушает только localhost или не тот порт, либо объявлен другой порт"
+				},
+				{
+					"id": "cache",
+					"form": "anchor",
+					"description": "до установки зависимостей копируется весь контекст: правка исходника сбрасывает кэш"
+				},
+				{
+					"id": "secret",
+					"form": "X",
+					"description": "файл с токеном копируется в образ: `COPY` вместе с манифестами или `cp` из секретного монтирования"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"stages": 2,
+				"lines": "22–32",
+				"requirements": "плюс отсутствие компилятора; дефект в наследовании стадий, ARG, exec-форме"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "compiler",
+					"form": "A",
+					"description": "итоговая стадия на полном образе, на сборочной стадии или ставит пакет компилятора"
+				},
+				{
+					"id": "secret-stage",
+					"form": "B",
+					"description": "секрет законно лежит в сборочной стадии, но `COPY --from` переносит всю папку вместе с ним"
+				},
+				{
+					"id": "cache-arg",
+					"form": "anchor",
+					"description": "аргумент, меняющийся при каждой сборке, объявлен до установки зависимостей"
+				},
+				{ "id": "port-exec", "form": "X", "description": "exec-форма CMD с `$PORT`: переменная не подставляется" }
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "stack", "description": "Python, Node.js или Go; порт, версии образов, имена аргументов" },
+		{ "name": "layout", "description": "комментарии, пустые строки, необязательные ENV/LABEL и порядок хвоста файла" }
+	],
+	"essentialParams": [
+		{ "name": "requirement", "description": "какое требование спецификации нарушено" },
+		{ "name": "mechanism", "description": "как нарушено: прямо, через наследование стадии, ARG или форму CMD" }
+	],
+	"language": "dockerfile",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"чтение спецификации образа и сопоставление её с инструкциями",
+			"пользователь процесса и наследование USER",
+			"адрес и порт, на которых слушает сервис; подстановка переменных в shell- и exec-форме",
+			"порядок копирования ради кэша зависимостей, влияние ARG на кэш",
+			"секреты: монтирование против копирования, перенос через `COPY --from`",
+			"что итоговая стадия получает от базы и от сборочной стадии"
+		],
+		"doesNotCheck": ["исправление дефекта (только его место)", "сборку образа и сканеры уязвимостей"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "same-requirement-line",
+			"defect": "указывает другую строку того же требования, которая написана верно (EXPOSE вместо CMD, сборочную стадию вместо итоговой)",
+			"mustBeCaught": true
+		},
+		{
+			"id": "decoy-line",
+			"defect": "указывает строку, которая выглядит рискованно, но спецификации не нарушает (`COPY . .` после установки, секрет в сборочной стадии)",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 2, "caught": 2 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0413,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

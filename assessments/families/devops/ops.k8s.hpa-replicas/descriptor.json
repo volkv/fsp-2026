@@ -1,0 +1,96 @@
+{
+	"key": "ops.k8s.hpa-replicas",
+	"version": 1,
+	"specialization": "devops",
+	"block": "ops.k8s",
+	"format": "config_eval",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"ticks": "8–9",
+				"metrics": "1–2",
+				"rules": "допуск, максимум по метрикам, окна стабилизации, политики скорости, min/max"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "tolerance-metrics",
+					"form": "A",
+					"description": "две метрики: внутри допуска метрика не двигает реплики, решает наибольшая рекомендация"
+				},
+				{
+					"id": "stabilization",
+					"form": "B",
+					"description": "нагрузка падает: окно стабилизации держит максимум рекомендаций за окно"
+				},
+				{
+					"id": "scale-up-policies",
+					"form": "anchor",
+					"description": "всплеск: рост ограничен политиками Pods и Percent за период, отсчитанными от числа реплик в начале периода"
+				},
+				{
+					"id": "scale-down-policies",
+					"form": "X",
+					"description": "спад с политиками уменьшения: selectPolicy выбирает политику, допускающую большее или меньшее изменение"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "имена Deployment и метрики" },
+		{ "name": "numbers", "description": "значения метрик по тактам, цели, границы, параметры политик" }
+	],
+	"essentialParams": [
+		{
+			"name": "limiting-rule",
+			"description": "что решает число реплик: допуск и максимум по метрикам, окно стабилизации, политика роста, политика уменьшения"
+		}
+	],
+	"language": "yaml",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"расчёт ceil(текущие · значение / цель) с допуском 0,1 и максимумом по метрикам",
+			"окна стабилизации роста и уменьшения",
+			"политики Pods и Percent за период и selectPolicy для роста и уменьшения",
+			"границы minReplicas и maxReplicas"
+		],
+		"doesNotCheck": [
+			"сбор метрик (metrics-server, задержки, неготовые поды) — значения даны",
+			"умолчания behavior в конкретной версии — все параметры заданы в манифесте"
+		]
+	},
+	"wrongSolutions": [
+		{ "id": "ignore-tolerance", "defect": "меняет реплики и внутри допуска 0,1", "mustBeCaught": true },
+		{ "id": "first-metric", "defect": "считает только по первой метрике", "mustBeCaught": true },
+		{ "id": "round-nearest", "defect": "округляет рекомендацию до ближайшего, а не вверх", "mustBeCaught": true },
+		{ "id": "no-stabilization", "defect": "не учитывает окно стабилизации уменьшения", "mustBeCaught": true },
+		{
+			"id": "base-current",
+			"defect": "считает лимит политики от текущего числа реплик, а не от числа в начале периода",
+			"mustBeCaught": true
+		},
+		{
+			"id": "select-flip",
+			"defect": "путает selectPolicy: Max берёт политику с меньшим изменением",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 6, "caught": 6 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0023,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

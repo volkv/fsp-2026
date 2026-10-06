@@ -1,0 +1,97 @@
+{
+	"key": "ops.k8s.network-policy",
+	"version": 1,
+	"specialization": "devops",
+	"block": "ops.k8s",
+	"format": "config_eval",
+	"answerKind": "set",
+	"levels": [
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"namespaces": 4,
+				"policies": "3–5",
+				"connections": 8,
+				"rules": "изоляция по направлениям, элементы from/to, ipBlock с except, порты, egress и DNS"
+			},
+			"constructiveRank": 7,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "peer-and-or",
+					"form": "A",
+					"description": "podSelector и namespaceSelector в одном элементе from — это И, а не два источника"
+				},
+				{
+					"id": "egress-dns",
+					"form": "B",
+					"description": "источник изолирован по egress: нужны разрешения на исходящие, в том числе к DNS по UDP 53"
+				},
+				{
+					"id": "ipblock",
+					"form": "anchor",
+					"description": "внешние адреса: cidr ipBlock с вырезанными диапазонами except"
+				},
+				{
+					"id": "namespace-scope",
+					"form": "X",
+					"description": "podSelector без namespaceSelector выбирает поды только из namespace политики"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "имена namespace, подов, политик, метки и адреса" },
+		{ "name": "connections", "description": "какие восемь подключений спрошены и в каком порядке" }
+	],
+	"essentialParams": [
+		{
+			"name": "policy-trap",
+			"description": "что решает подключение: форма элемента from, изоляция по egress и DNS, except в ipBlock, область podSelector"
+		}
+	],
+	"language": "yaml",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"под изолирован по направлению, если его выбирает хоть одна политика с этим типом",
+			"элементы from/to соединяются через ИЛИ, podSelector и namespaceSelector внутри элемента — через И",
+			"ipBlock с except, порты и протоколы",
+			"egress-изоляция источника и разрешение DNS"
+		],
+		"doesNotCheck": [
+			"поведение ipBlock для адресов подов и особенности сетевых плагинов",
+			"AdminNetworkPolicy и политики конкретных плагинов",
+			"endPort и именованные порты"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "and-as-or",
+			"defect": "читает podSelector и namespaceSelector в одном элементе как два отдельных источника",
+			"mustBeCaught": true
+		},
+		{ "id": "ingress-only", "defect": "не учитывает egress-политики источника", "mustBeCaught": true },
+		{ "id": "ignore-except", "defect": "не вырезает диапазоны except из ipBlock", "mustBeCaught": true },
+		{
+			"id": "podselector-any-namespace",
+			"defect": "считает, что podSelector без namespaceSelector выбирает поды во всех namespace",
+			"mustBeCaught": true
+		},
+		{ "id": "ports-ignored", "defect": "не сверяет порт и протокол правила", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 5, "caught": 5 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0117,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

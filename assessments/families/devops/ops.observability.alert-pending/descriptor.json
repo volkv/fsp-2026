@@ -1,0 +1,164 @@
+{
+	"key": "ops.observability.alert-pending",
+	"version": 1,
+	"specialization": "devops",
+	"block": "ops.observability",
+	"format": "config_eval",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"series": 1,
+				"evaluations": "до 24",
+				"interacting": "for + сброс pending или граница сравнения"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "reset",
+					"form": "A",
+					"description": "одно «нормальное» вычисление сбрасывает pending, отсчёт for начинается заново"
+				},
+				{
+					"id": "for-not-multiple",
+					"form": "B",
+					"description": "for не кратен интервалу вычисления: firing — на первом вычислении после истечения for"
+				},
+				{
+					"id": "threshold-equal",
+					"form": "anchor",
+					"description": "значения ровно на пороге: строгое или нестрогое сравнение решает, пусто ли выражение"
+				},
+				{
+					"id": "for-zero",
+					"form": "X",
+					"description": "for: 0s — оповещение становится firing на том же вычислении, без pending"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"series": "1–3",
+				"evaluations": "до 24",
+				"interacting": "keep_firing_for + сброс pending, пропуски данных или несколько рядов"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "keep-firing",
+					"form": "A",
+					"description": "keep_firing_for: firing держится, пока с первого пустого вычисления не прошло keep_firing_for"
+				},
+				{
+					"id": "missing-data",
+					"form": "B",
+					"description": "ряд пропадает: выражение пусто, pending сбрасывается, firing снимается"
+				},
+				{
+					"id": "multi-series",
+					"form": "anchor",
+					"description": "выражение возвращает несколько рядов: у каждого ряда своё оповещение и свои события"
+				},
+				{
+					"id": "keep-reset",
+					"form": "X",
+					"description": "в окне keep_firing_for выражение снова непусто: отсчёт keep_firing_for начинается заново"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "имя сервиса, группы, оповещения и метрики" },
+		{ "name": "numbers", "description": "интервал вычисления, for, порог и значения ряда" }
+	],
+	"essentialParams": [
+		{ "name": "hold", "description": "for: кратен интервалу, не кратен или 0" },
+		{ "name": "keep", "description": "есть ли keep_firing_for и возвращается ли условие внутри него" },
+		{ "name": "data", "description": "значения на пороге, пропуски данных, один ряд или несколько" }
+	],
+	"language": "yaml",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"переходы pending → firing → resolved по for и интервалу вычисления",
+			"сброс pending одним вычислением с пустым выражением",
+			"for, не кратный интервалу, и for: 0s",
+			"строгое и нестрогое сравнение с порогом",
+			"keep_firing_for и его сброс",
+			"пропуски данных и отдельные оповещения по рядам"
+		],
+		"doesNotCheck": [
+			"маршрутизацию и группировку уведомлений в Alertmanager",
+			"устаревание рядов и окно поиска отсчётов настоящего Prometheus",
+			"шаблоны аннотаций"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "no-reset",
+			"defect": "не сбрасывает pending, когда выражение пусто на одном вычислении",
+			"mustBeCaught": true
+		},
+		{
+			"id": "strict-for",
+			"defect": "переводит в firing, только когда с начала pending прошло строго больше for",
+			"mustBeCaught": true
+		},
+		{
+			"id": "fire-at-for",
+			"defect": "считает моментом firing начало pending плюс for, даже если там нет вычисления",
+			"mustBeCaught": true
+		},
+		{ "id": "compare-flip", "defect": "путает строгое и нестрогое сравнение с порогом", "mustBeCaught": true },
+		{
+			"id": "pending-first",
+			"defect": "при for: 0s сначала переводит в pending и только на следующем вычислении — в firing",
+			"mustBeCaught": true
+		},
+		{
+			"id": "resolve-after-for",
+			"defect": "снимает firing только после того, как выражение пусто дольше for",
+			"mustBeCaught": true
+		},
+		{ "id": "ignore-keep", "defect": "не учитывает keep_firing_for", "mustBeCaught": true },
+		{
+			"id": "keep-from-last-true",
+			"defect": "отсчитывает keep_firing_for от последнего непустого вычисления, а не от первого пустого",
+			"mustBeCaught": true
+		},
+		{
+			"id": "missing-holds-value",
+			"defect": "при пропуске данных считает, что ряд сохраняет последнее значение",
+			"mustBeCaught": true
+		},
+		{
+			"id": "one-alert",
+			"defect": "считает одно оповещение на всё выражение, а не по оповещению на ряд",
+			"mustBeCaught": true
+		},
+		{
+			"id": "keep-no-reset",
+			"defect": "не сбрасывает отсчёт keep_firing_for, когда выражение снова непусто",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 11, "caught": 11 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0029,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

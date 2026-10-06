@@ -1,0 +1,124 @@
+{
+	"key": "ops.k8s.manifest-defect",
+	"version": 1,
+	"specialization": "devops",
+	"block": "ops.k8s",
+	"format": "bug_locate",
+	"answerKind": "line_no",
+	"levels": [
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": {
+				"objects": "Deployment + Service",
+				"lines": "40–55",
+				"links": "селекторы, именованный порт, проба"
+			},
+			"constructiveRank": 3,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "service-selector",
+					"form": "A",
+					"description": "selector Service не совпадает с метками шаблона пода"
+				},
+				{
+					"id": "target-port",
+					"form": "B",
+					"description": "targetPort Service ссылается на имя порта, которого у контейнера нет"
+				},
+				{
+					"id": "deploy-selector",
+					"form": "anchor",
+					"description": "spec.selector Deployment не совпадает с template.metadata.labels"
+				},
+				{
+					"id": "probe-port",
+					"form": "X",
+					"description": "проба готовности обращается к порту, которого контейнер не слушает"
+				}
+			]
+		},
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"objects": "ConfigMap + Deployment с двумя контейнерами + Service",
+				"lines": "65–85",
+				"links": "ресурсы в разных единицах, ключ ConfigMap, порты двух контейнеров, тома"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "requests-limits",
+					"form": "A",
+					"description": "limits меньше requests, если привести единицы (750m и 1, 0.5Gi и 768Mi)"
+				},
+				{
+					"id": "configmap-key",
+					"form": "B",
+					"description": "configMapKeyRef ссылается на ключ, которого в ConfigMap нет"
+				},
+				{
+					"id": "probe-sidecar-port",
+					"form": "anchor",
+					"description": "проба живости основного контейнера ссылается на именованный порт контейнера-спутника"
+				},
+				{ "id": "volume-mount", "form": "X", "description": "volumeMounts ссылается на том, которого нет в volumes" }
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "имена приложения, меток, портов, ключей, томов; значения ресурсов" },
+		{
+			"name": "layout",
+			"description": "порядок документов, число аннотаций и переменных окружения — сдвигают номера строк"
+		}
+	],
+	"essentialParams": [
+		{
+			"name": "defect",
+			"description": "какая ссылка или ограничение нарушены: селектор Service, селектор Deployment, targetPort, порт пробы, ресурсы, ключ ConfigMap, том"
+		}
+	],
+	"language": "yaml",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"селектор Service и селектор Deployment против меток шаблона пода",
+			"targetPort и порт пробы по имени и номеру в нужном контейнере",
+			"requests не больше limits в разных единицах",
+			"ссылки на ключ ConfigMap и на том по имени"
+		],
+		"doesNotCheck": [
+			"поля, которые отвергнет только API-сервер конкретной версии",
+			"сетевые политики, Ingress и права ServiceAccount"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "neighbour-line",
+			"defect": "указывает на другую сторону несовпадения — строку, которую спецификация закрепляет",
+			"mustBeCaught": true
+		},
+		{
+			"id": "decoy-line",
+			"defect": "указывает на похожую строку рядом, которая с манифестом и спецификацией согласована",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 2, "caught": 2 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.038,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

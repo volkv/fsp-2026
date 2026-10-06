@@ -1,0 +1,157 @@
+{
+	"key": "ops.linux.log-pipeline",
+	"version": 1,
+	"specialization": "devops",
+	"block": "ops.linux",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": { "commands": "2–4", "sortKeys": 0, "rules": 1, "lines": "8–12" },
+			"constructiveRank": 2,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "lex-sort",
+					"form": "A",
+					"description": "sort без -n сравнивает размеры как строки: «1200» раньше «95»"
+				},
+				{
+					"id": "uniq-adjacent",
+					"form": "B",
+					"description": "uniq -c без предварительной сортировки склеивает только соседние повторы"
+				},
+				{
+					"id": "grep-count",
+					"form": "anchor",
+					"description": "grep -c считает строки, а не совпадения; точка в шаблоне — любой символ; -vc считает несовпавшие"
+				},
+				{ "id": "tail-head", "form": "X", "description": "tail -n +K начинает с K-й строки, затем head -n и cut" }
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": { "commands": "3–6", "sortKeys": "1–2", "rules": 2, "lines": "8–14" },
+			"constructiveRank": 3,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "key-numeric",
+					"form": "A",
+					"description": "sort -t' ' -k5,5nr -k1,1: обратный числовой ключ, равенство решает второй ключ по возрастанию"
+				},
+				{
+					"id": "count-rank",
+					"form": "B",
+					"description": "sort | uniq -c | sort -k1,1nr -k2,2: частоты с равными счётчиками, порядок равных — по пути"
+				},
+				{
+					"id": "stable",
+					"form": "anchor",
+					"description": "sort -s по одному полю: равные ключи сохраняют порядок файла, без сравнения целых строк"
+				},
+				{
+					"id": "unique-key",
+					"form": "X",
+					"description": "sort -u с ключом: из строк с равным ключом остаётся первая по порядку файла"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "log", "description": "имя файла журнала, адреса, пути, методы, коды и размеры ответов" },
+		{ "name": "counts", "description": "число строк журнала, аргументы head и tail" },
+		{ "name": "filter", "description": "отбрасываемый код ответа или метод" }
+	],
+	"essentialParams": [
+		{ "name": "order", "description": "как упорядочивает sort: побайтно, числом, по ключу, устойчиво, с -u" },
+		{ "name": "grouping", "description": "что склеивает uniq: соседние повторы после сортировки или без неё" },
+		{ "name": "selection", "description": "что выбирают grep (якорь, точка, -v, -c), head и tail -n +K" }
+	],
+	"language": "shell",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"чтение конвейера grep | cut | sort | uniq | head/tail",
+			"лексикографическая сортировка против числовой (-n), обратный порядок (-r)",
+			"uniq склеивает только соседние строки",
+			"grep: якорь ^, точка как любой символ, -c считает строки, -v",
+			"tail -n +K: вывод с K-й строки",
+			"ключи sort -t -k с границами поля, вторичный ключ, -s и -u"
+		],
+		"doesNotCheck": [
+			"сортировку в национальной локали",
+			"умение написать конвейер самостоятельно",
+			"производительность конвейеров на больших файлах"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "numeric-sort",
+			"defect": "считает, что sort без -n упорядочивает числа по величине",
+			"mustBeCaught": true
+		},
+		{ "id": "grep-v-keeps", "defect": "читает grep -v как отбор совпавших строк", "mustBeCaught": true },
+		{
+			"id": "uniq-groups-all",
+			"defect": "считает, что uniq -c сосчитает все повторы строки, а не только соседние",
+			"mustBeCaught": true
+		},
+		{ "id": "uniq-sorts", "defect": "считает, что uniq сам сортирует строки", "mustBeCaught": true },
+		{ "id": "dot-literal", "defect": "читает точку в шаблоне grep как буквальную точку", "mustBeCaught": true },
+		{
+			"id": "count-occurrences",
+			"defect": "считает, что grep -c считает совпадения, а не строки",
+			"mustBeCaught": true
+		},
+		{ "id": "tail-plus-skips", "defect": "считает, что tail -n +K пропускает K строк", "mustBeCaught": true },
+		{ "id": "tail-plus-last", "defect": "читает tail -n +K как последние K строк", "mustBeCaught": true },
+		{
+			"id": "key-as-text",
+			"defect": "не замечает флага n у ключа и сравнивает размеры как строки",
+			"mustBeCaught": true
+		},
+		{
+			"id": "reverse-all-keys",
+			"defect": "считает, что r у первого ключа обращает и второй ключ",
+			"mustBeCaught": true
+		},
+		{
+			"id": "ties-file-order",
+			"defect": "считает, что строки с равным первым ключом остаются в порядке файла",
+			"mustBeCaught": true
+		},
+		{
+			"id": "stable-ignored",
+			"defect": "не знает -s: равные ключи упорядочивает по целой строке",
+			"mustBeCaught": true
+		},
+		{ "id": "key-to-end", "defect": "считает, что -k2,2 сравнивает поле до конца строки", "mustBeCaught": true },
+		{
+			"id": "unique-after-full-sort",
+			"defect": "считает, что sort -u оставляет наименьшую целую строку среди равных по ключу",
+			"mustBeCaught": true
+		},
+		{
+			"id": "unique-keeps-last",
+			"defect": "считает, что sort -u оставляет последнюю строку с равным ключом",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 15, "caught": 15 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0001,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

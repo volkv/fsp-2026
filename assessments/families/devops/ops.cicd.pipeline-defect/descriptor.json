@@ -1,0 +1,124 @@
+{
+	"key": "ops.cicd.pipeline-defect",
+	"version": 1,
+	"specialization": "devops",
+	"block": "ops.cicd",
+	"format": "bug_locate",
+	"answerKind": "line_no",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": {
+				"lines": "35–50",
+				"properties": 5,
+				"defect": "одна строка: условие ветки, ключ кэша, триггер PR, вывод секрета"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "branch-condition",
+					"form": "A",
+					"description": "условие деплоя по ветке или событию перевёрнуто, заменено другой веткой или ослаблено через ||"
+				},
+				{
+					"id": "cache-key",
+					"form": "B",
+					"description": "ключ кэша от манифеста, от коммита или постоянный — не от lock-файла"
+				},
+				{
+					"id": "pr-trigger",
+					"form": "anchor",
+					"description": "pull_request отфильтрован другой целевой веткой или типом closed: тесты на PR в main не идут"
+				},
+				{ "id": "secret-echo", "form": "X", "description": "команда echo выводит переменную окружения с секретом" }
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"lines": "40–50",
+				"properties": 5,
+				"defect": "одна строка: зависимость деплоя, always(), группа concurrency, производная секрета, тонкое условие ветки"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "deploy-after-tests",
+					"form": "A",
+					"description": "деплой не ждёт тестов: needs указывает на сборку или always() снимает требование успеха предков"
+				},
+				{
+					"id": "concurrency-group",
+					"form": "B",
+					"description": "группа concurrency зависит от коммита или номера запуска, либо cancel-in-progress прерывает идущий деплой"
+				},
+				{
+					"id": "secret-expression",
+					"form": "anchor",
+					"description": "секрет подставлен выражением прямо в команду или выведен в преобразованном виде (base64)"
+				},
+				{
+					"id": "subtle-branch",
+					"form": "X",
+					"description": "условие ветки выглядит верным, но пропускает maintenance или main-hotfix либо не срабатывает на push (base_ref)"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{
+			"name": "layout",
+			"description": "стек (Node, Python, Go), имена заданий, порядок событий и заданий, необязательные строки"
+		},
+		{ "name": "variant", "description": "какой из вариантов дефекта класса выбран" }
+	],
+	"essentialParams": [
+		{ "name": "property", "description": "какое свойство спецификации нарушено и каким механизмом GitHub Actions" }
+	],
+	"language": "yaml",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"условие if задания деплоя: ветка, событие, функции статуса",
+			"needs и неявный success()",
+			"фильтры pull_request: branches и types",
+			"ключ actions/cache через hashFiles",
+			"передача секрета через env и его вывод в журнал",
+			"concurrency: группа и cancel-in-progress"
+		],
+		"doesNotCheck": [
+			"права GITHUB_TOKEN и OIDC",
+			"защиту окружений и обязательные проверки ветки",
+			"маскирование секретов самим GitHub"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "same-property-line",
+			"defect": "указывает соседнюю строку того же свойства (needs вместо if, path вместо key, push вместо pull_request, env вместо run), которая верна",
+			"mustBeCaught": true
+		},
+		{
+			"id": "symptom-line",
+			"defect": "указывает строку, где проявляется последствие — команду деплоя, — а не строку с нарушением",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 2, "caught": 2 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0362,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

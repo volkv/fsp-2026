@@ -1,0 +1,92 @@
+{
+	"key": "ops.k8s.quota-limits",
+	"version": 1,
+	"specialization": "devops",
+	"block": "ops.k8s",
+	"format": "config_eval",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"pods": "5–6",
+				"containers": "1–2",
+				"rules": "умолчания LimitRange, min, max, maxLimitRequestRatio, квота requests и limits с накоплением"
+			},
+			"constructiveRank": 7,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "defaults",
+					"form": "A",
+					"description": "контейнер только с limits получает request, равный limit, а не defaultRequest"
+				},
+				{
+					"id": "ratio-max",
+					"form": "B",
+					"description": "отказ по maxLimitRequestRatio и по max, который сравнивается с limit"
+				},
+				{ "id": "quota", "form": "anchor", "description": "квота requests и limits копится только принятыми подами" },
+				{
+					"id": "request-only",
+					"form": "X",
+					"description": "контейнер только с request получает limit из default, и тот оказывается меньше request"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "имена подов и контейнеров, namespace" },
+		{ "name": "numbers", "description": "значения LimitRange, квоты и ресурсов контейнеров, единицы" }
+	],
+	"essentialParams": [
+		{
+			"name": "admission-rule",
+			"description": "что решает судьбу пода: умолчания, отношение limit/request, max, min, квота с накоплением"
+		}
+	],
+	"language": "yaml",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"подстановка requests и limits из LimitRange и из limit контейнера",
+			"проверки min, max и maxLimitRequestRatio",
+			"ResourceQuota по requests, limits и числу подов с накоплением только принятыми подами"
+		],
+		"doesNotCheck": [
+			"LimitRange типа Pod и PersistentVolumeClaim",
+			"области действия квоты (scopes) и приоритеты",
+			"порядок плагинов допуска конкретной версии — модель задана в условии"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "default-request-over-limit",
+			"defect": "контейнеру только с limit ставит request из defaultRequest",
+			"mustBeCaught": true
+		},
+		{
+			"id": "limit-from-request",
+			"defect": "контейнеру только с request ставит limit, равный request, а не default",
+			"mustBeCaught": true
+		},
+		{ "id": "ratio-ignored", "defect": "не проверяет maxLimitRequestRatio", "mustBeCaught": true },
+		{ "id": "max-on-request", "defect": "сравнивает max с request, а не с limit", "mustBeCaught": true },
+		{ "id": "rejected-consume", "defect": "засчитывает в квоту и отклонённые поды", "mustBeCaught": true },
+		{ "id": "quota-limits-ignored", "defect": "проверяет квоту только по requests", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 6, "caught": 6 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

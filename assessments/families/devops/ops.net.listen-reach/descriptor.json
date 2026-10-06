@@ -1,0 +1,165 @@
+{
+	"key": "ops.net.listen-reach",
+	"version": 1,
+	"specialization": "devops",
+	"block": "ops.net",
+	"format": "compute",
+	"answerKind": "set",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": {
+				"sockets": "4–5",
+				"attempts": "8–9",
+				"rules": "адрес привязки, семейство адресов, свой хост или другой"
+			},
+			"constructiveRank": 2,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "loopback-vs-any",
+					"form": "A",
+					"description": "сокеты на 127.0.0.1 и 0.0.0.0: локальный сокет не виден по внешнему адресу, 0.0.0.0 принимает и 127.0.0.1"
+				},
+				{
+					"id": "specific-ip",
+					"form": "B",
+					"description": "сокеты на адресах конкретных интерфейсов: подключение по другому адресу того же хоста не принимается"
+				},
+				{
+					"id": "dual-stack",
+					"form": "anchor",
+					"description": "сокеты [::] при bindv6only=0: принимают и IPv4, а 0.0.0.0 IPv6 не принимает"
+				},
+				{
+					"id": "v6only",
+					"form": "X",
+					"description": "сокеты [::] при bindv6only=1: только IPv6, IPv4 на тот же порт принимает лишь отдельный сокет 0.0.0.0"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"sockets": "3–5",
+				"attempts": "8–9",
+				"rules": "сокеты + фильтр входящих по первому совпадению + публикация портов контейнеров"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "firewall-input",
+					"form": "A",
+					"description": "пересекающиеся правила по порту и подсети источника: решает первое совпадение, иначе политика"
+				},
+				{
+					"id": "docker-publish",
+					"form": "B",
+					"description": "публикация портов контейнеров: -p 127.0.0.1:8080:80 против -p 8080:80, порт контейнера на хосте не слушается"
+				},
+				{
+					"id": "docker-bypass",
+					"form": "anchor",
+					"description": "опубликованный порт контейнера идёт мимо цепочки INPUT: запрещающее правило его не закрывает"
+				},
+				{
+					"id": "v6-firewall",
+					"form": "X",
+					"description": "сокеты [::] и отдельные правила для IPv4 и IPv6: правила IPv4 не действуют на подключения по IPv6"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "имена процессов, контейнеров и клиентов" },
+		{ "name": "numbers", "description": "адреса интерфейсов, порты, порядок попыток" }
+	],
+	"essentialParams": [
+		{ "name": "bind", "description": "адрес привязки: 127.0.0.1, 0.0.0.0, конкретный адрес, [::], [::1]" },
+		{ "name": "dual-stack", "description": "значение net.ipv6.bindv6only" },
+		{ "name": "filter", "description": "правила входящих по первому совпадению, отдельные для IPv4 и IPv6" },
+		{ "name": "publish", "description": "публикация порта контейнера на всех адресах или только на 127.0.0.1" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"какие подключения принимает сокет по адресу привязки",
+			"двойной стек: [::] и IPv4 при разных bindv6only",
+			"фильтр входящих: первое совпадение и политика по умолчанию",
+			"публикация портов контейнера на 127.0.0.1 и на всех адресах",
+			"опубликованные порты контейнеров идут мимо цепочки INPUT"
+		],
+		"doesNotCheck": [
+			"настройку конкретного межсетевого экрана (ufw, firewalld, nftables)",
+			"UDP и состояние соединений",
+			"маршрутизацию между сетями"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "port-only",
+			"defect": "считает, что подключение принимается, если порт слушается на любом адресе",
+			"mustBeCaught": true
+		},
+		{
+			"id": "any-excludes-loopback",
+			"defect": "считает, что 0.0.0.0 — только внешние интерфейсы, и не принимает подключения к 127.0.0.1",
+			"mustBeCaught": true
+		},
+		{
+			"id": "specific-means-host",
+			"defect": "считает, что сокет на адресе одного интерфейса принимает подключения к любому адресу хоста",
+			"mustBeCaught": true
+		},
+		{
+			"id": "v6-only-v6",
+			"defect": "считает, что [::] никогда не принимает IPv4, не глядя на bindv6only",
+			"mustBeCaught": true
+		},
+		{
+			"id": "v6-always-dual",
+			"defect": "считает, что [::] всегда принимает и IPv4, не глядя на bindv6only",
+			"mustBeCaught": true
+		},
+		{
+			"id": "v4-any-accepts-v6",
+			"defect": "считает, что 0.0.0.0 принимает и подключения по IPv6",
+			"mustBeCaught": true
+		},
+		{ "id": "fw-ignored", "defect": "не учитывает правила фильтра входящих", "mustBeCaught": true },
+		{ "id": "fw-last-match", "defect": "применяет последнее подходящее правило, а не первое", "mustBeCaught": true },
+		{
+			"id": "fw-on-docker",
+			"defect": "применяет правила цепочки INPUT к опубликованным портам контейнеров",
+			"mustBeCaught": true
+		},
+		{
+			"id": "publish-all",
+			"defect": "считает, что -p 127.0.0.1:8080:80 публикует порт на всех адресах хоста",
+			"mustBeCaught": true
+		},
+		{
+			"id": "container-port",
+			"defect": "считает, что на хосте слушается порт контейнера (правая часть -p)",
+			"mustBeCaught": true
+		},
+		{ "id": "fw-v4-on-v6", "defect": "применяет правила IPv4 и к подключениям по IPv6", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 12, "caught": 12 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.005,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

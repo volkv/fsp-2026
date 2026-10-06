@@ -1,0 +1,143 @@
+{
+	"key": "ops.containers.multi-stage",
+	"version": 1,
+	"specialization": "devops",
+	"block": "ops.containers",
+	"format": "config_eval",
+	"answerKind": "set",
+	"levels": [
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"stages": "4–6",
+				"rules": "--target, зависимости через FROM и COPY --from, номера стадий, наследование файлов"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "target-mid",
+					"form": "A",
+					"description": "цель — стадия в середине файла: стадии после неё не собираются"
+				},
+				{ "id": "copy-from-index", "form": "B", "description": "`COPY --from` по номеру стадии: нумерация с 0" },
+				{
+					"id": "from-stage-chain",
+					"form": "anchor",
+					"description": "цель построена на другой стадии и получает все её файлы"
+				},
+				{
+					"id": "unused-before",
+					"form": "X",
+					"description": "до цели есть стадия, от которой цель не зависит: BuildKit её пропускает"
+				}
+			]
+		},
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"stages": "5–6",
+				"rules": "глобальный ARG в FROM, область видимости ARG в стадии, приоритет --build-arg"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "global-arg-from",
+					"form": "A",
+					"description": "база итоговой стадии выбирается глобальным ARG в `FROM`, `--build-arg` меняет выбор"
+				},
+				{
+					"id": "arg-not-redeclared",
+					"form": "B",
+					"description": "аргумент не объявлен в стадии: `${APP}` пуст, и `COPY` забирает весь каталог"
+				},
+				{
+					"id": "arg-redeclared",
+					"form": "anchor",
+					"description": "`ARG APP` без значения в стадии берёт значение глобального ARG"
+				},
+				{
+					"id": "stage-default",
+					"form": "X",
+					"description": "у ARG стадии своё значение по умолчанию, но `--build-arg` важнее"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "имена стадий, бинарников, отчётов и каталогов" },
+		{ "name": "layout", "description": "необязательные стадии сборки фронтенда, инструментов, общей базы, тестов" }
+	],
+	"essentialParams": [
+		{ "name": "target", "description": "какая стадия — цель и как она связана с остальными" },
+		{ "name": "references", "description": "ссылки на стадии: по имени, по номеру, через FROM" },
+		{ "name": "args", "description": "где объявлен аргумент и откуда берётся его значение" }
+	],
+	"language": "dockerfile",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"какие стадии собирает BuildKit для `--target`",
+			"зависимости стадий через `FROM` и `COPY --from` по имени и номеру",
+			"какие файлы попадают в образ цели",
+			"область видимости `ARG` до и после `FROM`",
+			"приоритет `--build-arg` над значениями по умолчанию"
+		],
+		"doesNotCheck": [
+			"классический сборщик без BuildKit (кроме как заблуждение)",
+			"`COPY --from` из внешних образов",
+			"кэш сборки"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "builds-all-before-target",
+			"defect": "собирает все стадии до цели по порядку, как классический сборщик",
+			"mustBeCaught": true
+		},
+		{
+			"id": "target-ignored",
+			"defect": "собирает весь файл до последней стадии, не глядя на `--target`",
+			"mustBeCaught": true
+		},
+		{ "id": "index-from-one", "defect": "нумерует стадии с 1", "mustBeCaught": true },
+		{
+			"id": "from-stage-fresh",
+			"defect": "считает, что `FROM <стадия>` начинает с пустой файловой системы",
+			"mustBeCaught": true
+		},
+		{ "id": "files-of-all-stages", "defect": "кладёт в образ цели файлы всех собранных стадий", "mustBeCaught": true },
+		{
+			"id": "global-arg-visible",
+			"defect": "считает глобальный ARG видимым внутри стадии без повторного объявления",
+			"mustBeCaught": true
+		},
+		{
+			"id": "redeclared-arg-empty",
+			"defect": "считает, что `ARG ИМЯ` без значения в стадии пуст, если не передан `--build-arg`",
+			"mustBeCaught": true
+		},
+		{ "id": "build-arg-ignored", "defect": "не учитывает `--build-arg`", "mustBeCaught": true },
+		{
+			"id": "stage-default-wins",
+			"defect": "считает, что значение по умолчанию в стадии важнее `--build-arg`",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 9, "caught": 9 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0069,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

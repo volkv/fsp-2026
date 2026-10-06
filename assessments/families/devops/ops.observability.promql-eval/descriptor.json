@@ -1,0 +1,159 @@
+{
+	"key": "ops.observability.promql-eval",
+	"version": 1,
+	"specialization": "devops",
+	"block": "ops.observability",
+	"format": "compute",
+	"answerKind": "set",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"series": "5–8",
+				"operators": "increase или rate, агрегация, фильтр или topk",
+				"interacting": "сброс счётчика + агрегация по меткам"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "increase-reset",
+					"form": "A",
+					"description": "sum by по increase с отбором по метке: счётчик перезапускается внутри окна"
+				},
+				{
+					"id": "sum-without",
+					"form": "B",
+					"description": "sum without (instance): сохраняются все метки, кроме перечисленных"
+				},
+				{
+					"id": "threshold-filter",
+					"form": "anchor",
+					"description": "сравнение с порогом после агрегации — фильтр результата, значения не меняются"
+				},
+				{
+					"id": "topk-rate",
+					"form": "X",
+					"description": "topk по сумме rate: сначала агрегация, затем выбор k наибольших"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"series": "8–12",
+				"operators": "деление векторов с сопоставлением по меткам",
+				"interacting": "on/ignoring + group_left + сброс счётчика или фильтр"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "group-left",
+					"form": "A",
+					"description": "on (service) group_left: ошибки по кодам делятся на все запросы сервиса"
+				},
+				{
+					"id": "unmatched",
+					"form": "B",
+					"description": "сопоставление один к одному: сервис без пары на другой стороне выпадает из результата"
+				},
+				{
+					"id": "ratio-filter",
+					"form": "anchor",
+					"description": "отношение сумм с фильтром по порогу: не среднее отношений по экземплярам"
+				},
+				{
+					"id": "ignoring-group-left",
+					"form": "X",
+					"description": "ignoring (instance) group_left: ошибки экземпляра делятся на все запросы его сервиса"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "имена метрик, сервисов, маршрутов и экземпляров" },
+		{ "name": "numbers", "description": "значения счётчиков, порог, k" }
+	],
+	"essentialParams": [
+		{ "name": "aggregation", "description": "sum by, sum without, topk после агрегации" },
+		{ "name": "filter", "description": "отбор по метке в селекторе, сравнение с порогом как фильтр" },
+		{
+			"name": "matching",
+			"description": "сопоставление векторов: по всем меткам, on, ignoring, group_left; ряды без пары"
+		}
+	],
+	"language": "promql",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"increase и rate по счётчику со сбросом",
+			"sum by и sum without",
+			"сравнение с порогом как фильтр",
+			"topk после агрегации",
+			"деление векторов: on, ignoring, group_left, ряды без пары",
+			"отношение сумм против среднего отношений"
+		],
+		"doesNotCheck": [
+			"экстраполяцию increase и rate на границах окна в настоящем Prometheus",
+			"устаревание рядов и шаг запроса диапазона",
+			"гистограммы и квантили"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "no-reset",
+			"defect": "считает прирост счётчика как последнее значение минус первое",
+			"mustBeCaught": true
+		},
+		{
+			"id": "reset-as-zero",
+			"defect": "при сбросе счётчика считает прирост на этом шаге нулевым",
+			"mustBeCaught": true
+		},
+		{ "id": "ignore-matcher", "defect": "не учитывает отбор по метке в селекторе", "mustBeCaught": true },
+		{ "id": "without-as-by", "defect": "читает sum without (метки) как sum by (метки)", "mustBeCaught": true },
+		{ "id": "filter-before-sum", "defect": "применяет порог к каждому ряду до агрегации", "mustBeCaught": true },
+		{
+			"id": "topk-before-sum",
+			"defect": "выбирает k наибольших исходных рядов, а затем суммирует",
+			"mustBeCaught": true
+		},
+		{ "id": "rate-per-minute", "defect": "считает rate в запросах в минуту, а не в секунду", "mustBeCaught": true },
+		{
+			"id": "sum-codes",
+			"defect": "теряет метку code: одно отношение на сервис вместо отношения на каждый код",
+			"mustBeCaught": true
+		},
+		{
+			"id": "missing-as-zero",
+			"defect": "считает отсутствующий ряд нулём, и сервис без ошибок попадает в результат",
+			"mustBeCaught": true
+		},
+		{
+			"id": "avg-of-ratios",
+			"defect": "усредняет отношения по экземплярам вместо отношения сумм",
+			"mustBeCaught": true
+		},
+		{
+			"id": "instance-ratio",
+			"defect": "делит ошибки экземпляра на запросы того же экземпляра, а не всего сервиса",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 11, "caught": 11 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0011,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

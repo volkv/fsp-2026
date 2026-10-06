@@ -1,6 +1,6 @@
 {
 	"key": {
-		"contentSha256": "ddf7266538c71c4488ff5b1e6c7b8df1b73b1ce64d8e35af2e580a66b35cef28",
+		"contentSha256": "fcff50cb333968bdf40fd091c898954370d9f8534f0951385acca6d233797dad",
 		"catalogVersion": "2026.10.3",
 		"procedureVersion": "sprt-3",
 		"simulationSha256": "68da8a559a8556a4662d003ea92f8adc37f7a3ea98d3c6a3254fa6440e6c206d"
@@ -18,34 +18,34 @@
 				"points": [
 					{
 						"shift": -0.15,
-						"runs": 1000,
-						"confirmed": 0.05,
+						"runs": 4000,
+						"confirmed": 0.06925,
 						"undetermined": 0,
-						"notConfirmed": 0.95
+						"notConfirmed": 0.93075
 					},
 					{
 						"shift": 0,
-						"runs": 1000,
-						"confirmed": 0.382,
+						"runs": 4000,
+						"confirmed": 0.392,
 						"undetermined": 0,
-						"notConfirmed": 0.618
+						"notConfirmed": 0.608
 					},
 					{
 						"shift": 0.15,
-						"runs": 1000,
-						"confirmed": 0.879,
+						"runs": 4000,
+						"confirmed": 0.86675,
 						"undetermined": 0,
-						"notConfirmed": 0.121
+						"notConfirmed": 0.13325
 					}
 				],
 				"consistency": [
 					{
 						"shift": -0.15,
-						"value": 0.8896999999999999
+						"value": 0.8758293749999999
 					},
 					{
 						"shift": 0.15,
-						"value": 0.778186
+						"value": 0.77029475
 					}
 				]
 			},
@@ -54,34 +54,34 @@
 				"points": [
 					{
 						"shift": -0.15,
-						"runs": 1000,
-						"confirmed": 0.049,
-						"undetermined": 0.021,
-						"notConfirmed": 0.93
+						"runs": 4000,
+						"confirmed": 0.0485,
+						"undetermined": 0.0195,
+						"notConfirmed": 0.932
 					},
 					{
 						"shift": 0,
-						"runs": 1000,
-						"confirmed": 0.363,
-						"undetermined": 0.055,
-						"notConfirmed": 0.582
+						"runs": 4000,
+						"confirmed": 0.327,
+						"undetermined": 0.05925,
+						"notConfirmed": 0.61375
 					},
 					{
 						"shift": 0.15,
-						"runs": 1000,
-						"confirmed": 0.827,
-						"undetermined": 0.024,
-						"notConfirmed": 0.149
+						"runs": 4000,
+						"confirmed": 0.81075,
+						"undetermined": 0.03275,
+						"notConfirmed": 0.1565
 					}
 				],
 				"consistency": [
 					{
 						"shift": -0.15,
-						"value": 0.864931
+						"value": 0.8731597500000001
 					},
 					{
 						"shift": 0.15,
-						"value": 0.6988199999999999
+						"value": 0.678716
 					}
 				]
 			},
@@ -91,33 +91,33 @@
 					{
 						"shift": -0.15,
 						"runs": 1000,
-						"confirmed": 0.047,
+						"confirmed": 0.056,
 						"undetermined": 0,
-						"notConfirmed": 0.953
+						"notConfirmed": 0.944
 					},
 					{
 						"shift": 0,
 						"runs": 1000,
-						"confirmed": 0.376,
+						"confirmed": 0.336,
 						"undetermined": 0,
-						"notConfirmed": 0.624
+						"notConfirmed": 0.664
 					},
 					{
 						"shift": 0.15,
 						"runs": 1000,
-						"confirmed": 0.813,
+						"confirmed": 0.82,
 						"undetermined": 0,
-						"notConfirmed": 0.187
+						"notConfirmed": 0.18
 					}
 				],
 				"consistency": [
 					{
 						"shift": -0.15,
-						"value": 0.9031699999999999
+						"value": 0.9004879999999998
 					},
 					{
 						"shift": 0.15,
-						"value": 0.714718
+						"value": 0.7118399999999999
 					}
 				]
 			},
@@ -126,34 +126,34 @@
 				"points": [
 					{
 						"shift": -0.15,
-						"runs": 4000,
-						"confirmed": 0.04975,
-						"undetermined": 0.01725,
-						"notConfirmed": 0.933
+						"runs": 1000,
+						"confirmed": 0.048,
+						"undetermined": 0.016,
+						"notConfirmed": 0.936
 					},
 					{
 						"shift": 0,
-						"runs": 4000,
-						"confirmed": 0.34,
-						"undetermined": 0.06025,
-						"notConfirmed": 0.59975
+						"runs": 1000,
+						"confirmed": 0.343,
+						"undetermined": 0.058,
+						"notConfirmed": 0.599
 					},
 					{
 						"shift": 0.15,
-						"runs": 4000,
-						"confirmed": 0.81525,
-						"undetermined": 0.039,
-						"notConfirmed": 0.14575
+						"runs": 1000,
+						"confirmed": 0.828,
+						"undetermined": 0.048,
+						"notConfirmed": 0.124
 					}
 				],
 				"consistency": [
 					{
 						"shift": -0.15,
-						"value": 0.8718555000000001
+						"value": 0.8768800000000001
 					},
 					{
 						"shift": 0.15,
-						"value": 0.6803935624999999
+						"value": 0.700332
 					}
 				]
 			}

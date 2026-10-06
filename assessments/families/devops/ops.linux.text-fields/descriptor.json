@@ -1,0 +1,178 @@
+{
+	"key": "ops.linux.text-fields",
+	"version": 1,
+	"specialization": "devops",
+	"block": "ops.linux",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": { "commands": "1–4", "files": 1, "rules": "1–2", "lines": "5–9" },
+			"constructiveRank": 2,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "cut",
+					"form": "A",
+					"description": "cut -d: -f с полями в обратном порядке: поля выходят в порядке строки; строка без разделителя — целиком (или пропадает с -s)"
+				},
+				{
+					"id": "tr",
+					"form": "B",
+					"description": "tr -s, tr -d с диапазоном и tr с коротким вторым набором (дополняется последним символом)"
+				},
+				{
+					"id": "sed",
+					"form": "anchor",
+					"description": "sed: удаление по /re/ и по номерам строк, s/// жадное, только первое или с g"
+				},
+				{
+					"id": "awk-sum",
+					"form": "X",
+					"description": "awk -F, суммирует по ключу; строка заголовка не пропущена и даёт ключ с суммой 0; порядок — через sort"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": { "commands": "1–2", "files": "1–2", "rules": 2, "lines": "5–12" },
+			"constructiveRank": 3,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "paste",
+					"form": "A",
+					"description": "paste файлов разной длины и paste -sd со списком разделителей, используемых по очереди"
+				},
+				{
+					"id": "join",
+					"form": "B",
+					"description": "join -t, отсортированных файлов: только парные ключи, -a1 или -v2; повтор ключа даёт несколько строк"
+				},
+				{
+					"id": "sed-ranges",
+					"form": "anchor",
+					"description": "sed -n '/a/,/b/p': диапазон включает обе границы и начинается заново; незакрытый — до конца файла"
+				},
+				{
+					"id": "awk-fields",
+					"form": "X",
+					"description": "awk -F'[ :]' и $NF-1 (последнее поле минус один), сумма по ключу, sort -k2,2nr"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "data", "description": "имена файлов, пользователи, хосты, сервисы, значения" },
+		{ "name": "counts", "description": "число строк, номера полей и строк, разделители paste" }
+	],
+	"essentialParams": [
+		{ "name": "tool", "description": "какая утилита разбирает текст: cut, tr, sed, awk, paste, join" },
+		{
+			"name": "edge",
+			"description": "граничное правило: строка без разделителя, диапазон tr, жадность sed, заголовок, разная длина файлов, повтор ключа"
+		}
+	],
+	"language": "shell",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"cut -d -f: порядок полей, строки без разделителя, -s",
+			"tr: диапазоны, -d, -s, второй набор короче первого",
+			"sed: адреса строк и /re/, s/// первое против g, жадность .*",
+			"awk: -F, ассоциативные массивы, сумма по ключу, $NF-1 против $(NF-1)",
+			"paste и join на файлах разной длины и с повторами ключей",
+			"диапазоны sed -n '/a/,/b/p'"
+		],
+		"doesNotCheck": ["расширения GNU awk", "многобайтовые кодировки", "умение написать обработку самостоятельно"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "cut-reorders",
+			"defect": "считает, что cut выводит поля в порядке, перечисленном в -f",
+			"mustBeCaught": true
+		},
+		{
+			"id": "cut-skips-nodelim",
+			"defect": "считает, что строка без разделителя пропускается и без -s",
+			"mustBeCaught": true
+		},
+		{ "id": "cut-s-ignored", "defect": "не знает -s: печатает строку без разделителя целиком", "mustBeCaught": true },
+		{ "id": "tr-range-literal", "defect": "читает '0-9' в tr как три символа: 0, дефис и 9", "mustBeCaught": true },
+		{
+			"id": "tr-set2-no-pad",
+			"defect": "считает, что символ первого набора без пары во втором наборе остаётся как есть",
+			"mustBeCaught": true
+		},
+		{ "id": "sed-lazy-match", "defect": "считает .* в sed нежадным: s/.*=// режет до первого =", "mustBeCaught": true },
+		{ "id": "sed-replace-all", "defect": "считает, что s/// без g заменяет все вхождения", "mustBeCaught": true },
+		{ "id": "sed-g-ignored", "defect": "не замечает флага g: заменяет только первое вхождение", "mustBeCaught": true },
+		{
+			"id": "sed-range-exclusive",
+			"defect": "считает, что граница диапазона сама в него не входит",
+			"mustBeCaught": true
+		},
+		{ "id": "awk-header-skipped", "defect": "считает, что awk сам пропускает строку заголовка", "mustBeCaught": true },
+		{
+			"id": "paste-stops-short",
+			"defect": "считает, что paste останавливается на конце более короткого файла",
+			"mustBeCaught": true
+		},
+		{
+			"id": "paste-delims-whole",
+			"defect": "считает, что -d вставляет всю строку разделителей между значениями",
+			"mustBeCaught": true
+		},
+		{
+			"id": "join-first-match",
+			"defect": "считает, что join берёт только первую пару для ключа",
+			"mustBeCaught": true
+		},
+		{
+			"id": "join-keeps-unpaired",
+			"defect": "считает, что join без -a печатает и строки первого файла без пары",
+			"mustBeCaught": true
+		},
+		{
+			"id": "join-a-only-unpaired",
+			"defect": "путает -a и -v: -a1 печатает только непарные или -v2 печатает и парные",
+			"mustBeCaught": true
+		},
+		{
+			"id": "join-v-file-one",
+			"defect": "считает, что -v2 печатает непарные строки первого файла",
+			"mustBeCaught": true
+		},
+		{
+			"id": "sed-range-once",
+			"defect": "считает, что диапазон /a/,/b/ срабатывает только один раз",
+			"mustBeCaught": true
+		},
+		{
+			"id": "awk-nf-minus-one-field",
+			"defect": "читает $NF-1 как предпоследнее поле, а не как последнее поле минус один",
+			"mustBeCaught": true
+		},
+		{
+			"id": "key-as-text",
+			"defect": "не замечает флага n у ключа sort и сравнивает суммы как строки",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 19, "caught": 19 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0003,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

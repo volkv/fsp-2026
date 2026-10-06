@@ -1,0 +1,146 @@
+{
+	"key": "ops.containers.image-size",
+	"version": 1,
+	"specialization": "devops",
+	"block": "ops.containers",
+	"format": "config_eval",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"stages": 1,
+				"layers": "5–8",
+				"rules": "удаление в том же и в следующем слое, перезапись, смена прав"
+			},
+			"constructiveRank": 3,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "rm-later",
+					"form": "A",
+					"description": "очистка кэшей и пакетов отдельной RUN: образ не уменьшается, удалённое остаётся невидимым грузом"
+				},
+				{
+					"id": "rm-same",
+					"form": "B",
+					"description": "очистка в той же RUN через `&&`: удалённое в слой не попадает"
+				},
+				{
+					"id": "overwrite",
+					"form": "anchor",
+					"description": "в контексте лежит старая сборка, шаг сборки пишет ту же папку заново: хранятся обе версии"
+				},
+				{
+					"id": "chmod",
+					"form": "X",
+					"description": "`chown -R`/`chmod -R` отдельной RUN копирует все затронутые файлы в новый слой"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"stages": 2,
+				"layers": "6–10",
+				"rules": "в образ идёт только итоговая стадия, база-стадия, COPY --from, удаление и смена владельца"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "builder-discard",
+					"form": "A",
+					"description": "итоговая стадия на лёгком образе копирует из сборочной только нужное: тяжёлые слои сборки в образ не идут"
+				},
+				{
+					"id": "copy-from-dir",
+					"form": "B",
+					"description": "`COPY --from` целой папки, затем удаление лишнего отдельной RUN: лишнее остаётся в слое копирования"
+				},
+				{
+					"id": "final-base",
+					"form": "anchor",
+					"description": "итоговая стадия построена на сборочной (`FROM build`): все её слои в образе, очистка их не уменьшает"
+				},
+				{
+					"id": "chown-copy",
+					"form": "X",
+					"description": "смена владельца или прав скопированного отдельной RUN дублирует файлы, `COPY --chown` — нет"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "stack", "description": "Node.js, Python или Go: образы, папки зависимостей и кэшей" },
+		{ "name": "sizes", "description": "размеры базовых образов, файлов контекста и того, что создают команды" }
+	],
+	"essentialParams": [
+		{ "name": "cleanup", "description": "где удаляются временные файлы: в той же RUN, в следующей или нигде" },
+		{ "name": "rewrite", "description": "перезапись и смена владельца уже существующих файлов" },
+		{ "name": "stages", "description": "на чём построена итоговая стадия и что она копирует из сборочной" }
+	],
+	"language": "dockerfile",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"размер образа как сумма слоёв",
+			"почему удаление в отдельной RUN не уменьшает образ",
+			"перезапись файла и смена владельца как новая копия в слое",
+			"что попадает в образ при многостадийной сборке",
+			"`FROM <стадия>` переносит все слои стадии"
+		],
+		"doesNotCheck": [
+			"сжатие слоёв в реестре и дедупликацию одинаковых слоёв",
+			"`--squash` и инструменты анализа образа",
+			"точные размеры пакетов дистрибутивов"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "rm-shrinks",
+			"defect": "вычитает из образа то, что удалено отдельной RUN после создания",
+			"mustBeCaught": true
+		},
+		{
+			"id": "same-run-counts",
+			"defect": "считает в слое и то, что создано и удалено в той же RUN",
+			"mustBeCaught": true
+		},
+		{
+			"id": "overwrite-replaces",
+			"defect": "считает, что перезапись заменяет старую версию, и не учитывает её",
+			"mustBeCaught": true
+		},
+		{
+			"id": "chmod-free",
+			"defect": "считает, что смена владельца или прав в отдельной RUN места не занимает",
+			"mustBeCaught": true
+		},
+		{
+			"id": "counts-builder",
+			"defect": "добавляет к образу слои сборочной стадии, которые в него не идут",
+			"mustBeCaught": true
+		},
+		{
+			"id": "stage-base-fresh",
+			"defect": "считает, что `FROM <стадия>` переносит только видимые файлы стадии, без её истории слоёв",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 6, "caught": 6 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0038,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

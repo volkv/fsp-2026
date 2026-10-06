@@ -1,0 +1,100 @@
+{
+	"key": "ops.k8s.disruption-drain",
+	"version": 1,
+	"specialization": "devops",
+	"block": "ops.k8s",
+	"format": "config_eval",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"nodes": "3–4",
+				"apps": "2–3",
+				"rules": "minAvailable и maxUnavailable, неготовые поды, проходы слива, пересоздание подов"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "unready-budget",
+					"form": "A",
+					"description": "неготовые поды на других узлах уже расходуют бюджет: вытеснение отклоняется"
+				},
+				{
+					"id": "percent",
+					"form": "B",
+					"description": "проценты в minAvailable и maxUnavailable округляются вверх от replicas"
+				},
+				{
+					"id": "passes",
+					"form": "anchor",
+					"description": "два пода одного приложения на узле при бюджете 1: второй вытесняется только в следующем проходе"
+				},
+				{
+					"id": "replacements",
+					"form": "X",
+					"description": "пересозданные поды попадают на узел, который сливают позже, и вытесняются снова"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "имена приложений и узлов" },
+		{ "name": "layout", "description": "расстановка подов по узлам, число реплик" }
+	],
+	"essentialParams": [
+		{
+			"name": "budget-rule",
+			"description": "что решает вытеснение: неготовые поды, округление процентов, готовность пересозданных подов, их размещение"
+		}
+	],
+	"language": "yaml",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"допустимые вытеснения по minAvailable и maxUnavailable, числом и процентом",
+			"неготовые поды не считаются здоровыми",
+			"слив по проходам: пересозданные поды не готовы до конца прохода",
+			"куда попадают пересозданные поды и где слив застревает"
+		],
+		"doesNotCheck": [
+			"unhealthyPodEvictionPolicy и вытеснение неготовых подов",
+			"тайм-ауты и повторы настоящего kubectl drain — модель задана в условии",
+			"DaemonSet и поды без контроллера"
+		]
+	},
+	"wrongSolutions": [
+		{ "id": "count-unready", "defect": "считает неготовые поды здоровыми", "mustBeCaught": true },
+		{ "id": "percent-floor", "defect": "округляет проценты бюджета вниз", "mustBeCaught": true },
+		{
+			"id": "ready-immediately",
+			"defect": "считает пересозданный под готовым сразу после создания",
+			"mustBeCaught": true
+		},
+		{
+			"id": "stop-on-refusal",
+			"defect": "считает слив застрявшим при первом же отказе, без следующего прохода",
+			"mustBeCaught": true
+		},
+		{
+			"id": "skip-replacements",
+			"defect": "не учитывает пересозданные поды на узлах, которые сливают позже",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 5, "caught": 5 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0004,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

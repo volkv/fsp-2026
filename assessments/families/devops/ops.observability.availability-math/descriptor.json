@@ -1,0 +1,153 @@
+{
+	"key": "ops.observability.availability-math",
+	"version": 1,
+	"specialization": "devops",
+	"block": "ops.observability",
+	"format": "compute",
+	"answerKind": "float_eps",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": {
+				"components": "3–4",
+				"composition": "последовательно + параллельно или k из n",
+				"interacting": "резервирование внутри последовательной цепочки"
+			},
+			"constructiveRank": 3,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "series-parallel",
+					"form": "A",
+					"description": "цепочка с группой одинаковых экземпляров, из которых достаточно одного"
+				},
+				{
+					"id": "k-of-n",
+					"form": "B",
+					"description": "кластер с кворумом: работает, пока доступно не меньше k узлов из n"
+				},
+				{
+					"id": "n-plus-one",
+					"form": "anchor",
+					"description": "резерв N+1 или N+2: нагрузку держат только N экземпляров одновременно"
+				},
+				{
+					"id": "inverse",
+					"form": "X",
+					"description": "обратная задача: какой простой допустим у одного компонента при заданном простое системы"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"components": "4–6",
+				"composition": "зависимые отказы: повторы, зоны, общие зависимости",
+				"interacting": "модель отказа + резервирование + последовательная цепочка"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "retries",
+					"form": "A",
+					"description": "повторы маскируют только кратковременные отказы зависимости, длительный отказ — нет"
+				},
+				{
+					"id": "zone-failure",
+					"form": "B",
+					"description": "реплики в зонах: отказ зоны выключает все её реплики сразу"
+				},
+				{
+					"id": "quorum-zones",
+					"form": "anchor",
+					"description": "кворум из узлов, разнесённых по зонам с общим отказом зоны"
+				},
+				{
+					"id": "shared-dependency",
+					"form": "X",
+					"description": "два резервных пути с общей базой данных: общая часть не резервируется"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "названия компонентов" },
+		{ "name": "numbers", "description": "доступности компонентов, число экземпляров, зон и попыток" }
+	],
+	"essentialParams": [
+		{ "name": "composition", "description": "последовательно, любой из n, k из n, N из N+1, пути с общей частью" },
+		{
+			"name": "failure-model",
+			"description": "независимые отказы, отказ зоны, длительные и кратковременные отказы при повторах"
+		},
+		{ "name": "direction", "description": "прямой расчёт простоя системы или допустимый простой компонента" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"доступность последовательной и параллельной композиции",
+			"кворум k из n и резерв N+1",
+			"простой за месяц и обратный расчёт допустимого простоя компонента",
+			"повторы при длительных и кратковременных отказах",
+			"общий отказ зоны и общие зависимости резервных путей"
+		],
+		"doesNotCheck": [
+			"время восстановления и распределение длительности отказов",
+			"доступность конкретных облачных сервисов"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "parallel-ignored",
+			"defect": "не учитывает резервирование: группа экземпляров доступна как один",
+			"mustBeCaught": true
+		},
+		{
+			"id": "min-of-chain",
+			"defect": "считает доступность цепочки равной доступности самого слабого звена",
+			"mustBeCaught": true
+		},
+		{ "id": "any-of-n", "defect": "считает, что кластеру достаточно одного узла из n", "mustBeCaught": true },
+		{ "id": "all-of-n", "defect": "считает, что кластеру нужны все n узлов", "mustBeCaught": true },
+		{ "id": "ignore-spare", "defect": "не учитывает запасные экземпляры: нужны ровно N из N", "mustBeCaught": true },
+		{
+			"id": "ignore-rest",
+			"defect": "отдаёт компоненту весь допустимый простой системы, не вычитая остальные",
+			"mustBeCaught": true
+		},
+		{ "id": "no-retry", "defect": "не учитывает повторы", "mustBeCaught": true },
+		{
+			"id": "retry-masks-all",
+			"defect": "считает, что повторы маскируют и длительный отказ зависимости",
+			"mustBeCaught": true
+		},
+		{ "id": "ignore-zone", "defect": "не учитывает отказ зоны: реплики независимы", "mustBeCaught": true },
+		{
+			"id": "independent-replicas",
+			"defect": "переносит отказ зоны на каждую реплику отдельно, как независимый",
+			"mustBeCaught": true
+		},
+		{
+			"id": "path-parallel",
+			"defect": "резервирует пути целиком, будто у каждого своя база данных",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 11, "caught": 11 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0119,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

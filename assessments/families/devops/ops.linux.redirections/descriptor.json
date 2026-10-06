@@ -1,0 +1,162 @@
+{
+	"key": "ops.linux.redirections",
+	"version": 1,
+	"specialization": "devops",
+	"block": "ops.linux",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": { "commands": "4–6", "descriptors": "1–2", "rules": "1–2", "files": "1–3" },
+			"constructiveRank": 4,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "redirect-order",
+					"form": "A",
+					"description": ">f 2>&1 против 2>&1 >f: перенаправления выполняются слева направо, 2>&1 копирует текущий stdout"
+				},
+				{
+					"id": "append-group",
+					"form": "B",
+					"description": "> обрезает файл, >> дописывает; перенаправление группы { … } касается только названного дескриптора"
+				},
+				{
+					"id": "pipes",
+					"form": "anchor",
+					"description": "| передаёт только stdout, |& — оба потока, 2>&1 >/dev/null | — только stderr; tee"
+				},
+				{
+					"id": "heredoc",
+					"form": "X",
+					"description": "here-doc: <<EOF раскрывает переменные и арифметику, <<'EOF' — нет; \\$ и here-string"
+				}
+			]
+		},
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"constructive": { "commands": "6–10", "descriptors": "2–4", "rules": "2–3", "files": "1–4" },
+			"constructiveRank": 4,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "fd-juggling",
+					"form": "A",
+					"description": "exec 3>file и >&3, обмен stdout и stderr через fd 3 внутри группы, сохранение и восстановление stdout через fd 4"
+				},
+				{
+					"id": "function-loop",
+					"form": "B",
+					"description": "перенаправление у определения функции открывается при каждом вызове, у цикла — один раз на весь цикл"
+				},
+				{
+					"id": "shared-file",
+					"form": "anchor",
+					"description": "два дескриптора на один файл: >f 2>f затирают друг друга, 2>&1 делит смещение, >> дописывает"
+				},
+				{
+					"id": "exec-persist",
+					"form": "X",
+					"description": "exec >file действует до конца скрипта; exec 2>&1 копирует текущий stdout и не следует за ним дальше"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "labels", "description": "слова в выводе, имена файлов, значения переменных" },
+		{ "name": "order", "description": "порядок независимых команд" }
+	],
+	"essentialParams": [
+		{
+			"name": "binding",
+			"description": "когда и к чему привязывается дескриптор: порядок перенаправлений, exec, функция, цикл"
+		},
+		{
+			"name": "sharing",
+			"description": "общая ли открытая запись файла у дескрипторов: дублирование, отдельное открытие, дописывание"
+		}
+	],
+	"language": "shell",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"порядок перенаправлений >f 2>&1 и 2>&1 >f",
+			"> против >>, перенаправление групп",
+			"что передаёт конвейер: |, |&, 2>&1 >/dev/null |",
+			"here-doc с кавычками и без, here-string",
+			"exec с нумерованными дескрипторами, сохранение и восстановление stdout",
+			"перенаправления функций и циклов",
+			"два дескриптора на одном файле"
+		],
+		"doesNotCheck": [
+			"буферизацию вывода внешних программ",
+			"перенаправления в других оболочках",
+			"именованные каналы и подстановку процессов"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "redirect-order-irrelevant",
+			"defect": "считает, что порядок перенаправлений не важен и 2>&1 следует за stdout, куда бы его ни перенаправили дальше",
+			"mustBeCaught": true
+		},
+		{ "id": "truncate-appends", "defect": "считает, что > дописывает в существующий файл", "mustBeCaught": true },
+		{
+			"id": "group-takes-stderr",
+			"defect": "считает, что { … } > file перенаправляет и stderr команд группы",
+			"mustBeCaught": true
+		},
+		{
+			"id": "pipe-carries-stderr",
+			"defect": "считает, что | передаёт следующей команде и stderr",
+			"mustBeCaught": true
+		},
+		{ "id": "quoted-heredoc-expands", "defect": "считает, что <<'EOF' раскрывает переменные", "mustBeCaught": true },
+		{
+			"id": "heredoc-no-expansion",
+			"defect": "считает, что here-doc без кавычек ничего не раскрывает",
+			"mustBeCaught": true
+		},
+		{
+			"id": "exec-one-command",
+			"defect": "считает, что exec с перенаправлением действует только на следующую команду",
+			"mustBeCaught": true
+		},
+		{
+			"id": "function-redirect-once",
+			"defect": "считает, что перенаправление у определения функции открывается один раз на все вызовы",
+			"mustBeCaught": true
+		},
+		{
+			"id": "loop-redirect-each-iteration",
+			"defect": "считает, что перенаправление после done открывается заново на каждой итерации",
+			"mustBeCaught": true
+		},
+		{
+			"id": "separate-fds-append",
+			"defect": "считает, что два дескриптора, открытые на один файл, пишут друг за другом, а не поверх",
+			"mustBeCaught": true
+		},
+		{
+			"id": "stderr-follows-stdout",
+			"defect": "считает, что после exec 2>&1 stderr возвращается вслед за восстановленным stdout",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 11, "caught": 11 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0001,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

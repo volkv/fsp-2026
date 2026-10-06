@@ -1,0 +1,144 @@
+{
+	"key": "ops.k8s.probes-timeline",
+	"version": 1,
+	"specialization": "devops",
+	"block": "ops.k8s",
+	"format": "config_eval",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"probes": "readiness + liveness",
+				"rules": "initialDelaySeconds, periodSeconds, successThreshold, failureThreshold",
+				"restart": "мгновенный"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "readiness",
+					"form": "A",
+					"description": "Ready только после successThreshold успехов подряд; первая проба — в момент initialDelaySeconds"
+				},
+				{ "id": "liveness", "form": "B", "description": "перезапуск ровно на failureThreshold-й неудаче подряд" },
+				{
+					"id": "restarts-count",
+					"form": "anchor",
+					"description": "после каждого перезапуска расписание проб начинается заново с initialDelaySeconds"
+				},
+				{
+					"id": "slow-start",
+					"form": "X",
+					"description": "liveness не ждёт готовности: медленный старт убивается раньше, чем под станет Ready"
+				}
+			]
+		},
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"constructive": {
+				"probes": "startup + readiness + liveness",
+				"rules": "startupProbe откладывает остальные пробы, CrashLoopBackOff 10·2^(k−1) до 300 с",
+				"horizon": "до 25 минут"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "startup-ok",
+					"form": "A",
+					"description": "startupProbe успевает: liveness и readiness начинаются только после неё"
+				},
+				{
+					"id": "startup-fails",
+					"form": "B",
+					"description": "startupProbe не успевает: контейнер перезапускается с растущей паузой"
+				},
+				{
+					"id": "liveness-backoff",
+					"form": "anchor",
+					"description": "приложение зависает после старта: liveness убивает его, паузы перед запуском растут"
+				},
+				{
+					"id": "backoff-cap",
+					"form": "X",
+					"description": "длинный горизонт: пауза перед запуском упирается в потолок 300 с"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "имя пода, пути и порт проб" },
+		{ "name": "numbers", "description": "параметры проб, моменты готовности и зависания приложения, горизонт" }
+	],
+	"essentialParams": [
+		{
+			"name": "probe-rule",
+			"description": "что решает хронологию: порог успехов, порог неудач, новое расписание после перезапуска, независимость liveness от готовности, startupProbe, пауза CrashLoopBackOff"
+		}
+	],
+	"language": "yaml",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"моменты проб по initialDelaySeconds и periodSeconds от каждого запуска контейнера",
+			"successThreshold и failureThreshold readiness и liveness",
+			"liveness работает независимо от готовности пода",
+			"startupProbe откладывает liveness и readiness; растущая пауза перезапуска с потолком"
+		],
+		"doesNotCheck": [
+			"timeoutSeconds и разброс моментов проб в настоящем kubelet",
+			"сброс паузы CrashLoopBackOff после долгой работы",
+			"exec- и tcp-пробы, terminationGracePeriodSeconds"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "success-once",
+			"defect": "считает под Ready после первого успеха, без successThreshold",
+			"mustBeCaught": true
+		},
+		{
+			"id": "first-after-period",
+			"defect": "делает первую пробу через initialDelaySeconds + periodSeconds",
+			"mustBeCaught": true
+		},
+		{
+			"id": "threshold-off-by-one",
+			"defect": "перезапускает после failureThreshold + 1 неудач подряд",
+			"mustBeCaught": true
+		},
+		{
+			"id": "no-delay-after-restart",
+			"defect": "после перезапуска продолжает прежнее расписание проб, без нового initialDelaySeconds",
+			"mustBeCaught": true
+		},
+		{
+			"id": "liveness-waits-ready",
+			"defect": "считает, что liveness начинает проверять только готовый под",
+			"mustBeCaught": true
+		},
+		{
+			"id": "ignore-startup",
+			"defect": "запускает liveness и readiness, не дожидаясь успеха startupProbe",
+			"mustBeCaught": true
+		},
+		{ "id": "no-backoff", "defect": "перезапускает контейнер сразу, без паузы CrashLoopBackOff", "mustBeCaught": true },
+		{ "id": "no-cap", "defect": "удваивает паузу перезапуска без потолка 300 с", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 8, "caught": 8 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.025,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

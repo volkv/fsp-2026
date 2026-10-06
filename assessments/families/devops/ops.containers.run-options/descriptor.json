@@ -1,0 +1,208 @@
+{
+	"key": "ops.containers.run-options",
+	"version": 1,
+	"specialization": "devops",
+	"block": "ops.containers",
+	"format": "config_eval",
+	"answerKind": "set",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": {
+				"instructions": "4–9",
+				"rules": "по одной теме: -p и EXPOSE, -P, ENV/ARG/-e/--env-file, тома и bind-mount, -u/-w"
+			},
+			"constructiveRank": 2,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "publish-flags",
+					"form": "A",
+					"description": "`-p` с адресом и без, порт хоста по выбору Docker, порт без EXPOSE; EXPOSE сам ничего не публикует"
+				},
+				{
+					"id": "env-precedence",
+					"form": "B",
+					"description": "ENV образа, `--env-file`, повторные `-e`, `-e ИМЯ` из шелла; ARG не попадает в окружение"
+				},
+				{
+					"id": "mount-shadowing",
+					"form": "anchor",
+					"description": "именованный том (новый или существующий) и bind-mount закрывают каталоги образа; новый том получает копию"
+				},
+				{
+					"id": "publish-all",
+					"form": "X",
+					"description": "`-P` публикует объявленные порты на портах по выбору Docker; пользователь и каталог с `-u`/`-w`"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"instructions": "5–12",
+				"rules": "наследование EXPOSE/ENV/USER/WORKDIR от базы, диапазоны и повторные -p, -P вместе с -p, область видимости ARG, --build-arg, подстановка в ENV при сборке, повторное использование тома новой версией образа"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "publish-ranges",
+					"form": "A",
+					"description": "диапазон `-p`, несколько `-p` на один порт контейнера, `адрес::порт`; EXPOSE базы и образа не публикуются"
+				},
+				{
+					"id": "env-build-args",
+					"form": "B",
+					"description": "глобальный ARG без повторного объявления, `--build-arg`, `${…}` в ENV вычисляется при сборке, ENV базы, `-e` не пересчитывает зависимые ENV"
+				},
+				{
+					"id": "volume-reuse",
+					"form": "anchor",
+					"description": "два запуска разных версий образа с одним томом: непустой том не обновляется, записанное остаётся; bind-mount не копирует"
+				},
+				{
+					"id": "publish-all-inherit",
+					"form": "X",
+					"description": "`-P` с унаследованными EXPOSE и явным `-p` на объявленный порт; унаследованные USER и WORKDIR, относительный WORKDIR"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "image", "description": "имена образов и тегов, базовый образ, команда процесса" },
+		{
+			"name": "data",
+			"description": "номера портов, адреса, имена и значения переменных, имена каталогов, томов и файлов"
+		}
+	],
+	"essentialParams": [
+		{ "name": "topic", "description": "что спрашивают: порты, окружение, файлы в каталогах, пользователь и каталог" },
+		{ "name": "flags", "description": "формы `-p`, `-P`, порядок `-e` и `--env-file`, вид монтирования, `-u`/`-w`" },
+		{
+			"name": "image-state",
+			"description": "что задано в базовом образе, область видимости ARG, существует ли том и что в нём"
+		}
+	],
+	"language": "dockerfile",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"публикацию портов `-p` в разных формах и `-P`, роль EXPOSE",
+			"приоритет `ENV`, `--env-file` и `-e`, недоступность ARG в контейнере",
+			"область видимости ARG и подстановку переменных в ENV при сборке",
+			"что видно в каталоге под именованным томом и bind-mount, когда том копирует каталог образа",
+			"наследование EXPOSE, ENV, USER и WORKDIR от базового образа и замену пользователя и каталога флагами"
+		],
+		"doesNotCheck": [
+			"сетевые режимы (`--network host`), IPv6 и правила iptables",
+			"права доступа к файлам томов и пользователей хоста",
+			"`--tmpfs`, анонимные тома и инструкцию VOLUME",
+			"кавычки и экранирование в файлах `--env-file`"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "expose-publishes",
+			"defect": "считает, что EXPOSE без `-P` публикует порт на том же порту хоста",
+			"mustBeCaught": true
+		},
+		{
+			"id": "swap-host-container",
+			"defect": "читает `-p A:B` как порт контейнера A и порт хоста B",
+			"mustBeCaught": true
+		},
+		{
+			"id": "localhost-default",
+			"defect": "считает, что `-p` без адреса публикует только на 127.0.0.1",
+			"mustBeCaught": true
+		},
+		{
+			"id": "p-requires-expose",
+			"defect": "считает, что `-p` публикует только порты, объявленные в EXPOSE",
+			"mustBeCaught": true
+		},
+		{ "id": "range-first-only", "defect": "из диапазона портов публикует только первую пару", "mustBeCaught": true },
+		{
+			"id": "repeat-last-wins",
+			"defect": "оставляет только последний `-p` для одного порта контейнера",
+			"mustBeCaught": true
+		},
+		{
+			"id": "publish-all-same-port",
+			"defect": "считает, что `-P` публикует порт на хосте под тем же номером",
+			"mustBeCaught": true
+		},
+		{
+			"id": "publish-all-overrides",
+			"defect": "добавляет случайный порт `-P` и к порту, у которого есть явный `-p`",
+			"mustBeCaught": true
+		},
+		{ "id": "inherited-expose-ignored", "defect": "забывает EXPOSE базового образа при `-P`", "mustBeCaught": true },
+		{ "id": "run-flags-ignored", "defect": "не учитывает `-u`/`-w` в `docker run`", "mustBeCaught": true },
+		{
+			"id": "inherited-user-lost",
+			"defect": "забывает USER и WORKDIR базового образа и берёт `root` и `/`",
+			"mustBeCaught": true
+		},
+		{ "id": "arg-visible", "defect": "считает, что ARG виден в окружении контейнера", "mustBeCaught": true },
+		{ "id": "first-wins", "defect": "при повторе имени в `-e` берёт первое значение", "mustBeCaught": true },
+		{
+			"id": "image-env-wins",
+			"defect": "считает, что ENV образа не перекрывается `-e` и `--env-file`",
+			"mustBeCaught": true
+		},
+		{
+			"id": "cmdline-order",
+			"defect": "применяет `--env-file` и `-e` в порядке командной строки, а не файлы до `-e`",
+			"mustBeCaught": true
+		},
+		{
+			"id": "build-arg-ignored",
+			"defect": "берёт значение ARG по умолчанию, не учитывая `--build-arg`",
+			"mustBeCaught": true
+		},
+		{
+			"id": "global-arg-visible",
+			"defect": "считает глобальный ARG доступным после FROM без повторного объявления",
+			"mustBeCaught": true
+		},
+		{
+			"id": "env-ref-runtime",
+			"defect": "считает, что `${…}` в ENV пересчитывается при запуске с новыми `-e`",
+			"mustBeCaught": true
+		},
+		{ "id": "base-env-lost", "defect": "забывает ENV базового образа", "mustBeCaught": true },
+		{
+			"id": "mount-merges",
+			"defect": "считает, что файлы образа видны рядом с содержимым смонтированного каталога",
+			"mustBeCaught": true
+		},
+		{ "id": "bind-copies", "defect": "считает, что bind-mount копирует файлы образа", "mustBeCaught": true },
+		{
+			"id": "volume-empty",
+			"defect": "считает, что новый именованный том пуст и ничего не получает из образа",
+			"mustBeCaught": true
+		},
+		{
+			"id": "volume-recopies",
+			"defect": "считает, что непустой том получает файлы новой версии образа",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 23, "caught": 23 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

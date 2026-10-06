@@ -1,0 +1,93 @@
+{
+	"key": "ops.linux.find-glob",
+	"version": 1,
+	"specialization": "devops",
+	"block": "ops.linux",
+	"format": "code_trace",
+	"answerKind": "set",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": { "files": "8–14", "depth": 3, "rules": 2, "commands": 1 },
+			"constructiveRank": 3,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "glob",
+					"form": "A",
+					"description": "glob в bash: * не совпадает со скрытыми именами и не спускается в каталоги, glob без совпадений остаётся как написан"
+				},
+				{
+					"id": "find-name",
+					"form": "B",
+					"description": "find -maxdepth/-mindepth -type f -name: глубина от «.», -name со * находит и скрытые файлы"
+				},
+				{
+					"id": "find-size-newer",
+					"form": "anchor",
+					"description": "find -size округляет размер вверх до единиц (-1k — только пустые), -newer — строго новее"
+				},
+				{
+					"id": "find-operators",
+					"form": "X",
+					"description": "приоритет -a выше -o: A -o B -type f — это A -o (B и -type f), каталоги проходят через A"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "tree", "description": "имена файлов и каталогов, расширения, размеры, времена изменения" },
+		{ "name": "patterns", "description": "расширения в шаблонах, опорный файл -newer" }
+	],
+	"essentialParams": [
+		{ "name": "matcher", "description": "кто сопоставляет: glob оболочки или find -name" },
+		{ "name": "predicate", "description": "условие find: глубина, тип, размер, время, сочетание через -o" }
+	],
+	"language": "shell",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"glob: скрытые файлы, отсутствие совпадений, уровень каталога",
+			"find: -name в кавычках, -type, -maxdepth/-mindepth",
+			"find -size с округлением вверх и -newer",
+			"приоритет -a и -o в выражении find"
+		],
+		"doesNotCheck": ["shopt dotglob, nullglob, globstar", "find -exec и -delete", "find -mtime по текущему времени"]
+	},
+	"wrongSolutions": [
+		{ "id": "glob-matches-hidden", "defect": "считает, что * совпадает и со скрытыми именами", "mustBeCaught": true },
+		{
+			"id": "glob-empty-vanishes",
+			"defect": "считает, что glob без совпадений превращается в пустоту",
+			"mustBeCaught": true
+		},
+		{ "id": "glob-recursive", "defect": "считает, что * находит файлы и во вложенных каталогах", "mustBeCaught": true },
+		{
+			"id": "find-skips-hidden",
+			"defect": "считает, что * в find -name не совпадает со скрытыми файлами",
+			"mustBeCaught": true
+		},
+		{ "id": "depth-off-by-one", "defect": "считает глубину find на один уровень иначе", "mustBeCaught": true },
+		{
+			"id": "size-in-bytes",
+			"defect": "читает -size -Nk как «меньше N×1024 байт», без округления вверх",
+			"mustBeCaught": true
+		},
+		{ "id": "newer-or-equal", "defect": "считает, что -newer берёт и файлы с тем же временем", "mustBeCaught": true },
+		{ "id": "or-left-to-right", "defect": "вычисляет -o и -a слева направо с равным приоритетом", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 8, "caught": 8 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0001,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

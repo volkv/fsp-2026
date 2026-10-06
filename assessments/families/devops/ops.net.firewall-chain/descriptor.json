@@ -1,0 +1,161 @@
+{
+	"key": "ops.net.firewall-chain",
+	"version": 1,
+	"specialization": "devops",
+	"block": "ops.net",
+	"format": "compute",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"rules": "5–9 в одной-двух цепочках",
+				"packets": "7–8",
+				"interacting": "первое совпадение + пользовательская цепочка и RETURN + conntrack + LOG"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "user-chain",
+					"form": "A",
+					"description": "переход в пользовательскую цепочку: RETURN и конец цепочки возвращают пакет в INPUT, решение принимают её следующие правила"
+				},
+				{
+					"id": "conntrack",
+					"form": "B",
+					"description": "ESTABLISHED пропускает ответы на исходящие соединения; отброшенный первый пакет записи не создаёт, следующие — снова NEW"
+				},
+				{
+					"id": "rule-order",
+					"form": "anchor",
+					"description": "пересекающиеся правила по подсети и порту: решает первое совпавшее, а не последнее и не самое узкое"
+				},
+				{
+					"id": "log-target",
+					"form": "X",
+					"description": "правила LOG между решающими: LOG не завершает обход, решение — за следующими правилами"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"constructive": {
+				"rules": "DNAT, SNAT или MASQUERADE, цепочки INPUT и FORWARD",
+				"packets": "6–7",
+				"interacting": "порядок PREROUTING → маршрутизация → фильтр → POSTROUTING + conntrack + интерфейсы"
+			},
+			"constructiveRank": 7,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "dnat-forward",
+					"form": "A",
+					"description": "проброс портов: фильтр FORWARD видит адрес и порт уже после DNAT"
+				},
+				{
+					"id": "masquerade-replies",
+					"form": "B",
+					"description": "выход в интернет через MASQUERADE: ответы обратно подменяются по записи conntrack, фильтр видит адрес до SNAT"
+				},
+				{
+					"id": "dnat-to-local",
+					"form": "anchor",
+					"description": "DNAT на адрес самого маршрутизатора: пакет идёт в INPUT, а не в FORWARD"
+				},
+				{
+					"id": "iface-match",
+					"form": "X",
+					"description": "условия -i и -o: проброс с -i eth0 не действует на пакеты из локальной сети к внешнему адресу"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "имена цепочек, служб и хостов" },
+		{ "name": "numbers", "description": "адреса, порты, порядок пакетов" }
+	],
+	"essentialParams": [
+		{ "name": "traversal", "description": "первое совпадение, пользовательские цепочки, RETURN, LOG, политика" },
+		{ "name": "state", "description": "состояние соединения по conntrack" },
+		{ "name": "nat", "description": "DNAT до фильтра, SNAT и MASQUERADE после, обратная подмена для ответов" },
+		{ "name": "interfaces", "description": "входной и выходной интерфейсы в условиях правил" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"обход цепочки по первому совпадению и политика по умолчанию",
+			"пользовательские цепочки, RETURN и LOG",
+			"состояния NEW и ESTABLISHED по conntrack",
+			"DNAT в PREROUTING до фильтра, SNAT и MASQUERADE в POSTROUTING после",
+			"выбор INPUT или FORWARD после DNAT и условия -i и -o"
+		],
+		"doesNotCheck": [
+			"синтаксис nftables и firewalld",
+			"флаги TCP, состояния INVALID и RELATED, тайм-ауты conntrack",
+			"таблицы mangle и raw, исходящую цепочку OUTPUT"
+		]
+	},
+	"wrongSolutions": [
+		{ "id": "return-accepts", "defect": "считает RETURN разрешением пакета", "mustBeCaught": true },
+		{
+			"id": "chain-end-policy",
+			"defect": "в конце пользовательской цепочки применяет политику, а не возвращается в INPUT",
+			"mustBeCaught": true
+		},
+		{ "id": "no-conntrack", "defect": "считает каждый входящий пакет новым соединением", "mustBeCaught": true },
+		{
+			"id": "dropped-tracked",
+			"defect": "считает, что отброшенный первый пакет тоже создаёт запись conntrack",
+			"mustBeCaught": true
+		},
+		{ "id": "last-match", "defect": "применяет последнее подходящее правило цепочки", "mustBeCaught": true },
+		{
+			"id": "most-specific",
+			"defect": "применяет правило с самой узкой подсетью источника, а не первое по порядку",
+			"mustBeCaught": true
+		},
+		{
+			"id": "log-terminates",
+			"defect": "считает LOG окончательным решением, пропускающим пакет",
+			"mustBeCaught": true
+		},
+		{
+			"id": "filter-sees-original",
+			"defect": "сравнивает правила фильтра с адресом и портом назначения до DNAT",
+			"mustBeCaught": true
+		},
+		{
+			"id": "nat-replies-new",
+			"defect": "пропускает ответные пакеты через nat-правила заново, без обратной подмены по conntrack",
+			"mustBeCaught": true
+		},
+		{
+			"id": "snat-before-filter",
+			"defect": "считает, что FORWARD видит адрес источника уже после SNAT или MASQUERADE",
+			"mustBeCaught": true
+		},
+		{
+			"id": "dnat-always-forward",
+			"defect": "отправляет пакет после DNAT в FORWARD, даже если новый адрес — адрес самого маршрутизатора",
+			"mustBeCaught": true
+		},
+		{ "id": "ignore-iface", "defect": "не учитывает условия -i и -o", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 12, "caught": 12 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0063,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

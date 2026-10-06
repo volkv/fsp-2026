@@ -1,0 +1,180 @@
+{
+	"key": "ops.net.load-balancer",
+	"version": 1,
+	"specialization": "devops",
+	"block": "ops.net",
+	"format": "compute",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"servers": "3–4",
+				"requests": "8–11",
+				"interacting": "веса или активные соединения во времени, хеш с выведенным узлом, окно неудач"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "smooth-weighted",
+					"form": "A",
+					"description": "сглаженный взвешенный круговой алгоритм: тяжёлый сервер получает запросы вперемешку, а не подряд"
+				},
+				{
+					"id": "least-conn",
+					"form": "B",
+					"description": "наименьшее число активных соединений на единицу веса: запросы с длительностями, освобождение в момент окончания"
+				},
+				{
+					"id": "ip-hash",
+					"form": "anchor",
+					"description": "хеш по первым трём октетам адреса клиента и выведенный узел: запрос уходит следующему по списку"
+				},
+				{
+					"id": "passive-health",
+					"form": "X",
+					"description": "пассивные проверки max_fails и fail_timeout: неудачная попытка повторяется на следующем, узел выводится на время"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"nodes": "3–4",
+				"virtual nodes": "2–4 на узел",
+				"keys": "7–9",
+				"interacting": "кольцо с виртуальными узлами, переход через ноль, совпадение хеша с точкой, замена узла"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "add-node",
+					"form": "A",
+					"description": "добавление узла: переезжают только ключи на дугах перед его точками и только на него"
+				},
+				{
+					"id": "remove-node",
+					"form": "B",
+					"description": "удаление узла: его ключи расходятся по разным соседям по часовой стрелке"
+				},
+				{
+					"id": "wraparound",
+					"form": "anchor",
+					"description": "ключи за последней точкой кольца переходят через ноль; хеш ключа совпадает с точкой узла"
+				},
+				{
+					"id": "replace-weighted",
+					"form": "X",
+					"description": "одновременная замена узла узлом с другим числом виртуальных узлов"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "имена серверов, узлов кэша и ключей" },
+		{ "name": "numbers", "description": "веса, моменты и длительности запросов, адреса клиентов, позиции на кольце" }
+	],
+	"essentialParams": [
+		{
+			"name": "algorithm",
+			"description": "сглаженный взвешенный, наименьшие соединения, ip_hash, консистентное хеширование"
+		},
+		{ "name": "availability", "description": "выведенный узел, окно неудач, время возврата" },
+		{ "name": "ring-change", "description": "добавление, удаление или замена узла на кольце" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"сглаженный взвешенный круговой алгоритм по описанию",
+			"наименьшее число активных соединений во времени",
+			"распределение по хешу адреса и выведенный из работы сервер",
+			"пассивные проверки здоровья: повтор на следующем сервере, окно неудач, возврат",
+			"консистентное хеширование: какие ключи и куда переедут при изменении кольца"
+		],
+		"doesNotCheck": [
+			"настройку конкретного балансировщика сверх правил условия",
+			"активные проверки здоровья и медленный старт",
+			"сессии и липкость по cookie"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "plain-weighted",
+			"defect": "отдаёт тяжёлому серверу запросы подряд, блоками по весу",
+			"mustBeCaught": true
+		},
+		{ "id": "rr-ignores-weight", "defect": "чередует серверы по кругу, не учитывая веса", "mustBeCaught": true },
+		{
+			"id": "count-total",
+			"defect": "считает все запросы, когда-либо отданные серверу, а не активные",
+			"mustBeCaught": true
+		},
+		{
+			"id": "lc-ignores-weight",
+			"defect": "сравнивает число активных соединений, не деля его на вес сервера",
+			"mustBeCaught": true
+		},
+		{
+			"id": "finish-after-arrival",
+			"defect": "считает запрос, заканчивающийся в момент прихода нового, ещё активным",
+			"mustBeCaught": true
+		},
+		{ "id": "all-four-octets", "defect": "считает хеш по всем четырём октетам адреса", "mustBeCaught": true },
+		{ "id": "down-ignored", "defect": "отправляет запрос на выведенный сервер", "mustBeCaught": true },
+		{
+			"id": "down-mod-alive",
+			"defect": "при выведенном сервере берёт хеш по модулю числа оставшихся и считает по их списку",
+			"mustBeCaught": true
+		},
+		{ "id": "no-retry", "defect": "не повторяет неудачный запрос на следующем сервере", "mustBeCaught": true },
+		{
+			"id": "fails-never-expire",
+			"defect": "считает неудачи за всё время, а не за окно fail_timeout",
+			"mustBeCaught": true
+		},
+		{
+			"id": "marked-forever",
+			"defect": "не возвращает выведенный сервер по истечении fail_timeout",
+			"mustBeCaught": true
+		},
+		{
+			"id": "counter-clockwise",
+			"defect": "относит ключ к ближайшей точке против часовой стрелки",
+			"mustBeCaught": true
+		},
+		{
+			"id": "strict-greater",
+			"defect": "при совпадении хеша ключа с точкой узла относит ключ к следующей точке",
+			"mustBeCaught": true
+		},
+		{
+			"id": "no-wrap",
+			"defect": "ключи за последней точкой отдаёт последней точке, без перехода через ноль",
+			"mustBeCaught": true
+		},
+		{ "id": "mod-n", "defect": "считает узел как хеш по модулю числа узлов, как без кольца", "mustBeCaught": true },
+		{
+			"id": "to-next-in-list",
+			"defect": "отдаёт все ключи удалённого узла следующему узлу по списку",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 16, "caught": 16 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0001,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

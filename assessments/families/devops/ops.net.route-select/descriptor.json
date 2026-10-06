@@ -1,0 +1,146 @@
+{
+	"key": "ops.net.route-select",
+	"version": 1,
+	"specialization": "devops",
+	"block": "ops.net",
+	"format": "compute",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": {
+				"routes": "5–7",
+				"destinations": 5,
+				"rules": "самый длинный префикс, метрика, особые маршруты"
+			},
+			"constructiveRank": 2,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "longest-prefix",
+					"form": "A",
+					"description": "вложенные префиксы в перемешанном порядке: выбирается самый длинный подходящий, а не первый в списке"
+				},
+				{
+					"id": "metric",
+					"form": "B",
+					"description": "одинаковые префиксы с разной метрикой: меньшая метрика решает только при равной длине префикса"
+				},
+				{
+					"id": "blackhole",
+					"form": "anchor",
+					"description": "blackhole и unreachable внутри маршрута через шлюз: особый маршрут выбирается по тем же правилам"
+				},
+				{
+					"id": "cross-octet",
+					"form": "X",
+					"description": "префиксы /13–/27 через границы октетов и таблица без маршрута по умолчанию"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"tables": "2–3",
+				"rules": "3–4 правила выбора таблицы, переход к следующему правилу, особые маршруты",
+				"packets": 5
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "by-source",
+					"form": "A",
+					"description": "правила from по адресу источника отправляют пакеты в таблицы со своими маршрутами по умолчанию"
+				},
+				{
+					"id": "fallthrough",
+					"form": "B",
+					"description": "в таблице правила нет подходящего маршрута: проверяется следующее правило, а не отказ"
+				},
+				{
+					"id": "priority-order",
+					"form": "anchor",
+					"description": "правила перечислены не по порядку и пересекаются по from и to: решает приоритет"
+				},
+				{
+					"id": "special-in-table",
+					"form": "X",
+					"description": "blackhole и unreachable в таблице правила — окончательный ответ, к следующему правилу не переходят"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "имена интерфейсов и таблиц" },
+		{ "name": "numbers", "description": "адреса сетей, шлюзов, источников и назначений, порядок строк" }
+	],
+	"essentialParams": [
+		{ "name": "prefixes", "description": "вложенность и длина префиксов, граница октета" },
+		{ "name": "tie-break", "description": "метрики при равных префиксах" },
+		{ "name": "route-type", "description": "через шлюз, напрямую, blackhole, unreachable, отсутствие маршрута" },
+		{ "name": "policy", "description": "правила выбора таблицы: приоритет, from и to, переход к следующему правилу" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"выбор маршрута по самому длинному префиксу",
+			"метрика при равных префиксах",
+			"blackhole, unreachable и отсутствие маршрута",
+			"маршрутизация по источнику: приоритет правил, from и to, переход к следующему правилу"
+		],
+		"doesNotCheck": [
+			"многопутевые маршруты (ECMP)",
+			"выбор адреса источника ядром",
+			"таблицы local и default, правила по метке пакета и интерфейсу"
+		]
+	},
+	"wrongSolutions": [
+		{ "id": "first-listed", "defect": "берёт первый подходящий маршрут в порядке вывода", "mustBeCaught": true },
+		{
+			"id": "metric-first",
+			"defect": "выбирает маршрут с меньшей метрикой среди всех подходящих, не глядя на длину префикса",
+			"mustBeCaught": true
+		},
+		{ "id": "higher-metric", "defect": "при равных префиксах выбирает большую метрику", "mustBeCaught": true },
+		{
+			"id": "skip-special",
+			"defect": "пропускает blackhole и unreachable, как будто их нет, и берёт следующий подходящий маршрут",
+			"mustBeCaught": true
+		},
+		{
+			"id": "octet-round",
+			"defect": "сравнивает префиксы по целым октетам: маска округляется вниз до границы октета",
+			"mustBeCaught": true
+		},
+		{ "id": "main-only", "defect": "не учитывает правила выбора таблицы и смотрит только main", "mustBeCaught": true },
+		{
+			"id": "no-fallthrough",
+			"defect": "если в таблице правила нет маршрута, считает назначение недостижимым",
+			"mustBeCaught": true
+		},
+		{ "id": "listed-order", "defect": "проверяет правила в порядке вывода, а не по приоритету", "mustBeCaught": true },
+		{
+			"id": "special-falls-through",
+			"defect": "на blackhole и unreachable в таблице правила переходит к следующему правилу",
+			"mustBeCaught": true
+		},
+		{ "id": "from-as-to", "defect": "сравнивает условие from с адресом назначения", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 10, "caught": 10 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

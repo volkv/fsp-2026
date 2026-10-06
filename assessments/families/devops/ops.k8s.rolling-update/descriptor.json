@@ -1,0 +1,120 @@
+{
+	"key": "ops.k8s.rolling-update",
+	"version": 1,
+	"specialization": "devops",
+	"block": "ops.k8s",
+	"format": "config_eval",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": { "deployments": 2, "rules": "maxSurge вверх, maxUnavailable вниз, умолчания, Recreate" },
+			"constructiveRank": 3,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "percent",
+					"form": "A",
+					"description": "оба параметра в процентах: maxSurge округляется вверх, maxUnavailable — вниз"
+				},
+				{ "id": "defaults", "form": "B", "description": "стратегия не задана: действуют умолчания 25% и 25%" },
+				{
+					"id": "mixed",
+					"form": "anchor",
+					"description": "один параметр числом, другой процентом с дробным результатом"
+				},
+				{ "id": "recreate", "form": "X", "description": "стратегия Recreate: старые поды удаляются до создания новых" }
+			]
+		},
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"constructive": {
+				"replicas": "4–8",
+				"rules": "maxSurge, maxUnavailable, minReadySeconds, progressDeadlineSeconds",
+				"timeline": "события по заданной модели контроллера"
+			},
+			"constructiveRank": 7,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "surge-waves",
+					"form": "A",
+					"description": "maxUnavailable 0, maxSurge в процентах: обновление идёт волнами, каждую задерживает minReadySeconds"
+				},
+				{
+					"id": "unavailable-first",
+					"form": "B",
+					"description": "maxSurge 0, maxUnavailable в процентах: сначала удаляются старые поды"
+				},
+				{ "id": "mixed", "form": "anchor", "description": "оба параметра больше нуля, поды готовы в разное время" },
+				{
+					"id": "stuck",
+					"form": "X",
+					"description": "один новый под не становится готовым: срок progressDeadlineSeconds отсчитывается от последнего продвижения"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "имена Deployment, образы" },
+		{ "name": "numbers", "description": "число реплик, значения параметров, времена готовности" }
+	],
+	"essentialParams": [
+		{ "name": "strategy", "description": "Recreate или RollingUpdate, умолчания, проценты или числа" },
+		{
+			"name": "timeline",
+			"description": "что ограничивает ход обновления: maxSurge, maxUnavailable, minReadySeconds, неготовый под"
+		}
+	],
+	"language": "yaml",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"округление maxSurge вверх и maxUnavailable вниз",
+			"умолчания стратегии RollingUpdate и стратегия Recreate",
+			"ход обновления при minReadySeconds и разном времени готовности подов",
+			"срыв обновления по progressDeadlineSeconds"
+		],
+		"doesNotCheck": [
+			"пропорциональное масштабирование при смене replicas посреди обновления",
+			"время завершения старых подов (terminationGracePeriodSeconds)",
+			"точную очерёдность синхронизаций контроллера — модель задана в условии"
+		]
+	},
+	"wrongSolutions": [
+		{ "id": "surge-floor", "defect": "округляет maxSurge вниз", "mustBeCaught": true },
+		{ "id": "unavailable-ceil", "defect": "округляет maxUnavailable вверх", "mustBeCaught": true },
+		{ "id": "round-nearest", "defect": "округляет оба процента до ближайшего целого", "mustBeCaught": true },
+		{ "id": "default-one", "defect": "считает умолчаниями maxSurge 1 и maxUnavailable 1", "mustBeCaught": true },
+		{
+			"id": "recreate-as-rolling",
+			"defect": "считает Recreate обычным RollingUpdate с умолчаниями",
+			"mustBeCaught": true
+		},
+		{
+			"id": "ignore-minready",
+			"defect": "считает под доступным сразу, как только он готов, без minReadySeconds",
+			"mustBeCaught": true
+		},
+		{
+			"id": "deadline-from-start",
+			"defect": "отсчитывает progressDeadlineSeconds от начала обновления, а не от последнего продвижения",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 7, "caught": 7 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0079,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

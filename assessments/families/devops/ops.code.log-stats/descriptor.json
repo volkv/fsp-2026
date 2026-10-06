@@ -1,0 +1,148 @@
+{
+	"key": "ops.code.log-stats",
+	"version": 1,
+	"specialization": "devops",
+	"block": "ops.code",
+	"format": "practice_code",
+	"answerKind": "code",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.8 },
+			"constructive": { "rules": 2, "normalization": false, "brokenLines": true, "groups": 5 },
+			"constructiveRank": 3,
+			"timeNormSec": 1800,
+			"classes": [
+				{
+					"id": "p95-latency",
+					"form": "A",
+					"description": "p95 времени ответа по каждому пути методом ближайшего ранга; порядок — по пути"
+				},
+				{
+					"id": "error-rate",
+					"form": "B",
+					"description": "доля ответов 5xx по пути в процентах с округлением до десятых половиной вверх; порядок — по доле убыв., затем по пути"
+				},
+				{
+					"id": "top-clients",
+					"form": "anchor",
+					"description": "K клиентов с наибольшим числом байт; «-» вместо байт — ноль; равенство — по имени клиента"
+				},
+				{
+					"id": "unique-per-minute",
+					"form": "X",
+					"description": "число разных клиентов в каждой минуте; минуты по времени, строки журнала не упорядочены"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.8 },
+			"constructive": { "rules": 4, "normalization": true, "brokenLines": true, "groups": 5 },
+			"constructiveRank": 5,
+			"timeNormSec": 2400,
+			"classes": [
+				{
+					"id": "p95-latency",
+					"form": "A",
+					"description": "p95 по паре «нормализованный путь, метод» только по ответам 2xx и 3xx"
+				},
+				{
+					"id": "error-rate",
+					"form": "B",
+					"description": "доля 5xx по нормализованному пути, только пути не меньше чем с M запросами"
+				},
+				{
+					"id": "top-paths",
+					"form": "anchor",
+					"description": "K нормализованных путей с наибольшим числом байт по ответам со статусом меньше 400"
+				},
+				{
+					"id": "peak-minute",
+					"form": "X",
+					"description": "минута пика запросов каждого нормализованного пути; при равенстве — самая ранняя"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "data", "description": "адреса клиентов, пути, методы, статусы, байты, время ответа, моменты" },
+		{ "name": "sizes", "description": "число строк, доля и виды битых строк, K и M в пределах условия" }
+	],
+	"essentialParams": [
+		{
+			"name": "summary",
+			"description": "что считается: перцентиль, доля ошибок с округлением, топ по байтам, уникальные клиенты или пик по минутам"
+		},
+		{ "name": "skip-rule", "description": "какие строки журнала битые и пропускаются" },
+		{
+			"name": "normalization",
+			"description": "Junior: нормализация путей — строка запроса, числовые сегменты, косая черта в конце"
+		}
+	],
+	"language": null,
+	"practice": { "languages": ["python3", "go"], "hiddenTestGroups": 5 },
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "groups" },
+	"coverage": {
+		"checks": [
+			"разбор строк журнала доступа по формату из условия",
+			"пропуск битых строк по явному правилу и их подсчёт",
+			"проверка диапазонов полей: время, статус",
+			"группировка по ключу и агрегаты",
+			"перцентиль методом ближайшего ранга",
+			"доля с округлением до десятых в целых числах",
+			"сортировка по составному ключу с правилом равенства",
+			"нормализация путей: строка запроса, числовые идентификаторы, косая черта в конце (Junior)",
+			"несколько правил отбора вместе: статус, порог числа запросов (Junior)",
+			"обработка тысяч строк без квадратичных проходов"
+		],
+		"doesNotCheck": [
+			"настоящие форматы журналов nginx и Apache целиком",
+			"работу с файлами, ротацией и потоковым чтением",
+			"архитектуру и стиль кода"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "range-unchecked",
+			"defect": "проверяет только вид полей, но не диапазоны: час 24, минута 60, статус 600 считаются верными",
+			"mustBeCaught": true
+		},
+		{ "id": "dash-skipped", "defect": "считает строку с «-» вместо байт битой", "mustBeCaught": true },
+		{
+			"id": "percentile-floor",
+			"defect": "класс p95: берёт элемент с индексом ⌊0,95·n⌋ от нуля — ошибается, когда 0,95·n целое",
+			"mustBeCaught": true
+		},
+		{
+			"id": "rate-truncated",
+			"defect": "класс доли ошибок: отбрасывает дробь вместо округления",
+			"mustBeCaught": true
+		},
+		{
+			"id": "no-tie-break",
+			"defect": "классы топа: при равенстве байт оставляет порядок первого появления",
+			"mustBeCaught": true
+		},
+		{
+			"id": "requests-not-clients",
+			"defect": "класс уникальных клиентов: считает запросы, а не разных клиентов",
+			"mustBeCaught": true
+		},
+		{ "id": "peak-tie-latest", "defect": "класс пика: при равенстве берёт самую позднюю минуту", "mustBeCaught": true },
+		{ "id": "query-kept", "defect": "Junior: не отрезает строку запроса после «?»", "mustBeCaught": true },
+		{ "id": "ids-kept", "defect": "Junior: не заменяет числовые сегменты пути на :id", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 9, "caught": 9 },
+		"hiddenTestsMutationScore": 1,
+		"answerCollision": 0,
+		"transfer": 0,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

@@ -1,0 +1,154 @@
+{
+	"key": "ops.cicd.needs-graph",
+	"version": 1,
+	"specialization": "devops",
+	"block": "ops.cicd",
+	"format": "config_eval",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": {
+				"jobs": "4–6",
+				"failures": "0–1",
+				"rules": "needs, одна функция статуса или continue-on-error"
+			},
+			"constructiveRank": 2,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "skip-chain",
+					"form": "A",
+					"description": "задание падает: пропускаются не только прямые зависимые, но и вся цепочка за ними"
+				},
+				{
+					"id": "always",
+					"form": "B",
+					"description": "задание с always() выполняется, хотя его предок упал или пропущен"
+				},
+				{
+					"id": "continue-step",
+					"form": "anchor",
+					"description": "команда падает в шаге с continue-on-error: задание успешно, зависимые выполняются"
+				},
+				{
+					"id": "failure-notify",
+					"form": "X",
+					"description": "задание с failure() выполняется, только если упал его предок; падение вне предков или его отсутствие — skipped"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"jobs": "6–8",
+				"failures": "1–2",
+				"rules": "транзитивные предки, неявный success(), always() и failure() вместе, continue-on-error"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "failure-transitive",
+					"form": "A",
+					"description": "failure() срабатывает от падения дальнего предка, хотя прямая зависимость лишь пропущена"
+				},
+				{
+					"id": "implicit-success",
+					"form": "B",
+					"description": "условие по ветке без функции статуса неявно требует success(): после падения предка задание пропускается"
+				},
+				{
+					"id": "always-middle",
+					"form": "anchor",
+					"description": "между упавшим заданием и потомком стоит задание с always(): потомок с условием по умолчанию всё равно пропускается"
+				},
+				{
+					"id": "explicit-result",
+					"form": "X",
+					"description": "условие always() && needs.<id>.result: задание выполняется по статусу одной зависимости, несмотря на падение другого предка"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "jobs", "description": "имена заданий, команды, ветка запуска, запись условий с ${{ }} или без" },
+		{ "name": "graph", "description": "форма графа needs и какие команды падают" }
+	],
+	"essentialParams": [
+		{
+			"name": "status-function",
+			"description": "какая функция статуса решает: success() неявно или явно, failure(), always()"
+		},
+		{ "name": "ancestry", "description": "смотрит ли условие на прямые зависимости или на всех предков" },
+		{ "name": "step-failure", "description": "делает ли упавшая команда задание упавшим (continue-on-error)" }
+	],
+	"language": "yaml",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"порядок заданий по needs и пропуск зависимых после падения",
+			"функции статуса success(), failure(), always() в условиях заданий",
+			"неявный success() в условии без функции статуса",
+			"continue-on-error у шага",
+			"needs.<id>.result в условии"
+		],
+		"doesNotCheck": [
+			"отмену запуска и функцию cancelled()",
+			"continue-on-error на уровне задания и матрицы",
+			"ограничения раннеров и время выполнения"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "failure-direct-only",
+			"defect": "failure() смотрит только на прямые зависимости, а не на всех предков",
+			"mustBeCaught": true
+		},
+		{
+			"id": "always-ignored",
+			"defect": "считает, что задание с always() пропускается после падения предка, как обычное",
+			"mustBeCaught": true
+		},
+		{
+			"id": "continue-fails-job",
+			"defect": "считает задание упавшим, хотя упавший шаг помечен continue-on-error",
+			"mustBeCaught": true
+		},
+		{
+			"id": "failure-runs-always",
+			"defect": "считает, что задание с failure() выполняется всегда, как завершающее",
+			"mustBeCaught": true
+		},
+		{
+			"id": "direct-needs-success",
+			"defect": "условие по умолчанию проверяет только прямые зависимости: потомок задания с always() выполняется",
+			"mustBeCaught": true
+		},
+		{
+			"id": "explicit-if-no-implicit",
+			"defect": "условие по ветке без функции статуса выполняет задание и после падения предка",
+			"mustBeCaught": true
+		},
+		{
+			"id": "skip-not-transitive",
+			"defect": "пропускает только прямых зависимых упавшего задания, а задания дальше по цепочке выполняет",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 7, "caught": 7 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

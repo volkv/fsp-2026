@@ -1,0 +1,100 @@
+{
+	"key": "ops.iac.count-for-each",
+	"version": 1,
+	"specialization": "devops",
+	"block": "ops.iac",
+	"format": "config_eval",
+	"answerKind": "set",
+	"levels": [
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"instances": "4–6",
+				"rules": "адреса count и for_each, замена по атрибуту, moved",
+				"interacting": "сдвиг индексов + атрибут, требующий замены, или переход count → for_each"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "count-shift",
+					"form": "A",
+					"description": "count по списку: удаление элемента из середины сдвигает индексы хвоста — хвост обновляется, последний индекс удаляется"
+				},
+				{
+					"id": "for-each-stable",
+					"form": "B",
+					"description": "for_each по ключам: удаление и добавление ключа не трогают остальные экземпляры"
+				},
+				{
+					"id": "count-force-new",
+					"form": "anchor",
+					"description": "сдвиг индексов там, где у соседних элементов разный атрибут, требующий замены"
+				},
+				{
+					"id": "count-to-for-each",
+					"form": "X",
+					"description": "переход с count на for_each: без moved — пересоздание, с moved — тот же объект"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "имена экземпляров, зоны, размеры" },
+		{ "name": "numbers", "description": "число элементов, какой элемент удалён или добавлен" }
+	],
+	"essentialParams": [
+		{ "name": "addressing", "description": "count (индексы) или for_each (ключи), переход между ними" },
+		{ "name": "change", "description": "что меняется у сдвинутых элементов: атрибуты на месте или требующие замены" },
+		{ "name": "moved", "description": "есть ли блоки moved для части экземпляров" }
+	],
+	"language": "hcl",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"адреса экземпляров при count и for_each",
+			"сдвиг индексов при удалении элемента из середины списка",
+			"замена против изменения на месте у сдвинутых экземпляров",
+			"переход с count на for_each с блоками moved и без них"
+		],
+		"doesNotCheck": ["вложенные модули и их адреса", "атрибуты, требующие замены, у конкретных провайдеров"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "count-stable",
+			"defect": "считает, что при count экземпляры остаются за своими элементами, как при for_each",
+			"mustBeCaught": true
+		},
+		{ "id": "in-place-replace", "defect": "заменяет экземпляр при любом изменении атрибута", "mustBeCaught": true },
+		{ "id": "force-new-ignored", "defect": "меняет на месте атрибут, требующий замены", "mustBeCaught": true },
+		{
+			"id": "for-each-shift",
+			"defect": "считает, что при for_each экземпляры сдвигаются по порядку ключей, как индексы",
+			"mustBeCaught": true
+		},
+		{
+			"id": "migration-noop",
+			"defect": "считает, что переход с count на for_each сам сопоставляет индексы ключам",
+			"mustBeCaught": true
+		},
+		{
+			"id": "ignore-moved",
+			"defect": "не учитывает блоки moved при переходе с count на for_each",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 6, "caught": 6 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0122,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

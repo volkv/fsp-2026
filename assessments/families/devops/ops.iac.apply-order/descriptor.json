@@ -1,0 +1,98 @@
+{
+	"key": "ops.iac.apply-order",
+	"version": 1,
+	"specialization": "devops",
+	"block": "ops.iac",
+	"format": "config_eval",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"resources": "6–10",
+				"rules": "ссылки, depends_on, параллелизм, порядок удаления, create_before_destroy",
+				"interacting": "граф зависимостей + ограничение параллелизма + вид операции"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 480,
+			"classes": [
+				{ "id": "create-waves", "form": "A", "description": "создание с нуля волнами при ограниченном параллелизме" },
+				{
+					"id": "destroy-order",
+					"form": "B",
+					"description": "удаление всего: ресурс удаляется после всех, кто от него зависит"
+				},
+				{
+					"id": "depends-on",
+					"form": "anchor",
+					"description": "явные depends_on добавляют зависимости, которых нет в ссылках"
+				},
+				{
+					"id": "replace-cbd",
+					"form": "X",
+					"description": "замены с create_before_destroy и без него вместе с обновлением зависимых"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "имена и типы ресурсов, значения атрибутов" },
+		{ "name": "numbers", "description": "число ресурсов, параллелизм" }
+	],
+	"essentialParams": [
+		{ "name": "operation", "description": "создание, удаление или замена с обновлением зависимых" },
+		{ "name": "edges", "description": "зависимости по ссылкам и по depends_on" },
+		{ "name": "lifecycle", "description": "create_before_destroy у заменяемого ресурса или его нет" }
+	],
+	"language": "hcl",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"граф зависимостей из ссылок и depends_on",
+			"порядок создания волнами при ограниченном параллелизме",
+			"обратный порядок удаления",
+			"порядок операций замены с create_before_destroy и без него"
+		],
+		"doesNotCheck": [
+			"разную длительность операций у настоящего провайдера",
+			"порядок обхода графа конкретной версией инструмента"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "ignore-parallelism",
+			"defect": "запускает все готовые операции разом, не учитывая ограничение параллелизма",
+			"mustBeCaught": true
+		},
+		{ "id": "ignore-depends-on", "defect": "не учитывает depends_on", "mustBeCaught": true },
+		{
+			"id": "destroy-forward",
+			"defect": "удаляет в том же порядке, в каком создавал: сначала то, от чего зависят",
+			"mustBeCaught": true
+		},
+		{
+			"id": "cbd-ignored",
+			"defect": "при create_before_destroy всё равно сначала удаляет старый объект",
+			"mustBeCaught": true
+		},
+		{
+			"id": "cbd-destroy-early",
+			"defect": "при create_before_destroy удаляет старый объект сразу после создания нового, не дожидаясь обновления зависимых",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 5, "caught": 5 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0041,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

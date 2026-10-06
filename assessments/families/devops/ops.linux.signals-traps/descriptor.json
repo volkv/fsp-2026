@@ -1,0 +1,220 @@
+{
+	"key": "ops.linux.signals-traps",
+	"version": 1,
+	"specialization": "devops",
+	"block": "ops.linux",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": { "statements": "5–11", "rules": "1–2", "traps": "1–3", "subshells": "0–2" },
+			"constructiveRank": 6,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "trap-continue",
+					"form": "A",
+					"description": "обработчик сигнала выполняется, и скрипт продолжается; текст обработчика раскрывается при срабатывании; EXIT — при обычном завершении"
+				},
+				{
+					"id": "exit-in-handler",
+					"form": "B",
+					"description": "exit в обработчике завершает скрипт со своим кодом, после него выполняется EXIT, в котором $? — этот код"
+				},
+				{
+					"id": "subshell-reset",
+					"form": "anchor",
+					"description": "в подоболочке перехваченный сигнал сброшен и убивает её (128+N), игнорируемый — остаётся игнорируемым"
+				},
+				{
+					"id": "wait-killed",
+					"form": "X",
+					"description": "wait на фоновую задачу, убитую сигналом, возвращает 128+N; на завершившуюся — её код"
+				}
+			]
+		},
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"constructive": { "statements": "8–11", "rules": "3", "traps": "2–4", "subshells": "0–4" },
+			"constructiveRank": 4,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "err-trap",
+					"form": "A",
+					"description": "ERR вместе с set -e: в условии нет ни ERR, ни выхода; без set -E функция не вызывает ERR, но set -e её завершает"
+				},
+				{
+					"id": "nested-exit",
+					"form": "B",
+					"description": "ловушки глобальны: EXIT из функции заменяет прежний; exit в функции, вызванной из обработчика, завершает скрипт"
+				},
+				{
+					"id": "exit-in-subshell",
+					"form": "anchor",
+					"description": "EXIT в подоболочке и в $( ) — свой, родительский там не выполняется; вывод EXIT из $( ) попадает в переменную; $$ в подоболочке — PID родителя"
+				},
+				{
+					"id": "ignore-reset",
+					"form": "X",
+					"description": "trap '' наследуется подоболочкой, перехват — нет, trap - возвращает действие по умолчанию"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "labels", "description": "слова в выводе, имена функций и переменных" },
+		{ "name": "signals", "description": "какие сигналы и коды выхода используются" },
+		{ "name": "order", "description": "порядок независимых блоков скрипта" }
+	],
+	"essentialParams": [
+		{
+			"name": "trap-scope",
+			"description": "где действует ловушка: в скрипте, функции, подоболочке, подстановке команды"
+		},
+		{
+			"name": "termination",
+			"description": "как завершается скрипт или подоболочка: обычно, exit в обработчике, сигналом, set -e"
+		}
+	],
+	"language": "shell",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"trap на EXIT, ERR и сигналы; когда раскрывается текст обработчика",
+			"kill себе: обработчик выполняется сразу после kill, скрипт продолжается",
+			"exit в обработчике и порядок с EXIT, $? в EXIT",
+			"сброс перехваченных сигналов в подоболочке, наследование игнорируемых, trap -",
+			"wait и статус 128+N",
+			"ERR и set -e, set -E, функции в условии",
+			"$$ и $BASHPID, EXIT в $( )"
+		],
+		"doesNotCheck": [
+			"сигналы от терминала и управление заданиями",
+			"SIGCHLD и гонки фоновых процессов",
+			"поведение других оболочек"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "trap-expands-at-set",
+			"defect": "считает, что переменные в обработчике в одинарных кавычках раскрываются при установке trap",
+			"mustBeCaught": true
+		},
+		{
+			"id": "signal-ends-script",
+			"defect": "считает, что перехваченный сигнал всё равно завершает скрипт после обработчика",
+			"mustBeCaught": true
+		},
+		{
+			"id": "trap-replace-appends",
+			"defect": "считает, что новый trap на тот же сигнал добавляется к прежнему, а не заменяет его",
+			"mustBeCaught": true
+		},
+		{
+			"id": "exit-trap-errors-only",
+			"defect": "считает, что EXIT срабатывает только при ошибке или сигнале",
+			"mustBeCaught": true
+		},
+		{ "id": "trap-reset-ignored", "defect": "не знает, что trap - EXIT снимает ловушку", "mustBeCaught": true },
+		{
+			"id": "exit-skips-exit-trap",
+			"defect": "считает, что exit в обработчике сигнала не запускает EXIT",
+			"mustBeCaught": true
+		},
+		{ "id": "exit-trap-status-zero", "defect": "считает, что $? в обработчике EXIT равен 0", "mustBeCaught": true },
+		{
+			"id": "handler-exit-ignored",
+			"defect": "считает, что exit в обработчике только выходит из обработчика",
+			"mustBeCaught": true
+		},
+		{
+			"id": "status-128-plus",
+			"defect": "считает, что скрипт, завершённый из обработчика сигнала, получает код 128+N",
+			"mustBeCaught": true
+		},
+		{
+			"id": "subshell-inherits-trap",
+			"defect": "считает, что подоболочка выполняет обработчик родителя",
+			"mustBeCaught": true
+		},
+		{
+			"id": "ignore-reset-in-subshell",
+			"defect": "считает, что игнорируемый сигнал в подоболочке тоже сброшен",
+			"mustBeCaught": true
+		},
+		{
+			"id": "status-signal-number",
+			"defect": "считает статус процесса, убитого сигналом, равным номеру сигнала",
+			"mustBeCaught": true
+		},
+		{ "id": "wait-killed-zero", "defect": "считает, что wait на убитую задачу возвращает 0", "mustBeCaught": true },
+		{
+			"id": "err-in-functions",
+			"defect": "считает, что без set -E ловушка ERR срабатывает внутри функций",
+			"mustBeCaught": true
+		},
+		{
+			"id": "err-in-condition",
+			"defect": "считает, что ERR срабатывает на провале в условии if или в списке ||",
+			"mustBeCaught": true
+		},
+		{
+			"id": "errexit-in-condition-function",
+			"defect": "считает, что set -e действует внутри функции, вызванной в условии if",
+			"mustBeCaught": true
+		},
+		{
+			"id": "exit-trap-skipped-on-errexit",
+			"defect": "считает, что при выходе по set -e EXIT не выполняется",
+			"mustBeCaught": true
+		},
+		{
+			"id": "exit-trap-function-scoped",
+			"defect": "считает, что trap, установленный в функции, действует только до её возврата",
+			"mustBeCaught": true
+		},
+		{
+			"id": "exit-in-function-returns",
+			"defect": "считает, что exit в функции, вызванной из обработчика, только возвращает из неё",
+			"mustBeCaught": true
+		},
+		{
+			"id": "handler-deferred",
+			"defect": "считает, что обработчик выполнится только после возврата из текущей функции",
+			"mustBeCaught": true
+		},
+		{
+			"id": "subshell-runs-parent-exit-trap",
+			"defect": "считает, что при выходе из подоболочки выполняется EXIT родителя",
+			"mustBeCaught": true
+		},
+		{
+			"id": "cmdsubst-exit-to-terminal",
+			"defect": "считает, что вывод EXIT внутри $( ) идёт на экран, а не в переменную",
+			"mustBeCaught": true
+		},
+		{
+			"id": "dollar-is-subshell",
+			"defect": "считает, что $$ в подоболочке — её собственный PID",
+			"mustBeCaught": true
+		},
+		{ "id": "reset-means-ignore", "defect": "считает, что trap - делает сигнал игнорируемым", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 24, "caught": 24 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0001,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

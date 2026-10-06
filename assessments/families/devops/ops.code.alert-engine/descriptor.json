@@ -1,0 +1,148 @@
+{
+	"key": "ops.code.alert-engine",
+	"version": 1,
+	"specialization": "devops",
+	"block": "ops.code",
+	"format": "practice_code",
+	"answerKind": "code",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.8 },
+			"constructive": { "series": 1, "lookback": false, "globalTicks": false, "changeStep": "keep_firing_for" },
+			"constructiveRank": 4,
+			"timeNormSec": 2700,
+			"classes": [
+				{
+					"id": "threshold",
+					"form": "A",
+					"description": "условие v > X в каждом отсчёте; for F: pending → firing → resolved"
+				},
+				{
+					"id": "ratio",
+					"form": "B",
+					"description": "доля ошибок 100·a > X·b по паре рядов, нулевой знаменатель — ложь"
+				},
+				{
+					"id": "absent",
+					"form": "anchor",
+					"description": "оценка по сетке 0, S, …, E: нет отсчёта в полуинтервале (τ − W, τ]"
+				},
+				{
+					"id": "rate",
+					"form": "X",
+					"description": "прирост счётчика за (τ − W, τ] со сбросами: падение значения — счётчик начат заново"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.8 },
+			"constructive": { "series": "2–6", "lookback": true, "globalTicks": true, "changeStep": "keep_firing_for" },
+			"constructiveRank": 6,
+			"timeNormSec": 3000,
+			"classes": [
+				{
+					"id": "threshold",
+					"form": "A",
+					"description": "несколько рядов с метками, общие моменты оценки, устаревание отсчёта через L"
+				},
+				{
+					"id": "ratio",
+					"form": "B",
+					"description": "доля ошибок по рядам с общими моментами оценки и устареванием через L"
+				},
+				{ "id": "absent", "form": "anchor", "description": "отсутствие данных по каждому ряду на сетке оценки" },
+				{
+					"id": "rate",
+					"form": "X",
+					"description": "прирост счётчика со сбросами по каждому ряду в общие моменты оценки"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "data", "description": "имена рядов, моменты и значения отсчётов" },
+		{ "name": "sizes", "description": "число отсчётов и рядов, порог X, for F, окно W, сетка S и E, устаревание L" }
+	],
+	"essentialParams": [
+		{
+			"name": "condition",
+			"description": "условие правила: порог, отношение двух рядов, отсутствие данных, прирост счётчика"
+		},
+		{ "name": "series", "description": "Senior: несколько рядов, общие моменты оценки, устаревание отсчёта" },
+		{
+			"name": "keep-firing",
+			"description": "шаг «измени своё решение»: keep_firing_for — алерт гаснет, только когда условие ложно K секунд подряд"
+		}
+	],
+	"language": null,
+	"practice": { "languages": ["python3", "go"], "hiddenTestGroups": 5 },
+	"qa": null,
+	"changeStep": {
+		"description": "Новое условие keep_firing_for K: горящий алерт при ложном условии продолжает гореть и гаснет в первой оценке, где условие ложно непрерывно не меньше K секунд; истинное условие сбрасывает отсчёт.",
+		"weight": 0.3
+	},
+	"rubric": { "kind": "groups" },
+	"coverage": {
+		"checks": [
+			"конечный автомат оповещения: inactive, pending, firing и события переходов",
+			"длительность for на границе и for = 0",
+			"строгий порог и равенство значения порогу",
+			"отношение в целых числах без деления",
+			"полуоткрытое окно (τ − W, τ]",
+			"прирост счётчика со сбросами (резервный класс)",
+			"отсутствие данных на сетке оценки (опорный класс)",
+			"несколько рядов, общие моменты оценки, устаревание отсчёта (Senior)",
+			"доработка автомата под keep_firing_for (шаг «измени своё решение»)"
+		],
+		"doesNotCheck": [
+			"язык запросов PromQL и экстраполяцию функций rate и increase в Prometheus",
+			"маршрутизацию и группировку уведомлений",
+			"архитектуру и стиль кода"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "for-strict",
+			"defect": "переводит в firing, только когда прошло больше F, а не не меньше",
+			"mustBeCaught": true
+		},
+		{ "id": "pending-silent", "defect": "не печатает событие сброса pending → inactive", "mustBeCaught": true },
+		{
+			"id": "threshold-inclusive",
+			"defect": "классы порога, отношения и прироста: сравнивает нестрого, равенство считает срабатыванием",
+			"mustBeCaught": true
+		},
+		{
+			"id": "window-closed",
+			"defect": "классы отсутствия и прироста: включает в окно левую границу τ − W",
+			"mustBeCaught": true
+		},
+		{
+			"id": "counter-reset-ignored",
+			"defect": "класс прироста: падение счётчика считает отрицательным приростом",
+			"mustBeCaught": true
+		},
+		{
+			"id": "no-staleness",
+			"defect": "Senior, порог и отношение: берёт последний отсчёт ряда, даже устаревший",
+			"mustBeCaught": true
+		},
+		{
+			"id": "own-ticks",
+			"defect": "Senior: оценивает ряд только в моменты его собственных отсчётов, а не во все общие моменты",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 7, "caught": 7 },
+		"hiddenTestsMutationScore": 0.9968,
+		"answerCollision": 0,
+		"transfer": 0.0013,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

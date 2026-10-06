@@ -1,0 +1,150 @@
+{
+	"key": "ops.code.config-lint",
+	"version": 1,
+	"specialization": "devops",
+	"block": "ops.code",
+	"format": "practice_code",
+	"answerKind": "code",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.8 },
+			"constructive": { "format": "KEY=VALUE", "sections": false, "types": 4, "groups": 5 },
+			"constructiveRank": 4,
+			"timeNormSec": 1800,
+			"classes": [
+				{
+					"id": "last-wins",
+					"form": "A",
+					"description": "повтор ключа заменяет прежнее значение, проверяется только последнее"
+				},
+				{
+					"id": "duplicate-error",
+					"form": "B",
+					"description": "действует первое значение, каждый повтор — ошибка duplicate"
+				},
+				{
+					"id": "substitution",
+					"form": "anchor",
+					"description": "последнее значение побеждает, ${KEY} подставляет действующее значение ключа, неизвестная ссылка — ошибка"
+				},
+				{
+					"id": "first-wins",
+					"form": "X",
+					"description": "действует первое значение, повторы молча игнорируются и не проверяются"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.8 },
+			"constructive": { "format": "INI", "sections": true, "types": 4, "groups": 5 },
+			"constructiveRank": 6,
+			"timeNormSec": 2400,
+			"classes": [
+				{
+					"id": "last-wins",
+					"form": "A",
+					"description": "секции INI; повтор ключа секции, в том числе в повторном заголовке, заменяет прежнее значение"
+				},
+				{
+					"id": "duplicate-error",
+					"form": "B",
+					"description": "секции INI; повтор ключа секции — ошибка duplicate, действует первое значение"
+				},
+				{
+					"id": "substitution",
+					"form": "anchor",
+					"description": "секции INI; ${секция.ключ} подставляет действующее значение, неизвестная ссылка — ошибка"
+				},
+				{
+					"id": "first-wins",
+					"form": "X",
+					"description": "секции INI; действует первое значение ключа секции, повторы игнорируются"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "data", "description": "имена ключей и секций, типы и диапазоны схемы, значения, комментарии" },
+		{ "name": "sizes", "description": "число ключей схемы и строк конфигурации, доля ошибок" }
+	],
+	"essentialParams": [
+		{
+			"name": "duplicates",
+			"description": "повтор ключа: последний побеждает, ошибка с первым значением, первый побеждает молча"
+		},
+		{ "name": "substitution", "description": "подстановка ${KEY} действующего значения и ошибка неизвестной ссылки" },
+		{
+			"name": "sections",
+			"description": "Junior: секции INI, неизвестные секции, повторные заголовки, ключ вне секции"
+		}
+	],
+	"language": null,
+	"practice": { "languages": ["python3", "go"], "hiddenTestGroups": 5 },
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "groups" },
+	"coverage": {
+		"checks": [
+			"построчный разбор конфигурации по формату из условия",
+			"пробелы вокруг ключа и значения, комментарии и пустые строки",
+			"проверка по схеме: обязательные ключи, типы int, bool, enum, str, диапазоны с границами",
+			"семантика повторов ключа: последний побеждает, ошибка, первый побеждает",
+			"подстановка ссылок ${KEY} в один проход и ошибка неизвестной ссылки (опорный класс)",
+			"порядок вывода ошибок: по строкам, затем отсутствующие ключи в порядке схемы",
+			"секции INI: неизвестная секция, повторный заголовок, ключ вне секции (Junior)",
+			"обработка тысяч строк без квадратичных проходов"
+		],
+		"doesNotCheck": [
+			"полный синтаксис INI, YAML и TOML: кавычки, многострочные значения, экранирование",
+			"переменные окружения и внешние источники значений",
+			"архитектуру и стиль кода"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "validates-overridden",
+			"defect": "класс «последний побеждает» и подстановка: проверяет и перекрытые значения",
+			"mustBeCaught": true
+		},
+		{
+			"id": "duplicate-on-all",
+			"defect": "класс ошибки повтора: помечает duplicate и первое вхождение ключа",
+			"mustBeCaught": true
+		},
+		{
+			"id": "validates-ignored",
+			"defect": "класс «первый побеждает»: проверяет и проигнорированные повторы",
+			"mustBeCaught": true
+		},
+		{ "id": "range-exclusive", "defect": "границы диапазона int считает недопустимыми", "mustBeCaught": true },
+		{ "id": "missing-first", "defect": "печатает отсутствующие ключи раньше ошибок строк", "mustBeCaught": true },
+		{ "id": "no-trim", "defect": "не обрезает пробелы вокруг ключа и значения у знака «=»", "mustBeCaught": true },
+		{
+			"id": "comment-inline",
+			"defect": "считает комментарием всё после «#» в любом месте строки, а не только строку, начинающуюся с «#»",
+			"mustBeCaught": true
+		},
+		{
+			"id": "undefined-as-empty",
+			"defect": "класс подстановки: подставляет пустую строку вместо ошибки неизвестной ссылки",
+			"mustBeCaught": true
+		},
+		{
+			"id": "unknown-section-keys",
+			"defect": "Junior: ключи неизвестной секции сообщает как неизвестные вместо пропуска",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 9, "caught": 9 },
+		"hiddenTestsMutationScore": 0.9918,
+		"answerCollision": 0,
+		"transfer": 0,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

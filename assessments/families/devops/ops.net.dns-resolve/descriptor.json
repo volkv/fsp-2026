@@ -1,0 +1,155 @@
+{
+	"key": "ops.net.dns-resolve",
+	"version": 1,
+	"specialization": "devops",
+	"block": "ops.net",
+	"format": "compute",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": { "lookups": "4–5", "rules": "search и ndots, порядок источников, цепочки CNAME" },
+			"constructiveRank": 3,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "search-order",
+					"form": "A",
+					"description": "короткие имена и несколько search-доменов: побеждает первый домен списка, где имя есть"
+				},
+				{
+					"id": "ndots",
+					"form": "B",
+					"description": "имена с точками и ndots больше 1: при точках не меньше ndots имя сначала пробуется как есть"
+				},
+				{
+					"id": "hosts-file",
+					"form": "anchor",
+					"description": "/etc/hosts раньше DNS, но только по имени как запрошено: search-домены к нему не применяются"
+				},
+				{
+					"id": "cname-chain",
+					"form": "X",
+					"description": "цепочки CNAME, цель без A-записи: кандидат неудачен, поиск идёт к следующему; имя с точкой на конце"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"queries": "5–6",
+				"rules": "TTL каждой записи с момента получения, граница TTL, отрицательный кэш, изменения зоны на шкале времени"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "ttl-change",
+					"form": "A",
+					"description": "запись меняется в зоне: до истечения TTL кэш отдаёт старый адрес, ровно на границе — уже новый"
+				},
+				{
+					"id": "cname-ttl",
+					"form": "B",
+					"description": "CNAME и A-запись цели с разными TTL кэшируются отдельно: короткий TTL цели истекает раньше"
+				},
+				{
+					"id": "negative-cache",
+					"form": "anchor",
+					"description": "имя появилось в зоне после запроса: ответ «имени нет» держится в кэше отрицательный TTL"
+				},
+				{
+					"id": "hosts-and-cache",
+					"form": "X",
+					"description": "/etc/hosts правится по ходу: файл читается при каждом запросе и стоит раньше кэша DNS"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "имена служб, доменов и окружений" },
+		{ "name": "numbers", "description": "адреса, TTL, моменты изменений и запросов" }
+	],
+	"essentialParams": [
+		{ "name": "candidates", "description": "какие полные имена пробуются: search, ndots, точка на конце" },
+		{ "name": "sources", "description": "порядок /etc/hosts и DNS" },
+		{ "name": "records", "description": "A, AAAA, CNAME-цепочки, отсутствие имени" },
+		{ "name": "cache", "description": "TTL записей, отрицательное кэширование, момент изменения" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"порядок полных имён по search и ndots, имя с точкой на конце",
+			"порядок источников hosts: files dns и сопоставление имён в /etc/hosts",
+			"разрешение цепочек CNAME и имя без A-записи",
+			"кэширование по TTL каждой записи и граница истечения",
+			"отрицательное кэширование и изменения зоны во времени"
+		],
+		"doesNotCheck": [
+			"DNSSEC и рекурсию через корневые серверы",
+			"поведение конкретного резолвера (systemd-resolved, nscd, dnsmasq) сверх правил условия",
+			"IPv6-запросы AAAA"
+		]
+	},
+	"wrongSolutions": [
+		{ "id": "no-search", "defect": "пробует имя только как есть, без search-доменов", "mustBeCaught": true },
+		{ "id": "first-search-only", "defect": "пробует только первый search-домен", "mustBeCaught": true },
+		{
+			"id": "always-absolute-first",
+			"defect": "всегда сначала пробует имя как есть, не глядя на ndots",
+			"mustBeCaught": true
+		},
+		{
+			"id": "always-search-first",
+			"defect": "всегда сначала пробует search-домены, не глядя на ndots",
+			"mustBeCaught": true
+		},
+		{
+			"id": "ndots-strict",
+			"defect": "пробует имя как есть первым, только если точек строго больше ndots",
+			"mustBeCaught": true
+		},
+		{ "id": "dns-first", "defect": "спрашивает DNS раньше /etc/hosts", "mustBeCaught": true },
+		{ "id": "hosts-with-search", "defect": "применяет search-домены и к /etc/hosts", "mustBeCaught": true },
+		{
+			"id": "nodata-stops",
+			"defect": "останавливает поиск на первом существующем имени, даже если у него нет A-записи",
+			"mustBeCaught": true
+		},
+		{
+			"id": "trailing-dot-ignored",
+			"defect": "не замечает точку на конце имени и применяет к нему search-домены",
+			"mustBeCaught": true
+		},
+		{ "id": "no-cache", "defect": "не учитывает кэш: всегда видит текущее состояние зоны", "mustBeCaught": true },
+		{
+			"id": "ttl-inclusive",
+			"defect": "считает запись в кэше действующей и в момент получения + TTL",
+			"mustBeCaught": true
+		},
+		{ "id": "sliding-ttl", "defect": "продлевает TTL записи при каждом попадании в кэш", "mustBeCaught": true },
+		{
+			"id": "chain-first-ttl",
+			"defect": "кэширует итог всей цепочки CNAME как одну запись с TTL первой записи",
+			"mustBeCaught": true
+		},
+		{ "id": "no-negative-cache", "defect": "не кэширует ответ «имени нет»", "mustBeCaught": true },
+		{ "id": "cache-before-files", "defect": "отвечает из кэша DNS раньше, чем читает /etc/hosts", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 15, "caught": 15 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

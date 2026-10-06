@@ -1,0 +1,129 @@
+{
+	"key": "ops.observability.burn-rate",
+	"version": 1,
+	"specialization": "devops",
+	"block": "ops.observability",
+	"format": "compute",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"alerts": 2,
+				"windows": "длинное и короткое окно у каждого оповещения",
+				"interacting": "два окна одного оповещения + история до начала наблюдения"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "fast-spike",
+					"form": "A",
+					"description": "короткий сильный всплеск ошибок: быстрое оповещение включается и снимается по короткому окну"
+				},
+				{
+					"id": "slow-burn",
+					"form": "B",
+					"description": "долгий умеренный рост ошибок при повышенной истории: медленное оповещение по окну 6 ч"
+				},
+				{
+					"id": "both-alerts",
+					"form": "anchor",
+					"description": "инцидент, при котором срабатывают оба оповещения в разные моменты"
+				},
+				{
+					"id": "custom-params",
+					"form": "X",
+					"description": "нестандартные множители и окна оповещений, заданные в условии"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"constructive": {
+				"alerts": 2,
+				"thresholds": "выводятся из доли бюджета за окно",
+				"interacting": "порог из бюджета + два окна + история"
+			},
+			"constructiveRank": 7,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "derived-thresholds",
+					"form": "A",
+					"description": "окно SLO 28 суток: порог скорости сжигания выводится из доли бюджета, а не берётся стандартный"
+				},
+				{
+					"id": "history",
+					"form": "B",
+					"description": "повышенная доля ошибок до начала наблюдения входит в длинное окно медленного оповещения"
+				},
+				{
+					"id": "both-alerts",
+					"form": "anchor",
+					"description": "пороги из бюджета, оба оповещения срабатывают и снимаются"
+				},
+				{
+					"id": "custom-budget",
+					"form": "X",
+					"description": "нестандартные доли бюджета и длины окон: свои пороги у каждого оповещения"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "сервис, время начала наблюдения" },
+		{ "name": "numbers", "description": "SLO, доли ошибок по интервалам, длительность наблюдения" }
+	],
+	"essentialParams": [
+		{ "name": "windows", "description": "длинное и короткое окно каждого оповещения и их длины" },
+		{ "name": "threshold", "description": "множитель задан или выводится из доли бюджета за окно и длины окна SLO" },
+		{ "name": "history", "description": "доля ошибок до начала наблюдения: фоновая или повышенная" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"скорость сжигания бюджета за окно",
+			"многооконные оповещения: длинное и короткое окно одновременно",
+			"включение и снятие оповещения",
+			"история до начала наблюдения в длинном окне",
+			"вывод порога скорости сжигания из доли бюджета и длины окна SLO"
+		],
+		"doesNotCheck": [
+			"неравномерный трафик внутри окна (доля ошибок усредняется по времени)",
+			"настройку правил в конкретной системе мониторинга"
+		]
+	},
+	"wrongSolutions": [
+		{ "id": "long-only", "defect": "проверяет только длинное окно оповещения", "mustBeCaught": true },
+		{ "id": "short-only", "defect": "проверяет только короткое окно оповещения", "mustBeCaught": true },
+		{ "id": "ignore-history", "defect": "считает, что до начала наблюдения ошибок не было", "mustBeCaught": true },
+		{
+			"id": "default-params",
+			"defect": "берёт стандартные множители и окна (14,4 за 1 ч и 5 мин, 6 за 6 ч и 30 мин) вместо заданных",
+			"mustBeCaught": true
+		},
+		{ "id": "days-30", "defect": "выводит порог для окна SLO 30 суток, когда оно 28 суток", "mustBeCaught": true },
+		{
+			"id": "factor-from-short",
+			"defect": "выводит порог из доли бюджета за короткое окно, а не за длинное",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 6, "caught": 6 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0014,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

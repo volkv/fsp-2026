@@ -1,0 +1,104 @@
+{
+	"key": "ops.containers.build-context",
+	"version": 1,
+	"specialization": "devops",
+	"block": "ops.containers",
+	"format": "config_eval",
+	"answerKind": "set",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"files": "14–24",
+				"ignoreLines": "4–10",
+				"rules": "шаблоны с `*`/`**`, совпадение по родительскому каталогу, `!`, последняя подходящая строка, источники COPY"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "negation-order",
+					"form": "A",
+					"description": "исключение и возврат `!` одних и тех же файлов в разном порядке: решает последняя подходящая строка"
+				},
+				{
+					"id": "root-glob",
+					"form": "B",
+					"description": "`*.md`, `*.log` без каталога совпадают только в корне, `**/` — на любой глубине"
+				},
+				{
+					"id": "cache-trigger",
+					"form": "anchor",
+					"description": "правка каких файлов сбросит кэш конкретной COPY: исключённые из контекста не в счёт"
+				},
+				{
+					"id": "dir-reinclude",
+					"form": "X",
+					"description": "шаблон каталога исключает всё содержимое, `!` возвращает отдельный файл или подкаталог"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{
+			"name": "tree",
+			"description": "состав файлов проекта Node.js: исходники, тесты, документация, журналы, конфигурация"
+		},
+		{ "name": "dockerfile", "description": "`COPY . .` или отдельные COPY каталогов и шаблонов" }
+	],
+	"essentialParams": [
+		{ "name": "patterns", "description": "виды шаблонов: каталог, `*` в корне, `**`, возврат `!`" },
+		{ "name": "order", "description": "порядок строк исключения и возврата" },
+		{ "name": "question", "description": "что спрашивается: состав образа или файлы, сбрасывающие кэш одной COPY" }
+	],
+	"language": "dockerfile",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"семантику шаблонов `.dockerignore`: `*`, `?`, `**`, начальный `/`",
+			"исключение каталога вместе с содержимым и возврат файлов через `!`",
+			"правило «решает последняя подходящая строка»",
+			"какие файлы забирают COPY с каталогом, шаблоном и `.`",
+			"что исключённые файлы не влияют на кэш COPY"
+		],
+		"doesNotCheck": [
+			"`.dockerignore` рядом с Dockerfile (`<имя>.dockerignore`) и несколько контекстов",
+			"копирование самих Dockerfile и `.dockerignore`",
+			"символьные ссылки"
+		]
+	},
+	"wrongSolutions": [
+		{ "id": "first-match", "defect": "решает первая подходящая строка, а не последняя", "mustBeCaught": true },
+		{
+			"id": "glob-recursive",
+			"defect": "считает, что шаблон без каталога (`*.md`) совпадает на любой глубине, как в `.gitignore`",
+			"mustBeCaught": true
+		},
+		{ "id": "star-crosses-slash", "defect": "считает, что `*` переходит через `/`", "mustBeCaught": true },
+		{
+			"id": "no-parent-match",
+			"defect": "считает, что шаблон каталога не исключает файлы внутри него",
+			"mustBeCaught": true
+		},
+		{ "id": "negation-ignored", "defect": "не учитывает строки с `!`", "mustBeCaught": true },
+		{
+			"id": "ignored-counts-cache",
+			"defect": "считает, что правка исключённого из контекста файла сбрасывает кэш COPY",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 6, "caught": 6 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0202,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

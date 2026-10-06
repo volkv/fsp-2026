@@ -1,0 +1,158 @@
+{
+	"key": "ops.containers.layer-cache",
+	"version": 1,
+	"specialization": "devops",
+	"block": "ops.containers",
+	"format": "config_eval",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": {
+				"stages": 1,
+				"instructions": "8–13",
+				"rules": "цепочка инвалидации, содержимое копируемых файлов, текст RUN, ARG"
+			},
+			"constructiveRank": 2,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "copy-all-early",
+					"form": "A",
+					"description": "`COPY . .` стоит до установки зависимостей: правка любого исходника пересобирает и установку"
+				},
+				{
+					"id": "lock-file",
+					"form": "B",
+					"description": "зависимости копируются отдельно: правка lock-файла сбрасывает кэш с копирования манифестов"
+				},
+				{
+					"id": "run-text",
+					"form": "anchor",
+					"description": "изменён текст одной RUN: заново выполняется она и всё после неё, сетевые RUN до неё — из кэша"
+				},
+				{
+					"id": "build-arg",
+					"form": "X",
+					"description": "новое значение `--build-arg`: кэш сбрасывается на первом использовании аргумента, а не на объявлении"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"stages": "3–4",
+				"instructions": "14–20",
+				"rules": "цепочка внутри стадии, стадия на стадии, COPY --from, пропуск ненужной стадии"
+			},
+			"constructiveRank": 3,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "builder-source",
+					"form": "A",
+					"description": "правка исходника стадии сборки: итоговая стадия пересобирается с первого `COPY --from`, а не с начала"
+				},
+				{
+					"id": "base-update",
+					"form": "B",
+					"description": "новый дайджест базового образа первой стадии: пересобираются она, стадии на ней и копирующие из них"
+				},
+				{
+					"id": "deps-lock",
+					"form": "anchor",
+					"description": "правка lock-файла в стадии зависимостей распространяется через `FROM` и `COPY --from`"
+				},
+				{
+					"id": "unused-stage",
+					"form": "X",
+					"description": "в файле есть стадия, не нужная итоговой: BuildKit её не выполняет вовсе"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "stack", "description": "Node.js, Python или Go: базовые образы, манифесты, команды сборки" },
+		{ "name": "layout", "description": "комментарии, необязательные ENV/LABEL/EXPOSE, число шагов сборки" }
+	],
+	"essentialParams": [
+		{ "name": "change", "description": "что изменилось: исходник, lock-файл, текст RUN, значение ARG, базовый образ" },
+		{ "name": "order", "description": "где стоят копирование зависимостей, `COPY . .` и объявление ARG" },
+		{ "name": "stages", "description": "связи стадий: FROM на стадии, COPY --from, стадия вне цели" }
+	],
+	"language": "dockerfile",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"цепочку инвалидации кэша слоёв по порядку инструкций",
+			"зависимость кэша COPY от содержимого копируемых файлов",
+			"кэш RUN по тексту команды, а не по состоянию сети",
+			"влияние ARG на кэш с места первого использования",
+			"распространение пересборки между стадиями через FROM и COPY --from",
+			"пропуск стадий, не нужных цели сборки"
+		],
+		"doesNotCheck": [
+			"`.dockerignore` (отдельное семейство)",
+			"кэш-монтирования `RUN --mount=type=cache` и внешний кэш реестра",
+			"совпадение содержимого файлов, пересобранных в другой стадии"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "only-changed",
+			"defect": "называет только инструкцию, которую затронуло изменение, без всех следующих за ней",
+			"mustBeCaught": true
+		},
+		{
+			"id": "text-only",
+			"defect": "считает, что кэш COPY зависит только от текста инструкции, а не от содержимого файлов",
+			"mustBeCaught": true
+		},
+		{
+			"id": "network-reruns",
+			"defect": "считает, что RUN, обращающаяся к сети (`apt-get update`, `apk add`), выполняется при каждой сборке",
+			"mustBeCaught": true
+		},
+		{
+			"id": "arg-at-declaration",
+			"defect": "сбрасывает кэш с места объявления ARG, а не с первого использования",
+			"mustBeCaught": true
+		},
+		{ "id": "arg-ignored", "defect": "считает, что `--build-arg` на кэш не влияет", "mustBeCaught": true },
+		{
+			"id": "whole-file-after",
+			"defect": "читает многостадийный файл как одну цепочку: пересобирает всё ниже первой изменившейся строки",
+			"mustBeCaught": true
+		},
+		{
+			"id": "copy-from-cached",
+			"defect": "не пересобирает `COPY --from`, когда стадия-источник пересобрана",
+			"mustBeCaught": true
+		},
+		{
+			"id": "from-stage-cached",
+			"defect": "не пересобирает стадию, построенную на пересобранной стадии (`FROM deps`)",
+			"mustBeCaught": true
+		},
+		{
+			"id": "unused-stage-built",
+			"defect": "выполняет и стадии, которые итоговой стадии не нужны",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 9, "caught": 9 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0303,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

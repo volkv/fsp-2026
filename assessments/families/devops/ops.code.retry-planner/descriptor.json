@@ -1,0 +1,141 @@
+{
+	"key": "ops.code.retry-planner",
+	"version": 1,
+	"specialization": "devops",
+	"block": "ops.code",
+	"format": "practice_code",
+	"answerKind": "code",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.8 },
+			"constructive": {
+				"policy": 1,
+				"durations": false,
+				"attemptTimeout": false,
+				"changeStep": "бюджет повторов в минуту"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 2700,
+			"classes": [
+				{ "id": "linear", "form": "A", "description": "пауза перед повтором после k-й попытки — min(C, B·k)" },
+				{ "id": "exponential", "form": "B", "description": "пауза — min(C, B·2^(k−1))" },
+				{
+					"id": "decorrelated",
+					"form": "anchor",
+					"description": "пауза по рекурсии d₀ = B, d_k = min(C, ⌊(B + 3·d_(k−1))/2⌋)"
+				},
+				{
+					"id": "retry-after",
+					"form": "X",
+					"description": "ответ 429/503 может нести Retry-After: пауза — min(C, подсказка), без подсказки — B"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.8 },
+			"constructive": {
+				"policy": 1,
+				"durations": true,
+				"attemptTimeout": true,
+				"changeStep": "бюджет повторов в минуту"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 3000,
+			"classes": [
+				{
+					"id": "linear",
+					"form": "A",
+					"description": "линейная пауза от конца попытки; попытка дольше T обрывается и считается timeout"
+				},
+				{
+					"id": "exponential",
+					"form": "B",
+					"description": "экспоненциальная пауза от конца попытки с тайм-аутом попытки T"
+				},
+				{
+					"id": "decorrelated",
+					"form": "anchor",
+					"description": "детерминированная decorrelated-пауза от конца попытки с тайм-аутом попытки T"
+				},
+				{
+					"id": "retry-after",
+					"form": "X",
+					"description": "Retry-After с потолком C, иначе B; пауза от конца попытки с тайм-аутом попытки T"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "data", "description": "имена заданий, моменты старта, коды ответов, подсказки и длительности попыток" },
+		{ "name": "sizes", "description": "число заданий, лимит попыток M, срок D, B, C, T, бюджет R" }
+	],
+	"essentialParams": [
+		{
+			"name": "policy",
+			"description": "политика паузы: линейная, экспонента, decorrelated по явной формуле, Retry-After"
+		},
+		{ "name": "durations", "description": "Senior: длительность попыток, пауза от конца попытки, тайм-аут попытки T" },
+		{
+			"name": "retry-budget",
+			"description": "шаг «измени своё решение»: общий бюджет повторов R в минуту, перенос повтора на следующую минуту"
+		}
+	],
+	"language": null,
+	"practice": { "languages": ["python3", "go"], "hiddenTestGroups": 5 },
+	"qa": null,
+	"changeStep": {
+		"description": "Новое условие: в каждой минуте [60w, 60(w+1)) может начаться не больше R повторов всех заданий вместе; повтор сверх бюджета переносится на начало следующей минуты и проверяется снова, срок задания действует для перенесённого момента, следующая пауза отсчитывается от фактической попытки.",
+		"weight": 0.3
+	},
+	"rubric": { "kind": "groups" },
+	"coverage": {
+		"checks": [
+			"повторяемые, неповторяемые и успешные коды ответа",
+			"лимит попыток M — попыток, а не повторов",
+			"срок задания: попытка точно в момент срока ещё делается",
+			"формула паузы политики с потолком C",
+			"рекурсивная decorrelated-пауза по явной формуле (опорный класс)",
+			"подсказка Retry-After с потолком (резервный класс)",
+			"длительность попытки и тайм-аут попытки T (Senior)",
+			"глобальный бюджет повторов поверх политики: событийная обработка заданий в порядке времени (шаг «измени своё решение»)"
+		],
+		"doesNotCheck": [
+			"настоящие часы, потоки и очереди заданий",
+			"случайный джиттер: формулы детерминированы",
+			"архитектуру и стиль кода"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "deadline-strict",
+			"defect": "не делает попытку, которая приходится ровно на момент срока",
+			"mustBeCaught": true
+		},
+		{ "id": "retries-not-attempts", "defect": "считает M числом повторов: делает M + 1 попыток", "mustBeCaught": true },
+		{ "id": "all-retryable", "defect": "повторяет любой неуспешный ответ, в том числе 4xx", "mustBeCaught": true },
+		{ "id": "delay-off-by-one", "defect": "сдвигает номер попытки в формуле паузы на один", "mustBeCaught": true },
+		{ "id": "hint-uncapped", "defect": "класс Retry-After: берёт подсказку без потолка C", "mustBeCaught": true },
+		{
+			"id": "delay-from-start",
+			"defect": "Senior: отсчитывает паузу от начала попытки, а не от её конца",
+			"mustBeCaught": true
+		},
+		{
+			"id": "timeout-not-cut",
+			"defect": "Senior: не обрывает попытку дольше T — ждёт её конца и берёт её код",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 7, "caught": 7 },
+		"hiddenTestsMutationScore": 1,
+		"answerCollision": 0,
+		"transfer": 0,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

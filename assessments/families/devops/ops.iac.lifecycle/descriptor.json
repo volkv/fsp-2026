@@ -1,0 +1,106 @@
+{
+	"key": "ops.iac.lifecycle",
+	"version": 1,
+	"specialization": "devops",
+	"block": "ops.iac",
+	"format": "config_eval",
+	"answerKind": "set",
+	"levels": [
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"resources": "5–7",
+				"rules": "prevent_destroy, ignore_changes, create_before_destroy, replace_triggered_by, moved",
+				"interacting": "два-три правила lifecycle на одних ресурсах"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "ignore-changes",
+					"form": "A",
+					"description": "ignore_changes скрывает изменения перечисленных атрибутов, в том числе требующих замены, но не остальных"
+				},
+				{
+					"id": "prevent-destroy",
+					"form": "B",
+					"description": "prevent_destroy: замена защищённого ресурса — ошибка плана, а удалённый из описания ресурс уже не защищён"
+				},
+				{
+					"id": "replace-triggered",
+					"form": "anchor",
+					"description": "replace_triggered_by: изменение на месте указанного ресурса заменяет зависящий"
+				},
+				{
+					"id": "combo",
+					"form": "X",
+					"description": "moved спасает защищённый ресурс от удаления; ignore_changes и create_before_destroy рядом"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "имена ресурсов, значения атрибутов, идентификаторы" },
+		{ "name": "layout", "description": "порядок ресурсов в описании" }
+	],
+	"essentialParams": [
+		{ "name": "lifecycle", "description": "какие правила lifecycle стоят у изменяемых ресурсов" },
+		{ "name": "change", "description": "какие атрибуты меняются: требующие замены, на месте или игнорируемые" },
+		{ "name": "identity", "description": "ресурс удалён из описания, перенесён moved или остался на месте" }
+	],
+	"language": "hcl",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"prevent_destroy при замене и при удалении блока ресурса из описания",
+			"ignore_changes для атрибутов, требующих замены, и для изменяемых на месте",
+			"create_before_destroy в действии плана",
+			"replace_triggered_by при изменении на месте и при замене",
+			"moved вместе с prevent_destroy"
+		],
+		"doesNotCheck": ["атрибуты, требующие замены, у конкретных провайдеров", "работу с удалённым состоянием"]
+	},
+	"wrongSolutions": [
+		{ "id": "ignore-changes-ignored", "defect": "не учитывает ignore_changes", "mustBeCaught": true },
+		{
+			"id": "ignore-all",
+			"defect": "считает, что ignore_changes скрывает все изменения ресурса",
+			"mustBeCaught": true
+		},
+		{
+			"id": "prevent-allows-replace",
+			"defect": "считает, что prevent_destroy запрещает только удаление, а замену разрешает",
+			"mustBeCaught": true
+		},
+		{
+			"id": "removed-still-protected",
+			"defect": "считает, что prevent_destroy защищает ресурс, блок которого удалён из описания",
+			"mustBeCaught": true
+		},
+		{
+			"id": "trigger-only-on-replace",
+			"defect": "считает, что replace_triggered_by срабатывает только на замену указанного ресурса",
+			"mustBeCaught": true
+		},
+		{ "id": "cbd-ignored", "defect": "не отличает замену с create_before_destroy от обычной", "mustBeCaught": true },
+		{
+			"id": "moved-ignored",
+			"defect": "не учитывает moved: защищённый перенесённый ресурс считается удаляемым",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 7, "caught": 7 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0092,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

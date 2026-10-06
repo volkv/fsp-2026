@@ -1,0 +1,102 @@
+{
+	"key": "ops.iac.plan-actions",
+	"version": 1,
+	"specialization": "devops",
+	"block": "ops.iac",
+	"format": "config_eval",
+	"answerKind": "set",
+	"levels": [
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"resources": "6–9",
+				"rules": "создание, удаление, изменение на месте, замена, moved, значения после применения",
+				"interacting": "замена ресурса + ссылки зависимых или переименование"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "force-new",
+					"form": "A",
+					"description": "изменения атрибутов: одни требуют замены, другие меняются на месте; ресурс добавлен и удалён"
+				},
+				{
+					"id": "rename-moved",
+					"form": "B",
+					"description": "переименования: с блоком moved — тот же объект, без него — удаление и создание"
+				},
+				{
+					"id": "known-after-apply",
+					"form": "anchor",
+					"description": "замена ресурса делает его идентификатор неизвестным: зависимые заменяются или меняются по своим атрибутам"
+				},
+				{
+					"id": "combo",
+					"form": "X",
+					"description": "moved вместе с заменой и переименование без moved ресурса, на который ссылаются другие"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "имена ресурсов, значения атрибутов, идентификаторы в состоянии" },
+		{ "name": "layout", "description": "какие ресурсы есть в описании и в каком порядке" }
+	],
+	"essentialParams": [
+		{ "name": "change", "description": "какие атрибуты меняются: требующие замены или изменяемые на месте" },
+		{ "name": "identity", "description": "переименование с moved или без него, новые и удалённые ресурсы" },
+		{
+			"name": "references",
+			"description": "ссылаются ли зависимые на заменяемый или создаваемый ресурс и каким атрибутом"
+		}
+	],
+	"language": "hcl",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"действия плана по адресам: create, update, replace, destroy",
+			"атрибуты, требующие замены, против изменяемых на месте",
+			"переименование ресурса с блоком moved и без него",
+			"значения, известные только после применения, и их влияние на зависимые ресурсы"
+		],
+		"doesNotCheck": [
+			"атрибуты, требующие замены, у конкретных облачных провайдеров (они заданы в условии)",
+			"работу с удалённым состоянием и блокировками"
+		]
+	},
+	"wrongSolutions": [
+		{ "id": "all-update", "defect": "меняет на месте и атрибуты, требующие замены", "mustBeCaught": true },
+		{ "id": "any-replace", "defect": "заменяет ресурс при любом изменении атрибута", "mustBeCaught": true },
+		{ "id": "rename-noop", "defect": "считает переименованный без moved ресурс тем же объектом", "mustBeCaught": true },
+		{
+			"id": "moved-recreate",
+			"defect": "не учитывает блок moved: удаляет старый адрес и создаёт новый",
+			"mustBeCaught": true
+		},
+		{
+			"id": "no-propagation",
+			"defect": "не учитывает, что ссылка на заменяемый или создаваемый ресурс станет известна только после применения",
+			"mustBeCaught": true
+		},
+		{
+			"id": "propagate-replace",
+			"defect": "заменяет каждый ресурс, ссылающийся на заменяемый, даже если атрибут меняется на месте",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 6, "caught": 6 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0062,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

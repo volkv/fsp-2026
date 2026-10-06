@@ -1,0 +1,129 @@
+{
+	"key": "ops.k8s.label-selectors",
+	"version": 1,
+	"specialization": "devops",
+	"block": "ops.k8s",
+	"format": "config_eval",
+	"answerKind": "set",
+	"levels": [
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": { "pods": "7–9", "selector": "matchLabels Service, 2–3 пары", "rules": 2 },
+			"constructiveRank": 2,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "subset",
+					"form": "A",
+					"description": "поды с лишними метками подходят, поды с частью пар или другим значением — нет"
+				},
+				{
+					"id": "readiness",
+					"form": "B",
+					"description": "часть подходящих по меткам подов не Ready: в endpoints их нет"
+				},
+				{
+					"id": "namespace",
+					"form": "anchor",
+					"description": "поды с подходящими метками есть в другом namespace: Service их не выбирает"
+				},
+				{
+					"id": "template-labels",
+					"form": "X",
+					"description": "поды создают Deployment из манифеста: метки подов — из шаблона, а не из metadata.labels самого Deployment"
+				}
+			]
+		},
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"pods": "8–10",
+				"selector": "matchLabels + 2–3 matchExpressions",
+				"operators": "In, NotIn, Exists, DoesNotExist",
+				"rules": 4
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 420,
+			"classes": [
+				{ "id": "notin-missing", "form": "A", "description": "NotIn выбирает и поды вовсе без этого ключа" },
+				{
+					"id": "empty-value",
+					"form": "B",
+					"description": "метка с пустым значением существует: Exists её видит, DoesNotExist — нет"
+				},
+				{
+					"id": "and-sections",
+					"form": "anchor",
+					"description": "matchLabels и все выражения соединяются через И: под должен пройти каждое"
+				},
+				{
+					"id": "combined",
+					"form": "X",
+					"description": "NotIn по отсутствующему ключу вместе с подами из другого namespace"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "имена приложений, namespace, ключей и значений меток, имена подов" },
+		{ "name": "order", "description": "порядок подов в таблице и пар в селекторе" }
+	],
+	"essentialParams": [
+		{
+			"name": "trap",
+			"description": "какое правило решает: подмножество меток, готовность, namespace, метки шаблона, оператор выражения, пустое значение"
+		},
+		{ "name": "selector-shape", "description": "только matchLabels или вместе с matchExpressions" }
+	],
+	"language": "yaml",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"selector Service выбирает поды по всем парам, лишние метки пода не мешают",
+			"в endpoints попадают только готовые поды своего namespace",
+			"метки подов Deployment — это метки шаблона",
+			"операторы In, NotIn, Exists, DoesNotExist и их соединение с matchLabels через И"
+		],
+		"doesNotCheck": [
+			"Service без селектора и ручные Endpoints/EndpointSlice",
+			"selector по полям (fieldSelector) и метки узлов"
+		]
+	},
+	"wrongSolutions": [
+		{ "id": "any-label", "defect": "выбирает под, если совпала хотя бы одна пара селектора", "mustBeCaught": true },
+		{
+			"id": "exact-labels",
+			"defect": "требует, чтобы метки пода совпадали с селектором целиком",
+			"mustBeCaught": true
+		},
+		{ "id": "ignore-ready", "defect": "включает в endpoints поды, которые не Ready", "mustBeCaught": true },
+		{ "id": "ignore-namespace", "defect": "выбирает поды из любого namespace", "mustBeCaught": true },
+		{
+			"id": "deployment-labels",
+			"defect": "считает метками подов metadata.labels самого Deployment",
+			"mustBeCaught": true
+		},
+		{
+			"id": "notin-requires-key",
+			"defect": "считает, что NotIn не выбирает под без этого ключа",
+			"mustBeCaught": true
+		},
+		{ "id": "empty-as-absent", "defect": "считает метку с пустым значением отсутствующей", "mustBeCaught": true },
+		{ "id": "or-sections", "defect": "соединяет matchLabels и matchExpressions через ИЛИ", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 8, "caught": 8 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0153,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

@@ -1,0 +1,146 @@
+{
+	"key": "ops.observability.incident-timeline",
+	"version": 1,
+	"specialization": "devops",
+	"block": "ops.observability",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": {
+				"services": 5,
+				"log-lines": "14–24",
+				"interacting": "граф зависимостей + определения MTTD и MTTR"
+			},
+			"constructiveRank": 3,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "silent-root",
+					"form": "A",
+					"description": "первопричина зависла молча: зависимые сервисы пишут ошибки раньше неё"
+				},
+				{
+					"id": "noisy-warn",
+					"form": "B",
+					"description": "предупреждения до инцидента: отказ начинается с записи ERROR, а не WARN"
+				},
+				{
+					"id": "slow-recovery",
+					"form": "anchor",
+					"description": "зависимый сервис восстанавливается заметно позже первопричины: MTTR — до последнего восстановления"
+				},
+				{
+					"id": "flapping",
+					"form": "X",
+					"description": "сервис восстанавливается и снова отказывает: считается последнее восстановление"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"services": 7,
+				"log-lines": "18–30",
+				"interacting": "граф глубже двух уровней + сдвиг часов, несколько кандидатов или повторный отказ"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "clock-skew",
+					"form": "A",
+					"description": "часы одного хоста сдвинуты: времена его записей надо привести к реальному времени"
+				},
+				{
+					"id": "two-candidates",
+					"form": "B",
+					"description": "два независимых отказа со здоровыми зависимостями: первопричина — более ранний"
+				},
+				{
+					"id": "skew-flap",
+					"form": "anchor",
+					"description": "сдвиг часов хоста и повторный отказ сервиса одновременно"
+				},
+				{
+					"id": "deep-chain",
+					"form": "X",
+					"description": "цепочка из нескольких молчащих сервисов: первая ошибка называет не первопричину, а промежуточный сервис"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "имена сервисов, тексты записей, шумовые записи" },
+		{ "name": "numbers", "description": "моменты записей, сдвиг часов" }
+	],
+	"essentialParams": [
+		{ "name": "root", "description": "где первопричина: молчит, пишет первой, одна из двух, в глубине цепочки" },
+		{
+			"name": "timeline",
+			"description": "предупреждения до отказа, позднее восстановление зависимого, повторный отказ, сдвиг часов"
+		}
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"первопричина по графу зависимостей, а не по первой ошибке или первому оповещению",
+			"MTTD и MTTR по заданным определениям",
+			"предупреждения, повторные отказы и позднее восстановление",
+			"приведение журналов с разных хостов к одному времени"
+		],
+		"doesNotCheck": ["работу с конкретной системой сбора журналов", "организацию дежурств и разбор инцидента"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "earliest-error-root",
+			"defect": "считает первопричиной сервис с самой ранней записью ERROR",
+			"mustBeCaught": true
+		},
+		{ "id": "first-alert-root", "defect": "считает первопричиной сервис из первого оповещения", "mustBeCaught": true },
+		{
+			"id": "named-upstream-root",
+			"defect": "считает первопричиной зависимость, названную в самой ранней ошибке",
+			"mustBeCaught": true
+		},
+		{
+			"id": "mttd-from-root",
+			"defect": "отсчитывает MTTD от первой ошибки первопричины, а не от начала инцидента",
+			"mustBeCaught": true
+		},
+		{
+			"id": "mttr-from-alert",
+			"defect": "отсчитывает MTTR от первого оповещения, а не от начала инцидента",
+			"mustBeCaught": true
+		},
+		{
+			"id": "mttr-root-only",
+			"defect": "считает восстановлением момент восстановления первопричины",
+			"mustBeCaught": true
+		},
+		{
+			"id": "first-recovery",
+			"defect": "берёт первое восстановление сервиса, который потом снова отказал",
+			"mustBeCaught": true
+		},
+		{ "id": "warn-as-error", "defect": "считает началом отказа запись WARN", "mustBeCaught": true },
+		{ "id": "skew-ignored", "defect": "не исправляет время записей хоста со сдвинутыми часами", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 9, "caught": 9 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

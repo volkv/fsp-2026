@@ -1,0 +1,161 @@
+{
+	"key": "ops.cicd.workflow-triggers",
+	"version": 1,
+	"specialization": "devops",
+	"block": "ops.cicd",
+	"format": "config_eval",
+	"answerKind": "set",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": {
+				"workflows": "4–5",
+				"filters": "один фильтр одного вида у события: branches, branches-ignore, tags, paths или paths-ignore",
+				"rules": "* и **, целевая ветка pull request, фильтр только для веток или только для тегов"
+			},
+			"constructiveRank": 2,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "branch-glob",
+					"form": "A",
+					"description": "push в ветку с / в имени: * не проходит через /, ** проходит; фильтр только tags push ветки не запускает"
+				},
+				{
+					"id": "pr-target",
+					"form": "B",
+					"description": "pull request: branches и branches-ignore сверяются с целевой веткой, а не с исходной"
+				},
+				{
+					"id": "paths-ignore",
+					"form": "anchor",
+					"description": "push с несколькими изменёнными файлами: paths — хватит одного файла, paths-ignore — не запускает, только если проигнорированы все"
+				},
+				{
+					"id": "tag-push",
+					"form": "X",
+					"description": "push тега: workflow с фильтром только для веток не запускается, с tags — по шаблону, без фильтров — запускается"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"workflows": "5–6",
+				"filters": "фильтр веток и фильтр путей вместе, отрицания ! в branches и paths",
+				"interacting": "оба фильтра должны выполниться, последний совпавший шаблон решает, paths проверяется по каждому файлу"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "negation-order",
+					"form": "A",
+					"description": "branches с ! и повторным включением: решает последний совпавший шаблон, а не первый"
+				},
+				{
+					"id": "branches-and-paths",
+					"form": "B",
+					"description": "у события и фильтр веток, и фильтр путей: workflow запускается, только если выполнены оба"
+				},
+				{
+					"id": "paths-negation",
+					"form": "anchor",
+					"description": "paths с !: исключённый файл не запрещает запуск, если подходит другой изменённый файл"
+				},
+				{
+					"id": "pr-combined",
+					"form": "X",
+					"description": "pull request с фильтрами веток и путей: ветки — по целевой ветке, пути — по файлам pull request"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{
+			"name": "workflows",
+			"description": "имена файлов workflow, задания и команды, имена веток и тегов, изменённые файлы"
+		},
+		{ "name": "patterns", "description": "набор шаблонов веток, тегов и путей" }
+	],
+	"essentialParams": [
+		{ "name": "event", "description": "вид события: push в ветку, push тега, pull request" },
+		{
+			"name": "filter-mechanics",
+			"description": "что решает: * и **, вид ссылки, целевая ветка, paths-ignore, сочетание фильтров, порядок шаблонов с !"
+		}
+	],
+	"language": "yaml",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"события push и pull_request в блоке on, краткие формы on: push и on: [push, pull_request]",
+			"фильтры branches, branches-ignore, tags, paths, paths-ignore",
+			"глоб-шаблоны: * не проходит через /, ** и **/ проходят",
+			"push тега и фильтры только для веток, push ветки и фильтр только tags",
+			"фильтр веток pull request по целевой ветке",
+			"сочетание фильтра веток и фильтра путей",
+			"отрицания ! в branches и paths и порядок шаблонов"
+		],
+		"doesNotCheck": [
+			"типы активности pull_request (types), pull_request_target, workflow_dispatch, schedule и workflow_run",
+			"tags-ignore и фильтры путей при push тега",
+			"шаблоны ?, + и [] и экранирование",
+			"ограничение на число изменённых файлов при сравнении"
+		]
+	},
+	"wrongSolutions": [
+		{ "id": "star-crosses-slash", "defect": "считает, что * в шаблоне проходит и через /", "mustBeCaught": true },
+		{
+			"id": "pr-source-branch",
+			"defect": "сверяет branches у pull_request с исходной веткой, а не с целевой",
+			"mustBeCaught": true
+		},
+		{
+			"id": "missing-filter-allows",
+			"defect": "считает, что фильтр только для веток не мешает push тега, а фильтр только tags — push ветки",
+			"mustBeCaught": true
+		},
+		{
+			"id": "tag-matches-branches",
+			"defect": "сверяет имя тега с шаблонами branches, а имя ветки — с шаблонами tags",
+			"mustBeCaught": true
+		},
+		{
+			"id": "paths-ignore-any",
+			"defect": "не запускает workflow, если хотя бы один изменённый файл попал под paths-ignore",
+			"mustBeCaught": true
+		},
+		{
+			"id": "paths-all",
+			"defect": "требует, чтобы под paths подошли все изменённые файлы, а не хотя бы один",
+			"mustBeCaught": true
+		},
+		{
+			"id": "paths-or-branches",
+			"defect": "запускает workflow, если выполнен хотя бы один из фильтров веток и путей",
+			"mustBeCaught": true
+		},
+		{ "id": "first-match", "defect": "решает первый совпавший шаблон, а не последний", "mustBeCaught": true },
+		{
+			"id": "negated-file-blocks",
+			"defect": "не запускает workflow, если хотя бы один изменённый файл попал под шаблон с !",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 9, "caught": 9 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0214,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

@@ -1,0 +1,150 @@
+{
+	"key": "ops.cicd.trigger-rules",
+	"version": 1,
+	"specialization": "devops",
+	"block": "ops.cicd",
+	"format": "config_eval",
+	"answerKind": "set",
+	"levels": [
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"jobs": "5–6",
+				"rules": "1–4 правила у задания",
+				"interacting": "первое совпадение, переменные события, changes, when"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "rule-order",
+					"form": "A",
+					"description": "у задания совпадает несколько правил: решает первое, в том числе when: never раньше общего правила"
+				},
+				{
+					"id": "mr-vs-branch",
+					"form": "B",
+					"description": "конвейер merge request: CI_COMMIT_BRANCH не задана, правила по ветке не срабатывают, а != срабатывает"
+				},
+				{
+					"id": "changes",
+					"form": "anchor",
+					"description": "правила с changes: шаблоны * не проходят через каталоги, **/ — проходят"
+				},
+				{
+					"id": "tag",
+					"form": "X",
+					"description": "конвейер тега: ветки нет, задания по ветке не создаются, по тегу — создаются"
+				}
+			]
+		},
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"jobs": "6–7",
+				"rules": "workflow, needs, optional, changes, manual",
+				"interacting": "решение по заданию влияет на целостность конвейера через needs"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "workflow-vars",
+					"form": "A",
+					"description": "workflow: rules решают, будет ли конвейер, и задают переменную, от которой зависят правила заданий"
+				},
+				{
+					"id": "needs-missing",
+					"form": "B",
+					"description": "созданное задание зависит через needs от несозданного: конвейер не создаётся с ошибкой"
+				},
+				{
+					"id": "optional-needs",
+					"form": "anchor",
+					"description": "зависимость от несозданного задания помечена optional: true — конвейер создаётся"
+				},
+				{
+					"id": "tag-changes",
+					"form": "X",
+					"description": "конвейер тега: changes истинно всегда, ручные задания входят в конвейер"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "jobs", "description": "имена и стадии заданий, команды, изменённые файлы, имена веток и тегов" },
+		{ "name": "rules", "description": "набор и порядок правил у заданий" }
+	],
+	"essentialParams": [
+		{ "name": "event", "description": "вид события: push в ветку, merge request, тег" },
+		{ "name": "rule-mechanics", "description": "что решает: порядок правил, changes, workflow, needs и optional" }
+	],
+	"language": "yaml",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"порядок проверки rules и первое совпадение",
+			"предопределённые переменные в конвейерах ветки, merge request и тега",
+			"шаблоны changes и их особенность на теге",
+			"when: never и when: manual",
+			"workflow: rules и переменные конвейера",
+			"needs к несозданному заданию и optional: true"
+		],
+		"doesNotCheck": [
+			"only/except и include",
+			"конвейеры по расписанию, родительские и дочерние конвейеры",
+			"changes:compare_to и exists"
+		]
+	},
+	"wrongSolutions": [
+		{ "id": "last-match", "defect": "решает последнее совпавшее правило, а не первое", "mustBeCaught": true },
+		{
+			"id": "no-match-creates",
+			"defect": "создаёт задание, у которого не совпало ни одно правило",
+			"mustBeCaught": true
+		},
+		{
+			"id": "branch-in-mr",
+			"defect": "считает, что в конвейере merge request CI_COMMIT_BRANCH равна исходной ветке",
+			"mustBeCaught": true
+		},
+		{
+			"id": "tag-has-branch",
+			"defect": "считает, что в конвейере тега CI_COMMIT_BRANCH равна ветке main",
+			"mustBeCaught": true
+		},
+		{ "id": "manual-omitted", "defect": "не включает ручные задания в конвейер", "mustBeCaught": true },
+		{
+			"id": "changes-on-tag-false",
+			"defect": "сверяет changes с изменёнными файлами и на конвейере тега",
+			"mustBeCaught": true
+		},
+		{
+			"id": "star-crosses-slash",
+			"defect": "считает, что * в шаблоне changes проходит и через каталоги",
+			"mustBeCaught": true
+		},
+		{ "id": "needs-ignored", "defect": "не видит ошибки needs к несозданному заданию", "mustBeCaught": true },
+		{ "id": "optional-errors", "defect": "считает ошибкой и зависимость с optional: true", "mustBeCaught": true },
+		{
+			"id": "workflow-ignored",
+			"defect": "не применяет workflow: rules — ни запрет конвейера, ни их переменные",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 10, "caught": 10 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0141,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}
