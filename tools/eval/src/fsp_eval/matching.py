@@ -21,11 +21,11 @@ their resume shows (a lead — on senior, the catalog has no lead); 0.7 of those
 lower. The outcome is decided when the catalog of the product is known (the bridge's `info`), by the harness's model
 of an honest test: a defining block is passed only by a person who really holds every skill of it the world models
 (a block naming none — by holding at least half of the stack), never by a person tested above their real grade; the
-practice is passed with probability 0.85 by a person who holds one of its languages (a QA practice runs its cases in
-the harness language, which the person need not know). A confirmation therefore never claims a skill the world says
-the person lacks — except in the explicit scenario of false confirmations: 0.3 of the people with no honest
-confirmation are confirmed on their first attempt anyway, ranked by a variant of their own and never mixed into the
-main measurement.
+practice is passed with probability 0.85 by a person who holds one of its languages (a practice that is not a program
+the person writes — QA cases a harness runs — needs no language and confirms none). A confirmation therefore never
+claims a skill the world says the person lacks — except in the explicit scenario of false confirmations: 0.3 of the
+people with no honest confirmation are confirmed on their first attempt anyway, ranked by a variant of their own and
+never mixed into the main measurement.
 
 Needs: written as employers write them — a title with the level and the role, required and nice skills, the format of
 work with the city, the salary range; stratified by role (`NEEDS_PER_ROLE`, roles without a released test included)
@@ -129,8 +129,6 @@ BLOCK_CUT = 0.6
 BLOCK_SHARE = {"holds": (0.65, 1.0), "lacks": (0.3, 0.59)}
 # The scenario of false confirmations: the share of the people without an honest confirmation confirmed anyway.
 FALSE_CONFIRMED = 0.3
-# The specialization whose practice runs its cases in the harness language: the person need not know it.
-HARNESS_LANGUAGE_SPECIALIZATIONS = frozenset({"qa"})
 
 # Needs of each split by role: every role with a released test, and the roles without one.
 NEEDS_PER_ROLE: dict[str, int] = {
@@ -343,9 +341,11 @@ def plan_of(seed: int, truth: Truth) -> TestPlan | None:
 @dataclass(frozen=True)
 class Catalog:
     """What the harness needs of the product's catalog (the bridge's `info`): the defining blocks of every category
-    with their items and skills, and the practice languages of each specialization with the skill each confirms."""
+    with their items and skills and whether its practice is a program the candidate writes, and the practice languages
+    of each specialization with the skill each confirms."""
 
     defining: dict[tuple[str, str], tuple[tuple[str, int, tuple[str, ...]], ...]]
+    writes_code: dict[tuple[str, str], bool]
     languages: dict[str, tuple[tuple[str, str], ...]]
     version: str
 
@@ -357,6 +357,9 @@ class Catalog:
                     (b["block"], int(b["items"]), tuple(b["skill_keys"])) for b in c["defining"]
                 )
                 for c in info["categories"]
+            },
+            writes_code={
+                (c["specialization"], c["grade"]): bool(c["practice_writes_code"]) for c in info["categories"]
             },
             languages={
                 s["key"]: tuple((language["key"], language["skill"]) for language in s["practice_languages"])
@@ -395,12 +398,13 @@ def _holds_stack(truth: Truth) -> bool:
     return any(len(set(s.skills) & held) >= len(s.skills) / 2 for s in _role_spec(truth.role).stacks)
 
 
-def _practice_language(truth: Truth, specialization: str, catalog: Catalog) -> tuple[str | None, bool]:
-    """The language the person solves the practice in and whether they can: the language of their stack when the
-    practice offers it, else the first one offered they hold; a practice in the harness language — its language."""
+def _practice_language(truth: Truth, specialization: str, grade: str, catalog: Catalog) -> tuple[str | None, bool]:
+    """The language the person writes the practice program in and whether they can: the language of their stack when
+    the practice offers it, else the first one offered they hold; a practice that is not a program — none, and anyone
+    can take it."""
+    if not catalog.writes_code[(specialization, grade)]:
+        return None, True
     offered = catalog.languages[specialization]
-    if specialization in HARNESS_LANGUAGE_SPECIALIZATIONS:
-        return offered[0][0], True
     held = [(key, skill) for key, skill in offered if skill in truth.skills]
     if not held:
         return None, False
@@ -428,10 +432,10 @@ def _attempt(
         if score is None:
             score = rng.randint(round(points * low), cut - 1)
         blocks.append({"block": block, "items": items, "score": score, "cut": cut})
-    language, can = _practice_language(truth, specialization, catalog)
+    language, can = _practice_language(truth, specialization, grade, catalog)
     practice = forced or (not above and can and rng.random() < PRACTICE_PASSED)
     confirmed = practice and all(b["score"] >= b["cut"] for b in blocks)
-    if forced and language is None:
+    if forced and language is None and catalog.writes_code[(specialization, grade)]:
         language = catalog.languages[specialization][0][0]
     return Decision(
         specialization=specialization,

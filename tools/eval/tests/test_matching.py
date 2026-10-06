@@ -178,7 +178,10 @@ def test_an_honest_confirmation_never_claims_what_the_person_lacks():
             assert CATALOG_GRADES.index(d.grade) <= CATALOG_GRADES.index(TEST_GRADE[t.grade])
             for block in blocks[(d.specialization, d.grade)]:
                 assert {k for k in block["skill_keys"] if k in VOCABULARY} <= set(t.skills)
-            if d.specialization != "qa":
+            if d.specialization == "qa":
+                # Cases a harness runs, not a program: no language to confirm.
+                assert d.practice_language is None
+            else:
                 assert languages[d.specialization][d.practice_language] in t.skills
         if len(decisions) == 2:
             retaken += 1

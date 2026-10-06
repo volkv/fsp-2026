@@ -26,9 +26,11 @@ import postgres from 'postgres';
 import { z } from 'zod';
 import {
 	CATALOG,
+	blockDefinition,
 	GRADE_KEYS,
 	gradeDefinition,
 	PRACTICE_LANGUAGE_KEYS,
+	practiceWritesCode,
 	SPECIALIZATION_KEYS,
 	type GradeKey,
 	type SpecializationKey
@@ -153,15 +155,16 @@ const evidenceSchema = z.strictObject({
 
 /**
  * A decision of a test of the harness (contracts 11.1): the specialization and grade tested, the outcome, the sums of its
- * blocks and the language the practice was solved in. The confirmed stack follows from the grade and that language
- * (`confirmedStack`), not from the scores of the attempt; the blocks are the strength of the result the ranking reads.
+ * blocks and the language the practice program was written in. The confirmed stack follows from the grade and that
+ * language (`confirmedStack`), not from the scores of the attempt; the blocks are the strength of the result the ranking
+ * reads. A practice that is code the candidate writes names its language on a confirmation; a practice that is not
+ * (QA: test cases a harness runs) names none — no language is the candidate's there.
  */
 const testResultSchema = z
 	.strictObject({
 		specialization: z.enum(SPECIALIZATION_KEYS),
 		grade: z.enum(GRADE_KEYS),
 		outcome: z.enum(['confirmed', 'not_confirmed', 'undetermined']),
-		/** Required with a confirmed outcome: a confirmation has passed a practice in some language. */
 		practice_language: z.enum(PRACTICE_LANGUAGE_KEYS).optional(),
 		blocks: z
 			.array(
@@ -174,10 +177,23 @@ const testResultSchema = z
 			)
 			.optional()
 	})
-	.refine(
-		(result) => result.outcome !== 'confirmed' || result.practice_language !== undefined,
-		'a confirmed result names the language of its practice'
-	);
+	.superRefine((result, context) => {
+		const writesCode = practiceWritesCode(gradeDefinition(result.specialization, result.grade));
+		if (!writesCode && result.practice_language !== undefined) {
+			context.addIssue({
+				code: 'custom',
+				path: ['practice_language'],
+				message: `the practice of ${result.specialization} × ${result.grade} is not code the candidate writes`
+			});
+		}
+		if (writesCode && result.outcome === 'confirmed' && result.practice_language === undefined) {
+			context.addIssue({
+				code: 'custom',
+				path: ['practice_language'],
+				message: 'a confirmation of a practice program names its language'
+			});
+		}
+	});
 
 export const rankRequestSchema = z.strictObject({
 	command: z.literal('rank'),
@@ -601,12 +617,15 @@ async function recordDecision(
 		})
 		.returning({ id: testAttempts.id });
 	if (!attempt) throw new Error('attempt was not inserted');
-	if (result.practice_language !== undefined) {
+	// The practice the decision was reached with: a program in its language, or (QA) cases a harness runs. A decision
+	// short of a confirmation that names no language has no practice to show.
+	const writesCode = practiceWritesCode(definition);
+	if (confirmed || result.practice_language !== undefined) {
 		await tx.insert(testItems).values({
 			attemptId: attempt.id,
 			seq: definition.practice.position,
 			block: definition.practice.block,
-			format: 'practice_code',
+			format: writesCode ? 'practice_code' : (blockDefinition(definition.practice.block).formats[0] as string),
 			practice: true,
 			familyKey: 'eval-practice',
 			familyVersion: 1,
@@ -617,7 +636,7 @@ async function recordDecision(
 			servedAt: decidedAt,
 			answeredAt: decidedAt,
 			score: confirmed ? 1 : 0,
-			scoreDetail: { language: result.practice_language },
+			scoreDetail: result.practice_language === undefined ? {} : { language: result.practice_language },
 			status: 'scored'
 		});
 	}

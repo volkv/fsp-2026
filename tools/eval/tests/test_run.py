@@ -440,12 +440,14 @@ def test_the_catalog_holds_every_evidence_set_and_the_scenario(options):
     full = {c["id"].split("/")[0]: c for c in rank["candidates"] if c["id"].endswith("/resume+fsp+tests")}
     assert all((full[pid]["fsp"] is not None) == (pid in RECORDS) for pid in full)
     assert all(c["preferences"]["work_formats"] for c in full.values())
-    # Every decision carries its blocks; a confirmation names the language of its practice.
+    # Every decision carries its blocks; a confirmation of a practice program names its language, a QA one (cases a
+    # harness runs) never does.
     decisions = [d for c in full.values() for d in c["test_results"]]
-    assert decisions
+    assert {d["specialization"] for d in decisions if d["outcome"] == "confirmed"} >= {"backend", "qa"}
     for decision in decisions:
         assert decision["blocks"]
-        assert ("practice_language" in decision) == (decision["outcome"] == "confirmed")
+        program = decision["outcome"] == "confirmed" and decision["specialization"] != "qa"
+        assert ("practice_language" in decision) == program
     # The sorting ranks, for every need, the holders of a category it admits.
     sorting = next(r for r in rank["rankings"] if r["name"] == "sorting")
     assert set(sorting["per_need"]) == {v.id for v in WORLD.vacancies_of("holdout")}

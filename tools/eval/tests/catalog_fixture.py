@@ -30,6 +30,7 @@ def catalog_info() -> dict:
                 "specialization": specialization,
                 "grade": grade,
                 "open": True,
+                "practice_writes_code": specialization != "qa",
                 "defining": [{"block": b, "items": 4, "skill_keys": skills} for b, skills in defining],
             }
             for specialization, defining in BLOCKS.items()

@@ -34,11 +34,12 @@ const BLOCKS: Record<string, [string, string]> = {
 	qa: ['qa.auto', 'qa.design']
 };
 
+/** A decision; a confirmed one of a practice program names its language, a QA one (cases, not a program) — none. */
 const decision = (specialization: string, grade: string, margin: number, language = 'python3') => ({
 	specialization,
 	grade,
 	outcome: margin >= 0 ? 'confirmed' : 'not_confirmed',
-	...(margin >= 0 ? { practice_language: language } : {}),
+	...(margin >= 0 && specialization !== 'qa' ? { practice_language: language } : {}),
 	blocks: [
 		{ block: BLOCKS[specialization]?.[0], items: 4, score: 48 + margin, cut: 48 },
 		{ block: BLOCKS[specialization]?.[1], items: 3, score: 36 + margin, cut: 36 }
@@ -166,10 +167,30 @@ describe('the evaluation ranking', () => {
 		expect(answer.categories.weak?.[0]?.confirmed_skill_keys).toContain('go');
 		expect(answer.categories.weak?.[0]?.confirmed_skill_keys).not.toContain('python');
 		expect(answer.categories.failed).toEqual([]);
+		// The QA practice is cases a harness runs: its language is never confirmed, only the defining blocks' skills.
+		expect(answer.categories.other?.[0]?.confirmed_skill_keys).not.toContain('python');
+		expect(answer.categories.other?.[0]?.confirmed_skill_keys.length).toBeGreaterThan(0);
 		expect(answer.categories.untested).toBeUndefined();
 		// A given set is ranked as given, whatever the categories.
 		expect(answer.rankings.given?.n1?.sort()).toEqual(['failed', 'weak']);
 		expect(answer.rankings.given?.n2).toEqual([]);
+	});
+
+	it('refuses a language for a practice that is not a program, and a confirmed program without one', () => {
+		const request = (result: Record<string, unknown>) => ({
+			command: 'rank',
+			as_of: '2026-10-01',
+			candidates: [{ id: 'x', resume: null, fsp: null, test_results: [result] }],
+			needs: [{ id: 'n', text: 'Junior QA-инженер' }],
+			rankings: [{ name: 'full', candidates: ['x'], semantic: false, admission: 'categories' }]
+		});
+		expect(() => rankRequestSchema.parse(request(decision('qa', 'junior', 5)))).not.toThrow();
+		expect(() =>
+			rankRequestSchema.parse(request({ ...decision('qa', 'junior', 5), practice_language: 'python3' }))
+		).toThrow(/not code the candidate writes/);
+		const unnamed: Record<string, unknown> = { ...decision('backend', 'middle', 5) };
+		delete unnamed.practice_language;
+		expect(() => rankRequestSchema.parse(request(unnamed))).toThrow(/names its language/);
 	});
 
 	it('admits by the grade hint of the resume in the experiment without a test', async () => {

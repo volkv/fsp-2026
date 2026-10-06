@@ -13,7 +13,12 @@
 //                categories every candidate holds, in a catalog of a temporary database;
 //   record     — a finished run → a row of `eval_runs` in the format of the quality panel, with its report file.
 import { z } from 'zod';
-import { blockDefinition, CATALOG, PRACTICE_LANGUAGE_SKILLS } from '$lib/server/assessments/contract/catalog';
+import {
+	blockDefinition,
+	CATALOG,
+	PRACTICE_LANGUAGE_SKILLS,
+	practiceWritesCode
+} from '$lib/server/assessments/contract/catalog';
 import type { Docparse } from '$lib/server/documents/docparse';
 import type { ModelAdapter } from '$lib/server/ml/adapter';
 import { RESUME_SCHEMA_VERSION } from '$lib/server/resumes/extract-job';
@@ -113,6 +118,8 @@ export async function handle(raw: unknown, deps: BridgeDeps): Promise<unknown> {
 					open: CATALOG.specializations.some(
 						(s) => s.key === definition.specialization && s.availability === 'enabled'
 					),
+					/** The practice is a program the candidate writes, so a confirmation names its language. */
+					practice_writes_code: practiceWritesCode(definition),
 					defining: definition.defining.map((code) => ({
 						block: code,
 						items: definition.blocks.find((quota) => quota.block === code)?.items ?? 0,
