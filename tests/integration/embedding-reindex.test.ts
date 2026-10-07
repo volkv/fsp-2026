@@ -400,7 +400,7 @@ describe('embedding.reindex with the embedder service', () => {
 				extract: null,
 				rerank: null,
 				embed: {
-					baseUrl: `http://${runtime.getHost()}:${runtime.getMappedPort(8080)}`,
+					baseUrl: `http://${runtime.getHost()}:${runtime.getMappedPort(8080)}/v1`,
 					model: BGE_M3_Q8.modelName,
 					apiKey: null,
 					spaceId: BGE_M3_Q8.id,

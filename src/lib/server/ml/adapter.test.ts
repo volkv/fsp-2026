@@ -24,7 +24,7 @@ const extractConfig: ExtractConfig = {
 };
 
 const rerankConfig: RerankConfig = {
-	baseUrl: 'http://reranker:8001',
+	baseUrl: 'http://reranker:8001/v1',
 	model: 'reranker',
 	apiKey: null,
 	timeoutMs: 2_000,
@@ -46,7 +46,7 @@ const space: EmbeddingSpace = {
 };
 
 const embedConfig: EmbedConfig = {
-	baseUrl: 'http://embedder:8080',
+	baseUrl: 'http://embedder:8080/v1',
 	model: space.modelName,
 	apiKey: null,
 	spaceId: space.id,

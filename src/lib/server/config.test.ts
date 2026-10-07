@@ -97,7 +97,7 @@ describe('parseConfig', () => {
 	});
 
 	it('refuses a partially configured integration instead of disabling it', () => {
-		expect(() => parseConfig(testEnvironment({ LLM_BASE_URL: 'http://llm:8000' }))).toThrow(
+		expect(() => parseConfig(testEnvironment({ LLM_BASE_URL: 'http://llm:8000/v1' }))).toThrow(
 			/LLM_MODEL: required when LLM_BASE_URL/
 		);
 		expect(() => parseConfig(testEnvironment({ FSP_ID_CLIENT_ID: 'client' }))).toThrow(
@@ -168,7 +168,7 @@ describe('parseConfig', () => {
 		expect(() =>
 			parseConfig(testEnvironment({ LLM_BASE_URL: 'http://llm:8000/v1', LLM_MODEL: 'qwen', LLM_RUNTIME: 'ollama' }))
 		).toThrow(/LLM_RUNTIME/);
-		const rerank = { RERANK_BASE_URL: 'http://rerank:8001', RERANK_MODEL: 'bge' };
+		const rerank = { RERANK_BASE_URL: 'http://rerank:8001/v1', RERANK_MODEL: 'bge' };
 		expect(parseConfig(testEnvironment(rerank)).models.rerank).toMatchObject({ topN: 50, truncateTokens: 1_024 });
 		expect(
 			parseConfig(testEnvironment({ ...rerank, RERANK_TRUNCATE_TOKENS: '512' })).models.rerank?.truncateTokens
@@ -176,7 +176,7 @@ describe('parseConfig', () => {
 	});
 
 	it('caps the default interactive deadline by the operation timeout and refuses a longer explicit one', () => {
-		const embed = { EMBED_BASE_URL: 'http://embed:8080', EMBED_MODEL: 'e5', EMBED_SPACE_ID: 'e5@r1/1024' };
+		const embed = { EMBED_BASE_URL: 'http://embed:8080/v1', EMBED_MODEL: 'e5', EMBED_SPACE_ID: 'e5@r1/1024' };
 		expect(parseConfig(testEnvironment({ ...embed, EMBED_TIMEOUT_MS: '3000' })).models.embed).toMatchObject({
 			timeoutMs: 3_000,
 			interactiveTimeoutMs: 3_000
