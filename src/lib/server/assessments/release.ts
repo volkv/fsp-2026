@@ -1,9 +1,10 @@
 // Assembling a bank release (docs/domain.md, 10.5): the families of one specialization with their versions, the hash of
 // the content and of the shared code, the admission report of every family, the capacity report of every extreme
 // history, the anchors and the trajectory report of the engine. A release is admitted only without problems: the
-// contract's `releaseProblems` (gates, anchors, block tests, capacity, trajectories) and what this engine needs to serve
-// a family — a generator that returns valid instances for every class, a harness for QA, a rubric it can score. Pure
-// functions over loaded families; the release script and the tests call them.
+// contract's `releaseProblems` (gates, anchors, block tests, capacity, trajectories), a passed gate run of every family on
+// its current source (`gate-sources.json`), and what this engine needs to serve a family — a generator that returns
+// valid instances for every class, a harness for QA, a rubric it can score. Pure functions over loaded families; the
+// release script and the tests call them.
 //
 // Plain erasable TypeScript without `$lib`.
 import { canonicalJson } from '../json/canonical.ts';
@@ -75,7 +76,10 @@ export interface ReleaseManifest {
 	anchors: Record<GradeKey, string[]>;
 	/** Family-levels per block, by grade, against the quotas of the catalog. */
 	levelsByBlock: Record<GradeKey, Record<string, number>>;
-	/** The engine's simulation of whole trajectories on these families (domain 10.6); `null` — a generator is broken. */
+	/**
+	 * The engine's simulation of whole trajectories on these families (domain 10.6); `null` — not simulated: a generator
+	 * is broken or a family has no passed gate run on its current source.
+	 */
 	trajectories: TrajectoryReport | null;
 }
 
@@ -106,6 +110,24 @@ export function releaseContentSha256(families: readonly ManifestFamily[], shared
 
 export const releaseId = (specialization: SpecializationKey, n: number): string =>
 	`${specialization}@${CATALOG.version}-${n}`;
+
+/**
+ * A family released only on the source its gates passed with: `gate-sources.json` records the gate run of its current
+ * source (descriptor, generator and the shared code it imports). A defect otherwise.
+ */
+export function gateRecordProblems(family: LoadedFamily): ValidationProblem[] {
+	const { gate, descriptor } = family;
+	if (gate.recorded === gate.current) return [];
+	return [
+		{
+			code: 'defect',
+			message:
+				gate.recorded === null
+					? `family ${descriptor.key}: no passed gate run in gate-sources.json (the gates failed or never ran)`
+					: `family ${descriptor.key}: the gate run in gate-sources.json is not for the current source (run the gates again)`
+		}
+	];
+}
 
 /**
  * What the engine needs beyond the contract: generators that produce valid instances, a QA harness, a scorable rubric.
@@ -186,9 +208,10 @@ export function assembleRelease(
 		familySources: Object.fromEntries(families.map((f) => [f.descriptor.key, f.sourceSha256]))
 	};
 	const gates: Record<string, ValidationProblem[]> = {};
+	// Defects of single families, found before the whole bank is simulated: nothing is simulated on them.
 	const serving: ValidationProblem[] = [];
 	for (const family of families) {
-		const problems = servingProblems(family);
+		const problems = [...gateRecordProblems(family), ...servingProblems(family)];
 		gates[family.descriptor.key] = [...familyProblems(family.descriptor, family.sourceSha256), ...problems];
 		serving.push(...problems);
 	}

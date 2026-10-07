@@ -2,6 +2,8 @@ import { dev } from '$app/environment';
 import type { Handle, HandleServerError, RequestEvent, ServerInit } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
 import { CSRF_FIELD } from '$lib/components/shell/viewer';
+import { annulStaleAttempts } from '$lib/server/assessments/annul';
+import { OWNER_STANDING } from '$lib/server/assessments/standing';
 import { withTimeout } from '$lib/server/async/timeout';
 import { authenticateSession } from '$lib/server/auth/authenticate';
 import { clearSessionCookie } from '$lib/server/auth/http';
@@ -22,7 +24,21 @@ import { newRequestId } from '$lib/server/http/request-id';
 import { applySecurityHeaders } from '$lib/server/http/security-headers';
 import { closeRedis, redis } from '$lib/server/redis';
 
-export const init: ServerInit = () => {
+/**
+ * Before the first request: attempts still running on a bank release whose code is no longer on disk are annulled
+ * (domain 10.5) — the release script of this start withdrew or replaced it, and the attempt cannot go on.
+ */
+async function annulAttemptsOnStaleReleases(): Promise<void> {
+	for (const stale of await annulStaleAttempts(db(), OWNER_STANDING, new Date())) {
+		console.warn(
+			`[bank] release ${stale.releaseId} is not the code of the bank tree (${stale.drift.join('; ')}): ` +
+				`${stale.annulled.length} attempts in progress annulled for version_defect, a free retake`
+		);
+	}
+}
+
+export const init: ServerInit = async () => {
+	await annulAttemptsOnStaleReleases();
 	if (dev) return;
 	// adapter-node emits this after the HTTP server has stopped accepting connections.
 	process.on('sveltekit:shutdown', () => {

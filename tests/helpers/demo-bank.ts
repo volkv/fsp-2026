@@ -13,8 +13,10 @@ import { bankReleases } from '../../src/lib/server/db/schema';
 import { BANK_TREE, TRAJECTORY_DIR } from '../../scripts/release-bank';
 
 export async function releaseBankAhead(db: Database, specialization: SpecializationKey): Promise<string> {
-	const bank = (await loadBankTree(BANK_TREE)).get(specialization);
-	if (!bank) throw new Error(`the bank tree has no ${specialization}`);
+	const load = (await loadBankTree(BANK_TREE)).get(specialization);
+	if (!load) throw new Error(`the bank tree has no ${specialization}`);
+	if (!load.ok) throw new Error(`the bank tree of ${specialization} does not load: ${load.error}`);
+	const { bank } = load;
 	const stored = JSON.parse(await readFile(join(TRAJECTORY_DIR, `${specialization}.json`), 'utf8')) as {
 		report: TrajectoryReport;
 	};

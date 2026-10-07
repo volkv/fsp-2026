@@ -320,6 +320,15 @@ scripts/deploy/deploy.sh
 выкатки проверяет гейт: `pnpm check:image` запускает образ на пустой базе (`docs/development.md`, «Полный гейт»). Демо-данные засевает воркер
 после старта (раздел «Демо-данные»).
 
+**Банк заданий при старте.** `scripts/release-bank.ts` выпускает каждую специализацию отдельно (`docs/domain.md`, 10.5) и стартом
+не управляет: отказ одной специализации не роняет `app`, выкатка проходит, специализация закрыта. В логе `app` на каждую специализацию
+строка `Bank release <специализация>: released | unchanged | refused | unchecked`, ниже — дефекты и ожидаемые оценки; отказ из-за
+исключения генератора — дефект `the check of the bank failed: …` или `the bank tree does not load: …`, провал ворот —
+`family <ключ>: no passed gate run…` / `…is not for the current source…`. Если отказ снял выпуск в силе, следом строка
+`release <id> withdrawn: …` — специализация закрыта до выкатки с исправным банком. Перед стартом сервера попытки, идущие на выпуске
+с ушедшим кодом, аннулируются: в логе `[bank] release <id> is not the code of the bank tree (…): N attempts in progress annulled for
+version_defect`. Проверить заранее, на машине разработчика, — `pnpm bank:check` (строка на специализацию в конце, код 1 при отказе).
+
 Переменные скрипта: `DEPLOY_HOST` (по умолчанию `ensi-new`), `DEPLOY_DIR` (`/root/fsp-career`), `DEPLOY_ORIGIN`
 (`https://fsp-career.volkv.com`).
 

@@ -15,8 +15,17 @@ import {
 } from './contract/catalog';
 import { judgementProvenance, type FamilyModule, type Reviewer } from './contract/bank';
 import { familyProblems, type TrajectoryReport, type ValidationProblem } from './contract/validate';
-import { loadBankTree, loadFamily, sharedCodeSha256 } from './families';
 import {
+	codeDrift,
+	errorMessage,
+	loadBankTree,
+	loadFamily,
+	sharedCodeSha256,
+	treeBankCode,
+	type BankCode
+} from './families';
+import {
+	gateRecordProblems,
 	gradeJudgements,
 	servingProblems,
 	type GradeJudgement,
@@ -130,6 +139,24 @@ export function familyModule(
 	return loaded;
 }
 
+/**
+ * What of the code a release was checked with the bank tree on disk no longer has (`codeDrift`): empty — the tree
+ * serves the release; otherwise `familyModule` refuses it and an attempt on it cannot go on. A tree whose code cannot be
+ * read (a shared import of a missing file) serves no release either.
+ */
+export async function releaseDrift(
+	release: Pick<ServedRelease, 'specialization' | 'sharedSha256' | 'families'>,
+	root: string = BANK_ROOT
+): Promise<string[]> {
+	let code: BankCode;
+	try {
+		code = await treeBankCode(root, release.specialization);
+	} catch (error) {
+		return [`the code of the bank tree cannot be read: ${errorMessage(error)}`];
+	}
+	return codeDrift(release, code);
+}
+
 /** Generators of the families of a release: the bank tree, or loaded modules the tests and the demo seed pass in. */
 export type ModuleSource = (family: ManifestFamily, release: ServedRelease) => Promise<FamilyModule>;
 
@@ -179,13 +206,29 @@ export interface TreeFamilies {
 }
 
 /**
- * The families of the bank tree checked one by one (`familyProblems` and `servingProblems`), defects apart from pending
- * judgements. The checks of a whole release — capacity, anchors, trajectories — run when the bank is released.
+ * The families of the bank tree checked one by one (`familyProblems`, the gate record and `servingProblems`), defects
+ * apart from pending judgements; a specialization whose families do not load has the error as its defect. The checks of
+ * a whole release — capacity, anchors, trajectories — run when the bank is released.
  */
 export async function bankTreeFamilies(root: string = BANK_ROOT): Promise<TreeFamilies[]> {
 	const tree = await loadBankTree(root);
-	return [...tree].map(([specialization, { families }]) => {
-		const problems = families.flatMap((f) => [...familyProblems(f.descriptor, f.sourceSha256), ...servingProblems(f)]);
+	return [...tree].map(([specialization, load]) => {
+		if (!load.ok) {
+			return { specialization, families: 0, defects: [`the bank tree does not load: ${load.error}`], awaiting: [] };
+		}
+		const { families } = load.bank;
+		let problems: ValidationProblem[];
+		try {
+			problems = families.flatMap((f) => [
+				...familyProblems(f.descriptor, f.sourceSha256),
+				...gateRecordProblems(f),
+				...servingProblems(f)
+			]);
+		} catch (error) {
+			// A generator that throws in the checks is the defect of its specialization, as in the release.
+			const defect = `the check of the bank failed: ${errorMessage(error)}`;
+			return { specialization, families: families.length, defects: [defect], awaiting: [] };
+		}
 		return {
 			specialization,
 			families: families.length,

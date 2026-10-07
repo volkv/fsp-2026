@@ -345,10 +345,15 @@ export function fixtureFamilies(specialization: SpecializationKey, options: Fixt
 		if (short.length === 0) break;
 		for (const key of new Set(short)) counts.set(key, (counts.get(key) ?? 0) + 1);
 	}
-	return build(specialization, counts, options).map((family) => ({
-		descriptor: family,
-		generatorSha256: hex(generatorText(family)),
-		sourceSha256: familySourceSha256(family, generatorText(family)),
-		module: generator(family)
-	}));
+	return build(specialization, counts, options).map((family) => {
+		const sourceSha256 = familySourceSha256(family, generatorText(family));
+		return {
+			descriptor: family,
+			generatorSha256: hex(generatorText(family)),
+			sourceSha256,
+			module: generator(family),
+			// Every fixture family passed its gates on its current source.
+			gate: { current: sourceSha256, recorded: sourceSha256 }
+		};
+	});
 }

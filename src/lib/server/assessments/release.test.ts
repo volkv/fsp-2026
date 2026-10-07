@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { clampHarness, fixtureFamilies } from '../../../../tests/helpers/families';
-import { bankTreeFamilies, familyModule, GeneratorMismatch } from './bank-store';
+import { bankTreeFamilies, familyModule, GeneratorMismatch, releaseDrift } from './bank-store';
 import { familySourceSha256 } from './contract/bank';
 import { familyProblems } from './contract/validate';
 import { loadBankTree, loadSpecializationFamilies, sharedCodeSha256 } from './families';
@@ -62,6 +62,55 @@ describe('bank tree', () => {
 			const [backend] = await bankTreeFamilies(root);
 			expect(backend?.defects).toEqual([]);
 			expect(backend?.awaiting.map((p) => p.code)).toEqual(['awaiting_reviews']);
+		} finally {
+			await rm(root, { recursive: true, force: true });
+		}
+	});
+
+	it('reads the gate run of every family: a family edited after its gates, or a tree that does not load, is a defect', async () => {
+		const [family] = await loadSpecializationFamilies(FIXTURE_TREE, 'backend');
+		expect(family?.gate.recorded).toMatch(/^[0-9a-f]{64}$/);
+		expect(family?.gate.current).toBe(family?.gate.recorded);
+		const root = await mkdtemp(join(tmpdir(), 'bank-tree-'));
+		try {
+			await cp(FIXTURE_TREE, root, { recursive: true });
+			const generator = join(root, 'backend', 'be.lang.fixture-sum', 'generator.ts');
+			await writeFile(generator, `${await readFile(generator, 'utf8')}\n// edited after the gates\n`);
+			const [edited] = await bankTreeFamilies(root);
+			expect(edited?.defects).toEqual([
+				'family be.lang.fixture-sum: the gate run in gate-sources.json is not for the current source (run the gates again)'
+			]);
+			const descriptor = join(root, 'backend', 'be.lang.fixture-sum', 'descriptor.json');
+			await writeFile(descriptor, '{');
+			const tree = await loadBankTree(root);
+			expect(tree.get('backend')).toMatchObject({ ok: false });
+			const [broken] = await bankTreeFamilies(root);
+			expect(broken?.defects[0]).toMatch(/^the bank tree does not load: /);
+		} finally {
+			await rm(root, { recursive: true, force: true });
+		}
+	});
+
+	it('tells what of the code a release was checked with the tree on disk no longer has', async () => {
+		const [family] = await loadSpecializationFamilies(FIXTURE_TREE, 'backend');
+		if (!family) throw new Error('no family');
+		const root = await mkdtemp(join(tmpdir(), 'bank-tree-'));
+		try {
+			await cp(FIXTURE_TREE, root, { recursive: true });
+			const release = {
+				specialization: 'backend' as const,
+				sharedSha256: await sharedCodeSha256(root, 'backend'),
+				families: [{ descriptor: family.descriptor, generatorSha256: family.generatorSha256 }]
+			};
+			expect(await releaseDrift(release, root)).toEqual([]);
+			expect(await releaseDrift({ ...release, sharedSha256: '0'.repeat(64) }, root)).toEqual([
+				'the shared code changed'
+			]);
+			const generator = join(root, 'backend', 'be.lang.fixture-sum', 'generator.ts');
+			await writeFile(generator, `${await readFile(generator, 'utf8')}\n// another version\n`);
+			expect(await releaseDrift(release, root)).toEqual(['the generator of be.lang.fixture-sum changed']);
+			await rm(generator);
+			expect(await releaseDrift(release, root)).toEqual(['the generator of be.lang.fixture-sum is gone']);
 		} finally {
 			await rm(root, { recursive: true, force: true });
 		}
@@ -131,6 +180,31 @@ describe('release assembly', () => {
 			expect(gradeJudgements(byVendor)[grade].sameVendorReviewer).toBe(0);
 		}
 	}, 120_000);
+
+	it('keeps out a family without a passed gate run on its current source, simulating nothing', () => {
+		const families = fixtureFamilies('frontend');
+		const [first, second] = families;
+		if (!first || !second) throw new Error('no families');
+		const gated = families.map((f) =>
+			f === first
+				? { ...f, gate: { ...f.gate, recorded: null } }
+				: f === second
+					? { ...f, gate: { ...f.gate, recorded: '0'.repeat(64) } }
+					: f
+		);
+		const assembled = assembleRelease('frontend', gated, SHARED, 1);
+		expect(assembled.problems).toEqual([
+			{
+				code: 'defect',
+				message: `family ${first.descriptor.key}: no passed gate run in gate-sources.json (the gates failed or never ran)`
+			},
+			{
+				code: 'defect',
+				message: `family ${second.descriptor.key}: the gate run in gate-sources.json is not for the current source (run the gates again)`
+			}
+		]);
+		expect(assembled.manifest.trajectories).toBeNull();
+	});
 
 	it('refuses a bank that runs out, a generator that is not deterministic and QA without a harness', () => {
 		const families = fixtureFamilies('qa');

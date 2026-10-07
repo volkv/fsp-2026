@@ -861,11 +861,11 @@ describe('the release of the bank', () => {
 		const atStart = fileTrajectoryStore(dir, false);
 		const simulating = fileTrajectoryStore(dir, true);
 		const bank = (families: ReturnType<typeof fixtureFamilies>, sharedSha256 = '0'.repeat(64)) =>
-			new Map([['data_ml' as const, { families, sharedSha256 }]]);
+			new Map([['data_ml' as const, { ok: true as const, bank: { families, sharedSha256 } }]]);
 		try {
 			const families = fixtureFamilies('data_ml');
 			expect(await publishBankReleases(client, bank(families), atStart)).toEqual([
-				{ specialization: 'data_ml', outcome: 'unchecked', id: null, problems: [] }
+				{ specialization: 'data_ml', outcome: 'unchecked', id: null, problems: [], withdrawn: null }
 			]);
 			expect(await checkBankTree(bank(families), simulating)).toMatchObject([{ outcome: 'unchanged', problems: [] }]);
 			const stored = JSON.parse(await readFile(join(dir, 'data_ml.json'), 'utf8')) as {

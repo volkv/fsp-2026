@@ -2,7 +2,6 @@
 // `descriptor.json` and `generator.ts`; shared code in directories starting with `_` (`_lib`); probes of mechanisms
 // that are not released yet in `_probes/<specialization>/<key>/` in the same layout. Beyond the contract's `generate`,
 // a generator exports `build` — the instance with the material the gates prove its answer by.
-import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -12,13 +11,17 @@ import {
 	type FamilyDescriptor
 } from '../../src/lib/server/assessments/contract/bank.ts';
 import { SPECIALIZATION_KEYS, type SpecializationKey } from '../../src/lib/server/assessments/contract/catalog.ts';
+import {
+	GATE_SOURCES_FILE as GATE_SOURCES_NAME,
+	gateSourceSha256 as familyGateSourceSha256
+} from '../../src/lib/server/assessments/families.ts';
 import { sharedClosureSha256 } from '../../src/lib/server/assessments/shared-code.ts';
 
 export const FAMILIES_DIR = fileURLToPath(new URL('../../assessments/families/', import.meta.url));
 export const DESCRIPTOR_FILE = 'descriptor.json';
 export const GENERATOR_FILE = 'generator.ts';
 /** The factory's record of the source each family last passed the gates with (`gate-sources.json`). */
-export const GATE_SOURCES_FILE = join(FAMILIES_DIR, 'gate-sources.json');
+export const GATE_SOURCES_FILE = join(FAMILIES_DIR, GATE_SOURCES_NAME);
 
 export interface TreeFamily {
 	specialization: SpecializationKey;
@@ -89,13 +92,10 @@ export function currentSourceSha256(family: Pick<TreeFamily, 'dir'>): string {
 	return contractFamilySourceSha256(descriptor, readFileSync(join(family.dir, GENERATOR_FILE), 'utf8'));
 }
 
-/**
- * The source a gate run checked: the family's sources and the shared code its generator imports (the import closure in
- * the `_*` directories). A change in either makes the gate record stale; shared code the family never imports does not.
- */
+/** The source a gate run checked (`gateSourceSha256` of the bank loader, which the release checks it against). */
 export function gateSourceSha256(family: Pick<TreeFamily, 'dir'>): string {
 	const shared = sharedClosureSha256(FAMILIES_DIR, [join(family.dir, GENERATOR_FILE)]);
-	return createHash('sha256').update(currentSourceSha256(family)).update('\0').update(shared).digest('hex');
+	return familyGateSourceSha256(currentSourceSha256(family), shared);
 }
 
 /**

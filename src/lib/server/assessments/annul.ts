@@ -5,6 +5,10 @@
 // test to the remaining decisions (`applyGradeDecisions`: revoke, restore the previous one, or keep). An annulment for a
 // reason of `freeRetakeAnnulReasons` does not count as an attempt of the policy. The candidate is notified
 // (`assessment.annulled`).
+//
+// The application annuls by itself, at its start, every attempt still running on a release whose code the bank tree on
+// disk no longer has (domain 10.5): the attempt cannot go on — its generators are not there to serve it — and the
+// engine never runs other code under its release. The reason is `version_defect`, a free retake.
 import { and, eq, inArray, lt } from 'drizzle-orm';
 import { StaffReach } from '$lib/server/access/demo-actor';
 import type { AccessSubject } from '$lib/server/access/permissions';
@@ -23,6 +27,7 @@ import {
 import { ApiError } from '$lib/server/errors/api-error';
 import { cancelWaitingJobs } from '$lib/server/jobs/queue';
 import { notify } from '$lib/server/notifications/notify';
+import { BANK_ROOT, releaseById, releaseDrift } from './bank-store';
 import { annulBlockResults } from './block-test';
 import type { SpecializationKey } from './contract/catalog';
 import { GRADE_POLICY, type CategoryChange } from './contract/policy';
@@ -88,6 +93,19 @@ export interface AnnulInput {
 	now: Date;
 }
 
+type AttemptRow = typeof testAttempts.$inferSelect;
+
+/** The sandbox runs of an attempt's submissions still waiting are cancelled: their result would land on nothing. */
+async function cancelSubmissionRuns(tx: Transaction, attemptId: string): Promise<void> {
+	const submissions = await tx
+		.select({ id: testArtifacts.id })
+		.from(testArtifacts)
+		.where(and(eq(testArtifacts.attemptId, attemptId), inArray(testArtifacts.kind, ['code_submission', 'qa_cases'])));
+	for (const submission of submissions) {
+		await cancelWaitingJobs(tx, 'test.run', { artifact_id: submission.id });
+	}
+}
+
 /**
  * Annuls an attempt in the caller's transaction; the attempt row is locked here. With `standing` the owner of categories
  * brings the category to the remaining decisions; the owner of objections passes `null` and does it itself.
@@ -117,16 +135,18 @@ export async function annulAttemptIn(
 			)
 			.limit(1);
 		if (!stuck) throw conflict('attempt_in_progress', 'Идущую попытку аннулировать нельзя');
-		const submissions = await tx
-			.select({ id: testArtifacts.id })
-			.from(testArtifacts)
-			.where(
-				and(eq(testArtifacts.attemptId, attempt.id), inArray(testArtifacts.kind, ['code_submission', 'qa_cases']))
-			);
-		for (const submission of submissions) {
-			await cancelWaitingJobs(tx, 'test.run', { artifact_id: submission.id });
-		}
+		await cancelSubmissionRuns(tx, attempt.id);
 	}
+	return annulLocked(tx, standing, attempt, input);
+}
+
+/** The annulment itself, on the locked row of an attempt that is not annulled yet. */
+async function annulLocked(
+	tx: Transaction,
+	standing: GradeStanding | null,
+	attempt: AttemptRow,
+	input: AnnulInput
+): Promise<AnnulOutcome> {
 	const previousStatus = attempt.status;
 	await tx
 		.update(testAttempts)
@@ -218,4 +238,60 @@ export async function annulAttempt(
 		if (outcome.category === null) throw new Error('the owner of categories did not answer the annulment');
 		return { annulled: outcome.annulled, category: outcome.category };
 	});
+}
+
+/** A release whose code left the bank tree, and the attempts running on it that its start annulled. */
+export interface StaleRelease {
+	releaseId: string;
+	/** What of its code the tree no longer has (`releaseDrift`). */
+	drift: string[];
+	annulled: string[];
+}
+
+/**
+ * Annuls every attempt in progress on a release whose code the bank tree under `root` no longer has, each in its own
+ * transaction, for `version_defect` (a free retake): by the system, with the candidate notified. An attempt that ended
+ * meanwhile is left as it is. Runs at the start of the application, after the bank release.
+ */
+export async function annulStaleAttempts(
+	db: Database,
+	standing: GradeStanding,
+	now: Date,
+	root: string = BANK_ROOT
+): Promise<StaleRelease[]> {
+	const running = await db
+		.selectDistinct({ releaseId: testAttempts.bankReleaseId })
+		.from(testAttempts)
+		.where(eq(testAttempts.status, 'in_progress'));
+	const stale: StaleRelease[] = [];
+	for (const { releaseId } of running) {
+		const drift = await releaseDrift(await releaseById(db, releaseId), root);
+		if (drift.length === 0) continue;
+		const attempts = await db
+			.select({ id: testAttempts.id })
+			.from(testAttempts)
+			.where(and(eq(testAttempts.bankReleaseId, releaseId), eq(testAttempts.status, 'in_progress')));
+		const annulled: string[] = [];
+		for (const { id } of attempts) {
+			const done = await db.transaction(async (tx) => {
+				const [attempt] = await tx.select().from(testAttempts).where(eq(testAttempts.id, id)).for('update');
+				if (attempt?.status !== 'in_progress') return false;
+				await cancelSubmissionRuns(tx, attempt.id);
+				await annulLocked(tx, standing, attempt, {
+					attemptId: attempt.id,
+					reason: 'version_defect',
+					annulledBy: null,
+					actor: { kind: 'system' },
+					requestId: `bank-release:${releaseId}`,
+					ip: null,
+					userAgent: null,
+					now
+				});
+				return true;
+			});
+			if (done) annulled.push(id);
+		}
+		stale.push({ releaseId, drift, annulled });
+	}
+	return stale;
 }
