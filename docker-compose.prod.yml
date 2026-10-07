@@ -90,11 +90,13 @@ x-app-environment: &app-environment
   TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
   TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:-}
   # Demonstration mode (docs/deploy.md, «Демо-данные»): the stand seeds itself at start and returns to the seeded
-  # state every night at 00:00 UTC unless DEMO_NIGHTLY_RESET=false. The simulator below gets the same FSP_MOCK_SEED and FSP_MOCK_ATHLETES.
+  # state every night at 00:00 UTC unless DEMO_NIGHTLY_RESET=false; DEMO_REVIEW_MODE=true keeps demo sessions for the
+  # review by the jury. The simulator below gets the same FSP_MOCK_SEED and FSP_MOCK_ATHLETES.
   DEMO_MODE: ${DEMO_MODE:-}
   DEMO_CANDIDATES: ${DEMO_CANDIDATES:-}
   DEMO_VACANCIES: ${DEMO_VACANCIES:-}
   DEMO_NIGHTLY_RESET: ${DEMO_NIGHTLY_RESET:-}
+  DEMO_REVIEW_MODE: ${DEMO_REVIEW_MODE:-}
   FSP_MOCK_SEED: ${FSP_MOCK_SEED:-fsp-career-2026-7}
   FSP_MOCK_ATHLETES: ${FSP_MOCK_ATHLETES:-3000}
   FSP_MOCK_CONTROL_TOKEN: ${FSP_MOCK_CONTROL_TOKEN:?}

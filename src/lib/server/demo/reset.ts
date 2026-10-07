@@ -303,7 +303,13 @@ interface ResetSummary {
  * invisible to other sessions, which wait on the table lock). Objects of the removed files and Redis are cleaned after
  * the commit: a failure there is reported, the database is already empty.
  */
-export async function resetDemo(deps: ResetDeps, journal: { requestId: string }): Promise<ResetSummary> {
+/** What started a reset, kept in the journal: the night's job, the start of the application, the command line. */
+export type DemoResetTrigger = 'nightly' | 'startup' | 'manual';
+
+export async function resetDemo(
+	deps: ResetDeps,
+	journal: { requestId: string; trigger: DemoResetTrigger }
+): Promise<ResetSummary> {
 	const { db } = deps;
 	const plan = compareWithPlan(await schemaTables(db));
 	if (plan.unplanned.length > 0 || plan.missing.length > 0) {
@@ -371,7 +377,12 @@ export async function resetDemo(deps: ResetDeps, journal: { requestId: string })
 			outcome: 'success',
 			actor: { kind: 'system' },
 			requestId: journal.requestId,
-			details: { tables_cleared: tablesCleared, rows_kept: rowsKept, files_removed: keys.length }
+			details: {
+				trigger: journal.trigger,
+				tables_cleared: tablesCleared,
+				rows_kept: rowsKept,
+				files_removed: keys.length
+			}
 		});
 		return { tablesCleared, rowsKept, storageKeys: keys.map((row) => row.storage_key) };
 	});

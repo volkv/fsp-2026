@@ -1,14 +1,19 @@
 // Use of a demo session on the `/demo` screen itself (docs/domain.md, section 19.3): a visitor who comes back to
 // `/demo` — with the session's cookie or its join link, signed in to a role or not — is using the session, exactly as
-// an authenticated request of one of its clones is. The idle clock `demo.purge` reads (`DEMO_IDLE_MINUTES`,
-// `src/lib/server/demo/activity.ts`) must move with that visit, or a judge reading the screen between roles, with no
+// an authenticated request of one of its clones is. The idle clock `demo.purge` reads (the idle time of the terms,
+// `src/lib/server/demo/terms.ts`) must move with that visit, or a judge reading the screen between roles, with no
 // request of a clone in between, would see their session end under them. This file opens a session, backdates its
 // last use close to the idle limit, then loads `/demo` with its cookie and checks that the visit pushes the deadline
-// out from the moment of the visit, not from the backdated one.
+// out from the moment of the visit, not from the backdated one. The modes of the stand follow: the nightly reset
+// (`DEMO_NIGHTLY_RESET`) and the review by the jury (`DEMO_REVIEW_MODE`), whose sessions live a week after their last
+// use.
 import { randomBytes } from 'node:crypto';
+import { fileURLToPath } from 'node:url';
+import postgres from 'postgres';
 import { createClient } from 'redis';
 import { afterAll, beforeAll, describe, expect, inject, it, vi } from 'vitest';
-import { demoSessions } from '$lib/server/db/schema';
+import { eq, inArray } from 'drizzle-orm';
+import { auditEvents, demoSessions } from '$lib/server/db/schema';
 import type { Redis } from '$lib/server/redis';
 import type { ObjectStore } from '$lib/server/storage/object-store';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
@@ -42,7 +47,9 @@ const { config } = await import('$lib/server/config');
 const { fieldCrypto } = await import('$lib/server/crypto/fields');
 const { castRoles } = await import('$lib/server/demo/cast');
 const { readSeedData, seedsDirectory } = await import('$lib/server/demo/data');
-const { DEMO_IDLE_MINUTES, redisDemoActivity } = await import('$lib/server/demo/activity');
+const { redisDemoActivity } = await import('$lib/server/demo/activity');
+const { demoTerms } = await import('$lib/server/demo/terms');
+const { publishPolicies, readPolicyRelease } = await import('../../scripts/seed-policies');
 const { purgeDemoSession, purgeExpiredDemoSessions } = await import('$lib/server/demo/purge');
 const { DEMO_SESSION_COOKIE } = await import('$lib/server/demo/visit');
 const { sha256Hex } = await import('$lib/server/auth/secrets');
@@ -71,6 +78,12 @@ beforeAll(async () => {
 	);
 	redis = createClient({ url: `${inject('redisUrl')}/${REDIS_DATABASE}` });
 	await redis.connect();
+	const client = postgres(database.url, { max: 1, onnotice: () => {} });
+	try {
+		await publishPolicies(client, await readPolicyRelease(fileURLToPath(new URL('../../policies', import.meta.url))));
+	} finally {
+		await client.end({ timeout: 5 });
+	}
 	// The route's `load` rejects with `DemoCastMissing` unless every role of the cast has an account outside sessions
 	// (`castOriginals`); a profile, a company or its membership are not needed to satisfy it, so this seeds accounts
 	// only, not the full demo cast.
@@ -132,9 +145,10 @@ describe('a visit to /demo', () => {
 		const session = await openSession();
 		const activity = redisDemoActivity(redis);
 		const now = Date.now();
+		const { idleMinutes } = await demoTerms(database.db);
 		// A minute short of idle: an untouched session would still be alive now, but gone by the time `asIfUntouched`
 		// checks it.
-		const stale = new Date(now - (DEMO_IDLE_MINUTES - 1) * 60_000);
+		const stale = new Date(now - (idleMinutes - 1) * 60_000);
 		await activity.touch(session.id, stale);
 
 		const loaded = (await demoPage.load(pageEvent(session.token) as never)) as {
@@ -149,7 +163,7 @@ describe('a visit to /demo', () => {
 
 		// Had the visit not moved the last use, `demo.purge` would find the session idle by now; the visit pushed the
 		// deadline out from the moment it happened, not from the backdated one.
-		const asIfUntouched = new Date(stale.getTime() + DEMO_IDLE_MINUTES * 60_000 + 60_000);
+		const asIfUntouched = new Date(stale.getTime() + idleMinutes * 60_000 + 60_000);
 		const outcome = await purgeExpiredDemoSessions(
 			{ db: database.db, redis, store: noFiles },
 			asIfUntouched,
@@ -193,8 +207,117 @@ describe('the nightly reset of the stand, DEMO_NIGHTLY_RESET', () => {
 		expect(scheduled).toEqual(['demo.purge']);
 		expect(activity.lastEndOf(dayLater, morning)).toEqual(dayLater);
 		const evening = new Date('2026-10-13T20:00:00Z');
-		expect(activity.idleEndOf(dayLater, evening)).toEqual(
-			new Date(evening.getTime() + activity.DEMO_IDLE_MINUTES * 60_000)
-		);
+		expect(activity.idleEndOf(dayLater, evening, 480)).toEqual(new Date(evening.getTime() + 480 * 60_000));
+	});
+
+	it('turned off after the night was enqueued: the job of that night resets nothing and says so', async () => {
+		const { db } = database;
+		// The night of 2026-09-02 was enqueued the day before, while the flag was on; it is due now.
+		env.DEMO_NIGHTLY_RESET = 'true';
+		vi.resetModules();
+		try {
+			const scheduler = await import('$lib/server/jobs/scheduler');
+			const entry = scheduler.periodicJobsFor(['demo.reset'])[0];
+			if (!entry) throw new Error('the nightly reset is not scheduled with the flag on');
+			expect(await scheduler.schedulePeriodicJob(db, entry, new Date('2026-09-01T15:00:00Z'))).toBe('enqueued');
+		} finally {
+			delete env.DEMO_NIGHTLY_RESET;
+			vi.resetModules();
+		}
+
+		// The worker restarts with the flag off and picks the job up.
+		env.DEMO_NIGHTLY_RESET = 'false';
+		vi.resetModules();
+		try {
+			const { claimJob } = await import('$lib/server/jobs/queue');
+			const { createDemoResetHandler } = await import('$lib/server/demo/job');
+			const { createLogger } = await import('$lib/server/jobs/log');
+			const job = await claimJob(db, 'demo-activity-worker', ['demo.reset']);
+			expect(job?.payload).toEqual({ kind: 'nightly', date: '2026-09-02' });
+			if (job?.type !== 'demo.reset') throw new Error('the nightly job was not claimed');
+			const handler = createDemoResetHandler(() => Promise.reject(new Error('the stand must not be touched')));
+			const result = await handler.run({
+				job: { ...job, type: 'demo.reset', payload: { kind: 'nightly', date: '2026-09-02' } },
+				db,
+				signal: new AbortController().signal,
+				requestId: 'job:nightly-off',
+				log: createLogger({ component: 'test' }, () => {})
+			});
+			expect(result.describe?.()).toEqual({ kind: 'nightly', skipped: 'nightly_reset_off' });
+			const [skipped] = await db
+				.select({ action: auditEvents.action, details: auditEvents.details })
+				.from(auditEvents)
+				.where(eq(auditEvents.requestId, 'job:nightly-off'));
+			expect(skipped).toEqual({
+				action: 'demo.reset_skipped',
+				details: { date: '2026-09-02', reason: 'nightly_reset_off' }
+			});
+		} finally {
+			delete env.DEMO_NIGHTLY_RESET;
+			vi.resetModules();
+		}
+	});
+});
+
+describe('the review by the jury, DEMO_REVIEW_MODE', () => {
+	const MINUTE = 60_000;
+
+	it('keeps a session a week after its last use and its own resume no longer than the session', async () => {
+		const regular = await demoTerms(database.db);
+		expect(regular).toEqual({
+			review: false,
+			sessionHours: 24,
+			ownResumeHours: 24,
+			idleMinutes: 480,
+			evictableMinutes: 20
+		});
+
+		env.DEMO_REVIEW_MODE = 'true';
+		env.DEMO_NIGHTLY_RESET = 'false';
+		vi.resetModules();
+		try {
+			const terms = await import('$lib/server/demo/terms');
+			const purge = await import('$lib/server/demo/purge');
+			const review = await terms.demoTerms(database.db);
+			expect(review).toEqual({
+				review: true,
+				sessionHours: 720,
+				ownResumeHours: null,
+				idleMinutes: 7 * 24 * 60,
+				evictableMinutes: 24 * 60
+			});
+
+			// A judge back after six days finds the session; one gone for more than a week does not.
+			const back = await openSession();
+			const gone = await openSession();
+			await database.db
+				.update(demoSessions)
+				.set({ createdAt: new Date(Date.now() - 10 * DAY), expiresAt: new Date(Date.now() + 20 * DAY) })
+				.where(inArray(demoSessions.id, [back.id, gone.id]));
+			const activity = redisDemoActivity(redis);
+			await activity.touch(back.id, new Date(Date.now() - 6 * DAY));
+			await activity.touch(gone.id, new Date(Date.now() - 7 * DAY - MINUTE));
+			const outcome = await purge.purgeExpiredDemoSessions(
+				{ db: database.db, redis, store: noFiles },
+				new Date(),
+				REQUEST_ID
+			);
+			expect(outcome.idle).toContain(gone.id);
+			expect(outcome.idle).not.toContain(back.id);
+			expect(outcome.purged.map((p) => p.sessionId)).toContain(gone.id);
+
+			// An own resume uploaded now does not bring the end of the session forward: it goes with the session.
+			const visit = await import('$lib/server/demo/visit');
+			const [before] = await database.db.select().from(demoSessions).where(eq(demoSessions.id, back.id));
+			const uploadedAt = new Date();
+			expect(await visit.shortenForOwnResume(database.db, back.id, review, uploadedAt)).toEqual(before?.expiresAt);
+			const [after] = await database.db.select().from(demoSessions).where(eq(demoSessions.id, back.id));
+			expect(after?.ownResumeAt).toEqual(uploadedAt);
+			await purge.purgeDemoSession({ db: database.db, redis, store: noFiles }, back.id, new Date(), REQUEST_ID);
+		} finally {
+			delete env.DEMO_REVIEW_MODE;
+			delete env.DEMO_NIGHTLY_RESET;
+			vi.resetModules();
+		}
 	});
 });

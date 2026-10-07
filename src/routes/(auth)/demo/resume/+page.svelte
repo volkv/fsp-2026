@@ -4,6 +4,7 @@
 	import { resolve } from '$app/paths';
 	import CsrfField from '$lib/components/forms/csrf-input.svelte';
 	import { formatDateTime } from '$lib/components/product/model.js';
+	import { termText } from '$lib/components/shell/viewer.js';
 	import { Button, buttonVariants } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import AuthPage from '../../auth-page.svelte';
@@ -28,11 +29,16 @@
 		/>
 		<a href={resolve('/demo')} class={buttonVariants({ class: 'w-fit' })}>К выбору роли</a>
 	{:else}
+		<p class="rounded-lg border border-warning/40 bg-warning-subtle p-3 text-sm" data-testid="demo-resume-warning">
+			Это демонстрационный стенд: загружайте синтетическое или обезличенное резюме — без настоящих имени, контактов и
+			других данных живого человека.
+		</p>
 		<p class="text-sm" data-testid="own-resume-term">
-			Резюме и всё, что из него получено, удалится вместе с демо-сессией: через {data.ownResumeHours} ч после загрузки, после
-			{data.idleHours} ч без действий в сессии{data.nightlyReset ? ' или при ночном сбросе стенда' : ''} — не позже {data.endsAt
-				? formatDateTime(data.endsAt)
-				: ''}.
+			Резюме и всё, что из него получено, удалится вместе с демо-сессией: {data.ownResumeHours === null
+				? ''
+				: `через ${data.ownResumeHours} ч после загрузки, `}после {termText(data.idleMinutes)} без действий в сессии{data.nightlyReset
+				? ' или при ночном сбросе стенда'
+				: ''} — не позже {data.endsAt ? formatDateTime(data.endsAt) : ''}.
 		</p>
 
 		<article

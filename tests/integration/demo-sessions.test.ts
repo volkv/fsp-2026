@@ -54,8 +54,9 @@ import { drainJobs } from '$lib/server/demo/queue';
 import { schemaTables } from '$lib/server/demo/reset';
 import { seedDemo } from '$lib/server/demo/seed';
 import type { DemoServices } from '$lib/server/demo/services';
-import { DEMO_IDLE_MINUTES, idleEndOf, lastEndOf, redisDemoActivity } from '$lib/server/demo/activity';
-import { cloneOfRole, demoTerms } from '$lib/server/demo/visit';
+import { idleEndOf, lastEndOf, redisDemoActivity } from '$lib/server/demo/activity';
+import { demoTerms } from '$lib/server/demo/terms';
+import { cloneOfRole } from '$lib/server/demo/visit';
 import { HttpAchievementsSource } from '$lib/server/fsp/adapter';
 import { RATE_LIMIT_RULES } from '$lib/server/http/rate-limit';
 import { ServiceGrantIssuer } from '$lib/server/fsp/grant';
@@ -199,6 +200,7 @@ beforeAll(async () => {
 			vacancies: 30,
 			world: { seed: DEFAULT_SEED, athletes: ATHLETES },
 			nightlyReset: true,
+			review: false,
 			fspMockControlToken: FSP_MOCK_CREDENTIALS.controlToken
 		},
 		appOrigin: 'http://localhost:57173',
@@ -301,7 +303,13 @@ describe('demo sessions', () => {
 		baseline = await census();
 
 		const terms = await demoTerms(database.db);
-		expect(terms).toEqual({ sessionHours: 24, ownResumeHours: 24 });
+		expect(terms).toEqual({
+			review: false,
+			sessionHours: 24,
+			ownResumeHours: 24,
+			idleMinutes: 480,
+			evictableMinutes: 20
+		});
 		a = await openDemoSession(deps(), data, terms, meta);
 		b = await openDemoSession(deps(), data, terms, meta);
 		expect(a.clones.size).toBe(castRoles(data).length);
@@ -888,7 +896,7 @@ describe('terms of a demo session', () => {
 		// A juror away for lunch and a meeting comes back to the session as they left it; one who left for good does not
 		// hold the rows and the place of the stand.
 		await activity.touch(back.sessionId, new Date(now.getTime() - 4 * HOUR));
-		await activity.touch(gone.sessionId, new Date(now.getTime() - DEMO_IDLE_MINUTES * MINUTE - MINUTE));
+		await activity.touch(gone.sessionId, new Date(now.getTime() - terms.idleMinutes * MINUTE - MINUTE));
 		const outcome = await purgeExpiredDemoSessions({ db: database.db, redis, store }, now, meta.requestId);
 		expect(outcome.failed).toEqual([]);
 		expect(outcome.idle).toEqual([gone.sessionId]);
@@ -905,18 +913,20 @@ describe('terms of a demo session', () => {
 		expect(RATE_LIMIT_RULES.demoSession.limit).toBeGreaterThanOrEqual(MAX_LIVE_SESSIONS);
 	});
 
-	it('shows the visitor the earliest end: the idle time, the nightly reset or the end of the session', () => {
+	it('shows the visitor the earliest end: the idle time, the nightly reset or the end of the session', async () => {
+		const { idleMinutes } = await demoTerms(database.db);
+		expect(idleMinutes).toBe(480);
 		// 10:00 Moscow time: the idle time ends first, the nightly reset at 03:00 Moscow time comes before the day is over.
 		const morning = new Date('2026-10-13T07:00:00Z');
 		const dayLater = new Date(morning.getTime() + 24 * HOUR);
-		expect(idleEndOf(dayLater, morning)).toEqual(new Date(morning.getTime() + DEMO_IDLE_MINUTES * MINUTE));
+		expect(idleEndOf(dayLater, morning, idleMinutes)).toEqual(new Date(morning.getTime() + idleMinutes * MINUTE));
 		expect(lastEndOf(dayLater, morning)).toEqual(new Date('2026-10-14T00:00:00Z'));
 		// Late in the evening the reset comes before the idle time is over.
 		const evening = new Date('2026-10-13T20:00:00Z');
-		expect(idleEndOf(dayLater, evening)).toEqual(new Date('2026-10-14T00:00:00Z'));
+		expect(idleEndOf(dayLater, evening, idleMinutes)).toEqual(new Date('2026-10-14T00:00:00Z'));
 		// A session shortened by an own resume ends at its own time when that is earlier.
 		const shortened = new Date('2026-10-13T08:00:00Z');
-		expect(idleEndOf(shortened, morning)).toEqual(shortened);
+		expect(idleEndOf(shortened, morning, idleMinutes)).toEqual(shortened);
 		expect(lastEndOf(shortened, morning)).toEqual(shortened);
 	});
 });

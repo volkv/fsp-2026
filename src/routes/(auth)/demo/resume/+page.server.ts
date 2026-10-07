@@ -4,9 +4,10 @@ import { currentDocument } from '$lib/server/auth/documents';
 import { loadAccessSubject } from '$lib/server/companies/subject';
 import { config } from '$lib/server/config';
 import { db } from '$lib/server/db';
-import { DEMO_IDLE_MINUTES, lastEndOf } from '$lib/server/demo/activity';
+import { lastEndOf } from '$lib/server/demo/activity';
 import { uploadOwnResume } from '$lib/server/demo/own-resume';
-import { demoTerms, sessionOfAccount } from '$lib/server/demo/visit';
+import { demoTerms } from '$lib/server/demo/terms';
+import { sessionOfAccount } from '$lib/server/demo/visit';
 import { assertResumeSize } from '$lib/server/documents/limits';
 import { formFailure } from '$lib/server/http/page';
 import { resumeDeps } from '$lib/server/resumes/deps';
@@ -30,12 +31,20 @@ export const load: PageServerLoad = async (event) => {
 	if (!document?.available) throw new Error('the consent demo_resume_upload is not published');
 	const terms = await demoTerms(db());
 	const now = new Date();
-	// An upload now shortens the session to the term of the resume; the nightly reset may come first.
+	// An upload now shortens the session to the term of the resume, if the terms have one; the nightly reset may come
+	// first. In review the resume lives as the session does.
 	const endsAt =
 		current === null
 			? null
 			: lastEndOf(
-					new Date(Math.min(current.session.expiresAt.getTime(), now.getTime() + terms.ownResumeHours * 3_600_000)),
+					new Date(
+						Math.min(
+							current.session.expiresAt.getTime(),
+							terms.ownResumeHours === null
+								? Number.POSITIVE_INFINITY
+								: now.getTime() + terms.ownResumeHours * 3_600_000
+						)
+					),
 					now
 				);
 	return {
@@ -43,7 +52,7 @@ export const load: PageServerLoad = async (event) => {
 		endsAt,
 		nightlyReset: config().demo?.nightlyReset === true,
 		ownResumeHours: terms.ownResumeHours,
-		idleHours: DEMO_IDLE_MINUTES / 60,
+		idleMinutes: terms.idleMinutes,
 		document: { id: document.id, title: document.title, body: document.body, version: document.version }
 	};
 };

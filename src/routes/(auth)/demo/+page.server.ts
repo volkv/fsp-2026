@@ -6,17 +6,11 @@ import { config } from '$lib/server/config';
 import { fieldCrypto } from '$lib/server/crypto/fields';
 import { db } from '$lib/server/db';
 import { users } from '$lib/server/db/schema';
-import {
-	DEMO_EVICTABLE_MINUTES,
-	DEMO_IDLE_MINUTES,
-	idleEndOf,
-	lastEndOf,
-	nextStandReset,
-	redisDemoActivity
-} from '$lib/server/demo/activity';
+import { idleEndOf, lastEndOf, nextStandReset, redisDemoActivity } from '$lib/server/demo/activity';
 import { castOriginals, castRoles, cloneEmail, DemoCastMissing, type CastRole } from '$lib/server/demo/cast';
 import { MAX_LIVE_SESSIONS } from '$lib/server/demo/clone';
 import { readSeedData, seedsDirectory } from '$lib/server/demo/data';
+import { demoTerms } from '$lib/server/demo/terms';
 import {
 	DEMO_SESSION_COOKIE,
 	DEMO_SESSION_REFUSALS,
@@ -91,6 +85,7 @@ export const load: PageServerLoad = async (event) => {
 		if (!(cause instanceof DemoCastMissing)) throw cause;
 		return { seeded: false as const, roles: [], session: null, joining: null, fspNotice, resetAt };
 	}
+	const terms = await demoTerms(db());
 	const joining = event.url.searchParams.get('join');
 	const current = await currentSession(event, joining, now);
 	// Coming back to the screen of the session is a use of it: the idle time starts again, as the page then says.
@@ -106,7 +101,7 @@ export const load: PageServerLoad = async (event) => {
 		})),
 		session: current
 			? {
-					idleEndsAt: idleEndOf(current.session.expiresAt, now),
+					idleEndsAt: idleEndOf(current.session.expiresAt, now, terms.idleMinutes),
 					endsAt: lastEndOf(current.session.expiresAt, now),
 					endsAtReset: resetAt !== null && resetAt.getTime() <= current.session.expiresAt.getTime(),
 					ownResumeAt: current.session.ownResumeAt,
@@ -115,8 +110,13 @@ export const load: PageServerLoad = async (event) => {
 					role: await currentRole(event, current.session.id, roles)
 				}
 			: null,
-		idleHours: DEMO_IDLE_MINUTES / 60,
-		evictableMinutes: DEMO_EVICTABLE_MINUTES,
+		// How long a session lives, said before it is opened: the visitor knows when what they do goes.
+		terms: {
+			review: terms.review,
+			sessionHours: terms.sessionHours,
+			idleMinutes: terms.idleMinutes,
+			evictableMinutes: terms.evictableMinutes
+		},
 		maxSessions: MAX_LIVE_SESSIONS,
 		resetAt,
 		// A link that opens no live session says so instead of silently opening a new one.

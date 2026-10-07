@@ -1,5 +1,5 @@
 // Job `demo.purge` (docs/domain.md, section 19.3): hourly on a demonstration stand, removes the demo sessions whose
-// time is over or that nobody has used for `DEMO_IDLE_MINUTES` — the clones of the cast with everything they own and
+// time is over or that nobody has used for the idle time of the terms of the stand (`terms.ts`) — the clones of the cast with everything they own and
 // the visitors' own resumes with every result derived from them. Each session goes in its own transaction; a session
 // whose rows are named from outside it stays and fails the job with the references named, the others are removed.
 import { config } from '$lib/server/config';

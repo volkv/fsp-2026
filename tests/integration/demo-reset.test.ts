@@ -130,7 +130,7 @@ describe('demo reset plan', () => {
 					fspMock: { origin: 'http://simulator.test', controlToken: 'x'.repeat(32) },
 					fetch: mock.fetch
 				},
-				{ requestId: 'test' }
+				{ requestId: 'test', trigger: 'manual' }
 			);
 			await expect(refusal).rejects.toThrow(DemoResetPlanMismatch);
 			await expect(refusal).rejects.toThrow(/demo_probe/);
@@ -187,7 +187,12 @@ describe('demo reset', () => {
 				{ candidate_id: candidate.id },
 				{ inputVersion: '1', createdBy: { kind: 'system' } }
 			);
-			await enqueueJob(tx, 'demo.reset', { date: '2026-10-12' }, { inputVersion: 'x', createdBy: { kind: 'system' } });
+			await enqueueJob(
+				tx,
+				'demo.reset',
+				{ kind: 'nightly', date: '2026-10-12' },
+				{ inputVersion: 'x', createdBy: { kind: 'system' } }
+			);
 		});
 		await redis.set('session:probe', '1');
 
@@ -207,7 +212,7 @@ describe('demo reset', () => {
 				fspMock: { origin: 'http://simulator.test', controlToken: 'x'.repeat(32) },
 				fetch: mock.fetch
 			},
-			{ requestId: 'demo-reset-test' }
+			{ requestId: 'demo-reset-test', trigger: 'manual' }
 		);
 
 		for (const [table, decision] of Object.entries(DEMO_RESET_PLAN)) {
@@ -222,6 +227,7 @@ describe('demo reset', () => {
 			{
 				action: 'demo.reset',
 				details: {
+					trigger: 'manual',
 					tables_cleared: summary.tablesCleared,
 					rows_kept: summary.rowsKept,
 					files_removed: 1
@@ -313,7 +319,7 @@ describe('demo reset and the real staff', () => {
 				fspMock: { origin: 'http://simulator.test', controlToken: 'x'.repeat(32) },
 				fetch: simulator().fetch
 			},
-			{ requestId: 'demo-reset-staff' }
+			{ requestId: 'demo-reset-staff', trigger: 'manual' }
 		);
 
 		const kept = await db.select({ id: users.id }).from(users);

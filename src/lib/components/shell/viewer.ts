@@ -26,11 +26,23 @@ const WORKSPACE_VALUES: readonly (string | null)[] = ['candidate', 'employer', '
 const isDemoSession = (value: unknown): boolean =>
 	value === null || (typeof value === 'object' && (value as Record<string, unknown>).expiresAt instanceof Date);
 
-/** Time left until a moment, as the interface says it: «5 ч 12 мин», «40 мин»; a moment passed is «0 мин». */
+/**
+ * Time left until a moment, as the interface says it: «6 сут. 23 ч», «5 ч 12 мин», «40 мин»; a moment passed is
+ * «0 мин».
+ */
 export function timeLeft(until: Date, now: number): string {
 	const minutes = Math.max(0, Math.round((until.getTime() - now) / 60_000));
 	const hours = Math.floor(minutes / 60);
+	if (hours >= 24) return `${Math.floor(hours / 24)} сут. ${hours % 24} ч`;
 	return hours > 0 ? `${hours} ч ${minutes % 60} мин` : `${minutes} мин`;
+}
+
+/** A term in minutes as the interface says it: «20 мин», «8 ч», «7 сут.», «1 ч 30 мин». */
+export function termText(minutes: number): string {
+	if (minutes < 60) return `${minutes} мин`;
+	if (minutes % 1440 === 0) return `${minutes / 1440} сут.`;
+	const hours = Math.floor(minutes / 60);
+	return minutes % 60 === 0 ? `${hours} ч` : `${hours} ч ${minutes % 60} мин`;
 }
 
 /** Reads the viewer from layout data, which is typed loosely across pages. */

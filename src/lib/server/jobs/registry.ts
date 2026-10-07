@@ -218,12 +218,13 @@ export const JOB_TYPES = {
 		leaseSeconds: 60,
 		priority: 50
 	}),
-	// Demonstration stand only (domain 19.2): empties every table except the reference data, then seeds again. `date` —
-	// the night of a scheduled reset or the day of a reset asked for at start; one run of each.
+	// Demonstration stand only (domain 19.2): empties every table except the reference data, then seeds again. `kind` —
+	// `nightly`, the scheduled reset of the night `date`, which runs only while `DEMO_NIGHTLY_RESET` is on when it starts;
+	// `startup`, asked for on the day `date` by the start of the application for a batch not seeded yet. One run of each.
 	'demo.reset': defineJob({
-		typeVersion: 1,
-		payload: z.strictObject({ date: z.iso.date() }),
-		dedupKey: (p) => `demo.reset:${p.date}`,
+		typeVersion: 2,
+		payload: z.strictObject({ kind: z.enum(['nightly', 'startup']), date: z.iso.date() }),
+		dedupKey: (p) => `demo.reset:${p.kind}:${p.date}`,
 		maxAttempts: 2,
 		leaseSeconds: 1800,
 		priority: 100

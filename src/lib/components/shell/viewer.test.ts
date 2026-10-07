@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { permittedItems, WORKSPACES } from '$lib/navigation';
-import { timeLeft, viewerFrom } from './viewer';
+import { termText, timeLeft, viewerFrom } from './viewer';
 
 const viewer = {
 	displayName: 'Оператор',
@@ -40,6 +40,15 @@ describe('demo session of the viewer', () => {
 		expect(timeLeft(until, until.getTime() - (5 * 60 + 12) * 60_000)).toBe('5 ч 12 мин');
 		expect(timeLeft(until, until.getTime() - 40 * 60_000)).toBe('40 мин');
 		expect(timeLeft(until, until.getTime() + 60_000)).toBe('0 мин');
+		// A session of the review lives for days: they are said as days.
+		expect(timeLeft(until, until.getTime() - (6 * 24 + 23) * 3_600_000 - 59 * 60_000)).toBe('6 сут. 23 ч');
+	});
+
+	it('says a term in the largest whole unit', () => {
+		expect(termText(20)).toBe('20 мин');
+		expect(termText(480)).toBe('8 ч');
+		expect(termText(7 * 24 * 60)).toBe('7 сут.');
+		expect(termText(90)).toBe('1 ч 30 мин');
 	});
 });
 

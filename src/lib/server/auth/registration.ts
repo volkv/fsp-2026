@@ -4,8 +4,9 @@
 // registration — by password or after a return from FSP ID — takes place within the visitor's demo session
 // (docs/domain.md, 19.3): the account, its identity, profile and company belong to the session and go with it, and the
 // address is the session's form of the one typed, so visitors of other sessions register the same athlete and address
-// with accounts of their own. The session's form of an address is no mailbox the visitor reads: such an account is
-// created confirmed, as the clones of the cast are, and no letter is sent.
+// with accounts of their own. Such an account is confirmed by the letter as any other; the session's form of an address
+// is a mailbox of the stand the visitor does not open, so the letter is kept with the session and read on its letters
+// page (`verification.ts`, `demo/letters.ts`).
 import { and, eq, gt, ne, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { recordAuditEvent } from '$lib/server/audit/record';
@@ -21,16 +22,16 @@ import {
 	users
 } from '$lib/server/db/schema';
 import { cloneEmail } from '$lib/server/demo/cast';
+import type { MailMessage } from '$lib/server/mail/mailer';
 import { decideAge, minorsAllowed, parseBirthDate } from './age';
 import type { AuthDeps, RequestMeta } from './context';
 import { stillCurrent } from './documents';
-import { issueEmailToken } from './email-tokens';
 import type { PendingSignup } from './fsp-signup';
 import type { DemoSessionRefusal, VisitorDemoSession } from './identities';
 import { isValidInn } from './inn';
 import { hashPassword, passwordProblems } from './password';
 import { createSession } from './sessions';
-import { sendVerificationLetter } from './verification';
+import { issueVerificationLetter, sendVerificationLetter } from './verification';
 
 export type Role = 'candidate' | 'employer';
 
@@ -63,11 +64,8 @@ export type RegistrationResult =
 			ok: true;
 			userId: string;
 			sessionId: string;
-			/**
-			 * The letter confirming the address: `not_sent` — the account exists but the letter did not leave, the person can
-			 * ask for it again; `not_needed` — an account of a demo session, created confirmed.
-			 */
-			letter: 'sent' | 'not_sent' | 'not_needed';
+			/** The letter confirming the address: `not_sent` — the account exists but the letter did not leave, the person can ask for it again. */
+			letter: 'sent' | 'not_sent';
 	  }
 	| { ok: false; errors: Partial<Record<RegistrationField, string>> }
 	/** The visitor's demo session could not be had (`demo/visit.ts`): nothing was written. */
@@ -143,7 +141,7 @@ export async function register(
 	// Hashing costs tens of milliseconds: done before the transaction, not inside it.
 	const passwordHash = input.password === null ? null : await hashPassword(input.password);
 
-	let created: { userId: string; letterToken: string | null };
+	let created: { userId: string; letter: MailMessage };
 	try {
 		created = await deps.db.transaction(async (tx) => {
 			const userAgreement = await stillCurrent(tx, 'user_agreement', input.documents.userAgreementId, now);
@@ -176,10 +174,9 @@ export async function register(
 			const [user] = await tx
 				.insert(users)
 				.values({
-					status: demoSessionId === null ? 'pending_email' : 'active',
+					status: 'pending_email',
 					emailEnc: deps.crypto.encrypt(email, 'users.email'),
 					emailHmac,
-					emailVerifiedAt: demoSessionId === null ? null : now,
 					displayName: input.displayName.trim(),
 					demoSessionId
 				})
@@ -297,7 +294,7 @@ export async function register(
 				});
 			}
 
-			const letterToken = demoSessionId === null ? await issueEmailToken(tx, 'verify_email', { userId }, now) : null;
+			const letter = await issueVerificationLetter(tx, deps, { userId, address: email, demoSessionId }, now);
 			await tx.update(users).set({ lastLoginAt: now }).where(eq(users.id, userId));
 			await recordAuditEvent(tx, {
 				action: 'auth.registered',
@@ -309,19 +306,14 @@ export async function register(
 				userAgent: meta.userAgent,
 				details: { method: input.fsp === null ? 'password' : 'fsp_id' }
 			});
-			return { userId, letterToken };
+			return { userId, letter };
 		});
 	} catch (error) {
 		if (error instanceof RegistrationRefused) return { ok: false, errors: error.errors };
 		throw error;
 	}
 
-	const letter =
-		created.letterToken === null
-			? ('not_needed' as const)
-			: (await sendVerificationLetter(deps, email, created.letterToken))
-				? ('sent' as const)
-				: ('not_sent' as const);
+	const letter = (await sendVerificationLetter(deps, created.letter)) ? ('sent' as const) : ('not_sent' as const);
 	const { sessionId } = await createSession(
 		deps.redis,
 		{

@@ -2,14 +2,15 @@
 // the stand, which the visitor does not open; the letters page of the session shows them what their session sent:
 // - letters to the legal representative of a candidate of the session — the one-time links that sign the consents and
 //   answer an acceptance — are kept with the session (`demo_letters`, the body encrypted, as it carries the link) when
-//   they left, and so is the password reset of an account registered within the session; letters of the stand outside
-//   sessions are never kept;
+//   they left, and so are the confirmation of the address and the password reset of an account registered within the
+//   session; letters of the stand outside sessions are never kept;
 // - notifications of the session's accounts are shown as the letters they would be: a clone has no channel of its own,
 //   so nothing is delivered, and the letter is rendered from the notification on the page, as the delivery would.
 // Who reads them: a signed-in account of the session reads every letter of it. A visitor who forgot the password of the
-// account they registered is signed in to nothing, so the browser that holds the session's join token reads the
-// password resets of that session — and nothing else of it: whoever holds the token may enter any role of the session
-// and read the rest there, and no other session's letter is reached.
+// account they registered, or signed out before confirming its address, is signed in to nothing, so the browser that
+// holds the session's join token reads the letters of the accounts registered within that session — and nothing else
+// of it: whoever holds the token may enter any role of the session and read the rest there, and no other session's
+// letter is reached.
 import { and, desc, eq, gte, inArray, isNotNull, ne, or, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
 import { demoActorOf } from '$lib/server/access/demo-actor';
@@ -25,6 +26,8 @@ import { isNotificationType, NOTIFICATION_TYPES } from '$lib/server/notification
 export type DemoLetterKind = (typeof DEMO_LETTER_KINDS)[number];
 const REPRESENTATIVE_KINDS = ['consents', 'disclosure'] as const satisfies readonly DemoLetterKind[];
 type RepresentativeLetterKind = (typeof REPRESENTATIVE_KINDS)[number];
+/** Letters to an account registered within the session: the object is the account. */
+const ACCOUNT_KINDS = ['verify_email', 'password_reset'] as const satisfies readonly DemoLetterKind[];
 
 /** `an***@example.org`: the first two characters of the local part and the domain. */
 export function maskEmail(address: string): string {
@@ -75,17 +78,17 @@ export async function keepDemoLetter(
 }
 
 /**
- * Whose letters the browser reads: `all` — every letter of the session, for a signed-in account of it; `password_reset`
- * — the password resets of the session whose join token the browser holds, for anybody else.
+ * Whose letters the browser reads: `all` — every letter of the session, for a signed-in account of it; `accounts` — the
+ * letters to the accounts registered within the session whose join token the browser holds, for anybody else.
  */
 export interface LettersReader {
 	sessionId: string;
-	scope: 'all' | 'password_reset';
+	scope: 'all' | 'accounts';
 }
 
 /**
- * The letters the browser reads: those of the signed-in account's own demo session, else the password resets of the
- * live demo session of the browser (`browserSessionId`, from its cookie); `null` — none.
+ * The letters the browser reads: those of the signed-in account's own demo session, else the letters to the accounts
+ * registered within the live demo session of the browser (`browserSessionId`, from its cookie); `null` — none.
  */
 export async function lettersReaderOf(
 	executor: Executor,
@@ -94,7 +97,7 @@ export async function lettersReaderOf(
 ): Promise<LettersReader | null> {
 	const actor = await demoActorOf(executor, userId);
 	if (actor.kind === 'clone') return { sessionId: actor.sessionId, scope: 'all' };
-	return browserSessionId === null ? null : { sessionId: browserSessionId, scope: 'password_reset' };
+	return browserSessionId === null ? null : { sessionId: browserSessionId, scope: 'accounts' };
 }
 
 /** Who the letter was for, as the page names them. */
@@ -120,10 +123,14 @@ export interface SessionLetter extends SessionLetterHead {
 const KEPT_TITLES: Record<DemoLetterKind, string> = {
 	consents: 'Согласия на обработку данных подростка',
 	disclosure: 'Согласие на передачу контактов подростка',
-	password_reset: 'Сброс пароля'
+	password_reset: 'Сброс пароля',
+	verify_email: 'Подтверждение почты'
 };
 
 const payloadSchema = z.record(z.string(), z.unknown());
+
+const isRepresentativeKind = (kind: DemoLetterKind): kind is RepresentativeLetterKind =>
+	(REPRESENTATIVE_KINDS as readonly DemoLetterKind[]).includes(kind);
 
 interface Deps {
 	crypto: FieldCrypto;
@@ -131,8 +138,8 @@ interface Deps {
 }
 
 /**
- * The letters kept with the session. A password reset names the account it was for; the letter of an account deleted
- * since is not shown, as its link opens nothing.
+ * The letters kept with the session. A letter to an account names the account it was for; the letter of an account
+ * deleted since is not shown, as its link opens nothing.
  */
 async function keptLetters(
 	executor: Executor,
@@ -152,7 +159,7 @@ async function keptLetters(
 		.leftJoin(
 			users,
 			and(
-				eq(demoLetters.kind, 'password_reset'),
+				inArray(demoLetters.kind, [...ACCOUNT_KINDS]),
 				eq(demoLetters.objectType, 'user'),
 				eq(users.id, demoLetters.objectId),
 				eq(users.demoSessionId, sessionId),
@@ -166,10 +173,9 @@ async function keptLetters(
 		status: 'sent',
 		title: KEPT_TITLES[row.kind],
 		subject: row.subject,
-		recipient:
-			row.kind === 'password_reset'
-				? { kind: 'account', address: row.recipientMasked, name: accountName ?? 'Участник' }
-				: { kind: 'representative', address: row.recipientMasked },
+		recipient: isRepresentativeKind(row.kind)
+			? { kind: 'representative', address: row.recipientMasked }
+			: { kind: 'account', address: row.recipientMasked, name: accountName ?? 'Участник' },
 		at: row.createdAt,
 		text: crypto.decrypt(row.bodyEnc, 'demo_letters.body')
 	}));
@@ -252,7 +258,7 @@ export async function sessionLetters(
 					...(await keptLetters(executor, deps.crypto, reader.sessionId, {})),
 					...(await notificationLetters(executor, deps, reader.sessionId))
 				]
-			: await keptLetters(executor, deps.crypto, reader.sessionId, { kinds: ['password_reset'] });
+			: await keptLetters(executor, deps.crypto, reader.sessionId, { kinds: ACCOUNT_KINDS });
 	return letters
 		.sort((a, b) => b.at.getTime() - a.at.getTime())
 		.map((letter) => ({
@@ -273,9 +279,9 @@ export async function sessionLetter(
 	id: string
 ): Promise<SessionLetter | null> {
 	if (!z.uuid().safeParse(id).success) return null;
-	if (reader.scope === 'password_reset') {
-		const [reset] = await keptLetters(executor, deps.crypto, reader.sessionId, { kinds: ['password_reset'], id });
-		return reset ?? null;
+	if (reader.scope === 'accounts') {
+		const [letter] = await keptLetters(executor, deps.crypto, reader.sessionId, { kinds: ACCOUNT_KINDS, id });
+		return letter ?? null;
 	}
 	const [kept] = await keptLetters(executor, deps.crypto, reader.sessionId, { id });
 	if (kept) return kept;

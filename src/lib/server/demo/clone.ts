@@ -21,10 +21,11 @@ import { demoSessions, vacancies } from '$lib/server/db/schema';
 import { uuidv7 } from '$lib/server/ids';
 import type { ObjectStore } from '$lib/server/storage/object-store';
 import { enqueueMatchRefresh } from '$lib/server/vacancies/derivations';
-import { DEMO_EVICTABLE_MINUTES, lastUseOf, type DemoActivity } from './activity';
+import { lastUseOf, type DemoActivity } from './activity';
 import { castOriginals, castRoles, cloneEmail } from './cast';
 import { ownedDecision } from './clone-plan';
 import type { SeedData } from './data';
+import type { DemoTerms } from './terms';
 import {
 	ident,
 	inValues,
@@ -41,7 +42,8 @@ import {
 
 /**
  * Demo sessions alive at once. A visitor beyond them takes the place of the session quiet for the longest time, when it
- * has been quiet for `DEMO_EVICTABLE_MINUTES`; with every session in use the visitor is asked to come back later.
+ * has been quiet for the quiet time of the terms (`terms.ts`); with every session in use the visitor is asked to come
+ * back later.
  */
 export const MAX_LIVE_SESSIONS = 60;
 
@@ -77,10 +79,15 @@ export interface OpenedSession {
 
 /**
  * Makes room for one more session when the stand holds `MAX_LIVE_SESSIONS` live ones: the session quiet for the longest
- * time ends now, when it has been quiet for `DEMO_EVICTABLE_MINUTES` (its sign-in sessions stop at their next request,
+ * time ends now, when it has been quiet for `evictableMinutes` (its sign-in sessions stop at their next request,
  * `demo.purge` removes its rows). `null` — there was room; the refusal when every session is in use.
  */
-async function makeRoom(tx: Transaction, activity: DemoActivity, now: Date): Promise<string | null> {
+async function makeRoom(
+	tx: Transaction,
+	activity: DemoActivity,
+	evictableMinutes: number,
+	now: Date
+): Promise<string | null> {
 	const live = await tx
 		.select({ id: demoSessions.id, createdAt: demoSessions.createdAt })
 		.from(demoSessions)
@@ -90,7 +97,7 @@ async function makeRoom(tx: Transaction, activity: DemoActivity, now: Date): Pro
 	const quietest = live
 		.map((session) => ({ id: session.id, lastUse: lastUseOf(session, used) }))
 		.sort((a, b) => a.lastUse.getTime() - b.lastUse.getTime())[0];
-	if (!quietest || quietest.lastUse.getTime() > now.getTime() - DEMO_EVICTABLE_MINUTES * 60_000) {
+	if (!quietest || quietest.lastUse.getTime() > now.getTime() - evictableMinutes * 60_000) {
 		throw new DemoSessionsExhausted(`${live.length} demo sessions are open and in use`);
 	}
 	await tx.update(demoSessions).set({ expiresAt: now }).where(eq(demoSessions.id, quietest.id));
@@ -287,7 +294,7 @@ async function removeObjects(store: ObjectStore, keys: readonly string[], cause:
 export async function openDemoSession(
 	deps: CloneDeps,
 	data: SeedData,
-	terms: { sessionHours: number },
+	terms: Pick<DemoTerms, 'sessionHours' | 'evictableMinutes'>,
 	meta: RequestMeta
 ): Promise<OpenedSession> {
 	const roles = castRoles(data);
@@ -300,7 +307,7 @@ export async function openDemoSession(
 		return await deps.db.transaction(async (tx) => {
 			// One opening at a time: the limit of live sessions is counted and kept under the lock.
 			await tx.execute(sql`select pg_advisory_xact_lock(hashtext('demo.open_session'))`);
-			const evicted = await makeRoom(tx, deps.activity, now);
+			const evicted = await makeRoom(tx, deps.activity, terms.evictableMinutes, now);
 			const graph = await loadSchemaGraph(tx);
 			const originals = await castOriginals(tx, deps.crypto, roles);
 			await tx.insert(demoSessions).values({

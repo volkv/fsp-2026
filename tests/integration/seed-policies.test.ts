@@ -49,7 +49,8 @@ describe('product policies seed', () => {
 			'notification_policy v1',
 			'retention_policy v1',
 			'retention_policy v2',
-			'retention_policy v3'
+			'retention_policy v3',
+			'retention_policy v4'
 		]);
 		const first = await publishPolicies(client, release);
 		expect(first.map((p) => `${p.kind} v${p.version} ${p.outcome}`).sort()).toEqual(
@@ -86,8 +87,8 @@ describe('product policies seed', () => {
 			version: 1,
 			storeThreshold: 0.3
 		});
-		// Of the versions in effect from the same moment, the latest one applies: the terms of demo sessions, the notice
-		// before the removal for inactivity and the retention of batch files are there.
+		// Of the versions in effect from the same moment, the latest one applies: the terms of demo sessions, regular and
+		// in review, the notice before the removal for inactivity and the retention of batch files are there.
 		expect(await currentRetentionPolicy(database.db)).toEqual({
 			audit_retention_months: 36,
 			disclosure_retention_months: 36,
@@ -95,7 +96,12 @@ describe('product policies seed', () => {
 			demo_session_hours: 24,
 			demo_own_resume_hours: 24,
 			inactivity_notice_days: 30,
-			fsp_batch_retention_days: 90
+			fsp_batch_retention_days: 90,
+			demo_idle_minutes: 480,
+			demo_evictable_minutes: 20,
+			demo_review_session_hours: 720,
+			demo_review_idle_hours: 168,
+			demo_review_evictable_hours: 24
 		});
 		expect((await assessmentPolicy(database.db, now)).params).toEqual({ artifact_retention_days: 365 });
 	});

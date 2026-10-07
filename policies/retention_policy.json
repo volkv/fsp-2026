@@ -55,6 +55,38 @@
 				"inactivity_notice_days": "docs/domain.md §19.2: purge_after через 30 дней после уведомления",
 				"fsp_batch_retention_days": "product_default"
 			}
+		},
+		{
+			"version": 4,
+			"effective_from": "2026-09-25T00:00:00Z",
+			"params": {
+				"audit_retention_months": 36,
+				"disclosure_retention_months": 36,
+				"inactive_candidate_purge_days": 730,
+				"demo_session_hours": 24,
+				"demo_own_resume_hours": 24,
+				"inactivity_notice_days": 30,
+				"fsp_batch_retention_days": 90,
+				"demo_idle_minutes": 480,
+				"demo_evictable_minutes": 20,
+				"demo_review_session_hours": 720,
+				"demo_review_idle_hours": 168,
+				"demo_review_evictable_hours": 24
+			},
+			"basis": {
+				"audit_retention_months": "docs/domain.md §18.1: журнал хранится 3 года",
+				"disclosure_retention_months": "product_default",
+				"inactive_candidate_purge_days": "product_default",
+				"demo_session_hours": "docs/domain.md §19.3: демо-сессия живёт сутки",
+				"demo_own_resume_hours": "docs/domain.md §19.3: своё резюме в демо удаляется через сутки после загрузки",
+				"inactivity_notice_days": "docs/domain.md §19.2: purge_after через 30 дней после уведомления",
+				"fsp_batch_retention_days": "product_default",
+				"demo_idle_minutes": "docs/domain.md §19.3: сессию без действий 8 часов удаляет demo.purge",
+				"demo_evictable_minutes": "docs/domain.md §19.3: место заполненного стенда отдаёт сессия, молчащая не меньше 20 минут",
+				"demo_review_session_hours": "docs/domain.md §19.3: в режиме экспертизы сессия живёт до 30 суток от открытия",
+				"demo_review_idle_hours": "docs/domain.md §19.3: в режиме экспертизы сессия живёт 7 суток после последнего действия",
+				"demo_review_evictable_hours": "docs/domain.md §19.3: в режиме экспертизы место не отдаёт сессия, активная в последние сутки"
+			}
 		}
 	]
 }

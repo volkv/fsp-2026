@@ -1,7 +1,10 @@
 // Job `demo.reset` (docs/domain.md, section 19.2): the nightly return of the demonstration stand to its seeded state,
 // and the first seed of a new stand or of new seed data (`ensure` at the start of the application enqueues it). The
-// reset and the seed commit in their own transactions as they go, so the job's result has nothing left to write.
+// job of a night is enqueued a day ahead, so it asks `DEMO_NIGHTLY_RESET` again when it runs: turned off since, the
+// night resets nothing and the journal says so. The reset at start is not asked: the stand has no data of its batch.
+// The reset and the seed commit in their own transactions as they go, so the job's result has nothing left to write.
 import { asc, eq } from 'drizzle-orm';
+import { recordAuditEvent } from '$lib/server/audit/record';
 import { config } from '$lib/server/config';
 import type { Database } from '$lib/server/db';
 import { embeddingSpaces } from '$lib/server/db/schema';
@@ -47,14 +50,31 @@ export async function enqueueDemoReindex(db: Database): Promise<string[]> {
 	return spaces;
 }
 
-function createDemoResetHandler(services: (log: JobLogger) => Promise<DemoServices>): JobHandler<'demo.reset'> {
+export function createDemoResetHandler(services: (log: JobLogger) => Promise<DemoServices>): JobHandler<'demo.reset'> {
 	return defineHandler({
 		type: 'demo.reset',
 		concurrency: 1,
-		run: async ({ requestId, log }) => {
+		run: async ({ job, db, requestId, log }) => {
 			// Checked before anything is touched: a job left in the queue of a stand that left demonstration mode fails.
-			if (config().demo === null) {
+			const settings = config().demo;
+			if (settings === null) {
 				throw new JobFailure('demo_mode_off', 'DEMO_MODE is not true on this stand', { retryable: false });
+			}
+			const { kind, date } = job.payload;
+			if (kind === 'nightly' && !settings.nightlyReset) {
+				await recordAuditEvent(db, {
+					action: 'demo.reset_skipped',
+					outcome: 'success',
+					actor: { kind: 'system' },
+					requestId,
+					details: { date, reason: 'nightly_reset_off' }
+				});
+				log.info('nightly demo reset skipped: DEMO_NIGHTLY_RESET is off', { date });
+				return {
+					isCurrent: () => Promise.resolve(true),
+					write: () => Promise.resolve(),
+					describe: () => ({ kind, skipped: 'nightly_reset_off' })
+				};
 			}
 			const demo = await services(log);
 			const reset = await resetDemo(
@@ -64,7 +84,7 @@ function createDemoResetHandler(services: (log: JobLogger) => Promise<DemoServic
 					store: demo.store,
 					fspMock: { origin: demo.fspMockOrigin, controlToken: demo.settings.fspMockControlToken }
 				},
-				{ requestId }
+				{ requestId, trigger: kind }
 			);
 			const seeded = await seedDemo(demo);
 			const reindexSpaces = await enqueueDemoReindex(demo.db);
@@ -72,6 +92,7 @@ function createDemoResetHandler(services: (log: JobLogger) => Promise<DemoServic
 				isCurrent: () => Promise.resolve(true),
 				write: () => Promise.resolve(),
 				describe: () => ({
+					kind,
 					tables_cleared: reset.tablesCleared,
 					files_removed: reset.filesRemoved,
 					batch: seeded.batch,

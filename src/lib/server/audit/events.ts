@@ -156,7 +156,14 @@ const GROUPS = {
 		'external_profile.sync_failed'
 	],
 	models: ['ml.mode_changed'],
-	demo: ['demo.reset', 'demo.seeded', 'demo.session_opened', 'demo.session_purged', 'demo.clock_advanced'],
+	demo: [
+		'demo.reset',
+		'demo.reset_skipped',
+		'demo.seeded',
+		'demo.session_opened',
+		'demo.session_purged',
+		'demo.clock_advanced'
+	],
 	// Requests of a confirmation, calls of companies and the candidate's own applications (domain 13.11, 13.12, 18.2).
 	contact: [
 		'confirmation.requested',
@@ -316,12 +323,16 @@ const SPECIFIC_DETAILS: Partial<Record<AuditAction, z.ZodType>> = {
 		withdrawn: count
 	}),
 	'external_profile.sync_failed': withKeys({ platform: EXTERNAL_PLATFORM, reason: SOURCE_FAILURE }),
-	// The demonstration stand was emptied except the reference data (domain 19.2), or filled by the demo seed.
+	// The demonstration stand was emptied except the reference data (domain 19.2), or filled by the demo seed. `trigger`
+	// — the job of a night, the start of the application with a batch not seeded yet, or the command line.
 	'demo.reset': withKeys({
+		trigger: z.enum(['nightly', 'startup', 'manual']),
 		tables_cleared: z.int().nonnegative(),
 		rows_kept: z.int().nonnegative(),
 		files_removed: z.int().nonnegative()
 	}),
+	// The job of the night `date` found `DEMO_NIGHTLY_RESET` off when it ran and reset nothing.
+	'demo.reset_skipped': withKeys({ date: z.iso.date(), reason: z.enum(['nightly_reset_off']) }),
 	// With what the seed did with the tests (domain 23.3): open specializations, candidates and needs left without a
 	// released bank, candidates of roles no test checks.
 	'demo.seeded': withKeys({

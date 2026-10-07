@@ -13,8 +13,9 @@ import type { Database, Transaction } from '$lib/server/db';
 import { consentEvents, demoSessions, erasureLedger } from '$lib/server/db/schema';
 import type { Redis } from '$lib/server/redis';
 import type { ObjectStore } from '$lib/server/storage/object-store';
-import { DEMO_IDLE_MINUTES, lastUseOf, redisDemoActivity } from './activity';
+import { lastUseOf, redisDemoActivity } from './activity';
 import { ownedDecision } from './clone-plan';
+import { demoTerms } from './terms';
 import {
 	ident,
 	inValues,
@@ -226,21 +227,22 @@ export async function purgeDemoSession(
 }
 
 export interface ExpiredPurge {
-	/** Sessions unused for `DEMO_IDLE_MINUTES`, ended before their time and removed with the expired ones. */
+	/** Sessions unused for the idle time of the terms, ended before their time and removed with the expired ones. */
 	idle: string[];
 	purged: SessionPurge[];
 	/** Sessions whose removal stopped, with the reason; they are tried again on the next run. */
 	failed: { sessionId: string; reason: string }[];
 }
 
-/** Ends now every live session nobody has used for `DEMO_IDLE_MINUTES`. */
+/** Ends now every live session nobody has used for the idle time of the terms of the stand (`terms.ts`). */
 async function endIdleSessions(deps: PurgeDeps, now: Date): Promise<string[]> {
+	const { idleMinutes } = await demoTerms(deps.db);
 	const live = await deps.db
 		.select({ id: demoSessions.id, createdAt: demoSessions.createdAt })
 		.from(demoSessions)
 		.where(gt(demoSessions.expiresAt, now));
 	const used = await redisDemoActivity(deps.redis).lastUsed(live.map((session) => session.id));
-	const idleSince = now.getTime() - DEMO_IDLE_MINUTES * 60_000;
+	const idleSince = now.getTime() - idleMinutes * 60_000;
 	const idle = live.filter((session) => lastUseOf(session, used).getTime() <= idleSince).map((session) => session.id);
 	if (idle.length > 0) {
 		await deps.db

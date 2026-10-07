@@ -240,4 +240,24 @@ describe('parseConfig', () => {
 		expect(parseConfig(testEnvironment({ ...stand, DEMO_NIGHTLY_RESET: 'false' })).demo?.nightlyReset).toBe(false);
 		expect(() => parseConfig(testEnvironment({ ...stand, DEMO_NIGHTLY_RESET: 'no' }))).toThrow(/DEMO_NIGHTLY_RESET/);
 	});
+
+	it('puts a demonstration stand in review only with the nightly reset off', () => {
+		const stand = {
+			...FSP_SIMULATOR,
+			DEMO_MODE: 'true',
+			FSP_MOCK_SEED: 'seed',
+			FSP_MOCK_ATHLETES: '200',
+			FSP_MOCK_CONTROL_TOKEN: 'k'.repeat(32)
+		};
+		expect(parseConfig(testEnvironment(stand)).demo?.review).toBe(false);
+		expect(
+			parseConfig(testEnvironment({ ...stand, DEMO_REVIEW_MODE: 'true', DEMO_NIGHTLY_RESET: 'false' })).demo?.review
+		).toBe(true);
+		// A night would remove the sessions the jury comes back to.
+		for (const nightly of [{}, { DEMO_NIGHTLY_RESET: 'true' }] as Record<string, string>[]) {
+			expect(() => parseConfig(testEnvironment({ ...stand, ...nightly, DEMO_REVIEW_MODE: 'true' }))).toThrow(
+				/DEMO_NIGHTLY_RESET.*DEMO_REVIEW_MODE/
+			);
+		}
+	});
 });

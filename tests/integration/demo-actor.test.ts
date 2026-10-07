@@ -48,9 +48,10 @@ import {
 	testAttempts,
 	users
 } from '$lib/server/db/schema';
-import { DEMO_EVICTABLE_MINUTES, DEMO_IDLE_MINUTES, redisDemoActivity } from '$lib/server/demo/activity';
+import { redisDemoActivity } from '$lib/server/demo/activity';
+import { demoTerms } from '$lib/server/demo/terms';
 import { castRoles } from '$lib/server/demo/cast';
-import { MAX_LIVE_SESSIONS } from '$lib/server/demo/clone';
+import { DemoSessionsExhausted, MAX_LIVE_SESSIONS, openDemoSession } from '$lib/server/demo/clone';
 import { readSeedData, type SeedData } from '$lib/server/demo/data';
 import { purgeExpiredDemoSessions } from '$lib/server/demo/purge';
 import { enterDemoRole, type DemoEntry } from '$lib/server/demo/visit';
@@ -858,7 +859,18 @@ describe('the demo screen', () => {
 
 		const quiet = filler[0] ?? '';
 		await activity.forget([quiet]);
-		await activity.touch(quiet, new Date(now.getTime() - (DEMO_EVICTABLE_MINUTES + 1) * MINUTE));
+		const terms = await demoTerms(database.db);
+		expect(terms.evictableMinutes).toBe(20);
+		await activity.touch(quiet, new Date(now.getTime() - (terms.evictableMinutes + 1) * MINUTE));
+		// In review a session used within the day keeps its place: the newcomer is asked to come back instead.
+		await expect(
+			openDemoSession(
+				{ db: database.db, crypto, store, activity, now: () => now },
+				data,
+				{ sessionHours: 720, evictableMinutes: 24 * 60 },
+				meta
+			)
+		).rejects.toThrow(DemoSessionsExhausted);
 		const newcomer = entered(await enter('198.51.100.4', [], now));
 		expect(newcomer.opened).toBe(true);
 		const [ended] = await database.db
@@ -876,15 +888,11 @@ describe('the demo screen', () => {
 	it('ends and removes a session nobody has used for the idle time', async () => {
 		const now = new Date();
 		const activity = redisDemoActivity(redis);
-		const idle = await demoSession(
-			new Date(now.getTime() + DAY),
-			new Date(now.getTime() - 3 * DEMO_IDLE_MINUTES * MINUTE)
-		);
-		const used = await demoSession(
-			new Date(now.getTime() + DAY),
-			new Date(now.getTime() - 3 * DEMO_IDLE_MINUTES * MINUTE)
-		);
-		await activity.touch(idle, new Date(now.getTime() - (DEMO_IDLE_MINUTES + 1) * MINUTE));
+		const { idleMinutes } = await demoTerms(database.db);
+		expect(idleMinutes).toBe(480);
+		const idle = await demoSession(new Date(now.getTime() + DAY), new Date(now.getTime() - 3 * idleMinutes * MINUTE));
+		const used = await demoSession(new Date(now.getTime() + DAY), new Date(now.getTime() - 3 * idleMinutes * MINUTE));
+		await activity.touch(idle, new Date(now.getTime() - (idleMinutes + 1) * MINUTE));
 		await activity.touch(used, new Date(now.getTime() - MINUTE));
 		const outcome = await purgeExpiredDemoSessions({ db: database.db, redis, store }, now, meta.requestId);
 		expect(outcome.idle).toContain(idle);

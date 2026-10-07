@@ -173,6 +173,7 @@ const envSchema = z
 		DEMO_CANDIDATES: optional(z.coerce.number().int().min(1).max(10_000)),
 		DEMO_VACANCIES: optional(z.coerce.number().int().min(1).max(5_000)),
 		DEMO_NIGHTLY_RESET: optional(z.enum(['true', 'false']).transform((value) => value === 'true')),
+		DEMO_REVIEW_MODE: optional(z.enum(['true', 'false']).transform((value) => value === 'true')),
 		FSP_MOCK_SEED: optional(z.string().min(1).max(200)),
 		FSP_MOCK_ATHLETES: optional(z.coerce.number().int().min(200).max(5_000)),
 		FSP_MOCK_CONTROL_TOKEN: optional(z.string().min(32))
@@ -277,6 +278,14 @@ const envSchema = z
 				if (value[name] === undefined) {
 					ctx.addIssue({ code: 'custom', path: [name], message: 'required when DEMO_MODE is true' });
 				}
+			}
+			// A session of the review outlives a night: the nightly reset would remove it with the rest of the stand.
+			if (value.DEMO_REVIEW_MODE === true && value.DEMO_NIGHTLY_RESET !== false) {
+				ctx.addIssue({
+					code: 'custom',
+					path: ['DEMO_NIGHTLY_RESET'],
+					message: 'must be false when DEMO_REVIEW_MODE is true (a review session lives for days)'
+				});
 			}
 			if (value.FSP_ACHIEVEMENTS_ADAPTER !== 'mock') {
 				ctx.addIssue({
@@ -407,12 +416,15 @@ export interface Config {
 	 * the seed generates again to pick the athletes it links; `fspMockControlToken` opens the simulator's control
 	 * endpoints for the reset. `nightlyReset` (`DEMO_NIGHTLY_RESET`, on by default): the worker resets the stand every
 	 * night at 00:00 UTC and a demo session ends no later than that; off — nothing resets the stand by itself, a session
-	 * lives to its own end or its idle time, and the operator cleans the stand by hand (docs/deploy.md).
+	 * lives to its own end or its idle time, and the operator cleans the stand by hand (docs/deploy.md). `review`
+	 * (`DEMO_REVIEW_MODE`, off by default, only with the nightly reset off): the stand is in review by the jury and its
+	 * sessions live by the review terms of `retention_policy` (`demo/terms.ts`).
 	 */
 	demo: {
 		candidates: number;
 		vacancies: number;
 		nightlyReset: boolean;
+		review: boolean;
 		world: { seed: string; athletes: number };
 		fspMockControlToken: string;
 	} | null;
@@ -527,6 +539,7 @@ function build(e: Env): Config {
 						candidates: e.DEMO_CANDIDATES ?? 1000,
 						vacancies: e.DEMO_VACANCIES ?? 300,
 						nightlyReset: e.DEMO_NIGHTLY_RESET ?? true,
+						review: e.DEMO_REVIEW_MODE ?? false,
 						world: {
 							seed: present(e.FSP_MOCK_SEED, 'FSP_MOCK_SEED'),
 							athletes: present(e.FSP_MOCK_ATHLETES, 'FSP_MOCK_ATHLETES')

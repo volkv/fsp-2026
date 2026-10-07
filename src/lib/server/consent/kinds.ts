@@ -228,6 +228,31 @@ const demoTerms = {
 	demo_own_resume_hours: positiveInt
 };
 
+/** Terms of retention_policy from version 3. */
+const laterTerms = {
+	/** Days between the notice of the removal for inactivity and the removal (`candidates.purge_after`). */
+	inactivity_notice_days: positiveInt,
+	/** Days a source file of an FSP results batch is kept after its upload (`files.retention_until`). */
+	fsp_batch_retention_days: positiveInt
+};
+
+/**
+ * How long a demo session lives in use (version 4): the regular terms of the stand, and those of the review by the
+ * jury (`DEMO_REVIEW_MODE`), when a judge comes back to the session they started days before (domain 19.3).
+ */
+const demoUseTerms = {
+	/** A session nobody used for this long is ended by `demo.purge`. */
+	demo_idle_minutes: positiveInt,
+	/** A session quiet for this long gives its place on a full stand to a new visitor. */
+	demo_evictable_minutes: positiveInt,
+	/** In review: a session is removed this many hours after it was opened, whatever its use. */
+	demo_review_session_hours: positiveInt,
+	/** In review: a session nobody used for this long is ended. A visitor's own resume lives as the session does. */
+	demo_review_idle_hours: positiveInt,
+	/** In review: a session used within this time keeps its place on a full stand. */
+	demo_review_evictable_hours: positiveInt
+};
+
 /** Parameters of each policy kind. Every value is a product decision that the brief may change (domain 20). */
 export const POLICY_PARAMS = {
 	invitation_policy: z.strictObject({
@@ -291,14 +316,8 @@ export const POLICY_PARAMS = {
 	retention_policy: z.union([
 		z.strictObject(retentionTerms),
 		z.strictObject({ ...retentionTerms, ...demoTerms }),
-		z.strictObject({
-			...retentionTerms,
-			...demoTerms,
-			/** Days between the notice of the removal for inactivity and the removal (`candidates.purge_after`). */
-			inactivity_notice_days: positiveInt,
-			/** Days a source file of an FSP results batch is kept after its upload (`files.retention_until`). */
-			fsp_batch_retention_days: positiveInt
-		})
+		z.strictObject({ ...retentionTerms, ...demoTerms, ...laterTerms }),
+		z.strictObject({ ...retentionTerms, ...demoTerms, ...laterTerms, ...demoUseTerms })
 	]),
 	matching_policy: z.strictObject({
 		/**

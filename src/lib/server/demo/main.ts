@@ -5,7 +5,7 @@
 //   ensure       — at the start of the application: when the current batch is not seeded, enqueue `demo.reset` for the
 //                  worker (the seed takes minutes, longer than a deployment waits for the application to be healthy).
 // Every command refuses outside demonstration mode (DEMO_MODE=true).
-import { and, eq, inArray, lte, sql } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import { closeDb } from '$lib/server/db';
 import { jobs } from '$lib/server/db/schema';
 import { createLogger } from '$lib/server/jobs/log';
@@ -47,7 +47,7 @@ async function reset(services: DemoServices, withSeed: boolean): Promise<void> {
 			store: services.store,
 			fspMock: { origin: services.fspMockOrigin, controlToken: services.settings.fspMockControlToken }
 		},
-		{ requestId: 'demo-cli:reset' }
+		{ requestId: 'demo-cli:reset', trigger: 'manual' }
 	);
 	log.info('demo stand reset', {
 		tables_cleared: summary.tablesCleared,
@@ -65,19 +65,24 @@ async function ensure(services: DemoServices): Promise<void> {
 	}
 	const date = new Date().toISOString().slice(0, 10);
 	const enqueued = await services.db.transaction(async (tx) => {
-		// The job of the coming night waits for 00:00 UTC; only one due now counts.
+		// Only a reset asked for at start counts: the job of a night waits for 00:00 UTC, and with `DEMO_NIGHTLY_RESET`
+		// turned off since it was enqueued it resets nothing.
 		const [pending] = await tx
 			.select({ id: jobs.id })
 			.from(jobs)
 			.where(
-				and(eq(jobs.type, 'demo.reset'), inArray(jobs.status, ['queued', 'running']), lte(jobs.runAfter, sql`now()`))
+				and(
+					eq(jobs.type, 'demo.reset'),
+					inArray(jobs.status, ['queued', 'running']),
+					sql`${jobs.payload}->>'kind' = 'startup'`
+				)
 			)
 			.limit(1);
 		if (pending) return false;
 		await enqueueJob(
 			tx,
 			'demo.reset',
-			{ date },
+			{ kind: 'startup', date },
 			{ inputVersion: batch, createdBy: { kind: 'system', id: 'demo-ensure' } }
 		);
 		return true;

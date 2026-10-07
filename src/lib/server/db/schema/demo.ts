@@ -31,11 +31,12 @@ export const demoSessions = pgTable(
 	]
 );
 
-export const DEMO_LETTER_KINDS = ['consents', 'disclosure', 'password_reset'] as const;
+export const DEMO_LETTER_KINDS = ['consents', 'disclosure', 'password_reset', 'verify_email'] as const;
 
 /**
  * Letters a demo session sent to the mailbox of the stand, which is not the visitor's to open: those to the legal
- * representative of a candidate of the session, and the password reset of an account registered within it. The visitor
+ * representative of a candidate of the session, and the confirmation of the address and the password reset of an
+ * account registered within it. The visitor
  * reads them on the letters page of the session. The body carries the one-time link of the letter and is encrypted.
  * Letters outside demo sessions are never kept here.
  */

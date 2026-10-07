@@ -2,9 +2,9 @@
 // session is kept with the session and read on its letters page, with a link that works; a letter of the stand outside
 // sessions is never kept. The notifications of the session's accounts show there as the letters they would be. The
 // page is a clone's, for the letters of its own session only: for another session, a real account or an anonymous
-// visitor it does not exist. The password reset of an account registered within the session is kept too, and the
-// browser holding the session reads it signed in to nothing — the resets of its own session and no other letter.
-// Removing the session removes its letters.
+// visitor it does not exist. The confirmation of the address and the password reset of an account registered within the
+// session are kept too, and the browser holding the session reads them signed in to nothing — the letters to the
+// accounts of its own session and no other letter. Removing the session removes its letters.
 import { randomBytes } from 'node:crypto';
 import { and, eq } from 'drizzle-orm';
 import { createClient } from 'redis';
@@ -14,6 +14,7 @@ import {
 	candidates,
 	demoLetters,
 	demoSessions,
+	legalDocuments,
 	legalRepresentatives,
 	notifications,
 	representations,
@@ -37,6 +38,8 @@ const { purgeDemoSession } = await import('$lib/server/demo/purge');
 const { DEMO_SESSION_COOKIE } = await import('$lib/server/demo/visit');
 const { cloneEmail } = await import('$lib/server/demo/cast');
 const { requestPasswordReset, resetPassword } = await import('$lib/server/auth/recovery');
+const { register } = await import('$lib/server/auth/registration');
+const { verifyEmail } = await import('$lib/server/auth/verification');
 const { sha256Hex } = await import('$lib/server/auth/secrets');
 const { testEnvironment } = await import('../helpers/environment');
 const listPage = await import('../../src/routes/(app)/demo/mail/+page.server');
@@ -98,7 +101,7 @@ beforeAll(async () => {
 	redis = createClient({ url: `${inject('redisUrl')}/${REDIS_DATABASE}` });
 	await redis.connect();
 	const published = { publishedAt: new Date(Date.now() - 10 * DAY) };
-	for (const kind of ['pd_processing', 'catalog_visibility', 'fsp_import'] as const) {
+	for (const kind of ['pd_processing', 'catalog_visibility', 'fsp_import', 'user_agreement'] as const) {
 		await createPublishedDocument(database.db, kind, published);
 	}
 });
@@ -371,7 +374,7 @@ describe('letters of a demo session', () => {
 
 		// Signed in to nothing, the browser of the session reads the resets of its session, and nothing else of it.
 		const guest = await list({ kind: 'anonymous' }, sessionId);
-		expect(guest.scope).toBe('password_reset');
+		expect(guest.scope).toBe('accounts');
 		expect(guest.letters.map((letter) => letter.id)).toEqual([kept.id]);
 		expect(guest.letters[0]).toMatchObject({ status: 'sent', recipient: { kind: 'account', name: 'Dana' } });
 		const [representativeLetter] = await database.db
@@ -403,6 +406,56 @@ describe('letters of a demo session', () => {
 		expect(signedIn.letters.map((letter) => letter.id)).toEqual(
 			expect.arrayContaining([kept.id, representativeLetter.id])
 		);
+	});
+
+	it('keeps the confirmation of the address of an account registered in the session, its link confirms it', async () => {
+		const sessionId = await demoSession();
+		const other = await demoSession();
+		const otherClone = await account(other, 'Bob');
+		const [agreement] = await database.db
+			.select({ id: legalDocuments.id })
+			.from(legalDocuments)
+			.where(eq(legalDocuments.kind, 'user_agreement'));
+		if (!agreement) throw new Error('no user agreement published');
+		const typed = `fedor-${randomBytes(4).toString('hex')}@example.org`;
+		const registration = await register(authDeps(), meta, {
+			email: typed,
+			displayName: 'Фёдор',
+			password: 'correct horse battery staple',
+			role: 'candidate',
+			birthDate: '2001-03-14',
+			company: null,
+			documents: { userAgreementId: agreement.id, employerTermsId: null },
+			fsp: null,
+			demoSession: () => Promise.resolve({ ok: true, sessionId })
+		});
+		if (!registration.ok) throw new Error(`registration refused: ${JSON.stringify(registration)}`);
+		expect(registration.letter).toBe('sent');
+		const unconfirmed = async () =>
+			(await database.db.select().from(users).where(eq(users.id, registration.userId)))[0]?.emailVerifiedAt;
+		expect(await unconfirmed()).toBeNull();
+
+		// The account itself reads it among the letters of its session, as the letter that left for the stand's mailbox.
+		const { letters } = await list(session(registration.userId));
+		const letter = letters.find((item) => item.subject.includes('Подтвердите почту'));
+		expect(letter).toMatchObject({ status: 'sent', recipient: { kind: 'account', name: 'Фёдор' } });
+		if (!letter) throw new Error('no confirmation letter on the page');
+		// So does the browser of the session signed in to nothing; another session, by its clone or its browser, does not.
+		expect((await list({ kind: 'anonymous' }, sessionId)).letters.map((item) => item.id)).toContain(letter.id);
+		expect((await list(session(otherClone.id))).letters).toEqual([]);
+		await expect(open(session(otherClone.id), letter.id)).rejects.toMatchObject({ status: 404 });
+		await expect(open({ kind: 'anonymous' }, letter.id, other)).rejects.toMatchObject({ status: 404 });
+
+		// The link of the letter confirms the address, as outside demo sessions.
+		const opened = await open(session(registration.userId), letter.id);
+		expect(opened.letter.text).toBe(outbox.letters.findLast((item) => item.to === cloneEmail(typed, sessionId))?.text);
+		const token = /\/verify-email\?token=([^\s&]+)/.exec(opened.letter.text)?.[1];
+		if (token === undefined) throw new Error('the letter has no link');
+		expect(await verifyEmail(authDeps(), meta, decodeURIComponent(token))).toEqual({
+			ok: true,
+			userId: registration.userId
+		});
+		expect(await unconfirmed()).toBeInstanceOf(Date);
 	});
 
 	it('keeps no reset letter of an account outside demo sessions', async () => {

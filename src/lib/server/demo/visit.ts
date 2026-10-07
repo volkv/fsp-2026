@@ -15,13 +15,13 @@ import type { FieldCrypto } from '$lib/server/crypto/fields';
 import type { Database, Executor } from '$lib/server/db';
 import { demoSessions, users } from '$lib/server/db/schema';
 import { consume, RATE_LIMIT_RULES, redisRateLimitStore } from '$lib/server/http/rate-limit';
-import { currentRetentionPolicy } from '$lib/server/jobs/retention';
 import type { Redis } from '$lib/server/redis';
 import type { ObjectStore } from '$lib/server/storage/object-store';
 import { redisDemoActivity } from './activity';
 import { DemoCastMissing, cloneEmail, type CastRole } from './cast';
 import { DemoSessionsExhausted, openDemoSession } from './clone';
 import { readSeedData, seedsDirectory, type SeedData } from './data';
+import { demoTerms, type DemoTerms } from './terms';
 
 /** Cookie with the join token of the browser's demo session. */
 export const DEMO_SESSION_COOKIE = '__Host-demo_session';
@@ -35,24 +35,6 @@ export function setDemoCookie(cookies: Cookies, token: string, expiresAt: Date, 
 		sameSite: 'lax',
 		maxAge: Math.max(1, Math.floor((expiresAt.getTime() - now.getTime()) / 1000))
 	});
-}
-
-export interface DemoTerms {
-	sessionHours: number;
-	ownResumeHours: number;
-}
-
-export class DemoTermsMissing extends Error {
-	override name = 'DemoTermsMissing';
-}
-
-/** How long a demo session and a visitor's own resume live, from the `retention_policy` in effect. */
-export async function demoTerms(executor: Executor): Promise<DemoTerms> {
-	const policy = await currentRetentionPolicy(executor);
-	if (!policy || !('demo_session_hours' in policy)) {
-		throw new DemoTermsMissing('the retention_policy in effect states no terms of demo sessions (version 2 and later)');
-	}
-	return { sessionHours: policy.demo_session_hours, ownResumeHours: policy.demo_own_resume_hours };
 }
 
 export interface LiveDemoSession {
@@ -135,22 +117,25 @@ export async function signInAsClone(
 }
 
 /**
- * The visitor uploads a resume of their own: from now on the demo session lives no longer than the resume may. Returns
- * the new end of the session.
+ * The visitor uploads a resume of their own: from now on the demo session lives no longer than the resume may — in
+ * review, as long as the session itself (`ownResumeHours` is `null`). Returns the new end of the session.
  */
 export async function shortenForOwnResume(
 	executor: Executor,
 	sessionId: string,
-	terms: DemoTerms,
+	terms: Pick<DemoTerms, 'ownResumeHours'>,
 	now: Date
 ): Promise<Date> {
-	const until = new Date(now.getTime() + terms.ownResumeHours * 3_600_000);
+	const ownResumeAt = sql`coalesce(${demoSessions.ownResumeAt}, ${now.toISOString()}::timestamptz)`;
+	const until =
+		terms.ownResumeHours === null ? null : new Date(now.getTime() + terms.ownResumeHours * 3_600_000).toISOString();
 	const [row] = await executor
 		.update(demoSessions)
-		.set({
-			expiresAt: sql`least(${demoSessions.expiresAt}, ${until.toISOString()}::timestamptz)`,
-			ownResumeAt: sql`coalesce(${demoSessions.ownResumeAt}, ${now.toISOString()}::timestamptz)`
-		})
+		.set(
+			until === null
+				? { ownResumeAt }
+				: { expiresAt: sql`least(${demoSessions.expiresAt}, ${until}::timestamptz)`, ownResumeAt }
+		)
 		.where(eq(demoSessions.id, sessionId))
 		.returning({ expiresAt: demoSessions.expiresAt });
 	if (!row) throw new Error(`demo session ${sessionId} is gone`);

@@ -153,6 +153,7 @@ beforeAll(async () => {
 			vacancies: 30,
 			world: { seed: DEFAULT_SEED, athletes: ATHLETES },
 			nightlyReset: true,
+			review: false,
 			fspMockControlToken: credentials.controlToken
 		},
 		appOrigin: 'http://localhost:57173',
@@ -281,7 +282,7 @@ describe('nightly demo reset', () => {
 		const entry = PERIODIC_JOBS.find((job) => job.type === 'demo.reset');
 		if (!entry) throw new Error('demo.reset is not a periodic job');
 		expect(entry.due(new Date('2026-10-12T15:30:00Z'))).toEqual({
-			payload: { date: '2026-10-13' },
+			payload: { kind: 'nightly', date: '2026-10-13' },
 			inputVersion: '2026-10-13',
 			runAfter: new Date('2026-10-13T00:00:00Z')
 		});
@@ -640,7 +641,7 @@ describe('demo seed', () => {
 				store,
 				fspMock: { origin: mock.origin, controlToken: FSP_MOCK_CREDENTIALS.controlToken }
 			},
-			{ requestId: 'demo-seed-test' }
+			{ requestId: 'demo-seed-test', trigger: 'manual' }
 		);
 		expect(reset.filesRemoved).toBeGreaterThan(0);
 		expect(store.objects.size).toBe(0);

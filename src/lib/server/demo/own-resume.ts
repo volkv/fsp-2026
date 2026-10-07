@@ -11,7 +11,8 @@ import type { RequestMeta } from '$lib/server/invitations/deps';
 import { selfCandidate, type ResumeDeps } from '$lib/server/resumes/deps';
 import { uploadResume, type UploadedResume } from '$lib/server/resumes/upload';
 import { ageBand } from '$lib/server/visibility/age';
-import { shortenForOwnResume, type DemoTerms } from './visit';
+import type { DemoTerms } from './terms';
+import { shortenForOwnResume } from './visit';
 
 export interface OwnResumeInput {
 	/** The demo session the visitor's browser belongs to. */

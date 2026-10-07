@@ -8,6 +8,7 @@ import { loadAccessSubject } from '$lib/server/companies/subject';
 import { hasOpenPartnership } from '$lib/server/partner-pool/pool';
 import { users } from '$lib/server/db/schema';
 import { idleEndOf } from '$lib/server/demo/activity';
+import { demoTerms } from '$lib/server/demo/terms';
 import { sessionOfAccount } from '$lib/server/demo/visit';
 import { NAV_PERMISSIONS, type NavPermission, type Workspace } from '$lib/navigation';
 import type { SessionActor } from './authenticate';
@@ -47,6 +48,10 @@ export async function loadViewer(
 	const subject = await loadAccessSubject(deps.db, actor);
 	const staff = staffWorkspace(subject);
 	const demo = await sessionOfAccount(deps.db, actor.userId, deps.now());
+	// The request itself uses the session: it goes when nobody comes back for the idle time, or at its own end.
+	const demoSession = demo
+		? { expiresAt: idleEndOf(demo.expiresAt, deps.now(), (await demoTerms(deps.db)).idleMinutes) }
+		: null;
 	return {
 		viewer: {
 			displayName: user.displayName ?? 'Без имени',
@@ -58,8 +63,7 @@ export async function loadViewer(
 					(await hasOpenPartnership(deps.db, subject.membership.companyId, deps.now()))
 			),
 			csrfToken: actor.csrfToken,
-			// The request itself uses the session: it goes when nobody comes back for the idle time, or at its own end.
-			demoSession: demo ? { expiresAt: idleEndOf(demo.expiresAt, deps.now()) } : null
+			demoSession
 		},
 		onboarding
 	};

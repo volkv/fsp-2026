@@ -102,6 +102,12 @@
 			<FormMessage text={data.processingRefusal} />
 		</div>
 	{:else}
+		{#if data.viewer?.demoSession}
+			<p class="rounded-lg border border-warning/40 bg-warning-subtle p-3 text-sm" data-testid="demo-resume-warning">
+				Это демонстрационный стенд: загружайте синтетическое или обезличенное резюме — без настоящих имени, контактов и
+				других данных живого человека. Резюме удалится вместе с демо-сессией.
+			</p>
+		{/if}
 		<ResumeUpload
 			problem={problemOf('upload')}
 			uploaded={Boolean(form && 'uploaded' in form)}

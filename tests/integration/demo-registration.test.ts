@@ -1,8 +1,8 @@
 // Registration by password on a demonstration stand (docs/domain.md, 19.3): the account is created within the visitor's
 // demo session — the account, the profile or the company belong to that session. Two visitors registering the same
-// address in two sessions get an account each, seen from its own session only, confirmed without a letter (the session's
-// form of an address is no mailbox the visitor reads) and signed in to by password from that session only; the removal
-// of a session takes its account with it. A clone of the cast is refused a sign-in by password within its session as
+// address in two sessions get an account each, seen from its own session only, confirmed by the link of the letter to
+// the session's form of the address, as outside sessions, and signed in to by password from that session only; the
+// removal of a session takes its account with it. A clone of the cast is refused a sign-in by password within its session as
 // the original is outside. The taxpayer number of a company is taken within its session only. The sign-in and the
 // password reset find the account of the browser's session first, whatever its status, then the one outside sessions; an
 // account of the seed gets no reset letter. Outside demonstration mode the registration is what it was: outside
@@ -17,16 +17,9 @@ import { loginWithPassword } from '$lib/server/auth/login';
 import { requestPasswordReset, resetPassword } from '$lib/server/auth/recovery';
 import { hashPassword } from '$lib/server/auth/password';
 import { accountAddress, register, type RegistrationInput } from '$lib/server/auth/registration';
+import { verifyEmail } from '$lib/server/auth/verification';
 import { createFieldCrypto } from '$lib/server/crypto/fields';
-import {
-	candidates,
-	companies,
-	companyMembers,
-	demoSessions,
-	emailTokens,
-	passwordCredentials,
-	users
-} from '$lib/server/db/schema';
+import { candidates, companies, companyMembers, demoSessions, passwordCredentials, users } from '$lib/server/db/schema';
 import { cloneEmail } from '$lib/server/demo/cast';
 import { purgeDemoSession } from '$lib/server/demo/purge';
 import { demoScope } from '$lib/server/demo/scope';
@@ -211,16 +204,27 @@ describe('registration by password on a demonstration stand', () => {
 			[inSecond, second]
 		] as const) {
 			const user = await userOf(registration.userId);
-			expect(user).toMatchObject({ demoSessionId: session, seedBatchId: null, status: 'active' });
+			expect(user).toMatchObject({ demoSessionId: session, seedBatchId: null, status: 'pending_email' });
 			expect(user.emailHmac).toBe(crypto.lookupHmac('email', cloneEmail(email, session)));
-			// Confirmed as the clones of the cast are: no letter and no link to follow.
-			expect(user.emailVerifiedAt).not.toBeNull();
-			expect(registration.letter).toBe('not_needed');
-			expect(lettersTo(cloneEmail(email, session))).toEqual([]);
-			expect(await db.select().from(emailTokens).where(eq(emailTokens.userId, registration.userId))).toEqual([]);
+			// Not confirmed until the link of the letter is followed: the letter went to the session's form of the address.
+			expect(user.emailVerifiedAt).toBeNull();
+			expect(registration.letter).toBe('sent');
+			expect(lettersTo(cloneEmail(email, session)).map((letter) => letter.subject)).toEqual([
+				expect.stringContaining('Подтвердите почту')
+			]);
 			expect(await candidateOf(registration.userId)).toMatchObject({ demoSessionId: session, demoOriginal: false });
 		}
 		expect(lettersTo(email)).toEqual([]);
+
+		// The link of the first session's letter confirms the account of that session only.
+		const link = /verify-email\?token=([^\s"&]+)/.exec(lettersTo(cloneEmail(email, first))[0]?.text ?? '')?.[1];
+		if (!link) throw new Error('the confirmation letter has no link');
+		expect(await verifyEmail(deps(), meta(), decodeURIComponent(link))).toEqual({ ok: true, userId: inFirst.userId });
+		expect(await userOf(inFirst.userId)).toMatchObject({
+			status: 'active',
+			emailVerifiedAt: expect.any(Date) as unknown
+		});
+		expect(await userOf(inSecond.userId)).toMatchObject({ status: 'pending_email', emailVerifiedAt: null });
 
 		// Each profile is seen from its own session only: not by the other session nor outside sessions.
 		const profiles = [(await candidateOf(inFirst.userId)).id, (await candidateOf(inSecond.userId)).id];
@@ -258,7 +262,7 @@ describe('registration by password on a demonstration stand', () => {
 			company: { inn: randomInn(), name: 'ООО Демо' },
 			documents: { userAgreementId: documents.userAgreement, employerTermsId: documents.employerTerms }
 		});
-		expect(await userOf(registration.userId)).toMatchObject({ demoSessionId: session, status: 'active' });
+		expect(await userOf(registration.userId)).toMatchObject({ demoSessionId: session, status: 'pending_email' });
 		const [company] = await database.db
 			.select({ id: companies.id, demoSessionId: companies.demoSessionId, role: companyMembers.role })
 			.from(companyMembers)
@@ -317,16 +321,18 @@ describe('registration by password on a demonstration stand', () => {
 		await registered(candidateInput(email, inSession(second)));
 
 		// Outside sessions the address has no account, and the session's form of it typed there reaches nothing.
+		const afterRegistration = sent.length;
 		await requestPasswordReset(deps(), email, null);
 		await requestPasswordReset(deps(), cloneEmail(email, first), null);
-		expect(lettersTo(email)).toEqual([]);
-		expect(lettersTo(cloneEmail(email, first))).toEqual([]);
+		expect(sent.slice(afterRegistration)).toEqual([]);
 
 		// From the browser of the first session: the account of that session, the letter to its address.
+		const before = sent.length;
 		await requestPasswordReset(deps(), email, first);
-		const letters = lettersTo(cloneEmail(email, first));
-		expect(letters.map((letter) => letter.subject)).toEqual([expect.stringContaining('Сброс пароля')]);
-		expect(lettersTo(cloneEmail(email, second))).toEqual([]);
+		const letters = sent.slice(before);
+		expect(letters.map((letter) => [letter.to, letter.subject])).toEqual([
+			[cloneEmail(email, first), expect.stringContaining('Сброс пароля')]
+		]);
 		const token = /token=([^\s"&]+)/.exec(letters[0]?.text ?? '')?.[1];
 		if (!token) throw new Error('the reset letter has no link');
 		expect(await resetPassword(deps(), meta(), decodeURIComponent(token), 'a brand new passphrase')).toEqual({

@@ -8,9 +8,10 @@ import type { PageServerLoad } from './$types';
 
 /**
  * Letters of the visitor's demo session: those to the representative of the session's teenager with their one-time
- * links, the password resets of the session's accounts, and the notifications of its accounts as the letters they
- * would be. A signed-in account of the session reads them all; a browser that holds the session and is signed in to
- * nothing of it reads the password resets only. For anybody else the page does not exist.
+ * links, the confirmations of the address and the password resets of the accounts registered within the session, and
+ * the notifications of its accounts as the letters they would be. A signed-in account of the session reads them all; a
+ * browser that holds the session and is signed in to nothing of it reads the letters to the registered accounts only.
+ * For anybody else the page does not exist.
  */
 export const load: PageServerLoad = async (event) => {
 	const { actor } = event.locals;

@@ -1,19 +1,10 @@
 // When a demo session was last used (docs/domain.md, section 19.3). Every authenticated request of a clone and every
 // visit of the demo screen with the session touches it; a session nobody uses is ended early — by `demo.purge` once it
-// has been idle for `DEMO_IDLE_MINUTES`, or when the stand is full and a new visitor needs its place after
-// `DEMO_EVICTABLE_MINUTES` of quiet. The times live in Redis beside the sign-in sessions they come from: a session with
-// no time recorded counts from its opening.
+// has been idle for the idle time of the terms (`terms.ts`), or when the stand is full and a new visitor needs its
+// place after the quiet time of the terms. The times live in Redis beside the sign-in sessions they come from: a
+// session with no time recorded counts from its opening.
 import { config } from '$lib/server/config';
 import type { Redis } from '$lib/server/redis';
-
-/**
- * A session unused for this long is ended by `demo.purge`: long enough for a visitor who leaves for lunch or a meeting
- * and comes back in the same working day to find what they did, short enough that a session left for good gives up its
- * rows and its place on the stand within the day.
- */
-export const DEMO_IDLE_MINUTES = 480;
-/** A session quiet for this long gives its place to a new visitor when the stand has no free one. */
-export const DEMO_EVICTABLE_MINUTES = 20;
 
 const ACTIVITY_KEY = 'demo:activity';
 
@@ -74,6 +65,6 @@ export function lastEndOf(expiresAt: Date, now: Date): Date {
  * When a session in use goes at the latest if nobody comes back: the idle end from now, never after its last end. What
  * the visitor is shown as the time left.
  */
-export function idleEndOf(expiresAt: Date, now: Date): Date {
-	return new Date(Math.min(lastEndOf(expiresAt, now).getTime(), now.getTime() + DEMO_IDLE_MINUTES * 60_000));
+export function idleEndOf(expiresAt: Date, now: Date, idleMinutes: number): Date {
+	return new Date(Math.min(lastEndOf(expiresAt, now).getTime(), now.getTime() + idleMinutes * 60_000));
 }

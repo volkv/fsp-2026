@@ -512,7 +512,16 @@ test('two visitors register a company with the same taxpayer number, each in the
 		await page.getByLabel('ИНН компании').fill(inn);
 		for (const checkbox of await page.getByRole('checkbox', { name: /Принимаю/ }).all()) await checkbox.check();
 		await page.getByRole('button', { name: 'Зарегистрироваться' }).click();
-		// The address of an account of a session is confirmed, and an employer has no other step: the cabinet opens.
+		// The address of an account of a session is confirmed by the letter on the letters page of the session; then an
+		// employer has no other step and the cabinet opens.
+		await page.waitForURL(/\/onboarding/);
+		await page.getByTestId('onboarding-session-letters').click();
+		await page.waitForURL(/\/demo\/mail$/);
+		await page.getByTestId('demo-letter').filter({ hasText: 'Подтвердите почту' }).click();
+		await page.getByTestId('demo-letter-link').click();
+		await page.getByRole('button', { name: 'Подтвердить почту' }).click();
+		await expect(page.getByText('Почта подтверждена.')).toBeVisible();
+		await page.goto('/onboarding');
 		await expect(page).toHaveURL(/\/account$/);
 		await expect(page.getByTestId('demo-session-badge').first()).toBeVisible();
 		return demoSessionOf(page);

@@ -58,8 +58,21 @@
 		<OnboardingStep
 			done={state.emailVerified}
 			title="Почта"
-			text={state.emailVerified ? 'Адрес подтверждён.' : 'Откройте письмо со ссылкой — ссылка действует 24 часа.'}
+			text={state.emailVerified
+				? 'Адрес подтверждён.'
+				: data.sessionLetters
+					? 'Письмо со ссылкой пришло в «Письма сессии»: почтовый ящик демо-стенда не открывается снаружи. Ссылка действует 24 часа.'
+					: 'Откройте письмо со ссылкой — ссылка действует 24 часа.'}
 		/>
+		{#if !state.emailVerified && data.sessionLetters}
+			<a
+				href={resolve('/demo/mail')}
+				class="{buttonVariants({ size: 'sm' })} ml-8 justify-self-start"
+				data-testid="onboarding-session-letters"
+			>
+				Открыть письма сессии
+			</a>
+		{/if}
 		{#if !state.emailVerified}
 			<form method="POST" action="?/resend" use:enhance class="pl-8">
 				<CsrfField viewer={data.viewer} />
