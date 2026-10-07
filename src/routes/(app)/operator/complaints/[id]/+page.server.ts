@@ -1,4 +1,4 @@
-import { formText } from '$lib/server/auth/http';
+import { formText } from '$lib/server/http/form';
 import { complaintCase, decideComplaint } from '$lib/server/complaints/service';
 import { db } from '$lib/server/db';
 import { formFailure, pageError } from '$lib/server/http/page';

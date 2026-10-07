@@ -1,6 +1,6 @@
 import { fail } from '@sveltejs/kit';
 import { minorTermsAcceptance } from '$lib/server/companies/profile';
-import { formText } from '$lib/server/auth/http';
+import { formText } from '$lib/server/http/form';
 import { db } from '$lib/server/db';
 import { employerRequest, membershipOf, vacancyAuthor } from '$lib/server/employer/http';
 import { formFailure, pageError } from '$lib/server/http/page';

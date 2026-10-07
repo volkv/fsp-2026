@@ -1,6 +1,6 @@
 // The partnership forms of the operator cabinet, shared by the partnerships page and the company card: the posted
 // fields turned into the input of `companies/partnerships.ts`, whose validation answers for the values.
-import { formText } from '$lib/server/auth/http';
+import { formText } from '$lib/server/http/form';
 import { AWARDS } from '$lib/fsp/awards';
 import type { ActionContext, CompanyDeps } from '$lib/server/companies/context';
 import {

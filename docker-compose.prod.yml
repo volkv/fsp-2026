@@ -518,6 +518,9 @@ services:
       - --max-old-space-size=256
       - build/worker/main.js
       - '--types=retention.sweep,fsp.sync,external_profile.refresh,evidence.compute,match.refresh,derivations.reconcile,objection.deadline_watch,company.registry_lookup,invitation.expire,invitation.remind_due,hiring.outcome_request,vacancies.text_recheck,vacancy.embed,profile.embed,embedding.reindex,resume.parse,resume.extract,test.run,market.refresh,notification.deliver,demo.reset,demo.purge,consent.revocation_cleanup,account.purge,candidate.majority_transition,challenge.deliver,confirmation.expire,event.deliver'
+      # The worker's sandbox client refuses a run beyond SANDBOX_MAX_CONCURRENT_RUNS with `busy`; one sandbox run at a
+      # time on the stand means one `test.run` at a time.
+      - '--concurrency=test.run=1'
     environment: *app-environment
     read_only: true
     tmpfs:

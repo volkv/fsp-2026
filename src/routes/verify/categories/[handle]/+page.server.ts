@@ -2,7 +2,7 @@ import { error, fail } from '@sveltejs/kit';
 import { categoryTitle, attestationStatementSchema } from '$lib/server/attestations/statement';
 import { ATTESTATION_HANDLE, checkHolder, verifyAttestation } from '$lib/server/attestations/verify';
 import { auditActorOf, recordAuditEvent } from '$lib/server/audit/record';
-import { formText } from '$lib/server/auth/http';
+import { formText } from '$lib/server/http/form';
 import { currentCandidateVocabulary, vocabularyLabels } from '$lib/server/candidates/vocabulary';
 import { config } from '$lib/server/config';
 import { db } from '$lib/server/db';

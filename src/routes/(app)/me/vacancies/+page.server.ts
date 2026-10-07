@@ -1,4 +1,4 @@
-import { formText } from '$lib/server/auth/http';
+import { formText } from '$lib/server/http/form';
 import { candidateRequest } from '$lib/server/candidates/http';
 import { formFailure, pageError } from '$lib/server/http/page';
 import { loadSelfSettings } from '$lib/server/candidates/profile';

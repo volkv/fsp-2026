@@ -1,5 +1,5 @@
 import type { RequestEvent } from '@sveltejs/kit';
-import { formText } from '$lib/server/auth/http';
+import { formText } from '$lib/server/http/form';
 import type { ActionContext } from '$lib/server/companies/context';
 import { config } from '$lib/server/config';
 import { fieldCrypto } from '$lib/server/crypto/fields';

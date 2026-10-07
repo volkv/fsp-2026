@@ -1,6 +1,7 @@
 import type { RequestEvent } from '@sveltejs/kit';
 import { authDeps } from '$lib/server/auth/context';
-import { formText, requestMeta } from '$lib/server/auth/http';
+import { requestMeta } from '$lib/server/auth/http';
+import { formText } from '$lib/server/http/form';
 import { requestConsentLetterByRepresentative } from '$lib/server/consent/representative';
 import { db } from '$lib/server/db';
 import { sessionOfAccount, sessionOfBrowser } from '$lib/server/demo/visit';

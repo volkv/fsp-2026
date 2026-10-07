@@ -1,5 +1,5 @@
 import { redirect } from '@sveltejs/kit';
-import { formText } from '$lib/server/auth/http';
+import { formText } from '$lib/server/http/form';
 import {
 	decideVerification,
 	REVIEW_DUE_HOURS,

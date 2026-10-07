@@ -4,7 +4,7 @@
 // taxonomy have fields of their own and stay as written.
 import { openSpecializations } from '$lib/server/assessments/bank-store';
 import { CATALOG } from '$lib/server/assessments/contract/catalog';
-import { formText } from '$lib/server/auth/http';
+import { formText } from '$lib/server/http/form';
 import { specializationsOfRole } from '$lib/server/categories/roles';
 import { db } from '$lib/server/db';
 import { ApiError, type ErrorDetail } from '$lib/server/errors/api-error';

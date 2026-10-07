@@ -411,7 +411,7 @@ test('a candidate sees the achievement with its receipt, a category without a gr
 	const answer = page.getByTestId('invitation-answer');
 	await answer.getByRole('checkbox', { name: /Телефон/ }).check();
 	await answer.getByRole('button', { name: 'Принять и раскрыть выбранное' }).click();
-	await expect(page.getByText('Приглашение принято.')).toBeVisible();
+	await expect(page.getByText(/^Приглашение принято: компания получила выбранные контакты/)).toBeVisible();
 	await expect(page.getByTestId('disclosure')).toContainText('ФИО, Почта, Телефон');
 	await expect(page.getByTestId('hiring-panel')).toBeVisible();
 

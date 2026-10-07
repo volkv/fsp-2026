@@ -1,7 +1,8 @@
 import { fail } from '@sveltejs/kit';
 import { authDeps } from '$lib/server/auth/context';
 import { emailTokenUsable } from '$lib/server/auth/email-tokens';
-import { formText, clearSessionCookie, requestMeta } from '$lib/server/auth/http';
+import { clearSessionCookie, requestMeta } from '$lib/server/auth/http';
+import { formText } from '$lib/server/http/form';
 import { resetPassword } from '$lib/server/auth/recovery';
 import type { Actions, PageServerLoad } from './$types';
 

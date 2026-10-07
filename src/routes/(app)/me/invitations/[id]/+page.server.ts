@@ -1,6 +1,6 @@
 import { fail } from '@sveltejs/kit';
 import { authDeps } from '$lib/server/auth/context';
-import { formText } from '$lib/server/auth/http';
+import { formText } from '$lib/server/http/form';
 import { candidateRequest } from '$lib/server/candidates/http';
 import { formFailure, pageError } from '$lib/server/http/page';
 import { candidateInvitationCard } from '$lib/server/candidates/invitations';

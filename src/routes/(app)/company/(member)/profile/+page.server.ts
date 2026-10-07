@@ -1,4 +1,4 @@
-import { formText } from '$lib/server/auth/http';
+import { formText } from '$lib/server/http/form';
 import { acceptMinorTerms, companyOverview, minorTermsOf, updateCompanyDraft } from '$lib/server/companies/profile';
 import { companyProfileFor, updateCompanyProfile } from '$lib/server/companies/public-profile';
 import { companyTrust } from '$lib/server/companies/trust';

@@ -5,7 +5,7 @@ import type { BlockSummary } from '$lib/server/assessments/contract/procedure';
 import { explainDecision } from '$lib/server/assessments/explain';
 import { attemptForReview } from '$lib/server/assessments/review';
 import { OWNER_STANDING } from '$lib/server/assessments/standing';
-import { formText } from '$lib/server/auth/http';
+import { formText } from '$lib/server/http/form';
 import { invalid } from '$lib/server/companies/context';
 import { db } from '$lib/server/db';
 import { formFailure, pageError } from '$lib/server/http/page';

@@ -229,7 +229,7 @@ test('a visitor chooses a role and acts in a demo session of their own', async (
 	const first = await (await browser.newContext()).newPage();
 	await first.goto('/demo');
 	await expect(first.getByRole('heading', { name: 'Демо-сессия', level: 1 })).toBeVisible();
-	await expect(first.locator('[data-role]')).toHaveCount(11);
+	await expect(first.locator('[data-role]')).toHaveCount(12);
 	await expectNoAxeViolations(first);
 
 	await enter(first, 'candidate:k5');
@@ -248,7 +248,7 @@ test('a visitor chooses a role and acts in a demo session of their own', async (
 	const sessions = await database().select({ id: demoSessions.id }).from(demoSessions);
 	expect(sessions).toHaveLength(2);
 	const clones = await database().select({ id: users.id }).from(users).where(isNotNull(users.demoSessionId));
-	expect(clones).toHaveLength(22);
+	expect(clones).toHaveLength(24);
 
 	// The link opens the first session in a third browser: the employer of the same scenario.
 	const third = await (await browser.newContext()).newPage();

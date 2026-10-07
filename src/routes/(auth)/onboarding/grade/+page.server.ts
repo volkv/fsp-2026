@@ -1,6 +1,6 @@
 import { redirect } from '@sveltejs/kit';
 import { CATALOG } from '$lib/server/assessments/contract/catalog';
-import { formText } from '$lib/server/auth/http';
+import { formText } from '$lib/server/http/form';
 import { db } from '$lib/server/db';
 import { computeGradeHint, declareGrade } from '$lib/server/grades/declarations';
 import { gradeCandidate } from '$lib/server/grades/http';

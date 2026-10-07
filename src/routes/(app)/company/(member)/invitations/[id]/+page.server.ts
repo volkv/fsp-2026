@@ -1,5 +1,5 @@
 import { error } from '@sveltejs/kit';
-import { formText } from '$lib/server/auth/http';
+import { formText } from '$lib/server/http/form';
 import { db } from '$lib/server/db';
 import { employerRequest, membershipOf, type EmployerRequest } from '$lib/server/employer/http';
 import { formFailure, pageError } from '$lib/server/http/page';

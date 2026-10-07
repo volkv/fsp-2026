@@ -1,5 +1,5 @@
 import { redirect } from '@sveltejs/kit';
-import { formText } from '$lib/server/auth/http';
+import { formText } from '$lib/server/http/form';
 import { CATEGORY_OPTIONS } from '$lib/server/categories/labels';
 import { OBJECTION_DECISIONS, type RescoredItem } from '$lib/server/categories/objections';
 import { invalid } from '$lib/server/companies/context';

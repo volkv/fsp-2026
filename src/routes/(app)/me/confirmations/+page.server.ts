@@ -1,5 +1,5 @@
 import { redirect } from '@sveltejs/kit';
-import { formText } from '$lib/server/auth/http';
+import { formText } from '$lib/server/http/form';
 import { candidateRequest } from '$lib/server/candidates/http';
 import {
 	acceptRequest,

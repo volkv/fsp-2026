@@ -1,6 +1,7 @@
 import { fail } from '@sveltejs/kit';
 import { authDeps } from '$lib/server/auth/context';
-import { formText, requestMeta } from '$lib/server/auth/http';
+import { requestMeta } from '$lib/server/auth/http';
+import { formText } from '$lib/server/http/form';
 import {
 	REPRESENTATIVE_CONSENT_KINDS,
 	representativeConsentForm,

@@ -1,6 +1,6 @@
 import { error, redirect } from '@sveltejs/kit';
 import { z } from 'zod';
-import { formText } from '$lib/server/auth/http';
+import { formText } from '$lib/server/http/form';
 import { applyToVacancy, showcaseVacancyFor } from '$lib/server/applications/service';
 import { candidateRequest } from '$lib/server/candidates/http';
 import { currentCandidateVocabulary, vocabularyLabels } from '$lib/server/candidates/vocabulary';

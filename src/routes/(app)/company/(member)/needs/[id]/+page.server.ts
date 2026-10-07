@@ -1,5 +1,5 @@
 import { redirect } from '@sveltejs/kit';
-import { formText } from '$lib/server/auth/http';
+import { formText } from '$lib/server/http/form';
 import { isGradeKey, isSpecializationKey } from '$lib/server/categories/labels';
 import { employerRequest, membershipOf } from '$lib/server/employer/http';
 import { formFailure, pageError } from '$lib/server/http/page';

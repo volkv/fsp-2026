@@ -1,5 +1,6 @@
 import { fail } from '@sveltejs/kit';
-import { formText, requestMeta } from '$lib/server/auth/http';
+import { requestMeta } from '$lib/server/auth/http';
+import { formText } from '$lib/server/http/form';
 import { ApiError } from '$lib/server/errors/api-error';
 import { invitationDeps } from '$lib/server/invitations/deps';
 import {

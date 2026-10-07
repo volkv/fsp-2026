@@ -1,6 +1,6 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { CATALOG, specializationOpen } from '$lib/server/assessments/contract/catalog';
-import { formText } from '$lib/server/auth/http';
+import { formText } from '$lib/server/http/form';
 import { parsePreferences, type CandidatePreferences } from '$lib/server/candidates/preferences';
 import { currentCandidateVocabulary } from '$lib/server/candidates/vocabulary';
 import { db } from '$lib/server/db';

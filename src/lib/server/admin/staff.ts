@@ -9,7 +9,7 @@ import { z } from 'zod';
 import { requireStandChange, StaffReach } from '$lib/server/access/demo-actor';
 import { STAFF_EXTRA_PERMISSIONS } from '$lib/server/access/permissions';
 import { recordAuditEvent } from '$lib/server/audit/record';
-import { formText } from '$lib/server/auth/http';
+import { formText } from '$lib/server/http/form';
 import type { ActionContext } from '$lib/server/companies/context';
 import { conflict, invalid, requirePermission, sessionUserId } from '$lib/server/companies/context';
 import type { FieldCrypto } from '$lib/server/crypto/fields';

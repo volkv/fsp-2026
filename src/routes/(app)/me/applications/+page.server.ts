@@ -1,4 +1,4 @@
-import { formText } from '$lib/server/auth/http';
+import { formText } from '$lib/server/http/form';
 import { myApplications, withdrawApplication } from '$lib/server/applications/service';
 import { candidateRequest } from '$lib/server/candidates/http';
 import { contactPageDeps } from '$lib/server/contact/page';

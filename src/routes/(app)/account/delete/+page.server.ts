@@ -1,7 +1,8 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { and, eq, isNull, ne } from 'drizzle-orm';
 import { authDeps } from '$lib/server/auth/context';
-import { clearSessionCookie, formText, requestMeta, requireSession } from '$lib/server/auth/http';
+import { clearSessionCookie, requestMeta, requireSession } from '$lib/server/auth/http';
+import { formText } from '$lib/server/http/form';
 import { isFreshAuth } from '$lib/server/auth/sessions';
 import { db } from '$lib/server/db';
 import { candidates, companies, companyMembers, disclosures, staffRoles } from '$lib/server/db/schema';

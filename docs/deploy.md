@@ -72,6 +72,25 @@ ssh ensi-new 'docker exec fsp-career-app node -e "fetch(\"http://fsp-career-mail
 согласия и подписи на экранах это называют (`docs/models.md`, «Куда уходят данные»). Проверка через весь путь —
 `scripts/deploy/deploy.sh models`: настоящий запрос из контейнера `app` (`extract: HTTP 200 in … ms`; `HTTP 401` — ключ не тот).
 
+**Обязательные значения на стенде.** Пустые ключи берут значения по умолчанию, но стенд, созданный до внешней модели,
+держит в `.env.prod` явные адреса туннеля — они перекрывают умолчания compose. Перед выкаткой `.env.prod` приводится к:
+
+```sh
+LLM_RUNTIME=api
+LLM_BASE_URL=https://llmgate.volkv.com/v1
+LLM_MODEL=gemini-flash:latest
+LLM_API_KEY=<ключ шлюза>
+EMBED_BASE_URL=                 # пусто — свой эмбеддер стенда http://fsp-career-embedder:8080/v1
+RERANK_BASE_URL=                # пусто — без машины с GPU rerank не настроен
+RERANK_MODEL=
+RERANK_API_KEY=
+```
+
+Ключ шлюза не печатается и не попадает в историю шелла: строка дописывается на сервере из stdin
+(`ssh ensi-new 'cd /root/fsp-career && umask 077 && … >> .env.prod'` с ключом во входном потоке), а проверяется по длине
+значения, не по самому значению. Доступ к шлюзу с сервера: `ssh ensi-new 'curl -sS -o /dev/null -w "%{http_code}\n"
+https://llmgate.volkv.com/healthz'` — `200`.
+
 **Адреса — с путём версии.** `LLM_BASE_URL`, `EMBED_BASE_URL` и `RERANK_BASE_URL` — база OpenAI-совместимого API вместе с
 `/v1`, как её публикует провайдер; адаптер добавляет `/chat/completions`, `/embeddings`, `/rerank`. Стенд, у которого в
 `.env.prod` записан корень сервера (`http://fsp-career-gpu-tunnel:57810`), после выкатки этой версии получает `404` и путь без
@@ -101,7 +120,10 @@ sshd сервера ключом, которому разрешена тольк
 `SETFCAP`, свой seccomp, `apparmor=unconfined`, `cgroup: private`. Ядро сервера — cgroup v2 с делегированием `cpu`,
 `memory`, `pids`. Остаточный риск из раздела 6.3 (уязвимость ядра или go-judge даёт выход на хост) на общем сервере
 касается и соседних проектов; принят для демо-стенда. На стенде песочница исполняет **одну программу за раз**
-(`-parallelism=1`, `SANDBOX_MAX_CONCURRENT_RUNS=1`) — второй одновременный прогон получает `busy`. Разбор резюме —
+(`-parallelism=1`, `SANDBOX_MAX_CONCURRENT_RUNS=1`) — второй одновременный прогон получает `busy`.
+Поэтому воркер стенда берёт задания `test.run` по одному (`--concurrency=test.run=1` в команде `worker`, против 2 по
+умолчанию у обработчика): иначе второй прогон получал бы `busy`, а после повтора оставался в `awaiting_sandbox` до
+оператора. Совпадение сверяет `src/worker/deployment.test.ts`. Разбор резюме —
 тоже по одному (`DOCPARSE_MAX_CONCURRENT=1`).
 
 ## Бюджет памяти
@@ -311,6 +333,21 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod --env-file releas
 
 `down -v` и удаление томов `fsp-career_*` уничтожают базу и файлы — ни скрипт, ни эта инструкция их не используют.
 
+**Переход с Redis 8 на Valkey.** Valkey 9.1 не читает снимок Redis 8 (`Can't handle RDB format version 15`, `Fatal
+error loading the DB`) — контейнер `fsp-career-redis` не стартует, и выкатка падает на ожидании здоровья. В томе — сессии
+входа, счётчики лимитов, незавершённые входы через ФСП ID и кэши; задания и данные живут в PostgreSQL. Поэтому при
+первой выкатке с Valkey том удаляется (все вошедшие выходят):
+
+```sh
+cd /root/fsp-career
+C="docker compose -f docker-compose.prod.yml --env-file .env.prod --env-file release.env"
+$C stop app worker redis && $C rm -f redis
+docker volume rm fsp-career_redis-data
+```
+
+затем `scripts/deploy/deploy.sh` — compose создаст том заново. Откат на выкатку с Redis 8 поднимет Redis на томе, куда
+уже писал Valkey; прочитает ли Redis 8 снимок Valkey — не проверено, при отказе старта том удаляется так же.
+
 **Смена настроек сети** (например, `internal: true` у `internal` при первой выкатке с ней): compose пересоздаёт сеть сам —
 останавливает подключённые контейнеры, удаляет сеть, создаёт заново и поднимает их (проверено локально на Docker Compose
 5.5.1; версия compose на сервере не сверялась). Если compose вместо этого отказывает с сообщением о расхождении сети —
@@ -422,7 +459,9 @@ PostgreSQL, Valkey (`REDIS_PASSWORD`) и хранилища (`S3_SECRET_ACCESS_K
 - **Переменные** — `DEMO_MODE`, `DEMO_CANDIDATES`, `DEMO_VACANCIES`, `DEMO_NIGHTLY_RESET`, `FSP_MOCK_SEED`, `FSP_MOCK_ATHLETES`. `init-env.sh`
   дописывает недостающие ключи шаблона в существующий `.env.prod` при каждой выкатке, не трогая имеющиеся строки: стенд,
   созданный до демо-режима, получает его значения из шаблона. Строки, которых в шаблоне больше нет, скрипт не удаляет:
-  оставшийся `DEMO_ACCOUNT_PASSWORD` ни на что не влияет, его можно стереть руками.
+  оставшийся `DEMO_ACCOUNT_PASSWORD` ни на что не влияет, его можно стереть руками. Стенд, созданный до засева r3, держит
+  `DEMO_CANDIDATES=3000` и `DEMO_VACANCIES=1500` явно: куча воркера (256 МБ) рассчитана на засев 1000 × 300, поэтому эти
+  строки приводятся к значениям шаблона.
 - **Пароля у учёток засева нет**: посетитель входит только через `/demo` в копию героя (README, «Демо-учётки»).
 
 **Объём и время.** На стенде (воркер — 1 CPU и 512 МБ на сервере с 4 CPU) пересев

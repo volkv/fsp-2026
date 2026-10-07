@@ -1,6 +1,6 @@
 import { error } from '@sveltejs/kit';
 import { z } from 'zod';
-import { formText } from '$lib/server/auth/http';
+import { formText } from '$lib/server/http/form';
 import { challengeSolutionsOf, dismissSolution, updateChallenge } from '$lib/server/challenges/company';
 import { advanceDemoClock, demoClockOf } from '$lib/server/challenges/deliver';
 import { catalogNames, contactPageDeps } from '$lib/server/contact/page';

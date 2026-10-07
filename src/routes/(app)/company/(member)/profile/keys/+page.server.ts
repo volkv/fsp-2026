@@ -1,5 +1,5 @@
 import { PERMISSIONS, type Permission } from '$lib/server/access/permissions';
-import { formText } from '$lib/server/auth/http';
+import { formText } from '$lib/server/http/form';
 import { createApiKey, listApiKeys, revokeApiKey } from '$lib/server/companies/api-keys';
 import { companyDeps, employerRequest, membershipOf } from '$lib/server/employer/http';
 import { formFailure, pageError } from '$lib/server/http/page';

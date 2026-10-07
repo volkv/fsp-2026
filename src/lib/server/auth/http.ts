@@ -62,9 +62,3 @@ export function requireSession(event: RequestEvent): SessionRef {
 	if (!session) redirect(303, `/login?returnTo=${encodeURIComponent(event.url.pathname + event.url.search)}`);
 	return session;
 }
-
-/** A text field of a form; a missing field or a file reads as an empty string. */
-export function formText(form: FormData, name: string): string {
-	const value = form.get(name);
-	return typeof value === 'string' ? value : '';
-}

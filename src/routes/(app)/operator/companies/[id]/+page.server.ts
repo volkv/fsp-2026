@@ -1,4 +1,4 @@
-import { formText } from '$lib/server/auth/http';
+import { formText } from '$lib/server/http/form';
 import { reinstateCompany, suspendCompany, type SuspensionReason } from '$lib/server/companies/verification';
 import { invalid } from '$lib/server/companies/context';
 import { db } from '$lib/server/db';

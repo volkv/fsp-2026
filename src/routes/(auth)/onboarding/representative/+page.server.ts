@@ -1,6 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { authDeps } from '$lib/server/auth/context';
-import { formText, requestMeta, requireSession } from '$lib/server/auth/http';
+import { requestMeta, requireSession } from '$lib/server/auth/http';
+import { formText } from '$lib/server/http/form';
 import { inviteRepresentative, onboardingState } from '$lib/server/auth/onboarding';
 import type { Actions, PageServerLoad } from './$types';
 

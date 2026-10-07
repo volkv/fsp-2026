@@ -5,7 +5,7 @@
 import { fspRecordText } from '$lib/components/employer/shortlist.js';
 import { AWARDS, DISCIPLINES } from '$lib/components/product/model.js';
 import { CATALOG } from '$lib/server/assessments/contract/catalog';
-import { formText } from '$lib/server/auth/http';
+import { formText } from '$lib/server/http/form';
 import { loadCompanyProfile } from '$lib/server/companies/public-profile';
 import type { Executor } from '$lib/server/db';
 import { searchableVacancies } from '$lib/server/employer/vacancies';

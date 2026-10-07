@@ -1,6 +1,6 @@
 import { redirect } from '@sveltejs/kit';
 import { authDeps } from '$lib/server/auth/context';
-import { formText } from '$lib/server/auth/http';
+import { formText } from '$lib/server/http/form';
 import { auditActorOf } from '$lib/server/companies/context';
 import { sendConsentLetter } from '$lib/server/consent/representative';
 import { invalid } from '$lib/server/companies/context';

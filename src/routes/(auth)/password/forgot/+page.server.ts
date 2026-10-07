@@ -1,5 +1,5 @@
 import { authDeps } from '$lib/server/auth/context';
-import { formText } from '$lib/server/auth/http';
+import { formText } from '$lib/server/http/form';
 import { requestPasswordReset } from '$lib/server/auth/recovery';
 import { config } from '$lib/server/config';
 import { sessionOfBrowser } from '$lib/server/demo/visit';

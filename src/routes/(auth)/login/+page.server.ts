@@ -1,7 +1,8 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { authDeps } from '$lib/server/auth/context';
 import { fspIdConfigured } from '$lib/server/auth/fsp-id';
-import { formText, requestMeta, sessionOf, setSessionCookie } from '$lib/server/auth/http';
+import { requestMeta, sessionOf, setSessionCookie } from '$lib/server/auth/http';
+import { formText } from '$lib/server/http/form';
 import { loginWithPassword, type LoginRefusal } from '$lib/server/auth/login';
 import { safeReturnTo } from '$lib/server/auth/redirect';
 import { config } from '$lib/server/config';

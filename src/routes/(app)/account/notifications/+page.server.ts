@@ -1,5 +1,6 @@
 import { fail, type RequestEvent } from '@sveltejs/kit';
-import { formText, requireSession } from '$lib/server/auth/http';
+import { requireSession } from '$lib/server/auth/http';
+import { formText } from '$lib/server/http/form';
 import { grantTelegramConsent, revokeTelegramConsent, telegramConsentState } from '$lib/server/candidates/consents';
 import { formFailure } from '$lib/server/http/page';
 import { loadAccessSubject } from '$lib/server/companies/subject';

@@ -1,6 +1,6 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { CATALOG } from '$lib/server/assessments/contract/catalog';
-import { formText } from '$lib/server/auth/http';
+import { formText } from '$lib/server/http/form';
 import { minorTermsAcceptance } from '$lib/server/companies/profile';
 import { db } from '$lib/server/db';
 import { employerRequest, vacancyAuthor } from '$lib/server/employer/http';

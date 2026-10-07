@@ -1,6 +1,6 @@
 import { error } from '@sveltejs/kit';
 import { z } from 'zod';
-import { formText } from '$lib/server/auth/http';
+import { formText } from '$lib/server/http/form';
 import {
 	dismissDelivery,
 	myChallenges,

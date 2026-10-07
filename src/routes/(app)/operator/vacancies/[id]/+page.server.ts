@@ -1,5 +1,5 @@
 import { fail, redirect } from '@sveltejs/kit';
-import { formText } from '$lib/server/auth/http';
+import { formText } from '$lib/server/http/form';
 import { db } from '$lib/server/db';
 import { labelsOf, vocabularyOf } from '$lib/server/employer/vocabulary';
 import { formFailure, pageError } from '$lib/server/http/page';

@@ -1,5 +1,5 @@
 import { error, redirect, type RequestEvent } from '@sveltejs/kit';
-import { formText } from '$lib/server/auth/http';
+import { formText } from '$lib/server/http/form';
 import {
 	inviteMember,
 	listMembers,

@@ -2,7 +2,7 @@
 // infrastructure, the reading of the posted refinement and of the «what if» of the address. Skills are written by
 // their names and resolved by the taxonomy; a name the taxonomy does not know is a field error, never dropped.
 import { CATALOG } from '$lib/server/assessments/contract/catalog';
-import { formText } from '$lib/server/auth/http';
+import { formText } from '$lib/server/http/form';
 import { isGradeKey, isSpecializationKey } from '$lib/server/categories/labels';
 import { db } from '$lib/server/db';
 import { ApiError, type ErrorDetail } from '$lib/server/errors/api-error';

@@ -1,5 +1,5 @@
 import { redirect } from '@sveltejs/kit';
-import { formText } from '$lib/server/auth/http';
+import { formText } from '$lib/server/http/form';
 import { createChallenge, listChallenges } from '$lib/server/challenges/company';
 import { catalogNames, contactPageDeps } from '$lib/server/contact/page';
 import { employerRequest, membershipOf } from '$lib/server/employer/http';

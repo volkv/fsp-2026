@@ -4,7 +4,8 @@
 // The models behind the reverse tunnel are reachable from the app and the worker only, and the tunnel publishes nothing:
 // its client comes in through `docker exec` on the server. On the stand only the services Caddy reaches share its
 // network with other projects, every network of the stand itself is internal, the services that call outside have a
-// network of their own for it, and Valkey takes the password of the stand's environment.
+// network of their own for it, Valkey takes the password of the stand's environment, and the stand's worker runs no more
+// sandbox jobs at once than its sandbox client accepts.
 import { readFile } from 'node:fs/promises';
 import { describe, expect, it, vi } from 'vitest';
 import { BGE_M3_Q8 } from '$lib/server/embeddings/definitions';
@@ -40,6 +41,18 @@ describe('worker deployment', () => {
 			expect([...enabled].sort()).toEqual(registeredTypes());
 		}
 	);
+
+	it('runs no more test.run jobs at once on the stand than its sandbox client accepts', async () => {
+		const compose = await readFile(new URL('../../docker-compose.prod.yml', import.meta.url), 'utf8');
+		const worker = /^ {2}worker:\n([\s\S]*?)^\n/m.exec(compose)?.[1];
+		if (worker === undefined) throw new Error('docker-compose.prod.yml has no worker service');
+		const workerArguments = [...worker.matchAll(/^ {6}- '(--[^']+)'$/gm)].map((match) => match[1] ?? '');
+		const overrides = parseWorkerArgs(workerArguments).concurrency;
+		const runs = overrides['test.run'] ?? JOB_HANDLERS.get('test.run')?.concurrency;
+		const accepted = /^ {2}SANDBOX_MAX_CONCURRENT_RUNS: '(\d+)'$/m.exec(compose)?.[1];
+		expect(accepted).toBeDefined();
+		expect(runs).toBeLessThanOrEqual(Number(accepted));
+	});
 
 	it.each(['compose.yaml', 'docker-compose.prod.yml'])(
 		'%s runs the embedder of the configured embedding space',

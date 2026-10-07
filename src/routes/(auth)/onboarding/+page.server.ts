@@ -1,7 +1,8 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { CATALOG } from '$lib/server/assessments/contract/catalog';
 import { authDeps } from '$lib/server/auth/context';
-import { formText, requireSession } from '$lib/server/auth/http';
+import { requireSession } from '$lib/server/auth/http';
+import { formText } from '$lib/server/http/form';
 import { onboardingState, redeclareBirthDate } from '$lib/server/auth/onboarding';
 import { resendVerification } from '$lib/server/auth/verification';
 import type { Actions, PageServerLoad } from './$types';

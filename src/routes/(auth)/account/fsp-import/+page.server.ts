@@ -1,7 +1,8 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { authDeps } from '$lib/server/auth/context';
 import { currentDocument } from '$lib/server/auth/documents';
-import { formText, requestMeta, requireSession } from '$lib/server/auth/http';
+import { requestMeta, requireSession } from '$lib/server/auth/http';
+import { formText } from '$lib/server/http/form';
 import { confirmFspAchievements } from '$lib/server/auth/identities';
 import { config } from '$lib/server/config';
 import type { Actions, PageServerLoad } from './$types';

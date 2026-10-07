@@ -1,7 +1,8 @@
 import { fail } from '@sveltejs/kit';
 import { authDeps } from '$lib/server/auth/context';
 import { emailTokenUsable } from '$lib/server/auth/email-tokens';
-import { formText, requestMeta } from '$lib/server/auth/http';
+import { requestMeta } from '$lib/server/auth/http';
+import { formText } from '$lib/server/http/form';
 import { verifyEmail } from '$lib/server/auth/verification';
 import type { Actions, PageServerLoad } from './$types';
 

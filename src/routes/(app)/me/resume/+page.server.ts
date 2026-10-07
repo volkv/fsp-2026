@@ -1,6 +1,6 @@
 import { fail } from '@sveltejs/kit';
 import { resumeFields } from '$lib/components/candidate/quotes';
-import { formText } from '$lib/server/auth/http';
+import { formText } from '$lib/server/http/form';
 import { currentCandidateVocabulary, vocabularyLabels } from '$lib/server/candidates/vocabulary';
 import { candidateRequest } from '$lib/server/candidates/http';
 import { processingRefusal } from '$lib/server/consent/processing';

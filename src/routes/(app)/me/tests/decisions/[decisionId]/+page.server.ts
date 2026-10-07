@@ -4,7 +4,7 @@ import { can } from '$lib/server/access/permissions';
 import { judgementNote } from '$lib/server/assessments/explain';
 import { gradeTitle } from '$lib/server/assessments/titles';
 import { decisionView } from '$lib/server/assessments/views';
-import { formText } from '$lib/server/auth/http';
+import { formText } from '$lib/server/http/form';
 import { candidateRequest, type CandidateRequest } from '$lib/server/candidates/http';
 import {
 	OBJECTION_CLOSED_TEXTS,

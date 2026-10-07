@@ -3,7 +3,7 @@ import type { AccessSubject } from '$lib/server/access/permissions';
 import { SOURCE_FAILURES } from '$lib/components/candidate/model';
 import { resumeFields, type QuoteSource } from '$lib/components/candidate/quotes';
 import { authDeps } from '$lib/server/auth/context';
-import { formText } from '$lib/server/auth/http';
+import { formText } from '$lib/server/http/form';
 import { fspIdentityOf } from '$lib/server/auth/identities';
 import { candidateRequest } from '$lib/server/candidates/http';
 import { formFailure, pageError } from '$lib/server/http/page';

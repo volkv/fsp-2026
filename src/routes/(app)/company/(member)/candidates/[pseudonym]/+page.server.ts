@@ -1,5 +1,5 @@
 import { error, redirect } from '@sveltejs/kit';
-import { formText } from '$lib/server/auth/http';
+import { formText } from '$lib/server/http/form';
 import { companyAdmission } from '$lib/server/access/permissions';
 import { db } from '$lib/server/db';
 import { findInCatalog, journalCardView, loadCatalogCard } from '$lib/server/employer/card';

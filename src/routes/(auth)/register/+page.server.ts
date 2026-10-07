@@ -3,14 +3,8 @@ import { authDeps } from '$lib/server/auth/context';
 import { currentDocument } from '$lib/server/auth/documents';
 import { fspIdConfigured } from '$lib/server/auth/fsp-id';
 import { displayNameOf, dropPendingSignup, readPendingSignup } from '$lib/server/auth/fsp-signup';
-import {
-	formText,
-	clearSignupCookie,
-	FSP_SIGNUP_COOKIE,
-	requestMeta,
-	sessionOf,
-	setSessionCookie
-} from '$lib/server/auth/http';
+import { clearSignupCookie, FSP_SIGNUP_COOKIE, requestMeta, sessionOf, setSessionCookie } from '$lib/server/auth/http';
+import { formText } from '$lib/server/http/form';
 import { register, type Role } from '$lib/server/auth/registration';
 import { config } from '$lib/server/config';
 import { visitorDemoSessionOf, DEMO_SESSION_REFUSALS } from '$lib/server/demo/visit';

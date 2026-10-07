@@ -2,7 +2,7 @@ import { error, type RequestEvent } from '@sveltejs/kit';
 import { can } from '$lib/server/access/permissions';
 import { CATALOG, type GradeKey } from '$lib/server/assessments/contract/catalog';
 import type { GradeOption } from '$lib/server/assessments/contract/policy';
-import { formText } from '$lib/server/auth/http';
+import { formText } from '$lib/server/http/form';
 import { candidateDemand } from '$lib/server/candidates/demand';
 import { needDemand } from '$lib/server/candidates/need-demand';
 import { candidateRequest, type CandidateRequest } from '$lib/server/candidates/http';

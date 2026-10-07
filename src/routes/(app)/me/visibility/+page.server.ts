@@ -1,4 +1,4 @@
-import { formText } from '$lib/server/auth/http';
+import { formText } from '$lib/server/http/form';
 import {
 	consentOverview,
 	grantCatalogVisibility,
