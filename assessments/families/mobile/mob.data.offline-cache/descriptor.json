@@ -1,0 +1,157 @@
+{
+	"key": "mob.data.offline-cache",
+	"version": 1,
+	"specialization": "mobile",
+	"block": "mob.data",
+	"format": "compute",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": { "opens": "3–4", "networkStates": "2–3", "rules": "политика + TTL или таймаут + сеть" },
+			"constructiveRank": 4,
+			"timeNormSec": 400,
+			"classes": [
+				{
+					"id": "network-first",
+					"form": "A",
+					"description": "network-first с таймаутом: медленный ответ уступает кэшу по таймауту, без сети — сразу кэш"
+				},
+				{
+					"id": "cache-first-ttl",
+					"form": "B",
+					"description": "cache-first с TTL от момента получения ответа: свежая запись без запроса, устаревшая — запрос"
+				},
+				{
+					"id": "swr",
+					"form": "anchor",
+					"description": "stale-while-revalidate: кэш сразу, при устаревшей записи — повторное получение после ответа"
+				},
+				{
+					"id": "cache-first-offline",
+					"form": "X",
+					"description": "cache-first без сети: устаревшая запись показывается вместо ошибки"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"constructive": {
+				"opens": "4–5",
+				"networkStates": "2–3",
+				"rules": "сочетание: опоздавший ответ, ETag, офлайн, граница TTL"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 450,
+			"classes": [
+				{
+					"id": "late-write",
+					"form": "A",
+					"description": "опоздавший ответ network-first попадает в кэш и всплывает при следующем открытии без сети"
+				},
+				{
+					"id": "etag",
+					"form": "B",
+					"description": "cache-first с ETag: ответ 304 продлевает свежесть записи и экономит следующие запросы"
+				},
+				{
+					"id": "swr-offline",
+					"form": "anchor",
+					"description": "stale-while-revalidate при пропадающей сети: устаревшая запись без ошибки, обновление при появлении сети"
+				},
+				{
+					"id": "ttl-boundary",
+					"form": "X",
+					"description": "TTL отсчитывается от получения медленного ответа, открытие ровно на границе свежести уже вызывает запрос"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{
+			"name": "numbers",
+			"description": "моменты открытия экрана, TTL, таймаут, задержки ответов, моменты смены версии"
+		},
+		{ "name": "plot", "description": "экран профиля, номера версий" }
+	],
+	"essentialParams": [
+		{ "name": "policy", "description": "cache-first, network-first, stale-while-revalidate, ETag" },
+		{ "name": "network", "description": "в каком состоянии сеть при каждом запросе: есть, медленная, нет" },
+		{ "name": "freshness", "description": "свежа ли запись в момент открытия: TTL, его начало и граница" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"cache-first с TTL",
+			"network-first с таймаутом и опоздавшим ответом",
+			"stale-while-revalidate",
+			"поведение без сети при пустом и непустом кэше",
+			"повторная проверка с ETag и 304",
+			"начало и граница срока свежести"
+		],
+		"doesNotCheck": [
+			"HTTP-кэш OkHttp и заголовки Cache-Control",
+			"параллельные запросы и их отмена",
+			"API конкретных библиотек (Store, Room + Flow)"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "wait-past-timeout",
+			"defect": "считает, что network-first дожидается медленного ответа после таймаута",
+			"mustBeCaught": true
+		},
+		{
+			"id": "late-response-dropped",
+			"defect": "считает, что ответ, пришедший после таймаута, не попадает в кэш",
+			"mustBeCaught": true
+		},
+		{
+			"id": "offline-error",
+			"defect": "считает, что неудачный запрос без сети показывает ошибку, даже когда в кэше есть запись",
+			"mustBeCaught": true
+		},
+		{ "id": "ttl-ignored", "defect": "показывает запись из кэша, не проверяя срок свежести", "mustBeCaught": true },
+		{
+			"id": "ttl-from-request",
+			"defect": "отсчитывает срок свежести от отправки запроса, а не от получения ответа",
+			"mustBeCaught": true
+		},
+		{
+			"id": "ttl-inclusive",
+			"defect": "считает запись ещё свежей ровно в момент истечения срока",
+			"mustBeCaught": true
+		},
+		{
+			"id": "swr-always-fetch",
+			"defect": "считает, что stale-while-revalidate отправляет запрос и при свежей записи",
+			"mustBeCaught": true
+		},
+		{
+			"id": "swr-no-rerender",
+			"defect": "считает, что после ответа повторной проверки экран не получает данные до следующего открытия",
+			"mustBeCaught": true
+		},
+		{
+			"id": "keep-age-304",
+			"defect": "считает, что ответ 304 не продлевает срок свежести записи",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 9, "caught": 9 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

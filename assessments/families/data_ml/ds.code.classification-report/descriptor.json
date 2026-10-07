@@ -1,0 +1,108 @@
+{
+	"key": "ds.code.classification-report",
+	"version": 1,
+	"specialization": "data_ml",
+	"block": "ds.code",
+	"format": "practice_code",
+	"answerKind": "code",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.8 },
+			"constructive": { "metrics": 1, "labels": "2–6", "conventions": "0/0 = 0", "groups": 5 },
+			"constructiveRank": 3,
+			"timeNormSec": 1800,
+			"classes": [
+				{
+					"id": "positive-prf",
+					"form": "A",
+					"description": "precision, recall и F1 указанного позитивного класса «один против остальных»"
+				},
+				{ "id": "macro-f1", "form": "B", "description": "macro-F1 по объединению меток из истинных и предсказанных" },
+				{ "id": "pos-counts", "form": "anchor", "description": "матрица ошибок позитивного класса: TP, FP, FN, TN" },
+				{
+					"id": "balanced-accuracy",
+					"form": "X",
+					"description": "balanced accuracy: среднее recall по меткам, встречающимся среди истинных"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.8 },
+			"constructive": { "metrics": 1, "labels": "2–6", "conventions": "0/0 = 0, β ≠ 1, веса", "groups": 5 },
+			"constructiveRank": 5,
+			"timeNormSec": 2400,
+			"classes": [
+				{ "id": "fbeta", "form": "A", "description": "F-beta позитивного класса при β ≠ 1" },
+				{
+					"id": "weighted-f1",
+					"form": "B",
+					"description": "weighted-F1: F1 каждой метки с весом её доли среди истинных"
+				},
+				{
+					"id": "per-class",
+					"form": "anchor",
+					"description": "отчёт по каждой метке объединения: precision, recall, F1 и support, метки по алфавиту"
+				},
+				{
+					"id": "mcc",
+					"form": "X",
+					"description": "коэффициент корреляции Мэтьюса позитивного класса, 0 при нулевом знаменателе"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "data", "description": "названия меток, позитивный класс, пары «истина — предсказание»" },
+		{ "name": "sizes", "description": "число строк и меток" }
+	],
+	"essentialParams": [
+		{
+			"name": "metric",
+			"description": "что считается: метрики позитивного класса, macro/weighted-усреднение, матрица ошибок, balanced accuracy, MCC"
+		},
+		{
+			"name": "label-set",
+			"description": "по каким меткам усредняют: объединение истинных и предсказанных или только истинные"
+		},
+		{ "name": "beta", "description": "Junior: вес recall в F-beta" }
+	],
+	"language": null,
+	"practice": { "languages": ["python3"], "hiddenTestGroups": 5 },
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "groups" },
+	"coverage": {
+		"checks": [
+			"матрица ошибок «один против остальных»",
+			"precision, recall, F1 и F-beta",
+			"соглашение 0/0 = 0 для неопределённых метрик",
+			"набор меток для усреднения: объединение или только истинные",
+			"macro- и weighted-усреднение",
+			"balanced accuracy и коэффициент Мэтьюса",
+			"линейный по объёму данных расчёт"
+		],
+		"doesNotCheck": ["работу со sklearn и numpy", "многометочную классификацию"]
+	},
+	"wrongSolutions": [
+		{ "id": "undefined-as-one", "defect": "неопределённую метрику 0/0 считает равной 1, а не 0", "mustBeCaught": true },
+		{ "id": "swap-axes", "defect": "путает оси матрицы ошибок: FP и FN, precision и recall", "mustBeCaught": true },
+		{
+			"id": "label-set",
+			"defect": "усредняет не по тому набору меток: только по истинным вместо объединения или наоборот",
+			"mustBeCaught": true
+		},
+		{ "id": "average-mismatch", "defect": "путает macro- и weighted-усреднение", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 4, "caught": 4 },
+		"hiddenTestsMutationScore": 0.9962,
+		"answerCollision": 0,
+		"transfer": 0,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.7,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "165a57884e427781ad427d735e2046978a51f52b0a0ce1fcf0ed91d3caa769e3"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.7,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "165a57884e427781ad427d735e2046978a51f52b0a0ce1fcf0ed91d3caa769e3"
+					}
+				],
+				"mean": 0.7
+			},
 			"constructive": { "names": 3, "statements": "5–8", "nesting": 1, "mechanisms": 1 },
 			"constructiveRank": 2,
 			"timeNormSec": 180,
@@ -37,7 +54,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.65,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "165a57884e427781ad427d735e2046978a51f52b0a0ce1fcf0ed91d3caa769e3"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.7,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "165a57884e427781ad427d735e2046978a51f52b0a0ce1fcf0ed91d3caa769e3"
+					}
+				],
+				"mean": 0.7
+			},
 			"constructive": { "names": "3–5", "statements": "8–12", "nesting": 2, "mechanisms": 2 },
 			"constructiveRank": 4,
 			"timeNormSec": 300,
@@ -164,6 +198,30 @@
 		"answerCollision": 0,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Все 8 экземпляров воспроизведены и совпали. Условия однозначны.",
+					"Intern: nested-grid ([[1]*3]*4, разрыв связи заменой строки) и plus-equals - стандартные темы, подходят intern. Junior: default-arg и dict-fromkeys уместны; call-mutation (+= на параметре, затем переприсвоение) тоже.",
+					"Угадывание затруднено (списки с числами). answerCollision 0 по ворота.",
+					"Замечание по форме: в intern-loop-var присваивание x += 3 для int не меняет список - ловушка, но не противоречит условию."
+				],
+				"sourceSha256": "165a57884e427781ad427d735e2046978a51f52b0a0ce1fcf0ed91d3caa769e3"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Ручной пересчёт junior/call-mutation: += добавляет 82 в исходный tail, а buf=[62]+buf создаёт другой список; итог tail=[3, 4, 7, 82], buffer=[62, 3, 4, 7, 84, 57]. В default-arg переменные a/c/d ссылаются на один список [32, 59, 44, 14], b — на отдельный [58]. Исполнение восьми программ подтвердило эталоны.",
+					"Присваивание, поверхностная и глубокая копия, изменение на месте, перепривязка параметра и общий объект fromkeys различаются содержательно. Повторяющиеся строки там, где имена ссылаются на один объект, являются результатом семантики, а не универсальным шаблоном семейства. Intern проверяет один основной механизм, Junior сочетает вложенность и время жизни объектов; соответствие блоку и уровням достаточное.",
+					"Рекомендация по форме: не требовать буквального совпадения пробелов после запятых в списках и словарях; сохранять порядок и содержимое элементов. При нескольких самостоятельных объектах и строках вывода полезен частичный балл вместо обнуления всего ответа."
+				],
+				"sourceSha256": "165a57884e427781ad427d735e2046978a51f52b0a0ce1fcf0ed91d3caa769e3"
+			}
+		]
 	}
 }

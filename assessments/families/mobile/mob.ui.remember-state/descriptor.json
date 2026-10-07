@@ -1,0 +1,161 @@
+{
+	"key": "mob.ui.remember-state",
+	"version": 1,
+	"specialization": "mobile",
+	"block": "mob.ui",
+	"format": "compute",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": { "events": "5–7", "mechanisms": 1, "stateHolders": "1–2" },
+			"constructiveRank": 2,
+			"timeNormSec": 180,
+			"classes": [
+				{
+					"id": "plain-var",
+					"form": "A",
+					"description": "обычная переменная в composable-функции: её изменение не вызывает перекомпоновку, а перекомпоновка возвращает начальное значение"
+				},
+				{
+					"id": "remember-key",
+					"form": "B",
+					"description": "remember(key) создаёт значение заново при смене ключа и не хранит значения прежних ключей"
+				},
+				{
+					"id": "saveable-rotation",
+					"form": "anchor",
+					"description": "поворот экрана: remember теряет значение, rememberSaveable — восстанавливает"
+				},
+				{
+					"id": "if-branch",
+					"form": "X",
+					"description": "состояние внутри if уходит из композиции вместе с веткой и при возврате начинается заново"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": { "events": "6–8", "mechanisms": 2, "stateHolders": "2–4" },
+			"constructiveRank": 3,
+			"timeNormSec": 260,
+			"classes": [
+				{
+					"id": "list-no-key",
+					"form": "A",
+					"description": "строки списка без key: состояние привязано к позиции и при удалении или вставке переходит к другим элементам"
+				},
+				{
+					"id": "saveable-key",
+					"form": "B",
+					"description": "rememberSaveable с ключом рядом с remember без ключа: смена ключа сбрасывает одно, поворот — другое"
+				},
+				{
+					"id": "branch-saveable",
+					"form": "anchor",
+					"description": "rememberSaveable внутри if: поворот значение сохраняет, уход ветки из композиции — нет; флаг ветки на remember сбрасывается поворотом"
+				},
+				{
+					"id": "list-key",
+					"form": "X",
+					"description": "строки списка в key(id): состояние идёт за элементом, удалённый элемент при возврате начинает заново, поворот сбрасывает remember"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "названия экрана, счётчиков, кнопок и элементов списка" },
+		{ "name": "numbers", "description": "начальные значения и порядок нажатий" }
+	],
+	"essentialParams": [
+		{
+			"name": "holder",
+			"description": "где живёт значение: обычная переменная, remember, remember(key), rememberSaveable, внутри if, в строке списка с key или без"
+		},
+		{
+			"name": "event",
+			"description": "что меняет композицию: нажатие, смена параметра, поворот экрана, скрытие ветки, удаление или вставка в список"
+		}
+	],
+	"language": "kotlin",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"перекомпоновка заново исполняет тело composable-функции",
+			"remember и mutableStateOf: значение переживает перекомпоновку, изменение вызывает её",
+			"ключи remember и rememberSaveable",
+			"поворот экрана: remember против rememberSaveable",
+			"уход из композиции уничтожает запомненное состояние",
+			"позиционная идентичность в цикле и key"
+		],
+		"doesNotCheck": [
+			"умение написать composable-функцию",
+			"производительность и пропуск перекомпоновки",
+			"смерть процесса и SavedStateHandle",
+			"LazyColumn и переиспользование элементов"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "plain-as-state",
+			"defect": "считает, что изменение обычной переменной сразу показывается на экране, как у состояния",
+			"mustBeCaught": true
+		},
+		{
+			"id": "plain-shown-later",
+			"defect": "считает, что обычная переменная сохраняет накопленное значение и показывает его при следующей перекомпоновке",
+			"mustBeCaught": true
+		},
+		{ "id": "key-ignored", "defect": "считает, что смена ключа remember не сбрасывает значение", "mustBeCaught": true },
+		{
+			"id": "key-cache",
+			"defect": "считает, что значение запоминается за ключом и возвращается при возврате к прежнему ключу или элементу",
+			"mustBeCaught": true
+		},
+		{
+			"id": "remember-survives-rotation",
+			"defect": "считает, что remember переживает поворот экрана",
+			"mustBeCaught": true
+		},
+		{
+			"id": "saveable-resets-on-rotation",
+			"defect": "считает, что поворот сбрасывает и rememberSaveable",
+			"mustBeCaught": true
+		},
+		{
+			"id": "kept-while-hidden",
+			"defect": "считает, что состояние скрытой ветки if сохраняется и возвращается, когда ветку показывают снова",
+			"mustBeCaught": true
+		},
+		{
+			"id": "state-follows-item",
+			"defect": "считает, что без key состояние строки следует за своим элементом при удалении и вставке",
+			"mustBeCaught": true
+		},
+		{
+			"id": "positional-with-key",
+			"defect": "считает, что и в key(id) состояние остаётся на позиции, а не идёт за элементом",
+			"mustBeCaught": true
+		},
+		{
+			"id": "list-change-resets",
+			"defect": "считает, что любое изменение списка сбрасывает состояние всех строк",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 10, "caught": 10 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0014,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

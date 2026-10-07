@@ -1,0 +1,155 @@
+{
+	"key": "fe.async.debounce-throttle",
+	"version": 1,
+	"specialization": "frontend",
+	"block": "fe.async",
+	"format": "compute",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"events": "4–12",
+				"options": "leading и trailing",
+				"rules": "серии событий",
+				"interacting": "граница серии ровно через wait + аргумент отложенного вызова"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "debounce-trailing",
+					"form": "A",
+					"description": "debounce по умолчанию: вызов через wait после последнего события серии с его аргументом"
+				},
+				{
+					"id": "debounce-leading",
+					"form": "B",
+					"description": "debounce с leading: true, trailing: false: вызов на первом событии серии, остальные события серии только продлевают её"
+				},
+				{
+					"id": "debounce-both",
+					"form": "anchor",
+					"description": "debounce с leading: true: вызов в начале серии и в конце, но серия из одного события даёт один вызов"
+				},
+				{
+					"id": "throttle-basic",
+					"form": "X",
+					"description": "throttle по умолчанию на сплошном потоке: следующий таймер ставит первое событие после вызова, и вызовы «уплывают» от сетки"
+				}
+			]
+		},
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"events": "6–16",
+				"options": "leading, trailing, maxWait",
+				"rules": "конечный автомат обёртки",
+				"interacting": "таймер по последнему событию + потолок maxWait + граничные совпадения моментов"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "throttle-trailing-only",
+					"form": "A",
+					"description": "throttle с leading: false: первый вызов через wait, дальше окно открывает первое событие после вызова"
+				},
+				{
+					"id": "debounce-maxwait",
+					"form": "B",
+					"description": "debounce с maxWait на непрерывном потоке: вызовы через maxWait от предыдущего вызова, хотя пауз нет"
+				},
+				{
+					"id": "throttle-boundary",
+					"form": "anchor",
+					"description": "throttle, где события приходят ровно в момент срабатывания таймера: таймер первым делает вызов, событие открывает новое окно"
+				},
+				{
+					"id": "debounce-leading-maxwait",
+					"form": "X",
+					"description": "debounce с leading: true и maxWait: вызов на первом событии, затем вызовы по потолку maxWait и в конце потока"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "элемент интерфейса, событие и имя обработчика" },
+		{ "name": "timeline", "description": "моменты событий, wait и maxWait из допустимых значений" }
+	],
+	"essentialParams": [
+		{ "name": "wrapper", "description": "debounce или throttle и их опции leading, trailing, maxWait" },
+		{
+			"name": "timeline-shape",
+			"description": "серии с паузами, непрерывный поток, события ровно в момент срабатывания таймера"
+		}
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"debounce вызывает обработчик после паузы wait с последним аргументом",
+			"leading и trailing: где вызов в серии и когда второго вызова нет",
+			"throttle: окно открывает первое событие после вызова, а не сетка от первого события",
+			"maxWait ограничивает задержку при непрерывном потоке",
+			"событие ровно в момент срабатывания таймера"
+		],
+		"doesNotCheck": [
+			"cancel и flush обёртки",
+			"неточность таймеров браузера",
+			"реализации debounce и throttle вне lodash"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "boundary-joins",
+			"defect": "считает, что событие в момент срабатывания таймера успевает раньше таймера и продлевает серию или окно",
+			"mustBeCaught": true
+		},
+		{
+			"id": "from-first-event",
+			"defect": "считает, что debounce отсчитывает wait от первого события серии и не продлевает ожидание",
+			"mustBeCaught": true
+		},
+		{
+			"id": "trailing-first-arg",
+			"defect": "считает, что отложенный вызов получает аргумент первого отложенного события, а не последнего",
+			"mustBeCaught": true
+		},
+		{
+			"id": "leading-twice",
+			"defect": "считает, что при leading и trailing серия из одного события даёт два вызова",
+			"mustBeCaught": true
+		},
+		{
+			"id": "throttle-from-last-call",
+			"defect": "считает, что throttle вызывает обработчик ровно через wait после предыдущего вызова, по сетке",
+			"mustBeCaught": true
+		},
+		{
+			"id": "throttle-leading-only",
+			"defect": "считает, что throttle по умолчанию отбрасывает события после вызова и не делает отложенного вызова",
+			"mustBeCaught": true
+		},
+		{
+			"id": "maxwait-ignored",
+			"defect": "не учитывает maxWait: считает, что при непрерывном потоке debounce не вызывает обработчик до паузы",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 7, "caught": 7 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0001,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

@@ -1,0 +1,143 @@
+{
+	"key": "fe.web.csp",
+	"version": 1,
+	"specialization": "frontend",
+	"block": "fe.web",
+	"format": "config_eval",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"items": "10–13",
+				"policies": "1–3",
+				"rules": 7,
+				"interacting": "откат директив + nonce/хэш против 'unsafe-inline' + 'strict-dynamic' или пересечение политик"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "strict-dynamic",
+					"form": "A",
+					"description": "nonce и 'strict-dynamic': списки хостов и 'unsafe-inline' не действуют для скриптов, скрипт без nonce с разрешённого хоста заблокирован, а вставленный разрешённым скриптом — выполняется"
+				},
+				{
+					"id": "multiple-policies",
+					"form": "B",
+					"description": "две действующие политики (в разных заголовках или через запятую) и одна report-only: загрузка проходит, только если её разрешают все действующие"
+				},
+				{
+					"id": "fallback-matching",
+					"form": "anchor",
+					"description": "одна политика: откат к default-src и через child-src, `*.домен` без самого домена, `*` без data:, 'self' без поддоменов, путь в источнике, хэш отключает 'unsafe-inline'"
+				},
+				{
+					"id": "granular-directives",
+					"form": "X",
+					"description": "script-src-elem и -attr, style-src-attr, откат worker-src через script-src, повтор директивы в политике — действует первая"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "домен сайта, сторонние хосты, пути, nonce, содержимое инлайн-скриптов" },
+		{ "name": "order", "description": "порядок элементов страницы и их номера" }
+	],
+	"essentialParams": [
+		{
+			"name": "script-policy",
+			"description": "чем разрешены скрипты: списком хостов, nonce, хэшем, 'strict-dynamic', отдельными -elem/-attr"
+		},
+		{ "name": "policies", "description": "сколько политик действует и есть ли report-only" },
+		{ "name": "fallback", "description": "какие директивы отсутствуют и куда откатывается проверка" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"откат директив к default-src, frame-src через child-src, worker-src через child-src и script-src",
+			"сопоставление источников: 'self', схема, хост с подстановкой, путь, `*` и data:",
+			"nonce и хэш инлайн-скрипта; 'unsafe-inline' игнорируется при nonce или хэше",
+			"'strict-dynamic': вставленные скрипты, игнорирование хостов и 'unsafe-inline'",
+			"обработчики on… и eval: script-src-attr и 'unsafe-eval'",
+			"несколько политик: действуют все, report-only не блокирует",
+			"повтор директивы в одной политике"
+		],
+		"doesNotCheck": [
+			"'unsafe-hashes' и хэши внешних скриптов с integrity",
+			"перенаправления запросов и порты в источниках",
+			"политика из <meta> и директивы навигации (frame-ancestors, form-action)"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "no-default-fallback",
+			"defect": "считает, что при отсутствии своей директивы загрузка разрешена, не откатываясь к default-src",
+			"mustBeCaught": true
+		},
+		{
+			"id": "unsafe-inline-with-nonce",
+			"defect": "считает, что 'unsafe-inline' разрешает инлайн-код и при nonce, хэше или 'strict-dynamic' в той же директиве",
+			"mustBeCaught": true
+		},
+		{
+			"id": "strict-dynamic-ignored",
+			"defect": "проверяет скрипты по списку хостов, не учитывая 'strict-dynamic'",
+			"mustBeCaught": true
+		},
+		{
+			"id": "child-independent",
+			"defect": "считает, что действие скрипта происходит, даже когда сам скрипт заблокирован",
+			"mustBeCaught": true
+		},
+		{ "id": "wildcard-apex", "defect": "считает, что `*.домен` разрешает и сам домен", "mustBeCaught": true },
+		{ "id": "star-matches-data", "defect": "считает, что `*` разрешает и data:", "mustBeCaught": true },
+		{
+			"id": "self-subdomains",
+			"defect": "считает, что 'self' разрешает весь сайт: домен и его поддомены",
+			"mustBeCaught": true
+		},
+		{ "id": "path-ignored", "defect": "не учитывает путь в источнике", "mustBeCaught": true },
+		{
+			"id": "frame-skip-child-src",
+			"defect": "откатывает frame-src сразу к default-src, минуя child-src",
+			"mustBeCaught": true
+		},
+		{
+			"id": "any-policy-allows",
+			"defect": "при нескольких политиках разрешает загрузку, если её разрешает хотя бы одна",
+			"mustBeCaught": true
+		},
+		{ "id": "report-only-blocks", "defect": "считает, что политика report-only тоже блокирует", "mustBeCaught": true },
+		{
+			"id": "elem-attr-ignored",
+			"defect": "не знает директив -elem и -attr: проверяет всё по script-src и style-src",
+			"mustBeCaught": true
+		},
+		{
+			"id": "duplicate-last-wins",
+			"defect": "при повторе директивы в одной политике берёт последнюю",
+			"mustBeCaught": true
+		},
+		{
+			"id": "worker-skip-script-src",
+			"defect": "откатывает worker-src через child-src сразу к default-src, минуя script-src",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 14, "caught": 14 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0008,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

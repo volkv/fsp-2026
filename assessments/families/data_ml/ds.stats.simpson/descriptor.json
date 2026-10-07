@@ -1,0 +1,122 @@
+{
+	"key": "ds.stats.simpson",
+	"version": 1,
+	"specialization": "data_ml",
+	"block": "ds.stats",
+	"format": "compute",
+	"answerKind": "float_eps",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": { "segments": "2–4", "variants": "1–2", "weights": "размеры сегментов" },
+			"constructiveRank": 2,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "overall-rate",
+					"form": "A",
+					"description": "общая конверсия по сегментам: отношение сумм, а не среднее долей"
+				},
+				{ "id": "rate-difference", "form": "B", "description": "разность общих конверсий двух вариантов по сегментам" },
+				{ "id": "mix-shift", "form": "anchor", "description": "ожидаемая общая конверсия при новой структуре трафика" },
+				{
+					"id": "arpu",
+					"form": "X",
+					"description": "выручка на пользователя по сегментам: доля платящих и средний платёж"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": { "segments": "2–4", "variants": "2 или 2 периода", "weights": "структура и стандартизация" },
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "reversal",
+					"form": "A",
+					"description": "парадокс Симпсона: в каждом сегменте B лучше, в целом хуже — общая разность"
+				},
+				{
+					"id": "standardized",
+					"form": "B",
+					"description": "прямая стандартизация: конверсия B при структуре сегментов A"
+				},
+				{
+					"id": "decomposition",
+					"form": "anchor",
+					"description": "разложение изменения общей конверсии: эффект структуры по заданной формуле"
+				},
+				{
+					"id": "user-average",
+					"form": "X",
+					"description": "метрика определена как среднее по пользователям: среднее отношений, а не отношение сумм"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "сегменты: платформы, регионы, источники трафика" },
+		{ "name": "numbers", "description": "размеры сегментов, конверсии, платежи" }
+	],
+	"essentialParams": [
+		{
+			"name": "aggregation",
+			"description": "как агрегировать: отношение сумм, взвешивание чужой структурой, среднее по объектам"
+		},
+		{ "name": "question", "description": "общая метрика, разность, ожидание при новой структуре, эффект структуры" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"агрегирование долей по сегментам",
+			"парадокс Симпсона",
+			"зависимость общей метрики от структуры трафика",
+			"прямая стандартизация",
+			"разложение изменения метрики на эффекты",
+			"различие отношения сумм и среднего отношений"
+		],
+		"doesNotCheck": ["статистическую значимость различий", "причинный вывод о вкладе сегментов"]
+	},
+	"wrongSolutions": [
+		{ "id": "mean-of-rates", "defect": "усредняет доли сегментов без весов", "mustBeCaught": true },
+		{ "id": "old-mix", "defect": "оставляет прежнюю структуру трафика", "mustBeCaught": true },
+		{
+			"id": "segment-weighted",
+			"defect": "отвечает средней по сегментам разностью вместо разности общих конверсий",
+			"mustBeCaught": true
+		},
+		{ "id": "raw-rate", "defect": "берёт сырую общую конверсию вместо стандартизованной", "mustBeCaught": true },
+		{
+			"id": "total-change",
+			"defect": "выдаёт всё изменение общей конверсии за эффект структуры",
+			"mustBeCaught": true
+		},
+		{
+			"id": "swapped-weights",
+			"defect": "взвешивает изменение структуры новыми конверсиями вместо прежних",
+			"mustBeCaught": true
+		},
+		{
+			"id": "ratio-of-sums",
+			"defect": "считает отношение сумм, когда метрика определена как среднее по пользователям",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 7, "caught": 7 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0001,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "middle",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.65,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "44cf19023b226a9ba1cda2530c2183fe101e8ecd36b1e1eed8bc6d14bbccd1ac"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.7,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "44cf19023b226a9ba1cda2530c2183fe101e8ecd36b1e1eed8bc6d14bbccd1ac"
+					}
+				],
+				"mean": 0.7
+			},
 			"constructive": {
 				"threads": "2–3",
 				"turns": "8–16",
@@ -42,7 +59,24 @@
 		},
 		{
 			"grade": "senior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.5,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "44cf19023b226a9ba1cda2530c2183fe101e8ecd36b1e1eed8bc6d14bbccd1ac"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.6,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "44cf19023b226a9ba1cda2530c2183fe101e8ecd36b1e1eed8bc6d14bbccd1ac"
+					}
+				],
+				"mean": 0.55
+			},
 			"constructive": {
 				"threads": "2–3",
 				"turns": "10–20",
@@ -138,6 +172,32 @@
 		"answerCollision": 0.0101,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Все 8 экземпляров пересчитаны вручную по тексту условия (no-lock 104 331, partial-lock 308, transfer 200 430, check-then-act 7 2, cas-counter 373 1 1, aba-stack 'H C K N | F | F H', tagged-stack 'empty | A | N K | N', split-transfer '460 700 | 1160 670') и по эталонным программам: ответы верны и следуют только из условия. Условия самодостаточны, семантика хода, ожидания на блокировке, CAS с меткой и 'узлы не копируются' заданы явно.",
+					"Единственный числовой ответ класса partial-lock ('308') угадывается чуть легче (answerCollision 0.0101 по отчёту ворот) — по-прежнему ≈1%, приемлемо. Ответы остальных классов — составные.",
+					"Класс check-then-act: шаг `if r_x >= k: x = r_x - k` считается одним неделимым ходом по устаревшей копии, и запись 'r_tickets - 12' по старому чтению восстанавливает 7 (а не 0); условие это прямо объясняет, но кандидат должен не поддаться интуиции 'остаток уменьшается кумулятивно' — это задуманная ловушка, не дефект.",
+					"Профиль уровней: middle — классические гонки в чередованиях (соответствует 'находит гонку'); senior — CAS/ABA/метки версии/неатомарная пара — это сильнее по теме 'согласованность', но не про 'ёмкость очереди/кэша' из определения; приемлемо. 20 ходов с перечитыванием после неудачного CAS за 480 с — плотно, ошибки внимательности вероятны.",
+					"Эталон ворот и мои пересчёты совпали на всех 8 экземплярах; заявленная проверка 13 ошибочных (atomic, ignore-lock, cas-as-write, aba-detected и др.) выглядит осмысленной."
+				],
+				"sourceSha256": "44cf19023b226a9ba1cda2530c2183fe101e8ecd36b1e1eed8bc6d14bbccd1ac"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Независимо пересчитан middle/no-lock: T2 пишет stock = 74 + 30 = 104 поверх записи T1 = 164; T3 пишет likes = 284, затем T2 перезаписывает 334, T1 завершает значением 331. Ответ 104 331 верен. Все восемь эталонов при выполнении совпали с опубликованными ответами.",
+					"В senior/aba-stack T1 сохраняет следующий узел H; T2 снимает F и H, возвращает тот же объект F с next = C, после чего CAS T1 по вершине F проходит и возвращает head = H. Итог H C K N | F | F H корректен. tagged-stack явно добавляет проверку версии и меняет поведение.",
+					"Условие фиксирует неделимость отдельных шагов, локальные копии, повтор CAS и ожидание lock. Split-transfer явно делает снимок двухшаговым; промежуточная сумма аудитора не обязана совпадать с итоговой суммой счетов. Скрытая модель памяти не требуется.",
+					"Численные значения и результаты нескольких потоков исключают простой выбор из малого набора; даже в CAS-counter нужно считать неудачные CAS, а не только итоговую сумму. Бинарная рубрика по короткому ответу уместна. Middle и Senior соответствуют заявленной конкурентности; Angoff учитывает усложнение при переходе к объектной идентичности и ABA."
+				],
+				"sourceSha256": "44cf19023b226a9ba1cda2530c2183fe101e8ecd36b1e1eed8bc6d14bbccd1ac"
+			}
+		]
 	}
 }

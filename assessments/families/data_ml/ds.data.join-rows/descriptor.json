@@ -1,0 +1,143 @@
+{
+	"key": "ds.data.join-rows",
+	"version": 1,
+	"specialization": "data_ml",
+	"block": "ds.data",
+	"format": "compute",
+	"answerKind": "float_eps",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": { "tables": 2, "rows": "4–9", "how": "inner / left / outer", "steps": 2 },
+			"constructiveRank": 2,
+			"timeNormSec": 270,
+			"classes": [
+				{
+					"id": "inner-dup",
+					"form": "A",
+					"description": "inner join с повтором ключа справа: строка слева повторяется, строки без пары пропадают"
+				},
+				{
+					"id": "left-nan",
+					"form": "B",
+					"description": "left join даёт NaN строкам без пары; mean() их пропускает, а строки с парой входят столько раз, сколько заказов"
+				},
+				{
+					"id": "many-to-many",
+					"form": "anchor",
+					"description": "повторы ключа в обеих таблицах: число строк результата — произведение повторов"
+				},
+				{
+					"id": "outer",
+					"form": "X",
+					"description": "outer join сохраняет ключи только из одной таблицы, fillna(0) делает их расхождением"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"tables": 2,
+				"rows": "5–10",
+				"how": "left, indicator, пара ключей, NaN в ключе",
+				"steps": "2–3"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "agg-then-merge",
+					"form": "A",
+					"description": "сначала свёртка платежей по заказу, потом left join: неоплаченные остаются, платежи без заказа пропадают"
+				},
+				{
+					"id": "anti-join",
+					"form": "B",
+					"description": "indicator=True и _merge == 'left_only': только строки слева без пары"
+				},
+				{
+					"id": "composite-key",
+					"form": "anchor",
+					"description": "соединение по паре ключей: без второго ключа строки размножаются"
+				},
+				{
+					"id": "nan-keys",
+					"form": "X",
+					"description": "pandas, в отличие от SQL, соединяет NaN в ключе с NaN в ключе другой таблицы"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "названия таблиц и столбцов, коды, города" },
+		{ "name": "data", "description": "значения, число строк, порядок строк" }
+	],
+	"essentialParams": [
+		{ "name": "how", "description": "вид соединения: inner, left, outer, анти-соединение через indicator" },
+		{
+			"name": "key-multiplicity",
+			"description": "повторы ключа в одной или обеих таблицах, ключи без пары, NaN в ключе, пара ключей"
+		},
+		{ "name": "order", "description": "свёртка до соединения или после" }
+	],
+	"language": "python3",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"число строк merge при повторах ключа",
+			"inner, left и outer: какие ключи остаются",
+			"NaN после left join и агрегаты по ним",
+			"свёртка до соединения, чтобы не размножить суммы",
+			"анти-соединение через indicator",
+			"соединение по нескольким ключам",
+			"NaN в ключе соединения в pandas"
+		],
+		"doesNotCheck": ["merge_asof и соединения по интервалам", "суффиксы одинаковых столбцов и порядок строк результата"]
+	},
+	"wrongSolutions": [
+		{ "id": "no-multiply", "defect": "думает, что повтор ключа не размножает строки", "mustBeCaught": true },
+		{
+			"id": "keeps-unmatched",
+			"defect": "оставляет строки без пары, как при внешнем соединении",
+			"mustBeCaught": true
+		},
+		{ "id": "nan-as-zero", "defect": "считает NaN после left join нулём в среднем", "mustBeCaught": true },
+		{
+			"id": "mean-over-right",
+			"defect": "берёт среднее по правой таблице, не учитывая, сколько раз строка вошла в результат",
+			"mustBeCaught": true
+		},
+		{ "id": "inner-only", "defect": "оставляет только ключи, которые есть в обеих таблицах", "mustBeCaught": true },
+		{
+			"id": "left-only",
+			"defect": "считает outer join левым: теряет ключи только из правой таблицы",
+			"mustBeCaught": true
+		},
+		{
+			"id": "all-left-rows",
+			"defect": "думает, что _merge == 'left_only' отбирает все строки, пришедшие из левой таблицы",
+			"mustBeCaught": true
+		},
+		{ "id": "first-key-only", "defect": "соединяет только по первому ключу пары", "mustBeCaught": true },
+		{
+			"id": "sql-null",
+			"defect": "думает, что NaN в ключе ни с чем не соединяется, как NULL в SQL",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 9, "caught": 9 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0118,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

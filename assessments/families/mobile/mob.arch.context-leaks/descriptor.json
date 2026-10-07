@@ -1,0 +1,119 @@
+{
+	"key": "mob.arch.context-leaks",
+	"version": 1,
+	"specialization": "mobile",
+	"block": "mob.arch",
+	"format": "compute",
+	"answerKind": "set",
+	"levels": [
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"statements": "5–6",
+				"mechanisms": "3–6",
+				"interacting": "перезапись поля новой Activity, время задержек против момента дампа, область корутины"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 450,
+			"classes": [
+				{
+					"id": "singletons",
+					"form": "A",
+					"description": "синглтоны: инициализация один раз контекстом Activity или applicationContext, поле, которое перезапишет новая Activity, слушатели в списке"
+				},
+				{
+					"id": "coroutines",
+					"form": "B",
+					"description": "GlobalScope, lifecycleScope и viewModelScope с задержками до и после дампа, отложенное сообщение Handler"
+				},
+				{
+					"id": "viewmodel",
+					"form": "anchor",
+					"description": "ViewModel переживает поворот: поле host перезаписывается, список наблюдателей копится, колбэк из viewModelScope держит старую Activity"
+				},
+				{
+					"id": "mixed",
+					"form": "X",
+					"description": "шесть механизмов разных видов в одном экране, включая WeakReference, inner-класс и лямбду без обращения к Activity"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "имена синглтонов и методов ViewModel" },
+		{ "name": "timing", "description": "моменты поворота и дампа, задержки в пределах «до дампа» или «после дампа»" }
+	],
+	"essentialParams": [
+		{
+			"name": "mechanisms",
+			"description": "какие механизмы удержания есть на экране: синглтон, ViewModel, слушатель, корутина в области, Handler"
+		},
+		{
+			"name": "cleanup",
+			"description": "снимается ли ссылка: перезапись новой Activity, удаление в onDestroy, отмена области, окончание задержки"
+		}
+	],
+	"language": "kotlin",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"контекст Activity против applicationContext в синглтоне",
+			"ViewModel переживает поворот и держит то, что ей передали",
+			"захват Activity лямбдой и inner-классом, WeakReference",
+			"GlobalScope против viewModelScope и lifecycleScope: что отменяется при повороте",
+			"слушатели и отложенные сообщения, не снятые в onDestroy"
+		],
+		"doesNotCheck": [
+			"работу с профилировщиком памяти и LeakCanary",
+			"фрагменты и их представления",
+			"утечки нативной памяти и Bitmap"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "app-context-leaks",
+			"defect": "считает, что синглтон с applicationContext тоже держит Activity",
+			"mustBeCaught": true
+		},
+		{
+			"id": "overwrite-still-leaks",
+			"defect": "считает, что поле, перезаписанное новой Activity, всё ещё держит старую",
+			"mustBeCaught": true
+		},
+		{
+			"id": "viewmodelscope-cancelled",
+			"defect": "считает, что viewModelScope отменяется при повороте, как lifecycleScope",
+			"mustBeCaught": true
+		},
+		{
+			"id": "lifecyclescope-leaks",
+			"defect": "считает, что корутина lifecycleScope продолжает работать после onDestroy",
+			"mustBeCaught": true
+		},
+		{ "id": "weakref-leaks", "defect": "считает, что WeakReference удерживает Activity", "mustBeCaught": true },
+		{
+			"id": "finished-still-leaks",
+			"defect": "не смотрит на время: считает утечкой и корутину или сообщение, завершившиеся до дампа",
+			"mustBeCaught": true
+		},
+		{
+			"id": "non-capturing-leaks",
+			"defect": "считает, что лямбда держит Activity, даже если не обращается к её членам",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 7, "caught": 7 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.021,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

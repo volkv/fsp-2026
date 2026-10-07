@@ -1,0 +1,163 @@
+{
+	"key": "ds.data.missing-values",
+	"version": 1,
+	"specialization": "data_ml",
+	"block": "ds.data",
+	"format": "compute",
+	"answerKind": "float_eps",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": {
+				"rows": "7–10",
+				"columns": "1–4",
+				"steps": "1–2",
+				"trap": "что заполняется и какие строки выпадают"
+			},
+			"constructiveRank": 2,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "fillna-median",
+					"form": "A",
+					"description": "медиана считается по непустым значениям, затем ею заполняются пропуски"
+				},
+				{
+					"id": "dropna-subset",
+					"form": "B",
+					"description": "dropna(subset=…) смотрит только на названные столбцы и удаляет строку при любом пропуске в них"
+				},
+				{
+					"id": "fill-zero-mean",
+					"form": "anchor",
+					"description": "fillna(0) превращает пропуски в нули, и среднее делится на все строки"
+				},
+				{
+					"id": "thresh",
+					"form": "X",
+					"description": "dropna(thresh=k) оставляет строки с не меньше чем k непустыми значениями по всем столбцам, включая ключ"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"rows": "9–13",
+				"groups": "1–4",
+				"steps": 2,
+				"trap": "направление, граница и группа заполнения"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 330,
+			"classes": [
+				{
+					"id": "ffill-groups",
+					"form": "A",
+					"description": "ffill внутри групп после сортировки: первое значение группы не берётся у предыдущей группы"
+				},
+				{
+					"id": "group-mean-fill",
+					"form": "B",
+					"description": "заполнение средним своей группы через transform('mean'); среднее — по непустым"
+				},
+				{
+					"id": "interpolate",
+					"form": "anchor",
+					"description": "линейная интерполяция по позиции: ведущие пропуски остаются, хвостовые заполняются последним значением"
+				},
+				{
+					"id": "bfill-limit",
+					"form": "X",
+					"description": "bfill(limit=1) заполняет назад не больше одного пропуска подряд"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "названия столбцов, имена пользователей, города" },
+		{ "name": "data", "description": "значения, число строк, порядок строк, положение пропусков" }
+	],
+	"essentialParams": [
+		{
+			"name": "method",
+			"description": "чем обрабатывается пропуск: медиана, ноль, удаление строки, заполнение вперёд, назад, интерполяция, среднее группы"
+		},
+		{ "name": "scope", "description": "по каким столбцам и внутри каких групп работает обработка, есть ли ограничение" }
+	],
+	"language": "python3",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"статистики pandas пропускают NaN",
+			"fillna константой, медианой и средним группы",
+			"dropna с subset и thresh",
+			"ffill и bfill, в том числе по группам и с limit",
+			"линейная интерполяция и её границы"
+		],
+		"doesNotCheck": ["интерполяция по времени и другие методы interpolate", "заполнение моделью (KNN, итеративное)"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "nan-as-zero",
+			"defect": "считает статистику для заполнения, принимая пропуски за нули",
+			"mustBeCaught": true
+		},
+		{ "id": "fill-with-mean", "defect": "путает медиану со средним", "mustBeCaught": true },
+		{
+			"id": "dropna-any-column",
+			"defect": "думает, что dropna(subset=…) удаляет строки с пропуском в любом столбце",
+			"mustBeCaught": true
+		},
+		{
+			"id": "subset-all",
+			"defect": "думает, что строка удаляется, только если пусты все столбцы subset",
+			"mustBeCaught": true
+		},
+		{ "id": "skipna", "defect": "не замечает fillna(0) и берёт среднее только по непустым", "mustBeCaught": true },
+		{
+			"id": "thresh-ignores-key",
+			"defect": "считает в thresh только числовые столбцы, не ключевой",
+			"mustBeCaught": true
+		},
+		{
+			"id": "thresh-as-nan-count",
+			"defect": "думает, что thresh — число пропусков, при котором строка удаляется",
+			"mustBeCaught": true
+		},
+		{ "id": "ffill-across-groups", "defect": "заполняет вперёд через границу групп", "mustBeCaught": true },
+		{
+			"id": "unsorted",
+			"defect": "заполняет вперёд в исходном порядке строк, не после сортировки",
+			"mustBeCaught": true
+		},
+		{ "id": "global-mean", "defect": "заполняет общим средним столбца, а не средним группы", "mustBeCaught": true },
+		{ "id": "ffill-instead", "defect": "путает интерполяцию с заполнением предыдущим значением", "mustBeCaught": true },
+		{
+			"id": "trailing-nan",
+			"defect": "думает, что хвостовые пропуски после интерполяции остаются NaN",
+			"mustBeCaught": true
+		},
+		{
+			"id": "leading-filled",
+			"defect": "думает, что ведущие пропуски заполняются первым значением",
+			"mustBeCaught": true
+		},
+		{ "id": "no-limit", "defect": "не учитывает limit и заполняет весь разрыв", "mustBeCaught": true },
+		{ "id": "wrong-direction", "defect": "путает bfill с ffill", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 15, "caught": 15 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0039,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

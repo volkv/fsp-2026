@@ -1,0 +1,246 @@
+{
+	"key": "fe.js.iterators-generators",
+	"version": 1,
+	"specialization": "frontend",
+	"block": "fe.js",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": { "lines": "12–26", "iterators": "1–2", "mechanisms": 2, "protocol": "next(v), return()" },
+			"constructiveRank": 4,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "lazy-delegation",
+					"form": "A",
+					"description": "тело генератора выполняется только при запросе значения; yield* пропускает значения внутреннего генератора и равен его return"
+				},
+				{
+					"id": "early-exit",
+					"form": "B",
+					"description": "ранний выход из for…of вызывает return() и блок finally; генератор, брошенный без return(), не убирает за собой; return(v) отдаёт v"
+				},
+				{
+					"id": "next-value",
+					"form": "anchor",
+					"description": "next(v) возобновляет приостановленный yield значением v: аргумент первого вызова теряется; return генератора — значение последнего next"
+				},
+				{
+					"id": "map-mutation",
+					"form": "X",
+					"description": "обход Map живой: удалённые впереди записи пропускаются, новые ключи посещаются, существующий ключ сохраняет место, удалённый и заново добавленный — в конце"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"constructive": {
+				"lines": "19–45",
+				"iterators": "2–4",
+				"mechanisms": 3,
+				"protocol": "return() по цепочке, throw(), yield в finally"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "pipeline",
+					"form": "A",
+					"description": "конвейер генераторов закрывается с конца: return() проходит через все for…of, первым срабатывает finally источника; take с проверкой до yield тянет лишнее значение"
+				},
+				{
+					"id": "one-shot",
+					"form": "B",
+					"description": "одноразовый итератор: деструктуризация и break закрывают генератор насовсем, у итератора массива return() нет и обход продолжается; повторный spread пуст"
+				},
+				{
+					"id": "throw-return",
+					"form": "anchor",
+					"description": "throw() и return() против try/catch/finally: yield в finally приостанавливает return, следующий вызов его завершает"
+				},
+				{
+					"id": "collections",
+					"form": "X",
+					"description": "итератор массива идёт по индексу (удаление текущего пропускает следующий, push доходит), значение Set, удалённое и добавленное снова, посещается повторно"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "имена генераторов, ключей и меток" },
+		{ "name": "numbers", "description": "значения, шаги, границы, множители" },
+		{
+			"name": "consumer",
+			"description": "чем читается генератор: for…of или spread, ручной первый next, break или return из функции"
+		}
+	],
+	"essentialParams": [
+		{
+			"name": "protocol-step",
+			"description": "какой шаг протокола итератора решает исход: ленивый запуск, yield*, next(v), return(), throw()"
+		},
+		{
+			"name": "closing",
+			"description": "закрывается ли итератор и кем: ранний выход, деструктуризация, конвейер, итератор массива без return()"
+		},
+		{
+			"name": "mutation",
+			"description": "меняется ли коллекция во время обхода и как: удаление впереди, добавление, перестановка"
+		}
+	],
+	"language": "javascript",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"ленивое выполнение тела генератора",
+			"yield* и значение return внутреннего генератора",
+			"передача значения в next(v)",
+			"return() и блок finally при раннем выходе из for…of",
+			"закрытие цепочки генераторов",
+			"одноразовость итератора: деструктуризация, break, повторный spread",
+			"throw() и return() при yield в finally",
+			"изменение Map, Set и массива во время обхода"
+		],
+		"doesNotCheck": ["асинхронные генераторы и for await", "написание собственного итератора"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "eager-body",
+			"defect": "считает, что тело генератора выполняется при вызове функции",
+			"mustBeCaught": true
+		},
+		{
+			"id": "return-is-yielded",
+			"defect": "считает значение return внутреннего генератора ещё одним элементом последовательности",
+			"mustBeCaught": true
+		},
+		{ "id": "yield-star-undefined", "defect": "считает, что выражение yield* равно undefined", "mustBeCaught": true },
+		{
+			"id": "no-cleanup-on-exit",
+			"defect": "считает, что ранний выход из цикла не доходит до finally генератора",
+			"mustBeCaught": true
+		},
+		{
+			"id": "only-used-values-made",
+			"defect": "считает, что генератор создаёт только те значения, которые цикл потом использует",
+			"mustBeCaught": true
+		},
+		{
+			"id": "return-skips-finally",
+			"defect": "считает, что return() завершает генератор без finally",
+			"mustBeCaught": true
+		},
+		{
+			"id": "return-value-lost",
+			"defect": "считает, что return(v) возвращает undefined, а не v",
+			"mustBeCaught": true
+		},
+		{
+			"id": "first-next-delivers",
+			"defect": "считает, что аргумент первого next() попадает в генератор",
+			"mustBeCaught": true
+		},
+		{
+			"id": "return-not-delivered",
+			"defect": "считает, что значение return генератора не видно в результате next()",
+			"mustBeCaught": true
+		},
+		{
+			"id": "restart-after-done",
+			"defect": "считает, что завершённый генератор начинает заново при следующем next()",
+			"mustBeCaught": true
+		},
+		{
+			"id": "snapshot-iteration",
+			"defect": "считает, что for…of обходит снимок записей Map на момент начала цикла",
+			"mustBeCaught": true
+		},
+		{
+			"id": "added-not-visited",
+			"defect": "считает, что записи, добавленные во время обхода, не посещаются",
+			"mustBeCaught": true
+		},
+		{
+			"id": "outer-finally-first",
+			"defect": "считает, что при закрытии конвейера первым срабатывает finally внешнего генератора",
+			"mustBeCaught": true
+		},
+		{
+			"id": "inner-left-suspended",
+			"defect": "считает, что закрывается только генератор, который держит цикл, а внутренние остаются приостановленными",
+			"mustBeCaught": true
+		},
+		{
+			"id": "no-extra-pull",
+			"defect": "не замечает, что take с проверкой счётчика до yield вытягивает ещё одно значение перед выходом",
+			"mustBeCaught": true
+		},
+		{
+			"id": "destructuring-leaves-open",
+			"defect": "считает, что деструктуризация берёт нужные элементы и оставляет генератор открытым",
+			"mustBeCaught": true
+		},
+		{
+			"id": "break-leaves-open",
+			"defect": "считает, что после break остаток генератора можно дочитать",
+			"mustBeCaught": true
+		},
+		{
+			"id": "array-iterator-closed",
+			"defect": "считает, что break закрывает итератор массива так же, как генератор",
+			"mustBeCaught": true
+		},
+		{
+			"id": "generator-restarts",
+			"defect": "считает, что каждый spread или Array.from объекта-генератора начинает его заново",
+			"mustBeCaught": true
+		},
+		{
+			"id": "return-skips-finally-yield",
+			"defect": "считает, что return() завершает генератор сразу, хотя в finally есть yield",
+			"mustBeCaught": true
+		},
+		{
+			"id": "pending-return-lost",
+			"defect": "считает, что после yield в finally генератор забывает отложенный return и идёт к своему return",
+			"mustBeCaught": true
+		},
+		{
+			"id": "splice-no-skip",
+			"defect": "считает, что удаление текущего элемента массива не сдвигает обход",
+			"mustBeCaught": true
+		},
+		{
+			"id": "array-snapshot",
+			"defect": "считает, что for…of обходит массив в том виде, каким он был до цикла",
+			"mustBeCaught": true
+		},
+		{
+			"id": "set-readd-no-revisit",
+			"defect": "считает, что значение Set, удалённое и добавленное снова, остаётся на месте и не посещается повторно",
+			"mustBeCaught": true
+		},
+		{
+			"id": "set-deleted-visited",
+			"defect": "считает, что значение Set, удалённое до того, как до него дошёл обход, всё равно посещается",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 25, "caught": 25 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0006,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

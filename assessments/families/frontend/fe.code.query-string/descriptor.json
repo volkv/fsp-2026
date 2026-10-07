@@ -1,0 +1,125 @@
+{
+	"key": "fe.code.query-string",
+	"version": 1,
+	"specialization": "frontend",
+	"block": "fe.code",
+	"format": "practice_code",
+	"answerKind": "code",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.8 },
+			"constructive": { "decoding": "ASCII", "malformed": false, "encodedKeys": false, "groups": 5 },
+			"constructiveRank": 3,
+			"timeNormSec": 1800,
+			"classes": [
+				{ "id": "last-wins", "form": "A", "description": "повторный ключ — действует последнее значение" },
+				{
+					"id": "all-values",
+					"form": "B",
+					"description": "повторный ключ — все значения в порядке появления, как getAll"
+				},
+				{
+					"id": "php-brackets",
+					"form": "anchor",
+					"description": "ключ с `[]` добавляет в список имени, ключ без скобок заменяет значение целиком"
+				},
+				{
+					"id": "flags",
+					"form": "X",
+					"description": "ключ без `=` — флаг без значения, `ключ=` удаляет параметр, иначе последнее значение"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.8 },
+			"constructive": { "decoding": "UTF-8", "malformed": true, "encodedKeys": true, "groups": 5 },
+			"constructiveRank": 4,
+			"timeNormSec": 2400,
+			"classes": [
+				{
+					"id": "last-wins",
+					"form": "A",
+					"description": "последнее значение ключа; ключи и значения в UTF-8, битые `%` и `=` внутри значения"
+				},
+				{
+					"id": "all-values",
+					"form": "B",
+					"description": "все значения ключа по порядку; декодирование UTF-8 и битые `%`"
+				},
+				{
+					"id": "php-brackets",
+					"form": "anchor",
+					"description": "списки по `[]` в декодированном ключе (в том числе `%5B%5D`), одиночное значение заменяет список"
+				},
+				{
+					"id": "flags",
+					"form": "X",
+					"description": "флаги, удаление по пустому значению, пустой ключ пропускается; декодирование UTF-8"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "data", "description": "имена ключей, слова значений, способ записи символов во входе" },
+		{ "name": "sizes", "description": "число строк и параметров в строке" }
+	],
+	"essentialParams": [
+		{
+			"name": "duplicates",
+			"description": "что делать с повторным ключом: последнее значение, все значения, списки по `[]`, флаги и удаление"
+		},
+		{
+			"name": "decoding",
+			"description": "Junior: многобайтный UTF-8, `%` без двух шестнадцатеричных цифр, закодированные ключи, `=` в значении"
+		}
+	],
+	"language": null,
+	"practice": { "languages": ["javascript", "typescript"], "hiddenTestGroups": 5 },
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "groups" },
+	"coverage": {
+		"checks": [
+			"разбор по `&` и первому `=`, пустые части",
+			"`+` как пробел до процентного декодирования, `%2B` как плюс",
+			"процентное кодирование при сборке по множеству незарезервированных символов",
+			"сортировка ключей и порядок значений",
+			"правило повторных ключей класса",
+			"UTF-8, битые `%`, закодированные ключи и `=` в значении (Junior)",
+			"сотни строк за один запуск"
+		],
+		"doesNotCheck": ["разбор полного URL: схема, хост, путь, фрагмент", "вложенные объекты в ключах"]
+	},
+	"wrongSolutions": [
+		{ "id": "plus-kept", "defect": "не заменяет `+` на пробел (только decodeURIComponent)", "mustBeCaught": true },
+		{
+			"id": "plus-after-decode",
+			"defect": "заменяет `+` на пробел после процентного декодирования: `%2B` становится пробелом",
+			"mustBeCaught": true
+		},
+		{
+			"id": "encode-uri-component",
+			"defect": "кодирует как encodeURIComponent: оставляет `!'()*` незакодированными",
+			"mustBeCaught": true
+		},
+		{ "id": "no-sort", "defect": "выводит ключи в порядке первого появления, без сортировки", "mustBeCaught": true },
+		{
+			"id": "split-every-eq",
+			"defect": "Junior: делит часть по каждому `=`, значение обрывается на втором `=`",
+			"mustBeCaught": true
+		},
+		{ "id": "keys-raw", "defect": "Junior: не декодирует ключи", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 6, "caught": 6 },
+		"hiddenTestsMutationScore": 1,
+		"answerCollision": 0,
+		"transfer": 0,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

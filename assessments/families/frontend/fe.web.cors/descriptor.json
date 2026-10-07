@@ -1,0 +1,211 @@
+{
+	"key": "fe.web.cors",
+	"version": 1,
+	"specialization": "frontend",
+	"block": "fe.web",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"calls": "5–6",
+				"rules": 5,
+				"interacting": "нужен ли preflight + проверка CORS ответа + что из ответа видно скрипту"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "preflight-trigger",
+					"form": "A",
+					"description": "что вызывает preflight: метод, свой заголовок, Content-Type; строка в body и FormData его не вызывают, Accept и Content-Language — тоже; не прошедший списки preflight — ошибка"
+				},
+				{
+					"id": "credentials",
+					"form": "B",
+					"description": "credentials: 'include' против `*` и без Access-Control-Allow-Credentials; по умолчанию куки на чужой источник не идут, и `*` подходит"
+				},
+				{
+					"id": "exposed-headers",
+					"form": "anchor",
+					"description": "скрипт видит безопасные заголовки ответа и перечисленные в Access-Control-Expose-Headers; 404 и 500 с заголовками CORS — обычный ответ, не ошибка"
+				},
+				{
+					"id": "no-cors",
+					"form": "X",
+					"description": "mode: 'no-cors' даёт непрозрачный ответ: статус 0, заголовков нет, ошибки CORS нет; метод не из GET, HEAD, POST — TypeError"
+				}
+			]
+		},
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"constructive": {
+				"calls": "6–7",
+				"rules": 7,
+				"interacting": "подстановочные `*` × credentials, Authorization, статус preflight, ответы без заголовков CORS"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "credentialed-wildcards",
+					"form": "A",
+					"description": "`*` в Allow-Methods, Allow-Headers и Expose-Headers — подстановка только без credentials; с credentials это буквальное имя"
+				},
+				{
+					"id": "authorization-star",
+					"form": "B",
+					"description": "Access-Control-Allow-Headers: * покрывает любые заголовки, кроме Authorization: его надо перечислить явно"
+				},
+				{
+					"id": "preflight-status",
+					"form": "anchor",
+					"description": "preflight с ответом не 2xx проваливается при любых заголовках; простой запрос на тот же путь проходит, а 404 и 500 с CORS скрипт видит как статус"
+				},
+				{
+					"id": "error-handler",
+					"form": "X",
+					"description": "ответ об ошибке без заголовков CORS (обработчик ошибок до слоя CORS) скрипт видит как TypeError, а не как статус"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "сайты, пути, значения заголовков ответа" },
+		{ "name": "order", "description": "порядок вызовов и заголовков" }
+	],
+	"essentialParams": [
+		{ "name": "request", "description": "метод, заголовки и тело вызова, mode и credentials" },
+		{
+			"name": "server",
+			"description": "Access-Control-Allow-Origin, -Credentials, -Methods, -Headers, -Expose-Headers, подстановочные `*`"
+		},
+		{
+			"name": "response",
+			"description": "статус ответа и preflight, есть ли заголовки CORS в ответе, какой заголовок читает скрипт"
+		}
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"безопасные методы и заголовки запроса, Content-Type от тела",
+			"списки Allow-Methods и Allow-Headers при preflight",
+			"`*` в Allow-Origin и credentials, Allow-Credentials",
+			"значения credentials по умолчанию",
+			"безопасные заголовки ответа и Expose-Headers",
+			"fetch не отклоняется на 4xx и 5xx",
+			"непрозрачный ответ mode: 'no-cors'",
+			"подстановочные `*` под credentials",
+			"Authorization и Allow-Headers: *",
+			"статус ответа на preflight",
+			"ответ без заголовков CORS"
+		],
+		"doesNotCheck": [
+			"кэш preflight по Max-Age и Vary: Origin (это блок be.api)",
+			"перенаправления CORS-запросов",
+			"Private Network Access",
+			"Content-Length среди безопасных заголовков ответа"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "json-string-preflight",
+			"defect": "считает, что тело JSON.stringify(...) без заголовка вызывает preflight как application/json",
+			"mustBeCaught": true
+		},
+		{
+			"id": "safelisted-header-preflight",
+			"defect": "считает, что любой заданный заголовок (Accept, Content-Language, text/plain) вызывает preflight",
+			"mustBeCaught": true
+		},
+		{ "id": "post-preflight", "defect": "считает, что любой POST идёт с preflight", "mustBeCaught": true },
+		{
+			"id": "lists-not-checked",
+			"defect": "считает, что preflight проходит при любом Allow-Methods и Allow-Headers",
+			"mustBeCaught": true
+		},
+		{
+			"id": "star-with-credentials",
+			"defect": "считает, что Access-Control-Allow-Origin: * подходит и для credentials: 'include'",
+			"mustBeCaught": true
+		},
+		{
+			"id": "no-acac-needed",
+			"defect": "считает, что для credentials: 'include' достаточно точного Origin без Allow-Credentials",
+			"mustBeCaught": true
+		},
+		{
+			"id": "default-is-include",
+			"defect": "считает, что fetch по умолчанию отправляет куки на чужой источник, как 'include'",
+			"mustBeCaught": true
+		},
+		{ "id": "all-headers-visible", "defect": "считает, что скрипт видит все заголовки ответа", "mustBeCaught": true },
+		{
+			"id": "only-exposed-visible",
+			"defect": "считает, что и Content-Type, и Cache-Control видны только через Expose-Headers",
+			"mustBeCaught": true
+		},
+		{
+			"id": "error-status-rejects",
+			"defect": "считает, что fetch отклоняется при статусе 4xx или 5xx",
+			"mustBeCaught": true
+		},
+		{
+			"id": "no-cors-readable",
+			"defect": "считает, что в mode: 'no-cors' виден статус и заголовки ответа",
+			"mustBeCaught": true
+		},
+		{
+			"id": "no-cors-error",
+			"defect": "считает, что mode: 'no-cors' к серверу без CORS тоже даёт TypeError",
+			"mustBeCaught": true
+		},
+		{
+			"id": "no-cors-any-method",
+			"defect": "считает, что в mode: 'no-cors' можно отправить PUT и DELETE",
+			"mustBeCaught": true
+		},
+		{
+			"id": "wildcard-with-credentials",
+			"defect": "считает `*` в Allow-Methods, Allow-Headers и Expose-Headers подстановкой и при credentials: 'include'",
+			"mustBeCaught": true
+		},
+		{
+			"id": "wildcard-never",
+			"defect": "считает `*` в Allow-Methods, Allow-Headers и Expose-Headers буквальным именем всегда",
+			"mustBeCaught": true
+		},
+		{
+			"id": "star-covers-authorization",
+			"defect": "считает, что Access-Control-Allow-Headers: * покрывает Authorization",
+			"mustBeCaught": true
+		},
+		{
+			"id": "preflight-status-ignored",
+			"defect": "считает, что preflight проходит по заголовкам при любом статусе ответа на OPTIONS",
+			"mustBeCaught": true
+		},
+		{
+			"id": "status-without-cors",
+			"defect": "считает, что скрипт видит статус ответа об ошибке и без заголовков CORS",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 18, "caught": 18 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.008,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

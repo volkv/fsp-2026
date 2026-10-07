@@ -834,7 +834,7 @@ export function build(input: GenerateInput): Built {
 	const instance = makeInstance(descriptor, input, {
 		statement: { markdown: statement(cls, junior), code: null },
 		answer: null,
-		practice: { languages: [...LANGUAGES], groups: hidden, checker: { kind: 'exact' } }
+		practice: { languages: [...LANGUAGES], groups: hidden, checker: { kind: 'tokens' } }
 	});
 	return {
 		instance,

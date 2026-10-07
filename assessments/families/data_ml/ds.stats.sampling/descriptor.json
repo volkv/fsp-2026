@@ -1,0 +1,135 @@
+{
+	"key": "ds.stats.sampling",
+	"version": 1,
+	"specialization": "data_ml",
+	"block": "ds.stats",
+	"format": "compute",
+	"answerKind": "float_eps",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": { "steps": "1–2", "variables": "1–2 независимые", "normal": "Φ любым инструментом" },
+			"constructiveRank": 2,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "se-mean",
+					"form": "A",
+					"description": "стандартная ошибка среднего по выборке: выборочное отклонение (n − 1), делённое на √n"
+				},
+				{
+					"id": "linear-combination",
+					"form": "B",
+					"description": "стандартное отклонение aX + bY + c независимых величин: дисперсии складываются с квадратами коэффициентов"
+				},
+				{
+					"id": "clt-mean",
+					"form": "anchor",
+					"description": "ЦПТ для среднего n наблюдений: вероятность попасть в μ ± d, стандартное отклонение среднего σ/√n"
+				},
+				{
+					"id": "clt-total",
+					"form": "X",
+					"description": "ЦПТ для суммы n наблюдений: вероятность превысить порог, отклонение суммы σ·√n"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"steps": "2–3",
+				"variables": "две выборки, зависимые величины или конечная совокупность",
+				"normal": "не нужен"
+			},
+			"constructiveRank": 3,
+			"timeNormSec": 330,
+			"classes": [
+				{
+					"id": "se-diff-means",
+					"form": "A",
+					"description": "стандартная ошибка разности средних двух независимых выборок: √(s₁²/n₁ + s₂²/n₂)"
+				},
+				{ "id": "se-proportion", "form": "B", "description": "стандартная ошибка доли по счётчикам: √(p(1 − p)/n)" },
+				{
+					"id": "correlated-sum",
+					"form": "anchor",
+					"description": "отклонение суммы или разности коррелированных величин: член 2ρσₓσᵧ со своим знаком"
+				},
+				{
+					"id": "finite-population",
+					"form": "X",
+					"description": "выборка без возвращения из конечной совокупности: поправка √((N − n)/(N − 1))"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "метрика и сюжет: время ответа, чек, сессии, конверсия" },
+		{ "name": "numbers", "description": "данные выборки, средние, отклонения, размеры" }
+	],
+	"essentialParams": [
+		{
+			"name": "statistic",
+			"description": "чья изменчивость нужна: среднее, сумма, линейная комбинация, разность средних, доля"
+		},
+		{
+			"name": "dependence",
+			"description": "независимые величины, коррелированные, выборка без возвращения из конечной совокупности"
+		}
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"стандартная ошибка среднего и её отличие от стандартного отклонения",
+			"выборочное отклонение с делителем n − 1",
+			"дисперсия линейной комбинации независимых величин",
+			"центральная предельная теорема для среднего и суммы",
+			"стандартная ошибка разности средних и доли",
+			"дисперсия суммы коррелированных величин",
+			"поправка на конечную совокупность"
+		],
+		"doesNotCheck": ["точные распределения малых выборок (t, χ²)", "бутстреп и асимптотику оценок кроме среднего"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "sd-not-se",
+			"defect": "отвечает стандартным отклонением выборки вместо стандартной ошибки",
+			"mustBeCaught": true
+		},
+		{
+			"id": "population-sd",
+			"defect": "считает выборочное отклонение с делителем n вместо n − 1",
+			"mustBeCaught": true
+		},
+		{ "id": "add-sds", "defect": "складывает стандартные отклонения вместо дисперсий", "mustBeCaught": true },
+		{
+			"id": "coef-not-squared",
+			"defect": "умножает дисперсию на коэффициент, а не на его квадрат",
+			"mustBeCaught": true
+		},
+		{
+			"id": "no-sqrt-n",
+			"defect": "не делит (не умножает) отклонение на √n для среднего (суммы)",
+			"mustBeCaught": true
+		},
+		{ "id": "ignore-correlation", "defect": "складывает дисперсии, забыв о корреляции", "mustBeCaught": true },
+		{ "id": "no-fpc", "defect": "не делает поправку на конечную совокупность", "mustBeCaught": true },
+		{ "id": "p-over-n", "defect": "берёт дисперсию доли p вместо p(1 − p)", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 8, "caught": 8 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0022,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

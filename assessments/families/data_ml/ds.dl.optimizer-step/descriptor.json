@@ -1,0 +1,84 @@
+{
+	"key": "ds.dl.optimizer-step",
+	"version": 1,
+	"specialization": "data_ml",
+	"block": "ds.dl",
+	"format": "compute",
+	"answerKind": "float_eps",
+	"levels": [
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"steps": "3–5",
+				"state": "буфер момента или два момента Adam",
+				"decay": "нет, L2 или развязанный"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "momentum",
+					"form": "A",
+					"description": "SGD с momentum в PyTorch: буфер — сумма μ·buf + g (без множителя 1 − μ), на первом шаге buf = g"
+				},
+				{
+					"id": "adam",
+					"form": "B",
+					"description": "Adam: экспоненциальные средние градиента и его квадрата с поправкой смещения 1 − βᵗ"
+				},
+				{
+					"id": "adamw",
+					"form": "anchor",
+					"description": "AdamW: вес сначала умножается на 1 − lr·λ, затем шаг Adam по исходному градиенту (не L2 в градиенте)"
+				},
+				{
+					"id": "nesterov",
+					"form": "X",
+					"description": "SGD с momentum и nesterov=True: шаг g + μ·buf; weight_decay SGD добавляет λ·w к градиенту"
+				}
+			]
+		}
+	],
+	"surfaceParams": [{ "name": "numbers", "description": "начальный вес, градиенты, lr, momentum, betas, λ" }],
+	"essentialParams": [
+		{ "name": "optimizer", "description": "SGD с momentum, Adam, AdamW, SGD с Nesterov" },
+		{ "name": "decay", "description": "нет затухания, L2 в градиенте или развязанное затухание веса" }
+	],
+	"language": "python3",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"буфер момента в реализации PyTorch",
+			"шаг Нестерова",
+			"поправка смещения Adam",
+			"weight decay AdamW против L2-регуляризации"
+		],
+		"doesNotCheck": ["выбор оптимизатора под задачу", "расписание скорости обучения"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "ema-momentum",
+			"defect": "считает буфер момента как экспоненциальное среднее μ·buf + (1 − μ)·g с нулевым стартом",
+			"mustBeCaught": true
+		},
+		{ "id": "no-momentum", "defect": "делает шаги обычного SGD, игнорируя momentum", "mustBeCaught": true },
+		{ "id": "no-bias-correction", "defect": "не делает поправку смещения моментов Adam", "mustBeCaught": true },
+		{ "id": "l2-into-grad", "defect": "в AdamW добавляет λ·w к градиенту, как L2 в Adam", "mustBeCaught": true },
+		{ "id": "decay-ignored", "defect": "не учитывает weight_decay", "mustBeCaught": true },
+		{ "id": "no-nesterov", "defect": "при nesterov=True делает шаг обычного momentum", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 6, "caught": 6 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.5,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "572a52c7193ee7bbba22c3fb9f5c4df1b877097ce01c79c55944e8c152da61e8"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.65,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "572a52c7193ee7bbba22c3fb9f5c4df1b877097ce01c79c55944e8c152da61e8"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": {
 				"resources": "1–2",
 				"requests": "7–9",
@@ -42,7 +59,24 @@
 		},
 		{
 			"grade": "middle",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.45,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "572a52c7193ee7bbba22c3fb9f5c4df1b877097ce01c79c55944e8c152da61e8"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.5,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "572a52c7193ee7bbba22c3fb9f5c4df1b877097ce01c79c55944e8c152da61e8"
+					}
+				],
+				"mean": 0.5
+			},
 			"constructive": {
 				"resources": "1–2",
 				"requests": "8–10",
@@ -154,6 +188,25 @@
 		"answerCollision": 0.0049,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Второй раунд Angoff: Middle требует аккуратной трассировки времён, но все правила в условии; между 0,35 и 0,60 итог 0,45 (junior без расхождения)."
+				],
+				"sourceSha256": "572a52c7193ee7bbba22c3fb9f5c4df1b877097ce01c79c55944e8c152da61e8"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Второй раунд: после сопоставления оценок Middle 0,35 и 0,60 снижаю свою до 0,50. Правила свежести, 304, общего кэша и окон старого ответа заданы полностью, что делает задачу доступной пограничному Middle за 420 с; однако правильный полный ответ требует удержать состояние на 8–10 запросах и верно посчитать обращения к серверу, включая фоновые и неуспешные. Риск ошибки особенно высок в swr и stale-if-error; частичный успех бинарная рубрика не засчитывает. Пересчёт всех восьми экземпляров подтвердил эталоны: в Middle/X окно заканчивается в t=97, поэтому t=93 даёт stale, t=99 — 500. Junior сохраняю 0,65."
+				],
+				"sourceSha256": "572a52c7193ee7bbba22c3fb9f5c4df1b877097ce01c79c55944e8c152da61e8"
+			}
+		]
 	}
 }

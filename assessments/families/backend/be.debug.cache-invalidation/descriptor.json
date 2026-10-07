@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "middle",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.65,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "a488a4eec57c3879d3337df606be12b29de8b824819af05c4e9b142f14b15efd"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.75,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "a488a4eec57c3879d3337df606be12b29de8b824819af05c4e9b142f14b15efd"
+					}
+				],
+				"mean": 0.7
+			},
 			"constructive": {
 				"units": 4,
 				"lines": "50–75",
@@ -79,9 +96,29 @@
 		"reference": { "seeds": 200, "failures": 0 },
 		"wrongSolutions": { "mustBeCaught": 2, "caught": 2 },
 		"hiddenTestsMutationScore": null,
-		"answerCollision": 0.0209,
+		"answerCollision": 0.0181,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Новая формулировка правила согласована с эталонами и альтернативами этого семейства: противоречий не нашёл (эталоны и alternatives не добавляют новых конструкций и не переносят логику другой строки). Альтернатива в конструкторе (`self.max_age_s = max_age_s * 1000`) допустима: та же инструкция, логика другой строки не переносится."
+				],
+				"sourceSha256": "a488a4eec57c3879d3337df606be12b29de8b824819af05c4e9b142f14b15efd"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Новая формулировка согласуется с локальными эталонами. Альтернатива TTL в строке 52 — простое присваивание лимита в миллисекундах; она сохраняет вид инструкции и не объединяет несколько операций конвейера. Новых противоречий не обнаружено.",
+					"Итоговый Angoff прошлого раунда сохранён: middle 0,75."
+				],
+				"sourceSha256": "a488a4eec57c3879d3337df606be12b29de8b824819af05c4e9b142f14b15efd"
+			}
+		]
 	}
 }

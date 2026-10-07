@@ -1,0 +1,145 @@
+{
+	"key": "ds.sql.running-window",
+	"version": 1,
+	"specialization": "data_ml",
+	"block": "ds.sql",
+	"format": "sql_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": { "tables": 1, "rows": "5–8", "windows": 1, "frame": "по умолчанию или явный ROWS" },
+			"constructiveRank": 3,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "running-sum",
+					"form": "A",
+					"description": "накопленная сумма с PARTITION BY пользователя: у каждого пользователя своя сумма"
+				},
+				{
+					"id": "lag-diff",
+					"form": "B",
+					"description": "разность с предыдущей записью через LAG: у первой записи пользователя LAG — NULL, и разность — NULL"
+				},
+				{
+					"id": "last-record",
+					"form": "anchor",
+					"description": "последняя запись объекта: ROW_NUMBER() по убыванию момента и rn = 1"
+				},
+				{
+					"id": "moving-avg",
+					"form": "X",
+					"description": "скользящее среднее ROWS BETWEEN 2 PRECEDING: первые строки усредняют столько строк, сколько есть"
+				}
+			]
+		},
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"tables": 1,
+				"rows": "5–8",
+				"windows": "1–3",
+				"frame": "RANGE по умолчанию, RANGE со смещением"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "range-peers",
+					"form": "A",
+					"description": "накопленная сумма с рамкой по умолчанию (RANGE): строки одного дня — ровни и входят в сумму вместе"
+				},
+				{
+					"id": "range-offset",
+					"form": "B",
+					"description": "RANGE BETWEEN k PRECEDING по дням с пропусками: в рамке дни на расстоянии ≤ k, а не k строк"
+				},
+				{
+					"id": "order-changes-frame",
+					"form": "anchor",
+					"description": "COUNT(*) OVER (PARTITION BY …) — размер раздела, а с ORDER BY — нарастающий счёт до текущей строки"
+				},
+				{
+					"id": "last-value",
+					"form": "X",
+					"description": "LAST_VALUE с рамкой по умолчанию возвращает значение текущей строки, а не последнее в разделе"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "названия таблиц и показателей, номера пользователей и заказов" },
+		{ "name": "data", "description": "дни, значения, порядок вставки" }
+	],
+	"essentialParams": [
+		{ "name": "window", "description": "оконная функция: SUM, LAG, ROW_NUMBER, AVG, COUNT, FIRST_VALUE, LAST_VALUE" },
+		{
+			"name": "frame",
+			"description": "что покрывает окно: раздел, рамка по умолчанию с ровнями, ROWS, RANGE со смещением"
+		}
+	],
+	"language": "sql",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"PARTITION BY как граница накопления",
+			"LAG у первой строки раздела",
+			"последняя запись через ROW_NUMBER",
+			"скользящее среднее в начале ряда",
+			"рамка RANGE по умолчанию и ровни",
+			"RANGE со смещением против ROWS",
+			"влияние ORDER BY на рамку агрегата",
+			"LAST_VALUE и рамка по умолчанию"
+		],
+		"doesNotCheck": ["оконные функции других СУБД", "производительность оконных запросов"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "no-partition",
+			"defect": "не учитывает PARTITION BY: накапливает или сдвигает по всем строкам",
+			"mustBeCaught": true
+		},
+		{ "id": "lag-zero", "defect": "считает, что LAG первой строки даёт 0, а не NULL", "mustBeCaught": true },
+		{
+			"id": "asc-order",
+			"defect": "берёт первую запись вместо последней: путает направление сортировки окна",
+			"mustBeCaught": true
+		},
+		{
+			"id": "full-window-only",
+			"defect": "считает, что скользящее среднее первых строк без полного окна — NULL",
+			"mustBeCaught": true
+		},
+		{
+			"id": "rows-frame",
+			"defect": "читает рамку RANGE как ROWS: ровни и пропуски дней не учитывает",
+			"mustBeCaught": true
+		},
+		{
+			"id": "order-ignored",
+			"defect": "считает, что ORDER BY в окне агрегата не меняет рамку и COUNT(*) — размер раздела",
+			"mustBeCaught": true
+		},
+		{
+			"id": "last-of-partition",
+			"defect": "считает, что LAST_VALUE с ORDER BY возвращает последнее значение раздела",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 7, "caught": 7 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

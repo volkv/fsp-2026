@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.55,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "62c2edaed68396bee1753751dfabaf5bf607f772507e042e22e546aa60af9947"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.6,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "62c2edaed68396bee1753751dfabaf5bf607f772507e042e22e546aa60af9947"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": { "statements": "8–14", "iterators": "1–2", "mechanisms": 2, "sideEffects": true },
 			"constructiveRank": 3,
 			"timeNormSec": 300,
@@ -37,7 +54,24 @@
 		},
 		{
 			"grade": "middle",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.5,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "62c2edaed68396bee1753751dfabaf5bf607f772507e042e22e546aa60af9947"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.45,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "62c2edaed68396bee1753751dfabaf5bf607f772507e042e22e546aa60af9947"
+					}
+				],
+				"mean": 0.5
+			},
 			"constructive": { "statements": "10–18", "iterators": "2–3", "mechanisms": 3, "protocol": "send/StopIteration" },
 			"constructiveRank": 5,
 			"timeNormSec": 420,
@@ -166,6 +200,30 @@
 		"answerCollision": 0.001,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Все 8 экземпляров воспроизведены и совпали. Условия однозначны.",
+					"Middle groupby: третья строка зависит от того, что группы опустошаются при продвижении groupby, включая последнюю после исчерпания; это поведение CPython документировано ('the returned group is itself an iterator that shares the underlying iterable'), но граничный случай про последнюю группу в доках не оговорён явно. Эталон корректен для CPython; стоит зафиксировать версию Python.",
+					"Middle send-return и zip-pull (потеря 15 в zip) - содержательные ловушки, соответствуют уровню; junior-классы (filter-итератор с in/next/sum, genexp, short-circuit) подходят. Интерливинг в junior (yield from, break не сработал) длинный, но корректный.",
+					"Угадывание исключено."
+				],
+				"sourceSha256": "62c2edaed68396bee1753751dfabaf5bf607f772507e042e22e546aa60af9947"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Ручной пересчёт middle/send-return: next даёт 0, send(6) — 6, send(8) — 14; send(2) завершает collect с 14 и даёт внешний yield limit, send(7) завершает batch со StopIteration.value=(14, 7). В zip-pull остаток a пуст: значение 15 уже забрано перед обнаружением конца b. Исполнение восьми программ подтвердило ответы.",
+					"Однократное потребление, поздний поиск имён, interleaving, send/return, groupby и общий итератор требуют разных рассуждений. Условия полностью задаются кодом; порядок вывода детерминирован, полные ответы не угадываются по малому набору вариантов. Junior соответствует базовым итераторам, Middle требует более глубокого знания протокола.",
+					"Рекомендация по калибровке: жизнь групп groupby и потеря элемента в zip являются редкими деталями Python; поэтому ожидаемая вероятность полного решения у пограничного Middle ниже, чем у обычных задач его блока. Для многокомпонентного вывода желательно частичное оценивание и допуск несущественных пробелов вне литералов."
+				],
+				"sourceSha256": "62c2edaed68396bee1753751dfabaf5bf607f772507e042e22e546aa60af9947"
+			}
+		]
 	}
 }

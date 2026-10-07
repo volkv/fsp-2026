@@ -470,7 +470,7 @@ function sameRows(a: readonly string[], b: readonly string[]): boolean {
 function statementText(): string {
 	return [
 		'Скрипт выполняется целиком, ни один оператор не завершается ошибкой. Что вернёт последний запрос?',
-		'База — SQLite: столбец `INTEGER PRIMARY KEY` без явного значения получает наибольший id таблицы + 1.',
+		'База — SQLite: столбец `INTEGER PRIMARY KEY` без явного значения получает наибольший id таблицы + 1; строки одного `INSERT … VALUES (…), (…)` вставляются по очереди слева направо.',
 		'',
 		SQL_ROW_FORMAT
 	].join('\n');

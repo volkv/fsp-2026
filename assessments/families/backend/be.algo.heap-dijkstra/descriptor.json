@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "middle",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.5,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "d4daf8e036d6bbf7d85726c743f2c0c6df6fc6a1ad80a705e6c239275fac9413"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.65,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "d4daf8e036d6bbf7d85726c743f2c0c6df6fc6a1ad80a705e6c239275fac9413"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": {
 				"vertices": "6–7",
 				"edges": "10–13",
@@ -100,6 +117,29 @@
 		"answerCollision": 0.0019,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Эталон прогнан на входах всех 4 экземпляров: ответы совпадают; псевдокод в условии полностью определяет поведение, правило ничьей (меньший номер) сказано явно.",
+					"Класс early-stop удачно использует ничью (4,2) против (4,6) — без правила вершины 2 по номеру ответ был бы иным; это скрытая ловушка, но правило явно в условии.",
+					"Класс ties и equal-paths дают в ответе «0» устаревших записей; для equal-paths число 0 угадывается как частая величина, но порядок вершин при этом всё равно нужно найти — не существенно.",
+					"Нагрузка соответствует middle: 6–7 вершин, 10–13 рёбер за 420 с — трассировка плотная, порог ближе к нижней границе уровня."
+				],
+				"sourceSha256": "d4daf8e036d6bbf7d85726c743f2c0c6df6fc6a1ad80a705e6c239275fac9413"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Независимая симуляция с heapq подтвердила все четыре ответа: ties — «1 2 3 5 6 4 0», stale — «1 2 3 4 5 6 1», equal-paths — «1 4 6 5 2 3 0», early-stop — «1 3 5 2 4». В stale устаревает запись вершины 5 с расстоянием 7; в early-stop цель 2 фиксируется с расстоянием 4.",
+					"Строгое улучшение, разрешение равных приоритетов и момент остановки заданы явно; учёт пропусков препятствует подмене трассировки одним списком кратчайших расстояний. Неблокирующее уточнение: явно указать, что edges[v] для вершины без перечисленных исходящих рёбер — пустой список."
+				],
+				"sourceSha256": "d4daf8e036d6bbf7d85726c743f2c0c6df6fc6a1ad80a705e6c239275fac9413"
+			}
+		]
 	}
 }

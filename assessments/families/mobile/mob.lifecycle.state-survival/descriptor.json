@@ -1,0 +1,160 @@
+{
+	"key": "mob.lifecycle.state-survival",
+	"version": 1,
+	"specialization": "mobile",
+	"block": "mob.lifecycle",
+	"format": "compute",
+	"answerKind": "set",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": { "values": "4–5", "events": 1, "storages": "4–5 из 6", "mechanisms": 1 },
+			"constructiveRank": 1,
+			"timeNormSec": 180,
+			"classes": [
+				{
+					"id": "rotation",
+					"form": "A",
+					"description": "поворот пересоздаёт Activity: поле теряется, ViewModel и сохранённое состояние остаются"
+				},
+				{
+					"id": "process-death",
+					"form": "B",
+					"description": "смерть процесса в фоне: ViewModel и одиночка теряются, Bundle и SavedStateHandle восстанавливаются"
+				},
+				{
+					"id": "close-reopen",
+					"form": "anchor",
+					"description": "«Назад» или finish() и повторное открытие: сохранённое состояние не восстанавливается, одиночка и диск живы"
+				},
+				{
+					"id": "compose-rotation",
+					"form": "X",
+					"description": "Compose: remember теряется при пересоздании, rememberSaveable — нет"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": { "values": "5–6", "events": "2–3", "storages": "5–6 из 8", "mechanisms": 2 },
+			"constructiveRank": 2,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "rotate-then-death",
+					"form": "A",
+					"description": "поворот и смерть процесса подряд: ViewModel переживает первое, но не второе"
+				},
+				{
+					"id": "handled-config",
+					"form": "B",
+					"description": "поворот объявлен в android:configChanges — экран не пересоздаётся, а тема не объявлена — пересоздаётся"
+				},
+				{
+					"id": "swipe-vs-death",
+					"form": "anchor",
+					"description": "смахивание из недавних или смерть процесса системой: первое стирает и сохранённое состояние, второе — нет"
+				},
+				{
+					"id": "close-and-death",
+					"form": "X",
+					"description": "закрытие экрана и смерть процесса: одиночка переживает одно, сохранённое состояние — другое, вместе — только диск"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "имена значений и экрана" },
+		{ "name": "order", "description": "порядок значений и событий" }
+	],
+	"essentialParams": [
+		{
+			"name": "storage",
+			"description": "где хранится значение: поле Activity, Bundle, ViewModel, SavedStateHandle, remember, rememberSaveable, одиночка, SharedPreferences"
+		},
+		{
+			"name": "event",
+			"description": "что происходит: пересоздание, обработанное изменение конфигурации, фон, смерть процесса, закрытие, смахивание из недавних"
+		}
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"что переживает смену конфигурации",
+			"что переживает смерть процесса в фоне",
+			"что теряется при закрытии экрана пользователем",
+			"ViewModel против SavedStateHandle",
+			"remember против rememberSaveable",
+			"объявленные изменения конфигурации не пересоздают экран",
+			"смахивание из недавних против смерти процесса системой"
+		],
+		"doesNotCheck": [
+			"лимит размера Bundle и TransactionTooLargeException",
+			"DataStore и Room",
+			"работу на настоящем устройстве"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "viewmodel-survives-death",
+			"defect": "считает, что ViewModel переживает смерть процесса",
+			"mustBeCaught": true
+		},
+		{
+			"id": "bundle-survives-close",
+			"defect": "считает, что сохранённое состояние (Bundle, SavedStateHandle, rememberSaveable) вернётся после закрытия экрана",
+			"mustBeCaught": true
+		},
+		{
+			"id": "field-survives-rotation",
+			"defect": "считает, что поле Activity переживает пересоздание при смене конфигурации",
+			"mustBeCaught": true
+		},
+		{
+			"id": "remember-survives-rotation",
+			"defect": "считает, что remember переживает пересоздание Activity",
+			"mustBeCaught": true
+		},
+		{
+			"id": "viewmodel-lost-on-rotation",
+			"defect": "считает, что ViewModel создаётся заново при смене конфигурации",
+			"mustBeCaught": true
+		},
+		{
+			"id": "singleton-survives-death",
+			"defect": "считает, что объект-одиночка переживает завершение процесса",
+			"mustBeCaught": true
+		},
+		{
+			"id": "handled-recreates",
+			"defect": "считает, что поворот пересоздаёт экран, даже когда он объявлен в android:configChanges",
+			"mustBeCaught": true
+		},
+		{
+			"id": "all-changes-handled",
+			"defect": "считает, что android:configChanges защищает от пересоздания при любом изменении конфигурации, а не только при объявленных",
+			"mustBeCaught": true
+		},
+		{
+			"id": "swipe-keeps-state",
+			"defect": "считает смахивание из недавних такой же смертью процесса, после которой состояние восстанавливается",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 9, "caught": 9 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0229,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

@@ -1,0 +1,208 @@
+{
+	"key": "fe.js.this-binding",
+	"version": 1,
+	"specialization": "frontend",
+	"block": "fe.js",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": { "lines": "10–20", "calls": "3–4", "receivers": "1–2", "mechanisms": 1 },
+			"constructiveRank": 2,
+			"timeNormSec": 210,
+			"classes": [
+				{
+					"id": "extracted-method",
+					"form": "A",
+					"description": "this определяется местом вызова: метод, вынутый из объекта, в строгом режиме вызывается с undefined; тот же метод у другого объекта видит другой объект"
+				},
+				{
+					"id": "arrow-vs-regular",
+					"form": "B",
+					"description": "стрелочная функция берёт this из вызова метода, обычная вложенная функция получает undefined"
+				},
+				{
+					"id": "call-apply-bind",
+					"form": "anchor",
+					"description": "call и apply задают this и аргументы, bind фиксирует this и первый аргумент — call привязанной функции this не меняет"
+				},
+				{
+					"id": "new-binding",
+					"form": "X",
+					"description": "new создаёт свой объект, заимствованный метод видит объект вызова, объект из return конструктора заменяет новый"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": { "lines": "18–27", "calls": "5–6", "receivers": "2–3", "mechanisms": 2 },
+			"constructiveRank": 4,
+			"timeNormSec": 330,
+			"classes": [
+				{
+					"id": "class-callback",
+					"form": "A",
+					"description": "метод класса как колбэк: без привязки — TypeError, bind, стрелочное поле класса и thisArg у map сохраняют объект; состояние копится между вызовами"
+				},
+				{
+					"id": "rebind",
+					"form": "B",
+					"description": "повторный bind и call не меняют уже привязанный this, вызов привязанной функции как метода — тоже; стрелочная функция держит this своего создания"
+				},
+				{
+					"id": "prototype-methods",
+					"form": "anchor",
+					"description": "наследование классов: метод базового класса через super и через call вызывает переопределённый метод по this; вынутый метод — TypeError"
+				},
+				{
+					"id": "new-and-bind",
+					"form": "X",
+					"description": "new с привязанной функцией игнорирует привязанный this, стрелочная функция — не конструктор, return объекта и примитива из конструктора"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "имена объектов, методов, классов и функций" },
+		{ "name": "numbers", "description": "значения полей и аргументы вызовов" },
+		{ "name": "order", "description": "порядок методов в литерале объекта" }
+	],
+	"essentialParams": [
+		{
+			"name": "call-site",
+			"description": "как вызвана функция: как метод, без получателя, через call/apply/bind, через new, как колбэк"
+		},
+		{ "name": "function-kind", "description": "обычная функция, стрелочная, метод класса, стрелочное поле класса" },
+		{
+			"name": "precedence",
+			"description": "что сильнее: bind против call, повторного bind и вызова как метода; new против bind; return конструктора"
+		}
+	],
+	"language": "javascript",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"this по месту вызова, потеря this у вынутого метода в строгом режиме",
+			"стрелочная функция против обычной внутри метода",
+			"call, apply, bind и частичное применение",
+			"приоритет привязки: повторный bind, call, вызов как метода, new",
+			"методы класса как колбэки: bind, стрелочное поле, thisArg",
+			"this в наследовании классов и super",
+			"new и return из конструктора"
+		],
+		"doesNotCheck": [
+			"this в обработчиках DOM-событий",
+			"this на верхнем уровне модуля",
+			"нестрогий режим как предмет проверки"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "method-remembers-object",
+			"defect": "считает, что метод, вынутый из объекта, запоминает объект, в литерале которого объявлен",
+			"mustBeCaught": true
+		},
+		{
+			"id": "sloppy-global",
+			"defect": "забывает о строгом режиме: считает, что без получателя this — глобальный объект и чтение поля даёт undefined",
+			"mustBeCaught": true
+		},
+		{
+			"id": "arrow-own-this",
+			"defect": "считает, что у стрелочной функции свой this, как у обычной",
+			"mustBeCaught": true
+		},
+		{
+			"id": "inner-function-inherits",
+			"defect": "считает, что обычная функция внутри метода наследует this метода",
+			"mustBeCaught": true
+		},
+		{
+			"id": "arrow-binds-object",
+			"defect": "считает, что стрелочная функция в методе навсегда привязана к объекту, в литерале которого метод объявлен",
+			"mustBeCaught": true
+		},
+		{
+			"id": "call-overrides-bind",
+			"defect": "считает, что call у привязанной функции подменяет привязанный this",
+			"mustBeCaught": true
+		},
+		{
+			"id": "bind-partial-ignored",
+			"defect": "не учитывает, что bind фиксирует и первые аргументы",
+			"mustBeCaught": true
+		},
+		{
+			"id": "apply-like-call",
+			"defect": "считает, что apply передаёт массив как один аргумент, как call",
+			"mustBeCaught": true
+		},
+		{
+			"id": "constructor-return-ignored",
+			"defect": "считает, что new всегда возвращает созданный объект, даже если конструктор вернул другой объект",
+			"mustBeCaught": true
+		},
+		{
+			"id": "thisarg-ignored",
+			"defect": "не знает, что второй аргумент map задаёт this колбэка",
+			"mustBeCaught": true
+		},
+		{
+			"id": "field-arrow-unbound",
+			"defect": "считает, что стрелочное поле класса теряет this, если его вынуть из объекта",
+			"mustBeCaught": true
+		},
+		{ "id": "rebind-overrides", "defect": "считает, что повторный bind перепривязывает this", "mustBeCaught": true },
+		{
+			"id": "method-call-overrides-bind",
+			"defect": "считает, что вызов привязанной функции как метода объекта меняет this на этот объект",
+			"mustBeCaught": true
+		},
+		{
+			"id": "call-overrides-arrow",
+			"defect": "считает, что call меняет this у стрелочной функции",
+			"mustBeCaught": true
+		},
+		{
+			"id": "super-uses-base",
+			"defect": "считает, что внутри метода, вызванного через super или прототип базового класса, this.метод() берётся из базового класса",
+			"mustBeCaught": true
+		},
+		{
+			"id": "call-proto-uses-base",
+			"defect": "считает, что Base.prototype.method.call(экземпляр наследника) вызывает методы базового класса",
+			"mustBeCaught": true
+		},
+		{
+			"id": "bind-beats-new",
+			"defect": "считает, что new с привязанной функцией пишет поля в привязанный объект",
+			"mustBeCaught": true
+		},
+		{
+			"id": "arrow-constructible",
+			"defect": "считает, что стрелочную функцию можно вызвать через new",
+			"mustBeCaught": true
+		},
+		{
+			"id": "primitive-return-wins",
+			"defect": "считает, что примитив из return конструктора становится результатом new",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 19, "caught": 19 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0007,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

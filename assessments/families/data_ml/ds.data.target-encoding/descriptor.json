@@ -1,0 +1,103 @@
+{
+	"key": "ds.data.target-encoding",
+	"version": 1,
+	"specialization": "data_ml",
+	"block": "ds.data",
+	"format": "compute",
+	"answerKind": "float_eps",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": { "rows": "10–16", "categories": "3–5", "folds": "0–3", "steps": "3–5" },
+			"constructiveRank": 5,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "out-of-fold",
+					"form": "A",
+					"description": "кодирование по фолдам: среднее категории — только по другим фолдам, невиданная категория — среднее обучающей части"
+				},
+				{
+					"id": "smoothing",
+					"form": "B",
+					"description": "сглаживание к априорному среднему с весом m по статистике обучающей части, применённое к тестовым строкам"
+				},
+				{
+					"id": "leave-one-out",
+					"form": "anchor",
+					"description": "leave-one-out: среднее категории без собственной строки; у положительных строк оно ниже наивного — утечки нет"
+				},
+				{
+					"id": "unseen-category",
+					"form": "X",
+					"description": "категория теста, которой нет в обучении, получает априорное среднее обучающей части"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "названия категорий и столбцов" },
+		{ "name": "data", "description": "категории, значения целевой переменной, разбиение на фолды и части" }
+	],
+	"essentialParams": [
+		{
+			"name": "scheme",
+			"description": "по каким строкам считается среднее категории: другие фолды, обучающая часть, все строки без своей"
+		},
+		{ "name": "fallback", "description": "что получает категория без статистики: априорное среднее, сглаживание" }
+	],
+	"language": "python3",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"target encoding по фолдам без утечки",
+			"сглаживание к априорному среднему",
+			"leave-one-out",
+			"кодирование невиданной категории",
+			"статистика только по обучающей части"
+		],
+		"doesNotCheck": ["выбор числа фолдов и параметра сглаживания", "кодирование многоклассовой цели"]
+	},
+	"wrongSolutions": [
+		{ "id": "naive", "defect": "считает среднее категории по всем строкам, включая кодируемую", "mustBeCaught": true },
+		{
+			"id": "unseen-as-zero",
+			"defect": "даёт категории без статистики ноль вместо априорного среднего",
+			"mustBeCaught": true
+		},
+		{
+			"id": "no-smoothing",
+			"defect": "не замечает сглаживания и берёт простое среднее категории",
+			"mustBeCaught": true
+		},
+		{
+			"id": "stats-from-all",
+			"defect": "считает статистику по всем строкам, вместе с тестовыми",
+			"mustBeCaught": true
+		},
+		{
+			"id": "loo-count",
+			"defect": "вычитает свою цель из суммы, но делит на полное число строк",
+			"mustBeCaught": true
+		},
+		{
+			"id": "unseen-dropped",
+			"defect": "думает, что строки с невиданной категорией выпадают из среднего",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 6, "caught": 6 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0137,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

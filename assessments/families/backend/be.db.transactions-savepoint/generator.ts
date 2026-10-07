@@ -174,9 +174,11 @@ function rowsOf(s: State, trigger: boolean): string[] {
 		.sort((a, b) => a[0] - b[0])
 		.map(([id, r]) => (trigger ? `account | ${id} | ${r.owner} | ${r.balance}` : `${id} | ${r.owner} | ${r.balance}`));
 	if (!trigger) return accounts;
-	const audit = [...s.audit]
-		.sort((a, b) => a[0] - b[0])
-		.map(([id, l]) => `audit | ${id} | ${l.accountId} | ${l.newBalance}`);
+	// Audit rows by account and balance, not by their id: a bulk UPDATE changes rows in an unspecified order, so the ids
+	// the trigger hands out are not part of the answer.
+	const audit = [...s.audit.values()]
+		.sort((a, b) => a.accountId - b.accountId || a.newBalance - b.newBalance)
+		.map((l) => `audit | ${l.accountId} | ${s.accounts.get(l.accountId)?.owner ?? 'NULL'} | ${l.newBalance}`);
 	return [...accounts, ...audit];
 }
 
@@ -225,7 +227,7 @@ function scriptOf(sc: Scenario): { setup: string; query: string } {
 		.map(([, r]) => `INSERT INTO ${sc.table} (owner, balance) VALUES (${sqlText(r.owner)}, ${r.balance});`);
 	const body = sc.ops.map((op) => sqlOf(sc.table, op));
 	const query = sc.trigger
-		? `SELECT 'account', id, owner, balance FROM ${sc.table} UNION ALL SELECT 'audit', id, account_id, new_balance FROM audit ORDER BY 1, 2;`
+		? `SELECT 'account', id, owner, balance FROM ${sc.table}\nUNION ALL\nSELECT 'audit', a.account_id, w.owner, a.new_balance FROM audit a LEFT JOIN ${sc.table} w ON w.id = a.account_id\nORDER BY 1, 2, 4;`
 		: `SELECT id, owner, balance FROM ${sc.table} ORDER BY id;`;
 	return { setup: [...ddl, ...seed, '', ...body].join('\n'), query };
 }
@@ -358,12 +360,14 @@ function triggerAudit(rng: Rng): Scenario {
 		d.add(),
 		{ kind: 'savepoint', name: sp },
 		{ kind: 'add-below', limit, delta: rng.int(1, 5) * 10 },
+		d.insert(),
 		d.add(),
 		{ kind: 'rollback-to', name: sp },
 		d.add(),
 		{ kind: 'release', name: sp },
 		{ kind: 'commit' },
-		{ kind: 'add-below', limit: limit + rng.int(0, 10) * 10, delta: rng.int(1, 5) * 10 }
+		{ kind: 'add-below', limit: limit + rng.int(0, 10) * 10, delta: rng.int(1, 5) * 10 },
+		d.insert()
 	];
 	return { ...b, ops, trigger: true, required: ['trigger-survives', 'ids-not-reused'] };
 }

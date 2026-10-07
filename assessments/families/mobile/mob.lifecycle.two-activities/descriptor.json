@@ -1,0 +1,142 @@
+{
+	"key": "mob.lifecycle.two-activities",
+	"version": 1,
+	"specialization": "mobile",
+	"block": "mob.lifecycle",
+	"format": "compute",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": { "screens": "2–3", "events": "4–7", "depth": 2, "mechanisms": 1 },
+			"constructiveRank": 3,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "open-opaque",
+					"form": "A",
+					"description": "A открывает B: A.onPause, B.onCreate, B.onStart, B.onResume, затем A.onStop и A.onSaveInstanceState"
+				},
+				{
+					"id": "translucent",
+					"form": "B",
+					"description": "B с темой-диалогом: A только на паузе, «Назад» возвращает A одним onResume"
+				},
+				{
+					"id": "back",
+					"form": "anchor",
+					"description": "«Назад» из B: B.onPause, A.onRestart, A.onStart, A.onResume, и только потом B.onStop и B.onDestroy"
+				},
+				{
+					"id": "home-on-top",
+					"form": "X",
+					"description": "«Домой» и возврат, когда сверху B: колбэки получает только B, A остаётся остановленным"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": { "screens": "3–6", "events": "5–9", "depth": 3, "mechanisms": 2 },
+			"constructiveRank": 4,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "finish-on-start",
+					"form": "A",
+					"description": "finish() сразу после startActivity: вызывающий экран проходит onStop и onDestroy без onSaveInstanceState и уходит из стека"
+				},
+				{ "id": "chain", "form": "B", "description": "цепочка из трёх экранов и возврат «Назад» по одному" },
+				{
+					"id": "translucent-chain",
+					"form": "anchor",
+					"description": "A → B → диалоговый C: B на паузе, A остановлен; «Назад» по цепочке"
+				},
+				{
+					"id": "finish-middle",
+					"form": "X",
+					"description": "средний экран закрывает себя, открывая третий: «Назад» с третьего возвращает первый"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "screens", "description": "имена экранов" },
+		{ "name": "order", "description": "число шагов и порядок открытий, возвратов и ухода в фон" }
+	],
+	"essentialParams": [
+		{ "name": "covering", "description": "закрывает ли новый экран предыдущий целиком или он полупрозрачный" },
+		{
+			"name": "finish",
+			"description": "закрывает ли себя вызывающий экран сразу после startActivity, на какой глубине стека"
+		},
+		{ "name": "depth", "description": "глубина стека: два или три экрана" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"согласование колбэков двух Activity при открытии нового экрана",
+			"возврат «Назад»: кто и когда получает onRestart, onStop и onDestroy",
+			"полупрозрачный или диалоговый экран поверх: предыдущий только на паузе",
+			"finish() сразу после startActivity",
+			"стек из трёх экранов"
+		],
+		"doesNotCheck": [
+			"режимы запуска singleTop, singleTask и флаги Intent",
+			"поведение корневой Activity лаунчера по «Назад» на API 31+",
+			"работу на настоящем устройстве"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "stop-before-start",
+			"defect": "считает, что вызывающий экран полностью останавливается до создания нового",
+			"mustBeCaught": true
+		},
+		{
+			"id": "translucent-stops",
+			"defect": "считает, что экран под диалоговым или полупрозрачным останавливается",
+			"mustBeCaught": true
+		},
+		{
+			"id": "destroy-before-reveal",
+			"defect": "при «Назад» сначала останавливает и уничтожает верхний экран, потом возвращает нижний",
+			"mustBeCaught": true
+		},
+		{
+			"id": "no-restart",
+			"defect": "пропускает onRestart у возвращающегося остановленного экрана",
+			"mustBeCaught": true
+		},
+		{
+			"id": "save-before-stop",
+			"defect": "ставит onSaveInstanceState перед onStop, как было до API 28",
+			"mustBeCaught": true
+		},
+		{
+			"id": "finishing-saves",
+			"defect": "вызывает onSaveInstanceState и у закрывающегося экрана",
+			"mustBeCaught": true
+		},
+		{
+			"id": "finish-ignored",
+			"defect": "считает, что finish() после startActivity не действует и экран остаётся в стеке",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 7, "caught": 7 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0064,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

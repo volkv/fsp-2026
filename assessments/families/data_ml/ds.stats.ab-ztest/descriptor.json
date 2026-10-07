@@ -1,0 +1,133 @@
+{
+	"key": "ds.stats.ab-ztest",
+	"version": 1,
+	"specialization": "data_ml",
+	"block": "ds.stats",
+	"format": "compute",
+	"answerKind": "float_eps",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"test": "z-критерий двух выборок",
+				"alternative": "одно- или двусторонняя",
+				"metric": "доля или среднее"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "two-sided-p",
+					"form": "A",
+					"description": "z-критерий двух долей с объединённой оценкой, двустороннее p-value"
+				},
+				{ "id": "one-sided-p", "form": "B", "description": "направленная гипотеза «B лучше A»: одностороннее p-value" },
+				{
+					"id": "z-statistic",
+					"form": "anchor",
+					"description": "статистика z для разности долей при нулевой гипотезе равенства"
+				},
+				{ "id": "mean-test", "form": "X", "description": "z-критерий разности средних с SE из дисперсий обеих групп" }
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"test": "ratio-метрика, SRM, поправки, неухудшение",
+				"alternative": "по постановке",
+				"metric": "отношение, доли, среднее"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "ratio-metric",
+					"form": "A",
+					"description": "CTR на пользователя: дисперсия отношения дельта-методом, рандомизация по пользователям"
+				},
+				{
+					"id": "srm",
+					"form": "B",
+					"description": "проверка соотношения выборок (SRM) при неравном плановом сплите: χ² с одной степенью свободы"
+				},
+				{
+					"id": "peeking-bonferroni",
+					"form": "anchor",
+					"description": "многократные просмотры: p-value последнего просмотра с поправкой Бонферрони на их число"
+				},
+				{
+					"id": "non-inferiority",
+					"form": "X",
+					"description": "проверка неухудшения с допуском δ: сдвиг нулевой гипотезы и одностороннее p"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "метрика и продукт эксперимента" },
+		{ "name": "numbers", "description": "размеры групп, конверсии, средние и дисперсии" }
+	],
+	"essentialParams": [
+		{ "name": "statistic", "description": "доли с объединённой оценкой, средние, отношение, χ² соотношения" },
+		{ "name": "hypothesis", "description": "двусторонняя, направленная, неухудшение, с поправкой на просмотры" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"z-критерий двух долей",
+			"одно- и двустороннее p-value",
+			"z-критерий средних при больших выборках",
+			"дельта-метод для ratio-метрики",
+			"проверка SRM",
+			"поправка на подглядывание",
+			"проверка неухудшения"
+		],
+		"doesNotCheck": [
+			"t-критерий при малых выборках",
+			"последовательные тесты с границами O'Brien–Fleming",
+			"байесовские A/B-тесты"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "unpooled-se",
+			"defect": "при проверке равенства долей берёт SE по долям групп, а не по объединённой доле",
+			"mustBeCaught": true
+		},
+		{
+			"id": "one-sided-p",
+			"defect": "даёт одностороннее p-value там, где гипотеза двусторонняя",
+			"mustBeCaught": true
+		},
+		{ "id": "two-sided-p", "defect": "даёт двустороннее p-value для направленной гипотезы", "mustBeCaught": true },
+		{ "id": "sum-of-se", "defect": "складывает стандартные ошибки групп", "mustBeCaught": true },
+		{
+			"id": "views-as-trials",
+			"defect": "считает просмотры независимыми испытаниями Бернулли, игнорируя рандомизацию по пользователям",
+			"mustBeCaught": true
+		},
+		{ "id": "equal-split", "defect": "сравнивает с равным сплитом вместо запланированного", "mustBeCaught": true },
+		{ "id": "unadjusted", "defect": "не поправляет p-value на число просмотров", "mustBeCaught": true },
+		{
+			"id": "ignore-margin",
+			"defect": "проверяет обычное превосходство, забыв допуск неухудшения",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 8, "caught": 8 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

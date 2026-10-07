@@ -1,0 +1,192 @@
+{
+	"key": "mob.coroutines.exceptions",
+	"version": 1,
+	"specialization": "mobile",
+	"block": "mob.coroutines",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"coroutines": 4,
+				"scopes": 1,
+				"mechanisms": 2,
+				"cancelledFinally": "1–2",
+				"moments": "100–400 мс"
+			},
+			"constructiveRank": 3,
+			"timeNormSec": 330,
+			"classes": [
+				{
+					"id": "sibling-cancel",
+					"form": "A",
+					"description": "сбой ребёнка coroutineScope отменяет соседей: их finally печатается в момент сбоя в порядке запуска, затем scope пробрасывает исключение"
+				},
+				{
+					"id": "async-await",
+					"form": "B",
+					"description": "await пробрасывает исключение async и catch выполняется, но родитель всё равно отменён: код после catch идёт до первой приостановки"
+				},
+				{
+					"id": "supervisor-handler",
+					"form": "anchor",
+					"description": "ребёнок supervisorScope падает один и уходит в свой CoroutineExceptionHandler, соседи работают до конца"
+				},
+				{
+					"id": "try-around-launch",
+					"form": "X",
+					"description": "try вокруг launch и обработчик на ребёнке coroutineScope ничего не ловят: scope падает и отменяет соседей"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"coroutines": 4,
+				"scopes": "1–2 вложенных",
+				"mechanisms": 3,
+				"handlers": "обработчик на нескольких уровнях",
+				"moments": "100–400 мс"
+			},
+			"constructiveRank": 3,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "nested-scopes",
+					"form": "A",
+					"description": "группа в supervisorScope или coroutineScope со вложенным coroutineScope: сбой отменяет только соседей по вложенному scope, группа падает как один ребёнок внешнего"
+				},
+				{
+					"id": "supervisor-async",
+					"form": "B",
+					"description": "async в supervisorScope: сбой никого не отменяет и ждёт await; исключение неожидаемого async теряется даже с обработчиком, launch с обработчиком сообщает ему"
+				},
+				{
+					"id": "detached-job",
+					"form": "anchor",
+					"description": "launch(SupervisorJob() + handler) или launch(Job() + handler) — не ребёнок scope: сбой уходит в обработчик и никого не отменяет; обработчик на обычном ребёнке игнорируется"
+				},
+				{
+					"id": "cancellation-exception",
+					"form": "X",
+					"description": "брошенный CancellationException завершает только свою корутину: соседи не отменяются, scope не падает, пока не случится настоящий сбой"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "имена разделов экрана, переменных и сообщения об ошибках" },
+		{
+			"name": "moments",
+			"description": "сроки задержек (100–400 мс, различаются не меньше чем на 100 мс) и порядок запуска детей"
+		},
+		{ "name": "finally", "description": "у каких загрузчиков есть finally" }
+	],
+	"essentialParams": [
+		{
+			"name": "propagation",
+			"description": "путь исключения: coroutineScope, await у async, supervisorScope с обработчиком, try вокруг launch, вложенные scope, отдельный Job, CancellationException"
+		},
+		{
+			"name": "scope-kind",
+			"description": "внешний scope — coroutineScope или supervisorScope, и есть ли у ребёнка свой Job"
+		}
+	],
+	"language": "kotlin",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"отмена соседей при сбое ребёнка coroutineScope и выполнение их finally",
+			"исключение async при await и отмена родителя после перехвата",
+			"кооперативная отмена: код до первой приостановки выполняется",
+			"supervisorScope и CoroutineExceptionHandler корневых и supervisor-детей",
+			"try вокруг launch не ловит исключение ребёнка",
+			"вложенные scope и обработчики на разных уровнях",
+			"launch с SupervisorJob() или Job() разрывает связь с родителем",
+			"CancellationException не считается сбоем"
+		],
+		"doesNotCheck": [
+			"многопоточные диспетчеры и гонки",
+			"умение спроектировать обработку ошибок самостоятельно",
+			"подавленные исключения (suppressed)"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "no-sibling-cancel",
+			"defect": "считает, что сбой ребёнка coroutineScope не отменяет соседей: они доработают, а ошибка выйдет в конце",
+			"mustBeCaught": true
+		},
+		{
+			"id": "finally-skipped",
+			"defect": "считает, что отменённая корутина не выполняет finally",
+			"mustBeCaught": true
+		},
+		{
+			"id": "await-catch-saves",
+			"defect": "считает, что перехват исключения при await спасает родителя: соседи и код после await работают дальше",
+			"mustBeCaught": true
+		},
+		{
+			"id": "code-after-catch-skipped",
+			"defect": "считает, что отменённый родитель прерывается сразу и строка после catch не выполняется",
+			"mustBeCaught": true
+		},
+		{
+			"id": "supervisor-cancels",
+			"defect": "считает, что supervisorScope при сбое ребёнка тоже отменяет остальных",
+			"mustBeCaught": true
+		},
+		{
+			"id": "try-catches-launch",
+			"defect": "считает, что try вокруг launch перехватывает исключение запущенной корутины",
+			"mustBeCaught": true
+		},
+		{
+			"id": "handler-catches-child",
+			"defect": "считает, что CoroutineExceptionHandler на ребёнке coroutineScope перехватывает его сбой",
+			"mustBeCaught": true
+		},
+		{
+			"id": "supervisor-protects-grandchildren",
+			"defect": "считает, что supervisorScope делает независимыми и внуков во вложенном coroutineScope",
+			"mustBeCaught": true
+		},
+		{
+			"id": "handler-on-async",
+			"defect": "считает, что обработчик получает исключение async, которое никто не ожидает",
+			"mustBeCaught": true
+		},
+		{
+			"id": "async-starts-at-await",
+			"defect": "считает, что async начинает работу только при await, и ожидания идут последовательно",
+			"mustBeCaught": true
+		},
+		{
+			"id": "supervisor-job-inherits",
+			"defect": "считает, что launch(SupervisorJob()) остаётся ребёнком scope и его сбой отменяет scope",
+			"mustBeCaught": true
+		},
+		{
+			"id": "cancellation-is-failure",
+			"defect": "считает брошенный CancellationException обычным сбоем, отменяющим соседей и scope",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 12, "caught": 12 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0006,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

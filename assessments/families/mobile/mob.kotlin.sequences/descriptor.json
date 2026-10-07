@@ -1,0 +1,158 @@
+{
+	"key": "mob.kotlin.sequences",
+	"version": 1,
+	"specialization": "mobile",
+	"block": "mob.kotlin",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"values": "4–5",
+				"stages": "2–3",
+				"mechanisms": 2,
+				"earlyStop": true,
+				"sources": "список, generateSequence"
+			},
+			"constructiveRank": 3,
+			"timeNormSec": 270,
+			"classes": [
+				{
+					"id": "elementwise",
+					"form": "A",
+					"description": "asSequence: при определении ничего не считается, затем каждый элемент проходит все шаги цепочки, прежде чем начнётся следующий"
+				},
+				{
+					"id": "short-circuit",
+					"form": "B",
+					"description": "first(), first { } или take(n) на последовательности обрывают вычисление: дальние элементы не считаются"
+				},
+				{
+					"id": "list-eager",
+					"form": "anchor",
+					"description": "та же цепочка на списке: каждый шаг проходит весь список сразу при определении, first ничего не обрывает"
+				},
+				{
+					"id": "generate",
+					"form": "X",
+					"description": "generateSequence: функция следующего элемента вызывается, только когда цепочка просит элемент; take и takeWhile останавливают генерацию"
+				}
+			]
+		},
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": { "values": "4–7", "stages": "2–4", "mechanisms": 3, "earlyStop": true, "terminalOps": "1–3" },
+			"constructiveRank": 3,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "reiterate",
+					"form": "A",
+					"description": "каждая терминальная операция заново проходит последовательность и повторяет побочные эффекты; после constrainOnce второй проход бросает IllegalStateException"
+				},
+				{
+					"id": "stateful-stage",
+					"form": "B",
+					"description": "sorted в середине цепочки дочитывает весь источник до первого элемента дальше, distinct остаётся поэлементным и только отбрасывает повторы"
+				},
+				{
+					"id": "builder",
+					"form": "anchor",
+					"description": "sequence { yield }: блок исполняется по частям, по запросу потребителя, и не доходит до кода после последнего взятого элемента"
+				},
+				{
+					"id": "windowed",
+					"form": "X",
+					"description": "windowed на последовательности читает ровно столько элементов, сколько нужно следующему окну, и останавливается вместе с first"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "имена функций шагов, списка, цепочки и результата, метка после определения" },
+		{ "name": "values", "description": "значения списка, множители и слагаемые шагов, пороги фильтров" }
+	],
+	"essentialParams": [
+		{
+			"name": "evaluation",
+			"description": "как считается цепочка: поэлементно (последовательность) или пошагово (список), с обрывом или до конца"
+		},
+		{
+			"name": "operation",
+			"description": "что решает порядок строк: first/take, generateSequence, повторный проход, sorted/distinct, sequence { yield }, windowed"
+		}
+	],
+	"language": "kotlin",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"ленивость asSequence: ничего не считается до терминальной операции",
+			"поэлементный порядок шагов последовательности против пошагового у списка",
+			"first, first { } и take обрывают вычисление последовательности",
+			"generateSequence и takeWhile",
+			"повторный проход последовательности и constrainOnce",
+			"sorted — полная промежуточная операция, distinct — поэлементная",
+			"sequence { yield } и yieldAll",
+			"windowed на последовательности"
+		],
+		"doesNotCheck": ["производительность последовательностей против списков", "Flow и асинхронные последовательности"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "eager-order",
+			"defect": "считает последовательность как список: каждый шаг сразу над всеми элементами, при определении цепочки",
+			"mustBeCaught": true
+		},
+		{
+			"id": "no-short-circuit",
+			"defect": "думает, что first и take находят результат, но цепочка всё равно проходит все элементы",
+			"mustBeCaught": true
+		},
+		{
+			"id": "lazy-list",
+			"defect": "считает цепочку на списке ленивой: поэлементно и только при обращении к результату",
+			"mustBeCaught": true
+		},
+		{
+			"id": "extra-pull",
+			"defect": "думает, что take и first заранее запрашивают ещё один элемент сверх нужного",
+			"mustBeCaught": true
+		},
+		{
+			"id": "cached-sequence",
+			"defect": "считает, что последовательность запоминает результат первого прохода и повторно шаги не выполняет",
+			"mustBeCaught": true
+		},
+		{
+			"id": "distinct-barrier",
+			"defect": "считает distinct полной промежуточной операцией, как sorted: сначала дочитывает весь источник",
+			"mustBeCaught": true
+		},
+		{
+			"id": "builder-eager",
+			"defect": "думает, что блок sequence { } исполняется целиком при первом запросе, до обработки первого элемента",
+			"mustBeCaught": true
+		},
+		{
+			"id": "windowed-reads-all",
+			"defect": "думает, что windowed сначала читает весь источник, а потом выдаёт окна",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 8, "caught": 8 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

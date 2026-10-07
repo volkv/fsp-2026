@@ -1,0 +1,151 @@
+{
+	"key": "fe.dom.grid-layout",
+	"version": 1,
+	"specialization": "frontend",
+	"block": "fe.dom",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"tracks": "3–5",
+				"items": "7–9",
+				"mechanisms": "размер fr с gap и % или авторазмещение sparse со span и явными линиями"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "fr-percent",
+					"form": "A",
+					"description": "px, % и fr с gap: проценты — от ширины контейнера, fr делит остаток после фиксированных колонок и промежутков"
+				},
+				{
+					"id": "minmax-repeat",
+					"form": "B",
+					"description": "repeat() и minmax(px, fr): колонка, чья доля fr меньше минимума, получает минимум и выходит из деления, fr пересчитывается"
+				},
+				{
+					"id": "auto-span",
+					"form": "anchor",
+					"description": "авторазмещение sparse со span 2–3: курсор идёт только вперёд, дыры за широкими элементами остаются пустыми"
+				},
+				{
+					"id": "explicit-lines",
+					"form": "X",
+					"description": "два элемента с явными grid-column и grid-row ставятся первыми, остальные обходят занятые ими ячейки"
+				}
+			]
+		},
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"tracks": "3–5",
+				"items": "7–9",
+				"mechanisms": "взаимодействие шагов алгоритма: dense, порядок шагов размещения, отрицательные линии или повторный пересчёт fr"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "dense",
+					"form": "A",
+					"description": "grid-auto-flow: row dense: каждый элемент ищет место с начала сетки и заполняет дыры, оставленные широкими"
+				},
+				{
+					"id": "fr-clamp",
+					"form": "B",
+					"description": "несколько minmax(px, fr) с разными минимумами, fr и %: часть колонок упирается в минимум после пересчёта, часть остаётся гибкой"
+				},
+				{
+					"id": "row-locked",
+					"form": "anchor",
+					"description": "элементы только с grid-row размещаются раньше автоматических — до курсора, в своей строке"
+				},
+				{
+					"id": "negative-lines",
+					"form": "X",
+					"description": "отрицательные номера линий (1 / -1, -3 / -1, span 2 / -1, -2): колонка задана, строка — по курсору"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "классы элементов" },
+		{ "name": "numbers", "description": "ширина контейнера, gap, размеры колонок, номера строк в пределах класса" }
+	],
+	"essentialParams": [
+		{ "name": "question", "description": "ширины колонок или позиции элементов" },
+		{ "name": "tracks", "description": "виды колонок: px, %, fr, minmax(px, fr), repeat()" },
+		{ "name": "placement", "description": "span, явные линии, закрепление за строкой, отрицательные линии" },
+		{ "name": "flow", "description": "sparse или dense" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"проценты колонок от ширины контейнера",
+			"fr делит место после фиксированных колонок и gap",
+			"minmax(px, fr) и повторный расчёт размера fr",
+			"repeat()",
+			"авторазмещение sparse со span",
+			"dense заполняет дыры",
+			"порядок шагов размещения: явные, закреплённые за строкой, остальные",
+			"отрицательные номера линий"
+		],
+		"doesNotCheck": [
+			"колонки по содержимому: auto, min-content, max-content, fit-content",
+			"неявные колонки и grid-auto-columns",
+			"grid-auto-flow: column",
+			"auto-fill и auto-fit"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "percent-of-leftover",
+			"defect": "считает проценты от ширины без промежутков, а не от ширины контейнера",
+			"mustBeCaught": true
+		},
+		{ "id": "fr-ignores-gap", "defect": "не вычитает gap из места для fr", "mustBeCaught": true },
+		{
+			"id": "fr-ignores-min",
+			"defect": "поднимает колонку до минимума minmax, не пересчитывая долю fr у остальных",
+			"mustBeCaught": true
+		},
+		{
+			"id": "fr-added-to-min",
+			"defect": "сначала отдаёт колонкам minmax их минимум, а долю fr добавляет сверху",
+			"mustBeCaught": true
+		},
+		{ "id": "span-ignored", "defect": "считает, что каждый элемент занимает одну колонку", "mustBeCaught": true },
+		{ "id": "backfill-sparse", "defect": "без dense заполняет дыры, оставшиеся позади курсора", "mustBeCaught": true },
+		{ "id": "dense-as-sparse", "defect": "при dense не возвращается к дырам позади курсора", "mustBeCaught": true },
+		{
+			"id": "row-locked-in-order",
+			"defect": "размещает элементы с grid-row в общем порядке документа, а не раньше автоматических",
+			"mustBeCaught": true
+		},
+		{
+			"id": "explicit-in-order",
+			"defect": "размещает элементы с явными линиями в общем порядке документа, а не первыми",
+			"mustBeCaught": true
+		},
+		{ "id": "negative-from-start", "defect": "считает отрицательный номер линии от начала сетки", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 10, "caught": 10 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0016,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

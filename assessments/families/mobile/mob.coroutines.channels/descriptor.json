@@ -1,0 +1,114 @@
+{
+	"key": "mob.coroutines.channels",
+	"version": 1,
+	"specialization": "mobile",
+	"block": "mob.coroutines",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"constructive": {
+				"coroutines": "2–3",
+				"elements": "3–5",
+				"mechanisms": 2,
+				"order": "очередь цикла событий, без задержек"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 450,
+			"classes": [
+				{
+					"id": "capacity",
+					"form": "A",
+					"description": "рандеву или буфер ёмкости 1–2 между производителем и потребителем: когда send приостанавливается, кто печатает следующим, close заканчивает for после буфера"
+				},
+				{
+					"id": "try-send",
+					"form": "B",
+					"description": "trySend в CONFLATED, UNLIMITED, Channel(1) и рандеву: что удаётся, что получит потребитель, ждавший или ещё не запущенный"
+				},
+				{
+					"id": "produce",
+					"form": "anchor",
+					"description": "produce с ёмкостью: производитель закрывает канал по окончании, finally производителя; отмена канала после нескольких receive останавливает производителя"
+				},
+				{
+					"id": "fan-out",
+					"form": "X",
+					"description": "два потребителя одного канала: элементы достаются ожидающим в порядке ожидания, send приостанавливается, когда никто не ждёт и буфер полон"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "имена каналов, потребителей и элементов" },
+		{ "name": "values", "description": "элементы и их число" }
+	],
+	"essentialParams": [
+		{ "name": "channel-kind", "description": "рандеву, буфер заданной ёмкости, CONFLATED, UNLIMITED, produce" },
+		{
+			"name": "exchange",
+			"description": "один или два потребителя, send или trySend, close или отмена канала, уступает ли потребитель yield"
+		}
+	],
+	"language": "kotlin",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"рандеву против буфера: когда send приостанавливается",
+			"CONFLATED и UNLIMITED, результат trySend",
+			"close и обход for после буферизованных элементов",
+			"produce и отмена канала производителя",
+			"распределение элементов между двумя потребителями"
+		],
+		"doesNotCheck": ["select и тикеры", "многопоточные диспетчеры", "Flow поверх каналов"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "send-never-suspends",
+			"defect": "считает, что send никогда не приостанавливается, как в неограниченном буфере",
+			"mustBeCaught": true
+		},
+		{
+			"id": "capacity-off-by-one",
+			"defect": "считает, что канал вмещает на один элемент больше ёмкости (рандеву хранит один элемент)",
+			"mustBeCaught": true
+		},
+		{
+			"id": "switch-on-send",
+			"defect": "считает, что send ожидающему получателю сразу переключает выполнение на получателя",
+			"mustBeCaught": true
+		},
+		{ "id": "conflated-keeps-all", "defect": "считает, что CONFLATED хранит все элементы", "mustBeCaught": true },
+		{ "id": "try-send-always", "defect": "считает, что trySend всегда удаётся", "mustBeCaught": true },
+		{
+			"id": "close-drops-buffer",
+			"defect": "считает, что close выбрасывает элементы, уже лежащие в буфере",
+			"mustBeCaught": true
+		},
+		{
+			"id": "cancel-keeps-producer",
+			"defect": "считает, что отмена канала produce не останавливает производителя",
+			"mustBeCaught": true
+		},
+		{
+			"id": "round-robin",
+			"defect": "считает, что два потребителя получают элементы строго по очереди",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 8, "caught": 8 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0137,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

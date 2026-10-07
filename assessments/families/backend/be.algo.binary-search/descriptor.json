@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.5,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "b28bf3f9548301966e3f35c87087a2443653b3c61dc3ac9de43dbb958f0903aa"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.55,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "b28bf3f9548301966e3f35c87087a2443653b3c61dc3ac9de43dbb958f0903aa"
+					}
+				],
+				"mean": 0.55
+			},
 			"constructive": { "arrayLength": "7–10", "queries": 3, "repeats": true, "loops": 1 },
 			"constructiveRank": 2,
 			"timeNormSec": 240,
@@ -37,7 +54,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.35,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "b28bf3f9548301966e3f35c87087a2443653b3c61dc3ac9de43dbb958f0903aa"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.55,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "b28bf3f9548301966e3f35c87087a2443653b3c61dc3ac9de43dbb958f0903aa"
+					}
+				],
+				"mean": 0.45
+			},
 			"constructive": { "arrayLength": "6–10", "iterations": "4–7", "functions": 2, "loops": 2 },
 			"constructiveRank": 4,
 			"timeNormSec": 360,
@@ -140,6 +174,25 @@
 		"answerCollision": 0.0005,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Второй раунд Angoff: Все правила и код даны, ошибка возможна лишь в трассировке границ; с учётом кодека 0,65 и своей 0,40 итог 0,50 (junior без расхождения)."
+				],
+				"sourceSha256": "b28bf3f9548301966e3f35c87087a2443653b3c61dc3ac9de43dbb958f0903aa"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Второй раунд: после сопоставления оценок Intern 0,40 и 0,65 снижаю свою до 0,55. Пограничный Intern уверенно читает короткий код, поэтому для решения не требуется знать названия вариантов бинарного поиска; однако его характерные ошибки на границах здесь проверяются во всех четырёх классах, а одна неверная строка обнуляет ответ. Особенно трудны возврат конкретного повтора в closed-search и обе границы в closed-insert при лимите 240 с. Повторная проверка восьми программ подтвердила эталоны; например, Intern/anchor даёт 32 3, 60 5, 37 -1, 66 7. Junior оставляю 0,55."
+				],
+				"sourceSha256": "b28bf3f9548301966e3f35c87087a2443653b3c61dc3ac9de43dbb958f0903aa"
+			}
+		]
 	}
 }

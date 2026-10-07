@@ -36,6 +36,8 @@ interface Flaky {
 	permute: boolean;
 	conditions: string[];
 	breaks: string[];
+	/** Python statements of the check's own: the contract of a helper the tests rely on; each returns a failure. */
+	contract: string[];
 	/** What the statement says about the environment of the run. */
 	environment: string;
 }
@@ -178,10 +180,17 @@ function check(f: Flaky): string {
 		'        for order in orders:',
 		'            if not _passes(order, condition):',
 		"                return 'fail: unstable in condition ' + str(i) + ', order ' + ' '.join(order)",
-		`    for patcher in [${f.breaks.join(', ')}]:`,
-		'        with patcher:',
-		'            if _passes(names, _CONDITIONS[0]):',
-		"                return 'fail: the tests pass on broken product code'",
+		// Every test must notice some breakage of the product code: a test emptied of its check is not a fix.
+		`    breaks = [${f.breaks.join(', ')}]`,
+		'    for name in names:',
+		'        caught = False',
+		'        for patcher in breaks:',
+		'            with patcher:',
+		'                if not _passes([name], _CONDITIONS[0]):',
+		'                    caught = True',
+		'        if not caught:',
+		"            return 'fail: ' + name + ' passes on broken product code'",
+		...f.contract.map((line) => `    ${line}`),
 		"    return 'ok'",
 		'',
 		'',
@@ -267,7 +276,12 @@ function sharedFixture(rng: Rng): Flaky {
 			state: ['DEFAULT_ITEMS'],
 			permute: true,
 			conditions: ['lambda: None'],
-			breaks: ['_mock.patch.object(Cart, "total", lambda self: -1)'],
+			breaks: [
+				'_mock.patch.object(Cart, "total", lambda self: -1)',
+				'_mock.patch.object(Cart, "add", lambda self, name, price: None)',
+				'_mock.patch.object(Cart, "__init__", lambda self, items: setattr(self, "items", []))'
+			],
+			contract: [],
 			environment: 'На CI тесты запускаются в разном порядке и выборочно: тест должен проходить при любом порядке.'
 		};
 	}
@@ -326,7 +340,11 @@ function sharedFixture(rng: Rng): Flaky {
 		state: ['DEFAULT_STOCK'],
 		permute: true,
 		conditions: ['lambda: None'],
-		breaks: ['_mock.patch.object(Inventory, "available", lambda self, item: -1)'],
+		breaks: [
+			'_mock.patch.object(Inventory, "available", lambda self, item: -1)',
+			'_mock.patch.object(Inventory, "reserve", lambda self, item, qty: None)'
+		],
+		contract: [],
 		environment: 'На CI тесты запускаются в разном порядке и выборочно: тест должен проходить при любом порядке.'
 	};
 }
@@ -405,8 +423,10 @@ function calendarBoundary(rng: Rng): Flaky {
 			'lambda: globals().update(NOW=datetime(2026, 6, 15, 0, 5))'
 		],
 		breaks: [
-			'_mock.patch.dict(globals(), {"issue_token": lambda clock, hours: {"issued": clock.now(), "expires": clock.now()}})'
+			'_mock.patch.dict(globals(), {"issue_token": lambda clock, hours: {"issued": clock.now() + timedelta(minutes=1), "expires": clock.now() + timedelta(minutes=1)}})',
+			'_mock.patch.dict(globals(), {"due_date": lambda clock, days: (clock.now() + timedelta(days=days + 1)).date()})'
 		],
+		contract: [],
 		environment:
 			'`NOW` — момент запуска: на CI это текущее время, и тест должен проходить, когда бы его ни запустили, в том числе ночью и в последний день месяца.'
 	};
@@ -514,7 +534,11 @@ function randomBoundary(rng: Rng): Flaky {
 			'lambda: _mock.patch.object(random, "randint", lambda a, b: a).start()',
 			'lambda: _mock.patch.object(random, "randint", lambda a, b: b).start()'
 		],
-		breaks: [`_mock.patch.dict(globals(), {"${t.fn}": lambda ${t.param}: ${t.above}})`],
+		breaks: [
+			`_mock.patch.dict(globals(), {"${t.fn}": lambda ${t.param}: ${t.above}})`,
+			`_mock.patch.dict(globals(), {"${t.fn}": lambda ${t.param}: ${t.below}})`
+		],
+		contract: [],
 		environment:
 			'Случайные значения на каждом запуске свои: тест должен проходить при любых значениях, которые может вернуть `random`.'
 	};
@@ -593,7 +617,11 @@ function unorderedResult(rng: Rng): Flaky | null {
 		state: ['QUEUE'],
 		permute: false,
 		conditions: conditions.map((evs) => `lambda: globals().update(QUEUE=${queue(evs)})`),
-		breaks: ['_mock.patch.dict(globals(), {"totals_by_user": lambda events: {e["user"]: 1 for e in events}})'],
+		breaks: [
+			'_mock.patch.dict(globals(), {"totals_by_user": lambda events: {e["user"]: 1 for e in events}})',
+			'_mock.patch.dict(globals(), {"totals_by_user": lambda events: {"nobody": 0}})'
+		],
+		contract: [],
 		environment:
 			'Очередь доставляет события в любом порядке: тест должен проходить при любом порядке событий в `QUEUE`.'
 	};
@@ -649,7 +677,12 @@ function workerFlaky(rng: Rng, kind: 'sleep' | 'timeout'): Flaky {
 		testClass: rng.pick(['TestWorker', 'TestJobs', 'TestQueue']),
 		extras: [
 			['def test_unknown_job(self):', '    with self.assertRaises(KeyError):', "        self.worker.is_done('zz')"],
-			['def test_clock_starts_at_zero(self):', '    self.assertEqual(self.clock.now, 0)']
+			[
+				'def test_job_ready_at_latency(self):',
+				"    self.worker.submit('zz')",
+				'    self.clock.sleep(LATENCY)',
+				"    self.assertTrue(self.worker.is_done('zz'))"
+			]
 		],
 		methods: [
 			['def setUp(self):', '    self.clock = FakeClock()', '    self.worker = Worker(self.clock, LATENCY)'],
@@ -677,7 +710,19 @@ function workerFlaky(rng: Rng, kind: 'sleep' | 'timeout'): Flaky {
 		state: ['LATENCY'],
 		permute: false,
 		conditions: [50, 300, 1200, 2900].map((l) => `lambda: globals().update(LATENCY=${l})`),
-		breaks: ['_mock.patch.object(Worker, "is_done", lambda self, job_id: True)'],
+		breaks: [
+			'_mock.patch.object(Worker, "is_done", lambda self, job_id: True)',
+			'_mock.patch.object(Worker, "submit", lambda self, job_id: self.jobs.__setitem__(job_id, 10**9))'
+		],
+		// The tests rely on wait_until giving up at its timeout: a condition that never holds must raise TimeoutError.
+		contract: [
+			'try:',
+			'    wait_until(FakeClock(), lambda: False, timeout=100, interval=10)',
+			'except TimeoutError:',
+			'    pass',
+			'else:',
+			"    return 'fail: wait_until never times out'"
+		],
 		environment:
 			'`LATENCY` — задержка воркера: на CI она бывает от 50 до 3000 мс, и тест должен проходить при любой из них.'
 	};
@@ -702,7 +747,7 @@ function leakedPatch(rng: Rng): Flaky {
 		],
 		testClass: rng.pick(['TestLimits', 'TestCartRules', 'TestCheckout']),
 		extras: [
-			['def test_limit_is_positive(self):', '    self.assertGreater(config.MAX_ITEMS, 0)'],
+			['def test_empty_cart_can_add(self):', '    self.assertTrue(can_add(0))'],
 			['def test_label_of_zero(self):', `    self.assertEqual(price_label(0), '0 ${currency}')`]
 		],
 		methods: rng.shuffle([
@@ -723,7 +768,12 @@ function leakedPatch(rng: Rng): Flaky {
 		state: ['config'],
 		permute: true,
 		conditions: ['lambda: None'],
-		breaks: ['_mock.patch.dict(globals(), {"can_add": lambda cart_size: True})'],
+		breaks: [
+			'_mock.patch.dict(globals(), {"can_add": lambda cart_size: True})',
+			'_mock.patch.dict(globals(), {"can_add": lambda cart_size: False})',
+			'_mock.patch.dict(globals(), {"price_label": lambda amount: str(amount)})'
+		],
+		contract: [],
 		environment: 'На CI тесты запускаются в разном порядке и выборочно: тест должен проходить при любом порядке.'
 	};
 }
@@ -786,8 +836,11 @@ function sortTies(rng: Rng): Flaky | null {
 		permute: false,
 		conditions: conditions.map((os) => `lambda: globals().update(QUEUE=${queue(os)})`),
 		breaks: [
-			'_mock.patch.dict(globals(), {"top_orders": lambda orders, limit: sorted(orders, key=lambda o: o["total"])[:limit]})'
+			'_mock.patch.dict(globals(), {"top_orders": lambda orders, limit: sorted(orders, key=lambda o: o["total"])[:limit]})',
+			'_mock.patch.dict(globals(), {"top_orders": lambda orders, limit: sorted(orders, key=lambda o: o["total"], reverse=True)[:limit + 1]})',
+			'_mock.patch.dict(globals(), {"top_orders": lambda orders, limit: [{"id": 0, "total": 0}]})'
 		],
+		contract: [],
 		environment: 'Очередь доставляет заказы в любом порядке: тест должен проходить при любом порядке заказов в `QUEUE`.'
 	};
 }

@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "senior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.5,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "b18a45c733864333c38aa96b1846513a863fab4bea558d2d8c0d8d7dd5ce9563"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.65,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "b18a45c733864333c38aa96b1846513a863fab4bea558d2d8c0d8d7dd5ce9563"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": {
 				"transactions": "2–3",
 				"steps": "8–13",
@@ -36,7 +53,7 @@
 				{
 					"id": "rr-write-skew",
 					"form": "X",
-					"description": "REPEATABLE READ пропускает write skew на разных строках: обе транзакции фиксируются, ограничение нарушено"
+					"description": "REPEATABLE READ: чтения из снимка, проверки «сумма достаточна» в обеих транзакциях проходят, и записи в разные строки не конфликтуют — write skew не ловится (третья общая строка, если есть, может дать откат по параллельному обновлению)"
 				}
 			]
 		}
@@ -120,6 +137,25 @@
 		"answerCollision": 0.0003,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Второй раунд Angoff: Модель изоляции дана целиком, нужен аккуратный счёт; между 0,40 и 0,65 итог 0,50."
+				],
+				"sourceSha256": "b18a45c733864333c38aa96b1846513a863fab4bea558d2d8c0d8d7dd5ce9563"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Второй раунд: рассмотрев оценки Senior 0,40 и 0,65 и обоснования, сохраняю свою 0,65. Согласованность относится к минимальной компетенции Senior, а модель явно задаёт снимки, видимость своих записей, полный откат и точную проверку взаимных зависимостей; знать детали реального PostgreSQL SSI не требуется. За 480 с нужно разобрать 8–13 операций и дать короткое конечное состояние со списком откатов, поэтому 0,40 чрезмерно снижает оценку. Оставшийся риск — спутать запомненное приложением значение со свежим UPDATE или пропустить конфликт снимка. Повторно проверены все четыре расписания; в B T1 откатывается после чужой фиксации, T2 доводит x до 390, ответ 390 230 T1."
+				],
+				"sourceSha256": "b18a45c733864333c38aa96b1846513a863fab4bea558d2d8c0d8d7dd5ce9563"
+			}
+		]
 	}
 }

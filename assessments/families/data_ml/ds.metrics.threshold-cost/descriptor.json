@@ -1,0 +1,134 @@
+{
+	"key": "ds.metrics.threshold-cost",
+	"version": 1,
+	"specialization": "data_ml",
+	"block": "ds.metrics",
+	"format": "compute",
+	"answerKind": "float_eps",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"scoreValues": "8–11",
+				"criterion": "одна целевая функция по порогу",
+				"constraint": "нет или recall ≥ r"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "min-cost",
+					"form": "A",
+					"description": "порог, минимизирующий стоимость c_FP·FP + c_FN·FN; ответ — стоимость на объект"
+				},
+				{ "id": "max-fbeta", "form": "B", "description": "порог с наибольшей Fβ при β ≠ 1; ответ — эта Fβ" },
+				{
+					"id": "precision-at-recall",
+					"form": "anchor",
+					"description": "наибольшая precision среди порогов, где recall не ниже заданного"
+				},
+				{ "id": "youden", "form": "X", "description": "наибольшая статистика Юдена J = TPR − FPR по порогам" }
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"constructive": {
+				"scoreValues": "8–11",
+				"criterion": "экономика решения",
+				"constraint": "ёмкость, сдвиг доли, байесовский порог"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "capacity-profit",
+					"form": "A",
+					"description": "наибольшая прибыль на объект потока при ограничении на число проверок"
+				},
+				{
+					"id": "prior-shift-cost",
+					"form": "B",
+					"description": "в валидации отрицательные прорежены: порог выбирается по стоимости в продакшене с восстановленной долей"
+				},
+				{
+					"id": "bayes-threshold",
+					"form": "anchor",
+					"description": "для откалиброванной модели порог c_FP / (c_FP + c_FN) по вероятности; ответ — стоимость на объект при нём"
+				},
+				{
+					"id": "net-benefit",
+					"form": "X",
+					"description": "чистая польза (decision curve) при пороговой вероятности: TP/N − FP/N · pₜ / (1 − pₜ)"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "сюжет: антифрод, кредитный скоринг, удержание клиентов, модерация" },
+		{ "name": "data", "description": "значения скоров, числа объектов, стоимости, ёмкость" }
+	],
+	"essentialParams": [
+		{
+			"name": "criterion",
+			"description": "что оптимизируется: стоимость, Fβ, precision при ограничении recall, J, прибыль, чистая польза"
+		},
+		{ "name": "deployment", "description": "ёмкость проверок, сдвиг доли классов, калиброванные вероятности" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"выбор порога по стоимости ошибок",
+			"выбор порога по Fβ и по ограничению recall",
+			"статистика Юдена",
+			"ограничение ёмкости, сдвиг доли классов, байесовский порог, чистая польза"
+		],
+		"doesNotCheck": ["доверительные интервалы для выбранного порога", "многоклассовые решения"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "swap-costs",
+			"defect": "путает стоимости ложного срабатывания и пропуска при выборе порога",
+			"mustBeCaught": true
+		},
+		{ "id": "default-half", "defect": "оставляет порог по умолчанию 0,5 вместо оптимального", "mustBeCaught": true },
+		{ "id": "f1-instead", "defect": "выбирает порог по F1, а не по Fβ из условия", "mustBeCaught": true },
+		{
+			"id": "ignore-constraint",
+			"defect": "берёт наибольшую precision без ограничения на recall",
+			"mustBeCaught": true
+		},
+		{
+			"id": "accuracy-max",
+			"defect": "выбирает порог по наибольшей accuracy и сообщает J при нём",
+			"mustBeCaught": true
+		},
+		{
+			"id": "ignore-capacity",
+			"defect": "выбирает порог без учёта ограничения на число проверок",
+			"mustBeCaught": true
+		},
+		{
+			"id": "no-reweight",
+			"defect": "выбирает порог по прореженной выборке без восстановления доли отрицательных",
+			"mustBeCaught": true
+		},
+		{ "id": "inverted-ratio", "defect": "берёт байесовский порог c_FN / (c_FP + c_FN)", "mustBeCaught": true },
+		{ "id": "odds-inverted", "defect": "взвешивает ложные срабатывания отношением (1 − pₜ) / pₜ", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 9, "caught": 9 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0005,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

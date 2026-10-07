@@ -29,7 +29,8 @@ export function readDescriptor(generatorUrl: string): FamilyDescriptor {
  * of the sandbox image.
  * - `output` — the program's standard output, read as an answer of the family's kind, equals the instance's answer;
  * - `bug` — the shown program with `check` appended fails, and with the defect line replaced by `fix` passes; `check`
- *   prints `ok` when every check holds;
+ *   prints `ok` when every check holds; every alternative line with its replacement passes too, and the instance's
+ *   answer lists exactly these lines as `alternatives`;
  * - `practice` — the reference passes every hidden test of the instance, and `changeSource` (the reference after the
  *   new condition) passes every test of the step;
  * - `qa` — the harness of the instance passes the author's cases on the reference and kills every mutant that is not
@@ -39,7 +40,13 @@ export function readDescriptor(generatorUrl: string): FamilyDescriptor {
  */
 export type ReferenceProbe =
 	| { kind: 'output'; source: string; stdin: string }
-	| { kind: 'bug'; check: string; fix: string }
+	| {
+			kind: 'bug';
+			check: string;
+			fix: string;
+			/** Other lines whose one-instruction replacement also restores the contract, with that replacement. */
+			alternatives?: readonly { line: number; fix: string }[];
+	  }
 	| { kind: 'practice'; source: string; changeSource: string | null }
 	| ({ kind: 'qa'; changeStep?: QaProof } & QaProof);
 

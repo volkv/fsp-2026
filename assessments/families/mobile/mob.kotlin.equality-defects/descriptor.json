@@ -1,0 +1,126 @@
+{
+	"key": "mob.kotlin.equality-defects",
+	"version": 1,
+	"specialization": "mobile",
+	"block": "mob.kotlin",
+	"format": "bug_locate",
+	"answerKind": "line_no",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"units": 4,
+				"lines": "35–65",
+				"defect": "одна строка: равенство, хэш, идентичность или общая изменяемая коллекция"
+			},
+			"constructiveRank": 2,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "mutable-key",
+					"form": "A",
+					"description": "изменяемый data class — ключ HashMap или элемент HashSet: строка меняет его на месте вместо новой копии"
+				},
+				{
+					"id": "identity-equality",
+					"form": "B",
+					"description": "=== вместо ==: упакованные Int вне кэша -128..127, строки, собранные во время работы"
+				},
+				{
+					"id": "equals-hashcode",
+					"form": "anchor",
+					"description": "hashCode не согласован с переопределённым equals: равные объекты попадают в разные корзины HashSet и distinct"
+				},
+				{
+					"id": "shared-mutable",
+					"form": "X",
+					"description": "copy() разделяет изменяемый список с оригиналом или MutableList отдан наружу без копии"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"units": 4,
+				"lines": "40–75",
+				"defect": "одна строка, дефект проявляется только в сочетании операций"
+			},
+			"constructiveRank": 3,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "exposed-state",
+					"form": "A",
+					"description": "внутреннее изменяемое состояние уходит наружу или обходится напрямую: снимок, сохранённая ссылка, отписка во время обхода"
+				},
+				{
+					"id": "ordering-key",
+					"form": "B",
+					"description": "сортировка или выбор без вторичного ключа и distinctBy по не тому полю: ошибка видна только на входе в другом порядке"
+				},
+				{
+					"id": "mutated-key",
+					"form": "anchor",
+					"description": "ключ хэш-коллекции меняется без изъятия: после переноса поиск и удаление промахиваются, записей становится больше"
+				},
+				{
+					"id": "boxed-identity",
+					"form": "X",
+					"description": "сравнение по ссылке значений из кэша или коллекции: работает на малых числах и литералах, ломается на больших и собранных строках"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "context", "description": "какие ещё классы и функции модуля показаны, в каком порядке, длина шапки" },
+		{ "name": "unit", "description": "в какой функции или классе дефект" }
+	],
+	"essentialParams": [
+		{
+			"name": "defect-kind",
+			"description": "вид дефекта равенства, хэша, идентичности или разделяемого изменяемого состояния"
+		}
+	],
+	"language": "kotlin",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"чтение спецификации из KDoc",
+			"data class с var как ключ хэш-коллекции",
+			"== против === для упакованных чисел и строк",
+			"согласованность equals и hashCode",
+			"copy() и общий изменяемый список",
+			"MutableList, отданный наружу",
+			"sortedBy без вторичного ключа, maxByOrNull при равенстве, distinctBy",
+			"изменение коллекции во время обхода"
+		],
+		"doesNotCheck": ["исправление дефекта (только его место)", "стиль кода"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "neighbour-line",
+			"defect": "указывает соседнюю строку той же функции или класса, правка которой не возвращает спецификацию",
+			"mustBeCaught": true
+		},
+		{
+			"id": "other-unit",
+			"defect": "указывает похожую строку в другой, исправной функции или классе",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 2, "caught": 2 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0236,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.65,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "b2f57f1384f8d0bb97913fad18c20d33cb4b5fefb9157854d14bff5c3e714436"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.55,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "b2f57f1384f8d0bb97913fad18c20d33cb4b5fefb9157854d14bff5c3e714436"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": { "arrayLength": "7–10", "pointers": 2, "calls": "1–2", "mechanisms": 1 },
 			"constructiveRank": 2,
 			"timeNormSec": 240,
@@ -37,7 +54,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.45,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "b2f57f1384f8d0bb97913fad18c20d33cb4b5fefb9157854d14bff5c3e714436"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.5,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "b2f57f1384f8d0bb97913fad18c20d33cb4b5fefb9157854d14bff5c3e714436"
+					}
+				],
+				"mean": 0.5
+			},
 			"constructive": {
 				"arrayLength": "7–12",
 				"pointers": 2,
@@ -153,6 +187,28 @@
 		"answerCollision": 0.0099,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Запущены все 8 экземпляров: 7 совпадают с эталоном полностью. В longest-unique (junior) третий вызов unique_run(\"\") печатает «0 » с хвостовым пробелом (print(*(0, \"\"))), а эталонная строка — «0». Если проверка не обрезает пробелы в конце строки, верный ответ кандидата будет отвергнут; надо либо нормализовать пробелы, либо изменить вывод на print(best, s[start:start+best]) без *, либо документировать нормализацию в проверке.",
+					"Условие однозначно, ответ единственный; ловушки (хвост после compact, «оба указателя сдвигаются» в pair-sum) осмысленны.",
+					"Уровень junior выше intern по объёму (до 4 вызовов, пустое и одноэлементное окно) и по Angoff понижен."
+				],
+				"sourceSha256": "b2f57f1384f8d0bb97913fad18c20d33cb4b5fefb9157854d14bff5c3e714436"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Независимый полный перебор окон Intern/A дал максимум 16 с первым началом 2 при k=3 и максимум 11 с первым началом 2 при k=2. Для Junior/count-windows полный перебор непустых подмассивов дал соответственно 0, 21 и 11 при лимитах 1, 22 и 11. Все восемь представленных программ также исполнены: ответы верны.",
+					"Код однозначно задаёт выбор первого максимума, движение обоих указателей после совпадения, сохранение хвоста при сжатии и пустое окно при k=0. Классы проверяют разные условия движения указателей; Junior требует отслеживать несколько связанных состояний и граничные вызовы. Существенных проблем с условием или рубрикой не обнаружено."
+				],
+				"sourceSha256": "b2f57f1384f8d0bb97913fad18c20d33cb4b5fefb9157854d14bff5c3e714436"
+			}
+		]
 	}
 }

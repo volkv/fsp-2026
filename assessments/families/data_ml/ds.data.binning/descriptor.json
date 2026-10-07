@@ -1,0 +1,161 @@
+{
+	"key": "ds.data.binning",
+	"version": 1,
+	"specialization": "data_ml",
+	"block": "ds.data",
+	"format": "compute",
+	"answerKind": "float_eps",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": {
+				"rows": "9–12",
+				"steps": "1–2",
+				"trap": "граница интервала, ключ вне словаря или NaN в знаменателе"
+			},
+			"constructiveRank": 2,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "cut-edges",
+					"form": "A",
+					"description": "pd.cut по умолчанию закрыт справа: значение на внутренней границе попадает в нижний интервал"
+				},
+				{
+					"id": "map-missing",
+					"form": "B",
+					"description": "map словарём даёт NaN для значения, которого нет в словаре, и mean() его пропускает"
+				},
+				{
+					"id": "normalize-share",
+					"form": "anchor",
+					"description": "частотное кодирование: value_counts(normalize=True) делит на число непустых значений, строки с NaN получают NaN и выпадают из среднего"
+				},
+				{
+					"id": "cut-lowest",
+					"form": "X",
+					"description": "значение, равное левой границе первого интервала, без include_lowest становится NaN и выпадает из долей"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"rows": "12–16",
+				"steps": "2–3",
+				"trap": "сторона закрытия, квантильные границы, нормализация строк, пустой интервал"
+			},
+			"constructiveRank": 3,
+			"timeNormSec": 330,
+			"classes": [
+				{
+					"id": "cut-left",
+					"form": "A",
+					"description": "pd.cut с right=False: интервалы [a, b), значение на правой границе последнего — NaN; groupby(observed=True) по интервалам"
+				},
+				{
+					"id": "qcut",
+					"form": "B",
+					"description": "pd.qcut режет по квантилям с линейной интерполяцией, а не на равные по числу строк куски"
+				},
+				{
+					"id": "str-normalize",
+					"form": "anchor",
+					"description": "str.strip().str.lower() сводит варианты написания в одну категорию; NaN остаётся NaN и не в знаменателе доли"
+				},
+				{
+					"id": "empty-band",
+					"form": "X",
+					"description": "groupby по интервалам с observed=False: пустой интервал даёт сумму 0 и входит в среднее; include_lowest сохраняет левую границу"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "названия столбцов, тарифы, города, сумма или длительность" },
+		{ "name": "data", "description": "значения, число строк, порядок строк, где стоят пропуски" }
+	],
+	"essentialParams": [
+		{
+			"name": "operation",
+			"description": "что делает код: cut, qcut, map словарём, str-нормализация, value_counts(normalize=True)"
+		},
+		{ "name": "closure", "description": "сторона закрытия интервалов, include_lowest, значения на границах" },
+		{
+			"name": "missing",
+			"description": "откуда берутся NaN (вне словаря, вне интервалов, пропуск в данных) и куда они идут при подсчёте"
+		}
+	],
+	"language": "python3",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"сторона закрытия интервалов pd.cut и значения на границах",
+			"левая граница первого интервала и include_lowest",
+			"pd.qcut: квантильные границы с линейной интерполяцией",
+			"map словарём: NaN для отсутствующих ключей",
+			"value_counts(normalize=True) без NaN в знаменателе и частотное кодирование через map",
+			"нормализация строк перед подсчётом категорий",
+			"группировка по категориальным интервалам с observed=False и observed=True"
+		],
+		"doesNotCheck": ["параметры precision и duplicates у cut и qcut", "текстовые метки интервалов и их формат"]
+	},
+	"wrongSolutions": [
+		{ "id": "left-closed", "defect": "считает интервалы pd.cut закрытыми слева [a, b)", "mustBeCaught": true },
+		{
+			"id": "missing-as-zero",
+			"defect": "считает значение вне словаря нулём, а не NaN, и делит на число строк",
+			"mustBeCaught": true
+		},
+		{
+			"id": "nan-in-denominator",
+			"defect": "делит число значений категории на число всех строк, включая NaN",
+			"mustBeCaught": true
+		},
+		{
+			"id": "lowest-included",
+			"defect": "думает, что левая граница первого интервала входит в него без include_lowest",
+			"mustBeCaught": true
+		},
+		{
+			"id": "right-closed",
+			"defect": "не замечает right=False и считает интервалы закрытыми справа",
+			"mustBeCaught": true
+		},
+		{
+			"id": "equal-count",
+			"defect": "думает, что qcut делит отсортированные строки на куски равного размера",
+			"mustBeCaught": true
+		},
+		{
+			"id": "raw-values",
+			"defect": "считает долю только точного написания, не учитывая, что strip и lower свели варианты",
+			"mustBeCaught": true
+		},
+		{
+			"id": "observed-only",
+			"defect": "думает, что пустой интервал не попадает в результат groupby при observed=False",
+			"mustBeCaught": true
+		},
+		{
+			"id": "lowest-excluded",
+			"defect": "думает, что include_lowest не включает значение на левой границе первого интервала",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 9, "caught": 9 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0287,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

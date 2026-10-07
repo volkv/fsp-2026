@@ -1,0 +1,125 @@
+{
+	"key": "ds.metrics.logloss-calibration",
+	"version": 1,
+	"specialization": "data_ml",
+	"block": "ds.metrics",
+	"format": "compute",
+	"answerKind": "float_eps",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": { "probabilityValues": "6–9", "transform": "нет", "bins": "заданы в условии" },
+			"constructiveRank": 4,
+			"timeNormSec": 390,
+			"classes": [
+				{ "id": "logloss", "form": "A", "description": "log-loss с натуральным логарифмом по обоим классам" },
+				{ "id": "brier", "form": "B", "description": "Brier score: средний квадрат разности вероятности и исхода" },
+				{
+					"id": "clipped",
+					"form": "anchor",
+					"description": "log-loss с клиппингом вероятностей в [ε, 1 − ε]: уверенные ошибки дают большой, но конечный вклад"
+				},
+				{
+					"id": "ece",
+					"form": "X",
+					"description": "ECE по корзинам из условия: взвешенное по размеру корзины |средняя вероятность − доля положительных|"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"probabilityValues": "6–9",
+				"transform": "калибровка или поправка априорной доли",
+				"bins": "заданы в условии"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "platt",
+					"form": "A",
+					"description": "log-loss после калибровки Платта σ(a·logit(p) + b) с заданными a и b"
+				},
+				{
+					"id": "prior-correction",
+					"form": "B",
+					"description": "модель обучена на данных с прореженными отрицательными: поправка шансов перед расчётом log-loss"
+				},
+				{
+					"id": "brier-skill",
+					"form": "anchor",
+					"description": "Brier skill score относительно константы, равной доле положительных в выборке"
+				},
+				{
+					"id": "mce",
+					"form": "X",
+					"description": "максимальная ошибка калибровки по корзинам (MCE), а не взвешенное среднее"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "что предсказывают: клик, отток, дефолт, покупку" },
+		{ "name": "data", "description": "значения вероятностей, числа объектов, параметры калибровки" }
+	],
+	"essentialParams": [
+		{ "name": "metric", "description": "log-loss, Brier, ECE, MCE, Brier skill score" },
+		{ "name": "transform", "description": "клиппинг, калибровка Платта, поправка на прореживание отрицательных" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"log-loss и Brier score по вероятностям",
+			"клиппинг вероятностей",
+			"ошибка калибровки по корзинам: ECE и MCE",
+			"калибровка Платта и поправка априорной доли после прореживания",
+			"сравнение с константным прогнозом"
+		],
+		"doesNotCheck": ["подбор параметров калибровки", "изотоническая регрессия"]
+	},
+	"wrongSolutions": [
+		{ "id": "log10", "defect": "берёт десятичный логарифм вместо натурального", "mustBeCaught": true },
+		{ "id": "positives-only", "defect": "учитывает в log-loss только положительные объекты", "mustBeCaught": true },
+		{ "id": "brier-abs", "defect": "считает средний модуль разности вместо среднего квадрата", "mustBeCaught": true },
+		{
+			"id": "drop-extreme",
+			"defect": "выбрасывает объекты с вероятностью 0 или 1 вместо клиппинга",
+			"mustBeCaught": true
+		},
+		{ "id": "unweighted-ece", "defect": "усредняет ошибку калибровки по корзинам без весов", "mustBeCaught": true },
+		{
+			"id": "uncalibrated",
+			"defect": "считает метрику по исходным вероятностям, не применяя преобразование",
+			"mustBeCaught": true
+		},
+		{
+			"id": "platt-on-probability",
+			"defect": "подставляет в калибровку Платта вероятность вместо логита",
+			"mustBeCaught": true
+		},
+		{
+			"id": "inverted-correction",
+			"defect": "поправляет шансы в обратную сторону: делит на долю прореживания вместо умножения",
+			"mustBeCaught": true
+		},
+		{ "id": "reference-half", "defect": "сравнивает с прогнозом 0,5 вместо доли положительных", "mustBeCaught": true },
+		{ "id": "ece-instead", "defect": "считает взвешенное среднее (ECE) вместо максимума", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 10, "caught": 10 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0006,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

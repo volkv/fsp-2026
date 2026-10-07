@@ -1,0 +1,131 @@
+{
+	"key": "ds.stats.confidence-interval",
+	"version": 1,
+	"specialization": "data_ml",
+	"block": "ds.stats",
+	"format": "compute",
+	"answerKind": "float_eps",
+	"levels": [
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": { "interval": "нормальное приближение", "samples": "1–2", "quantile": "выбор по уровню доверия" },
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "wald-proportion",
+					"form": "A",
+					"description": "верхняя граница двустороннего ДИ доли по нормальному приближению"
+				},
+				{
+					"id": "mean-large-n",
+					"form": "B",
+					"description": "нижняя граница ДИ среднего при большом n: стандартная ошибка s/√n"
+				},
+				{
+					"id": "sample-size",
+					"form": "anchor",
+					"description": "минимальный размер выборки для заданной полной ширины ДИ доли"
+				},
+				{
+					"id": "diff-proportions",
+					"form": "X",
+					"description": "нижняя граница ДИ разности долей: SE разности из двух SE"
+				}
+			]
+		},
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"interval": "Уилсон, бутстреп, Уэлч, кластеры",
+				"samples": "1–2",
+				"quantile": "выбор по уровню доверия"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 420,
+			"classes": [
+				{ "id": "wilson", "form": "A", "description": "интервал Уилсона для доли при малом n и доле у края" },
+				{
+					"id": "bootstrap-percentile",
+					"form": "B",
+					"description": "перцентильный бутстреп-интервал по готовым ресемплам"
+				},
+				{ "id": "welch-diff", "form": "anchor", "description": "ДИ разности средних при неравных дисперсиях групп" },
+				{
+					"id": "design-effect",
+					"form": "X",
+					"description": "ДИ доли при кластерной выборке: эффективный размер n / (1 + (m − 1)ρ)"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "метрика: конверсия, время, чек, доля ошибок" },
+		{ "name": "numbers", "description": "размеры выборок, оценки, уровень доверия" }
+	],
+	"essentialParams": [
+		{ "name": "interval", "description": "Вальд, среднее, размер выборки, разность, Уилсон, бутстреп, Уэлч, кластеры" },
+		{ "name": "level", "description": "уровень доверия: 90, 95 или 99 %" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"квантиль для двустороннего интервала",
+			"стандартная ошибка доли и среднего",
+			"планирование размера выборки по ширине",
+			"стандартная ошибка разности",
+			"интервал Уилсона",
+			"перцентильный бутстреп",
+			"неравные дисперсии групп",
+			"кластерная выборка и эффект дизайна"
+		],
+		"doesNotCheck": ["t-распределение при малых выборках", "получение бутстреп-ресемплов (они даны)"]
+	},
+	"wrongSolutions": [
+		{ "id": "one-sided-z", "defect": "берёт квантиль одностороннего уровня (1,645 для 95 %)", "mustBeCaught": true },
+		{
+			"id": "std-not-se",
+			"defect": "использует стандартное отклонение вместо стандартной ошибки",
+			"mustBeCaught": true
+		},
+		{ "id": "width-as-half", "defect": "принимает полную ширину интервала за полуширину", "mustBeCaught": true },
+		{
+			"id": "pooled-se",
+			"defect": "считает SE разности по объединённой оценке, как в проверке гипотезы",
+			"mustBeCaught": true
+		},
+		{
+			"id": "sum-of-se",
+			"defect": "складывает стандартные ошибки групп вместо корня из суммы квадратов",
+			"mustBeCaught": true
+		},
+		{ "id": "wald-interval", "defect": "строит интервал Вальда вместо интервала Уилсона", "mustBeCaught": true },
+		{
+			"id": "basic-bootstrap",
+			"defect": "строит базовый бутстреп-интервал (2θ̂ − q) вместо перцентильного",
+			"mustBeCaught": true
+		},
+		{ "id": "nearest-rank", "defect": "берёт квантиль ресемплов без интерполяции", "mustBeCaught": true },
+		{
+			"id": "ignore-clustering",
+			"defect": "считает пользователей независимыми, игнорируя кластеры",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 9, "caught": 9 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0003,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

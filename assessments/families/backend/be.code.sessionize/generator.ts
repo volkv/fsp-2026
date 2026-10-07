@@ -139,20 +139,40 @@ function step(rng: Rng, kind: string, group: GroupId, input: Input, last: number
 	return last + (rng.bool(0.75) ? rng.int(0, p) : rng.int(p + 1, 4 * p));
 }
 
+/**
+ * Intern: the groups of one user, where the capped class never meets its cap — a solution that keeps the state of one
+ * user and checks only the pause passes them. The window and the daily classes keep their whole rule there: on such
+ * logs the daily class without its day boundary would answer as the capped one, which reads the same header.
+ */
+const PLAIN: ReadonlySet<GroupId> = new Set(['basic', 'burst']);
+
 function makeInput(rng: Rng, kind: string, group: GroupId, junior: boolean): Input {
+	const plain = !junior && PLAIN.has(group);
 	const p =
 		kind === 'window' ? rng.pick([60, 100, 120, 300, 600, 900, 3600]) : rng.pick([30, 45, 60, 90, 120, 300, 600, 900]);
 	const q =
 		kind === 'gap-capped' ? p * rng.int(2, 4) + rng.int(0, p - 1) : kind === 'gap-daily' ? p * rng.int(4, 10) : 0;
-	const userCount = group === 'scale' ? rng.int(100, 180) : group === 'interleave' ? rng.int(6, 10) : rng.int(3, 6);
-	const perUser = group === 'scale' ? rng.int(14, 20) : rng.int(3, 7);
+	const userCount = plain
+		? 1
+		: group === 'scale'
+			? rng.int(100, 180)
+			: group === 'interleave'
+				? rng.int(6, 10)
+				: rng.int(3, 6);
+	const perUser = group === 'scale' ? rng.int(14, 20) : plain ? rng.int(5, 10) : rng.int(3, 7);
 	const input: Input = { p, q, k: 0, events: [] };
 	const logout = (): string => (junior && rng.bool(0.2) ? 'logout' : rng.pick(ACTIONS));
 	const timelines = people(rng, userCount).map((user) => {
-		const offset = group === 'burst' ? rng.int(0, 3) * p : rng.int(0, 5 * p);
+		// One user of the daily class starts just before a day boundary, so the session meets it.
+		const offset =
+			plain && kind === 'gap-daily'
+				? q * rng.int(1, 3) - rng.int(1, p)
+				: group === 'burst'
+					? rng.int(0, 3) * p
+					: rng.int(0, 5 * p);
 		return { user, events: timeline(rng, kind, group, input, user, offset, perUser, logout) };
 	});
-	if (group === 'basic') {
+	if (group === 'basic' && !plain) {
 		// A user with a single event: the longest session of the user is 0.
 		timelines.push({ user: 'solo', events: [{ t: rng.int(0, 5 * p), user: 'solo', action: rng.pick(ACTIONS) }] });
 	}
@@ -237,6 +257,7 @@ function groups(rng: Rng, kind: string, others: readonly string[], junior: boole
 			const comparable = others.filter((other) => PARAMS[other]?.length === PARAMS[kind]?.length);
 			if (comparable.some((other) => solve(other, input) === expected)) continue;
 			if (traps(kind, id, junior).some((v) => solve(kind, input, v) === expected)) continue;
+			if (!junior && PLAIN.has(id) && kind === 'gap-capped' && solve('gap', input) !== expected) continue;
 			tests.push({ stdin: render(kind, input), expected });
 		}
 		return { id, tests };
@@ -289,7 +310,9 @@ function statement(kind: string, junior: boolean): string {
 			? 'Для каждого пользователя посчитайте суммарную длительность его сессий и число сессий. Выведите K пользователей с наибольшей суммарной длительностью строками `<пользователь> <суммарная длительность> <число сессий>`: по убыванию суммарной длительности, при равенстве — по имени в лексикографическом порядке. Если пользователей меньше K — выведите всех.'
 			: 'Для каждого пользователя из журнала выведите строку `<пользователь> <число сессий> <наибольшая длительность сессии>`. Строки — по имени пользователя в лексикографическом порядке.',
 		'',
-		'Скрытые тесты — пять групп: обычные данные, паузы и моменты точно на границах правила, пачки событий в один момент, много пользователей вперемешку, большой объём. Группа засчитывается, если пройдены все её тесты.'
+		junior
+			? 'Скрытые тесты — пять групп: обычные данные, паузы и моменты точно на границах правила, пачки событий в один момент, много пользователей вперемешку, большой объём. Группа засчитывается, если пройдены все её тесты.'
+			: `Скрытые тесты — пять групп. Две простые — журнал одного пользователя: обычные данные и пачки событий в один момент${kind === 'gap-capped' ? '; предел длительности L в них не срабатывает' : ''}. Три полные: паузы и моменты точно на границах правила, много пользователей вперемешку, большой объём. Группа засчитывается, если пройдены все её тесты.`
 	].join('\n');
 }
 
@@ -397,7 +420,7 @@ export function build(input: GenerateInput): Built {
 	const instance = makeInstance(descriptor, input, {
 		statement: { markdown: statement(kind, junior), code: null },
 		answer: null,
-		practice: { languages: [...LANGUAGES], groups: hidden, checker: { kind: 'exact' } }
+		practice: { languages: [...LANGUAGES], groups: hidden, checker: { kind: 'tokens' } }
 	});
 	return {
 		instance,

@@ -333,7 +333,7 @@ const JUNIOR: Fn[] = [
 	{
 		lines: [
 			'def latest_version(tags):',
-			'    """Теги вида \'v1.10.2\'. Самый новый тег: версии сравниваются по числам частей, не как строки."""',
+			'    """Теги вида \'v1.10.2\', все версии различны. Самый новый тег: версии сравниваются по числам частей, не как строки."""',
 			'    def key(tag):',
 			'        return tuple(int(part) for part in tag[1:].split("."))',
 			'    return max(tags, key=key)'
@@ -354,7 +354,7 @@ const JUNIOR: Fn[] = [
 	{
 		lines: [
 			'def sum_amounts(rows):',
-			"    \"\"\"rows — словари из CSV; поле 'amount' — сумма в копейках строкой ('1250'), пустое поле — 0.",
+			"    \"\"\"rows — словари из CSV; поле 'amount' — неотрицательная сумма в копейках строкой ('1250'), пустое поле — 0.",
 			'    Итог в рублях строкой с двумя знаками копеек: \'12.05\'."""',
 			'    total = 0',
 			'    for row in rows:',
@@ -383,8 +383,8 @@ const JUNIOR: Fn[] = [
 	{
 		lines: [
 			'def first_purchases(rows):',
-			'    """rows — покупки (пользователь, день, сумма) в произвольном порядке. Для каждого пользователя —',
-			'    сумма его самой ранней покупки; результат — список пар по алфавиту пользователей."""',
+			'    """rows — покупки (пользователь, день, сумма) в произвольном порядке, у пользователя не больше одной',
+			'    покупки в день. Для каждого пользователя — сумма его самой ранней покупки; список пар по алфавиту."""',
 			'    ordered = sorted(rows, key=lambda r: r[1])',
 			'    first = {}',
 			'    for user, day, amount in ordered:',
@@ -420,7 +420,7 @@ const JUNIOR: Fn[] = [
 			'    normalized = {email.strip().lower() for email in emails}',
 			'    return len(normalized)'
 		],
-		checks: ['assert unique_signups(["Ann@x.ru;1", "ann@x.ru ;2", "bob@x.ru;2", " BOB@x.ru;3", "eve@x.ru;3"]) == 3'],
+		checks: ['assert unique_signups(["Ann@x.ru;1", "ann@x.ru ;1", "bob@x.ru;1", " BOB@x.ru;1", "eve@x.ru;1"]) == 3'],
 		defects: [
 			{
 				kind: 'order',
@@ -555,41 +555,49 @@ const INTERN_X: Fn[] = [
 	{
 		lines: [
 			'def top_products(sales, n):',
-			'    """sales — пары (товар, выручка). n товаров с наибольшей выручкой, по убыванию выручки."""',
+			'    """sales — пары (товар, выручка). n товаров с наибольшей выручкой, по убыванию выручки; при равной выручке —',
+			'    в порядке sales."""',
 			'    ordered = sorted(sales, key=lambda p: p[1], reverse=True)',
 			'    return [name for name, _ in ordered[:n]]'
 		],
-		checks: ['assert top_products([("b", 5), ("a", 9), ("c", 7)], 2) == ["a", "c"]'],
+		checks: [
+			'assert top_products([("b", 5), ("a", 9), ("c", 7)], 2) == ["a", "c"]',
+			'assert top_products([("x", 5), ("y", 5), ("z", 1)], 2) == ["x", "y"]'
+		],
 		defects: [
 			{
 				kind: 'sorting',
-				line: 2,
+				line: 3,
 				text: '    ordered = sorted(sales, key=lambda p: p[1])',
-				neighbour: { line: 3, text: '    return [p[0] for p in ordered[:n]]' }
+				neighbour: { line: 4, text: '    return [p[0] for p in ordered[:n]]' }
 			},
 			{
 				kind: 'sorting',
-				line: 2,
+				line: 3,
 				text: '    ordered = sorted(sales, reverse=True)',
-				neighbour: { line: 3, text: '    return [name for name, _ in ordered][:n]' }
+				neighbour: { line: 4, text: '    return [name for name, _ in ordered][:n]' }
 			}
 		]
 	},
 	{
 		lines: [
 			'def by_size(lines):',
-			'    """Строки \'файл;размер в байтах\'. Имена файлов по возрастанию размера (размер — число)."""',
+			'    """Строки \'файл;размер в байтах\'. Имена файлов по возрастанию размера (размер — число); при равном размере —',
+			'    в исходном порядке."""',
 			'    rows = [line.split(";") for line in lines]',
 			'    rows.sort(key=lambda r: int(r[1]))',
 			'    return [r[0] for r in rows]'
 		],
-		checks: ['assert by_size(["a;900", "b;1000", "c;20"]) == ["c", "a", "b"]'],
+		checks: [
+			'assert by_size(["a;900", "b;1000", "c;20"]) == ["c", "a", "b"]',
+			'assert by_size(["q;5", "p;5"]) == ["q", "p"]'
+		],
 		defects: [
 			{
 				kind: 'sorting',
-				line: 3,
+				line: 4,
 				text: '    rows.sort(key=lambda r: r[1])',
-				neighbour: { line: 2, text: '    rows = [line.strip().split(";") for line in lines]' }
+				neighbour: { line: 3, text: '    rows = [line.strip().split(";") for line in lines]' }
 			}
 		]
 	},
@@ -773,8 +781,11 @@ export function build(input: GenerateInput): Built {
 		statement: {
 			markdown:
 				'Модуль конвейера обработки данных на Python 3. У каждой функции в строке документации записана её ' +
-				'спецификация. Ровно одна строка модуля нарушает спецификацию своей функции: если заменить только её, все ' +
-				'функции будут работать по спецификации. Введите номер этой строки (нумерация с 1).',
+				'спецификация. CSV в модуле — упрощённый формат: поля разделены запятыми, кавычек нет, внутри полей не бывает ' +
+				'запятых и переводов строк. В модуле один дефект: одна функция нарушает свою спецификацию. ' +
+				'Введите номер строки, замена которой одной инструкцией восстанавливает спецификацию всех функций (нумерация с 1). ' +
+				'Если исправить можно в нескольких строках — засчитывается любая из них, где замена одной инструкцией восстанавливает спецификацию. Исправление — одна простая инструкция того же вида, что исправляемая строка: не добавляйте ' +
+				'конструкций, которых в ней нет (`:=`, lambda, обёртки, новые функции), и не переносите в неё логику из другой строки.',
 			code: { language: 'python3', source: p.source }
 		},
 		answer: { kind: 'line_no', value: p.answer }

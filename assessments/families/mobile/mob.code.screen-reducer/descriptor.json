@@ -1,0 +1,155 @@
+{
+	"key": "mob.code.screen-reducer",
+	"version": 1,
+	"specialization": "mobile",
+	"block": "mob.code",
+	"format": "practice_code",
+	"answerKind": "code",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.8 },
+			"constructive": {
+				"mechanisms": 3,
+				"outOfOrder": "per screen",
+				"combinations": false,
+				"changeStep": "смерть процесса"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 2700,
+			"classes": [
+				{
+					"id": "search",
+					"form": "A",
+					"description": "поиск: ответ только на актуальный запрос, короткий текст без запроса, повтор после ошибки"
+				},
+				{
+					"id": "paging",
+					"form": "B",
+					"description": "постраничная загрузка: подгрузка только в idle, конец списка по неполной странице, ошибка и повтор той же страницы"
+				},
+				{
+					"id": "optimistic-like",
+					"form": "anchor",
+					"description": "оптимистичная отметка: решает последний запрос поста, откат к подтверждённому сервером значению"
+				},
+				{
+					"id": "form",
+					"form": "X",
+					"description": "форма: валидация полей, защита от двойной отправки, ошибки сервера по причине"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.8 },
+			"constructive": { "mechanisms": 4, "outOfOrder": "any", "combinations": true, "changeStep": "смерть процесса" },
+			"constructiveRank": 6,
+			"timeNormSec": 3000,
+			"classes": [
+				{
+					"id": "search",
+					"form": "A",
+					"description": "поиск с кэшем: в кэш идёт любой успешный ответ, показывается только актуальный, кэш без запроса"
+				},
+				{
+					"id": "paging",
+					"form": "B",
+					"description": "подгрузка и обновление: обновление отменяет подгрузку, повтор повторяет неудавшийся вид запроса"
+				},
+				{
+					"id": "optimistic-like",
+					"form": "anchor",
+					"description": "оптимистичная отметка с ответами в любом порядке: позднее подтверждение раннего запроса не откатывает сервер"
+				},
+				{
+					"id": "form",
+					"form": "X",
+					"description": "форма с отменой отправки: ответ отменённого запроса игнорируется, повторная отправка — новый запрос"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "data", "description": "тексты поиска, названия, значения полей, номера постов, размер страницы" },
+		{ "name": "log", "description": "длина журнала и порядок событий" }
+	],
+	"essentialParams": [
+		{
+			"name": "screen",
+			"description": "экран и его механизм: устаревшие ответы, постраничная загрузка, оптимистичное обновление, отправка формы"
+		},
+		{
+			"name": "combination",
+			"description": "Senior: кэш, обновление поверх подгрузки, подтверждения не по порядку, отмена отправки"
+		},
+		{
+			"name": "process-death",
+			"description": "шаг «измени своё решение»: восстановление из SavedStateHandle, потерянные запросы"
+		}
+	],
+	"language": null,
+	"practice": { "languages": ["kotlin"], "hiddenTestGroups": 5 },
+	"qa": null,
+	"changeStep": {
+		"description": "Новое условие: событие restore — смерть процесса и восстановление; сохраняются только перечисленные поля SavedStateHandle, запросы до restore потеряны, ответы на них приходят и игнорируются, нумерация запросов продолжается.",
+		"weight": 0.3
+	},
+	"rubric": { "kind": "groups" },
+	"coverage": {
+		"checks": [
+			"состояние экрана как функция от событий (редьюсер)",
+			"сверка ответа с номером актуального запроса",
+			"защита от повторного действия во время запроса",
+			"ошибка, повтор и откат к подтверждённому состоянию",
+			"конец списка и валидация полей по спецификации",
+			"сочетания механизмов: кэш, обновление, ответы в любом порядке, отмена (Senior)",
+			"восстановление после смерти процесса: что сохраняет SavedStateHandle, потерянные запросы"
+		],
+		"doesNotCheck": ["Android SDK, корутины и потоки", "архитектуру и стиль кода"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "stale-applied",
+			"defect": "применяет ответ, не сверяя номер запроса: устаревшие и отменённые ответы меняют экран",
+			"mustBeCaught": true
+		},
+		{
+			"id": "no-guard",
+			"defect": "повторное действие во время запроса отправляет ещё один запрос (подгрузка, отправка формы)",
+			"mustBeCaught": true
+		},
+		{
+			"id": "retry-anytime",
+			"defect": "«Повторить» отправляет запрос в любом статусе, а не только после ошибки",
+			"mustBeCaught": true
+		},
+		{ "id": "error-clears-data", "defect": "поиск: ошибка очищает показанные результаты", "mustBeCaught": true },
+		{
+			"id": "end-only-empty",
+			"defect": "лента: конец списка только по пустой странице, а не по неполной",
+			"mustBeCaught": true
+		},
+		{
+			"id": "rollback-flip",
+			"defect": "отметка: при отказе переворачивает значение обратно вместо возврата к подтверждённому",
+			"mustBeCaught": true
+		},
+		{
+			"id": "late-ack-overwrites",
+			"defect": "Senior, отметка: позднее подтверждение раннего запроса перезаписывает подтверждённое значение",
+			"mustBeCaught": true
+		},
+		{ "id": "weak-email", "defect": "форма: адрес считается верным, если в нём просто есть «@»", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 8, "caught": 8 },
+		"hiddenTestsMutationScore": 0.9877,
+		"answerCollision": 0,
+		"transfer": 0,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

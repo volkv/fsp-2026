@@ -1,0 +1,107 @@
+{
+	"key": "mob.ui.frame-budget",
+	"version": 1,
+	"specialization": "mobile",
+	"block": "mob.ui",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"refreshRates": "60, 90, 120 Гц",
+				"vsyncs": "10–25",
+				"interacting": "бюджет кадра + занятость главного потока + момент появления кадра"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 390,
+			"classes": [
+				{
+					"id": "main-thread-work",
+					"form": "A",
+					"description": "тяжёлый разбор в обработчике нажатия на главном потоке: кадры анимации пропадают, результат появляется позже"
+				},
+				{
+					"id": "background-work",
+					"form": "B",
+					"description": "тот же разбор вынесен в Dispatchers.Default: главный поток занят только обработчиком и продолжением, кадры идут"
+				},
+				{
+					"id": "scroll-binding",
+					"form": "anchor",
+					"description": "прокрутка списка: стоимость кадра растёт с числом привязанных строк, медленный кадр сдвигает следующие"
+				},
+				{
+					"id": "periodic-task",
+					"form": "X",
+					"description": "задача по таймеру на главном потоке между кадрами: даже короче бюджета, она отнимает vsync, если не успевает до него"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "что делает работа: разбор ответа, привязка строк, задача по таймеру" },
+		{ "name": "numbers", "description": "длительности работы, моменты нажатия и задач" }
+	],
+	"essentialParams": [
+		{ "name": "refresh-rate", "description": "частота экрана и бюджет кадра: 60, 90 или 120 Гц" },
+		{
+			"name": "where-work-runs",
+			"description": "на каком потоке идёт тяжёлая работа и что возвращается на главный поток"
+		},
+		{ "name": "frame-cost", "description": "постоянная стоимость кадра или растущая с числом привязок" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"бюджет кадра при 60, 90 и 120 Гц",
+			"занятый главный поток теряет vsync",
+			"вынос работы в Dispatchers.Default и возврат результата на главный поток",
+			"кадр появляется на следующем vsync после окончания работы",
+			"медленный кадр сдвигает следующие кадры"
+		],
+		"doesNotCheck": [
+			"RenderThread, GPU и тройную буферизацию",
+			"Choreographer и запуск кадра сразу после освобождения потока",
+			"инструменты замера (Perfetto, JankStats, Macrobenchmark)"
+		]
+	},
+	"wrongSolutions": [
+		{ "id": "budget-60", "defect": "считает бюджет кадра 16,67 мс при любой частоте экрана", "mustBeCaught": true },
+		{
+			"id": "background-blocks",
+			"defect": "считает, что работа в withContext(Dispatchers.Default) всё равно занимает главный поток",
+			"mustBeCaught": true
+		},
+		{
+			"id": "present-same-vsync",
+			"defect": "считает, что кадр появляется на том же vsync, на котором начался",
+			"mustBeCaught": true
+		},
+		{
+			"id": "no-cascade",
+			"defect": "считает, что медленный кадр не сдвигает следующий: каждый следующий начинается на следующем vsync",
+			"mustBeCaught": true
+		},
+		{
+			"id": "short-task-harmless",
+			"defect": "считает, что работа короче бюджета кадра не может отнять кадр",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 5, "caught": 5 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0336,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

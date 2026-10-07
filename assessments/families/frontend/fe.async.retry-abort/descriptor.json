@@ -1,0 +1,156 @@
+{
+	"key": "fe.async.retry-abort",
+	"version": 1,
+	"specialization": "frontend",
+	"block": "fe.async",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"attempts": "3–6",
+				"rules": 4,
+				"interacting": "таймаут попытки через AbortSignal.timeout + джиттер под потолком + коды и Retry-After"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "jitter-cap",
+					"form": "A",
+					"description": "пауза — процент джиттера от экспоненты, уже обрезанной потолком: потолок применяется до джиттера"
+				},
+				{
+					"id": "attempt-timeout",
+					"form": "B",
+					"description": "медленный ответ обрывается таймаутом попытки, даже если это был бы 200; таймаут повторяется"
+				},
+				{
+					"id": "status-policy",
+					"form": "anchor",
+					"description": "408 и 429 повторяются, прочие 4xx окончательны; Retry-After растягивает паузу"
+				},
+				{
+					"id": "attempts-limit",
+					"form": "X",
+					"description": "одни повторяемые сбои: лимит попыток считает и первую, итог — последний сбой"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"attempts": "5–6",
+				"rules": 6,
+				"interacting": "AbortSignal.any: общий срок + отмена пользователем + таймаут попытки; прерываемая пауза; ранний отказ по сроку"
+			},
+			"constructiveRank": 7,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "deadline",
+					"form": "A",
+					"description": "общий срок обрывает попытку в момент срока или, если следующая пауза его перешагнёт, клиент сдаётся сразу по концу попытки"
+				},
+				{
+					"id": "user-abort",
+					"form": "B",
+					"description": "пользователь отменяет посреди попытки или паузы: отмена срабатывает сразу, пауза тоже прерывается"
+				},
+				{
+					"id": "retry-after-deadline",
+					"form": "anchor",
+					"description": "Retry-After требует паузу, которая заканчивается за сроком: клиент сдаётся, не дожидаясь срока"
+				},
+				{
+					"id": "decorrelated",
+					"form": "X",
+					"description": "decorrelated jitter: пауза зависит от предыдущей паузы, а не от номера попытки, и обрезается потолком"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "numbers", "description": "base, cap, таймаут, проценты джиттера, задержки ответов" },
+		{ "name": "codes", "description": "конкретные коды из повторяемых и окончательных" }
+	],
+	"essentialParams": [
+		{
+			"name": "stop-rule",
+			"description": "что заканчивает вызов: успех, окончательный код, лимит попыток, срок, отмена пользователем"
+		},
+		{
+			"name": "pause-rule",
+			"description": "как считается пауза: полный джиттер под потолком, decorrelated jitter, Retry-After"
+		},
+		{ "name": "cut", "description": "что и когда обрывает попытку или паузу: таймаут, срок, отмена" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"таймаут попытки через AbortSignal.timeout и различие таймаута и сетевой ошибки",
+			"какие коды повторяются: 408, 429, 5xx против прочих 4xx",
+			"экспоненциальная пауза с потолком и джиттером, Retry-After",
+			"лимит попыток вместе с первой",
+			"AbortSignal.any: общий срок и отмена пользователем обрывают попытку и паузу сразу",
+			"ранний отказ, если пауза закончится за сроком",
+			"decorrelated jitter"
+		],
+		"doesNotCheck": ["случайный джиттер (проценты заданы)", "Retry-After в виде HTTP-даты", "идемпотентность запроса"]
+	},
+	"wrongSolutions": [
+		{ "id": "no-cap", "defect": "не обрезает паузу потолком", "mustBeCaught": true },
+		{
+			"id": "jitter-after-cap",
+			"defect": "применяет потолок после джиттера, а не к экспоненте до него",
+			"mustBeCaught": true
+		},
+		{ "id": "no-jitter", "defect": "не учитывает джиттер: берёт полную паузу", "mustBeCaught": true },
+		{
+			"id": "pause-from-start",
+			"defect": "отсчитывает паузу от начала попытки, а не от её конца",
+			"mustBeCaught": true
+		},
+		{
+			"id": "timeout-waits-response",
+			"defect": "считает, что таймаут не обрывает попытку: клиент дожидается медленного ответа",
+			"mustBeCaught": true
+		},
+		{ "id": "timeout-final", "defect": "считает таймаут окончательной ошибкой без повтора", "mustBeCaught": true },
+		{ "id": "retry-4xx", "defect": "повторяет любые 4xx как временные сбои", "mustBeCaught": true },
+		{ "id": "no-retry-408-429", "defect": "считает 408 и 429 окончательными, как прочие 4xx", "mustBeCaught": true },
+		{ "id": "ignore-retry-after", "defect": "не учитывает заголовок Retry-After", "mustBeCaught": true },
+		{
+			"id": "limit-as-retries",
+			"defect": "считает attempts числом повторов после первой попытки",
+			"mustBeCaught": true
+		},
+		{
+			"id": "abort-waits",
+			"defect": "считает, что срок или отмена срабатывают только по окончании текущей попытки или паузы",
+			"mustBeCaught": true
+		},
+		{
+			"id": "no-early-give-up",
+			"defect": "не замечает проверку срока перед паузой: считает, что клиент спит, пока его не оборвёт срок",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 12, "caught": 12 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0001,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

@@ -1,0 +1,134 @@
+{
+	"key": "ds.ml.logreg-step",
+	"version": 1,
+	"specialization": "data_ml",
+	"block": "ds.ml",
+	"format": "compute",
+	"answerKind": "float_eps",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": { "rows": "4–6", "steps": 2, "parameters": "2–3", "loss": "дана формулой" },
+			"constructiveRank": 4,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "linear-gd",
+					"form": "A",
+					"description": "два шага градиентного спуска линейной регрессии по MSE: множитель 2 и среднее по строкам"
+				},
+				{
+					"id": "logistic-gd",
+					"form": "B",
+					"description": "два шага градиентного спуска логистической регрессии по log-loss: градиент (σ(z) − y)·x"
+				},
+				{
+					"id": "l2",
+					"form": "anchor",
+					"description": "логистическая регрессия с L2 (λ/2)·w², свободный член не регуляризуется"
+				},
+				{
+					"id": "two-features",
+					"form": "X",
+					"description": "логистическая регрессия на двух признаках: одновременное обновление всех весов"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"constructive": { "rows": "6–8", "steps": "2–4", "parameters": "2–3", "loss": "дана формулой" },
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "minibatch",
+					"form": "A",
+					"description": "одна эпоха мини-батчевого спуска в заданном порядке: среднее градиента по батчу, шаг после каждого батча"
+				},
+				{
+					"id": "class-weights",
+					"form": "B",
+					"description": "веса классов в log-loss: градиент строки умножается на вес её класса, делитель — n"
+				},
+				{
+					"id": "newton",
+					"form": "anchor",
+					"description": "два шага метода Ньютона для логистической регрессии с одним весом: гессиан Σ p(1 − p)x² / n в текущей точке"
+				},
+				{
+					"id": "softmax",
+					"form": "X",
+					"description": "шаг многоклассовой логистической регрессии: градиент (softmax − one-hot)·x, а не сигмоида каждого класса"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "названия признаков и целевой переменной" },
+		{ "name": "data", "description": "значения признаков и меток, шаг обучения, начальные веса" }
+	],
+	"essentialParams": [
+		{ "name": "model", "description": "линейная или логистическая регрессия, многоклассовая, с L2, с весами классов" },
+		{ "name": "optimizer", "description": "полный градиентный спуск, мини-батчи, метод Ньютона" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"градиент MSE и log-loss по весам и свободному члену",
+			"одновременное обновление параметров",
+			"регуляризация L2 без свободного члена",
+			"мини-батчи и среднее по батчу",
+			"веса классов в функции потерь",
+			"шаг метода Ньютона",
+			"градиент softmax"
+		],
+		"doesNotCheck": ["сходимость и выбор шага", "численную устойчивость реализаций"]
+	},
+	"wrongSolutions": [
+		{ "id": "no-two", "defect": "теряет множитель 2 в градиенте квадрата ошибки", "mustBeCaught": true },
+		{
+			"id": "sequential",
+			"defect": "обновляет параметры по очереди, считая градиент следующего по уже обновлённым",
+			"mustBeCaught": true
+		},
+		{ "id": "sum-not-mean", "defect": "суммирует градиент по строкам или батчу вместо среднего", "mustBeCaught": true },
+		{ "id": "ascent", "defect": "прибавляет градиент вместо вычитания", "mustBeCaught": true },
+		{ "id": "no-sigmoid", "defect": "берёт в градиенте z − y вместо σ(z) − y", "mustBeCaught": true },
+		{ "id": "regularize-bias", "defect": "регуляризует и свободный член", "mustBeCaught": true },
+		{ "id": "lambda-not-halved", "defect": "берёт градиент штрафа 2λw при штрафе (λ/2)·w²", "mustBeCaught": true },
+		{
+			"id": "full-batch",
+			"defect": "делает один шаг по всей выборке вместо шага на каждый батч",
+			"mustBeCaught": true
+		},
+		{ "id": "unweighted", "defect": "не учитывает веса классов", "mustBeCaught": true },
+		{ "id": "normalized-weights", "defect": "делит взвешенную сумму на сумму весов, а не на n", "mustBeCaught": true },
+		{ "id": "gradient-step", "defect": "делает шаг градиента с шагом 1 вместо шага Ньютона", "mustBeCaught": true },
+		{
+			"id": "fixed-curvature",
+			"defect": "берёт p(1 − p) = 0,25 вместо значения в текущей точке",
+			"mustBeCaught": true
+		},
+		{
+			"id": "one-vs-rest",
+			"defect": "считает вероятность класса сигмоидой его логита, а не softmax",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 13, "caught": 13 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0022,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

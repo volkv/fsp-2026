@@ -1,0 +1,158 @@
+{
+	"key": "fe.web.cookies",
+	"version": 1,
+	"specialization": "frontend",
+	"block": "fe.web",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"cookies": "4–6",
+				"requests": "4–6",
+				"rules": 5,
+				"interacting": "атрибуты куки × вид запроса: хост и путь, схема и скрипт, межсайтовый контекст или момент запроса"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "domain-path",
+					"form": "A",
+					"description": "Domain против куки только для хоста, Path как префикс по сегментам и путь по умолчанию — каталог адреса ответа; чужой Domain отвергается"
+				},
+				{
+					"id": "samesite",
+					"form": "B",
+					"description": "SameSite=Strict, Lax и None на межсайтовых переходе по ссылке, форме POST и fetch; поддомены одного сайта — тот же сайт"
+				},
+				{
+					"id": "httponly-secure",
+					"form": "anchor",
+					"description": "HttpOnly скрыта от document.cookie, но уходит с запросами; Secure не уходит по HTTP и не ставится ответом по HTTP"
+				},
+				{
+					"id": "expiry-overwrite",
+					"form": "X",
+					"description": "срок жизни по Max-Age (он важнее Expires), Max-Age=0 удаляет; кука заменяется только при том же имени, домене и пути"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "сайты, хосты, пути, имена и значения кук" },
+		{ "name": "order", "description": "порядок кук в ответах и порядок запросов" }
+	],
+	"essentialParams": [
+		{ "name": "scope", "description": "Domain и Path куки против хоста и пути запроса" },
+		{
+			"name": "context",
+			"description": "вид запроса и откуда он: адресная строка, ссылка, форма, fetch с того же или другого сайта, document.cookie"
+		},
+		{ "name": "attributes", "description": "Secure, HttpOnly, SameSite, Max-Age и Expires" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"Domain и куки только для хоста",
+			"сопоставление Path по сегментам и путь по умолчанию",
+			"отказ в куке с чужим Domain",
+			"Secure для HTTP и HTTPS",
+			"HttpOnly и document.cookie",
+			"SameSite при межсайтовых ссылке, форме POST и fetch",
+			"тот же сайт против того же источника",
+			"Max-Age против Expires, удаление через Max-Age=0",
+			"замена куки по имени, домену и пути"
+		],
+		"doesNotCheck": [
+			"куки без SameSite (у браузеров разные умолчания)",
+			"блокировка и разбиение сторонних кук",
+			"префиксы __Secure- и __Host-, список публичных суффиксов",
+			"порядок кук в заголовке Cookie"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "domain-attr-host-only",
+			"defect": "считает, что кука с Domain уходит только на хост, который её поставил",
+			"mustBeCaught": true
+		},
+		{
+			"id": "host-only-subdomains",
+			"defect": "считает, что кука без Domain уходит на все хосты сайта",
+			"mustBeCaught": true
+		},
+		{
+			"id": "foreign-domain-accepted",
+			"defect": "принимает куку с Domain чужого хоста или сайта",
+			"mustBeCaught": true
+		},
+		{
+			"id": "path-string-prefix",
+			"defect": "сопоставляет Path как префикс строки: /docs подходит и к /docsets",
+			"mustBeCaught": true
+		},
+		{ "id": "default-path-root", "defect": "считает путь куки без Path равным /", "mustBeCaught": true },
+		{
+			"id": "strict-on-cross-link",
+			"defect": "отправляет SameSite=Strict при переходе по ссылке с другого сайта",
+			"mustBeCaught": true
+		},
+		{
+			"id": "lax-not-on-link",
+			"defect": "не отправляет SameSite=Lax при переходе по ссылке с другого сайта",
+			"mustBeCaught": true
+		},
+		{
+			"id": "lax-on-cross-post",
+			"defect": "отправляет SameSite=Lax с формой POST с другого сайта",
+			"mustBeCaught": true
+		},
+		{ "id": "lax-on-cross-fetch", "defect": "отправляет SameSite=Lax с fetch с другого сайта", "mustBeCaught": true },
+		{
+			"id": "subdomain-cross-site",
+			"defect": "считает запрос между поддоменами одного сайта межсайтовым (путает сайт с источником)",
+			"mustBeCaught": true
+		},
+		{ "id": "httponly-in-document", "defect": "показывает HttpOnly-куки в document.cookie", "mustBeCaught": true },
+		{ "id": "httponly-not-sent", "defect": "не отправляет HttpOnly-куки с fetch", "mustBeCaught": true },
+		{
+			"id": "secure-on-http",
+			"defect": "отправляет и показывает Secure-куки на странице по HTTP",
+			"mustBeCaught": true
+		},
+		{ "id": "secure-set-over-http", "defect": "принимает Secure-куку из ответа по HTTP", "mustBeCaught": true },
+		{
+			"id": "expires-over-max-age",
+			"defect": "берёт срок жизни из Expires, когда есть и Max-Age",
+			"mustBeCaught": true
+		},
+		{
+			"id": "max-age-zero-session",
+			"defect": "считает Max-Age=0 сессионной кукой, а не удалением",
+			"mustBeCaught": true
+		},
+		{ "id": "overwrite-by-name", "defect": "заменяет куку с тем же именем, не глядя на путь", "mustBeCaught": true },
+		{
+			"id": "no-overwrite",
+			"defect": "хранит рядом старую и новую куку с тем же именем, доменом и путём",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 18, "caught": 18 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

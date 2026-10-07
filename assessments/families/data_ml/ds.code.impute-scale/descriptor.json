@@ -1,0 +1,127 @@
+{
+	"key": "ds.code.impute-scale",
+	"version": 1,
+	"specialization": "data_ml",
+	"block": "ds.code",
+	"format": "practice_code",
+	"answerKind": "code",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.8 },
+			"constructive": {
+				"columns": 1,
+				"groups": false,
+				"imputation": "среднее или медиана",
+				"scaling": "z или min-max"
+			},
+			"constructiveRank": 3,
+			"timeNormSec": 1800,
+			"classes": [
+				{
+					"id": "mean-zscore",
+					"form": "A",
+					"description": "пропуск — среднее train, затем z-оценка по среднему и стандартному отклонению (ddof = 0) train"
+				},
+				{
+					"id": "median-minmax",
+					"form": "B",
+					"description": "пропуск — медиана train, затем min-max по минимуму и максимуму train, без обрезки"
+				},
+				{ "id": "mean-minmax", "form": "anchor", "description": "пропуск — среднее train, затем min-max по train" },
+				{
+					"id": "median-zscore-sample",
+					"form": "X",
+					"description": "пропуск — медиана train, затем z-оценка с выборочным стандартным отклонением (ddof = 1)"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.8 },
+			"constructive": {
+				"columns": "2–4",
+				"groups": true,
+				"imputation": "среднее, медиана, медиана группы",
+				"scaling": "z, min-max, robust, обрезка"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 2400,
+			"classes": [
+				{
+					"id": "zscore-constant",
+					"form": "A",
+					"description": "по столбцам: среднее train вместо пропуска и z-оценка; столбец без разброса в train даёт 0"
+				},
+				{
+					"id": "group-median-minmax",
+					"form": "B",
+					"description": "пропуск — медиана своей группы в train (нет значений — общая медиана), затем min-max по train"
+				},
+				{
+					"id": "robust",
+					"form": "anchor",
+					"description": "пропуск — медиана train, затем (x − медиана) / IQR с квартилями линейной интерполяцией"
+				},
+				{
+					"id": "clip-zscore",
+					"form": "X",
+					"description": "пропуск — среднее train, z-оценка (ddof = 0) и обрезка результата до [−2, 2]"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "data", "description": "значения признаков, названия групп, позиции пропусков" },
+		{ "name": "sizes", "description": "число строк train и test, число столбцов" }
+	],
+	"essentialParams": [
+		{ "name": "imputation", "description": "чем заполняется пропуск: среднее, медиана, медиана группы" },
+		{ "name": "scaling", "description": "масштабирование: z-оценка (ddof 0 или 1), min-max, robust по IQR, обрезка" },
+		{ "name": "degenerate", "description": "Junior: столбец без разброса в train, группа без значений" }
+	],
+	"language": null,
+	"practice": { "languages": ["python3"], "hiddenTestGroups": 5 },
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "groups" },
+	"coverage": {
+		"checks": [
+			"статистики считаются только по train (fit) и применяются к test (transform)",
+			"пропуски не входят в статистики и заполняются в test",
+			"среднее, медиана, квартили линейной интерполяцией",
+			"стандартное отклонение генеральное и выборочное",
+			"min-max без обрезки за пределами диапазона train",
+			"вырожденный столбец без разброса и группа без значений (Junior)"
+		],
+		"doesNotCheck": ["работу со sklearn и pandas", "категориальное кодирование"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "fit-on-all",
+			"defect": "считает статистики по train и test вместе — утечка данных теста",
+			"mustBeCaught": true
+		},
+		{
+			"id": "missing-dropped",
+			"defect": "выбрасывает строки test с пропусками вместо заполнения",
+			"mustBeCaught": true
+		},
+		{
+			"id": "impute-into-stats",
+			"defect": "сначала заполняет пропуски train, а потом считает по нему разброс и квартили",
+			"mustBeCaught": true
+		},
+		{ "id": "ddof", "defect": "путает генеральное и выборочное стандартное отклонение", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 4, "caught": 4 },
+		"hiddenTestsMutationScore": 1,
+		"answerCollision": 0,
+		"transfer": 0,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

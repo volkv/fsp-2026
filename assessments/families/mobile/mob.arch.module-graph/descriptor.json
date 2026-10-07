@@ -1,0 +1,160 @@
+{
+	"key": "mob.arch.module-graph",
+	"version": 1,
+	"specialization": "mobile",
+	"block": "mob.arch",
+	"format": "config_eval",
+	"answerKind": "set",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"modules": "8–9",
+				"apiChain": "до 2 рёбер",
+				"changes": "1–2",
+				"interacting": "api после implementation"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 330,
+			"classes": [
+				{
+					"id": "visibility",
+					"form": "A",
+					"description": "что видит модуль при компиляции: прямые зависимости и цепочки api за ними, но не implementation зависимостей"
+				},
+				{
+					"id": "recompile-abi",
+					"form": "B",
+					"description": "ABI-изменение модуля: перекомпилируются те, у кого он в compile classpath, — прямые потребители и потребители через api"
+				},
+				{
+					"id": "mixed-change",
+					"form": "anchor",
+					"description": "в одном коммите ABI-изменение одного модуля и не-ABI-изменение другого: второе не выходит за пределы модуля"
+				},
+				{
+					"id": "cycle",
+					"form": "X",
+					"description": "нижний модуль начинает зависеть от верхнего: какие модули лежат на цикле, а какие только зависят от него"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"modules": "12–13",
+				"apiChain": "2–3 ребра",
+				"changes": "1–3",
+				"interacting": "цепочки api, implementation после api, правило изоляции фич"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 450,
+			"classes": [
+				{
+					"id": "abi-chains",
+					"form": "A",
+					"description": "ABI-изменение нижнего модуля в графе с цепочками api из двух-трёх рёбер и с implementation-зависимостями, объявленными через api"
+				},
+				{
+					"id": "feature-isolation",
+					"form": "B",
+					"description": "какие фичи видят другую фичу: прямое ребро, общий модуль навигации или данных с api на фичу, а implementation-цепочка — не нарушение"
+				},
+				{
+					"id": "mixed-changes",
+					"form": "anchor",
+					"description": "два ABI-изменения и одно не-ABI в одном коммите на графе с цепочками api"
+				},
+				{
+					"id": "cycle",
+					"form": "X",
+					"description": "цикл из трёх и больше модулей через api и implementation рядом с восходящим ребром, которое цикла не замыкает"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "имена фич, модулей данных и ядра" },
+		{ "name": "edges", "description": "конкретные рёбра графа и их конфигурации в пределах формы класса" }
+	],
+	"essentialParams": [
+		{
+			"name": "question",
+			"description": "что спрашивают: видимость при компиляции, перекомпиляция после изменений, цикл, изоляция фич"
+		},
+		{ "name": "graph-shape", "description": "длина цепочек api, implementation после api, восходящие рёбра" }
+	],
+	"language": "kotlin",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"api против implementation: транзитивная видимость классов потребителям",
+			"цепочки api через несколько модулей",
+			"какие модули перекомпилируются при ABI- и не-ABI-изменении",
+			"циклы зависимостей между модулями",
+			"изоляция модулей фич друг от друга"
+		],
+		"doesNotCheck": [
+			"runtime classpath и упаковку зависимостей в APK",
+			"compileOnly, testImplementation и варианты сборки",
+			"реальную инкрементальную компиляцию Kotlin внутри модуля"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "impl-transitive",
+			"defect": "считает implementation транзитивным: модуль видит всё, до чего дотягивается граф",
+			"mustBeCaught": true
+		},
+		{
+			"id": "api-as-implementation",
+			"defect": "не различает api и implementation: модуль видит только свои прямые зависимости",
+			"mustBeCaught": true
+		},
+		{
+			"id": "api-exposes-implementation",
+			"defect": "считает, что за ребром api видно всё ниже, в том числе implementation-зависимости открытого модуля",
+			"mustBeCaught": true
+		},
+		{
+			"id": "api-needs-api-consumer",
+			"defect": "считает, что api-зависимости модуля видны только тем, кто сам подключил его через api",
+			"mustBeCaught": true
+		},
+		{
+			"id": "api-one-hop",
+			"defect": "считает, что api открывает только один уровень: api-зависимости api-зависимости уже не видны",
+			"mustBeCaught": true
+		},
+		{
+			"id": "non-abi-propagates",
+			"defect": "считает, что правка тела приватной функции перекомпилирует и прямых потребителей",
+			"mustBeCaught": true
+		},
+		{
+			"id": "cycle-includes-reachers",
+			"defect": "относит к циклу и модули, которые только зависят от модулей цикла",
+			"mustBeCaught": true
+		},
+		{
+			"id": "cycle-api-only",
+			"defect": "считает, что цикл образуют только рёбра api, а implementation — нет",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 8, "caught": 8 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0277,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

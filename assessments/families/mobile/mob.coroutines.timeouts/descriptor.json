@@ -1,0 +1,143 @@
+{
+	"key": "mob.coroutines.timeouts",
+	"version": 1,
+	"specialization": "mobile",
+	"block": "mob.coroutines",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"coroutines": "2–4",
+				"timeouts": "1–4",
+				"mechanisms": 3,
+				"moments": "100–1000 мс, таймеры различаются не меньше чем на 100 мс"
+			},
+			"constructiveRank": 3,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "timeout-finally",
+					"form": "A",
+					"description": "withTimeout отменяет блок и его детей: их finally печатается в порядке запуска, затем блок, и вылетает TimeoutCancellationException; блок ждёт детей и после своего конца; в непойманном launch таймаут тихо отменяет только его"
+				},
+				{
+					"id": "or-null-retry",
+					"form": "B",
+					"description": "withTimeoutOrNull в цикле повторов с растущим сроком: null при таймауте, finally блока выполняется, а перехват отмены внутри блока не спасает его значение"
+				},
+				{
+					"id": "async-timeout",
+					"form": "anchor",
+					"description": "async внутри блока таймаута отменяется вместе с ним, запущенный снаружи — работает дальше; ленивый async стартует только в await, и ожидания идут последовательно"
+				},
+				{
+					"id": "await-all",
+					"form": "X",
+					"description": "awaitAll под withTimeoutOrNull: сбой одной части отменяет остальные и выходит наружу мимо null, таймаут раньше сбоя даёт null"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "имена разделов, задач и значения результатов" },
+		{ "name": "moments", "description": "сроки задержек и таймаутов, порядок частей" }
+	],
+	"essentialParams": [
+		{
+			"name": "timeout-kind",
+			"description": "withTimeout с перехватом или в launch, withTimeoutOrNull в цикле, async внутри или снаружи таймаута, awaitAll со сбоем"
+		},
+		{ "name": "start", "description": "обычный или ленивый запуск async, где он запущен" }
+	],
+	"language": "kotlin",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"withTimeout бросает TimeoutCancellationException и отменяет детей блока",
+			"finally при таймауте и порядок отмены",
+			"TimeoutCancellationException в launch — тихая отмена, а не сбой",
+			"withTimeoutOrNull возвращает null, даже если блок перехватил отмену",
+			"таймаут не отменяет async, запущенный вне блока",
+			"ленивый async стартует в await",
+			"awaitAll при сбое одной части и при таймауте"
+		],
+		"doesNotCheck": [
+			"выбор сроков таймаутов под реальную сеть",
+			"многопоточные диспетчеры",
+			"withTimeout с ресурсами, требующими закрытия вне блока"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "timeout-returns-null",
+			"defect": "считает, что withTimeout при таймауте просто прерывает блок без исключения",
+			"mustBeCaught": true
+		},
+		{
+			"id": "no-finally-on-timeout",
+			"defect": "считает, что при таймауте блоки finally не выполняются",
+			"mustBeCaught": true
+		},
+		{
+			"id": "timeout-ignores-children",
+			"defect": "считает, что withTimeout завершается с концом своего тела, не дожидаясь детей",
+			"mustBeCaught": true
+		},
+		{
+			"id": "timeout-is-failure",
+			"defect": "считает непойманный таймаут в launch сбоем, роняющим программу и соседей",
+			"mustBeCaught": true
+		},
+		{
+			"id": "ornull-keeps-fallback",
+			"defect": "считает, что значение, возвращённое из catch внутри withTimeoutOrNull, переживает таймаут",
+			"mustBeCaught": true
+		},
+		{
+			"id": "ornull-throws",
+			"defect": "считает, что withTimeoutOrNull при таймауте бросает исключение",
+			"mustBeCaught": true
+		},
+		{
+			"id": "lazy-is-eager",
+			"defect": "считает, что async с CoroutineStart.LAZY стартует сразу",
+			"mustBeCaught": true
+		},
+		{
+			"id": "timeout-cancels-outside",
+			"defect": "считает, что таймаут отменяет и async, запущенный вне блока, который он ждёт",
+			"mustBeCaught": true
+		},
+		{
+			"id": "timeout-spares-inside",
+			"defect": "считает, что async, запущенный внутри блока таймаута, переживает таймаут",
+			"mustBeCaught": true
+		},
+		{
+			"id": "ornull-catches-all",
+			"defect": "считает, что withTimeoutOrNull возвращает null при любом исключении блока",
+			"mustBeCaught": true
+		},
+		{
+			"id": "awaitall-waits-all",
+			"defect": "считает, что awaitAll дожидается всех частей и только потом бросает исключение",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 11, "caught": 11 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0077,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

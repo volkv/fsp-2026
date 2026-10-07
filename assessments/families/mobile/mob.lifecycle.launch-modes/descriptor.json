@@ -1,0 +1,113 @@
+{
+	"key": "mob.lifecycle.launch-modes",
+	"version": 1,
+	"specialization": "mobile",
+	"block": "mob.lifecycle",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"activities": 5,
+				"launches": "4–6",
+				"mechanisms": 2,
+				"interacting": "режим запуска из манифеста + флаги интента + «Назад» между запусками"
+			},
+			"constructiveRank": 3,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "single-top",
+					"form": "A",
+					"description": "singleTop переиспользует экземпляр только на вершине стека; ниже вершины создаётся новый"
+				},
+				{
+					"id": "single-task",
+					"form": "B",
+					"description": "singleTask находит экземпляр в задаче, уничтожает всё над ним и вызывает onNewIntent"
+				},
+				{
+					"id": "clear-top",
+					"form": "anchor",
+					"description": "FLAG_ACTIVITY_CLEAR_TOP у активности standard: верх стека снимается, сама активность пересоздаётся"
+				},
+				{
+					"id": "clear-top-single-top",
+					"form": "X",
+					"description": "CLEAR_TOP вместе с SINGLE_TOP или режимом singleTop: верх снимается, экземпляр получает onNewIntent"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "имена активностей и какая из них корневая" },
+		{ "name": "order", "description": "начальный стек и порядок запусков между значимыми шагами" }
+	],
+	"essentialParams": [
+		{
+			"name": "launch-rule",
+			"description": "что решает запуск: standard, singleTop, singleTask, CLEAR_TOP, CLEAR_TOP вместе с SINGLE_TOP"
+		},
+		{
+			"name": "target-position",
+			"description": "где уже есть экземпляр запускаемой активности: на вершине, ниже вершины или нигде"
+		}
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"singleTop и FLAG_ACTIVITY_SINGLE_TOP: onNewIntent только для экземпляра на вершине",
+			"singleTask в своей задаче: уничтожение активностей над экземпляром и onNewIntent",
+			"FLAG_ACTIVITY_CLEAR_TOP у standard-активности пересоздаёт её, а с SINGLE_TOP — доставляет onNewIntent",
+			"«Назад» снимает верхнюю активность стека"
+		],
+		"doesNotCheck": [
+			"несколько задач и taskAffinity",
+			"FLAG_ACTIVITY_NEW_TASK, singleInstance и singleInstancePerTask",
+			"поведение «Назад» на корневой активности (Android 12+)"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "single-top-anywhere",
+			"defect": "считает, что singleTop переиспользует экземпляр в любом месте стека, снимая всё над ним",
+			"mustBeCaught": true
+		},
+		{
+			"id": "single-task-reorder",
+			"defect": "считает, что singleTask переносит существующий экземпляр на вершину, не уничтожая активности над ним",
+			"mustBeCaught": true
+		},
+		{
+			"id": "clear-top-reuses-standard",
+			"defect": "считает, что CLEAR_TOP без SINGLE_TOP доставляет onNewIntent и standard-активности, а не пересоздаёт её",
+			"mustBeCaught": true
+		},
+		{
+			"id": "clear-top-recreates-always",
+			"defect": "считает, что CLEAR_TOP пересоздаёт активность всегда, даже с SINGLE_TOP или режимом singleTop",
+			"mustBeCaught": true
+		},
+		{
+			"id": "reuse-recreates",
+			"defect": "считает, что существующий экземпляр при повторном запуске пересоздаётся, а не получает onNewIntent",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 5, "caught": 5 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0006,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

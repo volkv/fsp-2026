@@ -1,0 +1,113 @@
+{
+	"key": "fe.state.optimistic-updates",
+	"version": 1,
+	"specialization": "frontend",
+	"block": "fe.state",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"items": 3,
+				"operations": "4–5",
+				"events": "8–10, ответы не по порядку",
+				"moments": 3,
+				"interacting": "очередь ожидающих операций + версии + откат или преобразование сервером"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "rollback-rebase",
+					"form": "A",
+					"description": "ошибка одной из нескольких операций над элементом: откатывается только она, более поздние ожидающие остаются поверх"
+				},
+				{
+					"id": "out-of-order",
+					"form": "B",
+					"description": "ответы приходят не по порядку: ответ с меньшей версией отбрасывается, ожидающие операции накладываются заново"
+				},
+				{
+					"id": "delete-conflict",
+					"form": "anchor",
+					"description": "удаление: неудачное возвращает элемент с ожидающими изменениями, после подтверждённого поздние ответы о нём отбрасываются"
+				},
+				{
+					"id": "server-transform",
+					"form": "X",
+					"description": "сервер меняет данные иначе, чем клиент (обрезает название, учитывает чужие лайки): ответ сервера плюс ожидающие операции"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "items", "description": "названия, лайки и версии элементов" },
+		{ "name": "timing", "description": "задержки ответов в пределах класса и моменты со звёздочкой" },
+		{ "name": "failures", "description": "текст причины ошибки" }
+	],
+	"essentialParams": [
+		{
+			"name": "conflict",
+			"description": "что решает итог: ошибка в середине очереди, ответ с устаревшей версией, удаление, преобразование сервером"
+		},
+		{ "name": "order", "description": "в каком порядке приходят ответы относительно ожидающих операций" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"оптимистичное применение операций",
+			"откат одной операции без потери более поздних",
+			"повторное применение ожидающих операций поверх подтверждённого состояния",
+			"версия сущности и устаревшие ответы",
+			"удаление и ответы об удалённой сущности"
+		],
+		"doesNotCheck": [
+			"API конкретной библиотеки (React Query, Apollo, Replicache)",
+			"слияние конфликтующих правок нескольких пользователей (CRDT)"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "snapshot-rollback",
+			"defect": "при ошибке откатывает интерфейс к снимку до операции — пропадают и более поздние ожидающие изменения",
+			"mustBeCaught": true
+		},
+		{ "id": "no-rollback", "defect": "при ошибке оставляет оптимистичное изменение на экране", "mustBeCaught": true },
+		{
+			"id": "ignore-versions",
+			"defect": "принимает любой пришедший элемент, не сравнивая версии: поздний ответ с устаревшими данными перезаписывает новые",
+			"mustBeCaught": true
+		},
+		{
+			"id": "keep-optimistic",
+			"defect": "при успехе считает подтверждённым то, что насчитал сам клиент, а не ответ сервера",
+			"mustBeCaught": true
+		},
+		{
+			"id": "no-replay",
+			"defect": "ответ сервера перезаписывает элемент на экране, ожидающие операции не накладываются заново",
+			"mustBeCaught": true
+		},
+		{
+			"id": "resurrect",
+			"defect": "поздний ответ об уже удалённом элементе возвращает его в список",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 6, "caught": 6 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0001,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

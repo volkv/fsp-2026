@@ -1,0 +1,121 @@
+{
+	"key": "ds.stats.variance-reduction",
+	"version": 1,
+	"specialization": "data_ml",
+	"block": "ds.stats",
+	"format": "compute",
+	"answerKind": "float_eps",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": { "method": "CUPED или стратификация", "data": "сырые пары или сводки", "steps": "2–3" },
+			"constructiveRank": 5,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "theta",
+					"form": "A",
+					"description": "коэффициент CUPED θ = cov(X, Y) / var(X) по парам «до — во время»"
+				},
+				{
+					"id": "cuped-diff",
+					"form": "B",
+					"description": "разность средних после CUPED: поправка на разность средних ковариаты"
+				},
+				{
+					"id": "cuped-variance",
+					"form": "anchor",
+					"description": "стандартная ошибка разности после CUPED: дисперсия умножается на 1 − ρ²"
+				},
+				{ "id": "stratified", "form": "X", "description": "стратифицированная оценка эффекта по известным долям страт" }
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"constructive": {
+				"method": "CUPED, постстратификация, пропуски ковариаты",
+				"data": "сырые пары или сводки",
+				"steps": "3–4"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "n-after-cuped",
+					"form": "A",
+					"description": "сколько пользователей нужно после CUPED: n·(1 − ρ²) по сводке ковариаций"
+				},
+				{
+					"id": "group-theta",
+					"form": "B",
+					"description": "CUPED с θ по объединённым данным обеих групп, а не по каждой отдельно"
+				},
+				{
+					"id": "stratified-se",
+					"form": "anchor",
+					"description": "стандартная ошибка постстратифицированного среднего: Σ W² s² / n по стратам"
+				},
+				{
+					"id": "missing-pre",
+					"form": "X",
+					"description": "новые пользователи без предпериода: ковариата заменяется её средним, поправка для них нулевая"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "метрика и ковариата: выручка, сессии, заказы" },
+		{ "name": "numbers", "description": "значения пользователей, сводки, доли страт" }
+	],
+	"essentialParams": [
+		{ "name": "method", "description": "CUPED или стратификация" },
+		{ "name": "quantity", "description": "θ, оценка эффекта, стандартная ошибка, размер выборки" },
+		{ "name": "complication", "description": "θ по объединённым данным, пропуски ковариаты, известные доли страт" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"оценка θ для CUPED",
+			"скорректированная разность средних",
+			"снижение дисперсии на ρ²",
+			"стратификация и постстратификация",
+			"планирование размера выборки с CUPED",
+			"пропуски ковариаты"
+		],
+		"doesNotCheck": [
+			"CUPED с несколькими ковариатами и ML-ковариатами",
+			"смещение при ковариате, зависящей от воздействия"
+		]
+	},
+	"wrongSolutions": [
+		{ "id": "var-of-metric", "defect": "делит ковариацию на дисперсию метрики, а не ковариаты", "mustBeCaught": true },
+		{ "id": "correlation", "defect": "берёт корреляцию вместо коэффициента регрессии", "mustBeCaught": true },
+		{ "id": "plain-diff", "defect": "сравнивает простые средние без поправки", "mustBeCaught": true },
+		{ "id": "sign-flip", "defect": "прибавляет поправку θ·ΔX вместо вычитания", "mustBeCaught": true },
+		{ "id": "one-minus-rho", "defect": "умножает дисперсию на 1 − ρ вместо 1 − ρ²", "mustBeCaught": true },
+		{ "id": "per-group-theta", "defect": "оценивает θ отдельно в каждой группе", "mustBeCaught": true },
+		{
+			"id": "naive-se",
+			"defect": "берёт стандартную ошибку простого среднего, игнорируя страты",
+			"mustBeCaught": true
+		},
+		{ "id": "drop-missing", "defect": "выбрасывает пользователей без предпериода", "mustBeCaught": true },
+		{ "id": "zero-impute", "defect": "подставляет 0 вместо отсутствующей ковариаты", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 9, "caught": 9 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0002,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

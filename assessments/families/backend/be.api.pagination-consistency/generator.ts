@@ -293,9 +293,17 @@ function juniorScenario(rng: Rng, classId: string): JuniorParams {
 		if (rng.bool()) second.push(top());
 		else second.push({ kind: 'delete', id: rng.pick(oldest.slice(2 * limit)).id });
 	} else {
+		// Ties at the cursor, and every change lands behind a cursor: the next page always sees it.
 		for (let i = rng.int(1, 2); i > 0; i -= 1) first.push(top());
+		const feed = [...rows].sort(feedOrder);
+		const behind = (cursor: Post | undefined, r: Post): boolean => cursor !== undefined && feedOrder(cursor, r) < 0;
+		const gone = feed[limit + rng.int(0, limit - 1)];
+		if (gone) first.push({ kind: 'delete', id: gone.id });
+		const afterFirst = applyChanges(rows, first).sort(feedOrder);
+		const secondPage = afterFirst.filter((r) => behind(feed[limit - 1], r)).slice(0, limit);
+		const next = afterFirst.find((r) => behind(secondPage.at(-1), r));
+		if (next) second.push({ kind: 'delete', id: next.id });
 		if (rng.bool()) second.push(top());
-		else second.push(remove(0, limit));
 	}
 	// A deletion may name a record twice; keep the changes meaningful.
 	const unique = (changes: Change[]): Change[] =>
@@ -415,7 +423,7 @@ const REQUIRED: Record<string, string[]> = {
 	'intern/filtered': ['filter-after-page', 'pages-floor'],
 	'junior/offset-shift': ['frozen-snapshot', 'offset-as-keyset'],
 	'junior/keyset-changes': ['frozen-snapshot', 'keyset-as-offset'],
-	'junior/keyset-ties': ['cursor-created-only', 'keyset-as-offset'],
+	'junior/keyset-ties': ['cursor-created-only', 'keyset-as-offset', 'frozen-snapshot'],
 	'intern/two-keys': ['direction-all-keys', 'page-from-zero', 'pages-floor'],
 	'junior/keyset-ascending': ['frozen-snapshot', 'keyset-as-offset']
 };

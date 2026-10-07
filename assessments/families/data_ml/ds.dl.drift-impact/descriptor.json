@@ -1,0 +1,101 @@
+{
+	"key": "ds.dl.drift-impact",
+	"version": 1,
+	"specialization": "data_ml",
+	"block": "ds.dl",
+	"format": "compute",
+	"answerKind": "float_eps",
+	"levels": [
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"segments": "3–7",
+				"shift": "состав сегментов или политика одобрения",
+				"aggregation": "взвешенное среднее, отношение пересчитанных счётчиков или корень из среднего квадратов"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "segment-accuracy",
+					"form": "A",
+					"description": "accuracy при сдвиге состава сегментов: среднее по сегментам с весами прода"
+				},
+				{
+					"id": "segment-precision",
+					"form": "B",
+					"description": "precision при сдвиге состава: TP и FP сегмента пересчитываются в объём прода, precision — отношение сумм, а не среднее precision"
+				},
+				{
+					"id": "selective-labels",
+					"form": "anchor",
+					"description": "метки только у одобренных: после расширения политики дашборд считает долю невозвратов по новым одобренным корзинам"
+				},
+				{
+					"id": "rmse-mix",
+					"form": "X",
+					"description": "RMSE при сдвиге состава: корень из взвешенного среднего квадратов RMSE сегментов, а не среднее RMSE"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "сюжет модели и названия сегментов" },
+		{ "name": "numbers", "description": "доли сегментов, метрики, счётчики" }
+	],
+	"essentialParams": [
+		{
+			"name": "metric",
+			"description": "какая метрика переносится в прод: accuracy, precision, RMSE или доля невозвратов на дашборде"
+		},
+		{ "name": "shift", "description": "сдвиг состава сегментов или смена политики, от которой зависят метки" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"перенос метрики на новый состав данных при неизменном поведении в сегменте",
+			"почему precision нельзя усреднять по сегментам",
+			"почему RMSE складывается через квадраты",
+			"смещение мониторинга при метках только у одобренных"
+		],
+		"doesNotCheck": [
+			"сдвиг зависимости метки от признаков (concept drift)",
+			"статистическую значимость падения метрики"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "validation-weights",
+			"defect": "взвешивает сегменты по долям валидации, то есть повторяет метрику валидации",
+			"mustBeCaught": true
+		},
+		{ "id": "unweighted-mean", "defect": "усредняет метрику сегментов без весов", "mustBeCaught": true },
+		{
+			"id": "average-of-precisions",
+			"defect": "усредняет precision сегментов с весами прода вместо пересчёта TP и FP",
+			"mustBeCaught": true
+		},
+		{
+			"id": "all-buckets",
+			"defect": "считает долю невозвратов по всем заявкам, хотя метки есть только у одобренных",
+			"mustBeCaught": true
+		},
+		{ "id": "old-threshold", "defect": "считает по прежней политике одобрения", "mustBeCaught": true },
+		{ "id": "rmse-linear-mix", "defect": "усредняет RMSE сегментов линейно, а не через квадраты", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 6, "caught": 6 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0008,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

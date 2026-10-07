@@ -1,0 +1,189 @@
+{
+	"key": "fe.state.signals",
+	"version": 1,
+	"specialization": "frontend",
+	"block": "fe.state",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"library": "pull — 100 строк или push — 37 строк",
+				"signals": 2,
+				"computeds": "1–3",
+				"effects": "1–2",
+				"actions": "4–7",
+				"mechanisms": 2
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "lazy-cache",
+					"form": "A",
+					"description": "ленивое вычисляемое значение: повторное чтение без пересчёта, запись того же значения не оповещает, непрочитанное значение не считается"
+				},
+				{
+					"id": "batch",
+					"form": "B",
+					"description": "batch откладывает эффекты до конца; запись и возврат значения внутри batch всё равно перезапускают эффект"
+				},
+				{
+					"id": "diamond",
+					"form": "anchor",
+					"description": "ромб в библиотеке с очередью эффектов: эффект запускается один раз и видит согласованные значения"
+				},
+				{
+					"id": "push-glitch",
+					"form": "X",
+					"description": "ромб в жадной библиотеке без очереди: эффект срабатывает на каждом пути и видит промежуточное состояние"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"library": "pull — 100 строк или push — 37 строк",
+				"signals": 3,
+				"computeds": "1–3",
+				"effects": "2–3",
+				"actions": "5–8",
+				"mechanisms": 3
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "dynamic-deps",
+					"form": "A",
+					"description": "ветка if: после переключения флага вычисляемое значение отписано от прежней ветки и подписано на новую; batch переключает обратно"
+				},
+				{
+					"id": "effect-writes",
+					"form": "B",
+					"description": "эффект пишет в сигнал: зависимые эффекты встают в очередь и идут после него, не вложенно; batch и запись с тем же результатом"
+				},
+				{
+					"id": "diamond-branch",
+					"form": "anchor",
+					"description": "ромб, замкнутый через ветку if, вместе с batch: после переключения ромб распадается"
+				},
+				{
+					"id": "push-branch",
+					"form": "X",
+					"description": "жадная библиотека не отписывается от прежней ветки: лишние пересчёты, и ромб даёт промежуточное состояние"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "имена сигналов, вычисляемых значений и меток эффектов" },
+		{ "name": "numbers", "description": "начальные и записываемые значения, множители и пороги" },
+		{ "name": "order", "description": "порядок действий сценария, которые не меняют механизм" }
+	],
+	"essentialParams": [
+		{
+			"name": "library",
+			"description": "реализация: с очередью эффектов и ленивыми вычисляемыми значениями (pull) или жадная без очереди (push)"
+		},
+		{ "name": "graph", "description": "форма графа: цепочка, ромб, ветка if, эффект с записью в сигнал" },
+		{
+			"name": "writes",
+			"description": "как пишут: по одной записи, batch, запись того же значения, запись с возвратом"
+		}
+	],
+	"language": "javascript",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"ленивость и кэш вычисляемых значений",
+			"запись того же значения",
+			"batch и очередь эффектов",
+			"ромбовидная зависимость: без промежуточного состояния и с ним — по показанной реализации",
+			"динамические зависимости и отписка от прежней ветки",
+			"эффект, пишущий в сигнал"
+		],
+		"doesNotCheck": [
+			"API конкретного фреймворка (React, Vue, Solid, Angular)",
+			"умение написать реактивную библиотеку самостоятельно"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "eager-computed",
+			"defect": "считает, что вычисляемое значение считается при создании и сразу при каждом изменении источника, даже если его никто не читает",
+			"mustBeCaught": true
+		},
+		{
+			"id": "no-cache",
+			"defect": "считает, что каждое чтение вычисляемого значения запускает пересчёт",
+			"mustBeCaught": true
+		},
+		{
+			"id": "same-value-notifies",
+			"defect": "считает, что запись того же значения в сигнал оповещает подписчиков",
+			"mustBeCaught": true
+		},
+		{
+			"id": "no-batch",
+			"defect": "считает, что внутри batch эффекты срабатывают после каждой записи",
+			"mustBeCaught": true
+		},
+		{
+			"id": "glitch-in-pull",
+			"defect": "считает, что эффект запускается сразу при каждом оповещении и в ромбе видит промежуточное состояние, хотя у библиотеки есть очередь",
+			"mustBeCaught": true
+		},
+		{
+			"id": "equal-skips",
+			"defect": "считает, что эффект не перезапускается, если прочитанные им значения в итоге не изменились",
+			"mustBeCaught": true
+		},
+		{
+			"id": "static-deps",
+			"defect": "считает, что зависимости запоминаются при первом запуске и не меняются при смене ветки if",
+			"mustBeCaught": true
+		},
+		{
+			"id": "sticky-deps",
+			"defect": "считает, что подписка на сигнал из ветки, которая больше не выполняется, сохраняется",
+			"mustBeCaught": true
+		},
+		{
+			"id": "nested-flush",
+			"defect": "считает, что запись в сигнал внутри эффекта сразу, вложенно, запускает зависимые эффекты",
+			"mustBeCaught": true
+		},
+		{
+			"id": "same-value-in-push",
+			"defect": "считает, что в жадной библиотеке запись того же значения доходит до подписчиков",
+			"mustBeCaught": true
+		},
+		{
+			"id": "glitch-free-push",
+			"defect": "считает, что жадная библиотека без очереди обновляет ромб согласованно: каждое значение один раз, эффект один раз",
+			"mustBeCaught": true
+		},
+		{
+			"id": "cleanup-in-push",
+			"defect": "считает, что жадная библиотека отписывается от сигналов ветки, которая больше не выполняется",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 12, "caught": 12 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

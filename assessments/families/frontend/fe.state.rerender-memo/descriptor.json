@@ -1,0 +1,179 @@
+{
+	"key": "fe.state.rerender-memo",
+	"version": 1,
+	"specialization": "frontend",
+	"block": "fe.state",
+	"format": "compute",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": { "components": "6–8", "events": "3–5", "mechanisms": 2, "context": false, "batching": false },
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "memo-props",
+					"form": "A",
+					"description": "memo-дети корня с пропсами разной стабильности: литерал, состояние, объект в разметке, константа модуля; обычный ребёнок рендерится всегда"
+				},
+				{
+					"id": "same-value",
+					"form": "B",
+					"description": "среди событий — установка того же значения в корне и в ребёнке со своим состоянием: рендера нет"
+				},
+				{
+					"id": "local-state",
+					"form": "anchor",
+					"description": "состояние в компоненте середины дерева: рендерится только его поддерево, родитель и соседи — нет"
+				},
+				{
+					"id": "stable-hooks",
+					"form": "X",
+					"description": "useCallback и useMemo с пустыми зависимостями сохраняют memo, функция в разметке его ломает"
+				}
+			]
+		},
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"components": "7–9",
+				"events": "4",
+				"mechanisms": "3, взаимодействуют",
+				"context": "в классе context-bypass",
+				"batching": "в классе batched"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "unstable-callback",
+					"form": "A",
+					"description": "колбэки memo-детям: функция в разметке, useCallback без зависимостей и с зависимостью, которая меняется; memo внутри memo"
+				},
+				{
+					"id": "context-bypass",
+					"form": "B",
+					"description": "Provider над memo-компонентами: потребители рендерятся через пропущенный memo; значение — состояние, объект в разметке или useMemo"
+				},
+				{
+					"id": "children-prop",
+					"form": "anchor",
+					"description": "children как проп: обёртка со своим состоянием не рендерит переданных детей, memo с children ломается при рендере владельца"
+				},
+				{
+					"id": "batched",
+					"form": "X",
+					"description": "обновления двух компонентов в одном обработчике: один проход, каждый компонент один раз; одно из обновлений — то же значение"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "имена компонентов, переменных состояния, пропсов, хуков и констант" },
+		{ "name": "values", "description": "начальные и новые значения состояния, литералы пропсов" },
+		{ "name": "order", "description": "порядок детей в разметке и событий в серии" }
+	],
+	"essentialParams": [
+		{
+			"name": "prop-stability",
+			"description": "какие пропсы получают memo-компоненты: литерал, состояние, объект или функция из разметки, useMemo/useCallback, children"
+		},
+		{
+			"name": "update-source",
+			"description": "где меняется состояние: в корне, в середине дерева, в обёртке с children, в двух компонентах сразу; то же ли значение"
+		},
+		{ "name": "context", "description": "есть ли контекст и чем задано значение Provider" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"рендер родителя рендерит детей без memo",
+			"поверхностное сравнение пропсов в memo по Object.is",
+			"объекты и функции, созданные в разметке, ломают memo; useMemo и useCallback — нет, пока зависимости те же",
+			"установка того же значения состояния",
+			"рендер не поднимается к родителю и соседям",
+			"потребители контекста рендерятся через memo",
+			"children как проп при рендере обёртки и владельца",
+			"объединение обновлений одного обработчика"
+		],
+		"doesNotCheck": [
+			"дополнительный рендер компонента перед отбрасыванием того же значения в реальном React",
+			"StrictMode, конкурентный рендер, переходы и Suspense",
+			"стоимость рендера и коммит в DOM"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "props-compare-without-memo",
+			"defect": "считает, что любой компонент пропускает рендер при равных пропсах, как будто он обёрнут в memo",
+			"mustBeCaught": true
+		},
+		{
+			"id": "memo-deep-compare",
+			"defect": "считает, что memo сравнивает по содержимому: объект, функция или children с тем же текстом равны прежним",
+			"mustBeCaught": true
+		},
+		{
+			"id": "same-value-renders",
+			"defect": "считает, что установка того же значения состояния вызывает рендер",
+			"mustBeCaught": true
+		},
+		{
+			"id": "render-from-root",
+			"defect": "считает, что любое обновление состояния рендерит дерево от корня",
+			"mustBeCaught": true
+		},
+		{
+			"id": "hooks-new-each-render",
+			"defect": "считает, что useMemo и useCallback возвращают новое значение при каждом рендере",
+			"mustBeCaught": true
+		},
+		{
+			"id": "hooks-ignore-deps",
+			"defect": "считает, что useCallback и useMemo возвращают прежнее значение, даже когда зависимость изменилась",
+			"mustBeCaught": true
+		},
+		{
+			"id": "context-blocked-by-memo",
+			"defect": "считает, что memo-компонент, пропустивший рендер, не пропускает обновление контекста к потребителям ниже",
+			"mustBeCaught": true
+		},
+		{
+			"id": "provider-value-deep",
+			"defect": "считает значение Provider, записанное объектом в разметке, прежним, пока его поля не изменились",
+			"mustBeCaught": true
+		},
+		{
+			"id": "context-renders-subtree",
+			"defect": "считает, что новое значение контекста рендерит всё поддерево Provider, а не только потребителей",
+			"mustBeCaught": true
+		},
+		{
+			"id": "children-follow-wrapper",
+			"defect": "считает, что дети, переданные через children, рендерятся при каждом рендере обёртки",
+			"mustBeCaught": true
+		},
+		{
+			"id": "batch-twice",
+			"defect": "считает, что каждое обновление одного обработчика даёт свой проход рендера",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 11, "caught": 11 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

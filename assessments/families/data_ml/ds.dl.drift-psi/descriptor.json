@@ -1,0 +1,100 @@
+{
+	"key": "ds.dl.drift-psi",
+	"version": 1,
+	"specialization": "data_ml",
+	"block": "ds.dl",
+	"format": "compute",
+	"answerKind": "float_eps",
+	"levels": [
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"bins": "5–12",
+				"samples": "2 периода разного объёма",
+				"steps": "доли, сглаживание или укрупнение, сумма"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "psi",
+					"form": "A",
+					"description": "PSI по корзинам: доли, а не счётчики (объёмы периодов разные), симметричная форма (a − e)·ln(a/e)"
+				},
+				{
+					"id": "psi-smoothing",
+					"form": "B",
+					"description": "пустая корзина в проде: сглаживание прибавляет 0,5 к каждой корзине обоих периодов, доли — от сглаженной суммы"
+				},
+				{
+					"id": "ks",
+					"form": "anchor",
+					"description": "статистика Колмогорова — Смирнова по двум выборкам с совпадающими значениями: функции распределения сравниваются после всех равных значений"
+				},
+				{
+					"id": "psi-merged",
+					"form": "X",
+					"description": "мониторинг укрупняет корзины парами: PSI считается по сумме счётчиков пары, а не по мелким корзинам"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "feature", "description": "имя признака" },
+		{ "name": "data", "description": "счётчики по корзинам, объёмы периодов, значения выборок" }
+	],
+	"essentialParams": [
+		{
+			"name": "statistic",
+			"description": "что считается: PSI по корзинам, PSI со сглаживанием, PSI по укрупнённым корзинам, статистика КС"
+		},
+		{ "name": "edge", "description": "пустая корзина, разные объёмы периодов, совпадения значений между выборками" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"индекс стабильности популяции по долям корзин",
+			"сглаживание пустых корзин",
+			"зависимость PSI от разбиения на корзины",
+			"двухвыборочная статистика Колмогорова — Смирнова с совпадениями"
+		],
+		"doesNotCheck": ["выбор порога тревоги под бизнес", "многомерный дрейф"]
+	},
+	"wrongSolutions": [
+		{ "id": "counts-not-shares", "defect": "подставляет в формулу счётчики вместо долей", "mustBeCaught": true },
+		{ "id": "one-sided-kl", "defect": "считает односторонний KL Σ a·ln(a/e) вместо PSI", "mustBeCaught": true },
+		{ "id": "log10", "defect": "берёт десятичный логарифм вместо натурального", "mustBeCaught": true },
+		{ "id": "smooth-empty-only", "defect": "прибавляет сглаживание только к пустой корзине", "mustBeCaught": true },
+		{
+			"id": "no-renormalize",
+			"defect": "после сглаживания делит на исходную сумму, а не на сглаженную",
+			"mustBeCaught": true
+		},
+		{
+			"id": "ties-split",
+			"defect": "шагает по объединённой выборке по одному элементу и учитывает промежуточные состояния внутри совпадающих значений",
+			"mustBeCaught": true
+		},
+		{
+			"id": "first-sample-points",
+			"defect": "сравнивает функции распределения только в точках первой выборки",
+			"mustBeCaught": true
+		},
+		{ "id": "no-merge", "defect": "считает PSI по мелким корзинам вместо корзин мониторинга", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 8, "caught": 8 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0285,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

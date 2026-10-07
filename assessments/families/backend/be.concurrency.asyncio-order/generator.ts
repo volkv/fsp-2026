@@ -1217,7 +1217,8 @@ export function build(input: GenerateInput): Built {
 		if (required.some((id) => wrong[id] === null)) continue;
 		const instance = makeInstance(descriptor, input, {
 			statement: {
-				markdown: 'Что напечатает программа на Python 3? Введите вывод построчно, как он появится на экране.',
+				markdown:
+					'Что напечатает программа? Она выполняется в CPython 3.12 или 3.13 со стандартным циклом событий `asyncio.run` и стандартной фабрикой задач (без eager tasks). Введите вывод построчно, как он появится на экране.',
 				code: { language: 'python3', source: p.source }
 			},
 			answer: { kind: 'sequence', value: answer }

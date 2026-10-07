@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.55,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "afd9f497db41b2fbcb70dc60aea78c495370c0cd87f92efd37901bf81b4d08a9"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.6,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "afd9f497db41b2fbcb70dc60aea78c495370c0cd87f92efd37901bf81b4d08a9"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": {
 				"requests": "5–7",
 				"rules": 5,
@@ -35,15 +52,32 @@
 				{
 					"id": "same-origin",
 					"form": "X",
-					"description": "тот же ли источник: схема, хост и порт; другой порт или схема — уже cross-origin"
+					"description": "тот же ли источник: хост и порт; другой порт или поддомен — уже cross-origin, хотя хост похож"
 				}
 			]
 		},
 		{
 			"grade": "middle",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.45,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "afd9f497db41b2fbcb70dc60aea78c495370c0cd87f92efd37901bf81b4d08a9"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.5,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "afd9f497db41b2fbcb70dc60aea78c495370c0cd87f92efd37901bf81b4d08a9"
+					}
+				],
+				"mean": 0.5
+			},
 			"constructive": {
-				"requests": "6–9",
+				"requests": "6–12",
 				"rules": 7,
 				"interacting": "кэш preflight по Max-Age + общий кэш CDN без Vary: Origin"
 			},
@@ -63,7 +97,7 @@
 				{
 					"id": "credentials",
 					"form": "anchor",
-					"description": "credentials с `*` не проходят, неудачный preflight не кэшируется, удачный — кэшируется"
+					"description": "credentials с `*` не проходят; preflight, запомненный с credentials, подходит и запросу без них, а запомненный без credentials запросу с ними не подходит"
 				},
 				{
 					"id": "max-age-cap",
@@ -137,16 +171,45 @@
 			"id": "vary-harmless",
 			"defect": "считает, что CDN и без Vary: Origin отдаёт каждому источнику свой ответ",
 			"mustBeCaught": true
+		},
+		{
+			"id": "cache-ignores-credentials",
+			"defect": "использует запомненный без credentials preflight для запроса с credentials",
+			"mustBeCaught": true
+		},
+		{
+			"id": "cache-exact-mode",
+			"defect": "не использует запомненный с credentials preflight для того же запроса без credentials, требуя точного совпадения режима",
+			"mustBeCaught": true
 		}
 	],
 	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
 	"gates": {
 		"reference": { "seeds": 200, "failures": 0 },
-		"wrongSolutions": { "mustBeCaught": 9, "caught": 9 },
+		"wrongSolutions": { "mustBeCaught": 11, "caught": 11 },
 		"hiddenTestsMutationScore": null,
 		"answerCollision": 0.0053,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Второй раунд Angoff: middle добавляет к модели Vary и credentials и предел Max-Age, все правила даны в условии, но бинарная рубрика на 6-10 токенов плюс счётчик не прощает ошибки; между 0,35 и 0,60 итог 0,45."
+				],
+				"sourceSha256": "afd9f497db41b2fbcb70dc60aea78c495370c0cd87f92efd37901bf81b4d08a9"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Итоговый Angoff middle — 0,50: бинарная рубрика требует безошибочно проследить 6–12 запросов, ключи и сроки кэша, направление совместимости credentials и счётчик обращений к API, поэтому прежние 0,60 завышены для пограничного Middle; оценка 0,35 недооценивает полностью заданные правила, 420 с и раздельную проверку preflight-кэша и CDN в разных классах. Независимый пересчёт middle/vary-origin подтвердил ответ ok ok blocked ok blocked ok ok blocked | 3; junior сохраняю 0,60 из прошлого раунда."
+				],
+				"sourceSha256": "afd9f497db41b2fbcb70dc60aea78c495370c0cd87f92efd37901bf81b4d08a9"
+			}
+		]
 	}
 }

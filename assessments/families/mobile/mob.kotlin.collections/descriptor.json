@@ -1,0 +1,177 @@
+{
+	"key": "mob.kotlin.collections",
+	"version": 1,
+	"specialization": "mobile",
+	"block": "mob.kotlin",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": { "elements": "5–6", "operations": "1–2", "mechanisms": 1, "ownDataClass": false },
+			"constructiveRank": 2,
+			"timeNormSec": 180,
+			"classes": [
+				{
+					"id": "filter-partition",
+					"form": "A",
+					"description": "filter оставляет подходящие элементы, partition кладёт их в первый список, flatMap разворачивает вложенные списки"
+				},
+				{
+					"id": "associate-by",
+					"form": "B",
+					"description": "associateBy при повторе ключа: ключ остаётся на первом месте, значение — последний элемент с этим ключом"
+				},
+				{
+					"id": "fold-reduce",
+					"form": "anchor",
+					"description": "fold начинает с начального значения, reduce — с первого элемента, к которому операция не применяется"
+				},
+				{
+					"id": "mutable-copy",
+					"form": "X",
+					"description": "toMutableList делает копию, а присваивание val — вторая ссылка на тот же список"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": { "elements": "5–7", "operations": "3–4", "mechanisms": 2, "ownDataClass": true },
+			"constructiveRank": 3,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "pipeline",
+					"form": "A",
+					"description": "filter → groupBy → mapValues: ключи в порядке первого появления среди оставшихся, maxByOrNull берёт первый максимум"
+				},
+				{
+					"id": "distinct-vs-associate",
+					"form": "B",
+					"description": "distinctBy оставляет первый элемент ключа, associateBy — последний, groupBy — все"
+				},
+				{
+					"id": "sort-then",
+					"form": "anchor",
+					"description": "sortedWith(compareBy.thenByDescending) и устойчивость sortedBy: равные ключи сохраняют исходный порядок"
+				},
+				{
+					"id": "windows",
+					"form": "X",
+					"description": "windowed даёт только полные перекрывающиеся окна, chunked сохраняет короткий последний кусок, zip обрезает по короткому"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "имена списков, экранов, пользователей и чатов" },
+		{ "name": "values", "description": "числа, порядок элементов, пороги и константы" }
+	],
+	"essentialParams": [
+		{
+			"name": "operation",
+			"description": "операция, решающая вывод: filter, partition, associateBy, distinctBy, groupBy, fold, reduce, сортировка, windowed, chunked"
+		},
+		{
+			"name": "duplicates",
+			"description": "как операция обходится с повторяющимися ключами и равными элементами: первый, последний, все, исходный порядок"
+		},
+		{ "name": "identity", "description": "копия списка или вторая ссылка на тот же список" }
+	],
+	"language": "kotlin",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"filter, partition, flatMap",
+			"associateBy при повторяющихся ключах и порядок ключей",
+			"distinctBy, associateBy и groupBy на одном списке",
+			"fold и reduce",
+			"toMutableList против второй ссылки",
+			"композиция filter, groupBy и mapValues",
+			"sortedWith с compareBy и thenByDescending, устойчивость sortedBy",
+			"windowed, chunked и zip"
+		],
+		"doesNotCheck": [
+			"последовательности (Sequence) и ленивые вычисления",
+			"производительность операций над коллекциями",
+			"умение написать преобразование самостоятельно (практика)"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "filter-inverted",
+			"defect": "считает, что filter убирает элементы, подходящие под условие",
+			"mustBeCaught": true
+		},
+		{
+			"id": "partition-swapped",
+			"defect": "считает, что первый список partition — неподходящие элементы",
+			"mustBeCaught": true
+		},
+		{
+			"id": "first-wins",
+			"defect": "считает, что associateBy при повторе ключа оставляет первый элемент",
+			"mustBeCaught": true
+		},
+		{
+			"id": "reduce-from-zero",
+			"defect": "считает, что reduce начинает с нуля и применяет операцию и к первому элементу",
+			"mustBeCaught": true
+		},
+		{
+			"id": "copy-shared",
+			"defect": "считает, что toMutableList возвращает тот же список, а не копию",
+			"mustBeCaught": true
+		},
+		{
+			"id": "alias-copies",
+			"defect": "считает, что присваивание изменяемого списка другой переменной копирует его",
+			"mustBeCaught": true
+		},
+		{
+			"id": "map-keys-sorted",
+			"defect": "считает, что groupBy упорядочивает ключи по алфавиту, а не по первому появлению",
+			"mustBeCaught": true
+		},
+		{
+			"id": "distinct-last-wins",
+			"defect": "считает, что distinctBy, как associateBy, оставляет последний элемент ключа",
+			"mustBeCaught": true
+		},
+		{
+			"id": "then-ascending",
+			"defect": "не замечает Descending в thenByDescending и упорядочивает равные приоритеты по возрастанию",
+			"mustBeCaught": true
+		},
+		{
+			"id": "ties-by-name",
+			"defect": "считает, что sortedBy упорядочивает равные ключи по имени, а не сохраняет исходный порядок",
+			"mustBeCaught": true
+		},
+		{
+			"id": "windowed-partial",
+			"defect": "считает, что windowed добавляет в конце неполные окна",
+			"mustBeCaught": true
+		},
+		{
+			"id": "chunked-drops-partial",
+			"defect": "считает, что chunked отбрасывает неполный последний кусок",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 12, "caught": 12 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0002,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

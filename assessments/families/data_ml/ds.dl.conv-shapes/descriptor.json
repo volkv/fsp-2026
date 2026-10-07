@@ -1,0 +1,137 @@
+{
+	"key": "ds.dl.conv-shapes",
+	"version": 1,
+	"specialization": "data_ml",
+	"block": "ds.dl",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"layers": "1–3",
+				"sizeRules": "stride, padding, dilation или пулинг",
+				"params": "свёртка ± BatchNorm"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "stride-padding",
+					"form": "A",
+					"description": "свёртка со stride 2–3 и padding: округление вниз в формуле размера, padding с обеих сторон, смещение в параметрах"
+				},
+				{
+					"id": "pool",
+					"form": "B",
+					"description": "свёртка «same» и MaxPool2d без stride: шаг пулинга по умолчанию равен окну, нечётный размер округляется вниз"
+				},
+				{ "id": "dilation", "form": "anchor", "description": "свёртка с dilation: эффективное окно d·(k − 1) + 1" },
+				{
+					"id": "bias-bn",
+					"form": "X",
+					"description": "свёртка с bias=False и BatchNorm2d: у BatchNorm обучаемы только γ и β, буферы running_mean/var — не параметры"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"layers": "1–5",
+				"sizeRules": "цепочка свёрток и пулинга, groups, транспонированная свёртка, ленивый линейный слой",
+				"params": "сумма по слоям с BatchNorm и groups"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "chain",
+					"form": "A",
+					"description": "цепочка: свёртка stride 2 без смещения, BatchNorm, пулинг, свёртка с dilation"
+				},
+				{
+					"id": "depthwise",
+					"form": "B",
+					"description": "depthwise-свёртка (groups = каналам) со stride 2 и поточечная 1×1: параметры делятся на groups"
+				},
+				{
+					"id": "transposed",
+					"form": "anchor",
+					"description": "ConvTranspose2d: (H − 1)·s − 2p + k + output_padding; параметры cin·cout·k² + cout"
+				},
+				{
+					"id": "flatten-linear",
+					"form": "X",
+					"description": "свёртка, пулинг, Flatten и LazyLinear: число входных признаков головы — каналы × высота × ширина"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "sizes", "description": "размер входа, число каналов, размер батча" },
+		{ "name": "hyperparams", "description": "конкретные kernel_size, stride, padding в пределах класса" }
+	],
+	"essentialParams": [
+		{
+			"name": "layer-kinds",
+			"description": "какие слои стоят в модели: свёртка, пулинг, BatchNorm, groups, транспонированная свёртка, Flatten и линейный слой"
+		},
+		{
+			"name": "size-rule",
+			"description": "какое правило размера решает ответ: округление, padding, dilation, шаг пулинга"
+		}
+	],
+	"language": "python3",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"формула размера выхода свёртки с округлением вниз",
+			"padding с обеих сторон и dilation",
+			"шаг MaxPool2d по умолчанию",
+			"число параметров свёртки со смещением и без, BatchNorm",
+			"groups и depthwise-separable свёртка",
+			"размер выхода транспонированной свёртки",
+			"число признаков после Flatten"
+		],
+		"doesNotCheck": ["запуск модели на GPU", "производительность слоёв"]
+	},
+	"wrongSolutions": [
+		{ "id": "no-floor", "defect": "округляет размер выхода вверх, а не вниз", "mustBeCaught": true },
+		{ "id": "padding-once", "defect": "добавляет padding только с одной стороны", "mustBeCaught": true },
+		{ "id": "bias-forgotten", "defect": "не считает смещения в числе параметров", "mustBeCaught": true },
+		{ "id": "pool-stride-1", "defect": "считает шаг MaxPool2d по умолчанию равным 1", "mustBeCaught": true },
+		{ "id": "dilation-ignored", "defect": "не учитывает dilation в размере окна", "mustBeCaught": true },
+		{
+			"id": "bn-running-stats",
+			"defect": "считает running_mean и running_var BatchNorm обучаемыми параметрами",
+			"mustBeCaught": true
+		},
+		{ "id": "groups-ignored", "defect": "считает параметры свёртки без деления на groups", "mustBeCaught": true },
+		{
+			"id": "transposed-as-conv",
+			"defect": "считает размер транспонированной свёртки по формуле обычной",
+			"mustBeCaught": true
+		},
+		{
+			"id": "flatten-without-channels",
+			"defect": "после Flatten берёт только высоту × ширину, забывая каналы",
+			"mustBeCaught": true
+		},
+		{ "id": "bias-always", "defect": "считает смещение и у свёртки с bias=False", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 10, "caught": 10 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

@@ -22,6 +22,8 @@ interface Defect {
 	at: string;
 	text: string;
 	neighbour: { at: string; text: string };
+	/** Other lines where a one-instruction replacement also restores the contract. */
+	alternatives?: { at: string; text: string }[];
 }
 
 /** A function of the module: its lines, the checks of its contract and its possible defects. */
@@ -984,6 +986,8 @@ interface Program {
 	fix: string;
 	neighbour: { line: number; text: string };
 	other: { line: number; text: string };
+	/** Accepted other repairs: absolute line and its replacement. */
+	alternatives: { line: number; fix: string }[];
 }
 
 function compose(rng: Rng, library: readonly Unit[], kind: string, contextCount: number): Program {
@@ -1011,11 +1015,13 @@ function compose(rng: Rng, library: readonly Unit[], kind: string, contextCount:
 	let answer = 0;
 	let neighbour = { line: 0, text: '' };
 	let other = { line: 0, text: '' };
+	let alternatives: Program['alternatives'] = [];
 	for (const unit of order) {
 		const offset = lines.length;
 		unit.lines.forEach((line, i) => lines.push(unit === buggy && i === defectLine ? defect.text : line));
 		if (unit === buggy) {
 			answer = offset + defectLine + 1;
+			alternatives = (defect.alternatives ?? []).map((a) => ({ line: offset + lineOf(buggy, a.at) + 1, fix: a.text }));
 			neighbour = { line: offset + lineOf(buggy, defect.neighbour.at) + 1, text: defect.neighbour.text };
 		} else if (other.line === 0) {
 			const sibling = unit.defects[0];
@@ -1036,7 +1042,7 @@ function compose(rng: Rng, library: readonly Unit[], kind: string, contextCount:
 		'except Exception as exc:',
 		"    print('fail', type(exc).__name__)"
 	].join('\n');
-	return { source: lines.join('\n'), check, answer, fix, neighbour, other };
+	return { source: lines.join('\n'), check, answer, fix, neighbour, other, alternatives };
 }
 
 export function build(input: GenerateInput): Built {
@@ -1049,16 +1055,27 @@ export function build(input: GenerateInput): Built {
 		statement: {
 			markdown:
 				'Модуль клиента внешних сервисов на Python 3. Время и ресурсы функции получают параметрами (`clock`, ' +
-				'`sleep`, `open_file`, пул, клиент). У каждой функции в строке документации записан её контракт. Ровно одна ' +
-				'строка модуля нарушает контракт своей функции: если заменить только её, все функции будут работать по ' +
-				'контракту. Введите номер этой строки (нумерация с 1).',
+				'`sleep`, `open_file`, пул, клиент). У каждой функции в строке документации записан её контракт; в модуле ' +
+				'один дефект. ' +
+				'Введите номер строки с дефектом (нумерация с 1). Если исправить можно в нескольких строках — засчитывается любая ' +
+				'из них, где замена одной инструкцией Python (без `;`) восстанавливает спецификацию. Исправление — одна простая инструкция того же вида, что исправляемая строка: не добавляйте ' +
+				'конструкций, которых в ней нет (`:=`, lambda, обёртки, новые функции), и не переносите в неё логику из другой строки.',
 			code: { language: 'python3', source: p.source }
 		},
-		answer: { kind: 'line_no', value: p.answer }
+		answer: {
+			kind: 'line_no',
+			value: p.answer,
+			...(p.alternatives.length ? { alternatives: p.alternatives.map((a) => a.line) } : {})
+		}
 	});
 	return {
 		instance,
-		reference: () => ({ kind: 'bug', check: p.check, fix: p.fix }),
+		reference: () => ({
+			kind: 'bug',
+			check: p.check,
+			fix: p.fix,
+			...(p.alternatives.length ? { alternatives: p.alternatives } : {})
+		}),
 		wrong: () => ({
 			'neighbour-line': { kind: 'line', line: p.neighbour.line, replacement: p.neighbour.text },
 			'other-function': p.other.line === 0 ? null : { kind: 'line', line: p.other.line, replacement: p.other.text }

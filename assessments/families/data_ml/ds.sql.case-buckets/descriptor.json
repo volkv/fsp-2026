@@ -1,0 +1,157 @@
+{
+	"key": "ds.sql.case-buckets",
+	"version": 1,
+	"specialization": "data_ml",
+	"block": "ds.sql",
+	"format": "sql_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": {
+				"tables": 1,
+				"rows": "9–16",
+				"groups": "2–4",
+				"trap": "одна: порядок веток CASE, CASE без ELSE, WHERE до HAVING или COUNT(DISTINCT)"
+			},
+			"constructiveRank": 2,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "case-order",
+					"form": "A",
+					"description": "ветки CASE проверяются по порядку: нижняя граница первой забирает и значения верхней корзины"
+				},
+				{
+					"id": "else-null",
+					"form": "B",
+					"description": "CASE без ELSE даёт NULL: строки без совпавшей ветки образуют свою группу, она идёт первой"
+				},
+				{
+					"id": "where-vs-having",
+					"form": "anchor",
+					"description": "WHERE отбрасывает строки до группировки, HAVING COUNT(*) считает только прошедшие фильтр"
+				},
+				{
+					"id": "share-distinct",
+					"form": "X",
+					"description": "COUNT(DISTINCT пользователь) рядом с COUNT(*) и доля оплаченных через SUM(CASE …) / COUNT(*)"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"tables": 1,
+				"rows": "8–16",
+				"groups": "3–4",
+				"trap": "размеры корзин NTILE, NULL в окне и в условном агрегате"
+			},
+			"constructiveRank": 3,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "ntile-buckets",
+					"form": "A",
+					"description": "NTILE(k) при n, не кратном k: лишние строки достаются первым корзинам"
+				},
+				{
+					"id": "case-in-aggregate",
+					"form": "B",
+					"description": "AVG(CASE WHEN … THEN x END) усредняет только совпавшие строки; группа без них даёт NULL"
+				},
+				{
+					"id": "pivot",
+					"form": "anchor",
+					"description": "сводная таблица условными суммами: SUM(CASE … END) без ELSE в месяце без строк — NULL, с ELSE 0 — 0"
+				},
+				{
+					"id": "ntile-nulls",
+					"form": "X",
+					"description": "NTILE по столбцу с NULL: NULL сортируется первым, заполняет первую корзину и сдвигает остальные"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "названия таблиц и столбцов, имена, города, сегменты, каналы" },
+		{ "name": "data", "description": "значения, границы корзин, число строк, порядок вставки" }
+	],
+	"essentialParams": [
+		{
+			"name": "bucket-rule",
+			"description": "как строка попадает в корзину: порядок веток CASE, ELSE, NTILE и место NULL"
+		},
+		{
+			"name": "aggregate-scope",
+			"description": "какие строки видит агрегат: WHERE до HAVING, DISTINCT, условие внутри агрегата"
+		}
+	],
+	"language": "sql",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"порядок проверки веток CASE",
+			"CASE без ELSE и группа NULL",
+			"WHERE против HAVING",
+			"COUNT(DISTINCT …) и доля через SUM(CASE …)",
+			"размеры корзин NTILE и NULL в упорядочении окна",
+			"условная агрегация с ELSE и без него",
+			"сводная таблица условными суммами"
+		],
+		"doesNotCheck": ["PERCENT_RANK и CUME_DIST", "FILTER (WHERE …) у агрегатов других СУБД"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "case-most-specific",
+			"defect": "считает, что CASE выбирает самую подходящую ветку, а не первую совпавшую",
+			"mustBeCaught": true
+		},
+		{
+			"id": "else-drops-row",
+			"defect": "считает, что строка без совпавшей ветки CASE выпадает из результата",
+			"mustBeCaught": true
+		},
+		{
+			"id": "having-counts-all",
+			"defect": "считает, что HAVING COUNT(*) видит все строки группы, а не только прошедшие WHERE",
+			"mustBeCaught": true
+		},
+		{
+			"id": "distinct-ignored",
+			"defect": "считает число покупателей как число строк, не учитывая повторы",
+			"mustBeCaught": true
+		},
+		{ "id": "ntile-extra-last", "defect": "отдаёт лишние строки NTILE последним корзинам", "mustBeCaught": true },
+		{
+			"id": "case-else-zero",
+			"defect": "считает, что несовпавшие строки входят в AVG(CASE …) нулями",
+			"mustBeCaught": true
+		},
+		{
+			"id": "sum-null-as-zero",
+			"defect": "ожидает 0 от SUM(CASE … END) без ELSE, когда совпавших строк нет",
+			"mustBeCaught": true
+		},
+		{
+			"id": "null-excluded-from-ntile",
+			"defect": "считает, что строки с NULL не участвуют в разбиении NTILE",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 8, "caught": 8 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0001,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

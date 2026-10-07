@@ -1,0 +1,197 @@
+{
+	"key": "mob.lifecycle.repeat-on-lifecycle",
+	"version": 1,
+	"specialization": "mobile",
+	"block": "mob.lifecycle",
+	"format": "compute",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"lifecycleEvents": "2–6",
+				"values": "3–14",
+				"mechanisms": 2,
+				"interacting": "способ сбора × холодный поток или StateFlow × фон, диалог, поворот"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "cold-restart",
+					"form": "A",
+					"description": "repeatOnLifecycle(STARTED) или flowWithLifecycle: холодный поток начинается заново с каждым onStart, диалог сбор не останавливает"
+				},
+				{
+					"id": "state-flow",
+					"form": "B",
+					"description": "StateFlow под repeatOnLifecycle: после перезапуска сборщик сразу получает текущее значение, промежуточные пропущены"
+				},
+				{
+					"id": "launch-vs-repeat",
+					"form": "anchor",
+					"description": "lifecycleScope.launch без repeatOnLifecycle собирает и в фоне, а при повороте начинает заново в новой активности"
+				},
+				{
+					"id": "when-started",
+					"form": "X",
+					"description": "устаревший launchWhenStarted: приостановка вместо отмены — счётчик продолжается, задержка дожидается onStart"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"constructive": {
+				"lifecycleEvents": "2–9",
+				"values": "3–14",
+				"mechanisms": 3,
+				"interacting": "WhileSubscribed(таймаут) × паузы в сборе × кэш StateFlow, или медленный сборщик × конфляция × сравнение значений"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "while-subscribed",
+					"form": "A",
+					"description": "stateIn(WhileSubscribed(T)): короткая пауза в сборе не останавливает upstream, длинная — останавливает; после перезапуска сначала приходит кэш"
+				},
+				{
+					"id": "conflation",
+					"form": "B",
+					"description": "медленный сборщик StateFlow: пропускает промежуточные значения и не получает значение, равное последнему полученному"
+				},
+				{
+					"id": "rotation-timeout",
+					"form": "anchor",
+					"description": "WhileSubscribed(5000): поворот экрана не перезапускает upstream, долгий уход в фон — перезапускает"
+				},
+				{
+					"id": "replay-expiration",
+					"form": "X",
+					"description": "replayExpirationMillis = 0: после остановки upstream значение сбрасывается к начальному"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "имена ViewModel, активности и потока" },
+		{ "name": "numbers", "description": "период, первое значение и шаг счётчика, моменты событий и присваиваний" }
+	],
+	"essentialParams": [
+		{
+			"name": "collector",
+			"description": "как собирается поток: lifecycleScope.launch, repeatOnLifecycle(STARTED/RESUMED), flowWithLifecycle, launchWhenStarted"
+		},
+		{ "name": "source", "description": "холодный поток, StateFlow, stateIn с WhileSubscribed, медленный сборщик" },
+		{ "name": "timeline", "description": "какие события жизненного цикла и с какими паузами происходят" }
+	],
+	"language": "kotlin",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"repeatOnLifecycle отменяет сбор при выходе из состояния и начинает заново при входе",
+			"lifecycleScope.launch собирает до onDestroy, в том числе в фоне",
+			"launchWhenStarted приостанавливает, а не отменяет",
+			"StateFlow отдаёт новому сборщику текущее значение и не повторяет равное",
+			"SharingStarted.WhileSubscribed: таймаут остановки, кэш значения, replayExpirationMillis",
+			"конфляция StateFlow при медленном сборщике"
+		],
+		"doesNotCheck": [
+			"SharedFlow с буфером и replay",
+			"диспетчеры и потоки исполнения",
+			"поведение на конкретном устройстве и версиях библиотек до lifecycle 2.8"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "suspends-not-cancels",
+			"defect": "считает, что repeatOnLifecycle приостанавливает сбор и продолжает счётчик холодного потока, а не начинает его заново",
+			"mustBeCaught": true
+		},
+		{
+			"id": "collects-in-background",
+			"defect": "считает, что repeatOnLifecycle продолжает собирать и после onStop",
+			"mustBeCaught": true
+		},
+		{
+			"id": "stops-on-pause",
+			"defect": "считает, что repeatOnLifecycle(STARTED) останавливает сбор уже на onPause",
+			"mustBeCaught": true
+		},
+		{
+			"id": "resumed-as-started",
+			"defect": "не различает STARTED и RESUMED: собирает и пока экран закрыт диалогом",
+			"mustBeCaught": true
+		},
+		{
+			"id": "no-replay-on-restart",
+			"defect": "считает, что после перезапуска сборщик StateFlow получает только новые значения, без текущего",
+			"mustBeCaught": true
+		},
+		{
+			"id": "launch-stops-on-stop",
+			"defect": "считает, что lifecycleScope.launch сам останавливает сбор при уходе в фон",
+			"mustBeCaught": true
+		},
+		{
+			"id": "survives-rotation",
+			"defect": "считает, что сбор в lifecycleScope переживает поворот экрана и продолжается без перезапуска",
+			"mustBeCaught": true
+		},
+		{
+			"id": "when-started-restarts",
+			"defect": "считает, что launchWhenStarted отменяет сбор и начинает холодный поток заново, как repeatOnLifecycle",
+			"mustBeCaught": true
+		},
+		{
+			"id": "paused-drops",
+			"defect": "считает, что под launchWhenStarted поток идёт по своему расписанию, а значения, пришедшиеся на паузу, теряются",
+			"mustBeCaught": true
+		},
+		{
+			"id": "no-stop-timeout",
+			"defect": "не учитывает таймаут WhileSubscribed: upstream останавливается сразу, как сборщик ушёл",
+			"mustBeCaught": true
+		},
+		{
+			"id": "upstream-never-stops",
+			"defect": "считает, что upstream в stateIn работает, пока жива viewModelScope, независимо от подписчиков",
+			"mustBeCaught": true
+		},
+		{
+			"id": "vm-recreated-on-rotation",
+			"defect": "считает, что при повороте ViewModel и её stateIn создаются заново",
+			"mustBeCaught": true
+		},
+		{
+			"id": "keeps-cached-value",
+			"defect": "не учитывает replayExpirationMillis = 0: ждёт после перезапуска старое кэшированное значение",
+			"mustBeCaught": true
+		},
+		{
+			"id": "every-value",
+			"defect": "считает, что медленный сборщик StateFlow получает все присвоенные значения по очереди",
+			"mustBeCaught": true
+		},
+		{
+			"id": "latest-even-if-equal",
+			"defect": "считает, что после обработки сборщик получает последнее значение, даже если оно равно уже полученному",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 15, "caught": 15 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0011,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

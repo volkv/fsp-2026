@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.6,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "4cdbc8380bd9d835c86dde137a6e0a03973117b21ac535df07b82306deebe391"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.65,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "4cdbc8380bd9d835c86dde137a6e0a03973117b21ac535df07b82306deebe391"
+					}
+				],
+				"mean": 0.65
+			},
 			"constructive": { "calls": "3–4", "handlers": "2–3", "clauses": "try/except/else/finally", "mechanisms": 1 },
 			"constructiveRank": 2,
 			"timeNormSec": 240,
@@ -37,7 +54,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.5,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "4cdbc8380bd9d835c86dde137a6e0a03973117b21ac535df07b82306deebe391"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.5,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "4cdbc8380bd9d835c86dde137a6e0a03973117b21ac535df07b82306deebe391"
+					}
+				],
+				"mean": 0.5
+			},
 			"constructive": { "calls": "4–5", "handlers": "2–3", "clauses": "вложенные пути выхода", "mechanisms": 2 },
 			"constructiveRank": 4,
 			"timeNormSec": 300,
@@ -182,6 +216,30 @@
 		"answerCollision": 0.0012,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Все 8 экземпляров воспроизведены и совпали с ожидаемым выводом. Условия однозначны; выводы зависят от документированной семантики try/except/else/finally и цепочки исключений.",
+					"Intern: loop-jump (continue/break внутри try с finally плюс for-else) - достаточно сложный для intern: комбинирует три механики, хотя заявлено mechanisms:1. Рекомендуется, возможно, оценить как верхнюю границу intern или перенести в junior. Не блокирующее.",
+					"Junior: chain использует __cause__/__context__ и лямбды в списке - тема уровня middle для 300 с; finally-raise тоже требует знания __context__. Сложность junior-задания на верхней границе.",
+					"Угадываемость низкая (10+ строк вывода). Ошибочные решения (16) корректно различаются."
+				],
+				"sourceSha256": "4cdbc8380bd9d835c86dde137a6e0a03973117b21ac535df07b82306deebe391"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Ручной пересчёт junior/finally-return: 39 и 41 возвращают finally, 60 сохраняет KeyError, 6 возвращает except, 8 возвращает заранее вычисленное try. В chain явное raise from сохраняет и __cause__, и __context__, что даёт RuntimeError KeyError KeyError. Исполнение всех восьми программ подтвердило эталоны.",
+					"Обработчики выбираются по порядку, исключение из except не ловится соседним обработчиком, а finally меняет путь выхода согласно Python. Классы задают содержательно разные пути; вариативные значения и порядок вызовов не позволяют перенести готовую трассу. Intern проверяет обычное управление потоком, Junior — взаимодействие выходов и исключений.",
+					"Рекомендация по уровню: __cause__/__context__ в Junior/chain существенно более специализированны, чем остальные Junior-классы и определение пограничного кандидата; учесть это при эмпирической калибровке времени и порога. Для длинных Intern-трасс стоит предусмотреть частичный балл по вызовам, чтобы одна пропущенная строка не обнуляла все верно прослеженные пути."
+				],
+				"sourceSha256": "4cdbc8380bd9d835c86dde137a6e0a03973117b21ac535df07b82306deebe391"
+			}
+		]
 	}
 }

@@ -1,0 +1,125 @@
+{
+	"key": "ds.stats.quantiles",
+	"version": 1,
+	"specialization": "data_ml",
+	"block": "ds.stats",
+	"format": "compute",
+	"answerKind": "float_eps",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": { "values": "8–14", "method": "линейная интерполяция", "steps": "1–3 квантиля" },
+			"constructiveRank": 2,
+			"timeNormSec": 270,
+			"classes": [
+				{
+					"id": "percentile-linear",
+					"form": "A",
+					"description": "перцентиль линейной интерполяцией по позиции (n − 1)·p"
+				},
+				{ "id": "iqr", "form": "B", "description": "межквартильный размах Q3 − Q1 тем же методом" },
+				{ "id": "outlier-fence", "form": "anchor", "description": "верхняя граница выбросов Q3 + 1,5·IQR" },
+				{
+					"id": "robust-score",
+					"form": "X",
+					"description": "робастная оценка значения: (x − медиана) / IQR вместо (x − среднее) / σ"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": { "values": "12–40", "method": "линейная интерполяция", "steps": "квантили и пересчёт" },
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "grouped-percentile",
+					"form": "A",
+					"description": "перцентиль объединения двух групп, а не среднее перцентилей групп"
+				},
+				{
+					"id": "winsorize",
+					"form": "B",
+					"description": "винзоризация: значения за перцентилями заменяются ими, затем среднее"
+				},
+				{
+					"id": "percentile-rank",
+					"form": "anchor",
+					"description": "перцентильный ранг значения с повторами: меньшие плюс половина равных"
+				},
+				{
+					"id": "weighted-median",
+					"form": "X",
+					"description": "медиана по таблице частот: значения с весами, а не различные значения"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "что измеряется и в каких единицах" },
+		{ "name": "data", "description": "значения, их порядок, уровень перцентиля" }
+	],
+	"essentialParams": [
+		{
+			"name": "statistic",
+			"description": "перцентиль, IQR, граница выбросов, робастная оценка, винзоризация, перцентильный ранг, медиана по частотам"
+		},
+		{ "name": "data-shape", "description": "сырая выборка, две группы или таблица частот" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"перцентиль с линейной интерполяцией",
+			"квартили и IQR",
+			"правило 1,5·IQR",
+			"робастная стандартизация",
+			"перцентиль объединения групп",
+			"винзоризация",
+			"перцентильный ранг с повторами",
+			"медиана по таблице частот"
+		],
+		"doesNotCheck": ["другие методы квантилей (их выбор задан условием)", "доверительные интервалы квантилей"]
+	},
+	"wrongSolutions": [
+		{ "id": "nearest-rank", "defect": "берёт значение с номером ⌈n·p⌉ без интерполяции", "mustBeCaught": true },
+		{
+			"id": "unsorted-position",
+			"defect": "интерполирует по позиции в неотсортированной выборке",
+			"mustBeCaught": true
+		},
+		{ "id": "fence-from-median", "defect": "откладывает 1,5·IQR от медианы, а не от Q3", "mustBeCaught": true },
+		{
+			"id": "mean-std",
+			"defect": "стандартизует средним и стандартным отклонением вместо медианы и IQR",
+			"mustBeCaught": true
+		},
+		{
+			"id": "mean-of-group-percentiles",
+			"defect": "усредняет перцентили групп вместо перцентиля объединения",
+			"mustBeCaught": true
+		},
+		{ "id": "trim-instead", "defect": "отбрасывает значения за перцентилями вместо замены", "mustBeCaught": true },
+		{ "id": "le-count", "defect": "считает долю значений не больше x, без половины повторов", "mustBeCaught": true },
+		{
+			"id": "median-of-distinct",
+			"defect": "берёт медиану различных значений, не учитывая частоты",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 8, "caught": 8 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0223,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

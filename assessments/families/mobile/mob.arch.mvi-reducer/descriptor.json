@@ -1,0 +1,143 @@
+{
+	"key": "mob.arch.mvi-reducer",
+	"version": 1,
+	"specialization": "mobile",
+	"block": "mob.arch",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"intents": "6–9",
+				"lines": "25–35",
+				"mechanisms": 2,
+				"interacting": "copy и неизменяемое состояние вместе с номером запроса, откатом, очередью эффектов или StateFlow"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "stale-response",
+					"form": "A",
+					"description": "ответ с чужим номером запроса отбрасывается, повтор сохраняет номер, copy не трогает неуказанные поля"
+				},
+				{
+					"id": "optimistic-rollback",
+					"form": "B",
+					"description": "оптимистичный лайк откатывается обратной правкой, а не снимком: поздние лайки других постов остаются; повторный лайк игнорируется"
+				},
+				{
+					"id": "effects-replay",
+					"form": "anchor",
+					"description": "эффект ждёт в очереди и показывается один раз, состояние при подключении экрана — последнее; эффект берёт размер корзины до сброса"
+				},
+				{
+					"id": "stateflow-conflation",
+					"form": "X",
+					"description": "StateFlow: коллектор видит только последнее значение пачки и не получает равное прежнему"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "запросы, посты, товары, экраны и вкладки" },
+		{ "name": "values", "description": "номера запросов, счётчики, порядок намерений в пределах формы класса" }
+	],
+	"essentialParams": [
+		{
+			"name": "mechanism",
+			"description": "что решает вывод: номер запроса, откат обратной правкой, очередь эффектов, слияние значений StateFlow"
+		},
+		{ "name": "reset-on-search", "description": "сбрасывает ли поиск прежний результат (поле в copy)" }
+	],
+	"language": "kotlin",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"чистый редьюсер над неизменяемым data class и copy",
+			"отбрасывание устаревших ответов по номеру запроса",
+			"оптимистичное обновление и откат обратной правкой",
+			"одноразовые эффекты вне состояния: при повторном подключении не повторяются",
+			"StateFlow: слияние быстрых обновлений и пропуск равных состояний"
+		],
+		"doesNotCheck": [
+			"выбор библиотеки MVI и устройство ViewModel",
+			"Compose и подписку с учётом жизненного цикла",
+			"сохранение состояния при смерти процесса"
+		]
+	},
+	"wrongSolutions": [
+		{ "id": "stale-applied", "defect": "применяет ответ с устаревшим номером запроса", "mustBeCaught": true },
+		{ "id": "retry-new-request", "defect": "считает, что повтор запроса увеличивает его номер", "mustBeCaught": true },
+		{
+			"id": "stale-stops-loading",
+			"defect": "считает, что устаревший ответ снимает признак загрузки",
+			"mustBeCaught": true
+		},
+		{
+			"id": "copy-resets-defaults",
+			"defect": "считает, что copy сбрасывает неуказанные свойства к значениям по умолчанию",
+			"mustBeCaught": true
+		},
+		{
+			"id": "rollback-snapshot",
+			"defect": "откатывает к снимку состояния до неудачного лайка и теряет поздние изменения других постов",
+			"mustBeCaught": true
+		},
+		{
+			"id": "double-like-counts",
+			"defect": "не замечает проверки и считает повторный лайк ещё раз",
+			"mustBeCaught": true
+		},
+		{
+			"id": "effects-replayed",
+			"defect": "считает, что при повторном подключении экрана эффекты показываются снова, как состояние",
+			"mustBeCaught": true
+		},
+		{
+			"id": "state-history-replayed",
+			"defect": "считает, что подключённый экран получает все пропущенные состояния, а не последнее",
+			"mustBeCaught": true
+		},
+		{
+			"id": "effects-lost-detached",
+			"defect": "считает, что эффект, отправленный без подключённого экрана, теряется",
+			"mustBeCaught": true
+		},
+		{
+			"id": "effect-after-reset",
+			"defect": "считает, что в also уже виден новый state, и берёт размер пустой корзины",
+			"mustBeCaught": true
+		},
+		{
+			"id": "no-conflation",
+			"defect": "считает, что коллектор StateFlow получает каждое присваивание, даже без уступки потока",
+			"mustBeCaught": true
+		},
+		{
+			"id": "equal-rendered",
+			"defect": "считает, что StateFlow выдаёт и значение, равное прежнему",
+			"mustBeCaught": true
+		},
+		{
+			"id": "initial-skipped",
+			"defect": "считает, что коллектор StateFlow не получает начальное значение",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 13, "caught": 13 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0006,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

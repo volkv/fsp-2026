@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.6,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "e9cbe6fcba0814dec3900610544ac99a6b67b17ad841e1183eeee2afb513c133"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.6,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "e9cbe6fcba0814dec3900610544ac99a6b67b17ad841e1183eeee2afb513c133"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": {
 				"tables": 1,
 				"rows": "9–12",
@@ -84,6 +101,29 @@
 		"answerCollision": 0,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Четыре экземпляра пересчитаны в SQLite: совпадают. Ответ единственный, сортировка детерминирована (ключи уникальны).",
+					"not-precedence: NOT stock > 5 в SQLite действительно отрицает только сравнение, класс корректен; and-or и not-precedence схожи по приёму (приоритет операторов), но различаются ответами и ошибочными решениями.",
+					"Класс order-limit (LIMIT 3 OFFSET 4 с двухключевой сортировкой, одна DESC) самый трудоёмкий для intern, но в рамках 240 с."
+				],
+				"sourceSha256": "e9cbe6fcba0814dec3900610544ac99a6b67b17ad841e1183eeee2afb513c133"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Все четыре SQL-экземпляра независимо выполнены, эталоны верны. В and-or проходят id 1 и 8 как keyboards с price ≥ 330 и id 3 по stock = 0 независимо от цены. В between-like совпадают только ch-33, ch-35, ch-30 с ценами 170, 180, 360; обе границы включены.",
+					"Диалект, направления сортировки и формат ответа заданы. Для order-limit генератор выбирает различные цены, поэтому второй ключ задаёт однозначный порядок и границы LIMIT/OFFSET. Классы разделяют приоритеты логики, шаблон LIKE и выбор среза; случайное угадывание полной последовательности маловероятно. Уровень Intern соответствует определению.",
+					"Binary приемлема для короткого точного результата. Неблокирующее улучшение: игнорировать различия пробелов вокруг | при сохранении значений и порядка строк."
+				],
+				"sourceSha256": "e9cbe6fcba0814dec3900610544ac99a6b67b17ad841e1183eeee2afb513c133"
+			}
+		]
 	}
 }

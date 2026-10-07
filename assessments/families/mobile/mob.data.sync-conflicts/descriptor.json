@@ -1,0 +1,148 @@
+{
+	"key": "mob.data.sync-conflicts",
+	"version": 1,
+	"specialization": "mobile",
+	"block": "mob.data",
+	"format": "compute",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": { "notes": "2–3", "writes": "3–4", "strategy": 1, "rules": "стратегия + порядок записей" },
+			"constructiveRank": 4,
+			"timeNormSec": 400,
+			"classes": [
+				{
+					"id": "lww",
+					"form": "A",
+					"description": "last-write-wins по метке устройства: офлайн-правка, сделанная раньше онлайн-правки, проигрывает целиком"
+				},
+				{
+					"id": "version-retry",
+					"form": "B",
+					"description": "версии: правка из очереди получает 409, телефон подтягивает заметку и отправляет изменённые поля поверх неё"
+				},
+				{
+					"id": "field-merge",
+					"form": "anchor",
+					"description": "слияние по полям: правки разных полей сохраняются обе, одного поля — побеждает более поздняя"
+				},
+				{
+					"id": "delete-update",
+					"form": "X",
+					"description": "удаление против правки с надгробием: более поздняя правка восстанавливает заметку, более ранняя отбрасывается"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"constructive": {
+				"notes": "2–3",
+				"writes": "4–5",
+				"strategy": 1,
+				"rules": "сочетание: сдвиг часов, очередь версий, надгробия"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 450,
+			"classes": [
+				{
+					"id": "clock-skew",
+					"form": "A",
+					"description": "last-write-wins по часам телефона, которые спешат или отстают: порядок меток не совпадает с порядком событий"
+				},
+				{
+					"id": "queue-versions",
+					"form": "B",
+					"description": "две офлайн-правки одной заметки и онлайн-правка между ними: конфликт первой, повтор, новая версия во второй"
+				},
+				{
+					"id": "tombstone-version",
+					"form": "anchor",
+					"description": "версии и удаления: правка удалённой заметки отбрасывается, удаление после 409 повторяется на новой версии"
+				},
+				{ "id": "merge-skew", "form": "X", "description": "слияние по полям при сдвинутых часах телефона" }
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "заголовки и цвета заметок, моменты правок" },
+		{ "name": "data", "description": "какие поля меняются, число заметок, сдвиг часов" }
+	],
+	"essentialParams": [
+		{ "name": "strategy", "description": "last-write-wins по метке устройства, слияние по полям, версии с повтором" },
+		{
+			"name": "conflict",
+			"description": "что сталкивается: правки одного или разных полей, удаление и правка, несколько операций очереди"
+		},
+		{ "name": "clock", "description": "точны ли часы телефона" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"last-write-wins по времени клиента и сдвиг часов",
+			"оптимистическая блокировка: отклонение, подтягивание и повтор",
+			"слияние по полям",
+			"удаление против изменения, надгробия",
+			"порядок применения очереди офлайн-изменений"
+		],
+		"doesNotCheck": [
+			"CRDT и векторные часы",
+			"API WorkManager и Room для очереди",
+			"разрешение конфликтов пользователем"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "arrival-wins",
+			"defect": "считает, что побеждает запись, пришедшая на сервер последней, а не с более поздней меткой",
+			"mustBeCaught": true
+		},
+		{
+			"id": "field-level",
+			"defect": "считает, что last-write-wins меняет только изменённые поля, а не заметку целиком",
+			"mustBeCaught": true
+		},
+		{
+			"id": "record-level",
+			"defect": "считает, что слияние по полям заменяет заметку целиком по более поздней правке",
+			"mustBeCaught": true
+		},
+		{ "id": "reject-drops", "defect": "считает, что правка, получившая 409, теряется", "mustBeCaught": true },
+		{
+			"id": "retry-overwrites-all",
+			"defect": "считает, что повтор после 409 отправляет заметку телефона целиком и затирает чужие поля",
+			"mustBeCaught": true
+		},
+		{
+			"id": "delete-always-wins",
+			"defect": "считает, что удаление побеждает любую правку независимо от меток",
+			"mustBeCaught": true
+		},
+		{
+			"id": "skew-corrected",
+			"defect": "сравнивает истинное время событий, а не метки по часам устройства",
+			"mustBeCaught": true
+		},
+		{
+			"id": "update-resurrects",
+			"defect": "считает, что повтор правки удалённой заметки восстанавливает её",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 8, "caught": 8 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0026,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

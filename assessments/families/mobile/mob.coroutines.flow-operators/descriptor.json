@@ -1,0 +1,183 @@
+{
+	"key": "mob.coroutines.flow-operators",
+	"version": 1,
+	"specialization": "mobile",
+	"block": "mob.coroutines",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": { "elements": "2–5", "operators": "1–3", "lines": "10–22", "mechanisms": 2 },
+			"constructiveRank": 3,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "cold-recollect",
+					"form": "A",
+					"description": "холодный flow выполняет построитель заново при каждом collect, поэлементно вместе со сборщиком"
+				},
+				{
+					"id": "operator-chain",
+					"form": "B",
+					"description": "каждый элемент проходит onEach, map и filter до сборщика, прежде чем появится следующий"
+				},
+				{
+					"id": "take-completion",
+					"form": "anchor",
+					"description": "take останавливает построитель после n-го элемента: его finally и onCompletion выполняются"
+				},
+				{
+					"id": "transform-flat",
+					"form": "X",
+					"description": "transform и flatMapConcat выдают несколько элементов на один, каждый проходит вниз до следующего"
+				}
+			]
+		},
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": { "elements": "2–4", "operators": "2–4", "lines": "15–30", "mechanisms": 3 },
+			"constructiveRank": 5,
+			"timeNormSec": 330,
+			"classes": [
+				{
+					"id": "catch-completion",
+					"form": "A",
+					"description": "catch ловит только исключения выше по цепочке; onCompletion видит прошедшее через него исключение"
+				},
+				{
+					"id": "zip-combine",
+					"form": "B",
+					"description": "zip склеивает по номеру и кончается с короткой, combine склеивает последние значения при каждом новом"
+				},
+				{
+					"id": "buffer",
+					"form": "anchor",
+					"description": "buffer запускает производителя рядом с медленным сборщиком: строки идут по моментам"
+				},
+				{
+					"id": "flat-take",
+					"form": "X",
+					"description": "take после flatMapConcat считает внутренние элементы и останавливает внутренний flow на середине"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "имена потоков, подписи строк, строки main" },
+		{ "name": "values", "description": "элементы, множители и слагаемые, условия фильтров, задержки (кратны 100 мс)" }
+	],
+	"essentialParams": [
+		{
+			"name": "mechanism",
+			"description": "что решает вывод: холодный повторный сбор, поэлементный проход операторов, take, transform и flatMapConcat, catch и onCompletion, zip и combine, buffer"
+		},
+		{ "name": "placement", "description": "где в цепочке стоят take, catch и onCompletion и откуда летит исключение" }
+	],
+	"language": "kotlin",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"холодный flow: построитель выполняется заново при каждом collect",
+			"операторы обрабатывают элементы по одному, а не этапами",
+			"take отменяет построитель после n-го элемента, finally и onCompletion выполняются",
+			"transform и flatMapConcat",
+			"catch ловит только исключения выше по цепочке",
+			"onCompletion и причина завершения",
+			"zip и combine",
+			"buffer и параллельная работа производителя и сборщика"
+		],
+		"doesNotCheck": [
+			"StateFlow и SharedFlow",
+			"flowOn и смена диспетчера",
+			"порядок combine при одновременных значениях"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "stage-by-stage",
+			"defect": "считает, что операторы работают как функции коллекций: каждый этап по всем элементам, потом следующий",
+			"mustBeCaught": true
+		},
+		{
+			"id": "hot-flow",
+			"defect": "считает, что повторный collect получает значения без нового запуска построителя",
+			"mustBeCaught": true
+		},
+		{
+			"id": "eager-builder",
+			"defect": "считает, что построитель flow выполняется сразу при объявлении",
+			"mustBeCaught": true
+		},
+		{
+			"id": "take-runs-all",
+			"defect": "считает, что take даёт построителю доработать до конца и только отбрасывает лишнее",
+			"mustBeCaught": true
+		},
+		{
+			"id": "take-no-finally",
+			"defect": "считает, что finally построителя не выполняется, когда его останавливает take",
+			"mustBeCaught": true
+		},
+		{
+			"id": "take-waits-next",
+			"defect": "считает, что take(n) останавливается, только когда придёт элемент n + 1",
+			"mustBeCaught": true
+		},
+		{
+			"id": "catch-downstream",
+			"defect": "считает, что catch ловит и исключения сборщика ниже по цепочке",
+			"mustBeCaught": true
+		},
+		{
+			"id": "error-skips-element",
+			"defect": "считает, что исключение лишь пропускает элемент: catch его обрабатывает, и поток продолжается",
+			"mustBeCaught": true
+		},
+		{
+			"id": "completion-only-on-success",
+			"defect": "считает, что onCompletion вызывается только при успешном завершении",
+			"mustBeCaught": true
+		},
+		{
+			"id": "take-counts-outer",
+			"defect": "считает, что take после flatMapConcat считает внешние элементы",
+			"mustBeCaught": true
+		},
+		{
+			"id": "buffer-ignored",
+			"defect": "считает, что с buffer производитель всё равно ждёт сборщика, как без него",
+			"mustBeCaught": true
+		},
+		{
+			"id": "buffer-collects-all",
+			"defect": "считает, что buffer сначала собирает все элементы и только потом отдаёт их сборщику",
+			"mustBeCaught": true
+		},
+		{
+			"id": "zip-pads",
+			"defect": "считает, что zip продолжает до конца длинного потока, повторяя последнее значение короткого",
+			"mustBeCaught": true
+		},
+		{
+			"id": "combine-as-zip",
+			"defect": "считает, что combine склеивает значения по номеру, как zip",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 14, "caught": 14 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0006,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

@@ -1,0 +1,177 @@
+{
+	"key": "fe.perf.layout-thrashing",
+	"version": 1,
+	"specialization": "frontend",
+	"block": "fe.perf",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"operations": "10–12",
+				"mechanisms": "2–3",
+				"structure": "линейный код или один цикл",
+				"interacting": "признаки устаревания + виды чтений"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "interleaved",
+					"form": "A",
+					"description": "записи размеров вперемешку с чтениями геометрии и чтениями, которые ничего не пересчитывают: раскладку вызывает только чтение геометрии после записи"
+				},
+				{
+					"id": "color-writes",
+					"form": "B",
+					"description": "записи цвета и фона портят только стили: чтение геометрии после них — пересчёт стилей S, а не раскладка"
+				},
+				{
+					"id": "computed-style",
+					"form": "anchor",
+					"description": "getComputedStyle: цвет, шрифт и display требуют только стилей (S, раскладка остаётся устаревшей), ширина и высота — раскладки"
+				},
+				{
+					"id": "loop",
+					"form": "X",
+					"description": "чтение и запись в цикле по карточкам: запись конца итерации делает раскладку устаревшей для чтения следующей итерации"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"operations": "10–16",
+				"mechanisms": "3–4",
+				"structure": "кадры requestAnimationFrame, микрозадачи или два варианта кода",
+				"interacting": "порядок обработки кадра + признаки устаревания + виды чтений"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "raf-batching",
+					"form": "A",
+					"description": "колбэки requestAnimationFrame выполняются до отрисовки кадра: чтение в колбэке после записей синхронного кода — всё ещё принудительная раскладка"
+				},
+				{
+					"id": "two-variants",
+					"form": "B",
+					"description": "два варианта кода, вперемешку и пачками, в разных поддеревьях: раскладка одна на документ, запись в одном поддереве делает чтение в другом принудительным"
+				},
+				{
+					"id": "rare-reads",
+					"form": "anchor",
+					"description": "редкие чтения: innerText требует раскладки, textContent — нет; getComputedStyle размера — раскладка, цвета — только стили; записи цвета"
+				},
+				{
+					"id": "microtask-frames",
+					"form": "X",
+					"description": "микрозадачи выполняются до кадра, на устаревшей раскладке; вложенный requestAnimationFrame — в следующем кадре, после отрисовки"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "elements", "description": "имена и селекторы элементов" },
+		{ "name": "values", "description": "размеры, цвета, классы, тексты, конкретные свойства геометрии" }
+	],
+	"essentialParams": [
+		{ "name": "read-kind", "description": "что требует чтение: раскладку, только стили или ничего" },
+		{ "name": "write-kind", "description": "что портит запись: стили и раскладку или только стили" },
+		{
+			"name": "scheduling",
+			"description": "где выполняется код: одна задача, цикл, микрозадача, колбэк кадра, вложенный колбэк"
+		},
+		{ "name": "variants", "description": "один вариант кода или два, вперемешку и пачками" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"какие чтения вызывают принудительную синхронную раскладку, а какие — только пересчёт стилей",
+			"какие записи портят раскладку, а какие только стили",
+			"чтение после записи в цикле (layout thrashing)",
+			"порядок обработки кадра: микрозадачи, колбэки requestAnimationFrame, отрисовка",
+			"раскладка одна на документ: поддеревья не изолированы"
+		],
+		"doesNotCheck": [
+			"границы раскладки (contain) и частичную раскладку поддерева",
+			"длительность раскладки и число затронутых узлов",
+			"различия движков кроме Chromium"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "every-read-forces",
+			"defect": "считает, что каждое чтение геометрии вызывает раскладку, даже когда она актуальна",
+			"mustBeCaught": true
+		},
+		{
+			"id": "free-reads-force",
+			"defect": "считает, что dataset, getAttribute, el.style и textContent тоже вызывают раскладку",
+			"mustBeCaught": true
+		},
+		{
+			"id": "color-dirties-layout",
+			"defect": "считает, что запись цвета или фона портит раскладку",
+			"mustBeCaught": true
+		},
+		{
+			"id": "gcs-always-layout",
+			"defect": "считает, что getComputedStyle любого свойства вызывает раскладку",
+			"mustBeCaught": true
+		},
+		{
+			"id": "gcs-never-forces",
+			"defect": "считает, что getComputedStyle ничего не пересчитывает",
+			"mustBeCaught": true
+		},
+		{
+			"id": "loop-first-only",
+			"defect": "считает, что в цикле раскладка вызывается только на первой итерации",
+			"mustBeCaught": true
+		},
+		{
+			"id": "raf-starts-clean",
+			"defect": "считает, что перед колбэками requestAnimationFrame раскладка уже выполнена",
+			"mustBeCaught": true
+		},
+		{
+			"id": "microtask-after-paint",
+			"defect": "считает, что Promise.then выполняется после отрисовки кадра",
+			"mustBeCaught": true
+		},
+		{
+			"id": "nested-raf-same-frame",
+			"defect": "считает, что requestAnimationFrame внутри колбэка выполнится в том же кадре",
+			"mustBeCaught": true
+		},
+		{
+			"id": "subtree-isolated",
+			"defect": "считает, что запись в одном поддереве не делает раскладку устаревшей для чтения в другом",
+			"mustBeCaught": true
+		},
+		{
+			"id": "innertext-free",
+			"defect": "считает innerText таким же дешёвым чтением, как textContent",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 11, "caught": 11 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.018,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

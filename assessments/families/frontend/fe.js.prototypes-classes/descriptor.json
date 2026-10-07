@@ -1,0 +1,228 @@
+{
+	"key": "fe.js.prototypes-classes",
+	"version": 1,
+	"specialization": "frontend",
+	"block": "fe.js",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": { "lines": "18–30", "classes": "1–2", "mechanisms": 2, "initOrder": false },
+			"constructiveRank": 3,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "shadowing",
+					"form": "A",
+					"description": "собственное свойство затеняет свойство прототипа; правка прототипа видна экземплярам без своего свойства; for…in видит унаследованные свойства, Object.keys — нет"
+				},
+				{
+					"id": "super-static",
+					"form": "B",
+					"description": "статический метод с new this создаёт тот класс, на котором вызван; статические поля наследуются, присваивание через подкласс заводит своё"
+				},
+				{
+					"id": "accessors",
+					"form": "anchor",
+					"description": "геттер вычисляется при каждом чтении и живёт в прототипе: spread и Object.keys его не видят; сеттер ограничивает значение"
+				},
+				{
+					"id": "field-shadows-method",
+					"form": "X",
+					"description": "поле класса со стрелочной функцией — собственное свойство экземпляра и затеняет одноимённый метод подкласса"
+				}
+			]
+		},
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": { "lines": "20–36", "classes": "2–3", "mechanisms": 3, "initOrder": true },
+			"constructiveRank": 5,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "field-init-order",
+					"form": "A",
+					"description": "поля наследника задаются после возврата из конструктора базового класса: переопределённый метод, вызванный из него, полей не видит, а инициализатор поля затирает записанное"
+				},
+				{
+					"id": "private-fields",
+					"form": "B",
+					"description": "приватные поля есть только у объектов, созданных конструктором: #x in o — проверка бренда, у Object.create и копии spread их нет, JSON их не видит"
+				},
+				{
+					"id": "object-create",
+					"form": "anchor",
+					"description": "Object.create связывает объекты: мутация унаследованного массива общая, а += заводит собственное свойство; цепочка из нескольких звеньев"
+				},
+				{
+					"id": "super-home",
+					"form": "X",
+					"description": "super ищется от объекта, где определён метод, а не от this; прототип этого объекта читается в момент вызова"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "имена классов, свойств, методов и владельцев" },
+		{ "name": "numbers", "description": "значения свойств, множители, суммы и число вызовов" },
+		{
+			"name": "field-initializer",
+			"description": "middle, field-init-order: поле с инициализатором или только объявленное"
+		}
+	],
+	"essentialParams": [
+		{
+			"name": "mechanism",
+			"description": "где находится свойство и кто его создаёт: собственное или в прототипе, поле или метод, статическое, приватное, геттер"
+		},
+		{
+			"name": "timing",
+			"description": "когда выполняется код: инициализаторы полей относительно конструктора базового класса, поиск super в момент вызова"
+		}
+	],
+	"language": "javascript",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"поиск свойства по цепочке прототипов и затенение",
+			"delete и for…in против Object.keys",
+			"extends, super и статические члены",
+			"геттеры и сеттеры, копирование spread",
+			"порядок инициализации полей класса и конструктора базового класса",
+			"приватные поля и проверка #x in",
+			"Object.create и общее изменяемое состояние прототипа",
+			"привязка super к объекту, где определён метод"
+		],
+		"doesNotCheck": ["проектирование иерархий классов", "привязка this при передаче метода как колбэка"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "copied-at-creation",
+			"defect": "считает, что экземпляр копирует свойства прототипа при создании",
+			"mustBeCaught": true
+		},
+		{
+			"id": "assign-writes-prototype",
+			"defect": "считает, что присваивание через экземпляр меняет свойство прототипа",
+			"mustBeCaught": true
+		},
+		{
+			"id": "delete-reaches-prototype",
+			"defect": "считает, что delete через экземпляр удаляет унаследованное свойство",
+			"mustBeCaught": true
+		},
+		{
+			"id": "for-in-own-only",
+			"defect": "считает, что for…in перебирает только собственные свойства, как Object.keys",
+			"mustBeCaught": true
+		},
+		{
+			"id": "new-this-is-base",
+			"defect": "считает, что new this в статическом методе базового класса всегда создаёт базовый класс",
+			"mustBeCaught": true
+		},
+		{
+			"id": "static-not-inherited",
+			"defect": "считает, что статические поля не наследуются подклассом",
+			"mustBeCaught": true
+		},
+		{
+			"id": "static-assign-writes-base",
+			"defect": "считает, что присваивание унаследованного статического поля через подкласс меняет поле базового класса",
+			"mustBeCaught": true
+		},
+		{
+			"id": "getter-computed-once",
+			"defect": "считает, что геттер вычисляется один раз, как поле",
+			"mustBeCaught": true
+		},
+		{ "id": "spread-copies-accessors", "defect": "считает, что spread копирует геттеры класса", "mustBeCaught": true },
+		{
+			"id": "setter-bypassed",
+			"defect": "не замечает сеттер: присваивание записывает значение как есть в новое свойство",
+			"mustBeCaught": true
+		},
+		{
+			"id": "method-overrides-field",
+			"defect": "считает, что поле класса лежит в прототипе и метод подкласса его переопределяет",
+			"mustBeCaught": true
+		},
+		{
+			"id": "override-drops-super",
+			"defect": "считает, что переопределённый метод с super.method() не вызывает метод базового класса",
+			"mustBeCaught": true
+		},
+		{
+			"id": "fields-before-super",
+			"defect": "считает, что поля наследника заданы до вызова конструктора базового класса",
+			"mustBeCaught": true
+		},
+		{
+			"id": "base-calls-own-method",
+			"defect": "считает, что конструктор базового класса вызывает свой метод, а не переопределённый",
+			"mustBeCaught": true
+		},
+		{
+			"id": "field-keeps-existing",
+			"defect": "считает, что инициализатор поля не затирает значение, записанное конструктором базового класса",
+			"mustBeCaught": true
+		},
+		{
+			"id": "private-via-prototype",
+			"defect": "считает, что объект из Object.create(Class.prototype) наследует приватные поля",
+			"mustBeCaught": true
+		},
+		{
+			"id": "private-is-property",
+			"defect": "считает приватное поле скрытым обычным свойством: spread и JSON его копируют",
+			"mustBeCaught": true
+		},
+		{
+			"id": "spread-copies-getter",
+			"defect": "считает, что копия spread получает геттер класса",
+			"mustBeCaught": true
+		},
+		{
+			"id": "create-copies",
+			"defect": "считает, что Object.create копирует свойства прототипа в новый объект",
+			"mustBeCaught": true
+		},
+		{
+			"id": "increment-writes-proto",
+			"defect": "считает, что this.x += 1 меняет свойство там, где оно найдено, — в прототипе",
+			"mustBeCaught": true
+		},
+		{
+			"id": "mutation-creates-own",
+			"defect": "считает, что push в унаследованный массив заводит объекту собственную копию",
+			"mustBeCaught": true
+		},
+		{ "id": "super-from-receiver", "defect": "считает, что super ищется от прототипа this", "mustBeCaught": true },
+		{
+			"id": "super-fixed-at-definition",
+			"defect": "считает, что цель super фиксируется при объявлении класса и смена прототипа её не меняет",
+			"mustBeCaught": true
+		},
+		{
+			"id": "super-this-is-original",
+			"defect": "считает, что заимствованный метод вызывает super с исходным экземпляром в роли this",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 24, "caught": 24 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.002,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

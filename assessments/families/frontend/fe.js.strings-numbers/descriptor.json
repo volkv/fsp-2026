@@ -1,0 +1,138 @@
+{
+	"key": "fe.js.strings-numbers",
+	"version": 1,
+	"specialization": "frontend",
+	"block": "fe.js",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": { "expressions": "5–7", "negativeArguments": true, "mechanisms": 1 },
+			"constructiveRank": 2,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "slice-substring",
+					"form": "A",
+					"description": "slice считает отрицательный индекс с конца и при начале правее конца даёт пустую строку; substring заменяет отрицательное на 0 и переставляет аргументы; конец не включается"
+				},
+				{
+					"id": "float-rounding",
+					"form": "B",
+					"description": "двоичная плавающая точка: сумма десятых неточна, toFixed на десятичной половине округляет по двоичному значению; Math.round на отрицательной половине — к большему; toFixed возвращает строку"
+				},
+				{
+					"id": "parse-radix",
+					"form": "anchor",
+					"description": "parseInt с основанием останавливается на недопустимой цифре, map передаёт индекс как основание, префикс 0x — только при основании 16 или без основания"
+				},
+				{
+					"id": "string-methods",
+					"form": "X",
+					"description": "at(-k) против [-k], padStart задаёт итоговую длину и не обрезает, split с пределом отбрасывает остаток"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "words", "description": "слово, имя переменной, части строки для split" },
+		{ "name": "numbers", "description": "индексы, ширина, операнды, значения для оснований" },
+		{ "name": "order", "description": "порядок печатаемых выражений" }
+	],
+	"essentialParams": [
+		{ "name": "index-sign", "description": "отрицательные и переставленные аргументы slice и substring" },
+		{ "name": "representation", "description": "точно ли значение представимо в двоичной плавающей точке" },
+		{ "name": "radix", "description": "основание parseInt и допустимые цифры строки" }
+	],
+	"language": "javascript",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"slice против substring с отрицательными и переставленными аргументами",
+			"неточность двоичной плавающей точки, toFixed",
+			"Math.round на половинах",
+			"parseInt с основанием, map(parseInt)",
+			"at, padStart, split с пределом"
+		],
+		"doesNotCheck": ["Intl.NumberFormat и локали", "BigInt", "регулярные выражения"]
+	},
+	"wrongSolutions": [
+		{ "id": "end-inclusive", "defect": "считает, что конец в slice и substring включается", "mustBeCaught": true },
+		{
+			"id": "substring-negative",
+			"defect": "считает, что substring понимает отрицательный индекс как отсчёт с конца, как slice",
+			"mustBeCaught": true
+		},
+		{
+			"id": "substring-no-swap",
+			"defect": "считает, что substring при начале больше конца даёт пустую строку",
+			"mustBeCaught": true
+		},
+		{
+			"id": "slice-swaps",
+			"defect": "считает, что slice переставляет аргументы, если начало больше конца",
+			"mustBeCaught": true
+		},
+		{
+			"id": "exact-decimal",
+			"defect": "считает десятичные дроби точными: 0.1 + 0.2 === 0.3, toFixed округляет половину вверх",
+			"mustBeCaught": true
+		},
+		{
+			"id": "round-half-away",
+			"defect": "считает, что Math.round округляет отрицательную половину от нуля",
+			"mustBeCaught": true
+		},
+		{ "id": "tofixed-number", "defect": "считает, что toFixed возвращает число", "mustBeCaught": true },
+		{
+			"id": "invalid-digit-nan",
+			"defect": "считает, что parseInt даёт NaN, если в строке есть недопустимая для основания цифра",
+			"mustBeCaught": true
+		},
+		{
+			"id": "map-parseint",
+			"defect": "не учитывает, что map передаёт в parseInt индекс вторым аргументом",
+			"mustBeCaught": true
+		},
+		{
+			"id": "hex-prefix-any-radix",
+			"defect": "считает, что parseInt понимает префикс 0x при основании 10",
+			"mustBeCaught": true
+		},
+		{
+			"id": "bracket-negative",
+			"defect": "считает, что строка[-k] берёт символ с конца, как at(-k)",
+			"mustBeCaught": true
+		},
+		{
+			"id": "padstart-count",
+			"defect": "считает, что первый аргумент padStart — сколько символов добавить",
+			"mustBeCaught": true
+		},
+		{
+			"id": "padstart-truncates",
+			"defect": "считает, что padStart обрезает строку длиннее заданной",
+			"mustBeCaught": true
+		},
+		{
+			"id": "split-limit-rest",
+			"defect": "считает, что предел split оставляет остаток строки в последнем элементе",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 14, "caught": 14 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0001,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

@@ -1,0 +1,124 @@
+{
+	"key": "mob.arch.di-scopes",
+	"version": 1,
+	"specialization": "mobile",
+	"block": "mob.arch",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"classes": "5–6",
+				"scopes": 5,
+				"steps": "4–7",
+				"interacting": "поворот, второй экран, возврат и цепочки без скоупа"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 450,
+			"classes": [
+				{
+					"id": "rotation",
+					"form": "A",
+					"description": "повороты одного экрана: ActivityScoped пересоздаётся, ActivityRetainedScoped и ViewModel переживают, затем второй экран"
+				},
+				{
+					"id": "two-screens",
+					"form": "B",
+					"description": "второй экран открывают, закрывают и открывают снова: у каждого открытия свой ActivityRetainedComponent, без скоупа — на каждую инъекцию"
+				},
+				{
+					"id": "mixed-lifetimes",
+					"form": "anchor",
+					"description": "повороты, второй экран, возврат и повторное открытие в одном сценарии"
+				},
+				{
+					"id": "scope-error",
+					"form": "X",
+					"description": "граф не собирается: ViewModel тянет ActivityScoped (соседний компонент) или широкий скоуп достаёт узкий через класс без скоупа"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "имена классов, экранов и ViewModel" },
+		{ "name": "edges", "description": "конкретные зависимости конструкторов и поля Activity" }
+	],
+	"essentialParams": [
+		{
+			"name": "scenario",
+			"description": "что происходит с экранами: повороты, второй экран, возврат, повторное открытие"
+		},
+		{
+			"name": "graph-validity",
+			"description": "собирается ли граф: соседство ViewModelComponent и ActivityComponent, цепочки без скоупа"
+		}
+	],
+	"language": "kotlin",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"время жизни @Singleton, @ActivityRetainedScoped, @ActivityScoped, @ViewModelScoped",
+			"класс без скоупа создаётся на каждую инъекцию",
+			"ViewModel и ActivityRetainedComponent переживают поворот, Activity — нет",
+			"иерархия компонентов Hilt: ViewModelComponent и ActivityComponent — соседи",
+			"широкий скоуп не может зависеть от узкого, в том числе через класс без скоупа"
+		],
+		"doesNotCheck": [
+			"Fragment- и View-компоненты, собственные компоненты и @EntryPoint",
+			"Lazy, Provider и assisted injection",
+			"смерть процесса и восстановление состояния"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "retained-recreated",
+			"defect": "считает, что ActivityRetainedScoped пересоздаётся при повороте вместе с Activity",
+			"mustBeCaught": true
+		},
+		{
+			"id": "activity-survives-rotation",
+			"defect": "считает, что ActivityScoped переживает поворот",
+			"mustBeCaught": true
+		},
+		{
+			"id": "unscoped-per-component",
+			"defect": "считает класс без скоупа одним на компонент, куда его внедряют, а не новым на каждую инъекцию",
+			"mustBeCaught": true
+		},
+		{
+			"id": "viewmodel-recreated",
+			"defect": "считает, что ViewModel и её зависимости создаются заново при повороте",
+			"mustBeCaught": true
+		},
+		{
+			"id": "retained-shared",
+			"defect": "считает ActivityRetainedScoped одним на всё приложение, а не на каждое открытие экрана",
+			"mustBeCaught": true
+		},
+		{
+			"id": "vm-under-activity",
+			"defect": "считает ViewModelComponent дочерним для ActivityComponent и позволяет ViewModel зависеть от ActivityScoped",
+			"mustBeCaught": true
+		},
+		{
+			"id": "blame-intermediate",
+			"defect": "считает, что ошибку даёт класс без скоупа, который напрямую зависит от узкого, хотя у него нет своего компонента",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 7, "caught": 7 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0195,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

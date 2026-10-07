@@ -1,0 +1,166 @@
+{
+	"key": "fe.async.promise-chains",
+	"version": 1,
+	"specialization": "frontend",
+	"block": "fe.async",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"chains": 1,
+				"links": "4–8",
+				"mechanisms": 1,
+				"interacting": "путь значения и ошибки по одной цепочке"
+			},
+			"constructiveRank": 3,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "skip-to-catch",
+					"form": "A",
+					"description": "ошибка в then пропускает следующие then до ближайшего catch, после catch цепочка идёт дальше"
+				},
+				{
+					"id": "finally-value",
+					"form": "B",
+					"description": "finally не получает значения и не меняет его: значение проходит сквозь finally дальше по цепочке"
+				},
+				{
+					"id": "catch-recovers",
+					"form": "anchor",
+					"description": "catch, вернувший значение, возвращает цепочку на путь успеха; новая ошибка доходит до следующего catch"
+				},
+				{
+					"id": "then-two-args",
+					"form": "X",
+					"description": "then(onOk, onErr): onErr не ловит ошибку своего onOk, она уходит к следующему обработчику"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"constructive": {
+				"chains": 2,
+				"links": "3–6 + цепочка тактов",
+				"mechanisms": 2,
+				"interacting": "путь значения или ошибки + число тактов микрозадач у каждого звена"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "return-promise-ticks",
+					"form": "A",
+					"description": "обработчик then возвращает промис: следующее звено ждёт два лишних такта, цепочка тактов уходит вперёд"
+				},
+				{
+					"id": "finally-ticks",
+					"form": "B",
+					"description": "finally стоит больше тактов, чем then: значение проходит сквозь него позже соседней цепочки"
+				},
+				{
+					"id": "reject-skips",
+					"form": "anchor",
+					"description": "отклонение проходит каждый пропущенный then по одному такту и доходит до catch позже, чем кажется"
+				},
+				{
+					"id": "two-args-ticks",
+					"form": "X",
+					"description": "onOk в then(onOk, onErr) бросает ошибку: её ловит только следующий catch, на такт позже"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "values", "description": "исходное значение, суффиксы преобразований, тексты ошибок, метки вывода" },
+		{ "name": "layout", "description": "число и порядок промежуточных звеньев, порядок двух цепочек в тексте" }
+	],
+	"essentialParams": [
+		{
+			"name": "path",
+			"description": "что идёт по цепочке: значение, ошибка, восстановление в catch, finally, then с двумя обработчиками"
+		},
+		{
+			"name": "turns",
+			"description": "сколько тактов микрозадач стоит звено: then, пропущенный then, finally, возврат промиса"
+		}
+	],
+	"language": "javascript",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"ошибка пропускает then до ближайшего catch или onErr",
+			"catch, вернувший значение, продолжает цепочку успехом",
+			"finally не получает значение и не заменяет его",
+			"onErr не ловит исключение своего onOk",
+			"возврат промиса из обработчика стоит двух лишних тактов",
+			"finally и пропущенный then занимают свои такты"
+		],
+		"doesNotCheck": ["Promise.all, race, any, allSettled", "необработанные отклонения", "async и await"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "finally-receives-value",
+			"defect": "считает, что колбэк finally получает значение промиса аргументом",
+			"mustBeCaught": true
+		},
+		{
+			"id": "finally-overrides",
+			"defect": "считает, что значение, возвращённое из finally, заменяет значение цепочки",
+			"mustBeCaught": true
+		},
+		{
+			"id": "throw-runs-then",
+			"defect": "считает, что после ошибки следующие then всё равно выполняются",
+			"mustBeCaught": true
+		},
+		{
+			"id": "catch-stops-chain",
+			"defect": "считает, что после catch цепочка заканчивается и следующие then не выполняются",
+			"mustBeCaught": true
+		},
+		{
+			"id": "catch-keeps-rejected",
+			"defect": "считает, что после catch цепочка остаётся отклонённой той же ошибкой",
+			"mustBeCaught": true
+		},
+		{
+			"id": "onerr-catches-onok",
+			"defect": "считает, что второй аргумент then ловит ошибку, брошенную первым аргументом того же then",
+			"mustBeCaught": true
+		},
+		{
+			"id": "returned-promise-free",
+			"defect": "считает, что возврат промиса из обработчика стоит столько же тактов, сколько возврат значения",
+			"mustBeCaught": true
+		},
+		{
+			"id": "chain-runs-through",
+			"defect": "считает, что цепочка then выполняется целиком, не пропуская вперёд другую цепочку",
+			"mustBeCaught": true
+		},
+		{ "id": "finally-free", "defect": "считает, что finally стоит один такт, как обычный then", "mustBeCaught": true },
+		{
+			"id": "skip-free",
+			"defect": "считает, что отклонение проходит пропущенные then мгновенно, без тактов",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 10, "caught": 10 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0059,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

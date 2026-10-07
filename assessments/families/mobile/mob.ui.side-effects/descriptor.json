@@ -1,0 +1,132 @@
+{
+	"key": "mob.ui.side-effects",
+	"version": 1,
+	"specialization": "mobile",
+	"block": "mob.ui",
+	"format": "compute",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"effects": "3–4",
+				"steps": "4–7",
+				"interacting": "ключи эффектов + пропуск перекомпоновки + уход из композиции или таймеры"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 390,
+			"classes": [
+				{
+					"id": "key-restart",
+					"form": "A",
+					"description": "эффекты с ключом id и Unit при смене разных аргументов: перезапуск только по своему ключу, пропущенный шаг без SideEffect"
+				},
+				{
+					"id": "conditional",
+					"form": "B",
+					"description": "эффекты внутри if и уход экрана из композиции: Unit-эффект завершается при уходе и снова запускается при возвращении"
+				},
+				{
+					"id": "updated-state",
+					"form": "anchor",
+					"description": "два таймера на Unit: прямой захват обработчика видит значение на момент запуска, rememberUpdatedState — последнее"
+				},
+				{
+					"id": "completed",
+					"form": "X",
+					"description": "таймер с ключом id: завершившуюся корутину нечего отменять, незавершённую смена ключа отменяет"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "экран, имена аргументов, метки и тела эффектов" },
+		{ "name": "values", "description": "значения id, заголовков, имена обработчиков, длительности задержек" },
+		{ "name": "order", "description": "порядок эффектов в коде и шагов во времени" }
+	],
+	"essentialParams": [
+		{ "name": "effect-keys", "description": "ключи эффектов: аргумент или Unit, внутри условия или нет" },
+		{
+			"name": "timeline",
+			"description": "что происходит на шагах: смена ключа, смена другого аргумента, те же аргументы, уход и возвращение, срабатывание таймеров"
+		},
+		{
+			"name": "callback-capture",
+			"description": "как таймер получает обработчик: прямой захват или rememberUpdatedState"
+		}
+	],
+	"language": "kotlin",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"LaunchedEffect перезапускается при смене ключа, старая корутина отменяется",
+			"эффект с ключом Unit живёт, пока функция в композиции, и запускается снова при возвращении",
+			"DisposableEffect: onDispose при смене ключа и уходе из композиции",
+			"SideEffect после каждой выполненной перекомпоновки, не после пропущенной",
+			"rememberUpdatedState против захвата значения в эффекте",
+			"отмена касается только незавершённой корутины"
+		],
+		"doesNotCheck": [
+			"диспетчеризацию корутин эффектов относительно кадра",
+			"produceState, snapshotFlow и rememberCoroutineScope",
+			"порядок эффектов в разных функциях одного дерева"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "unit-restarts",
+			"defect": "считает, что эффект с ключом Unit перезапускается при каждой перекомпоновке",
+			"mustBeCaught": true
+		},
+		{
+			"id": "keys-ignored",
+			"defect": "перезапускает эффект с ключом при любой перекомпоновке, даже если ключ не изменился",
+			"mustBeCaught": true
+		},
+		{
+			"id": "side-always",
+			"defect": "выполняет SideEffect и тогда, когда функция пропущена при равных аргументах",
+			"mustBeCaught": true
+		},
+		{
+			"id": "side-once",
+			"defect": "считает, что SideEffect выполняется только после первой композиции",
+			"mustBeCaught": true
+		},
+		{
+			"id": "updated-ignored",
+			"defect": "считает, что таймер через rememberUpdatedState вызывает обработчик, бывший при запуске",
+			"mustBeCaught": true
+		},
+		{
+			"id": "direct-fresh",
+			"defect": "считает, что таймер, захвативший onTimeout напрямую, вызывает последний переданный обработчик",
+			"mustBeCaught": true
+		},
+		{
+			"id": "no-cleanup-on-leave",
+			"defect": "не завершает эффекты, когда экран или блок if уходит из композиции",
+			"mustBeCaught": true
+		},
+		{ "id": "cancel-completed", "defect": "отменяет и уже завершившуюся корутину таймера", "mustBeCaught": true },
+		{
+			"id": "unit-once-forever",
+			"defect": "считает, что эффект с ключом Unit не запускается снова после возвращения в композицию",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 9, "caught": 9 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.006,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

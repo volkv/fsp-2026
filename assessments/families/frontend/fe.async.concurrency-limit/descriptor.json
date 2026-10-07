@@ -1,0 +1,192 @@
+{
+	"key": "fe.async.concurrency-limit",
+	"version": 1,
+	"specialization": "frontend",
+	"block": "fe.async",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"loads": "6–9",
+				"limit": "2–3",
+				"rules": 3,
+				"interacting": "await в цикле, Promise.all, forEach(async), пул или пачки на одной шкале времени"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "loop-forms",
+					"form": "A",
+					"description": "три формы в одной функции: await в цикле идёт по очереди, Promise.all — параллельно, forEach(async) не ждётся вовсе"
+				},
+				{
+					"id": "pool",
+					"form": "B",
+					"description": "пул из K воркеров: освободившийся воркер сразу берёт следующий ресурс из общей очереди"
+				},
+				{
+					"id": "batches",
+					"form": "anchor",
+					"description": "пачки по K: следующая пачка стартует только после самой долгой загрузки предыдущей"
+				},
+				{ "id": "pool-vs-batches", "form": "X", "description": "пул и пачки на одних данных: два итоговых времени" }
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"loads": "5–7",
+				"limit": "2–3",
+				"rules": 5,
+				"interacting": "пул + повторы с паузой, приоритеты с моментами появления, отмена по первой ошибке или лимит на хост"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "retry",
+					"form": "A",
+					"description": "упавшая загрузка повторяется тем же воркером после паузы backoff · attempt: пауза держит слот, следующие ресурсы ждут"
+				},
+				{
+					"id": "priority",
+					"form": "B",
+					"description": "планировщик с приоритетами: свободный слот берёт самую важную из уже появившихся задач, а не из всех"
+				},
+				{
+					"id": "fail-fast",
+					"form": "anchor",
+					"description": "первая ошибка отклоняет Promise.all сразу; без AbortController другие воркеры продолжают брать задачи, с ним — загрузки обрываются"
+				},
+				{
+					"id": "per-host",
+					"form": "X",
+					"description": "общий лимит K и не больше одного запроса на хост: слот берёт первую задачу со свободным хостом, обходя занятые"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "имена ресурсов и хостов" },
+		{ "name": "numbers", "description": "длительности загрузок, порядок в очереди, моменты появления" }
+	],
+	"essentialParams": [
+		{
+			"name": "concurrency-form",
+			"description": "await в цикле, Promise.all, forEach(async), пул, пачки, планировщик с приоритетами, лимит на хост"
+		},
+		{
+			"name": "failure-rule",
+			"description": "что происходит при ошибке: повтор с паузой в том же слоте, отказ всего пула, отмена"
+		}
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"await в цикле против Promise.all и forEach с async-колбэком",
+			"пул воркеров с общей очередью против пачек",
+			"порядок завершения загрузок",
+			"повтор упавших загрузок с паузой, которая занимает слот пула",
+			"приоритеты с учётом момента появления задачи",
+			"отклонение Promise.all не останавливает воркеров; отмена через AbortController",
+			"лимит параллельности на хост без блокировки очереди"
+		],
+		"doesNotCheck": [
+			"сетевые накладные расходы и лимиты браузера на соединения",
+			"одновременные события (данные построены без совпадений моментов)"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "seq-as-parallel",
+			"defect": "считает, что await в цикле for…of запускает загрузки параллельно",
+			"mustBeCaught": true
+		},
+		{ "id": "each-waits", "defect": "считает, что функция ждёт загрузки из forEach(async …)", "mustBeCaught": true },
+		{
+			"id": "code-order",
+			"defect": "перечисляет завершившиеся загрузки в порядке кода или очереди, а не по времени завершения",
+			"mustBeCaught": true
+		},
+		{
+			"id": "pool-as-batches",
+			"defect": "считает пул пачками: новые загрузки стартуют, только когда закончатся все текущие",
+			"mustBeCaught": true
+		},
+		{
+			"id": "batches-as-pool",
+			"defect": "считает пачки пулом: следующая загрузка стартует, как только освободилось место",
+			"mustBeCaught": true
+		},
+		{
+			"id": "static-split",
+			"defect": "считает, что каждый воркер заранее получает свою долю очереди (ресурсы i, i+K, …)",
+			"mustBeCaught": true
+		},
+		{
+			"id": "retry-at-end",
+			"defect": "считает, что упавшая загрузка уходит в конец очереди и воркер сразу берёт следующую, а не ждёт паузу и повторяет сам",
+			"mustBeCaught": true
+		},
+		{
+			"id": "no-backoff",
+			"defect": "не учитывает паузу перед повтором: считает, что повтор начинается сразу после ошибки",
+			"mustBeCaught": true
+		},
+		{
+			"id": "attempts-as-retries",
+			"defect": "считает maxAttempts числом повторов после первой попытки",
+			"mustBeCaught": true
+		},
+		{ "id": "fifo", "defect": "не учитывает приоритет: берёт задачи в порядке появления", "mustBeCaught": true },
+		{
+			"id": "all-at-start",
+			"defect": "считает, что все задачи доступны планировщику с самого начала",
+			"mustBeCaught": true
+		},
+		{
+			"id": "reject-stops-workers",
+			"defect": "считает, что отклонение Promise.all останавливает остальных воркеров",
+			"mustBeCaught": true
+		},
+		{
+			"id": "abort-lets-finish",
+			"defect": "считает, что abort() только запрещает новые загрузки, а начатые доходят до конца",
+			"mustBeCaught": true
+		},
+		{
+			"id": "reject-at-end",
+			"defect": "считает, что Promise.all отклоняется, только когда остановятся все воркеры",
+			"mustBeCaught": true
+		},
+		{
+			"id": "ignore-host-limit",
+			"defect": "не учитывает лимит на хост: берёт задачи строго по очереди в свободные слоты",
+			"mustBeCaught": true
+		},
+		{
+			"id": "head-of-line",
+			"defect": "считает, что задача с занятым хостом блокирует всю очередь за собой",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 16, "caught": 16 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0011,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

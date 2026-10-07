@@ -34,6 +34,8 @@ interface Rules {
 	handoff: boolean;
 	repair: boolean;
 	byTimestamp: boolean;
+	quorumCheck: boolean;
+	storedRead: boolean;
 }
 
 const RIGHT: Rules = {
@@ -42,7 +44,9 @@ const RIGHT: Rules = {
 	sparesCount: true,
 	handoff: true,
 	repair: true,
-	byTimestamp: true
+	byTimestamp: true,
+	quorumCheck: true,
+	storedRead: true
 };
 
 /** `ok`/`fail` for every write and `v<k>`/`fail` for every read, in order. */
@@ -71,7 +75,7 @@ function simulate(p: Params, rules: Rules): string {
 			const covered =
 				p.mode === 'sloppy' ? p.replicas.filter((n) => !up.has(n)).slice(0, p.spares.length) : ([] as string[]);
 			const acks = live.length + (p.mode === 'sloppy' && rules.sparesCount ? covered.length : 0);
-			if (acks >= p.w) {
+			if (acks >= p.w || !rules.quorumCheck) {
 				stamps.set(next, e.ts ?? next);
 				for (const n of reached) if (newer(next, version.get(n) ?? 0)) version.set(n, next);
 				if (p.mode === 'sloppy') for (const n of covered) hints.push({ target: n, version: next });
@@ -87,7 +91,7 @@ function simulate(p: Params, rules: Rules): string {
 			const asked = rules.firstR ? live.slice(0, p.r) : live;
 			const newest = asked.map((n) => version.get(n) ?? 0).reduce((best, v) => (newer(v, best) ? v : best));
 			if (p.mode === 'read-repair' && rules.repair) for (const n of asked) version.set(n, newest);
-			out.push(`v${newest}`);
+			out.push(`v${rules.storedRead ? newest : next - 1}`);
 		}
 	}
 	return out.join(' ');
@@ -110,12 +114,6 @@ const QUORUMS: Record<string, [number, number][]> = {
 		[2, 4],
 		[1, 3],
 		[3, 2]
-	],
-	'sloppy/3': [
-		[1, 2],
-		[2, 2],
-		[1, 3],
-		[2, 3]
 	],
 	'read-repair/3': [
 		[2, 1],
@@ -196,8 +194,81 @@ function repairSchedule(rng: Rng, replicas: readonly string[], r: number, w: num
 	return events;
 }
 
+/**
+ * Sloppy quorum (N = 5, R, W and the number of spares chosen so every block below is possible): blocks in random
+ * order between random writes and reads —
+ * - a write acknowledged only thanks to the spares;
+ * - a write that fails: one replica alive, too few spares;
+ * - the first R replicas miss a write, recover and get it from the hints, and serve the next read;
+ * - the first R + spares replicas miss a write, only the hinted ones stay down, and the next read is stale.
+ */
+const SLOPPY: [number, number, number][] = [
+	[1, 3, 1],
+	[1, 4, 1],
+	[2, 3, 1],
+	[1, 4, 2]
+];
+
+function sloppySchedule(rng: Rng, replicas: readonly string[], r: number, w: number, spares: number): Event[] {
+	const events: Event[] = [{ kind: 'write' }];
+	const down = new Set<string>();
+	const set = (node: string, isDown: boolean): void => {
+		if (isDown === down.has(node)) return;
+		if (isDown) down.add(node);
+		else down.delete(node);
+		events.push({ kind: isDown ? 'down' : 'up', node });
+	};
+	const recoverAll = (): void => {
+		for (const node of rng.shuffle([...down])) set(node, false);
+	};
+	const noise = (): void => {
+		for (let i = rng.int(0, 2); i > 0; i -= 1) events.push({ kind: rng.pick(['write', 'read'] as const) });
+	};
+	for (const block of rng.shuffle(['spares', 'fail', 'handoff', 'stale'])) {
+		noise();
+		recoverAll();
+		if (block === 'spares') {
+			const missing = rng.int(1, Math.min(spares, w - 1));
+			for (const node of rng.sample(replicas, replicas.length - (w - missing))) set(node, true);
+			events.push({ kind: 'write' }, { kind: 'read' });
+		} else if (block === 'fail') {
+			const keep = rng.pick(replicas);
+			for (const node of rng.shuffle(replicas.filter((n) => n !== keep))) set(node, true);
+			events.push({ kind: 'write' });
+		} else if (block === 'handoff') {
+			for (const node of rng.shuffle(replicas.slice(0, r))) set(node, true);
+			events.push({ kind: 'write' });
+			recoverAll();
+			events.push({ kind: 'read' });
+		} else {
+			const missed = replicas.slice(0, r + spares);
+			for (const node of rng.shuffle(missed)) set(node, true);
+			events.push({ kind: 'write' });
+			for (const node of rng.shuffle(missed.slice(spares))) set(node, false);
+			events.push({ kind: 'read' });
+		}
+	}
+	noise();
+	recoverAll();
+	events.push({ kind: 'read' });
+	return events;
+}
+
 function scenario(rng: Rng, classId: string): Params {
-	const n = classId === 'sloppy' ? 3 : rng.pick([3, 3, 5]);
+	if (classId === 'sloppy') {
+		const replicas = ['A', 'B', 'C', 'D', 'E'];
+		const [r, w, spareCount] = rng.pick(SLOPPY);
+		return {
+			key: rng.pick(KEYS),
+			replicas,
+			spares: ['S1', 'S2'].slice(0, spareCount),
+			r,
+			w,
+			mode: 'sloppy',
+			events: sloppySchedule(rng, replicas, r, w, spareCount)
+		};
+	}
+	const n = rng.pick([3, 3, 5]);
 	const replicas = ['A', 'B', 'C', 'D', 'E'].slice(0, n);
 	const [r, w] = rng.pick(QUORUMS[`${classId === 'lww' ? 'strict' : classId}/${n}`] ?? []);
 	const events = classId === 'read-repair' ? repairSchedule(rng, replicas, r, w) : randomSchedule(rng, replicas);
@@ -217,10 +288,10 @@ function scenario(rng: Rng, classId: string): Params {
 	return {
 		key: rng.pick(KEYS),
 		replicas,
-		spares: classId === 'sloppy' ? ['S1', 'S2'] : [],
+		spares: [],
 		r,
 		w,
-		mode: classId === 'sloppy' || classId === 'read-repair' || classId === 'lww' ? classId : 'strict',
+		mode: classId === 'read-repair' || classId === 'lww' ? classId : 'strict',
 		events
 	};
 }
@@ -340,13 +411,15 @@ const WRONG: Record<string, Partial<Rules>> = {
 	'strict-in-sloppy': { sparesCount: false },
 	'no-handoff': { handoff: false },
 	'no-repair': { repair: false },
-	'issue-order-wins': { byTimestamp: false }
+	'issue-order-wins': { byTimestamp: false },
+	'every-write-succeeds': { quorumCheck: false },
+	'latest-global-version': { storedRead: false }
 };
 
 /** The misconceptions every instance of a class must expose; the others apply where they change the answer. */
 const REQUIRED: Record<string, string[]> = {
 	strict: ['write-to-down', 'read-all-up'],
-	sloppy: ['strict-in-sloppy', 'no-handoff'],
+	sloppy: ['strict-in-sloppy', 'no-handoff', 'every-write-succeeds', 'latest-global-version'],
 	'read-repair': ['no-repair', 'read-all-up'],
 	lww: ['issue-order-wins', 'write-to-down']
 };

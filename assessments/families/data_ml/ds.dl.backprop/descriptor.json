@@ -1,0 +1,110 @@
+{
+	"key": "ds.dl.backprop",
+	"version": 1,
+	"specialization": "data_ml",
+	"block": "ds.dl",
+	"format": "compute",
+	"answerKind": "float_eps",
+	"levels": [
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"constructive": {
+				"layers": "1–2",
+				"units": "2–3",
+				"chain": "потеря → выход → активация → вес или вход",
+				"batch": "1–2 примера"
+			},
+			"constructiveRank": 7,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "relu-batch",
+					"form": "A",
+					"description": "два примера, ReLU и среднее MSE: множитель 2 и 1/n, нейрон активен только на одном примере"
+				},
+				{
+					"id": "tanh-bce",
+					"form": "B",
+					"description": "скрытый tanh и сигмоида с бинарной кросс-энтропией: градиент по логиту — p − t, производная tanh — 1 − h²"
+				},
+				{
+					"id": "softmax-ce",
+					"form": "anchor",
+					"description": "softmax с кросс-энтропией: градиент по логиту k — p_k − [k = истинный класс]"
+				},
+				{
+					"id": "residual",
+					"form": "X",
+					"description": "градиент по входу через ReLU и skip-соединение: сумма пути через активный нейрон и прямого пути"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "numbers", "description": "входы, веса, смещения и цели на сетке десятых" },
+		{ "name": "asked", "description": "какой элемент градиента напечатан" }
+	],
+	"essentialParams": [
+		{
+			"name": "loss-activation",
+			"description": "пара потери и активаций: MSE с ReLU на батче, BCE с сигмоидой и tanh, softmax с CE, skip-соединение"
+		},
+		{ "name": "target", "description": "по чему берётся градиент: вес первого слоя или вход" }
+	],
+	"language": "python3",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"цепное правило через активацию",
+			"производная ReLU на батче и усреднение потери",
+			"градиент сигмоиды с бинарной кросс-энтропией и softmax с кросс-энтропией",
+			"производная tanh",
+			"градиент по входу через skip-соединение"
+		],
+		"doesNotCheck": ["автоматическое дифференцирование произвольного графа", "численная устойчивость в float32"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "sum-not-mean",
+			"defect": "не делит градиент на размер батча при усреднённой потере",
+			"mustBeCaught": true
+		},
+		{ "id": "half-mse", "defect": "теряет множитель 2 у производной квадрата", "mustBeCaught": true },
+		{
+			"id": "relu-derivative-ignored",
+			"defect": "пропускает градиент через неактивный нейрон ReLU",
+			"mustBeCaught": true
+		},
+		{
+			"id": "sigmoid-extra-factor",
+			"defect": "домножает p − t ещё на p(1 − p), хотя BCE с сигмоидой его уже сократила",
+			"mustBeCaught": true
+		},
+		{ "id": "tanh-as-sigmoid", "defect": "берёт производную tanh как h(1 − h)", "mustBeCaught": true },
+		{ "id": "indicator-forgotten", "defect": "для истинного класса берёт p_k вместо p_k − 1", "mustBeCaught": true },
+		{
+			"id": "softmax-jacobian-ignored",
+			"defect": "дифференцирует −log p_c только по логиту истинного класса как −1/p_c, без якобиана softmax",
+			"mustBeCaught": true
+		},
+		{
+			"id": "skip-ignored",
+			"defect": "не учитывает прямой путь skip-соединения в градиенте по входу",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 8, "caught": 8 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0001,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

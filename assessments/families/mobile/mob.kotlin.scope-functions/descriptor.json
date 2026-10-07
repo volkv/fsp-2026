@@ -1,0 +1,159 @@
+{
+	"key": "mob.kotlin.scope-functions",
+	"version": 1,
+	"specialization": "mobile",
+	"block": "mob.kotlin",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": { "calls": "3–4", "mechanisms": 1, "mutableReceiver": true, "nestedBlocks": false },
+			"constructiveRank": 2,
+			"timeNormSec": 180,
+			"classes": [
+				{
+					"id": "block-result",
+					"form": "A",
+					"description": "let и run возвращают значение блока, also и apply — получатель; четыре вызова на одном Int"
+				},
+				{
+					"id": "same-object",
+					"form": "B",
+					"description": "блоки apply, also, let и run работают с тем же изменяемым списком, а не с копией"
+				},
+				{
+					"id": "object-state",
+					"form": "anchor",
+					"description": "чтение свойств объекта через run или with (this) и let (it) до и после изменения через apply и also"
+				},
+				{
+					"id": "chain",
+					"form": "X",
+					"description": "цепочка let/run и also/apply: каждый шаг получает результат предыдущего, исходная переменная не меняется"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": { "calls": "4–5", "mechanisms": 2, "mutableReceiver": true, "nestedBlocks": true },
+			"constructiveRank": 3,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "receiver-alias",
+					"form": "A",
+					"description": "apply и also возвращают сам список — напечатанный позже, он показывает и последующие изменения; let и run — значение блока"
+				},
+				{
+					"id": "local-shadows",
+					"form": "B",
+					"description": "локальная переменная закрывает одноимённое свойство получателя внутри with, run и apply; this.имя — свойство"
+				},
+				{
+					"id": "nested-it",
+					"form": "anchor",
+					"description": "во вложенных блоках it — параметр ближайшей лямбды, а this внутри let — получатель внешнего run"
+				},
+				{
+					"id": "outer-this",
+					"form": "X",
+					"description": "apply в методе класса: имя без квалификатора — свойство получателя apply, this@Класс — свойство класса"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "имена переменных, списков, классов и свойств" },
+		{ "name": "values", "description": "числа, слова, константы в блоках и арифметическая операция" },
+		{ "name": "order", "description": "порядок вызовов функций области видимости и выбор между run и with" }
+	],
+	"essentialParams": [
+		{
+			"name": "returned",
+			"description": "что возвращает функция области видимости: значение блока (let, run, with) или получатель (also, apply)"
+		},
+		{
+			"name": "resolution",
+			"description": "к чему относится имя в блоке: it, this, локальная переменная, свойство получателя, свойство внешнего класса"
+		},
+		{
+			"name": "identity",
+			"description": "тот же объект или копия: изменения в блоке видны снаружи и в ранее возвращённых ссылках"
+		}
+	],
+	"language": "kotlin",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"что возвращают let, run, with, also и apply",
+			"it и this в блоках",
+			"изменения изменяемого объекта внутри блока видны снаружи",
+			"цепочки функций области видимости",
+			"затенение: локальная переменная против свойства получателя, вложенный it",
+			"this@Класс в apply внутри метода класса"
+		],
+		"doesNotCheck": [
+			"выбор подходящей функции области видимости при написании кода",
+			"takeIf и takeUnless (семейство null-безопасности)"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "returns-lambda",
+			"defect": "считает, что also и apply, как let и run, возвращают значение блока",
+			"mustBeCaught": true
+		},
+		{
+			"id": "returns-receiver",
+			"defect": "считает, что let и run, как also и apply, возвращают получателя",
+			"mustBeCaught": true
+		},
+		{
+			"id": "scope-copies",
+			"defect": "считает, что блок работает с копией объекта и его изменения не видны снаружи",
+			"mustBeCaught": true
+		},
+		{
+			"id": "receiver-mutated",
+			"defect": "считает, что let и run записывают результат блока в исходную переменную",
+			"mustBeCaught": true
+		},
+		{
+			"id": "receiver-snapshot",
+			"defect": "считает, что apply и also возвращают снимок списка на момент вызова, а не сам список",
+			"mustBeCaught": true
+		},
+		{
+			"id": "member-wins",
+			"defect": "считает, что внутри with, run и apply свойство получателя важнее одноимённой локальной переменной",
+			"mustBeCaught": true
+		},
+		{
+			"id": "it-outer",
+			"defect": "считает, что it во вложенной лямбде — параметр внешней лямбды",
+			"mustBeCaught": true
+		},
+		{ "id": "let-this", "defect": "считает, что this внутри let — получатель let", "mustBeCaught": true },
+		{
+			"id": "outer-this-wins",
+			"defect": "считает, что имя без квалификатора в apply внутри метода — свойство внешнего класса",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 9, "caught": 9 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0038,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

@@ -1,0 +1,163 @@
+{
+	"key": "ds.metrics.baseline",
+	"version": 1,
+	"specialization": "data_ml",
+	"block": "ds.metrics",
+	"format": "compute",
+	"answerKind": "float_eps",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": {
+				"positiveShare": "5–30 %",
+				"baseline": "константа или случайный классификатор",
+				"steps": "1–2"
+			},
+			"constructiveRank": 2,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "constant-accuracy",
+					"form": "A",
+					"description": "accuracy константного предсказания мажоритарного класса при дисбалансе"
+				},
+				{
+					"id": "random-precision",
+					"form": "B",
+					"description": "ожидаемая precision случайного классификатора — доля позитивов, а не вероятность метки"
+				},
+				{
+					"id": "lift",
+					"form": "anchor",
+					"description": "lift: precision модели, делённая на долю позитивов в выборке"
+				},
+				{
+					"id": "accuracy-gain",
+					"form": "X",
+					"description": "прирост accuracy модели над константой мажоритарного класса, а не над 0,5"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"positiveShare": "5–30 %",
+				"baseline": "поправка на случайность или смена доли классов",
+				"steps": "2–4"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 330,
+			"classes": [
+				{
+					"id": "random-f1",
+					"form": "A",
+					"description": "F1 случайного классификатора с долей положительных меток q по ожидаемым клеткам матрицы"
+				},
+				{
+					"id": "kappa",
+					"form": "B",
+					"description": "каппа Коэна: accuracy с поправкой на случайное согласие по маргиналам матрицы"
+				},
+				{
+					"id": "prior-shift-accuracy",
+					"form": "anchor",
+					"description": "accuracy при тех же TPR и FPR после смены доли позитивов"
+				},
+				{
+					"id": "error-reduction",
+					"form": "X",
+					"description": "относительное снижение ошибки модели относительно константы мажоритарного класса"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "предметная область и названия классов" },
+		{ "name": "numbers", "description": "размер выборки, клетки матрицы ошибок, доли" }
+	],
+	"essentialParams": [
+		{
+			"name": "baseline",
+			"description": "с чем сравнивается модель: константа мажоритарного класса, случайный классификатор, случайное согласие"
+		},
+		{
+			"name": "quantity",
+			"description": "что спрашивается: метрика базы, lift, прирост, поправка на случайность, смена доли классов"
+		}
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"accuracy константного предсказания при дисбалансе классов",
+			"ожидаемые метрики случайного классификатора",
+			"lift модели над долей позитивов",
+			"поправка на случайное согласие (каппа Коэна)",
+			"accuracy при смене доли классов при тех же TPR и FPR",
+			"относительное снижение ошибки над базой"
+		],
+		"doesNotCheck": ["выбор базы для конкретного бизнес-процесса", "доверительные интервалы метрик"]
+	},
+	"wrongSolutions": [
+		{ "id": "minority-constant", "defect": "считает константой предсказание редкого класса", "mustBeCaught": true },
+		{ "id": "half-baseline", "defect": "берёт за базу accuracy 0,5, как при равных классах", "mustBeCaught": true },
+		{
+			"id": "precision-as-q",
+			"defect": "принимает долю положительных меток случайного классификатора за его precision",
+			"mustBeCaught": true
+		},
+		{
+			"id": "precision-not-lift",
+			"defect": "отвечает precision модели вместо её отношения к доле позитивов",
+			"mustBeCaught": true
+		},
+		{ "id": "inverted-lift", "defect": "делит долю позитивов на precision", "mustBeCaught": true },
+		{ "id": "no-baseline", "defect": "отвечает accuracy модели без вычитания базы", "mustBeCaught": true },
+		{
+			"id": "arithmetic-mean",
+			"defect": "берёт среднее арифметическое precision и recall вместо гармонического",
+			"mustBeCaught": true
+		},
+		{
+			"id": "constant-positive",
+			"defect": "считает F1 константы «всё позитив» вместо случайного классификатора",
+			"mustBeCaught": true
+		},
+		{
+			"id": "accuracy-no-chance",
+			"defect": "отвечает accuracy без поправки на случайное согласие",
+			"mustBeCaught": true
+		},
+		{
+			"id": "half-chance",
+			"defect": "считает случайное согласие равным 0,5 вместо расчёта по маргиналам",
+			"mustBeCaught": true
+		},
+		{ "id": "old-prior", "defect": "оставляет accuracy при прежней доле позитивов", "mustBeCaught": true },
+		{
+			"id": "balanced-instead",
+			"defect": "отвечает сбалансированную точность, не взвешивая TPR и TNR новой долей",
+			"mustBeCaught": true
+		},
+		{
+			"id": "absolute-gain",
+			"defect": "отвечает абсолютную разность ошибок вместо относительной",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 13, "caught": 13 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0008,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

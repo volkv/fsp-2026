@@ -1,0 +1,122 @@
+{
+	"key": "fe.code.form-validation",
+	"version": 1,
+	"specialization": "frontend",
+	"block": "fe.code",
+	"format": "practice_code",
+	"answerKind": "code",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.8 },
+			"constructive": { "rules": 5, "crossField": false, "fields": "3–5", "groups": 5 },
+			"constructiveRank": 3,
+			"timeNormSec": 1800,
+			"classes": [
+				{
+					"id": "first-error",
+					"form": "A",
+					"description": "по каждому полю — первая нарушенная проверка в порядке правил схемы"
+				},
+				{
+					"id": "all-errors",
+					"form": "B",
+					"description": "по каждому полю — все нарушенные проверки в порядке правил схемы"
+				},
+				{
+					"id": "trimmed",
+					"form": "anchor",
+					"description": "значения обрезаются от пробелов по краям до всех проверок; по полю — первая ошибка"
+				},
+				{
+					"id": "first-field",
+					"form": "X",
+					"description": "форма показывает только первое поле с ошибкой и его первую ошибку"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.8 },
+			"constructive": { "rules": 7, "crossField": true, "fields": "6–7", "groups": 5 },
+			"constructiveRank": 5,
+			"timeNormSec": 2400,
+			"classes": [
+				{
+					"id": "first-error",
+					"form": "A",
+					"description": "первая нарушенная проверка поля; совпадение полей и условная обязательность сравнивают значения как есть"
+				},
+				{
+					"id": "all-errors",
+					"form": "B",
+					"description": "все нарушенные проверки поля, включая совпадение с другим полем"
+				},
+				{
+					"id": "trimmed",
+					"form": "anchor",
+					"description": "значения обрезаются до проверок, совпадение полей сравнивает обрезанные значения"
+				},
+				{
+					"id": "first-field",
+					"form": "X",
+					"description": "только первое поле с ошибкой, с учётом условной обязательности и совпадения полей"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "data", "description": "имена полей, границы длин и диапазонов, шаблоны, значения в формах" },
+		{ "name": "sizes", "description": "число полей, порядок правил в схеме, число форм" }
+	],
+	"essentialParams": [
+		{
+			"name": "report",
+			"description": "что выводится: первая ошибка поля, все ошибки поля или только первое поле с ошибкой"
+		},
+		{ "name": "trim", "description": "проверяются значения как есть или обрезанные от пробелов по краям" },
+		{ "name": "cross-field", "description": "Junior: совпадение с другим полем и обязательность по условию" }
+	],
+	"language": null,
+	"practice": { "languages": ["javascript", "typescript"], "hiddenTestGroups": 5 },
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "groups" },
+	"coverage": {
+		"checks": [
+			"разбор схемы правил и JSON-строк формы",
+			"пустое и пробельное значение: обязательность, остальные проверки пропускаются",
+			"границы длины и числового диапазона включительно",
+			"целое число в строке: сравнение чисел, а не строк",
+			"порядок проверок и правило вывода ошибок",
+			"совпадение с другим полем и обязательность по условию (Junior)",
+			"тысячи форм за один запуск"
+		],
+		"doesNotCheck": ["разметку и доступность формы", "асинхронную проверку на сервере"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "empty-optional-checked",
+			"defect": "пустое необязательное поле проверяет остальными правилами",
+			"mustBeCaught": true
+		},
+		{ "id": "blank-not-empty", "defect": "значение из одних пробелов считает заполненным", "mustBeCaught": true },
+		{
+			"id": "length-strict",
+			"defect": "границы длины строгие: длина, равная minlen или maxlen, считается ошибкой",
+			"mustBeCaught": true
+		},
+		{ "id": "string-compare", "defect": "диапазон проверяет сравнением строк, а не чисел", "mustBeCaught": true },
+		{ "id": "requiredif-ignored", "defect": "Junior: не применяет обязательность по условию", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 5, "caught": 5 },
+		"hiddenTestsMutationScore": 1,
+		"answerCollision": 0,
+		"transfer": 0,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

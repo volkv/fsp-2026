@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.5,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "6d2fac8cb54f0885fb67641b2f74fa9cd22bae3a7596b463e416d61f32f656bc"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.6,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "6d2fac8cb54f0885fb67641b2f74fa9cd22bae3a7596b463e416d61f32f656bc"
+					}
+				],
+				"mean": 0.55
+			},
 			"constructive": { "expressions": "5–6", "negativeOperands": true, "mechanisms": 2 },
 			"constructiveRank": 2,
 			"timeNormSec": 210,
@@ -94,6 +111,30 @@
 		"answerCollision": 0.0005,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Все 4 экземпляра воспроизведены и совпали. Условия однозначны, поведение Python 3 документировано.",
+					"Уровень intern: банковское округление round(-17.5), round(12.5), strip(chars) как набор символов и неперекрывающийся count - знания 'трюкового' характера; пограничный intern, вероятно, ошибётся на одном из пунктов, а ответ binary за все 5-6 строк. Стоит рассмотреть сокращение числа ловушек в экземпляре или перенос round-int/str-methods в junior.",
+					"Угадывание затруднено (5-6 строк разнородных значений).",
+					"Остальное в норме."
+				],
+				"sourceSha256": "6d2fac8cb54f0885fb67641b2f74fa9cd22bae3a7596b463e416d61f32f656bc"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Ручной пересчёт floor-mod: -11 % 6 = 1, 46 // -5 = -10, divmod(-33, 4) = (-9, 3), int(-17/3) = -5. В split-slice строка lambda при шаге -2 даёт aba, а повторный пробел после kappa сохраняет пустой элемент при split(\" \"). Исполнение четырёх программ подтвердило эталоны.",
+					"Округление вниз, усечение к нулю, половины к чётному, разделители и strip/count заданы стандартными операциями Python; скрытых численных предположений в показанных экземплярах нет. Классы не используют один общий шаблон вычисления. Для Intern это допустимая проверка базовых типов, но отрицательные операнды и round делают её чувствительной к граничным знаниям.",
+					"Рекомендация: бинарная рубрика для 5–6 независимых выражений теряет информацию о частично правильном понимании; рассмотреть частичный балл. В sequence допускать несущественные пробелы оформления списков и кортежей вне строковых литералов. У str-methods итог count имеет узкий диапазон; при расширении генератора варьировать длину строки и структуру вхождений, чтобы уменьшить возможность угадывания этой части."
+				],
+				"sourceSha256": "6d2fac8cb54f0885fb67641b2f74fa9cd22bae3a7596b463e416d61f32f656bc"
+			}
+		]
 	}
 }

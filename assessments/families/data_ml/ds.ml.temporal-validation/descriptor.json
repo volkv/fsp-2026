@@ -1,0 +1,97 @@
+{
+	"key": "ds.ml.temporal-validation",
+	"version": 1,
+	"specialization": "data_ml",
+	"block": "ds.ml",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"constructive": { "days": "20–100", "rules": "горизонт метки, окно, эмбарго", "folds": "3–6" },
+			"constructiveRank": 7,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "walk-forward",
+					"form": "A",
+					"description": "расширяющееся окно: из обучения выбрасываются дни, чья метка заходит в валидацию"
+				},
+				{
+					"id": "purged-kfold",
+					"form": "B",
+					"description": "K-fold по времени с очисткой перед валидацией и эмбарго после неё"
+				},
+				{
+					"id": "sliding-window",
+					"form": "anchor",
+					"description": "скользящее окно фиксированной длины, отсчитанное от последнего чистого дня"
+				},
+				{
+					"id": "event-labels",
+					"form": "X",
+					"description": "метки разной длины: очищаются и дни после валидации, чья метка начинается до конца меток валидации"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "что предсказывают и на какой горизонт" },
+		{ "name": "numbers", "description": "число дней, размеры фолдов, горизонты, номер итерации" }
+	],
+	"essentialParams": [
+		{ "name": "scheme", "description": "расширяющееся окно, скользящее окно, K-fold по времени" },
+		{ "name": "leak-guard", "description": "очистка по горизонту метки, эмбарго, метки разной длины" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"утечка через перекрытие окна метки с валидацией",
+			"очистка (purge) и эмбарго",
+			"расширяющееся и скользящее окно обучения",
+			"K-fold по времени с обучением по обе стороны валидации",
+			"метки разной длины"
+		],
+		"doesNotCheck": ["выбор самих горизонтов и размеров окна", "комбинаторную очищенную кросс-валидацию"]
+	},
+	"wrongSolutions": [
+		{ "id": "no-purge", "defect": "не выбрасывает дни, чья метка пересекается с валидацией", "mustBeCaught": true },
+		{
+			"id": "purge-one-less",
+			"defect": "выбрасывает на один день меньше: считает, что метка дня t кончается в день t + h − 1",
+			"mustBeCaught": true
+		},
+		{ "id": "no-embargo", "defect": "не применяет эмбарго после валидации", "mustBeCaught": true },
+		{ "id": "embargo-before", "defect": "применяет эмбарго перед валидацией, а не после неё", "mustBeCaught": true },
+		{
+			"id": "window-includes-gap",
+			"defect": "отсчитывает окно обучения от начала валидации, а очищенные дни вырезает из окна",
+			"mustBeCaught": true
+		},
+		{
+			"id": "start-only",
+			"defect": "очищает только дни перед валидацией, пропуская дни после неё",
+			"mustBeCaught": true
+		},
+		{
+			"id": "after-only",
+			"defect": "очищает только дни после валидации, пропуская дни перед ней",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 7, "caught": 7 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.016,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

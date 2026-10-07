@@ -1,0 +1,161 @@
+{
+	"key": "fe.state.stale-closures",
+	"version": 1,
+	"specialization": "frontend",
+	"block": "fe.state",
+	"format": "bug_locate",
+	"answerKind": "line_no",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": {
+				"runtime": "модель хуков, таймеры и шина — 136 строк",
+				"component": "9–12 строк, 2–3 хука",
+				"defect": "одна строка: замыкание, зависимости, обновление состояния или очистка",
+				"mechanisms": 2
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "interval-stale",
+					"form": "A",
+					"description": "интервал, созданный один раз, читает состояние из замыкания первого рендера: нужно функциональное обновление"
+				},
+				{
+					"id": "memo-deps",
+					"form": "B",
+					"description": "в зависимостях useMemo не хватает пропа: значение устаревает при его смене"
+				},
+				{
+					"id": "functional-update",
+					"form": "anchor",
+					"description": "обработчик обновляет состояние несколько раз подряд значением из замыкания вместо функционального обновления"
+				},
+				{
+					"id": "missing-cleanup",
+					"form": "X",
+					"description": "эффект с зависимостью не очищает подписку или интервал прошлого запуска: старый источник продолжает менять состояние"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"runtime": "модель хуков, таймеры и шина — 136 строк",
+				"component": "11–15 строк, 4–5 хуков",
+				"defect": "одна строка во взаимодействии хуков: useCallback и эффект, ref и подписка, очистка и ref, отмена асинхронного ответа",
+				"mechanisms": 3
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "callback-deps",
+					"form": "A",
+					"description": "useCallback без зависимости: эффект, зависящий от функции, не перезапускается при смене этой зависимости"
+				},
+				{
+					"id": "latest-ref",
+					"form": "B",
+					"description": "подписка создаётся один раз, а обработчик читает состояние из замыкания вместо ref с последним значением"
+				},
+				{
+					"id": "cleanup-reads-ref",
+					"form": "anchor",
+					"description": "очистка эффекта читает ref, который следующий рендер уже обновил: нужно значение из замыкания"
+				},
+				{
+					"id": "stale-async",
+					"form": "X",
+					"description": "эффект не отменяет отложенный ответ прошлого запроса: ответы приходят не по порядку и старый перезаписывает новый"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "имена компонентов, пропов, журналов и вкладок" },
+		{ "name": "numbers", "description": "периоды, цены, шаги, задержки и сценарий проверки" },
+		{
+			"name": "module",
+			"description": "вспомогательные функции и константы модуля перед компонентом — сдвигают номера строк"
+		},
+		{
+			"name": "plot",
+			"description": "сюжет компонента внутри класса: счётчик или прогресс, цены или поиск, корзина или кошелёк"
+		}
+	],
+	"essentialParams": [
+		{
+			"name": "defect-kind",
+			"description": "вид дефекта: устаревшее замыкание, неполные зависимости, обновление значением, отсутствующая или неверная очистка"
+		},
+		{
+			"name": "hooks",
+			"description": "какие хуки взаимодействуют в дефекте: интервал и эффект, useMemo, useCallback и эффект, ref и подписка"
+		}
+	],
+	"language": "javascript",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"устаревшее замыкание в интервале и обработчике",
+			"функциональное обновление состояния против значения из замыкания",
+			"полнота зависимостей useMemo, useCallback и useEffect",
+			"очистка эффекта: подписки, интервалы, отложенные ответы",
+			"ref с последним значением и когда его читать нельзя"
+		],
+		"doesNotCheck": [
+			"исправление дефекта (только его место)",
+			"API настоящего React: StrictMode, конкурентный рендер, пакетирование обновлений"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "deps-array",
+			"defect": "указывает на массив зависимостей хука, хотя он соответствует спецификации",
+			"mustBeCaught": true
+		},
+		{
+			"id": "hook-body",
+			"defect": "указывает на тело вычисления или эффекта, хотя дефект — в другой строке",
+			"mustBeCaught": true
+		},
+		{ "id": "cleanup-line", "defect": "указывает на функцию очистки эффекта, хотя она верна", "mustBeCaught": true },
+		{
+			"id": "state-setter",
+			"defect": "указывает на верный вызов сеттера состояния или на обработчик без useCallback",
+			"mustBeCaught": true
+		},
+		{
+			"id": "neighbour-line",
+			"defect": "указывает на соседнюю строку обработчика (заголовок цикла), хотя она верна",
+			"mustBeCaught": true
+		},
+		{
+			"id": "ref-sync",
+			"defect": "указывает на строку, обновляющую ref при рендере, хотя она верна",
+			"mustBeCaught": true
+		},
+		{
+			"id": "runtime-compare",
+			"defect": "ищет дефект в модели хуков — в сравнении зависимостей, а не в компоненте",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 7, "caught": 7 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.028,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

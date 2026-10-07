@@ -1,0 +1,114 @@
+{
+	"key": "ds.metrics.roc-auc",
+	"version": 1,
+	"specialization": "data_ml",
+	"block": "ds.metrics",
+	"format": "compute",
+	"answerKind": "float_eps",
+	"levels": [
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": { "scoreValues": "6–9", "ties": true, "source": "сгруппированные скоры или точки ROC" },
+			"constructiveRank": 4,
+			"timeNormSec": 390,
+			"classes": [
+				{ "id": "ties", "form": "A", "description": "ROC AUC по скорам с ничьими: пара с равными скорами даёт ½" },
+				{
+					"id": "inverted",
+					"form": "B",
+					"description": "скор — вероятность отрицательного класса: положительный объект должен иметь меньший скор"
+				},
+				{
+					"id": "roc-points",
+					"form": "anchor",
+					"description": "площадь под ROC по точкам трапециями, точки даны не по порядку"
+				},
+				{ "id": "gini", "form": "X", "description": "коэффициент Джини = 2·AUC − 1 по скорам с ничьими" }
+			]
+		},
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": { "scoreValues": "6–9", "ties": true, "source": "веса, группы, PR-кривая, жёсткие метки" },
+			"constructiveRank": 5,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "average-precision",
+					"form": "A",
+					"description": "average precision: сумма (Rₜ − Rₜ₋₁)·Pₜ по порогам, ничьи — один порог"
+				},
+				{
+					"id": "group-macro",
+					"form": "B",
+					"description": "AUC внутри каждой группы, затем среднее по группам — не AUC объединённых данных"
+				},
+				{
+					"id": "weighted",
+					"form": "anchor",
+					"description": "взвешенный AUC: пара входит с весом произведения весов объектов"
+				},
+				{
+					"id": "hard-labels",
+					"form": "X",
+					"description": "AUC модели, отдающей только метки по порогу: равен (TPR + TNR) / 2"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "предметная область и названия классов" },
+		{ "name": "data", "description": "значения скоров, число объектов, веса, группы" }
+	],
+	"essentialParams": [
+		{ "name": "metric", "description": "ROC AUC, Джини, average precision, AUC по точкам" },
+		{ "name": "pairing", "description": "ничьи, ориентация скора, веса пар, пары внутри групп, бинарные предсказания" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"ROC AUC как доля верно упорядоченных пар с ничьими",
+			"ориентация скора",
+			"площадь под ROC трапециями",
+			"average precision, взвешенный AUC, AUC по группам, AUC жёстких меток"
+		],
+		"doesNotCheck": ["доверительный интервал AUC", "многоклассовый AUC"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "ties-ignored",
+			"defect": "не засчитывает пары с равными скорами (½ за ничью теряется)",
+			"mustBeCaught": true
+		},
+		{ "id": "orientation", "defect": "не учитывает, что скор — вероятность другого класса", "mustBeCaught": true },
+		{
+			"id": "rectangles",
+			"defect": "считает площадь под ROC ступеньками по левой точке, а не трапециями",
+			"mustBeCaught": true
+		},
+		{ "id": "gini-as-auc", "defect": "отвечает AUC вместо коэффициента Джини", "mustBeCaught": true },
+		{
+			"id": "ap-mean-precision",
+			"defect": "считает average precision как простое среднее precision по порогам",
+			"mustBeCaught": true
+		},
+		{ "id": "pooled", "defect": "считает AUC по объединённым данным всех групп", "mustBeCaught": true },
+		{ "id": "unweighted", "defect": "игнорирует веса объектов", "mustBeCaught": true },
+		{ "id": "use-scores", "defect": "считает AUC по скорам, хотя модель отдаёт только метки", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 8, "caught": 8 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0319,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

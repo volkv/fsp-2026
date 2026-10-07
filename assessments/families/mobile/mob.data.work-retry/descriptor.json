@@ -1,0 +1,149 @@
+{
+	"key": "mob.data.work-retry",
+	"version": 1,
+	"specialization": "mobile",
+	"block": "mob.data",
+	"format": "compute",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": { "runs": "3–5", "rules": "пауза + граница или лимит или сеть", "requests": 1 },
+			"constructiveRank": 3,
+			"timeNormSec": 360,
+			"classes": [
+				{ "id": "exponential", "form": "A", "description": "EXPONENTIAL: паузы d, 2d, 4d… от окончания запуска" },
+				{
+					"id": "linear-clamp",
+					"form": "B",
+					"description": "LINEAR с задержкой меньше 10 с: она поднимается до 10 с, паузы 10, 20, 30…"
+				},
+				{
+					"id": "attempt-limit",
+					"form": "anchor",
+					"description": "работник возвращает failure, когда runAttemptCount (с нуля) достиг лимита"
+				},
+				{
+					"id": "network",
+					"form": "X",
+					"description": "ограничение по сети: запуск, чья пауза истекла без сети, ждёт появления сети"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"constructive": { "runs": "4–8", "rules": "пауза + уникальная работа или потолок 5 ч", "requests": "1–3" },
+			"constructiveRank": 5,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "replace",
+					"form": "A",
+					"description": "повторная постановка с REPLACE во время паузы: старая работа отменена, новая стартует сразу со своим счётчиком"
+				},
+				{
+					"id": "keep",
+					"form": "B",
+					"description": "KEEP игнорируется, пока работа ждёт повтора, и ставит новую после её завершения"
+				},
+				{
+					"id": "append",
+					"form": "anchor",
+					"description": "APPEND во время паузы: новая работа ждёт успеха предыдущей или сразу становится FAILED после её неудачи"
+				},
+				{ "id": "cap", "form": "X", "description": "EXPONENTIAL в минутах: паузы упираются в потолок 5 ч" }
+			]
+		}
+	],
+	"surfaceParams": [
+		{
+			"name": "numbers",
+			"description": "задержка, длительность запуска, лимит попыток, интервалы без сети, моменты постановки"
+		},
+		{ "name": "responses", "description": "последовательность ответов сервера" }
+	],
+	"essentialParams": [
+		{ "name": "policy", "description": "LINEAR или EXPONENTIAL и попадание задержки в границы 10 с … 5 ч" },
+		{ "name": "stop-rule", "description": "что завершает работу: успех, лимит runAttemptCount, отмена" },
+		{ "name": "unique", "description": "повторная постановка уникальной работы: REPLACE, KEEP, APPEND" },
+		{ "name": "constraint", "description": "требуется ли сеть и когда её нет" }
+	],
+	"language": "kotlin",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"паузы LINEAR и EXPONENTIAL после Result.retry()",
+			"границы задержки 10 с и 5 ч",
+			"runAttemptCount с нуля и лимит попыток в работнике",
+			"ограничение по сети",
+			"ExistingWorkPolicy REPLACE, KEEP, APPEND"
+		],
+		"doesNotCheck": [
+			"отложенный запуск планировщиком ОС (Doze, квоты JobScheduler)",
+			"остановку работы при потере сети во время выполнения",
+			"периодическую работу и APPEND_OR_REPLACE"
+		]
+	},
+	"wrongSolutions": [
+		{ "id": "exp-from-first", "defect": "удваивает паузу уже после первого запуска: 2d, 4d, …", "mustBeCaught": true },
+		{
+			"id": "delay-from-start",
+			"defect": "отсчитывает паузу от начала запуска, а не от его окончания",
+			"mustBeCaught": true
+		},
+		{ "id": "no-clamp", "defect": "не поднимает задержку меньше 10 с до минимума", "mustBeCaught": true },
+		{
+			"id": "linear-constant",
+			"defect": "считает паузу LINEAR постоянной, а не растущей с номером попытки",
+			"mustBeCaught": true
+		},
+		{ "id": "attempt-from-one", "defect": "считает runAttemptCount с единицы", "mustBeCaught": true },
+		{
+			"id": "constraint-ignored",
+			"defect": "запускает работу по истечении паузы, не дожидаясь сети",
+			"mustBeCaught": true
+		},
+		{ "id": "no-cap", "defect": "не ограничивает паузу пятью часами", "mustBeCaught": true },
+		{
+			"id": "replace-keeps-attempts",
+			"defect": "считает, что работа после REPLACE продолжает счётчик попыток отменённой",
+			"mustBeCaught": true
+		},
+		{
+			"id": "replace-as-append",
+			"defect": "считает, что REPLACE дожидается завершения текущей работы, как APPEND",
+			"mustBeCaught": true
+		},
+		{
+			"id": "keep-blocks-finished",
+			"defect": "считает, что KEEP не ставит работу, даже когда прежняя уже завершилась",
+			"mustBeCaught": true
+		},
+		{ "id": "keep-as-replace", "defect": "считает, что KEEP заменяет ожидающую работу", "mustBeCaught": true },
+		{
+			"id": "append-runs-after-failure",
+			"defect": "считает, что работа, добавленная APPEND, запускается и после неудачи предыдущей",
+			"mustBeCaught": true
+		},
+		{
+			"id": "append-parallel",
+			"defect": "считает, что работа, добавленная APPEND, запускается сразу, параллельно",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 13, "caught": 13 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0021,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

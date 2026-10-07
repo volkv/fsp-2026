@@ -1,0 +1,137 @@
+{
+	"key": "fe.js.ts-defects",
+	"version": 1,
+	"specialization": "frontend",
+	"block": "fe.js",
+	"format": "bug_locate",
+	"answerKind": "line_no",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"functions": 6,
+				"lines": "35–60",
+				"modules": 1,
+				"defect": "одна строка, которую типы пропускают: as, !, индекс, порядок spread, Object.keys, даты"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "cast",
+					"form": "A",
+					"description": "as-приведение данных хранилища или сервера: строки остаются строками, хотя тип обещает числа"
+				},
+				{
+					"id": "non-null",
+					"form": "B",
+					"description": "! и индекс массива без проверки: undefined проходит туда, где тип обещает значение"
+				},
+				{
+					"id": "spread",
+					"form": "anchor",
+					"description": "порядок spread перетирает нужное поле или переносит лишние поля в результат"
+				},
+				{
+					"id": "keys-dates",
+					"form": "X",
+					"description": "Object.keys с приведением к keyof видит лишние поля объекта; даты сравниваются как объекты (===)"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"constructive": {
+				"functions": "6–8",
+				"lines": "50–80",
+				"modules": "2–3",
+				"defect": "одна строка на границе модулей или на редком сочетании данных; проявляется в другой функции"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "module-boundary",
+					"form": "A",
+					"description": "модули расходятся в том, что тип не выражает: JSON.parse as T теряет Date, копейки против рублей"
+				},
+				{
+					"id": "rare-data",
+					"form": "B",
+					"description": "ошибка только на редких данных: числовые ключи в Object.keys, однозначный месяц без ведущего нуля, parseInt в map"
+				},
+				{
+					"id": "spread-undefined",
+					"form": "anchor",
+					"description": "явный undefined из Partial при spread перетирает значение по умолчанию; фильтр по истинности теряет пустую строку"
+				},
+				{
+					"id": "short-data",
+					"form": "X",
+					"description": "пустой или короткий ряд: индекс за началом массива, Math.max без элементов, деление на нулевой пик"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "context", "description": "какие ещё модули показаны и в каком порядке" },
+		{ "name": "header", "description": "заголовок модуля и константы перед кодом" },
+		{ "name": "unit", "description": "в каком модуле класса дефект" }
+	],
+	"essentialParams": [
+		{
+			"name": "defect-kind",
+			"description": "чем типы обходятся: as, !, индекс, spread, Object.keys, даты, граница модулей, редкие или короткие данные"
+		},
+		{
+			"name": "manifestation",
+			"description": "middle — дефект проявляется в своей функции; senior — в другой функции или модуле и только на части данных"
+		}
+	],
+	"language": "typescript",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"as-приведение данных JSON и хранилища",
+			"оператор ! и индекс массива без проверки",
+			"порядок spread и лишние поля",
+			"Object.keys и структурная типизация",
+			"сравнение дат",
+			"контракт между модулями, который тип не выражает",
+			"дефекты на редких и коротких данных"
+		],
+		"doesNotCheck": ["ошибки компиляции и настройки tsconfig", "исправление дефекта (только его место)"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "neighbour-line",
+			"defect": "указывает соседнюю строку той же функции, где «исправление» не возвращает спецификацию",
+			"mustBeCaught": true
+		},
+		{
+			"id": "other-function",
+			"defect": "указывает подозрительную, но верную строку в другом модуле (приведение, spread, сравнение)",
+			"mustBeCaught": true
+		},
+		{
+			"id": "symptom-line",
+			"defect": "указывает строку функции, где дефект проявляется, и лечит симптом вместо причины",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 3, "caught": 3 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0233,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

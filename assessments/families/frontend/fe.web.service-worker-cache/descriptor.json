@@ -1,0 +1,135 @@
+{
+	"key": "fe.web.service-worker-cache",
+	"version": 1,
+	"specialization": "frontend",
+	"block": "fe.web",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"strategies": 4,
+				"events": "14–20",
+				"requests": "8–11",
+				"interacting": "жизненный цикл SW (установка, ожидание, активация, удаление кэша) + стратегии при офлайне или медленной сети"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "skip-waiting",
+					"form": "A",
+					"description": "новый SW с skipWaiting: устанавливается только при навигации, активируется сразу и забирает уже открытые вкладки; кэш старой версии с runtime-записями удаляется"
+				},
+				{
+					"id": "waiting",
+					"form": "B",
+					"description": "новый SW без skipWaiting: находится только при следующей навигации, ждёт, пока закроются все вкладки, перезагрузка вкладки его не активирует"
+				},
+				{
+					"id": "offline",
+					"form": "anchor",
+					"description": "стратегии без смены SW: cache-first не видит изменений на сервере, stale-while-revalidate отдаёт старое и обновляет кэш в фоне, network-first без сети отдаёт кэш"
+				},
+				{
+					"id": "slow-network",
+					"form": "X",
+					"description": "медленная сеть: network-first по таймауту отдаёт кэш, а запоздавший ответ всё равно кладёт в кэш; фоновое обновление stale-while-revalidate приходит с задержкой"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "пути ресурсов, номера вкладок" },
+		{ "name": "numbers", "description": "моменты событий, таймаут и задержка сети" }
+	],
+	"essentialParams": [
+		{ "name": "lifecycle", "description": "выкладывается ли новый SW и вызывает ли он skipWaiting" },
+		{ "name": "network", "description": "есть ли сеть, медленная ли она" },
+		{ "name": "strategy", "description": "по какой стратегии SW отвечает на запрос ресурса" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"когда браузер находит и устанавливает новый SW",
+			"ожидание активации и закрытие всех вкладок; перезагрузка не активирует",
+			"skipWaiting забирает открытые вкладки",
+			"удаление старого кэша при активации",
+			"cache-first, network-first с таймаутом, stale-while-revalidate, network-only",
+			"поведение стратегий без сети и при медленной сети"
+		],
+		"doesNotCheck": [
+			"clients.claim() и первая установка SW",
+			"HTTP-кэш браузера под SW",
+			"навигационные запросы и офлайн-страница"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "update-at-deploy",
+			"defect": "считает, что браузер узнаёт о новом sw.js в момент выкладки, без навигации",
+			"mustBeCaught": true
+		},
+		{
+			"id": "skip-waiting-next-load",
+			"defect": "считает, что после skipWaiting открытые вкладки остаются на старом SW до перезагрузки",
+			"mustBeCaught": true
+		},
+		{
+			"id": "reload-activates",
+			"defect": "считает, что перезагрузка единственной вкладки активирует ожидающий SW",
+			"mustBeCaught": true
+		},
+		{
+			"id": "runtime-cache-kept",
+			"defect": "считает, что записи, закэшированные старым SW во время работы, достаются новому",
+			"mustBeCaught": true
+		},
+		{
+			"id": "cache-first-as-network",
+			"defect": "считает, что cache-first при наличии сети берёт свежую версию с сервера",
+			"mustBeCaught": true
+		},
+		{
+			"id": "swr-returns-fresh",
+			"defect": "считает, что stale-while-revalidate при наличии сети отдаёт ответ сервера",
+			"mustBeCaught": true
+		},
+		{
+			"id": "swr-no-update",
+			"defect": "считает, что stale-while-revalidate не обновляет кэш, раз ответ уже отдан",
+			"mustBeCaught": true
+		},
+		{
+			"id": "offline-nf-error",
+			"defect": "считает, что network-first без сети отдаёт ошибку, а не кэш",
+			"mustBeCaught": true
+		},
+		{
+			"id": "nf-no-timeout",
+			"defect": "считает, что network-first всегда ждёт сеть, не глядя на таймаут",
+			"mustBeCaught": true
+		},
+		{
+			"id": "late-response-dropped",
+			"defect": "считает, что ответ, пришедший после таймаута network-first, в кэш не попадает",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 10, "caught": 10 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0015,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

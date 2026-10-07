@@ -1,0 +1,155 @@
+{
+	"key": "mob.ui.state-hoisting",
+	"version": 1,
+	"specialization": "mobile",
+	"block": "mob.ui",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": { "events": "4–6", "mechanisms": 1, "stateHolders": "1–2" },
+			"constructiveRank": 2,
+			"timeNormSec": 180,
+			"classes": [
+				{
+					"id": "copy-event",
+					"form": "A",
+					"description": "copy возвращает новое состояние: без присваивания событие ничего не меняет, а неназванные поля сохраняют значения"
+				},
+				{
+					"id": "hoisted-callback",
+					"form": "B",
+					"description": "поле показывает значение родителя: ввод, отклонённый проверкой в колбэке, на экран не попадает"
+				},
+				{
+					"id": "derived-vs-stored",
+					"form": "anchor",
+					"description": "хранимый счётчик рядом со списком расходится при удалении, вычисляемое свойство — нет"
+				},
+				{
+					"id": "local-vs-hoisted",
+					"form": "X",
+					"description": "ребёнок скопировал начальное значение в своё поле: сброс в родителе его не трогает"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": { "events": "5–7", "mechanisms": 2, "stateHolders": "2–3" },
+			"constructiveRank": 3,
+			"timeNormSec": 260,
+			"classes": [
+				{
+					"id": "validation-derived",
+					"form": "A",
+					"description": "проверка в родителе отклоняет ввод, стирание идёт от значения родителя, производный флаг считается из принятого состояния"
+				},
+				{
+					"id": "stale-copy",
+					"form": "B",
+					"description": "выбранный элемент хранится копией заголовка и по id: переименование и удаление расходят копию с вычисляемым значением"
+				},
+				{
+					"id": "shallow-copy",
+					"form": "anchor",
+					"description": "copy() data class поверхностный: изменяемый список общий у снимков истории, а новый список разрывает связь"
+				},
+				{
+					"id": "stale-param",
+					"form": "X",
+					"description": "два вызова onValueChange в одном событии считают от одного и того же параметра value: второй заменяет первый"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "названия состояния, полей, событий и элементов" },
+		{ "name": "values", "description": "начальные значения, введённые символы, порядок событий" }
+	],
+	"essentialParams": [
+		{
+			"name": "flow",
+			"description": "где живёт значение и как меняется: copy с присваиванием или без, колбэк с проверкой в родителе, локальная копия у ребёнка"
+		},
+		{
+			"name": "derivation",
+			"description": "хранится ли производное значение копией или вычисляется из состояния; общий ли изменяемый список у копий"
+		}
+	],
+	"language": "kotlin",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"неизменяемое состояние экрана в data class и copy на событие",
+			"подъём состояния: значение сверху, события вверх через onValueChange",
+			"проверка в родителе отклоняет изменение",
+			"производное значение вычисляется из состояния, а хранимая копия расходится",
+			"поверхностное копирование data class",
+			"параметр value — снимок на момент вызова"
+		],
+		"doesNotCheck": [
+			"Compose-реализацию (remember, State, перекомпоновку)",
+			"ViewModel, StateFlow и потоки",
+			"умение спроектировать состояние экрана"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "copy-mutates",
+			"defect": "считает, что copy без присваивания меняет текущее состояние",
+			"mustBeCaught": true
+		},
+		{
+			"id": "copy-resets-others",
+			"defect": "считает, что copy сбрасывает неназванные поля к значениям по умолчанию",
+			"mustBeCaught": true
+		},
+		{
+			"id": "child-keeps-input",
+			"defect": "считает, что поле показывает всё введённое, даже если родитель отклонил изменение",
+			"mustBeCaught": true
+		},
+		{
+			"id": "stored-in-sync",
+			"defect": "считает, что хранимая копия производного значения обновляется сама вместе с источником",
+			"mustBeCaught": true
+		},
+		{
+			"id": "local-follows-parent",
+			"defect": "считает, что локальная копия у ребёнка следует за значением родителя",
+			"mustBeCaught": true
+		},
+		{
+			"id": "derived-from-attempt",
+			"defect": "считает производный флаг по введённому значению, а не по принятому состоянию",
+			"mustBeCaught": true
+		},
+		{ "id": "deep-copy", "defect": "считает, что copy() копирует и вложенный изменяемый список", "mustBeCaught": true },
+		{
+			"id": "all-shared",
+			"defect": "считает, что и новый список (tags + v) меняет общий список прежних снимков",
+			"mustBeCaught": true
+		},
+		{
+			"id": "param-updates-in-call",
+			"defect": "считает, что после первого onValueChange параметр value уже содержит новое значение",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 9, "caught": 9 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0026,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

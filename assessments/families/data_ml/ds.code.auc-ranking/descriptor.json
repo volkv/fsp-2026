@@ -1,0 +1,128 @@
+{
+	"key": "ds.code.auc-ranking",
+	"version": 1,
+	"specialization": "data_ml",
+	"block": "ds.code",
+	"format": "practice_code",
+	"answerKind": "code",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.8 },
+			"constructive": { "metric": 1, "queries": false, "rows": "до 2·10⁴", "changeStep": "веса или усреднение ничьих" },
+			"constructiveRank": 5,
+			"timeNormSec": 2700,
+			"classes": [
+				{ "id": "roc-auc", "form": "A", "description": "ROC AUC с ничьими: равные скоры пары дают ½" },
+				{
+					"id": "average-precision",
+					"form": "B",
+					"description": "average precision по различным порогам: равные скоры — один порог"
+				},
+				{
+					"id": "ndcg-at-k",
+					"form": "anchor",
+					"description": "NDCG@k с выигрышем 2^rel − 1, равные скоры — в порядке входа, идеал по всем документам"
+				},
+				{
+					"id": "ks-statistic",
+					"form": "X",
+					"description": "статистика Колмогорова — Смирнова: max |TPR − FPR| по различным порогам"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.8 },
+			"constructive": { "metric": 1, "queries": true, "rows": "до 2·10⁴", "changeStep": "веса или усреднение ничьих" },
+			"constructiveRank": 7,
+			"timeNormSec": 3000,
+			"classes": [
+				{
+					"id": "roc-auc",
+					"form": "A",
+					"description": "средний по запросам ROC AUC; запросы без позитивов или без негативов пропускаются"
+				},
+				{
+					"id": "average-precision",
+					"form": "B",
+					"description": "MAP: средняя по запросам average precision; запросы без позитивов пропускаются"
+				},
+				{
+					"id": "ndcg-at-k",
+					"form": "anchor",
+					"description": "средний по запросам NDCG@k; запросы с нулевым идеальным DCG пропускаются"
+				},
+				{
+					"id": "ks-statistic",
+					"form": "X",
+					"description": "средняя по запросам статистика KS; запросы без обоих классов пропускаются"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "data", "description": "метки, релевантности, скоры, идентификаторы запросов" },
+		{ "name": "sizes", "description": "число строк и запросов, k" }
+	],
+	"essentialParams": [
+		{ "name": "metric", "description": "ROC AUC, average precision, NDCG@k или статистика KS" },
+		{ "name": "queries", "description": "Senior: усреднение по запросам с правилом пропуска вырожденных" },
+		{
+			"name": "change",
+			"description": "шаг «измени своё решение»: веса примеров (AUC, AP, KS) или усреднение выигрыша по ничьим (NDCG)"
+		}
+	],
+	"language": null,
+	"practice": { "languages": ["python3"], "hiddenTestGroups": 5 },
+	"qa": null,
+	"changeStep": {
+		"description": "Новое условие: у AUC, AP и KS каждая строка получает целый вес, метрика считается по весам; у NDCG документы с равным скором получают средний выигрыш своего блока ничьих.",
+		"weight": 0.3
+	},
+	"rubric": { "kind": "groups" },
+	"coverage": {
+		"checks": [
+			"ROC AUC с ничьими за O(n log n)",
+			"average precision по различным порогам",
+			"NDCG@k: дисконт, выигрыш, идеальный DCG по всем документам",
+			"статистика KS по порогам",
+			"усреднение по запросам с правилом пропуска (Senior)",
+			"веса примеров и усреднение по ничьим (шаг «измени своё решение»)"
+		],
+		"doesNotCheck": ["интерполированную PR-кривую и площадь трапециями", "работу со sklearn"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "ties-ignored",
+			"defect": "не учитывает равные скоры: считает каждый объект отдельным порогом или ничью — проигрышем",
+			"mustBeCaught": true
+		},
+		{
+			"id": "quadratic",
+			"defect": "перебирает все пары или пересчитывает метрику на каждом пороге — не укладывается во время",
+			"mustBeCaught": true
+		},
+		{ "id": "linear-gain", "defect": "берёт выигрыш rel вместо 2^rel − 1", "mustBeCaught": true },
+		{
+			"id": "idcg-from-topk",
+			"defect": "строит идеальный DCG из документов первой k-ки выдачи, а не из всех",
+			"mustBeCaught": true
+		},
+		{
+			"id": "skip-rule",
+			"defect": "Senior: не пропускает вырожденные запросы, а считает их метрику нулём",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 5, "caught": 5 },
+		"hiddenTestsMutationScore": 0.998,
+		"answerCollision": 0,
+		"transfer": 0.0025,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

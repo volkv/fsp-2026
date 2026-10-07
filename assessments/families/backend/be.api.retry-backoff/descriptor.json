@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "middle",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.65,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "037a1732ddf2841db4ef60a410da52dde43f514e55262ed8c0e468124161a1bf"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.7,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "037a1732ddf2841db4ef60a410da52dde43f514e55262ed8c0e468124161a1bf"
+					}
+				],
+				"mean": 0.7
+			},
 			"constructive": { "rules": 3, "attempts": "4–6", "interacting": "потолок + лимит попыток или срок" },
 			"constructiveRank": 4,
 			"timeNormSec": 360,
@@ -33,7 +50,24 @@
 		},
 		{
 			"grade": "senior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.55,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "037a1732ddf2841db4ef60a410da52dde43f514e55262ed8c0e468124161a1bf"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.75,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "037a1732ddf2841db4ef60a410da52dde43f514e55262ed8c0e468124161a1bf"
+					}
+				],
+				"mean": 0.65
+			},
 			"constructive": {
 				"rules": 5,
 				"attempts": "5–7",
@@ -116,6 +150,30 @@
 		"answerCollision": 0.0009,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчитаны вручную экземпляры cap (6 ok 8857), deadline (4 deadline 3883), mixed-retry-after (3 deadline 4719), post-no-key (2 500 889): все совпадают с эталоном.",
+					"Retry-After в условии дробный (1.5, 0.5 с), хотя по RFC это целое число секунд; пояснить в условии, что допускается дробное значение, иначе кандидат может усомниться в разборе.",
+					"Правило порядка проверок (лимит попыток раньше срока, итог при исчерпании — код последнего ответа или timeout) выводится из условия, но явно не сказано; для timeout-исчерпания итог 'timeout' упомянут только в формате ответа."
+				],
+				"sourceSha256": "037a1732ddf2841db4ef60a410da52dde43f514e55262ed8c0e468124161a1bf"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Вручную пересчитан middle/cap: длительности попыток дают 5107 мс, паузы 3750 мс, итог — 6 ok 8857. Выполнение эталонов всех восьми экземпляров также совпало с опубликованными ответами.",
+					"Условие явно задаёт отсчёт паузы от ответа, включение первой попытки в лимит, проверку полного таймаута против срока и приоритет Retry-After. Искусственная политика повторов POST задана как правило задачи; скрытых предположений о поведении реального сервера не требуется.",
+					"Число попыток, итог и точное время вместе не образуют малого набора для угадывания. Классы меняют существенные условия остановки и расчёта паузы; готовый численный ответ между ними не переносится.",
+					"Бинарная рубрика допустима для короткого вычислительного ответа; tokens не требует одного конкретного количества пробелов. Блок и грейды соответствуют содержанию. Angoff учитывает риск арифметической ошибки и необходимость одновременно соблюдать несколько правил."
+				],
+				"sourceSha256": "037a1732ddf2841db4ef60a410da52dde43f514e55262ed8c0e468124161a1bf"
+			}
+		]
 	}
 }

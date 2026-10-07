@@ -1,0 +1,101 @@
+{
+	"key": "mob.kotlin.when-sealed",
+	"version": 1,
+	"specialization": "mobile",
+	"block": "mob.kotlin",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.65 },
+			"constructive": { "elements": "5", "branches": "4–5", "mechanisms": 1, "overlappingBranches": true },
+			"constructiveRank": 1,
+			"timeNormSec": 180,
+			"classes": [
+				{
+					"id": "equality-branch",
+					"form": "A",
+					"description": "состояния экрана в sealed-иерархии: when-выражение со смарт-кастом и веткой-равенством с экземпляром data class"
+				},
+				{
+					"id": "first-match",
+					"form": "B",
+					"description": "when без субъекта с пересекающимися условиями: выполняется только первая истинная ветка"
+				},
+				{
+					"id": "ranges",
+					"form": "anchor",
+					"description": "диапазоны в ветках: .. включает конец, until — нет; константа после покрывающего её диапазона не срабатывает"
+				},
+				{
+					"id": "type-order",
+					"form": "X",
+					"description": "is для класса и его наследника: ветка родителя стоит первой и забирает наследника"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "тексты веток и имена списков" },
+		{ "name": "values", "description": "числа, коды ответов, пороги и порядок элементов" }
+	],
+	"essentialParams": [
+		{
+			"name": "matching",
+			"description": "чем ветка сопоставляется: равенство, is со смарт-кастом, условие без субъекта, диапазон"
+		},
+		{
+			"name": "overlap",
+			"description": "какие ветки перекрываются и в каком порядке стоят: первая подходящая против более узкой"
+		}
+	],
+	"language": "kotlin",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"sealed-иерархия состояний экрана и when как выражение",
+			"смарт-каст в ветке is",
+			"ветка-равенство с data object и data class",
+			"порядок веток: срабатывает первая подходящая, без проваливания",
+			"диапазоны .. и until в when",
+			"else"
+		],
+		"doesNotCheck": [
+			"проверку исчерпываемости when компилятором",
+			"guard-условия в ветках when",
+			"проектирование иерархии состояний"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "branch-identity",
+			"defect": "считает, что ветка-равенство с экземпляром data class сравнивает ссылки и не срабатывает для другого объекта",
+			"mustBeCaught": true
+		},
+		{
+			"id": "most-specific-wins",
+			"defect": "считает, что when выбирает самую узкую подходящую ветку, а не первую",
+			"mustBeCaught": true
+		},
+		{
+			"id": "all-matching-run",
+			"defect": "считает, что when, как switch без break, выполняет все подходящие ветки",
+			"mustBeCaught": true
+		},
+		{ "id": "until-inclusive", "defect": "считает, что until включает правую границу", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 4, "caught": 4 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0006,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

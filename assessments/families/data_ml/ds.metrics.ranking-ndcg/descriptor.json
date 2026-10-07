@@ -1,0 +1,137 @@
+{
+	"key": "ds.metrics.ranking-ndcg",
+	"version": 1,
+	"specialization": "data_ml",
+	"block": "ds.metrics",
+	"format": "compute",
+	"answerKind": "float_eps",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"queries": 3,
+				"listLength": "5–7",
+				"relevance": "0–3",
+				"pool": "выдача или выдача плюс оценённые вне её"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 420,
+			"classes": [
+				{ "id": "ndcg-exp", "form": "A", "description": "NDCG@k с выгодой 2^rel − 1 и скидкой 1 / log₂(i + 1)" },
+				{ "id": "ndcg-linear", "form": "B", "description": "NDCG@k с линейной выгодой rel" },
+				{
+					"id": "ideal-pool",
+					"form": "anchor",
+					"description": "идеальный DCG строится по всем оценённым документам запроса, включая не попавшие в выдачу"
+				},
+				{
+					"id": "map",
+					"form": "X",
+					"description": "MAP@k при бинаризации оценок по порогу из условия и знаменателе min(R, k) по всему пулу"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"constructive": {
+				"queries": "3–4",
+				"listLength": "5–7",
+				"relevance": "0–3",
+				"pool": "ничьи, пустые запросы, k длиннее выдачи, каскадная модель"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "ndcg-ties",
+					"form": "A",
+					"description": "NDCG@k с ничьими в скорах: документы группы равных скоров получают среднюю выгоду группы на её позициях"
+				},
+				{
+					"id": "empty-query",
+					"form": "B",
+					"description": "запрос без релевантных документов исключается из среднего NDCG по правилу условия"
+				},
+				{
+					"id": "k-beyond-list",
+					"form": "anchor",
+					"description": "k больше длины выдачи: DCG — по выдаче, идеальный DCG — по k лучшим документам пула"
+				},
+				{
+					"id": "err",
+					"form": "X",
+					"description": "ERR — каскадная модель: пользователь останавливается на документе с вероятностью (2^rel − 1) / 2^max"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "поиск: товары, документы, вакансии, статьи; тексты запросов" },
+		{ "name": "data", "description": "номера документов, оценки релевантности, скоры" }
+	],
+	"essentialParams": [
+		{ "name": "metric", "description": "NDCG@k с экспоненциальной или линейной выгодой, MAP@k, ERR" },
+		{
+			"name": "ideal-and-ties",
+			"description": "откуда берётся идеальный DCG, ничьи в скорах, пустой запрос, k длиннее выдачи"
+		}
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"DCG и NDCG@k с градуированной релевантностью",
+			"идеальный DCG по пулу оценок",
+			"MAP@k с бинаризацией оценок",
+			"ничьи в скорах, пустой запрос, k длиннее выдачи",
+			"каскадная метрика ERR"
+		],
+		"doesNotCheck": ["онлайн-метрики поиска и A/B", "статистическая значимость различий"]
+	},
+	"wrongSolutions": [
+		{ "id": "linear-gain", "defect": "берёт выгоду rel вместо 2^rel − 1", "mustBeCaught": true },
+		{ "id": "exp-gain", "defect": "берёт выгоду 2^rel − 1 вместо rel, заданной условием", "mustBeCaught": true },
+		{
+			"id": "discount-by-rank",
+			"defect": "дисконтирует делением на позицию i вместо log₂(i + 1)",
+			"mustBeCaught": true
+		},
+		{
+			"id": "ideal-from-retrieved",
+			"defect": "строит идеальный DCG только по документам выдачи",
+			"mustBeCaught": true
+		},
+		{
+			"id": "ap-divide-by-hits",
+			"defect": "делит сумму precision на число попаданий в первых k",
+			"mustBeCaught": true
+		},
+		{ "id": "ties-by-shown-order", "defect": "разбивает ничьи в скорах в порядке перечисления", "mustBeCaught": true },
+		{
+			"id": "empty-query-as-zero",
+			"defect": "включает запрос без релевантных в среднее с NDCG 0",
+			"mustBeCaught": true
+		},
+		{ "id": "ideal-truncated", "defect": "ограничивает идеальный DCG длиной выдачи, а не k", "mustBeCaught": true },
+		{
+			"id": "err-no-cascade",
+			"defect": "суммирует вероятности остановки с весом 1 / r без учёта того, что пользователь мог остановиться раньше",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 9, "caught": 9 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.005,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

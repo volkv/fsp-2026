@@ -532,7 +532,7 @@ export function build(input: GenerateInput): Built {
 	const instance = makeInstance(descriptor, input, {
 		statement: { markdown: statement(cls, senior), code: null },
 		answer: null,
-		practice: { languages: [...LANGUAGES], groups: main, checker: { kind: 'exact' } },
+		practice: { languages: [...LANGUAGES], groups: main, checker: { kind: 'tokens' } },
 		changeStep: { markdown: changeStatement(senior), weight: CHANGE_WEIGHT, answer: null, groups: step, qa: null }
 	});
 	return {

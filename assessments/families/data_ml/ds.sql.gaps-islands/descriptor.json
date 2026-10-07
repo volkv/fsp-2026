@@ -1,0 +1,103 @@
+{
+	"key": "ds.sql.gaps-islands",
+	"version": 1,
+	"specialization": "data_ml",
+	"block": "ds.sql",
+	"format": "sql_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"constructive": { "tables": 1, "cte": "1–3", "windows": "1–2", "rows": "8–20" },
+			"constructiveRank": 7,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "streaks",
+					"form": "A",
+					"description": "серии дней подряд: julianday(day) − ROW_NUMBER() постоянна внутри серии, дни сначала дедуплицированы, нумерация — по пользователю"
+				},
+				{
+					"id": "sessions-by-gap",
+					"form": "B",
+					"description": "сессии по паузе: LAG и накопленная сумма флагов; пауза ровно в предел сессию не рвёт, первое событие открывает сессию"
+				},
+				{
+					"id": "status-runs",
+					"form": "anchor",
+					"description": "периоды одного состояния: разность общей нумерации и нумерации внутри состояния разделяет повторные периоды"
+				},
+				{
+					"id": "duplicate-days",
+					"form": "X",
+					"description": "тот же запрос серий без DISTINCT по журналу с повторами дня: повтор сдвигает нумерацию и рвёт серию"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "названия таблиц и состояний, номера пользователей" },
+		{ "name": "data", "description": "дни и моменты событий, длины серий и пауз, порядок вставки" }
+	],
+	"essentialParams": [
+		{
+			"name": "island-rule",
+			"description": "что связывает строки в остров: соседние дни, пауза не больше предела, то же состояние подряд"
+		},
+		{ "name": "data-shape", "description": "повторы дней в журнале, пауза ровно в предел, несколько пользователей" }
+	],
+	"language": "sql",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"приём «день минус номер строки» для серий",
+			"PARTITION BY в нумерации серий",
+			"сессии по паузе через LAG и накопленную сумму",
+			"NULL у первой строки в CASE",
+			"разность двух нумераций для периодов состояния",
+			"трассировка запроса по данным с повторами, а не по замыслу автора"
+		],
+		"doesNotCheck": ["рекурсивные решения той же задачи", "производительность на больших журналах"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "no-partition",
+			"defect": "не учитывает PARTITION BY в нумерации: строки разных пользователей нумеруются вместе",
+			"mustBeCaught": true
+		},
+		{
+			"id": "gap-inclusive",
+			"defect": "считает, что пауза ровно в предел начинает новую сессию",
+			"mustBeCaught": true
+		},
+		{
+			"id": "first-row-zero",
+			"defect": "считает, что первое событие пользователя не открывает сессию (NULL из LAG — как малая пауза), нумерация с 0",
+			"mustBeCaught": true
+		},
+		{
+			"id": "group-by-status",
+			"defect": "сводит все периоды одного состояния в один, не различая повторные периоды",
+			"mustBeCaught": true
+		},
+		{
+			"id": "ideal-streaks",
+			"defect": "отвечает по замыслу (настоящие серии дней), не заметив, что повторы дня ломают нумерацию",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 5, "caught": 5 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

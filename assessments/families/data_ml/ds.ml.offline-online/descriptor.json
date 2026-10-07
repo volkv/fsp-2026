@@ -1,0 +1,103 @@
+{
+	"key": "ds.ml.offline-online",
+	"version": 1,
+	"specialization": "data_ml",
+	"block": "ds.ml",
+	"format": "compute",
+	"answerKind": "float_eps",
+	"levels": [
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"constructive": { "rows": "8–14", "segments": "3–4", "actions": "2–3", "estimator": "назван, формула не дана" },
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "ips",
+					"form": "A",
+					"description": "IPS-оценка новой политики по логам старой: совпавшие строки с весом 1/пропенсити, делитель — все строки"
+				},
+				{
+					"id": "snips",
+					"form": "B",
+					"description": "самонормированная IPS: делитель — сумма весов, а не число строк"
+				},
+				{
+					"id": "position-bias",
+					"form": "anchor",
+					"description": "кликабельность объекта с поправкой на вероятность просмотра позиции"
+				},
+				{
+					"id": "doubly-robust",
+					"form": "X",
+					"description": "дважды робастная оценка: прогноз модели наград плюс IPS-поправка на остатки"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "сегменты, варианты баннеров, объекты выдачи" },
+		{ "name": "data", "description": "строки журнала, пропенсити, награды, прогнозы модели наград" }
+	],
+	"essentialParams": [
+		{ "name": "estimator", "description": "IPS, SNIPS, DR, поправка на позицию" },
+		{
+			"name": "bias-source",
+			"description": "что искажает наивную офлайн-оценку: политика сбора логов или позиция показа"
+		}
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"почему среднее награды по логам не оценивает новую политику",
+			"взвешивание по обратной пропенсити",
+			"самонормировка оценки",
+			"дважды робастная оценка",
+			"поправка кликов на позицию показа"
+		],
+		"doesNotCheck": ["оценку пропенсити по логам", "дисперсию и доверительные интервалы оценок"]
+	},
+	"wrongSolutions": [
+		{ "id": "logged-value", "defect": "берёт среднюю награду по всем строкам журнала", "mustBeCaught": true },
+		{
+			"id": "matched-mean",
+			"defect": "усредняет награду строк, где действие совпало с новой политикой, без весов",
+			"mustBeCaught": true
+		},
+		{
+			"id": "plain-ips",
+			"defect": "делит взвешенную сумму на число строк там, где нужна самонормировка, или не добавляет прогноз модели",
+			"mustBeCaught": true
+		},
+		{
+			"id": "direct-method",
+			"defect": "усредняет только прогноз модели наград без поправки по логам",
+			"mustBeCaught": true
+		},
+		{
+			"id": "raw-ctr",
+			"defect": "считает кликабельность как клики на показы без поправки на позицию",
+			"mustBeCaught": true
+		},
+		{
+			"id": "theta-inverted",
+			"defect": "умножает на вероятность просмотра вместо деления на неё",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 6, "caught": 6 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0087,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

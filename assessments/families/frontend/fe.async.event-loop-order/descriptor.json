@@ -1,0 +1,170 @@
+{
+	"key": "fe.async.event-loop-order",
+	"version": 1,
+	"specialization": "frontend",
+	"block": "fe.async",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": {
+				"statements": "5–8",
+				"nesting": 0,
+				"mechanisms": 1,
+				"interacting": "синхронный код + одна очередь микрозадач + таймеры"
+			},
+			"constructiveRank": 2,
+			"timeNormSec": 180,
+			"classes": [
+				{
+					"id": "micro-vs-timer",
+					"form": "A",
+					"description": "синхронный код, микрозадачи и таймеры с нулевой задержкой вперемешку: все микрозадачи идут раньше любого таймера"
+				},
+				{
+					"id": "timer-delays",
+					"form": "B",
+					"description": "таймеры с разными задержками записаны не по порядку: срабатывают по задержке, а не по месту в тексте"
+				},
+				{
+					"id": "micro-fifo",
+					"form": "anchor",
+					"description": "queueMicrotask и then вперемешку: одна очередь микрозадач в порядке постановки"
+				},
+				{
+					"id": "two-chains",
+					"form": "X",
+					"description": "две цепочки then продвигаются по одному звену за такт и чередуются"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"statements": "6–10",
+				"nesting": 2,
+				"mechanisms": 2,
+				"interacting": "микрозадачи, порождающие микрозадачи и таймеры + таймеры, порождающие микрозадачи и таймеры"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "micro-spawns-micro",
+					"form": "A",
+					"description": "микрозадача ставит микрозадачу — та идёт до таймеров; между двумя таймерами с одним сроком выполняются микрозадачи первого"
+				},
+				{
+					"id": "nested-timers",
+					"form": "B",
+					"description": "таймер, поставленный из микрозадачи или из другого таймера, отсчитывает задержку от момента постановки"
+				},
+				{
+					"id": "same-delay-order",
+					"form": "anchor",
+					"description": "одинаковые задержки: таймеры срабатывают в порядке постановки, и таймер из микрозадачи поставлен позже синхронного"
+				},
+				{
+					"id": "chains-and-tasks",
+					"form": "X",
+					"description": "две цепочки then, одно звено ставит микрозадачу и таймер: новая микрозадача встаёт в очередь за звеньями другой цепочки"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "labels", "description": "метки вывода" },
+		{ "name": "layout", "description": "порядок операторов в тексте, конкретные задержки из допустимых" }
+	],
+	"essentialParams": [
+		{
+			"name": "queues",
+			"description": "какие очереди участвуют: синхронный код, микрозадачи двух видов, таймеры с разными или одинаковыми сроками"
+		},
+		{
+			"name": "nesting",
+			"description": "что ставится изнутри чего: микрозадача из микрозадачи или таймера, таймер из микрозадачи или таймера"
+		}
+	],
+	"language": "javascript",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"синхронный код выполняется до любых колбэков",
+			"все микрозадачи — раньше следующего таймера, включая поставленные во время выполнения микрозадач",
+			"queueMicrotask и then — одна очередь в порядке постановки",
+			"цепочка then продвигается на одно звено за такт",
+			"таймеры — по сроку; одинаковый срок — в порядке постановки",
+			"задержка вложенного таймера отсчитывается от момента постановки",
+			"микрозадачи выполняются после каждого таймера"
+		],
+		"doesNotCheck": [
+			"process.nextTick и setImmediate",
+			"минимальная задержка 4 мс у глубоко вложенных таймеров браузера",
+			"точность таймеров при задержках меньше 40 мс"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "sync-callbacks",
+			"defect": "считает, что колбэк then и queueMicrotask выполняется сразу, в месте вызова",
+			"mustBeCaught": true
+		},
+		{
+			"id": "single-queue",
+			"defect": "считает, что микрозадачи и таймеры с нулевой задержкой стоят в одной очереди в порядке текста",
+			"mustBeCaught": true
+		},
+		{
+			"id": "timers-in-code-order",
+			"defect": "считает, что таймеры срабатывают в порядке постановки, независимо от задержки",
+			"mustBeCaught": true
+		},
+		{
+			"id": "then-first",
+			"defect": "считает, что колбэки промисов выполняются раньше всех колбэков queueMicrotask",
+			"mustBeCaught": true
+		},
+		{
+			"id": "chain-runs-through",
+			"defect": "считает, что цепочка then выполняется целиком, не пропуская вперёд другие микрозадачи",
+			"mustBeCaught": true
+		},
+		{
+			"id": "micro-next-tick",
+			"defect": "считает, что микрозадача, поставленная во время выполнения микрозадач, ждёт следующего таймера",
+			"mustBeCaught": true
+		},
+		{
+			"id": "timer-batch",
+			"defect": "считает, что таймеры с одним сроком срабатывают подряд, а микрозадачи первого — после них",
+			"mustBeCaught": true
+		},
+		{
+			"id": "nested-from-start",
+			"defect": "считает, что задержка вложенного таймера отсчитывается от начала программы",
+			"mustBeCaught": true
+		},
+		{
+			"id": "same-delay-text-order",
+			"defect": "считает, что таймеры с одинаковым сроком срабатывают в порядке текста программы, а не постановки",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 9, "caught": 9 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

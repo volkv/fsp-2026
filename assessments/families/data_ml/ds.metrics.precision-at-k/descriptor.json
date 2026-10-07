@@ -1,0 +1,141 @@
+{
+	"key": "ds.metrics.precision-at-k",
+	"version": 1,
+	"specialization": "data_ml",
+	"block": "ds.metrics",
+	"format": "compute",
+	"answerKind": "float_eps",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": { "users": "5–8", "listLength": "6–9", "k": "3–6", "averaging": "среднее по пользователям" },
+			"constructiveRank": 2,
+			"timeNormSec": 270,
+			"classes": [
+				{
+					"id": "precision",
+					"form": "A",
+					"description": "средняя precision@k: доля релевантных среди первых k выдачи, отсортированной по скору"
+				},
+				{
+					"id": "recall",
+					"form": "B",
+					"description": "средняя recall@k: делим на всех релевантных пользователя, включая не попавших в выдачу"
+				},
+				{
+					"id": "unsorted",
+					"form": "anchor",
+					"description": "выдача показана не по порядку: первые k определяются сортировкой по убыванию скора"
+				},
+				{
+					"id": "short-list",
+					"form": "X",
+					"description": "у части пользователей в выдаче меньше k объектов: по правилу условия делим всё равно на k"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": { "users": "5–8", "listLength": "7–9", "k": "3–6", "averaging": "с исключениями и ничьими" },
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "mrr",
+					"form": "A",
+					"description": "MRR: обратный ранг первого релевантного, пользователь без релевантных в выдаче даёт 0"
+				},
+				{
+					"id": "map",
+					"form": "B",
+					"description": "MAP@k: precision в позициях релевантных, делённая на min(число релевантных пользователя, k)"
+				},
+				{
+					"id": "recall-excluding",
+					"form": "anchor",
+					"description": "средняя recall@k только по пользователям, у которых есть хотя бы один релевантный объект"
+				},
+				{
+					"id": "ties",
+					"form": "X",
+					"description": "равные скоры на границе k: порядок внутри ничьей — по номеру объекта по возрастанию"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "что рекомендуют: товары, статьи, фильмы, вакансии" },
+		{ "name": "data", "description": "пользователи, номера объектов, скоры, отметки релевантности" }
+	],
+	"essentialParams": [
+		{ "name": "metric", "description": "precision@k, recall@k, MRR, MAP@k" },
+		{
+			"name": "list-rule",
+			"description": "сортировка по скору, короткая выдача, исключённые пользователи, ничьи на границе k"
+		}
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"precision@k и recall@k по выдаче",
+			"усреднение по пользователям и исключение пользователей",
+			"MRR и MAP@k",
+			"порядок выдачи по скору и ничьи"
+		],
+		"doesNotCheck": ["градуированная релевантность (семейство ds.metrics.ranking-ndcg)", "онлайн-метрики рекомендаций"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "pr-swap",
+			"defect": "путает знаменатели: делит на число релевантных вместо k или наоборот",
+			"mustBeCaught": true
+		},
+		{
+			"id": "micro-average",
+			"defect": "делит сумму попаданий всех пользователей на сумму релевантных вместо среднего по пользователям",
+			"mustBeCaught": true
+		},
+		{
+			"id": "no-sort",
+			"defect": "берёт первые k объектов в показанном порядке, не сортируя по скору",
+			"mustBeCaught": true
+		},
+		{ "id": "divide-by-length", "defect": "в короткой выдаче делит на её длину, а не на k", "mustBeCaught": true },
+		{
+			"id": "mrr-skip-zero",
+			"defect": "исключает из MRR пользователей без релевантных вместо нуля",
+			"mustBeCaught": true
+		},
+		{
+			"id": "ap-divide-by-hits",
+			"defect": "делит сумму precision в позициях попаданий на число попаданий в первых k",
+			"mustBeCaught": true
+		},
+		{
+			"id": "zero-users-included",
+			"defect": "включает пользователей без релевантных объектов в среднее с recall 0",
+			"mustBeCaught": true
+		},
+		{
+			"id": "tie-by-shown-order",
+			"defect": "разбивает ничью в порядке показа, а не по номеру объекта",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 8, "caught": 8 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0202,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

@@ -1,0 +1,140 @@
+{
+	"key": "ds.stats.descriptive",
+	"version": 1,
+	"specialization": "data_ml",
+	"block": "ds.stats",
+	"format": "compute",
+	"answerKind": "float_eps",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": { "values": "7–15", "statistic": 1, "trap": "делитель, сортировка или усечение" },
+			"constructiveRank": 2,
+			"timeNormSec": 240,
+			"classes": [
+				{ "id": "sample-variance", "form": "A", "description": "выборочная дисперсия с делителем n − 1" },
+				{
+					"id": "median-even",
+					"form": "B",
+					"description": "медиана неупорядоченной выборки чётного размера: сортировка и среднее двух средних"
+				},
+				{
+					"id": "z-score",
+					"form": "anchor",
+					"description": "стандартизованное значение по среднему и выборочному стандартному отклонению"
+				},
+				{
+					"id": "trimmed-mean",
+					"form": "X",
+					"description": "усечённое среднее: отбросить k наименьших и k наибольших после сортировки"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"values": "сводки групп",
+				"statistic": 1,
+				"trap": "межгрупповой разброс, веса, сдвиг среднего"
+			},
+			"constructiveRank": 3,
+			"timeNormSec": 330,
+			"classes": [
+				{
+					"id": "pooled-variance",
+					"form": "A",
+					"description": "дисперсия объединённой выборки по сводкам двух групп: внутригрупповой и межгрупповой разброс"
+				},
+				{
+					"id": "weighted-mean",
+					"form": "B",
+					"description": "средний чек за период по дневным средним и числу заказов: взвешенное среднее"
+				},
+				{
+					"id": "remove-point",
+					"form": "anchor",
+					"description": "выборочная дисперсия после удаления одного значения по сводке: сдвиг среднего и новый делитель"
+				},
+				{
+					"id": "geometric-growth",
+					"form": "X",
+					"description": "средний темп роста за период — геометрическое, а не арифметическое среднее"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "что измеряется: время ответа, чек, длительность сессии, выручка" },
+		{ "name": "data", "description": "значения выборки, размеры групп, порядок значений" }
+	],
+	"essentialParams": [
+		{
+			"name": "statistic",
+			"description": "какая статистика: дисперсия, медиана, z-оценка, усечённое или взвешенное среднее"
+		},
+		{ "name": "source", "description": "из чего считать: сырая выборка или сводки групп и периодов" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"выборочная и генеральная дисперсия",
+			"медиана выборки чётного размера",
+			"стандартизация значения",
+			"усечённое среднее",
+			"дисперсия объединения групп",
+			"взвешенное среднее по агрегатам",
+			"пересчёт дисперсии при удалении значения",
+			"геометрическое среднее темпов роста"
+		],
+		"doesNotCheck": ["работу с библиотеками (numpy, pandas)", "робастные оценки масштаба (MAD)"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "population-variance",
+			"defect": "делит сумму квадратов отклонений на n, а не на n − 1",
+			"mustBeCaught": true
+		},
+		{ "id": "unsorted-median", "defect": "берёт середину выборки, не отсортировав её", "mustBeCaught": true },
+		{
+			"id": "upper-middle",
+			"defect": "при чётном n берёт одно из двух средних значений вместо их среднего",
+			"mustBeCaught": true
+		},
+		{ "id": "trim-one-side", "defect": "отбрасывает k наибольших значений, но не наименьшие", "mustBeCaught": true },
+		{
+			"id": "trim-unsorted",
+			"defect": "отбрасывает первые и последние k значений в порядке записи, без сортировки",
+			"mustBeCaught": true
+		},
+		{
+			"id": "within-only",
+			"defect": "усредняет дисперсии групп с весами размеров, теряя межгрупповой разброс",
+			"mustBeCaught": true
+		},
+		{ "id": "mean-of-variances", "defect": "берёт простое среднее дисперсий групп", "mustBeCaught": true },
+		{ "id": "mean-of-means", "defect": "усредняет дневные средние без весов", "mustBeCaught": true },
+		{ "id": "old-divisor", "defect": "после удаления значения делит на прежнее n − 1", "mustBeCaught": true },
+		{
+			"id": "ignore-mean-shift",
+			"defect": "вычитает квадрат отклонения от старого среднего, не учитывая сдвиг среднего",
+			"mustBeCaught": true
+		},
+		{ "id": "arithmetic-growth", "defect": "усредняет темпы роста арифметически", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 11, "caught": 11 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0109,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

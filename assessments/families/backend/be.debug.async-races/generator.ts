@@ -21,6 +21,8 @@ interface Defect {
 	at: string;
 	text: string;
 	neighbour: { at: string; text: string };
+	/** Other lines where a one-instruction replacement also restores the contract. */
+	alternatives?: { at: string; text: string }[];
 }
 
 /** A class of the module: its lines, the checks of its contract and its possible defects. */
@@ -35,31 +37,36 @@ const MIDDLE: Unit[] = [
 	{
 		lines: [
 			'class Inventory:',
-			'    """Остатки товаров. reserve(sku, qty) списывает qty и возвращает True, если остатка хватает;',
-			'    иначе возвращает False. Остаток не уходит в минус и при одновременных вызовах."""',
+			'    """Остатки товаров в store (асинхронные get и put). reserve(sku, qty) списывает qty и возвращает',
+			'    True, если остатка хватает; иначе False. Остаток не уходит в минус и при одновременных вызовах."""',
 			'',
-			'    def __init__(self, stock):',
-			'        self.stock = dict(stock)',
+			'    def __init__(self, store):',
+			'        self.store = store',
 			'        self._lock = asyncio.Lock()',
-			'',
-			'    async def _load(self, sku):',
-			'        value = self.stock[sku]',
-			'        await asyncio.sleep(0)',
-			'        return value',
 			'',
 			'    async def reserve(self, sku, qty):',
 			'        async with self._lock:',
-			'            available = await self._load(sku)',
+			'            available = await self.store.get(sku)',
 			'            if available < qty:',
 			'                return False',
-			'            self.stock[sku] = available - qty',
+			'            await self.store.put(sku, available - qty)',
 			'            return True'
 		],
 		checks: [
+			'class InStore:',
+			'    def __init__(self, data):',
+			'        self.data = dict(data)',
+			'    async def get(self, key):',
+			'        value = self.data[key]',
+			'        await asyncio.sleep(0)',
+			'        return value',
+			'    async def put(self, key, value):',
+			'        await asyncio.sleep(0)',
+			'        self.data[key] = value',
 			'async def _inventory():',
-			'    inv = Inventory({"a": 5, "b": 1})',
+			'    inv = Inventory(InStore({"a": 5, "b": 1}))',
 			'    done = await asyncio.gather(inv.reserve("a", 3), inv.reserve("a", 3), inv.reserve("b", 1))',
-			'    return done, inv.stock',
+			'    return done, inv.store.data',
 			'assert asyncio.run(_inventory()) == ([True, False, True], {"a": 2, "b": 0})'
 		],
 		defects: [
@@ -74,29 +81,28 @@ const MIDDLE: Unit[] = [
 	{
 		lines: [
 			'class Wallet:',
-			'    """deposit(amount) зачисляет amount после проверки антифрода (не больше 100 000 за раз) и',
-			'    возвращает True; отклонённое пополнение — False. После любых одновременных пополнений баланс',
-			'    равен сумме зачисленных."""',
+			'    """deposit(amount) зачисляет amount, если асинхронная проверка antifraud(amount, new_balance)',
+			'    одобрила пополнение, и возвращает True; отклонённое пополнение — False. new_balance — предварительный',
+			'    баланс: снимок баланса в момент вызова плюс amount, только для оценки риска (одновременные',
+			'    пополнения могут его обогнать). После любых одновременных пополнений баланс равен сумме зачисленных."""',
 			'',
-			'    def __init__(self):',
+			'    def __init__(self, antifraud):',
+			'        self.antifraud = antifraud',
 			'        self.balance = 0',
-			'        self.journal = []',
-			'',
-			'    async def _antifraud(self, amount, new_balance):',
-			'        await asyncio.sleep(0)',
-			'        self.journal.append(new_balance)',
-			'        return amount <= 100_000',
 			'',
 			'    async def deposit(self, amount):',
 			'        new_balance = self.balance + amount',
-			'        if not await self._antifraud(amount, new_balance):',
+			'        if not await self.antifraud(amount, new_balance):',
 			'            return False',
 			'        self.balance += amount',
 			'        return True'
 		],
 		checks: [
+			'async def wl_antifraud(amount, new_balance):',
+			'    await asyncio.sleep(0)',
+			'    return amount <= 100_000',
 			'async def _wallet():',
-			'    w = Wallet()',
+			'    w = Wallet(wl_antifraud)',
 			'    done = await asyncio.gather(w.deposit(10), w.deposit(5), w.deposit(200_000), w.deposit(7))',
 			'    return done, w.balance',
 			'assert asyncio.run(_wallet()) == ([True, True, False, True], 22)'
@@ -113,37 +119,46 @@ const MIDDLE: Unit[] = [
 	{
 		lines: [
 			'class Booking:',
-			'    """book(seat, user): занимает свободное место и возвращает True; занятое — False.',
-			'    Одно место никогда не достаётся двоим, даже при одновременных вызовах."""',
+			'    """book(seat, user): занимает свободное место и возвращает True; занятое — False. Каждая попытка',
+			'    сначала пишется в аудит (асинхронный audit(user, seat)), занятое место сохраняется асинхронным',
+			'    save(seat, user). Одно место никогда не достаётся двоим, даже при одновременных вызовах."""',
 			'',
-			'    def __init__(self, seats):',
+			'    def __init__(self, seats, audit, save):',
 			'        self.taken = {seat: None for seat in seats}',
-			'        self.saved = []',
+			'        self.audit = audit',
+			'        self.save = save',
 			'        self._lock = asyncio.Lock()',
 			'',
-			'    async def _free_seats(self):',
-			'        free = [s for s, owner in self.taken.items() if owner is None]',
-			'        await asyncio.sleep(0)',
-			'        return free',
-			'',
 			'    async def book(self, seat, user):',
-			'        free = await self._free_seats()',
+			'        free = [s for s, owner in self.taken.items() if owner is None]',
 			'        if seat not in free:',
 			'            return False',
+			'        await self.audit(user, seat)',
 			'        async with self._lock:',
 			'            if self.taken[seat] is not None:',
 			'                return False',
 			'            self.taken[seat] = user',
-			'            await asyncio.sleep(0)',
-			'            self.saved.append((seat, user))',
+			'            await self.save(seat, user)',
 			'        return True'
 		],
 		checks: [
+			'bk_log, bk_saved = [], []',
+			'async def bk_audit(user, seat):',
+			'    await asyncio.sleep(0)',
+			'    bk_log.append((user, seat))',
+			'async def bk_save(seat, user):',
+			'    await asyncio.sleep(0)',
+			'    bk_saved.append((seat, user))',
 			'async def _booking():',
-			'    b = Booking(["A1", "A2"])',
+			'    b = Booking(["A1", "A2"], bk_audit, bk_save)',
 			'    done = await asyncio.gather(b.book("A1", "ann"), b.book("A1", "bob"), b.book("A2", "eve"))',
-			'    return done, b.taken, b.saved',
-			'assert asyncio.run(_booking()) == ([True, False, True], {"A1": "ann", "A2": "eve"}, [("A1", "ann"), ("A2", "eve")])'
+			'    return done, b.taken, sorted(bk_log), bk_saved',
+			'assert asyncio.run(_booking()) == (',
+			'    [True, False, True],',
+			'    {"A1": "ann", "A2": "eve"},',
+			'    [("ann", "A1"), ("bob", "A1"), ("eve", "A2")],',
+			'    [("A1", "ann"), ("A2", "eve")],',
+			')'
 		],
 		defects: [
 			{
@@ -413,9 +428,9 @@ const SENIOR: Unit[] = [
 	{
 		lines: [
 			'class ProfileCache:',
-			'    """get(user_id) возвращает профиль (словарь). Одновременные промахи по одному ключу дают одну',
-			'    загрузку: остальные ждут ту же задачу. Каждый вызов получает свою копию — правки вызывающего',
-			'    не меняют кэш."""',
+			'    """get(user_id) возвращает профиль — плоский словарь, значения полей неизменяемые (строки, числа).',
+			'    Одновременные промахи по одному ключу дают одну загрузку: остальные ждут ту же задачу. Каждый вызов',
+			'    получает свою копию словаря — правки вызывающего не меняют кэш."""',
 			'',
 			'    def __init__(self, loader):',
 			'        self.loader = loader',
@@ -472,8 +487,9 @@ const SENIOR: Unit[] = [
 		lines: [
 			'class PriceCache:',
 			'    """get(sku) читает цену из кэша или из хранилища; update(sku, price) пишет в хранилище и',
-			'    сбрасывает кэш. После завершения update ни один get не возвращает старую цену — даже если',
-			'    чтение из хранилища началось до update."""',
+			'    сбрасывает кэш. Любой get, начатый после завершения update, возвращает новую цену. get, чьё',
+			'    чтение из хранилища началось до update, может вернуть старую цену, но не оставляет её в кэше.',
+			'    Повторный get без промежуточного update берёт цену из кэша, не читая хранилище."""',
 			'',
 			'    def __init__(self, store):',
 			'        self.store = store',
@@ -497,8 +513,9 @@ const SENIOR: Unit[] = [
 		checks: [
 			'class _PriceStore:',
 			'    def __init__(self):',
-			'        self.data = {"a": 100}',
+			'        self.data, self.reads = {"a": 100}, 0',
 			'    async def read(self, sku):',
+			'        self.reads += 1',
 			'        value = self.data[sku]',
 			'        await asyncio.sleep(0)',
 			'        await asyncio.sleep(0)',
@@ -509,8 +526,11 @@ const SENIOR: Unit[] = [
 			'async def _price_cache():',
 			'    c = PriceCache(_PriceStore())',
 			'    first, _ = await asyncio.gather(c.get("a"), c.update("a", 120))',
-			'    return first, await c.get("a"), await c.get("a")',
-			'assert asyncio.run(_price_cache()) == (100, 120, 120)'
+			'    second, third, reads = await c.get("a"), await c.get("a"), c.store.reads',
+			'    await c.update("a", 130)',
+			'    racing, _ = await asyncio.gather(c.get("a"), c.update("a", 150))',
+			'    return first, second, third, reads, racing, await c.get("a")',
+			'assert asyncio.run(_price_cache()) == (100, 120, 120, 2, 130, 150)'
 		],
 		defects: [
 			{
@@ -572,47 +592,46 @@ const SENIOR: Unit[] = [
 	{
 		lines: [
 			'class Accounts:',
-			'    """withdraw(account, amount): списывает и возвращает True, если хватает средств; иначе False.',
-			'    Номер счёта нормализуется (пробелы, регистр). Операции по одному счёту выполняются по очереди."""',
+			'    """withdraw(account, amount): списывает amount и возвращает True, если на счёте хватает средств;',
+			'    иначе False. Номер счёта нормализуется (пробелы, регистр). Балансы хранятся в store (асинхронные',
+			'    get и put); операции по одному счёту выполняются по очереди."""',
 			'',
-			'    def __init__(self, balances):',
-			'        self.balances = dict(balances)',
+			'    def __init__(self, store):',
+			'        self.store = store',
 			'        self._locks = {}',
-			'',
-			'    async def _balance(self, key):',
-			'        value = self.balances[key]',
-			'        await asyncio.sleep(0)',
-			'        return value',
 			'',
 			'    async def withdraw(self, account, amount):',
 			'        key = account.strip().upper()',
-			'        lock = self._locks.setdefault(key, asyncio.Lock())',
-			'        async with lock:',
-			'            balance = await self._balance(key)',
+			'        async with self._locks.setdefault(key, asyncio.Lock()):',
+			'            balance = await self.store.get(key)',
 			'            if balance < amount:',
 			'                return False',
-			'            self.balances[key] = balance - amount',
+			'            await self.store.put(key, balance - amount)',
 			'            return True'
 		],
 		checks: [
+			'class AcStore:',
+			'    def __init__(self, data):',
+			'        self.data = dict(data)',
+			'    async def get(self, key):',
+			'        value = self.data[key]',
+			'        await asyncio.sleep(0)',
+			'        return value',
+			'    async def put(self, key, value):',
+			'        await asyncio.sleep(0)',
+			'        self.data[key] = value',
 			'async def _accounts():',
-			'    acc = Accounts({"ACC1": 100, "ACC2": 50})',
+			'    acc = Accounts(AcStore({"ACC1": 100, "ACC2": 50}))',
 			'    done = await asyncio.gather(acc.withdraw("acc1", 70), acc.withdraw(" ACC1", 70), acc.withdraw("acc2", 50))',
-			'    return done, acc.balances',
+			'    return done, acc.store.data',
 			'assert asyncio.run(_accounts()) == ([True, False, True], {"ACC1": 30, "ACC2": 0})'
 		],
 		defects: [
 			{
 				kind: 'lock-scope',
-				at: '        lock = self._locks.setdefault(key, asyncio.Lock())',
-				text: '        lock = self._locks.get(key, asyncio.Lock())',
+				at: '        async with self._locks.setdefault(key, asyncio.Lock()):',
+				text: '        async with self._locks.get(key, asyncio.Lock()):',
 				neighbour: { at: '            if balance < amount:', text: '            if balance - amount < 0:' }
-			},
-			{
-				kind: 'lock-scope',
-				at: '        lock = self._locks.setdefault(key, asyncio.Lock())',
-				text: '        lock = self._locks.setdefault(account, asyncio.Lock())',
-				neighbour: { at: '        key = account.strip().upper()', text: '        key = account.upper().strip()' }
 			}
 		]
 	},
@@ -620,105 +639,109 @@ const SENIOR: Unit[] = [
 		lines: [
 			'class Rooms:',
 			'    """reserve(room, slot, user): бронирует слот переговорной и возвращает True, если он свободен;',
-			'    иначе False. Один слот одной комнаты не достаётся двоим."""',
+			'    иначе False. Брони хранятся в store (асинхронные get и put, нет брони — None). Один слот одной',
+			'    комнаты не достаётся двоим."""',
 			'',
-			'    def __init__(self):',
-			'        self.bookings = {}',
+			'    def __init__(self, store):',
+			'        self.store = store',
 			'        self._locks = {}',
 			'',
-			'    async def _is_free(self, room, slot):',
-			'        free = (room, slot) not in self.bookings',
-			'        await asyncio.sleep(0)',
-			'        return free',
-			'',
 			'    async def reserve(self, room, slot, user):',
-			'        lock = self._locks.setdefault((room, slot), asyncio.Lock())',
-			'        async with lock:',
-			'            if not await self._is_free(room, slot):',
+			'        async with self._locks.setdefault((room, slot), asyncio.Lock()):',
+			'            if await self.store.get((room, slot)) is not None:',
 			'                return False',
-			'            self.bookings[(room, slot)] = user',
+			'            await self.store.put((room, slot), user)',
 			'            return True'
 		],
 		checks: [
+			'class RmStore:',
+			'    def __init__(self):',
+			'        self.data = {}',
+			'    async def get(self, key):',
+			'        value = self.data.get(key)',
+			'        await asyncio.sleep(0)',
+			'        return value',
+			'    async def put(self, key, value):',
+			'        await asyncio.sleep(0)',
+			'        self.data[key] = value',
 			'async def _rooms():',
-			'    r = Rooms()',
+			'    r = Rooms(RmStore())',
 			'    done = await asyncio.gather(r.reserve("A", 10, "ann"), r.reserve("A", 10, "bob"), r.reserve("A", 11, "bob"))',
-			'    return done, r.bookings',
+			'    return done, r.store.data',
 			'assert asyncio.run(_rooms()) == ([True, False, True], {("A", 10): "ann", ("A", 11): "bob"})'
 		],
 		defects: [
 			{
 				kind: 'lock-scope',
-				at: '        lock = self._locks.setdefault((room, slot), asyncio.Lock())',
-				text: '        lock = self._locks.setdefault((room, user), asyncio.Lock())',
+				at: '        async with self._locks.setdefault((room, slot), asyncio.Lock()):',
+				text: '        async with self._locks.setdefault((room, user), asyncio.Lock()):',
 				neighbour: {
-					at: '            self.bookings[(room, slot)] = user',
-					text: '            self.bookings.setdefault((room, slot), user)'
+					at: '            await self.store.put((room, slot), user)',
+					text: '            await self.store.put((room, slot), str(user))'
 				}
 			}
 		]
 	},
 	{
 		lines: [
-			'class Ledger:',
-			'    """credit и debit меняют один баланс; одновременные операции не теряют обновлений.',
-			'    report() возвращает баланс; отчёты не мешают друг другу."""',
+			'class Quotas:',
+			'    """consume(user, n): списывает n единиц квоты пользователя и возвращает True, если её хватает;',
+			'    иначе False. Остатки хранятся в store (асинхронные get и put); списания одного пользователя',
+			'    выполняются по очереди, разных пользователей — независимо."""',
 			'',
-			'    def __init__(self):',
-			'        self.balance = 0',
-			'        self._lock = asyncio.Lock()',
-			'        self._report_lock = asyncio.Lock()',
+			'    def __init__(self, store, users):',
+			'        self.store = store',
+			'        self._locks = {user: asyncio.Lock() for user in users}',
 			'',
-			'    async def _sync(self):',
-			'        await asyncio.sleep(0)',
-			'',
-			'    async def credit(self, amount):',
-			'        async with self._lock:',
-			'            value = self.balance',
-			'            await self._sync()',
-			'            self.balance = value + amount',
-			'',
-			'    async def debit(self, amount):',
-			'        lock = self._lock',
-			'        async with lock:',
-			'            current = self.balance',
-			'            await self._sync()',
-			'            self.balance = current - amount',
-			'',
-			'    async def report(self):',
-			'        async with self._report_lock:',
-			'            await self._sync()',
-			'            return self.balance'
+			'    async def consume(self, user, n):',
+			'        async with self._locks[user]:',
+			'            left = await self.store.get(user)',
+			'            if left < n:',
+			'                return False',
+			'            await self.store.put(user, left - n)',
+			'            return True'
 		],
 		checks: [
-			'async def _ledger():',
-			'    led = Ledger()',
-			'    await asyncio.gather(led.credit(10), led.debit(3), led.credit(5), led.debit(1))',
-			'    return await led.report()',
-			'assert asyncio.run(_ledger()) == 11'
+			'class QtStore:',
+			'    def __init__(self, data):',
+			'        self.data = dict(data)',
+			'    async def get(self, key):',
+			'        value = self.data[key]',
+			'        await asyncio.sleep(0)',
+			'        return value',
+			'    async def put(self, key, value):',
+			'        await asyncio.sleep(0)',
+			'        self.data[key] = value',
+			'async def _quotas():',
+			'    q = Quotas(QtStore({"ann": 5, "bob": 3}), ["ann", "bob"])',
+			'    done = await asyncio.gather(q.consume("ann", 3), q.consume("ann", 3), q.consume("bob", 3))',
+			'    return done, q.store.data',
+			'assert asyncio.run(_quotas()) == ([True, False, True], {"ann": 2, "bob": 0})'
 		],
 		defects: [
 			{
 				kind: 'lock-scope',
-				at: '        lock = self._lock',
-				text: '        lock = self._report_lock',
-				neighbour: { at: '            current = self.balance', text: '            current = int(self.balance)' }
+				at: '        async with self._locks[user]:',
+				text: '        async with asyncio.Lock():',
+				neighbour: { at: '            if left < n:', text: '            if left - n < 0:' }
 			}
 		]
 	},
 	{
 		lines: [
 			'class Job:',
-			'    """run() вычисляет результат и сохраняет его; wait() ждёт завершения run() и возвращает',
-			'    сохранённый результат — никогда не None."""',
+			'    """run() вычисляет результат (compute() никогда не возвращает None), сохраняет его асинхронным',
+			'    persist(value) и запоминает; wait() ждёт завершения run() и возвращает сохранённый результат —',
+			'    никогда не None."""',
 			'',
-			'    def __init__(self, compute):',
+			'    def __init__(self, compute, persist):',
 			'        self.compute = compute',
+			'        self.persist = persist',
 			'        self.result = None',
 			'        self.done = asyncio.Event()',
 			'',
 			'    async def _store(self, value):',
-			'        await asyncio.sleep(0)',
+			'        await self.persist(value)',
 			'        self.result = value',
 			'',
 			'    async def run(self):',
@@ -731,14 +754,18 @@ const SENIOR: Unit[] = [
 			'        return self.result'
 		],
 		checks: [
+			'jb_saved = []',
+			'async def jb_compute():',
+			'    await asyncio.sleep(0)',
+			'    return 42',
+			'async def jb_persist(value):',
+			'    await asyncio.sleep(0)',
+			'    jb_saved.append(value)',
 			'async def _job():',
-			'    async def compute():',
-			'        await asyncio.sleep(0)',
-			'        return 42',
-			'    j = Job(compute)',
+			'    j = Job(jb_compute, jb_persist)',
 			'    got, _ = await asyncio.gather(j.wait(), j.run())',
-			'    return got',
-			'assert asyncio.run(_job()) == 42'
+			'    return got, jb_saved',
+			'assert asyncio.run(_job()) == (42, [42])'
 		],
 		defects: [
 			{
@@ -791,15 +818,16 @@ const SENIOR: Unit[] = [
 	{
 		lines: [
 			'class Uploader:',
-			'    """upload_all(files) загружает файлы одновременно и возвращается, только когда загружены',
-			'    все; возвращает число загруженных."""',
+			'    """upload_all(files) отправляет файлы через асинхронный transport(name) одновременно и возвращается,',
+			'    только когда отправлены все; возвращает общее число файлов, загруженных этим загрузчиком за всё',
+			'    время (длину self.uploaded)."""',
 			'',
-			'    def __init__(self):',
+			'    def __init__(self, transport):',
+			'        self.transport = transport',
 			'        self.uploaded = []',
 			'',
 			'    async def _upload(self, name):',
-			'        for _ in range(len(name)):',
-			'            await asyncio.sleep(0)',
+			'        await self.transport(name)',
 			'        self.uploaded.append(name)',
 			'',
 			'    async def upload_all(self, files):',
@@ -808,10 +836,17 @@ const SENIOR: Unit[] = [
 			'        return len(self.uploaded)'
 		],
 		checks: [
+			'up_sent = []',
+			'async def up_transport(name):',
+			'    for _ in range(len(name)):',
+			'        await asyncio.sleep(0)',
+			'    up_sent.append(name)',
 			'async def _uploads():',
-			'    u = Uploader()',
-			'    return await u.upload_all(["a.txt", "report.pdf", "b"])',
-			'assert asyncio.run(_uploads()) == 3'
+			'    u = Uploader(up_transport)',
+			'    first = await u.upload_all(["a.txt", "report.pdf", "b"])',
+			'    second = await u.upload_all(["c.csv"])',
+			'    return first, second, sorted(up_sent)',
+			'assert asyncio.run(_uploads()) == (3, 4, ["a.txt", "b", "c.csv", "report.pdf"])'
 		],
 		defects: [
 			{
@@ -983,10 +1018,11 @@ const SENIOR_X: Unit[] = [
 		checks: [
 			'async def wk_run():',
 			'    q = asyncio.Queue()',
-			'    for job in ("a", "b"):',
+			'    for job in ("a", "b", "c"):',
 			'        q.put_nowait(job)',
 			'    w = Worker(q)',
 			'    task = asyncio.ensure_future(w.run())',
+			'    await asyncio.sleep(0)',
 			'    await asyncio.sleep(0)',
 			'    task.cancel()',
 			'    try:',
@@ -995,7 +1031,7 @@ const SENIOR_X: Unit[] = [
 			'    except asyncio.CancelledError:',
 			'        cancelled = True',
 			'    return cancelled, w.done, q.qsize()',
-			'assert asyncio.run(wk_run()) == (True, [], 2)'
+			'assert asyncio.run(wk_run()) == (True, ["a"], 2)'
 		],
 		defects: [
 			{
@@ -1042,6 +1078,7 @@ const SENIOR_X: Unit[] = [
 		checks: [
 			'async def ss_run():',
 			'    s = Session()',
+			'    assert s.open == 0',
 			'    task = asyncio.ensure_future(s.fetch("a"))',
 			'    await asyncio.sleep(0)',
 			'    task.cancel()',
@@ -1049,8 +1086,9 @@ const SENIOR_X: Unit[] = [
 			'        await task',
 			'    except asyncio.CancelledError:',
 			'        pass',
-			'    return await s.fetch("b"), s.open',
-			'assert asyncio.run(ss_run()) == ("B", 0)'
+			'    after_cancel = s.open',
+			'    return after_cancel, await s.fetch("b"), s.open',
+			'assert asyncio.run(ss_run()) == (0, "B", 0)'
 		],
 		defects: [
 			{
@@ -1093,6 +1131,10 @@ interface Program {
 	fix: string;
 	neighbour: { line: number; text: string };
 	other: { line: number; text: string };
+	/** The awaited call of the defective class dropped instead of fixing the defect line, or null. */
+	dropped: { line: number; text: string } | null;
+	/** Accepted other repairs: absolute line and its replacement. */
+	alternatives: { line: number; fix: string }[];
 }
 
 function compose(rng: Rng, library: readonly Unit[], kind: string, contextCount: number): Program {
@@ -1120,11 +1162,19 @@ function compose(rng: Rng, library: readonly Unit[], kind: string, contextCount:
 	let answer = 0;
 	let neighbour = { line: 0, text: '' };
 	let other = { line: 0, text: '' };
+	let alternatives: Program['alternatives'] = [];
+	let dropped: Program['dropped'] = null;
 	for (const unit of order) {
 		const offset = lines.length;
 		unit.lines.forEach((line, i) => lines.push(unit === buggy && i === defectLine ? defect.text : line));
 		if (unit === buggy) {
 			answer = offset + defectLine + 1;
+			alternatives = (defect.alternatives ?? []).map((a) => ({ line: offset + lineOf(buggy, a.at) + 1, fix: a.text }));
+			const awaited = buggy.lines.findIndex((line, i) => i !== defectLine && /^\s+await /.test(line));
+			if (awaited !== -1) {
+				const line = buggy.lines[awaited] ?? '';
+				dropped = { line: offset + awaited + 1, text: `${line.slice(0, line.length - line.trimStart().length)}pass` };
+			}
 			neighbour = { line: offset + lineOf(buggy, defect.neighbour.at) + 1, text: defect.neighbour.text };
 		} else if (other.line === 0) {
 			const sibling = unit.defects[0];
@@ -1145,7 +1195,7 @@ function compose(rng: Rng, library: readonly Unit[], kind: string, contextCount:
 		'except Exception as exc:',
 		"    print('fail', type(exc).__name__)"
 	].join('\n');
-	return { source: lines.join('\n'), check, answer, fix, neighbour, other };
+	return { source: lines.join('\n'), check, answer, fix, neighbour, other, alternatives, dropped };
 }
 
 export function build(input: GenerateInput): Built {
@@ -1160,19 +1210,30 @@ export function build(input: GenerateInput): Built {
 		statement: {
 			markdown:
 				'Модуль асинхронного сервиса на Python 3 (asyncio). У каждого класса в строке документации записан его ' +
-				'контракт — в том числе при одновременных вызовах из разных задач одного цикла событий. Ровно одна строка ' +
-				'модуля нарушает контракт своего класса: если заменить только её, все классы будут работать по контракту. ' +
-				'Введите номер этой строки (нумерация с 1).',
+				'контракт — в том числе при одновременных вызовах из разных задач одного цикла событий. В модуле один дефект. ' +
+				'Введите номер строки с дефектом (нумерация с 1). Если исправить можно в нескольких строках — засчитывается любая ' +
+				'из них, где замена одной инструкцией Python (без `;`) восстанавливает спецификацию. Исправление — одна простая инструкция того же вида, что исправляемая строка: не добавляйте ' +
+				'конструкций, которых в ней нет (`:=`, lambda, обёртки, новые функции), и не переносите в неё логику из другой строки.',
 			code: { language: 'python3', source: p.source }
 		},
-		answer: { kind: 'line_no', value: p.answer }
+		answer: {
+			kind: 'line_no',
+			value: p.answer,
+			...(p.alternatives.length ? { alternatives: p.alternatives.map((a) => a.line) } : {})
+		}
 	});
 	return {
 		instance,
-		reference: () => ({ kind: 'bug', check: p.check, fix: p.fix }),
+		reference: () => ({
+			kind: 'bug',
+			check: p.check,
+			fix: p.fix,
+			...(p.alternatives.length ? { alternatives: p.alternatives } : {})
+		}),
 		wrong: () => ({
 			'neighbour-line': { kind: 'line', line: p.neighbour.line, replacement: p.neighbour.text },
-			'other-class': p.other.line === 0 ? null : { kind: 'line', line: p.other.line, replacement: p.other.text }
+			'other-class': p.other.line === 0 ? null : { kind: 'line', line: p.other.line, replacement: p.other.text },
+			'drop-await': p.dropped === null ? null : { kind: 'line', line: p.dropped.line, replacement: p.dropped.text }
 		})
 	};
 }

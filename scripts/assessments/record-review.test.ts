@@ -9,6 +9,12 @@ import { currentSourceSha256, loadTree } from './tree.ts';
 const family = loadTree().families.find((f) => f.key === 'be.db.filter-order');
 if (!family) throw new Error('be.db.filter-order is not in the tree');
 const source = currentSourceSha256(family);
+/** The family before any judgement, whatever reviews the tree holds already. */
+const unjudged: FamilyDescriptor = {
+	...family.descriptor,
+	levels: family.descriptor.levels.map((l) => ({ ...l, angoff: { ...l.angoff, ratings: [] } })),
+	gates: { ...family.descriptor.gates, rubricReviews: [] }
+};
 const grades = family.descriptor.levels.map((l) => l.grade);
 
 const review = (lineage: string, p: number, verdict: 'approved' | 'changes_requested' = 'approved') => ({
@@ -31,20 +37,20 @@ const pending = (d: FamilyDescriptor) => familyProblems(d, source).filter((p) =>
 
 describe('recordReview', () => {
 	it('refuses a review made on other sources, by an author, or without every level', () => {
-		expect(recordReview(family.descriptor, source, { ...review('a', 0.6), sourceSha256: '0'.repeat(64) })).toMatch(
+		expect(recordReview(unjudged, source, { ...review('a', 0.6), sourceSha256: '0'.repeat(64) })).toMatch(
 			/review it again/
 		);
 		expect(
-			recordReview(family.descriptor, source, {
+			recordReview(unjudged, source, {
 				...review('a', 0.6),
 				reviewer: { kind: 'model', model: 'claude-opus', lineage: 'anthropic' }
 			})
 		).toMatch(/author/);
-		expect(recordReview(family.descriptor, source, { ...review('a', 0.6), angoff: [] })).toMatch(/rate every level/);
+		expect(recordReview(unjudged, source, { ...review('a', 0.6), angoff: [] })).toMatch(/rate every level/);
 	});
 
 	it('admits the rubric and the cut after two approvals of different lineages, the cut being their mean', () => {
-		const once = record(family.descriptor, review('openai', 0.55));
+		const once = record(unjudged, review('openai', 0.55));
 		expect(pending(once).length).toBeGreaterThan(0);
 		const twice = record(once, review('anthropic', 0.6));
 		expect(familyProblems(twice, source)).toEqual([]);
@@ -52,7 +58,7 @@ describe('recordReview', () => {
 	});
 
 	it('replaces the earlier review of the same lineage, and a request for changes blocks', () => {
-		const first = record(family.descriptor, review('openai', 0.55));
+		const first = record(unjudged, review('openai', 0.55));
 		const again = record(first, review('openai', 0.7, 'changes_requested'));
 		expect(again.gates.rubricReviews).toHaveLength(1);
 		expect(again.levels[0]?.angoff.ratings).toHaveLength(1);

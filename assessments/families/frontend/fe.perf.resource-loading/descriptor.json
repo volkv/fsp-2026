@@ -1,0 +1,126 @@
+{
+	"key": "fe.perf.resource-loading",
+	"version": 1,
+	"specialization": "frontend",
+	"block": "fe.perf",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"resources": "4–7",
+				"rules": "5–6",
+				"answer": "порядок скриптов + 2 момента",
+				"interacting": "сеть + блокировка разбора + блокировка отрисовки + очередь отложенных скриптов"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "classic-css",
+					"form": "A",
+					"description": "классический скрипт в body ждёт загрузки CSS перед ним, async — нет; заголовок перед скриптом виден, как только загружен CSS"
+				},
+				{
+					"id": "defer-async",
+					"form": "B",
+					"description": "defer выполняются после разбора в порядке документа, async — по мере загрузки; DOMContentLoaded ждёт defer, но не async"
+				},
+				{
+					"id": "modules",
+					"form": "anchor",
+					"description": "type=module отложен, как defer, и стоит с ним в одной очереди по порядку документа; импорты модуля грузятся каскадом, modulepreload его срезает"
+				},
+				{
+					"id": "web-font",
+					"form": "X",
+					"description": "шрифт из @font-face запрашивается после CSS или сразу при preload; font-display: block прячет текст до шрифта, swap — нет"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "имена скриптов и порядок их тегов" },
+		{ "name": "network", "description": "RTT, пропускная способность, размеры, время выполнения" }
+	],
+	"essentialParams": [
+		{ "name": "script-mode", "description": "классический, async, defer, type=module" },
+		{ "name": "blocking", "description": "что блокирует разбор и отрисовку: скрипты, CSS, шрифт" },
+		{
+			"name": "discovery",
+			"description": "когда браузер узнаёт о ресурсе: сразу, после CSS, после модуля-родителя, через preload"
+		}
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"классический скрипт блокирует разбор и ждёт CSS перед ним",
+			"порядок async и defer по спецификации HTML",
+			"DOMContentLoaded ждёт defer и модули, но не async",
+			"CSS блокирует отрисовку",
+			"модули: отложенное выполнение, каскад импортов, modulepreload",
+			"preload шрифта и font-display"
+		],
+		"doesNotCheck": [
+			"приоритеты и ограничения соединений HTTP",
+			"медленный старт TCP и сжатие",
+			"инкрементальную отрисовку во время разбора больших документов"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "css-not-blocking-scripts",
+			"defect": "считает, что скрипты не ждут загрузки CSS перед ними",
+			"mustBeCaught": true
+		},
+		{ "id": "async-document-order", "defect": "выполняет async-скрипты в порядке документа", "mustBeCaught": true },
+		{
+			"id": "defer-download-order",
+			"defect": "выполняет defer-скрипты и модули в порядке окончания загрузки",
+			"mustBeCaught": true
+		},
+		{ "id": "dcl-waits-async", "defect": "считает, что DOMContentLoaded ждёт async-скрипты", "mustBeCaught": true },
+		{
+			"id": "dcl-before-defer",
+			"defect": "считает, что DOMContentLoaded наступает сразу после разбора, до defer-скриптов",
+			"mustBeCaught": true
+		},
+		{ "id": "paint-ignores-css", "defect": "считает, что отрисовка не ждёт CSS", "mustBeCaught": true },
+		{
+			"id": "module-no-waterfall",
+			"defect": "считает, что импорты модуля загружаются сразу, без modulepreload",
+			"mustBeCaught": true
+		},
+		{
+			"id": "module-blocks-parser",
+			"defect": "считает, что type=module блокирует разбор, как классический скрипт",
+			"mustBeCaught": true
+		},
+		{
+			"id": "swap-waits",
+			"defect": "считает, что при font-display: swap текст не виден до загрузки шрифта",
+			"mustBeCaught": true
+		},
+		{
+			"id": "block-ignored",
+			"defect": "считает, что при font-display: block текст сразу виден запасным шрифтом",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 10, "caught": 10 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

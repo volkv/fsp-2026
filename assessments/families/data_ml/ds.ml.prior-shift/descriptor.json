@@ -1,0 +1,137 @@
+{
+	"key": "ds.ml.prior-shift",
+	"version": 1,
+	"specialization": "data_ml",
+	"block": "ds.ml",
+	"format": "compute",
+	"answerKind": "float_eps",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": { "inputs": "матрица ошибок и новая доля позитивов", "steps": "2–3", "formula": "не дана" },
+			"constructiveRank": 5,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "precision-shift",
+					"form": "A",
+					"description": "precision в эксплуатации при другой доле позитивов: TPR и FPR те же, precision падает"
+				},
+				{
+					"id": "undersampling",
+					"form": "B",
+					"description": "поправка вероятности модели, обученной на прореженных негативах"
+				},
+				{
+					"id": "f1-shift",
+					"form": "anchor",
+					"description": "F1 при новой доле позитивов: recall прежний, precision пересчитывается"
+				},
+				{ "id": "accuracy-shift", "form": "X", "description": "accuracy при новой доле позитивов как смесь TPR и TNR" }
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"constructive": {
+				"inputs": "калиброванная модель, априорные доли, стоимости или выборка эксплуатации",
+				"steps": "3–4",
+				"formula": "не дана"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "threshold-shift",
+					"form": "A",
+					"description": "порог на скоре модели, равносильный порогу по апостериорной вероятности при новой априорной доле"
+				},
+				{
+					"id": "cost-threshold",
+					"form": "B",
+					"description": "байесовский порог по стоимостям ошибок при новой априорной доле, переведённый в скор модели"
+				},
+				{
+					"id": "bbse",
+					"form": "anchor",
+					"description": "оценка новой доли позитивов скорректированным подсчётом (adjusted classify and count)"
+				},
+				{
+					"id": "probabilistic-count",
+					"form": "X",
+					"description": "оценка новой доли позитивов по среднему скору с поправкой на средние скоры классов"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "предметная область: мошенничество, отток, спам, дефекты" },
+		{ "name": "numbers", "description": "матрица ошибок, доли, стоимости, скоры" }
+	],
+	"essentialParams": [
+		{ "name": "shift", "description": "что меняется: доля позитивов в эксплуатации, прореживание при обучении" },
+		{ "name": "asked", "description": "метрика, поправленная вероятность, порог или оценка новой доли" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"зависимость precision, F1 и accuracy от доли позитивов",
+			"поправка вероятностей после прореживания класса",
+			"порог по апостериорной вероятности при смене априорной доли",
+			"порог по стоимостям ошибок",
+			"оценка сдвига априорной доли по выходам модели"
+		],
+		"doesNotCheck": [
+			"сдвиг условных распределений признаков (ковариатный сдвиг)",
+			"обучение с весами классов в конкретной библиотеке"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "test-metric",
+			"defect": "переносит метрику с валидации без пересчёта под новую долю позитивов",
+			"mustBeCaught": true
+		},
+		{ "id": "fpr-as-specificity", "defect": "путает FPR со специфичностью при пересчёте", "mustBeCaught": true },
+		{ "id": "balanced-accuracy", "defect": "считает accuracy как среднее TPR и TNR", "mustBeCaught": true },
+		{
+			"id": "no-correction",
+			"defect": "оставляет вероятность модели без поправки на прореживание",
+			"mustBeCaught": true
+		},
+		{ "id": "inverse-correction", "defect": "поправляет шансы в обратную сторону", "mustBeCaught": true },
+		{ "id": "no-adjust", "defect": "не переводит порог под новую априорную долю", "mustBeCaught": true },
+		{ "id": "inverse-adjust", "defect": "переводит отношение шансов в обратную сторону", "mustBeCaught": true },
+		{ "id": "ignore-costs", "defect": "берёт порог 0,5 вместо порога по стоимостям", "mustBeCaught": true },
+		{
+			"id": "inverse-cost",
+			"defect": "ставит в числитель порога стоимость пропуска, а не ложной тревоги",
+			"mustBeCaught": true
+		},
+		{
+			"id": "classify-count",
+			"defect": "принимает долю сработавших (или средний скор) за долю позитивов",
+			"mustBeCaught": true
+		},
+		{
+			"id": "divide-by-tpr",
+			"defect": "делит долю сработавших на TPR, не вычитая ложные срабатывания",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 11, "caught": 11 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0057,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

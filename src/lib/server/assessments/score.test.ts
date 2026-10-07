@@ -24,6 +24,8 @@ describe('computed answers', () => {
 		expect(answerMatches({ kind: 'float_eps', value: 0.75, eps: 0.01 }, 'около 0.75')).toBe(false);
 		expect(answerMatches({ kind: 'line_no', value: 7 }, '7')).toBe(true);
 		expect(answerMatches({ kind: 'line_no', value: 7 }, '7a')).toBe(false);
+		expect(answerMatches({ kind: 'line_no', value: 7, alternatives: [3, 9] }, '9')).toBe(true);
+		expect(answerMatches({ kind: 'line_no', value: 7, alternatives: [3, 9] }, '8')).toBe(false);
 		expect(answerMatches({ kind: 'set', value: ['b', 'a'] }, 'a\nb\n')).toBe(true);
 		expect(answerMatches({ kind: 'set', value: ['b', 'a'] }, ['a'])).toBe(false);
 		expect(answerMatches({ kind: 'sequence', value: ['b', 'a'] }, ['a', 'b'])).toBe(false);

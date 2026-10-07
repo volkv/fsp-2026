@@ -39,7 +39,9 @@ export function answerMatches(expected: ComputedAnswer, given: CandidateAnswer):
 		}
 		case 'line_no': {
 			const text = single(given);
-			return /^\d+$/.test(text) && Number(text) === expected.value;
+			if (!/^\d+$/.test(text)) return false;
+			const line = Number(text);
+			return line === expected.value || (expected.alternatives ?? []).includes(line);
 		}
 		case 'set': {
 			const left = new Set(lines(given));

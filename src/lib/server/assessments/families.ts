@@ -3,15 +3,16 @@
 // contract) and the generator `generator.ts` (a `FamilyModule` of the contract: `generate`, and `harness` for QA). The
 // generator is plain erasable TypeScript run by Node itself: the release script, the server and the worker import the
 // same file, and the release records the SHA-256 of its text. Shared code of the generators lives in directories whose
-// name starts with `_` (at the top of the tree or of a specialization); the release records one SHA-256 of all of it.
+// name starts with `_`; the release records one SHA-256 of the shared files its generators import (`shared-code.ts`).
 //
 // Plain erasable TypeScript without `$lib`: the release script runs it with bare Node.
 import { createHash } from 'node:crypto';
 import { readdir, readFile, stat } from 'node:fs/promises';
-import { join, relative } from 'node:path';
+import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { familySourceSha256, type FamilyDescriptor, type FamilyModule } from './contract/bank.ts';
 import { SPECIALIZATION_KEYS, type SpecializationKey } from './contract/catalog.ts';
+import { sharedClosureSha256 } from './shared-code.ts';
 
 export const DESCRIPTOR_FILE = 'descriptor.json';
 export const GENERATOR_FILE = 'generator.ts';
@@ -93,38 +94,19 @@ export async function loadSpecializationFamilies(
 	return families;
 }
 
-/** Files under a directory, recursively, as paths relative to `base`, sorted. */
-async function filesUnder(directory: string, base: string): Promise<string[]> {
-	const files: string[] = [];
-	for (const entry of await readdir(directory, { withFileTypes: true })) {
-		const path = join(directory, entry.name);
-		if (entry.isDirectory()) files.push(...(await filesUnder(path, base)));
-		else if (entry.isFile()) files.push(relative(base, path));
-	}
-	return files.sort();
-}
-
 /**
- * SHA-256 of the shared code a specialization's generators may import: every file of the `_*` directories at the top of
- * the tree and in the specialization's directory, by relative path and content. No shared code — the hash of nothing.
+ * SHA-256 of the shared code a specialization's generators run: the import closure of its `generator.ts` files in the
+ * `_*` directories of the tree (`sharedClosureSha256`), by relative path and content. Shared code no generator of the
+ * specialization imports does not change it. No families — the hash of nothing.
  */
 export async function sharedCodeSha256(root: string, specialization: SpecializationKey): Promise<string> {
-	const hash = createHash('sha256');
-	for (const directory of [root, join(root, specialization)]) {
-		if (!(await isDirectory(directory))) continue;
-		const shared = (await readdir(directory, { withFileTypes: true }))
-			.filter((entry) => entry.isDirectory() && entry.name.startsWith('_'))
-			.map((entry) => join(directory, entry.name))
-			.sort();
-		for (const dir of shared) {
-			for (const file of await filesUnder(dir, root)) {
-				hash.update(`${file}\0`);
-				hash.update(await readFile(join(root, file)));
-				hash.update('\0');
-			}
-		}
-	}
-	return hash.digest('hex');
+	const directory = join(root, specialization);
+	if (!(await isDirectory(directory))) return sharedClosureSha256(root, []);
+	const generators = (await readdir(directory, { withFileTypes: true }))
+		.filter((entry) => entry.isDirectory() && !entry.name.startsWith('_') && !entry.name.startsWith('.'))
+		.map((entry) => join(directory, entry.name, GENERATOR_FILE))
+		.sort();
+	return sharedClosureSha256(root, generators);
 }
 
 export interface LoadedBank {

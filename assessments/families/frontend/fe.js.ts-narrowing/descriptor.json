@@ -1,0 +1,189 @@
+{
+	"key": "fe.js.ts-narrowing",
+	"version": 1,
+	"specialization": "frontend",
+	"block": "fe.js",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": { "lines": "12–25", "inputs": "5–8", "mechanisms": 2, "interaction": false },
+			"constructiveRank": 4,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "typeof-truthy",
+					"form": "A",
+					"description": "typeof null — 'object', пустой массив истинен, 0, '' и NaN ложны: исход решает порядок проверок typeof и истинности"
+				},
+				{
+					"id": "switch-fallthrough",
+					"form": "B",
+					"description": "размеченное объединение в switch: case без break проваливается в следующий; данные из JSON через as попадают в default, который по типам недостижим"
+				},
+				{
+					"id": "predicate",
+					"form": "anchor",
+					"description": "пользовательский предикат типа проверяет одно поле, компилятор ему верит: отсутствующая или строковая цена попадает в сумму"
+				},
+				{
+					"id": "nullish-as",
+					"form": "X",
+					"description": "?? заменяет только null и undefined, || — любое ложное значение; ?. останавливается на null; as ничего не преобразует"
+				}
+			]
+		},
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": { "lines": "19–33", "inputs": "4–7", "mechanisms": 3, "interaction": true },
+			"constructiveRank": 5,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "exhaustive",
+					"form": "A",
+					"description": "исчерпывающий switch с never бросает исключение на виде, который принесли данные из JSON, а отсутствующее поле проходит как NaN; try вокруг цикла или внутри"
+				},
+				{
+					"id": "predicate-mutation",
+					"form": "B",
+					"description": "предикат сужает f.value до строки, вызов функции превращает его в число, компилятор сужение сохраняет: + и length работают с числом"
+				},
+				{
+					"id": "structural",
+					"form": "anchor",
+					"description": "структурная типизация пропускает объект с лишними полями как Point: Object.values, Object.keys, spread и JSON видят все поля"
+				},
+				{
+					"id": "instanceof-in",
+					"form": "X",
+					"description": "instanceof проверяет цепочку прототипов, а не форму объекта; in проверяет наличие свойства, а не его значение"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "имена типов, функций, полей и переменных" },
+		{ "name": "data", "description": "значения во входных массивах и JSON, их порядок" },
+		{ "name": "layout", "description": "порядок проверок, порядок case, место try относительно цикла" }
+	],
+	"essentialParams": [
+		{
+			"name": "narrowing",
+			"description": "чем сужается тип: typeof, истинность, дискриминант, пользовательский предикат, in, instanceof"
+		},
+		{
+			"name": "runtime-gap",
+			"description": "где тип расходится с данными во время выполнения: as, JSON, мутация после сужения, лишние поля, ошибочный предикат"
+		}
+	],
+	"language": "typescript",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"typeof и проверка истинности",
+			"размеченные объединения и switch",
+			"пользовательские предикаты типа",
+			"?. и ?? против ||",
+			"as не меняет значение во время выполнения",
+			"исчерпывающий switch с never",
+			"сужение после мутации",
+			"структурная типизация и лишние поля",
+			"instanceof и in"
+		],
+		"doesNotCheck": ["ошибки компиляции и настройки tsconfig", "обобщённые и условные типы"]
+	},
+	"wrongSolutions": [
+		{ "id": "typeof-null-is-null", "defect": "считает, что typeof null равно 'null'", "mustBeCaught": true },
+		{ "id": "empty-array-falsy", "defect": "считает пустой массив ложным значением", "mustBeCaught": true },
+		{ "id": "nan-truthy", "defect": "считает NaN истинным значением", "mustBeCaught": true },
+		{
+			"id": "no-fallthrough",
+			"defect": "считает, что case без break не проваливается в следующий",
+			"mustBeCaught": true
+		},
+		{
+			"id": "default-unreachable",
+			"defect": "считает, что default после case на все варианты объединения не выполняется и данные из JSON его не достигнут",
+			"mustBeCaught": true
+		},
+		{
+			"id": "predicate-verified",
+			"defect": "считает, что компилятор проверяет предикат по интерфейсу и строки без числовой цены отсеиваются",
+			"mustBeCaught": true
+		},
+		{
+			"id": "string-adds-as-number",
+			"defect": "считает, что цена-строка складывается как число, раз поле объявлено числом",
+			"mustBeCaught": true
+		},
+		{
+			"id": "nullish-like-or",
+			"defect": "считает, что ?? заменяет любое ложное значение, как ||",
+			"mustBeCaught": true
+		},
+		{ "id": "as-converts", "defect": "считает, что as Settings превращает строку в число", "mustBeCaught": true },
+		{
+			"id": "never-unreachable",
+			"defect": "считает, что ветка с never не выполняется и неизвестный вид молча пропускается",
+			"mustBeCaught": true
+		},
+		{
+			"id": "missing-field-zero",
+			"defect": "считает, что отсутствующее в данных поле даёт 0, раз тип обещает число",
+			"mustBeCaught": true
+		},
+		{
+			"id": "catch-continues-loop",
+			"defect": "считает, что после catch вокруг цикла цикл продолжается со следующего элемента",
+			"mustBeCaught": true
+		},
+		{
+			"id": "narrowing-survives-mutation",
+			"defect": "считает, что сужение типа действует и во время выполнения: значение остаётся строкой после вызова функции",
+			"mustBeCaught": true
+		},
+		{ "id": "empty-string-nan", "defect": "считает, что Number('') — NaN", "mustBeCaught": true },
+		{
+			"id": "assignment-strips-extra",
+			"defect": "считает, что присваивание переменной типа Point оставляет только поля Point",
+			"mustBeCaught": true
+		},
+		{
+			"id": "values-numbers-only",
+			"defect": "считает, что строковое поле не участвует в сумме, раз значения Point — числа",
+			"mustBeCaught": true
+		},
+		{
+			"id": "instanceof-structural",
+			"defect": "считает объект подходящей формы экземпляром класса",
+			"mustBeCaught": true
+		},
+		{
+			"id": "in-checks-defined",
+			"defect": "считает, что in ложно для свойства со значением undefined",
+			"mustBeCaught": true
+		},
+		{
+			"id": "instanceof-needs-constructor",
+			"defect": "считает экземпляром только объект, созданный конструктором, а не Object.create(Class.prototype)",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 19, "caught": 19 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0001,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

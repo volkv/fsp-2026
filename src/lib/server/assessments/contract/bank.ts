@@ -175,7 +175,11 @@ export type ComputedAnswer =
 	| { kind: 'exact' | 'tokens'; value: string }
 	| { kind: 'float_eps'; value: number; eps: number }
 	| { kind: 'set' | 'sequence'; value: readonly string[] }
-	| { kind: 'line_no'; value: number };
+	/**
+	 * The line of a defect. `alternatives` — other lines where a one-instruction replacement also restores the contract
+	 * (each found and proven by the factory); any of them is a right answer.
+	 */
+	| { kind: 'line_no'; value: number; alternatives?: readonly number[] };
 
 export interface HiddenTestGroup {
 	id: string;

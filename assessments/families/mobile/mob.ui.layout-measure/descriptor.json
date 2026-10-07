@@ -1,0 +1,161 @@
+{
+	"key": "mob.ui.layout-measure",
+	"version": 1,
+	"specialization": "mobile",
+	"block": "mob.ui",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": { "children": "3–5", "rules": 2, "arithmetic": "одно деление остатка" },
+			"constructiveRank": 2,
+			"timeNormSec": 200,
+			"classes": [
+				{
+					"id": "weights",
+					"form": "A",
+					"description": "LinearLayout: веса делят остаток после отступов, фиксированных ширин и полей детей"
+				},
+				{
+					"id": "gone-invisible",
+					"form": "B",
+					"description": "координаты детей: GONE не занимает места, INVISIBLE занимает"
+				},
+				{
+					"id": "modifier-order",
+					"form": "anchor",
+					"description": "порядок модификаторов Compose: padding до size увеличивает элемент, после — уменьшает содержимое; фон рисуется по размеру в своей точке цепочки"
+				},
+				{
+					"id": "weight-sum",
+					"form": "X",
+					"description": "android:weightSum больше суммы весов: остаток делится на weightSum, часть места остаётся пустой"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": { "children": "3–5", "rules": 3, "arithmetic": "остаток, доля и вложенный размер" },
+			"constructiveRank": 3,
+			"timeNormSec": 270,
+			"classes": [
+				{
+					"id": "wrap-plus-weight",
+					"form": "A",
+					"description": "вес у wrap_content: ребёнок получает свою ширину содержимого плюс долю остатка, а 0dp — только долю"
+				},
+				{
+					"id": "compose-row",
+					"form": "B",
+					"description": "Row с отступами, spacedBy и весами; fillMaxWidth(fraction) берёт долю от ограничений родителя, а не от экрана"
+				},
+				{
+					"id": "modifier-chain",
+					"form": "anchor",
+					"description": "два size в одной цепочке: внешний фиксирует ограничения, внутренний подгоняется под них; padding и фон между ними"
+				},
+				{
+					"id": "gone-weights",
+					"form": "X",
+					"description": "веса с GONE и INVISIBLE: вес GONE-ребёнка не считается, INVISIBLE получает свою долю"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "имена и типы детей" },
+		{ "name": "numbers", "description": "ширина контейнера, отступы, поля, фиксированные размеры, веса" }
+	],
+	"essentialParams": [
+		{
+			"name": "rule",
+			"description": "что решает размер: остаток и веса, weightSum, wrap_content с весом, видимость, порядок модификаторов, вложенная доля"
+		},
+		{ "name": "system", "description": "View-разметка LinearLayout или модификаторы Compose" }
+	],
+	"language": "kotlin",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"layout_weight и 0dp: деление остатка после отступов, полей и фиксированных ширин",
+			"weightSum",
+			"wrap_content с весом",
+			"View.GONE и View.INVISIBLE в измерении",
+			"порядок модификаторов padding, size и background в Compose",
+			"ограничения сверху вниз: внешний size фиксирует внутренний",
+			"Row: spacedBy, weight и fillMaxWidth(fraction)"
+		],
+		"doesNotCheck": [
+			"перевод dp в пиксели и округление при дробной плотности",
+			"ConstraintLayout и вертикальная ось",
+			"справа-налево (RTL)",
+			"intrinsic-измерения"
+		]
+	},
+	"wrongSolutions": [
+		{ "id": "ignore-padding", "defect": "не вычитает отступы контейнера из доступной ширины", "mustBeCaught": true },
+		{ "id": "ignore-margins", "defect": "не учитывает поля (margin) детей", "mustBeCaught": true },
+		{
+			"id": "weight-of-total",
+			"defect": "делит по весам всю ширину содержимого, а не остаток после фиксированных детей",
+			"mustBeCaught": true
+		},
+		{
+			"id": "invisible-no-space",
+			"defect": "считает, что INVISIBLE не занимает места, как GONE",
+			"mustBeCaught": true
+		},
+		{ "id": "gone-keeps-space", "defect": "считает, что GONE занимает место, как INVISIBLE", "mustBeCaught": true },
+		{
+			"id": "order-irrelevant",
+			"defect": "считает порядок модификаторов неважным: размер всегда внешний, все отступы внутри",
+			"mustBeCaught": true
+		},
+		{
+			"id": "background-whole",
+			"defect": "считает, что background закрашивает весь элемент независимо от места в цепочке",
+			"mustBeCaught": true
+		},
+		{
+			"id": "ignore-weight-sum",
+			"defect": "делит остаток на сумму весов, не глядя на weightSum",
+			"mustBeCaught": true
+		},
+		{
+			"id": "wrap-ignored",
+			"defect": "считает, что у wrap_content с весом ширина содержимого не учитывается, как у 0dp",
+			"mustBeCaught": true
+		},
+		{
+			"id": "fraction-of-row",
+			"defect": "берёт fillMaxWidth(fraction) от ширины содержимого Row, а не от ширины своего родителя",
+			"mustBeCaught": true
+		},
+		{
+			"id": "spacing-ignored",
+			"defect": "не вычитает промежутки Arrangement.spacedBy из места под веса",
+			"mustBeCaught": true
+		},
+		{
+			"id": "last-size-wins",
+			"defect": "считает, что из двух size действует последний в цепочке",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 12, "caught": 12 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0023,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

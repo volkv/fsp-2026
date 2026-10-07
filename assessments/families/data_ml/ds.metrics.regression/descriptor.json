@@ -1,0 +1,111 @@
+{
+	"key": "ds.metrics.regression",
+	"version": 1,
+	"specialization": "data_ml",
+	"block": "ds.metrics",
+	"format": "compute",
+	"answerKind": "float_eps",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": { "rows": "8–11", "metric": "одна по ошибкам прогноза", "weights": false },
+			"constructiveRank": 2,
+			"timeNormSec": 240,
+			"classes": [
+				{ "id": "mae", "form": "A", "description": "MAE: среднее модулей ошибок, знак ошибки не важен" },
+				{ "id": "rmse", "form": "B", "description": "RMSE: корень из среднего квадрата ошибок" },
+				{ "id": "mape", "form": "anchor", "description": "MAPE в процентах: ошибка делится на факт, а не на прогноз" },
+				{
+					"id": "r2",
+					"form": "X",
+					"description": "R² = 1 − SSE / SST по среднему факта; у прогноза со смещением он меньше квадрата корреляции"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": { "rows": "9–12", "metric": "с весами, нулями или отрицательным R²", "weights": true },
+			"constructiveRank": 3,
+			"timeNormSec": 330,
+			"classes": [
+				{
+					"id": "smape",
+					"form": "A",
+					"description": "sMAPE по формуле из условия: знаменатель — полусумма модулей факта и прогноза"
+				},
+				{
+					"id": "weighted-mae",
+					"form": "B",
+					"description": "взвешенная MAE: сумма весов в знаменателе, а не число строк"
+				},
+				{
+					"id": "r2-negative",
+					"form": "anchor",
+					"description": "R² модели хуже константы отрицателен; квадрат корреляции его не заменяет"
+				},
+				{
+					"id": "mape-zeros",
+					"form": "X",
+					"description": "MAPE без строк с нулевым фактом: усреднение только по оставшимся строкам"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "что прогнозируют: время доставки, спрос, цену, нагрузку" },
+		{ "name": "data", "description": "значения факта и прогноза, число строк, веса" }
+	],
+	"essentialParams": [
+		{ "name": "metric", "description": "MAE, RMSE, MAPE, R², sMAPE, взвешенная MAE" },
+		{ "name": "data-trap", "description": "смещение прогноза, нулевые факты, веса строк, модель хуже константы" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"MAE и RMSE по ошибкам прогноза",
+			"MAPE и sMAPE, нулевые факты",
+			"R² против квадрата корреляции, отрицательный R²",
+			"взвешенная ошибка"
+		],
+		"doesNotCheck": ["выбор метрики под бизнес-задачу", "доверительные интервалы метрик"]
+	},
+	"wrongSolutions": [
+		{ "id": "signed-mean", "defect": "усредняет ошибки со знаком, без модуля", "mustBeCaught": true },
+		{ "id": "mse-no-root", "defect": "отвечает MSE вместо RMSE", "mustBeCaught": true },
+		{ "id": "n-minus-one", "defect": "делит сумму ошибок на n − 1, как в выборочной дисперсии", "mustBeCaught": true },
+		{ "id": "mape-by-prediction", "defect": "делит ошибку на прогноз вместо факта", "mustBeCaught": true },
+		{
+			"id": "r2-squared-corr",
+			"defect": "считает R² как квадрат коэффициента корреляции факта и прогноза",
+			"mustBeCaught": true
+		},
+		{ "id": "mape-instead", "defect": "считает обычную MAPE вместо sMAPE", "mustBeCaught": true },
+		{ "id": "unweighted", "defect": "игнорирует веса строк", "mustBeCaught": true },
+		{
+			"id": "weights-over-n",
+			"defect": "делит взвешенную сумму ошибок на число строк, а не на сумму весов",
+			"mustBeCaught": true
+		},
+		{
+			"id": "zeros-in-count",
+			"defect": "выбрасывает строки с нулевым фактом из суммы, но делит на число всех строк",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 9, "caught": 9 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0123,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

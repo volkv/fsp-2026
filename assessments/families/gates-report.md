@@ -1,16 +1,16 @@
 # Отчёт ворот банка
 
-Среда исполнения: образ песочницы `fsp-sandbox:test` — Python 3.13.15, SQLite 3.46.1. Сидов на класс: 200. Проверено семейств: 1, время 836 с.
+Среда исполнения: образ песочницы `fsp-sandbox:test` — Python 3.13.15, SQLite 3.46.1. Сидов на класс: 200. Проверено семейств: 1, время 4 с.
 
 ## Семейства
 
-| Семейство               | Формат        | Уровни         | Экз. | Эталон: отказов | Ошибочные: поймано | Коллизия | Пересечение классов | Мутанты (убито / всего − экв.) | Перенос | Проблем |
-| ----------------------- | ------------- | -------------- | ---- | --------------- | ------------------ | -------- | ------------------- | ------------------------------ | ------- | ------- |
-| `ops.code.alert-engine` | practice_code | middle, senior | 1600 | 0               | 7 / 7              | 0        | —                   | 1582 / 1656 − 69 = 0.9968      | 0.0013  | 0       |
+| Семейство             | Формат  | Уровни         | Экз. | Эталон: отказов | Ошибочные: поймано | Коллизия | Пересечение классов | Мутанты (убито / всего − экв.) | Перенос | Проблем |
+| --------------------- | ------- | -------------- | ---- | --------------- | ------------------ | -------- | ------------------- | ------------------------------ | ------- | ------- |
+| `ops.net.subnet-plan` | compute | intern, junior | 1600 | 0               | 9 / 9              | 0.0015   | 0                   | —                              | —       | 0       |
 
 ## Ошибочные решения
 
-- `ops.code.alert-engine`: for-strict — отвергнуто 1600 из 1600; pending-silent — отвергнуто 1600 из 1600; threshold-inclusive — отвергнуто 1200 из 1200; window-closed — отвергнуто 800 из 800; counter-reset-ignored — отвергнуто 400 из 400; no-staleness — отвергнуто 400 из 400; own-ticks — отвергнуто 600 из 600
+- `ops.net.subnet-plan`: count-no-subtract — отвергнуто 1048 из 1048; count-minus-one — отвергнуто 925 из 925; octet-round-down — отвергнуто 740 из 740; host-bits-kept — отвергнуто 674 из 674; bcast-next-network — отвергнуто 600 из 600; p2p-like-others — отвергнуто 200 из 200; listed-order — отвергнуто 589 из 589; no-alignment — отвергнуто 320 из 320; stop-on-overflow — отвергнуто 200 из 200
 
 ## Проблемы ворот
 
@@ -18,152 +18,458 @@
 
 ## Валидатор контракта
 
-- (awaiting_raters) family be.algo.binary-search@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
-- (awaiting_raters) family be.algo.binary-search@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
-- (awaiting_reviews) family be.algo.binary-search: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
-- (awaiting_raters) family be.algo.cache-eviction@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
-- (awaiting_reviews) family be.algo.cache-eviction: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
-- (awaiting_raters) family be.algo.graph-traversal@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
-- (awaiting_raters) family be.algo.graph-traversal@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
-- (awaiting_reviews) family be.algo.graph-traversal: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
-- (awaiting_raters) family be.algo.heap-dijkstra@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.45)
-- (awaiting_reviews) family be.algo.heap-dijkstra: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
-- (awaiting_raters) family be.algo.sorting-stability@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
-- (awaiting_raters) family be.algo.sorting-stability@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
-- (awaiting_reviews) family be.algo.sorting-stability: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
-- (awaiting_raters) family be.algo.two-pointers@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.6)
-- (awaiting_raters) family be.algo.two-pointers@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
-- (awaiting_reviews) family be.algo.two-pointers: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
-- (awaiting_raters) family be.api.cors-preflight@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
-- (awaiting_raters) family be.api.cors-preflight@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.45)
-- (awaiting_reviews) family be.api.cors-preflight: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
-- (awaiting_raters) family be.api.http-caching@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
-- (awaiting_raters) family be.api.http-caching@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
-- (awaiting_reviews) family be.api.http-caching: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
-- (awaiting_raters) family be.api.idempotency-keys@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
-- (awaiting_raters) family be.api.idempotency-keys@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
-- (awaiting_reviews) family be.api.idempotency-keys: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
-- (awaiting_raters) family be.api.optimistic-locking@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
-- (awaiting_reviews) family be.api.optimistic-locking: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
-- (awaiting_raters) family be.api.pagination-consistency@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.6)
-- (awaiting_raters) family be.api.pagination-consistency@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
-- (awaiting_reviews) family be.api.pagination-consistency: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
-- (awaiting_raters) family be.api.rest-semantics@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
-- (awaiting_reviews) family be.api.rest-semantics: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
-- (awaiting_raters) family be.api.retry-backoff@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
-- (awaiting_raters) family be.api.retry-backoff@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
-- (awaiting_reviews) family be.api.retry-backoff: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
-- (awaiting_raters) family be.api.webhook-delivery@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
-- (awaiting_reviews) family be.api.webhook-delivery: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
-- (awaiting_raters) family be.api.webhook-signatures@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
-- (awaiting_reviews) family be.api.webhook-signatures: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
-- (awaiting_raters) family be.code.order-summary@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.8)
-- (awaiting_raters) family be.code.order-summary@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.8)
-- (awaiting_reviews) family be.code.order-summary: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
-- (awaiting_raters) family be.code.rate-limiter@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.8)
-- (awaiting_raters) family be.code.rate-limiter@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.8)
-- (awaiting_reviews) family be.code.rate-limiter: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
-- (awaiting_raters) family be.code.sessionize@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.8)
-- (awaiting_raters) family be.code.sessionize@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.8)
-- (awaiting_reviews) family be.code.sessionize: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
-- (awaiting_raters) family be.code.stock-reservations@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.8)
-- (awaiting_raters) family be.code.stock-reservations@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.8)
-- (awaiting_reviews) family be.code.stock-reservations: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
-- (awaiting_raters) family be.concurrency.asyncio-order@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
-- (awaiting_raters) family be.concurrency.asyncio-order@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.45)
-- (awaiting_reviews) family be.concurrency.asyncio-order: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
-- (awaiting_raters) family be.concurrency.deadlock-detect@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
-- (awaiting_raters) family be.concurrency.deadlock-detect@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
-- (awaiting_reviews) family be.concurrency.deadlock-detect: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
-- (awaiting_raters) family be.concurrency.lost-update@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
-- (awaiting_raters) family be.concurrency.lost-update@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.45)
-- (awaiting_reviews) family be.concurrency.lost-update: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
-- (awaiting_raters) family be.concurrency.queue-redelivery@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
-- (awaiting_raters) family be.concurrency.queue-redelivery@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
-- (awaiting_reviews) family be.concurrency.queue-redelivery: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
-- (awaiting_raters) family be.concurrency.sync-primitives@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
-- (awaiting_raters) family be.concurrency.sync-primitives@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.45)
-- (awaiting_reviews) family be.concurrency.sync-primitives: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
-- (awaiting_raters) family be.db.case-coalesce@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.6)
-- (awaiting_reviews) family be.db.case-coalesce: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
-- (awaiting_raters) family be.db.filter-order@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.6)
-- (awaiting_reviews) family be.db.filter-order: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
-- (awaiting_raters) family be.db.group-having@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
-- (awaiting_raters) family be.db.group-having@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
-- (awaiting_reviews) family be.db.group-having: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
-- (awaiting_raters) family be.db.isolation-anomalies@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.45)
-- (awaiting_reviews) family be.db.isolation-anomalies: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
-- (awaiting_raters) family be.db.join-multiplicity@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.6)
-- (awaiting_raters) family be.db.join-multiplicity@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
-- (awaiting_reviews) family be.db.join-multiplicity: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
-- (awaiting_raters) family be.db.null-aggregates@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.6)
-- (awaiting_raters) family be.db.null-aggregates@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
-- (awaiting_reviews) family be.db.null-aggregates: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
-- (awaiting_raters) family be.db.recursive-cte@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
-- (awaiting_raters) family be.db.recursive-cte@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.45)
-- (awaiting_reviews) family be.db.recursive-cte: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
-- (awaiting_raters) family be.db.subquery-exists@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
-- (awaiting_raters) family be.db.subquery-exists@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
-- (awaiting_reviews) family be.db.subquery-exists: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
-- (awaiting_raters) family be.db.transactions-savepoint@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
-- (awaiting_raters) family be.db.transactions-savepoint@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.45)
-- (awaiting_reviews) family be.db.transactions-savepoint: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
-- (awaiting_raters) family be.db.upsert-conflict@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
-- (awaiting_raters) family be.db.upsert-conflict@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
-- (awaiting_reviews) family be.db.upsert-conflict: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
-- (awaiting_raters) family be.db.window-functions@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
-- (awaiting_raters) family be.db.window-functions@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.45)
-- (awaiting_reviews) family be.db.window-functions: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
-- (awaiting_raters) family be.debug.api-handlers@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
-- (awaiting_raters) family be.debug.api-handlers@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
-- (awaiting_reviews) family be.debug.api-handlers: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
-- (awaiting_raters) family be.debug.async-races@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
-- (awaiting_raters) family be.debug.async-races@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
-- (awaiting_reviews) family be.debug.async-races: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
-- (awaiting_raters) family be.debug.cache-invalidation@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
-- (awaiting_reviews) family be.debug.cache-invalidation: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
-- (awaiting_raters) family be.debug.data-pipeline@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.6)
-- (awaiting_raters) family be.debug.data-pipeline@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
-- (awaiting_reviews) family be.debug.data-pipeline: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
-- (awaiting_raters) family be.debug.input-validation@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.6)
-- (awaiting_raters) family be.debug.input-validation@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
-- (awaiting_reviews) family be.debug.input-validation: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
-- (awaiting_raters) family be.debug.money-dates@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.6)
-- (awaiting_reviews) family be.debug.money-dates: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
-- (awaiting_raters) family be.debug.resource-timeouts@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
-- (awaiting_raters) family be.debug.resource-timeouts@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
-- (awaiting_reviews) family be.debug.resource-timeouts: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
-- (awaiting_raters) family be.debug.spec-violation@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.6)
-- (awaiting_raters) family be.debug.spec-violation@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
-- (awaiting_reviews) family be.debug.spec-violation: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
-- (awaiting_raters) family be.design.cache-hit-ratio@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
-- (awaiting_reviews) family be.design.cache-hit-ratio: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
-- (awaiting_raters) family be.design.capacity-estimate@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
-- (awaiting_reviews) family be.design.capacity-estimate: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
-- (awaiting_raters) family be.design.circuit-breaker@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
-- (awaiting_reviews) family be.design.circuit-breaker: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
-- (awaiting_raters) family be.design.queue-backlog@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
-- (awaiting_reviews) family be.design.queue-backlog: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
-- (awaiting_raters) family be.design.quorum-consistency@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
-- (awaiting_reviews) family be.design.quorum-consistency: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
-- (awaiting_raters) family be.lang.classes-mro@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
-- (awaiting_reviews) family be.lang.classes-mro: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
-- (awaiting_raters) family be.lang.closure-capture@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.6)
-- (awaiting_raters) family be.lang.closure-capture@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
-- (awaiting_reviews) family be.lang.closure-capture: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
-- (awaiting_raters) family be.lang.collections-trace@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.6)
-- (awaiting_reviews) family be.lang.collections-trace: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
-- (awaiting_raters) family be.lang.exceptions-flow@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
-- (awaiting_raters) family be.lang.exceptions-flow@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
-- (awaiting_reviews) family be.lang.exceptions-flow: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
-- (awaiting_raters) family be.lang.generators-iterators@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
-- (awaiting_raters) family be.lang.generators-iterators@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.45)
-- (awaiting_reviews) family be.lang.generators-iterators: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
-- (awaiting_raters) family be.lang.mutable-aliasing@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.6)
-- (awaiting_raters) family be.lang.mutable-aliasing@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
-- (awaiting_reviews) family be.lang.mutable-aliasing: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
-- (awaiting_raters) family be.lang.numbers-strings@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
-- (awaiting_reviews) family be.lang.numbers-strings: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family fe.async.async-iteration@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_raters) family fe.async.async-iteration@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.45)
+- (awaiting_reviews) family fe.async.async-iteration: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family fe.async.await-order@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_raters) family fe.async.await-order@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family fe.async.await-order: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family fe.async.callback-defects@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_raters) family fe.async.callback-defects@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family fe.async.callback-defects: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family fe.async.concurrency-limit@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_raters) family fe.async.concurrency-limit@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family fe.async.concurrency-limit: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family fe.async.debounce-throttle@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_raters) family fe.async.debounce-throttle@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family fe.async.debounce-throttle: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family fe.async.event-loop-order@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.6)
+- (awaiting_raters) family fe.async.event-loop-order@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family fe.async.event-loop-order: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family fe.async.promise-chains@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_raters) family fe.async.promise-chains@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.45)
+- (awaiting_reviews) family fe.async.promise-chains: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family fe.async.promise-combinators@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_raters) family fe.async.promise-combinators@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family fe.async.promise-combinators: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family fe.async.request-races@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_raters) family fe.async.request-races@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family fe.async.request-races: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family fe.async.retry-abort@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_raters) family fe.async.retry-abort@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family fe.async.retry-abort: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family fe.code.form-validation@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.8)
+- (awaiting_raters) family fe.code.form-validation@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.8)
+- (awaiting_reviews) family fe.code.form-validation: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family fe.code.query-string@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.8)
+- (awaiting_raters) family fe.code.query-string@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.8)
+- (awaiting_reviews) family fe.code.query-string: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family fe.code.request-dedupe@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.8)
+- (awaiting_raters) family fe.code.request-dedupe@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.8)
+- (awaiting_reviews) family fe.code.request-dedupe: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family fe.code.undo-history@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.8)
+- (awaiting_raters) family fe.code.undo-history@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.8)
+- (awaiting_reviews) family fe.code.undo-history: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family fe.dom.accessible-name@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_raters) family fe.dom.accessible-name@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.45)
+- (awaiting_reviews) family fe.dom.accessible-name: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family fe.dom.box-model@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_reviews) family fe.dom.box-model: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family fe.dom.cascade@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_raters) family fe.dom.cascade@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.45)
+- (awaiting_reviews) family fe.dom.cascade: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family fe.dom.event-propagation@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_raters) family fe.dom.event-propagation@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family fe.dom.event-propagation: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family fe.dom.flex-layout@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_raters) family fe.dom.flex-layout@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.45)
+- (awaiting_reviews) family fe.dom.flex-layout: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family fe.dom.grid-layout@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_raters) family fe.dom.grid-layout@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family fe.dom.grid-layout: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family fe.dom.specificity@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.6)
+- (awaiting_raters) family fe.dom.specificity@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family fe.dom.specificity: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family fe.js.closures-scope@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.6)
+- (awaiting_raters) family fe.js.closures-scope@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family fe.js.closures-scope: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family fe.js.coercion@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_raters) family fe.js.coercion@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family fe.js.coercion: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family fe.js.iterators-generators@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_raters) family fe.js.iterators-generators@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.45)
+- (awaiting_reviews) family fe.js.iterators-generators: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family fe.js.objects-copying@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_raters) family fe.js.objects-copying@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family fe.js.objects-copying: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family fe.js.prototypes-classes@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_raters) family fe.js.prototypes-classes@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family fe.js.prototypes-classes: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family fe.js.spec-defects@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.6)
+- (awaiting_raters) family fe.js.spec-defects@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_reviews) family fe.js.spec-defects: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family fe.js.strings-numbers@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_reviews) family fe.js.strings-numbers: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family fe.js.this-binding@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_raters) family fe.js.this-binding@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family fe.js.this-binding: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family fe.js.ts-defects@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_raters) family fe.js.ts-defects@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.45)
+- (awaiting_reviews) family fe.js.ts-defects: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family fe.js.ts-narrowing@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_raters) family fe.js.ts-narrowing@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family fe.js.ts-narrowing: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family fe.perf.bundle-chunks@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family fe.perf.bundle-chunks: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family fe.perf.layout-thrashing@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_raters) family fe.perf.layout-thrashing@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family fe.perf.layout-thrashing: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family fe.perf.main-thread-budget@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.45)
+- (awaiting_reviews) family fe.perf.main-thread-budget: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family fe.perf.resource-loading@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family fe.perf.resource-loading: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family fe.perf.virtual-list@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_raters) family fe.perf.virtual-list@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family fe.perf.virtual-list: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family fe.state.derived-state@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_reviews) family fe.state.derived-state: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family fe.state.form-state@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_reviews) family fe.state.form-state: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family fe.state.immutable-updates@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.6)
+- (awaiting_raters) family fe.state.immutable-updates@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family fe.state.immutable-updates: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family fe.state.list-keys@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_raters) family fe.state.list-keys@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family fe.state.list-keys: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family fe.state.optimistic-updates@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family fe.state.optimistic-updates: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family fe.state.reducer-trace@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.6)
+- (awaiting_raters) family fe.state.reducer-trace@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family fe.state.reducer-trace: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family fe.state.rerender-memo@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_raters) family fe.state.rerender-memo@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family fe.state.rerender-memo: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family fe.state.signals@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_raters) family fe.state.signals@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family fe.state.signals: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family fe.state.stale-closures@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.6)
+- (awaiting_raters) family fe.state.stale-closures@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family fe.state.stale-closures: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family fe.state.state-machine@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_raters) family fe.state.state-machine@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.45)
+- (awaiting_reviews) family fe.state.state-machine: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family fe.web.cdn-cache@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.45)
+- (awaiting_reviews) family fe.web.cdn-cache: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family fe.web.cookies@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family fe.web.cookies: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family fe.web.cors@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_raters) family fe.web.cors@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.45)
+- (awaiting_reviews) family fe.web.cors: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family fe.web.credentialed-requests@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family fe.web.credentialed-requests: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family fe.web.csp@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family fe.web.csp: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family fe.web.http-cache@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_raters) family fe.web.http-cache@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family fe.web.http-cache: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family fe.web.service-worker-cache@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family fe.web.service-worker-cache: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family fe.web.url-resolution@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.6)
+- (awaiting_reviews) family fe.web.url-resolution: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family mob.arch.context-leaks@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family mob.arch.context-leaks: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family mob.arch.di-scopes@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family mob.arch.di-scopes: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family mob.arch.module-graph@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_raters) family mob.arch.module-graph@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family mob.arch.module-graph: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family mob.arch.mvi-reducer@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_reviews) family mob.arch.mvi-reducer: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family mob.arch.navigation-backstack@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family mob.arch.navigation-backstack: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family mob.code.chat-list@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.8)
+- (awaiting_raters) family mob.code.chat-list@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.8)
+- (awaiting_reviews) family mob.code.chat-list: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family mob.code.screen-reducer@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.8)
+- (awaiting_raters) family mob.code.screen-reducer@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.8)
+- (awaiting_reviews) family mob.code.screen-reducer: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family mob.coroutines.cancellation@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_raters) family mob.coroutines.cancellation@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family mob.coroutines.cancellation: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family mob.coroutines.channels@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.45)
+- (awaiting_reviews) family mob.coroutines.channels: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family mob.coroutines.delay-timeline@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.6)
+- (awaiting_raters) family mob.coroutines.delay-timeline@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family mob.coroutines.delay-timeline: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family mob.coroutines.exceptions@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_raters) family mob.coroutines.exceptions@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family mob.coroutines.exceptions: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family mob.coroutines.flow-operators@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_raters) family mob.coroutines.flow-operators@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family mob.coroutines.flow-operators: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family mob.coroutines.launch-order@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_raters) family mob.coroutines.launch-order@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family mob.coroutines.launch-order: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family mob.coroutines.scope-defects@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_raters) family mob.coroutines.scope-defects@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family mob.coroutines.scope-defects: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family mob.coroutines.state-flow@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family mob.coroutines.state-flow: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family mob.coroutines.timeouts@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family mob.coroutines.timeouts: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family mob.data.json-mapping@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.6)
+- (awaiting_reviews) family mob.data.json-mapping: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family mob.data.local-cache-ttl@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.6)
+- (awaiting_reviews) family mob.data.local-cache-ttl: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family mob.data.migrations@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_raters) family mob.data.migrations@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family mob.data.migrations: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family mob.data.offline-cache@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_raters) family mob.data.offline-cache@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.45)
+- (awaiting_reviews) family mob.data.offline-cache: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family mob.data.paging@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_raters) family mob.data.paging@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.45)
+- (awaiting_reviews) family mob.data.paging: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family mob.data.room-queries@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.6)
+- (awaiting_raters) family mob.data.room-queries@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_reviews) family mob.data.room-queries: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family mob.data.sync-conflicts@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_raters) family mob.data.sync-conflicts@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.45)
+- (awaiting_reviews) family mob.data.sync-conflicts: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family mob.data.upsert-conflict@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.6)
+- (awaiting_raters) family mob.data.upsert-conflict@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family mob.data.upsert-conflict: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family mob.data.work-retry@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_raters) family mob.data.work-retry@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.45)
+- (awaiting_reviews) family mob.data.work-retry: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family mob.kotlin.collections@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.6)
+- (awaiting_raters) family mob.kotlin.collections@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_reviews) family mob.kotlin.collections: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family mob.kotlin.data-classes@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.6)
+- (awaiting_raters) family mob.kotlin.data-classes@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family mob.kotlin.data-classes: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family mob.kotlin.delegation-extensions@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_raters) family mob.kotlin.delegation-extensions@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.45)
+- (awaiting_reviews) family mob.kotlin.delegation-extensions: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family mob.kotlin.equality-defects@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_raters) family mob.kotlin.equality-defects@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family mob.kotlin.equality-defects: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family mob.kotlin.lambdas-returns@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_raters) family mob.kotlin.lambdas-returns@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.45)
+- (awaiting_reviews) family mob.kotlin.lambdas-returns: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family mob.kotlin.null-defects@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.6)
+- (awaiting_raters) family mob.kotlin.null-defects@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_reviews) family mob.kotlin.null-defects: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family mob.kotlin.null-safety@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.6)
+- (awaiting_raters) family mob.kotlin.null-safety@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_reviews) family mob.kotlin.null-safety: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family mob.kotlin.scope-functions@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.6)
+- (awaiting_raters) family mob.kotlin.scope-functions@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_reviews) family mob.kotlin.scope-functions: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family mob.kotlin.sequences@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_raters) family mob.kotlin.sequences@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family mob.kotlin.sequences: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family mob.kotlin.strings-ranges@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.65)
+- (awaiting_reviews) family mob.kotlin.strings-ranges: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family mob.kotlin.when-sealed@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.65)
+- (awaiting_reviews) family mob.kotlin.when-sealed: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family mob.lifecycle.activity-callbacks@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.6)
+- (awaiting_raters) family mob.lifecycle.activity-callbacks@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family mob.lifecycle.activity-callbacks: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family mob.lifecycle.config-change@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_raters) family mob.lifecycle.config-change@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family mob.lifecycle.config-change: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family mob.lifecycle.fragment-callbacks@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_raters) family mob.lifecycle.fragment-callbacks@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family mob.lifecycle.fragment-callbacks: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family mob.lifecycle.launch-modes@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_reviews) family mob.lifecycle.launch-modes: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family mob.lifecycle.observer-events@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_raters) family mob.lifecycle.observer-events@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.45)
+- (awaiting_reviews) family mob.lifecycle.observer-events: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family mob.lifecycle.process-death@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.6)
+- (awaiting_raters) family mob.lifecycle.process-death@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family mob.lifecycle.process-death: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family mob.lifecycle.repeat-on-lifecycle@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_raters) family mob.lifecycle.repeat-on-lifecycle@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.45)
+- (awaiting_reviews) family mob.lifecycle.repeat-on-lifecycle: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family mob.lifecycle.state-survival@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.6)
+- (awaiting_raters) family mob.lifecycle.state-survival@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_reviews) family mob.lifecycle.state-survival: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family mob.lifecycle.two-activities@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_raters) family mob.lifecycle.two-activities@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family mob.lifecycle.two-activities: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family mob.ui.frame-budget@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family mob.ui.frame-budget: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family mob.ui.layout-measure@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_raters) family mob.ui.layout-measure@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family mob.ui.layout-measure: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family mob.ui.list-diff@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_raters) family mob.ui.list-diff@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family mob.ui.list-diff: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family mob.ui.recomposition@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_raters) family mob.ui.recomposition@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family mob.ui.recomposition: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family mob.ui.remember-state@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.6)
+- (awaiting_raters) family mob.ui.remember-state@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_reviews) family mob.ui.remember-state: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family mob.ui.side-effects@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family mob.ui.side-effects: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family mob.ui.state-hoisting@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.6)
+- (awaiting_raters) family mob.ui.state-hoisting@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family mob.ui.state-hoisting: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family mob.ui.touch-dispatch@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_raters) family mob.ui.touch-dispatch@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.45)
+- (awaiting_reviews) family mob.ui.touch-dispatch: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family ds.code.auc-ranking@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.8)
+- (awaiting_raters) family ds.code.auc-ranking@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.8)
+- (awaiting_reviews) family ds.code.auc-ranking: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family ds.code.classification-report@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.8)
+- (awaiting_raters) family ds.code.classification-report@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.8)
+- (awaiting_reviews) family ds.code.classification-report: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family ds.code.group-kfold@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.8)
+- (awaiting_raters) family ds.code.group-kfold@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.8)
+- (awaiting_reviews) family ds.code.group-kfold: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family ds.code.impute-scale@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.8)
+- (awaiting_raters) family ds.code.impute-scale@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.8)
+- (awaiting_reviews) family ds.code.impute-scale: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family ds.data.binning@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.6)
+- (awaiting_raters) family ds.data.binning@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family ds.data.binning: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family ds.data.dedup-sort@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.6)
+- (awaiting_raters) family ds.data.dedup-sort@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family ds.data.dedup-sort: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family ds.data.groupby-agg@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.6)
+- (awaiting_raters) family ds.data.groupby-agg@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family ds.data.groupby-agg: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family ds.data.join-rows@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_raters) family ds.data.join-rows@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family ds.data.join-rows: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family ds.data.missing-values@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.6)
+- (awaiting_raters) family ds.data.missing-values@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family ds.data.missing-values: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family ds.data.pipeline-bug@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_raters) family ds.data.pipeline-bug@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family ds.data.pipeline-bug: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family ds.data.split-leakage@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family ds.data.split-leakage: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family ds.data.target-encoding@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family ds.data.target-encoding: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family ds.data.window-ops@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_raters) family ds.data.window-ops@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family ds.data.window-ops: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family ds.dl.attention-params@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family ds.dl.attention-params: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family ds.dl.backprop@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.45)
+- (awaiting_reviews) family ds.dl.backprop: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family ds.dl.conv-shapes@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_raters) family ds.dl.conv-shapes@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family ds.dl.conv-shapes: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family ds.dl.drift-impact@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family ds.dl.drift-impact: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family ds.dl.drift-psi@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family ds.dl.drift-psi: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family ds.dl.optimizer-step@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family ds.dl.optimizer-step: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family ds.metrics.baseline@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.6)
+- (awaiting_raters) family ds.metrics.baseline@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family ds.metrics.baseline: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family ds.metrics.confusion@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.6)
+- (awaiting_raters) family ds.metrics.confusion@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_reviews) family ds.metrics.confusion: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family ds.metrics.logloss-calibration@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_raters) family ds.metrics.logloss-calibration@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family ds.metrics.logloss-calibration: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family ds.metrics.metric-bug@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.6)
+- (awaiting_raters) family ds.metrics.metric-bug@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family ds.metrics.metric-bug: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family ds.metrics.multiclass-averaging@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_raters) family ds.metrics.multiclass-averaging@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family ds.metrics.multiclass-averaging: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family ds.metrics.precision-at-k@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.6)
+- (awaiting_raters) family ds.metrics.precision-at-k@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family ds.metrics.precision-at-k: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family ds.metrics.ranking-ndcg@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_raters) family ds.metrics.ranking-ndcg@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.45)
+- (awaiting_reviews) family ds.metrics.ranking-ndcg: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family ds.metrics.regression@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.6)
+- (awaiting_raters) family ds.metrics.regression@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_reviews) family ds.metrics.regression: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family ds.metrics.roc-auc@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_raters) family ds.metrics.roc-auc@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family ds.metrics.roc-auc: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family ds.metrics.threshold-cost@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_raters) family ds.metrics.threshold-cost@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.45)
+- (awaiting_reviews) family ds.metrics.threshold-cost: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family ds.ml.cv-split@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_raters) family ds.ml.cv-split@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family ds.ml.cv-split: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family ds.ml.early-stopping@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_raters) family ds.ml.early-stopping@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family ds.ml.early-stopping: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family ds.ml.leakage-locate@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_raters) family ds.ml.leakage-locate@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.45)
+- (awaiting_reviews) family ds.ml.leakage-locate: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family ds.ml.logreg-step@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_raters) family ds.ml.logreg-step@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.45)
+- (awaiting_reviews) family ds.ml.logreg-step: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family ds.ml.offline-online@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.45)
+- (awaiting_reviews) family ds.ml.offline-online: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family ds.ml.prior-shift@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_raters) family ds.ml.prior-shift@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.45)
+- (awaiting_reviews) family ds.ml.prior-shift: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family ds.ml.scaler-leak@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_raters) family ds.ml.scaler-leak@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family ds.ml.scaler-leak: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family ds.ml.temporal-validation@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.45)
+- (awaiting_reviews) family ds.ml.temporal-validation: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family ds.ml.tree-split@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_reviews) family ds.ml.tree-split: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family ds.sql.ab-metrics@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family ds.sql.ab-metrics: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family ds.sql.agg-nulls@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.6)
+- (awaiting_raters) family ds.sql.agg-nulls@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_reviews) family ds.sql.agg-nulls: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family ds.sql.case-buckets@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.6)
+- (awaiting_raters) family ds.sql.case-buckets@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_reviews) family ds.sql.case-buckets: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family ds.sql.cohort-retention@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_raters) family ds.sql.cohort-retention@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family ds.sql.cohort-retention: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family ds.sql.funnel@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.6)
+- (awaiting_raters) family ds.sql.funnel@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family ds.sql.funnel: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family ds.sql.gaps-islands@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.45)
+- (awaiting_reviews) family ds.sql.gaps-islands: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family ds.sql.running-window@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_raters) family ds.sql.running-window@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family ds.sql.running-window: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family ds.sql.top-per-group@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.6)
+- (awaiting_raters) family ds.sql.top-per-group@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_reviews) family ds.sql.top-per-group: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family ds.stats.ab-ztest@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_raters) family ds.stats.ab-ztest@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family ds.stats.ab-ztest: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family ds.stats.bayes@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_raters) family ds.stats.bayes@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family ds.stats.bayes: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family ds.stats.binomial@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.6)
+- (awaiting_raters) family ds.stats.binomial@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family ds.stats.binomial: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family ds.stats.confidence-interval@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_raters) family ds.stats.confidence-interval@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family ds.stats.confidence-interval: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family ds.stats.descriptive@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.6)
+- (awaiting_raters) family ds.stats.descriptive@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family ds.stats.descriptive: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family ds.stats.multiple-testing@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_raters) family ds.stats.multiple-testing@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family ds.stats.multiple-testing: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family ds.stats.power@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_raters) family ds.stats.power@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.45)
+- (awaiting_reviews) family ds.stats.power: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family ds.stats.quantiles@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_raters) family ds.stats.quantiles@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family ds.stats.quantiles: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family ds.stats.sampling@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
+- (awaiting_raters) family ds.stats.sampling@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family ds.stats.sampling: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family ds.stats.simpson@intern: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.6)
+- (awaiting_raters) family ds.stats.simpson@junior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_reviews) family ds.stats.simpson: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
+- (awaiting_raters) family ds.stats.variance-reduction@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
+- (awaiting_raters) family ds.stats.variance-reduction@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.45)
+- (awaiting_reviews) family ds.stats.variance-reduction: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
 - (awaiting_raters) family qa.api.breaking-changes@middle: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.55)
 - (awaiting_raters) family qa.api.breaking-changes@senior: awaits 2 independent Angoff ratings on the current sources (provisional cut 0.5)
 - (awaiting_reviews) family qa.api.breaking-changes: gate rubric needs 2 approvals by models of different lineages or 1 by a person on the current sources
@@ -497,6 +803,126 @@
 
 Проблем выпуска нет.
 
+### frontend
+
+| Грейд  | fe.js | fe.async | fe.dom | fe.state | fe.web | fe.perf | fe.code |
+| ------ | ----- | -------- | ------ | -------- | ------ | ------- | ------- |
+| intern | 6 / 6 | 4 / 4    | 5 / 4  | 4 / 3    | —      | —       | 2 / 1   |
+| junior | 7 / 4 | 5 / 4    | 6 / 3  | 4 / 3    | 4 / 3  | —       | 2 / 1   |
+| middle | 4 / 3 | 6 / 4    | 2 / 2  | 5 / 4    | 2 / 2  | 2 / 2   | 2 / 1   |
+| senior | 2 / 2 | 5 / 4    | —      | 4 / 3    | 4 / 3  | 5 / 5   | 2 / 1   |
+
+Семейств-уровней в блоке / квота блока на самой длинной траектории.
+
+| Грейд  | Сценарий                                                                                                                   | Итог | Нехватка |
+| ------ | -------------------------------------------------------------------------------------------------------------------------- | ---- | -------- |
+| intern | A6                                                                                                                         | ok   |          |
+| intern | A14                                                                                                                        | ok   |          |
+| intern | A18 → B18 → block:fe.js → block:fe.async → block:fe.dom → block:fe.state → recheck:fe.js → recheck:fe.dom                  | ok   |          |
+| intern | B6                                                                                                                         | ok   |          |
+| intern | B14                                                                                                                        | ok   |          |
+| intern | B18 → A18 → block:fe.js → block:fe.async → block:fe.dom → block:fe.state → recheck:fe.js → recheck:fe.dom                  | ok   |          |
+| junior | A6                                                                                                                         | ok   |          |
+| junior | A14                                                                                                                        | ok   |          |
+| junior | A18 → B18 → block:fe.js → block:fe.async → block:fe.dom → block:fe.state → block:fe.web → recheck:fe.js → recheck:fe.async | ok   |          |
+| junior | B6                                                                                                                         | ok   |          |
+| junior | B14                                                                                                                        | ok   |          |
+| junior | B18 → A18 → block:fe.js → block:fe.async → block:fe.dom → block:fe.state → block:fe.web → recheck:fe.js → recheck:fe.async | ok   |          |
+| middle | A6                                                                                                                         | ok   |          |
+| middle | A14                                                                                                                        | ok   |          |
+| middle | A18 → B18 → block:fe.js → block:fe.async → block:fe.state → recheck:fe.async → recheck:fe.state                            | ok   |          |
+| middle | B6                                                                                                                         | ok   |          |
+| middle | B14                                                                                                                        | ok   |          |
+| middle | B18 → A18 → block:fe.js → block:fe.async → block:fe.state → recheck:fe.async → recheck:fe.state                            | ok   |          |
+| senior | A6                                                                                                                         | ok   |          |
+| senior | A14                                                                                                                        | ok   |          |
+| senior | A18 → B18 → block:fe.async → block:fe.state → block:fe.web → block:fe.perf → recheck:fe.async → recheck:fe.perf            | ok   |          |
+| senior | B6                                                                                                                         | ok   |          |
+| senior | B14                                                                                                                        | ok   |          |
+| senior | B18 → A18 → block:fe.async → block:fe.state → block:fe.web → block:fe.perf → recheck:fe.async → recheck:fe.perf            | ok   |          |
+
+Проблем выпуска нет.
+
+### mobile
+
+| Грейд  | mob.kotlin | mob.coroutines | mob.lifecycle | mob.ui | mob.data | mob.arch | mob.code |
+| ------ | ---------- | -------------- | ------------- | ------ | -------- | -------- | -------- |
+| intern | 7 / 7      | —              | 5 / 3         | 4 / 4  | 4 / 3    | —        | 1 / 1    |
+| junior | 6 / 5      | 4 / 3          | 6 / 4         | 6 / 3  | 3 / 2    | —        | 1 / 1    |
+| middle | 4 / 3      | 6 / 4          | 4 / 3         | 4 / 3  | 5 / 3    | 1 / 1    | 1 / 1    |
+| senior | 3 / 2      | 5 / 4          | 2 / 2         | —      | 4 / 4    | 5 / 5    | 1 / 1    |
+
+Семейств-уровней в блоке / квота блока на самой длинной траектории.
+
+| Грейд  | Сценарий                                                                                                                                              | Итог | Нехватка |
+| ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ---- | -------- |
+| intern | A6                                                                                                                                                    | ok   |          |
+| intern | A14                                                                                                                                                   | ok   |          |
+| intern | A18 → B18 → block:mob.kotlin → block:mob.lifecycle → block:mob.ui → block:mob.data → recheck:mob.kotlin → recheck:mob.lifecycle                       | ok   |          |
+| intern | B6                                                                                                                                                    | ok   |          |
+| intern | B14                                                                                                                                                   | ok   |          |
+| intern | B18 → A18 → block:mob.kotlin → block:mob.lifecycle → block:mob.ui → block:mob.data → recheck:mob.kotlin → recheck:mob.lifecycle                       | ok   |          |
+| junior | A6                                                                                                                                                    | ok   |          |
+| junior | A14                                                                                                                                                   | ok   |          |
+| junior | A18 → B18 → block:mob.kotlin → block:mob.coroutines → block:mob.lifecycle → block:mob.ui → recheck:mob.kotlin → recheck:mob.lifecycle                 | ok   |          |
+| junior | B6                                                                                                                                                    | ok   |          |
+| junior | B14                                                                                                                                                   | ok   |          |
+| junior | B18 → A18 → block:mob.kotlin → block:mob.coroutines → block:mob.lifecycle → block:mob.ui → recheck:mob.kotlin → recheck:mob.lifecycle                 | ok   |          |
+| middle | A6                                                                                                                                                    | ok   |          |
+| middle | A14                                                                                                                                                   | ok   |          |
+| middle | A18 → B18 → block:mob.kotlin → block:mob.coroutines → block:mob.lifecycle → block:mob.ui → block:mob.data → recheck:mob.coroutines → recheck:mob.data | ok   |          |
+| middle | B6                                                                                                                                                    | ok   |          |
+| middle | B14                                                                                                                                                   | ok   |          |
+| middle | B18 → A18 → block:mob.kotlin → block:mob.coroutines → block:mob.lifecycle → block:mob.ui → block:mob.data → recheck:mob.coroutines → recheck:mob.data | ok   |          |
+| senior | A6                                                                                                                                                    | ok   |          |
+| senior | A14                                                                                                                                                   | ok   |          |
+| senior | A18 → B18 → block:mob.coroutines → block:mob.data → block:mob.arch → recheck:mob.coroutines → recheck:mob.arch                                        | ok   |          |
+| senior | B6                                                                                                                                                    | ok   |          |
+| senior | B14                                                                                                                                                   | ok   |          |
+| senior | B18 → A18 → block:mob.coroutines → block:mob.data → block:mob.arch → recheck:mob.coroutines → recheck:mob.arch                                        | ok   |          |
+
+Проблем выпуска нет.
+
+### data_ml
+
+| Грейд  | ds.stats | ds.metrics | ds.data | ds.ml | ds.sql | ds.dl | ds.code |
+| ------ | -------- | ---------- | ------- | ----- | ------ | ----- | ------- |
+| intern | 6 / 5    | 6 / 4      | 5 / 5   | —     | 4 / 3  | —     | 2 / 1   |
+| junior | 7 / 3    | 7 / 4      | 7 / 4   | 4 / 3 | 6 / 3  | —     | 2 / 1   |
+| middle | 5 / 3    | 4 / 3      | 4 / 3   | 6 / 5 | 2 / 2  | 1 / 1 | 2 / 1   |
+| senior | 4 / 3    | 3 / 2      | —       | 5 / 5 | 2 / 2  | 6 / 5 | 2 / 1   |
+
+Семейств-уровней в блоке / квота блока на самой длинной траектории.
+
+| Грейд  | Сценарий                                                                                                                          | Итог | Нехватка |
+| ------ | --------------------------------------------------------------------------------------------------------------------------------- | ---- | -------- |
+| intern | A6                                                                                                                                | ok   |          |
+| intern | A14                                                                                                                               | ok   |          |
+| intern | A18 → B18 → block:ds.stats → block:ds.metrics → block:ds.data → block:ds.sql → recheck:ds.stats → recheck:ds.metrics              | ok   |          |
+| intern | B6                                                                                                                                | ok   |          |
+| intern | B14                                                                                                                               | ok   |          |
+| intern | B18 → A18 → block:ds.stats → block:ds.metrics → block:ds.data → block:ds.sql → recheck:ds.stats → recheck:ds.metrics              | ok   |          |
+| junior | A6                                                                                                                                | ok   |          |
+| junior | A14                                                                                                                               | ok   |          |
+| junior | A18 → B18 → block:ds.stats → block:ds.metrics → block:ds.data → block:ds.ml → block:ds.sql → recheck:ds.metrics → recheck:ds.data | ok   |          |
+| junior | B6                                                                                                                                | ok   |          |
+| junior | B14                                                                                                                               | ok   |          |
+| junior | B18 → A18 → block:ds.stats → block:ds.metrics → block:ds.data → block:ds.ml → block:ds.sql → recheck:ds.metrics → recheck:ds.data | ok   |          |
+| middle | A6                                                                                                                                | ok   |          |
+| middle | A14                                                                                                                               | ok   |          |
+| middle | A18 → B18 → block:ds.stats → block:ds.metrics → block:ds.data → block:ds.ml → recheck:ds.ml → recheck:ds.stats                    | ok   |          |
+| middle | B6                                                                                                                                | ok   |          |
+| middle | B14                                                                                                                               | ok   |          |
+| middle | B18 → A18 → block:ds.stats → block:ds.metrics → block:ds.data → block:ds.ml → recheck:ds.ml → recheck:ds.stats                    | ok   |          |
+| senior | A6                                                                                                                                | ok   |          |
+| senior | A14                                                                                                                               | ok   |          |
+| senior | A18 → B18 → block:ds.stats → block:ds.ml → block:ds.dl → recheck:ds.ml → recheck:ds.dl                                            | ok   |          |
+| senior | B6                                                                                                                                | ok   |          |
+| senior | B14                                                                                                                               | ok   |          |
+| senior | B18 → A18 → block:ds.stats → block:ds.ml → block:ds.dl → recheck:ds.ml → recheck:ds.dl                                            | ok   |          |
+
+Проблем выпуска нет.
+
 ### qa
 
 | Грейд  | qa.design | qa.defects | qa.api | qa.auto | qa.sql | qa.strategy | qa.mutants |
@@ -576,11 +1002,3 @@
 | senior | B18 → A18 → block:ops.k8s → block:ops.observability → block:ops.iac → recheck:ops.iac → recheck:ops.observability                              | ok   |          |
 
 Проблем выпуска нет.
-
-Выжившие мутанты `ops.code.alert-engine`:
-
-- middle/rate#1: line 35: const -> 2
-- senior/threshold#0: line 7: const -> 0
-- senior/rate#0: line 7: const -> 0
-- senior/rate#1: line 7: const -> 0
-- senior/rate#2: line 7: const -> 0

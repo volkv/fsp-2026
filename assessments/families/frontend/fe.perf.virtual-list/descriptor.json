@@ -1,0 +1,161 @@
+{
+	"key": "fe.perf.virtual-list",
+	"version": 1,
+	"specialization": "frontend",
+	"block": "fe.perf",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"heights": "одинаковые",
+				"rules": 4,
+				"answer": "5 чисел",
+				"interacting": "границы видимости + overscan у краёв + ограничение scrollTop или шапка"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "exact-boundary",
+					"form": "A",
+					"description": "окно начинается и кончается ровно на границах строк: строка, которая касается окна краем, не видима"
+				},
+				{
+					"id": "clamped",
+					"form": "B",
+					"description": "прокрутка дальше конца: браузер ограничивает scrollTop, overscan снизу обрезается последней строкой"
+				},
+				{
+					"id": "asymmetric",
+					"form": "anchor",
+					"description": "окно режет строки посередине, overscan сверху и снизу разный: распорка считается от первой отрисованной строки"
+				},
+				{
+					"id": "header",
+					"form": "X",
+					"description": "над списком в том же контейнере шапка: позиции строк сдвинуты на её высоту, иногда шапка ещё видна"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"heights": "разные: измеренные, оценка, реальные после отрисовки",
+				"rules": "5–7",
+				"answer": "5–6 чисел",
+				"interacting": "суммы высот + оценка неизмеренных + якорение прокрутки или выравнивание с ограничением"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "measured",
+					"form": "A",
+					"description": "все высоты измерены и разные: границы видимости по накопленным суммам, разный overscan"
+				},
+				{
+					"id": "estimated",
+					"form": "B",
+					"description": "окно в области неизмеренных строк: позиции — измеренные высоты плюс оценка для остальных"
+				},
+				{
+					"id": "anchoring",
+					"form": "anchor",
+					"description": "после отрисовки реальные высоты отличаются от оценки: scrollTop сдвигается на разницу строк выше якоря, диапазон пересчитывается"
+				},
+				{
+					"id": "scroll-to-index",
+					"form": "X",
+					"description": "scrollToIndex с выравниванием start, end или center: scrollTop по сумме высот, ограничение прокрутки, граница строки ровно на краю окна"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "sizes", "description": "число строк, высоты, высота окна, величина overscan" },
+		{ "name": "position", "description": "конкретная прокрутка и индекс строки" }
+	],
+	"essentialParams": [
+		{
+			"name": "boundary",
+			"description": "где окно относительно строк: ровно на границах, посередине, за концом списка, на шапке"
+		},
+		{
+			"name": "heights",
+			"description": "одинаковые, измеренные разные, оценка для неизмеренных, реальные после отрисовки"
+		},
+		{
+			"name": "scroll-source",
+			"description": "присвоение scrollTop, якорение после измерения, scrollToIndex с выравниванием"
+		}
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"видимость строки по строгому пересечению с окном",
+			"overscan и его обрезка краями списка",
+			"высоты распорных блоков",
+			"ограничение scrollTop браузером",
+			"позиции строк при разных и оценочных высотах",
+			"якорение прокрутки после измерения строк",
+			"вычисление scrollTop для выравнивания строки"
+		],
+		"doesNotCheck": [
+			"API конкретной библиотеки виртуализации",
+			"горизонтальную и сеточную виртуализацию",
+			"время рендера строк"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "bottom-inclusive",
+			"defect": "считает видимой строку, чей низ ровно на верхнем краю окна",
+			"mustBeCaught": true
+		},
+		{
+			"id": "end-inclusive",
+			"defect": "считает видимой строку, чей верх ровно на нижнем краю окна",
+			"mustBeCaught": true
+		},
+		{ "id": "no-scroll-clamp", "defect": "не ограничивает scrollTop концом содержимого", "mustBeCaught": true },
+		{ "id": "no-index-clamp", "defect": "добавляет overscan, не обрезая его краями списка", "mustBeCaught": true },
+		{ "id": "overscan-swapped", "defect": "путает запас сверху и снизу", "mustBeCaught": true },
+		{
+			"id": "spacer-from-first",
+			"defect": "считает верхнюю распорку до первой видимой строки, а не до первой отрисованной",
+			"mustBeCaught": true
+		},
+		{ "id": "ignore-header", "defect": "не учитывает шапку над списком", "mustBeCaught": true },
+		{
+			"id": "count-from-height",
+			"defect": "берёт число видимых строк как высоту окна, делённую на высоту строки с округлением вверх",
+			"mustBeCaught": true
+		},
+		{ "id": "ignore-measured", "defect": "считает все строки по оценке, не учитывая измеренные", "mustBeCaught": true },
+		{ "id": "no-anchor", "defect": "не корректирует scrollTop после измерения строк", "mustBeCaught": true },
+		{
+			"id": "anchor-all-delta",
+			"defect": "сдвигает scrollTop на разницу высот всех отрисованных строк, а не только тех, что выше якоря",
+			"mustBeCaught": true
+		},
+		{ "id": "align-start", "defect": "при любом выравнивании ставит строку к верху окна", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 12, "caught": 12 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0002,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

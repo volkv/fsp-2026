@@ -1,0 +1,111 @@
+{
+	"key": "ds.data.split-leakage",
+	"version": 1,
+	"specialization": "data_ml",
+	"block": "ds.data",
+	"format": "compute",
+	"answerKind": "set",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"rows": "8–10",
+				"features": 5,
+				"leaky": "1–4",
+				"operations": "сдвиги, окна, агрегаты по группе и по столбцу"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "shifts",
+					"form": "A",
+					"description": "сдвиги и разности: shift и diff с отрицательным шагом смотрят в будущее, с положительным — в прошлое"
+				},
+				{
+					"id": "global-stats",
+					"form": "B",
+					"description": "статистики по всему столбцу или всей группе (нормировка, ранг, среднее группы) видят будущие строки"
+				},
+				{
+					"id": "own-target",
+					"form": "anchor",
+					"description": "окна и накопления по целевой переменной без shift(1) включают цель самой строки"
+				},
+				{
+					"id": "windows",
+					"form": "X",
+					"description": "центрированное окно захватывает следующую строку; окно по текущим признакам — нет"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "имена признаков, пользователей и столбцов" },
+		{ "name": "data", "description": "значения таблицы, порядок признаков в коде, размеры окон и сдвигов" }
+	],
+	"essentialParams": [
+		{
+			"name": "leak-kind",
+			"description": "откуда признак берёт недоступные данные: будущие строки, весь столбец, цель своей строки, центрированное окно"
+		},
+		{
+			"name": "distractors",
+			"description": "безопасные признаки той же формы: сдвиг в прошлое, окно после shift(1), текущий признак"
+		}
+	],
+	"language": "python3",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"направление shift и diff",
+			"агрегаты по всему столбцу и группе как утечка будущего",
+			"окна и накопления по целевой переменной без сдвига",
+			"центрированные окна",
+			"отличие текущего признака строки от её целевой переменной"
+		],
+		"doesNotCheck": ["утечка через разбиение по пользователям", "утечка через внешние данные и дубликаты"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "shift-sign",
+			"defect": "путает направление shift и diff: считает shift(1) взглядом в будущее",
+			"mustBeCaught": true
+		},
+		{
+			"id": "current-feature-leaks",
+			"defect": "считает утечкой любой признак, использующий текущее значение visits",
+			"mustBeCaught": true
+		},
+		{
+			"id": "global-safe",
+			"defect": "считает безопасными нормировку, ранг и среднее по всему столбцу или группе",
+			"mustBeCaught": true
+		},
+		{
+			"id": "own-target-safe",
+			"defect": "не видит, что окно по цели без сдвига включает цель самой строки",
+			"mustBeCaught": true
+		},
+		{ "id": "centered-safe", "defect": "считает центрированное окно безопасным", "mustBeCaught": true },
+		{
+			"id": "any-target-leaks",
+			"defect": "считает утечкой любой признак из целевой переменной, даже сдвинутый в прошлое",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 6, "caught": 6 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0104,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

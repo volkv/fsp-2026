@@ -1,0 +1,138 @@
+{
+	"key": "ds.data.groupby-agg",
+	"version": 1,
+	"specialization": "data_ml",
+	"block": "ds.data",
+	"format": "compute",
+	"answerKind": "float_eps",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": { "rows": "9–12", "keys": 1, "steps": 1, "trap": "NaN в значении или в ключе группы" },
+			"constructiveRank": 2,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "mean-skipna",
+					"form": "A",
+					"description": "mean() группы пропускает NaN: делит на число непустых значений, а не на число строк"
+				},
+				{
+					"id": "nan-key-dropped",
+					"form": "B",
+					"description": "строки с NaN в ключе не образуют группу (dropna=True): среднее сумм — по группам без них"
+				},
+				{
+					"id": "per-buyer",
+					"form": "anchor",
+					"description": "именованная агрегация: сумма группы на число уникальных покупателей (nunique), а не на число строк"
+				},
+				{
+					"id": "sorted-groups",
+					"form": "X",
+					"description": "результат groupby упорядочен по ключу (sort=True): iloc берёт группу по алфавиту, а не по первому появлению"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": { "rows": "12–16", "keys": "1–2", "steps": 2, "trap": "transform, filter, несколько ключей" },
+			"constructiveRank": 3,
+			"timeNormSec": 330,
+			"classes": [
+				{
+					"id": "transform-dev",
+					"form": "A",
+					"description": "transform('mean') возвращает среднее своей группы в каждой строке; NaN в значениях пропускается"
+				},
+				{
+					"id": "multi-key",
+					"form": "B",
+					"description": "группировка по двум ключам с as_index=False: строки только для встретившихся сочетаний"
+				},
+				{
+					"id": "filter-count",
+					"form": "anchor",
+					"description": "filter оставляет группы целиком по условию на count() — непустые значения, не размер группы"
+				},
+				{
+					"id": "mean-of-means",
+					"form": "X",
+					"description": "среднее групповых средних не равно общему среднему; группа с NaN в ключе выброшена"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "названия столбцов: ключ, значение, покупатель, канал; города и имена" },
+		{ "name": "data", "description": "значения, число строк, порядок строк, где стоят пропуски" }
+	],
+	"essentialParams": [
+		{
+			"name": "aggregation",
+			"description": "что считает группировка: mean, sum, nunique, transform, filter, среднее средних"
+		},
+		{ "name": "missing-site", "description": "где пропуск: в агрегируемом значении или в ключе группы" },
+		{ "name": "keys", "description": "один ключ или пара ключей, порядок групп в результате" }
+	],
+	"language": "python3",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"mean, sum, count и size группы при пропусках",
+			"строки с NaN в ключе выпадают из группировки",
+			"nunique против числа строк",
+			"порядок групп в результате groupby",
+			"transform и filter по группам",
+			"группировка по двум ключам и as_index=False",
+			"среднее групповых средних против общего среднего"
+		],
+		"doesNotCheck": ["параметры dropna и sort, отличные от значений по умолчанию", "производительность groupby"]
+	},
+	"wrongSolutions": [
+		{ "id": "nan-as-zero", "defect": "считает пропуск нулём: делит сумму на число строк группы", "mustBeCaught": true },
+		{ "id": "nan-key-kept", "defect": "считает строки с NaN в ключе отдельной группой", "mustBeCaught": true },
+		{
+			"id": "nunique-as-count",
+			"defect": "считает число строк вместо числа уникальных значений",
+			"mustBeCaught": true
+		},
+		{
+			"id": "appearance-order",
+			"defect": "думает, что группы идут в порядке первого появления ключа",
+			"mustBeCaught": true
+		},
+		{
+			"id": "global-mean",
+			"defect": "вычитает общее среднее столбца вместо среднего своей группы",
+			"mustBeCaught": true
+		},
+		{ "id": "first-key-only", "defect": "группирует только по первому ключу из списка", "mustBeCaught": true },
+		{
+			"id": "all-combinations",
+			"defect": "считает, что результат содержит все сочетания ключей, отсутствующие — с нулём",
+			"mustBeCaught": true
+		},
+		{
+			"id": "count-is-size",
+			"defect": "думает, что count() группы считает и строки с пропуском",
+			"mustBeCaught": true
+		},
+		{ "id": "overall-mean", "defect": "заменяет среднее групповых средних общим средним столбца", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 9, "caught": 9 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0048,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

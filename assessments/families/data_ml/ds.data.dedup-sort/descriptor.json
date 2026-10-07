@@ -1,0 +1,137 @@
+{
+	"key": "ds.data.dedup-sort",
+	"version": 1,
+	"specialization": "data_ml",
+	"block": "ds.data",
+	"format": "compute",
+	"answerKind": "float_eps",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": { "rows": "7–10", "steps": "1–2", "trap": "какая строка остаётся и где оказывается NaN" },
+			"constructiveRank": 2,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "keep-rule",
+					"form": "A",
+					"description": "drop_duplicates(subset=…, keep='first' или 'last'): дубликат определяется только столбцами subset"
+				},
+				{
+					"id": "sort-nan-last",
+					"form": "B",
+					"description": "sort_values по умолчанию по возрастанию, NaN в конце; head(k) берёт первые k строк"
+				},
+				{
+					"id": "top-per-group",
+					"form": "anchor",
+					"description": "сортировка по двум столбцам с разным направлением и drop_duplicates по группе — наибольшее в группе"
+				},
+				{
+					"id": "value-counts-top",
+					"form": "X",
+					"description": "value_counts сортирует по убыванию частоты и не считает NaN, даже если пропусков больше всего"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": { "rows": "9–13", "steps": 2, "trap": "равные значения и порядок строк" },
+			"constructiveRank": 4,
+			"timeNormSec": 330,
+			"classes": [
+				{
+					"id": "last-per-user",
+					"form": "A",
+					"description": "последняя запись пользователя: сначала сортировка по времени, затем keep='last'"
+				},
+				{
+					"id": "rank-min",
+					"form": "B",
+					"description": "rank(method='min') по группе: равные получают наименьший ранг, следующий ранг пропускается"
+				},
+				{
+					"id": "stable-ties",
+					"form": "anchor",
+					"description": "устойчивая сортировка сохраняет исходный порядок равных: head(k) режет по нему"
+				},
+				{
+					"id": "nlargest-all",
+					"form": "X",
+					"description": "nlargest(k, keep='all') оставляет все строки, равные k-му значению, — может быть больше k строк"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "названия столбцов, имена, города" },
+		{ "name": "data", "description": "значения, число строк, исходный порядок строк" }
+	],
+	"essentialParams": [
+		{ "name": "operation", "description": "удаление дублей, сортировка с head, ранжирование, value_counts, nlargest" },
+		{
+			"name": "tie-rule",
+			"description": "какая из равных строк остаётся: keep, порядок сортировки, метод ранга, положение NaN"
+		}
+	],
+	"language": "python3",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"drop_duplicates с subset и keep",
+			"направление сортировки по умолчанию и положение NaN",
+			"сортировка по нескольким столбцам с разным направлением",
+			"value_counts: порядок по частоте и пропуски",
+			"последняя запись пользователя по времени",
+			"методы rank при равных значениях",
+			"устойчивая сортировка и nlargest с keep='all'"
+		],
+		"doesNotCheck": ["сортировка строк с учётом локали", "производительность сортировки"]
+	},
+	"wrongSolutions": [
+		{ "id": "keep-swapped", "defect": "путает keep='first' и keep='last'", "mustBeCaught": true },
+		{
+			"id": "subset-ignored",
+			"defect": "думает, что дубликат — только полностью совпадающая строка",
+			"mustBeCaught": true
+		},
+		{ "id": "nan-as-smallest", "defect": "ставит NaN в начало сортировки по возрастанию", "mustBeCaught": true },
+		{
+			"id": "descending",
+			"defect": "думает, что sort_values по умолчанию сортирует по убыванию",
+			"mustBeCaught": true
+		},
+		{ "id": "ascending-both", "defect": "сортирует оба столбца по возрастанию", "mustBeCaught": true },
+		{ "id": "nan-counted", "defect": "считает NaN самым частым значением value_counts", "mustBeCaught": true },
+		{
+			"id": "alphabetical",
+			"defect": "думает, что value_counts упорядочен по значению, а не по частоте",
+			"mustBeCaught": true
+		},
+		{ "id": "unsorted", "defect": "берёт последнюю запись в исходном порядке, а не по времени", "mustBeCaught": true },
+		{ "id": "keep-first", "defect": "оставляет первую по времени запись вместо последней", "mustBeCaught": true },
+		{
+			"id": "rank-dense",
+			"defect": "путает method='min' с 'dense': не пропускает ранг после равных",
+			"mustBeCaught": true
+		},
+		{ "id": "rank-first", "defect": "раздаёт равным разные ранги по порядку строк", "mustBeCaught": true },
+		{ "id": "ties-reversed", "defect": "ставит равные строки в обратном исходному порядке", "mustBeCaught": true },
+		{ "id": "exactly-k", "defect": "думает, что nlargest всегда возвращает ровно k строк", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 13, "caught": 13 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0141,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

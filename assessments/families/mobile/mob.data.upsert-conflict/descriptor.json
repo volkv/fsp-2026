@@ -1,0 +1,156 @@
+{
+	"key": "mob.data.upsert-conflict",
+	"version": 1,
+	"specialization": "mobile",
+	"block": "mob.data",
+	"format": "sql_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": {
+				"tables": 1,
+				"rows": "3–9",
+				"mechanisms": 1,
+				"statements": "1–3 записи с разрешением конфликта"
+			},
+			"constructiveRank": 2,
+			"timeNormSec": 220,
+			"classes": [
+				{
+					"id": "replace-defaults",
+					"form": "A",
+					"description": "INSERT OR REPLACE удаляет строку и вставляет новую: непереданные столбцы получают значения по умолчанию, а не старые"
+				},
+				{
+					"id": "insert-ignore",
+					"form": "B",
+					"description": "многострочный INSERT OR IGNORE: конфликтующие строки пропускаются, остальные — и после конфликта — вставляются"
+				},
+				{
+					"id": "composite-unique",
+					"form": "anchor",
+					"description": "уникальный индекс по паре (message_id, user_id): конфликт только при совпадении обоих столбцов"
+				},
+				{
+					"id": "replace-new-rowid",
+					"form": "X",
+					"description": "REPLACE по уникальному remote_id без явного id: строка получает новый автоинкрементный id и переезжает в конец"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": { "tables": "1–2", "rows": "6–14", "mechanisms": 2, "statements": "2–9 записей, внешние ключи" },
+			"constructiveRank": 4,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "replace-cascade",
+					"form": "A",
+					"description": "REPLACE родительской строки при `foreign_keys = ON` каскадно удаляет её сообщения и сбрасывает непереданный столбец"
+				},
+				{
+					"id": "upsert-where",
+					"form": "B",
+					"description": "upsert `ON CONFLICT DO UPDATE ... WHERE excluded.updated_at > notes.updated_at`: устаревшая версия не применяется, непереданный столбец сохраняется"
+				},
+				{
+					"id": "reactions-mix",
+					"form": "anchor",
+					"description": "смесь OR IGNORE и OR REPLACE по составному уникальному индексу: что осталось и в каком порядке id"
+				},
+				{
+					"id": "replace-set-null",
+					"form": "X",
+					"description": "REPLACE чата по remote_id даёт новый id, а черновики по `ON DELETE SET NULL` теряют ссылку"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "контакты, заметки, реакции, чаты; имена, заголовки, телефоны" },
+		{ "name": "data", "description": "число строк, какие строки конфликтуют, порядок операций" }
+	],
+	"essentialParams": [
+		{
+			"name": "strategy",
+			"description": "стратегия конфликта: OR REPLACE, OR IGNORE, ON CONFLICT DO UPDATE с условием или без"
+		},
+		{ "name": "key", "description": "по какому ключу конфликт: первичный, уникальный столбец, составной индекс" },
+		{ "name": "children", "description": "есть ли дочерние строки и действие внешнего ключа: CASCADE, SET NULL" }
+	],
+	"language": "sql",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"INSERT OR REPLACE как удаление и вставка: значения по умолчанию, новый id",
+			"INSERT OR IGNORE в многострочной вставке",
+			"составной уникальный индекс",
+			"upsert ON CONFLICT DO UPDATE с excluded и условием WHERE",
+			"каскадное удаление и SET NULL дочерних строк при REPLACE"
+		],
+		"doesNotCheck": [
+			"код, который Room генерирует для @Upsert и @Insert",
+			"триггеры и PRAGMA recursive_triggers",
+			"REPLACE, конфликтующий сразу с несколькими строками"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "replace-as-update",
+			"defect": "считает REPLACE обновлением на месте: непереданные столбцы сохраняют старые значения",
+			"mustBeCaught": true
+		},
+		{
+			"id": "ignore-as-replace",
+			"defect": "считает, что OR IGNORE перезаписывает существующую строку новыми данными",
+			"mustBeCaught": true
+		},
+		{
+			"id": "ignore-stops",
+			"defect": "считает, что многострочная вставка OR IGNORE останавливается на первом конфликте",
+			"mustBeCaught": true
+		},
+		{
+			"id": "unique-per-column",
+			"defect": "считает составной уникальный индекс уникальностью каждого столбца в отдельности",
+			"mustBeCaught": true
+		},
+		{
+			"id": "replace-keeps-rowid",
+			"defect": "считает, что REPLACE по уникальному столбцу сохраняет прежний id строки",
+			"mustBeCaught": true
+		},
+		{
+			"id": "replace-keeps-children",
+			"defect": "считает, что REPLACE не трогает дочерние строки, ссылающиеся на заменённую",
+			"mustBeCaught": true
+		},
+		{
+			"id": "upsert-where-ignored",
+			"defect": "считает, что DO UPDATE применяется и тогда, когда условие WHERE ложно",
+			"mustBeCaught": true
+		},
+		{
+			"id": "upsert-as-replace",
+			"defect": "считает, что DO UPDATE сбрасывает непереданные столбцы к значениям по умолчанию",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 8, "caught": 8 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0004,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

@@ -22,6 +22,8 @@ interface Defect {
 	at: string;
 	text: string;
 	neighbour: { at: string; text: string };
+	/** Other lines where a one-instruction replacement also restores the contract. */
+	alternatives?: { at: string; text: string }[];
 }
 
 /** A function of the module: its lines, the checks of its contract and its possible defects. */
@@ -179,7 +181,9 @@ const JUNIOR: Unit[] = [
 		lines: [
 			'def rename_item(db, item_id, body):',
 			'    """PATCH /items/{id}. name после strip — непустой и не длиннее 50 символов, иначе (422, {"error": "bad name"})',
-			'    и товар не меняется; нет товара — (404, ...). Успех — товар сохраняется: (200, товар)."""',
+			'    и товар не меняется; нет товара — (404, ...). Успех — товар сохраняется: (200, товар).',
+			'    Хранилище: db.get(id) возвращает сам объект записи хранилища (не копию) или None, db.put(id, item)',
+			'    сохраняет item как запись и возвращает его."""',
 			'    item = db.get(item_id)',
 			'    if item is None:',
 			'        return 404, {"error": "not found"}',
@@ -244,14 +248,26 @@ const JUNIOR: Unit[] = [
 			'lo = LoDb()',
 			'lo_page = list_orders(lo, {"status": "paid", "page": "2", "size": "2"})',
 			'assert lo_page == (200, {"items": [{"id": 7, "status": "paid"}, {"id": 9, "status": "paid"}], "total": 4})',
-			'assert list_orders(lo, {})[1]["total"] == 6'
+			'assert list_orders(lo, {})[1]["total"] == 6',
+			'assert list_orders(lo, {"page": "1", "size": "4"})[1]["items"] == [',
+			'    {"id": 1, "status": "paid"}, {"id": 2, "status": "new"}, {"id": 4, "status": "new"}, {"id": 5, "status": "paid"}',
+			']',
+			'assert list_orders(lo, {"status": "new", "page": "2", "size": "2"}) == (200, {"items": [], "total": 2})'
 		],
 		defects: [
 			{
 				kind: 'paging-filter',
 				at: '    start = (page - 1) * size',
 				text: '    start = page * size',
-				neighbour: { at: '    rows.sort(key=lambda o: o["id"])', text: '    rows.sort(key=lambda o: int(o["id"]))' }
+				neighbour: { at: '    rows.sort(key=lambda o: o["id"])', text: '    rows.sort(key=lambda o: int(o["id"]))' },
+				// Pages counted from 0 inside the handler, or the slice taken one page back, restore the contract too.
+				alternatives: [
+					{ at: '    page = int(query.get("page", 1))', text: '    page = int(query.get("page", 1)) - 1' },
+					{
+						at: '    return 200, {"items": rows[start:start + size], "total": len(rows)}',
+						text: '    return 200, {"items": rows[start - size:start], "total": len(rows)}'
+					}
+				]
 			},
 			{
 				kind: 'paging-filter',
@@ -285,7 +301,9 @@ const JUNIOR: Unit[] = [
 			'            {"name": "Кофе", "hidden": False},',
 			'            {"name": "чай чёрный", "hidden": False},',
 			'        ]',
-			'assert search_products(SpDb(), {"q": "Чай"}) == (200, ["Чай зелёный", "чай чёрный"])'
+			'assert search_products(SpDb(), {"q": "Чай"}) == (200, ["Чай зелёный", "чай чёрный"])',
+			'assert search_products(SpDb(), {"q": "КОФ"}) == (200, ["Кофе"])',
+			'assert search_products(SpDb(), {}) == (200, ["Кофе", "Чай зелёный", "чай чёрный"])'
 		],
 		defects: [
 			{
@@ -298,7 +316,14 @@ const JUNIOR: Unit[] = [
 				kind: 'paging-filter',
 				at: '    q = query.get("q", "").lower()',
 				text: '    q = query.get("q", "")',
-				neighbour: { at: '    return 200, sorted(found)', text: '    return 200, list(sorted(found))' }
+				neighbour: { at: '    return 200, sorted(found)', text: '    return 200, list(sorted(found))' },
+				// Lowering the query where it is compared restores the contract as well.
+				alternatives: [
+					{
+						at: '    found = [p["name"] for p in db.products() if q in p["name"].lower() and not p["hidden"]]',
+						text: '    found = [p["name"] for p in db.products() if q.lower() in p["name"].lower() and not p["hidden"]]'
+					}
+				]
 			}
 		]
 	}
@@ -525,7 +550,10 @@ const MIDDLE: Unit[] = [
 		lines: [
 			'def transfer(db, src, dst, amount):',
 			'    """POST /transfers. Списание с src и зачисление на dst — одна транзакция: если любая часть упала, не',
-			'    меняется ни один счёт и ошибка выходит наружу. Успех — (201, {"from": src, "to": dst, "amount": amount})."""',
+			'    меняется ни один счёт и ошибка выходит наружу. Успех — (201, {"from": src, "to": dst, "amount": amount}).',
+			'    Хранилище: db.begin() открывает транзакцию tx; tx.withdraw и tx.deposit только накапливают изменения,',
+			'    tx.commit() применяет их все, tx.rollback() отбрасывает; db.withdraw и db.deposit меняют счёт сразу,',
+			'    вне любой транзакции."""',
 			'    tx = db.begin()',
 			'    try:',
 			'        tx.withdraw(src, amount)',
@@ -589,7 +617,10 @@ const MIDDLE: Unit[] = [
 			'',
 			'def place_order(db, user, items):',
 			'    """POST /orders. Заказ и резерв товара пишутся в одной транзакции: если резерв не удался (OutOfStock),',
-			'    заказа нет — (409, {"error": "out of stock"}). Успех — (201, {"id": номер заказа})."""',
+			'    заказа нет — (409, {"error": "out of stock"}). Успех — (201, {"id": номер заказа}).',
+			'    Хранилище: db.begin() открывает транзакцию tx; tx.insert_order и tx.reserve только накапливают',
+			'    изменения, tx.commit() применяет их, tx.rollback() отбрасывает; db.insert_order пишет заказ сразу,',
+			'    вне любой транзакции."""',
 			'    tx = db.begin()',
 			'    try:',
 			'        order_id = tx.insert_order(user, items)',
@@ -857,6 +888,8 @@ interface Program {
 	fix: string;
 	neighbour: { line: number; text: string };
 	other: { line: number; text: string };
+	/** Accepted other repairs: absolute line and its replacement. */
+	alternatives: { line: number; fix: string }[];
 }
 
 function compose(rng: Rng, library: readonly Unit[], kind: string, contextCount: number): Program {
@@ -886,11 +919,13 @@ function compose(rng: Rng, library: readonly Unit[], kind: string, contextCount:
 	let answer = 0;
 	let neighbour = { line: 0, text: '' };
 	let other = { line: 0, text: '' };
+	let alternatives: Program['alternatives'] = [];
 	for (const unit of order) {
 		const offset = lines.length;
 		unit.lines.forEach((line, i) => lines.push(unit === buggy && i === defectLine ? defect.text : line));
 		if (unit === buggy) {
 			answer = offset + defectLine + 1;
+			alternatives = (defect.alternatives ?? []).map((a) => ({ line: offset + lineOf(buggy, a.at) + 1, fix: a.text }));
 			neighbour = { line: offset + lineOf(buggy, defect.neighbour.at) + 1, text: defect.neighbour.text };
 		} else if (other.line === 0) {
 			const sibling = unit.defects[0];
@@ -911,7 +946,7 @@ function compose(rng: Rng, library: readonly Unit[], kind: string, contextCount:
 		'except Exception as exc:',
 		"    print('fail', type(exc).__name__)"
 	].join('\n');
-	return { source: lines.join('\n'), check, answer, fix, neighbour, other };
+	return { source: lines.join('\n'), check, answer, fix, neighbour, other, alternatives };
 }
 
 export function build(input: GenerateInput): Built {
@@ -927,15 +962,26 @@ export function build(input: GenerateInput): Built {
 			markdown:
 				'Модуль обработчиков HTTP на Python 3. Обработчик получает части запроса и хранилища параметрами и ' +
 				'возвращает пару (код ответа, тело). У каждого обработчика в строке документации записан его контракт. ' +
-				'Ровно одна строка модуля нарушает контракт своего обработчика: если заменить только её, все обработчики ' +
-				'будут работать по контракту. Введите номер этой строки (нумерация с 1).',
+				'В модуле один дефект: строка, нарушающая контракт своего обработчика. ' +
+				'Введите номер строки с дефектом (нумерация с 1). Если исправить можно в нескольких строках — засчитывается любая ' +
+				'из них, где замена одной инструкцией Python (без `;`) восстанавливает спецификацию. Исправление — одна простая инструкция того же вида, что исправляемая строка: не добавляйте ' +
+				'конструкций, которых в ней нет (`:=`, lambda, обёртки, новые функции), и не переносите в неё логику из другой строки.',
 			code: { language: 'python3', source: p.source }
 		},
-		answer: { kind: 'line_no', value: p.answer }
+		answer: {
+			kind: 'line_no',
+			value: p.answer,
+			...(p.alternatives.length ? { alternatives: p.alternatives.map((a) => a.line) } : {})
+		}
 	});
 	return {
 		instance,
-		reference: () => ({ kind: 'bug', check: p.check, fix: p.fix }),
+		reference: () => ({
+			kind: 'bug',
+			check: p.check,
+			fix: p.fix,
+			...(p.alternatives.length ? { alternatives: p.alternatives } : {})
+		}),
 		wrong: () => ({
 			'neighbour-line': { kind: 'line', line: p.neighbour.line, replacement: p.neighbour.text },
 			'other-handler': p.other.line === 0 ? null : { kind: 'line', line: p.other.line, replacement: p.other.text }

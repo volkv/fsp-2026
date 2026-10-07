@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.7,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "daa2a8c75a69f0beaa191598166cd37ca5c509127eb2da4ddc6a620a84eca558"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.6,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "daa2a8c75a69f0beaa191598166cd37ca5c509127eb2da4ddc6a620a84eca558"
+					}
+				],
+				"mean": 0.65
+			},
 			"constructive": { "tables": 2, "rows": "9–14", "joins": 1, "clauses": "JOIN / LEFT JOIN + ORDER BY" },
 			"constructiveRank": 2,
 			"timeNormSec": 240,
@@ -37,7 +54,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.5,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "daa2a8c75a69f0beaa191598166cd37ca5c509127eb2da4ddc6a620a84eca558"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.55,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "daa2a8c75a69f0beaa191598166cd37ca5c509127eb2da4ddc6a620a84eca558"
+					}
+				],
+				"mean": 0.55
+			},
 			"constructive": { "tables": 3, "rows": "14–22", "joins": 2, "clauses": "два соединения + GROUP BY + агрегаты" },
 			"constructiveRank": 4,
 			"timeNormSec": 360,
@@ -137,6 +171,29 @@
 		"answerCollision": 0.001,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Все восемь экземпляров пересчитаны в SQLite: совпадают. Ответы единственны, порядок детерминирован.",
+					"comma-join (intern): в таблице orders одна строка, поэтому декартово произведение вырождается в «каждый клиент с одним заказом»; задание остаётся различающим (ошибочное решение implicit-key-join ловится), но лучше иметь 2 заказа, чтобы эталон не совпадал с упрощённым прочтением «заказ приклеен ко всем».",
+					"rows-product (junior) требует перемножить число заказов и обращений по клиенту (12 строк); аккуратно, но трудоёмко в 360 с. Остальные классы адекватны."
+				],
+				"sourceSha256": "daa2a8c75a69f0beaa191598166cd37ca5c509127eb2da4ddc6a620a84eca558"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Все восемь SQL-экземпляров независимо выполнены, ответы совпали. В junior/sum-fanout для egor три заказа суммой 1900 соединяются с тремя complaints: COUNT(t.id) = 9 и SUM(o.total) = 5700. Для dina LEFT JOIN без complaints сохраняет три заказа, поэтому COUNT(t.id) = 0, SUM = 2850.",
+					"Intern требует понять сохраняемую сторону и повторение строк, Junior добавляет два соединения, DISTINCT и антисоединение; грейды обоснованы. SUM(DISTINCT) действительно устраняет равные суммы разных заказов, а COUNT(DISTINCT id) считает разные заказы. Классы нельзя решить одной сохранённой последовательностью; все требуемые значения выводятся из данных.",
+					"Неблокирующее улучшение binary для длинных результатов: частичный балл за корректную кратность и агрегаты уменьшит влияние одной арифметической ошибки. Следует принимать эквивалентные пробелы около |."
+				],
+				"sourceSha256": "daa2a8c75a69f0beaa191598166cd37ca5c509127eb2da4ddc6a620a84eca558"
+			}
+		]
 	}
 }

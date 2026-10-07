@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "middle",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.5,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "2f36dd9d001b8f83c7d3dded36f85d76e6f4445b6e0f806d15a9297c1118b8cd"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.55,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "2f36dd9d001b8f83c7d3dded36f85d76e6f4445b6e0f806d15a9297c1118b8cd"
+					}
+				],
+				"mean": 0.55
+			},
 			"constructive": {
 				"tables": "1–2",
 				"rows": "7–10",
@@ -42,7 +59,24 @@
 		},
 		{
 			"grade": "senior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.35,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "2f36dd9d001b8f83c7d3dded36f85d76e6f4445b6e0f806d15a9297c1118b8cd"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.5,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "2f36dd9d001b8f83c7d3dded36f85d76e6f4445b6e0f806d15a9297c1118b8cd"
+					}
+				],
+				"mean": 0.45
+			},
 			"constructive": {
 				"tables": 1,
 				"rows": "8–11 рёбер",
@@ -135,6 +169,30 @@
 		"answerCollision": 0.0005,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Все восемь экземпляров пересчитаны в SQLite: совпадают. Порядок детерминирован.",
+					"bounded-walks (senior) требует вручную подсчитать число всех маршрутов глубины до 4 в графе с циклами (счётчики 5, 4, 6, 3); очень трудоёмко и подвержено арифметической ошибке при 480 с, хотя ответ однозначен. Если p окажется очень низким, стоит уменьшить граф.",
+					"Для middle рекурсивные CTE (особенно calendar-fill и path-up) — на верхней границе, но в пределах «средний + WITH RECURSIVE».",
+					"Угадать нельзя: ответы многострочные с числовыми значениями."
+				],
+				"sourceSha256": "2f36dd9d001b8f83c7d3dded36f85d76e6f4445b6e0f806d15a9297c1118b8cd"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Все восемь SQL-экземпляров независимо выполнены, эталоны верны. В senior/bounded-walks количества по глубинам 0–4 дают для kursk 0+1+1+1+2 = 5, sochi 1+0+1+1+1 = 4, spb 0+1+1+2+2 = 6, ufa 0+1+0+1+1 = 3. Это маршруты с повторами, а не число различных достижимых вершин.",
+					"Рекурсия по иерархии и календарю, UNION с циклом, ограниченные маршруты и простые пути требуют разных правил. Якорь и границы глубины видны в запросе, защита пути использует разделители и исключает ложное совпадение части имени. Финальные ORDER BY задают требуемый порядок; одинаковые числа в closure-self, сид 1, следуют из сильной связности конкретного графа, а генератор меняет его структуру.",
+					"Middle/Senior обоснованы усложнением от дерева до графа с циклами, однако семейство измеряет специальный навык SQL и не должно самостоятельно подтверждать архитектурный Senior. Неблокирующее улучшение рубрики: частичный балл за корректные вершины и агрегаты при ошибке в одном маршруте; нормализация пробелов около |."
+				],
+				"sourceSha256": "2f36dd9d001b8f83c7d3dded36f85d76e6f4445b6e0f806d15a9297c1118b8cd"
+			}
+		]
 	}
 }

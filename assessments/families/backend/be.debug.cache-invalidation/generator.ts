@@ -21,6 +21,8 @@ interface Defect {
 	at: string;
 	text: string;
 	neighbour: { at: string; text: string };
+	/** Other lines where a one-instruction replacement also restores the contract. */
+	alternatives?: { at: string; text: string }[];
 }
 
 /** A class or function of the module: its lines, the checks of its contract and its possible defects. */
@@ -125,7 +127,9 @@ const MIDDLE: Unit[] = [
 				kind: 'ttl',
 				at: '        return self.now_ms() - fetched_at < self.max_age_s * 1000',
 				text: '        return self.now_ms() - fetched_at < self.max_age_s',
-				neighbour: { at: '            return entry[0]', text: '            return entry[0] if entry else None' }
+				neighbour: { at: '            return entry[0]', text: '            return entry[0] if entry else None' },
+				// The age limit kept in milliseconds also restores the contract: the attribute's unit is not part of it.
+				alternatives: [{ at: '        self.max_age_s = max_age_s', text: '        self.max_age_s = max_age_s * 1000' }]
 			},
 			{
 				kind: 'ttl',
@@ -215,8 +219,9 @@ const MIDDLE: Unit[] = [
 	{
 		lines: [
 			'def cached_search(cache, params, run):',
-			'    """Поиск по параметрам запроса (словарь): одинаковые параметры в любом порядке дают один',
-			'    ключ кэша, разные значения — разные ключи; run(params) вызывается только при промахе."""',
+			'    """Поиск по параметрам запроса: params — словарь, ключи — строки, значения — строки или целые',
+			'    числа (не bool). Одинаковые параметры в любом порядке дают один ключ кэша, разные значения — разные',
+			'    ключи; run(params) вызывается только при промахе."""',
 			'    key = tuple(sorted(params.items()))',
 			'    if key not in cache:',
 			'        cache[key] = run(params)',
@@ -230,7 +235,9 @@ const MIDDLE: Unit[] = [
 			'assert cached_search(cs_cache, {"q": "go", "page": 2}, cs_run) == "go#2"',
 			'assert cached_search(cs_cache, {"page": 2, "q": "go"}, cs_run) == "go#2"',
 			'assert cached_search(cs_cache, {"q": "go", "page": 3}, cs_run) == "go#3"',
-			'assert len(cs_runs) == 2'
+			'assert cached_search(cs_cache, {"q": "tea", "page": 1, "sort": "price"}, cs_run) == "tea#1"',
+			'assert cached_search(cs_cache, {"sort": "price", "page": 1, "q": "tea"}, cs_run) == "tea#1"',
+			'assert len(cs_runs) == 3'
 		],
 		defects: [
 			{
@@ -376,7 +383,8 @@ const MIDDLE: Unit[] = [
 		lines: [
 			'class Catalog:',
 			'    """items_in(category) — отсортированные id товаров категории, результат кэшируется;',
-			'    add(item_id, item) добавляет товар, и следующие вызовы items_in видят его."""',
+			'    add(item_id, item) добавляет товар или заменяет товар с тем же id (в том числе с другой',
+			'    категорией), и следующие вызовы items_in видят каталог после изменения."""',
 			'',
 			'    def __init__(self):',
 			'        self.items = {}',
@@ -389,8 +397,11 @@ const MIDDLE: Unit[] = [
 			'        return list(self._by_category[category])',
 			'',
 			'    def add(self, item_id, item):',
+			'        old = self.items.get(item_id)',
 			'        self.items[item_id] = item',
-			'        self._by_category.pop(item["category"], None)'
+			'        self._by_category.pop(item["category"], None)',
+			'        if old is not None:',
+			'            self._by_category.pop(old["category"], None)'
 		],
 		checks: [
 			'cat = Catalog()',
@@ -398,7 +409,9 @@ const MIDDLE: Unit[] = [
 			'assert cat.items_in("tea") == [3]',
 			'cat.add(1, {"category": "tea"})',
 			'cat.add(2, {"category": "coffee"})',
-			'assert cat.items_in("tea") == [1, 3] and cat.items_in("coffee") == [2]'
+			'assert cat.items_in("tea") == [1, 3] and cat.items_in("coffee") == [2]',
+			'cat.add(1, {"category": "coffee"})',
+			'assert cat.items_in("tea") == [3] and cat.items_in("coffee") == [1, 2]'
 		],
 		defects: [
 			{
@@ -474,8 +487,8 @@ const MIDDLE_X: Unit[] = [
 	{
 		lines: [
 			'class PrefixCache:',
-			'    """put(key, value) и get(key); drop_prefix(prefix) удаляет все ключи, которые начинаются с prefix,',
-			'    и только их."""',
+			'    """put(key, value) и get(key), ключи — строки; drop_prefix(prefix) удаляет все ключи, которые',
+			'    начинаются с prefix, и только их."""',
 			'',
 			'    def __init__(self):',
 			'        self.data = {}',
@@ -544,6 +557,8 @@ interface Program {
 	fix: string;
 	neighbour: { line: number; text: string };
 	other: { line: number; text: string };
+	/** Accepted other repairs: absolute line and its replacement. */
+	alternatives: { line: number; fix: string }[];
 }
 
 function compose(rng: Rng, library: readonly Unit[], kind: string, contextCount: number): Program {
@@ -570,11 +585,13 @@ function compose(rng: Rng, library: readonly Unit[], kind: string, contextCount:
 	let answer = 0;
 	let neighbour = { line: 0, text: '' };
 	let other = { line: 0, text: '' };
+	let alternatives: Program['alternatives'] = [];
 	for (const unit of order) {
 		const offset = lines.length;
 		unit.lines.forEach((line, i) => lines.push(unit === buggy && i === defectLine ? defect.text : line));
 		if (unit === buggy) {
 			answer = offset + defectLine + 1;
+			alternatives = (defect.alternatives ?? []).map((a) => ({ line: offset + lineOf(buggy, a.at) + 1, fix: a.text }));
 			neighbour = { line: offset + lineOf(buggy, defect.neighbour.at) + 1, text: defect.neighbour.text };
 		} else if (other.line === 0) {
 			const sibling = unit.defects[0];
@@ -595,7 +612,7 @@ function compose(rng: Rng, library: readonly Unit[], kind: string, contextCount:
 		'except Exception as exc:',
 		"    print('fail', type(exc).__name__)"
 	].join('\n');
-	return { source: lines.join('\n'), check, answer, fix, neighbour, other };
+	return { source: lines.join('\n'), check, answer, fix, neighbour, other, alternatives };
 }
 
 export function build(input: GenerateInput): Built {
@@ -606,16 +623,28 @@ export function build(input: GenerateInput): Built {
 		statement: {
 			markdown:
 				'Модуль кэширования сервиса на Python 3. Время и источники данных классы и функции получают параметрами. ' +
-				'У каждого класса и функции в строке документации записан контракт. Ровно одна строка модуля нарушает ' +
-				'контракт: если заменить только её, весь модуль будет работать по контракту. Введите номер этой строки ' +
-				'(нумерация с 1).',
+				'Ключи кэшей и параметры, из которых они строятся, — строки или целые числа (не bool и не float); ' +
+				'составные значения (списки, словари) в них не передаются. ' +
+				'У каждого класса и функции в строке документации записан контракт; в модуле один дефект. ' +
+				'Введите номер строки с дефектом (нумерация с 1). Если исправить можно в нескольких строках — засчитывается любая ' +
+				'из них, где замена одной инструкцией Python (без `;`) восстанавливает спецификацию. Исправление — одна простая инструкция того же вида, что исправляемая строка: не добавляйте ' +
+				'конструкций, которых в ней нет (`:=`, lambda, обёртки, новые функции), и не переносите в неё логику из другой строки.',
 			code: { language: 'python3', source: p.source }
 		},
-		answer: { kind: 'line_no', value: p.answer }
+		answer: {
+			kind: 'line_no',
+			value: p.answer,
+			...(p.alternatives.length ? { alternatives: p.alternatives.map((a) => a.line) } : {})
+		}
 	});
 	return {
 		instance,
-		reference: () => ({ kind: 'bug', check: p.check, fix: p.fix }),
+		reference: () => ({
+			kind: 'bug',
+			check: p.check,
+			fix: p.fix,
+			...(p.alternatives.length ? { alternatives: p.alternatives } : {})
+		}),
 		wrong: () => ({
 			'neighbour-line': { kind: 'line', line: p.neighbour.line, replacement: p.neighbour.text },
 			'other-unit': p.other.line === 0 ? null : { kind: 'line', line: p.other.line, replacement: p.other.text }

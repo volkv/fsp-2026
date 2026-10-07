@@ -1,0 +1,133 @@
+{
+	"key": "ds.sql.agg-nulls",
+	"version": 1,
+	"specialization": "data_ml",
+	"block": "ds.sql",
+	"format": "sql_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": { "tables": 1, "rows": "6–16", "groups": "2–3", "trap": "одна: NULL или целочисленное деление" },
+			"constructiveRank": 2,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "count-avg-null",
+					"form": "A",
+					"description": "COUNT(*) против COUNT(столбец) и AVG только по строкам с оценкой"
+				},
+				{
+					"id": "int-division",
+					"form": "B",
+					"description": "доля в процентах как 100 * SUM / COUNT: оба операнда целые, SQLite отбрасывает дробную часть"
+				},
+				{
+					"id": "case-share",
+					"form": "anchor",
+					"description": "доля через AVG(CASE … THEN 1.0 ELSE 0 END): строки с NULL-статусом остаются в знаменателе"
+				},
+				{
+					"id": "sum-all-null",
+					"form": "X",
+					"description": "SUM и MAX группы из одних NULL — NULL, а COUNT(столбец) — 0"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": { "tables": "1–2", "rows": "8–20", "groups": "2–3", "trap": "NULL из соединения или подзапроса" },
+			"constructiveRank": 3,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "left-join-avg",
+					"form": "A",
+					"description": "LEFT JOIN пользователей к заказам: пользователь без заказов даёт строку с NULL — COUNT(o.id) и AVG её не считают, выручка на пользователя — считает"
+				},
+				{
+					"id": "nullif-ctr",
+					"form": "B",
+					"description": "NULLIF(SUM(views), 0) против деления на ноль: доля кампании без показов — NULL, SUM из одних NULL — NULL"
+				},
+				{
+					"id": "avg-of-avgs",
+					"form": "anchor",
+					"description": "среднее средних по пользователям: пользователь из одних NULL выпадает, среднее средних не равно общему среднему"
+				},
+				{
+					"id": "count-distinct-null",
+					"form": "X",
+					"description": "COUNT(DISTINCT coupon) не считает NULL, а число строк SELECT DISTINCT считает NULL отдельным значением"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "названия таблиц, сегменты, каналы, города, купоны" },
+		{ "name": "data", "description": "значения, число строк, порядок вставки" }
+	],
+	"essentialParams": [
+		{
+			"name": "null-site",
+			"description": "где появляется NULL: в агрегируемом столбце, в статусе, во всей группе, после LEFT JOIN, после NULLIF, в среднем пользователя"
+		},
+		{
+			"name": "aggregate",
+			"description": "что встречает NULL или целые: COUNT, AVG, AVG(CASE), SUM/MAX, деление, COUNT(DISTINCT)"
+		}
+	],
+	"language": "sql",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"COUNT(*) против COUNT(столбец)",
+			"AVG и SUM пропускают NULL; SUM группы из NULL — NULL",
+			"целочисленное деление SQLite",
+			"доля через AVG(CASE) и судьба NULL в знаменателе",
+			"NULL после LEFT JOIN в агрегатах",
+			"NULLIF против деления на ноль",
+			"среднее средних против общего среднего",
+			"COUNT(DISTINCT) и NULL"
+		],
+		"doesNotCheck": ["особенности агрегатов других СУБД", "оптимизацию запросов"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "count-star",
+			"defect": "считает, что COUNT(столбец) равен COUNT(*), — NULL тоже считаются",
+			"mustBeCaught": true
+		},
+		{
+			"id": "null-as-zero",
+			"defect": "считает NULL нулём: в среднем, в сумме из одних NULL, в максимуме, в доле",
+			"mustBeCaught": true
+		},
+		{ "id": "real-division", "defect": "ожидает дробную долю от деления целого на целое", "mustBeCaught": true },
+		{
+			"id": "null-dropped",
+			"defect": "считает, что строка с NULL-статусом выпадает из знаменателя AVG(CASE … ELSE 0 END)",
+			"mustBeCaught": true
+		},
+		{
+			"id": "distinct-counts-null",
+			"defect": "считает, что COUNT(DISTINCT) учитывает NULL как отдельное значение",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 5, "caught": 5 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0004,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

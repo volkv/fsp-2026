@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.6,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "bdba5157726a8506606834c6d50e1b86ffdf96d6c6d53617d7fa93ebf8c8e0a7"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.65,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "bdba5157726a8506606834c6d50e1b86ffdf96d6c6d53617d7fa93ebf8c8e0a7"
+					}
+				],
+				"mean": 0.65
+			},
 			"constructive": { "tables": "1–2", "rows": "10–14", "filters": "WHERE + HAVING", "aggregates": "2–3" },
 			"constructiveRank": 3,
 			"timeNormSec": 300,
@@ -37,7 +54,24 @@
 		},
 		{
 			"grade": "middle",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.45,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "bdba5157726a8506606834c6d50e1b86ffdf96d6c6d53617d7fa93ebf8c8e0a7"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.6,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "bdba5157726a8506606834c6d50e1b86ffdf96d6c6d53617d7fa93ebf8c8e0a7"
+					}
+				],
+				"mean": 0.55
+			},
 			"constructive": { "tables": 1, "rows": "12–16", "aggregates": "3–4", "conditional": "CASE / FILTER / выражение" },
 			"constructiveRank": 5,
 			"timeNormSec": 360,
@@ -139,6 +173,30 @@
 		"answerCollision": 0,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Все восемь экземпляров пересчитаны в SQLite 3.45: совпадают. Порядок детерминирован.",
+					"filter-clause использует FILTER (WHERE …), требует SQLite 3.30+; в условии версия не указана, но формулировка «База — SQLite» достаточна для современных сборок. Мелочь.",
+					"integer-division: SUM/COUNT над целыми даёт целочисленное деление именно в SQLite (в PostgreSQL тоже, в MySQL нет); условие говорит о SQLite, ответ однозначен. Данные подобраны так, что вещественное деление меняет результат (Сочи 320.5 > 320), ошибочное решение отсекается.",
+					"Для middle условные агрегаты COUNT(CASE … ELSE 0) и пустая SUM — типичные ловушки, уровень уместен."
+				],
+				"sourceSha256": "bdba5157726a8506606834c6d50e1b86ffdf96d6c6d53617d7fa93ebf8c8e0a7"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Все восемь SQL-экземпляров независимо выполнены, ответы совпали. В junior/where-then-having после WHERE остаются три строки ops суммой 1900 и две support суммой 1450; dev и legal не проходят COUNT ≥ 2. В middle/integer-division Сочи имеет 641 / 2 = 320 в целочисленной арифметике SQLite и исключается, Пермь имеет 781 / 2 = 390.",
+					"WHERE, HAVING, условный COUNT, FILTER, DISTINCT и группировка по выражению дают разные пути решения. Особенно корректно различены COUNT(CASE … ELSE 0 END), считающий все строки, и SUM без подходящих ненулевых значений. Запросы однозначны, соответствуют блоку; Junior проверяет базовую группировку, Middle добавляет взаимодействие агрегатов и выражений.",
+					"Неблокирующее замечание к binary: для результатов с несколькими независимыми агрегатами полезен частичный балл по строкам или явно определённым частям. Пробелы около | следует нормализовать; порядок и численные значения должны оставаться обязательными."
+				],
+				"sourceSha256": "bdba5157726a8506606834c6d50e1b86ffdf96d6c6d53617d7fa93ebf8c8e0a7"
+			}
+		]
 	}
 }

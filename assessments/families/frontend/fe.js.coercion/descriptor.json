@@ -1,0 +1,226 @@
+{
+	"key": "fe.js.coercion",
+	"version": 1,
+	"specialization": "frontend",
+	"block": "fe.js",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": { "expressions": "3–8", "operandTypes": "2–3", "mechanisms": 1 },
+			"constructiveRank": 2,
+			"timeNormSec": 210,
+			"classes": [
+				{
+					"id": "plus-strings",
+					"form": "A",
+					"description": "+ со строкой склеивает слева направо, -, * и унарный + приводят строку к числу"
+				},
+				{
+					"id": "equality",
+					"form": "B",
+					"description": "== приводит типы, === нет; особые случаи null, undefined и NaN; две строки сравниваются как строки"
+				},
+				{
+					"id": "conversions",
+					"form": "anchor",
+					"description": "Number() требует число целиком, parseInt и parseFloat читают префикс; пустая строка и null дают 0"
+				},
+				{
+					"id": "sort-truthiness",
+					"form": "X",
+					"description": "sort() без компаратора сравнивает строки, компаратор задаёт направление; ложные и истинные значения"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": { "expressions": "3–8", "operandTypes": "3–5", "objects": true, "mechanisms": 2 },
+			"constructiveRank": 3,
+			"timeNormSec": 270,
+			"classes": [
+				{
+					"id": "to-primitive",
+					"form": "A",
+					"description": "объект в + и арифметике — через valueOf, в шаблонной строке и String() — через toString; массивы — через строку"
+				},
+				{
+					"id": "nullish-or",
+					"form": "B",
+					"description": "?? подставляет значение только вместо null и undefined, || — вместо любого ложного; значение по умолчанию в деструктуризации — только вместо undefined"
+				},
+				{
+					"id": "object-equality",
+					"form": "anchor",
+					"description": "== с массивом и объектом через примитив, null == false ложно, объекты равны только по ссылке, Object.is"
+				},
+				{
+					"id": "sort-compare",
+					"form": "X",
+					"description": "сортировка по кодам символов (заглавные раньше строчных, числа как строки, undefined в конец), строка со строкой — посимвольно, строка с числом — численно"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "numbers", "description": "операнды выражений, значения по умолчанию, элементы массивов" },
+		{ "name": "names", "description": "имена объектов, функций, слова и единицы измерения в строках" },
+		{ "name": "order", "description": "порядок и выбор дополнительных выражений" }
+	],
+	"essentialParams": [
+		{
+			"name": "operation",
+			"description": "что приводит типы: +, арифметика, ==, сравнение, Number/parseInt, логический оператор, сортировка"
+		},
+		{ "name": "operand-types", "description": "строка, число, null/undefined, NaN, массив, объект с valueOf/toString" },
+		{ "name": "hint", "description": "в какую сторону приводится объект: число по умолчанию или строка" }
+	],
+	"language": "javascript",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"+ со строками и числами, порядок вычисления",
+			"== против ===, null, undefined, NaN",
+			"Number, parseInt, parseFloat",
+			"истинность значений",
+			"sort() без компаратора и с компаратором",
+			"ToPrimitive: valueOf и toString, массивы и объекты в выражениях",
+			"?? против || и значения по умолчанию в деструктуризации",
+			"сравнение строк между собой и с числами"
+		],
+		"doesNotCheck": ["BigInt и Symbol", "Intl и localeCompare", "приведение типов в TypeScript"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "all-concat",
+			"defect": "считает, что строка в конце выражения склеивает все слагаемые с самого начала",
+			"mustBeCaught": true
+		},
+		{ "id": "numbers-first", "defect": "считает, что числа после строки сначала складываются", "mustBeCaught": true },
+		{ "id": "string-math-nan", "defect": "считает, что -, * со строкой дают NaN", "mustBeCaught": true },
+		{ "id": "unary-plus-ignored", "defect": "не знает, что унарный + приводит строку к числу", "mustBeCaught": true },
+		{
+			"id": "bool-as-string",
+			"defect": "считает, что true в сложении с числом становится строкой",
+			"mustBeCaught": true
+		},
+		{
+			"id": "null-like-undefined",
+			"defect": "считает, что null в арифметике даёт NaN, как undefined",
+			"mustBeCaught": true
+		},
+		{
+			"id": "loose-is-strict",
+			"defect": "считает, что == не приводит типы и ведёт себя как ===",
+			"mustBeCaught": true
+		},
+		{ "id": "null-zero", "defect": "считает, что null == 0, раз null >= 0", "mustBeCaught": true },
+		{ "id": "nan-equal", "defect": "считает, что NaN равен самому себе", "mustBeCaught": true },
+		{
+			"id": "strings-numeric",
+			"defect": "считает, что две строки с числами == сравнивает как числа",
+			"mustBeCaught": true
+		},
+		{ "id": "true-truthy", "defect": "считает, что true == любая непустая строка", "mustBeCaught": true },
+		{
+			"id": "number-like-parseint",
+			"defect": "считает, что Number() читает числовой префикс строки, как parseInt",
+			"mustBeCaught": true
+		},
+		{
+			"id": "parse-strict",
+			"defect": "считает, что parseInt и parseFloat дают NaN, если после числа есть символы",
+			"mustBeCaught": true
+		},
+		{ "id": "empty-is-nan", "defect": "считает, что Number('') — NaN", "mustBeCaught": true },
+		{ "id": "parseint-rounds", "defect": "считает, что parseInt округляет дробь", "mustBeCaught": true },
+		{ "id": "null-nan", "defect": "считает, что Number(null) — NaN", "mustBeCaught": true },
+		{
+			"id": "numeric-sort",
+			"defect": "считает, что sort() без компаратора сортирует числа по значению",
+			"mustBeCaught": true
+		},
+		{ "id": "zero-string-falsy", "defect": "считает строку '0' ложной", "mustBeCaught": true },
+		{ "id": "empty-array-falsy", "defect": "считает пустой массив ложным", "mustBeCaught": true },
+		{
+			"id": "comparator-direction",
+			"defect": "путает направление компаратора: считает, что (a, b) => b - a сортирует по возрастанию",
+			"mustBeCaught": true
+		},
+		{
+			"id": "plus-uses-tostring",
+			"defect": "считает, что + с объектом вызывает toString, а не valueOf",
+			"mustBeCaught": true
+		},
+		{
+			"id": "template-uses-valueof",
+			"defect": "считает, что шаблонная строка и String() берут valueOf объекта",
+			"mustBeCaught": true
+		},
+		{
+			"id": "array-plus-numeric",
+			"defect": "считает, что массив из одного числа в + ведёт себя как число",
+			"mustBeCaught": true
+		},
+		{ "id": "array-math-nan", "defect": "считает, что умножение массива на число даёт NaN", "mustBeCaught": true },
+		{
+			"id": "nullish-like-or",
+			"defect": "считает, что ?? подставляет значение вместо 0, как ||",
+			"mustBeCaught": true
+		},
+		{ "id": "or-like-nullish", "defect": "считает, что || оставляет 0 и пустую строку, как ??", "mustBeCaught": true },
+		{
+			"id": "default-on-null",
+			"defect": "считает, что значение по умолчанию в деструктуризации подставляется вместо null",
+			"mustBeCaught": true
+		},
+		{
+			"id": "default-on-falsy",
+			"defect": "считает, что значение по умолчанию в деструктуризации подставляется вместо любого ложного значения",
+			"mustBeCaught": true
+		},
+		{
+			"id": "array-truthy-equal",
+			"defect": "считает, что раз массив истинный, то [] == false ложно",
+			"mustBeCaught": true
+		},
+		{ "id": "null-false", "defect": "считает, что null == false, раз null ложный", "mustBeCaught": true },
+		{
+			"id": "object-by-content",
+			"defect": "считает, что объекты и массивы с одинаковым содержимым равны",
+			"mustBeCaught": true
+		},
+		{ "id": "object-is-like-strict", "defect": "считает, что Object.is ведёт себя как ===", "mustBeCaught": true },
+		{
+			"id": "case-insensitive-sort",
+			"defect": "считает, что sort() сортирует строки без учёта регистра",
+			"mustBeCaught": true
+		},
+		{
+			"id": "string-compare-numeric",
+			"defect": "считает, что строки из цифр сравниваются как числа",
+			"mustBeCaught": true
+		},
+		{
+			"id": "mixed-compare-string",
+			"defect": "считает, что строка и число сравниваются как строки",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 35, "caught": 35 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0071,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

@@ -1,0 +1,145 @@
+{
+	"key": "mob.coroutines.delay-timeline",
+	"version": 1,
+	"specialization": "mobile",
+	"block": "mob.coroutines",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": { "coroutines": "2–3", "delays": "3–7", "lines": "10–22", "mechanisms": 2 },
+			"constructiveRank": 2,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "parallel-steps",
+					"form": "A",
+					"description": "несколько корутин выполняют шаги с задержками одновременно: строки идут по моментам, а не по порядку запуска"
+				},
+				{
+					"id": "async-parallel",
+					"form": "B",
+					"description": "async выполняются параллельно, а прямой вызов suspend-функции держит main до своего конца"
+				},
+				{
+					"id": "loop-tickers",
+					"form": "anchor",
+					"description": "два цикла с задержками разного периода чередуются по моментам; main не ждёт их"
+				},
+				{
+					"id": "join-timing",
+					"form": "X",
+					"description": "main ждёт своей задержкой и через join, а корутины тем временем продолжают"
+				}
+			]
+		},
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": { "coroutines": "2–4", "delays": "3–8", "lines": "15–30", "mechanisms": 3 },
+			"constructiveRank": 5,
+			"timeNormSec": 330,
+			"classes": [
+				{
+					"id": "with-context",
+					"form": "A",
+					"description": "withContext(Dispatchers.IO) приостанавливает main до конца блока, а корутины runBlocking идут дальше"
+				},
+				{
+					"id": "scope-vs-launch",
+					"form": "B",
+					"description": "coroutineScope и joinAll ждут свои корутины, а запущенную без ожидания launch — нет"
+				},
+				{
+					"id": "thread-sleep",
+					"form": "anchor",
+					"description": "Thread.sleep блокирует единственный поток: истёкшие задержки срабатывают после него по порядку сроков"
+				},
+				{
+					"id": "await-chain",
+					"form": "X",
+					"description": "async, запущенные в разные моменты и ожидаемые в другом порядке"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "имена экранов и задач, строки main, значения результатов" },
+		{
+			"name": "delays",
+			"description": "длительности задержек (кратны 100 мс, сроки различаются не меньше чем на 100 мс)"
+		}
+	],
+	"essentialParams": [
+		{
+			"name": "mechanism",
+			"description": "что задаёт моменты строк: параллельные задержки, async против прямого вызова, циклы, join, withContext, coroutineScope и joinAll, Thread.sleep"
+		},
+		{ "name": "waiting", "description": "кто кого ждёт: main, coroutineScope, joinAll, await или никто" }
+	],
+	"language": "kotlin",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"delay приостанавливает корутину, не блокируя поток",
+			"моменты строк — суммы задержек каждой корутины с момента её старта",
+			"async выполняются параллельно, последовательные вызовы suspend-функций — по очереди",
+			"withContext(Dispatchers.IO) ждёт конца блока, не блокируя runBlocking",
+			"coroutineScope и joinAll ждут корутины, launch без ожидания — нет",
+			"Thread.sleep блокирует поток runBlocking"
+		],
+		"doesNotCheck": [
+			"измерение реального времени и точность таймеров",
+			"виртуальное время тестов (runTest)",
+			"отмена (семейство mob.coroutines.cancellation)"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "delay-blocks",
+			"defect": "считает, что delay блокирует поток, и корутины выполняются по очереди",
+			"mustBeCaught": true
+		},
+		{
+			"id": "eager-launch",
+			"defect": "считает, что launch и async сразу выполняют тело до первой задержки",
+			"mustBeCaught": true
+		},
+		{
+			"id": "absolute-delays",
+			"defect": "отсчитывает каждую задержку от старта программы, а не от момента вызова",
+			"mustBeCaught": true
+		},
+		{ "id": "async-on-await", "defect": "считает, что async начинает работу только при await", "mustBeCaught": true },
+		{
+			"id": "with-context-blocks",
+			"defect": "считает, что withContext(Dispatchers.IO) блокирует поток runBlocking на всё время блока",
+			"mustBeCaught": true
+		},
+		{
+			"id": "scope-no-wait",
+			"defect": "считает, что coroutineScope не ждёт запущенных в нём корутин",
+			"mustBeCaught": true
+		},
+		{
+			"id": "sleep-as-delay",
+			"defect": "считает, что Thread.sleep в корутине приостанавливает её, как delay, не блокируя другие",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 7, "caught": 7 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

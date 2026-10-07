@@ -1,0 +1,144 @@
+{
+	"key": "ds.ml.early-stopping",
+	"version": 1,
+	"specialization": "data_ml",
+	"block": "ds.ml",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": { "epochs": "12–20", "rules": "patience + восстановление лучших весов", "curves": 2 },
+			"constructiveRank": 3,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "patience",
+					"form": "A",
+					"description": "ранняя остановка по val_loss с терпением p: остановка после p эпох без улучшения, веса — лучшей эпохи"
+				},
+				{ "id": "maximize", "form": "B", "description": "мониторится val_auc: улучшение — рост, а не падение" },
+				{
+					"id": "equal-not-better",
+					"form": "anchor",
+					"description": "значение, равное лучшему, улучшением не считается и счётчик не сбрасывает"
+				},
+				{
+					"id": "min-delta",
+					"form": "X",
+					"description": "min_delta: мелкие улучшения не обновляют лучшее значение, восстанавливается эпоха последнего значимого улучшения"
+				}
+			]
+		},
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"epochs": "до 30 или сетка из 7–9 моделей",
+				"rules": "правило одной стандартной ошибки, разогрев, снижение шага с паузой",
+				"curves": "2–3"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "one-se-degree",
+					"form": "A",
+					"description": "степень полинома по правилу одной стандартной ошибки: самая простая модель в пределах min + SE лучшей"
+				},
+				{
+					"id": "warmup",
+					"form": "B",
+					"description": "ранняя остановка с разогревом: первые эпохи не учитываются, с min_delta и восстановлением весов"
+				},
+				{
+					"id": "one-se-lambda",
+					"form": "anchor",
+					"description": "сила регуляризации по правилу одной стандартной ошибки: простая модель — с наибольшим λ"
+				},
+				{
+					"id": "plateau-lr",
+					"form": "X",
+					"description": "ReduceLROnPlateau с паузой (cooldown) и нижней границей шага: на каких эпохах шаг снизится"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "модель, метрика, сюжет" },
+		{ "name": "curves", "description": "значения кривых обучения и ошибок кросс-валидации" }
+	],
+	"essentialParams": [
+		{
+			"name": "rule",
+			"description": "терпение, направление метрики, равенство лучшему, min_delta, разогрев, правило одной стандартной ошибки, снижение шага"
+		},
+		{ "name": "complexity-axis", "description": "Middle: в какую сторону модель проще — меньшая степень или больший λ" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"момент ранней остановки и восстанавливаемая эпоха",
+			"мониторинг валидационной, а не обучающей кривой",
+			"направление улучшения метрики",
+			"min_delta и строгое улучшение",
+			"выбор модели по правилу одной стандартной ошибки",
+			"снижение шага обучения на плато с паузой и нижней границей"
+		],
+		"doesNotCheck": [
+			"подбор самих значений терпения и шага",
+			"поведение конкретной версии библиотеки сверх правил условия"
+		]
+	},
+	"wrongSolutions": [
+		{ "id": "monitor-train", "defect": "следит за обучающей кривой вместо валидационной", "mustBeCaught": true },
+		{
+			"id": "off-by-one",
+			"defect": "останавливается, когда эпох без улучшения стало больше терпения, а не равно ему",
+			"mustBeCaught": true
+		},
+		{ "id": "last-weights", "defect": "считает, что остаются веса последней эпохи, а не лучшей", "mustBeCaught": true },
+		{
+			"id": "wrong-direction",
+			"defect": "считает улучшением падение метрики, которую надо максимизировать",
+			"mustBeCaught": true
+		},
+		{ "id": "equal-improves", "defect": "считает значение, равное лучшему, улучшением", "mustBeCaught": true },
+		{
+			"id": "global-min",
+			"defect": "восстанавливает эпоху глобального минимума, игнорируя min_delta или разогрев",
+			"mustBeCaught": true
+		},
+		{ "id": "ignore-min-delta", "defect": "не учитывает min_delta", "mustBeCaught": true },
+		{ "id": "ignore-warmup", "defect": "учитывает эпохи разогрева", "mustBeCaught": true },
+		{
+			"id": "min-cv",
+			"defect": "берёт модель с наименьшей ошибкой кросс-валидации без правила одной стандартной ошибки",
+			"mustBeCaught": true
+		},
+		{ "id": "min-train", "defect": "выбирает модель по ошибке на обучающей выборке", "mustBeCaught": true },
+		{ "id": "own-se", "defect": "сравнивает с порогом min + SE каждой модели, а не SE лучшей", "mustBeCaught": true },
+		{
+			"id": "complex-side",
+			"defect": "берёт в пределах порога самую сложную модель, а не самую простую",
+			"mustBeCaught": true
+		},
+		{ "id": "no-cooldown", "defect": "не учитывает паузу после снижения шага", "mustBeCaught": true },
+		{ "id": "no-min-lr", "defect": "снижает шаг ниже нижней границы", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 14, "caught": 14 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0021,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

@@ -1,0 +1,131 @@
+{
+	"key": "fe.js.spec-defects",
+	"version": 1,
+	"specialization": "frontend",
+	"block": "fe.js",
+	"format": "bug_locate",
+	"answerKind": "line_no",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": { "functions": 4, "lines": "30–45", "calls": false, "defect": "одна строка в одной функции" },
+			"constructiveRank": 2,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "boundary",
+					"form": "A",
+					"description": "граница сдвинута на единицу: < вместо <=, срез без последнего элемента, floor вместо ceil"
+				},
+				{
+					"id": "coercion",
+					"form": "B",
+					"description": "приведение типов: == и === между строкой и числом, сравнение с NaN, сложение строк вместо чисел"
+				},
+				{
+					"id": "falsy",
+					"form": "anchor",
+					"description": "|| или проверка истинности вместо ?? и сравнения с null: 0 и пустая строка принимаются за отсутствие значения"
+				},
+				{
+					"id": "mutation",
+					"form": "X",
+					"description": "функция меняет аргумент: sort и push по ссылке, Object.assign в исходный объект"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"functions": "5–8",
+				"lines": "50–75",
+				"calls": true,
+				"defect": "одна строка во вспомогательной или вызывающей функции; проявляется у вызывающей"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "boundary",
+					"form": "A",
+					"description": "граница во вспомогательной функции пагинации или виртуального списка: проявляется на последней странице или строке"
+				},
+				{
+					"id": "coercion",
+					"form": "B",
+					"description": "строка из формы или data-атрибута против числа: ключ Map, sort без компаратора, сравнение с NaN"
+				},
+				{
+					"id": "mutation",
+					"form": "anchor",
+					"description": "вспомогательная функция меняет переданный массив или объект, и вызывающая видит испорченные данные"
+				},
+				{
+					"id": "falsy",
+					"form": "X",
+					"description": "проверка истинности вместо сравнения с null или undefined: 0, false и пустая строка теряются"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "context", "description": "какие ещё функции или группы функций показаны и в каком порядке" },
+		{ "name": "header", "description": "заголовок модуля и константы перед функциями" },
+		{ "name": "function", "description": "в какой функции класса дефект" }
+	],
+	"essentialParams": [
+		{
+			"name": "defect-kind",
+			"description": "вид дефекта: граница, приведение типов, ложные значения, мутация аргумента"
+		},
+		{
+			"name": "call-depth",
+			"description": "intern — дефект в самостоятельной функции; junior — во вспомогательной или вызывающей функции группы"
+		}
+	],
+	"language": "javascript",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"чтение спецификации JSDoc",
+			"границы диапазонов, срезов и округления",
+			"приведение типов и сравнение с NaN",
+			"?? против || и проверки истинности",
+			"мутация аргументов",
+			"дефект во вспомогательной функции, проявляющийся у вызывающей"
+		],
+		"doesNotCheck": ["исправление дефекта (только его место)", "стиль кода"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "neighbour-line",
+			"defect": "указывает соседнюю строку той же функции, где «исправление» не возвращает спецификацию",
+			"mustBeCaught": true
+		},
+		{
+			"id": "other-function",
+			"defect": "указывает похожую подозрительную строку в другой, исправной функции",
+			"mustBeCaught": true
+		},
+		{
+			"id": "caller-line",
+			"defect": "указывает строку функции, где дефект проявляется, а не где он находится",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 3, "caught": 3 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0316,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

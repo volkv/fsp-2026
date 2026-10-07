@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.6,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "adddc026844ed500ef320273615e6557fee80e56ee4aa0e9e4ce67fda9c5a4bc"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.5,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "adddc026844ed500ef320273615e6557fee80e56ee4aa0e9e4ce67fda9c5a4bc"
+					}
+				],
+				"mean": 0.55
+			},
 			"constructive": { "tables": 1, "rows": "8–10", "nullColumns": 1, "clauses": "WHERE + агрегат" },
 			"constructiveRank": 2,
 			"timeNormSec": 240,
@@ -33,7 +50,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.5,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "adddc026844ed500ef320273615e6557fee80e56ee4aa0e9e4ce67fda9c5a4bc"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.55,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "adddc026844ed500ef320273615e6557fee80e56ee4aa0e9e4ce67fda9c5a4bc"
+					}
+				],
+				"mean": 0.55
+			},
 			"constructive": { "tables": 2, "rows": "10–14", "nullColumns": 2, "clauses": "JOIN / GROUP BY / HAVING" },
 			"constructiveRank": 4,
 			"timeNormSec": 360,
@@ -116,6 +150,30 @@
 		"answerCollision": 0.0171,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Все восемь экземпляров пересчитаны в SQLite: совпадают с эталоном.",
+					"null-group и join-null-key опираются на SQLite-порядок «NULL первым» и NULL-ключ; в условии база названа, а порядок NULL для null-group указан в «Проверяет». Допустимо; сам порядок не является скрытым допущением, но кандидат из PostgreSQL-мира может ошибиться — это и есть цель класса.",
+					"Самый высокий answerCollision семейства (0,0171) — приемлем; угадывание коротких однострочных ответов (count-column «5 | 3 | 390») практически невозможно из-за числовых значений.",
+					"Соответствие уровням хорошее: NULL — прямо заявленная зона ошибок intern/junior."
+				],
+				"sourceSha256": "adddc026844ed500ef320273615e6557fee80e56ee4aa0e9e4ce67fda9c5a4bc"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Все восемь SQL-экземпляров независимо выполнены, ответы совпали. В intern/null-arithmetic пять строк Казани содержат три ненулевых price + fee: 65 + 70 + 215 = 350, COUNT = 3; отдельно SUM(price) = 750 и SUM(fee) = 50 дают 800. В avg-null сумма 531 делится на три ненулевых значения и даёт 177.",
+					"SQLite и специальный порядок NULL для null-group обозначены. В генераторе AVG намеренно целое, поэтому не требуется угадывать округление. Места появления NULL различаются между агрегатами, WHERE, арифметикой, группировкой и JOIN; значение суммы и многострочные ответы не угадываются по одному фиксированному шаблону. Сложность соответствует Intern/Junior с ожидаемыми ошибками на NULL.",
+					"Binary допустима для результата запроса; неблокирующее улучшение — нормализовать пробелы около |. Для Junior с несколькими агрегатами можно отдельно оценивать правильные группы и значения, сохраняя различие 0 и NULL."
+				],
+				"sourceSha256": "adddc026844ed500ef320273615e6557fee80e56ee4aa0e9e4ce67fda9c5a4bc"
+			}
+		]
 	}
 }

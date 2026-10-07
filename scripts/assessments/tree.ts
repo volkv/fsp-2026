@@ -4,7 +4,7 @@
 // a generator exports `build` — the instance with the material the gates prove its answer by.
 import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import type { FactoryModule } from '../../assessments/families/_lib/family.ts';
 import {
@@ -12,6 +12,7 @@ import {
 	type FamilyDescriptor
 } from '../../src/lib/server/assessments/contract/bank.ts';
 import { SPECIALIZATION_KEYS, type SpecializationKey } from '../../src/lib/server/assessments/contract/catalog.ts';
+import { sharedClosureSha256 } from '../../src/lib/server/assessments/shared-code.ts';
 
 export const FAMILIES_DIR = fileURLToPath(new URL('../../assessments/families/', import.meta.url));
 export const DESCRIPTOR_FILE = 'descriptor.json';
@@ -79,15 +80,6 @@ export function loadTree(): { families: TreeFamily[]; problems: string[] } {
 	return { families, problems };
 }
 
-function files(dir: string): string[] {
-	return readdirSync(dir)
-		.sort()
-		.flatMap((name) => {
-			const path = join(dir, name);
-			return statSync(path).isDirectory() ? files(path) : [path];
-		});
-}
-
 /**
  * The hash reviews and Angoff ratings are made on (contract `familySourceSha256`): the descriptor without its gate
  * report and ratings, plus the text of `generator.ts`. Read from disk, so it is the family as it is now.
@@ -98,28 +90,23 @@ export function currentSourceSha256(family: Pick<TreeFamily, 'dir'>): string {
 }
 
 /**
- * The source a gate run checked: the family's sources and the shared code the generator imports. A change in either
- * makes the gate record stale.
+ * The source a gate run checked: the family's sources and the shared code its generator imports (the import closure in
+ * the `_*` directories). A change in either makes the gate record stale; shared code the family never imports does not.
  */
 export function gateSourceSha256(family: Pick<TreeFamily, 'dir'>): string {
-	return createHash('sha256').update(currentSourceSha256(family)).update('\0').update(sharedSha256()).digest('hex');
+	const shared = sharedClosureSha256(FAMILIES_DIR, [join(family.dir, GENERATOR_FILE)]);
+	return createHash('sha256').update(currentSourceSha256(family)).update('\0').update(shared).digest('hex');
 }
 
 /**
- * The shared code of the generators (`_*` directories at the root of the tree, the probes aside): what a release
- * records as `sharedSha256`.
+ * The shared code a release of the specialization records as `sharedSha256`: the import closure of its generators, the
+ * same hash the engine checks before serving (`sharedCodeSha256`).
  */
-export function sharedSha256(): string {
-	const hash = createHash('sha256');
-	const dirs = readdirSync(FAMILIES_DIR)
-		.filter((name) => name.startsWith('_') && name !== '_probes' && statSync(join(FAMILIES_DIR, name)).isDirectory())
-		.sort();
-	for (const dir of dirs) {
-		for (const path of files(join(FAMILIES_DIR, dir))) {
-			hash.update(relative(FAMILIES_DIR, path)).update('\0').update(readFileSync(path)).update('\0');
-		}
-	}
-	return hash.digest('hex');
+export function sharedSha256(families: readonly Pick<TreeFamily, 'dir'>[]): string {
+	return sharedClosureSha256(
+		FAMILIES_DIR,
+		families.map((f) => join(f.dir, GENERATOR_FILE))
+	);
 }
 
 /** `gate-sources.json`: key → `gateSourceSha256` of the last passed gate run. */

@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "middle",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.65,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "d24204e1d7197a5fef88d08c356fdc10a8fe08dbd38ed93fa841a61383ae369f"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.75,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "d24204e1d7197a5fef88d08c356fdc10a8fe08dbd38ed93fa841a61383ae369f"
+					}
+				],
+				"mean": 0.7
+			},
 			"constructive": {
 				"functions": 4,
 				"lines": "35–55",
@@ -41,7 +58,24 @@
 		},
 		{
 			"grade": "senior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.55,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "d24204e1d7197a5fef88d08c356fdc10a8fe08dbd38ed93fa841a61383ae369f"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.65,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "d24204e1d7197a5fef88d08c356fdc10a8fe08dbd38ed93fa841a61383ae369f"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": {
 				"functions": 4,
 				"lines": "55–80",
@@ -119,6 +153,26 @@
 		"answerCollision": 0.0255,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Новая формулировка правила согласована с эталонами и альтернативами этого семейства: противоречий не нашёл (эталоны и alternatives не добавляют новых конструкций и не переносят логику другой строки)."
+				],
+				"sourceSha256": "d24204e1d7197a5fef88d08c356fdc10a8fe08dbd38ed93fa841a61383ae369f"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Узкая проверка новой формулировки: эталоны локально исправляют единицы, обработчики исключений, формулу backoff, срок паузы и условия повтора; не вводят lambda, определения функций или переноса операций из других строк. Альтернатив нет; новых противоречий не обнаружено.",
+					"Итоговый Angoff второго раунда сохранён: middle 0,75; senior 0,65."
+				],
+				"sourceSha256": "d24204e1d7197a5fef88d08c356fdc10a8fe08dbd38ed93fa841a61383ae369f"
+			}
+		]
 	}
 }

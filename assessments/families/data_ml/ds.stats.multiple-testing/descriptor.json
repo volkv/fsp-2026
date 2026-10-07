@@ -1,0 +1,120 @@
+{
+	"key": "ds.stats.multiple-testing",
+	"version": 1,
+	"specialization": "data_ml",
+	"block": "ds.stats",
+	"format": "compute",
+	"answerKind": "set",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": { "hypotheses": "6–12", "procedure": "одна поправка", "steps": "пошаговая или одношаговая" },
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{ "id": "bonferroni", "form": "A", "description": "поправка Бонферрони: p ≤ α/m" },
+				{
+					"id": "holm",
+					"form": "B",
+					"description": "процедура Холма: пошаговое убывание порогов с остановкой на первой неудаче"
+				},
+				{
+					"id": "bh",
+					"form": "anchor",
+					"description": "Бенджамини — Хохберг: наибольший i с p₍ᵢ₎ ≤ iα/m, отвергаются все до него"
+				},
+				{ "id": "hochberg", "form": "X", "description": "процедура Хохберга: пороги Холма, но восходящий шаг" }
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"hypotheses": "6–12",
+				"procedure": "поправка со структурой",
+				"steps": "иерархия, веса, пересчёт z"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "by",
+					"form": "A",
+					"description": "Бенджамини — Йекутиели: BH с делителем c(m) = Σ 1/i при произвольной зависимости"
+				},
+				{
+					"id": "gatekeeping",
+					"form": "B",
+					"description": "иерархия: первичная метрика на уровне α, вторичные — по Холму, только если первичная отвергнута"
+				},
+				{ "id": "holm-from-z", "form": "anchor", "description": "Холм по z-статистикам: сначала двусторонние p-value" },
+				{
+					"id": "weighted-bonferroni",
+					"form": "X",
+					"description": "взвешенный Бонферрони: p_i ≤ α·w_i по весам гипотез"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "имена метрик и сегментов эксперимента" },
+		{ "name": "numbers", "description": "p-value или z-статистики, α, веса" }
+	],
+	"essentialParams": [
+		{ "name": "procedure", "description": "Бонферрони, Холм, BH, Хохберг, BY, иерархия, веса" },
+		{ "name": "input", "description": "p-value или z-статистики" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"контроль FWER поправками Бонферрони, Холма и Хохберга",
+			"контроль FDR процедурами BH и BY",
+			"нисходящие и восходящие процедуры",
+			"иерархическое тестирование метрик",
+			"переход от z-статистики к двустороннему p-value",
+			"взвешенные поправки"
+		],
+		"doesNotCheck": ["выбор между FWER и FDR под задачу", "графические процедуры и перераспределение α"]
+	},
+	"wrongSolutions": [
+		{ "id": "unadjusted", "defect": "сравнивает каждое p-value с α без поправки", "mustBeCaught": true },
+		{
+			"id": "bonferroni",
+			"defect": "применяет одношаговую поправку Бонферрони вместо заданной процедуры",
+			"mustBeCaught": true
+		},
+		{
+			"id": "no-stop",
+			"defect": "в процедуре Холма продолжает после первой неотвергнутой гипотезы",
+			"mustBeCaught": true
+		},
+		{
+			"id": "step-down-bh",
+			"defect": "в BH останавливается на первой гипотезе выше порога вместо поиска наибольшего i",
+			"mustBeCaught": true
+		},
+		{ "id": "holm", "defect": "делает нисходящий шаг Холма вместо восходящего шага Хохберга", "mustBeCaught": true },
+		{ "id": "bh-instead", "defect": "применяет BH без делителя c(m)", "mustBeCaught": true },
+		{
+			"id": "pooled-holm",
+			"defect": "проверяет первичную и вторичные метрики одним Холмом, без иерархии",
+			"mustBeCaught": true
+		},
+		{ "id": "one-sided-p", "defect": "переводит z в одностороннее p-value", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 8, "caught": 8 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0011,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

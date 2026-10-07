@@ -1,0 +1,137 @@
+{
+	"key": "fe.state.derived-state",
+	"version": 1,
+	"specialization": "frontend",
+	"block": "fe.state",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"lines": "28–40",
+				"steps": "4–6",
+				"store": "простое хранилище getState/setState, показано целиком",
+				"mechanisms": 1
+			},
+			"constructiveRank": 2,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "stale-copy",
+					"form": "A",
+					"description": "число и сумма, сохранённые в состоянии при создании, против тех же значений из селекторов: копия меняется только явной записью"
+				},
+				{
+					"id": "filter-sort",
+					"form": "B",
+					"description": "видимый список — фильтр и сортировка от текущего состояния при каждом чтении; исходный массив сохраняет свой порядок"
+				},
+				{
+					"id": "selected-count",
+					"form": "anchor",
+					"description": "«выбрано N из M» из списка и выбранных id: id удалённого элемента не считается, «выбраны все» не распространяется на новые элементы"
+				},
+				{
+					"id": "pagination",
+					"form": "X",
+					"description": "номер страницы хранится, число страниц и показанные элементы вычисляются: после фильтра страница может оказаться за последней"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "сюжет: корзина, задачи, плейлист, каталог, лента" },
+		{ "name": "names", "description": "названия элементов, имена полей и тегов" },
+		{ "name": "numbers", "description": "цены, остатки, размер страницы" }
+	],
+	"essentialParams": [
+		{
+			"name": "derived",
+			"description": "что вычисляется из состояния: сумма и число, отфильтрованный и отсортированный список, счётчик выбранных, число страниц"
+		},
+		{
+			"name": "stored",
+			"description": "что хранится в состоянии и само не пересчитывается: копия итога, выбранные id, номер страницы"
+		},
+		{ "name": "steps", "description": "какие шаги меняют исходные данные, а какие — только параметры вида" }
+	],
+	"language": "javascript",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"значение, сохранённое в состоянии один раз, не следует за данными",
+			"селектор пересчитывает значение из текущего состояния при каждом чтении",
+			"фильтр и сортировка как производный список; сортировка копии не меняет исходный порядок",
+			"счётчик «выбрано N из M» по существующим элементам",
+			"хранимый параметр вида (страница) не подстраивается под производные значения"
+		],
+		"doesNotCheck": ["мемоизация селекторов", "конкретные библиотеки состояния и фреймворки"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "copy-follows",
+			"defect": "считает, что значения, сохранённые в состоянии при создании, сами пересчитываются при изменении списка",
+			"mustBeCaught": true
+		},
+		{
+			"id": "view-cached",
+			"defect": "считает, что видимый список пересчитывается только при смене фильтра или сортировки, а не при изменении элементов",
+			"mustBeCaught": true
+		},
+		{
+			"id": "source-sorted",
+			"defect": "считает, что сортировка видимого списка переставляет и исходный массив состояния",
+			"mustBeCaught": true
+		},
+		{
+			"id": "sort-desc",
+			"defect": "читает сравнение a.price - b.price как сортировку по убыванию",
+			"mustBeCaught": true
+		},
+		{
+			"id": "count-ids",
+			"defect": "считает выбранными все id в массиве выбора, в том числе id удалённых элементов",
+			"mustBeCaught": true
+		},
+		{
+			"id": "total-stale",
+			"defect": "считает, что общее число элементов M остаётся прежним после удаления и добавления",
+			"mustBeCaught": true
+		},
+		{
+			"id": "select-all-mode",
+			"defect": "считает «выбрать все» режимом: элемент, добавленный после него, тоже выбран",
+			"mustBeCaught": true
+		},
+		{
+			"id": "page-clamps",
+			"defect": "считает, что номер страницы сам уменьшается до последней страницы, когда страниц становится меньше",
+			"mustBeCaught": true
+		},
+		{
+			"id": "page-resets",
+			"defect": "считает, что смена фильтра сама возвращает первую страницу",
+			"mustBeCaught": true
+		},
+		{
+			"id": "page-count-stored",
+			"defect": "считает число страниц вычисленным один раз при создании хранилища",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 10, "caught": 10 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

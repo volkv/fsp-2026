@@ -259,7 +259,9 @@ const answerSchema = z.discriminatedUnion('kind', [
 	z.strictObject({ kind: z.enum(['exact', 'tokens']), value: z.string() }),
 	z.strictObject({ kind: z.literal('float_eps'), value: z.number(), eps: z.number().gt(0).max(1) }),
 	z.strictObject({ kind: z.enum(['set', 'sequence']), value: z.array(z.string()).min(1) }),
-	z.strictObject({ kind: z.literal('line_no'), value: positiveInt })
+	z
+		.strictObject({ kind: z.literal('line_no'), value: positiveInt, alternatives: z.array(positiveInt).optional() })
+		.refine((a) => !a.alternatives?.includes(a.value), 'an alternative repeats the line of the key')
 ]);
 
 const groupSchema = z.strictObject({

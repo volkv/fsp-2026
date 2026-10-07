@@ -1,0 +1,160 @@
+{
+	"key": "mob.ui.recomposition",
+	"version": 1,
+	"specialization": "mobile",
+	"block": "mob.ui",
+	"format": "compute",
+	"answerKind": "set",
+	"levels": [
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": { "functions": "5–8", "mechanisms": 2, "trap": "пропуск при равных стабильных параметрах" },
+			"constructiveRank": 3,
+			"timeNormSec": 270,
+			"classes": [
+				{
+					"id": "param-passing",
+					"form": "A",
+					"description": "корень читает состояние и передаёт детям производные значения: дети с прежним значением пропускаются, с изменившимся — выполняются вместе с потомками"
+				},
+				{
+					"id": "provider",
+					"form": "B",
+					"description": "лямбда-провайдер переносит чтение в ребёнка: корень и соседи не выполняются, выполняется тот, кто вызывает провайдер"
+				},
+				{
+					"id": "unstable-param",
+					"form": "anchor",
+					"description": "List и класс с var — нестабильные параметры: такие дети выполняются при каждой перекомпоновке родителя, даже с тем же объектом"
+				},
+				{
+					"id": "event-read",
+					"form": "X",
+					"description": "чтение в onClick — не чтение композиции: корень не перекомпонуется, перекомпонуется ребёнок, читающий состояние в своём теле"
+				}
+			]
+		},
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"functions": "6–10",
+				"mechanisms": 3,
+				"interacting": "области перекомпоновки контейнеров, derivedStateOf, отложенное чтение + стабильность"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "inline-container",
+					"form": "A",
+					"description": "чтение внутри Column/Row перекомпонует объемлющую функцию: её нестабильные дети вне контейнера тоже выполняются"
+				},
+				{
+					"id": "donut-hole",
+					"form": "B",
+					"description": "чтение в лямбде содержимого не-inline контейнера перекомпонует только эту лямбду: ни контейнер, ни объемлющая функция не выполняются"
+				},
+				{
+					"id": "derived-state",
+					"form": "anchor",
+					"description": "derivedStateOf: читатель перекомпонуется, только если результат вычисления изменился"
+				},
+				{
+					"id": "deferred-read",
+					"form": "X",
+					"description": "чтение в Modifier.offset { } и вызов провайдера внутри него — фаза размещения, не композиция; перекомпонуется только читающий в теле"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "экран, имена состояний и функций, подписи" },
+		{ "name": "numbers", "description": "значения состояний, новое значение, пороги сравнения" },
+		{ "name": "order", "description": "порядок вызовов в теле функций" }
+	],
+	"essentialParams": [
+		{
+			"name": "read-site",
+			"description": "где читается состояние: в теле функции, в inline-контейнере, в лямбде содержимого, в провайдере, в onClick или Modifier.offset, через derivedStateOf"
+		},
+		{
+			"name": "parameter-kind",
+			"description": "что получает ребёнок: изменившееся значение, прежнее значение, нестабильный объект, провайдер, сам держатель состояния"
+		}
+	],
+	"language": "kotlin",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"перекомпонуется ближайшая область, читающая состояние",
+			"пропуск функции при стабильных и равных параметрах",
+			"нестабильные параметры (List, класс с var) отключают пропуск",
+			"лямбда-провайдер переносит чтение в ребёнка",
+			"чтение в обработчике и в лямбде модификатора не подписывает композицию",
+			"inline-контейнеры без своей области и лямбда содержимого как своя область",
+			"derivedStateOf перекомпонует читателя только при смене результата"
+		],
+		"doesNotCheck": [
+			"режим strong skipping и сравнение нестабильных параметров по ссылке",
+			"отчёты компилятора о стабильности и настройку файла стабильности",
+			"ленивые списки (это отдельное семейство)"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "all-children",
+			"defect": "считает, что при перекомпоновке родителя выполняются все вызванные им функции, без пропуска",
+			"mustBeCaught": true
+		},
+		{
+			"id": "only-readers",
+			"defect": "перевыполняет только функции, читающие состояние, и забывает детей, получивших изменившееся значение",
+			"mustBeCaught": true
+		},
+		{
+			"id": "unstable-skipped",
+			"defect": "пропускает функцию с параметром List или классом с var, раз объект тот же",
+			"mustBeCaught": true
+		},
+		{
+			"id": "provider-in-parent",
+			"defect": "считает, что лямбда { state.x } читает состояние в том месте, где её создали",
+			"mustBeCaught": true
+		},
+		{
+			"id": "event-subscribes",
+			"defect": "считает чтение в onClick или в Modifier.offset { } подпиской перекомпоновки",
+			"mustBeCaught": true
+		},
+		{
+			"id": "inline-own-scope",
+			"defect": "считает, что Column и Row перекомпонуют только своё содержимое, не объемлющую функцию",
+			"mustBeCaught": true
+		},
+		{
+			"id": "section-inline",
+			"defect": "считает лямбду содержимого не-inline контейнера частью объемлющей функции",
+			"mustBeCaught": true
+		},
+		{
+			"id": "derived-always",
+			"defect": "считает, что читатель derivedStateOf перекомпонуется при каждом изменении исходного состояния",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 8, "caught": 8 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0161,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

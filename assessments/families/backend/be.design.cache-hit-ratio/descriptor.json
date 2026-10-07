@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "senior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.65,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "414d0388a0105e22dd904e40a9696960085bfe89ae50db2fdecc3117751a5326"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.75,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "414d0388a0105e22dd904e40a9696960085bfe89ae50db2fdecc3117751a5326"
+					}
+				],
+				"mean": 0.7
+			},
 			"constructive": {
 				"operations": "14–18",
 				"rules": "TTL с записью через кэш, LRU с записью через кэш или LRU с инвалидацией",
@@ -100,6 +117,25 @@
 		"answerCollision": 0.0002,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Второй раунд Angoff: Правила кэша заданы полностью (оговорка про замену на месте остаётся рекомендацией), задача доступна и сильному middle; между 0,55 и 0,80 итог 0,65."
+				],
+				"sourceSha256": "414d0388a0105e22dd904e40a9696960085bfe89ae50db2fdecc3117751a5326"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Второй раунд: после сопоставления оценок Senior 0,55 и 0,80 устанавливаю 0,75. Пограничный Senior оценивает кэш и его согласованность; здесь все правила даны, ключей мало, и 420 с позволяют вести таблицу срока и давности использования на 14–18 операциях. Поэтому вероятность выше 0,55, но сочетание LRU с TTL и бинарная оценка всей последовательности делают 0,80 несколько завышенными. Четыре трассы независимо пересчитаны; в A PUT в t=70 даёт срок до t=85 исключительно, и GET в t=85 — M. Замечание другого рецензента о замене существующего ключа учтено: генератор заменяет запись без вытеснения другой; явное уточнение этого правила было бы полезно, прежний approved сохраняю."
+				],
+				"sourceSha256": "414d0388a0105e22dd904e40a9696960085bfe89ae50db2fdecc3117751a5326"
+			}
+		]
 	}
 }

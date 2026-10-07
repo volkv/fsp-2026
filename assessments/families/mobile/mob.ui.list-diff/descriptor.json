@@ -1,0 +1,153 @@
+{
+	"key": "mob.ui.list-diff",
+	"version": 1,
+	"specialization": "mobile",
+	"block": "mob.ui",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": { "items": "4–7", "edits": "2–4", "mechanisms": 2, "moves": false },
+			"constructiveRank": 3,
+			"timeNormSec": 270,
+			"classes": [
+				{
+					"id": "contents-equals",
+					"form": "A",
+					"description": "areContentsTheSame сравнивает data class целиком: изменение невидимого поля тоже перепривязывает строку"
+				},
+				{
+					"id": "contents-by-field",
+					"form": "B",
+					"description": "areContentsTheSame сравнивает только часть полей: изменение остальных не перепривязывает строку"
+				},
+				{
+					"id": "items-by-equals",
+					"form": "anchor",
+					"description": "areItemsTheSame написан через equals: изменённый элемент становится удалённым и вставленным, а не изменённым"
+				},
+				{
+					"id": "lazy-nokey",
+					"form": "X",
+					"description": "LazyColumn без key сопоставляет строки по позиции: вставка выше сдвигает и перекомпонует строки ниже"
+				}
+			]
+		},
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": { "items": "4–7", "edits": "3–5", "mechanisms": 3, "moves": true },
+			"constructiveRank": 4,
+			"timeNormSec": 330,
+			"classes": [
+				{
+					"id": "lazy-moves",
+					"form": "A",
+					"description": "перестановки в LazyColumn с key и без: с ключом перемещённая строка с прежним содержимым пропускается, без ключа — нет"
+				},
+				{
+					"id": "payload",
+					"form": "B",
+					"description": "getChangePayload: изменение одного поля — частичная привязка с payload, остальные изменения и новые строки — полная"
+				},
+				{
+					"id": "mutated-in-place",
+					"form": "anchor",
+					"description": "элемент изменён на месте в объекте из currentList: старый и новый список держат один объект, DiffUtil изменения не видит"
+				},
+				{
+					"id": "moves",
+					"form": "X",
+					"description": "перестановки в ListAdapter: перемещённый элемент с прежним содержимым не перепривязывается, изменённый — перепривязывается"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "тип элемента, имена полей и строк" },
+		{ "name": "values", "description": "id, тексты и числа элементов, позиции вставок и перемещений" }
+	],
+	"essentialParams": [
+		{
+			"name": "matching",
+			"description": "как сопоставляются элементы: по id, через equals, по позиции (LazyColumn без key), по ключу"
+		},
+		{
+			"name": "comparison",
+			"description": "что считается изменением: весь data class, часть полей, payload одного поля, объект, изменённый на месте"
+		}
+	],
+	"language": "kotlin",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"areItemsTheSame и areContentsTheSame в DiffUtil",
+			"перемещения не требуют перепривязки при прежнем содержимом",
+			"getChangePayload и частичная привязка",
+			"изменение объекта на месте не видно DiffUtil",
+			"LazyColumn без key сопоставляет по позиции, с key — по идентичности"
+		],
+		"doesNotCheck": [
+			"точные вызовы onItemRangeInserted/Removed/Moved и их пакетирование",
+			"повторное использование ViewHolder из пула и анимации",
+			"настоящую прокрутку и видимость строк"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "rebind-all",
+			"defect": "считает, что после обновления перепривязываются или перекомпонуются все строки",
+			"mustBeCaught": true
+		},
+		{
+			"id": "visible-only",
+			"defect": "считает изменением только смену показанных полей, хотя сравнивается весь data class",
+			"mustBeCaught": true
+		},
+		{
+			"id": "any-field",
+			"defect": "считает изменением смену любого поля, не глядя на areContentsTheSame",
+			"mustBeCaught": true
+		},
+		{
+			"id": "items-by-id-anyway",
+			"defect": "сопоставляет элементы по id, хотя areItemsTheSame сравнивает через equals",
+			"mustBeCaught": true
+		},
+		{
+			"id": "lazy-by-identity",
+			"defect": "считает, что LazyColumn без key узнаёт элементы по идентичности, а не по позиции",
+			"mustBeCaught": true
+		},
+		{
+			"id": "position-rebound",
+			"defect": "перепривязывает или перекомпонует каждую строку, сменившую позицию",
+			"mustBeCaught": true
+		},
+		{
+			"id": "payload-ignored",
+			"defect": "не учитывает getChangePayload: любое изменение даёт полную привязку",
+			"mustBeCaught": true
+		},
+		{
+			"id": "in-place-detected",
+			"defect": "считает, что DiffUtil заметит изменение объекта, изменённого на месте",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 8, "caught": 8 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0015,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

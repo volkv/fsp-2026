@@ -1,0 +1,115 @@
+{
+	"key": "ds.stats.binomial",
+	"version": 1,
+	"specialization": "data_ml",
+	"block": "ds.stats",
+	"format": "compute",
+	"answerKind": "float_eps",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": { "trials": "3–20", "terms": "1 или сумма", "distribution": "биномиальное, геометрическое" },
+			"constructiveRank": 2,
+			"timeNormSec": 240,
+			"classes": [
+				{ "id": "exactly-k", "form": "A", "description": "P(X = k) с биномиальным коэффициентом" },
+				{ "id": "at-least-one", "form": "B", "description": "«хотя бы один» через дополнение 1 − (1 − p)ⁿ" },
+				{ "id": "at-least-k", "form": "anchor", "description": "P(X ≥ k): сумма хвоста с включённой границей" },
+				{
+					"id": "first-success",
+					"form": "X",
+					"description": "первый успех ровно на k-м испытании: k − 1 неудача перед ним"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"trials": "4–20",
+				"terms": "сумма или другое распределение",
+				"distribution": "гипергеометрическое, отрицательное биномиальное"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "hypergeometric",
+					"form": "A",
+					"description": "выборка без возвращения: гипергеометрическое, а не биномиальное"
+				},
+				{
+					"id": "majority-vote",
+					"form": "B",
+					"description": "ансамбль из нечётного числа моделей: вероятность верного большинства"
+				},
+				{ "id": "binomial-range", "form": "anchor", "description": "P(a ≤ X ≤ b) с обеими границами" },
+				{
+					"id": "negative-binomial",
+					"form": "X",
+					"description": "r-й успех ровно на t-м испытании: последнее испытание — успех"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "сюжет: клики, отказы серверов, брак, ответы моделей" },
+		{ "name": "numbers", "description": "n, p, k, границы" }
+	],
+	"essentialParams": [
+		{ "name": "event", "description": "ровно k, хотя бы один, не меньше k, диапазон, первый или r-й успех" },
+		{ "name": "sampling", "description": "независимые испытания или выборка без возвращения" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"биномиальная вероятность с коэффициентом",
+			"вероятность «хотя бы один» через дополнение",
+			"хвосты и включение границ",
+			"геометрическое и отрицательное биномиальное распределения",
+			"гипергеометрическое распределение",
+			"вероятность верного большинства в ансамбле"
+		],
+		"doesNotCheck": ["нормальное и пуассоновское приближения", "зависимые испытания"]
+	},
+	"wrongSolutions": [
+		{ "id": "no-coefficient", "defect": "забывает биномиальный коэффициент C(n, k)", "mustBeCaught": true },
+		{ "id": "sum-probabilities", "defect": "считает «хотя бы один» как n·p", "mustBeCaught": true },
+		{
+			"id": "strict-bound",
+			"defect": "сдвигает границу на единицу: строгое неравенство вместо нестрогого",
+			"mustBeCaught": true
+		},
+		{ "id": "extra-failure", "defect": "считает k неудач перед первым успехом вместо k − 1", "mustBeCaught": true },
+		{
+			"id": "with-replacement",
+			"defect": "считает выборку без возвращения биномиальной с p = K/N",
+			"mustBeCaught": true
+		},
+		{
+			"id": "single-model",
+			"defect": "считает, что ансамбль верен с той же вероятностью, что одна модель",
+			"mustBeCaught": true
+		},
+		{
+			"id": "no-last-success",
+			"defect": "раскладывает r успехов по всем t испытаниям, не фиксируя успех последним",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 7, "caught": 7 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0084,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

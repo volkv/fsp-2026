@@ -89,7 +89,7 @@ describe('the bank tree', () => {
 				catalogVersion: CATALOG.version,
 				procedureVersion: PROCEDURE.version,
 				families: tree.filter((f) => !f.probe && f.specialization === specialization).map((f) => f.descriptor),
-				sharedSha256: sharedSha256(),
+				sharedSha256: sharedSha256(tree.filter((f) => !f.probe && f.specialization === specialization)),
 				familySources: Object.fromEntries(
 					tree
 						.filter((f) => !f.probe && f.specialization === specialization)

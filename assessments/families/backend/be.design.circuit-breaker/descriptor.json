@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "senior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.6,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "1d3ee8fc1604d8cf7cbf3e7d5ae5d07d13cf5d473e4bf2ffb91ca6f434550917"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.7,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "1d3ee8fc1604d8cf7cbf3e7d5ae5d07d13cf5d473e4bf2ffb91ca6f434550917"
+					}
+				],
+				"mean": 0.65
+			},
 			"constructive": {
 				"calls": "16–22",
 				"states": "closed / open / half-open",
@@ -95,6 +112,25 @@
 		"answerCollision": 0.0001,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Второй раунд Angoff: Трассировка автомата из 19-20 вызовов с перезапуском таймера при полных правилах; между 0,50 и 0,80 итог 0,60."
+				],
+				"sourceSha256": "1d3ee8fc1604d8cf7cbf3e7d5ae5d07d13cf5d473e4bf2ffb91ca6f434550917"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Второй раунд: после сопоставления оценок Senior 0,50 и 0,80 снижаю свою до 0,70. Пограничный Senior определяет поведение при отказе зависимости; правила автомата и границы таймера изложены явно, а 420 с достаточно для последовательной трассировки, поэтому 0,50 считаю низкими. Однако окно ошибок, перезапуск таймера, несколько проб и различие медленного успеха для вызывающего и выключателя создают существенный риск хотя бы одной ошибки в 16–22 результатах; бинарная рубрика делает прежние 0,80 излишне оптимистичными. Независимый пересчёт всех четырёх трасс подтвердил эталоны: в A открытие в t=23, неудачная проба в t=43 заново закрывает доступ до t=63."
+				],
+				"sourceSha256": "1d3ee8fc1604d8cf7cbf3e7d5ae5d07d13cf5d473e4bf2ffb91ca6f434550917"
+			}
+		]
 	}
 }

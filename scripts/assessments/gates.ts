@@ -18,7 +18,7 @@
 // person has not made yet. `--no-write` checks without touching the descriptors, the records and the report.
 import { execFileSync, spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
@@ -61,6 +61,8 @@ const IMAGE = 'fsp-sandbox:test';
 /** The factory's own bar for computed formats: the same seed in two classes gives the same answer this rarely. */
 const CLASS_OVERLAP_MAX = 0.05;
 const MUTATION_SEEDS = 3;
+/** Bug locate: the seeds of every class searched for other one-line repairs. */
+const ALTERNATIVE_SEARCH_SEEDS = 10;
 const EQUIVALENCE_POOL_SEEDS = 40;
 const TRANSFER_SEEDS = 50;
 /** QA: the exhaustive differential run of the mutants is slow in Python; it checks the first seeds of every class. */
@@ -202,7 +204,10 @@ type GateReport = FamilyDescriptor['gates'];
 
 interface FamilyCheck {
 	family: TreeFamily;
+	/** The gate record's hash: the family's sources and the shared code. */
 	sourceSha256: string;
+	/** `familySourceSha256` of the sources the run checked. */
+	familySource: string;
 	/** The descriptor with the gate report of this run. */
 	descriptor: FamilyDescriptor;
 	problems: string[];
@@ -236,6 +241,51 @@ function replaceLine(source: string, line: number, replacement: string): string 
 	if (line < 1 || line > lines.length) return null;
 	lines[line - 1] = replacement;
 	return lines.join('\n');
+}
+
+/**
+ * Usual one-instruction edits of a line: the line made a no-op, an `await` dropped, a comparison, arithmetic or logic
+ * operator swapped, a `not` dropped, an integer moved by one. The search for other repairs of a defect tries them on
+ * every line; string literals are left alone.
+ */
+function lineVariants(text: string): string[] {
+	const indent = /^\s*/.exec(text)?.[0] ?? '';
+	const body = text.slice(indent.length);
+	if (body === '' || body.startsWith('#') || body.startsWith('"'.repeat(3)) || body.startsWith("'".repeat(3)))
+		return [];
+	const variants = new Set<string>();
+	if (!/^(def|class|async def|@|else|elif|try|except|finally|with|async with|for|async for|while|if)\b/.test(body))
+		variants.add(`${indent}pass`);
+	// Edits outside string literals only: the body split into code and quoted parts (quoted parts at odd indexes).
+	const parts = body.split(/("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/);
+	const swaps: [RegExp, (m: string) => string][] = [
+		[/==/g, () => '!='],
+		[/!=/g, () => '=='],
+		[/<=/g, () => '<'],
+		[/>=/g, () => '>'],
+		[/(?<![<>=!])<(?![<=])/g, () => '<='],
+		[/(?<![<>=!-])>(?![>=])/g, () => '>='],
+		[/\band\b/g, () => 'or'],
+		[/\bor\b/g, () => 'and'],
+		[/\bnot\s+/g, () => ''],
+		[/\bis not\b/g, () => 'is'],
+		[/\bawait\s+/g, () => ''],
+		[/(?<![\w.])\d+(?![\w.])/g, (m) => String(Number(m) + 1)],
+		[/(?<![\w.])\d+(?![\w.])/g, (m) => String(Number(m) - 1)],
+		[/ \+ /g, () => ' - '],
+		[/ - /g, () => ' + ']
+	];
+	parts.forEach((part, index) => {
+		if (index % 2 === 1) return;
+		for (const [pattern, swap] of swaps) {
+			for (const match of part.matchAll(pattern)) {
+				const edited = part.slice(0, match.index) + swap(match[0]) + part.slice(match.index + match[0].length);
+				variants.add(indent + parts.map((p, j) => (j === index ? edited : p)).join(''));
+			}
+		}
+	});
+	variants.delete(text);
+	return [...variants];
 }
 
 /** The runs of a program over groups of tests, and a reader of their outputs: which groups passed in full. */
@@ -321,6 +371,12 @@ async function checkFamily(harness: Harness, family: TreeFamily): Promise<Family
 					problems.push(`${d.key}@${level.grade}/${cls.id}: the generator is not deterministic`);
 				}
 				for (const p of instanceProblems(built.instance, d)) problems.push(p.message);
+				// A program's output is compared by its tokens: a correct answer with other separators of the fields
+				// (a tab, two spaces, a trailing space) is still correct. `exact` would fail a right solution for its spacing.
+				if (s === 0 && built.instance.practice?.checker.kind === 'exact')
+					problems.push(
+						`${d.key}@${level.grade}/${cls.id}: practice output is checked by \`tokens\` (or \`float_eps\`), not \`exact\``
+					);
 				samples.push({ grade: level.grade, classId: cls.id, seedIndex: s, built });
 			}
 		}
@@ -373,14 +429,31 @@ async function checkFamily(harness: Harness, family: TreeFamily): Promise<Family
 			const source = instance.statement.code?.source ?? '';
 			const line = instance.answer?.kind === 'line_no' ? instance.answer.value : 0;
 			const fixed = replaceLine(source, line, probe.fix);
+			const alternatives = probe.alternatives ?? [];
+			const declared = instance.answer?.kind === 'line_no' ? [...(instance.answer.alternatives ?? [])].sort() : [];
 			referenceRuns.push({ source: `${source}\n${probe.check}`, stdin: '' });
 			referenceRuns.push({ source: `${fixed ?? ''}\n${probe.check}`, stdin: '' });
-			readers.push(([buggy, repaired]) => {
+			for (const alternative of alternatives) {
+				referenceRuns.push({
+					source: `${replaceLine(source, alternative.line, alternative.fix) ?? ''}\n${probe.check}`,
+					stdin: ''
+				});
+			}
+			readers.push(([buggy, repaired, ...others]) => {
 				if (fixed === null) return `${where}: defect line ${line} is outside the program`;
 				if (buggy?.error === null && buggy.stdout.trim() === 'ok')
 					return `${where}: the program passes its checks with the defect`;
 				if (!repaired || repaired.error !== null || repaired.stdout.trim() !== 'ok')
 					return `${where}: the fixed program fails its checks: ${repaired?.error ?? repaired?.stdout.slice(0, 200) ?? ''}`;
+				const failing = alternatives.filter((_, i) => {
+					const out = others[i];
+					return !out || out.error !== null || out.stdout.trim() !== 'ok';
+				});
+				if (failing.length > 0)
+					return `${where}: alternative fix at line ${failing.map((a) => a.line).join(', ')} does not restore the contract`;
+				const proven = alternatives.map((a) => a.line).sort();
+				if (JSON.stringify(proven) !== JSON.stringify(declared))
+					return `${where}: the answer lists alternatives ${declared.join(', ') || 'none'}, the factory proves ${proven.join(', ') || 'none'}`;
 				return null;
 			});
 		} else if (probe.kind === 'qa') {
@@ -439,6 +512,39 @@ async function checkFamily(harness: Harness, family: TreeFamily): Promise<Family
 			if (referenceFailures <= 5) problems.push(failure);
 		}
 	});
+
+	// Bug locate: other lines a usual one-instruction edit also repairs must be among the accepted answers.
+	if (d.format === 'bug_locate') {
+		const searchRuns: { source: string; stdin: string }[] = [];
+		const searched: { where: string; line: number; variant: string }[] = [];
+		for (const sample of samples.filter((x) => x.seedIndex < ALTERNATIVE_SEARCH_SEEDS)) {
+			const probe = sample.built.reference();
+			const instance = sample.built.instance;
+			if (probe.kind !== 'bug' || instance.answer?.kind !== 'line_no') continue;
+			const known = new Set([instance.answer.value, ...(instance.answer.alternatives ?? [])]);
+			const source = instance.statement.code?.source ?? '';
+			source.split('\n').forEach((text, i) => {
+				if (known.has(i + 1)) return;
+				for (const variant of lineVariants(text)) {
+					searchRuns.push({ source: `${replaceLine(source, i + 1, variant) ?? ''}\n${probe.check}`, stdin: '' });
+					searched.push({
+						where: `${d.key}@${sample.grade}/${sample.classId}#${sample.seedIndex}`,
+						line: i + 1,
+						variant
+					});
+				}
+			});
+		}
+		const searchOutputs = await harness.run(searchRuns, 1);
+		const found = searched.filter(
+			(_, i) => searchOutputs[i]?.error === null && searchOutputs[i].stdout.trim() === 'ok'
+		);
+		for (const f of found.slice(0, 12))
+			problems.push(
+				`${f.where}: line ${f.line} also repairs the program with \`${f.variant.trim()}\` — accept it or rebuild`
+			);
+		if (found.length > 12) problems.push(`${d.key}: ${found.length - 12} more unlisted one-line repairs`);
+	}
 
 	// Wrong solutions.
 	const wrong: WrongStat[] = d.wrongSolutions.map((w) => ({
@@ -673,6 +779,7 @@ async function checkFamily(harness: Harness, family: TreeFamily): Promise<Family
 	return {
 		family,
 		sourceSha256,
+		familySource,
 		descriptor,
 		problems,
 		wrong,
@@ -778,8 +885,26 @@ async function main(): Promise<number> {
 		}
 		sources[check.family.key] = check.sourceSha256;
 		if (write) {
-			await writeFormatted(join(check.family.dir, DESCRIPTOR_FILE), JSON.stringify(check.descriptor));
-			check.family.descriptor = check.descriptor;
+			// The judgements are re-read from disk at the moment of writing: a review recorded while the gates ran is kept.
+			// A family whose sources changed meanwhile is not written — its run checked other sources.
+			const path = join(check.family.dir, DESCRIPTOR_FILE);
+			const onDisk = JSON.parse(readFileSync(path, 'utf8')) as FamilyDescriptor;
+			if (currentSourceSha256(check.family) !== check.familySource) {
+				Reflect.deleteProperty(sources, check.family.key);
+				console.log(`     ${check.family.key}: changed while the gates ran — not recorded, run again`);
+				continue;
+			}
+			const merged: FamilyDescriptor = {
+				...onDisk,
+				levels: onDisk.levels.map((level) => currentRatings(level, check.familySource)),
+				gates: {
+					...check.descriptor.gates,
+					rubricReviews: onDisk.gates.rubricReviews.filter((r) => r.sourceSha256 === check.familySource)
+				}
+			};
+			await writeFormatted(path, JSON.stringify(merged));
+			check.family.descriptor = merged;
+			check.descriptor = merged;
 		}
 	}
 	if (write) {
@@ -825,7 +950,7 @@ async function main(): Promise<number> {
 			catalogVersion: CATALOG.version,
 			procedureVersion: PROCEDURE.version,
 			families: descriptors,
-			sharedSha256: sharedSha256(),
+			sharedSha256: sharedSha256(tree.filter((f) => !f.probe && f.specialization === specialization)),
 			familySources: Object.fromEntries(
 				tree.filter((f) => !f.probe && f.specialization === specialization).map((f) => [f.key, currentSourceSha256(f)])
 			)

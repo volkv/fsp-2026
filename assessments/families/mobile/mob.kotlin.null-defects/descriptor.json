@@ -1,0 +1,122 @@
+{
+	"key": "mob.kotlin.null-defects",
+	"version": 1,
+	"specialization": "mobile",
+	"block": "mob.kotlin",
+	"format": "bug_locate",
+	"answerKind": "line_no",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": {
+				"units": 5,
+				"lines": "25–45",
+				"defect": "одна строка: значение по умолчанию для null, приоритет элвиса, граница диапазона, функция поиска"
+			},
+			"constructiveRank": 2,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "missing-default",
+					"form": "A",
+					"description": "для null спецификация требует значение по умолчанию, а в строке !!, ?.let без элвиса или toString() у null"
+				},
+				{
+					"id": "elvis-precedence",
+					"form": "B",
+					"description": "элвис без скобок связывает слабее арифметики: прибавка или множитель относится только к значению по умолчанию"
+				},
+				{
+					"id": "range-bound",
+					"form": "anchor",
+					"description": "граница диапазона: until вместо .. или .. вместо until"
+				},
+				{
+					"id": "lookup-api",
+					"form": "X",
+					"description": "не та функция стандартной библиотеки: isNullOrEmpty вместо isNullOrBlank, first вместо firstOrNull, get вместо getOrNull"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"units": 4,
+				"lines": "40–75",
+				"defect": "одна строка: состояние объекта между вызовами и обращение к null"
+			},
+			"constructiveRank": 3,
+			"timeNormSec": 330,
+			"classes": [
+				{
+					"id": "lateinit",
+					"form": "A",
+					"description": "lateinit-свойство читается до инициализации, где спецификация разрешает вызов до неё (нет проверки ::x.isInitialized)"
+				},
+				{
+					"id": "or-empty",
+					"form": "B",
+					"description": "orEmpty() превращает null в пустую строку или список и стирает различие, которое требует спецификация"
+				},
+				{
+					"id": "stale-property",
+					"form": "anchor",
+					"description": "значение var-свойства запомнено в локальной переменной, но строка читает свойство заново, после того как оно сброшено"
+				},
+				{
+					"id": "destroyed-view",
+					"form": "X",
+					"description": "обращение к представлению или ресурсу экрана после onDestroyView/onStop через !! или приведение вместо выхода по null"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "context", "description": "какие ещё функции и классы модуля показаны, в каком порядке, длина шапки" },
+		{ "name": "unit", "description": "в какой функции или классе дефект" }
+	],
+	"essentialParams": [{ "name": "defect-kind", "description": "вид дефекта null-безопасности или состояния экрана" }],
+	"language": "kotlin",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"чтение спецификации из KDoc",
+			"!!, ?.let и элвис",
+			"приоритет элвиса",
+			"until и .. в диапазонах",
+			"isNullOrEmpty и isNullOrBlank, first и firstOrNull, get и getOrNull",
+			"lateinit и ::x.isInitialized",
+			"orEmpty и различие null и пустого значения",
+			"повторное чтение var-свойства после его изменения",
+			"обращение к экрану после onDestroyView/onStop"
+		],
+		"doesNotCheck": ["исправление дефекта (только его место)", "стиль кода"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "neighbour-line",
+			"defect": "указывает соседнюю строку той же функции или класса, правка которой не возвращает спецификацию",
+			"mustBeCaught": true
+		},
+		{
+			"id": "other-unit",
+			"defect": "указывает похожую строку в другой, исправной функции или классе",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 2, "caught": 2 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0328,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

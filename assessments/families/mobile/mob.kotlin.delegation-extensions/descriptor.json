@@ -1,0 +1,202 @@
+{
+	"key": "mob.kotlin.delegation-extensions",
+	"version": 1,
+	"specialization": "mobile",
+	"block": "mob.kotlin",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"classes": "1–3",
+				"statements": "4–8",
+				"mechanisms": 2,
+				"dispatch": "делегат, расширение, член класса"
+			},
+			"constructiveRank": 3,
+			"timeNormSec": 330,
+			"classes": [
+				{
+					"id": "lazy-init",
+					"form": "A",
+					"description": "by lazy считается при первом обращении и один раз, ленивое свойство вычисляет другое; после исключения в инициализаторе следующее обращение считает заново"
+				},
+				{
+					"id": "observable-vetoable",
+					"form": "B",
+					"description": "Delegates.observable сообщает о каждом присваивании, даже того же значения; Delegates.vetoable спрашивает до присваивания и при отказе оставляет старое"
+				},
+				{
+					"id": "interface-delegation",
+					"form": "anchor",
+					"description": "делегирование интерфейса by: методы делегата вызывают его собственные методы и не видят переопределений делегирующего класса"
+				},
+				{
+					"id": "extension-static",
+					"form": "X",
+					"description": "расширение выбирается по объявленному типу, открытый метод — по объекту; член класса выигрывает у расширения с тем же именем"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"constructive": {
+				"classes": "2–4",
+				"statements": "5–9",
+				"mechanisms": 3,
+				"construction": "companion, init, свойства, lazy, observable"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "init-order",
+					"form": "A",
+					"description": "companion object — один раз при первом создании, базовый класс до наследника, свойства и init — в порядке текста; переопределённый метод, вызванный из init базы, видит null и 0"
+				},
+				{
+					"id": "lazy-delegate-combo",
+					"form": "B",
+					"description": "lazy, прочитанный во время конструирования, запоминает недоинициализированное состояние; observable сообщает о присваиваниях в init, но не о начальном значении"
+				},
+				{
+					"id": "nullable-receiver",
+					"form": "anchor",
+					"description": "расширение на String? вызывается и на null, но безопасный вызов ?. его пропускает; String? выбирает расширение Any?, член класса выигрывает у расширения"
+				},
+				{
+					"id": "delegate-reassign",
+					"form": "X",
+					"description": "by свойство-конструктора: делегат — объект, переданный при создании; переприсваивание свойства его не меняет, а методы, читающие свойство, видят новое"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "имена классов, свойств, методов и переменных" },
+		{ "name": "values", "description": "числа, слова в выводе, порядок обращений и присваиваний" }
+	],
+	"essentialParams": [
+		{
+			"name": "mechanism",
+			"description": "что решает вывод: lazy, observable/vetoable, делегирование интерфейса, разрешение расширений, порядок инициализации"
+		},
+		{
+			"name": "timing",
+			"description": "когда срабатывает механизм: при объявлении, при первом обращении, при конструировании базы или наследника, при переприсваивании"
+		}
+	],
+	"language": "kotlin",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"by lazy: момент вычисления, однократность, повтор после исключения",
+			"Delegates.observable и Delegates.vetoable",
+			"делегирование интерфейса by и переопределения",
+			"статическое разрешение функций-расширений, член против расширения",
+			"порядок инициализации: companion object, базовый класс, свойства и init",
+			"вызов открытого метода из конструктора базового класса",
+			"расширения на nullable-получателе и безопасный вызов",
+			"делегат by фиксируется при создании объекта"
+		],
+		"doesNotCheck": ["собственные делегаты свойств (getValue/setValue)", "рефлексия и kotlin-reflect"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "lazy-every-access",
+			"defect": "считает, что by lazy вычисляется заново при каждом обращении",
+			"mustBeCaught": true
+		},
+		{
+			"id": "lazy-eager",
+			"defect": "считает, что by lazy вычисляется при создании объекта, в порядке объявления",
+			"mustBeCaught": true
+		},
+		{
+			"id": "lazy-caches-failure",
+			"defect": "считает, что после исключения в инициализаторе lazy больше не вызывает его и сразу падает",
+			"mustBeCaught": true
+		},
+		{
+			"id": "observable-skips-equal",
+			"defect": "считает, что observable молчит, когда присваивают то же значение",
+			"mustBeCaught": true
+		},
+		{
+			"id": "veto-ignored",
+			"defect": "считает, что vetoable только сообщает, а значение присваивается при любом ответе",
+			"mustBeCaught": true
+		},
+		{
+			"id": "delegate-sees-override",
+			"defect": "считает, что делегат при внутренних вызовах видит переопределения делегирующего класса, как при наследовании",
+			"mustBeCaught": true
+		},
+		{
+			"id": "override-ignored",
+			"defect": "считает, что при обращении через тип интерфейса вызов уходит в делегат, минуя переопределение",
+			"mustBeCaught": true
+		},
+		{
+			"id": "extension-dynamic",
+			"defect": "считает, что расширение выбирается по фактическому типу объекта, как открытый метод",
+			"mustBeCaught": true
+		},
+		{
+			"id": "extension-beats-member",
+			"defect": "считает, что расширение с тем же именем заменяет метод класса",
+			"mustBeCaught": true
+		},
+		{
+			"id": "derived-first",
+			"defect": "считает, что свойства и init наследника выполняются раньше, чем у базового класса",
+			"mustBeCaught": true
+		},
+		{
+			"id": "override-sees-initialized",
+			"defect": "считает, что переопределённый метод, вызванный из init базового класса, видит значения свойств наследника",
+			"mustBeCaught": true
+		},
+		{
+			"id": "companion-per-instance",
+			"defect": "считает, что init companion object выполняется при каждом создании объекта",
+			"mustBeCaught": true
+		},
+		{
+			"id": "lazy-sees-final-state",
+			"defect": "считает, что lazy, прочитанный в init, видит полностью созданный объект",
+			"mustBeCaught": true
+		},
+		{
+			"id": "observable-skips-init",
+			"defect": "считает, что observable не сообщает о присваиваниях внутри init",
+			"mustBeCaught": true
+		},
+		{
+			"id": "safe-call-runs-extension",
+			"defect": "считает, что ?. вызывает расширение на nullable-получателе и для null",
+			"mustBeCaught": true
+		},
+		{
+			"id": "delegate-follows-property",
+			"defect": "считает, что после переприсваивания свойства делегирование by идёт к новому объекту",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 16, "caught": 16 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0001,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

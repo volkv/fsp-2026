@@ -21,6 +21,8 @@ interface Defect {
 	at: string;
 	text: string;
 	neighbour: { at: string; text: string };
+	/** Other lines where a one-instruction replacement also restores the contract. */
+	alternatives?: { at: string; text: string }[];
 }
 
 /** A function of the module: its lines, the checks of its specification and its possible defects. */
@@ -35,8 +37,8 @@ const INTERN: Unit[] = [
 	{
 		lines: [
 			'def to_kopecks(text):',
-			"    \"\"\"Сумма из строки 'рубли.копейки' ровно с двумя знаками ('12.34') в целые копейки — точно,",
-			'    без ошибок округления."""',
+			"    \"\"\"Неотрицательная сумма из строки 'рубли.копейки' без знака, ровно с двумя знаками ('12.34'),",
+			'    в целые копейки — точно, без ошибок округления."""',
 			'    rubles, kopecks = text.split(".")',
 			'    return int(rubles) * 100 + int(kopecks)'
 		],
@@ -77,7 +79,7 @@ const INTERN: Unit[] = [
 			{
 				kind: 'money',
 				at: '    return [base + (1 if i < extra else 0) for i in range(people)]',
-				text: '    return [total_kop / people] * people',
+				text: '    return [base + (1 if i <= extra else 0) for i in range(people)]',
 				neighbour: { at: '    base = total_kop // people', text: '    base = int(total_kop // people)' }
 			}
 		]
@@ -85,7 +87,8 @@ const INTERN: Unit[] = [
 	{
 		lines: [
 			'def fully_paid(payments, due):',
-			'    """payments — платежи, due — сумма к оплате; всё в рублях строками с двумя знаками (\'0.70\').',
+			'    """payments — платежи, due — сумма к оплате; всё — неотрицательные суммы в рублях строками без',
+			"    знака с двумя знаками ('0.70').",
 			'    True, если платежей не меньше суммы к оплате; считать в целых копейках."""',
 			'    return sum(int(p.replace(".", "")) for p in payments) >= int(due.replace(".", ""))'
 		],
@@ -195,7 +198,7 @@ const INTERN: Unit[] = [
 			{
 				kind: 'dates',
 				at: '    return max(0, (due - today).days + 1)',
-				text: '    return (due - today).days + 1',
+				text: '    return min(0, (due - today).days + 1)',
 				neighbour: { at: 'def days_left(today, due):', text: 'def days_left(today=None, due=None):' }
 			}
 		]
@@ -225,7 +228,7 @@ const INTERN: Unit[] = [
 			{
 				kind: 'dates',
 				at: '    first_next = (day.replace(day=1) + timedelta(days=32)).replace(day=1)',
-				text: '    first_next = day.replace(month=day.month + 1, day=1)',
+				text: '    first_next = (day.replace(day=1) + timedelta(days=28)).replace(day=1)',
 				neighbour: {
 					at: '    return first_next - timedelta(days=1)',
 					text: '    return date.fromordinal(first_next.toordinal() - 1)'
@@ -252,7 +255,7 @@ const INTERN: Unit[] = [
 			{
 				kind: 'dates',
 				at: '    return date(year, month, min(day.day, last))',
-				text: '    return date(year, month, day.day)',
+				text: '    return date(year, month, max(day.day, last))',
 				neighbour: {
 					at: '    last = calendar.monthrange(year, month)[1]',
 					text: '    last = calendar.monthrange(year, month)[-1]'
@@ -261,7 +264,7 @@ const INTERN: Unit[] = [
 			{
 				kind: 'dates',
 				at: '    year = day.year + day.month // 12',
-				text: '    year = day.year',
+				text: '    year = day.year + day.month // 13',
 				neighbour: { at: '    month = day.month % 12 + 1', text: '    month = (day.month % 12) + 1' }
 			}
 		]
@@ -331,23 +334,35 @@ const INTERN: Unit[] = [
 	},
 	{
 		lines: [
+			'def ru_date_key(text):',
+			'    """Ключ сравнения даты \'ДД.ММ.ГГГГ\': кортеж (год, месяц, день) целыми числами."""',
+			'    day, month, year = text.split(".")',
+			'    return int(year), int(month), int(day)',
+			'',
+			'',
 			'def latest_ru(dates):',
-			'    """dates — строки \'ДД.ММ.ГГГГ\'. Самая поздняя дата, строкой в том же формате."""',
-			'    return max(dates, key=lambda s: tuple(reversed(s.split("."))))'
+			'    """dates — строки \'ДД.ММ.ГГГГ\'. Самая поздняя по ru_date_key дата, строкой в том же формате."""',
+			'    return max(dates, key=ru_date_key)'
 		],
-		checks: ['assert latest_ru(["31.01.2026", "05.03.2026", "15.12.2025"]) == "05.03.2026"'],
+		checks: [
+			'assert ru_date_key("05.03.2026") == (2026, 3, 5)',
+			'assert latest_ru(["31.01.2026", "05.03.2026", "15.12.2025"]) == "05.03.2026"'
+		],
 		defects: [
 			{
 				kind: 'date-parse',
-				at: '    return max(dates, key=lambda s: tuple(reversed(s.split("."))))',
+				at: '    return max(dates, key=ru_date_key)',
 				text: '    return max(dates)',
 				neighbour: { at: 'def latest_ru(dates):', text: 'def latest_ru(dates=()):' }
 			},
 			{
 				kind: 'date-parse',
-				at: '    return max(dates, key=lambda s: tuple(reversed(s.split("."))))',
-				text: '    return max(dates, key=lambda s: s.split(".")[::-1][0])',
-				neighbour: { at: 'def latest_ru(dates):', text: 'def latest_ru(dates: list):' }
+				at: '    return int(year), int(month), int(day)',
+				text: '    return int(day), int(month), int(year)',
+				neighbour: {
+					at: '    day, month, year = text.split(".")',
+					text: '    day, month, year = text.strip().split(".")'
+				}
 			}
 		]
 	},
@@ -419,6 +434,8 @@ interface Program {
 	fix: string;
 	neighbour: { line: number; text: string };
 	other: { line: number; text: string };
+	/** Accepted other repairs: absolute line and its replacement. */
+	alternatives: { line: number; fix: string }[];
 }
 
 function compose(rng: Rng, library: readonly Unit[], kind: string, contextCount: number): Program {
@@ -446,11 +463,13 @@ function compose(rng: Rng, library: readonly Unit[], kind: string, contextCount:
 	let answer = 0;
 	let neighbour = { line: 0, text: '' };
 	let other = { line: 0, text: '' };
+	let alternatives: Program['alternatives'] = [];
 	for (const unit of order) {
 		const offset = lines.length;
 		unit.lines.forEach((line, i) => lines.push(unit === buggy && i === defectLine ? defect.text : line));
 		if (unit === buggy) {
 			answer = offset + defectLine + 1;
+			alternatives = (defect.alternatives ?? []).map((a) => ({ line: offset + lineOf(buggy, a.at) + 1, fix: a.text }));
 			neighbour = { line: offset + lineOf(buggy, defect.neighbour.at) + 1, text: defect.neighbour.text };
 		} else if (other.line === 0) {
 			const sibling = unit.defects[0];
@@ -471,7 +490,7 @@ function compose(rng: Rng, library: readonly Unit[], kind: string, contextCount:
 		'except Exception as exc:',
 		"    print('fail', type(exc).__name__)"
 	].join('\n');
-	return { source: lines.join('\n'), check, answer, fix, neighbour, other };
+	return { source: lines.join('\n'), check, answer, fix, neighbour, other, alternatives };
 }
 
 export function build(input: GenerateInput): Built {
@@ -481,17 +500,29 @@ export function build(input: GenerateInput): Built {
 	const instance = makeInstance(descriptor, input, {
 		statement: {
 			markdown:
-				'Модуль денежных расчётов и дат на Python 3. Суммы хранятся в копейках, даты — объекты `date`. У каждой ' +
-				'функции в строке документации записана её спецификация. Ровно одна строка модуля нарушает спецификацию своей ' +
-				'функции: если заменить только её, все функции будут работать по спецификации. Введите номер этой строки ' +
-				'(нумерация с 1).',
+				'Модуль денежных расчётов и дат на Python 3. Суммы хранятся в копейках, даты — объекты `date`. Все суммы ' +
+				'во входах функций неотрицательные, количества (people, qty) — целые положительные, даты во входах — ' +
+				'с 1 января 1900 по 31 декабря 2100 года (строки — тоже). У каждой ' +
+				'функции в строке документации записана её спецификация; в модуле один дефект. ' +
+				'Введите номер строки с дефектом (нумерация с 1). Если исправить можно в нескольких строках — засчитывается любая ' +
+				'из них, где замена одной инструкцией Python (без `;`) восстанавливает спецификацию. Исправление — одна простая инструкция того же вида, что исправляемая строка: не добавляйте ' +
+				'конструкций, которых в ней нет (`:=`, lambda, обёртки, новые функции), и не переносите в неё логику из другой строки.',
 			code: { language: 'python3', source: p.source }
 		},
-		answer: { kind: 'line_no', value: p.answer }
+		answer: {
+			kind: 'line_no',
+			value: p.answer,
+			...(p.alternatives.length ? { alternatives: p.alternatives.map((a) => a.line) } : {})
+		}
 	});
 	return {
 		instance,
-		reference: () => ({ kind: 'bug', check: p.check, fix: p.fix }),
+		reference: () => ({
+			kind: 'bug',
+			check: p.check,
+			fix: p.fix,
+			...(p.alternatives.length ? { alternatives: p.alternatives } : {})
+		}),
 		wrong: () => ({
 			'neighbour-line': { kind: 'line', line: p.neighbour.line, replacement: p.neighbour.text },
 			'other-function': p.other.line === 0 ? null : { kind: 'line', line: p.other.line, replacement: p.other.text }

@@ -17,6 +17,8 @@ const descriptor = readDescriptor(import.meta.url);
 interface Config {
 	/** `*`, or the origins the server echoes back. */
 	allowOrigin: '*' | string[];
+	/** With a list: `*` for the origins not on it instead of no header. */
+	otherwiseStar: boolean;
 	credentials: boolean;
 	methods: string[];
 	/** Lower-case header names. */
@@ -54,6 +56,8 @@ interface Rules {
 	safelistedListed: boolean;
 	hostOnly: boolean;
 	preflightCache: 'right' | 'none' | 'any';
+	/** Which remembered preflights a request may use, by credentials mode. */
+	cacheMode: 'fetch' | 'any' | 'exact';
 	capped: boolean;
 	varyHarmless: boolean;
 }
@@ -65,6 +69,7 @@ const RIGHT: Rules = {
 	safelistedListed: false,
 	hostOnly: false,
 	preflightCache: 'right',
+	cacheMode: 'fetch',
 	capped: true,
 	varyHarmless: false
 };
@@ -77,6 +82,8 @@ const WRONG: Record<string, Partial<Rules>> = {
 	'host-same-origin': { hostOnly: true },
 	'no-preflight-cache': { preflightCache: 'none' },
 	'cache-any': { preflightCache: 'any' },
+	'cache-ignores-credentials': { cacheMode: 'any' },
+	'cache-exact-mode': { cacheMode: 'exact' },
 	'uncapped-max-age': { capped: false },
 	'vary-harmless': { varyHarmless: true }
 };
@@ -100,7 +107,8 @@ function simulate(p: Params, rules: Rules): string {
 			out.push('ok');
 			continue;
 		}
-		const acao = c.allowOrigin === '*' ? '*' : c.allowOrigin.includes(q.origin) ? q.origin : null;
+		const acao =
+			c.allowOrigin === '*' ? '*' : c.allowOrigin.includes(q.origin) ? q.origin : c.otherwiseStar ? '*' : null;
 		const passes = (value: string | null): boolean =>
 			value !== null &&
 			(value === '*' ? !q.credentials || rules.starWithCredentials : value === q.origin) &&
@@ -127,14 +135,26 @@ function simulate(p: Params, rules: Rules): string {
 		}
 		const needed = [...q.headers, ...(typeSafe ? [] : ['content-type'])];
 		const listed = !SAFE_METHODS.includes(q.method) || rules.safelistedListed;
-		const key = `${q.origin}|${q.target}${q.path}`;
-		const entry = preflights.get(key);
+		// Fetch, CORS-preflight cache: an entry made with credentials serves any request, one made without them
+		// serves only requests without credentials.
+		const key = `${q.origin}|${q.target}${q.path}|${q.credentials}`;
+		const modes =
+			rules.cacheMode === 'exact'
+				? [q.credentials]
+				: rules.cacheMode === 'any' || !q.credentials
+					? [true, false]
+					: [true];
 		const hit =
 			rules.preflightCache !== 'none' &&
-			entry !== undefined &&
-			q.t < entry.until &&
-			(rules.preflightCache === 'any' ||
-				((!listed || entry.methods.includes(q.method)) && needed.every((h) => entry.headers.includes(h))));
+			modes.some((mode) => {
+				const entry = preflights.get(`${q.origin}|${q.target}${q.path}|${mode}`);
+				return (
+					entry !== undefined &&
+					q.t < entry.until &&
+					(rules.preflightCache === 'any' ||
+						((!listed || entry.methods.includes(q.method)) && needed.every((h) => entry.headers.includes(h))))
+				);
+			});
 		if (hit) {
 			served += 1;
 			out.push(passes(acao) ? 'ok' : 'blocked');
@@ -190,6 +210,7 @@ function scenario(rng: Rng, grade: string, classId: string): Params {
 	const middle = grade === 'middle';
 	const config: Config = {
 		allowOrigin: rng.bool(0.3) ? '*' : rng.sample(pages, 2),
+		otherwiseStar: false,
 		credentials: rng.bool(),
 		methods: rng.sample(['PUT', 'DELETE', 'PATCH', 'GET'], rng.int(1, 3)),
 		headers: rng.sample(['content-type', 'x-request-id', 'authorization'], rng.int(1, 2)),
@@ -214,7 +235,8 @@ function scenario(rng: Rng, grade: string, classId: string): Params {
 		const page = `https://${site}.ru`;
 		origins = [page];
 		targets.length = 0;
-		targets.push(page, `https://${site}.ru:8443`, `http://${site}.ru`, api);
+		// One scheme for every page and address: an https page calling http is mixed content, another topic.
+		targets.push(page, `https://${site}.ru:8443`, `https://www.${site}.ru`, api);
 		config.allowOrigin = rng.bool() ? '*' : [page];
 	} else if (classId === 'vary-origin') {
 		pool = [SIMPLE[0] as Shape];
@@ -249,7 +271,65 @@ function scenario(rng: Rng, grade: string, classId: string): Params {
 			credentials: rng.bool(credentialRate)
 		};
 	});
+	if (middle && classId === 'credentials')
+		return credentialsCore(rng, { middle, config, requests, cap, cdnTtl }, pages);
 	return { middle, config, requests, cap, cdnTtl };
+}
+
+/**
+ * The middle class with credentials, built so that its traps always show. The server echoes one listed origin and
+ * answers `*` to the rest. A preflight with credentials from the listed origin is remembered and serves the same
+ * request without credentials later; a preflight without credentials from another origin is remembered too, but the
+ * same request with credentials needs a new preflight, which `*` fails. The random requests go to another path, at
+ * even seconds; Max-Age is odd, so no request falls on the end of a remembered preflight.
+ */
+function credentialsCore(rng: Rng, p: Params, pages: string[]): Params {
+	const shape = rng.pick(COMPLEX);
+	const methods = SAFE_METHODS.includes(shape.method)
+		? p.config.methods
+		: [...new Set([...p.config.methods, shape.method])];
+	const needed = [
+		...shape.headers,
+		...(shape.contentType && !SAFE_TYPES.includes(shape.contentType) ? ['content-type'] : [])
+	];
+	const [listed, other] = rng.sample(pages, 2) as [string, string];
+	const config: Config = {
+		...p.config,
+		allowOrigin: [listed],
+		otherwiseStar: true,
+		credentials: true,
+		methods,
+		headers: [...new Set([...p.config.headers, ...needed])],
+		maxAge: rng.pick([45, 75, 105])
+	};
+	const base = p.requests[0];
+	if (!base) throw new Error('credentials: no requests to build on');
+	const [corePath, otherPath] = [PATHS[0], PATHS[1]];
+	const core = (t: number, origin: string, credentials: boolean): Request => ({
+		...base,
+		t,
+		origin,
+		path: corePath,
+		method: shape.method,
+		headers: shape.headers,
+		contentType: shape.contentType,
+		credentials
+	});
+	const evens = rng.sample(
+		Array.from({ length: 110 }, (_, i) => 2 * (i + 1)),
+		p.requests.length + 2
+	);
+	const pair = (origin: string, first: boolean): Request[] => {
+		const t = evens.pop() ?? 2;
+		return [core(t, origin, first), core(t + 2 * rng.int(1, 8), origin, !first)];
+	};
+	const coreRequests = [...pair(listed, true), ...pair(other, false)];
+	const taken = new Set(coreRequests.map((q) => q.t));
+	const others = p.requests
+		.slice(1)
+		.map((q, i) => ({ ...q, path: otherPath, t: evens[i] ?? 0 }))
+		.filter((q) => !taken.has(q.t));
+	return { ...p, config, requests: [...coreRequests, ...others].sort((a, b) => a.t - b.t) };
 }
 
 function describe(p: Params): string {
@@ -257,7 +337,7 @@ function describe(p: Params): string {
 	const allow =
 		c.allowOrigin === '*'
 			? '`Access-Control-Allow-Origin: *`'
-			: `\`Access-Control-Allow-Origin: <Origin запроса>\`, если Origin — ${c.allowOrigin.map((o) => `\`${o}\``).join(' или ')}; для других источников заголовка нет`;
+			: `\`Access-Control-Allow-Origin: <Origin запроса>\`, если Origin — ${c.allowOrigin.map((o) => `\`${o}\``).join(' или ')}; для других источников ${c.otherwiseStar ? '— `Access-Control-Allow-Origin: *`' : 'заголовка нет'}`;
 	const server = [
 		`- ${allow};`,
 		`- \`Access-Control-Allow-Methods: ${c.methods.join(', ')}\`;`,
@@ -276,7 +356,7 @@ function describe(p: Params): string {
 	];
 	if (p.middle && c.maxAge !== null) {
 		rules.push(
-			`- Браузер запоминает прошедший preflight для пары «источник страницы — адрес запроса» на \`Max-Age\` секунд, но не дольше ${p.cap} с. Пока запись жива, запрос, чей метод и заголовки покрыты запомненными списками, уходит без нового OPTIONS; иначе — новый preflight. Не прошедший preflight не запоминается.`
+			`- Браузер запоминает прошедший preflight для пары «источник страницы — адрес запроса» на \`Max-Age\` секунд, но не дольше ${p.cap} с, и помнит, был ли запрос с credentials. Запись, сделанная запросом с credentials, подходит любому запросу; запись без credentials подходит только запросу без credentials. Пока подходящая запись жива, запрос уходит без нового OPTIONS, если его метод — GET, HEAD, POST или есть в запомненном \`Access-Control-Allow-Methods\`, и каждый его свой заголовок (и \`content-type\` с другим значением) есть в запомненном \`Access-Control-Allow-Headers\`; иначе — новый preflight. Не прошедший preflight не запоминается.`
 		);
 	}
 	if (p.cdnTtl !== null) {
@@ -311,7 +391,7 @@ function describe(p: Params): string {
 		'',
 		...rules,
 		'',
-		`Скрипты на страницах делают запросы через \`fetch\`${p.middle ? ' (момент — в секундах)' : ''}:`,
+		`Скрипты на страницах делают запросы через \`fetch\`; все страницы и адреса — по https${p.middle ? ', момент — в секундах' : ''}:`,
 		'',
 		head,
 		...rows,
@@ -334,7 +414,9 @@ count = 0
 def allowed_origin(origin):
     if c["allowOrigin"] == "*":
         return "*"
-    return origin if origin in c["allowOrigin"] else None
+    if origin in c["allowOrigin"]:
+        return origin
+    return "*" if c["otherwiseStar"] else None
 
 
 def cors_ok(header, q):
@@ -367,9 +449,12 @@ for q in p["requests"]:
         continue
     asks = list(q["headers"]) + ([] if plain_type else ["content-type"])
     must_list = q["method"] not in ("GET", "HEAD", "POST")
-    key = (q["origin"], q["target"] + q["path"])
-    memo = remembered.get(key)
-    if memo is not None and q["t"] < memo[0] and (not must_list or q["method"] in memo[1]) and all(h in memo[2] for h in asks):
+    key = (q["origin"], q["target"] + q["path"], q["credentials"])
+    usable = [(q["origin"], q["target"] + q["path"], True)]
+    if not q["credentials"]:
+        usable.append((q["origin"], q["target"] + q["path"], False))
+    memos = [remembered[k] for k in usable if k in remembered]
+    if any(q["t"] < m[0] and (not must_list or q["method"] in m[1]) and all(h in m[2] for h in asks) for m in memos):
         count += 1
         result.append("ok" if cors_ok(allowed_origin(q["origin"]), q) else "blocked")
         continue
@@ -393,7 +478,12 @@ const REQUIRED: Record<string, string[]> = {
 	'junior/same-origin': ['host-same-origin'],
 	'middle/preflight-cache': ['no-preflight-cache', 'cache-any'],
 	'middle/vary-origin': ['vary-harmless'],
-	'middle/credentials': ['star-with-credentials', 'no-preflight-cache'],
+	'middle/credentials': [
+		'star-with-credentials',
+		'no-preflight-cache',
+		'cache-ignores-credentials',
+		'cache-exact-mode'
+	],
 	'middle/max-age-cap': ['uncapped-max-age']
 };
 

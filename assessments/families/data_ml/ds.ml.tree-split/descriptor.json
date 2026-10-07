@@ -1,0 +1,83 @@
+{
+	"key": "ds.ml.tree-split",
+	"version": 1,
+	"specialization": "data_ml",
+	"block": "ds.ml",
+	"format": "compute",
+	"answerKind": "float_eps",
+	"levels": [
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": { "rows": "8–14", "candidates": "7–13 порогов или 14–30 разбиений категорий", "criterion": 1 },
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "gini-threshold",
+					"form": "A",
+					"description": "лучший порог числового признака по взвешенному Gini потомков"
+				},
+				{ "id": "entropy-gain", "form": "B", "description": "прирост информации (энтропия в битах) лучшего разбиения" },
+				{
+					"id": "mse-threshold",
+					"form": "anchor",
+					"description": "дерево регрессии: порог с наименьшей взвешенной MSE потомков"
+				},
+				{
+					"id": "categorical",
+					"form": "X",
+					"description": "категориальный признак: лучшее разбиение категорий на две группы, а не только «одна против остальных»"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "названия признака и целевой переменной, категории" },
+		{ "name": "data", "description": "значения признака и метки" }
+	],
+	"essentialParams": [
+		{ "name": "criterion", "description": "Gini, энтропия, MSE" },
+		{ "name": "feature-type", "description": "числовой признак с порогами или категориальный с разбиением на группы" },
+		{ "name": "asked", "description": "что спрашивается: порог, прирост информации или нечистота лучшего разбиения" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"нечистота Gini и энтропия узла",
+			"взвешивание потомков по числу строк",
+			"кандидаты порогов между соседними значениями",
+			"критерий MSE для регрессии",
+			"разбиение категорий на две группы"
+		],
+		"doesNotCheck": ["построение всего дерева и обрезку", "реализацию конкретной библиотеки"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "unweighted",
+			"defect": "складывает или усредняет нечистоты потомков без весов по числу строк",
+			"mustBeCaught": true
+		},
+		{ "id": "error-rate", "defect": "выбирает порог по доле ошибок большинства вместо Gini", "mustBeCaught": true },
+		{ "id": "nats", "defect": "считает энтропию по натуральному логарифму", "mustBeCaught": true },
+		{
+			"id": "one-vs-rest",
+			"defect": "перебирает только разбиения «одна категория против остальных»",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 4, "caught": 4 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0197,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

@@ -1,0 +1,123 @@
+{
+	"key": "ds.stats.power",
+	"version": 1,
+	"specialization": "data_ml",
+	"block": "ds.stats",
+	"format": "compute",
+	"answerKind": "float_eps",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"design": "две равные группы",
+				"metric": "доля или среднее",
+				"unknown": "n на группу или мощность"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "proportion-n",
+					"form": "A",
+					"description": "n на группу для абсолютного MDE доли при двусторонней α и заданной мощности"
+				},
+				{ "id": "relative-mde", "form": "B", "description": "MDE задан относительным приростом: p₂ = p₁·(1 + r)" },
+				{
+					"id": "mean-n",
+					"form": "anchor",
+					"description": "n на группу для непрерывной метрики: дисперсия разности двух средних"
+				},
+				{ "id": "achieved-power", "form": "X", "description": "мощность при заданном n на группу" }
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"constructive": {
+				"design": "неравные группы, кластеры, несколько вариантов",
+				"metric": "доля или среднее",
+				"unknown": "n или MDE"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "unequal-allocation",
+					"form": "A",
+					"description": "неравный сплит n_B = k·n_A: размер контроля с дисперсией p₂q₂/(k·n_A)"
+				},
+				{
+					"id": "cluster-design",
+					"form": "B",
+					"description": "рандомизация кластерами: размер с эффектом дизайна 1 + (m − 1)ρ"
+				},
+				{
+					"id": "multiple-variants",
+					"form": "anchor",
+					"description": "несколько тестовых вариантов против контроля: α с поправкой Бонферрони"
+				},
+				{ "id": "mde-given-n", "form": "X", "description": "минимальный обнаружимый эффект среднего при заданном n" }
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "продукт и метрика эксперимента" },
+		{ "name": "numbers", "description": "базовая доля, эффект, α, мощность, σ" }
+	],
+	"essentialParams": [
+		{ "name": "unknown", "description": "что ищется: n на группу, мощность, MDE" },
+		{
+			"name": "design",
+			"description": "равные группы, неравный сплит, кластеры, несколько вариантов, относительный эффект"
+		}
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"квантили для двусторонней α и мощности",
+			"размер выборки для доли и среднего",
+			"относительный и абсолютный MDE",
+			"мощность при заданном размере",
+			"неравный сплит групп",
+			"эффект дизайна при кластерной рандомизации",
+			"поправка на число вариантов"
+		],
+		"doesNotCheck": ["точные (не нормальные) расчёты мощности", "последовательные тесты"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "one-sided-alpha",
+			"defect": "берёт квантиль одностороннего уровня для двусторонней гипотезы",
+			"mustBeCaught": true
+		},
+		{ "id": "power-two-sided", "defect": "делит β пополам, как α", "mustBeCaught": true },
+		{
+			"id": "relative-as-absolute",
+			"defect": "прибавляет относительный прирост к доле как процентные пункты",
+			"mustBeCaught": true
+		},
+		{
+			"id": "single-variance",
+			"defect": "берёт дисперсию одного среднего вместо дисперсии разности двух",
+			"mustBeCaught": true
+		},
+		{ "id": "equal-allocation", "defect": "считает по формуле равных групп при неравном сплите", "mustBeCaught": true },
+		{ "id": "ignore-clustering", "defect": "считает пользователей кластера независимыми", "mustBeCaught": true },
+		{ "id": "unadjusted", "defect": "не поправляет α на число сравнений", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 7, "caught": 7 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0007,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

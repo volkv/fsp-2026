@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "middle",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.6,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "4efa6560b7f18a825ef71d5545444dbc9844c380b8aff9b7dd164b59adf2f970"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.7,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "4efa6560b7f18a825ef71d5545444dbc9844c380b8aff9b7dd164b59adf2f970"
+					}
+				],
+				"mean": 0.65
+			},
 			"constructive": {
 				"classes": 3,
 				"lines": "50–70",
@@ -41,7 +58,24 @@
 		},
 		{
 			"grade": "senior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.6,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "4efa6560b7f18a825ef71d5545444dbc9844c380b8aff9b7dd164b59adf2f970"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.7,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "4efa6560b7f18a825ef71d5545444dbc9844c380b8aff9b7dd164b59adf2f970"
+					}
+				],
+				"mean": 0.65
+			},
 			"constructive": {
 				"classes": 4,
 				"lines": "70–100",
@@ -58,7 +92,7 @@
 				{
 					"id": "lock-scope",
 					"form": "B",
-					"description": "блокировка не той области: новый объект на вызов, неверный ключ или другая блокировка"
+					"description": "блокировка не той области: новый объект на вызов или неверный ключ"
 				},
 				{
 					"id": "publish-order",
@@ -110,16 +144,40 @@
 			"defect": "указывает соседнюю строку того же метода, где «исправление» не возвращает контракт",
 			"mustBeCaught": true
 		},
-		{ "id": "other-class", "defect": "указывает похожую строку в другом, исправном классе", "mustBeCaught": true }
+		{ "id": "other-class", "defect": "указывает похожую строку в другом, исправном классе", "mustBeCaught": true },
+		{
+			"id": "drop-await",
+			"defect": "убирает ожидаемый вызов ввода-вывода класса (await-строку) вместо исправления строки дефекта",
+			"mustBeCaught": true
+		}
 	],
 	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
 	"gates": {
 		"reference": { "seeds": 200, "failures": 0 },
-		"wrongSolutions": { "mustBeCaught": 2, "caught": 2 },
+		"wrongSolutions": { "mustBeCaught": 3, "caught": 3 },
 		"hiddenTestsMutationScore": null,
-		"answerCollision": 0.0247,
+		"answerCollision": 0.0249,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Второй раунд Angoff: Дефект ищется по docstring-контракту, senior-классы (область блокировки, отмена) труднее, но осмысленны; между 0,50 и 0,75 итог 0,60 (middle без расхождения)."
+				],
+				"sourceSha256": "4efa6560b7f18a825ef71d5545444dbc9844c380b8aff9b7dd164b59adf2f970"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Второй раунд: после сопоставления оценок Senior 0,50 и 0,75 снижаю свою до 0,70. Пограничный Senior должен понимать согласованность общего состояния, область блокировки и публикацию результата; требуется указать одну строку, а не написать и проверить исправление всего модуля. Поэтому 0,50 недооценивает доступность трёх классов; вместе с тем чтение 70–100 строк и отличие отмены от обычного исключения повышают риск ошибки. В Senior/X дефект действительно в строке 66: CancelledError наследует BaseException, поэтому except Exception оставляет соединение открытым. Для всех восьми экземпляров исходные проверки нарушаются, а эталонные замены их восстанавливают; Middle сохраняю 0,70."
+				],
+				"sourceSha256": "4efa6560b7f18a825ef71d5545444dbc9844c380b8aff9b7dd164b59adf2f970"
+			}
+		]
 	}
 }

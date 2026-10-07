@@ -1,0 +1,117 @@
+{
+	"key": "ds.ml.leakage-locate",
+	"version": 1,
+	"specialization": "data_ml",
+	"block": "ds.ml",
+	"format": "bug_locate",
+	"answerKind": "line_no",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"functions": 5,
+				"lines": "45–70",
+				"defect": "одна строка, вносящая утечку при подготовке данных"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "fit-on-all",
+					"form": "A",
+					"description": "статистика преобразования (среднее, отклонение, медиана, границы) считается и по test"
+				},
+				{
+					"id": "split-order",
+					"form": "B",
+					"description": "порядок шагов вокруг разбиения: без сортировки по времени, дедупликация или оверсэмплинг по всем данным"
+				},
+				{
+					"id": "target-in-features",
+					"form": "anchor",
+					"description": "признак содержит целевую переменную: своя метка в кодировании, метка или производный от неё столбец в признаках"
+				},
+				{
+					"id": "future-data",
+					"form": "X",
+					"description": "признак строки использует будущее: сдвиг вперёд, окно с текущим значением, событие строки в своём счётчике"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"constructive": { "functions": 6, "lines": "60–90", "defect": "одна строка, вносящая утечку в схему валидации" },
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "selection-before-cv",
+					"form": "A",
+					"description": "отбор признаков, импутация или масштабирование по всем фолдам, а не только по обучающим"
+				},
+				{
+					"id": "oof-encoding",
+					"form": "B",
+					"description": "кодирование целевой переменной не out-of-fold или с метками test"
+				},
+				{
+					"id": "tuning-on-test",
+					"form": "anchor",
+					"description": "гиперпараметр, эпоха или модель выбираются по оценке test, а не валидации"
+				},
+				{
+					"id": "temporal-purge",
+					"form": "X",
+					"description": "очистка и эмбарго вокруг валидации по времени, задержка, с которой метка становится известна"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "context", "description": "какие ещё функции конвейера показаны и в каком порядке, заголовок модуля" }
+	],
+	"essentialParams": [
+		{
+			"name": "leak-kind",
+			"description": "вид утечки: статистика по test, порядок шагов, метка в признаках, будущее, отбор вне фолда, кодирование, подбор по test, очистка по времени"
+		}
+	],
+	"language": "python3",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"обучение преобразований только на train",
+			"порядок разбиения, сортировки по времени, дедупликации и оверсэмплинга",
+			"целевая переменная и её производные вне признаков",
+			"признаки только из прошлого",
+			"отбор признаков и предобработка внутри фолда",
+			"out-of-fold кодирование целевой переменной",
+			"подбор по валидации, а не по test",
+			"очистка и эмбарго при валидации по времени"
+		],
+		"doesNotCheck": ["исправление дефекта (только его место)", "утечки через внешние источники данных"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "neighbour-line",
+			"defect": "указывает соседнюю строку той же функции, где правка не устраняет утечку",
+			"mustBeCaught": true
+		},
+		{ "id": "other-function", "defect": "указывает похожую строку в другой, исправной функции", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 2, "caught": 2 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0239,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

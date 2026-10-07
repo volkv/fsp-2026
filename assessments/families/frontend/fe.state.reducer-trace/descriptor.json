@@ -1,0 +1,183 @@
+{
+	"key": "fe.state.reducer-trace",
+	"version": 1,
+	"specialization": "frontend",
+	"block": "fe.state",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": { "lines": "25–32", "actions": 5, "state": "плоское, три числа", "mechanisms": 1 },
+			"constructiveRank": 2,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "payload",
+					"form": "A",
+					"description": "действия с данными: прибавить, убавить и установить поле; установка заменяет значение, а не прибавляет"
+				},
+				{
+					"id": "unknown",
+					"form": "B",
+					"description": "в серии — тип в другом регистре и тип, которого нет в switch: ветка default возвращает то же состояние"
+				},
+				{
+					"id": "reset",
+					"form": "anchor",
+					"description": "сброс возвращает исходный объект: прежние действия его не меняли, сброс восстанавливает исходные значения"
+				},
+				{
+					"id": "guard",
+					"form": "X",
+					"description": "условие в ветке отвергает действие целиком: при нехватке редьюсер возвращает прежнее состояние"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"lines": "40–55",
+				"actions": "5–6",
+				"state": "вложенные массив объектов и объект",
+				"identityChecks": true,
+				"mechanisms": 2
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "slice-refs",
+					"form": "A",
+					"description": "каждое действие меняет одну-две части состояния: какие части нового состояния — те же объекты, какие — новые"
+				},
+				{
+					"id": "item-identity",
+					"form": "B",
+					"description": "тождество элементов массива: map сохраняет нетронутые элементы, filter сдвигает позиции"
+				},
+				{
+					"id": "noop-actions",
+					"form": "anchor",
+					"description": "действия, которые ничего не меняют: одни возвращают то же состояние, другие — новый объект с равными значениями"
+				},
+				{
+					"id": "store",
+					"form": "X",
+					"description": "хранилище с подпиской: слушатель вызывается только при новом состоянии, снимок до действий сохраняет свои значения"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "сюжет: корзина, бронь, склад, учёт часов; задачи, покупки, карточки, заметки" },
+		{ "name": "numbers", "description": "начальные значения, количества, веса и идентификаторы" },
+		{ "name": "names", "description": "имена полей, типов действий и элементов списка" }
+	],
+	"essentialParams": [
+		{
+			"name": "action-kind",
+			"description": "какие действия в серии: установка, неизвестный тип, сброс, отвергнутое условием, без изменений"
+		},
+		{
+			"name": "update-shape",
+			"description": "как строится новое состояние: spread верхнего уровня, map, filter, возврат того же объекта"
+		},
+		{
+			"name": "observed",
+			"description": "что печатается: значения и производные, сравнение ссылок частей и элементов, вызовы слушателя"
+		}
+	],
+	"language": "javascript",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"переходы состояния редьюсера по серии действий",
+			"ветка default и неизвестные типы действий",
+			"сброс к исходному состоянию при неизменяемых обновлениях",
+			"поверхностная копия spread: вложенные части остаются теми же объектами",
+			"тождество элементов после map и filter",
+			"возврат того же состояния и уведомление подписчиков"
+		],
+		"doesNotCheck": ["написание редьюсера", "конкретные библиотеки состояния (Redux, Zustand)"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "set-accumulates",
+			"defect": "считает, что установка поля прибавляет значение к прежнему",
+			"mustBeCaught": true
+		},
+		{
+			"id": "unknown-resets",
+			"defect": "считает, что неизвестное действие возвращает исходное состояние",
+			"mustBeCaught": true
+		},
+		{
+			"id": "unknown-case-insensitive",
+			"defect": "считает, что switch сравнивает тип действия без учёта регистра",
+			"mustBeCaught": true
+		},
+		{
+			"id": "reset-to-zero",
+			"defect": "считает, что сброс обнуляет поля, а не возвращает исходные значения",
+			"mustBeCaught": true
+		},
+		{
+			"id": "initial-mutated",
+			"defect": "считает, что прежние действия изменили исходный объект, и сброс ничего не меняет",
+			"mustBeCaught": true
+		},
+		{ "id": "guard-clamps", "defect": "считает, что при нехватке значение становится нулём", "mustBeCaught": true },
+		{ "id": "guard-ignored", "defect": "не замечает условия и уводит значение в минус", "mustBeCaught": true },
+		{
+			"id": "spread-copies-nested",
+			"defect": "считает, что spread копирует вложенные массивы и объекты: у нового состояния все части новые",
+			"mustBeCaught": true
+		},
+		{
+			"id": "map-copies-all",
+			"defect": "считает, что map создаёт новые объекты для всех элементов, а не только для изменённого",
+			"mustBeCaught": true
+		},
+		{
+			"id": "ignores-shift",
+			"defect": "сравнивает элементы по содержимому, а не по позиции: не видит сдвига после удаления",
+			"mustBeCaught": true
+		},
+		{
+			"id": "equal-means-same",
+			"defect": "считает равные по значению объекты одним и тем же объектом",
+			"mustBeCaught": true
+		},
+		{
+			"id": "always-new-state",
+			"defect": "считает, что редьюсер всегда возвращает новый объект, даже из ветки default и при сработавшем условии",
+			"mustBeCaught": true
+		},
+		{
+			"id": "snapshot-live",
+			"defect": "считает, что снимок состояния, взятый до действий, видит последующие изменения",
+			"mustBeCaught": true
+		},
+		{
+			"id": "notify-always",
+			"defect": "считает, что слушатель вызывается на каждое действие, даже когда состояние не изменилось",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 14, "caught": 14 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0004,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

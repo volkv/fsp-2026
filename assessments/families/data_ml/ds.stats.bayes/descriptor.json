@@ -1,0 +1,133 @@
+{
+	"key": "ds.stats.bayes",
+	"version": 1,
+	"specialization": "data_ml",
+	"block": "ds.stats",
+	"format": "compute",
+	"answerKind": "float_eps",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": { "hypotheses": "2–3", "evidence": "1–2 наблюдения", "baseRate": "0,5–20 %" },
+			"constructiveRank": 3,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "posterior",
+					"form": "A",
+					"description": "P(событие | положительный результат) по базовой частоте, чувствительности и специфичности"
+				},
+				{
+					"id": "negative-posterior",
+					"form": "B",
+					"description": "P(событие | отрицательный результат): пропуск теста при отрицательном ответе"
+				},
+				{
+					"id": "source-posterior",
+					"form": "anchor",
+					"description": "три источника: доля источника среди брака по долям поставок и долям брака"
+				},
+				{
+					"id": "two-tests",
+					"form": "X",
+					"description": "два независимых теста, оба положительны: апостериорная после обоих"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"hypotheses": 2,
+				"evidence": "2–4 наблюдения или смена базовой частоты",
+				"baseRate": "0,1–40 %"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "positive-then-negative",
+					"form": "A",
+					"description": "первый тест положителен, второй отрицателен: отрицательный тоже меняет вероятность"
+				},
+				{
+					"id": "naive-bayes",
+					"form": "B",
+					"description": "наивный Байес по двум словам: присутствие одного и отсутствие другого"
+				},
+				{
+					"id": "prevalence-shift",
+					"form": "anchor",
+					"description": "precision в эксплуатации по таблице сбалансированной валидации и новой доле событий"
+				},
+				{
+					"id": "any-alarm",
+					"form": "X",
+					"description": "k независимых детекторов, тревога — если сработал любой: вероятность атаки при тревоге"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "сюжет: диагностика, фрод, брак поставщиков, спам, вторжения" },
+		{ "name": "numbers", "description": "базовая частота, чувствительность, специфичность, доли" }
+	],
+	"essentialParams": [
+		{
+			"name": "evidence",
+			"description": "какое наблюдение: положительный, отрицательный, два теста, слова, любой из детекторов"
+		},
+		{
+			"name": "prior",
+			"description": "откуда базовая частота: из условия, из долей источников, из эксплуатации вместо валидации"
+		}
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"формула Байеса и базовая частота",
+			"различие P(A|B) и P(B|A)",
+			"формула полной вероятности",
+			"последовательное обновление по независимым наблюдениям",
+			"наивный Байес с отсутствующим признаком",
+			"пересчёт precision при смене доли событий",
+			"вероятность срабатывания хотя бы одного детектора"
+		],
+		"doesNotCheck": ["зависимые тесты и корреляцию ошибок", "байесовский вывод с непрерывными априорными"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "inverse-conditional",
+			"defect": "путает P(событие | результат) с P(результат | событие)",
+			"mustBeCaught": true
+		},
+		{
+			"id": "ignore-base-rate",
+			"defect": "игнорирует базовую частоту, будто события и не-события равновероятны",
+			"mustBeCaught": true
+		},
+		{ "id": "one-test-only", "defect": "учитывает только первое наблюдение", "mustBeCaught": true },
+		{ "id": "ignore-absent", "defect": "не учитывает отсутствие второго слова", "mustBeCaught": true },
+		{
+			"id": "sample-precision",
+			"defect": "переносит precision сбалансированной валидации в эксплуатацию",
+			"mustBeCaught": true
+		},
+		{ "id": "single-detector", "defect": "считает как для одного детектора", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 6, "caught": 6 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0001,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.8 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.85,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "4bc134fed22d8a6829f5c147fcc29614caa3db604b92c5ebab6e500cfb024871"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.65,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "4bc134fed22d8a6829f5c147fcc29614caa3db604b92c5ebab6e500cfb024871"
+					}
+				],
+				"mean": 0.75
+			},
 			"constructive": { "rules": 2, "updates": false, "topK": false, "groups": 5 },
 			"constructiveRank": 3,
 			"timeNormSec": 1800,
@@ -33,7 +50,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.8 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.8,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "4bc134fed22d8a6829f5c147fcc29614caa3db604b92c5ebab6e500cfb024871"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.75,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "4bc134fed22d8a6829f5c147fcc29614caa3db604b92c5ebab6e500cfb024871"
+					}
+				],
+				"mean": 0.8
+			},
 			"constructive": { "rules": 4, "updates": true, "topK": true, "groups": 5 },
 			"constructiveRank": 5,
 			"timeNormSec": 2400,
@@ -119,6 +153,29 @@
 		"answerCollision": 0,
 		"transfer": 0,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Сравнение по токенам (пробелы и табуляции не важны) в тексте пакета не отражено, это свойство проверяющего; по условию и скрытым тестам изменений нет, поэтому прежние выводы ревью сохраняются. Риск неверного форматирования вывода снят, оценка Angoff не выше прежнего потолка.",
+					"Оценка Angoff для ворот практики (не меньше 0,4 доли групп): intern и junior проходят по базовым группам, переполнение и равенства отсекают лишь часть групп."
+				],
+				"sourceSha256": "4bc134fed22d8a6829f5c147fcc29614caa3db604b92c5ebab6e500cfb024871"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Независимая реализация и эталоны пакета совпали с ожидаемым выводом всех 24 полностью показанных тестов. В Intern paid-sum сумма oleg равна 5550 + 3750 + 5550 + 4450 = 19300, rita — 3400. В Junior top-paid последние записи исключают отменённый заказ на 900000: zoya 18450, boris 3850.",
+					"Фильтры, замена записи целиком, серия среди заказов одного клиента и признак отмены после оплаты определены явно. Агрегаты и сортировка различают A/B/anchor; X требует состояния серии либо истории статусов. Общее устройство группировки сохраняется, но неизменённый эталон другой класс не решает.",
+					"Пять групп дают частичные баллы по разным аспектам; tokens-checker в прочитанном генераторе не наказывает за несущественные пробелы и переводы строк. Задание соответствует be.code и Intern/Junior. Angoff — вероятность пройти минимум две группы, а не получить полный результат.",
+					"Пакет показывает только первый тест каждой группы; 16 показанных входов large/scale обрезаны. Остальные тесты групп и обрезанные примеры этой версии не проверены независимо; отчёт ворот на 200 сидах принят как предоставленное свидетельство."
+				],
+				"sourceSha256": "4bc134fed22d8a6829f5c147fcc29614caa3db604b92c5ebab6e500cfb024871"
+			}
+		]
 	}
 }

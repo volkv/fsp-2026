@@ -245,10 +245,10 @@ const INTERN: Fn[] = [
 	{
 		lines: [
 			'def review_errors(review):',
-			"    \"\"\"Отзыв: 'rating' — целое от 1 до 5, 'text' — строка (может быть пустой). Список ошибочных",
+			"    \"\"\"Отзыв: 'rating' — целое (не bool) от 1 до 5, 'text' — строка (может быть пустой). Список ошибочных",
 			'    полей в этом порядке."""',
 			'    errors = []',
-			'    if not isinstance(review.get("rating"), int) or not 1 <= review["rating"] <= 5:',
+			'    if type(review.get("rating")) is not int or not 1 <= review["rating"] <= 5:',
 			'        errors.append("rating")',
 			'    if not isinstance(review.get("text"), str):',
 			'        errors.append("text")',
@@ -258,6 +258,7 @@ const INTERN: Fn[] = [
 			'assert review_errors({"rating": 5, "text": ""}) == []',
 			'assert review_errors({"rating": 5, "text": 42}) == ["text"]',
 			'assert review_errors({"rating": 4.5, "text": "ok"}) == ["rating"]',
+			'assert review_errors({"rating": True, "text": "ok"}) == ["rating"]',
 			'assert review_errors({}) == ["rating", "text"]'
 		],
 		defects: [
@@ -270,7 +271,7 @@ const INTERN: Fn[] = [
 			{
 				kind: 'bounds',
 				line: 4,
-				text: '    if not isinstance(review.get("rating"), int) or not 1 <= review["rating"] < 5:',
+				text: '    if type(review.get("rating")) is not int or not 1 <= review["rating"] < 5:',
 				neighbour: { line: 5, text: '        errors.insert(0, "rating")' }
 			},
 			{
@@ -287,7 +288,7 @@ const JUNIOR: Fn[] = [
 	{
 		lines: [
 			'def transfer_error(amount, balance, daily_left):',
-			'    """Перевод в копейках: сумма строго больше нуля, не больше баланса и не больше остатка дневного',
+			'    """Перевод в копейках, аргументы — int: сумма строго больше нуля, не больше баланса и не больше остатка дневного',
 			"    лимита. Код первой нарушенной проверки в этом порядке ('amount', 'balance', 'limit') или None.\"\"\"",
 			'    if amount <= 0:',
 			'        return "amount"',
@@ -329,8 +330,8 @@ const JUNIOR: Fn[] = [
 	{
 		lines: [
 			'def discounted_price(price, percent):',
-			'    """Цена в копейках со скидкой percent процентов, округление вниз. percent — целое от 0 до 90',
-			'    включительно, иначе ValueError."""',
+			'    """Цена в копейках со скидкой percent процентов, округление вниз; оба аргумента — int (не bool).',
+			'    Допустимая скидка — от 0 до 90 включительно, иначе ValueError."""',
 			'    if not 0 <= percent <= 90:',
 			'        raise ValueError(percent)',
 			'    return price * (100 - percent) // 100'
@@ -359,7 +360,7 @@ const JUNIOR: Fn[] = [
 	{
 		lines: [
 			'def quantity_ok(qty, stock, max_per_order):',
-			'    """Количество в заказе: целое от 1 до min(stock, max_per_order) включительно."""',
+			'    """Все аргументы — int (не bool). Количество допустимо от 1 до min(stock, max_per_order) включительно."""',
 			'    limit = min(stock, max_per_order)',
 			'    return 1 <= qty <= limit'
 		],
@@ -388,7 +389,7 @@ const JUNIOR: Fn[] = [
 	{
 		lines: [
 			'def refund_allowed(paid, refunded, amount):',
-			'    """Возврат: сумма больше нуля, и вместе с уже возвращённым не превышает оплаченного."""',
+			'    """Возврат, аргументы — int: сумма больше нуля и вместе с уже возвращённым не превышает оплаченного."""',
 			'    if amount <= 0:',
 			'        return False',
 			'    return refunded + amount <= paid'
@@ -528,6 +529,7 @@ const JUNIOR: Fn[] = [
 		],
 		checks: [
 			'assert parse_limit(1000) == 1000',
+			'assert parse_limit(1) == 1',
 			...raises('parse_limit(True)'),
 			...raises('parse_limit(5.5)'),
 			...raises('parse_limit("5")'),
@@ -866,8 +868,10 @@ export function build(input: GenerateInput): Built {
 		statement: {
 			markdown:
 				'Модуль проверок входа для обработчиков сервиса на Python 3. У каждой функции в строке документации записана ' +
-				'её спецификация. Ровно одна строка модуля нарушает спецификацию своей функции: если заменить только её, все ' +
-				'функции будут работать по спецификации. Введите номер этой строки (нумерация с 1).',
+				'её спецификация. В модуле один дефект: одна функция нарушает свою спецификацию. Введите номер строки, замена ' +
+				'которой одной инструкцией восстанавливает спецификацию всех функций (нумерация с 1). Если исправить можно в ' +
+				'нескольких строках — засчитывается любая из них, где замена одной инструкцией восстанавливает спецификацию. Исправление — одна простая инструкция того же вида, что исправляемая строка: не добавляйте ' +
+				'конструкций, которых в ней нет (`:=`, lambda, обёртки, новые функции), и не переносите в неё логику из другой строки.',
 			code: { language: 'python3', source: p.source }
 		},
 		answer: { kind: 'line_no', value: p.answer }

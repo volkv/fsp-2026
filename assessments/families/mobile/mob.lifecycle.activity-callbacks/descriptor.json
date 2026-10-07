@@ -1,0 +1,156 @@
+{
+	"key": "mob.lifecycle.activity-callbacks",
+	"version": 1,
+	"specialization": "mobile",
+	"block": "mob.lifecycle",
+	"format": "compute",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": { "screens": 1, "events": "5–10", "mechanisms": 1, "finishFromCode": false },
+			"constructiveRank": 1,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "background",
+					"form": "A",
+					"description": "«Домой» и возврат: onPause, onStop, onSaveInstanceState (после onStop на API 28+), затем onRestart, onStart, onResume"
+				},
+				{
+					"id": "overlay",
+					"form": "B",
+					"description": "собственный AlertDialog не вызывает колбэков, полупрозрачная Activity поверх — только onPause и onResume"
+				},
+				{
+					"id": "back-reopen",
+					"form": "anchor",
+					"description": "«Назад» закрывает некорневой экран без onSaveInstanceState, повторное открытие — новый экземпляр с onCreate"
+				},
+				{ "id": "lock", "form": "X", "description": "блокировка и разблокировка экрана — как уход в фон и возврат" }
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": { "screens": 1, "events": "6–13", "mechanisms": 2, "finishFromCode": true },
+			"constructiveRank": 2,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "finish-in-create",
+					"form": "A",
+					"description": "finish() в onCreate: сразу onDestroy без onStart, onResume, onPause и onStop"
+				},
+				{
+					"id": "finish-in-resume",
+					"form": "B",
+					"description": "finish() в onResume после истёкшей сессии: экран проходит onPause и onStop до onDestroy"
+				},
+				{
+					"id": "process-death",
+					"form": "anchor",
+					"description": "система убивает процесс в фоне без onDestroy; возврат — новый экземпляр с onRestoreInstanceState после onStart"
+				},
+				{
+					"id": "death-and-close",
+					"form": "X",
+					"description": "восстановленный после смерти процесса экран потом закрывают «Назад» — без сохранения состояния"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "screen", "description": "имя экрана" },
+		{ "name": "order", "description": "порядок и число повторов событий, их формулировки" }
+	],
+	"essentialParams": [
+		{
+			"name": "event",
+			"description": "что решает журнал: уход в фон, блокировка, диалог, полупрозрачная Activity, закрытие, смерть процесса"
+		},
+		{
+			"name": "finish-point",
+			"description": "откуда экран закрывает себя сам: из onCreate, из onResume или не закрывает"
+		}
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"порядок колбэков при открытии экрана",
+			"уход в фон и возврат: onRestart, место onSaveInstanceState на API 28+",
+			"AlertDialog против полупрозрачной Activity поверх экрана",
+			"закрытие «Назад» без сохранения состояния",
+			"finish() из onCreate и из onResume",
+			"смерть процесса в фоне и восстановление экземпляра"
+		],
+		"doesNotCheck": [
+			"поведение корневой Activity лаунчера по «Назад» на API 31+",
+			"режимы запуска и флаги Intent",
+			"работу на настоящем устройстве"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "save-before-stop",
+			"defect": "ставит onSaveInstanceState перед onStop, как было до API 28",
+			"mustBeCaught": true
+		},
+		{ "id": "no-restart", "defect": "при возврате из фона пропускает onRestart", "mustBeCaught": true },
+		{
+			"id": "dialog-pauses",
+			"defect": "считает, что собственный AlertDialog ставит экран на паузу",
+			"mustBeCaught": true
+		},
+		{
+			"id": "translucent-stops",
+			"defect": "считает, что под полупрозрачной Activity экран останавливается (onStop) и потом перезапускается",
+			"mustBeCaught": true
+		},
+		{
+			"id": "back-saves",
+			"defect": "вызывает onSaveInstanceState и у экрана, закрытого «Назад»",
+			"mustBeCaught": true
+		},
+		{
+			"id": "finish-in-create-full",
+			"defect": "считает, что после finish() в onCreate экран всё равно проходит onStart, onResume, onPause и onStop",
+			"mustBeCaught": true
+		},
+		{
+			"id": "finish-in-resume-direct",
+			"defect": "считает, что finish() в onResume сразу вызывает onDestroy без onPause и onStop",
+			"mustBeCaught": true
+		},
+		{
+			"id": "kill-calls-destroy",
+			"defect": "считает, что при завершении процесса системой вызывается onDestroy",
+			"mustBeCaught": true
+		},
+		{
+			"id": "death-restarts",
+			"defect": "считает, что после смерти процесса экран возвращается через onRestart, как живой экземпляр",
+			"mustBeCaught": true
+		},
+		{
+			"id": "restore-before-start",
+			"defect": "ставит onRestoreInstanceState сразу после onCreate, до onStart",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 10, "caught": 10 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0318,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

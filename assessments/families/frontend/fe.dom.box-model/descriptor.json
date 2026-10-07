@@ -1,0 +1,125 @@
+{
+	"key": "fe.dom.box-model",
+	"version": 1,
+	"specialization": "frontend",
+	"block": "fe.dom",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"boxes": "2–4",
+				"quantities": "3–6",
+				"mechanisms": "одна сторона блочной модели: ширины или вертикальные отступы"
+			},
+			"constructiveRank": 2,
+			"timeNormSec": 270,
+			"classes": [
+				{
+					"id": "box-sizing",
+					"form": "A",
+					"description": "content-box и border-box у соседних блоков: ширина по рамке и ширина содержимого, margin в ширину не входит"
+				},
+				{
+					"id": "auto-width",
+					"form": "B",
+					"description": "width: auto заполняет содержимое родителя за вычетом своих margin, border и padding; проценты — от ширины содержимого родителя"
+				},
+				{
+					"id": "sibling-collapse",
+					"form": "anchor",
+					"description": "три соседа в контейнере с display: flow-root: между соседями — больший из margin (с отрицательным — сумма наибольшего и наименьшего), крайние margin остаются внутри контейнера"
+				},
+				{
+					"id": "parent-child-collapse",
+					"form": "X",
+					"description": "margin первого ребёнка и родителя: схлопываются с margin соседа сверху, пока их не разделяют padding, border, flow-root или flex"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "классы блоков" },
+		{ "name": "numbers", "description": "ширины, высоты, отступы, рамки в пределах класса" }
+	],
+	"essentialParams": [
+		{ "name": "sizing", "description": "box-sizing у блоков с заданной шириной" },
+		{ "name": "width", "description": "заданная ширина в px или %, либо auto" },
+		{ "name": "margins", "description": "знаки и соседство вертикальных margin" },
+		{
+			"name": "separation",
+			"description": "что стоит между margin родителя и первого ребёнка: ничего, padding, border, flow-root, flex"
+		}
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"ширина по рамке и ширина содержимого при content-box и border-box",
+			"margin не входит в ширину блока",
+			"width: auto и вычет margin, border, padding",
+			"проценты padding и width от ширины содержимого родителя",
+			"схлопывание margin соседей, в том числе с отрицательным",
+			"контейнер с flow-root удерживает margin детей",
+			"схлопывание margin родителя и первого ребёнка и что его прерывает"
+		],
+		"doesNotCheck": [
+			"схлопывание сквозь пустые блоки",
+			"схлопывание нижних margin последнего ребёнка и родителя",
+			"min-content и размеры по содержимому",
+			"inline-элементы и строчные блоки"
+		]
+	},
+	"wrongSolutions": [
+		{ "id": "border-box-ignored", "defect": "считает ширину border-box как content-box", "mustBeCaught": true },
+		{
+			"id": "border-box-excludes-border",
+			"defect": "считает, что при border-box ширина включает padding, но не border",
+			"mustBeCaught": true
+		},
+		{ "id": "margin-counted", "defect": "включает margin в ширину блока по рамке", "mustBeCaught": true },
+		{
+			"id": "auto-as-100-percent",
+			"defect": "считает width: auto равной ширине содержимого родителя, как width: 100%, и добавляет свои padding и border",
+			"mustBeCaught": true
+		},
+		{
+			"id": "percent-of-border-box",
+			"defect": "считает проценты от ширины родителя по рамке, а не от ширины его содержимого",
+			"mustBeCaught": true
+		},
+		{ "id": "margin-not-subtracted", "defect": "не вычитает margin блока при width: auto", "mustBeCaught": true },
+		{ "id": "margins-add", "defect": "складывает соседние вертикальные margin", "mustBeCaught": true },
+		{ "id": "negative-ignored", "defect": "не учитывает отрицательный margin при схлопывании", "mustBeCaught": true },
+		{
+			"id": "bfc-height-excludes-margins",
+			"defect": "не включает margin первого и последнего ребёнка в высоту контейнера с flow-root",
+			"mustBeCaught": true
+		},
+		{
+			"id": "parent-child-no-collapse",
+			"defect": "считает, что margin первого ребёнка всегда остаётся внутри родителя",
+			"mustBeCaught": true
+		},
+		{
+			"id": "collapse-through-separators",
+			"defect": "схлопывает margin ребёнка с родительским, несмотря на padding, border, flow-root или flex",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 11, "caught": 11 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0002,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

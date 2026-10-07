@@ -1,0 +1,144 @@
+{
+	"key": "ds.sql.top-per-group",
+	"version": 1,
+	"specialization": "data_ml",
+	"block": "ds.sql",
+	"format": "sql_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": {
+				"tables": 1,
+				"rows": "7–14",
+				"groups": "1–3",
+				"trap": "одна: порядок ключей, NULL, OFFSET или равные максимумы"
+			},
+			"constructiveRank": 2,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "multi-key-order",
+					"form": "A",
+					"description": "ORDER BY score DESC, name LIMIT k: DESC относится только к первому ключу, равные баллы упорядочены по имени по возрастанию"
+				},
+				{
+					"id": "null-order",
+					"form": "B",
+					"description": "ORDER BY по столбцу с NULL по убыванию: NULL в SQLite меньше любого значения и уходит в конец"
+				},
+				{
+					"id": "limit-offset",
+					"form": "anchor",
+					"description": "LIMIT n OFFSET m: пропускаются ровно m первых строк, выдача начинается с (m + 1)-й"
+				},
+				{
+					"id": "max-row",
+					"form": "X",
+					"description": "строка с максимумом в группе через подзапрос MAX: при равных максимумах группа даёт несколько строк"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"tables": 1,
+				"rows": "9–18",
+				"groups": "2–3",
+				"trap": "равенства значений внутри группы и выбор оконной функции ранга"
+			},
+			"constructiveRank": 3,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "row-number-ties",
+					"form": "A",
+					"description": "top-N на группу через ROW_NUMBER: при равенствах ровно N строк, порядок равных — по второму ключу"
+				},
+				{
+					"id": "rank-gaps",
+					"form": "B",
+					"description": "RANK() <= N: равные получают один ранг, следующий ранг пропускается — строк может быть больше или меньше N"
+				},
+				{
+					"id": "dense-rank-nth",
+					"form": "anchor",
+					"description": "второе по величине различное значение в группе через DENSE_RANK() = 2: при равенстве на вершине RANK() = 2 не находит строк"
+				},
+				{
+					"id": "top-sum-null",
+					"form": "X",
+					"description": "сумма двух крупнейших значений на группу: NULL при сортировке по убыванию уходит в конец и в top-2 не попадает, пока есть значения"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "названия таблиц и столбцов, имена, отделы, категории" },
+		{ "name": "data", "description": "значения, число строк, порядок вставки" }
+	],
+	"essentialParams": [
+		{ "name": "ordering", "description": "как упорядочены строки: направление каждого ключа, место NULL, смещение" },
+		{
+			"name": "tie-rule",
+			"description": "что происходит с равными значениями: подзапрос MAX, ROW_NUMBER, RANK, DENSE_RANK"
+		}
+	],
+	"language": "sql",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"направление сортировки у каждого ключа ORDER BY отдельно",
+			"место NULL при сортировке SQLite",
+			"LIMIT и OFFSET",
+			"строка с максимумом группы и равные максимумы",
+			"ROW_NUMBER, RANK и DENSE_RANK при равенствах",
+			"top-N на группу"
+		],
+		"doesNotCheck": ["NULLS FIRST / NULLS LAST других СУБД", "производительность запросов top-N"]
+	},
+	"wrongSolutions": [
+		{ "id": "desc-applies-all", "defect": "считает, что DESC относится ко всем ключам ORDER BY", "mustBeCaught": true },
+		{
+			"id": "null-first-desc",
+			"defect": "считает NULL наибольшим значением: при сортировке по убыванию NULL идёт первым",
+			"mustBeCaught": true
+		},
+		{ "id": "offset-skips-less", "defect": "считает, что OFFSET m начинает выдачу с m-й строки", "mustBeCaught": true },
+		{
+			"id": "one-per-group",
+			"defect": "ожидает ровно одну строку на группу, даже когда максимум делят несколько строк",
+			"mustBeCaught": true
+		},
+		{
+			"id": "rank-as-row-number",
+			"defect": "путает ROW_NUMBER с RANK: оставляет все строки с равным значением на границе top-N",
+			"mustBeCaught": true
+		},
+		{
+			"id": "dense-as-rank",
+			"defect": "считает, что RANK не пропускает ранги после равенства, как DENSE_RANK",
+			"mustBeCaught": true
+		},
+		{
+			"id": "rank-as-dense",
+			"defect": "ищет второе различное значение через RANK() = 2, хотя после равенства на вершине ранг 2 пропущен",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 7, "caught": 7 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0001,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

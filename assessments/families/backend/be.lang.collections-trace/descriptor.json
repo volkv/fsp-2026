@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.7,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "71325b81a3154ed882772ee45d30d1df522689a52e2eee33810c86b7ba84192d"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.65,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "71325b81a3154ed882772ee45d30d1df522689a52e2eee33810c86b7ba84192d"
+					}
+				],
+				"mean": 0.7
+			},
 			"constructive": { "statements": "5–9", "outputs": "3–4", "mechanisms": 2 },
 			"constructiveRank": 2,
 			"timeNormSec": 240,
@@ -103,6 +120,30 @@
 		"answerCollision": 0.0001,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Все 4 экземпляра воспроизведены и совпали. Однозначные условия; устойчивая сортировка и порядок вставки словаря - документированное поведение.",
+					"setdefault-get: строка starts.get(w[0], []).append(w) - ловушка, выводит '{}'; ответ '3 None' однозначен. Угадывание затруднено (3-6 строк).",
+					"Для intern подходит; срезы с шагом и отрицательными индексами - нижняя граница для intern. Вердикт не меняется.",
+					"Мелочь: форма ответа - построчно; важно, чтобы сравнение не зависело от пробелов вокруг repr словарей."
+				],
+				"sourceSha256": "71325b81a3154ed882772ee45d30d1df522689a52e2eee33810c86b7ba84192d"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Ручной пересчёт count-sort: количества fig=2, soup=1, cake=2, rice=3, milk=1; устойчивое возрастание по количеству даёт soup, milk, fig, cake, rice. В setdefault-get словарь starts остаётся пустым, а get(6) возвращает None при трёх ключах buckets. Исполнение четырёх программ подтвердило эталоны.",
+					"Порядок вставки, устойчивость сортировки, границы срезов, кратчайший zip и различие get/setdefault проверяются разными классами. Ответы содержат достаточно переменных данных и не сводятся к угадыванию одного флага. Блок и Intern соответствуют чтению короткого кода с базовыми коллекциями.",
+					"Рекомендация: указать Python 3.7+ либо конкретную версию среды, поскольку часть ответов опирается на гарантированный порядок dict. В sequence желательно принимать несущественные пробелы вне строковых литералов; текущая бинарная проверка буквальных строк может обнулить правильные значения из-за оформления."
+				],
+				"sourceSha256": "71325b81a3154ed882772ee45d30d1df522689a52e2eee33810c86b7ba84192d"
+			}
+		]
 	}
 }

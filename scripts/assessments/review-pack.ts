@@ -42,7 +42,17 @@ function referenceSection(probe: ReferenceProbe, instance: ItemInstance): string
 				'',
 				'и тогда проходят проверки спецификации (с дефектом — не проходят):',
 				'',
-				fence(probe.check, 'python')
+				fence(probe.check, 'python'),
+				'',
+				...((probe.alternatives ?? []).length === 0
+					? [
+							'**Альтернативных строк нет:** ворота не нашли другой строки, замена которой одной инструкцией проходит проверки (поиск: `pass`, снятие `await`, смена операторов, число ±1 на 10 сидах каждого класса).'
+						]
+					: [
+							'**Засчитываются и альтернативные строки** — замена любой из них одной инструкцией тоже проходит проверки (ворота это доказали):',
+							'',
+							...(probe.alternatives ?? []).flatMap((a) => [`- строка ${a.line}:`, '', fence(a.fix, 'python'), ''])
+						])
 			];
 		case 'practice':
 			return [
@@ -77,7 +87,15 @@ function instanceSection(built: Built): string[] {
 			'',
 			`**Ожидаемый ответ** (\`${instance.answer.kind}\`):`,
 			'',
-			fence(JSON.stringify(instance.answer.value, null, 1))
+			fence(
+				JSON.stringify(
+					instance.answer.kind === 'line_no'
+						? { line: instance.answer.value, alternatives: instance.answer.alternatives ?? [] }
+						: instance.answer.value,
+					null,
+					1
+				)
+			)
 		);
 	if (instance.practice) {
 		lines.push('', '**Группы скрытых тестов** (первый тест группы; остальные — того же аспекта):', '');

@@ -1,0 +1,142 @@
+{
+	"key": "fe.code.request-dedupe",
+	"version": 1,
+	"specialization": "frontend",
+	"block": "fe.code",
+	"format": "practice_code",
+	"answerKind": "code",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.8 },
+			"constructive": {
+				"latency": "общая",
+				"focus": false,
+				"policy": 1,
+				"changeStep": "отмена при уходе последнего подписчика"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 2700,
+			"classes": [
+				{
+					"id": "swr",
+					"form": "A",
+					"description": "устаревшая запись отдаётся сразу и обновляется запросом (stale-while-revalidate)"
+				},
+				{ "id": "ttl", "form": "B", "description": "устаревшая запись не отдаётся: подписчик ждёт новый ответ" },
+				{
+					"id": "retry",
+					"form": "anchor",
+					"description": "stale-while-revalidate, неудачный запрос повторяется до K раз с экспоненциальной задержкой"
+				},
+				{
+					"id": "invalidate",
+					"form": "X",
+					"description": "время свежести не ограничено, запись устаревает только по invalidate; активный ключ сразу перезапрашивается"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.8 },
+			"constructive": {
+				"latency": "своя у ключа",
+				"focus": true,
+				"policy": 1,
+				"changeStep": "отмена при уходе последнего подписчика"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 3000,
+			"classes": [
+				{
+					"id": "swr",
+					"form": "A",
+					"description": "stale-while-revalidate, ответы приходят не по порядку, фокус окна перезапрашивает устаревшие ключи"
+				},
+				{
+					"id": "ttl",
+					"form": "B",
+					"description": "устаревшая запись не отдаётся; фокус окна перезапрашивает устаревшие активные ключи"
+				},
+				{
+					"id": "retry",
+					"form": "anchor",
+					"description": "повторы с экспоненциальной задержкой вместе с фокусом окна и разной задержкой ключей"
+				},
+				{
+					"id": "invalidate",
+					"form": "X",
+					"description": "свежесть до инвалидации, фокус окна перезапрашивает инвалидированные и упавшие ключи, ответы не по порядку"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "data", "description": "имена ключей и компонентов, моменты событий, номера неудачных запросов" },
+		{ "name": "sizes", "description": "число событий, задержки, время свежести, K и задержка повтора" }
+	],
+	"essentialParams": [
+		{
+			"name": "policy",
+			"description": "что получает подписчик и когда уходит запрос: stale-while-revalidate, TTL, повторы, инвалидация"
+		},
+		{ "name": "focus", "description": "Senior: задержка своя у ключа и перезапрос устаревших ключей при фокусе окна" },
+		{
+			"name": "abort",
+			"description": "шаг «измени своё решение»: отмена запроса, когда у ключа не осталось подписчиков"
+		}
+	],
+	"language": null,
+	"practice": { "languages": ["javascript", "typescript"], "hiddenTestGroups": 5 },
+	"qa": null,
+	"changeStep": {
+		"description": "Новое условие: когда у ключа уходит последний подписчик, а запрос ключа в работе (в полёте или ждёт повтора), запрос отменяется (как AbortController): его ответ не наступает, печатается строка abort.",
+		"weight": 0.3
+	},
+	"rubric": { "kind": "groups" },
+	"coverage": {
+		"checks": [
+			"дедупликация одинаковых запросов в полёте",
+			"свежесть записи от момента ответа, граница «ровно S»",
+			"порядок событий одного момента: сначала ответы, потом журнал",
+			"ответ получают только текущие подписчики",
+			"правило класса: stale-while-revalidate, TTL, повторы с задержкой, инвалидация",
+			"разная задержка ключей и фокус окна (Senior)",
+			"доработка решения под новое существенное условие"
+		],
+		"doesNotCheck": ["настоящую сеть и таймеры", "сборку мусора в кэше"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "no-dedupe",
+			"defect": "подписка без свежей записи всегда отправляет запрос, даже если запрос ключа уже в полёте",
+			"mustBeCaught": true
+		},
+		{
+			"id": "fresh-from-send",
+			"defect": "считает свежесть от момента отправки запроса, а не от момента ответа",
+			"mustBeCaught": true
+		},
+		{ "id": "stale-edge", "defect": "запись ровно через S мс после ответа считает ещё свежей", "mustBeCaught": true },
+		{
+			"id": "no-cleanup",
+			"defect": "не убирает ушедшего подписчика: ответ доставляется размонтированному компоненту",
+			"mustBeCaught": true
+		},
+		{
+			"id": "retry-no-backoff",
+			"defect": "класс повторов: задержка повтора постоянная, без удвоения",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 5, "caught": 5 },
+		"hiddenTestsMutationScore": 0.9853,
+		"answerCollision": 0,
+		"transfer": 0,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

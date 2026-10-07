@@ -1,0 +1,104 @@
+{
+	"key": "ds.dl.attention-params",
+	"version": 1,
+	"specialization": "data_ml",
+	"block": "ds.dl",
+	"format": "compute",
+	"answerKind": "exact",
+	"levels": [
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"modules": "MultiheadAttention, TransformerEncoderLayer, GQA или KV-кэш",
+				"terms": "3–6 слагаемых на слой",
+				"layers": "2–32"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "mha-stack",
+					"form": "A",
+					"description": "стек nn.MultiheadAttention: проекции Q, K, V общие на все головы (3d²), выходная проекция d², смещения — если bias=True"
+				},
+				{
+					"id": "kv-cache",
+					"form": "B",
+					"description": "память KV-кэша: ключи и значения, только головы ключей-значений, размерность головы, байты типа"
+				},
+				{
+					"id": "encoder-block",
+					"form": "anchor",
+					"description": "TransformerEncoder: внимание, пара линейных слоёв FFN со смещениями и две LayerNorm на слой"
+				},
+				{
+					"id": "gqa",
+					"form": "X",
+					"description": "внимание с группированными запросами без смещений: K и V проецируются в n_kv_heads · head_dim"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{
+			"name": "sizes",
+			"description": "d_model, число голов, размерность головы, число слоёв, батч и длина последовательности"
+		},
+		{ "name": "presentation", "description": "запись модуля или конфигурации" }
+	],
+	"essentialParams": [
+		{
+			"name": "module",
+			"description": "что считается: параметры MultiheadAttention, слоя энкодера, GQA или память KV-кэша"
+		},
+		{ "name": "heads", "description": "делят ли головы проекции; сколько голов ключей-значений" },
+		{ "name": "bias", "description": "есть ли смещения у проекций" }
+	],
+	"language": "python3",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"устройство проекций multi-head attention и их смещений",
+			"параметры слоя трансформера: FFN и LayerNorm",
+			"grouped-query attention и число голов ключей-значений",
+			"память KV-кэша при генерации"
+		],
+		"doesNotCheck": ["память активаций при обучении", "оптимизации ядер внимания"]
+	},
+	"wrongSolutions": [
+		{ "id": "no-out-proj", "defect": "забывает выходную проекцию внимания", "mustBeCaught": true },
+		{
+			"id": "heads-multiply",
+			"defect": "считает, что у каждой головы свои проекции d × d, и умножает их на число голов",
+			"mustBeCaught": true
+		},
+		{ "id": "bias-ignored", "defect": "не считает смещения проекций и линейных слоёв", "mustBeCaught": true },
+		{ "id": "layernorm-forgotten", "defect": "не считает параметры LayerNorm", "mustBeCaught": true },
+		{ "id": "ffn-one-matrix", "defect": "считает в FFN только один линейный слой", "mustBeCaught": true },
+		{ "id": "keys-only", "defect": "кэширует только ключи, забывая значения", "mustBeCaught": true },
+		{
+			"id": "query-heads",
+			"defect": "берёт для ключей и значений число голов запросов, а не голов ключей-значений",
+			"mustBeCaught": true
+		},
+		{
+			"id": "head-dim-is-model-dim",
+			"defect": "считает размерность головы ключей равной d_model",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 8, "caught": 8 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0032,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

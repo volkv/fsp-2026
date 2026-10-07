@@ -1,0 +1,125 @@
+{
+	"key": "ds.ml.scaler-leak",
+	"version": 1,
+	"specialization": "data_ml",
+	"block": "ds.ml",
+	"format": "compute",
+	"answerKind": "float_eps",
+	"levels": [
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": { "split": "train/test", "rows": "9–14", "steps": "1–2", "missing": "только у anchor" },
+			"constructiveRank": 3,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "standard",
+					"form": "A",
+					"description": "StandardScaler: среднее и стандартное отклонение (деление на n) только по train"
+				},
+				{
+					"id": "minmax",
+					"form": "B",
+					"description": "MinMaxScaler по train; значение тестовой строки выходит за диапазон train и не обрезается"
+				},
+				{
+					"id": "impute-standard",
+					"form": "anchor",
+					"description": "SimpleImputer(mean) и затем StandardScaler: отклонение считается по train уже с заполненными пропусками"
+				},
+				{
+					"id": "robust",
+					"form": "X",
+					"description": "RobustScaler: медиана и межквартильный размах train с линейной интерполяцией квантилей"
+				}
+			]
+		},
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"split": "KFold без перемешивания внутри cross_val_score",
+				"rows": "10–16",
+				"steps": "1–2",
+				"missing": "у B — в самой строке"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "cv-standard",
+					"form": "A",
+					"description": "StandardScaler в Pipeline: на фолде строка масштабируется статистиками остальных фолдов"
+				},
+				{
+					"id": "cv-impute-median",
+					"form": "B",
+					"description": "SimpleImputer(median) и StandardScaler в Pipeline; у строки пропуск, его заполняет медиана обучающих фолдов"
+				},
+				{
+					"id": "cv-minmax",
+					"form": "anchor",
+					"description": "MinMaxScaler в Pipeline; диапазон — по обучающим фолдам, значение валидационной строки может выйти за [0, 1]"
+				},
+				{ "id": "cv-robust", "form": "X", "description": "RobustScaler в Pipeline: медиана и IQR обучающих фолдов" }
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "название признака и таблицы" },
+		{ "name": "data", "description": "значения признака, состав train/test, номер спрашиваемой строки" }
+	],
+	"essentialParams": [
+		{
+			"name": "transformer",
+			"description": "StandardScaler, MinMaxScaler, RobustScaler, импутация средним или медианой перед масштабированием"
+		},
+		{
+			"name": "fit-scope",
+			"description": "на чём обучается преобразование: train при разбиении (Junior) или обучающие фолды KFold (Middle)"
+		}
+	],
+	"language": "python3",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"fit только на обучающих данных, transform — на тестовых",
+			"масштабирование внутри фолда кросс-валидации, а не до неё",
+			"размеры фолдов KFold при n, не кратном числу фолдов",
+			"порядок шагов конвейера: импутация до масштабирования",
+			"формулы StandardScaler, MinMaxScaler, RobustScaler"
+		],
+		"doesNotCheck": ["работу с конкретной версией scikit-learn", "масштабирование нескольких признаков сразу"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "fit-on-all",
+			"defect": "обучает преобразование на всех строках, включая тестовые или валидационные",
+			"mustBeCaught": true
+		},
+		{ "id": "ddof-one", "defect": "считает стандартное отклонение с делением на n − 1", "mustBeCaught": true },
+		{ "id": "clip", "defect": "обрезает результат MinMaxScaler до [0, 1]", "mustBeCaught": true },
+		{
+			"id": "std-skips-missing",
+			"defect": "считает отклонение по исходным значениям без пропусков, а не по заполненному столбцу",
+			"mustBeCaught": true
+		},
+		{ "id": "mean-center", "defect": "центрирует RobustScaler средним вместо медианы", "mustBeCaught": true },
+		{ "id": "fit-on-fold", "defect": "обучает преобразование на самом валидационном фолде", "mustBeCaught": true },
+		{ "id": "equal-folds", "defect": "режет на фолды поровну, а остаток отдаёт последнему фолду", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 7, "caught": 7 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0028,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

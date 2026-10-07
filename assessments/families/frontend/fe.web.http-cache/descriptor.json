@@ -1,0 +1,187 @@
+{
+	"key": "fe.web.http-cache",
+	"version": 1,
+	"specialization": "frontend",
+	"block": "fe.web",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"resources": 4,
+				"visits": "3–4",
+				"rules": 4,
+				"interacting": "свежесть max-age + валидатор для условного запроса + вид визита"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "validators",
+					"form": "A",
+					"description": "у ресурсов с max-age разные валидаторы: ETag и Last-Modified дают условный запрос и 304, без валидатора несвежий ресурс загружается целиком"
+				},
+				{
+					"id": "no-cache-no-store",
+					"form": "B",
+					"description": "no-cache хранится и перепроверяется на каждом визите, no-store не хранится вовсе; свежий max-age отдаёт старую версию"
+				},
+				{
+					"id": "reload",
+					"form": "anchor",
+					"description": "перезагрузка (F5) перепроверяет и свежие ответы, а 304 продлевает их свежесть; переход по ссылке берёт свежее из кэша"
+				},
+				{
+					"id": "hard-reload",
+					"form": "X",
+					"description": "жёсткая перезагрузка загружает всё целиком без условных запросов, обычная — перепроверяет, переход — берёт свежее из кэша"
+				}
+			]
+		},
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"resources": "3–6",
+				"visits": "4–5",
+				"rules": 6,
+				"interacting": "документ no-cache × подключаемые ресурсы: версии в именах файлов, immutable при перезагрузке, Vary при одной записи на URL"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "hashed-urls",
+					"form": "A",
+					"description": "файлы с хэшем в имени и immutable: новая сборка меняет имена изменённых файлов, неизменённые берутся из кэша даже при перезагрузке"
+				},
+				{
+					"id": "single-url",
+					"form": "B",
+					"description": "файл под одним URL с max-age: после выкладки новый документ отрисуется со старой версией скрипта, пока она свежа или до перезагрузки"
+				},
+				{
+					"id": "immutable-reload",
+					"form": "anchor",
+					"description": "immutable избавляет от перепроверки при перезагрузке только свежий ответ; истёкший перепроверяется как обычно"
+				},
+				{
+					"id": "vary",
+					"form": "X",
+					"description": "Vary: Accept-Language при одной записи на URL: смена языка вытесняет запись, возврат языка — снова полная загрузка"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "сайт, пути ресурсов, хэши в именах файлов" },
+		{ "name": "numbers", "description": "моменты визитов и изменений, сроки свежести" }
+	],
+	"essentialParams": [
+		{ "name": "directives", "description": "max-age, no-cache, no-store, immutable, Vary у каждого ресурса" },
+		{ "name": "validator", "description": "ETag, Last-Modified или ничего" },
+		{ "name": "visit", "description": "переход по ссылке, перезагрузка, жёсткая перезагрузка, язык запроса" },
+		{ "name": "naming", "description": "версия в имени файла или один URL на все версии" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"срок свежести max-age от момента ответа",
+			"условный запрос по ETag и по Last-Modified, ответ 304 и продление свежести",
+			"ресурс без валидатора загружается целиком",
+			"no-cache против no-store",
+			"свежий ответ из кэша — старая версия ресурса",
+			"перезагрузка против перехода, жёсткая перезагрузка",
+			"immutable при перезагрузке",
+			"версии в именах файлов против одного URL",
+			"Vary при одной записи на URL"
+		],
+		"doesNotCheck": [
+			"эвристическая свежесть по Last-Modified (в условии оговорено, что её нет)",
+			"перезагрузка в Chrome, который перепроверяет только документ",
+			"кэш назад-вперёд (bfcache) и Service Worker",
+			"общие кэши, s-maxage и stale-while-revalidate (это блок be.api)"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "stale-full-fetch",
+			"defect": "загружает несвежий ресурс целиком, хотя есть валидатор",
+			"mustBeCaught": true
+		},
+		{ "id": "no-refresh-304", "defect": "после 304 не продлевает свежесть сохранённого ответа", "mustBeCaught": true },
+		{
+			"id": "last-modified-not-validator",
+			"defect": "считает валидатором только ETag, не Last-Modified",
+			"mustBeCaught": true
+		},
+		{ "id": "no-validator-304", "defect": "ждёт 304 и для ресурса без ETag и Last-Modified", "mustBeCaught": true },
+		{ "id": "no-cache-as-no-store", "defect": "считает no-cache тем же, что no-store", "mustBeCaught": true },
+		{
+			"id": "no-store-revalidates",
+			"defect": "считает, что ответ no-store хранится и перепроверяется, как no-cache",
+			"mustBeCaught": true
+		},
+		{
+			"id": "hit-shows-current",
+			"defect": "считает, что ресурс из кэша — всегда актуальная версия с сервера",
+			"mustBeCaught": true
+		},
+		{
+			"id": "reload-uses-cache",
+			"defect": "при перезагрузке берёт свежие ответы из кэша, как при переходе",
+			"mustBeCaught": true
+		},
+		{
+			"id": "reload-full",
+			"defect": "при перезагрузке загружает всё целиком, без условных запросов",
+			"mustBeCaught": true
+		},
+		{
+			"id": "hard-reload-conditional",
+			"defect": "при жёсткой перезагрузке шлёт условные запросы и ждёт 304",
+			"mustBeCaught": true
+		},
+		{
+			"id": "immutable-ignored",
+			"defect": "при перезагрузке перепроверяет и свежие ответы с immutable",
+			"mustBeCaught": true
+		},
+		{
+			"id": "immutable-forever",
+			"defect": "берёт ответ с immutable из кэша и после истечения max-age",
+			"mustBeCaught": true
+		},
+		{
+			"id": "hashed-refetch",
+			"defect": "после смены документа перепроверяет и неизменённые файлы с хэшем",
+			"mustBeCaught": true
+		},
+		{
+			"id": "deploy-refreshes-same-url",
+			"defect": "считает, что новый документ заставляет перепроверить свежие ресурсы под теми же URL",
+			"mustBeCaught": true
+		},
+		{
+			"id": "ignore-vary",
+			"defect": "отдаёт из кэша ответ для другого Accept-Language, не глядя на Vary",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 15, "caught": 15 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0164,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

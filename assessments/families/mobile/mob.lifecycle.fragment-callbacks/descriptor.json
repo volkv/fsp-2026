@@ -1,0 +1,174 @@
+{
+	"key": "mob.lifecycle.fragment-callbacks",
+	"version": 1,
+	"specialization": "mobile",
+	"block": "mob.lifecycle",
+	"format": "compute",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"operations": "2–5",
+				"fragments": "2–3",
+				"mechanisms": 2,
+				"logged": "все колбэки первого фрагмента и активности"
+			},
+			"constructiveRank": 3,
+			"timeNormSec": 270,
+			"classes": [
+				{
+					"id": "replace-back",
+					"form": "A",
+					"description": "replace с addToBackStack: старый фрагмент теряет только представление, по «Назад» создаёт его заново"
+				},
+				{
+					"id": "replace-no-backstack",
+					"form": "B",
+					"description": "replace без addToBackStack: старый фрагмент уничтожается полностью, вплоть до onDetach"
+				},
+				{
+					"id": "add-home",
+					"form": "anchor",
+					"description": "add поверх не трогает нижний фрагмент; уход в фон: фрагмент опускается раньше активности, поднимается после"
+				},
+				{
+					"id": "observer-owner",
+					"form": "X",
+					"description": "LiveData в onViewCreated с владельцем this или viewLifecycleOwner: повторная подписка после возврата из стека и значения, пришедшие без наблюдателя"
+				}
+			]
+		},
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"operations": "2–5",
+				"fragments": "2–5",
+				"mechanisms": 3,
+				"logged": "onCreate, onCreateView, onDestroyView, onDestroy всех фрагментов"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 390,
+			"classes": [
+				{
+					"id": "replace-chain",
+					"form": "A",
+					"description": "цепочка replace и add со стеком возврата и «Назад»: у кого создаётся и уничтожается представление, у кого экземпляр"
+				},
+				{
+					"id": "rotation-backstack",
+					"form": "B",
+					"description": "поворот с фрагментами в стеке возврата: они пересоздаются без представления и получают его только по «Назад»"
+				},
+				{
+					"id": "rotation-duplicate",
+					"form": "anchor",
+					"description": "add в onCreate без проверки savedInstanceState: после каждого поворота в контейнере на фрагмент больше"
+				},
+				{
+					"id": "no-backstack-rotation",
+					"form": "X",
+					"description": "replace без стека возврата и поворот: уничтоженный фрагмент не восстанавливается"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "имена активности и фрагментов" },
+		{ "name": "order", "description": "порядок уходов в фон и присваиваний между значимыми шагами, значения LiveData" }
+	],
+	"essentialParams": [
+		{ "name": "transaction", "description": "replace или add, с addToBackStack или без, «Назад»" },
+		{ "name": "host-event", "description": "уход в фон и возврат, поворот экрана" },
+		{ "name": "owner", "description": "владелец наблюдателя LiveData: фрагмент или его представление" }
+	],
+	"language": "kotlin",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"колбэки фрагмента при replace с addToBackStack и без",
+			"возврат по «Назад»: представление создаётся заново, экземпляр — нет",
+			"add поверх не останавливает нижний фрагмент",
+			"порядок колбэков фрагмента относительно активности при уходе в фон",
+			"viewLifecycleOwner против this у наблюдателя LiveData",
+			"пересоздание фрагментов стека возврата при повороте и повторное добавление в onCreate"
+		],
+		"doesNotCheck": [
+			"порядок колбэков между фрагментами одной транзакции (задан в условии как соглашение модели)",
+			"onSaveInstanceState, setMaxLifecycle, анимации и переходы",
+			"вложенные фрагменты"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "backstack-destroys",
+			"defect": "считает, что replace с addToBackStack уничтожает старый фрагмент целиком, а «Назад» создаёт новый экземпляр",
+			"mustBeCaught": true
+		},
+		{
+			"id": "backstack-keeps-view",
+			"defect": "считает, что фрагмент в стеке возврата только остановлен и сохраняет представление",
+			"mustBeCaught": true
+		},
+		{
+			"id": "no-backstack-keeps",
+			"defect": "считает, что replace без addToBackStack оставляет старый фрагмент созданным, как со стеком возврата",
+			"mustBeCaught": true
+		},
+		{
+			"id": "add-stops-below",
+			"defect": "считает, что add поверх останавливает нижний фрагмент",
+			"mustBeCaught": true
+		},
+		{
+			"id": "host-first-down",
+			"defect": "считает, что при уходе в фон активность получает onPause и onStop раньше своих фрагментов",
+			"mustBeCaught": true
+		},
+		{
+			"id": "owner-ignored",
+			"defect": "не видит разницы между this и viewLifecycleOwner: не замечает второго наблюдателя после возврата из стека",
+			"mustBeCaught": true
+		},
+		{
+			"id": "inactive-receives",
+			"defect": "считает, что наблюдатель LiveData получает значения и в остановленном состоянии",
+			"mustBeCaught": true
+		},
+		{
+			"id": "no-redelivery",
+			"defect": "считает, что значение, присвоенное, пока наблюдатель был неактивен, ему уже не доставляется",
+			"mustBeCaught": true
+		},
+		{
+			"id": "rotation-skips-backstack",
+			"defect": "считает, что поворот не затрагивает фрагменты в стеке возврата",
+			"mustBeCaught": true
+		},
+		{
+			"id": "rotation-backstack-view",
+			"defect": "считает, что после поворота фрагменты стека возврата сразу создают представление",
+			"mustBeCaught": true
+		},
+		{
+			"id": "no-duplicate-on-restore",
+			"defect": "считает, что после поворота в контейнере один фрагмент, хотя onCreate добавляет его без проверки savedInstanceState",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 11, "caught": 11 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0211,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

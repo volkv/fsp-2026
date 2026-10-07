@@ -1,0 +1,179 @@
+{
+	"key": "mob.coroutines.cancellation",
+	"version": 1,
+	"specialization": "mobile",
+	"block": "mob.coroutines",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": { "coroutines": "1–4", "lines": "10–22", "mechanisms": 2, "cancellationPoints": "1–3" },
+			"constructiveRank": 4,
+			"timeNormSec": 270,
+			"classes": [
+				{
+					"id": "cancel-finally",
+					"form": "A",
+					"description": "cancel только помечает корутину: main продолжает сразу, корутина останавливается на delay и выполняет finally"
+				},
+				{
+					"id": "job-states",
+					"form": "B",
+					"description": "isActive, isCancelled и isCompleted до старта, во время ожидания, после завершения, после cancel и join"
+				},
+				{
+					"id": "cancel-points",
+					"form": "anchor",
+					"description": "корутина, отменившая себя, работает до ближайшей точки отмены: delay, yield или ensureActive"
+				},
+				{
+					"id": "parent-children",
+					"form": "X",
+					"description": "отмена родителя отменяет детей (их finally раньше родительского), соседняя корутина продолжает"
+				}
+			]
+		},
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": { "coroutines": "1–3", "lines": "15–30", "mechanisms": 3, "cancellationPoints": "2–5" },
+			"constructiveRank": 6,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "swallowed",
+					"form": "A",
+					"description": "catch (e: Exception) поглощает отмену: цикл продолжает, каждая следующая задержка бросает сразу; повторный выброс или ensureActive останавливают"
+				},
+				{
+					"id": "non-cancellable",
+					"form": "B",
+					"description": "приостановка в finally отменённой корутины бросает исключение, а в withContext(NonCancellable) — выполняется"
+				},
+				{
+					"id": "completion-handlers",
+					"form": "anchor",
+					"description": "invokeOnCompletion срабатывает при завершении, раньше продолжения ожидающих join, с причиной; на завершённой — сразу"
+				},
+				{
+					"id": "cancel-before-start",
+					"form": "X",
+					"description": "отменённая до старта корутина не выполняет тело и finally; запущенная из отменённой корутины не выполняется"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "имена задач и строки main" },
+		{ "name": "numbers", "description": "задержки (кратны 100 мс), число итераций, шаг самоотмены" }
+	],
+	"essentialParams": [
+		{
+			"name": "mechanism",
+			"description": "что решает вывод: момент отмены, точка отмены, finally, состояние Job, отмена родителя, поглощение исключения, NonCancellable, invokeOnCompletion"
+		},
+		{
+			"name": "moment",
+			"description": "в каком состоянии корутина в момент cancel: не начата, ждёт, работает, завершена"
+		}
+	],
+	"language": "kotlin",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"cancel не останавливает корутину сразу: она останавливается в точке отмены",
+			"delay, yield и ensureActive — точки отмены, обычный код — нет",
+			"finally выполняется при отмене, отмена не печатается как ошибка",
+			"состояния Job: isActive, isCancelled, isCompleted",
+			"cancel и cancelAndJoin",
+			"отмена родителя отменяет детей",
+			"catch (e: Exception) поглощает CancellationException",
+			"приостановка в finally и withContext(NonCancellable)",
+			"invokeOnCompletion и его причина",
+			"отмена до старта корутины"
+		],
+		"doesNotCheck": [
+			"исключения, отличные от отмены, и CoroutineExceptionHandler",
+			"таймауты withTimeout",
+			"отмена на многопоточных диспетчерах"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "cancel-sync",
+			"defect": "считает, что cancel() останавливает корутину прямо в вызове: её finally печатается раньше следующей строки main",
+			"mustBeCaught": true
+		},
+		{ "id": "no-finally", "defect": "считает, что при отмене блок finally не выполняется", "mustBeCaught": true },
+		{
+			"id": "cancel-noop",
+			"defect": "считает, что cancel() не останавливает корутину, и она доработает до конца",
+			"mustBeCaught": true
+		},
+		{
+			"id": "completed-on-cancel",
+			"defect": "считает, что сразу после cancel() корутина уже завершена (isCompleted = true)",
+			"mustBeCaught": true
+		},
+		{
+			"id": "runs-before-cancel",
+			"defect": "считает, что отменённая до старта корутина всё равно выполнит тело до первой приостановки",
+			"mustBeCaught": true
+		},
+		{
+			"id": "cancel-throws-at-once",
+			"defect": "считает, что отмена прерывает корутину на ближайшей строке, а не в точке отмены",
+			"mustBeCaught": true
+		},
+		{
+			"id": "children-survive",
+			"defect": "считает, что отмена родителя не затрагивает его детей",
+			"mustBeCaught": true
+		},
+		{
+			"id": "parent-first",
+			"defect": "считает, что при отмене родителя его finally выполняется раньше finally детей",
+			"mustBeCaught": true
+		},
+		{
+			"id": "catch-misses-cancel",
+			"defect": "считает, что catch (e: Exception) не ловит отмену корутины",
+			"mustBeCaught": true
+		},
+		{
+			"id": "cancelled-delay-waits",
+			"defect": "считает, что после поглощённой отмены delay снова ждёт, как обычно",
+			"mustBeCaught": true
+		},
+		{
+			"id": "finally-delay-ok",
+			"defect": "считает, что delay в finally отменённой корутины работает и без NonCancellable",
+			"mustBeCaught": true
+		},
+		{
+			"id": "handler-after-joiners",
+			"defect": "считает, что invokeOnCompletion срабатывает позже, чем продолжает ожидающая через join корутина",
+			"mustBeCaught": true
+		},
+		{
+			"id": "child-of-cancelled-runs",
+			"defect": "считает, что корутина, запущенная из отменённой, выполнится как обычно",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 13, "caught": 13 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0081,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

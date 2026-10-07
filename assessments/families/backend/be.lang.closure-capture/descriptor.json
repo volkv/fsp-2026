@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.6,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "5b01ca1c711423ed40ef03c63de517f84a008040bb7472a380d94d41a68f5988"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.55,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "5b01ca1c711423ed40ef03c63de517f84a008040bb7472a380d94d41a68f5988"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": { "functions": "3–4", "scopes": 1, "rebinding": false, "mechanisms": 1 },
 			"constructiveRank": 2,
 			"timeNormSec": 180,
@@ -33,7 +50,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.6,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "5b01ca1c711423ed40ef03c63de517f84a008040bb7472a380d94d41a68f5988"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.6,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "5b01ca1c711423ed40ef03c63de517f84a008040bb7472a380d94d41a68f5988"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": { "functions": "5–7", "scopes": 2, "rebinding": true, "mechanisms": 2 },
 			"constructiveRank": 3,
 			"timeNormSec": 300,
@@ -132,6 +166,30 @@
 		"answerCollision": 0.0144,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Все 8 экземпляров выполнены и совпали с ожидаемым выводом. Условия однозначны, правильный ответ единственный.",
+					"Intern: late-binding в цикле (loop-late) - классический вопрос, но для пограничного intern типичная ошибка; доля решивших умеренная. Для intern также приемлемы default-arg и factory. Класс call-time (вызов в цикле и после переприсвоения) заметно сложнее остальных классов intern.",
+					"Junior: unbound-local содержит три разные функции и try/except UnboundLocalError - много механик на 300 с, но соответствует 'mechanisms: 2'. Нагрузка выше, чем у соседних классов.",
+					"Угадываемость: у intern ответы вида '2 2 2' с одним паттерном; answerCollision 0.0144 - самый высокий в пачке, но приемлемо. Рубрика binary без частичных баллов."
+				],
+				"sourceSha256": "5b01ca1c711423ed40ef03c63de517f84a008040bb7472a380d94d41a68f5988"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Ручной пересчёт junior/nonlocal: первый счётчик возвращает 5, затем 9 и через alias 15; второй независимо возвращает 30 и 35. В intern/call-time первые четыре вызова дают 30, 35, 40, 45, а после j=35 все сохранённые функции дают 175. Исполнение восьми программ подтвердило все эталоны.",
+					"Классы различают позднее связывание, аргумент по умолчанию, отдельные области фабрики и nonlocal. Одинаковая арифметика в default-arg и factory следует из разных механизмов связывания и не делает остальные классы взаимозаменяемыми. Полные числовые последовательности угадыванием не восстанавливаются. Intern здесь требует знания Python lambda и связывания имён, поэтому пограничному кандидату этот материал заметно труднее обычного линейного кода; Junior соответствует сочетанию областей и изменяемого состояния.",
+					"Рекомендация: Intern/call-time фактически содержит переприсваивание, хотя параметры уровня объявляют rebinding=false; синхронизировать описание сложности с экземплярами. Для Junior/unbound-local объём кода существенно больше остальных классов; проверить норму времени на кандидатах. Бинарная рубрика приемлема для коротких ответов, но независимые блоки Junior могут оцениваться частично."
+				],
+				"sourceSha256": "5b01ca1c711423ed40ef03c63de517f84a008040bb7472a380d94d41a68f5988"
+			}
+		]
 	}
 }

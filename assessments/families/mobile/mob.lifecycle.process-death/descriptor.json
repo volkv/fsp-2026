@@ -1,0 +1,174 @@
+{
+	"key": "mob.lifecycle.process-death",
+	"version": 1,
+	"specialization": "mobile",
+	"block": "mob.lifecycle",
+	"format": "compute",
+	"answerKind": "set",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": {
+				"variables": "6–7",
+				"storages": "5–7",
+				"events": "1–3",
+				"interacting": "место хранения × событие: поворот, смерть процесса в фоне, finish()"
+			},
+			"constructiveRank": 2,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "death",
+					"form": "A",
+					"description": "уход в фон, система завершает процесс, возврат: что восстановлено из сохранённого состояния"
+				},
+				{
+					"id": "finish",
+					"form": "B",
+					"description": "finish() и новый запуск из лаунчера при живом процессе: сохранённое состояние не восстанавливается, объект-синглтон жив"
+				},
+				{
+					"id": "rotate-and-back",
+					"form": "anchor",
+					"description": "поворот экрана, уход в фон и возврат без смерти процесса: теряется только состояние экземпляра активности"
+				},
+				{
+					"id": "death-args",
+					"form": "X",
+					"description": "смерть процесса с аргументами фрагмента и extras интента: система восстанавливает и их"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"variables": "5–6",
+				"events": "6–9",
+				"timeline": true,
+				"interacting": "момент сохранения состояния × запись в фоне × смерть процесса × загрузка в viewModelScope"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "write-after-save",
+					"form": "A",
+					"description": "запись в фоне после onSaveInstanceState и смерть процесса: в восстановленное состояние она не попала"
+				},
+				{
+					"id": "loading",
+					"form": "B",
+					"description": "загрузка в viewModelScope прерывается смертью процесса и начинается заново в новой ViewModel"
+				},
+				{
+					"id": "rotate-chain",
+					"form": "anchor",
+					"description": "поворот, правки, фон, смерть процесса, возврат: цепочка из нескольких мест хранения"
+				},
+				{
+					"id": "death-then-finish",
+					"form": "X",
+					"description": "смерть процесса, затем finish() и новый запуск: синглтон пережил finish, но не смерть процесса"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "имена экрана и переменных" },
+		{ "name": "values", "description": "начальные и записанные значения, моменты событий" }
+	],
+	"essentialParams": [
+		{
+			"name": "storage",
+			"description": "где живёт значение: поле активности, Bundle onSaveInstanceState, ViewModel, SavedStateHandle, синглтон, Room, remember, rememberSaveable, аргументы, extras"
+		},
+		{
+			"name": "event",
+			"description": "что происходит с экраном: смена конфигурации, смерть процесса в фоне, finish(), фон без смерти"
+		},
+		{
+			"name": "timing",
+			"description": "до или после сохранения состояния сделана запись, успела ли загрузка завершиться"
+		}
+	],
+	"language": "kotlin",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"ViewModel переживает смену конфигурации, но не смерть процесса",
+			"SavedStateHandle, Bundle onSaveInstanceState и rememberSaveable переживают смерть процесса в фоне, но не finish()",
+			"объект-синглтон живёт, пока жив процесс",
+			"Room переживает всё",
+			"состояние сохраняется в onSaveInstanceState после onStop: позднейшая запись при смерти процесса теряется",
+			"корутина в viewModelScope отменяется вместе с процессом и в новой ViewModel начинается заново"
+		],
+		"doesNotCheck": [
+			"поведение «Назад» на корневой активности и свайп из списка недавних",
+			"лимиты размера Bundle и TransactionTooLargeException",
+			"WorkManager и сервисы переднего плана"
+		]
+	},
+	"wrongSolutions": [
+		{ "id": "vm-survives-death", "defect": "считает, что ViewModel переживает смерть процесса", "mustBeCaught": true },
+		{
+			"id": "ssh-like-vm",
+			"defect": "считает, что SavedStateHandle теряется вместе с ViewModel при смерти процесса",
+			"mustBeCaught": true
+		},
+		{
+			"id": "singleton-survives-death",
+			"defect": "считает, что объект-синглтон переживает смерть процесса",
+			"mustBeCaught": true
+		},
+		{
+			"id": "saved-survives-finish",
+			"defect": "считает, что сохранённое состояние (Bundle, SavedStateHandle, rememberSaveable) восстанавливается и после finish()",
+			"mustBeCaught": true
+		},
+		{
+			"id": "vm-lost-on-rotation",
+			"defect": "считает, что ViewModel пересоздаётся при повороте экрана",
+			"mustBeCaught": true
+		},
+		{
+			"id": "remember-survives-rotation",
+			"defect": "считает, что remember переживает пересоздание активности при повороте",
+			"mustBeCaught": true
+		},
+		{
+			"id": "singleton-lost-on-finish",
+			"defect": "считает, что объект-синглтон сбрасывается при finish() активности, хотя процесс жив",
+			"mustBeCaught": true
+		},
+		{
+			"id": "args-lost-on-death",
+			"defect": "считает, что аргументы фрагмента и extras интента теряются при смерти процесса",
+			"mustBeCaught": true
+		},
+		{
+			"id": "save-at-death",
+			"defect": "считает, что состояние сохраняется в момент смерти процесса, а не в onSaveInstanceState при уходе в фон",
+			"mustBeCaught": true
+		},
+		{
+			"id": "loading-resumes",
+			"defect": "считает, что прерванная загрузка после возврата продолжается с места остановки, а не начинается заново",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 10, "caught": 10 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0066,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

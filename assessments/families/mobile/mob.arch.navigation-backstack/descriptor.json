@@ -1,0 +1,120 @@
+{
+	"key": "mob.arch.navigation-backstack",
+	"version": 1,
+	"specialization": "mobile",
+	"block": "mob.arch",
+	"format": "compute",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"operations": "6–11",
+				"options": "popUpTo, inclusive, launchSingleTop",
+				"interacting": "popUpTo до проверки launchSingleTop, повторы маршрута в стеке, deep link, стеки вкладок"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "popup-singletop",
+					"form": "A",
+					"description": "navigate с popUpTo, inclusive и launchSingleTop: сначала снимается стек, потом проверяется верхняя запись"
+				},
+				{
+					"id": "tabs",
+					"form": "B",
+					"description": "нижняя навигация: у каждой вкладки свой стек, переключение сохраняет и восстанавливает его, Back на корне — на стартовую вкладку"
+				},
+				{
+					"id": "deep-link",
+					"form": "anchor",
+					"description": "явная ссылка очищает стек и строит синтетический: старт корневого графа, старт вложенного, цель; дальше обычные операции"
+				},
+				{
+					"id": "popback-inclusive",
+					"form": "X",
+					"description": "popBackStack(route, inclusive) и popUpTo при нескольких записях одного маршрута: снимается до верхней из них"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "routes", "description": "имена маршрутов, вкладок и вложенных графов" },
+		{ "name": "operations", "description": "конкретные операции в пределах вида класса" }
+	],
+	"essentialParams": [
+		{
+			"name": "operation-kind",
+			"description": "что меняет стек: popUpTo и launchSingleTop, popBackStack с inclusive, deep link, вкладки"
+		},
+		{ "name": "duplicates", "description": "есть ли в стеке несколько записей одного маршрута" }
+	],
+	"language": "kotlin",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"popUpTo с inclusive и без",
+			"launchSingleTop проверяет только верхнюю запись после popUpTo",
+			"popBackStack(route, inclusive) снимает до верхней записи маршрута",
+			"синтетический стек явной ссылки по вложенным графам",
+			"раздельные стеки вкладок нижней навигации"
+		],
+		"doesNotCheck": [
+			"неявные ссылки без FLAG_ACTIVITY_NEW_TASK и кнопку Up",
+			"аргументы маршрутов и типобезопасные маршруты",
+			"анимации переходов и диалоговые destination"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "inclusive-ignored",
+			"defect": "не снимает саму запись popUpTo или popBackStack при inclusive = true",
+			"mustBeCaught": true
+		},
+		{
+			"id": "popup-bottom-occurrence",
+			"defect": "снимает до нижней записи маршрута, а не до верхней",
+			"mustBeCaught": true
+		},
+		{
+			"id": "singletop-anywhere",
+			"defect": "считает, что launchSingleTop находит маршрут в глубине стека и снимает всё над ним",
+			"mustBeCaught": true
+		},
+		{
+			"id": "singletop-before-popup",
+			"defect": "проверяет launchSingleTop по верхней записи до popUpTo и кладёт дубликат",
+			"mustBeCaught": true
+		},
+		{
+			"id": "no-save-state",
+			"defect": "считает, что при переключении вкладок стек покинутой вкладки сбрасывается до корня",
+			"mustBeCaught": true
+		},
+		{
+			"id": "deeplink-target-only",
+			"defect": "считает, что явная ссылка оставляет в стеке только целевой экран",
+			"mustBeCaught": true
+		},
+		{
+			"id": "deeplink-keeps-stack",
+			"defect": "считает, что явная ссылка кладёт цель поверх прежнего стека",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 7, "caught": 7 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0088,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

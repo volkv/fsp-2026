@@ -1,0 +1,137 @@
+{
+	"key": "fe.code.undo-history",
+	"version": 1,
+	"specialization": "frontend",
+	"block": "fe.code",
+	"format": "practice_code",
+	"answerKind": "code",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.8 },
+			"constructive": { "rule": 1, "transactions": "anchor", "rollback": false, "changeStep": "лимит памяти истории" },
+			"constructiveRank": 5,
+			"timeNormSec": 2700,
+			"classes": [
+				{
+					"id": "merge-runs",
+					"form": "A",
+					"description": "подряд идущие правки одного поля объединяются в одну запись"
+				},
+				{
+					"id": "depth-limit",
+					"form": "B",
+					"description": "история хранит не больше D записей, самые старые вытесняются"
+				},
+				{
+					"id": "transactions",
+					"form": "anchor",
+					"description": "правки между begin и commit — одна запись по изменившимся полям, пустая транзакция записи не даёт"
+				},
+				{
+					"id": "time-merge",
+					"form": "X",
+					"description": "правки одного поля объединяются, если между соседними прошло не больше W мс"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.8 },
+			"constructive": {
+				"rule": 1,
+				"transactions": "все классы",
+				"rollback": true,
+				"changeStep": "лимит памяти истории"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 3000,
+			"classes": [
+				{
+					"id": "merge-runs",
+					"form": "A",
+					"description": "объединение подряд идущих правок поля вместе с транзакциями и откатом"
+				},
+				{
+					"id": "depth-limit",
+					"form": "B",
+					"description": "не больше D записей вместе с транзакциями и откатом; транзакция — одна запись"
+				},
+				{
+					"id": "transactions",
+					"form": "anchor",
+					"description": "вложенные транзакции: commit вложенной сливает её во внешнюю, rollback откатывает только её"
+				},
+				{
+					"id": "time-merge",
+					"form": "X",
+					"description": "объединение правок поля по окну W мс вместе с транзакциями и откатом"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "data", "description": "имена полей, значения, моменты команд" },
+		{ "name": "sizes", "description": "число полей и команд, D, W и лимит памяти в пределах условия" }
+	],
+	"essentialParams": [
+		{
+			"name": "history",
+			"description": "объединение серий правок, лимит глубины, транзакции или объединение по времени"
+		},
+		{ "name": "transactions", "description": "Senior: транзакции с откатом во всех классах, вложенные — в опорном" },
+		{ "name": "memory-limit", "description": "шаг «измени своё решение»: лимит суммарного размера записей истории" }
+	],
+	"language": null,
+	"practice": { "languages": ["javascript", "typescript"], "hiddenTestGroups": 5 },
+	"qa": null,
+	"changeStep": {
+		"description": "Новое условие: запись истории занимает сумму длин значений «было» и «стало» своих полей; после добавления или дополнения записи самые старые записи удаляются, пока суммарный размер истории больше M.",
+		"weight": 0.3
+	},
+	"rubric": { "kind": "groups" },
+	"coverage": {
+		"checks": [
+			"отмена и повтор по указателю истории",
+			"новая запись после отмены отбрасывает ветку повтора",
+			"правка без изменения значения не попадает в историю",
+			"правило класса: серии правок, глубина, транзакции, окно времени",
+			"транзакции с откатом и вложенные транзакции (Senior)",
+			"доработка решения под новое существенное условие"
+		],
+		"doesNotCheck": ["хранение истории между сессиями", "совместное редактирование"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "redo-kept",
+			"defect": "новая запись после отмены не отбрасывает отменённые записи: они снова доступны для отмены",
+			"mustBeCaught": true
+		},
+		{ "id": "noop-recorded", "defect": "правка тем же значением тоже создаёт запись истории", "mustBeCaught": true },
+		{
+			"id": "run-survives-undo",
+			"defect": "классы объединения: undo и redo не прерывают серию правок поля",
+			"mustBeCaught": true
+		},
+		{
+			"id": "depth-before-truncate",
+			"defect": "класс глубины: проверяет лимит до удаления отменённых записей и вытесняет лишнюю старую запись",
+			"mustBeCaught": true
+		},
+		{
+			"id": "empty-transaction-recorded",
+			"defect": "транзакция без итоговых изменений тоже создаёт запись",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 5, "caught": 5 },
+		"hiddenTestsMutationScore": 1,
+		"answerCollision": 0,
+		"transfer": 0,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

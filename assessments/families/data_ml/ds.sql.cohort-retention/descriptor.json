@@ -1,0 +1,155 @@
+{
+	"key": "ds.sql.cohort-retention",
+	"version": 1,
+	"specialization": "data_ml",
+	"block": "ds.sql",
+	"format": "sql_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": { "tables": 2, "cohorts": 2, "users": "4–8", "dateFunctions": "date(+N days), strftime" },
+			"constructiveRank": 4,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "cohort-size",
+					"form": "A",
+					"description": "размер когорты через LEFT JOIN: пользователь без единой записи активности остаётся в когорте, внутреннее соединение его теряет"
+				},
+				{
+					"id": "day-n",
+					"form": "B",
+					"description": "retention ровно дня N: день регистрации — день 0, активность в день N − 1 или N + 1 не в счёт"
+				},
+				{
+					"id": "rolling",
+					"form": "anchor",
+					"description": "rolling retention: активность в день N или в любой день позже"
+				},
+				{
+					"id": "user-days",
+					"form": "X",
+					"description": "COUNT(CASE … THEN u.id END) без DISTINCT считает пользователе-дни; BETWEEN включает оба конца недели"
+				}
+			]
+		},
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"tables": 2,
+				"cte": "0–1",
+				"cohorts": 2,
+				"dateFunctions": "календарные месяцы через год, start of month, weekday"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "month-offset",
+					"form": "A",
+					"description": "смещение в календарных месяцах через (год·12 + месяц), в том числе через Новый год, а не дни / 30"
+				},
+				{
+					"id": "share-int",
+					"form": "B",
+					"description": "доля удержания в процентах целочисленным делением при LEFT JOIN: невернувшиеся в знаменателе, дробь отброшена"
+				},
+				{
+					"id": "first-purchase",
+					"form": "anchor",
+					"description": "когорта по месяцу первой покупки (MIN в CTE), повтор — в следующем календарном месяце, а не по месяцу регистрации"
+				},
+				{
+					"id": "week-cohort",
+					"form": "X",
+					"description": "недельная когорта от понедельника недели регистрации: окно недели 1 отсчитывается от понедельника, а не от дня регистрации"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "названия таблиц активности, месяцы когорт, номера пользователей" },
+		{ "name": "data", "description": "дни регистрации и активности, порядок вставки" }
+	],
+	"essentialParams": [
+		{
+			"name": "cohort",
+			"description": "чем задана когорта: месяц регистрации, месяц первой покупки, неделя регистрации"
+		},
+		{
+			"name": "retention-rule",
+			"description": "что значит «удержан»: ровно день N, день N и позже, неделя, календарный месяц; знаменатель и деление"
+		}
+	],
+	"language": "sql",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"когорта через LEFT JOIN и пользователи без возвратов",
+			"retention дня N и rolling retention",
+			"BETWEEN с датами и включённые концы",
+			"пользователи против пользователе-дней",
+			"календарные месяцы через границу года",
+			"целочисленное деление доли",
+			"когорта по первому событию",
+			"недельные когорты и модификаторы date()"
+		],
+		"doesNotCheck": ["часовые пояса и время суток", "функции дат других СУБД"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "inner-join-cohort",
+			"defect": "считает, что соединение без LEFT сохраняет пользователей без активности в когорте",
+			"mustBeCaught": true
+		},
+		{
+			"id": "day-n-or-later",
+			"defect": "читает retention дня N как активность в день N или позже",
+			"mustBeCaught": true
+		},
+		{
+			"id": "signup-is-day-one",
+			"defect": "считает день регистрации днём 1, сдвигая день N на один",
+			"mustBeCaught": true
+		},
+		{ "id": "exact-day", "defect": "читает rolling retention как активность ровно в день N", "mustBeCaught": true },
+		{
+			"id": "count-rows",
+			"defect": "считает, что COUNT(CASE … THEN u.id END) даёт число разных пользователей",
+			"mustBeCaught": true
+		},
+		{ "id": "between-exclusive", "defect": "считает, что BETWEEN не включает концы", "mustBeCaught": true },
+		{
+			"id": "days-as-months",
+			"defect": "считает месяцы удержания как полные 30 дней от регистрации, а не календарные",
+			"mustBeCaught": true
+		},
+		{ "id": "real-division", "defect": "ожидает дробную долю от деления целого на целое", "mustBeCaught": true },
+		{
+			"id": "cohort-by-signup",
+			"defect": "относит покупателя к когорте месяца регистрации вместо месяца первой покупки",
+			"mustBeCaught": true
+		},
+		{
+			"id": "week-from-signup",
+			"defect": "отсчитывает неделю 1 от дня регистрации, а не от начала недели когорты",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 10, "caught": 10 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0099,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

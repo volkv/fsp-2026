@@ -1,0 +1,149 @@
+{
+	"key": "mob.kotlin.data-classes",
+	"version": 1,
+	"specialization": "mobile",
+	"block": "mob.kotlin",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": { "objects": "2–5", "mechanisms": 1, "mutableProperties": false, "hashedKeys": "map" },
+			"constructiveRank": 2,
+			"timeNormSec": 180,
+			"classes": [
+				{
+					"id": "copy-equals",
+					"form": "A",
+					"description": "copy создаёт новый объект; == сравнивает свойства, === — ссылки"
+				},
+				{
+					"id": "body-property",
+					"form": "B",
+					"description": "свойство из тела класса не участвует в equals, hashCode и toString"
+				},
+				{
+					"id": "destructuring",
+					"form": "anchor",
+					"description": "деструктуризация берёт componentN по позиции, а не по имени переменной"
+				},
+				{
+					"id": "map-keys",
+					"form": "X",
+					"description": "равные data-объекты — один ключ изменяемого словаря, сколько бы экземпляров ни было"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": { "objects": "3–6", "mechanisms": 2, "mutableProperties": true, "hashedKeys": "set, map" },
+			"constructiveRank": 4,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "shallow-copy",
+					"form": "A",
+					"description": "copy поверхностный: изменяемый список общий с оригиналом, пока его не скопировали явно"
+				},
+				{
+					"id": "hash-set-mutation",
+					"form": "B",
+					"description": "ключ HashSet изменён после вставки: contains не находит ни его, ни равный старому, any находит, add кладёт второй раз"
+				},
+				{
+					"id": "copy-body-reset",
+					"form": "anchor",
+					"description": "copy вызывает конструктор: свойство из тела начинается с начального значения и не мешает равенству и поиску в словаре"
+				},
+				{
+					"id": "array-property",
+					"form": "X",
+					"description": "свойство-массив в data class сравнивается по ссылке: distinct, count и indexOf видят разные объекты"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "имена классов, переменных и свойств" },
+		{ "name": "values", "description": "строки, числа, состав списков и порядок объектов" }
+	],
+	"essentialParams": [
+		{
+			"name": "mechanism",
+			"description": "что решает вывод: copy, сгенерированные equals/hashCode/toString, componentN, ссылочное равенство"
+		},
+		{
+			"name": "sharing",
+			"description": "общий изменяемый объект: список внутри копии, ключ в хеш-наборе, массив в свойстве"
+		}
+	],
+	"language": "kotlin",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"copy с именованными аргументами и == против ===",
+			"equals, hashCode и toString только по свойствам конструктора",
+			"деструктуризация по позиции",
+			"data class ключом Map и Set",
+			"поверхностное копирование изменяемого списка",
+			"изменение ключа после вставки в HashSet",
+			"copy и свойство из тела класса",
+			"свойство-массив в data class"
+		],
+		"doesNotCheck": ["value class и inline-классы", "собственные equals и hashCode", "сериализация data-классов"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "copy-mutates",
+			"defect": "считает, что copy меняет исходный объект и возвращает его же",
+			"mustBeCaught": true
+		},
+		{ "id": "equals-identity", "defect": "считает, что == у data class сравнивает ссылки", "mustBeCaught": true },
+		{
+			"id": "body-counts",
+			"defect": "считает, что свойство из тела класса участвует в equals, hashCode и toString",
+			"mustBeCaught": true
+		},
+		{
+			"id": "destructure-by-name",
+			"defect": "считает, что деструктуризация сопоставляет переменные свойствам по имени",
+			"mustBeCaught": true
+		},
+		{ "id": "deep-copy", "defect": "считает, что copy копирует и вложенный изменяемый список", "mustBeCaught": true },
+		{
+			"id": "set-tracks-mutation",
+			"defect": "считает, что HashSet находит изменённый после вставки элемент и не добавляет его повторно",
+			"mustBeCaught": true
+		},
+		{
+			"id": "set-stores-copy",
+			"defect": "считает, что HashSet хранит копию элемента со старыми значениями",
+			"mustBeCaught": true
+		},
+		{
+			"id": "copy-keeps-body",
+			"defect": "считает, что copy переносит и свойство из тела класса",
+			"mustBeCaught": true
+		},
+		{
+			"id": "array-structural",
+			"defect": "считает, что свойство-массив в data class сравнивается по содержимому",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 9, "caught": 9 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0072,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

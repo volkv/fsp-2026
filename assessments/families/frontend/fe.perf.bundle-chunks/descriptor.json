@@ -1,0 +1,120 @@
+{
+	"key": "fe.perf.bundle-chunks",
+	"version": 1,
+	"specialization": "frontend",
+	"block": "fe.perf",
+	"format": "config_eval",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"modules": "11–15",
+				"routes": "3–4",
+				"steps": 4,
+				"rules": 4,
+				"interacting": "множества корней + начальный чанк + уже загруженные чанки"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "shared-chunk",
+					"form": "A",
+					"description": "библиотеки нужны двум-трём страницам: общий чанк на каждое множество страниц, при переходе грузится только недостающее, возврат ничего не грузит"
+				},
+				{
+					"id": "entry-dedupe",
+					"form": "B",
+					"description": "начальный чанк статически импортирует библиотеки страниц: они не повторяются в чанках страниц, import() модуля начального чанка ничего не грузит"
+				},
+				{
+					"id": "nested-dynamic",
+					"form": "anchor",
+					"description": "страница динамически грузит виджет, который делит библиотеки со своей и с другой страницей: виджет — свой корень, общий чанк загружается раньше другой страницы"
+				},
+				{
+					"id": "prefetch-hover",
+					"form": "X",
+					"description": "предзагрузка при наведении вызывает тот же import(): байты приходятся на наведение, общие чанки уже загружены к переходу на другую страницу"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "modules", "description": "имена страниц, библиотек и виджетов" },
+		{ "name": "sizes", "description": "размеры модулей" },
+		{ "name": "order", "description": "порядок посещения страниц" }
+	],
+	"essentialParams": [
+		{ "name": "sharing", "description": "сколько корней делят модуль и есть ли он в начальном чанке" },
+		{
+			"name": "dynamic-source",
+			"description": "кто вызывает import(): роутер, страница (вложенный корень), предзагрузка при наведении"
+		},
+		{ "name": "history", "description": "какие чанки уже загружены к шагу" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"состав начального чанка по статическим импортам",
+			"общие чанки по множествам корней",
+			"модули начального чанка не повторяются в асинхронных",
+			"вложенный import() — отдельный корень",
+			"уже загруженные чанки и модули не загружаются повторно",
+			"предзагрузка и то, на какой шаг приходятся байты"
+		],
+		"doesNotCheck": [
+			"настройки конкретного сборщика (splitChunks, manualChunks, minSize)",
+			"сжатие при передаче и накладные расходы на чанк",
+			"время загрузки и параллельность запросов"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "duplicate-shared",
+			"defect": "копирует общие модули в чанк каждой страницы вместо общего чанка",
+			"mustBeCaught": true
+		},
+		{
+			"id": "one-common-chunk",
+			"defect": "складывает все общие модули в один общий чанк, не различая, каким страницам они нужны",
+			"mustBeCaught": true
+		},
+		{
+			"id": "static-not-deduped",
+			"defect": "кладёт в чанк страницы и модули, которые уже есть в начальном чанке",
+			"mustBeCaught": true
+		},
+		{
+			"id": "dynamic-target-chunk",
+			"defect": "считает, что import() модуля из начального чанка создаёт и загружает отдельный чанк",
+			"mustBeCaught": true
+		},
+		{
+			"id": "nested-in-parent",
+			"defect": "считает, что import() внутри страницы вшивает модуль в чанк этой страницы",
+			"mustBeCaught": true
+		},
+		{
+			"id": "refetch-loaded",
+			"defect": "загружает уже загруженные чанки повторно при каждом import()",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 6, "caught": 6 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0001,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

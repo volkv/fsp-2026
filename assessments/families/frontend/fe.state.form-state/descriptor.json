@@ -1,0 +1,128 @@
+{
+	"key": "fe.state.form-state",
+	"version": 1,
+	"specialization": "frontend",
+	"block": "fe.state",
+	"format": "compute",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"fields": 3,
+				"events": "7–8",
+				"rules": "правила полей и правило показа ошибки даны в условии",
+				"mechanisms": 1
+			},
+			"constructiveRank": 2,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "touched-dirty",
+					"form": "A",
+					"description": "флаги полей: touched — после blur и навсегда, dirty — пока значение отличается от исходного; возврат к исходному снимает dirty"
+				},
+				{
+					"id": "after-blur",
+					"form": "B",
+					"description": "ошибка показывается после blur; кнопка неактивна при любой ошибке, в том числе ещё не показанной"
+				},
+				{
+					"id": "after-submit",
+					"form": "anchor",
+					"description": "ошибки скрыты до первой отправки, после неё показаны у всех неверных полей; кнопка активна до первой отправки, затем — только без ошибок"
+				},
+				{
+					"id": "while-dirty",
+					"form": "X",
+					"description": "ошибка показывается сразу при вводе, пока поле изменено; возврат к исходному значению скрывает её, кнопка неактивна при любой ошибке"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{
+			"name": "fields",
+			"description": "какие три поля в форме и в каком порядке: имя, почта, пароль, возраст, индекс"
+		},
+		{ "name": "values", "description": "исходные и вводимые значения, длина пароля и границы возраста" }
+	],
+	"essentialParams": [
+		{
+			"name": "display-rule",
+			"description": "когда показывается ошибка: после blur, после первой отправки, пока поле изменено; в классе флагов ошибок нет"
+		},
+		{
+			"name": "events",
+			"description": "последовательность focus, input, blur и submit: фокус без ухода, возврат к исходному значению, отправка с ошибками"
+		},
+		{ "name": "initial", "description": "какие поля начинают пустыми (неверными), а какие — с верным значением" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"touched ставится уходом фокуса (blur), а не фокусом и не вводом",
+			"dirty — сравнение с исходным значением, а не факт ввода",
+			"правило показа ошибки: после blur, после первой отправки, пока поле изменено",
+			"активность кнопки отправки по всем ошибкам, а не только по показанным"
+		],
+		"doesNotCheck": [
+			"встроенная валидация HTML и её псевдоклассы",
+			"асинхронная проверка на сервере",
+			"конкретные библиотеки форм"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "focus-touches",
+			"defect": "считает поле тронутым уже при получении фокуса, а не после его ухода",
+			"mustBeCaught": true
+		},
+		{ "id": "input-touches", "defect": "считает поле тронутым после ввода, до ухода фокуса", "mustBeCaught": true },
+		{
+			"id": "dirty-sticky",
+			"defect": "считает поле изменённым после любого ввода, даже когда значение вернулось к исходному",
+			"mustBeCaught": true
+		},
+		{
+			"id": "error-immediately",
+			"defect": "показывает ошибку у каждого неверного поля сразу, не применяя правило показа",
+			"mustBeCaught": true
+		},
+		{
+			"id": "button-by-shown",
+			"defect": "делает кнопку неактивной только при показанной ошибке, не замечая ещё скрытых",
+			"mustBeCaught": true
+		},
+		{
+			"id": "button-by-validity",
+			"defect": "делает кнопку неактивной при ошибках с самого начала: отправка с ошибками не происходит, ошибки так и не показываются",
+			"mustBeCaught": true
+		},
+		{
+			"id": "submit-resets",
+			"defect": "считает, что после нового ввода форма снова не отправлялась: ошибки прячутся, кнопка снова активна",
+			"mustBeCaught": true
+		},
+		{
+			"id": "blur-shows",
+			"defect": "смешивает правила: показывает ошибку и у тронутого поля до первой отправки",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 8, "caught": 8 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0042,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

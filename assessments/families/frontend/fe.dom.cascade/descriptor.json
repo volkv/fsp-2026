@@ -1,0 +1,167 @@
+{
+	"key": "fe.dom.cascade",
+	"version": 1,
+	"specialization": "frontend",
+	"block": "fe.dom",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"elements": 3,
+				"rules": "5–7",
+				"queries": "3–4",
+				"mechanisms": "специфичность и порядок, !important и инлайн-стиль или наследование"
+			},
+			"constructiveRank": 3,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "specificity-order",
+					"form": "A",
+					"description": "несколько правил на один элемент и свойство: побеждает большая специфичность, при равной — правило ниже по тексту"
+				},
+				{
+					"id": "important-inline",
+					"form": "B",
+					"description": "инлайн-стиль и !important: инлайн бьёт любые обычные правила, но проигрывает !important из таблицы стилей"
+				},
+				{
+					"id": "inheritance",
+					"form": "anchor",
+					"description": "color и font-weight наследуются, background-color нет; правило предка любой специфичности проигрывает собственному правилу элемента"
+				},
+				{
+					"id": "important-inherits",
+					"form": "X",
+					"description": "!important у предка: унаследованное значение не несёт важности и проигрывает любому собственному правилу потомка"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"constructive": {
+				"elements": "3–4",
+				"rules": "6–8",
+				"queries": 4,
+				"mechanisms": "ключевые слова или слои каскада вместе со специфичностью и наследованием"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "keywords",
+					"form": "A",
+					"description": "inherit, initial и unset на наследуемых и ненаследуемых свойствах: unset ведёт себя как inherit или как initial в зависимости от свойства"
+				},
+				{
+					"id": "layers",
+					"form": "B",
+					"description": "@layer: порядок слоёв задаёт первое упоминание (оператор @layer a, b;), а не порядок блоков; неслоёные стили бьют слоёные независимо от специфичности"
+				},
+				{
+					"id": "layers-important",
+					"form": "anchor",
+					"description": "!important в слоях: порядок слоёв переворачивается — важное объявление раннего слоя бьёт позднего и неслоёное"
+				},
+				{
+					"id": "layers-keywords",
+					"form": "X",
+					"description": "четыре уровня вложенности: слои с оператором порядка вместе с unset и inherit по цепочке наследования"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "теги, id, классы, имена слоёв, тексты" },
+		{ "name": "values", "description": "цвета, фоны, насыщенность шрифта" }
+	],
+	"essentialParams": [
+		{
+			"name": "competition",
+			"description": "какие объявления спорят за свойство: специфичность, порядок, !important, инлайн-стиль"
+		},
+		{ "name": "inheritance", "description": "наследуемое ли свойство и есть ли у элемента собственное объявление" },
+		{ "name": "keywords", "description": "inherit, initial, unset" },
+		{ "name": "layers", "description": "слои каскада, оператор порядка слоёв, важность в слоях" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"специфичность и порядок в таблице стилей",
+			"!important против инлайн-стиля",
+			"наследование color и font-weight, отсутствие наследования у background-color",
+			"правило предка не спорит с правилом элемента",
+			"inherit, initial, unset",
+			"порядок слоёв @layer и место неслоёных стилей",
+			"обращение порядка слоёв для !important"
+		],
+		"doesNotCheck": [
+			"стили браузера и пользователя (другие источники каскада)",
+			"анимации и переходы в каскаде",
+			"revert и revert-layer",
+			"вложенные слои и @import с layer()",
+			"псевдоклассы и псевдоэлементы в селекторах"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "specificity-ignored",
+			"defect": "выбирает последнее по тексту объявление, не глядя на специфичность",
+			"mustBeCaught": true
+		},
+		{
+			"id": "inline-beats-important",
+			"defect": "считает, что инлайн-стиль бьёт и !important из таблицы стилей",
+			"mustBeCaught": true
+		},
+		{ "id": "important-ignored", "defect": "не учитывает !important", "mustBeCaught": true },
+		{ "id": "background-inherits", "defect": "считает, что background-color наследуется", "mustBeCaught": true },
+		{
+			"id": "ancestor-rule-competes",
+			"defect": "сравнивает правило предка с правилом элемента по специфичности, будто оба задают значение элементу",
+			"mustBeCaught": true
+		},
+		{
+			"id": "important-inherits",
+			"defect": "считает, что значение от !important предка наследуется вместе с важностью и бьёт обычные правила потомка",
+			"mustBeCaught": true
+		},
+		{ "id": "unset-as-initial", "defect": "считает unset всегда равным initial", "mustBeCaught": true },
+		{ "id": "unset-as-inherit", "defect": "считает unset всегда равным inherit", "mustBeCaught": true },
+		{ "id": "initial-as-parent", "defect": "считает, что initial берёт значение родителя", "mustBeCaught": true },
+		{
+			"id": "layers-ignored",
+			"defect": "не учитывает слои: сравнивает только специфичность и порядок",
+			"mustBeCaught": true
+		},
+		{ "id": "unlayered-lowest", "defect": "считает неслоёные стили слабее слоёных", "mustBeCaught": true },
+		{
+			"id": "layer-order-by-block",
+			"defect": "упорядочивает слои по положению их блоков, игнорируя оператор @layer с порядком",
+			"mustBeCaught": true
+		},
+		{
+			"id": "important-no-inversion",
+			"defect": "для !important сохраняет обычный порядок слоёв (поздний слой и неслоёные сильнее)",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 13, "caught": 13 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0003,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

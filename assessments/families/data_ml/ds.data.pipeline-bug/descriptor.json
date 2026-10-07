@@ -1,0 +1,123 @@
+{
+	"key": "ds.data.pipeline-bug",
+	"version": 1,
+	"specialization": "data_ml",
+	"block": "ds.data",
+	"format": "bug_locate",
+	"answerKind": "line_no",
+	"levels": [
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"functions": 5,
+				"lines": "40–60",
+				"defect": "одна строка: свёртка, пропуски, типы или соединение"
+			},
+			"constructiveRank": 3,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "aggregation",
+					"form": "A",
+					"description": "свёртка группы: счётчик, повторы значений, сортировка перед медианой, перезапись суммы"
+				},
+				{
+					"id": "missing",
+					"form": "B",
+					"description": "пропуски: что пропускается, на что делится среднее, пустая строка против None"
+				},
+				{
+					"id": "types",
+					"form": "anchor",
+					"description": "разбор строк в числа и даты: разделители, порядок полей, тип результата"
+				},
+				{
+					"id": "join",
+					"form": "X",
+					"description": "соединение списков записей: строки без пары, повторы ключа, None в ключе, порча входа"
+				}
+			]
+		},
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"functions": 6,
+				"lines": "45–65",
+				"defect": "одна строка: утечка статистик, разбиение по времени, кодирование, разбиение по группам"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "fit-leak",
+					"form": "A",
+					"description": "статистика масштабирования или заполнения считается по train и test вместе"
+				},
+				{
+					"id": "time-split",
+					"form": "B",
+					"description": "разбиение и признаки по времени: граница, порядок строк, признак из собственной цели"
+				},
+				{
+					"id": "encoding",
+					"form": "anchor",
+					"description": "кодирование категорий и корзин: словарь из train, порядок кодов, невиданная категория, граница корзины"
+				},
+				{
+					"id": "group-split",
+					"form": "X",
+					"description": "разбиение по пользователям и группам: строки одной группы по разные стороны, дубликаты событий"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "context", "description": "какие ещё функции модуля показаны и в каком порядке" },
+		{ "name": "header", "description": "заголовок модуля: строка документации, импорты, константы" }
+	],
+	"essentialParams": [
+		{
+			"name": "defect-kind",
+			"description": "вид дефекта: свёртка, пропуски, типы, соединение, утечка статистик, время, кодирование, группы"
+		}
+	],
+	"language": "python3",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"чтение спецификации функции подготовки данных",
+			"свёртка групп и медиана",
+			"пропуски при агрегатах и заполнении",
+			"разбор чисел и дат из строк",
+			"соединение записей и неизменность входа",
+			"статистики масштабирования и заполнения только по train",
+			"разбиение по времени и признаки из прошлого",
+			"кодирование категорий по словарю train",
+			"разбиение без пересечения групп"
+		],
+		"doesNotCheck": ["исправление дефекта (только его место)", "производительность на больших данных"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "neighbour-line",
+			"defect": "указывает соседнюю строку той же функции, где «исправление» не возвращает спецификацию",
+			"mustBeCaught": true
+		},
+		{ "id": "other-function", "defect": "указывает похожую строку в другой, исправной функции", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 2, "caught": 2 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0204,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

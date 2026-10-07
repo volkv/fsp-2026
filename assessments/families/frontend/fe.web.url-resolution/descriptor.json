@@ -1,0 +1,122 @@
+{
+	"key": "fe.web.url-resolution",
+	"version": 1,
+	"specialization": "frontend",
+	"block": "fe.web",
+	"format": "compute",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": {
+				"links": "6–7",
+				"forms": "3–5 видов ссылок",
+				"rules": 4,
+				"interacting": "каталог базы + точки в пути, или запрос и фрагмент базы, или <base href> поверх адреса документа"
+			},
+			"constructiveRank": 3,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "dot-segments",
+					"form": "A",
+					"description": "база — файл: относительный путь отсчитывается от его каталога, `./` и `../` убираются, лишние `../` упираются в корень"
+				},
+				{
+					"id": "query-fragment",
+					"form": "B",
+					"description": "у базы есть запрос и фрагмент: `?q` меняет запрос и теряет фрагмент, `#f` сохраняет путь и запрос"
+				},
+				{
+					"id": "absolute-forms",
+					"form": "anchor",
+					"description": "ссылки от корня `/…`, сетевые `//host/…` и полные адреса рядом с относительными: что берётся от базы, а что нет"
+				},
+				{
+					"id": "base-href",
+					"form": "X",
+					"description": "`<base href>` сам разрешается от адреса документа и становится базой всех ссылок, включая `#f` и `?q`"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "хосты, каталоги, имена файлов, запросы и фрагменты" },
+		{ "name": "order", "description": "порядок ссылок в таблице" }
+	],
+	"essentialParams": [
+		{
+			"name": "reference",
+			"description": "вид ссылки: относительный путь с точками, только запрос или фрагмент, от корня, сетевая, полная"
+		},
+		{ "name": "base", "description": "чем кончается путь базы (файлом или `/`), есть ли у неё запрос и фрагмент" },
+		{ "name": "base-element", "description": "есть ли `<base href>` и какой он: относительный, от корня или полный" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"относительный путь от каталога базы, а не от файла",
+			"удаление `.` и `..`, `..` выше корня",
+			"ссылка только с запросом или только с фрагментом",
+			"ссылка от корня и сетевая ссылка `//host/…`",
+			"полный адрес не зависит от базы",
+			"`<base href>` разрешается от адреса документа и меняет базу всех ссылок"
+		],
+		"doesNotCheck": [
+			"обратная косая черта, пробелы и процентное кодирование (там стандарт WHATWG расходится с RFC 3986)",
+			"порт по умолчанию, регистр хоста и пустой путь",
+			"схемы, отличные от http и https"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "file-as-dir",
+			"defect": "отсчитывает относительный путь от файла базы, как от каталога",
+			"mustBeCaught": true
+		},
+		{ "id": "dots-literal", "defect": "оставляет `./` и `../` в итоговом адресе как написано", "mustBeCaught": true },
+		{ "id": "query-appends", "defect": "дописывает `?q` к запросу базы вместо замены", "mustBeCaught": true },
+		{ "id": "query-keeps-fragment", "defect": "при ссылке `?q` сохраняет фрагмент базы", "mustBeCaught": true },
+		{ "id": "fragment-drops-query", "defect": "при ссылке `#f` теряет запрос базы", "mustBeCaught": true },
+		{
+			"id": "relative-keeps-query",
+			"defect": "переносит запрос базы на относительный путь без своего запроса",
+			"mustBeCaught": true
+		},
+		{
+			"id": "network-path-as-path",
+			"defect": "читает `//host/путь` как путь от корня того же сайта",
+			"mustBeCaught": true
+		},
+		{
+			"id": "base-ignored",
+			"defect": "не учитывает `<base href>`, разрешает ссылки от адреса документа",
+			"mustBeCaught": true
+		},
+		{
+			"id": "base-from-root",
+			"defect": "разрешает относительный `<base href>` от корня сайта, а не от адреса документа",
+			"mustBeCaught": true
+		},
+		{
+			"id": "fragment-to-document",
+			"defect": "считает, что ссылка `#f` ведёт на сам документ даже при `<base href>`",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 10, "caught": 10 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

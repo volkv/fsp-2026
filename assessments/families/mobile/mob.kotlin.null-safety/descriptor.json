@@ -1,0 +1,138 @@
+{
+	"key": "mob.kotlin.null-safety",
+	"version": 1,
+	"specialization": "mobile",
+	"block": "mob.kotlin",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": { "values": "4–5", "mechanisms": 1, "nullablePaths": 2, "exceptions": false },
+			"constructiveRank": 2,
+			"timeNormSec": 180,
+			"classes": [
+				{
+					"id": "elvis",
+					"form": "A",
+					"description": "безопасный вызов и элвис: для null — значение по умолчанию, пустая строка — не null"
+				},
+				{
+					"id": "elvis-precedence",
+					"form": "B",
+					"description": "элвис связывает слабее сложения: прибавка относится только к значению по умолчанию"
+				},
+				{
+					"id": "let-elvis",
+					"form": "anchor",
+					"description": "блок let выполняется только для не-null, для null — элвис"
+				},
+				{
+					"id": "not-null-assert",
+					"form": "X",
+					"description": "!! бросает NullPointerException на null, цикл перехватывает и продолжает"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": { "values": "5–6", "mechanisms": 2, "nullablePaths": 3, "exceptions": false },
+			"constructiveRank": 3,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "let-null-result",
+					"form": "A",
+					"description": "блок let возвращает null для коротких строк, и элвис срабатывает при не-null получателе"
+				},
+				{
+					"id": "take-if",
+					"form": "B",
+					"description": "takeIf или takeUnless превращает значение в null по условию, дальше безопасный вызов и элвис"
+				},
+				{
+					"id": "safe-cast",
+					"form": "anchor",
+					"description": "as? String на списке Any?: число не приводится к строке, а даёт null"
+				},
+				{
+					"id": "to-int-or-null",
+					"form": "X",
+					"description": "toIntOrNull не обрезает пробелы и даёт null на нечисловой строке; накопление суммы с элвисом"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "имена списка и переменной цикла" },
+		{ "name": "values", "description": "слова, числа и их порядок в списке, константы по умолчанию и множители" }
+	],
+	"essentialParams": [
+		{
+			"name": "mechanism",
+			"description": "что решает строку вывода: безопасный вызов с элвисом, приоритет элвиса, let, takeIf, as?, !!, toIntOrNull"
+		},
+		{
+			"name": "null-source",
+			"description": "откуда берётся null: из списка, из блока let, из takeIf, из приведения или разбора"
+		}
+	],
+	"language": "kotlin",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"безопасный вызов ?. и элвис ?:",
+			"приоритет элвиса относительно арифметики",
+			"let, takeIf и takeUnless на nullable-значении",
+			"элвис срабатывает на любой null слева, не только на null получателя",
+			"безопасное приведение as?",
+			"!! и NullPointerException",
+			"toIntOrNull и строки с пробелами"
+		],
+		"doesNotCheck": ["платформенные типы при вызове Java-кода", "умение написать null-безопасный код самостоятельно"]
+	},
+	"wrongSolutions": [
+		{ "id": "empty-is-null", "defect": "считает пустую строку равной null", "mustBeCaught": true },
+		{
+			"id": "elvis-precedence",
+			"defect": "считает, что элвис связывает сильнее сложения, и прибавляет константу к каждому значению",
+			"mustBeCaught": true
+		},
+		{
+			"id": "assert-gives-zero",
+			"defect": "считает, что !! на null даёт ноль вместо исключения",
+			"mustBeCaught": true
+		},
+		{
+			"id": "elvis-only-on-receiver",
+			"defect": "считает, что элвис срабатывает только когда null исходное значение, а не результат цепочки",
+			"mustBeCaught": true
+		},
+		{
+			"id": "take-if-inverted",
+			"defect": "путает takeIf и takeUnless: оставляет значение, когда условие ложно",
+			"mustBeCaught": true
+		},
+		{
+			"id": "cast-converts",
+			"defect": "считает, что as? String превращает число в его строковую запись",
+			"mustBeCaught": true
+		},
+		{ "id": "to-int-trims", "defect": "считает, что toIntOrNull обрезает пробелы", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 7, "caught": 7 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0013,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

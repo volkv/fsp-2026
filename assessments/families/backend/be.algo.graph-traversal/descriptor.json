@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.6,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "aa919a43cec834340b6a57441304c01b6e7f1f45a18cabeb78874b048205cfbc"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.5,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "aa919a43cec834340b6a57441304c01b6e7f1f45a18cabeb78874b048205cfbc"
+					}
+				],
+				"mean": 0.55
+			},
 			"constructive": { "vertices": "6–7", "edges": "8–12", "structures": 1, "mechanisms": 1 },
 			"constructiveRank": 2,
 			"timeNormSec": 240,
@@ -33,7 +50,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.5,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "aa919a43cec834340b6a57441304c01b6e7f1f45a18cabeb78874b048205cfbc"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.55,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "aa919a43cec834340b6a57441304c01b6e7f1f45a18cabeb78874b048205cfbc"
+					}
+				],
+				"mean": 0.55
+			},
 			"constructive": { "vertices": "7–8", "edges": "9–14", "structures": 2, "mechanisms": 2 },
 			"constructiveRank": 4,
 			"timeNormSec": 330,
@@ -135,6 +169,29 @@
 		"answerCollision": 0.0025,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Все 8 экземпляров запущены: вывод совпадает с эталоном.",
+					"Порядок соседей задан списком, а не алфавитом, — ловушка sorted-neighbours осмысленна; классы используют разные контейнеры (очередь, рекурсия, стек, куча).",
+					"Мелочь: в kahn-cycle ответ состоит из трёх строк, угадать «False» легко, но остальные две строки угадать нельзя.",
+					"Уровни соответствуют блоку: intern — чтение BFS/DFS, junior — Кан и итеративный DFS со стеком."
+				],
+				"sourceSha256": "aa919a43cec834340b6a57441304c01b6e7f1f45a18cabeb78874b048205cfbc"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Независимо проверен BFS Intern/A из B: слои дают B, затем C F E, затем D G A; итог «B C F E D G A» верен. Все восемь представленных программ исполнены, включая рекурсивный DFS, цикл Кана и восстановление пути; выводы совпали с эталонами.",
+					"Порядок соседей и момент отметки вершины явно заданы кодом; обход не зависит от порядка элементов set. Очередь, стек, рекурсия и куча дают существенные различия между классами. Задания соответствуют алгоритмическому блоку; объём графов и две трассировки учтены в вероятностях полного правильного ответа."
+				],
+				"sourceSha256": "aa919a43cec834340b6a57441304c01b6e7f1f45a18cabeb78874b048205cfbc"
+			}
+		]
 	}
 }

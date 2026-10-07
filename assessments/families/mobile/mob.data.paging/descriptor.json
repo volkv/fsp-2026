@@ -1,0 +1,128 @@
+{
+	"key": "mob.data.paging",
+	"version": 1,
+	"specialization": "mobile",
+	"block": "mob.data",
+	"format": "sql_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": { "rows": "9–15", "pages": 3, "pageSize": "3–4", "mutations": "1–4 между страницами" },
+			"constructiveRank": 3,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "offset-shift",
+					"form": "A",
+					"description": "OFFSET при новых постах сверху и удалении уже показанных: дубли и пропуски частично гасят друг друга"
+				},
+				{
+					"id": "keyset-cursor",
+					"form": "B",
+					"description": "keyset по (created_at, id): новые посты сверху не влияют, удалённый пост-курсор не мешает следующей странице"
+				},
+				{
+					"id": "keyset-late",
+					"form": "anchor",
+					"description": "keyset при догрузке постов с прошлым created_at: пост старше курсора появится, пост новее курсора не покажется"
+				},
+				{
+					"id": "offset-pages",
+					"form": "X",
+					"description": "OFFSET при новых постах перед каждой страницей: дубли накапливаются"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"constructive": { "rows": "9–14", "pages": 3, "pageSize": "3–4", "cursor": "ошибочный или неуникальный ключ" },
+			"constructiveRank": 5,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "and-cursor",
+					"form": "A",
+					"description": "курсор `created_at <= k AND id < i` вместо сравнения пар: теряются старые посты с большими id"
+				},
+				{
+					"id": "tie-skip",
+					"form": "B",
+					"description": "курсор только по неуникальному created_at через `<`: посты с тем же временем на границе страницы пропадают"
+				},
+				{
+					"id": "moving-key",
+					"form": "anchor",
+					"description": "keyset по времени активности: чат, ожививший между страницами, уезжает наверх и не показывается"
+				},
+				{
+					"id": "tie-dup",
+					"form": "X",
+					"description": "курсор только по created_at через `<=`: посты с тем же временем повторяются на следующей странице"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "data", "description": "моменты создания, id, размер страницы, какие посты добавлены или удалены" },
+		{ "name": "plot", "description": "лента постов или список чатов" }
+	],
+	"essentialParams": [
+		{
+			"name": "cursor",
+			"description": "как выбирается следующая страница: OFFSET, пара (ключ, id), ошибочное условие, неуникальный ключ"
+		},
+		{
+			"name": "mutation",
+			"description": "что меняется между страницами: новые записи сверху, удаления, записи с прошлым ключом, рост ключа"
+		}
+	],
+	"language": "sql",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"дубли и пропуски OFFSET при изменении данных между страницами",
+			"keyset по паре (ключ, id) и сравнение row value",
+			"записи с ключом в прошлом и изменяемый ключ сортировки",
+			"ошибочный курсор `<= AND <` и неуникальный ключ"
+		],
+		"doesNotCheck": ["API библиотеки Paging 3 и RemoteMediator", "индексы и скорость OFFSET на больших таблицах"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "offset-snapshot",
+			"defect": "считает, что страницы берутся из состояния базы на момент первой загрузки",
+			"mustBeCaught": true
+		},
+		{
+			"id": "keyset-dups",
+			"defect": "считает, что выборка по курсору сдвигается при вставках, как OFFSET",
+			"mustBeCaught": true
+		},
+		{
+			"id": "and-equivalent",
+			"defect": "считает условие `k <= c AND id < i` равносильным сравнению пар `(k, id) < (c, i)`",
+			"mustBeCaught": true
+		},
+		{
+			"id": "tie-safe",
+			"defect": "не замечает, что курсор по неуникальному ключу теряет или повторяет записи с равным ключом",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 4, "caught": 4 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0019,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

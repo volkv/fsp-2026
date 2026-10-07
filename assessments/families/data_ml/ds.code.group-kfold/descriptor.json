@@ -1,0 +1,136 @@
+{
+	"key": "ds.code.group-kfold",
+	"version": 1,
+	"specialization": "data_ml",
+	"block": "ds.code",
+	"format": "practice_code",
+	"answerKind": "code",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.8 },
+			"constructive": { "rule": 1, "weights": false, "rows": "до 5000", "changeStep": "отложенные группы" },
+			"constructiveRank": 5,
+			"timeNormSec": 2700,
+			"classes": [
+				{
+					"id": "group-kfold",
+					"form": "A",
+					"description": "группы целиком: по убыванию размера (равные — по имени) в фолд с наименьшим числом строк"
+				},
+				{
+					"id": "stratified",
+					"form": "B",
+					"description": "стратификация: метки по возрастанию, строки метки по порядку, общий счётчик по кругу"
+				},
+				{
+					"id": "time-blocks",
+					"form": "anchor",
+					"description": "по времени (t, затем id) подряд идущими блоками; первые N mod K блоков на строку длиннее"
+				},
+				{
+					"id": "group-time",
+					"form": "X",
+					"description": "группы целиком в порядке первого появления во времени; фолд — по доле строк до группы"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.8 },
+			"constructive": { "rule": 1, "weights": true, "rows": "до 5000", "changeStep": "отложенные группы" },
+			"constructiveRank": 7,
+			"timeNormSec": 3000,
+			"classes": [
+				{
+					"id": "group-kfold",
+					"form": "A",
+					"description": "группы целиком, баланс по сумме весов строк, а не по числу строк"
+				},
+				{
+					"id": "stratified",
+					"form": "B",
+					"description": "внутри каждой метки строки по убыванию веса — в фолд с наименьшим весом этой метки"
+				},
+				{
+					"id": "time-blocks",
+					"form": "anchor",
+					"description": "по времени; фолд строки — по накопленному весу строк до неё"
+				},
+				{
+					"id": "group-time",
+					"form": "X",
+					"description": "группы целиком в порядке первого появления во времени; фолд — по накопленному весу групп до неё"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "data", "description": "идентификаторы, имена групп, метки, моменты времени, веса" },
+		{ "name": "sizes", "description": "число строк, групп и фолдов" }
+	],
+	"essentialParams": [
+		{
+			"name": "rule",
+			"description": "правило разбиения: группы целиком, стратификация, блоки по времени, группы по времени"
+		},
+		{ "name": "weights", "description": "Senior: баланс по весам строк" },
+		{
+			"name": "holdout",
+			"description": "шаг «измени своё решение»: отложенные группы исключаются, разбиение строится по остальным"
+		}
+	],
+	"language": null,
+	"practice": { "languages": ["python3"], "hiddenTestGroups": 5 },
+	"qa": null,
+	"changeStep": {
+		"description": "Новое условие: часть групп отложена для финальной проверки — их строки получают фолд −1 и в разбиении не участвуют; правило класса применяется к оставшимся строкам, как будто отложенных нет.",
+		"weight": 0.3
+	},
+	"rubric": { "kind": "groups" },
+	"coverage": {
+		"checks": [
+			"группы не разрываются между фолдами",
+			"стратификация по метке",
+			"порядок по времени и разбиение на подряд идущие блоки",
+			"детерминированные правила при равенстве",
+			"баланс по весам (Senior)",
+			"исключение отложенной выборки до разбиения (шаг «измени своё решение»)"
+		],
+		"doesNotCheck": ["случайное перемешивание и его сид", "работу со sklearn"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "split-groups",
+			"defect": "разбивает группу между фолдами: распределяет строки, а не группы",
+			"mustBeCaught": true
+		},
+		{
+			"id": "tie-break",
+			"defect": "при равенстве размеров, весов или моментов времени берёт порядок входа вместо заданного правила",
+			"mustBeCaught": true
+		},
+		{
+			"id": "counter-restart",
+			"defect": "в стратификации начинает счёт фолдов заново для каждой метки",
+			"mustBeCaught": true
+		},
+		{
+			"id": "unsorted-time",
+			"defect": "режет данные в порядке входа, не отсортировав по времени",
+			"mustBeCaught": true
+		},
+		{ "id": "remainder-last", "defect": "отдаёт лишние строки последним блокам, а не первым", "mustBeCaught": true },
+		{ "id": "row-balance", "defect": "Senior: балансирует фолды по числу строк, игнорируя веса", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 6, "caught": 6 },
+		"hiddenTestsMutationScore": 0.9948,
+		"answerCollision": 0,
+		"transfer": 0,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

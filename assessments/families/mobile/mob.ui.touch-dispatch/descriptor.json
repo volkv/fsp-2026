@@ -1,0 +1,154 @@
+{
+	"key": "mob.ui.touch-dispatch",
+	"version": 1,
+	"specialization": "mobile",
+	"block": "mob.ui",
+	"format": "compute",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": { "levels": 2, "moves": "1–4", "mechanisms": 1 },
+			"constructiveRank": 3,
+			"timeNormSec": 210,
+			"classes": [
+				{
+					"id": "child-ignores-down",
+					"form": "A",
+					"description": "ребёнок не потребил DOWN: остаток жеста получает onTouchEvent родителя, без onInterceptTouchEvent и без ребёнка"
+				},
+				{
+					"id": "intercept-on-move",
+					"form": "B",
+					"description": "родитель перехватывает жест на MOVE: ребёнок получает CANCEL, сам MOVE родителю не доходит, дальше события идут в onTouchEvent родителя"
+				},
+				{
+					"id": "touch-listener",
+					"form": "anchor",
+					"description": "OnTouchListener возвращает true: onTouchEvent для этого события не вызывается, а без DOWN или UP в onTouchEvent нет и щелчка"
+				},
+				{
+					"id": "disallow",
+					"form": "X",
+					"description": "ребёнок вызывает requestDisallowInterceptTouchEvent(true): onInterceptTouchEvent родителя больше не вызывается до конца жеста"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"constructive": { "levels": 3, "moves": "2–4", "mechanisms": 2 },
+			"constructiveRank": 4,
+			"timeNormSec": 280,
+			"classes": [
+				{
+					"id": "bubble-up",
+					"form": "A",
+					"description": "DOWN поднимается от ребёнка к промежуточному контейнеру, а потом корень перехватывает жест у этого контейнера"
+				},
+				{
+					"id": "disallow-late",
+					"form": "B",
+					"description": "запрет перехвата на MOVE через промежуточный контейнер доходит до корня; если корень перехватил раньше — ребёнок получает CANCEL"
+				},
+				{
+					"id": "listener-and-intercept",
+					"form": "anchor",
+					"description": "OnTouchListener кнопки и перехват корнем: CANCEL идёт сначала в слушатель, щелчка нет"
+				},
+				{
+					"id": "move-false",
+					"form": "X",
+					"description": "ребёнок потребил только DOWN: false на MOVE не поднимает событие к родителям, жест остаётся у ребёнка до перехвата"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "имена контейнеров и элементов" },
+		{ "name": "gesture", "description": "число MOVE в жесте" }
+	],
+	"essentialParams": [
+		{
+			"name": "consumer",
+			"description": "кто вернул true на DOWN: ребёнок, промежуточный контейнер или корень; что возвращают слушатель и onTouchEvent"
+		},
+		{
+			"name": "interception",
+			"description": "на каком MOVE корень перехватывает жест и запрещён ли перехват requestDisallowInterceptTouchEvent"
+		}
+	],
+	"language": "kotlin",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"порядок dispatchTouchEvent → onInterceptTouchEvent → onTouchEvent по иерархии ViewGroup",
+			"всплытие DOWN при необработке и цель касания на остаток жеста",
+			"перехват на MOVE и ACTION_CANCEL",
+			"requestDisallowInterceptTouchEvent и его действие на всех предков",
+			"OnTouchListener, onTouchEvent и щелчок"
+		],
+		"doesNotCheck": [
+			"мультитач и ACTION_POINTER_*",
+			"вложенная прокрутка (NestedScrolling)",
+			"обработка жестов в Compose (pointerInput)",
+			"долгое нажатие и TouchDelegate"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "child-keeps-getting",
+			"defect": "считает, что каждое событие жеста проходит путь DOWN: сначала в ребёнка, при false — выше",
+			"mustBeCaught": true
+		},
+		{
+			"id": "intercept-every-event",
+			"defect": "считает, что onInterceptTouchEvent контейнера вызывается на каждом событии, даже когда жест уже у него самого",
+			"mustBeCaught": true
+		},
+		{
+			"id": "intercepted-to-parent",
+			"defect": "считает, что перехваченный MOVE сразу получает и onTouchEvent перехватившего",
+			"mustBeCaught": true
+		},
+		{
+			"id": "no-cancel",
+			"defect": "считает, что при перехвате ребёнок ничего не получает (нет ACTION_CANCEL)",
+			"mustBeCaught": true
+		},
+		{
+			"id": "listener-then-touch",
+			"defect": "считает, что onTouchEvent вызывается и после того, как OnTouchListener вернул true",
+			"mustBeCaught": true
+		},
+		{
+			"id": "disallow-ignored",
+			"defect": "считает, что requestDisallowInterceptTouchEvent не мешает родителю перехватить жест",
+			"mustBeCaught": true
+		},
+		{
+			"id": "disallow-direct-parent-only",
+			"defect": "считает, что запрет перехвата действует только на непосредственного родителя, а не на всех предков",
+			"mustBeCaught": true
+		},
+		{
+			"id": "false-move-bubbles",
+			"defect": "считает, что MOVE, на который цель касания вернула false, поднимается в onTouchEvent родителей",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 8, "caught": 8 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0097,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

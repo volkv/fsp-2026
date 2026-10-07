@@ -1,0 +1,208 @@
+{
+	"key": "fe.js.objects-copying",
+	"version": 1,
+	"specialization": "frontend",
+	"block": "fe.js",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": { "lines": "11–19", "objects": "1–3", "nesting": "0–1", "mechanisms": 1 },
+			"constructiveRank": 2,
+			"timeNormSec": 210,
+			"classes": [
+				{
+					"id": "shared-reference",
+					"form": "A",
+					"description": "присваивание и передача в функцию копируют ссылку: изменение по ссылке видно всем, переприсваивание параметра — нет"
+				},
+				{
+					"id": "spread-shallow",
+					"form": "B",
+					"description": "spread копирует только верхний уровень: вложенный объект и массив общие, пока их не заменили новым"
+				},
+				{
+					"id": "mutating-methods",
+					"form": "anchor",
+					"description": "reverse и splice меняют исходный массив и reverse возвращает его же, toSorted возвращает новый"
+				},
+				{
+					"id": "freeze-shallow",
+					"form": "X",
+					"description": "Object.freeze замораживает только верхний уровень, в строгом режиме запись бросает TypeError; const не запрещает менять объект"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": { "lines": "13–27", "objects": "2–4", "nesting": "1–2", "mechanisms": 2 },
+			"constructiveRank": 4,
+			"timeNormSec": 330,
+			"classes": [
+				{
+					"id": "keys-order",
+					"form": "A",
+					"description": "порядок ключей: целочисленные по возрастанию, остальные в порядке создания; удаление и повторная запись переносят ключ в конец, перезапись в spread — нет"
+				},
+				{
+					"id": "deep-copy",
+					"form": "B",
+					"description": "spread, JSON.parse(JSON.stringify()) и structuredClone: что копируется вглубь, что теряется (undefined, Date), функции не клонируются"
+				},
+				{
+					"id": "mutation-chain",
+					"form": "anchor",
+					"description": "функция сортирует переданный массив на месте, ссылка-псевдоним видит изменения, toSorted фиксирует копию на момент вызова, spread перед reverse защищает исходник"
+				},
+				{
+					"id": "freeze-spread",
+					"form": "X",
+					"description": "копия замороженного объекта через spread не заморожена, вложенный объект не заморожен, push и запись в замороженный объект бросают TypeError, toSorted работает"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "имена массивов, ключей, людей и тегов" },
+		{ "name": "numbers", "description": "элементы массивов, значения полей, индексы splice" },
+		{ "name": "order", "description": "порядок создания ключей и печатаемых выражений" }
+	],
+	"essentialParams": [
+		{
+			"name": "copy-depth",
+			"description": "ссылка, поверхностная копия (spread), глубокая копия (structuredClone, JSON)"
+		},
+		{
+			"name": "mutation",
+			"description": "меняет ли операция исходник: sort/reverse/splice против toSorted/slice, запись против переприсваивания"
+		},
+		{ "name": "freeze", "description": "заморожен ли объект и на каком уровне вложенности" },
+		{ "name": "key-kind", "description": "ключ — целочисленный индекс или строка, похожая на число" }
+	],
+	"language": "javascript",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"общие ссылки на массив и объект, параметр функции",
+			"spread как поверхностная копия",
+			"методы, меняющие массив на месте, и их неизменяющие пары",
+			"structuredClone и JSON-копия: глубина и потери",
+			"Object.freeze поверхностно, const",
+			"порядок ключей Object.keys и spread"
+		],
+		"doesNotCheck": ["Map, Set и WeakMap", "иммутабельные библиотеки", "Proxy и дескрипторы свойств"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "assign-copies",
+			"defect": "считает, что присваивание массива или объекта другой переменной создаёт копию",
+			"mustBeCaught": true
+		},
+		{
+			"id": "param-reassign-leaks",
+			"defect": "считает, что переприсваивание параметра внутри функции меняет переданный массив",
+			"mustBeCaught": true
+		},
+		{ "id": "spread-deep", "defect": "считает, что spread копирует вложенные объекты и массивы", "mustBeCaught": true },
+		{
+			"id": "spread-reference",
+			"defect": "считает, что spread даёт ту же ссылку, а не новый объект",
+			"mustBeCaught": true
+		},
+		{ "id": "tosorted-mutates", "defect": "считает, что toSorted сортирует исходный массив", "mustBeCaught": true },
+		{
+			"id": "reverse-returns-copy",
+			"defect": "считает, что reverse возвращает новый массив и не меняет исходный",
+			"mustBeCaught": true
+		},
+		{
+			"id": "splice-like-slice",
+			"defect": "путает splice со slice: второй аргумент — конец, исходный массив не меняется",
+			"mustBeCaught": true
+		},
+		{
+			"id": "freeze-deep",
+			"defect": "считает, что Object.freeze замораживает и вложенные объекты",
+			"mustBeCaught": true
+		},
+		{
+			"id": "freeze-silent",
+			"defect": "считает, что запись в замороженный объект и push в замороженный массив молча игнорируются и в строгом режиме",
+			"mustBeCaught": true
+		},
+		{ "id": "const-freezes", "defect": "считает, что const запрещает менять поля объекта", "mustBeCaught": true },
+		{
+			"id": "insertion-order-only",
+			"defect": "считает, что ключи объекта всегда идут в порядке добавления",
+			"mustBeCaught": true
+		},
+		{
+			"id": "numeric-like-strings",
+			"defect": "считает строки вида '-3' и '07' целочисленными ключами",
+			"mustBeCaught": true
+		},
+		{
+			"id": "reinsert-keeps-position",
+			"defect": "считает, что удалённый и снова записанный ключ возвращается на прежнее место",
+			"mustBeCaught": true
+		},
+		{
+			"id": "spread-moves-key",
+			"defect": "считает, что перезапись ключа в spread переносит его в конец",
+			"mustBeCaught": true
+		},
+		{
+			"id": "clone-shallow",
+			"defect": "считает, что structuredClone копирует только верхний уровень",
+			"mustBeCaught": true
+		},
+		{
+			"id": "json-keeps-undefined",
+			"defect": "считает, что JSON-копия сохраняет поля со значением undefined",
+			"mustBeCaught": true
+		},
+		{ "id": "json-keeps-date", "defect": "считает, что JSON-копия сохраняет Date объектом", "mustBeCaught": true },
+		{
+			"id": "clone-functions",
+			"defect": "считает, что structuredClone копирует объект с методом",
+			"mustBeCaught": true
+		},
+		{
+			"id": "sort-returns-copy",
+			"defect": "считает, что sort возвращает новый массив и не меняет переданный",
+			"mustBeCaught": true
+		},
+		{ "id": "alias-copies", "defect": "считает, что второе имя массива — независимая копия", "mustBeCaught": true },
+		{
+			"id": "tosorted-live",
+			"defect": "считает, что результат toSorted следит за последующими изменениями исходного массива",
+			"mustBeCaught": true
+		},
+		{
+			"id": "spread-keeps-freeze",
+			"defect": "считает, что копия замороженного объекта через spread тоже заморожена",
+			"mustBeCaught": true
+		},
+		{
+			"id": "tosorted-throws",
+			"defect": "считает, что toSorted замороженного массива бросает ошибку",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 23, "caught": 23 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0002,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

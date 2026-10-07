@@ -1,0 +1,187 @@
+{
+	"key": "mob.kotlin.lambdas-returns",
+	"version": 1,
+	"specialization": "mobile",
+	"block": "mob.kotlin",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"functions": "2–3",
+				"calls": "1–3",
+				"mechanisms": 2,
+				"exits": "return, return@label, анонимная функция"
+			},
+			"constructiveRank": 2,
+			"timeNormSec": 330,
+			"classes": [
+				{
+					"id": "nonlocal-return",
+					"form": "A",
+					"description": "return в лямбде forEach, repeat или своей inline-функции выходит из объемлющей функции: ни строки после цикла, ни хвоста inline-функции"
+				},
+				{
+					"id": "labeled-return",
+					"form": "B",
+					"description": "return@forEach и return@метка лямбды — переход к следующему элементу, return@метка объемлющего run — выход из всего блока"
+				},
+				{
+					"id": "anonymous-function",
+					"form": "anchor",
+					"description": "return в анонимной функции fun(id) { } выходит только из неё, как return@forEach; голый return в лямбде — из всей функции"
+				},
+				{
+					"id": "captured-var",
+					"form": "X",
+					"description": "лямбды захватывают саму переменную var, а не её значение: видят позднее присваивание, их изменения видны снаружи; у каждой итерации for своя i"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"constructive": {
+				"functions": "2–3",
+				"calls": "2–4",
+				"mechanisms": 3,
+				"exits": "вложенные метки, fold, run, any/all/none, ?.let ?: run"
+			},
+			"constructiveRank": 3,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "nested-labels",
+					"form": "A",
+					"description": "вложенные forEach с метками: return@внешней — пропуск остатка строки, return@внутренней — одной ячейки, голый return — выход из функции"
+				},
+				{
+					"id": "fold-early-exit",
+					"form": "B",
+					"description": "return из лямбды fold выходит из всей функции с текущим аккумулятором; return@метка из forEach внутри run даёт значение run"
+				},
+				{
+					"id": "short-circuit",
+					"form": "anchor",
+					"description": "all, any и none останавливаются на первом решающем элементе, && и || не вычисляют правую часть; count проходит все элементы"
+				},
+				{
+					"id": "let-chain",
+					"form": "X",
+					"description": "?.let с return@let null отдаёт null, и элвис запускает run; return внутри run выходит из функции"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "имена функций, списков, меток и слова в печати" },
+		{ "name": "values", "description": "значения списков, пороги, делители и множители" }
+	],
+	"essentialParams": [
+		{
+			"name": "exit",
+			"description": "какой выход решает вывод: голый return, return@метка лямбды или блока, return анонимной функции, ранний выход из fold/run/let"
+		},
+		{
+			"name": "evaluation",
+			"description": "что ещё решает вывод: захват переменной лямбдой, короткое замыкание all/any/none и &&/||"
+		}
+	],
+	"language": "kotlin",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"нелокальный return из лямбды inline-функции",
+			"return@forEach и return@метка",
+			"return в анонимной функции",
+			"захват переменной var лямбдой и переменная цикла for",
+			"вложенные метки",
+			"ранний выход из fold и из run",
+			"короткое замыкание all, any, none, && и ||",
+			"?.let с ранним выходом и элвис с run"
+		],
+		"doesNotCheck": ["crossinline и noinline при объявлении функций", "написание функций высшего порядка"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "return-as-continue",
+			"defect": "считает, что голый return в лямбде forEach только пропускает текущий элемент",
+			"mustBeCaught": true
+		},
+		{
+			"id": "return-as-break",
+			"defect": "считает, что голый return в лямбде выходит только из цикла, а код после него выполняется",
+			"mustBeCaught": true
+		},
+		{
+			"id": "label-breaks",
+			"defect": "считает, что return@forEach (return@метка лямбды) прерывает весь цикл",
+			"mustBeCaught": true
+		},
+		{
+			"id": "run-label-continues",
+			"defect": "считает, что return@метка объемлющего run пропускает только текущий элемент forEach",
+			"mustBeCaught": true
+		},
+		{
+			"id": "anon-returns-outer",
+			"defect": "считает, что return в анонимной функции выходит из объемлющей функции, как в лямбде",
+			"mustBeCaught": true
+		},
+		{
+			"id": "capture-snapshot",
+			"defect": "считает, что лямбда запоминает копию переменной при создании и не меняет внешнюю",
+			"mustBeCaught": true
+		},
+		{
+			"id": "loop-var-shared",
+			"defect": "считает, что все лямбды, созданные в цикле for, видят последнее значение переменной цикла",
+			"mustBeCaught": true
+		},
+		{
+			"id": "outer-label-breaks",
+			"defect": "считает, что return@внешней метки из вложенной лямбды прерывает весь внешний цикл",
+			"mustBeCaught": true
+		},
+		{
+			"id": "fold-continues",
+			"defect": "считает, что return в лямбде fold возвращает аккумулятор как результат шага, и свёртка продолжается",
+			"mustBeCaught": true
+		},
+		{
+			"id": "no-short-circuit",
+			"defect": "считает, что all, any и none проверяют все элементы, даже когда ответ уже известен",
+			"mustBeCaught": true
+		},
+		{
+			"id": "operators-evaluate-both",
+			"defect": "считает, что && и || всегда вычисляют обе части",
+			"mustBeCaught": true
+		},
+		{
+			"id": "elvis-receiver-only",
+			"defect": "считает, что элвис после ?.let срабатывает только при null получателя, а не при null результата блока",
+			"mustBeCaught": true
+		},
+		{
+			"id": "run-return-local",
+			"defect": "считает, что return внутри run возвращает значение из run, а функция продолжается",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 13, "caught": 13 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0005,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

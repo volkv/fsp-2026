@@ -391,7 +391,15 @@ function compose(rng: Rng, classId: string): Program | null {
 	});
 	const defects = [target, ...others].map((sut) => {
 		const body = sut.defects[DEFECT_OF[styles.get(sut) ?? 'equal']] ?? [];
-		return [`def _bad_${sut.name}(${sut.params}):`, ...body];
+		// A constant answer as well: a test comparing the function with itself on other arguments must not pass it.
+		return [
+			`def _bad_${sut.name}(${sut.params}):`,
+			...body,
+			'',
+			'',
+			`def _const_${sut.name}(${sut.params}):`,
+			'    return None'
+		];
 	});
 	const check = [
 		'',
@@ -408,13 +416,14 @@ function compose(rng: Rng, classId: string): Program | null {
 		"        return 'fail: the tests fail on the right functions'",
 		`    for name in [${[target, ...others].map((s) => `'${s.name}'`).join(', ')}]:`,
 		'        right = globals()[name]',
-		"        globals()[name] = globals()['_bad_' + name]",
-		'        try:',
-		'            caught = not _suite_passes()',
-		'        finally:',
-		'            globals()[name] = right',
-		'        if not caught:',
-		"            return 'fail: a wrong ' + name + ' passes its test'",
+		"        for wrong in ('_bad_', '_const_'):",
+		'            globals()[name] = globals()[wrong + name]',
+		'            try:',
+		'                caught = not _suite_passes()',
+		'            finally:',
+		'                globals()[name] = right',
+		'            if not caught:',
+		"                return 'fail: a wrong ' + name + ' passes its test'",
 		"    return 'ok'",
 		'',
 		'',

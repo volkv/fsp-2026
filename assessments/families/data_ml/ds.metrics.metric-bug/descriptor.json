@@ -1,0 +1,115 @@
+{
+	"key": "ds.metrics.metric-bug",
+	"version": 1,
+	"specialization": "data_ml",
+	"block": "ds.metrics",
+	"format": "bug_locate",
+	"answerKind": "line_no",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": {
+				"functions": 5,
+				"lines": "30–50",
+				"defect": "одна строка: подсчёт, знаменатель, свёртка или порядок"
+			},
+			"constructiveRank": 3,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "counting",
+					"form": "A",
+					"description": "условие подсчёта TP, FP, FN или совпадений относит объект не в ту клетку"
+				},
+				{ "id": "denominator", "form": "B", "description": "не тот знаменатель или приоритет операций в делении" },
+				{
+					"id": "aggregation",
+					"form": "anchor",
+					"description": "свёртка ошибок или метрик: знак, квадрат, среднее, n − 1"
+				},
+				{
+					"id": "ranking",
+					"form": "X",
+					"description": "порядок выдачи и срез первых k: направление сортировки, сдвиг среза"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"functions": 6,
+				"lines": "45–70",
+				"defect": "одна строка: ничьи, усреднение, крайние случаи, порог"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "ties",
+					"form": "A",
+					"description": "равные скоры и значения: половина пары в AUC, средние ранги, порядок внутри ничьей"
+				},
+				{
+					"id": "averaging",
+					"form": "B",
+					"description": "усреднение по классам: macro против micro и weighted, не тот делитель"
+				},
+				{
+					"id": "edge-cases",
+					"form": "anchor",
+					"description": "крайние случаи спецификации: пустой знаменатель, k = 0, короткая выдача"
+				},
+				{
+					"id": "thresholds",
+					"form": "X",
+					"description": "правило порога и границы: ≥ против >, округление числа помеченных, срез k + 1"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "context", "description": "какие ещё функции модуля показаны и в каком порядке" },
+		{ "name": "header", "description": "заголовок модуля: импорты и константы разной длины" }
+	],
+	"essentialParams": [
+		{
+			"name": "defect-kind",
+			"description": "вид дефекта: подсчёт, знаменатель, свёртка, порядок, ничьи, усреднение, крайний случай, порог"
+		}
+	],
+	"language": "python3",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"чтение спецификации функции расчёта метрики",
+			"клетки матрицы ошибок и знаменатели precision, recall, F1",
+			"свёртка ошибок регрессии",
+			"порядок выдачи и срез первых k",
+			"ничьи в AUC и рангах, усреднение по классам, крайние случаи, правило порога"
+		],
+		"doesNotCheck": ["исправление дефекта (только его место)", "производительность расчёта"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "neighbour-line",
+			"defect": "указывает соседнюю строку той же функции, где «исправление» не возвращает спецификацию",
+			"mustBeCaught": true
+		},
+		{ "id": "other-function", "defect": "указывает похожую строку в другой, исправной функции", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 2, "caught": 2 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0226,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

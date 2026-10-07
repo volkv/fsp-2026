@@ -1,0 +1,102 @@
+{
+	"key": "mob.kotlin.strings-ranges",
+	"version": 1,
+	"specialization": "mobile",
+	"block": "mob.kotlin",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.65 },
+			"constructive": { "lines": "5", "mechanisms": 1, "negatives": true, "chars": true },
+			"constructiveRank": 1,
+			"timeNormSec": 180,
+			"classes": [
+				{
+					"id": "ranges",
+					"form": "A",
+					"description": ".. и downTo включают границу, until — нет, step останавливается на последнем элементе не дальше границы; in на until"
+				},
+				{
+					"id": "substring-templates",
+					"form": "B",
+					"description": "substring(начало, конец) не включает конец, take, drop, padStart; в шаблоне $имя.length — имя и текст .length"
+				},
+				{
+					"id": "div-mod",
+					"form": "anchor",
+					"description": "деление Int отбрасывает дробную часть к нулю, % берёт знак делимого, mod — знак делителя"
+				},
+				{
+					"id": "chars",
+					"form": "X",
+					"description": "code — код символа, digitToInt — цифра; Char + Int — символ, Char − Char — число; repeat считает с нуля"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "имена переменных и слова в строках" },
+		{ "name": "values", "description": "границы, шаги, индексы, делимые и делители, символы" }
+	],
+	"essentialParams": [
+		{
+			"name": "mechanism",
+			"description": "что решает вывод: граница диапазона, индексы подстроки, шаблон строки, знак остатка, код символа"
+		}
+	],
+	"language": "kotlin",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"диапазоны .., until, downTo и step, оператор in",
+			"substring, take, drop и padStart",
+			"шаблоны строк $имя и ${выражение}",
+			"целочисленное деление и % с отрицательными числами, mod",
+			"Char.code против digitToInt, арифметика Char",
+			"repeat"
+		],
+		"doesNotCheck": ["регулярные выражения", "форматирование чисел и локали", "Unicode за пределами ASCII"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "range-exclusive",
+			"defect": "считает, как в range Python, что .. и downTo не включают правую границу",
+			"mustBeCaught": true
+		},
+		{ "id": "until-inclusive", "defect": "считает, что until включает правую границу", "mustBeCaught": true },
+		{
+			"id": "substring-length",
+			"defect": "считает второй аргумент substring длиной подстроки, а не индексом конца",
+			"mustBeCaught": true
+		},
+		{
+			"id": "template-member",
+			"defect": "считает, что $имя.length в шаблоне подставляет длину строки",
+			"mustBeCaught": true
+		},
+		{
+			"id": "floor-division",
+			"defect": "считает, как в Python, что деление округляет вниз, а остаток берёт знак делителя",
+			"mustBeCaught": true
+		},
+		{ "id": "mod-equals-rem", "defect": "считает, что mod — то же самое, что %", "mustBeCaught": true },
+		{ "id": "code-is-digit", "defect": "считает, что code у символа-цифры — её значение", "mustBeCaught": true },
+		{ "id": "char-arith-int", "defect": "считает, что Char + Int даёт число, а не символ", "mustBeCaught": true },
+		{ "id": "repeat-from-one", "defect": "считает, что индекс в repeat начинается с единицы", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 9, "caught": 9 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0007,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

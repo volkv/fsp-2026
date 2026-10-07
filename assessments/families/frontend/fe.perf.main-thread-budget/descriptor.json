@@ -1,0 +1,129 @@
+{
+	"key": "fe.perf.main-thread-budget",
+	"version": 1,
+	"specialization": "frontend",
+	"block": "fe.perf",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"constructive": {
+				"tasks": "3–6",
+				"metrics": 5,
+				"rules": 5,
+				"interacting": "неделимые задачи + приоритет ввода + граница кадра + разбиение долгой работы"
+			},
+			"constructiveRank": 7,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "long-task",
+					"form": "A",
+					"description": "клик приходит во время долгой задачи, за которой уже ждёт другая: обработчик ждёт конца задачи, но идёт раньше очереди; отрисовку задерживает задача, начатая до границы кадра"
+				},
+				{
+					"id": "yield-split",
+					"form": "B",
+					"description": "долгая работа разбита scheduler.yield(): продолжение идёт раньше задач, поставленных во время работы, клик ждёт только конца части, длинные задачи считаются по частям"
+				},
+				{
+					"id": "timeout-split",
+					"form": "anchor",
+					"description": "долгая работа разбита setTimeout(…, 0): продолжение встаёт в конец очереди, другие задачи вклиниваются между частями"
+				},
+				{
+					"id": "refresh-120",
+					"form": "X",
+					"description": "экран 120 Гц и задача ровно 50 мс: она не длинная, граница кадра каждые 8 мс, отрисовка ждёт ближайшую границу"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "названия задач и разбитой функции" },
+		{ "name": "times", "description": "моменты постановки, длительности, момент клика, длительность отрисовки" }
+	],
+	"essentialParams": [
+		{
+			"name": "splitting",
+			"description": "долгая работа одной задачей, частями через scheduler.yield() или через setTimeout"
+		},
+		{ "name": "queue", "description": "какие задачи ждут в очереди к моменту клика и после обработчика" },
+		{ "name": "refresh", "description": "частота экрана: 60 или 120 Гц" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"задержка ввода при занятом главном потоке",
+			"задержка до следующей отрисовки (как в INP)",
+			"длинные задачи и Total Blocking Time",
+			"разбиение долгой работы: scheduler.yield() против setTimeout",
+			"границы кадров при 60 и 120 Гц"
+		],
+		"doesNotCheck": [
+			"работу композитора и потоков вне главного",
+			"задержку таймеров и вложенность setTimeout",
+			"измерение метрик в инструментах браузера"
+		]
+	},
+	"wrongSolutions": [
+		{ "id": "preemptive", "defect": "считает, что клик прерывает выполняющуюся задачу", "mustBeCaught": true },
+		{
+			"id": "fifo-input",
+			"defect": "ставит обработчик ввода в общую очередь после уже ждущих задач",
+			"mustBeCaught": true
+		},
+		{
+			"id": "latency-to-handler-end",
+			"defect": "считает задержку до конца обработчика, а не до отрисовки кадра",
+			"mustBeCaught": true
+		},
+		{
+			"id": "render-immediately",
+			"defect": "рисует кадр сразу после обработчика, не дожидаясь границы кадра",
+			"mustBeCaught": true
+		},
+		{
+			"id": "tbt-full-duration",
+			"defect": "складывает в TBT полные длительности длинных задач, а не превышения 50 мс",
+			"mustBeCaught": true
+		},
+		{ "id": "fifty-is-long", "defect": "считает задачу ровно 50 мс длинной", "mustBeCaught": true },
+		{
+			"id": "yield-as-timeout",
+			"defect": "ставит продолжение после scheduler.yield() в конец очереди, как setTimeout",
+			"mustBeCaught": true
+		},
+		{
+			"id": "timeout-as-yield",
+			"defect": "считает, что продолжение после setTimeout идёт раньше уже ждущих задач",
+			"mustBeCaught": true
+		},
+		{
+			"id": "split-still-long",
+			"defect": "считает разбитую на части работу одной длинной задачей",
+			"mustBeCaught": true
+		},
+		{
+			"id": "missed-by-duration",
+			"defect": "считает пропущенные кадры делением длительности каждой задачи на период",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 10, "caught": 10 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

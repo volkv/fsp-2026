@@ -1,0 +1,157 @@
+{
+	"key": "fe.dom.specificity",
+	"version": 1,
+	"specialization": "frontend",
+	"block": "fe.dom",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": { "selectors": "5–6", "compounds": "1–3", "mechanisms": 1, "functional": false },
+			"constructiveRank": 2,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "ids-classes",
+					"form": "A",
+					"description": "id, классы, типы и универсальный селектор через комбинаторы: универсальный селектор и комбинаторы не считаются, считаются все составные части, а не только последняя"
+				},
+				{
+					"id": "attrs-pseudo",
+					"form": "B",
+					"description": "атрибуты и псевдоклассы: оба считаются наравне с классами (b), а не как типы и не нулём"
+				},
+				{
+					"id": "order",
+					"form": "anchor",
+					"description": "шесть правил на один элемент: упорядочить по специфичности лексикографически, при равенстве побеждает правило ниже по тексту; длина селектора не решает"
+				},
+				{
+					"id": "pseudo-elements",
+					"form": "X",
+					"description": "псевдоэлементы рядом с псевдоклассами: псевдоэлемент считается как тип (c), псевдокласс — как класс (b)"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": { "selectors": 5, "compounds": "1–2 плюс аргументы", "mechanisms": 2, "functional": true },
+			"constructiveRank": 4,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "is-not",
+					"form": "A",
+					"description": ":is() и :not() со списками аргументов разной специфичности: берётся наибольшая специфичность аргумента, сам псевдокласс не добавляет ничего"
+				},
+				{
+					"id": "where",
+					"form": "B",
+					"description": ":where() рядом с :is() и :not(): :where() со всем содержимым даёт ноль, :is() — наибольший аргумент"
+				},
+				{
+					"id": "has",
+					"form": "anchor",
+					"description": ":has() с относительными селекторами (> + ~): считается наибольший аргумент, как у :is(); рядом псевдоэлементы"
+				},
+				{
+					"id": "nth-of",
+					"form": "X",
+					"description": ":nth-child(An+B of S): псевдокласс (b + 1) плюс наибольшая специфичность из S"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "теги, id, классы, атрибуты, конкретные псевдоклассы и псевдоэлементы" },
+		{ "name": "shape", "description": "число составных селекторов и комбинаторы между ними, порядок селекторов" }
+	],
+	"essentialParams": [
+		{
+			"name": "parts",
+			"description": "какие виды простых селекторов есть: id, классы, атрибуты, псевдоклассы, псевдоэлементы, универсальный"
+		},
+		{
+			"name": "functional",
+			"description": "функциональные псевдоклассы: :is(), :not(), :has(), :where(), :nth-child(… of S)"
+		},
+		{ "name": "question", "description": "тройки специфичности или порядок правил по силе с учётом порядка в тексте" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"id, классы, атрибуты, псевдоклассы и типы в тройке (a, b, c)",
+			"универсальный селектор и комбинаторы не влияют на специфичность",
+			"псевдоэлемент считается как тип",
+			"сравнение троек лексикографически и порядок в тексте при равенстве",
+			":is(), :not(), :has() — наибольшая специфичность аргумента",
+			":where() — нулевая специфичность",
+			":nth-child(An+B of S)"
+		],
+		"doesNotCheck": [
+			"устаревшая запись псевдоэлементов с одним двоеточием",
+			"селекторы теневого DOM (:host, ::slotted, ::part)",
+			"правила стилей, кроме сравнения по специфичности и порядку"
+		]
+	},
+	"wrongSolutions": [
+		{ "id": "universal-counts", "defect": "считает универсальный селектор * как тип", "mustBeCaught": true },
+		{ "id": "attr-as-type", "defect": "считает селектор атрибута как тип, а не как класс", "mustBeCaught": true },
+		{
+			"id": "pseudo-class-ignored",
+			"defect": "не учитывает псевдоклассы вроде :hover и :first-child",
+			"mustBeCaught": true
+		},
+		{
+			"id": "pseudo-element-as-class",
+			"defect": "считает псевдоэлемент как псевдокласс (b вместо c)",
+			"mustBeCaught": true
+		},
+		{
+			"id": "key-compound-only",
+			"defect": "считает только последний составной селектор, а предков и соседей не учитывает",
+			"mustBeCaught": true
+		},
+		{
+			"id": "order-by-count",
+			"defect": "сильнее тот селектор, в котором больше простых селекторов, независимо от их вида",
+			"mustBeCaught": true
+		},
+		{
+			"id": "order-ties-earlier",
+			"defect": "при равной специфичности побеждает правило, записанное раньше",
+			"mustBeCaught": true
+		},
+		{
+			"id": "functional-counts-itself",
+			"defect": "добавляет сам функциональный псевдокласс как ещё один псевдокласс",
+			"mustBeCaught": true
+		},
+		{ "id": "functional-sum-args", "defect": "складывает специфичности всех аргументов списка", "mustBeCaught": true },
+		{ "id": "functional-first-arg", "defect": "берёт специфичность первого аргумента списка", "mustBeCaught": true },
+		{ "id": "where-like-is", "defect": "считает :where() как :is()", "mustBeCaught": true },
+		{ "id": "has-like-where", "defect": "считает :has() нулевым, как :where()", "mustBeCaught": true },
+		{
+			"id": "nth-of-ignored",
+			"defect": "считает :nth-child(An+B of S) одним псевдоклассом, не учитывая S",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 13, "caught": 13 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0018,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

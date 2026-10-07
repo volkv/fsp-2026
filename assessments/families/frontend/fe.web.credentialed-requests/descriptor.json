@@ -1,0 +1,140 @@
+{
+	"key": "fe.web.credentialed-requests",
+	"version": 1,
+	"specialization": "frontend",
+	"block": "fe.web",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"calls": "6–8",
+				"hosts": "1–2",
+				"rules": 8,
+				"interacting": "credentials × SameSite и Domain кук × проверка CORS × Set-Cookie в ответе × кэш preflight по Max-Age и флагу credentials"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "same-site-api",
+					"form": "A",
+					"description": "API на другом поддомене того же сайта: cross-origin, но same-site — Strict и Lax уходят с include; кука только для хоста auth не доходит до api; same-origin и omit кук не шлют и не сохраняют"
+				},
+				{
+					"id": "cross-site-api",
+					"form": "B",
+					"description": "API на другом сайте: уходят и сохраняются только куки SameSite=None; Set-Cookie с Lax или Strict из межсайтового ответа отбрасывается"
+				},
+				{
+					"id": "blocked-but-stored",
+					"form": "anchor",
+					"description": "ответ не прошёл CORS (`*` или нет Allow-Credentials при include), но Set-Cookie из него сохранён и уходит со следующими запросами"
+				},
+				{
+					"id": "preflight-cache",
+					"form": "X",
+					"description": "кэш preflight по Max-Age хранит все разрешённые методы и заголовки, но запись без credentials не покрывает запрос с include; новый заголовок или истёкший срок — новый preflight"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "сайты, хосты, пути, имена кук" },
+		{ "name": "numbers", "description": "моменты вызовов, Max-Age" }
+	],
+	"essentialParams": [
+		{ "name": "topology", "description": "API на поддомене того же сайта или на другом сайте" },
+		{ "name": "credentials", "description": "omit, same-origin или include у каждого вызова" },
+		{ "name": "cookies", "description": "Domain, SameSite кук в браузере и в Set-Cookie ответа" },
+		{ "name": "cors", "description": "Allow-Origin, Allow-Credentials, списки методов и заголовков, Max-Age" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"сайт против источника: поддомен одного сайта — same-site, но cross-origin",
+			"credentials: omit, same-origin и include для cross-origin запроса",
+			"SameSite кук на same-site и cross-site fetch",
+			"кука только для хоста против Domain",
+			"Set-Cookie в cross-origin ответе: credentials, SameSite, ответ, не прошедший CORS",
+			"Access-Control-Allow-Credentials и `*`",
+			"кэш preflight по Max-Age: списки целиком, флаг credentials, новый заголовок, истечение"
+		],
+		"doesNotCheck": [
+			"блокировка и разбиение сторонних кук (CHIPS)",
+			"предел браузера на Max-Age",
+			"подстановочные `*` в Allow-Methods и Allow-Headers",
+			"Set-Cookie в ответе на preflight"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "same-origin-sends-same-site",
+			"defect": "считает, что credentials: 'same-origin' шлёт и сохраняет куки для поддомена того же сайта",
+			"mustBeCaught": true
+		},
+		{
+			"id": "site-is-origin",
+			"defect": "считает запрос на другой поддомен того же сайта межсайтовым (путает сайт с источником)",
+			"mustBeCaught": true
+		},
+		{ "id": "lax-cross-site-sent", "defect": "отправляет SameSite=Lax с межсайтовым fetch", "mustBeCaught": true },
+		{
+			"id": "cross-site-lax-stored",
+			"defect": "сохраняет куку SameSite=Lax или Strict из ответа на межсайтовый fetch",
+			"mustBeCaught": true
+		},
+		{
+			"id": "blocked-not-stored",
+			"defect": "считает, что кука из ответа, не прошедшего CORS, не сохраняется",
+			"mustBeCaught": true
+		},
+		{
+			"id": "omit-stores",
+			"defect": "сохраняет куку из ответа и при credentials: 'omit' или 'same-origin'",
+			"mustBeCaught": true
+		},
+		{ "id": "no-preflight-cache", "defect": "не учитывает кэш preflight по Max-Age", "mustBeCaught": true },
+		{
+			"id": "cache-ignores-credentials",
+			"defect": "считает, что preflight, закэшированный без credentials, покрывает запрос с include",
+			"mustBeCaught": true
+		},
+		{
+			"id": "cache-any-request",
+			"defect": "считает, что живой кэш preflight покрывает любой запрос на этот адрес, даже с новым заголовком",
+			"mustBeCaught": true
+		},
+		{
+			"id": "cache-requested-only",
+			"defect": "считает, что кэш preflight хранит только запрошенные метод и заголовки, а не все разрешённые",
+			"mustBeCaught": true
+		},
+		{
+			"id": "host-only-to-siblings",
+			"defect": "отправляет куку без Domain на другие поддомены того же сайта",
+			"mustBeCaught": true
+		},
+		{
+			"id": "no-acac-needed",
+			"defect": "считает, что для include достаточно точного Origin без Access-Control-Allow-Credentials",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 12, "caught": 12 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0001,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

@@ -73,7 +73,13 @@ const INTERN: Fn[] = [
 			'    """Попадает ли момент ts в окно [start, end): начало включено, конец — нет."""',
 			'    return start <= ts < end'
 		],
-		checks: ['assert in_window(5, 5, 9)', 'assert not in_window(9, 5, 9)', 'assert in_window(8, 5, 9)'],
+		checks: [
+			'assert in_window(5, 5, 9)',
+			'assert not in_window(9, 5, 9)',
+			'assert in_window(8, 5, 9)',
+			'assert not in_window(4, 5, 9)',
+			'assert not in_window(12, 5, 9)'
+		],
 		defects: [
 			{
 				kind: 'boundary',
@@ -120,10 +126,17 @@ const INTERN: Fn[] = [
 			'assert can_withdraw(100, 150, 50)',
 			'assert not can_withdraw(100, 151, 50)',
 			'assert not can_withdraw(100, 0, 50)',
-			'assert not can_withdraw(100, -5, 50)'
+			'assert not can_withdraw(100, -5, 50)',
+			'assert can_withdraw(100, 50, 50)',
+			'assert can_withdraw(100, 1, 0)'
 		],
 		defects: [
-			{ kind: 'condition', line: 2, text: '    if amount < 0:', neighbour: { line: 3, text: '        return None' } },
+			{
+				kind: 'condition',
+				line: 2,
+				text: '    if amount < 0:',
+				neighbour: { line: 3, text: '        return None' }
+			},
 			{
 				kind: 'boundary',
 				line: 4,
@@ -143,7 +156,11 @@ const INTERN: Fn[] = [
 			'            count += 1',
 			'    return count'
 		],
-		checks: ['assert count_between([1, 2, 3, 4, 5], 2, 4) == 3', 'assert count_between([], 1, 2) == 0'],
+		checks: [
+			'assert count_between([1, 2, 3, 4, 5], 2, 4) == 3',
+			'assert count_between([1, 5, 6, 7], 1, 5) == 2',
+			'assert count_between([], 1, 2) == 0'
+		],
 		defects: [
 			{ kind: 'boundary', line: 4, text: '        if lo <= x < hi:', neighbour: { line: 2, text: '    count = 1' } },
 			{
@@ -158,7 +175,7 @@ const INTERN: Fn[] = [
 		name: 'percent',
 		lines: [
 			'def percent(part, whole):',
-			'    """Доля part от whole в процентах, целое число, округление вниз; при whole = 0 — 0."""',
+			'    """Доля part от whole (оба неотрицательные) в процентах, целое число, округление вниз; при whole = 0 — 0."""',
 			'    if whole == 0:',
 			'        return 0',
 			'    return part * 100 // whole'
@@ -177,7 +194,7 @@ const INTERN: Fn[] = [
 		name: 'last_n',
 		lines: [
 			'def last_n(items, n):',
-			'    """Последние n элементов списка; при n = 0 — пустой список."""',
+			'    """Последние n элементов списка (n неотрицательное); при n = 0 — пустой список."""',
 			'    if n == 0:',
 			'        return []',
 			'    return items[-n:]'
@@ -203,7 +220,8 @@ const INTERN: Fn[] = [
 			'assert free_delivery(1000, True)',
 			'assert not free_delivery(2999, False)',
 			'assert free_delivery(3000, False)',
-			'assert not free_delivery(999, True)'
+			'assert not free_delivery(999, True)',
+			'assert free_delivery(5000, False)'
 		],
 		defects: [
 			{
@@ -269,7 +287,8 @@ const JUNIOR: Fn[] = [
 		name: 'snapshot',
 		lines: [
 			'def snapshot(state):',
-			'    """Независимая копия состояния: словарь списков; правки копии не видны в state."""',
+			'    """Независимая копия состояния: словарь списков неизменяемых значений (чисел, строк);',
+			'    правки копии не видны в state."""',
 			'    copy = {}',
 			'    for key, values in state.items():',
 			'        copy[key] = list(values)',
@@ -279,9 +298,9 @@ const JUNIOR: Fn[] = [
 		defects: [
 			{
 				kind: 'aliasing',
-				line: 4,
+				line: 5,
 				text: '        copy[key] = values',
-				neighbour: { line: 2, text: '    copy = dict()' }
+				neighbour: { line: 3, text: '    copy = dict()' }
 			}
 		]
 	},
@@ -372,25 +391,26 @@ const JUNIOR: Fn[] = [
 		name: 'call_with_retries',
 		lines: [
 			'def call_with_retries(fn, attempts):',
-			'    """Вызывает fn до attempts раз, пока она бросает ConnectionError; возвращает первый результат.',
-			'    Другие исключения не повторяются; после последней неудачи ConnectionError выходит наружу."""',
+			'    """Вызывает fn(номер попытки, начиная с 0) до attempts раз, пока она бросает ConnectionError;',
+			'    возвращает первый результат. Другие исключения не повторяются; после последней неудачи',
+			'    ConnectionError выходит наружу."""',
 			'    for attempt in range(attempts):',
 			'        try:',
-			'            return fn()',
+			'            return fn(attempt)',
 			'        except ConnectionError:',
 			'            if attempt == attempts - 1:',
 			'                raise'
 		],
 		checks: [
 			'calls = []',
-			'def flaky():',
-			'    calls.append(1)',
+			'def flaky(n):',
+			'    calls.append(n)',
 			'    if len(calls) < 3:',
 			'        raise ConnectionError()',
 			'    return "ok"',
-			'assert call_with_retries(flaky, 3) == "ok"',
-			'def broken():',
-			'    calls.append(2)',
+			'assert call_with_retries(flaky, 3) == "ok" and calls == [0, 1, 2]',
+			'def broken(n):',
+			'    calls.append(-1)',
 			'    raise ValueError()',
 			'calls.clear()',
 			'try:',
@@ -398,27 +418,31 @@ const JUNIOR: Fn[] = [
 			'    raise AssertionError("ValueError swallowed")',
 			'except ValueError:',
 			'    pass',
-			'assert calls == [2]',
-			'def down():',
+			'assert calls == [-1]',
+			'def down(n):',
+			'    calls.append(n)',
 			'    raise ConnectionError()',
+			'calls.clear()',
 			'try:',
 			'    call_with_retries(down, 2)',
 			'    raise AssertionError("no error after the last attempt")',
 			'except ConnectionError:',
-			'    pass'
+			'    pass',
+			'assert calls == [0, 1]'
 		],
 		defects: [
 			{
 				kind: 'errors',
-				line: 6,
+				line: 7,
 				text: '        except Exception:',
-				neighbour: { line: 3, text: '    for attempt in range(1, attempts + 1):' }
+				neighbour: { line: 4, text: '    for attempt in range(1, attempts + 1):' }
 			},
 			{
+				// Shifting the attempt numbers instead would also stop at the right attempt, but fn must get them from 0.
 				kind: 'errors',
-				line: 7,
+				line: 8,
 				text: '            if attempt == attempts:',
-				neighbour: { line: 5, text: '            return fn' }
+				neighbour: { line: 4, text: '    for attempt in range(1, attempts + 1):' }
 			}
 		]
 	},
@@ -439,7 +463,9 @@ const JUNIOR: Fn[] = [
 			'assert read_port({}) == 8080',
 			'assert read_port({"http": {}}) == 8080',
 			'assert read_port({"http": {"port": 443}}) == 443',
-			'for bad in (0, 70000):',
+			'assert read_port({"http": {"port": 1}}) == 1',
+			'assert read_port({"http": {"port": 65535}}) == 65535',
+			'for bad in (0, 65536, 70000):',
 			'    try:',
 			'        read_port({"http": {"port": bad}})',
 			'        raise AssertionError("bad port accepted")',
@@ -565,7 +591,7 @@ const JUNIOR_X: Fn[] = [
 			'        checks.append(lambda value, limit=limit: value <= limit)',
 			'    return checks'
 		],
-		checks: ['mv = make_validators([3, 10])', 'assert mv[0](5) is False and mv[1](5) is True'],
+		checks: ['mv = make_validators([3, 10])', 'assert mv[0](5) is False and mv[1](5) is True and mv[0](3) is True'],
 		defects: [
 			{
 				kind: 'late-binding',
@@ -708,9 +734,11 @@ export function build(input: GenerateInput): Built {
 	const instance = makeInstance(descriptor, input, {
 		statement: {
 			markdown:
-				'Модуль сервиса на Python 3. У каждой функции в строке документации записана её спецификация. Ровно одна строка ' +
-				'модуля нарушает спецификацию своей функции: если заменить только её, все функции будут работать по спецификации. ' +
-				'Введите номер этой строки (нумерация с 1).',
+				'Модуль сервиса на Python 3. У каждой функции в строке документации записана её спецификация. В модуле один ' +
+				'дефект: одна функция нарушает свою спецификацию. Введите номер строки, замена которой одной инструкцией ' +
+				'восстанавливает спецификацию всех функций (нумерация с 1). Если исправить можно в нескольких строках — ' +
+				'засчитывается любая из них, где замена одной инструкцией восстанавливает спецификацию. Исправление — одна простая инструкция того же вида, что исправляемая строка: не добавляйте ' +
+				'конструкций, которых в ней нет (`:=`, lambda, обёртки, новые функции), и не переносите в неё логику из другой строки.',
 			code: { language: 'python3', source: p.source }
 		},
 		answer: { kind: 'line_no', value: p.answer }

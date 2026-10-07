@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.4,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "2cbadc172a33a09c797d0a647e02fceeedf2a2c81dc90f0b07e2a8602db24fa3"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.55,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "2cbadc172a33a09c797d0a647e02fceeedf2a2c81dc90f0b07e2a8602db24fa3"
+					}
+				],
+				"mean": 0.5
+			},
 			"constructive": { "statements": "4–6", "conflictKinds": 1, "uniqueKeys": 1 },
 			"constructiveRank": 4,
 			"timeNormSec": 300,
@@ -37,7 +54,24 @@
 		},
 		{
 			"grade": "middle",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.4,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "2cbadc172a33a09c797d0a647e02fceeedf2a2c81dc90f0b07e2a8602db24fa3"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.6,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "2cbadc172a33a09c797d0a647e02fceeedf2a2c81dc90f0b07e2a8602db24fa3"
+					}
+				],
+				"mean": 0.5
+			},
 			"constructive": { "statements": "5–8", "conflictKinds": "1–3", "uniqueKeys": "составной ключ или условие" },
 			"constructiveRank": 5,
 			"timeNormSec": 420,
@@ -130,6 +164,31 @@
 		"answerCollision": 0,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Все 8 экземпляров выполнены в sqlite3: результат совпадает с эталоном; вручную проверил replace-row, mixed-series, composite-null, multi-row-upsert.",
+					"Условие явно называет SQLite и правила выдачи id; ловушки (REPLACE меняет id и сбрасывает столбцы, NULL не конфликтует) однозначны.",
+					"Мелочь: junior-уровень включает INSERT OR REPLACE и ON CONFLICT DO UPDATE с excluded — для junior это верхняя граница; Angoff снижен."
+				],
+				"sourceSha256": "2cbadc172a33a09c797d0a647e02fceeedf2a2c81dc90f0b07e2a8602db24fa3"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Все восемь SQL-экземпляров выполнены на SQLite 3.45.1 и совпали с эталонами. Независимо пересчитан junior/do-update: cd-415 получает qty = 35 + 30 = 65 и price = 720; mn-422 получает qty = 25, сохраняя price = 500; rs-433 получает qty = 45 + 30 = 75, price = MIN(750, 720) = 720, а последующий DO NOTHING его не меняет.",
+					"Диалект SQLite, правило INTEGER PRIMARY KEY и последовательная обработка строк одного VALUES явно заданы. REPLACE заменяет всю строку, DO UPDATE меняет перечисленные поля, NULL не создаёт конфликт составного UNIQUE, ложный WHERE не вставляет новую строку. Существенных скрытых допущений или неверных ответов не обнаружено.",
+					"Классы различаются способом разрешения конфликта и ключом; смешанная серия и конфликт внутри одного INSERT требуют пересчёта промежуточного состояния. Итоговые строки с числами практически не угадываются, эталон одного класса не переносится тривиально.",
+					"Бинарная рубрика приемлема для коротких конечных таблиц. Неблокирующая рекомендация — нормализовать пробелы вокруг |, чтобы оформление не влияло на содержательно правильный ответ.",
+					"Junior-классы проверяют базовое чтение обработчиков конфликтов, Middle добавляет составные ключи, NULL и условные обновления; соответствие блоку и грейдам достаточное. Angoff дан для полного правильного результата. Проверены восемь экземпляров пакета, без повторного запуска генерации всех сидов ворот."
+				],
+				"sourceSha256": "2cbadc172a33a09c797d0a647e02fceeedf2a2c81dc90f0b07e2a8602db24fa3"
+			}
+		]
 	}
 }

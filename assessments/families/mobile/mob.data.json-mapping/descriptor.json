@@ -1,0 +1,90 @@
+{
+	"key": "mob.data.json-mapping",
+	"version": 1,
+	"specialization": "mobile",
+	"block": "mob.data",
+	"format": "compute",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": { "objects": 4, "properties": 4, "mechanisms": 1 },
+			"constructiveRank": 2,
+			"timeNormSec": 200,
+			"classes": [
+				{
+					"id": "default-absent",
+					"form": "A",
+					"description": "отсутствующий ключ даёт значение по умолчанию, присутствующий — своё значение"
+				},
+				{
+					"id": "serial-name",
+					"form": "B",
+					"description": "@SerialName: ключ с именем свойства не читается и пропускается, свойство получает значение по умолчанию"
+				},
+				{
+					"id": "null-vs-absent",
+					"form": "anchor",
+					"description": "явный null в nullable-свойство остаётся null, значение по умолчанию — только при отсутствии ключа"
+				},
+				{
+					"id": "ignore-unknown",
+					"form": "X",
+					"description": "без ignoreUnknownKeys лишний ключ — ошибка разбора; отсутствие обязательного id — тоже"
+				}
+			]
+		}
+	],
+	"surfaceParams": [{ "name": "data", "description": "id, заголовки, цвета, порядок ключей, имена лишних ключей" }],
+	"essentialParams": [
+		{ "name": "key-state", "description": "ключ свойства: есть, нет, null, под другим именем, лишний ключ" },
+		{ "name": "config", "description": "включён ли ignoreUnknownKeys" }
+	],
+	"language": "kotlin",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"значения по умолчанию при отсутствующих ключах",
+			"явный null против отсутствующего ключа",
+			"@SerialName",
+			"ignoreUnknownKeys и обязательные свойства"
+		],
+		"doesNotCheck": ["coerceInputValues и explicitNulls", "Gson и Moshi", "полиморфная сериализация"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "absent-null",
+			"defect": "считает, что отсутствующий ключ даёт null, а не значение по умолчанию",
+			"mustBeCaught": true
+		},
+		{
+			"id": "name-by-property",
+			"defect": "считает, что при @SerialName свойство читается и из ключа с его именем",
+			"mustBeCaught": true
+		},
+		{
+			"id": "null-uses-default",
+			"defect": "считает, что явный null заменяется значением по умолчанию",
+			"mustBeCaught": true
+		},
+		{
+			"id": "unknown-ignored",
+			"defect": "считает, что лишние ключи пропускаются и без ignoreUnknownKeys",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 4, "caught": 4 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

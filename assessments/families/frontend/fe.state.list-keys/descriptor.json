@@ -1,0 +1,143 @@
+{
+	"key": "fe.state.list-keys",
+	"version": 1,
+	"specialization": "frontend",
+	"block": "fe.state",
+	"format": "compute",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"rows": "3–6",
+				"steps": "3–5",
+				"keys": "индекс или id",
+				"rowState": "введённый текст",
+				"mechanisms": 2
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "index-insert",
+					"form": "A",
+					"description": "ключ — индекс, вставка в начало: введённый текст остаётся на позиции, новый экземпляр — последняя строка"
+				},
+				{
+					"id": "id-insert",
+					"form": "B",
+					"description": "ключ — id, вставка в начало и удаление: текст идёт за своим элементом, новый экземпляр — только у нового элемента"
+				},
+				{
+					"id": "index-remove",
+					"form": "anchor",
+					"description": "ключ — индекс, удаление из середины: текст остаётся на позициях, удаляется экземпляр последней строки"
+				},
+				{
+					"id": "id-reorder",
+					"form": "X",
+					"description": "ключ — id, сортировка, разворот или перенос наверх: экземпляры сохраняются и переезжают со своими элементами"
+				}
+			]
+		},
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"rows": "4–6",
+				"steps": "5–7",
+				"keys": "индекс, id или изменяемое поле",
+				"rowState": "введённый текст или черновик из пропса",
+				"mechanisms": "3, взаимодействуют"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "index-draft",
+					"form": "A",
+					"description": "ключ — индекс, черновик из пропса: после вставки и сортировки черновики остаются на позициях со старыми названиями"
+				},
+				{
+					"id": "id-mixed",
+					"form": "B",
+					"description": "ключ — id, черновик из пропса, вставка, удаление, перестановка и переименование: черновик не следует за новым названием"
+				},
+				{
+					"id": "title-key",
+					"form": "anchor",
+					"description": "ключ — изменяемое название: переименование создаёт новый экземпляр и теряет текст, сортировка переносит текст с элементом"
+				},
+				{
+					"id": "title-key-draft",
+					"form": "X",
+					"description": "ключ — название, черновик из пропса: переименованная строка начинает с нового названия, остальные сохраняют черновики"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "имена компонентов списка и строки" },
+		{ "name": "data", "description": "названия, id, введённые слова, какие строки и элементы затронуты" }
+	],
+	"essentialParams": [
+		{ "name": "key", "description": "что служит ключом: индекс, id или изменяемое поле" },
+		{
+			"name": "row-state",
+			"description": "состояние строки: введённый текст или черновик, начальное значение которого берётся из пропса"
+		},
+		{
+			"name": "operations",
+			"description": "какие изменения списка: вставка, удаление, сортировка, разворот, перенос, переименование, ввод текста между ними"
+		}
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"сопоставление экземпляров по ключу при новом рендере списка",
+			"ключ-индекс при вставке, удалении и сортировке",
+			"ключ-id при перестановке",
+			"ключ из изменяемого поля и пересоздание экземпляра",
+			"начальное значение useState из пропса задаётся только при создании",
+			"сколько экземпляров создаётся и удаляется"
+		],
+		"doesNotCheck": ["дубли ключей", "перемещение узлов DOM и фокус", "неуправляемые поля ввода"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "state-follows-item",
+			"defect": "считает, что состояние строки всегда идёт за своим элементом данных, какой бы ни был ключ",
+			"mustBeCaught": true
+		},
+		{
+			"id": "state-stays-in-place",
+			"defect": "считает, что состояние остаётся на позиции в списке, какой бы ни был ключ",
+			"mustBeCaught": true
+		},
+		{
+			"id": "draft-syncs-props",
+			"defect": "считает, что черновик useState(item.title) обновляется, когда меняется проп",
+			"mustBeCaught": true
+		},
+		{
+			"id": "remount-all",
+			"defect": "считает, что любое изменение списка пересоздаёт все строки и сбрасывает их состояние",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 4, "caught": 4 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

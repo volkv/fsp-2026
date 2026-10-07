@@ -1,0 +1,183 @@
+{
+	"key": "fe.dom.event-propagation",
+	"version": 1,
+	"specialization": "frontend",
+	"block": "fe.dom",
+	"format": "compute",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"depth": 3,
+				"listeners": "6–8",
+				"events": "1–2",
+				"mechanisms": "фазы + один механизм остановки или once"
+			},
+			"constructiveRank": 2,
+			"timeNormSec": 270,
+			"classes": [
+				{
+					"id": "bubble-capture",
+					"form": "A",
+					"description": "слушатели перехвата и всплытия на трёх уровнях: сначала перехват сверху вниз, затем цель, затем всплытие снизу вверх"
+				},
+				{
+					"id": "stop-propagation",
+					"form": "B",
+					"description": "stopPropagation в одном из обработчиков: остальные слушатели того же узла в этой фазе выполняются, дальше по пути — нет"
+				},
+				{
+					"id": "prevent-default",
+					"form": "anchor",
+					"description": "preventDefault и stopPropagation в разных обработчиках: отмена действия по умолчанию распространение не останавливает"
+				},
+				{
+					"id": "once",
+					"form": "X",
+					"description": "два клика подряд, у части слушателей once: такой слушатель срабатывает только при первом событии"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"depth": 4,
+				"listeners": "7–11",
+				"events": 2,
+				"mechanisms": "фазы + два взаимодействующих механизма"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 330,
+			"classes": [
+				{
+					"id": "immediate",
+					"form": "A",
+					"description": "stopImmediatePropagation и stopPropagation в одной программе, два клика по разным элементам: первый обрывает и соседей по узлу, второй — только путь"
+				},
+				{
+					"id": "target-phase",
+					"form": "B",
+					"description": "у цели слушатели перехвата зарегистрированы после обычных: на цели сначала выполняются слушатели перехвата; второй клик — по промежуточному элементу"
+				},
+				{
+					"id": "non-bubbling",
+					"form": "anchor",
+					"description": "dispatchEvent невсплывающего и всплывающего событий: без bubbles событие не всплывает, но фаза перехвата у него есть"
+				},
+				{
+					"id": "dedupe",
+					"form": "X",
+					"description": "одна именованная функция зарегистрирована несколько раз: повтор с тем же capture не добавляется, с другим — это второй слушатель"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "id элементов, имена общих функций, типы пользовательских событий" },
+		{ "name": "layout", "description": "на каких элементах и в каком порядке зарегистрированы слушатели" }
+	],
+	"essentialParams": [
+		{ "name": "phases", "description": "флаги capture у слушателей, в том числе на цели" },
+		{ "name": "control", "description": "stopPropagation, stopImmediatePropagation, preventDefault, once" },
+		{
+			"name": "events",
+			"description": "клик или dispatchEvent, всплывает ли событие, сколько событий и по каким элементам"
+		},
+		{ "name": "registration", "description": "повторная регистрация той же функции с тем же или другим capture" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"порядок фаз перехвата, цели и всплытия",
+			"порядок слушателей на узле — порядок регистрации",
+			"на цели слушатели перехвата раньше обычных",
+			"stopPropagation против stopImmediatePropagation",
+			"preventDefault не останавливает распространение",
+			"once снимает слушатель после первого вызова",
+			"событие без bubbles: перехват есть, всплытия нет",
+			"повторная регистрация той же функции и флаг capture"
+		],
+		"doesNotCheck": [
+			"снятие слушателей во время диспетчеризации",
+			"остановка распространения в слушателе перехвата на самой цели",
+			"window и document в пути события, теневой DOM",
+			"действия по умолчанию (отправка формы, переход по ссылке)"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "capture-ignored",
+			"defect": "считает слушатели перехвата обычными, срабатывающими при всплытии",
+			"mustBeCaught": true
+		},
+		{
+			"id": "registration-order",
+			"defect": "вызывает все слушатели пути в порядке регистрации, не глядя на фазы",
+			"mustBeCaught": true
+		},
+		{ "id": "bubble-top-down", "defect": "считает, что всплытие идёт от корня к цели", "mustBeCaught": true },
+		{
+			"id": "stop-skips-node",
+			"defect": "считает, что stopPropagation отменяет и остальные слушатели текущего узла",
+			"mustBeCaught": true
+		},
+		{ "id": "stop-ignored", "defect": "не учитывает stopPropagation", "mustBeCaught": true },
+		{
+			"id": "prevent-stops",
+			"defect": "считает, что preventDefault останавливает распространение",
+			"mustBeCaught": true
+		},
+		{
+			"id": "once-ignored",
+			"defect": "не учитывает once: слушатель срабатывает при каждом событии",
+			"mustBeCaught": true
+		},
+		{
+			"id": "immediate-as-stop",
+			"defect": "считает stopImmediatePropagation тем же, что stopPropagation: соседи по узлу выполняются",
+			"mustBeCaught": true
+		},
+		{
+			"id": "target-registration-order",
+			"defect": "на цели вызывает слушатели строго в порядке регистрации, без учёта capture",
+			"mustBeCaught": true
+		},
+		{
+			"id": "non-bubbling-no-capture",
+			"defect": "считает, что у невсплывающего события нет и фазы перехвата",
+			"mustBeCaught": true
+		},
+		{
+			"id": "bubbles-by-default",
+			"defect": "считает, что new Event(type) всплывает по умолчанию",
+			"mustBeCaught": true
+		},
+		{
+			"id": "no-dedupe",
+			"defect": "считает, что повторная регистрация той же функции добавляет второй слушатель",
+			"mustBeCaught": true
+		},
+		{
+			"id": "dedupe-ignores-capture",
+			"defect": "считает повтором и регистрацию той же функции с другим флагом capture",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 13, "caught": 13 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0002,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.8,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "6a3d257d34d4def9d9d746a19b207bcd128e966a3749fd526dad9cbad8148fbe"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.65,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "6a3d257d34d4def9d9d746a19b207bcd128e966a3749fd526dad9cbad8148fbe"
+					}
+				],
+				"mean": 0.75
+			},
 			"constructive": {
 				"rows": "11–16",
 				"rules": 3,
@@ -41,7 +58,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.65,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "6a3d257d34d4def9d9d746a19b207bcd128e966a3749fd526dad9cbad8148fbe"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.6,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "6a3d257d34d4def9d9d746a19b207bcd128e966a3749fd526dad9cbad8148fbe"
+					}
+				],
+				"mean": 0.65
+			},
 			"constructive": {
 				"rows": "9–12",
 				"requests": 3,
@@ -153,9 +187,33 @@
 		"reference": { "seeds": 200, "failures": 0 },
 		"wrongSolutions": { "mustBeCaught": 10, "caught": 10 },
 		"hiddenTestsMutationScore": null,
-		"answerCollision": 0.0027,
+		"answerCollision": 0.002,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчитаны вручную все 8 экземпляров (intern: asc-ties, desc-ties, filtered, two-keys; junior: offset-shift, keyset-changes, keyset-ties, keyset-ascending): ответы верны. В keyset-ties исправление (удаления за курсором, в т.ч. записи 647 и 643) отражено корректно: удалённые записи не выдаются, пара (created_at, id) на границе страницы не теряет оставшиеся записи.",
+					"Условие однозначно: SQL-запрос или правило сортировки дано, каждый запрос видит данные на момент выполнения, формат вывода с разделителем | задан. Ошибки легко отличимы воротами (10 ошибочных решений).",
+					"Intern: 11–16 строк с ручной сортировкой по двум-трём ключам за 240 с — впритык, но посильно. Junior: тема консистентности пагинации ближе к middle по смыслу, но с готовым запросом в условии ответ получается внимательным прочтением."
+				],
+				"sourceSha256": "6a3d257d34d4def9d9d746a19b207bcd128e966a3749fd526dad9cbad8148fbe"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Независимо пересчитаны все восемь экземпляров; ответы совпали. Intern A: 3 181 114 194. Junior A: 481 480 479 478 | 478 477 476 475 | 474 473 472 471. Проверены фильтрация до пагинации, направления сортировки, сравнение пары курсора и сохранение курсора при удалении показанной записи.",
+					"Условие задаёт нумерацию страниц, дополнительный ключ, момент видимости изменений и строгую границу курсора; ответы однозначны. Последовательности id не образуют малого набора угадываемых вариантов. OFFSET и keyset требуют разных расчётов; направление и равенство времён существенны.",
+					"Блок be.api и уровни Intern/Junior соответствуют содержанию: Intern выполняет сортировку и разбиение, Junior отслеживает изменения между запросами; все необходимые правила даны.",
+					"Несущественное улучшение рубрики: binary для составного ответа допустима, но частичные баллы за total_pages и состав страницы у Intern, за отдельные страницы у Junior снизят влияние одной описки."
+				],
+				"sourceSha256": "6a3d257d34d4def9d9d746a19b207bcd128e966a3749fd526dad9cbad8148fbe"
+			}
+		]
 	}
 }

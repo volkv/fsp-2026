@@ -1,0 +1,131 @@
+{
+	"key": "mob.coroutines.state-flow",
+	"version": 1,
+	"specialization": "mobile",
+	"block": "mob.coroutines",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"flows": "1–2 подписчика",
+				"steps": "6–12",
+				"mechanisms": 2,
+				"order": "yield или задержки 100–900 мс"
+			},
+			"constructiveRank": 2,
+			"timeNormSec": 390,
+			"classes": [
+				{
+					"id": "conflation",
+					"form": "A",
+					"description": "MutableStateFlow с yield: подписчик видит текущее значение при подписке и только последнее к своему ходу; равное значение (в том числе copy у data class) не приходит"
+				},
+				{
+					"id": "shared-buffer",
+					"form": "B",
+					"description": "MutableSharedFlow: replay хранит последние значения для нового подписчика, tryEmit при ждущем подписчике удаётся replay + extraBufferCapacity раз, без подписчиков — всегда"
+				},
+				{
+					"id": "slow-collector",
+					"form": "anchor",
+					"description": "медленный подписчик StateFlow с delay: после задержки видит последнее значение, промежуточные теряются; при отсутствии изменений ждёт следующего"
+				},
+				{
+					"id": "state-in",
+					"form": "X",
+					"description": "stateIn: Eagerly запускает источник, когда создатель приостановится, Lazily — с первым подписчиком; value до запуска — начальное"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "имена потоков, подписчиков и событий" },
+		{ "name": "values", "description": "значения состояния и их порядок, сроки задержек" }
+	],
+	"essentialParams": [
+		{
+			"name": "flow-kind",
+			"description": "StateFlow с yield, SharedFlow с буфером, медленный подписчик StateFlow, stateIn"
+		},
+		{
+			"name": "buffer",
+			"description": "replay и extraBufferCapacity, способ запуска SharingStarted, время работы подписчика"
+		}
+	],
+	"language": "kotlin",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"конфляция StateFlow: промежуточные значения теряются",
+			"встроенный distinctUntilChanged и equals у data class",
+			"текущее значение при подписке",
+			"replay и extraBufferCapacity у MutableSharedFlow",
+			"tryEmit с подписчиком и без",
+			"stateIn с SharingStarted.Eagerly и Lazily"
+		],
+		"doesNotCheck": [
+			"подвешенный emit при полном буфере",
+			"WhileSubscribed и тайм-ауты остановки",
+			"многопоточные диспетчеры"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "no-conflation",
+			"defect": "считает, что подписчик StateFlow получает каждое промежуточное значение",
+			"mustBeCaught": true
+		},
+		{
+			"id": "emits-equal",
+			"defect": "считает, что присваивание равного значения тоже приходит подписчику",
+			"mustBeCaught": true
+		},
+		{
+			"id": "no-initial",
+			"defect": "считает, что подписчик StateFlow не получает текущее значение при подписке",
+			"mustBeCaught": true
+		},
+		{ "id": "try-emit-always", "defect": "считает, что tryEmit всегда удаётся", "mustBeCaught": true },
+		{
+			"id": "replay-all",
+			"defect": "считает, что новый подписчик SharedFlow получает все значения, а не последние replay",
+			"mustBeCaught": true
+		},
+		{
+			"id": "capacity-extra-only",
+			"defect": "считает ёмкость буфера для tryEmit равной только extraBufferCapacity, без replay",
+			"mustBeCaught": true
+		},
+		{
+			"id": "keeps-first",
+			"defect": "считает, что медленный подписчик после задержки получает первое пропущенное значение, а не последнее",
+			"mustBeCaught": true
+		},
+		{
+			"id": "lazily-eager",
+			"defect": "считает, что SharingStarted.Lazily запускает источник сразу, как Eagerly",
+			"mustBeCaught": true
+		},
+		{
+			"id": "eager-immediate",
+			"defect": "считает, что Eagerly выполняет источник прямо внутри stateIn, до следующей строки",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 9, "caught": 9 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0083,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

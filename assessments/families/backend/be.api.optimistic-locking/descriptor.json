@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "senior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.5,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "59dfa9e7f6c42d3f7ae695106f516af32b1b828939dda66a895ce557923d4eb4"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.6,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "59dfa9e7f6c42d3f7ae695106f516af32b1b828939dda66a895ce557923d4eb4"
+					}
+				],
+				"mean": 0.55
+			},
 			"constructive": {
 				"clients": "3–4",
 				"turns": "10–16",
@@ -100,6 +117,25 @@
 		"answerCollision": 0,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Второй раунд Angoff: Механическая трассировка 12-16 ходов по явным правилам доступна кандидату, нулевая терпимость к ошибке тянет вниз; между 0,40 и 0,70 итог 0,50."
+				],
+				"sourceSha256": "59dfa9e7f6c42d3f7ae695106f516af32b1b828939dda66a895ce557923d4eb4"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Второй раунд: после сопоставления оценок Senior 0,40 и 0,70 устанавливаю 0,60. Для пограничного Senior, работающего с согласованностью, явно описанные If-Match, PUT/PATCH и повтор после 412 не требуют редких знаний; 480 с достаточно для таблицы состояния. Однако одновременный учёт снимков 3–4 клиентов, трёх полей, версии и фаз повторов на 10–16 ходах заметно снижает вероятность полного ответа при бинарной рубрике, особенно в one-read. Пересчёт четырёх расписаний подтвердил эталоны; например, B даёт 200 200 200 412 200 862 7 -3 5. Сложность преимущественно в трассировке, поэтому прежние 0,70 снижаю, но 0,40 считаю излишне низкими."
+				],
+				"sourceSha256": "59dfa9e7f6c42d3f7ae695106f516af32b1b828939dda66a895ce557923d4eb4"
+			}
+		]
 	}
 }

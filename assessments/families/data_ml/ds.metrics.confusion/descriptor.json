@@ -1,0 +1,132 @@
+{
+	"key": "ds.metrics.confusion",
+	"version": 1,
+	"specialization": "data_ml",
+	"block": "ds.metrics",
+	"format": "compute",
+	"answerKind": "float_eps",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": { "scoreValues": "7–9", "threshold": "совпадает со скором объектов", "metric": "одна базовая" },
+			"constructiveRank": 2,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "precision",
+					"form": "A",
+					"description": "precision положительного класса: TP / (TP + FP) при правиле «скор ≥ порога»"
+				},
+				{ "id": "recall", "form": "B", "description": "recall положительного класса: TP / (TP + FN)" },
+				{
+					"id": "f1",
+					"form": "anchor",
+					"description": "F1 — гармоническое среднее precision и recall, а не арифметическое"
+				},
+				{
+					"id": "specificity",
+					"form": "X",
+					"description": "специфичность: доля верно отвергнутых среди отрицательных, TN / (TN + FP)"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"scoreValues": "9–12",
+				"threshold": "совпадает со скором объектов",
+				"metric": "составная или по другому классу"
+			},
+			"constructiveRank": 3,
+			"timeNormSec": 330,
+			"classes": [
+				{
+					"id": "f-beta",
+					"form": "A",
+					"description": "Fβ при β = 0,5 или 2: вес recall в β² раз больше, чем precision"
+				},
+				{
+					"id": "npv",
+					"form": "B",
+					"description": "precision отрицательного класса (объекты с предсказанием «остался»): TN / (TN + FN)"
+				},
+				{
+					"id": "mcc",
+					"form": "anchor",
+					"description": "коэффициент корреляции Мэттьюса по всем четырём клеткам матрицы ошибок"
+				},
+				{
+					"id": "balanced-accuracy",
+					"form": "X",
+					"description": "сбалансированная точность: среднее recall двух классов при сильном дисбалансе"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "предметная область: отток, спам, мошенничество, дефект" },
+		{ "name": "data", "description": "значения скоров, число объектов в каждой строке, порог" }
+	],
+	"essentialParams": [
+		{
+			"name": "metric",
+			"description": "какая метрика нужна: precision, recall, F1, специфичность, Fβ, NPV, MCC, сбалансированная точность"
+		},
+		{
+			"name": "threshold-rule",
+			"description": "объекты со скором ровно на пороге относятся к положительному предсказанию"
+		}
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"построение матрицы ошибок по скорам и порогу",
+			"объекты со скором ровно на пороге",
+			"precision, recall, F1, специфичность",
+			"Fβ, NPV, MCC, сбалансированная точность"
+		],
+		"doesNotCheck": ["выбор порога (семейство ds.metrics.threshold-cost)", "многоклассовые метрики"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "strict-threshold",
+			"defect": "считает положительным только скор строго больше порога",
+			"mustBeCaught": true
+		},
+		{ "id": "precision-recall-swap", "defect": "путает знаменатели precision и recall", "mustBeCaught": true },
+		{ "id": "f1-arithmetic", "defect": "F1 как арифметическое среднее precision и recall", "mustBeCaught": true },
+		{ "id": "accuracy-instead", "defect": "считает accuracy вместо запрошенной метрики", "mustBeCaught": true },
+		{
+			"id": "specificity-as-npv",
+			"defect": "делит TN на все отрицательные предсказания вместо всех отрицательных объектов",
+			"mustBeCaught": true
+		},
+		{ "id": "f1-instead-of-fbeta", "defect": "игнорирует β и считает F1", "mustBeCaught": true },
+		{
+			"id": "beta-inverted",
+			"defect": "даёт больший вес не той метрике: подставляет 1/β вместо β",
+			"mustBeCaught": true
+		},
+		{
+			"id": "npv-as-ppv",
+			"defect": "считает precision положительного класса вместо отрицательного",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 8, "caught": 8 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0007,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.55,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "3f37e31c4afddd5f34488da441cd3b4c1b0063aabad45aad4aa5a98e948890c0"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.7,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "3f37e31c4afddd5f34488da441cd3b4c1b0063aabad45aad4aa5a98e948890c0"
+					}
+				],
+				"mean": 0.65
+			},
 			"constructive": {
 				"requests": "5–7",
 				"keys": "2–3",
@@ -42,7 +59,24 @@
 		},
 		{
 			"grade": "middle",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.45,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "3f37e31c4afddd5f34488da441cd3b4c1b0063aabad45aad4aa5a98e948890c0"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.65,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "3f37e31c4afddd5f34488da441cd3b4c1b0063aabad45aad4aa5a98e948890c0"
+					}
+				],
+				"mean": 0.55
+			},
 			"constructive": {
 				"requests": "6–9",
 				"keys": "2–3",
@@ -143,6 +177,29 @@
 		"answerCollision": 0.0002,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Эталон запущен на полных входах: все 8 ответов совпадают; вручную проверил все 8 экземпляров — верно.",
+					"Правила сервера перечислены полностью и по порядку, включая порядок проверок (422 раньше 409) и момент хранения ключа (от завершения выполнения); граница срока (ровно в момент) определена.",
+					"Мелочь: номера платежей по порядку — при равной длительности всех выполнений порядок прихода и завершения совпадает, неоднозначности нет; в middle-классах тоже одна длительность на экземпляр.",
+					"Угадать нельзя; ловушки (ttl-from-start, conflict-before-body, store-5xx) соответствуют уровню: junior — повтор и 409/422, middle — срок и сохранение ошибок."
+				],
+				"sourceSha256": "3f37e31c4afddd5f34488da441cd3b4c1b0063aabad45aad4aa5a98e948890c0"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Независимая событийная симуляция с созданием платежа при завершении выполнения подтвердила все восемь ответов. В Junior/in-flight повтор в t=11 приходит до завершения в t=13 и даёт 409. В Middle/ttl-from-finish второй ключ завершён в t=6 и хранится до t=26: t=25 возвращает 201:8792, t=30 создаёт 201:8794; всего четыре платежа.",
+					"Область действия ключа, сравнение тела раньше проверки незавершённости, сохранение 400, забывание после 500 и начало TTL при завершении прямо заданы контрактом сервера. Варианты требуют учитывать разные состояния ключа; бинарная проверка полного списка и числа платежей понятна. Junior/Middle соответствуют указанному усложнению правил повторов."
+				],
+				"sourceSha256": "3f37e31c4afddd5f34488da441cd3b4c1b0063aabad45aad4aa5a98e948890c0"
+			}
+		]
 	}
 }

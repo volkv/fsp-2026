@@ -1,0 +1,199 @@
+{
+	"key": "fe.async.async-iteration",
+	"version": 1,
+	"specialization": "frontend",
+	"block": "fe.async",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"generators": 1,
+				"lines": "30–45",
+				"rules": 3,
+				"interacting": "асинхронный генератор + for await + таймеры, созданные заранее, или EventTarget"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "lazy-pull",
+					"form": "A",
+					"description": "тело генератора идёт, только когда потребитель просит следующее значение; таймеры, созданные заранее, тикают сами"
+				},
+				{
+					"id": "early-break",
+					"form": "B",
+					"description": "break или return в for await вызывает return() генератора: finally генератора выполняется до кода после цикла"
+				},
+				{
+					"id": "array-loop",
+					"form": "anchor",
+					"description": "for await по массиву ждёт элементы в порядке массива, а не готовности; Promise.all над тем же массивом"
+				},
+				{
+					"id": "event-target",
+					"form": "X",
+					"description": "dispatchEvent внутри цикла for await вызывает слушателей синхронно; асинхронный слушатель продолжается позже, once срабатывает один раз"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"constructive": {
+				"generators": 1,
+				"lines": "30–50",
+				"rules": 5,
+				"interacting": "очередь запросов генератора + yield, который ждёт операнд + закрытие итератора + независимая цепочка then"
+			},
+			"constructiveRank": 7,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "tick-interleave",
+					"form": "A",
+					"description": "точный порядок тактов: yield ждёт свой операнд, for await ждёт промис next(), независимая цепочка then идёт между ними"
+				},
+				{
+					"id": "request-queue",
+					"form": "B",
+					"description": "next() и return() вызваны подряд без await: запросы встают в очередь, return() доходит до генератора в свою очередь и выполняет finally"
+				},
+				{
+					"id": "break-async-finally",
+					"form": "anchor",
+					"description": "break, а в finally генератора await таймера: код после цикла ждёт, пока finally не закончится"
+				},
+				{
+					"id": "throw-in-loop",
+					"form": "X",
+					"description": "исключение в теле for await: сначала return() и finally генератора, потом catch снаружи цикла"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "имена значений, страниц и меток" },
+		{ "name": "timings", "description": "задержки таймеров, место break, число шагов и звеньев цепочки" }
+	],
+	"essentialParams": [
+		{
+			"name": "mechanism",
+			"description": "ленивый генератор, ранний выход, for await по массиву, EventTarget, такты yield, очередь запросов, await в finally, исключение в цикле"
+		}
+	],
+	"language": "javascript",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"асинхронный генератор выполняется по запросу потребителя",
+			"таймеры промисов, созданных заранее, идут независимо от await",
+			"break и return в for await вызывают return() и ждут finally генератора",
+			"for await по массиву идёт в порядке массива",
+			"dispatchEvent вызывает слушателей синхронно, асинхронные слушатели не ждутся",
+			"yield в асинхронном генераторе ждёт операнд; такты относительно цепочки then",
+			"очередь next() и return() асинхронного генератора",
+			"await в finally генератора задерживает выход из цикла",
+			"исключение в теле цикла закрывает генератор до catch"
+		],
+		"doesNotCheck": ["yield внутри finally при закрытии", "throw() у генератора", "отклонённые промисы без обработчика"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "eager-generator",
+			"defect": "считает, что тело асинхронного генератора начинает выполняться при вызове функции-генератора",
+			"mustBeCaught": true
+		},
+		{
+			"id": "push-ahead",
+			"defect": "считает, что после yield генератор сам идёт дальше, не дожидаясь следующего запроса",
+			"mustBeCaught": true
+		},
+		{
+			"id": "timers-on-await",
+			"defect": "считает, что таймер промиса, созданного заранее, начинает отсчёт, только когда его ждут через await",
+			"mustBeCaught": true
+		},
+		{
+			"id": "return-skips-finally",
+			"defect": "считает, что return() (в том числе от break) закрывает генератор без его finally",
+			"mustBeCaught": true
+		},
+		{
+			"id": "after-loop-first",
+			"defect": "считает, что код после цикла идёт сразу после break, не дожидаясь закрытия генератора",
+			"mustBeCaught": true
+		},
+		{
+			"id": "resolution-order",
+			"defect": "считает, что for await по массиву выдаёт элементы в порядке готовности",
+			"mustBeCaught": true
+		},
+		{
+			"id": "plain-no-wait",
+			"defect": "считает, что for await по массиву не ждёт обычных значений, только промисы",
+			"mustBeCaught": true
+		},
+		{
+			"id": "dispatch-async",
+			"defect": "считает, что dispatchEvent вызывает слушателей позже, а не внутри вызова",
+			"mustBeCaught": true
+		},
+		{
+			"id": "listener-awaited",
+			"defect": "считает, что dispatchEvent ждёт завершения асинхронных слушателей",
+			"mustBeCaught": true
+		},
+		{
+			"id": "once-ignored",
+			"defect": "не учитывает once: слушатель срабатывает на каждое событие",
+			"mustBeCaught": true
+		},
+		{
+			"id": "yield-no-await",
+			"defect": "считает, что yield в асинхронном генераторе отдаёт операнд, не дожидаясь его",
+			"mustBeCaught": true
+		},
+		{
+			"id": "chain-first",
+			"defect": "считает, что независимая цепочка then проходит целиком за один такт",
+			"mustBeCaught": true
+		},
+		{
+			"id": "return-immediate",
+			"defect": "считает, что return() завершается сразу, раньше запросов next(), стоящих перед ним в очереди",
+			"mustBeCaught": true
+		},
+		{
+			"id": "finally-await-ignored",
+			"defect": "считает, что await в finally генератора не задерживает его закрытие",
+			"mustBeCaught": true
+		},
+		{
+			"id": "throw-skips-close",
+			"defect": "считает, что исключение в теле for await не закрывает генератор",
+			"mustBeCaught": true
+		},
+		{
+			"id": "catch-before-close",
+			"defect": "считает, что catch снаружи цикла выполняется раньше finally генератора",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 16, "caught": 16 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0098,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

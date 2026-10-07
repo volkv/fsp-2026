@@ -1,0 +1,126 @@
+{
+	"key": "mob.coroutines.scope-defects",
+	"version": 1,
+	"specialization": "mobile",
+	"block": "mob.coroutines",
+	"format": "bug_locate",
+	"answerKind": "line_no",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"functions": 4,
+				"lines": "40–60",
+				"defect": "одна строка: ожидание результата, перехват отмены, вид scope, связь с родителем"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "not-awaited",
+					"form": "A",
+					"description": "результат не дождались: scope без ожидания детей (CoroutineScope(currentCoroutineContext())) или start() вместо join()"
+				},
+				{
+					"id": "swallowed-cancel",
+					"form": "B",
+					"description": "отмена поглощена: catch (e: Exception) или runCatching перехватывает CancellationException, и работа идёт после отмены"
+				},
+				{
+					"id": "failure-scope",
+					"form": "anchor",
+					"description": "вид scope против спецификации: coroutineScope там, где сбой одной загрузки не должен отменять другие, или supervisorScope там, где должен"
+				},
+				{
+					"id": "detached",
+					"form": "X",
+					"description": "работа отвязана от родителя: launch(Job()) или scope.launch(SupervisorJob()) переживает отмену вызывающего scope"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"functions": 4,
+				"lines": "40–65",
+				"defect": "одна строка: проверка отмены в цикле, приостановка в finally отменённой корутины, вид scope, связь с родителем"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "cooperative",
+					"form": "A",
+					"description": "цикл не замечает отмену: нет isActive в условии или Thread.yield() вместо yield() — работа идёт после отмены"
+				},
+				{
+					"id": "cleanup",
+					"form": "B",
+					"description": "приостановка в finally отменённой корутины без withContext(NonCancellable): очистка или сохранение не выполняются"
+				},
+				{
+					"id": "failure-scope",
+					"form": "anchor",
+					"description": "вид scope против спецификации, в том числе async с необязательной частью: coroutineScope вместо supervisorScope и наоборот"
+				},
+				{
+					"id": "detached",
+					"form": "X",
+					"description": "работа отвязана от вызывающей корутины: withContext(NonCancellable), async(SupervisorJob()), launch(Job()) — отмена её не останавливает"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "context", "description": "какие ещё функции модуля показаны и в каком порядке" },
+		{ "name": "header", "description": "комментарий и константы в начале модуля" },
+		{ "name": "function", "description": "в какой функции своего вида дефект" }
+	],
+	"essentialParams": [
+		{
+			"name": "defect-kind",
+			"description": "вид дефекта: ожидание, перехват отмены, вид scope, связь с родителем, проверка отмены, очистка при отмене"
+		}
+	],
+	"language": "kotlin",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"чтение спецификации из KDoc",
+			"coroutineScope ждёт детей, CoroutineScope(context) — нет; join против start",
+			"CancellationException и широкий перехват (catch Exception, runCatching)",
+			"coroutineScope против supervisorScope по спецификации сбоев",
+			"структурная связь с родителем: Job(), SupervisorJob(), NonCancellable в контексте",
+			"кооперативная отмена: isActive, yield против Thread.yield",
+			"приостановка в finally отменённой корутины и withContext(NonCancellable)"
+		],
+		"doesNotCheck": ["исправление дефекта (только его место)", "многопоточные диспетчеры и гонки", "стиль кода"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "neighbour-line",
+			"defect": "указывает соседнюю строку той же функции, где правка не возвращает спецификацию",
+			"mustBeCaught": true
+		},
+		{
+			"id": "other-function",
+			"defect": "указывает подозрительную, но исправную строку другой функции (перехват, launch, цикл)",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 2, "caught": 2 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0404,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

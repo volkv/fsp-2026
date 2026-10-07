@@ -1,0 +1,129 @@
+{
+	"key": "ds.metrics.multiclass-averaging",
+	"version": 1,
+	"specialization": "data_ml",
+	"block": "ds.metrics",
+	"format": "compute",
+	"answerKind": "float_eps",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": { "classes": 3, "layout": "строки — истинный класс", "averaging": "macro или micro" },
+			"constructiveRank": 3,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "macro-precision",
+					"form": "A",
+					"description": "macro-precision: precision каждого класса по его столбцу, затем простое среднее"
+				},
+				{
+					"id": "macro-recall",
+					"form": "B",
+					"description": "macro-recall: recall каждого класса по его строке, затем простое среднее"
+				},
+				{
+					"id": "macro-f1",
+					"form": "anchor",
+					"description": "macro-F1: среднее F1 классов, а не F1 от macro-precision и macro-recall"
+				},
+				{
+					"id": "micro-f1",
+					"form": "X",
+					"description": "micro-F1 по всем объектам: при одном предсказании на объект равен доле верных"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"classes": 4,
+				"layout": "ориентация указана в условии",
+				"averaging": "взвешенное, с пустым классом или с отказами"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 390,
+			"classes": [
+				{
+					"id": "weighted-f1",
+					"form": "A",
+					"description": "weighted-F1: F1 классов с весами по числу объектов класса (support)"
+				},
+				{
+					"id": "empty-class-f1",
+					"form": "B",
+					"description": "macro-F1, когда один класс модель не предсказывает ни разу: его precision и F1 по правилу равны 0 и входят в среднее"
+				},
+				{
+					"id": "transposed-recall",
+					"form": "anchor",
+					"description": "macro-recall по матрице, где строки — предсказанный класс, столбцы — истинный"
+				},
+				{
+					"id": "abstain-f1",
+					"form": "X",
+					"description": "micro-F1 с отказами модели: precision по объектам с ответом, recall — по всем"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "что классифицируют: обращения, изображения, тексты, транзакции" },
+		{ "name": "data", "description": "названия классов, числа в матрице ошибок" }
+	],
+	"essentialParams": [
+		{ "name": "averaging", "description": "macro, micro, weighted; метрика — precision, recall, F1" },
+		{ "name": "matrix-trap", "description": "ориентация матрицы, класс без предсказаний, столбец отказов" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"precision и recall класса по матрице ошибок",
+			"macro-, micro- и weighted-усреднение",
+			"macro-F1 против F1 от средних",
+			"ориентация матрицы, пустой класс, отказы модели"
+		],
+		"doesNotCheck": ["метрики по скорам (ROC AUC, log-loss)", "многометочная классификация"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "micro-instead-of-macro",
+			"defect": "считает micro-усреднение (долю верных) вместо macro",
+			"mustBeCaught": true
+		},
+		{
+			"id": "f1-of-macros",
+			"defect": "считает F1 от macro-precision и macro-recall вместо среднего F1 классов",
+			"mustBeCaught": true
+		},
+		{
+			"id": "rows-cols-swapped",
+			"defect": "путает строки и столбцы матрицы: precision считает по строке, recall — по столбцу",
+			"mustBeCaught": true
+		},
+		{ "id": "macro-instead-of-micro", "defect": "считает macro-F1 там, где нужен micro", "mustBeCaught": true },
+		{ "id": "unweighted", "defect": "усредняет F1 классов без весов", "mustBeCaught": true },
+		{ "id": "empty-class-dropped", "defect": "выбрасывает класс без предсказаний из среднего", "mustBeCaught": true },
+		{
+			"id": "abstain-ignored",
+			"defect": "считает только объекты с ответом модели, отказы выбрасывает",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 7, "caught": 7 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0006,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

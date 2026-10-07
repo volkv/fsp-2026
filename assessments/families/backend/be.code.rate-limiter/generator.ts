@@ -142,9 +142,16 @@ function render(input: Input, senior: boolean): string {
 
 type GroupId = 'basic' | 'boundary' | 'burst' | 'clients' | 'scale';
 
+/**
+ * Senior: the groups a partly right solution passes — every cost is 1 and no decision rests on the exact edge of the
+ * rule. They still cross windows: on a log inside one window every algorithm gives the same answers.
+ */
+const PLAIN: ReadonlySet<GroupId> = new Set(['basic', 'clients']);
+
 function makeInput(rng: Rng, group: GroupId, senior: boolean, withGlobal: boolean): Input {
 	const period = rng.pick([100, 200, 250, 500, 1000]);
-	const limit = senior ? rng.int(4, 10) : rng.int(2, 5);
+	// Unit requests need a small limit to meet it.
+	const limit = senior && !PLAIN.has(group) ? rng.int(4, 10) : rng.int(2, 5);
 	const clientCount =
 		group === 'scale' ? rng.int(20, senior ? 60 : 40) : group === 'clients' ? rng.int(4, 7) : rng.int(1, 4);
 	const people: string[] = rng.sample(PERSON_NAMES, Math.min(clientCount, PERSON_NAMES.length));
@@ -156,7 +163,7 @@ function makeInput(rng: Rng, group: GroupId, senior: boolean, withGlobal: boolea
 		if (group === 'boundary') t += rng.pick([0, 0, period, period, period - 1, 1]);
 		else if (group === 'burst') t += rng.bool(0.7) ? 0 : rng.int(1, period * 2);
 		else t += rng.int(0, Math.floor(period / 2));
-		requests.push({ t, client: rng.pick(people), cost: senior ? rng.int(1, 3) : 1 });
+		requests.push({ t, client: rng.pick(people), cost: senior && !PLAIN.has(group) ? rng.int(1, 3) : 1 });
 	}
 	const global = withGlobal ? limit + rng.int(1, limit) : null;
 	return { limit, period, global, requests };
@@ -169,6 +176,20 @@ function makeInput(rng: Rng, group: GroupId, senior: boolean, withGlobal: boolea
  */
 function deniedCountsApplies(kind: string, senior: boolean): boolean {
 	return kind === 'sliding-log' || kind === 'sliding-counter' || (kind === 'fixed-window' && senior);
+}
+
+/**
+ * Whether a decision rests on the exact edge of the rule. A token bucket refilled from the start of its period instead
+ * of the end differs on almost any log, so for it the edge is a request exactly at a refill moment of its client.
+ */
+function onEdge(kind: string, input: Input, expected: string): boolean {
+	if (kind !== 'token-bucket') return simulate(kind, input, 'window-edge') !== expected;
+	const first = new Map<string, number>();
+	return input.requests.some((r) => {
+		const t0 = first.get(r.client);
+		if (t0 === undefined) first.set(r.client, r.t);
+		return t0 !== undefined && r.t > t0 && (r.t - t0) % input.period === 0;
+	});
 }
 
 /** Hidden tests of the class; every test tells the class from the other algorithms. */
@@ -189,6 +210,7 @@ function groups(
 			const expected = simulate(kind, input);
 			if (others.some((other) => simulate(other, input) === expected)) continue;
 			if (withGlobal && simulate(kind, { ...input, global: null }) === expected) continue;
+			if (senior && PLAIN.has(id) && onEdge(kind, input, expected)) continue;
 			// Each group exposes its own mistake on every test: the edge of the period, a denied request in a burst, one
 			// limit for many clients.
 			if (!withGlobal && id === 'boundary' && simulate(kind, input, 'window-edge') === expected) continue;
@@ -214,7 +236,15 @@ const RULE: Record<string, (senior: boolean) => string> = {
 	'token-bucket': (senior) =>
 		`У каждого клиента — ведро ёмкостью L токенов, при первом запросе клиента в момент t₀ ведро полное. В моменты t₀ + P, t₀ + 2P, … в ведро добавляется один токен, если оно не полное. Запрос ${senior ? 'со стоимостью c разрешается, если в ведре не меньше c токенов, и забирает c токенов' : 'разрешается, если в ведре есть токен, и забирает один токен'}. Запросы в момент пополнения видят уже пополненное ведро.`,
 	'sliding-counter': (senior) =>
-		`Время делится на окна [k·P, (k+1)·P) мс, k = 0, 1, 2, … Пусть для клиента cur — ${senior ? 'сумма стоимостей его разрешённых запросов' : 'число его разрешённых запросов'} в окне, содержащем t, prev — то же в предыдущем окне, e = t − k·P — сколько прошло от начала текущего окна. Запрос${senior ? ' со стоимостью c' : ''} в момент t разрешается, если prev·(P − e) + (cur + ${senior ? 'c' : '1'})·P ≤ L·P (равенство разрешает): предыдущее окно учитывается с долей, которая ещё попадает в последние P мс.`
+		[
+			`Время делится на окна [k·P, (k+1)·P) мс, k = 0, 1, 2, … Для каждого клиента храните номер текущего окна k, cur — ${senior ? 'сумму стоимостей его разрешённых запросов' : 'число его разрешённых запросов'} в окне k и prev — то же в окне k − 1. Запрос${senior ? ' со стоимостью c' : ''} в момент t обрабатывается так (всё в целых числах):`,
+			'',
+			'1. `k = t div P`, `e = t mod P` — сколько миллисекунд прошло от начала окна.',
+			'2. Если k больше номера окна клиента: `prev = cur`, если новое окно — следующее за прежним (k = прежнее + 1), иначе `prev = 0`; затем `cur = 0`. До первого запроса клиента окно — 0, prev = cur = 0.',
+			`3. Запрос разрешается, если \`prev·(P − e) + (cur + ${senior ? 'c' : '1'})·P ≤ L·P\` (равенство разрешает): прошлое окно входит с долей (P − e)/P — той, что ещё попадает в последние P мс. Разрешённый запрос увеличивает cur на ${senior ? 'c' : '1'}.`,
+			'',
+			`Пример: P = 1000, L = 5, у клиента в окне [0, 1000) разрешено на prev = 4, в окне [1000, 2000) — на cur = 1. Запрос${senior ? ' со стоимостью c = 1' : ''} в момент t = 1250: e = 250, 4·(1000 − 250) + (1 + 1)·1000 = 3000 + 2000 = 5000 ≤ 5000 — разрешён. Тот же запрос в момент t = 1249: e = 249, 4·751 + 2000 = 5004 > 5000 — отклонён.`
+		].join('\n')
 };
 
 function statement(kind: string, senior: boolean): string {
@@ -238,7 +268,9 @@ function statement(kind: string, senior: boolean): string {
 		'',
 		'`N` строк: `allow` или `deny` для каждого запроса по порядку.',
 		'',
-		'Скрытые тесты — пять групп: обычные данные, запросы точно на границах периода, пачки одновременных запросов, много клиентов вперемешку, большой объём. Группа засчитывается, если пройдены все её тесты.'
+		senior
+			? 'Скрытые тесты — пять групп разной сложности. Две простые — обычные данные и много клиентов вперемешку: все стоимости в них равны 1 и ни одно решение не зависит от точного равенства на границе правила. Три полные, со стоимостями: запросы точно на границах периода, пачки одновременных запросов, большой объём. Группа засчитывается, если пройдены все её тесты.'
+			: 'Скрытые тесты — пять групп: обычные данные, запросы точно на границах периода, пачки одновременных запросов, много клиентов вперемешку, большой объём. Группа засчитывается, если пройдены все её тесты.'
 	].join('\n');
 }
 
@@ -364,7 +396,7 @@ export function build(input: GenerateInput): Built {
 	const instance = makeInstance(descriptor, input, {
 		statement: { markdown: statement(kind, senior), code: null },
 		answer: null,
-		practice: { languages: [...LANGUAGES], groups: main, checker: { kind: 'exact' } },
+		practice: { languages: [...LANGUAGES], groups: main, checker: { kind: 'tokens' } },
 		changeStep: { markdown: changeStatement(kind, senior), weight: CHANGE_WEIGHT, answer: null, groups: step, qa: null }
 	});
 	return {

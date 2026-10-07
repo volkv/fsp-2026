@@ -1,0 +1,172 @@
+{
+	"key": "fe.dom.accessible-name",
+	"version": 1,
+	"specialization": "frontend",
+	"block": "fe.dom",
+	"format": "compute",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"elements": "3–4",
+				"questions": "4–7",
+				"mechanisms": "приоритет источников имени или имя из содержимого со скрытыми узлами"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 330,
+			"classes": [
+				{
+					"id": "label-sources",
+					"form": "A",
+					"description": "поля с label for и обёрткой label, aria-label поверх label, placeholder рядом с label, alt картинки: aria-label бьёт label, label бьёт placeholder"
+				},
+				{
+					"id": "content",
+					"form": "B",
+					"description": "кнопки, ссылки и заголовки получают имя из содержимого: aria-hidden и hidden выпадают, alt вложенной картинки входит"
+				},
+				{
+					"id": "labelledby",
+					"form": "anchor",
+					"description": "aria-labelledby с несколькими id бьёт aria-label и label; скрытый элемент, на который ссылаются, всё равно даёт текст; section с именем — region"
+				},
+				{
+					"id": "title-fallback",
+					"form": "X",
+					"description": "title — последний источник имени: у кнопки без текста и картинки без alt он становится именем, у ссылки с текстом — нет"
+				}
+			]
+		},
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"constructive": {
+				"elements": "3–4",
+				"questions": "4–8",
+				"mechanisms": "взаимодействие шагов вычисления: рекурсия ссылок, описание, роли без имени из содержимого, скрытые узлы"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "labelledby-recursion",
+					"form": "A",
+					"description": "цепочка aria-labelledby не продолжается за первым шагом; ссылка элемента на самого себя берёт его aria-label"
+				},
+				{
+					"id": "describedby",
+					"form": "B",
+					"description": "имя и описание отдельно: aria-describedby (в том числе на скрытый элемент) важнее title, а title без describedby становится описанием, если имя пришло из другого источника"
+				},
+				{
+					"id": "author-only",
+					"form": "anchor",
+					"description": "nav, section, ul, dialog не берут имя из содержимого: без aria-label или aria-labelledby имени нет, а section без имени — generic"
+				},
+				{
+					"id": "hidden-mix",
+					"form": "X",
+					"description": "скрытые узлы в разных ролях: в содержимом выпадают, по прямой ссылке aria-labelledby и aria-describedby дают текст, внутри видимого элемента по ссылке снова выпадают"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "texts", "description": "подписи, тексты кнопок и ссылок, подсказки" },
+		{ "name": "ids", "description": "id элементов и порядок фрагментов на странице" }
+	],
+	"essentialParams": [
+		{
+			"name": "sources",
+			"description": "какие источники имени есть у элемента: aria-labelledby, aria-label, label, alt, содержимое, title, placeholder"
+		},
+		{ "name": "hidden", "description": "где стоят hidden и aria-hidden: в содержимом или на элементе по ссылке" },
+		{ "name": "role", "description": "берёт ли роль имя из содержимого" },
+		{ "name": "question", "description": "роль, имя или описание" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"приоритет aria-labelledby, aria-label, label и alt",
+			"имя из содержимого у кнопок, ссылок и заголовков",
+			"скрытые узлы в содержимом и по прямой ссылке",
+			"title как последний источник имени и как описание",
+			"aria-labelledby не продолжается рекурсивно, ссылка на себя",
+			"роли без имени из содержимого: navigation, region, list, dialog",
+			"роли HTML-элементов по умолчанию"
+		],
+		"doesNotCheck": [
+			"значения вложенных полей ввода в имени (embedded control)",
+			"имя из CSS-содержимого ::before и ::after",
+			"разделители между блочными элементами в имени из содержимого",
+			"aria-description и aria-details"
+		]
+	},
+	"wrongSolutions": [
+		{ "id": "label-over-aria-label", "defect": "считает, что label важнее aria-label", "mustBeCaught": true },
+		{ "id": "placeholder-as-name", "defect": "берёт placeholder именем поля, хотя есть label", "mustBeCaught": true },
+		{
+			"id": "hidden-included",
+			"defect": "включает в имя из содержимого текст элементов с hidden и aria-hidden",
+			"mustBeCaught": true
+		},
+		{
+			"id": "img-alt-ignored",
+			"defect": "не включает alt вложенной картинки в имя из содержимого",
+			"mustBeCaught": true
+		},
+		{
+			"id": "aria-label-over-labelledby",
+			"defect": "считает, что aria-label важнее aria-labelledby",
+			"mustBeCaught": true
+		},
+		{
+			"id": "hidden-ref-skipped",
+			"defect": "пропускает скрытый элемент, на который прямо ссылается aria-labelledby или aria-describedby",
+			"mustBeCaught": true
+		},
+		{ "id": "first-id-only", "defect": "берёт из aria-labelledby только первый id", "mustBeCaught": true },
+		{
+			"id": "title-over-content",
+			"defect": "берёт title именем, даже когда есть текст содержимого",
+			"mustBeCaught": true
+		},
+		{
+			"id": "labelledby-followed",
+			"defect": "продолжает aria-labelledby у элемента, до которого дошёл по aria-labelledby",
+			"mustBeCaught": true
+		},
+		{
+			"id": "self-ref-content",
+			"defect": "при ссылке элемента на самого себя берёт его содержимое, а не aria-label",
+			"mustBeCaught": true
+		},
+		{
+			"id": "content-for-all-roles",
+			"defect": "берёт имя из содержимого для любой роли, в том числе nav, section, ul, dialog",
+			"mustBeCaught": true
+		},
+		{ "id": "section-always-region", "defect": "считает section регионом и без имени", "mustBeCaught": true },
+		{
+			"id": "title-ignored-for-description",
+			"defect": "не считает title описанием, когда имя пришло из содержимого или label",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 13, "caught": 13 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0143,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

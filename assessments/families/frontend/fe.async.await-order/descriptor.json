@@ -1,0 +1,167 @@
+{
+	"key": "fe.async.await-order",
+	"version": 1,
+	"specialization": "frontend",
+	"block": "fe.async",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"functions": "2–3",
+				"lines": "10–20",
+				"mechanisms": 1,
+				"interacting": "синхронная часть async-функции + await готового значения"
+			},
+			"constructiveRank": 2,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "sync-prefix",
+					"form": "A",
+					"description": "две async-функции вызваны из синхронного кода: тело до первого await выполняется сразу, продолжения — после всего синхронного кода"
+				},
+				{
+					"id": "await-timer",
+					"form": "B",
+					"description": "одна функция ждёт промис таймера, другая — готовые значения: продолжение после таймера приходит только после всех микрозадач"
+				},
+				{
+					"id": "interleave",
+					"form": "anchor",
+					"description": "несколько функций с несколькими await готовых значений: продолжения чередуются по одному такту"
+				},
+				{
+					"id": "return-await",
+					"form": "X",
+					"description": "return промиса против return await: возврат промиса из async-функции стоит лишних тактов, что видно по цепочке then"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"functions": "2–3",
+				"lines": "15–25",
+				"mechanisms": 2,
+				"interacting": "цикл с await, вложенный вызов без await или try/catch + чередование с другой функцией"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "loop-await",
+					"form": "A",
+					"description": "await внутри for…of: итерации идут строго друг за другом, пока другая функция продолжает свои шаги"
+				},
+				{
+					"id": "nested-no-await",
+					"form": "B",
+					"description": "вызов async-функции без await внутри другой: вызванная выполняется до своего первого await, вызывающая не ждёт её конца"
+				},
+				{
+					"id": "try-reject",
+					"form": "anchor",
+					"description": "try/catch вокруг await отклонённого промиса: catch ловит ошибку, но только в своём такте, а не синхронно"
+				},
+				{
+					"id": "return-chain",
+					"form": "X",
+					"description": "промис, возвращённый через две async-функции: return вызова против return await вызова, порядок по цепочке then"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "имена функций, значения, метки вывода" },
+		{ "name": "numbers", "description": "число await в функциях, места синхронных логов, длина цепочки then" }
+	],
+	"essentialParams": [
+		{
+			"name": "mechanism",
+			"description": "что решает порядок: синхронная часть, await готового значения, промис таймера, return промиса, цикл, вызов без await, отклонение"
+		},
+		{ "name": "interleaving", "description": "сколько функций идут одновременно и сколько тактов у каждой" }
+	],
+	"language": "javascript",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"тело async-функции выполняется синхронно до первого await",
+			"await готового значения уступает управление на один такт микрозадач",
+			"промис, который разрешит таймер, ждёт конца всех микрозадач",
+			"return промиса из async-функции стоит лишних тактов против return await",
+			"await в for…of выполняет итерации последовательно",
+			"вызов async-функции без await не ждёт её завершения",
+			"try/catch ловит отклонение промиса из await"
+		],
+		"doesNotCheck": [
+			"process.nextTick и setImmediate",
+			"for await и асинхронные итераторы",
+			"необработанные отклонения"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "body-deferred",
+			"defect": "считает, что тело async-функции начинает выполняться не при вызове, а позже, как микрозадача",
+			"mustBeCaught": true
+		},
+		{
+			"id": "await-blocks",
+			"defect": "считает, что await готового значения или промиса не уступает управление и функция идёт дальше синхронно",
+			"mustBeCaught": true
+		},
+		{
+			"id": "resume-runs-through",
+			"defect": "считает, что после первого await функция уже «асинхронная» и следующие await готовых значений проходит без остановки",
+			"mustBeCaught": true
+		},
+		{
+			"id": "timer-as-micro",
+			"defect": "считает, что промис, который разрешит setTimeout, ждётся так же, как готовое значение, — один такт микрозадач",
+			"mustBeCaught": true
+		},
+		{
+			"id": "return-promise-free",
+			"defect": "считает, что return промиса из async-функции стоит столько же тактов, сколько return await",
+			"mustBeCaught": true
+		},
+		{
+			"id": "loop-parallel",
+			"defect": "считает, что итерации for…of с await внутри идут параллельно, как у forEach",
+			"mustBeCaught": true
+		},
+		{
+			"id": "missing-await-waits",
+			"defect": "считает, что вызов async-функции без await внутри другой async-функции дожидается её завершения",
+			"mustBeCaught": true
+		},
+		{
+			"id": "reject-sync",
+			"defect": "считает, что await уже отклонённого промиса бросает исключение сразу, не уступая управление",
+			"mustBeCaught": true
+		},
+		{
+			"id": "catch-misses-await",
+			"defect": "считает, что try/catch не ловит отклонение промиса из await и ошибка уходит во внешний .catch",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 9, "caught": 9 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

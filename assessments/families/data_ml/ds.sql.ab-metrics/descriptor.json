@@ -1,0 +1,120 @@
+{
+	"key": "ds.sql.ab-metrics",
+	"version": 1,
+	"specialization": "data_ml",
+	"block": "ds.sql",
+	"format": "sql_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"tables": "1–2",
+				"cte": "0–1",
+				"users": "6–8",
+				"traps": "единица анализа, переназначения, знаменатель метрики"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "first-assignment",
+					"form": "A",
+					"description": "переназначенный пользователь относится к варианту первого назначения (ROW_NUMBER), заказы — только после назначения"
+				},
+				{
+					"id": "exclude-crossed",
+					"form": "B",
+					"description": "пользователи, попавшие в оба варианта, исключаются через HAVING COUNT(DISTINCT variant) = 1; повтор того же варианта — не пересечение"
+				},
+				{
+					"id": "arpu-vs-aov",
+					"form": "anchor",
+					"description": "ARPU делится на всех назначенных (LEFT JOIN сохраняет непокупателей), AOV — на заказы"
+				},
+				{
+					"id": "int-division",
+					"form": "X",
+					"description": "отношение сумм против среднего отношений пользователей; AVG(clicks / views) двух целых — среднее целочисленных частных"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "data", "description": "номера пользователей, моменты назначений и заказов, суммы, порядок вставки" }
+	],
+	"essentialParams": [
+		{
+			"name": "unit",
+			"description": "единица анализа: первое назначение, пользователь без пересечения, все назначенные, пользователь со своим отношением"
+		},
+		{
+			"name": "metric",
+			"description": "метрика и её знаменатель: покупатели, выручка на пользователя, средний чек, отношение сумм, среднее отношений"
+		}
+	],
+	"language": "sql",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"первое назначение переназначенного пользователя",
+			"заказы только после назначения",
+			"исключение пользователей из обоих вариантов",
+			"ARPU против AOV и знаменатель с непокупателями",
+			"отношение сумм против среднего отношений",
+			"целочисленное деление в AVG"
+		],
+		"doesNotCheck": ["статистическую значимость разницы вариантов", "дизайн эксперимента"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "all-assignments",
+			"defect": "считает каждое назначение отдельно: переназначенный пользователь попадает в оба варианта и множит заказы",
+			"mustBeCaught": true
+		},
+		{
+			"id": "orders-before-assignment",
+			"defect": "учитывает заказы, сделанные до назначения в вариант",
+			"mustBeCaught": true
+		},
+		{
+			"id": "crossed-in-both",
+			"defect": "считает, что пользователь из обоих вариантов учитывается в каждом",
+			"mustBeCaught": true
+		},
+		{
+			"id": "arpu-over-buyers",
+			"defect": "делит выручку на покупателей вместо всех назначенных",
+			"mustBeCaught": true
+		},
+		{
+			"id": "inner-join",
+			"defect": "считает, что пользователи без заказов исчезают из группы, как при внутреннем соединении",
+			"mustBeCaught": true
+		},
+		{
+			"id": "int-division",
+			"defect": "ожидает дробное частное двух целых в AVG(clicks / views)",
+			"mustBeCaught": true
+		},
+		{
+			"id": "ratio-equals-mean",
+			"defect": "считает среднее отношений пользователей равным отношению сумм",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 7, "caught": 7 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0001,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

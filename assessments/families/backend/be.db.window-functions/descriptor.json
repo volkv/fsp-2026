@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "middle",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.45,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "cd3933f665d98796813f90a3cfc770b3fbb4ca33b92a50e5e5907c216c15d9e5"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.55,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "cd3933f665d98796813f90a3cfc770b3fbb4ca33b92a50e5e5907c216c15d9e5"
+					}
+				],
+				"mean": 0.5
+			},
 			"constructive": { "rows": "8–12", "partitions": "2–3", "windows": "2–3", "frame": "по умолчанию, без равных" },
 			"constructiveRank": 4,
 			"timeNormSec": 360,
@@ -37,7 +54,24 @@
 		},
 		{
 			"grade": "senior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.4,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "cd3933f665d98796813f90a3cfc770b3fbb4ca33b92a50e5e5907c216c15d9e5"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.4,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "cd3933f665d98796813f90a3cfc770b3fbb4ca33b92a50e5e5907c216c15d9e5"
+					}
+				],
+				"mean": 0.4
+			},
 			"constructive": { "rows": "9–13", "partitions": "2–3", "windows": 3, "frame": "RANGE с равными, ROWS, смещения" },
 			"constructiveRank": 6,
 			"timeNormSec": 420,
@@ -55,7 +89,7 @@
 				{
 					"id": "frame-values",
 					"form": "anchor",
-					"description": "NTH_VALUE и LAST_VALUE видят только рамку; SUM по убыванию с равными включает равных"
+					"description": "NTH_VALUE в рамке по умолчанию видит строки только до текущей; LAST_VALUE — с явной рамкой CURRENT ROW … UNBOUNDED FOLLOWING; SUM по убыванию с равными включает равных"
 				},
 				{
 					"id": "window-after-group",
@@ -126,6 +160,31 @@
 		"answerCollision": 0,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Все 8 экземпляров выполнены в sqlite3 (оконные функции, RANGE n PRECEDING): результат совпадает с эталоном; детерминированный ORDER BY в каждом запросе.",
+					"Классы по существу разные: ранги, накопительная сумма, LAG/LEAD, WHERE до окна; рамки по умолчанию, RANGE-смещение, NTH_VALUE/LAST_VALUE, окно после GROUP BY.",
+					"Мелочь: senior-тема — тонкости оконных рамок, а не ёмкость и отказоустойчивость из определения грейда; по глубине это скорее верхний middle. Угадать нельзя."
+				],
+				"sourceSha256": "cd3933f665d98796813f90a3cfc770b3fbb4ca33b92a50e5e5907c216c15d9e5"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Прежнее замечание к описанию frame-values устранено: у LAST_VALUE теперь прямо указана явная рамка CURRENT ROW … UNBOUNDED FOLLOWING. Неблокирующая неточность осталась в перечне «Проверяет», где NTH_VALUE и LAST_VALUE всё ещё объединены словами «в рамке по умолчанию»; привести этот перечень в соответствие с описанием класса.",
+					"Все восемь SQL-экземпляров выполнены на SQLite 3.45.1 и совпали с ответами. Независимый пересчёт senior/range-offset: для acc-37 на дне 12 RANGE 3 PRECEDING включает дни 9 и 12, сумма 280 + 170 = 450; на дне 13 включает дни 12 и 13, сумма 170 + 50 = 220. ROWS 1 PRECEDING AND 1 FOLLOWING даёт соответственно 3 и 2 строки. Для window-after-group после HAVING остаются суммы 230, 320, 270, накопительные 230, 550, 820 и ранги 3, 1, 2.",
+					"Диалект и формат результата заданы, порядок выдачи определён. Ранжирование, границы раздела, RANGE с равными, смещение по значению и окно после HAVING требуют разных правил; числовые таблицы не сводятся к угадыванию или копированию ответа между классами.",
+					"Неблокирующее замечание к бинарной рубрике: одна арифметическая ошибка в десятках ячеек обнуляет правильное понимание окон. Полезны частичные баллы по вычисляемым столбцам и нормализация пробелов вокруг |.",
+					"Middle соответствует явно ожидаемому умению читать оконные функции; Senior-классы сложнее по рамкам и сочетанию вычислений. Angoff учитывает объём ручного расчёта в 420 секунд и необходимость знать NTH_VALUE/LAST_VALUE. Проверены восемь экземпляров пакета, без повторной проверки всех сидов ворот."
+				],
+				"sourceSha256": "cd3933f665d98796813f90a3cfc770b3fbb4ca33b92a50e5e5907c216c15d9e5"
+			}
+		]
 	}
 }

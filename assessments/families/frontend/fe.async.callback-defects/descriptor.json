@@ -1,0 +1,128 @@
+{
+	"key": "fe.async.callback-defects",
+	"version": 1,
+	"specialization": "frontend",
+	"block": "fe.async",
+	"format": "bug_locate",
+	"answerKind": "line_no",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"functions": 3,
+				"lines": "30–55",
+				"defect": "одна строка: забытый return или await, var в цикле, обработчик ошибки не на той цепочке"
+			},
+			"constructiveRank": 3,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "missing-return",
+					"form": "A",
+					"description": "в колбэке then или в функции, строящей цепочку, забыт return: дальше уходит undefined"
+				},
+				{
+					"id": "missing-await",
+					"form": "B",
+					"description": "забыт await перед вызовом async-функции: вместо значения — промис, или функция завершается раньше записи"
+				},
+				{
+					"id": "var-timer",
+					"form": "anchor",
+					"description": "var в цикле с отложенными колбэками: все колбэки видят последнее значение счётчика"
+				},
+				{
+					"id": "wrong-chain",
+					"form": "X",
+					"description": "catch повешен на промис в начале цепочки, а ошибки следующего шага остаются необработанными"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"functions": "3–4",
+				"lines": "35–70",
+				"defect": "одна строка: forEach с async-колбэком, return без await в try, невозвращённый вложенный промис, проглоченная ошибка"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "foreach-async",
+					"form": "A",
+					"description": "forEach с async-колбэком вместо Promise.all или for…of: функция завершается, не дождавшись операций"
+				},
+				{
+					"id": "try-no-await",
+					"form": "B",
+					"description": "в try промис возвращается или вызывается без await: отклонение проходит мимо catch"
+				},
+				{
+					"id": "nested-no-return",
+					"form": "anchor",
+					"description": "колбэк then запускает следующий асинхронный шаг, но не возвращает его промис: цепочка не ждёт шага"
+				},
+				{
+					"id": "catch-swallows",
+					"form": "X",
+					"description": "обработчик ошибки возвращает значение вместо того, чтобы пробросить ошибку, или catch стоит вместо finally"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{
+			"name": "context",
+			"description": "какие ещё функции модуля показаны, их порядок, заглушки API и константы в начале"
+		},
+		{ "name": "function", "description": "в какой функции класса дефект" }
+	],
+	"essentialParams": [
+		{
+			"name": "defect-kind",
+			"description": "вид дефекта: return, await, var в цикле, цепочка обработчика, forEach, try без await, проглоченная ошибка"
+		}
+	],
+	"language": "javascript",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"чтение спецификации из комментария функции",
+			"return в колбэках then и при построении цепочки",
+			"await перед асинхронным вызовом, в том числе внутри try",
+			"область видимости var и let в цикле с отложенными колбэками",
+			"на какой промис повешен обработчик ошибки",
+			"forEach не ждёт async-колбэков",
+			"проброс ошибки из catch и finally против catch"
+		],
+		"doesNotCheck": ["исправление дефекта (только его место)", "стиль кода", "гонки между запросами"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "neighbour-line",
+			"defect": "указывает соседнюю строку той же функции, где «исправление» не возвращает спецификацию",
+			"mustBeCaught": true
+		},
+		{
+			"id": "other-function",
+			"defect": "указывает подозрительную, но исправную строку в другой функции модуля",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 2, "caught": 2 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0347,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

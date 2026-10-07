@@ -1,0 +1,90 @@
+{
+	"key": "mob.data.local-cache-ttl",
+	"version": 1,
+	"specialization": "mobile",
+	"block": "mob.data",
+	"format": "compute",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": { "opens": "4–5", "rules": "TTL + сеть", "mechanisms": 1 },
+			"constructiveRank": 1,
+			"timeNormSec": 200,
+			"classes": [
+				{
+					"id": "ttl-fixed",
+					"form": "A",
+					"description": "срок свежести отсчитывается от сохранения записи, чтение из кэша его не продлевает"
+				},
+				{
+					"id": "offline-stale",
+					"form": "B",
+					"description": "без сети экран показывает устаревшую запись кэша, ошибку — только при пустом кэше"
+				},
+				{
+					"id": "ttl-boundary",
+					"form": "anchor",
+					"description": "открытие ровно в момент истечения срока: запись уже устарела"
+				},
+				{
+					"id": "stale-version",
+					"form": "X",
+					"description": "пока запись свежая, экран показывает её версию, хотя на сервере уже новая"
+				}
+			]
+		}
+	],
+	"surfaceParams": [{ "name": "numbers", "description": "TTL, моменты открытий, моменты смены версии, начальный кэш" }],
+	"essentialParams": [
+		{ "name": "freshness", "description": "свежа ли запись в момент открытия и от чего отсчитан срок" },
+		{ "name": "network", "description": "есть ли сеть при открытии и пуст ли кэш" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"кэш с TTL: свежая и устаревшая запись",
+			"граница срока свежести",
+			"поведение без сети при пустом и непустом кэше",
+			"устаревание данных при свежем кэше"
+		],
+		"doesNotCheck": ["задержки сети и таймауты", "HTTP-кэш и заголовки Cache-Control"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "ttl-from-read",
+			"defect": "считает, что каждое чтение из кэша продлевает срок свежести",
+			"mustBeCaught": true
+		},
+		{
+			"id": "offline-error",
+			"defect": "считает, что без сети экран показывает ошибку, даже когда в кэше есть запись",
+			"mustBeCaught": true
+		},
+		{
+			"id": "ttl-inclusive",
+			"defect": "считает запись ещё свежей ровно в момент истечения срока",
+			"mustBeCaught": true
+		},
+		{
+			"id": "always-latest",
+			"defect": "считает, что экран всегда показывает текущую версию сервера",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 4, "caught": 4 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

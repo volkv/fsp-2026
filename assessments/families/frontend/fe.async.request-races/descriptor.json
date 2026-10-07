@@ -1,0 +1,126 @@
+{
+	"key": "fe.async.request-races",
+	"version": 1,
+	"specialization": "frontend",
+	"block": "fe.async",
+	"format": "bug_locate",
+	"answerKind": "line_no",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"classes": 3,
+				"lines": "60–80",
+				"defect": "одна строка: устаревший ответ, флаг загрузки чужого запроса, отмена, повторная отправка"
+			},
+			"constructiveRank": 5,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "stale-response",
+					"form": "A",
+					"description": "устаревший ответ перетирает свежий: номер запроса не растёт, проверка не срабатывает или старый запрос не деактивирован"
+				},
+				{
+					"id": "loading-flag",
+					"form": "B",
+					"description": "finally старого запроса сбрасывает индикатор загрузки, пока идёт новый"
+				},
+				{
+					"id": "abort",
+					"form": "anchor",
+					"description": "AbortController: сигнал не передан в запрос или отмена принята за ошибку"
+				},
+				{
+					"id": "double-submit",
+					"form": "X",
+					"description": "повторная отправка: защита от двойного вызова не срабатывает, после ошибки не снимается или теряет последний текст"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"classes": 3,
+				"lines": "80–100",
+				"defect": "одна строка: debounce с отменой, оптимистичный откат, кэш запросов в полёте, пагинация со сбросом"
+			},
+			"constructiveRank": 7,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "abort-lifecycle",
+					"form": "A",
+					"description": "debounce и AbortController вместе: не тот таймер, отменённый контроллер переиспользован, отмена принята за ошибку"
+				},
+				{
+					"id": "optimistic-rollback",
+					"form": "B",
+					"description": "оптимистичное обновление: поздний отказ откатывает более новые действия или снимок взят по ссылке"
+				},
+				{
+					"id": "inflight-cache",
+					"form": "anchor",
+					"description": "кэш промисов в полёте: ключ не совпадает, ошибка проглочена или запись удаляется и после успеха"
+				},
+				{
+					"id": "pagination",
+					"form": "X",
+					"description": "догрузка ленты со сбросом: ответ до reset попадает в ленту или снимает loading нового запроса"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "context", "description": "какие ещё классы модуля показаны и в каком порядке" },
+		{ "name": "header", "description": "заголовок модуля: комментарий, 'use strict' и константы разной длины" }
+	],
+	"essentialParams": [
+		{
+			"name": "defect-kind",
+			"description": "вид гонки: устаревший ответ, флаг загрузки, отмена, повторная отправка, debounce с отменой, откат, кэш промисов, пагинация"
+		}
+	],
+	"language": "javascript",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"ответы приходят не в порядке запросов: номер запроса и флаг актуальности",
+			"индикатор загрузки при перекрывающихся запросах",
+			"отмена запроса через AbortController и отличие отмены от ошибки",
+			"защита от повторной отправки и её снятие после ошибки",
+			"debounce вместе с отменой уже отправленного запроса",
+			"оптимистичное обновление и откат только своего действия",
+			"кэш промисов в полёте и судьба неудачного запроса",
+			"сброс состояния при запросе в полёте"
+		],
+		"doesNotCheck": [
+			"исправление дефекта (только его место)",
+			"конкретный фреймворк интерфейса",
+			"реальную сеть: ответы смоделированы таймерами"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "neighbour-line",
+			"defect": "указывает соседнюю строку того же метода — там, где проявляется симптом, а «исправление» не возвращает контракт",
+			"mustBeCaught": true
+		},
+		{ "id": "other-class", "defect": "указывает похожую строку в другом, исправном классе", "mustBeCaught": true }
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 2, "caught": 2 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0274,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

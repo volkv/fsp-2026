@@ -1,0 +1,154 @@
+{
+	"key": "mob.coroutines.launch-order",
+	"version": 1,
+	"specialization": "mobile",
+	"block": "mob.coroutines",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": { "coroutines": "2–4", "lines": "10–22", "mechanisms": 2, "timing": false },
+			"constructiveRank": 3,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "launch-queue",
+					"form": "A",
+					"description": "launch только ставит корутину в очередь: она начнёт, когда main приостановится на yield или join"
+				},
+				{
+					"id": "async-await",
+					"form": "B",
+					"description": "async выполняются в порядке запуска при первой приостановке main, а не в порядке await"
+				},
+				{
+					"id": "scope-waits",
+					"form": "anchor",
+					"description": "coroutineScope ждёт своих детей, а запущенная до него корутина выполняется раньше них"
+				},
+				{
+					"id": "join-chain",
+					"form": "X",
+					"description": "корутины ждут друг друга через join: завершённая будит ожидающих в порядке очереди"
+				}
+			]
+		},
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": { "coroutines": "3–5", "lines": "15–30", "mechanisms": 3, "timing": false },
+			"constructiveRank": 5,
+			"timeNormSec": 330,
+			"classes": [
+				{
+					"id": "lazy-start",
+					"form": "A",
+					"description": "CoroutineStart.LAZY ждёт start, join или await; start() только ставит корутину в очередь"
+				},
+				{
+					"id": "undispatched",
+					"form": "B",
+					"description": "CoroutineStart.UNDISPATCHED выполняет тело сразу до первой приостановки, остальное — через очередь"
+				},
+				{
+					"id": "nested-children",
+					"form": "anchor",
+					"description": "join ждёт и детей корутины; дети встают в очередь за уже запущенными корутинами"
+				},
+				{
+					"id": "completed-join",
+					"form": "X",
+					"description": "join и await завершённой корутины не приостанавливают main, и очередь между ними не идёт"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "имена экранов и задач, строки main" },
+		{ "name": "shape", "description": "число корутин, есть ли yield внутри тела, порядок await и строк main" }
+	],
+	"essentialParams": [
+		{
+			"name": "mechanism",
+			"description": "что задаёт порядок: очередь launch, async и await, coroutineScope, join, LAZY, UNDISPATCHED, join завершённой корутины"
+		},
+		{ "name": "suspension", "description": "где main и корутины приостанавливаются и отдают поток очереди" }
+	],
+	"language": "kotlin",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"launch и async не выполняются до первой приостановки родителя в однопоточном runBlocking",
+			"yield ставит корутину в конец очереди",
+			"порядок выполнения async не зависит от порядка await",
+			"coroutineScope ждёт своих детей",
+			"join будит ожидающих по очереди и ждёт детей корутины",
+			"CoroutineStart.LAZY и start()",
+			"CoroutineStart.UNDISPATCHED",
+			"join и await завершённой корутины не приостанавливают"
+		],
+		"doesNotCheck": [
+			"многопоточные диспетчеры и гонки",
+			"задержки и время (семейство mob.coroutines.delay-timeline)",
+			"отмена (семейство mob.coroutines.cancellation)"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "eager-launch",
+			"defect": "считает, что launch и async сразу выполняют тело до первой приостановки, как при вызове функции",
+			"mustBeCaught": true
+		},
+		{
+			"id": "async-on-await",
+			"defect": "считает, что async выполняется только тогда, когда его ждут через await",
+			"mustBeCaught": true
+		},
+		{
+			"id": "scope-no-wait",
+			"defect": "считает, что coroutineScope не ждёт запущенных в нём корутин",
+			"mustBeCaught": true
+		},
+		{
+			"id": "joiner-first",
+			"defect": "считает, что ожидающая через join корутина продолжает сразу, раньше уже стоящих в очереди",
+			"mustBeCaught": true
+		},
+		{
+			"id": "lazy-as-default",
+			"defect": "считает, что LAZY стартует так же, как обычный launch",
+			"mustBeCaught": true
+		},
+		{ "id": "start-at-once", "defect": "считает, что start() сразу выполняет ленивую корутину", "mustBeCaught": true },
+		{
+			"id": "undispatched-as-default",
+			"defect": "считает, что UNDISPATCHED ничем не отличается от обычного запуска",
+			"mustBeCaught": true
+		},
+		{
+			"id": "join-ignores-children",
+			"defect": "считает, что join ждёт только тело корутины, без её детей",
+			"mustBeCaught": true
+		},
+		{
+			"id": "join-always-suspends",
+			"defect": "считает, что join и await всегда приостанавливают, даже если корутина уже завершилась",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 9, "caught": 9 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

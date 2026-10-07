@@ -1,0 +1,140 @@
+{
+	"key": "ds.sql.funnel",
+	"version": 1,
+	"specialization": "data_ml",
+	"block": "ds.sql",
+	"format": "sql_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": {
+				"tables": 1,
+				"events": "8–25",
+				"steps": "2–4",
+				"trap": "уникальные пользователи против событий"
+			},
+			"constructiveRank": 2,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "unique-users",
+					"form": "A",
+					"description": "число пользователей на шаге — COUNT(DISTINCT user_id), а не число событий: шаги повторяются"
+				},
+				{
+					"id": "conversion",
+					"form": "B",
+					"description": "конверсия визит → покупка по платформам на уникальных пользователях через COUNT(DISTINCT CASE …)"
+				},
+				{
+					"id": "both-steps",
+					"form": "anchor",
+					"description": "пользователи с обоими шагами: HAVING COUNT(DISTINCT event) = 2, повтор одного шага не в счёт"
+				},
+				{
+					"id": "having-users",
+					"form": "X",
+					"description": "фильтр по времени в WHERE и HAVING по числу разных пользователей, а не событий"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": { "tables": 1, "cte": 1, "events": "10–30", "trap": "порядок шагов, окно, единица подсчёта" },
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "ordered-funnel",
+					"form": "A",
+					"description": "упорядоченная воронка по первым моментам шагов: шаг засчитывается, только если он позже предыдущего"
+				},
+				{
+					"id": "window-hours",
+					"form": "B",
+					"description": "покупка в окне N часов после регистрации через datetime(s, '+N hours'), граница включена"
+				},
+				{
+					"id": "per-session",
+					"form": "anchor",
+					"description": "конверсия сессий с корзиной: покупка в другой сессии того же пользователя не засчитывается"
+				},
+				{
+					"id": "last-step",
+					"form": "X",
+					"description": "распределение пользователей по последнему достигнутому шагу (MAX по порядку шагов), а не по достигнутым"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "название таблицы, платформы, названия шагов" },
+		{ "name": "data", "description": "пользователи, моменты событий, повторы, порядок вставки" }
+	],
+	"essentialParams": [
+		{ "name": "unit", "description": "что считается: события, пользователи, сессии, последний шаг пользователя" },
+		{
+			"name": "step-rule",
+			"description": "когда шаг засчитан: просто был, был вместе с другим, позже предыдущего, в окне времени"
+		}
+	],
+	"language": "sql",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"уникальные пользователи против числа событий",
+			"конверсия через COUNT(DISTINCT CASE …)",
+			"HAVING по числу разных шагов",
+			"порядок шагов во времени",
+			"временное окно и включённая граница",
+			"сессия как единица воронки",
+			"последний достигнутый шаг"
+		],
+		"doesNotCheck": ["построение воронки в BI-инструментах", "часовые пояса"]
+	},
+	"wrongSolutions": [
+		{ "id": "count-events", "defect": "считает события вместо уникальных пользователей", "mustBeCaught": true },
+		{
+			"id": "having-count-rows",
+			"defect": "считает, что COUNT(*) = 2 отбирает пользователей с двумя разными шагами",
+			"mustBeCaught": true
+		},
+		{
+			"id": "ignore-order",
+			"defect": "засчитывает шаг воронки без учёта порядка шагов во времени",
+			"mustBeCaught": true
+		},
+		{
+			"id": "ignore-window",
+			"defect": "засчитывает любую покупку после регистрации, не глядя на окно",
+			"mustBeCaught": true
+		},
+		{ "id": "strict-window", "defect": "исключает покупку ровно на границе окна", "mustBeCaught": true },
+		{
+			"id": "per-user",
+			"defect": "сводит шаги по пользователю, а не по сессии: покупка в другой сессии засчитывается",
+			"mustBeCaught": true
+		},
+		{
+			"id": "reached-not-last",
+			"defect": "считает пользователей, достигших шага, вместо остановившихся на нём",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 7, "caught": 7 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.008,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

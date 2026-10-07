@@ -1,0 +1,138 @@
+{
+	"key": "fe.web.cdn-cache",
+	"version": 1,
+	"specialization": "frontend",
+	"block": "fe.web",
+	"format": "compute",
+	"answerKind": "tokens",
+	"levels": [
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"constructive": {
+				"tiers": 2,
+				"users": "2–4",
+				"requests": "9–12",
+				"rules": 7,
+				"interacting": "две ступени кэша + Age, плюс Vary и очистка, stale-while-revalidate на обеих ступенях или stale-if-error"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "age-header",
+					"form": "A",
+					"description": "max-age и s-maxage: браузер считает свежесть с учётом Age от CDN, поэтому копия, долго пролежавшая в CDN, у браузера свежа недолго или сразу несвежа"
+				},
+				{
+					"id": "purge-vary",
+					"form": "B",
+					"description": "очистка CDN после выкладки не трогает кэши браузеров; Vary делит записи CDN по сжатию или куке; ответ с private CDN не хранит"
+				},
+				{
+					"id": "swr-two-tier",
+					"form": "anchor",
+					"description": "stale-while-revalidate на обеих ступенях: браузер и CDN отдают старое сразу и обновляются в фоне, фоновые запросы тоже доходят до источника"
+				},
+				{
+					"id": "stale-if-error",
+					"form": "X",
+					"description": "сбой источника: CDN отдаёт несвежее в окне stale-if-error, браузер этого не умеет, очищенную запись отдать нечем"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "пути ресурсов, имена пользователей, сжатие и куки" },
+		{ "name": "numbers", "description": "моменты запросов, выкладок, очистки и сбоев, сроки в заголовках" }
+	],
+	"essentialParams": [
+		{
+			"name": "directives",
+			"description": "какие директивы Cache-Control: max-age, s-maxage, private, stale-while-revalidate, stale-if-error"
+		},
+		{ "name": "vary", "description": "делит ли Vary записи CDN и по какому заголовку" },
+		{ "name": "events", "description": "выкладка новой версии, очистка CDN, сбой источника" }
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"max-age для браузера и s-maxage для CDN",
+			"заголовок Age и остаток свежести у браузера",
+			"очистка CDN против кэша браузера",
+			"Vary: Accept-Encoding и Vary: Cookie в общем кэше",
+			"private: CDN не хранит",
+			"stale-while-revalidate в браузере и в CDN, фоновые запросы",
+			"stale-if-error в CDN при сбое источника и его окно"
+		],
+		"doesNotCheck": [
+			"условные запросы и валидаторы (ETag, Last-Modified)",
+			"мягкая очистка и особенности конкретных CDN",
+			"эвристическая свежесть"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "ignore-age",
+			"defect": "браузер считает max-age от получения ответа, не учитывая Age",
+			"mustBeCaught": true
+		},
+		{ "id": "browser-uses-s-maxage", "defect": "считает, что браузер живёт по s-maxage", "mustBeCaught": true },
+		{
+			"id": "cdn-uses-max-age",
+			"defect": "считает, что CDN живёт по max-age, не глядя на s-maxage",
+			"mustBeCaught": true
+		},
+		{
+			"id": "purge-clears-browser",
+			"defect": "считает, что очистка CDN сбрасывает и кэши браузеров",
+			"mustBeCaught": true
+		},
+		{ "id": "ignore-vary", "defect": "держит в CDN одну запись на путь, не глядя на Vary", "mustBeCaught": true },
+		{ "id": "private-at-cdn", "defect": "хранит ответ с private в CDN", "mustBeCaught": true },
+		{
+			"id": "swr-blocking",
+			"defect": "в окне stale-while-revalidate ждёт свежего ответа вместо старого",
+			"mustBeCaught": true
+		},
+		{
+			"id": "swr-no-background",
+			"defect": "в окне stale-while-revalidate отдаёт старое, но не обновляет его в фоне",
+			"mustBeCaught": true
+		},
+		{
+			"id": "swr-cdn-only",
+			"defect": "считает, что stale-while-revalidate применяет только CDN, а браузер — нет",
+			"mustBeCaught": true
+		},
+		{
+			"id": "error-passthrough",
+			"defect": "при сбое источника CDN отдаёт ошибку, не глядя на stale-if-error",
+			"mustBeCaught": true
+		},
+		{
+			"id": "browser-stale-if-error",
+			"defect": "считает, что при ошибке от CDN браузер сам отдаёт свою несвежую копию по stale-if-error",
+			"mustBeCaught": true
+		},
+		{
+			"id": "stale-forever",
+			"defect": "при сбое источника CDN отдаёт сохранённое, как бы давно ни истёк срок",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 12, "caught": 12 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0063,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

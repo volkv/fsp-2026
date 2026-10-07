@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "middle",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.45,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "53743ac35d64ca3281bbed075fa9aea7899927788fd4ffcb17ed256c604b7df4"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.6,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "53743ac35d64ca3281bbed075fa9aea7899927788fd4ffcb17ed256c604b7df4"
+					}
+				],
+				"mean": 0.55
+			},
 			"constructive": { "statements": "10–14", "savepoints": "1–2", "nesting": 1, "transactions": "1–2" },
 			"constructiveRank": 5,
 			"timeNormSec": 360,
@@ -37,7 +54,24 @@
 		},
 		{
 			"grade": "senior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.4,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "53743ac35d64ca3281bbed075fa9aea7899927788fd4ffcb17ed256c604b7df4"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.45,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "53743ac35d64ca3281bbed075fa9aea7899927788fd4ffcb17ed256c604b7df4"
+					}
+				],
+				"mean": 0.45
+			},
 			"constructive": {
 				"statements": "13–18",
 				"savepoints": "2–3",
@@ -55,7 +89,7 @@
 				{
 					"id": "trigger-audit",
 					"form": "B",
-					"description": "триггер AFTER UPDATE пишет журнал по строке на каждую изменённую строку и откатывается вместе с ней"
+					"description": "триггер AFTER UPDATE пишет журнал по строке на каждую изменённую строку (массовый UPDATE — несколько строк журнала) и откатывается вместе с ней; id счёта после отката выдаётся заново"
 				},
 				{
 					"id": "reused-ids",
@@ -148,6 +182,31 @@
 		"answerCollision": 0,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Все 8 экземпляров выполнены в sqlite3 (3.45.1): результат совпадает с эталоном. Режим автофиксации и отсутствие ошибок оговорены.",
+					"Классы дают разные эффекты (повторный ROLLBACK TO, RELEASE внутри внешней транзакции, SAVEPOINT без BEGIN, триггер и id).",
+					"Мелочь: поведение SAVEPOINT без BEGIN и повторных имён точек зависит от SQLite; условие называет СУБД, этого достаточно."
+				],
+				"sourceSha256": "53743ac35d64ca3281bbed075fa9aea7899927788fd4ffcb17ed256c604b7df4"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Существенное замечание к senior/trigger-audit устранено: итоговый запрос больше не выводит технический audit.id, а выдаёт account_id, владельца и баланс с ORDER BY 1, 2, 4. Ответ больше не зависит от порядка срабатывания триггера при массовом UPDATE; UNION ALL сохраняет повторяющиеся записи журнала.",
+					"Все восемь SQL-скриптов выполнены на SQLite 3.45.1; результаты совпали с эталонами. Независимый пересчёт trigger-audit: первый UPDATE оставляет egor = 250 и запись журнала; ROLLBACK TO удаляет вставку dina и все внутренние изменения; затем rita становится 150. После COMMIT массовое увеличение даёт балансы boris = 360, zoya = 370, egor = 280, rita = 180, а ilya получает id 5 и баланс 250. В журнале остаются шесть событий, как в ответе.",
+					"Одно соединение, автофиксация, отсутствие ошибок и диалект SQLite заданы. Повторный ROLLBACK TO, RELEASE внутри внешней транзакции, повторные имена точек и повторная выдача id различают классы; конечные таблицы нельзя получить угадыванием или простой подстановкой ответа другого класса.",
+					"Рубрика допустима для точного конечного состояния. Неблокирующее улучшение — нормализация пробелов около разделителя | и частичные баллы отдельно за счета и журнал; арифметическая описка сейчас обнуляет весь длинный ответ.",
+					"Middle соответствует работе с транзакциями, Senior усложняется побочными эффектами и вложенностью. Angoff учитывает редкость SQLite-правил повторных имён и выдачи id для пограничного Senior. Проверены экземпляры пакета; отчёт на 200 сидах заново не воспроизводился."
+				],
+				"sourceSha256": "53743ac35d64ca3281bbed075fa9aea7899927788fd4ffcb17ed256c604b7df4"
+			}
+		]
 	}
 }

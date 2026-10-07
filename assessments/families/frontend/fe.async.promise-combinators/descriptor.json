@@ -1,0 +1,181 @@
+{
+	"key": "fe.async.promise-combinators",
+	"version": 1,
+	"specialization": "frontend",
+	"block": "fe.async",
+	"format": "code_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": {
+				"timers": "3–6",
+				"combinators": "2–4, без вложенности",
+				"lines": "40–50",
+				"rules": 3,
+				"interacting": "таймеры + комбинаторы + порядок аргументов"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "all-settled",
+					"form": "A",
+					"description": "all отклоняется на первом отказе, остальные таймеры продолжают работать; allSettled ждёт всех и перечисляет итоги в порядке аргументов"
+				},
+				{
+					"id": "race-any",
+					"form": "B",
+					"description": "race берёт первый завершившийся, даже отказ; any — первый успешный, а при одних отказах — AggregateError с причинами в порядке аргументов"
+				},
+				{
+					"id": "plain-values",
+					"form": "anchor",
+					"description": "в массиве обычные значения и уже выполненные промисы: комбинатор завершается в микрозадаче после синхронного кода, раньше любого таймера"
+				},
+				{
+					"id": "timeout-race",
+					"form": "X",
+					"description": "таймаут через race: проигравший запрос не отменяется — его таймер срабатывает и печатает, таймаут после успеха тоже"
+				}
+			]
+		},
+		{
+			"grade": "senior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"timers": "5–7",
+				"combinators": "3–4, вложенные",
+				"lines": "45–60",
+				"rules": 5,
+				"interacting": "вложенные комбинаторы + finally + поздние завершения + порядок микрозадач в одном такте"
+			},
+			"constructiveRank": 6,
+			"timeNormSec": 480,
+			"classes": [
+				{
+					"id": "nested",
+					"form": "A",
+					"description": "комбинатор над комбинаторами: внутренний завершается раньше внешнего в том же такте, итог внешнего зависит от вида внутренних"
+				},
+				{
+					"id": "finally",
+					"form": "B",
+					"description": "finally пропускает исходный результат, ждёт возвращённый промис, а исключение или отказ в нём подменяют итог"
+				},
+				{
+					"id": "late-settle",
+					"form": "anchor",
+					"description": "входы завершаются после того, как комбинатор уже завершился: поздние отказы его итог не меняют, но их собственные обработчики срабатывают"
+				},
+				{
+					"id": "aggregate",
+					"form": "X",
+					"description": "any над вложенными all и race, которые все отклоняются: AggregateError собирает причины вложенных комбинаторов в порядке аргументов"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "имена промисов и подписи обработчиков" },
+		{ "name": "timings", "description": "задержки таймеров, порядок аргументов и строк программы" }
+	],
+	"essentialParams": [
+		{ "name": "combinator", "description": "all, allSettled, race, any, их вложение, таймаут через race, finally" },
+		{
+			"name": "settle-order",
+			"description": "какие входы успешны, какие отклоняются и в каком порядке относительно завершения комбинатора"
+		}
+	],
+	"language": "javascript",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"Promise.all отклоняется на первом отказе и не отменяет остальные промисы",
+			"all и allSettled возвращают результаты в порядке аргументов",
+			"race завершается первым завершившимся входом, any — первым успешным",
+			"AggregateError.errors в порядке аргументов",
+			"обычные значения и выполненные промисы в комбинаторе, обработчики только после синхронного кода",
+			"таймаут через Promise.race не отменяет запрос",
+			"finally пропускает результат, ждёт возвращённый промис, исключение в нём подменяет итог",
+			"поздние завершения входов после завершения комбинатора",
+			"порядок микрозадач вложенных комбинаторов в одном такте"
+		],
+		"doesNotCheck": [
+			"unhandledrejection и rejectionhandled (программы не оставляют отказов без обработчика)",
+			"отмену через AbortController",
+			"таймеры, поставленные из обработчиков"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "all-waits-all",
+			"defect": "считает, что Promise.all отклоняется, только когда завершатся все входы",
+			"mustBeCaught": true
+		},
+		{
+			"id": "cancel-on-settle",
+			"defect": "считает, что завершившийся комбинатор (и таймаут через race) отменяет остальные входы: их таймеры не срабатывают",
+			"mustBeCaught": true
+		},
+		{
+			"id": "completion-order",
+			"defect": "считает, что all и allSettled перечисляют результаты в порядке завершения",
+			"mustBeCaught": true
+		},
+		{
+			"id": "race-skips-rejections",
+			"defect": "считает, что race пропускает отказы и ждёт первого успешного, как any",
+			"mustBeCaught": true
+		},
+		{
+			"id": "any-first-settled",
+			"defect": "считает, что any берёт первый завершившийся вход, даже отказ, как race",
+			"mustBeCaught": true
+		},
+		{
+			"id": "aggregate-completion-order",
+			"defect": "считает, что AggregateError.errors перечисляет причины в порядке отказов",
+			"mustBeCaught": true
+		},
+		{
+			"id": "handlers-sync",
+			"defect": "считает, что обработчик уже выполненного промиса вызывается сразу, до конца синхронного кода",
+			"mustBeCaught": true
+		},
+		{
+			"id": "finally-replaces",
+			"defect": "считает, что значение, возвращённое из finally, заменяет результат",
+			"mustBeCaught": true
+		},
+		{
+			"id": "finally-no-wait",
+			"defect": "считает, что finally не ждёт промис, который вернул его обработчик",
+			"mustBeCaught": true
+		},
+		{
+			"id": "finally-throw-ignored",
+			"defect": "считает, что исключение в finally не меняет исходный результат",
+			"mustBeCaught": true
+		},
+		{
+			"id": "late-resettle",
+			"defect": "считает, что поздний отказ или успех входа заново завершает уже завершившийся комбинатор",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 11, "caught": 11 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0008,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

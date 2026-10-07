@@ -1,0 +1,162 @@
+{
+	"key": {
+		"contentSha256": "93d7484793fb24fc1c92db718e5ba0f47d451c6590a9685b569fab7872b36399",
+		"catalogVersion": "2026.10.3",
+		"procedureVersion": "sprt-3",
+		"simulationSha256": "73712f31796918c55c33d4e28c41f5105f54996f965586fe97b5c6ff91c919c9"
+	},
+	"report": {
+		"releaseId": "data_ml@2026.10.3-1",
+		"procedureVersion": "sprt-3",
+		"model": {
+			"rho": 0.5,
+			"practiceGroups": 5
+		},
+		"grades": [
+			{
+				"grade": "intern",
+				"points": [
+					{
+						"shift": -0.15,
+						"runs": 1000,
+						"confirmed": 0.071,
+						"undetermined": 0.011,
+						"notConfirmed": 0.918
+					},
+					{
+						"shift": 0,
+						"runs": 1000,
+						"confirmed": 0.377,
+						"undetermined": 0.024,
+						"notConfirmed": 0.599
+					},
+					{
+						"shift": 0.15,
+						"runs": 1000,
+						"confirmed": 0.843,
+						"undetermined": 0.015,
+						"notConfirmed": 0.142
+					}
+				],
+				"consistency": [
+					{
+						"shift": -0.15,
+						"value": 0.8376620000000001
+					},
+					{
+						"shift": 0.15,
+						"value": 0.715357
+					}
+				]
+			},
+			{
+				"grade": "junior",
+				"points": [
+					{
+						"shift": -0.15,
+						"runs": 4000,
+						"confirmed": 0.06975,
+						"undetermined": 0.02875,
+						"notConfirmed": 0.9015
+					},
+					{
+						"shift": 0,
+						"runs": 4000,
+						"confirmed": 0.40475,
+						"undetermined": 0.0825,
+						"notConfirmed": 0.51275
+					},
+					{
+						"shift": 0.15,
+						"runs": 4000,
+						"confirmed": 0.837,
+						"undetermined": 0.04625,
+						"notConfirmed": 0.11675
+					}
+				],
+				"consistency": [
+					{
+						"shift": -0.15,
+						"value": 0.8114162500000001
+					},
+					{
+						"shift": 0.15,
+						"value": 0.72679225
+					}
+				]
+			},
+			{
+				"grade": "middle",
+				"points": [
+					{
+						"shift": -0.15,
+						"runs": 1000,
+						"confirmed": 0.056,
+						"undetermined": 0.024,
+						"notConfirmed": 0.92
+					},
+					{
+						"shift": 0,
+						"runs": 1000,
+						"confirmed": 0.378,
+						"undetermined": 0.055,
+						"notConfirmed": 0.567
+					},
+					{
+						"shift": 0.15,
+						"runs": 1000,
+						"confirmed": 0.829,
+						"undetermined": 0.047,
+						"notConfirmed": 0.124
+					}
+				],
+				"consistency": [
+					{
+						"shift": -0.15,
+						"value": 0.8390400000000001
+					},
+					{
+						"shift": 0.15,
+						"value": 0.7123379999999999
+					}
+				]
+			},
+			{
+				"grade": "senior",
+				"points": [
+					{
+						"shift": -0.15,
+						"runs": 1000,
+						"confirmed": 0.059,
+						"undetermined": 0.004,
+						"notConfirmed": 0.937
+					},
+					{
+						"shift": 0,
+						"runs": 1000,
+						"confirmed": 0.392,
+						"undetermined": 0.016,
+						"notConfirmed": 0.592
+					},
+					{
+						"shift": 0.15,
+						"runs": 1000,
+						"confirmed": 0.824,
+						"undetermined": 0.01,
+						"notConfirmed": 0.166
+					}
+				],
+				"consistency": [
+					{
+						"shift": -0.15,
+						"value": 0.88399
+					},
+					{
+						"shift": 0.15,
+						"value": 0.709386
+					}
+				]
+			}
+		]
+	}
+}

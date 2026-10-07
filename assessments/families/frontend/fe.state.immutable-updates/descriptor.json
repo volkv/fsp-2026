@@ -1,0 +1,140 @@
+{
+	"key": "fe.state.immutable-updates",
+	"version": 1,
+	"specialization": "frontend",
+	"block": "fe.state",
+	"format": "bug_locate",
+	"answerKind": "line_no",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"constructive": {
+				"handlers": "4–5",
+				"lines": "23–49",
+				"defect": "одна строка: метод массива, присваивание или удаление прямо на прежнем состоянии",
+				"mechanisms": 1
+			},
+			"constructiveRank": 2,
+			"timeNormSec": 240,
+			"classes": [
+				{ "id": "array-mutator", "form": "A", "description": "push, unshift или splice по массиву прежнего состояния" },
+				{
+					"id": "sort-in-place",
+					"form": "B",
+					"description": "sort или reverse по массиву состояния: метод меняет массив на месте и возвращает его же"
+				},
+				{
+					"id": "same-object",
+					"form": "anchor",
+					"description": "поле прежнего состояния меняется присваиванием; возвращается тот же объект (подписчик не видит изменения) или копия с уже изменённым полем"
+				},
+				{
+					"id": "index-or-delete",
+					"form": "X",
+					"description": "присваивание по индексу, полю элемента или delete по ключу на прежнем состоянии"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"handlers": "5–6",
+				"lines": "34–66",
+				"defect": "одна строка: изменение вложенной части, общей с прежним состоянием или общим объектом модуля",
+				"mechanisms": 2
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "nested-after-spread",
+					"form": "A",
+					"description": "поверхностная копия spread делит вложенные части с прежним состоянием: их изменение через прежнее состояние видно и в копии"
+				},
+				{
+					"id": "shared-default",
+					"form": "B",
+					"description": "общий объект модуля как значение по умолчанию: копия сделана, но массив внутри меняется через аргумент — изменение видно следующим вызовам"
+				},
+				{
+					"id": "mutating-callback",
+					"form": "anchor",
+					"description": "map возвращает новый массив, но колбэк меняет прежние элементы на месте; нетронутые элементы должны остаться теми же объектами"
+				},
+				{
+					"id": "object-assign",
+					"form": "X",
+					"description": "Object.assign с прежним объектом первым аргументом: он и меняется, и возвращается"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "context", "description": "какие ещё обработчики показаны и в каком порядке" },
+		{
+			"name": "handler",
+			"description": "в каком обработчике дефект и какой у него сюжет (задачи, корзина, форма, настройки)"
+		}
+	],
+	"essentialParams": [
+		{
+			"name": "defect-kind",
+			"description": "как прежнее состояние меняется на месте: метод массива, сортировка, поле, индекс, вложенная часть, общий объект, колбэк, Object.assign"
+		},
+		{
+			"name": "traps",
+			"description": "какие корректные строки меняют на месте свежую копию: элемент или массив копии, поле копии spread"
+		}
+	],
+	"language": "javascript",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"какие методы массива меняют его на месте (push, splice, sort, reverse)",
+			"возврат того же объекта после изменения: подписчик по ссылке не видит изменения",
+			"spread копирует только верхний уровень",
+			"общий объект по умолчанию между вызовами",
+			"изменение элементов внутри колбэка map",
+			"Object.assign меняет свой первый аргумент",
+			"изменение свежей копии на месте допустимо"
+		],
+		"doesNotCheck": ["исправление дефекта (только его место)", "библиотеки неизменяемых структур (Immer)"]
+	},
+	"wrongSolutions": [
+		{
+			"id": "neighbour-line",
+			"defect": "указывает соседнюю строку того же обработчика (возврат, условие, заголовок со значением по умолчанию), где правка не убирает изменения на месте",
+			"mustBeCaught": true
+		},
+		{
+			"id": "shallow-copy-line",
+			"defect": "указывает строку, где обработчик строит копию, и считает, что копию надо сделать глубже; изменение на месте идёт через прежние данные, и более глубокая копия его не убирает",
+			"mustBeCaught": true
+		},
+		{
+			"id": "copy-mutation",
+			"defect": "указывает корректное изменение на месте свежей копии (push, sort, присваивание по индексу, Object.assign в новый объект)",
+			"mustBeCaught": true
+		},
+		{
+			"id": "top-level-on-copy",
+			"defect": "указывает присваивание полю поверхностной копии, которое прежнего состояния не касается",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 4, "caught": 4 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0411,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

@@ -1,0 +1,147 @@
+{
+	"key": "mob.lifecycle.config-change",
+	"version": 1,
+	"specialization": "mobile",
+	"block": "mob.lifecycle",
+	"format": "compute",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": { "screens": 1, "events": "4–7", "mechanisms": 1, "declaredQualifiers": "0–5" },
+			"constructiveRank": 2,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "recreate",
+					"form": "A",
+					"description": "без android:configChanges поворот пересоздаёт экран: onSaveInstanceState после onStop, onRestoreInstanceState после onStart"
+				},
+				{
+					"id": "declared",
+					"form": "B",
+					"description": "все изменившиеся квалификаторы объявлены: только onConfigurationChanged, без пересоздания"
+				},
+				{
+					"id": "undeclared",
+					"form": "anchor",
+					"description": "поворот объявлен, а тема или клавиатура — нет: одно изменение обрабатывает экран, другое пересоздаёт"
+				},
+				{
+					"id": "orientation-only",
+					"form": "X",
+					"description": "объявлен orientation без screenSize: поворот всё равно пересоздаёт экран"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": { "screens": 1, "events": "5–9", "mechanisms": 2, "declaredQualifiers": "0–7" },
+			"constructiveRank": 3,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "mixed-declared",
+					"form": "A",
+					"description": "случайный набор объявленных квалификаторов и разные изменения: обработано только то, что объявлено целиком"
+				},
+				{
+					"id": "locale-theme",
+					"form": "B",
+					"description": "смена языка с переменой направления письма меняет и layoutDirection; объявленного locale мало"
+				},
+				{
+					"id": "multi-window",
+					"form": "anchor",
+					"description": "изменение размера окна в разделённом экране: screenSize|smallestScreenSize|screenLayout без orientation"
+				},
+				{
+					"id": "process-death",
+					"form": "X",
+					"description": "пересоздание при повороте и смерть процесса в фоне: обе дороги к onRestoreInstanceState"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "screen", "description": "имя экрана" },
+		{ "name": "order", "description": "порядок событий, их число и формулировки, порядок квалификаторов в манифесте" }
+	],
+	"essentialParams": [
+		{ "name": "declared", "description": "какие квалификаторы объявлены в android:configChanges" },
+		{
+			"name": "changed",
+			"description": "какие квалификаторы меняет событие: поворот, клавиатура, тема, язык, размер окна"
+		}
+	],
+	"language": null,
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"порядок колбэков при пересоздании экрана",
+			"место onSaveInstanceState и onRestoreInstanceState на API 28+",
+			"android:configChanges: обработано, только если объявлены все изменившиеся квалификаторы",
+			"поворот меняет и screenSize",
+			"смена языка с другим направлением письма меняет layoutDirection",
+			"размер окна в многооконном режиме",
+			"смерть процесса и восстановление против пересоздания"
+		],
+		"doesNotCheck": [
+			"изменения конфигурации у экрана в фоне",
+			"ресурсы и квалификаторы папок res",
+			"работу на настоящем устройстве"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "save-before-stop",
+			"defect": "ставит onSaveInstanceState перед onStop, как было до API 28",
+			"mustBeCaught": true
+		},
+		{
+			"id": "no-restore",
+			"defect": "считает, что пересозданный экран получает состояние только в onCreate, без onRestoreInstanceState",
+			"mustBeCaught": true
+		},
+		{
+			"id": "restore-before-start",
+			"defect": "ставит onRestoreInstanceState сразу после onCreate, до onStart",
+			"mustBeCaught": true
+		},
+		{
+			"id": "declared-ignored",
+			"defect": "считает, что любое изменение конфигурации пересоздаёт экран, несмотря на android:configChanges",
+			"mustBeCaught": true
+		},
+		{
+			"id": "any-declared",
+			"defect": "считает изменение обработанным, если объявлен хотя бы один из изменившихся квалификаторов",
+			"mustBeCaught": true
+		},
+		{
+			"id": "kill-calls-destroy",
+			"defect": "считает, что при завершении процесса системой вызывается onDestroy",
+			"mustBeCaught": true
+		},
+		{
+			"id": "death-restarts",
+			"defect": "считает, что после смерти процесса экран возвращается через onRestart, как живой экземпляр",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 7, "caught": 7 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0428,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

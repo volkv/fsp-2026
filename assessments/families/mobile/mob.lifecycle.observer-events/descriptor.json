@@ -1,0 +1,143 @@
+{
+	"key": "mob.lifecycle.observer-events",
+	"version": 1,
+	"specialization": "mobile",
+	"block": "mob.lifecycle",
+	"format": "compute",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": { "observers": "1–3", "events": "2–5", "lateAdd": "кнопкой", "mechanisms": 1 },
+			"constructiveRank": 4,
+			"timeNormSec": 240,
+			"classes": [
+				{
+					"id": "create-observers",
+					"form": "A",
+					"description": "наблюдатели из onCreate: при подъёме — в порядке добавления после Activity, при спуске — в обратном до Activity"
+				},
+				{
+					"id": "late-click",
+					"form": "B",
+					"description": "наблюдатель, добавленный кнопкой на активном экране, сразу получает onCreate, onStart и onResume"
+				},
+				{
+					"id": "home-return",
+					"form": "anchor",
+					"description": "«Домой» и возврат: onRestart есть только у Activity, наблюдатели получают onStart и onResume"
+				},
+				{
+					"id": "overlay",
+					"form": "X",
+					"description": "полупрозрачная Activity поверх: только onPause и onResume, порядок наблюдателей в обе стороны"
+				}
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"constructive": { "observers": "2–4", "events": "3–8", "lateAdd": "из колбэка", "mechanisms": 2 },
+			"constructiveRank": 5,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "remove-mid",
+					"form": "A",
+					"description": "removeObserver в onPause или onStop: событие этого колбэка уже доставлено, дальше — ничего, и при удалении событий нет"
+				},
+				{
+					"id": "add-in-stop",
+					"form": "B",
+					"description": "наблюдатель, добавленный в onPause или onStop, догоняет только до текущего состояния: onCreate или onCreate и onStart"
+				},
+				{
+					"id": "add-in-start",
+					"form": "anchor",
+					"description": "наблюдатель, добавленный в onStart или onResume, догоняет до состояния до этого колбэка, а текущее событие получает вместе со всеми, последним"
+				},
+				{
+					"id": "rotation",
+					"form": "X",
+					"description": "пересоздание при повороте: наблюдатели старого экземпляра спускаются до onDestroy, новый экземпляр добавляет свои заново"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "names", "description": "имена наблюдателей и экрана" },
+		{ "name": "order", "description": "порядок добавления наблюдателей и события сценария" }
+	],
+	"essentialParams": [
+		{
+			"name": "add-point",
+			"description": "где добавлен наблюдатель: в onCreate, кнопкой на активном экране, в колбэке подъёма или спуска"
+		},
+		{ "name": "remove-point", "description": "удаляется ли наблюдатель и в каком колбэке" },
+		{ "name": "direction", "description": "события подъёма или спуска, пересоздание экземпляра" }
+	],
+	"language": "kotlin",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"порядок наблюдателей при подъёме и при спуске",
+			"место событий наблюдателей относительно колбэков Activity",
+			"догоняющие события у наблюдателя, добавленного поздно",
+			"состояние Lifecycle внутри колбэка Activity",
+			"removeObserver не доставляет событий",
+			"onRestart без события жизненного цикла",
+			"наблюдатели при пересоздании Activity"
+		],
+		"doesNotCheck": [
+			"добавление наблюдателя из колбэка другого наблюдателя",
+			"жизненный цикл Fragment и его представления",
+			"работу на настоящем устройстве"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "same-order-down",
+			"defect": "при спуске вызывает наблюдателей в порядке добавления, а не в обратном",
+			"mustBeCaught": true
+		},
+		{
+			"id": "no-catch-up",
+			"defect": "считает, что поздно добавленный наблюдатель получает только будущие события",
+			"mustBeCaught": true
+		},
+		{
+			"id": "catch-up-current-only",
+			"defect": "считает, что поздно добавленный наблюдатель получает только событие текущего состояния",
+			"mustBeCaught": true
+		},
+		{
+			"id": "removed-gets-down",
+			"defect": "считает, что removeObserver доставляет наблюдателю события спуска до onDestroy",
+			"mustBeCaught": true
+		},
+		{
+			"id": "activity-first-down",
+			"defect": "при спуске ставит колбэк Activity перед событиями наблюдателей",
+			"mustBeCaught": true
+		},
+		{
+			"id": "catch-up-includes-current",
+			"defect": "считает, что внутри колбэка подъёма Lifecycle уже в новом состоянии, и наблюдатель, добавленный там, сразу получает и это событие",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 6, "caught": 6 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0143,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

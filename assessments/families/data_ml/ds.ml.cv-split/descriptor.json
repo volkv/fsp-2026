@@ -1,0 +1,143 @@
+{
+	"key": "ds.ml.cv-split",
+	"version": 1,
+	"specialization": "data_ml",
+	"block": "ds.ml",
+	"format": "compute",
+	"answerKind": "set",
+	"levels": [
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": { "rows": "10–23", "splitter": 1, "nesting": false },
+			"constructiveRank": 3,
+			"timeNormSec": 300,
+			"classes": [
+				{
+					"id": "kfold",
+					"form": "A",
+					"description": "KFold без перемешивания при n, не кратном числу фолдов: первые n mod k фолдов на строку больше"
+				},
+				{
+					"id": "group",
+					"form": "B",
+					"description": "GroupKFold: группы по убыванию размера — в самый лёгкий фолд; строки пользователя не делятся"
+				},
+				{
+					"id": "timeseries",
+					"form": "anchor",
+					"description": "TimeSeriesSplit: валидационные блоки размера n // (s + 1) отсчитываются от конца"
+				},
+				{
+					"id": "stratified",
+					"form": "X",
+					"description": "StratifiedKFold: число строк класса в фолде — по кругу по отсортированным меткам, строки класса — блоками по порядку"
+				}
+			]
+		},
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": { "rows": "12–24", "splitter": "1–2", "nesting": "у B" },
+			"constructiveRank": 4,
+			"timeNormSec": 420,
+			"classes": [
+				{
+					"id": "ts-gap",
+					"form": "A",
+					"description": "TimeSeriesSplit с gap: строки между train и валидацией и строки после валидации не участвуют"
+				},
+				{
+					"id": "nested",
+					"form": "B",
+					"description": "вложенная кросс-валидация: внутренний KFold режет обучающую часть внешнего фолда, ответ — исходные номера строк"
+				},
+				{
+					"id": "group-leak",
+					"form": "anchor",
+					"description": "KFold по строкам при нескольких строках на пользователя: какие пользователи есть и в train, и в валидации"
+				},
+				{
+					"id": "ts-max-train",
+					"form": "X",
+					"description": "TimeSeriesSplit с gap и max_train_size: окно train скользит, ранние строки выпадают"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "имена пользователей, метки классов, сюжет" },
+		{ "name": "data", "description": "число строк, число фолдов, номер итерации, порядок строк" }
+	],
+	"essentialParams": [
+		{
+			"name": "splitter",
+			"description": "KFold, GroupKFold, StratifiedKFold, TimeSeriesSplit (с gap и max_train_size), вложенная схема"
+		},
+		{ "name": "remainder", "description": "делится ли число строк на число фолдов или блоков" }
+	],
+	"language": "python3",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"размеры фолдов KFold при остатке",
+			"разбиение по группам без разрыва группы",
+			"стратификация по классам",
+			"разбиение по времени: блоки от конца, gap, ограничение окна train",
+			"вложенная кросс-валидация и индексы внутреннего разбиения",
+			"утечка пользователя между train и валидацией при разбиении по строкам"
+		],
+		"doesNotCheck": ["разбиения с перемешиванием и случайным состоянием", "повторные (Repeated*) схемы"]
+	},
+	"wrongSolutions": [
+		{ "id": "equal-folds", "defect": "режет на фолды поровну, остаток отдаёт последнему фолду", "mustBeCaught": true },
+		{ "id": "extra-last", "defect": "лишние строки получают последние фолды, а не первые", "mustBeCaught": true },
+		{ "id": "row-kfold", "defect": "игнорирует группы или классы и режет строки обычным KFold", "mustBeCaught": true },
+		{ "id": "round-robin", "defect": "раздаёт группы или строки класса по фолдам по кругу", "mustBeCaught": true },
+		{
+			"id": "size-by-splits",
+			"defect": "берёт размер валидационного блока n // s вместо n // (s + 1)",
+			"mustBeCaught": true
+		},
+		{
+			"id": "from-start",
+			"defect": "отсчитывает блоки TimeSeriesSplit от начала ряда, а не от конца",
+			"mustBeCaught": true
+		},
+		{ "id": "no-gap", "defect": "не учитывает gap между train и валидацией", "mustBeCaught": true },
+		{
+			"id": "gap-in-val",
+			"defect": "вырезает gap из начала валидационного блока, а не из конца train",
+			"mustBeCaught": true
+		},
+		{ "id": "no-max-train", "defect": "не ограничивает окно train параметром max_train_size", "mustBeCaught": true },
+		{
+			"id": "positions",
+			"defect": "называет позиции внутри обучающей части внешнего фолда вместо исходных номеров строк",
+			"mustBeCaught": true
+		},
+		{
+			"id": "inner-on-all",
+			"defect": "режет внутренним KFold все строки, а не обучающую часть внешнего фолда",
+			"mustBeCaught": true
+		},
+		{
+			"id": "val-users",
+			"defect": "называет всех пользователей валидационного фолда, а не только тех, кто есть и в train",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 12, "caught": 12 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0232,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

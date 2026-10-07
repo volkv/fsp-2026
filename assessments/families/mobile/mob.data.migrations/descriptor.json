@@ -1,0 +1,181 @@
+{
+	"key": "mob.data.migrations",
+	"version": 1,
+	"specialization": "mobile",
+	"block": "mob.data",
+	"format": "sql_trace",
+	"answerKind": "sequence",
+	"levels": [
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"constructive": { "migrations": 1, "tables": "1–3", "rows": "3–7", "mechanisms": 2 },
+			"constructiveRank": 4,
+			"timeNormSec": 280,
+			"classes": [
+				{
+					"id": "add-column",
+					"form": "A",
+					"description": "ADD COLUMN с NOT NULL DEFAULT: старые строки получают значение по умолчанию, столбец без DEFAULT — NULL, новые вставки — то, что переданы"
+				},
+				{
+					"id": "column-order",
+					"form": "B",
+					"description": "пересоздание таблицы: INSERT ... SELECT без списка столбцов раскладывает значения по позиции, деление целых отбрасывает остаток"
+				},
+				{
+					"id": "constraint-loss",
+					"form": "anchor",
+					"description": "новая таблица с NOT NULL и уникальным индексом, перенос INSERT OR IGNORE с lower(): теряются NULL и более поздние дубликаты"
+				},
+				{
+					"id": "join-loss",
+					"form": "X",
+					"description": "перенос через внутреннее соединение со справочником: теряются заметки без категории и с категорией в другом регистре"
+				}
+			]
+		},
+		{
+			"grade": "middle",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"constructive": {
+				"migrations": "1–2",
+				"tables": "1–2",
+				"rows": "4–7",
+				"mechanisms": "2–3, цепочка или порядок шагов"
+			},
+			"constructiveRank": 4,
+			"timeNormSec": 360,
+			"classes": [
+				{
+					"id": "chain",
+					"form": "A",
+					"description": "цепочка 1→2→3: ADD COLUMN, данные версии 2, пересоздание, где явный NULL не заменяется DEFAULT, а неперенесённый столбец сбрасывается"
+				},
+				{
+					"id": "split-column",
+					"form": "B",
+					"description": "разделение full_name по первому пробелу через instr/substr: имя из трёх слов и из одного, затем сортировка с NULL"
+				},
+				{
+					"id": "drop-cascade",
+					"form": "anchor",
+					"description": "пересоздание родительской таблицы при включённых внешних ключах: DROP TABLE каскадно удаляет сообщения"
+				},
+				{
+					"id": "step-order",
+					"form": "X",
+					"description": "исправление данных выполнено после копирования, но до удаления старой таблицы — оно теряется"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "plot", "description": "заметки, контакты, чаты; заголовки, имена, адреса, цвета" },
+		{ "name": "data", "description": "число строк, значения, какие строки задевает ловушка" }
+	],
+	"essentialParams": [
+		{
+			"name": "migration-step",
+			"description": "что делает миграция: ADD COLUMN, пересоздание с преобразованием, перенос через соединение, разделение столбца"
+		},
+		{
+			"name": "loss",
+			"description": "где теряются или искажаются данные: позиция столбцов, ограничение, соединение, внешний ключ, порядок шагов, неперенесённый столбец"
+		}
+	],
+	"language": "sql",
+	"practice": null,
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "binary" },
+	"coverage": {
+		"checks": [
+			"ALTER TABLE ADD COLUMN с DEFAULT и без",
+			"пересоздание таблицы: create new → insert select → drop → rename",
+			"INSERT ... SELECT по позиции столбцов",
+			"DEFAULT не заменяет явно вставленный NULL",
+			"потеря строк из-за ограничений, соединения и внешних ключей",
+			"цепочка миграций и user_version",
+			"разделение столбца строковыми функциями SQLite"
+		],
+		"doesNotCheck": [
+			"классы Migration и AutoMigration Room, экспорт схемы",
+			"поведение Room при отсутствии пути миграции",
+			"PRAGMA foreign_keys внутри транзакции"
+		]
+	},
+	"wrongSolutions": [
+		{
+			"id": "add-column-null",
+			"defect": "считает, что старые строки получают NULL в добавленном столбце, несмотря на DEFAULT",
+			"mustBeCaught": true
+		},
+		{
+			"id": "select-by-name",
+			"defect": "считает, что INSERT ... SELECT без списка столбцов сопоставляет столбцы по именам",
+			"mustBeCaught": true
+		},
+		{ "id": "int-division-real", "defect": "считает, что деление целых в SQLite даёт дробь", "mustBeCaught": true },
+		{
+			"id": "ignore-keeps-all",
+			"defect": "считает, что перенос переносит все строки, не глядя на новые ограничения",
+			"mustBeCaught": true
+		},
+		{
+			"id": "ignore-keeps-last",
+			"defect": "считает, что из дубликатов остаётся последний, а не первый",
+			"mustBeCaught": true
+		},
+		{
+			"id": "join-keeps-all",
+			"defect": "считает, что строки без пары в справочнике переносятся с NULL",
+			"mustBeCaught": true
+		},
+		{
+			"id": "text-equals-nocase",
+			"defect": "считает сравнение строк через = нечувствительным к регистру",
+			"mustBeCaught": true
+		},
+		{
+			"id": "default-fills-null",
+			"defect": "считает, что DEFAULT подставляется и вместо явно вставленного NULL",
+			"mustBeCaught": true
+		},
+		{
+			"id": "omitted-column-kept",
+			"defect": "считает, что столбец, не названный в INSERT ... SELECT, сохраняет значения старой таблицы",
+			"mustBeCaught": true
+		},
+		{
+			"id": "split-last-space",
+			"defect": "считает, что instr находит последний пробел, а не первый",
+			"mustBeCaught": true
+		},
+		{
+			"id": "nulls-largest",
+			"defect": "считает NULL больше любого значения при сортировке (как в PostgreSQL)",
+			"mustBeCaught": true
+		},
+		{
+			"id": "drop-keeps-children",
+			"defect": "считает, что DROP TABLE родителя не трогает дочерние строки",
+			"mustBeCaught": true
+		},
+		{
+			"id": "update-after-copy-kept",
+			"defect": "считает, что исправление старой таблицы после копирования попадёт в новую",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 13, "caught": 13 },
+		"hiddenTestsMutationScore": null,
+		"answerCollision": 0.0052,
+		"transfer": null,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

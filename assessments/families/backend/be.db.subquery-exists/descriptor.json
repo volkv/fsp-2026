@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.55,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "bb915e53b51537ec2a901824322eef157392fc7b91e8c8cc7b18188e9adcdbfd"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.45,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "bb915e53b51537ec2a901824322eef157392fc7b91e8c8cc7b18188e9adcdbfd"
+					}
+				],
+				"mean": 0.5
+			},
 			"constructive": { "tables": 2, "rows": "9–14", "subqueries": 1, "clauses": "IN / NOT IN / EXISTS" },
 			"constructiveRank": 2,
 			"timeNormSec": 240,
@@ -37,7 +54,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.55,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "bb915e53b51537ec2a901824322eef157392fc7b91e8c8cc7b18188e9adcdbfd"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.6,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "bb915e53b51537ec2a901824322eef157392fc7b91e8c8cc7b18188e9adcdbfd"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": {
 				"tables": 2,
 				"rows": "12–18",
@@ -136,6 +170,29 @@
 		"answerCollision": 0.0012,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Все восемь экземпляров пересчитаны в SQLite: совпадают с эталоном.",
+					"not-in-null (intern): ответ состоит из двух строк (dina, egor); вероятность случайного совпадения невелика, но ответ короткий; при желании увеличить число строк результата. Сама ловушка (NOT IN со списком с NULL) — на границе intern, но семейство называет «NULL» зоной ошибок.",
+					"max-per-group-ties и correlated-avg для junior уместны. Порядок детерминирован."
+				],
+				"sourceSha256": "bb915e53b51537ec2a901824322eef157392fc7b91e8c8cc7b18188e9adcdbfd"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Все восемь SQL-экземпляров независимо выполнены, ответы совпали. В intern/not-in-null подзапрос содержит NULL, поэтому NOT IN не даёт TRUE ни для одного id; OR оставляет только dina и egor из Томска. В junior/correlated-avg среднее ilya равно 1775, rita — 537.5, kira — 283.333…, lev — 1133.333…; проходят ровно заказы 104, 106, 107, 109, 110, 114.",
+					"Корреляция задана явно, IN не размножает внешние строки, EXISTS зависит от существования строки, а не выбранного coupon. MAX с равными максимумами корректно оставляет оба заказа gleb. Классы проверяют разные конструкции, полный ответ требует чтения данных и не переносится механически.",
+					"Соответствие блоку хорошее. Intern с NOT IN/NULL и коррелированным EXISTS труднее простого SELECT из определения пограничного кандидата, но не требует старших архитектурных знаний; это учтено пониженным Angoff. Неблокирующее улучшение формы: нормализовать пробелы около |."
+				],
+				"sourceSha256": "bb915e53b51537ec2a901824322eef157392fc7b91e8c8cc7b18188e9adcdbfd"
+			}
+		]
 	}
 }

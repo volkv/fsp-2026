@@ -1,0 +1,126 @@
+{
+	"key": "mob.code.chat-list",
+	"version": 1,
+	"specialization": "mobile",
+	"block": "mob.code",
+	"format": "practice_code",
+	"answerKind": "code",
+	"levels": [
+		{
+			"grade": "intern",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.8 },
+			"constructive": { "rules": 3, "outOfOrder": false, "edits": false, "groups": 5 },
+			"constructiveRank": 3,
+			"timeNormSec": 1800,
+			"classes": [
+				{ "id": "recent", "form": "A", "description": "чаты по убыванию момента последнего сообщения" },
+				{
+					"id": "pinned",
+					"form": "B",
+					"description": "закреплённые сверху, позже закреплённый — выше; закреплённый без сообщений не показан; остальные по свежести"
+				},
+				{
+					"id": "unread-first",
+					"form": "anchor",
+					"description": "сначала чаты с непрочитанными, затем остальные; внутри — по свежести"
+				},
+				{ "id": "muted-alpha", "form": "X", "description": "по названию; у чатов без уведомлений вместо счётчика «-»" }
+			]
+		},
+		{
+			"grade": "junior",
+			"angoff": { "round": 1, "ratings": [], "mean": 0.8 },
+			"constructive": { "rules": 5, "outOfOrder": true, "edits": true, "groups": 5 },
+			"constructiveRank": 5,
+			"timeNormSec": 2400,
+			"classes": [
+				{
+					"id": "recent",
+					"form": "A",
+					"description": "после правок и удалений — по моменту последнего сообщения, равные — по названию"
+				},
+				{
+					"id": "pinned",
+					"form": "B",
+					"description": "после правок и удалений — закреплённые сверху в обратном порядке закрепления, затем по свежести"
+				},
+				{
+					"id": "unread-first",
+					"form": "anchor",
+					"description": "после правок и удалений — сначала чаты с непрочитанными, внутри частей по свежести"
+				},
+				{
+					"id": "muted-alpha",
+					"form": "X",
+					"description": "после правок и удалений — по названию, без счётчика у чатов без уведомлений"
+				}
+			]
+		}
+	],
+	"surfaceParams": [
+		{ "name": "data", "description": "названия чатов, имена авторов, тексты, моменты и номера сообщений" },
+		{ "name": "sizes", "description": "число строк, чатов и длина превью K" }
+	],
+	"essentialParams": [
+		{
+			"name": "order",
+			"description": "правило порядка и показа: по свежести, закреплённые сверху, непрочитанные сверху, по алфавиту с отключёнными уведомлениями"
+		},
+		{
+			"name": "log",
+			"description": "Junior: сообщения не по порядку времени, равные моменты, правки и удаления с откатом превью"
+		}
+	],
+	"language": null,
+	"practice": { "languages": ["kotlin"], "hiddenTestGroups": 5 },
+	"qa": null,
+	"changeStep": null,
+	"rubric": { "kind": "groups" },
+	"coverage": {
+		"checks": [
+			"разбор построчного ввода с текстом до конца строки",
+			"группировка сообщений по чату и счётчик непрочитанных чужих",
+			"обрезка превью по длине с «…» только сверх K, префикс своих сообщений вне лимита",
+			"порядок списка по правилу экрана с правилом равенства",
+			"последнее сообщение по моменту, а не по строке (Junior)",
+			"правка и удаление сообщения: откат превью, исчезновение пустого чата (Junior)",
+			"тысячи строк без квадратичных проходов"
+		],
+		"doesNotCheck": ["вёрстку экрана и Android SDK", "архитектуру и стиль кода"]
+	},
+	"wrongSolutions": [
+		{ "id": "counts-own", "defect": "считает в счётчике и свои непрочитанные сообщения", "mustBeCaught": true },
+		{ "id": "ellipsis-at-k", "defect": "ставит «…» и тексту ровно из K символов", "mustBeCaught": true },
+		{ "id": "prefix-in-limit", "defect": "обрезает превью вместе с префиксом «Вы: »", "mustBeCaught": true },
+		{
+			"id": "pin-order",
+			"defect": "класс закреплённых: показывает их в порядке закрепления, а не последний сверху",
+			"mustBeCaught": true
+		},
+		{
+			"id": "last-line",
+			"defect": "Junior: последним считает сообщение из нижней строки, а не с наибольшим моментом",
+			"mustBeCaught": true
+		},
+		{
+			"id": "equal-ts-first",
+			"defect": "Junior: из сообщений с равным моментом последним считает верхнюю строку",
+			"mustBeCaught": true
+		},
+		{
+			"id": "delete-no-rollback",
+			"defect": "Junior: удаление только уменьшает счётчик — превью не откатывается, пустой чат остаётся",
+			"mustBeCaught": true
+		}
+	],
+	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
+	"gates": {
+		"reference": { "seeds": 200, "failures": 0 },
+		"wrongSolutions": { "mustBeCaught": 7, "caught": 7 },
+		"hiddenTestsMutationScore": 1,
+		"answerCollision": 0,
+		"transfer": 0,
+		"bruteForceInputs": null,
+		"rubricReviews": []
+	}
+}

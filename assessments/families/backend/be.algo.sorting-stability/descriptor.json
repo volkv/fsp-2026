@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.6,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "45ffa7d773f399cb136d133f85772c6fd1c20c3c3fc81216b2fce33bd7ca5d45"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.6,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "45ffa7d773f399cb136d133f85772c6fd1c20c3c3fc81216b2fce33bd7ca5d45"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": { "records": "6–7", "sorts": "2–3", "keys": 1, "mechanisms": 2 },
 			"constructiveRank": 2,
 			"timeNormSec": 240,
@@ -33,7 +50,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.5,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "45ffa7d773f399cb136d133f85772c6fd1c20c3c3fc81216b2fce33bd7ca5d45"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.65,
+						"ratedAt": "2026-10-06",
+						"sourceSha256": "45ffa7d773f399cb136d133f85772c6fd1c20c3c3fc81216b2fce33bd7ca5d45"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": { "records": "6–8", "sorts": "2–3", "keys": "2–3", "mechanisms": 2 },
 			"constructiveRank": 4,
 			"timeNormSec": 300,
@@ -145,6 +179,29 @@
 		"answerCollision": 0.0003,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Все 8 экземпляров запущены: вывод совпадает с эталоном.",
+					"Задания проверяют существенные свойства (устойчивость, reverse, None от sort, кортежный ключ, регистр строк, alias списка); эталон не переносится между классами.",
+					"Мелочь: string-order и stable-key требуют знания конкретного поведения Python (ASCII-порядок, возврат None); для intern это допустимо, но слабый intern может ошибиться только на этом.",
+					"Рубрика binary: вывод до 4 строк, одна ошибка — ноль; приемлемо."
+				],
+				"sourceSha256": "45ffa7d773f399cb136d133f85772c6fd1c20c3c3fc81216b2fce33bd7ca5d45"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-06",
+				"verdict": "approved",
+				"remarks": [
+					"Независимый пересчёт Intern/A: группы ключей 27, 32, 35 дают «rita vera zoya anna kira gleb lev»; сортировка labels по длине даёт «db log cdn mail auth queue», а list.sort возвращает None. Все восемь программ исполнены, ответы совпали.",
+					"Равные ключи, reverse=True, разворот списка, ключ-кортеж и последовательные проходы различают проверяемые правила. Python 3 и формат полного вывода указаны, дополнительный алфавитный порядок без соответствующего ключа не предполагается. Распределение Intern/Junior обосновано количеством взаимодействующих операций."
+				],
+				"sourceSha256": "45ffa7d773f399cb136d133f85772c6fd1c20c3c3fc81216b2fce33bd7ca5d45"
+			}
+		]
 	}
 }

@@ -129,6 +129,9 @@ function planScenario(rng: Rng, classId: string): Plan {
 	const sizes = Array.from({ length: count }, () => rng.pick(choices));
 	let reserved: Plan['reserved'] = null;
 	if (classId === 'reserved') {
+		// The occupied range is smaller than the largest subnet: when every draw is the smallest size, one is enlarged.
+		const smallest = Math.min(...choices);
+		if (sizes.every((s) => s === smallest)) sizes[0] = rng.pick(choices.filter((s) => s > smallest));
 		const largest = Math.max(...sizes);
 		const size = rng.pick(choices.filter((s) => s < largest));
 		reserved = { net: block + size * rng.int(0, largest / size - 1), prefix: prefixOf(size) };
