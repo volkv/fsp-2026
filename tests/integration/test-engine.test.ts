@@ -756,6 +756,7 @@ describe('a seeded attempt', () => {
 					grade: 'middle',
 					trueShare: 0.97,
 					candidateSeed: 'hero-1',
+					attemptSeed: '5eed'.repeat(8),
 					now: new Date(),
 					requestId: 'seed'
 				})

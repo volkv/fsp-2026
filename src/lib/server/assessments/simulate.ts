@@ -123,7 +123,7 @@ export type ClusterScorer = (instance: ItemInstance, family: FamilyDescriptor, a
  * serve ends the attempt with «не определено» (`bank_exhausted`).
  */
 export function runAttempt(input: {
-	families: readonly LoadedFamily[];
+	families: readonly Pick<LoadedFamily, 'descriptor' | 'module'>[];
 	specialization: SpecializationKey;
 	grade: GradeKey;
 	form: AttemptForm;

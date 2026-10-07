@@ -18,6 +18,7 @@ import {
 	type SeedData,
 	type TestOutcome
 } from './data';
+import type { GradeReach, OutcomeReach } from './foresight';
 import type { WorldAthlete } from './world';
 
 export { Random };
@@ -147,9 +148,11 @@ function catalogGrade(grade: string): GradeKey {
 
 /**
  * The attempts of a background candidate after the survey (domain 12.3): none yet, one at the declared grade with each
- * outcome, a failure followed by the test below it, or a confident result followed by the next grade at once.
+ * outcome, a failure followed by the test below it, or a confident result followed by the next grade at once. Only the
+ * paths whose every outcome the released bank gives at its grade (`reach`); a specialization without a released bank
+ * (`undefined`) is not tested, and its paths are counted as closed.
  */
-function attemptsOf(rnd: Random, declared: GradeKey): AttemptPlan[] {
+function attemptsOf(rnd: Random, declared: GradeKey, reach: GradeReach | undefined): AttemptPlan[] {
 	const index = GRADE_KEYS.indexOf(declared);
 	const below = index > 0 ? GRADE_KEYS[index - 1] : undefined;
 	const above = GRADE_KEYS[index + 1];
@@ -158,17 +161,18 @@ function attemptsOf(rnd: Random, declared: GradeKey): AttemptPlan[] {
 		[[], 14],
 		[[at('confident')], 20],
 		[[at('confirmed')], 24],
-		[[at('not_confirmed')], 12]
+		[[at('not_confirmed')], 12],
+		[[at('undetermined')], 5]
 	];
-	// At Senior the released bank practically never leaves the band crossed: «не определено» is planned below it.
-	if (declared !== 'senior') paths.push([[at('undetermined')], 5]);
 	if (below !== undefined) {
 		paths.push([[at('not_confirmed'), { grade: below, outcome: rnd.chance(0.3) ? 'confident' : 'confirmed' }], 10]);
 	}
 	if (above !== undefined) {
 		paths.push([[at('confident'), { grade: above, outcome: rnd.chance(0.5) ? 'confirmed' : 'not_confirmed' }], 6]);
 	}
-	return rnd.weighted(paths);
+	const given = (attempt: AttemptPlan) =>
+		reach === undefined || reach.get(attempt.grade)?.has(attempt.outcome) === true;
+	return rnd.weighted(paths.filter(([attempts]) => attempts.every(given)));
 }
 
 /** The survey and the tests of a background candidate of `roles`; `null` — no role of theirs is tested. */
@@ -177,7 +181,8 @@ function assessmentOf(
 	rnd: Random,
 	roles: readonly string[],
 	grade: string,
-	stack: RoleProfile['stacks'][number] | null
+	stack: RoleProfile['stacks'][number] | null,
+	reach: OutcomeReach
 ): AssessmentPlan | null {
 	const specialization = specializationOf(roles);
 	if (specialization === null) return null;
@@ -186,7 +191,7 @@ function assessmentOf(
 	if (own === null) return null;
 	const skills = [...own.required, ...own.nice.filter(() => rnd.chance(0.6))].slice(0, 10);
 	const declared = catalogGrade(grade);
-	return { specialization, skills, declared, attempts: attemptsOf(rnd, declared) };
+	return { specialization, skills, declared, attempts: attemptsOf(rnd, declared, reach.get(specialization)) };
 }
 
 function softSkillsOf(rnd: Random): string[] {
@@ -275,7 +280,13 @@ function regionCodeOf(data: SeedData, name: string, owner: string): string {
 }
 
 /** A synthetic candidate linked to an athlete of the simulator. */
-export function athletePlan(athlete: WorldAthlete, data: SeedData, batch: string, now: Date): CandidatePlan {
+export function athletePlan(
+	athlete: WorldAthlete,
+	data: SeedData,
+	batch: string,
+	now: Date,
+	reach: OutcomeReach
+): CandidatePlan {
 	const rnd = new Random(`${batch}:athlete:${athlete.fspId}`);
 	const age = now.getUTCFullYear() - athlete.birthYear;
 	const byDiscipline = data.roles.disciplines[athlete.discipline] ?? data.roles.disciplines.algorithmic;
@@ -317,7 +328,7 @@ export function athletePlan(athlete: WorldAthlete, data: SeedData, batch: string
 			experience:
 				age >= 20 && rnd.chance(0.45) ? [manualExperience(data, rnd, roleByKey(data, primaryRole), grade, now)] : []
 		},
-		assessments: listOf(assessmentOf(data, rnd, desiredRoles, grade, null))
+		assessments: listOf(assessmentOf(data, rnd, desiredRoles, grade, null, reach))
 	};
 }
 
@@ -409,7 +420,8 @@ export function resumePlan(
 	data: SeedData,
 	batch: string,
 	now: Date,
-	skillNames: ReadonlyMap<string, string>
+	skillNames: ReadonlyMap<string, string>,
+	reach: OutcomeReach
 ): CandidatePlan {
 	const rnd = new Random(`${batch}:resume:${index}`);
 	const synthetic = syntheticName(rnd);
@@ -441,7 +453,7 @@ export function resumePlan(
 		resume: { declaredName: `Резюме ${name.lastName}.txt`, bytes: new TextEncoder().encode(text) },
 		github: null,
 		profile: { headline: headlineOf(data, grade, role), softSkills: softSkillsOf(rnd), experience: [] },
-		assessments: listOf(assessmentOf(data, rnd, [role.key], grade, stack))
+		assessments: listOf(assessmentOf(data, rnd, [role.key], grade, stack, reach))
 	};
 }
 

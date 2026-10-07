@@ -2,11 +2,12 @@
 // sections 12.2, 12.3, 23.3): the survey of a specialization, the declared grade with its hint, then the attempts of the
 // plan. Each attempt goes the real path — the grade policy admits it, items are chosen from the release in force, the
 // procedure decides, the owner of the category writes the category — with the scores of the seeded verdict instead of
-// the sandbox. The plan names the outcome the scenario needs; the true share is drawn from the range of that outcome
-// and an attempt whose decision differs is rolled back and drawn again (rejection sampling), so the stand gets the same
-// decisions on every seed while every decision is still the procedure's own.
+// the sandbox. The plan names the outcome the scenario needs; the draw that gives it is found in memory beforehand
+// (`foresight.ts`) and the attempt is made once with it, so the stand gets the same decisions on every seed while every
+// decision is still the procedure's own.
 import { and, asc, eq } from 'drizzle-orm';
 import { CATALOG, type SpecializationKey } from '$lib/server/assessments/contract/catalog';
+import { seenClasses } from '$lib/server/assessments/engine';
 import { runSeededAttempt } from '$lib/server/assessments/seed-attempt';
 import { OWNER_STANDING } from '$lib/server/assessments/standing';
 import { gradeDecisions, testAttempts } from '$lib/server/db/schema';
@@ -17,35 +18,10 @@ import { latestSurvey, submitSurvey } from '$lib/server/grades/surveys';
 import { metaOf, subjectOf, type SeedContext } from './accounts';
 import type { SeededCandidate } from './candidates';
 import type { TestOutcome } from './data';
-import { Random, type AssessmentPlan, type CandidatePlan } from './generate';
-
-/** The range of the true share each outcome is drawn from. */
-const SHARES: Readonly<Record<TestOutcome, readonly [number, number]>> = {
-	confident: [0.92, 1],
-	confirmed: [0.6, 0.76],
-	not_confirmed: [0.1, 0.4],
-	undetermined: [0.35, 0.85]
-};
-
-/** Draws of one attempt before the seed gives up: «не определено» is rare at any share. */
-const TRIALS: Readonly<Record<TestOutcome, number>> = {
-	confident: 60,
-	confirmed: 120,
-	not_confirmed: 60,
-	undetermined: 600
-};
-
-class DrawRejected extends Error {
-	override name = 'DrawRejected';
-}
+import { findDraw, outcomeOf, SEARCH_TRIALS, type ReleasedBank } from './foresight';
+import type { AssessmentPlan, CandidatePlan } from './generate';
 
 export type AssessmentState = 'none' | 'closed' | 'taken';
-
-function outcomeOf(decision: { outcome: string; confident: boolean }): TestOutcome {
-	if (decision.outcome === 'confirmed') return decision.confident ? 'confident' : 'confirmed';
-	if (decision.outcome === 'not_confirmed' || decision.outcome === 'undetermined') return decision.outcome;
-	throw new Error(`unknown decision outcome ${decision.outcome}`);
-}
 
 async function surveyAndDeclaration(
 	ctx: SeedContext,
@@ -93,7 +69,7 @@ export async function ensureAssessments(
 	ctx: SeedContext,
 	candidate: SeededCandidate,
 	plan: CandidatePlan,
-	open: ReadonlySet<SpecializationKey>
+	banks: ReadonlyMap<SpecializationKey, ReleasedBank>
 ): Promise<{ specialization: SpecializationKey | null; state: AssessmentState }[]> {
 	if (plan.assessments.length === 0) return [{ specialization: null, state: 'none' }];
 	const { db } = ctx.services;
@@ -103,7 +79,8 @@ export async function ensureAssessments(
 	for (const test of plan.assessments) {
 		const first = ordinal;
 		ordinal += test.attempts.length;
-		if (!open.has(test.specialization)) {
+		const bank = banks.get(test.specialization);
+		if (bank === undefined) {
 			states.push({ specialization: test.specialization, state: 'closed' });
 			continue;
 		}
@@ -118,7 +95,7 @@ export async function ensureAssessments(
 			await surveyAndDeclaration(ctx, candidate, plan, test);
 			for (const [index, attempt] of test.attempts.entries()) {
 				if (index < taken.length) continue;
-				await attemptWithOutcome(ctx, candidate, test.specialization, attempt.grade, attempt.outcome, first + index);
+				await attemptWithOutcome(ctx, candidate, bank, attempt.grade, attempt.outcome, first + index);
 			}
 		}
 		states.push({ specialization: test.specialization, state: 'taken' });
@@ -129,51 +106,57 @@ export async function ensureAssessments(
 async function attemptWithOutcome(
 	ctx: SeedContext,
 	candidate: SeededCandidate,
-	specialization: SpecializationKey,
+	bank: ReleasedBank,
 	grade: AssessmentPlan['declared'],
 	outcome: TestOutcome,
 	index: number
 ): Promise<string> {
-	const [low, high] = SHARES[outcome];
-	for (let trial = 0; trial < TRIALS[outcome]; trial += 1) {
-		const label = `${ctx.batch}:${candidate.key}:test:${index}:${trial}`;
-		const trueShare = low + (high - low) * new Random(label).next();
-		try {
-			return await ctx.services.db.transaction(async (tx) => {
-				const { attemptId, outcome: ended } = await runSeededAttempt(
-					tx,
-					{ standing: OWNER_STANDING },
-					{
-						candidateId: candidate.candidateId,
-						specialization,
-						grade,
-						trueShare,
-						candidateSeed: label,
-						now: ctx.now(),
-						requestId: ctx.meta.requestId
-					}
-				);
-				if (ended.kind !== 'decided') throw new Error(`seeded attempt ${attemptId} of ${candidate.key} expired`);
-				const [decision] = await tx
-					.select({ outcome: gradeDecisions.outcome, confident: gradeDecisions.confident })
-					.from(gradeDecisions)
-					.where(eq(gradeDecisions.id, ended.decisionId));
-				if (!decision) throw new Error(`decision ${ended.decisionId} is missing`);
-				if (outcomeOf(decision) !== outcome) throw new DrawRejected();
-				ctx.services.log.info('demo seed: seeded attempt', {
-					candidate: candidate.key,
-					grade,
-					outcome,
-					draws: trial + 1
-				});
-				return attemptId;
-			});
-		} catch (error) {
-			if (error instanceof DrawRejected) continue;
-			throw error;
-		}
-	}
-	throw new Error(
-		`${candidate.key}: the test ${specialization} ${grade} gave no «${outcome}» in ${TRIALS[outcome]} draws`
+	const { db } = ctx.services;
+	const specialization = bank.release.specialization;
+	const seen = await seenClasses(db, candidate.candidateId, ctx.now());
+	const found = await findDraw(
+		bank,
+		grade,
+		seen,
+		outcome,
+		(trial) => `${ctx.batch}:${candidate.key}:test:${index}:${trial}`
 	);
+	if (!found) {
+		throw new Error(
+			`${candidate.key}: no seeded attempt at ${specialization} ${grade} of ${bank.release.id} gives «${outcome}» ` +
+				`in ${SEARCH_TRIALS} draws, though the sample of the bank found it reachable`
+		);
+	}
+	const { draw, trials } = found;
+	return db.transaction(async (tx) => {
+		const { attemptId, outcome: ended } = await runSeededAttempt(
+			tx,
+			{ standing: OWNER_STANDING },
+			{
+				candidateId: candidate.candidateId,
+				specialization,
+				grade,
+				trueShare: draw.trueShare,
+				candidateSeed: draw.candidateSeed,
+				attemptSeed: draw.attemptSeed,
+				now: ctx.now(),
+				requestId: ctx.meta.requestId
+			}
+		);
+		if (ended.kind !== 'decided') throw new Error(`seeded attempt ${attemptId} of ${candidate.key} expired`);
+		const [decision] = await tx
+			.select({ outcome: gradeDecisions.outcome, confident: gradeDecisions.confident })
+			.from(gradeDecisions)
+			.where(eq(gradeDecisions.id, ended.decisionId));
+		if (!decision) throw new Error(`decision ${ended.decisionId} is missing`);
+		const decided = outcomeOf(decision);
+		if (decided !== outcome) {
+			throw new Error(
+				`${candidate.key}: the engine decided «${decided}» at ${specialization} ${grade} where the foreseen attempt ` +
+					`gave «${outcome}»: the seed and the engine take different paths`
+			);
+		}
+		ctx.services.log.info('demo seed: seeded attempt', { candidate: candidate.key, grade, outcome, draws: trials });
+		return attemptId;
+	});
 }

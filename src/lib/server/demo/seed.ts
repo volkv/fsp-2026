@@ -56,6 +56,7 @@ import { createResumeParseHandler } from '$lib/server/resumes/parse-job';
 import { latestPublishedVersion } from '$lib/server/taxonomy/vocabulary';
 import { ensureStaffRole, ensureUser, DemoBatchConflict, type SeedContext } from './accounts';
 import { ensureAssessments, type AssessmentState } from './assessments';
+import { outcomeReach, openBanks, unreachableTests } from './foresight';
 import { ensureCandidate, inPool, type SeededCandidate } from './candidates';
 import { castOriginals, castRoles, markCastOriginals } from './cast';
 import { ensureCompany, type SeededCompany } from './companies';
@@ -88,7 +89,7 @@ import { demoWorld, eligibleAthletes, heroAthlete, minorAthletes, type World } f
 import { syntheticName } from '../../../../services/fsp-mock/src/seed/names.ts';
 
 /** Bump when the seed code changes what it creates from the same inputs: a new version is a new batch. */
-const SEED_VERSION = 7;
+const SEED_VERSION = 8;
 
 /** Share of FSP athletes among the synthetic candidates; the rest have a resume and no FSP history. */
 const FSP_SHARE = 0.9;
@@ -431,6 +432,10 @@ export async function seedDemo(services: DemoServices): Promise<SeedSummary> {
 	const world = demoWorld(settings.world);
 	await checkSimulator(services, world);
 	const open = await openSpecializations(db);
+	const banks = await openBanks(db, open);
+	const reachStarted = Date.now();
+	const reach = await outcomeReach(banks, batch);
+	const reachMs = Date.now() - reachStarted;
 
 	const letters = new LetterBox();
 	const ctx: SeedContext = {
@@ -455,7 +460,16 @@ export async function seedDemo(services: DemoServices): Promise<SeedSummary> {
 	};
 	const names = await skillNames(services, taxonomyVersionId);
 
-	log.info('demo seed: accounts and companies', { batch, open_specializations: [...open].join(',') });
+	log.info('demo seed: accounts and companies', {
+		batch,
+		open_specializations: [...open].join(','),
+		reach_ms: reachMs,
+		outcomes: [...reach]
+			.map(([specialization, grades]) =>
+				[...grades].map(([grade, outcomes]) => `${specialization}/${grade}:${[...outcomes].join('+')}`).join(' ')
+			)
+			.join(' ')
+	});
 	const { operatorUserId } = await ensureStaff(ctx, data);
 	const plans = companyPlans(data, batch);
 	const companyList: SeededCompany[] = [];
@@ -466,14 +480,18 @@ export async function seedDemo(services: DemoServices): Promise<SeedSummary> {
 	const heroPlans = data.demo.candidates.map((hero) =>
 		heroPlan(hero, hero.athlete === undefined ? null : heroAthlete(world, hero.athlete), data)
 	);
+	const unreachable = unreachableTests(heroPlans, reach);
+	if (unreachable.length > 0) {
+		throw new Error(`seeds/demo.json asks the released banks for outcomes they do not give: ${unreachable.join('; ')}`);
+	}
 	const background = settings.candidates - heroPlans.length - 1;
 	const athletes = eligibleAthletes(world, now()).slice(0, Math.max(0, Math.round(background * FSP_SHARE)));
 	const minor = minorAthletes(world, now())[0];
 	if (!minor) throw new Error('the simulator dataset has no minor of the product discipline');
 	const backgroundPlans: CandidatePlan[] = [
-		...athletes.map((athlete) => athletePlan(athlete, data, batch, now())),
+		...athletes.map((athlete) => athletePlan(athlete, data, batch, now(), reach)),
 		...Array.from({ length: Math.max(0, background - athletes.length) }, (_, i) =>
-			resumePlan(i + 1, data, batch, now(), names)
+			resumePlan(i + 1, data, batch, now(), names, reach)
 		)
 	];
 	const heroes = new Map<string, SeededCandidate>();
@@ -518,7 +536,7 @@ export async function seedDemo(services: DemoServices): Promise<SeedSummary> {
 		...heroPlans.map((plan): [SeededCandidate, CandidatePlan] => [required(heroes.get(plan.key)), plan]),
 		...backgroundPlans.map((plan, i): [SeededCandidate, CandidatePlan] => [required(seededBackground[i]), plan])
 	];
-	const states = await inPool(pairs, 4, ([candidate, plan]) => ensureAssessments(ctx, candidate, plan, open));
+	const states = await inPool(pairs, 4, ([candidate, plan]) => ensureAssessments(ctx, candidate, plan, banks));
 	for (const list of states) for (const entry of list) countTest(tests, entry);
 	await drain('categories');
 

@@ -52,7 +52,7 @@ describe('demo seed', () => {
 		specialization: null,
 		officialResults: 1
 	});
-	const plan = (region: string | null) => athletePlan(athlete(region), data, 'regions-test', new Date());
+	const plan = (region: string | null) => athletePlan(athlete(region), data, 'regions-test', new Date(), new Map());
 	const regionCodeOf = (region: string | null) => {
 		const preferences = plan(region).preferences;
 		return 'region_code' in preferences ? preferences.region_code : undefined;

@@ -194,15 +194,27 @@ export async function ensureCandidate(ctx: SeedContext, plan: CandidatePlan): Pr
 	return { key: plan.key, candidateId, userId };
 }
 
-/** Runs `task` over `items` with at most `limit` at a time, keeping the order of the results. */
+/**
+ * Runs `task` over `items` with at most `limit` at a time, keeping the order of the results. The first failure stops
+ * the lanes from taking new items, and the call returns only when every task already started has ended: a failed seed
+ * leaves nothing of its own running against the reset that follows it.
+ */
 export async function inPool<T, R>(items: readonly T[], limit: number, task: (item: T) => Promise<R>): Promise<R[]> {
 	const results = new Array<R>(items.length);
 	let next = 0;
+	let failed = false;
 	const lane = async () => {
-		for (let index = next++; index < items.length; index = next++) {
-			results[index] = await task(items[index] as T);
+		for (let index = next++; index < items.length && !failed; index = next++) {
+			try {
+				results[index] = await task(items[index] as T);
+			} catch (error) {
+				failed = true;
+				throw error;
+			}
 		}
 	};
-	await Promise.all(Array.from({ length: Math.min(limit, items.length) }, lane));
+	const lanes = await Promise.allSettled(Array.from({ length: Math.min(limit, items.length) }, lane));
+	const rejected = lanes.find((settled): settled is PromiseRejectedResult => settled.status === 'rejected');
+	if (rejected) throw rejected.reason;
 	return results;
 }

@@ -1,6 +1,6 @@
 // Job queue over the `jobs` table (docs/domain.md, section 17.1): enqueue in the transaction of the change,
 // deduplication among waiting jobs, capture with a lease, conditional result write, retries and lease recovery.
-import { and, eq, inArray, lte, or, sql } from 'drizzle-orm';
+import { and, eq, inArray, lte, not, or, sql } from 'drizzle-orm';
 import type { Executor, Transaction } from '$lib/server/db';
 import { jobs } from '$lib/server/db/schema';
 import { insertJob, type EnqueueOptions, type EnqueueResult } from './insert';
@@ -301,4 +301,32 @@ export async function cancelWaitingJobs<T extends JobType>(
 		.where(and(eq(jobs.type, type), eq(jobs.dedupKey, dedupKey), eq(jobs.status, 'queued')))
 		.returning({ id: jobs.id });
 	return cancelled.length;
+}
+
+/**
+ * Stops the queue for the rest of the caller's transaction: `jobs` is locked `EXCLUSIVE`, so no job is enqueued,
+ * captured, extended or finished until the transaction ends (reads go on). The waiting jobs of types other than
+ * `except` are cancelled, and so are the running ones whose lease has expired (their worker is gone). Returns the jobs
+ * still running under a lease: the caller commits and waits for them, since their own transactions may hold the rows it
+ * is about to take.
+ */
+export async function haltJobs(
+	tx: Transaction,
+	except: readonly JobType[]
+): Promise<{ cancelled: number; running: { id: string; type: string }[] }> {
+	await tx.execute(sql`lock table ${jobs} in exclusive mode`);
+	const others = not(inArray(jobs.type, [...except]));
+	const cancelled = await tx
+		.update(jobs)
+		.set({ status: 'cancelled', leaseOwner: null, leaseExpiresAt: null, finishedAt: sql`now()` })
+		.where(
+			and(others, or(eq(jobs.status, 'queued'), and(eq(jobs.status, 'running'), sql`${jobs.leaseExpiresAt} <= now()`)))
+		)
+		.returning({ id: jobs.id });
+	const running = await tx
+		.select({ id: jobs.id, type: jobs.type })
+		.from(jobs)
+		.where(and(others, eq(jobs.status, 'running')))
+		.orderBy(jobs.id);
+	return { cancelled: cancelled.length, running };
 }

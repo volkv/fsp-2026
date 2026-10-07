@@ -7,6 +7,7 @@
 import { sql, type SQL } from 'drizzle-orm';
 import { recordAuditEvent } from '$lib/server/audit/record';
 import type { Database, Transaction } from '$lib/server/db';
+import { haltJobs } from '$lib/server/jobs/queue';
 import type { Redis } from '$lib/server/redis';
 import type { ObjectStore } from '$lib/server/storage/object-store';
 
@@ -289,6 +290,26 @@ interface ResetDeps {
 	/** Control endpoints of the simulator (`POST /mock/reset`). */
 	fspMock: { origin: string; controlToken: string };
 	fetch?: typeof fetch;
+	/** How long the reset waits for the running jobs, and how often it looks; `QUIET` by default. */
+	quiet?: { waitMs: number; pollMs: number };
+}
+
+/**
+ * The wait for the running jobs: a worker extends the lease of a job while it runs, so the wait has no natural end; it
+ * is cut at the longest lease the registry gives a job (30 minutes, `embedding.reindex` and `retention.sweep`): a job
+ * that runs longer is stuck rather than slow, and the reset names it.
+ */
+const QUIET = { waitMs: 30 * 60_000, pollMs: 1000 };
+
+/** Jobs still ran when the wait of the reset ran out: nothing was emptied. */
+export class DemoResetBusy extends Error {
+	override name = 'DemoResetBusy';
+	constructor(running: readonly { id: string; type: string }[], waitMs: number) {
+		super(
+			`the demo reset waited ${Math.round(waitMs / 1000)} s for running jobs and found them still running: ` +
+				running.map((job) => `${job.type} ${job.id}`).join(', ')
+		);
+	}
 }
 
 interface ResetSummary {
@@ -297,15 +318,119 @@ interface ResetSummary {
 	filesRemoved: number;
 }
 
+interface Cleared {
+	tablesCleared: number;
+	rowsKept: number;
+	storageKeys: string[];
+}
+
 /**
- * Empties the demonstration data in one transaction. Append-only tables refuse `TRUNCATE` by a statement trigger; the
- * reset switches those triggers off inside its transaction only (the change is rolled back with any failure and is
- * invisible to other sessions, which wait on the table lock). Objects of the removed files and Redis are cleaned after
- * the commit: a failure there is reported, the database is already empty.
+ * Empties the demonstration data in the caller's transaction, the queue stopped (`haltJobs`). Append-only tables refuse
+ * `TRUNCATE` by a statement trigger; the reset switches those triggers off inside its transaction only (the change is
+ * rolled back with any failure and is invisible to other sessions, which wait on the table lock).
  */
+async function clearTables(
+	tx: Transaction,
+	journal: { requestId: string; trigger: DemoResetTrigger }
+): Promise<Cleared> {
+	const order = resetOrder(await foreignKeys(tx));
+	// Keys of the objects whose rows go: read before the rows disappear.
+	const files = DEMO_RESET_PLAN.files;
+	if (files?.kind !== 'clear_except') throw new Error('the reset plan of files keeps the evaluation reports');
+	const keys = await tx.execute<{ storage_key: string }>(
+		sql`select storage_key from files where not (${sql.raw(files.keep)})`
+	);
+
+	const guarded = await tx.execute<{ table_name: string; trigger_name: string }>(sql`
+		select c.relname as table_name, t.tgname as trigger_name
+		from pg_trigger t join pg_class c on c.oid = t.tgrelid
+		where not t.tgisinternal and t.tgname like '%\\_append\\_only\\_truncate'
+			and c.relname in (${sql.join(
+				order.truncate.map((table) => sql`${table}`),
+				sql`, `
+			)})`);
+	for (const row of guarded) {
+		await tx.execute(sql`alter table ${ident(row.table_name)} disable trigger ${ident(row.trigger_name)}`);
+	}
+	const carried = order.truncate.flatMap((table) => {
+		const decision = DEMO_RESET_PLAN[table];
+		return decision?.kind === 'carry_over' ? [{ table, keep: decision.keep }] : [];
+	});
+	for (const { table, keep } of carried) {
+		await tx.execute(
+			sql`create temporary table ${ident(`carried_${table}`)} on commit drop as
+				select * from ${ident(table)} where ${sql.raw(keep)}`
+		);
+	}
+	if (order.truncate.length > 0) {
+		await tx.execute(sql`truncate table ${sql.join(order.truncate.map(ident), sql`, `)}`);
+	}
+	for (const row of guarded) {
+		await tx.execute(sql`alter table ${ident(row.table_name)} enable trigger ${ident(row.trigger_name)}`);
+	}
+
+	let rowsKept = 0;
+	for (const { table } of carried) {
+		const back = await tx.execute(
+			sql`insert into ${ident(table)} select * from ${ident(`carried_${table}`)} returning 1`
+		);
+		rowsKept += back.length;
+	}
+	for (const table of order.delete) {
+		const decision = DEMO_RESET_PLAN[table];
+		if (decision?.kind === 'clear_except') {
+			await tx.execute(sql`delete from ${ident(table)} where not (${sql.raw(decision.keep)})`);
+			const [kept] = await tx.execute<{ n: number }>(sql`select count(*)::int as n from ${ident(table)}`);
+			rowsKept += kept?.n ?? 0;
+		} else {
+			await tx.execute(sql`delete from ${ident(table)}`);
+		}
+	}
+	const tablesCleared = order.truncate.length + order.delete.length;
+	// The first event of the emptied journal.
+	await recordAuditEvent(tx, {
+		action: 'demo.reset',
+		outcome: 'success',
+		actor: { kind: 'system' },
+		requestId: journal.requestId,
+		details: {
+			trigger: journal.trigger,
+			tables_cleared: tablesCleared,
+			rows_kept: rowsKept,
+			files_removed: keys.length
+		}
+	});
+	return { tablesCleared, rowsKept, storageKeys: keys.map((row) => row.storage_key) };
+}
+
+/** `clearTables` in the first transaction that finds no other job running; `DemoResetBusy` once the wait runs out. */
+async function clearWhenQuiet(
+	db: Database,
+	journal: { requestId: string; trigger: DemoResetTrigger },
+	quiet: { waitMs: number; pollMs: number }
+): Promise<Cleared> {
+	const waitUntil = Date.now() + quiet.waitMs;
+	for (;;) {
+		const step = await db.transaction(async (tx) => {
+			const { running } = await haltJobs(tx, ['demo.reset']);
+			return running.length > 0 ? { running, cleared: null } : { running, cleared: await clearTables(tx, journal) };
+		});
+		if (step.cleared !== null) return step.cleared;
+		if (Date.now() >= waitUntil) throw new DemoResetBusy(step.running, quiet.waitMs);
+		await new Promise((resolve) => setTimeout(resolve, quiet.pollMs));
+	}
+}
+
 /** What started a reset, kept in the journal: the night's job, the start of the application, the command line. */
 export type DemoResetTrigger = 'nightly' | 'startup' | 'manual';
 
+/**
+ * Empties the demonstration data in one transaction, once no other job runs: every attempt stops the queue, cancels the
+ * waiting jobs (the reset removes them anyway) and, while some job still runs — the chain a stopped seed enqueued, a
+ * calculation of the stand — commits the cancellations and waits for it instead of truncating tables that job's
+ * transactions hold. Objects of the removed files and Redis are cleaned after the commit: a failure there is reported,
+ * the database is already empty. A repeated reset finds nothing of the previous one running and does the same.
+ */
 export async function resetDemo(
 	deps: ResetDeps,
 	journal: { requestId: string; trigger: DemoResetTrigger }
@@ -316,77 +441,7 @@ export async function resetDemo(
 		throw new DemoResetPlanMismatch(plan.unplanned, plan.missing);
 	}
 
-	const outcome = await db.transaction(async (tx) => {
-		const order = resetOrder(await foreignKeys(tx));
-		// Keys of the objects whose rows go: read before the rows disappear.
-		const files = DEMO_RESET_PLAN.files;
-		if (files?.kind !== 'clear_except') throw new Error('the reset plan of files keeps the evaluation reports');
-		const keys = await tx.execute<{ storage_key: string }>(
-			sql`select storage_key from files where not (${sql.raw(files.keep)})`
-		);
-
-		const guarded = await tx.execute<{ table_name: string; trigger_name: string }>(sql`
-			select c.relname as table_name, t.tgname as trigger_name
-			from pg_trigger t join pg_class c on c.oid = t.tgrelid
-			where not t.tgisinternal and t.tgname like '%\\_append\\_only\\_truncate'
-				and c.relname in (${sql.join(
-					order.truncate.map((table) => sql`${table}`),
-					sql`, `
-				)})`);
-		for (const row of guarded) {
-			await tx.execute(sql`alter table ${ident(row.table_name)} disable trigger ${ident(row.trigger_name)}`);
-		}
-		const carried = order.truncate.flatMap((table) => {
-			const decision = DEMO_RESET_PLAN[table];
-			return decision?.kind === 'carry_over' ? [{ table, keep: decision.keep }] : [];
-		});
-		for (const { table, keep } of carried) {
-			await tx.execute(
-				sql`create temporary table ${ident(`carried_${table}`)} on commit drop as
-					select * from ${ident(table)} where ${sql.raw(keep)}`
-			);
-		}
-		if (order.truncate.length > 0) {
-			await tx.execute(sql`truncate table ${sql.join(order.truncate.map(ident), sql`, `)}`);
-		}
-		for (const row of guarded) {
-			await tx.execute(sql`alter table ${ident(row.table_name)} enable trigger ${ident(row.trigger_name)}`);
-		}
-
-		let rowsKept = 0;
-		for (const { table } of carried) {
-			const back = await tx.execute(
-				sql`insert into ${ident(table)} select * from ${ident(`carried_${table}`)} returning 1`
-			);
-			rowsKept += back.length;
-		}
-		for (const table of order.delete) {
-			const decision = DEMO_RESET_PLAN[table];
-			if (decision?.kind === 'clear_except') {
-				await tx.execute(sql`delete from ${ident(table)} where not (${sql.raw(decision.keep)})`);
-				const [kept] = await tx.execute<{ n: number }>(sql`select count(*)::int as n from ${ident(table)}`);
-				rowsKept += kept?.n ?? 0;
-			} else {
-				await tx.execute(sql`delete from ${ident(table)}`);
-			}
-		}
-		const tablesCleared = order.truncate.length + order.delete.length;
-		// The first event of the emptied journal.
-		await recordAuditEvent(tx, {
-			action: 'demo.reset',
-			outcome: 'success',
-			actor: { kind: 'system' },
-			requestId: journal.requestId,
-			details: {
-				trigger: journal.trigger,
-				tables_cleared: tablesCleared,
-				rows_kept: rowsKept,
-				files_removed: keys.length
-			}
-		});
-		return { tablesCleared, rowsKept, storageKeys: keys.map((row) => row.storage_key) };
-	});
-
+	const outcome = await clearWhenQuiet(db, journal, deps.quiet ?? QUIET);
 	for (const key of outcome.storageKeys) await deps.store.delete(key);
 	await deps.redis.flushDb();
 	const response = await (deps.fetch ?? fetch)(`${deps.fspMock.origin}/mock/reset`, {

@@ -263,6 +263,99 @@ describe('demo reset', () => {
 	});
 });
 
+describe('demo reset and the jobs of the stand', () => {
+	const resetDeps = (store: ObjectStore) => ({
+		db: database.db,
+		redis,
+		store,
+		fspMock: { origin: 'http://simulator.test', controlToken: 'x'.repeat(32) },
+		fetch: simulator().fetch,
+		quiet: { waitMs: 30_000, pollMs: 100 }
+	});
+
+	it('waits for a running job instead of truncating the rows its transaction holds, and cancels the waiting ones', async () => {
+		const { db } = database;
+		const candidate = await createCandidate(db, { seedBatchId: 'demo-test' });
+		const queued = await createCandidate(db, { seedBatchId: 'demo-test' });
+		// A calculation the previous seed enqueued, captured by the worker of the stand, and one still waiting.
+		await db.transaction(async (tx) => {
+			await enqueueJob(
+				tx,
+				'evidence.compute',
+				{ candidate_id: candidate.id },
+				{ inputVersion: '1', createdBy: { kind: 'system' } }
+			);
+			await enqueueJob(
+				tx,
+				'evidence.compute',
+				{ candidate_id: queued.id },
+				{ inputVersion: '1', createdBy: { kind: 'system' } }
+			);
+		});
+		const [running] = await db
+			.update(jobs)
+			.set({
+				status: 'running',
+				leaseOwner: 'stand-worker',
+				leaseExpiresAt: sql`now() + interval '5 minutes'`,
+				attempts: 1
+			})
+			.where(eq(jobs.dedupKey, `evidence:${candidate.id}`))
+			.returning({ id: jobs.id });
+		if (!running) throw new Error('the job was not captured');
+
+		// The job's transaction holds a row of `candidates` and then writes the journal, which the truncation takes first.
+		const worker = postgres(database.url, { max: 1, onnotice: () => {} });
+		let release!: () => void;
+		const holding = new Promise<void>((resolve) => (release = resolve));
+		let held!: () => void;
+		const rowHeld = new Promise<void>((resolve) => (held = resolve));
+		const job = worker.begin(async (tx) => {
+			await tx`update candidates set headline = 'computed' where id = ${candidate.id}`;
+			held();
+			await holding;
+			await tx`insert into audit_events (id, action, outcome, actor_kind, request_id, details, occurred_at)
+				values (gen_random_uuid(), 'evidence.computed', 'success', 'system', 'job', '{}', now())`;
+		});
+		try {
+			await rowHeld;
+			const reset = resetDemo(resetDeps(new RecordingStore()), { requestId: 'demo-reset-busy', trigger: 'manual' });
+			await new Promise((resolve) => setTimeout(resolve, 1500));
+			release();
+			await job;
+			await db
+				.update(jobs)
+				.set({ status: 'succeeded', leaseOwner: null, leaseExpiresAt: null, finishedAt: sql`now()` })
+				.where(eq(jobs.id, running.id));
+			await reset;
+		} finally {
+			release();
+			await worker.end({ timeout: 5 });
+		}
+		expect(await db.select().from(candidates)).toEqual([]);
+		expect(await db.select({ id: jobs.id }).from(jobs).where(eq(jobs.type, 'evidence.compute'))).toEqual([]);
+	});
+
+	it('repeats: a second reset right after the first finds the queue still and empties the stand again', async () => {
+		const { db } = database;
+		const candidate = await createCandidate(db, { seedBatchId: 'demo-test' });
+		await db.transaction((tx) =>
+			enqueueJob(
+				tx,
+				'evidence.compute',
+				{ candidate_id: candidate.id },
+				{ inputVersion: '1', createdBy: { kind: 'system' } }
+			)
+		);
+		const store = new RecordingStore();
+		await resetDemo(resetDeps(store), { requestId: 'demo-reset-1', trigger: 'manual' });
+		const again = await resetDemo(resetDeps(store), { requestId: 'demo-reset-2', trigger: 'manual' });
+		expect(again.filesRemoved).toBe(0);
+		expect(await db.select().from(candidates)).toEqual([]);
+		expect((await db.select({ type: jobs.type }).from(jobs)).every((j) => j.type === 'demo.reset')).toBe(true);
+	});
+});
+
 describe('demo reset and the real staff', () => {
 	it('keeps the bootstrap administrator with its password, role and email, and the staff it named; demo accounts go', async () => {
 		const { db } = database;

@@ -446,6 +446,11 @@ export interface StartOptions {
 	userId: string | undefined;
 	/** A seeded attempt of the demo (domain 23.3). */
 	seeded?: boolean;
+	/**
+	 * The seed of a seeded attempt, given by the demo seed so that it can foresee the attempt's trajectory; any other
+	 * attempt draws its own.
+	 */
+	attemptSeed?: string;
 }
 
 /**
@@ -473,7 +478,10 @@ export async function startAttemptIn(
 	});
 	const release = await releaseInForce(tx, input.specialization);
 	if (!release) throw new Error(`specialization ${input.specialization} is open without a release in force`);
-	const seed = randomBytes(16).toString('hex');
+	if (options.attemptSeed !== undefined && options.seeded !== true) {
+		throw new Error('only a seeded attempt is started with a given seed');
+	}
+	const seed = options.attemptSeed ?? randomBytes(16).toString('hex');
 	const form: AttemptForm = attemptForm(
 		release.families.map((f) => f.descriptor),
 		input.grade,

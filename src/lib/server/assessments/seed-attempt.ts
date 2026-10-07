@@ -17,6 +17,8 @@ export interface SeededAttemptInput {
 	/** The candidate's true share: the chance of every cluster (and of every group and mutant). */
 	trueShare: number;
 	candidateSeed: string;
+	/** The seed of the attempt: the choice of form and items, the same the demo seed foresaw the trajectory with. */
+	attemptSeed: string;
 	now: Date;
 	requestId: string;
 }
@@ -44,7 +46,7 @@ export async function runSeededAttempt(
 		deps,
 		input.candidateId,
 		{ specialization: input.specialization, grade: input.grade },
-		{ now: input.now, requestId: input.requestId, userId: undefined, seeded: true }
+		{ now: input.now, requestId: input.requestId, userId: undefined, seeded: true, attemptSeed: input.attemptSeed }
 	);
 	const { attempt } = started;
 	let outcome = started.outcome;
