@@ -16,6 +16,7 @@ import {
 	type SpecializationKey
 } from '$lib/server/assessments/contract/catalog';
 import { specializationsOfRole } from '$lib/server/categories/roles';
+import type { DisciplineCode, Known } from '$lib/server/fsp/types';
 import { compareSalary, type SalaryComparison, type SalaryTerms } from '$lib/server/salary/compare';
 import type { ComponentKey, ComponentStatus, MatchRulesetParams } from './params';
 import type { TestBlockResult } from './test-results';
@@ -609,7 +610,8 @@ export function qualifiesForPool(
 // (`coverage`); for a composite role (fullstack) a candidate confirmed in every specialization of the role comes next
 // (`composite`). The second is the score inside a group: the fit to the need (its skills by the best basis of each, the
 // work format) and the strength of the confirmed profile (the test by blocks, the FSP record — competitions and
-// podiums, every competition of one weight — and how recent the last confirmed action is), additive. The denominator
+// podiums, a competition of a discipline relevant to the specialization weighing more than one of another, none zero —
+// and how recent the last confirmed action is), additive. The denominator
 // is the weight of the components the need asks for — the same for every candidate of the need — so a contribution is
 // `weight × value / denominator`, exactly, and the absence of FSP is the absence of its bonus, never a penalty. The
 // catalog without a need ranks by the strength level alone. The salary expectation of a candidate is hidden from a
@@ -669,6 +671,8 @@ export interface FspResult {
 	/** Internal id of the fact: a company sees the receipts of the card instead. */
 	factId: string;
 	competitionId: string;
+	/** The discipline of the competition; `unknown` — the source named none the adapter knows: relevant to nothing. */
+	discipline: Known<DisciplineCode>;
 	/** A win or a prize. */
 	podium: boolean;
 	/** A result of the team: a podium of the team is the team's result, not a confirmation of a skill. */
@@ -788,6 +792,8 @@ export type NeedReason =
 			/** Of them, with a win or a prize; `team_podiums` — those only a team result put there. */
 			podiums: number;
 			team_podiums: number;
+			/** Of them, of a discipline relevant to the specialization; `null` — no specialization to judge by. */
+			relevant: number | null;
 			contribution: number;
 			source: NeedReasonSource;
 	  }
@@ -806,36 +812,56 @@ export interface FspRecord {
 	competitions: number;
 	podiums: number;
 	team_podiums: number;
+	/** Competitions of a discipline relevant to the specialization; `null` — no specialization to judge by. */
+	relevant: number | null;
 	value: number;
 	/** Internal ids of the counted results: a company sees the receipts of the card. */
 	fact_ids: string[];
 }
 
 /**
- * The FSP record over the candidate's official results: distinct competitions `N`, those with a podium `M` (a
- * competition counts once, as a podium if any of its results is one, as a team podium only if no result of the
- * candidate's own put it there), every competition of one weight; the value saturates in both (rule set, `need.fsp`).
+ * The FSP record over the candidate's official results: distinct competitions and those with a podium (a competition
+ * counts once, as a podium if any of its results is one, as a team podium only if no result of the candidate's own put
+ * it there). Each competition weighs 1 when its discipline is relevant to one of `specializations` — those the candidate
+ * is ranked in — and `otherDisciplineWeight` otherwise; `N` and `M` are the sums of the weights, and the value saturates
+ * in both (rule set, `need.fsp`). With no specialization to judge by (`null`) no discipline is relevant: every
+ * competition weighs `otherDisciplineWeight`, and relevance only ever lifts a record.
  */
-export function fspRecord(results: readonly FspResult[], params: MatchRulesetParams['need']['fsp']): FspRecord {
-	const byCompetition = new Map<string, { podium: boolean; individualPodium: boolean }>();
+export function fspRecord(
+	results: readonly FspResult[],
+	params: MatchRulesetParams['need']['fsp'],
+	specializations: readonly SpecializationKey[] | null
+): FspRecord {
+	const relevantDisciplines = new Set<string>(
+		params.disciplines
+			.filter((row) => row.specializations.some((key) => specializations?.includes(key) ?? false))
+			.map((row) => row.discipline)
+	);
+	const byCompetition = new Map<string, { podium: boolean; individualPodium: boolean; weight: number }>();
 	for (const result of results) {
-		const seen = byCompetition.get(result.competitionId) ?? { podium: false, individualPodium: false };
+		const seen = byCompetition.get(result.competitionId);
+		const weight = relevantDisciplines.has(result.discipline) ? 1 : params.otherDisciplineWeight;
+		if (seen !== undefined && seen.weight !== weight) {
+			throw new Error(`results of FSP competition ${result.competitionId} name different disciplines`);
+		}
 		byCompetition.set(result.competitionId, {
-			podium: seen.podium || result.podium,
-			individualPodium: seen.individualPodium || (result.podium && !result.team)
+			podium: (seen?.podium ?? false) || result.podium,
+			individualPodium: (seen?.individualPodium ?? false) || (result.podium && !result.team),
+			weight
 		});
 	}
-	const competitions = byCompetition.size;
-	const podiums = [...byCompetition.values()].filter((c) => c.podium).length;
-	const teamPodiums = [...byCompetition.values()].filter((c) => c.podium && !c.individualPodium).length;
-	const saturated = (count: number, half: number) => 1 - Math.pow(2, -count / half);
+	const counted = [...byCompetition.values()];
+	const podiums = counted.filter((c) => c.podium);
+	const total = (list: readonly { weight: number }[]) => list.reduce((sum, c) => sum + c.weight, 0);
+	const saturated = (weight: number, half: number) => 1 - Math.pow(2, -weight / half);
 	const value =
-		params.participationShare * saturated(competitions, params.competitionsHalf) +
-		(1 - params.participationShare) * saturated(podiums, params.podiumsHalf);
+		params.participationShare * saturated(total(counted), params.competitionsHalf) +
+		(1 - params.participationShare) * saturated(total(podiums), params.podiumsHalf);
 	return {
-		competitions,
-		podiums,
-		team_podiums: teamPodiums,
+		competitions: counted.length,
+		podiums: podiums.length,
+		team_podiums: podiums.filter((c) => !c.individualPodium).length,
+		relevant: specializations === null ? null : counted.filter((c) => c.weight === 1).length,
 		value,
 		fact_ids: [...new Set(results.map((result) => result.factId))]
 	};
@@ -1093,9 +1119,17 @@ export function needScore(input: NeedScoreInput): NeedResult {
 	const needSkills = new Set([...required, ...nice].map((s) => s.skill_key));
 	const test = readTest(category, candidate.tests, needSkills, params.test);
 
-	// The FSP record: every official result of the candidate, every competition of one weight (rule set, `need.fsp`).
+	// The FSP record: every official result of the candidate, a competition of a discipline relevant to the specialization
+	// it is ranked in — of the need, or of the category the strength is read from in the catalog — weighing more than one
+	// of another (rule set, `need.fsp`).
 	const fspCounts = need === null || need.fspRelevant;
-	const record = fspCounts && !input.withoutFsp ? fspRecord(candidate.fspResults, params.fsp) : null;
+	const rankedIn =
+		need !== null
+			? [...new Set(need.categories.map((c) => c.specialization))]
+			: category !== null
+				? [category.specialization]
+				: null;
+	const record = fspCounts && !input.withoutFsp ? fspRecord(candidate.fspResults, params.fsp, rankedIn) : null;
 	const fspValue = record?.value ?? 0;
 
 	const lastAssigned = candidate.categories.reduce<Date | null>(
@@ -1213,6 +1247,7 @@ export function needScore(input: NeedScoreInput): NeedResult {
 			competitions: record.competitions,
 			podiums: record.podiums,
 			team_podiums: record.team_podiums,
+			relevant: record.relevant,
 			contribution: components.fsp.contribution,
 			source: { kind: 'fsp_fact', fact_ids: record.fact_ids }
 		});
@@ -1248,7 +1283,12 @@ export function needScore(input: NeedScoreInput): NeedResult {
 	return {
 		group,
 		declared,
-		fsp: record && { competitions: record.competitions, podiums: record.podiums, team_podiums: record.team_podiums },
+		fsp: record && {
+			competitions: record.competitions,
+			podiums: record.podiums,
+			team_podiums: record.team_podiums,
+			relevant: record.relevant
+		},
 		coverage: coverageOf(required),
 		composite:
 			compositeOf.length === 0

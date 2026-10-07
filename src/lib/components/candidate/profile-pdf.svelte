@@ -20,7 +20,14 @@
 		hasName: boolean;
 		hasPhone: boolean;
 		hasTelegram: boolean;
-		attestations: { handle: string; holderCode: string; status: AttestationStatus; issuedAt: Date; url: string }[];
+		attestations: {
+			handle: string;
+			category: { specialization: string; grade: string };
+			holderCode: string;
+			status: AttestationStatus;
+			issuedAt: Date;
+			url: string;
+		}[];
 	} = $props();
 </script>
 
@@ -74,6 +81,9 @@
 						data-testid="attestation"
 						data-status={attestation.status}
 					>
+						<p class="font-medium" data-testid="attestation-category">
+							{attestation.category.specialization} · {attestation.category.grade}
+						</p>
 						<div class="flex flex-wrap items-center justify-between gap-2">
 							<a
 								class="font-medium break-all text-link underline underline-offset-4"

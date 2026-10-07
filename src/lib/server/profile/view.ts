@@ -15,6 +15,9 @@ import { readSuggestions, type SuggestionView } from './suggestions';
 export interface AttestationView {
 	handle: string;
 	categoryId: string;
+	/** The category the confirmation speaks of. */
+	specialization: string;
+	grade: string;
 	holderCode: string;
 	issuedAt: Date;
 	status: AttestationStatus;

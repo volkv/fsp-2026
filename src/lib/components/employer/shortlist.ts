@@ -20,6 +20,7 @@ export interface ReasonData {
 	competitions?: number;
 	podiums?: number;
 	team_podiums?: number;
+	relevant?: number | null;
 	specialization?: string;
 	grade?: string;
 	margin?: number;
@@ -45,11 +46,15 @@ export interface CoverageData {
 	unconfirmed: { skill_key: string; state: 'public_profile' | 'claimed' | 'missing' | 'unknown' }[];
 }
 
-/** The FSP record the ranking counted: distinct competitions, those with a podium, those only a team put there. */
+/**
+ * The FSP record the ranking counted: distinct competitions, those with a podium, those only a team put there, and
+ * those of a discipline relevant to the specialization (`null` — no specialization to judge by).
+ */
 export interface FspRecordData {
 	competitions: number;
 	podiums: number;
 	team_podiums: number;
+	relevant: number | null;
 }
 
 export interface NeedMatchData {
@@ -87,10 +92,14 @@ export function categoryName(category: { specialization: string; grade: string }
 	return `${names.specializations[category.specialization] ?? category.specialization} · ${names.grades[category.grade] ?? category.grade}`;
 }
 
-/** «5 соревнований ФСП, из них 2 призовых (1 — командное)»; every competition counts the same. */
+/**
+ * «5 соревнований ФСП, из них 2 призовых (в составе команды — 1), по профилю специализации — 3»: a competition of a
+ * relevant discipline weighs more than one of another.
+ */
 export function fspRecordText(record: FspRecordData): string {
 	const competitions = `${record.competitions} ${pluralize(record.competitions, ['соревнование', 'соревнования', 'соревнований'])} ФСП`;
-	if (record.podiums === 0) return `${competitions}, без призовых мест`;
+	const relevant = record.relevant === null ? '' : `, по профилю специализации — ${record.relevant}`;
+	if (record.podiums === 0) return `${competitions}, без призовых мест${relevant}`;
 	const team =
 		record.team_podiums === 0
 			? ''
@@ -99,7 +108,7 @@ export function fspRecordText(record: FspRecordData): string {
 					? ' — в составе команды'
 					: ' — все в составе команды'
 				: ` (в составе команды — ${record.team_podiums})`;
-	return `${competitions}, из них ${record.podiums} ${pluralize(record.podiums, ['призовое', 'призовых', 'призовых'])}${team}`;
+	return `${competitions}, из них ${record.podiums} ${pluralize(record.podiums, ['призовое', 'призовых', 'призовых'])}${team}${relevant}`;
 }
 
 /** The text of a reason and where it comes from. */
@@ -141,7 +150,8 @@ export function reasonText(reason: ReasonData, names: ShortlistNames): { text: s
 				text: fspRecordText({
 					competitions: reason.competitions ?? 0,
 					podiums: reason.podiums ?? 0,
-					team_podiums: reason.team_podiums ?? 0
+					team_podiums: reason.team_podiums ?? 0,
+					relevant: reason.relevant ?? null
 				}),
 				source: 'официальные протоколы ФСП — квитанции в карточке'
 			};

@@ -121,6 +121,7 @@ beforeAll(async () => {
 		await client.end({ timeout: 5 });
 	}
 	await releaseBankAhead(database.db, 'backend');
+	await releaseBankAhead(database.db, 'qa');
 	mock = await startFspMock({ athletes: ATHLETES });
 	redis = createClient({ url: `${inject('redisUrl')}/${REDIS_DATABASE}` });
 	await redis.connect();
@@ -461,7 +462,7 @@ describe('demo seed', () => {
 		// The heroes went through the survey, the declared grade and the seeded tests: К-1 confirmed Middle with the
 		// margin, К-2 failed Senior and confirmed Middle below it, К-3 «не определено», К-5 confirmed Senior; К-4 has no
 		// released test of her specialization and no survey.
-		expect(first.tests?.open).toEqual(expect.arrayContaining(['backend']));
+		expect(first.tests?.open).toEqual(expect.arrayContaining(['backend', 'qa']));
 		const testsOf = async (email: string) => {
 			const candidate = await candidateOf(email);
 			return database.sql<{ grade: string; outcome: string; confident: boolean; seeded: boolean }[]>`
@@ -490,6 +491,20 @@ describe('demo seed', () => {
 		]);
 		expect(await category('gleb.sokolov@fsp-career.example')).toEqual([]);
 		expect(await category('oleg.petrov@fsp-career.example')).toEqual([{ specialization: 'backend', grade: 'senior' }]);
+		// К-6 holds two categories at once: Backend Middle and QA Middle, each confirmed by its own test after its own
+		// survey and declaration — the policy of the grade counts each specialization apart.
+		expect(await testsOf('anna.kovaleva@fsp-career.example')).toEqual([
+			{ grade: 'middle', outcome: 'confirmed', confident: false, seeded: true },
+			{ grade: 'middle', outcome: 'confirmed', confident: false, seeded: true }
+		]);
+		expect(
+			(await category('anna.kovaleva@fsp-career.example')).sort((a, b) =>
+				a.specialization.localeCompare(b.specialization)
+			)
+		).toEqual([
+			{ specialization: 'backend', grade: 'middle' },
+			{ specialization: 'qa', grade: 'middle' }
+		]);
 		const alisa = await candidateOf('alisa.zakharova@fsp-career.example');
 		expect(await db.select().from(candidateSurveys).where(eq(candidateSurveys.candidateId, alisa.id))).toEqual([]);
 		// Seeded attempts carry no code and run nothing in the sandbox.

@@ -55,7 +55,7 @@ import { createResumeExtractHandler } from '$lib/server/resumes/extract-job';
 import { createResumeParseHandler } from '$lib/server/resumes/parse-job';
 import { latestPublishedVersion } from '$lib/server/taxonomy/vocabulary';
 import { ensureStaffRole, ensureUser, DemoBatchConflict, type SeedContext } from './accounts';
-import { ensureAssessment, type AssessmentState } from './assessments';
+import { ensureAssessments, type AssessmentState } from './assessments';
 import { ensureCandidate, inPool, type SeededCandidate } from './candidates';
 import { castOriginals, castRoles, markCastOriginals } from './cast';
 import { ensureCompany, type SeededCompany } from './companies';
@@ -518,8 +518,8 @@ export async function seedDemo(services: DemoServices): Promise<SeedSummary> {
 		...heroPlans.map((plan): [SeededCandidate, CandidatePlan] => [required(heroes.get(plan.key)), plan]),
 		...backgroundPlans.map((plan, i): [SeededCandidate, CandidatePlan] => [required(seededBackground[i]), plan])
 	];
-	const states = await inPool(pairs, 4, ([candidate, plan]) => ensureAssessment(ctx, candidate, plan, open));
-	for (const [index, state] of states.entries()) countTest(tests, state, pairs[index]?.[1]);
+	const states = await inPool(pairs, 4, ([candidate, plan]) => ensureAssessments(ctx, candidate, plan, open));
+	for (const list of states) for (const entry of list) countTest(tests, entry);
 	await drain('categories');
 
 	log.info('demo seed: vacancies', { batch });
@@ -592,10 +592,12 @@ function required<T>(value: T | undefined): T {
 	return value;
 }
 
-function countTest(tests: SeedTests, state: AssessmentState | undefined, plan: CandidatePlan | undefined): void {
+function countTest(
+	tests: SeedTests,
+	{ specialization, state }: { specialization: SpecializationKey | null; state: AssessmentState }
+): void {
 	if (state === 'none') tests.untested++;
-	else if (state === 'closed' && plan?.assessment) {
-		const key = plan.assessment.specialization;
-		tests.closed[key] = (tests.closed[key] ?? 0) + 1;
+	else if (state === 'closed' && specialization !== null) {
+		tests.closed[specialization] = (tests.closed[specialization] ?? 0) + 1;
 	}
 }

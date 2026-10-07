@@ -2,6 +2,8 @@
 // salary and grade rules, the pool threshold. Imported by plain Node through the taxonomy release: relative imports only,
 // erasable syntax only.
 import { z } from 'zod';
+import { SPECIALIZATION_KEYS } from '../assessments/contract/catalog.ts';
+import { DISCIPLINE_CODES } from '../fsp/types.ts';
 
 const unit = z.number().min(0).max(1);
 const positiveUnit = z.number().gt(0).max(1);
@@ -121,23 +123,50 @@ export const matchRulesetParamsSchema = z.strictObject({
 			unknownValue: unit
 		}),
 		/**
-		 * The FSP record: official results of FSP competitions in force, every competition of one weight, whatever its
-		 * level. `N` — distinct competitions, `M` — those with a win or a prize, individual or of the team (a team's win is
-		 * a result of the team, not a confirmation of a skill or of a personal share). The value is
+		 * The FSP record: official results of FSP competitions in force, whatever their level. Every discipline is of one
+		 * priority; what tells them apart is only the relevance of a competition's discipline to the specialization the
+		 * candidate is ranked in (`disciplines`): a competition of a relevant discipline weighs 1, of any other —
+		 * `otherDisciplineWeight`, never 0 (it is still a confirmed result). `N` — the weights of the distinct
+		 * competitions, `M` — of those with a win or a prize, individual or of the team (a team's win is a result of the
+		 * team, not a confirmation of a skill or of a personal share). The value is
 		 * `participationShare · (1 − 2^(−N / competitionsHalf)) + (1 − participationShare) · (1 − 2^(−M / podiumsHalf))`:
-		 * each part saturates — half of it at `competitionsHalf` competitions or `podiumsHalf` podiums — so the record lifts a
-		 * candidate and never runs away. One podium is worth more than any number of participations; without FSP the value
-		 * is 0, the absence of the bonus, never a penalty.
+		 * each part saturates — half of it at `competitionsHalf` weight of competitions or `podiumsHalf` of podiums — so the
+		 * record lifts a candidate and never runs away. One podium, even of another discipline, is worth more than any
+		 * number of participations of equal relevance; without FSP the value is 0, the absence of the bonus, never a
+		 * penalty.
 		 */
 		fsp: z
 			.strictObject({
 				participationShare: z.number().gt(0).lt(1),
 				competitionsHalf: z.number().positive(),
-				podiumsHalf: z.number().positive()
+				podiumsHalf: z.number().positive(),
+				otherDisciplineWeight: z.number().gt(0).lt(1),
+				/**
+				 * The specializations of the catalog each discipline is relevant to, with the basis of the row. Every
+				 * discipline of the adapter is listed once; a discipline relevant to none has an empty list.
+				 */
+				disciplines: z
+					.array(
+						z.strictObject({
+							discipline: z.enum(DISCIPLINE_CODES),
+							specializations: z
+								.array(z.enum(SPECIALIZATION_KEYS))
+								.refine((keys) => new Set(keys).size === keys.length, 'a specialization is listed once'),
+							basis: z.string().min(1)
+						})
+					)
+					.refine(
+						(rows) =>
+							rows.length === DISCIPLINE_CODES.length &&
+							DISCIPLINE_CODES.every((code) => rows.some((row) => row.discipline === code)),
+						'every discipline is listed once'
+					)
 			})
 			.refine(
-				(f) => (1 - f.participationShare) * (1 - Math.pow(2, -1 / f.podiumsHalf)) > f.participationShare,
-				'one podium is worth more than any number of participations'
+				(f) =>
+					(1 - f.participationShare) * (1 - Math.pow(2, -f.otherDisciplineWeight / f.podiumsHalf)) >
+					f.participationShare,
+				'one podium of another discipline is worth more than any number of participations'
 			),
 		/** Freshness halves every `halfLifeDays` days since the last confirmed action. */
 		freshness: z.strictObject({ halfLifeDays: z.number().positive() }),

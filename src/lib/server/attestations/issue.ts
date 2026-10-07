@@ -9,7 +9,7 @@ import { decisionJudgement } from '$lib/server/assessments/views';
 import { activeCategories, type ActiveCategory } from '$lib/server/categories/read';
 import { base32 } from '$lib/server/crypto/encoding';
 import type { Executor, Transaction } from '$lib/server/db';
-import { categoryAttestations } from '$lib/server/db/schema';
+import { candidateCategories, categoryAttestations } from '$lib/server/db/schema';
 import type { ReceiptSigner } from '$lib/server/fsp/receipts';
 import { canonicalJson } from '$lib/server/json/canonical';
 import type { FullName } from '$lib/server/profile/contacts';
@@ -125,23 +125,33 @@ export async function ensureAttestations(
 	return result;
 }
 
-/** The confirmations the candidate has issued, with their holder codes: what the cabinet shows next to the PDF. */
+/**
+ * The confirmations the candidate has issued, with their holder codes and the category each speaks of: what the cabinet
+ * shows next to the PDF — a candidate with several categories tells their links apart by it.
+ */
 export async function ownAttestations(
 	executor: Executor,
 	candidateId: string
-): Promise<{ handle: string; categoryId: string; holderCode: string; issuedAt: Date }[]> {
+): Promise<
+	{ handle: string; categoryId: string; specialization: string; grade: string; holderCode: string; issuedAt: Date }[]
+> {
 	const rows = await executor
 		.select({
 			handle: categoryAttestations.handle,
 			categoryId: categoryAttestations.categoryId,
+			specialization: candidateCategories.specialization,
+			grade: candidateCategories.grade,
 			holderNonce: categoryAttestations.holderNonce,
 			issuedAt: categoryAttestations.issuedAt
 		})
 		.from(categoryAttestations)
+		.innerJoin(candidateCategories, eq(candidateCategories.id, categoryAttestations.categoryId))
 		.where(eq(categoryAttestations.candidateId, candidateId));
 	return rows.map((row) => ({
 		handle: row.handle,
 		categoryId: row.categoryId,
+		specialization: row.specialization,
+		grade: row.grade,
 		holderCode: base32(row.holderNonce),
 		issuedAt: row.issuedAt
 	}));

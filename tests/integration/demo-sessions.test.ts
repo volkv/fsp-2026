@@ -168,6 +168,7 @@ beforeAll(async () => {
 		await client.end({ timeout: 5 });
 	}
 	await releaseBankAhead(database.db, 'backend');
+	await releaseBankAhead(database.db, 'qa');
 	mock = await startFspMock({ athletes: ATHLETES });
 	redis = createClient({ url: `${inject('redisUrl')}/${REDIS_DATABASE}` });
 	await redis.connect();
@@ -408,17 +409,20 @@ describe('demo sessions', () => {
 					(select count(*)::int from test_items i join test_attempts t on t.id = i.attempt_id
 						where t.candidate_id = ${candidateId}) as items,
 					(select count(*)::int from grade_decisions where candidate_id = ${candidateId}) as decisions,
-					(select string_agg(specialization || ':' || grade, ',') from candidate_categories
+					(select string_agg(specialization || ':' || grade, ',' order by specialization) from candidate_categories
 						where candidate_id = ${candidateId} and status = 'active') as categories,
 					(select count(*)::int from candidate_surveys where candidate_id = ${candidateId}) as surveys`;
 		const originalsNow = await castOriginals(database.db, crypto, castRoles(data));
-		for (const hero of ['k1', 'k2', 'k3', 'k5']) {
+		for (const hero of ['k1', 'k2', 'k3', 'k5', 'k6']) {
 			const original = await candidateOfUser(originalsNow.users.get(role(hero).key)?.id ?? '');
 			const clone = await candidateOfUser(await cloneOfRole(database.db, crypto, a.sessionId, role(hero)));
 			const [copied] = await pathOf(clone);
 			expect(copied).toEqual((await pathOf(original))[0]);
 			expect(copied?.attempts).toBeGreaterThan(0);
 		}
+		// К-6 comes with both categories: each specialization's path is copied whole.
+		const annaA = await candidateOfUser(await cloneOfRole(database.db, crypto, a.sessionId, role('k6')));
+		expect((await pathOf(annaA))[0]).toMatchObject({ categories: 'backend:middle,qa:middle', surveys: 2 });
 		const stepanA = await candidateOfUser(await cloneOfRole(database.db, crypto, a.sessionId, role('k1')));
 		const [markOfA] = await database.sql<{ session: string | null }[]>`
 			select c.demo_session_id as session from shortlist_marks m

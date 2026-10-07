@@ -5,7 +5,7 @@
 // the sandbox. The plan names the outcome the scenario needs; the true share is drawn from the range of that outcome
 // and an attempt whose decision differs is rolled back and drawn again (rejection sampling), so the stand gets the same
 // decisions on every seed while every decision is still the procedure's own.
-import { asc, eq } from 'drizzle-orm';
+import { and, asc, eq } from 'drizzle-orm';
 import { CATALOG, type SpecializationKey } from '$lib/server/assessments/contract/catalog';
 import { runSeededAttempt } from '$lib/server/assessments/seed-attempt';
 import { OWNER_STANDING } from '$lib/server/assessments/standing';
@@ -57,7 +57,8 @@ async function surveyAndDeclaration(
 	const meta = metaOf(ctx, candidate.userId);
 	const definition = CATALOG.specializations.find((s) => s.key === test.specialization);
 	if (!definition) throw new Error(`specialization ${test.specialization} is not in the catalog`);
-	if (!(await latestSurvey(db, candidate.candidateId))) {
+	// The survey of the specialization the candidate is about to be tested in: a second specialization is a new survey.
+	if ((await latestSurvey(db, candidate.candidateId))?.specialization !== test.specialization) {
 		await submitSurvey(
 			db,
 			gradeSources,
@@ -84,30 +85,45 @@ async function surveyAndDeclaration(
 }
 
 /**
- * The survey, the declaration and the attempts of the plan; every step checks what is done, so a stopped seed
- * continues. `closed` — the specialization has no released bank: the candidate stays without a survey.
+ * The survey, the declaration and the attempts of each test of the plan, specialization by specialization in the order
+ * planned; every step checks what is done, so a stopped seed continues. A state per test: `closed` — the specialization
+ * has no released bank: the candidate takes no survey of it. No test — `none`.
  */
-export async function ensureAssessment(
+export async function ensureAssessments(
 	ctx: SeedContext,
 	candidate: SeededCandidate,
 	plan: CandidatePlan,
 	open: ReadonlySet<SpecializationKey>
-): Promise<AssessmentState> {
-	const test = plan.assessment;
-	if (test === null) return 'none';
-	if (!open.has(test.specialization)) return 'closed';
+): Promise<{ specialization: SpecializationKey | null; state: AssessmentState }[]> {
+	if (plan.assessments.length === 0) return [{ specialization: null, state: 'none' }];
 	const { db } = ctx.services;
-	await surveyAndDeclaration(ctx, candidate, plan, test);
-	const taken = await db
-		.select({ id: testAttempts.id })
-		.from(testAttempts)
-		.where(eq(testAttempts.candidateId, candidate.candidateId))
-		.orderBy(asc(testAttempts.startedAt));
-	for (const [index, attempt] of test.attempts.entries()) {
-		if (index < taken.length) continue;
-		await attemptWithOutcome(ctx, candidate, test.specialization, attempt.grade, attempt.outcome, index);
+	const states: { specialization: SpecializationKey; state: AssessmentState }[] = [];
+	// The ordinal of an attempt among all the candidate's planned attempts: the draws of each one are its own.
+	let ordinal = 0;
+	for (const test of plan.assessments) {
+		const first = ordinal;
+		ordinal += test.attempts.length;
+		if (!open.has(test.specialization)) {
+			states.push({ specialization: test.specialization, state: 'closed' });
+			continue;
+		}
+		const taken = await db
+			.select({ id: testAttempts.id })
+			.from(testAttempts)
+			.where(
+				and(eq(testAttempts.candidateId, candidate.candidateId), eq(testAttempts.specialization, test.specialization))
+			)
+			.orderBy(asc(testAttempts.startedAt));
+		if (taken.length < test.attempts.length) {
+			await surveyAndDeclaration(ctx, candidate, plan, test);
+			for (const [index, attempt] of test.attempts.entries()) {
+				if (index < taken.length) continue;
+				await attemptWithOutcome(ctx, candidate, test.specialization, attempt.grade, attempt.outcome, first + index);
+			}
+		}
+		states.push({ specialization: test.specialization, state: 'taken' });
 	}
-	return 'taken';
+	return states;
 }
 
 async function attemptWithOutcome(

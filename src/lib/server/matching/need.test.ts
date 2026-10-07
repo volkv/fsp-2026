@@ -280,10 +280,17 @@ describe('the strength of the confirmed profile', () => {
 	});
 
 	describe('the FSP record', () => {
-		const record = (count: number, podiums = 0, team = false): FspResult[] =>
+		/** Results of `count` distinct competitions of one discipline — relevant to Backend, by default. */
+		const record = (
+			count: number,
+			podiums = 0,
+			team = false,
+			discipline: FspResult['discipline'] = 'algorithmic'
+		): FspResult[] =>
 			Array.from({ length: count }, (_, index) => ({
-				factId: `fact-${index}`,
-				competitionId: `competition-${index}`,
+				factId: `fact-${discipline}-${index}`,
+				competitionId: `competition-${discipline}-${index}`,
+				discipline,
 				podium: index < podiums,
 				team
 			}));
@@ -293,8 +300,8 @@ describe('the strength of the confirmed profile', () => {
 		it('ranks two wins above five participations without a prize, everything else equal', () => {
 			const participant = withResults(record(5));
 			const winner = withResults(record(2, 2));
-			expect(participant.fsp).toEqual({ competitions: 5, podiums: 0, team_podiums: 0 });
-			expect(winner.fsp).toEqual({ competitions: 2, podiums: 2, team_podiums: 0 });
+			expect(participant.fsp).toEqual({ competitions: 5, podiums: 0, team_podiums: 0, relevant: 5 });
+			expect(winner.fsp).toEqual({ competitions: 2, podiums: 2, team_podiums: 0, relevant: 2 });
 			expect(winner.components.fsp.value).toBeGreaterThan(participant.components.fsp.value);
 			expect(winner.score).toBeGreaterThan(participant.score);
 			// One podium outweighs any number of participations; more of either never lowers the record.
@@ -308,7 +315,7 @@ describe('the strength of the confirmed profile', () => {
 		it('saturates below the test and gives no penalty without FSP', () => {
 			const without = withResults([]);
 			expect(without.components.fsp).toMatchObject({ value: 0, contribution: 0, reason: 'no_fsp_results' });
-			expect(without.fsp).toEqual({ competitions: 0, podiums: 0, team_podiums: 0 });
+			expect(without.fsp).toEqual({ competitions: 0, podiums: 0, team_podiums: 0, relevant: 0 });
 			// However long the record, its whole contribution stays under what the test alone can move.
 			const champion = withResults(record(40, 40));
 			expect(champion.components.fsp.value).toBeLessThanOrEqual(1);
@@ -328,13 +335,13 @@ describe('the strength of the confirmed profile', () => {
 
 		it("counts a competition once and a team podium as the team's result, not a confirmed skill", () => {
 			const twice: FspResult[] = [
-				{ factId: 'a', competitionId: 'c1', podium: false, team: false },
-				{ factId: 'b', competitionId: 'c1', podium: true, team: true }
+				{ factId: 'a', competitionId: 'c1', discipline: 'algorithmic', podium: false, team: false },
+				{ factId: 'b', competitionId: 'c1', discipline: 'algorithmic', podium: true, team: true }
 			];
-			expect(withResults(twice).fsp).toEqual({ competitions: 1, podiums: 1, team_podiums: 1 });
+			expect(withResults(twice).fsp).toEqual({ competitions: 1, podiums: 1, team_podiums: 1, relevant: 1 });
 			const team = withResults(record(2, 2, true));
 			const individual = withResults(record(2, 2));
-			expect(team.fsp).toEqual({ competitions: 2, podiums: 2, team_podiums: 2 });
+			expect(team.fsp).toEqual({ competitions: 2, podiums: 2, team_podiums: 2, relevant: 2 });
 			expect(team.components.fsp.value).toBe(individual.components.fsp.value);
 			// The record confirms no skill: the coverage of the need stays the one of the test.
 			expect(team.coverage).toEqual(withResults([]).coverage);
@@ -345,6 +352,46 @@ describe('the strength of the confirmed profile', () => {
 			expect(score({ need: null, candidate: candidate({ fspResults: record(2, 2) }) }).components.fsp.value).toBe(
 				individual.components.fsp.value
 			);
+		});
+
+		it('weighs a competition of a discipline relevant to the specialization above one of another, never zero', () => {
+			// Infosec is relevant to Backend, robotics is not: one discipline each, everything else equal.
+			const relevant = withResults(record(2, 1, false, 'infosec'));
+			const other = withResults(record(2, 1, false, 'robotics'));
+			expect(relevant.fsp).toEqual({ competitions: 2, podiums: 1, team_podiums: 0, relevant: 2 });
+			expect(other.fsp).toEqual({ competitions: 2, podiums: 1, team_podiums: 0, relevant: 0 });
+			expect(relevant.components.fsp.value).toBeGreaterThan(other.components.fsp.value);
+			expect(relevant.score).toBeGreaterThan(other.score);
+			// Another discipline still counts: a confirmed result, not nothing.
+			expect(other.components.fsp.value).toBeGreaterThan(withResults([]).components.fsp.value);
+			// Relevance follows the specialization the candidate is ranked in: for a Data/ML need robotics is relevant.
+			const dataNeed = need({ categories: [{ specialization: 'data_ml', grade: 'middle' }] });
+			expect(
+				score({ need: dataNeed, candidate: candidate({ fspResults: record(2, 1, false, 'robotics') }) }).fsp
+			).toMatchObject({ relevant: 2 });
+			// An unknown discipline is relevant to nothing, and the reason names how many are relevant.
+			expect(withResults(record(1, 0, false, 'unknown')).fsp).toMatchObject({ relevant: 0 });
+			expect(relevant.reasons.find((reason) => reason.code === 'fsp_record')).toMatchObject({ relevant: 2 });
+		});
+
+		it('keeps one podium above any number of participations within each relevance', () => {
+			for (const discipline of ['algorithmic', 'robotics'] as const) {
+				expect(withResults(record(1, 1, false, discipline)).components.fsp.value).toBeGreaterThan(
+					withResults(record(60, 0, false, discipline)).components.fsp.value
+				);
+			}
+			// A podium of another discipline still outweighs any number of relevant participations.
+			expect(withResults(record(1, 1, false, 'robotics')).components.fsp.value).toBeGreaterThan(
+				withResults(record(60, 0, false, 'algorithmic')).components.fsp.value
+			);
+			// The rule set refuses a weight of another discipline that would break it.
+			const shipped = matchRuleset.params;
+			expect(
+				matchRulesetParamsSchema.safeParse({
+					...shipped,
+					need: { ...shipped.need, fsp: { ...shipped.need.fsp, otherDisciplineWeight: 0.2 } }
+				}).success
+			).toBe(false);
 		});
 	});
 
@@ -398,7 +445,7 @@ describe('the group «грейд не подтверждён»', () => {
 						skill('multithreading', { attestation: 'direct', badgeTrust: 'fsp_verified', factIds: ['f1'] })
 					]
 				},
-				fspResults: [{ factId: 'f1', competitionId: 'c1', podium: true, team: false }]
+				fspResults: [{ factId: 'f1', competitionId: 'c1', discipline: 'algorithmic', podium: true, team: false }]
 			})
 		});
 		expect(result).toMatchObject({ group: 'unconfirmed', declared: { specialization: 'backend', grade: 'middle' } });

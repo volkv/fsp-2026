@@ -784,7 +784,7 @@ describe('the group «грейд не подтверждён»', () => {
 			group: 'unconfirmed',
 			declared: frontendJunior,
 			category: null,
-			fsp: { competitions: 2, podiums: 1, team_podiums: 0 }
+			fsp: { competitions: 2, podiums: 1, team_podiums: 0, relevant: 2 }
 		});
 		// The claim of JavaScript is capped as the declared Frontend Junior test would check it; the FSP record puts the
 		// never tested candidate above the one with the same claim and no FSP.
@@ -792,7 +792,7 @@ describe('the group «грейд не подтверждён»', () => {
 			expect.objectContaining({ skill_key: 'javascript', basis: 'claimed', value: 0.3 })
 		]);
 		expect(match(neverTested.id)?.reasons.map((reason) => reason.code)).toContain('fsp_record');
-		expect(match(failed.id)?.fsp).toEqual({ competitions: 0, podiums: 0, team_podiums: 0 });
+		expect(match(failed.id)?.fsp).toEqual({ competitions: 0, podiums: 0, team_podiums: 0, relevant: 0 });
 		// A filter by what the test confirmed leaves the group out: no test confirmed anything of theirs.
 		const filtered = await whatIf(deps(), subject, id, {
 			confirmed_skill: { skill_key: 'javascript', required: true }

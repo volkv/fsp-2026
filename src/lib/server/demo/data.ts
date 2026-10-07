@@ -113,8 +113,15 @@ const heroCandidate = z
 			.optional(),
 		/** Absent for a minor: the fields wait for the representative's consent to processing (domain 7.3). */
 		profile: heroProfile.optional(),
-		/** Absent — the hero has not taken the survey: the specialization has no released test or the scenario waits. */
-		assessment: heroAssessment.optional()
+		/**
+		 * The hero's paths through the tests, one per specialization, in the order taken; a category of each confirmed one
+		 * holds at once (domain 12.4). Empty — the hero has not taken the survey: the specialization has no released test
+		 * or the scenario waits.
+		 */
+		assessments: z
+			.array(heroAssessment)
+			.max(2)
+			.refine((list) => new Set(list.map((a) => a.specialization)).size === list.length, 'one path per specialization')
 	})
 	.refine((c) => (c.athlete === undefined) !== (c.name === undefined), 'a hero has either an athlete or a name');
 

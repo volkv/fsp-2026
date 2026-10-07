@@ -33,6 +33,7 @@ import { addManualExperience, removeManualExperience, updateManualExperience } f
 import { decideSuggestion, updateOwnProfile } from '$lib/server/profile/fields';
 import { MAX_SOFT_SKILLS, SOFT_SKILLS } from '$lib/server/profile/soft-skills';
 import { ownProfileView } from '$lib/server/profile/view';
+import { categoryTitle } from '$lib/server/attestations/statement';
 import { monthsText } from '$lib/server/grades/hint';
 import { eq } from 'drizzle-orm';
 import type { Actions, PageServerLoad } from './$types';
@@ -122,6 +123,7 @@ export const load: PageServerLoad = async (event) => {
 				suggestions: own.suggestions,
 				attestations: own.attestations.map((attestation) => ({
 					handle: attestation.handle,
+					category: categoryTitle(attestation.specialization, attestation.grade),
 					holderCode: attestation.holderCode,
 					status: attestation.status,
 					issuedAt: attestation.issuedAt,

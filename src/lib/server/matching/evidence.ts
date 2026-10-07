@@ -10,6 +10,7 @@ import { publishedRun, runInForce } from '$lib/server/db/conditions';
 import { activeCategories } from '$lib/server/categories/read';
 import { lastConfirmedActions } from '$lib/server/challenges/freshness';
 import { NOT_COMPETING } from '$lib/server/evidence/fsp-level';
+import { DISCIPLINE_CODES, type DisciplineCode, type Known } from '$lib/server/fsp/types';
 import { currentDeclarations } from '$lib/server/grades/current';
 import {
 	candidates,
@@ -71,6 +72,14 @@ const factIdsSchema = z.array(z.uuid());
 /** Awards of a podium: a win or a prize (contracts 1.3), not a final or a participation. */
 const PODIUM_AWARDS: ReadonlySet<string> = new Set<Award>(['winner', 'prize']);
 
+/** A discipline of the adapter's codes; the adapter maps any other to `unknown` (contracts 1.3). */
+function knownDiscipline(code: string): Known<DisciplineCode> {
+	const known = DISCIPLINE_CODES.find((discipline) => discipline === code);
+	if (known !== undefined) return known;
+	if (code === 'unknown') return 'unknown';
+	throw new Error(`FSP competition discipline ${code} is not a code of the adapter`);
+}
+
 /**
  * Official competition results in force of each candidate, the facts the FSP record counts: only a result the source
  * states `official` (a preliminary or annulled one is not a result yet), and a team's result is not the own result of
@@ -83,6 +92,7 @@ async function fspResultsOf(executor: Executor, ids: readonly string[]): Promise
 			candidateId: sourceFacts.candidateId,
 			competitionId: sql<string | null>`${sourceFacts.payload}->'competition'->>'id'`,
 			competitionFormat: sql<string | null>`${sourceFacts.payload}->'competition'->>'format'`,
+			discipline: sql<string | null>`${sourceFacts.payload}->'competition'->>'discipline'`,
 			award: sql<string | null>`${sourceFacts.payload}->'result'->>'award'`,
 			inTeam: sql<boolean>`jsonb_typeof(${sourceFacts.payload}->'result'->'team') = 'object'`,
 			teamRole: sql<string | null>`${sourceFacts.payload}->'result'->'team'->>'role'`
@@ -100,11 +110,13 @@ async function fspResultsOf(executor: Executor, ids: readonly string[]): Promise
 	const result = new Map<string, FspResult[]>();
 	for (const row of rows) {
 		if (row.competitionId === null) throw new Error(`official FSP result ${row.id} names no competition`);
+		if (row.discipline === null) throw new Error(`official FSP result ${row.id} names no discipline`);
 		if (row.teamRole !== null && NOT_COMPETING.has(row.teamRole)) continue;
 		const list = result.get(row.candidateId) ?? [];
 		list.push({
 			factId: row.id,
 			competitionId: row.competitionId,
+			discipline: knownDiscipline(row.discipline),
 			podium: row.award !== null && PODIUM_AWARDS.has(row.award),
 			team: row.inTeam || row.competitionFormat === 'team'
 		});

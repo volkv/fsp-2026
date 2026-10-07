@@ -228,17 +228,19 @@
 				"headline": "Backend-разработчик (Go)",
 				"softSkills": ["teamwork", "mentoring", "problem_solving"]
 			},
-			"assessment": {
-				"specialization": "backend",
-				"skills": ["go", "postgresql", "kafka", "docker", "redis"],
-				"declared": "middle",
-				"attempts": [
-					{
-						"grade": "middle",
-						"outcome": "confident"
-					}
-				]
-			}
+			"assessments": [
+				{
+					"specialization": "backend",
+					"skills": ["go", "postgresql", "kafka", "docker", "redis"],
+					"declared": "middle",
+					"attempts": [
+						{
+							"grade": "middle",
+							"outcome": "confident"
+						}
+					]
+				}
+			]
 		},
 		{
 			"key": "k2",
@@ -271,21 +273,23 @@
 				"headline": "Go-разработчик, платёжные системы",
 				"softSkills": ["responsibility", "attention_to_detail"]
 			},
-			"assessment": {
-				"specialization": "backend",
-				"skills": ["go", "postgresql", "kafka", "grpc", "kubernetes"],
-				"declared": "senior",
-				"attempts": [
-					{
-						"grade": "senior",
-						"outcome": "not_confirmed"
-					},
-					{
-						"grade": "middle",
-						"outcome": "confirmed"
-					}
-				]
-			}
+			"assessments": [
+				{
+					"specialization": "backend",
+					"skills": ["go", "postgresql", "kafka", "grpc", "kubernetes"],
+					"declared": "senior",
+					"attempts": [
+						{
+							"grade": "senior",
+							"outcome": "not_confirmed"
+						},
+						{
+							"grade": "middle",
+							"outcome": "confirmed"
+						}
+					]
+				}
+			]
 		},
 		{
 			"key": "k3",
@@ -312,17 +316,19 @@
 				"headline": "Разработчик, спортивное программирование",
 				"softSkills": ["self_learning", "critical_thinking"]
 			},
-			"assessment": {
-				"specialization": "backend",
-				"skills": ["cpp", "algorithms", "python", "postgresql"],
-				"declared": "middle",
-				"attempts": [
-					{
-						"grade": "middle",
-						"outcome": "undetermined"
-					}
-				]
-			}
+			"assessments": [
+				{
+					"specialization": "backend",
+					"skills": ["cpp", "algorithms", "python", "postgresql"],
+					"declared": "middle",
+					"attempts": [
+						{
+							"grade": "middle",
+							"outcome": "undetermined"
+						}
+					]
+				}
+			]
 		},
 		{
 			"key": "k4",
@@ -342,7 +348,8 @@
 				"fullName": "Захарова Елена Викторовна",
 				"email": "elena.zakharova@fsp-career.example",
 				"relation": "parent"
-			}
+			},
+			"assessments": []
 		},
 		{
 			"key": "k5",
@@ -374,17 +381,66 @@
 				"headline": "Ведущий Python-разработчик",
 				"softSkills": ["leadership", "mentoring", "communication"]
 			},
-			"assessment": {
-				"specialization": "backend",
-				"skills": ["python", "postgresql", "fastapi", "celery", "docker"],
-				"declared": "senior",
-				"attempts": [
-					{
-						"grade": "senior",
-						"outcome": "confirmed"
-					}
-				]
-			}
+			"assessments": [
+				{
+					"specialization": "backend",
+					"skills": ["python", "postgresql", "fastapi", "celery", "docker"],
+					"declared": "senior",
+					"attempts": [
+						{
+							"grade": "senior",
+							"outcome": "confirmed"
+						}
+					]
+				}
+			]
+		},
+		{
+			"key": "k6",
+			"email": "anna.kovaleva@fsp-career.example",
+			"part": "Две категории сразу: Middle Backend и Middle QA подтверждены тестами — видна в подборках обеих; без ФСП и резюме",
+			"name": {
+				"lastName": "Ковалёва",
+				"firstName": "Анна",
+				"middleName": "Сергеевна"
+			},
+			"birthDate": "1997-06-14",
+			"catalogScope": [],
+			"desiredRoles": ["backend", "qa_automation"],
+			"preferences": {
+				"work_formats": ["remote", "hybrid"],
+				"employment_forms": ["full"],
+				"region_code": "RU-MOW",
+				"relocation": false
+			},
+			"profile": {
+				"headline": "Python-разработчик и инженер по автоматизации тестирования",
+				"softSkills": ["communication"]
+			},
+			"assessments": [
+				{
+					"specialization": "backend",
+					"skills": ["python", "postgresql", "fastapi", "docker"],
+					"declared": "middle",
+					"attempts": [
+						{
+							"grade": "middle",
+							"outcome": "confirmed"
+						}
+					]
+				},
+				{
+					"specialization": "qa",
+					"skills": ["python", "pytest", "postman", "sql"],
+					"declared": "middle",
+					"attempts": [
+						{
+							"grade": "middle",
+							"outcome": "confirmed"
+						}
+					]
+				}
+			]
 		}
 	]
 }

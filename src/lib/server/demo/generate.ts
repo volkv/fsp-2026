@@ -70,8 +70,8 @@ export interface CandidatePlan {
 	github: string | null;
 	/** `null` — a minor: the fields wait for the representative's consent to processing (domain 7.3). */
 	profile: ProfilePlan | null;
-	/** `null` — the candidate has not taken the survey. */
-	assessment: AssessmentPlan | null;
+	/** The tests of each specialization, in the order taken; empty — the candidate has not taken the survey. */
+	assessments: AssessmentPlan[];
 }
 
 const DAY = 86_400_000;
@@ -249,9 +249,11 @@ export function heroPlan(hero: HeroCandidate, athlete: WorldAthlete | null, data
 			hero.profile === undefined
 				? null
 				: { headline: hero.profile.headline, softSkills: hero.profile.softSkills, experience: [] },
-		assessment: hero.assessment === undefined ? null : heroAssessment(hero.assessment)
+		assessments: hero.assessments.map(heroAssessment)
 	};
 }
+
+const listOf = <T>(value: T | null): T[] => (value === null ? [] : [value]);
 
 function heroAssessment(plan: HeroAssessment): AssessmentPlan {
 	return {
@@ -315,7 +317,7 @@ export function athletePlan(athlete: WorldAthlete, data: SeedData, batch: string
 			experience:
 				age >= 20 && rnd.chance(0.45) ? [manualExperience(data, rnd, roleByKey(data, primaryRole), grade, now)] : []
 		},
-		assessment: assessmentOf(data, rnd, desiredRoles, grade, null)
+		assessments: listOf(assessmentOf(data, rnd, desiredRoles, grade, null))
 	};
 }
 
@@ -439,7 +441,7 @@ export function resumePlan(
 		resume: { declaredName: `Резюме ${name.lastName}.txt`, bytes: new TextEncoder().encode(text) },
 		github: null,
 		profile: { headline: headlineOf(data, grade, role), softSkills: softSkillsOf(rnd), experience: [] },
-		assessment: assessmentOf(data, rnd, [role.key], grade, stack)
+		assessments: listOf(assessmentOf(data, rnd, [role.key], grade, stack))
 	};
 }
 
@@ -460,7 +462,7 @@ export function minorPlan(athlete: WorldAthlete, batch: string): CandidatePlan {
 		resume: null,
 		github: null,
 		profile: null,
-		assessment: null
+		assessments: []
 	};
 }
 

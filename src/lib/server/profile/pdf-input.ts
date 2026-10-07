@@ -105,7 +105,7 @@ export async function buildProfilePdf(
 		loadSelfEvidence(deps.db, subject, now),
 		listManualExperience(deps.db, candidateId)
 	]);
-	const survey = surveys[0] ?? null;
+	const survey = surveys.at(-1) ?? null;
 	const declaration = survey === null ? null : await currentDeclaration(deps.db, candidateId, survey.specialization);
 
 	const categories = attestations.map(({ category, handle, judgementNote }) => {

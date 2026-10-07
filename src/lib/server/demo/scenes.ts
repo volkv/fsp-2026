@@ -814,7 +814,7 @@ async function consentToPool(ctx: SeedContext, competitionRef: string, candidate
 
 /**
  * The consent of finalists of a partner's competition to its pool (domain 5.5): most of the candidates with a result
- * of the competition that the pool rule admits.
+ * of the competition that the pool rule admits — four of five, rounded up, so that a small world still has a pool.
  */
 export async function grantPartnerPool(
 	ctx: SeedContext,
@@ -824,8 +824,7 @@ export async function grantPartnerPool(
 ): Promise<number> {
 	const rnd = new Random(`${batch}:partner-pool`);
 	let granted = 0;
-	for (const candidate of finalists) {
-		if (!rnd.chance(0.8)) continue;
+	for (const candidate of rnd.shuffle([...finalists]).slice(0, Math.ceil(finalists.length * 0.8))) {
 		if (await consentToPool(ctx, competitionRef, candidate)) granted++;
 	}
 	return granted;

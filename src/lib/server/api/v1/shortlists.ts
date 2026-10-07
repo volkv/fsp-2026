@@ -78,6 +78,14 @@ const reason = z
 		competitions: z.int().optional().describe('`fsp_record`: разных соревнований ФСП с официальным результатом'),
 		podiums: z.int().optional().describe('`fsp_record`: из них с победой или призом, личным или командным'),
 		team_podiums: z.int().optional().describe('`fsp_record`: из призовых — только командным результатом'),
+		relevant: z
+			.int()
+			.nullable()
+			.optional()
+			.describe(
+				'`fsp_record`: из них — дисциплины, профильной для специализации подборки; `null` — специализации, по которой ' +
+					'судить, нет'
+			),
 		specialization: z.enum(SPECIALIZATION_KEYS).optional(),
 		grade: z.enum(GRADE_KEYS).optional(),
 		margin: z.number().optional().describe('Средний запас над порогом по блокам на задание (0 — ровно на пороге)'),
@@ -101,11 +109,13 @@ const needMatchSchema = z
 			.nullable()
 			.describe('`unconfirmed`: категория подборки, которую заявил кандидат, — его слова, не доказательство'),
 		fsp: z
-			.object({ competitions: z.int(), podiums: z.int(), team_podiums: z.int() })
+			.object({ competitions: z.int(), podiums: z.int(), team_podiums: z.int(), relevant: z.int().nullable() })
 			.nullable()
 			.describe(
-				'Запись ФСП, которую считает компонент `fsp`: разные соревнования с официальным результатом и из них ' +
-					'призовые (командная победа — результат команды); все соревнования одного веса; `null` — ФСП вне счёта'
+				'Запись ФСП, которую считает компонент `fsp`: разные соревнования с официальным результатом, из них ' +
+					'призовые (командная победа — результат команды) и дисциплины, профильной для специализации подборки ' +
+					'(`relevant`): профильное соревнование весит 1, прочее — 0,5, все дисциплины одинаково приоритетны; ' +
+					'`null` — ФСП вне счёта'
 			),
 		coverage: z
 			.object({
