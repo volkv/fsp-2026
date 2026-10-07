@@ -10,6 +10,7 @@ import { join, resolve } from 'node:path';
 import { z } from 'zod';
 import { GRADE_KEYS, SPECIALIZATION_KEYS } from '$lib/server/assessments/contract/catalog';
 import { CATALOG_SCOPE_FIELDS, DISCLOSURE_FIELDS } from '$lib/server/consent/kinds';
+import { MESSAGE_SIDES, MESSAGE_TEXT_MAX } from '$lib/server/db/schema';
 import { needFormSchema } from '$lib/server/needs/form';
 import { CONTACT_KINDS, OFFER_WORK_FORMATS } from '$lib/server/invitations/terms';
 import { isSoftSkillKey } from '$lib/server/profile/soft-skills';
@@ -143,7 +144,12 @@ const scenarioOffer = z.strictObject({
 	/** Fields the hero discloses on acceptance. */
 	disclose: z.array(z.enum(DISCLOSURE_FIELDS)).optional(),
 	/** Stages of hiring the company reported after the acceptance, in order. */
-	stages: z.array(z.enum(['interview_scheduled', 'interview_done', 'offer_made', 'offer_accepted'])).optional()
+	stages: z.array(z.enum(['interview_scheduled', 'interview_done', 'offer_made', 'offer_accepted'])).optional(),
+	/** The conversation after the acceptance (domain 13.15), in order: the company's side writes as its sender. */
+	messages: z
+		.array(z.strictObject({ from: z.enum(MESSAGE_SIDES), text: z.string().min(1).max(MESSAGE_TEXT_MAX) }))
+		.max(10)
+		.optional()
 });
 
 export type ScenarioOffer = z.infer<typeof scenarioOffer>;
@@ -266,6 +272,10 @@ export async function readSeedData(directory: string): Promise<SeedData> {
 		for (const offer of company.offers ?? []) {
 			if (offer.need !== undefined && !needs.has(offer.need)) {
 				throw new SeedDataError(`seeds/demo.json: an offer of ${company.key} names an unknown need ${offer.need}`);
+			}
+			// A conversation opens with the acceptance only.
+			if (offer.messages !== undefined && offer.state !== 'accepted') {
+				throw new SeedDataError(`seeds/demo.json: an offer of ${company.key} has messages but is not accepted`);
 			}
 		}
 	}

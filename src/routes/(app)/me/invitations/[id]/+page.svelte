@@ -7,6 +7,7 @@
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import HiringPanel from '$lib/components/candidate/hiring-panel.svelte';
+	import OfferConversation from '$lib/components/product/offer-conversation.svelte';
 	import {
 		DISCLOSURE_FIELDS,
 		gradeName,
@@ -102,7 +103,7 @@
 {:else if form && 'accepted' in form}
 	<FormMessage
 		tone="success"
-		text="Приглашение принято. Компания получила выбранные контакты — дальше процесс найма."
+		text="Приглашение принято: компания получила выбранные контакты, открылась переписка с ней. Это согласие пообщаться, а не принятие оффера."
 	/>
 {:else if form && 'awaitingRepresentative' in form}
 	<FormMessage
@@ -291,7 +292,7 @@
 	<div class="grid gap-4 lg:grid-cols-2" data-testid="invitation-answer">
 		<SectionCard
 			title="Принять"
-			description="Контакты получит только эта компания и только выбранные. Раскрытие фиксируется в журнале; согласие можно отозвать."
+			description="Принять — значит согласиться пообщаться с компанией, а не принять оффер: откроется переписка, компания получит выбранные контакты. Контакты получит только эта компания и только выбранные; раскрытие фиксируется в журнале, согласие можно отозвать."
 		>
 			{#if card.disclosureDocument}
 				<form method="POST" action="?/accept" use:enhance class="grid gap-4">
@@ -391,6 +392,16 @@
 				Согласие на раскрытие отозвано: компания больше не видит твои контакты.
 			</p>
 		{/if}
+	</SectionCard>
+{/if}
+
+{#if invitation.status === 'accepted' || data.conversation.messages.length > 0}
+	<SectionCard
+		title="Переписка с компанией"
+		description="Принятое приглашение — это согласие пообщаться с компанией, а не согласие на работу. Переписку видишь ты и сотрудники этой компании; отзыв согласия на раскрытие контактов её закрывает."
+		testId="conversation"
+	>
+		<OfferConversation conversation={data.conversation} otherName={invitation.company.displayName} address="ty" />
 	</SectionCard>
 {/if}
 

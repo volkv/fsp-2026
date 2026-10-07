@@ -24,6 +24,8 @@ export const PERMISSIONS = {
 	'invitation.revise': { roles: EMPLOYER, apiKey: true },
 	'invitation.read': { roles: [...EMPLOYER, 'candidate'], apiKey: true },
 	'invitation.respond': { roles: ['candidate'], apiKey: false },
+	// Writing in the conversation of an accepted offer (domain 13.15); reading it is `invitation.read`.
+	'invitation.message': { roles: [...EMPLOYER, 'candidate'], apiKey: true },
 	'hiring.report': { roles: [...EMPLOYER, 'candidate'], apiKey: true },
 	// Hiring needs of the company and the categories recommended for them (domain 13.10).
 	'need.manage': { roles: EMPLOYER, apiKey: true },
@@ -140,6 +142,7 @@ export interface PermissionObjects {
 	'invitation.revise': { companyId: string; revisable: boolean };
 	'invitation.read': { companyId: string; candidateId: string };
 	'invitation.respond': { candidateId: string };
+	'invitation.message': { companyId: string; candidateId: string };
 	'hiring.report': { companyId: string; candidateId: string };
 	'need.manage': { companyId: string };
 	'challenge.manage': { companyId: string };
@@ -249,6 +252,16 @@ function objectRule<P extends Permission>(
 				(roles.has('owner') || roles.has('recruiter')) &&
 				ownCompany(subject, facts.companyId) &&
 				(permission === 'invitation.read' || subject.membership?.companyStatus !== 'suspended');
+			const candidateSide = roles.has('candidate') && subject.candidate?.id === facts.candidateId;
+			return companySide || candidateSide;
+		}
+		case 'invitation.message': {
+			const facts = o as PermissionObjects['invitation.message'];
+			// A company the admission policy stops (`suspended`, `rejected`) writes no more; its history stays readable.
+			const companySide =
+				(roles.has('owner') || roles.has('recruiter')) &&
+				admittedMember(subject) &&
+				ownCompany(subject, facts.companyId);
 			const candidateSide = roles.has('candidate') && subject.candidate?.id === facts.candidateId;
 			return companySide || candidateSide;
 		}

@@ -54,6 +54,7 @@ import {
 import type { InvitationDeps } from '$lib/server/invitations/deps';
 import { respondToInvitation } from '$lib/server/invitations/respond';
 import { createInvitation } from '$lib/server/invitations/send';
+import { sendMessage } from '$lib/server/messages/conversation';
 import { COMPONENT_KEYS, matchRulesetParamsSchema } from '$lib/server/matching/params';
 import { createReceiptSigner } from '$lib/server/fsp/receipts';
 import { fail } from '$lib/server/ml/result';
@@ -644,6 +645,8 @@ describe('the export of own data', () => {
 			discloseFields: ['full_name', 'email'],
 			disclosureDocumentId: documents.disclosure.id
 		});
+		await sendMessage(deps(), companySubject, meta, sent.invitationId, 'Когда удобно созвониться?');
+		await sendMessage(deps(), anna.subject, meta, sent.invitationId, 'Завтра после 15:00.');
 		await recordAuditEvent(db, {
 			action: 'card.viewed',
 			outcome: 'success',
@@ -686,7 +689,11 @@ describe('the export of own data', () => {
 			company: { id: company.id, name: 'Северный код' },
 			status: 'accepted',
 			terms: [{ version: 1, salary: { min: 260_000, max: 340_000 } }],
-			answers: [{ decision: 'accept' }]
+			answers: [{ decision: 'accept' }],
+			messages: [
+				{ from: 'company', text: 'Когда удобно созвониться?', read_at: null },
+				{ from: 'candidate', text: 'Завтра после 15:00.', read_at: null }
+			]
 		});
 		expect(document.disclosures).toEqual([
 			expect.objectContaining({ company: { id: company.id, name: 'Северный код' }, fields: ['full_name', 'email'] })
@@ -876,7 +883,7 @@ describe('the export of own data', () => {
 		// The API gives the same document: its response schema keeps every section.
 		const api = await exportThroughApi(anna.userId);
 		expect(api.status, JSON.stringify(api.json)).toBe(200);
-		expect(api.json.format).toBe('fsp-career-data-export/v6');
+		expect(api.json.format).toBe('fsp-career-data-export/v7');
 		expect(document.surveys.map((survey) => [survey.version, survey.specialization])).toEqual([
 			[1, 'frontend'],
 			[2, 'backend']

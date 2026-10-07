@@ -23,6 +23,7 @@ import * as grades from '$lib/server/api/v1/grades';
 import * as hiring from '$lib/server/api/v1/hiring';
 import * as invitations from '$lib/server/api/v1/invitations';
 import * as me from '$lib/server/api/v1/me';
+import * as messages from '$lib/server/api/v1/messages';
 import * as needs from '$lib/server/api/v1/needs';
 import * as operator from '$lib/server/api/v1/operator';
 import * as partnerPools from '$lib/server/api/v1/partner-pools';
@@ -51,6 +52,7 @@ const exported = new Map<string, Operation>(
 		...grades,
 		...hiring,
 		...invitations,
+		...messages,
 		...me,
 		...tests,
 		...needs,

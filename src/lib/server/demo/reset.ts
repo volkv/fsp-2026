@@ -122,6 +122,7 @@ export const DEMO_RESET_PLAN: Readonly<Record<string, TableDecision>> = {
 	hiring_needs: clear,
 	invitations: clear,
 	invitation_terms: clear,
+	invitation_messages: clear,
 	invitation_responses: clear,
 	hiring_processes: clear,
 	hiring_reports: clear,

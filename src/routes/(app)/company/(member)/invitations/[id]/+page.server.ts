@@ -13,6 +13,7 @@ import { recipientContacts } from '$lib/server/invitations/disclosure';
 import { offerFormContext, offerFromForm, optionsOfPoints } from '$lib/server/invitations/offer-form';
 import { getInvitation } from '$lib/server/invitations/read';
 import { reviseInvitation, withdrawInvitation } from '$lib/server/invitations/send';
+import { getConversation, markConversationRead, sendMessage } from '$lib/server/messages/conversation';
 import type { Actions, PageServerLoad } from './$types';
 
 /** The disclosed contacts of an accepted invitation; `null` — the candidate's disclosure consent is not in effect. */
@@ -39,10 +40,11 @@ export const load: PageServerLoad = async (event) => {
 		const current = invitation.versions.find((version) => version.id === invitation.currentTermsId);
 		if (!current) throw new Error(`invitation ${invitation.id} lost its current terms`);
 		const vocabulary = await currentVocabulary(db());
-		const [offer, process, contacts] = await Promise.all([
+		const [offer, process, contacts, conversation] = await Promise.all([
 			offerFormContext(db(), membership.companyId, vocabulary, now),
 			invitation.hiringProcessId === null ? null : getHiringProcess(deps, subject, invitation.hiringProcessId),
-			accepted && invitation.status === 'accepted' ? contactsOf(request, invitation.id) : null
+			accepted && invitation.status === 'accepted' ? contactsOf(request, invitation.id) : null,
+			getConversation(deps, subject, invitation.id)
 		]);
 		return {
 			invitation,
@@ -51,6 +53,7 @@ export const load: PageServerLoad = async (event) => {
 			whyYouOptions: optionsOfPoints(current.whyYou),
 			process,
 			contacts,
+			conversation,
 			stages: [...HIRING_STAGES],
 			outcomes: [...OUTCOMES],
 			sent: event.url.searchParams.has('sent')
@@ -106,6 +109,29 @@ export const actions: Actions = {
 			return formFailure(cause);
 		}
 		return { withdrawn: true };
+	},
+
+	/** A message to the candidate in the conversation of the accepted invitation. */
+	message: async (event) => {
+		const { subject, meta, sessionHash } = await employerRequest(event);
+		const form = await event.request.formData();
+		try {
+			await sendMessage(invitationDeps(), subject, { ...meta, sessionHash }, event.params.id, formText(form, 'text'));
+		} catch (cause) {
+			return formFailure(cause);
+		}
+		return { messageSent: true };
+	},
+
+	/** The conversation was opened in the browser: the candidate's messages are read. */
+	readMessages: async (event) => {
+		const { subject } = await employerRequest(event);
+		try {
+			await markConversationRead(invitationDeps(), subject, event.params.id);
+		} catch (cause) {
+			return formFailure(cause);
+		}
+		return { messagesRead: true };
 	},
 
 	report: async (event) => {

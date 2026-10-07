@@ -43,6 +43,8 @@ export const NOTIFICATION_TYPES = {
 		objectType: 'invitation',
 		title: 'Ответ законного представителя'
 	},
+	// A new message in the conversation of an accepted offer (domain 13.15): the text stays in the product.
+	'invitation.message': { category: 'invitations', objectType: 'invitation', title: 'Новое сообщение по приглашению' },
 	'invitation.response_due_soon': {
 		category: 'deadlines',
 		objectType: 'invitation',

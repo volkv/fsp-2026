@@ -2,10 +2,12 @@
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
 	import ContactRoundIcon from '@lucide/svelte/icons/contact-round';
+	import MessagesSquareIcon from '@lucide/svelte/icons/messages-square';
 	import TrendingDownIcon from '@lucide/svelte/icons/trending-down';
 	import OfferForm from '$lib/components/employer/offer-form.svelte';
 	import { DISCLOSURE_FIELD_LABELS, TERMS_FIELD_LABELS, hiringView } from '$lib/components/employer/model.js';
 	import NativeSelect from '$lib/components/employer/native-select.svelte';
+	import OfferConversation from '$lib/components/product/offer-conversation.svelte';
 	import CsrfInput from '$lib/components/forms/csrf-input.svelte';
 	import FormMessage from '$lib/components/forms/form-message.svelte';
 	import PageHeader from '$lib/components/forms/page-header.svelte';
@@ -25,6 +27,8 @@
 	const open = $derived(invitation.status === 'sent' || invitation.status === 'viewed');
 	const problem = $derived(form && 'problem' in form ? form.problem : null);
 	const process = $derived(data.process);
+	// The conversation opens with the acceptance; a closed offer without messages has none to show.
+	const showConversation = $derived(invitation.status === 'accepted' || data.conversation.messages.length > 0);
 	const stageLabel = (key: string) => HIRING_STAGES.find((stage) => stage.key === key)?.label ?? key;
 
 	const RESPONSE = { accept: 'Принято', decline: 'Отклонено' } as const;
@@ -137,6 +141,28 @@
 					{#if invitation.viewedAt}
 						<p class="text-muted-foreground">Кандидат открыл приглашение {formatDateTime(invitation.viewedAt)}.</p>
 					{/if}
+				</Card.Content>
+			</Card.Root>
+		{/if}
+
+		{#if showConversation}
+			<Card.Root data-testid="conversation">
+				<Card.Header>
+					<Card.Title class="flex items-center gap-2">
+						<MessagesSquareIcon class="size-5" aria-hidden="true" />
+						<h2 class="font-heading text-h3">Переписка с кандидатом</h2>
+					</Card.Title>
+					<Card.Description>
+						Кандидат принял приглашение — это согласие пообщаться, а не принятие оффера. Переписку видят кандидат и
+						сотрудники вашей компании; при отзыве согласия кандидатом она закрывается.
+					</Card.Description>
+				</Card.Header>
+				<Card.Content>
+					<OfferConversation
+						conversation={data.conversation}
+						otherName={invitation.candidatePseudonym ?? 'Кандидат'}
+						address="vy"
+					/>
 				</Card.Content>
 			</Card.Root>
 		{/if}

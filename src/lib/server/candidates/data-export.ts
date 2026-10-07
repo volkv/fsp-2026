@@ -52,6 +52,7 @@ import {
 	gradeDeclarations,
 	hiringProcesses,
 	hiringReports,
+	invitationMessages,
 	invitationResponses,
 	invitations,
 	invitationTerms,
@@ -92,8 +93,9 @@ import { storedComponent } from '$lib/server/matching/storage';
  * hint. v5: the requests of a confirmation with the results of the block tests, the calls delivered with the
  * candidate's solutions and the candidate's own applications (domain 23.2); a disclosure names its invitation or
  * application. v6: a match names the vacancy and its company only — every vacancy is a company's of the platform.
+ * v7: an invitation carries its conversation — every message of both sides with who wrote it and when it was read.
  */
-export const DATA_EXPORT_FORMAT = 'fsp-career-data-export/v6';
+export const DATA_EXPORT_FORMAT = 'fsp-career-data-export/v7';
 
 const iso = (value: Date | null) => (value === null ? null : value.toISOString());
 
@@ -426,6 +428,14 @@ async function buildDataExport(
 					.select()
 					.from(invitationResponses)
 					.where(inArray(invitationResponses.invitationId, invitationIds));
+	const conversation =
+		invitationIds.length === 0
+			? []
+			: await executor
+					.select()
+					.from(invitationMessages)
+					.where(inArray(invitationMessages.invitationId, invitationIds))
+					.orderBy(asc(invitationMessages.createdAt), asc(invitationMessages.id));
 	const handedOver = await executor
 		.select()
 		.from(disclosures)
@@ -926,6 +936,15 @@ async function buildDataExport(
 					reason_code: row.reasonCode,
 					reason_text: row.reasonText,
 					responded_at: iso(row.respondedAt)
+				})),
+			// The company's side as a side: the names of its members are not the candidate's data.
+			messages: conversation
+				.filter((row) => row.invitationId === invitation.id)
+				.map((row) => ({
+					from: row.authorSide,
+					text: row.text,
+					sent_at: iso(row.createdAt),
+					read_at: iso(row.readAt)
 				}))
 		})),
 		disclosures: handedOver.map((row) => ({

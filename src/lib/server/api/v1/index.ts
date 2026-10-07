@@ -18,6 +18,7 @@ import * as hiring from './hiring';
 import * as integrations from './integrations';
 import * as invitations from './invitations';
 import * as me from './me';
+import * as messages from './messages';
 import * as needs from './needs';
 import * as operator from './operator';
 import * as partnerPools from './partner-pools';
@@ -66,6 +67,7 @@ export const API_OPERATIONS: readonly Operation[] = [
 	...Object.values(categories),
 	...Object.values(grades),
 	...Object.values(invitations),
+	...Object.values(messages),
 	...Object.values(hiring),
 	...Object.values(verify),
 	...Object.values(operator),

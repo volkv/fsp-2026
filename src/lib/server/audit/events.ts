@@ -104,6 +104,7 @@ const GROUPS = {
 		'invitation.reopened',
 		'invitation.withdrawn',
 		'invitation.responded',
+		'invitation.message_sent',
 		'hiring.reported',
 		'match.viewed',
 		'need.created',

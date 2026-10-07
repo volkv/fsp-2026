@@ -1257,6 +1257,9 @@ interface ParseResponse {
 | `POST /api/v1/invitations/{id}/terms` | владелец, рекрутер | пересмотр или возобновление: новая версия условий; ответ содержит отличия от предыдущей |
 | `GET /api/v1/invitations`, `GET /api/v1/invitations/{id}` | компания; кандидат | свои приглашения с версиями условий и отличиями |
 | `POST /api/v1/invitations/{id}/response` | кандидат (сессия) | `{ terms_id, decision, reason_code?, reason_text?, disclose_fields? }` — ответ на конкретную версию |
+| `GET /api/v1/invitations/{id}/messages` | сторона предложения (`invitation.read`) | переписка принятого предложения (domain 13.15): `{ invitation_id, viewer, closure, unread, messages: [{id, from, own, author_name, text, sent_at, read_at}] }`, старые первыми; `closure` — `null` (открыта), `not_accepted`, `consent_revoked`, `candidate_left`, `company_closed`; чтение ничего не отмечает |
+| `POST /api/v1/invitations/{id}/messages` | сторона предложения (`invitation.message`; ключ — с этим правом) | `{ text }` 1–2000 символов, простой текст; `201` с сообщением; `Idempotency-Key` поддерживается. Переписка закрыта — `409 conflict` с деталью `conversation_closed`; чужое — `404`. Другой стороне — `invitation.message` без текста, одно на серию непрочитанных; журнал `invitation.message_sent` без текста |
+| `POST /api/v1/invitations/{id}/messages/read` | сторона предложения (`invitation.read`) | отмечает прочитанными непрочитанные сообщения другой стороны; `200 { marked }` |
 | `POST /api/v1/hiring/{process_id}/reports`, `GET /api/v1/hiring/{process_id}` | сторона процесса | сообщение об этапе или исходе; состояние с расхождениями (domain 13.7) |
 | `GET /api/v1/partner-pools/{partnership_id}/candidates` | член компании-партнёра | пул финалистов соревнования (domain 5.5) |
 | `GET /api/v1/operator/funnel` | оператор | воронка исходов по стадиям и разрезам (domain 13.9) |
@@ -1268,7 +1271,7 @@ interface ParseResponse {
 | `POST /api/v1/operator/assessments/attempts/{attempt_id}/annulment` | оператор (`assessment.review`, сессия) | `{ reason: plagiarism \| technical_failure \| version_defect \| candidate_request }` — попытка `decided` или `expired` → `annulled`, решение → `annulled`, категория по нему отозвана (domain 12.4), факт теста → `annulled`; `200 { annulled, category_revoked }`, повтор — `annulled: false` без изменений; идущая попытка — `409 conflict` (`attempt_in_progress`); событие `assessment.annulled` |
 | `GET /api/v1/verify/{handle}` | все, без аутентификации | проверка квитанции: `{status, statement, source_simulator, signature, signing_key_id}`, без ПДн (domain 9.6); заявление демонстрационного стенда несёт `source_simulator: true` под подписью, ответ отдаёт его же отдельным полем; публичная страница показывает «Источник — имитатор ФСП»; ограничение частоты по адресу |
 | `GET /.well-known/receipt-keys.json` | все | открытые ключи подписи квитанций (JWKS, `OKP`/`Ed25519`) |
-| `GET /api/v1/me/data` | кандидат (сессия) | «Мои данные»: выгрузка всего, что платформа хранит о кандидате, тем же документом, что скачивается со страницы `/me/export` (`fsp-career-data-export/v4`, domain 19.2); каждая выгрузка — событие `data.exported` с каналом `api` |
+| `GET /api/v1/me/data` | кандидат (сессия) | «Мои данные»: выгрузка всего, что платформа хранит о кандидате, тем же документом, что скачивается со страницы `/me/export` (`fsp-career-data-export/v7`, domain 19.2; v7 — с перепиской предложений); каждая выгрузка — событие `data.exported` с каналом `api` |
 | `PUT /api/v1/me/catalog-scope` | кандидат 18+ | `{ scope_fields }` — точные достижения, профили и зарплатные ожидания (`salary_expectations`, domain 13.10) в каталоге; новое событие `catalog_visibility` |
 | `POST /api/v1/me/tests/decisions/{decision_id}/objections` | кандидат (сессия) | возражение против результата теста (domain 12.5) |
 | `POST /api/v1/me/notification-channels/telegram` | любой пользователь | ссылка привязки бота (раздел 7.2) |
@@ -1555,6 +1558,11 @@ interface NotificationChannel {
 `/me/tests/attempts/{id}`, пока адресат — кандидат попытки; письмо называет тест и засчитывается ли попытка в лимит),
 `representation.consents_revoked` `{ representation_id, catalog_visibility, fsp_import }` (ссылка — `/me/consents`). Отзыв
 представителем согласия на обработку уведомлением не сообщается: профиль удаляется, и письмо кандидату уходит прямо через почту.
+
+Новое сообщение в переписке принятого предложения — `invitation.message` (категория `invitations`, domain 13.15), `payload` —
+`{ invitation_id, message_id, side }`. Письмо называет компанию (кандидату) или псевдоним кандидата (компании) и название
+предложения; **текста сообщения в письме нет** — его читают в продукте по ссылке на страницу предложения. Одно уведомление на
+серию сообщений, которые другая сторона ещё не открыла.
 
 ### 7.2. Telegram-бот
 

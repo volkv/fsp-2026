@@ -523,6 +523,25 @@ function invitationBody(type: InvitationType, facts: InvitationFacts, payload: P
 				paragraphs: [`Приглашение компании ${company} ${offer} отозвано. Отвечать на него не нужно.`],
 				action: 'Открыть приглашение'
 			};
+		case 'invitation.message':
+			// The letter never carries the text: it may hold anything the sides tell each other (domain 13.15).
+			return candidateSide
+				? {
+						subject: 'Новое сообщение от компании',
+						paragraphs: [
+							`Компания ${company} написала вам в переписке по приглашению ${offer}.`,
+							'Прочитать и ответить можно на платформе.'
+						],
+						action: 'Открыть переписку'
+					}
+				: {
+						subject: 'Новое сообщение от кандидата',
+						paragraphs: [
+							`Кандидат ${facts.candidatePseudonym} написал в переписке по приглашению ${offer}.`,
+							'Прочитать и ответить можно на платформе.'
+						],
+						action: 'Открыть переписку'
+					};
 		case 'invitation.response_due_soon': {
 			if (!candidateSide) unsupported(type, facts);
 			const hours = hoursLeft.parse(payload.hours_left);

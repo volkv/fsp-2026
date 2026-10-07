@@ -246,6 +246,13 @@
       "when": 1791381048724,
       "tag": "0034_drop_vacancy_aggregator",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1791386256294,
+      "tag": "0035_invitation_messages",
+      "breakpoints": true
     }
   ]
 }

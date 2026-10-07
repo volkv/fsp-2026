@@ -764,6 +764,7 @@ describe('letters', () => {
 			'invitation.expired': ['candidate', 'company'],
 			'invitation.withdrawn': ['candidate'],
 			'invitation.response_due_soon': ['candidate'],
+			'invitation.message': ['candidate', 'company'],
 			'hiring.outcome_requested': ['candidate', 'company'],
 			'hiring.outcome_reminder': ['candidate', 'company'],
 			'hiring.reports_diverged': ['candidate', 'company']

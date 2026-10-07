@@ -858,6 +858,12 @@ const REGISTRY: Record<string, Entry> = {
 		(v) => `/api/v1/partner-pools/${v.partnershipId}/candidates`,
 		(v) => ({ partnership_id: v.partnershipId })
 	),
+	'api/v1/invitations/[invitation_id]/messages/+server.ts': target(
+		'company',
+		'own',
+		(_, t) => `/api/v1/invitations/${t.invitationId}/messages`,
+		(_, t) => ({ invitation_id: t.invitationId })
+	),
 	'api/v1/invitations/[invitation_id]/contacts/+server.ts': target(
 		'company',
 		'own',
@@ -1144,6 +1150,7 @@ const REGISTRY: Record<string, Entry> = {
 	'api/v1/hiring/[process_id]/reports/+server.ts': WRITES,
 	'api/v1/integrations/fsp/webhooks/+server.ts': WRITES,
 	'api/v1/integrations/telegram/webhook/+server.ts': WRITES,
+	'api/v1/invitations/[invitation_id]/messages/read/+server.ts': WRITES,
 	'api/v1/invitations/[invitation_id]/response/+server.ts': WRITES,
 	'api/v1/invitations/[invitation_id]/terms/+server.ts': WRITES,
 	'api/v1/invitations/[invitation_id]/viewed/+server.ts': WRITES,

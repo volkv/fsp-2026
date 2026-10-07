@@ -26,6 +26,7 @@ import {
 	hiringNeeds,
 	hiringProcesses,
 	hiringReports,
+	invitationMessages,
 	invitations,
 	invitationTerms,
 	representations,
@@ -47,6 +48,7 @@ import {
 	type CreateInvitationInput
 } from '$lib/server/invitations/send';
 import type { MatchingModels } from '$lib/server/matching/semantic';
+import { sendMessage } from '$lib/server/messages/conversation';
 import { GRADE_DECISION_RESULTS } from '$lib/server/matching/test-results';
 import { modelAdapter } from '$lib/server/ml';
 import type { ModelAdapter } from '$lib/server/ml/adapter';
@@ -64,7 +66,7 @@ import {
 import { documentOf, metaOf, sessionOf, subjectOf, type SeedContext } from './accounts';
 import type { SeededCandidate } from './candidates';
 import type { SeededCompany } from './companies';
-import type { SeedData } from './data';
+import type { ScenarioOffer, SeedData } from './data';
 import { Random, type NeedPlan } from './generate';
 
 /** Shortlists of the seed rank without the models: the stand does not wait for them. */
@@ -434,6 +436,31 @@ async function ensureReport(
 	await reportHiring(ctx.invitations, await subjectOf(ctx, userId), metaOf(ctx, userId), processId, input);
 }
 
+type ScenarioMessage = NonNullable<ScenarioOffer['messages']>[number];
+
+/**
+ * The conversation of an accepted offer, written once through the product: the company's side as its sender, the
+ * candidate as the hero. An offer that already has messages is left as it is.
+ */
+async function ensureConversation(
+	ctx: SeedContext,
+	invitationId: string,
+	memberUserId: string,
+	candidate: SeededCandidate,
+	messages: readonly ScenarioMessage[]
+): Promise<void> {
+	const [written] = await ctx.services.db
+		.select({ id: invitationMessages.id })
+		.from(invitationMessages)
+		.where(eq(invitationMessages.invitationId, invitationId))
+		.limit(1);
+	if (written) return;
+	for (const message of messages) {
+		const userId = message.from === 'company' ? memberUserId : candidate.userId;
+		await sendMessage(ctx.invitations, await subjectOf(ctx, userId), metaOf(ctx, userId), invitationId, message.text);
+	}
+}
+
 const STAGES = ['interview_scheduled', 'interview_done', 'offer_made', 'offer_accepted'] as const;
 type Stage = (typeof STAGES)[number];
 
@@ -444,7 +471,13 @@ type Fate =
 	| { kind: 'declined'; reason: string }
 	| { kind: 'withdrawn' }
 	| { kind: 'revised_lower' }
-	| { kind: 'accepted'; stages: readonly Stage[]; disclose: readonly string[] }
+	| {
+			kind: 'accepted';
+			stages: readonly Stage[];
+			disclose: readonly string[];
+			/** The conversation after the acceptance; none — the offer has no messages. */
+			messages?: readonly ScenarioMessage[];
+	  }
 	| { kind: 'outcome'; company: HiringReportInput['outcome']; candidate: HiringReportInput['outcome'] | null };
 
 async function playFate(
@@ -513,6 +546,9 @@ async function playFate(
 			const stages = fate.kind === 'accepted' ? fate.stages : STAGES;
 			for (const stage of stages) {
 				await ensureReport(ctx, processId, member.userId, { party: 'company', kind: 'stage', stage });
+			}
+			if (fate.kind === 'accepted' && fate.messages !== undefined) {
+				await ensureConversation(ctx, invitationId, member.userId, candidate, fate.messages);
 			}
 			if (fate.kind !== 'outcome') return;
 			const hired = (outcome: HiringReportInput['outcome']) =>
@@ -600,7 +636,12 @@ export async function stageScenario(
 			const invitation = await ensureOffer(ctx, company, shortlistId, hero.candidateId, terms);
 			const fate: Fate =
 				offer.state === 'accepted'
-					? { kind: 'accepted', stages: offer.stages ?? [], disclose: offer.disclose ?? ['full_name', 'email'] }
+					? {
+							kind: 'accepted',
+							stages: offer.stages ?? [],
+							disclose: offer.disclose ?? ['full_name', 'email'],
+							...(offer.messages === undefined ? {} : { messages: offer.messages })
+						}
 					: offer.state === 'declined'
 						? { kind: 'declined', reason: 'other' }
 						: { kind: offer.state };

@@ -368,7 +368,7 @@ active | pending_email | suspended ──(запрос удаления)──�
 |---|---|---|---|
 | `id` | `id` | да | |
 | `user_id` | `id` | да | адресат |
-| `type` | `text` | да | из реестра типов (`invitation.received`, `invitation.terms_revised`, `invitation.answered`, `invitation.representative_answered`, `invitation.expired`, `invitation.withdrawn`, `invitation.response_due_soon`, `hiring.outcome_requested`, `hiring.outcome_reminder`, `hiring.reports_diverged`, `company.verification_decided`, `vacancy.moderation_decided`, `objection.decided`, `representation.decided`, `representation.consents_signed`, `representation.consents_revoked`, `candidate.age_verified`, `assessment.annulled`, `test.decided`, `category.assigned`, `category.revoked`, `confirmation.requested`, `confirmation.completed`, `challenge.delivered`, `challenge.reminder`, `application.received`, `application.decided`, …) |
+| `type` | `text` | да | из реестра типов (`invitation.received`, `invitation.terms_revised`, `invitation.answered`, `invitation.representative_answered`, `invitation.expired`, `invitation.withdrawn`, `invitation.response_due_soon`, `invitation.message`, `hiring.outcome_requested`, `hiring.outcome_reminder`, `hiring.reports_diverged`, `company.verification_decided`, `vacancy.moderation_decided`, `objection.decided`, `representation.decided`, `representation.consents_signed`, `representation.consents_revoked`, `candidate.age_verified`, `assessment.annulled`, `test.decided`, `category.assigned`, `category.revoked`, `confirmation.requested`, `confirmation.completed`, `challenge.delivered`, `challenge.reminder`, `application.received`, `application.decided`, …) |
 | `category` | `enum` | да | как в `notification_preferences` |
 | `object_type`, `object_id` | `text`, `id` | да | о чём уведомление |
 | `dedup_key` | `text` | да | `UNIQUE`: `{type}:{object_id}[:{этап}]` — одно напоминание на этап, повтор события не дублирует |
@@ -449,6 +449,7 @@ enum(channel_inactive|no_consent|opted_out|recipient_inactive|object_not_visible
 | `invitation.revise` | владелец, рекрутер | приглашение своей компании, пересмотр допустим по статусу (раздел 13.5) |
 | `invitation.read` | члены компании-отправителя; адресат-кандидат | `invitation.company_id` = компания актора или `invitation.candidate_id` = кандидат актора |
 | `invitation.respond` | кандидат | адресат приглашения; ответ — на конкретную версию условий |
+| `invitation.message` | владелец, рекрутер; кандидат | сообщение в переписке принятого предложения (13.15): член допущенной компании-отправителя или адресат; читают переписку по `invitation.read` |
 | `hiring.report` | владелец, рекрутер; кандидат | сторона процесса найма: компания-отправитель или адресат (раздел 13.7) |
 | `match.read` | владелец, рекрутер; кандидат | компания — по своей вакансии и кандидату, которого `canShow` показывает в её контексте; кандидат — своё соответствие любой вакансии |
 | `market.read` | владелец, рекрутер; кандидат | член допущенной компании; кандидат — по своей категории |
@@ -3170,6 +3171,41 @@ test:block:{block}`) с областью покрытия в `payload` (спец
   обоснованной жалобе (`company.complaint_upheld`) и только её причину — не кто пожаловался и не текст. Обоснованные жалобы входят
   в факт доверия `complaints_upheld` (5.6).
 
+### 13.15. Переписка в принятом предложении
+
+Платформа связывает компанию и кандидата напрямую; обмен одними контактами мало что даёт, поэтому стороны принятого предложения
+пишут друг другу здесь же.
+
+**`invitation_messages`**: `id`, `invitation_id`, `author_side` (`candidate` · `company`), `author_member_id` (член компании, написавший
+сообщение; у кандидата — `null`, `CHECK`), `text` (1–2000 символов), `read_at` (когда другая сторона открыла переписку после
+сообщения; не раньше `created_at`), `created_at`; индекс `(invitation_id, created_at)`.
+
+- **Открытие.** Переписка открывается, когда кандидат принимает предложение (`invitation.status = accepted`; для 14–17 — когда
+  согласие представителя завершило принятие). Принятие — согласие пообщаться и раскрыть выбранные контакты, а не принятие трудового
+  оффера: так подписано в интерфейсе обеих сторон. Отклик кандидата (13.13) переписку не открывает: ответ компании на отклик —
+  предложение, и переписка открывается с его принятием.
+- **Участники.** Кандидат-адресат и члены компании-отправителя: читают по `invitation.read`, пишут по `invitation.message` (член
+  допущенной компании или адресат; ключ API — только с этим правом в области). Оператор и администратор переписку не читают: в
+  политике модерации такого доступа нет, жалоба (13.14) рассматривается по тексту кандидата. Чужая компания, чужой кандидат,
+  персонал, кандидат вне досягаемости своей демо-сессии (19.3) — `404`.
+- **Закрытие на запись** (`409 conflict`, деталь `conversation_closed`): кандидат отозвал `contact_disclosure` этого предложения
+  (`consent_revoked`), профиль кандидата удаляется или удалён (`candidate_left`), политика допуска останавливает компанию —
+  `suspended`, `rejected` (`company_closed`). История остаётся читаемой обеим сторонам.
+- **Сообщение** — простой текст: разметка не исполняется, ссылки остаются текстом; переносы строк сохраняются, служебные символы —
+  `400 validation_failed`. Вложений нет. Чтение ничего не отмечает: прочитанным сообщения другой стороны отмечает открытие переписки
+  (форма страницы или `POST …/messages/read`).
+- **Уведомление** `invitation.message` (категория `invitations`) — другой стороне: кандидату или, на стороне компании, отправителю
+  предложения, пока он активен, иначе активным владельцам (как `invitation.answered`). Одно уведомление на серию: пока другая сторона
+  не открыла переписку после предыдущего сообщения этой стороны, новое уведомления не добавляет. Письмо и Telegram текста сообщения не
+  содержат — только компанию или псевдоним и название предложения.
+- **Журнал** — `invitation.message_sent` с `side` и `message_id`, без текста; отказ записи — то же событие с исходом `denied`.
+- **Удаление аккаунта** (19.2) удаляет переписку предложений кандидата целиком, сообщения компании тоже: они о нём. Удаление учётки
+  сотрудника переписку не трогает — его имя пропадает вместе с надгробием `users`. **Демо** (19.3): строки принадлежат предложению и
+  копируются с составом сценария; сброс стенда их очищает. **Выгрузка своих данных** (v7) — переписка каждого предложения: сторона,
+  текст, время, прочтение, без имён сотрудников.
+- **Экраны.** Кандидат — «Приглашения» → страница принятого предложения; компания — страница предложения. Без опросов чаще раза в
+  полминуты и только на открытой видимой странице (`GET /api/v1/invitations/{id}/messages`).
+
 ---
 
 ## 14. Проекции карточки кандидата
@@ -3528,7 +3564,7 @@ Append-only, партиционирование по месяцу, срок хр
 | Компании | `company.created`, `company.updated`, `company.submitted`, `company.verified` (в том числе возврат из `suspended`), `company.rejected`, `company.info_requested`, `company.suspended` (код причины), `member.invited`, `member.joined`, `member.role_changed`, `member.removed` |
 | Согласия | `consent.granted`, `consent.revoked` (вид; от представителя по ссылке — `representation_id`, актор `anonymous`), `consent.lapsed`, `representation.invited`, `representation.contact_confirmed`, `representation.authority_checked`, `representation.letter_sent` (вид письма — согласия, в том числе письмо после изменения и по запросу представителя, или раскрытие; исход отправки), `representation.ended`, `age.verified` (способ проверки, вид документа, совпала ли дата с указанной, режим `adult` · `minor`; без даты), `age.conflict` |
 | ПДн | `catalog.searched` (фильтры, число результатов), `card.viewed` (псевдоним, проекция), `card.viewed_recipient`, `contacts.disclosed`, `file.downloaded`, `data.exported` (самим субъектом), `account.deletion_requested`, `account.purged`, `facts.purged` (число, источник) |
-| Подбор | `vacancy.published`, `vacancy.blocked_text_check`, `vacancy.moderation_decided` (решение, статус, правила), `vacancy.moderation_cleared`, `vacancy.closed`, `invitation.sent`, `invitation.terms_revised` (признак `salary_lowered`), `invitation.reopened`, `invitation.withdrawn`, `invitation.responded`, `hiring.reported` (сторона, вид), `match.viewed` (псевдоним, вакансия) |
+| Подбор | `vacancy.published`, `vacancy.blocked_text_check`, `vacancy.moderation_decided` (решение, статус, правила), `vacancy.moderation_cleared`, `vacancy.closed`, `invitation.sent`, `invitation.terms_revised` (признак `salary_lowered`), `invitation.reopened`, `invitation.withdrawn`, `invitation.responded`, `invitation.message_sent` (сторона, сообщение — без текста), `hiring.reported` (сторона, вид), `match.viewed` (псевдоним, вакансия) |
 | Партнёры | `partnership.opened`, `partnership.ended`, `partner_pool.viewed` (компания, соревнование, число карточек) |
 | Уведомления | `notification.channel_linked`, `notification.channel_unlinked` |
 | Категории и тесты | `survey.submitted` (версия), `grade.declared` (специализация, грейд, подсказка — коды), `test.started` (специализация, грейд, форма, выпуск), `test.decided` (исход, причина, кластеров), `test.expired`, `category.assigned`, `category.superseded`, `category.revoked` (причина), `objection.opened`, `objection.assigned` (без деталей), `objection.resolved` (исход), `assessment.score_revised`, `assessment.annulled` (причина, прежний статус, число снятых фактов), `assessment.artifact_viewed` (оператор), `bank.released` (выпуск, хэш) |
@@ -3597,7 +3633,7 @@ Append-only, партиционирование по месяцу, срок хр
 
 | Хранилище | Действие |
 |---|---|
-| PostgreSQL | удаление строк кандидата: анкета, факты, утверждения, группы опыта, выводы, расчёты, назначения, уровни ФСП, квитанции, векторы, строки соответствия, извлечения, резюме, попытки, оценки и артефакты тестов, внешние профили, связи со спортсменом, внешние идентичности, представители и связи (кроме доказательств полномочий до их срока), версии условий приглашений и ответы (сами приглашения — до надгробия `id`, `company_id`, `status`: на них ссылаются `disclosures`), процессы найма и сообщения сторон, уведомления, каналы и доставки, согласия (кроме указанного ниже); `users` → надгробие |
+| PostgreSQL | удаление строк кандидата: анкета, факты, утверждения, группы опыта, выводы, расчёты, назначения, уровни ФСП, квитанции, векторы, строки соответствия, извлечения, резюме, попытки, оценки и артефакты тестов, внешние профили, связи со спортсменом, внешние идентичности, представители и связи (кроме доказательств полномочий до их срока), версии условий приглашений, ответы и переписка сторон (сами приглашения — до надгробия `id`, `company_id`, `status`: на них ссылаются `disclosures`), процессы найма и сообщения сторон, уведомления, каналы и доставки, согласия (кроме указанного ниже); `users` → надгробие |
 | SeaweedFS | удаление объектов `files`; версионирование бакетов выключено |
 | Redis | сессии, счётчики, кеши карточек |
 | Временные файлы | `docparse` не хранит файлы после ответа (контракт); временные файлы воркера удаляются в `finally` |
@@ -3626,11 +3662,11 @@ Append-only, партиционирование по месяцу, срок хр
 (сейчас 30) и уведомление `candidate.inactive_purge_scheduled` (почта — категория `account`); вход до этой даты снимает
 `purge_after`, иначе начинается удаление, как по запросу, но согласие на обработку получает `lapse` от системы, а не `revoke`. Оба
 срока — в `retention_policy` с версии 3; пока действует более ранняя версия, профили по неактивности не уведомляются и не удаляются. **Выгрузка своих данных** — страница
-«Мои данные» (`/me/export`) и `GET /api/v1/me/data`: документ `fsp-career-data-export/v4` со всем, что платформа хранит о кандидате —
+«Мои данные» (`/me/export`) и `GET /api/v1/me/data`: документ `fsp-career-data-export/v7` со всем, что платформа хранит о кандидате —
 учётка со входом, ФСП ID и настройками уведомлений; профиль; резюме с извлечённым текстом; факты с утверждениями, стажем и
 квитанциями; вся история расчётов доказательств с навыками и уровнями ФСП; опросы, заявления, попытки, решения и категории (23.2); возражения; заблокированные
 компании; опыт, указанный вручную; предложения полей профиля из резюме с решениями; подтверждения категорий с кодом владельца; соответствия видимым вакансиям; согласия с тем, кто их подписал; принятые соглашения; представители со сроком полномочий и
-проверками; приглашения с версиями условий и ответами, кому что раскрыто; процессы найма; тесты с артефактами; уведомления; журнал
+проверками; приглашения с версиями условий, ответами и перепиской, кому что раскрыто; процессы найма; тесты с артефактами; уведомления; журнал
 действий о кандидате. Не входят: хэш пароля и одноразовые токены, векторы профиля и записи обращений к моделям, очередь заданий —
 технические производные того, что уже выгружено. Каждая выгрузка — событие `data.exported`; сотрудники компаний и платформы в
 выгрузке названы компанией или ролью.
@@ -4001,6 +4037,7 @@ Append-only, партиционирование по месяцу, срок хр
 | `shortlists`, `shortlist_revisions` (append-only, удаляет роль хранения), `shortlist_marks`, `salary_cohort_snapshots`, `shortlist_evaluations` | C2 | 0030 | `catalog_policy.salary_bins` — версия 2 политики |
 | `company_challenges`, `challenge_deliveries`, `challenge_solutions`, `applications` (13.13), `confirmation_requests`, `block_confirmations` | C3 | 0031 (фактически 0032) | колонка `test_attempts.confirmation_request_id` с внешним ключом (единственная связь попытки и запроса); ключ `confirmation_requests.confirmation_id` проверяется при фиксации (ручная дописка); `disclosures.application_id`, `invitation_id` без `NOT NULL` и `CHECK` «ровно одно основание»; `consent_events.scope_application_id` и область согласия «ровно одно из приглашения и отклика»; `demo_sessions.clock_offset_seconds`; политика `challenge_policy` |
 | `invitation_complaints`, `event_subscriptions`, `event_deliveries`, `ats_links` | C4 | 0033 | тип задания `event.deliver` в реестре и обоих `--types` |
+| `invitation_messages` (13.15) | переписка | 0035 | право `invitation.message`, тип уведомления `invitation.message`, событие журнала `invitation.message_sent`; выгрузка своих данных — v7 |
 | `category_attestations`, ручные поля профиля (`candidates.telegram_enc`, `candidates.soft_skill_keys`, `profile_experience_entries`, `profile_suggestions`) | D1 | 0032 (фактически 0029) | ограничение надгробия `candidates_tombstone` дополнено новыми колонками |
 
 **Правила миграций.** Миграцию генерирует `drizzle-kit` из схемы (`pnpm db:generate`, снимки `meta/`); номер в таблице — плановый
@@ -4062,6 +4099,7 @@ Append-only, партиционирование по месяцу, срок хр
 | `event_subscriptions` | `owned`, не копируется (секрет и адрес системы компании); `company_id`, `created_by_member_id: owner` | ссылок на кандидата нет |
 | `event_deliveries` | `owned`, не копируется; `subscription_id`, `company_id`, `invitation_id: owner` | удаляются с предложениями удалённого кандидата (`invitation_id`) |
 | `ats_links` | `owned`, не копируется; `subscription_id`, `invitation_id: owner` | удаляются с предложениями удалённого кандидата |
+| `invitation_messages` | `owned`, копируется (переписка сценария приходит с составом); `invitation_id`, `author_member_id: owner` | удаляются с предложениями удалённого кандидата, обе стороны; ключей на человека нет |
 
 `source_facts` теста (10.9, 13.11) и выводы о навыках идут общим путём доказательств (раздел 9, 19). Выгрузка своих данных
 (`fsp-career-data-export`) с первой задачей, добавившей сущность кандидата, получает новую версию: опросы, заявления, попытки с поданными

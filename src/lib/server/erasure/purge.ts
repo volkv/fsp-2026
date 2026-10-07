@@ -53,6 +53,7 @@ import {
 	invitations,
 	invitationTerms,
 	invitationComplaints,
+	invitationMessages,
 	eventDeliveries,
 	atsLinks,
 	legalRepresentatives,
@@ -446,8 +447,8 @@ async function eraseEvidence(
 }
 
 /**
- * Invitations become tombstones of id, company and status (disclosures refer to them); their terms, the answers and
- * the hiring processes with the reports of both sides go.
+ * Invitations become tombstones of id, company and status (disclosures refer to them); their terms, the answers, the
+ * conversations and the hiring processes with the reports of both sides go.
  */
 async function eraseInvitations(tx: Transaction, candidateId: string, ids: PersonIds, at: Date, removal: Removal) {
 	if (ids.processIds.length > 0) {
@@ -481,6 +482,13 @@ async function eraseInvitations(tx: Transaction, candidateId: string, ids: Perso
 			.returning({ id: eventDeliveries.id })
 	);
 	removal.add(await tx.delete(atsLinks).where(inArray(atsLinks.invitationId, invited)).returning({ id: atsLinks.id }));
+	// The conversations of the offers go whole, the company's messages too: they are about the candidate (domain 13.15).
+	removal.add(
+		await tx
+			.delete(invitationMessages)
+			.where(inArray(invitationMessages.invitationId, invited))
+			.returning({ id: invitationMessages.id })
+	);
 	removal.add(
 		await tx
 			.delete(invitationResponses)

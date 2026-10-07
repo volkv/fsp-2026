@@ -74,6 +74,7 @@ import { createFspSyncHandler } from '$lib/server/fsp/sync';
 import type { InvitationDeps } from '$lib/server/invitations/deps';
 import { respondToInvitation } from '$lib/server/invitations/respond';
 import { createInvitation } from '$lib/server/invitations/send';
+import { sendMessage } from '$lib/server/messages/conversation';
 import { handlerRegistry, JobFailure, type JobHandler } from '$lib/server/jobs/handler';
 import { createLogger } from '$lib/server/jobs/log';
 import { claimJob, completeJob, enqueueJob, failJob, type ClaimedJob } from '$lib/server/jobs/queue';
@@ -579,6 +580,10 @@ describe('deleting a candidate with the whole pipeline behind the profile', () =
 		});
 		const [disclosure] = await db.select().from(disclosures).where(eq(disclosures.candidateId, hero.candidateId));
 		if (!disclosure) throw new Error('the acceptance handed over no contacts');
+		// The conversation of the accepted offer, both sides (domain 13.15): it goes whole with the account.
+		await sendMessage(invitationDeps(), company.subject, meta, sentAccepted.invitationId, 'Когда удобно созвониться?');
+		await sendMessage(invitationDeps(), hero.subject, meta, sentAccepted.invitationId, 'Завтра, Анна Иванова');
+		expect(await count('invitation_messages', 'invitation_id', [sentAccepted.invitationId])).toBe(2);
 		// A complaint about the accepted offer: the candidate's own account of what happened (domain 13.13).
 		const complaint = await fileComplaint(invitationDeps(), hero.subject, meta, sentAccepted.invitationId, {
 			reasonCode: 'terms_mismatch',
@@ -700,6 +705,7 @@ describe('deleting a candidate with the whole pipeline behind the profile', () =
 		expect(await count('invitation_complaints', 'id', [complaint.id])).toBe(0);
 		expect(await count('invitation_terms', 'invitation_id', invitationIds)).toBe(0);
 		expect(await count('invitation_responses', 'invitation_id', invitationIds)).toBe(0);
+		expect(await count('invitation_messages', 'invitation_id', invitationIds)).toBe(0);
 		expect(await count('hiring_processes', 'invitation_id', invitationIds)).toBe(0);
 		expect(await count('embeddings', 'owner_id', [hero.candidateId])).toBe(0);
 		expect(

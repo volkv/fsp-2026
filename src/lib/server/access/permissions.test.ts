@@ -178,4 +178,33 @@ describe('can', () => {
 		expect(can(recruiter('suspended'), 'invitation.read', facts)).toEqual({ allowed: true });
 		expect(can(recruiter('suspended'), 'hiring.report', facts)).toEqual({ allowed: false, reason: 'object' });
 	});
+
+	it('lets the two sides of an offer write in its conversation, and nobody else; a suspended company only reads', () => {
+		const facts = { companyId: 'company-a', candidateId: 'c-1' };
+		const candidate = (id: string): AccessSubject => ({
+			userId: 'u-c',
+			via: 'session',
+			candidate: { id, status: 'active' },
+			membership: null,
+			staff: { operator: false, admin: false, extraPermissions: [] }
+		});
+		expect(can(recruiter(), 'invitation.message', facts)).toEqual({ allowed: true });
+		expect(can(candidate('c-1'), 'invitation.message', facts)).toEqual({ allowed: true });
+		expect(can(candidate('c-2'), 'invitation.message', facts)).toEqual({ allowed: false, reason: 'object' });
+		expect(can(recruiter(), 'invitation.message', { ...facts, companyId: 'company-b' })).toEqual({
+			allowed: false,
+			reason: 'object'
+		});
+		expect(can(recruiter('suspended'), 'invitation.message', facts)).toEqual({ allowed: false, reason: 'object' });
+		expect(can(recruiter('suspended'), 'invitation.read', facts)).toEqual({ allowed: true });
+		const operator: AccessSubject = {
+			...anonymous,
+			userId: 'u-o',
+			via: 'session',
+			staff: { operator: true, admin: true, extraPermissions: [] }
+		};
+		expect(can(operator, 'invitation.message', facts)).toEqual({ allowed: false, reason: 'role' });
+		const key: AccessSubject = { ...recruiter(), via: 'api_key', apiKeyPermissions: ['invitation.read'] };
+		expect(can(key, 'invitation.message', facts)).toEqual({ allowed: false, reason: 'api_key_scope' });
+	});
 });

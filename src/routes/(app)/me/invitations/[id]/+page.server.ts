@@ -15,6 +15,7 @@ import {
 	sendDisclosureLetter
 } from '$lib/server/invitations/disclosure';
 import { markInvitationViewed, respondToInvitation } from '$lib/server/invitations/respond';
+import { getConversation, markConversationRead, sendMessage } from '$lib/server/messages/conversation';
 import type { Actions, PageServerLoad } from './$types';
 
 /**
@@ -27,7 +28,8 @@ export const load: PageServerLoad = async (event) => {
 		const deps = invitationDeps();
 		return {
 			card: await candidateInvitationCard(deps, subject, event.params.id),
-			complaint: await complaintOfOffer(deps, subject, event.params.id)
+			complaint: await complaintOfOffer(deps, subject, event.params.id),
+			conversation: await getConversation(deps, subject, event.params.id)
 		};
 	} catch (cause) {
 		pageError(event, cause);
@@ -136,6 +138,29 @@ export const actions: Actions = {
 			return formFailure(cause);
 		}
 		return { complained: true };
+	},
+
+	/** A message to the company in the conversation of the accepted invitation. */
+	message: async (event) => {
+		const { subject, meta } = await candidateRequest(event);
+		const form = await event.request.formData();
+		try {
+			await sendMessage(invitationDeps(), subject, meta, event.params.id, formText(form, 'text'));
+		} catch (cause) {
+			return formFailure(cause);
+		}
+		return { messageSent: true };
+	},
+
+	/** The conversation was opened in the browser: the company's messages are read. */
+	readMessages: async (event) => {
+		const { subject } = await candidateRequest(event);
+		try {
+			await markConversationRead(invitationDeps(), subject, event.params.id);
+		} catch (cause) {
+			return formFailure(cause);
+		}
+		return { messagesRead: true };
 	},
 
 	report: async (event) => {

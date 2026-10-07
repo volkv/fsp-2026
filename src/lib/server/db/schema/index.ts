@@ -19,6 +19,7 @@ export * from './integrations';
 export * from './jobs';
 export * from './market';
 export * from './matching';
+export * from './messages';
 export * from './ml';
 export * from './notifications';
 export * from './policies';

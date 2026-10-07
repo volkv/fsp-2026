@@ -313,6 +313,12 @@ export const DEMO_CLONE_PLAN: Readonly<Record<string, TableDecision>> = {
 		copy: true,
 		edges: { invitation_id: 'owner', terms_id: 'owner', consent_event_id: 'owner' }
 	},
+	// The conversation of an accepted offer (domain 13.15): the scenario's messages come with the cast.
+	invitation_messages: {
+		kind: 'owned',
+		copy: true,
+		edges: { invitation_id: 'owner', author_member_id: 'owner' }
+	},
 	hiring_processes: {
 		kind: 'owned',
 		copy: true,

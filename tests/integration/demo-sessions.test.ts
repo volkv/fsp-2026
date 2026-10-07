@@ -62,6 +62,7 @@ import { ServiceGrantIssuer } from '$lib/server/fsp/grant';
 import { createReceiptSigner } from '$lib/server/fsp/receipts';
 import { getInvitation, listInvitations } from '$lib/server/invitations/read';
 import { respondToInvitation } from '$lib/server/invitations/respond';
+import { getConversation, sendMessage } from '$lib/server/messages/conversation';
 import { createInvitation } from '$lib/server/invitations/send';
 import { handlerRegistry } from '$lib/server/jobs/handler';
 import { createLogger } from '$lib/server/jobs/log';
@@ -454,6 +455,27 @@ describe('demo sessions', () => {
 			.from(invitations)
 			.where(eq(invitations.companyId, await companyOf(recruiterB)));
 		expect(sentByB.map((row) => row.status)).not.toContain('declined');
+
+		// К-5 of each session has the scenario's conversation with its own company; what A writes stays in A.
+		const olegA = await cloneOfRole(database.db, crypto, a.sessionId, role('k5'));
+		const olegB = await cloneOfRole(database.db, crypto, b.sessionId, role('k5'));
+		const conversationOf = async (userId: string) =>
+			getConversation(
+				invitationDeps(),
+				await subjectOf(userId),
+				(await openInvitationOf(await candidateOfUser(userId))).id
+			);
+		const seeded = (await conversationOf(olegA)).messages.map((message) => [message.side, message.text]);
+		expect(seeded).toHaveLength(3);
+		await sendMessage(
+			invitationDeps(),
+			await subjectOf(olegA),
+			meta,
+			(await openInvitationOf(await candidateOfUser(olegA))).id,
+			'Подтверждаю четверг'
+		);
+		expect((await conversationOf(olegA)).messages).toHaveLength(4);
+		expect((await conversationOf(olegB)).messages.map((message) => [message.side, message.text])).toEqual(seeded);
 	});
 
 	it(
@@ -648,6 +670,13 @@ describe('demo sessions', () => {
 			await expect(getInvitation(invitationDeps(), olegSubject, invitationA.id)).rejects.toMatchObject({
 				code: 'not_found'
 			});
+			// Its conversation neither: the original reads and writes nothing of the session.
+			await expect(getConversation(invitationDeps(), olegSubject, invitationA.id)).rejects.toMatchObject({
+				code: 'not_found'
+			});
+			await expect(
+				sendMessage(invitationDeps(), olegSubject, meta, invitationA.id, 'Из-за пределов сессии')
+			).rejects.toMatchObject({ code: 'not_found' });
 		} finally {
 			await database.db.update(invitations).set({ candidateId: olegA }).where(eq(invitations.id, invitationA.id));
 		}
