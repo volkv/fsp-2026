@@ -42,11 +42,11 @@
 		conversation: Conversation;
 		/** How the other side is named in the thread: the company's name, or the candidate's pseudonym. */
 		otherName: string;
-		/** The address of the page: «ты» in the candidate's cabinet, «вы» in the company's. */
-		address: 'ty' | 'vy';
+		/** Whose cabinet shows the thread: the candidate's or the company's. */
+		reader: 'candidate' | 'company';
 	}
 
-	let { conversation, otherName, address }: Props = $props();
+	let { conversation, otherName, reader }: Props = $props();
 
 	const MAX = 2000;
 	const POLL_MS = 30_000;
@@ -61,8 +61,8 @@
 	const closedText = $derived.by(() => {
 		switch (shown.closure) {
 			case 'not_accepted':
-				return address === 'ty'
-					? 'Переписка откроется, когда ты примешь приглашение.'
+				return reader === 'candidate'
+					? 'Переписка откроется, когда вы примете приглашение.'
 					: 'Переписка откроется, когда кандидат примет приглашение.';
 			case 'consent_revoked':
 				return 'Кандидат отозвал согласие на раскрытие контактов — переписка закрыта, история остаётся.';
@@ -76,7 +76,7 @@
 	});
 
 	function authorOf(message: ConversationMessage): string {
-		if (message.own) return address === 'ty' ? 'Ты' : (message.authorName ?? 'Вы');
+		if (message.own) return reader === 'candidate' ? 'Вы' : (message.authorName ?? 'Вы');
 		if (message.side === 'company') return message.authorName ? `${message.authorName}, ${otherName}` : otherName;
 		return otherName;
 	}
@@ -156,7 +156,7 @@
 	{#if shown.messages.length === 0}
 		<p class="text-sm text-muted-foreground">
 			{shown.closure === null
-				? address === 'ty'
+				? reader === 'candidate'
 					? 'Сообщений пока нет. Можно договориться о созвоне или задать вопрос по условиям.'
 					: 'Сообщений пока нет. Можно договориться о собеседовании или ответить на вопросы кандидата.'
 				: 'Сообщений нет.'}
@@ -220,7 +220,7 @@
 				maxlength={MAX}
 				rows={3}
 				required
-				placeholder={address === 'ty' ? 'Напиши компании' : 'Напишите кандидату'}
+				placeholder={reader === 'candidate' ? 'Напишите компании' : 'Напишите кандидату'}
 			/>
 			<div class="flex flex-wrap items-center justify-between gap-2">
 				<p class="text-xs text-muted-foreground">

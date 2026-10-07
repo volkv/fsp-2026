@@ -785,7 +785,7 @@ describe('the representative of a minor, by the links of letters', () => {
 		const error = await refusal(accept(teen, sent.invitationId, sent.termsId));
 		expect(error.code).toBe('policy_violation');
 		expect(error.details?.[0]).toMatchObject({ code: 'representative_consent_required' });
-		expect(error.details?.[0]?.message).toMatch(/Нужно согласие представителя.*укажи законного представителя/u);
+		expect(error.details?.[0]?.message).toMatch(/Нужно согласие представителя.*укажите законного представителя/u);
 		expect(
 			await database.db.select().from(consentEvents).where(eq(consentEvents.scopeInvitationId, sent.invitationId))
 		).toEqual([]);

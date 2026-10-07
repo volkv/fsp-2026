@@ -228,7 +228,7 @@
 			<div class="p-3 pt-0">
 				<VerificationReceipt {receipt} simulator={fact.receipt?.simulator} class="border-0 shadow-none" />
 				<p class="mt-2 text-xs text-muted-foreground">
-					Работодатель получает свою квитанцию на тот же факт: он проверяет её подпись, не узнавая, кто ты.
+					Работодатель получает свою квитанцию на тот же факт: он проверяет её подпись, не узнавая, кто вы.
 				</p>
 			</div>
 		</details>

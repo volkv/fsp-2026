@@ -25,7 +25,7 @@
 
 <PageHeader
 	title="Предпочтения"
-	description="Что ты заявляешь о поиске: роли, формат, ожидания по зарплате. Работодатель видит это в карточке, соответствие вакансиям пересчитывается после сохранения."
+	description="Что вы заявляете о поиске: роли, формат, ожидания по зарплате. Работодатель видит это в карточке, соответствие вакансиям пересчитывается после сохранения."
 >
 	{#snippet eyebrow()}<a class="underline underline-offset-4" href={resolve('/me/profile')}>Профиль</a>{/snippet}
 </PageHeader>
@@ -103,7 +103,7 @@
 
 	<SectionCard
 		title="Регион"
-		description="Работодатель видит регион, но не город. Без региона в карточке стоит «регион не указан», а фильтр каталога по региону тебя не находит."
+		description="Работодатель видит регион, но не город. Без региона в карточке стоит «регион не указан», а фильтр каталога по региону вас не находит."
 	>
 		<RegionPicker regions={data.regions} value={settings.preferences.region_code} error={fieldError('region_code')} />
 	</SectionCard>
@@ -161,7 +161,7 @@
 		{#if fieldError('salary_expectation')}
 			<p class="text-sm text-destructive">{fieldError('salary_expectation')}</p>
 		{/if}
-		<p class="text-sm text-muted-foreground">Оставь обе границы пустыми, если не хочешь указывать ожидания.</p>
+		<p class="text-sm text-muted-foreground">Оставьте обе границы пустыми, если не хотите указывать ожидания.</p>
 	</SectionCard>
 
 	<div class="flex flex-wrap gap-3">

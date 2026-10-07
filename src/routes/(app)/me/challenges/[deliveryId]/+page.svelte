@@ -56,7 +56,7 @@
 {#if problem}
 	<FormMessage text={problem.message} />
 {:else if form && 'solved' in form}
-	<FormMessage tone="success" text="Отправлено: компания видит его без твоего имени и может пригласить по нему." />
+	<FormMessage tone="success" text="Отправлено: компания видит его без вашего имени и может пригласить по нему." />
 {:else if form && 'withdrawn' in form}
 	<FormMessage tone="success" text="Отозвано: компания его больше не видит." />
 {:else if form && 'dismissed' in form}
@@ -97,8 +97,8 @@
 
 {#if solution?.status === 'submitted'}
 	<SectionCard
-		title="Твоё решение"
-		description={`Отправлено ${formatDateTime(solution.submittedAt)}. Оно принадлежит тебе: отозвать можно в любой момент.`}
+		title="Ваше решение"
+		description={`Отправлено ${formatDateTime(solution.submittedAt)}. Оно принадлежит вам: отозвать можно в любой момент.`}
 		testId="own-solution"
 	>
 		<pre class="overflow-x-auto rounded-lg bg-muted p-3 text-sm whitespace-pre-wrap">{solution.content}</pre>

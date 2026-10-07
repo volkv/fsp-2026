@@ -217,7 +217,7 @@ test('a finalist consents to the partners of the competition, the partner finds 
 	await expect(offer).toContainText('точный результат этого соревнования');
 	await expectNoAxeViolations(candidatePage);
 	await offer.getByRole('button', { name: 'Даю согласие показать карточку партнёрам' }).click();
-	await expect(candidatePage.getByText('Согласие дано: партнёры соревнования видят твою карточку')).toBeVisible();
+	await expect(candidatePage.getByText('Согласие дано: партнёры соревнования видят вашу карточку')).toBeVisible();
 	await expect(offer.getByTestId('partner-pool-granted')).toBeVisible();
 
 	await page.reload();

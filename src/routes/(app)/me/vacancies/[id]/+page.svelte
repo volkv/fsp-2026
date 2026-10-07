@@ -83,7 +83,7 @@
 </SectionCard>
 
 {#if card.application}
-	<SectionCard title="Твой отклик" testId="own-application">
+	<SectionCard title="Ваш отклик" testId="own-application">
 		<p class="flex flex-wrap items-center gap-2 text-sm">
 			<StatusPill
 				label={APPLICATION_STATUS[card.application.status].label}
@@ -102,7 +102,7 @@
 {:else if card.disclosureDocument}
 	<SectionCard
 		title="Откликнуться"
-		description="С откликом компания получит выбранные контакты — только эта компания. Раскрытие записывается в журнал; отозвав отклик, ты закрываешь компании дальнейший доступ."
+		description="С откликом компания получит выбранные контакты — только эта компания. Раскрытие записывается в журнал; отозвав отклик, вы закрываете компании дальнейший доступ."
 	>
 		<form method="POST" action="?/apply" use:enhance class="grid gap-4" data-testid="application-form">
 			<CsrfInput />

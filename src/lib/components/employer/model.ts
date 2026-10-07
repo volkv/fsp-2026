@@ -257,7 +257,7 @@ function roleNote(details: RoleDetails, labels: Labels): string | undefined {
 	}
 }
 
-/** Who reads a note: the company (HR language) or the candidate («ты»). */
+/** Who reads a note: the company (HR language) or the candidate («вы»). */
 export type Reader = 'company' | 'candidate';
 
 /** What the trust in the score rests on: confirmations of the required skills and the grade agreement. */
@@ -269,10 +269,10 @@ export function trustNote(details: TrustDetails, reader: Reader): string | undef
 			: `подтверждено ФСП или тестом: ${details.direct} из ${details.total}`) +
 		(details.public_profile > 0 ? `; по публичному профилю: ${details.public_profile}` : '');
 	if (details.grade_agreement_reason === 'candidate_grade_not_confirmed') {
-		return `${confirmed}; ${reader === 'company' ? 'грейд' : 'твой грейд'} в специализации вакансии тестом не подтверждён — доверие снижено`;
+		return `${confirmed}; ${reader === 'company' ? 'грейд' : 'ваш грейд'} в специализации вакансии тестом не подтверждён — доверие снижено`;
 	}
 	if (typeof details.grade_agreement === 'number' && details.grade_agreement < 1) {
-		const range = reader === 'company' ? 'диапазон грейда' : 'твой диапазон грейда';
+		const range = reader === 'company' ? 'диапазон грейда' : 'ваш диапазон грейда';
 		return `${confirmed}; ${range} совпадает с требуемым на ${percentOf(details.grade_agreement)}`;
 	}
 	return confirmed;

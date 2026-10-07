@@ -161,7 +161,7 @@
 					<OfferConversation
 						conversation={data.conversation}
 						otherName={invitation.candidatePseudonym ?? 'Кандидат'}
-						address="vy"
+						reader="company"
 					/>
 				</Card.Content>
 			</Card.Root>

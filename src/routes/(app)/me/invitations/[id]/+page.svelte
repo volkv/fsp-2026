@@ -109,8 +109,8 @@
 	<FormMessage
 		tone="success"
 		text={form.letterSent
-			? 'Ты принял приглашение. Законному представителю ушло письмо: контакты компания получит, когда он согласится.'
-			: 'Ты принял приглашение, но письмо представителю не ушло — отправь его ещё раз ниже.'}
+			? 'Вы приняли приглашение. Законному представителю ушло письмо: контакты компания получит, когда он согласится.'
+			: 'Вы приняли приглашение, но письмо представителю не ушло — отправьте его ещё раз ниже.'}
 	/>
 {:else if form && 'letterResent' in form}
 	<FormMessage tone="success" text="Письмо законному представителю отправлено ещё раз." />
@@ -137,7 +137,7 @@
 		title="Условия{shown.version > 1 ? ` · версия ${shown.version}` : ''}"
 		description="Отправлено {formatDateTime(
 			shown.createdAt
-		)}. Отправленные условия неизменны: пересмотр — новая версия, которую ты принимаешь отдельно."
+		)}. Отправленные условия неизменны: пересмотр — новая версия, которую вы принимаете отдельно."
 		testId="invitation-terms"
 	>
 		<div class="flex flex-wrap items-center justify-between gap-4">
@@ -159,7 +159,7 @@
 				</dd>
 			</div>
 			<div class="flex gap-1.5 sm:col-span-2">
-				<dt class="text-muted-foreground">Твоя категория в предложении:</dt>
+				<dt class="text-muted-foreground">Ваша категория в предложении:</dt>
 				<dd>
 					{shown.category
 						? `${shown.category.specialization} · ${gradeName(labels, shown.category.grade)}`
@@ -202,7 +202,7 @@
 		{/if}
 		{#if accepted && current && accepted.id !== current.id}
 			<p class="rounded-lg bg-info-subtle p-3 text-sm text-info">
-				Ты принял версию {accepted.version}; она остаётся принятой, пока ты не ответишь на новую.
+				Вы приняли версию {accepted.version}; она остаётся принятой, пока вы не ответите на новую.
 			</p>
 		{/if}
 	</SectionCard>
@@ -212,7 +212,7 @@
 	title="О компании"
 	description={invitation.company.verification === 'verified'
 		? 'Компания проверена оператором платформы.'
-		: 'Компания не проверена оператором платформы: проверка необязательна, но учитывай это при ответе.'}
+		: 'Компания не проверена оператором платформы: проверка необязательна, но учитывайте это при ответе.'}
 	testId="offer-company"
 >
 	<p class="text-sm font-medium">
@@ -268,7 +268,7 @@
 		testId="awaiting-representative"
 	>
 		<p class="text-sm">
-			Ты принял приглашение {formatDateTime(awaiting.requestedAt)}. Представитель должен ответить до
+			Вы приняли приглашение {formatDateTime(awaiting.requestedAt)}. Представитель должен ответить до
 			<span class="font-medium">{formatDateTime(awaiting.dueAt)}</span> — это срок ответа на приглашение; без его согласия
 			приглашение закроется.
 		</p>
@@ -352,7 +352,7 @@
 				<label class="grid gap-1.5 text-sm">
 					<span>Причина</span>
 					<select name="reason_code" class={selectClass} required={card.decline.reasonRequired}>
-						<option value="">{card.decline.reasonRequired ? '— выбери —' : '— не указывать —'}</option>
+						<option value="">{card.decline.reasonRequired ? '— выберите —' : '— не указывать —'}</option>
 						{#each card.decline.reasonCodes as code (code)}
 							<option value={code}>{reasonText(code)}</option>
 						{/each}
@@ -376,7 +376,7 @@
 {#if invitation.status === 'accepted'}
 	<SectionCard
 		title="Раскрытые контакты"
-		description="Отзыв закрывает компании доступ к твоей карточке получателя сразу. Уже переданные контакты остаются у компании — так сказано в тексте согласия."
+		description="Отзыв закрывает компании доступ к вашей карточке получателя сразу. Уже переданные контакты остаются у компании — так сказано в тексте согласия."
 		testId="disclosure"
 	>
 		{#if card.disclosedFields.length > 0}
@@ -389,7 +389,7 @@
 			</form>
 		{:else}
 			<p class="text-sm text-muted-foreground">
-				Согласие на раскрытие отозвано: компания больше не видит твои контакты.
+				Согласие на раскрытие отозвано: компания больше не видит ваши контакты.
 			</p>
 		{/if}
 	</SectionCard>
@@ -398,10 +398,10 @@
 {#if invitation.status === 'accepted' || data.conversation.messages.length > 0}
 	<SectionCard
 		title="Переписка с компанией"
-		description="Принятое приглашение — это согласие пообщаться с компанией, а не согласие на работу. Переписку видишь ты и сотрудники этой компании; отзыв согласия на раскрытие контактов её закрывает."
+		description="Принятое приглашение — это согласие пообщаться с компанией, а не согласие на работу. Переписку видите вы и сотрудники этой компании; отзыв согласия на раскрытие контактов её закрывает."
 		testId="conversation"
 	>
-		<OfferConversation conversation={data.conversation} otherName={invitation.company.displayName} address="ty" />
+		<OfferConversation conversation={data.conversation} otherName={invitation.company.displayName} reader="candidate" />
 	</SectionCard>
 {/if}
 
@@ -420,7 +420,7 @@
 {/if}
 
 {#if invitation.versions.length > 1}
-	<SectionCard title="История версий" description="Каждая версия условий хранится неизменной вместе с твоим ответом.">
+	<SectionCard title="История версий" description="Каждая версия условий хранится неизменной вместе с вашим ответом.">
 		<ol class="grid gap-2 text-sm">
 			{#each [...invitation.versions].reverse() as version (version.id)}
 				<li class="grid gap-1 rounded-lg border p-3">
@@ -449,7 +449,7 @@
 
 <SectionCard
 	title="Жалоба на предложение"
-	description="Если компания ведёт себя недобросовестно, расскажи оператору ФСП. Компания не узнает, кто пожаловался, и не увидит текст; обоснованная жалоба попадает в факты о компании, которые видят другие кандидаты."
+	description="Если компания ведёт себя недобросовестно, расскажите оператору ФСП. Компания не узнает, кто пожаловался, и не увидит текст; обоснованная жалоба попадает в факты о компании, которые видят другие кандидаты."
 	testId="offer-complaint"
 >
 	{#if complaint}
@@ -479,7 +479,7 @@
 				<label class="grid gap-1.5">
 					<span>Что случилось</span>
 					<select name="reason_code" class={selectClass} required>
-						<option value="">— выбери —</option>
+						<option value="">— выберите —</option>
 						{#each Object.entries(COMPLAINT_REASONS) as [code, label] (code)}
 							<option value={code}>{label}</option>
 						{/each}

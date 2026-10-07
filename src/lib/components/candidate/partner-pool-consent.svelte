@@ -33,12 +33,12 @@
 
 {#if !adult}
 	<p class="text-sm" data-testid="partner-pool-minor">
-		Пулы партнёров соревнований — только с 18 лет. До совершеннолетия работодатель увидит тебя лишь в контексте
+		Пулы партнёров соревнований — только с 18 лет. До совершеннолетия работодатель увидит вас лишь в контексте
 		подходящей стажировки.
 	</p>
 {:else if offers.length === 0}
 	<p class="text-sm text-muted-foreground">
-		Сейчас нет соревнований, где ты в финале и у которых есть действующие партнёры. Когда оператор ФСП откроет
+		Сейчас нет соревнований, где вы в финале и у которых есть действующие партнёры. Когда оператор ФСП откроет
 		партнёрство, здесь появится отдельное согласие для этого соревнования.
 	</p>
 {:else}
@@ -51,7 +51,7 @@
 						<span class="font-medium">{offer.competition?.title ?? `Соревнование ${offer.competitionRef}`}</span>
 						{#if offer.result}
 							<span class="text-muted-foreground">
-								Твой результат: {awardText(offer.result.award)}{offer.result.place !== null
+								Ваш результат: {awardText(offer.result.award)}{offer.result.place !== null
 									? `, ${offer.result.place} место`
 									: ''}{offer.competition ? ` · ${formatDate(offer.competition.startDate)}` : ''}
 							</span>
@@ -70,7 +70,7 @@
 					</p>
 					<p>
 						<span class="font-medium">Что увидят:</span> карточку под псевдонимом, как в каталоге: категорию, навыки с квитанциями
-						и точный результат этого соревнования. Имя и контакты — только после принятого приглашения и твоего согласия на
+						и точный результат этого соревнования. Имя и контакты — только после принятого приглашения и вашего согласия на
 						раскрытие.
 					</p>
 				</div>
@@ -91,7 +91,7 @@
 						<input type="hidden" name="competitionRef" value={offer.competitionRef} />
 						{#if offer.consent && offer.newPartners.length > 0}
 							<p>
-								Новые партнёры: {offer.newPartners.join(', ')}. Они не видят тебя, пока ты не дашь согласие заново.
+								Новые партнёры: {offer.newPartners.join(', ')}. Они не видят вас, пока вы не дадите согласие заново.
 							</p>
 						{/if}
 						<details class="rounded-lg border" open={!offer.consent}>

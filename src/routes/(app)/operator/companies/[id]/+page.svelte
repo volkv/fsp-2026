@@ -152,7 +152,10 @@
 						<Button type="submit" class="justify-self-start">Вернуть к работе</Button>
 					</form>
 				{:else}
-					<p class="text-muted-foreground">Проверка компании отклонена: её действия закрыты.</p>
+					<p class="text-muted-foreground">
+						Проверка компании отклонена: каталог, вакансии и предложения закрыты, пока владелец не исправит данные и не
+						подаст заявку снова.
+					</p>
 				{/if}
 			</Card.Content>
 		</Card.Root>

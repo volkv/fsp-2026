@@ -42,7 +42,7 @@
 
 {#if data.activeAttemptId}
 	<div class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-info/30 bg-info-subtle p-4">
-		<p class="text-sm">У тебя идёт попытка теста. Новую можно начать, когда эта закончится.</p>
+		<p class="text-sm">У вас идёт попытка теста. Новую можно начать, когда эта закончится.</p>
 		<a
 			href={resolve('/(app)/me/tests/attempts/[attemptId]', { attemptId: data.activeAttemptId })}
 			class={buttonVariants()}
@@ -101,7 +101,7 @@
 	{/each}
 {/if}
 
-<SectionCard title="Попытки" description="Все твои попытки и решения, новые сверху." testId="attempts">
+<SectionCard title="Попытки" description="Все ваши попытки и решения, новые сверху." testId="attempts">
 	{#if data.attempts.length === 0}
 		<p class="text-sm text-muted-foreground">Попыток пока нет.</p>
 	{:else}

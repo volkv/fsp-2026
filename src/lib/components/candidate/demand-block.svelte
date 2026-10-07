@@ -49,7 +49,7 @@
 	import SectionCard from './section-card.svelte';
 
 	/**
-	 * «Что ищет рынок в твоей категории»: the most required skills of the active vacancies of the candidate's category —
+	 * «Что ищет рынок в вашей категории»: the most required skills of the active vacancies of the candidate's category —
 	 * of the roles its specialization serves, of its grade and the next one — that the candidate has not confirmed, with their share of the vacancies, where the count comes from, and how
 	 * each skill can be confirmed. A share is the market's demand, never a promise of an invitation or a grade.
 	 */
@@ -85,8 +85,8 @@
 </script>
 
 <SectionCard
-	title="Что ищет рынок в твоей категории"
-	description="Самые частые обязательные навыки активных вакансий твоей категории — её специализации, твоего грейда и следующего — те, которых у тебя нет или которые не подтверждены. Доля — это спрос рынка, а не гарантия: подтверждённый навык не обещает ни приглашения, ни повышения грейда."
+	title="Что ищет рынок в вашей категории"
+	description="Самые частые обязательные навыки активных вакансий вашей категории — её специализации, вашего грейда и следующего — те, которых у вас нет или которые не подтверждены. Доля — это спрос рынка, а не гарантия: подтверждённый навык не обещает ни приглашения, ни повышения грейда."
 	testId="market-demand"
 >
 	{#if demand.status === 'no_category'}
@@ -95,7 +95,7 @@
 		/>
 	{:else if demand.status === 'evidence_recalculating'}
 		<InsufficientData
-			hint="Основания профиля пересчитываются — спрос посчитаем, когда станет известно, что у тебя подтверждено."
+			hint="Основания профиля пересчитываются — спрос посчитаем, когда станет известно, что у вас подтверждено."
 		/>
 	{:else if demand.status === 'insufficient_data'}
 		<div class="grid gap-2" data-demand-state="insufficient_data">
@@ -134,7 +134,7 @@
 
 			{#if available.gaps.length === 0}
 				<p class="text-sm" data-testid="demand-no-gaps">
-					Все частые требования вакансий {cohort} у тебя уже подтверждены.
+					Все частые требования вакансий {cohort} у вас уже подтверждены.
 				</p>
 			{:else}
 				<ul class="grid gap-3" data-testid="demand-gaps">
@@ -194,8 +194,8 @@
 				</p>
 			{/if}
 			<p class="text-xs text-muted-foreground">
-				Доля считает, как часто навык обязателен в вакансиях, и не измеряет, насколько он поможет именно тебе: вакансии
-				с навыком — не обещание приглашения. Грейд ставят по подтверждённым основаниям, а не по закрытым пунктам этого
+				Доля считает, как часто навык обязателен в вакансиях, и не измеряет, насколько он поможет именно вам: вакансии с
+				навыком — не обещание приглашения. Грейд ставят по подтверждённым основаниям, а не по закрытым пунктам этого
 				списка.
 			</p>
 		</div>

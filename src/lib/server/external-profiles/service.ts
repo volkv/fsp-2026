@@ -189,7 +189,7 @@ export async function startLink(
 			.for('update');
 		if (existing?.status === 'verified') {
 			throw new ApiError('conflict', {
-				message: `Профиль ${PLATFORM_NAMES[request.platform]} уже привязан: отвяжи его, чтобы привязать другой`
+				message: `Профиль ${PLATFORM_NAMES[request.platform]} уже привязан: отвяжите его, чтобы привязать другой`
 			});
 		}
 		const challenge = {
@@ -505,7 +505,7 @@ export async function refreshOwnProfile(
 	if (last !== undefined && now.getTime() - last < MANUAL_REFRESH_INTERVAL_MS) {
 		const seconds = Math.ceil((last + MANUAL_REFRESH_INTERVAL_MS - now.getTime()) / 1000);
 		throw new ApiError('rate_limited', {
-			message: `Профиль сверялся только что: повтори через ${Math.ceil(seconds / 60)} мин.`,
+			message: `Профиль сверялся только что: повторите через ${Math.ceil(seconds / 60)} мин.`,
 			retryAfterSeconds: seconds
 		});
 	}

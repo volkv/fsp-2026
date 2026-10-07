@@ -68,12 +68,12 @@ const COMPONENT_REASONS: Record<string, string> = {
 	no_published_run: 'основания профиля ещё не рассчитаны',
 	run_below_evidence_floor: 'профиль пересчитывается после изменения оснований',
 	vacancy_grade_unknown: 'грейд вакансии не указан',
-	category_not_confirmed: 'твоя категория не подтверждена: пройди тест на грейд',
-	specialization_other: 'твоя категория — другой специализации',
+	category_not_confirmed: 'ваша категория не подтверждена: пройдите тест на грейд',
+	specialization_other: 'ваша категория — другой специализации',
 	candidate_grade_not_confirmed: 'грейд в специализации вакансии тестом не подтверждён',
 	vacancy_role_unknown: 'роль вакансии не указана',
 	vacancy_role_without_specialization: 'роль вакансии не относится к специализациям тестов',
-	candidate_expectation_missing: 'ты не указал ожидания по зарплате',
+	candidate_expectation_missing: 'вы не указали ожидания по зарплате',
 	vacancy_salary_missing: 'в вакансии нет вилки',
 	different_terms: 'разные валюта, период или налоговая база — сравнивать нельзя',
 	no_active_space: 'смысловой поиск выключен — считаем по навыкам',
@@ -92,7 +92,7 @@ const range = (labels: Labels, value: { min: string; max: string }) =>
 
 const VERIFY: Record<string, string> = {
 	category_not_confirmed:
-		'Категория не подтверждена: без теста на грейд ты в подборках только отдельной группой «грейд не подтверждён» после подтверждённых и в поиске по всей базе — пройди тест.',
+		'Категория не подтверждена: без теста на грейд вы в подборках только отдельной группой «грейд не подтверждён» после подтверждённых и в поиске по всей базе — пройдите тест.',
 	salary_not_comparable: 'Зарплату сравнить нельзя: разные валюта, период или налоговая база.',
 	salary_expectation_missing: 'Ожидания по зарплате не указаны.',
 	profile_recalculating: 'Профиль пересчитывается — соответствие уточнится.',
@@ -104,7 +104,7 @@ function verifyText(item: { code: string; skill_key?: string }, labels: Labels):
 	const skill = item.skill_key ? skillName(labels, item.skill_key) : '';
 	switch (item.code) {
 		case 'skill_claimed':
-			return `${skill}: только заявлено — будь готов показать на деле.`;
+			return `${skill}: только заявлено — будьте готовы показать на деле.`;
 		case 'skill_derived':
 			return `${skill}: выведено правилом из других фактов, прямого подтверждения нет.`;
 		case 'skill_weak_evidence':
@@ -115,12 +115,12 @@ function verifyText(item: { code: string; skill_key?: string }, labels: Labels):
 }
 
 function gapText(item: MatchResultData['explanation']['gaps'][number], labels: Labels): string {
-	if (item.code === 'specialization_other') return 'Твоя категория — другой специализации, чем у вакансии.';
+	if (item.code === 'specialization_other') return 'Ваша категория — другой специализации, чем у вакансии.';
 	if (item.code === 'grade_below')
 		return `Грейд ниже требуемого на ${item.steps} ${item.steps === 1 ? 'ступень' : 'ступени'}.`;
 	const skill = skillName(labels, item.skill_key);
 	return item.code === 'required_skill_missing'
-		? `Апсолв: подтверди обязательный навык «${skill}» — тестом платформы, профилем или опытом в резюме.`
+		? `Апсолв: подтвердите обязательный навык «${skill}» — тестом платформы, профилем или опытом в резюме.`
 		: `Плюсом будет «${skill}» (желательный навык).`;
 }
 
@@ -129,9 +129,9 @@ function roleNote(details: MatchResultData['components']['role']['details'], lab
 		(keys ?? []).map((key) => labels.specializations[key] ?? key).join(', ');
 	switch (details.basis) {
 		case 'same_specialization':
-			return `твоя категория ${names(details.candidate)} — специализация вакансии`;
+			return `ваша категория ${names(details.candidate)} — специализация вакансии`;
 		case 'other_specialization':
-			return `твоя категория ${names(details.candidate)}, у вакансии — ${names(details.specializations)}`;
+			return `ваша категория ${names(details.candidate)}, у вакансии — ${names(details.specializations)}`;
 		default:
 			return undefined;
 	}
@@ -175,19 +175,19 @@ export function candidateMatchView(result: MatchResultData, labels: Labels): Mat
 				case 'role':
 					return {
 						requirement: roleName(labels, item.role_key),
-						evidence: 'специализация вакансии — твоя категория',
+						evidence: 'специализация вакансии — ваша категория',
 						trust: 'derived'
 					};
 				case 'grade':
 					return {
 						requirement: `Грейд ${range(labels, item.vacancy)}`,
-						evidence: `твой грейд ${range(labels, item.candidate)} подтверждён тестом`,
+						evidence: `ваш грейд ${range(labels, item.candidate)} подтверждён тестом`,
 						trust: 'derived'
 					};
 				case 'salary':
 					return {
 						requirement: 'Зарплата',
-						evidence: item.comparison === 'lower' ? 'вилка выше твоих ожиданий' : 'вилка сходится с твоими ожиданиями',
+						evidence: item.comparison === 'lower' ? 'вилка выше ваших ожиданий' : 'вилка сходится с вашими ожиданиями',
 						trust: 'claimed'
 					};
 			}

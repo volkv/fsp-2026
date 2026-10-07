@@ -144,7 +144,7 @@ function platformOf(form: FormData): ExternalPlatform {
 	const platform = PLATFORMS.find((value) => value === formText(form, 'platform'));
 	if (!platform) {
 		throw new ApiError('validation_failed', {
-			details: [{ path: 'platform', code: 'invalid_platform', message: 'Выбери Codeforces или GitHub' }]
+			details: [{ path: 'platform', code: 'invalid_platform', message: 'Выберите Codeforces или GitHub' }]
 		});
 	}
 	return platform;
@@ -179,18 +179,18 @@ function confirmMessage(platform: ExternalPlatform, outcome: ConfirmOutcome): { 
 		case 'code_not_found':
 			return {
 				ok: false,
-				text: `Код не найден в профиле ${name}. Проверь, что он сохранён и виден публично, и повтори.`
+				text: `Код не найден в профиле ${name}. Проверьте, что он сохранён и виден публично, и повторите.`
 			};
 		case 'handle_not_found':
-			return { ok: false, text: `${name} не знает такого профиля. Проверь написание.` };
+			return { ok: false, text: `${name} не знает такого профиля. Проверьте написание.` };
 		case 'handle_taken':
 			return { ok: false, text: 'Этот профиль уже подтверждён другим пользователем платформы.' };
 		case 'expired':
-			return { ok: false, text: 'Срок кода истёк. Получи новый код.' };
+			return { ok: false, text: 'Срок кода истёк. Получите новый код.' };
 		case 'attempts_exhausted':
-			return { ok: false, text: 'Проверок этого кода больше не осталось. Получи новый код.' };
+			return { ok: false, text: 'Проверок этого кода больше не осталось. Получите новый код.' };
 		case 'source_unavailable':
-			return { ok: false, text: `Проверить не удалось: ${name} ${SOURCE_FAILURES[outcome.reason]}. Повтори позже.` };
+			return { ok: false, text: `Проверить не удалось: ${name} ${SOURCE_FAILURES[outcome.reason]}. Повторите позже.` };
 	}
 }
 
@@ -207,7 +207,7 @@ function refreshMessage(platform: ExternalPlatform, outcome: RefreshOutcome): { 
 				text: `Сверить не удалось: ${name} ${SOURCE_FAILURES[outcome.reason]}. Данные профиля прежние.`
 			};
 		case 'stale':
-			return { ok: false, text: 'Профиль изменился, пока шла сверка. Обнови страницу.' };
+			return { ok: false, text: 'Профиль изменился, пока шла сверка. Обновите страницу.' };
 	}
 }
 
@@ -325,7 +325,10 @@ export const actions: Actions = {
 		try {
 			const platform = platformOf(form);
 			await startLink(externalProfileDeps(), subject, { platform, handle: formText(form, 'handle') }, meta);
-			return { target: 'link', message: { ok: true, text: 'Код выдан: добавь его в профиль и нажми «Проверить».' } };
+			return {
+				target: 'link',
+				message: { ok: true, text: 'Код выдан: добавьте его в профиль и нажмите «Проверить».' }
+			};
 		} catch (cause) {
 			return targetFailure(cause, 'link');
 		}

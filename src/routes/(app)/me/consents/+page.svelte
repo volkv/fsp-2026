@@ -26,7 +26,7 @@
 
 <PageHeader
 	title="Согласия"
-	description="Основание, на котором ведётся твой профиль, и кто его подписал. До 18 лет каждое согласие действует, когда его дали и ты, и законный представитель."
+	description="Основание, на котором ведётся ваш профиль, и кто его подписал. До 18 лет каждое согласие действует, когда его дали и вы, и законный представитель."
 >
 	{#snippet eyebrow()}<a class="underline underline-offset-4" href={resolve('/me/profile')}>Профиль</a>{/snippet}
 	{#snippet actions()}
@@ -49,7 +49,7 @@
 
 <SectionCard
 	title="Обработка персональных данных"
-	description="Без этого согласия профиль не ведётся: резюме не разбирается, категория не считается, работодатели тебя не видят."
+	description="Без этого согласия профиль не ведётся: резюме не разбирается, категория не считается, работодатели вас не видят."
 	testId="processing-consent"
 >
 	<p
@@ -62,17 +62,17 @@
 		{:else if data.processing.ownSigned && data.regime === 'minor'}
 			<StatusPill label="Ждёт подписи представителя" tone="warning" />
 		{:else}
-			<StatusPill label="Нужна твоя подпись" tone="warning" />
+			<StatusPill label="Нужна ваша подпись" tone="warning" />
 		{/if}
 	</p>
 	{#if data.processing.document}
 		{#if data.regime === 'adult'}
 			<p class="text-sm">
-				Тебе исполнилось 18: согласия, подписанные до совершеннолетия, больше не действуют. Подтверди согласие сам —
+				Вам исполнилось 18: согласия, подписанные до совершеннолетия, больше не действуют. Подтвердите согласие сами —
 				после этого профиль снова обрабатывается, а показ работодателям включается на странице видимости.
 			</p>
 		{:else}
-			<p class="text-sm">Текст согласия обновился: прочитай новую редакцию и подпиши её.</p>
+			<p class="text-sm">Текст согласия обновился: прочитайте новую редакцию и подпишите её.</p>
 		{/if}
 		<details class="rounded-lg border text-sm" open>
 			<summary class="cursor-pointer px-3 py-2 font-medium">
@@ -178,7 +178,7 @@
 						</span>
 						<span class="flex flex-wrap gap-2">
 							<StatusPill
-								label={consent.candidate ? 'Ты: дано' : 'Ты: не дано'}
+								label={consent.candidate ? 'Вы: дано' : 'Вы: не дано'}
 								tone={consent.candidate ? 'success' : 'neutral'}
 							/>
 							<StatusPill
@@ -209,7 +209,7 @@
 	{#if data.waiting.length > 0}
 		<SectionCard
 			title="Ждут согласия представителя"
-			description="Ты принял эти приглашения; контакты компания получит, когда согласится представитель. Ответить он должен до срока ответа на приглашение."
+			description="Вы приняли эти приглашения; контакты компания получит, когда согласится представитель. Ответить он должен до срока ответа на приглашение."
 			testId="waiting-invitations"
 		>
 			<ul class="grid gap-2 text-sm">

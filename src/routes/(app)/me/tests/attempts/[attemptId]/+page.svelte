@@ -136,7 +136,7 @@
 				</p>
 			{/each}
 			<div class="grid gap-2 rounded-lg border border-info/30 bg-info-subtle p-3" data-testid="change-step">
-				<p class="font-medium">Измени своё решение</p>
+				<p class="font-medium">Шаг «измени своё решение»</p>
 				<StatementView blocks={current.stepBlocks} />
 				{#if current.changeStep.specification}
 					<p class="text-sm whitespace-pre-wrap">{current.changeStep.specification}</p>
@@ -155,7 +155,7 @@
 {:else if attempt.waitingSandbox}
 	<p class="flex items-center gap-2 rounded-xl border p-4 text-sm" role="status" data-testid="waiting-sandbox">
 		<LoaderIcon class="size-4 animate-spin text-muted-foreground" aria-hidden="true" />
-		Практика проверяется в песочнице. Сбой песочницы не засчитывается против тебя: проверка повторится, а при повторном сбое
+		Практика проверяется в песочнице. Сбой песочницы не засчитывается против вас: проверка повторится, а при повторном сбое
 		попытку разберёт оператор ФСП.
 	</p>
 {/if}
@@ -170,7 +170,7 @@
 						<span class="text-muted-foreground">{ITEM_STATUSES[item.status]}</span>
 					</p>
 					<details>
-						<summary class="cursor-pointer text-muted-foreground">Условие и твой ответ</summary>
+						<summary class="cursor-pointer text-muted-foreground">Условие и ваш ответ</summary>
 						<div class="mt-2 grid gap-2">
 							<StatementView blocks={item.blocks} />
 							{#if item.statement.code}

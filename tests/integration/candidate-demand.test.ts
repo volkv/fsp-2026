@@ -1,4 +1,4 @@
-// «Что ищет рынок в твоей категории» against the database (CONCEPT, promises 3 and 5): the required skills of the open
+// «Что ищет рынок в вашей категории» against the database (CONCEPT, promises 3 and 5): the required skills of the open
 // vacancies the candidate can reach, counted in the roles of the category's specialization and its grade with the next
 // one, the gaps among them with the way to confirm each, the whole specialization when the grade has too few vacancies,
 // and «недостаточно данных» below the minimal sample of `market_policy`. The published taxonomy and assessment bank are

@@ -1,7 +1,7 @@
 /**
  * Wording of the candidate cabinet: the codes the services store (fact sources, statuses of objections, reasons) and
- * the words the candidate reads. The cabinet speaks to the candidate on «ты»; the sport register is allowed here and
- * nowhere else (CONCEPT).
+ * the words the candidate reads. The product speaks to the candidate on «вы», as to the company; the sport register is
+ * allowed here and nowhere else (CONCEPT).
  */
 import {
 	AWARDS,
@@ -46,14 +46,14 @@ export const FACT_SOURCES: Record<FactSource, string> = {
 
 /** `source_facts.ownership_basis`: how the fact is tied to you. */
 export const OWNERSHIP_BASES: Record<string, string> = {
-	athlete_link: 'спортсмен связан через ФСП ID, импорт — по твоему согласию',
+	athlete_link: 'спортсмен связан через ФСП ID, импорт — по вашему согласию',
 	operator_confirmed: 'связь со спортсменом подтвердил оператор ФСП',
 	protocol_self_claim: 'заявка по протоколу соревнования',
-	own_attempt: 'твоя попытка теста на платформе',
+	own_attempt: 'ваша попытка теста на платформе',
 	oauth_account: 'вход в аккаунт платформы',
 	handle_challenge: 'проверка владения профилем',
-	self_upload: 'загружено тобой',
-	self_declared: 'указано тобой'
+	self_upload: 'загружено вами',
+	self_declared: 'указано вами'
 };
 
 export type FactStatus = 'active' | 'superseded' | 'withdrawn' | 'annulled';
@@ -215,7 +215,7 @@ export const OBJECTION_STATUSES: Record<
 	open: { label: 'Подано, ждёт оператора', tone: 'info' },
 	in_review: { label: 'На рассмотрении у оператора ФСП', tone: 'info' },
 	resolved: { label: 'Рассмотрено', tone: 'success' },
-	withdrawn: { label: 'Отозвано тобой', tone: 'neutral' }
+	withdrawn: { label: 'Отозвано вами', tone: 'neutral' }
 };
 
 /** The outcomes of an objection the operator answered with (domain 12.5). */
@@ -232,11 +232,11 @@ export type SearchStatus = 'active' | 'open_to_offers' | 'not_looking';
 export const SEARCH_STATUSES: Record<SearchStatus, { label: string; hint: string }> = {
 	active: {
 		label: 'Активно ищу',
-		hint: 'Работодатели видят, что ты в поиске, и могут пригласить с вакансией и зарплатой.'
+		hint: 'Работодатели видят, что вы в поиске, и могут пригласить с вакансией и зарплатой.'
 	},
 	open_to_offers: {
 		label: 'Открыт к предложениям',
-		hint: 'Не ищешь активно, но интересные приглашения рассмотришь.'
+		hint: 'Не ищете активно, но интересные приглашения рассмотрите.'
 	},
 	not_looking: {
 		label: 'Не ищу',
@@ -248,7 +248,7 @@ export const HIDDEN_REASONS: Record<string, string> = {
 	hidden_by_candidate: 'Показ в каталоге выключен.',
 	not_looking: 'Статус поиска «Не ищу»: профиль не показывается в каталоге.',
 	no_catalog_consent: 'Нет согласия на показ профиля работодателям.',
-	representative_consent_missing: 'Твоё согласие дано, нужно ещё согласие законного представителя.',
+	representative_consent_missing: 'Ваше согласие дано, нужно ещё согласие законного представителя.',
 	minor_vacancy_context:
 		'До 18 лет профиль виден только в контексте конкретной подходящей вакансии (стажировки), не всему каталогу.',
 	minors_disabled: 'Показ профилей до 18 лет на платформе сейчас выключен.',
@@ -258,7 +258,7 @@ export const HIDDEN_REASONS: Record<string, string> = {
 export const CATALOG_SCOPE: Record<'fsp_achievements_exact' | 'external_profiles', { label: string; hint: string }> = {
 	fsp_achievements_exact: {
 		label: 'Точные достижения ФСП',
-		hint: 'Соревнование, этап, место, команда и ссылка на протокол. По ним тебя можно узнать.'
+		hint: 'Соревнование, этап, место, команда и ссылка на протокол. По ним вас можно узнать.'
 	},
 	external_profiles: {
 		label: 'Публичные профили',

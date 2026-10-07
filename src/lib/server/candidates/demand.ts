@@ -1,4 +1,4 @@
-// «Что ищет рынок в твоей категории» (CONCEPT, promises 3 and 5; docs/domain.md 12.10, 13.9): how often the vacancies
+// «Что ищет рынок в вашей категории» (CONCEPT, promises 3 and 5; docs/domain.md 12.10, 13.9): how often the vacancies
 // of the candidate's category — of the roles its specialization serves, and of its grade with the next one — require
 // each skill, and which of the most required skills the candidate has not confirmed yet, with the way to confirm each:
 // a platform test or an FSP result. The share is
@@ -6,7 +6,7 @@
 //
 // The counting of required skills over a set of vacancies is shared with the operator's feedback «market ↔ FSP»
 // (`operator/skills-feedback.ts`); the sets differ. The candidate counts the vacancies open right now and within their
-// reach — what the feed «Вакансии для тебя» ranks, a clone of a demo session seeing its session (domain 19.3); the
+// reach — what the feed «Вакансии для вас» ranks, a clone of a demo session seeing its session (domain 19.3); the
 // operator counts every vacancy seen in the window outside demo sessions.
 import { and, eq, inArray, sql, type SQL } from 'drizzle-orm';
 import { can, type AccessSubject } from '$lib/server/access/permissions';

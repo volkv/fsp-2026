@@ -83,7 +83,7 @@
 			<!-- How the current resume was read, or why it was not, is told below the list. -->
 			{#if !upload.isCurrent}
 				<p class="text-xs text-muted-foreground">
-					Заменено новым файлом и в профиле не учитывается. Удали, если хранить его больше не нужно.
+					Заменено новым файлом и в профиле не учитывается. Удалите, если хранить его больше не нужно.
 				</p>
 			{/if}
 		</li>

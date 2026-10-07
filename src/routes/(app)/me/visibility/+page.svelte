@@ -31,7 +31,7 @@
 
 <PageHeader
 	title="Видимость и согласия"
-	description="Приватность по умолчанию: профиль видят только проверенные компании и только по твоему согласию. Каждое согласие — отдельно, и его можно отозвать."
+	description="Приватность по умолчанию: профиль видят только проверенные компании и только по вашему согласию. Каждое согласие — отдельно, и его можно отозвать."
 >
 	{#snippet eyebrow()}<a class="underline underline-offset-4" href={resolve('/me/profile')}>Профиль</a>{/snippet}
 </PageHeader>
@@ -41,9 +41,9 @@
 {:else if form && 'catalogSaved' in form}
 	<FormMessage tone="success" text="Сохранено: состав карточки в каталоге обновлён." />
 {:else if form && 'catalogRevoked' in form}
-	<FormMessage tone="success" text="Показ в каталоге выключен. Ты исчез из поиска работодателей." />
+	<FormMessage tone="success" text="Показ в каталоге выключен. Вы исчезли из поиска работодателей." />
 {:else if form && 'poolGranted' in form}
-	<FormMessage tone="success" text="Согласие дано: партнёры соревнования видят твою карточку в своём пуле." />
+	<FormMessage tone="success" text="Согласие дано: партнёры соревнования видят вашу карточку в своём пуле." />
 {:else if form && 'poolRevoked' in form}
 	<FormMessage tone="success" text="Карточка убрана из пула партнёров этого соревнования." />
 {:else if form && 'disclosureRevoked' in form}
@@ -64,13 +64,13 @@
 	{#if overview.hiddenReason === null}
 		<EyeIcon class="mt-0.5 size-5 shrink-0 text-success" aria-hidden="true" />
 		<p class="text-sm">
-			<span class="font-medium">Проверенные работодатели находят тебя в каталоге.</span>
+			<span class="font-medium">Проверенные работодатели находят вас в каталоге.</span>
 			Они видят псевдоним, категорию, навыки с квитанциями и обобщённые достижения — без имени и контактов.
 		</p>
 	{:else}
 		<EyeOffIcon class="mt-0.5 size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
 		<p class="text-sm">
-			<span class="font-medium">Сейчас работодатели тебя не видят.</span>
+			<span class="font-medium">Сейчас работодатели вас не видят.</span>
 			{HIDDEN_REASONS[overview.hiddenReason]}
 		</p>
 	{/if}
@@ -87,13 +87,13 @@
 		</p>
 	{:else if !canGrant}
 		<p class="text-sm" data-testid="minor-regime">
-			Тебе меньше 18: профиль закрыт, пока оператор ФСП не подтвердит полномочия законного представителя. После этого
-			работодатель увидит тебя только в контексте подходящей стажировки, не во всём каталоге.
+			Вам меньше 18: профиль закрыт, пока оператор ФСП не подтвердит полномочия законного представителя. После этого
+			работодатель увидит вас только в контексте подходящей стажировки, не во всём каталоге.
 		</p>
 	{:else}
 		{#if overview.catalog.subjectGranted}
 			<p class="text-sm">
-				Твоё согласие дано{overview.catalog.grantedAt ? ` ${formatDate(overview.catalog.grantedAt)}` : ''}.
+				Ваше согласие дано{overview.catalog.grantedAt ? ` ${formatDate(overview.catalog.grantedAt)}` : ''}.
 				{#if !overview.catalog.effective}
 					<span class="text-muted-foreground">Оно вступит в силу вместе с согласием представителя.</span>
 				{/if}
@@ -154,8 +154,8 @@
 			<form method="POST" action="?/catalogRevoke" use:enhance class="grid gap-2 rounded-lg border border-dashed p-4">
 				<CsrfInput />
 				<p class="text-sm">
-					<span class="font-medium">Отозвать согласие.</span> Ты сразу пропадёшь из поиска и счётчиков. Уже раскрытые контакты
-					останутся у компаний, которым ты их передал; открытые приглашения останутся у тебя.
+					<span class="font-medium">Отозвать согласие.</span> Вы сразу пропадёте из поиска и счётчиков. Уже раскрытые контакты
+					останутся у компаний, которым вы их передали; открытые приглашения останутся у вас.
 				</p>
 				<Button type="submit" variant="outline" size="sm" class="justify-self-start">Выключить показ в каталоге</Button>
 			</form>
@@ -177,7 +177,7 @@
 	testId="disclosures"
 >
 	{#if overview.disclosures.length === 0}
-		<p class="text-sm text-muted-foreground">Ты никому не раскрывал контакты.</p>
+		<p class="text-sm text-muted-foreground">Вы никому не раскрывали контакты.</p>
 	{:else}
 		<ul class="grid gap-3">
 			{#each overview.disclosures as item (item.invitationId)}

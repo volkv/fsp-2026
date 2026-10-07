@@ -1,5 +1,5 @@
 /**
- * Wording of the test on a declared grade in the cabinets (to the candidate — on «ты»). The honest note is the product
+ * Wording of the test on a declared grade in the cabinets (to the candidate — on «вы»). The honest note is the product
  * promise in one place: a confirmed grade means the items of this test were done in its conditions — without
  * supervision, with limits and a journal of signals — not independent work and not the whole qualification; the
  * platform claims no detection of generated code.
@@ -9,7 +9,7 @@ export const HONEST_NOTE =
 	'Подтверждённый грейд значит одно: задания этого теста выполнены в его условиях — без надзора, с лимитами и журналом сигналов. Это не доказательство самостоятельного выполнения и не оценка всей квалификации. Обнаружение кода, написанного с помощью ИИ, мы не заявляем.';
 
 export const HOW_IT_DECIDES =
-	'Задания подаются по одному. После каждого ответа последовательная проверка сравнивает твои баллы с оценками пограничного кандидата грейда по тем же заданиям: тест заканчивается, как только решение уверенно, — не раньше шестого задания и не позже восемнадцатого. Если баллы остаются в полосе неопределённости, тест продлевается один раз; после продления возможен итог «не определено» — это не провал.';
+	'Задания подаются по одному. После каждого ответа последовательная проверка сравнивает ваши баллы с оценками пограничного кандидата грейда по тем же заданиям: тест заканчивается, как только решение уверенно, — не раньше шестого задания и не позже восемнадцатого. Если баллы остаются в полосе неопределённости, тест продлевается один раз; после продления возможен итог «не определено» — это не провал.';
 
 export const SIGNALS_NOTE =
 	'Во время попытки платформа записывает время ответа, вставки из буфера и уходы со страницы. Эти сигналы видят оператор ФСП при пересмотре и работодатель рядом с результатом. Они ничего не решают автоматически и не являются детекцией ИИ.';
@@ -58,8 +58,8 @@ export const OUTCOMES: Record<string, { label: string; tone: 'success' | 'warnin
 
 /** Why a test cannot start now (`BlockReason` of the grade policy), in the candidate's words. */
 export const BLOCK_REASONS: Record<string, string> = {
-	attempt_in_progress: 'Сначала закончи идущую попытку.',
-	not_declared: 'Сначала заяви грейд в этой специализации.',
+	attempt_in_progress: 'Сначала закончите идущую попытку.',
+	not_declared: 'Сначала заявите грейд в этой специализации.',
 	above_declared: 'Выше заявленного грейда — сначала новое заявление.',
 	lower_requires_failure: 'Грейд ниже открывается после неудачи на грейде выше.',
 	below_confirmed: 'Ниже подтверждённого грейда тест не нужен.',
@@ -80,7 +80,7 @@ export const OPTION_KINDS: Record<string, string> = {
 /** Why an attempt was annulled, in the candidate's words. */
 export const ANNUL_REASONS: Record<string, string> = {
 	plagiarism: 'Оператор ФСП установил по ответам и коду, что задания выполнены не самостоятельно.',
-	candidate_request: 'Результат снят по твоей просьбе.',
+	candidate_request: 'Результат снят по вашей просьбе.',
 	technical_failure: 'Попытка сорвалась из-за технического сбоя на стороне платформы.',
 	version_defect: 'В задании этой версии банка нашлась ошибка.',
 	objection_upheld: 'Возражение против результата удовлетворено.'

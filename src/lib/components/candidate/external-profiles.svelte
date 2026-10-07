@@ -233,24 +233,24 @@
 								</p>
 								{#if profile.platform === 'codeforces'}
 									<p class="text-muted-foreground">
-										Открой <a
+										Откройте <a
 											class="text-link underline underline-offset-4"
 											href="https://codeforces.com/settings/social"
 											target="_blank"
 											rel="external noopener noreferrer">настройки Codeforces</a
-										>, впиши код в поле имени, фамилии или организации и сохрани. Потом нажми «Проверить» — код можно
-										будет убрать.
+										>, впишите код в поле имени, фамилии или организации и сохраните. Потом нажмите «Проверить» — код
+										можно будет убрать.
 									</p>
 								{:else}
 									<p class="text-muted-foreground">
-										Создай публичный <a
+										Создайте публичный <a
 											class="text-link underline underline-offset-4"
 											href="https://gist.github.com/"
 											target="_blank"
 											rel="external noopener noreferrer">gist</a
 										>
-										с кодом в описании или в имени файла — или добавь код в README репозитория
-										<span class="font-mono">{profile.handle}/{profile.handle}</span>. Потом нажми «Проверить».
+										с кодом в описании или в имени файла — или добавьте код в README репозитория
+										<span class="font-mono">{profile.handle}/{profile.handle}</span>. Потом нажмите «Проверить».
 									</p>
 								{/if}
 								<p class="text-xs text-muted-foreground">

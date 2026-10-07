@@ -57,8 +57,8 @@
 	const fieldError = (name: string) => problem?.fields[name];
 
 	const PERIOD_NOTES: Record<string, string> = {
-		missing: 'Период работы не найден — добавь его, иначе опыт не посчитается в грейде.',
-		invalid: 'Период не сходится: конец раньше начала или дата в будущем — поправь его.'
+		missing: 'Период работы не найден — добавьте его, иначе опыт не посчитается в грейде.',
+		invalid: 'Период не сходится: конец раньше начала или дата в будущем — поправьте его.'
 	};
 	const selectClass =
 		'h-9 w-full rounded-md border border-input bg-transparent px-2.5 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30';

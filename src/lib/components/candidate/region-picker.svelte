@@ -52,7 +52,7 @@
 			type="search"
 			bind:ref={search}
 			bind:value={query}
-			placeholder="Начни вводить название"
+			placeholder="Начните вводить название"
 			autocomplete="off"
 			onkeydown={(event: KeyboardEvent) => {
 				// Enter narrows the list, it does not send the whole form.

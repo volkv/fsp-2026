@@ -34,7 +34,8 @@
 	const open = $derived(v.state === 'pending' && company.status === 'submitted');
 	const DECIDED: Record<string, string> = {
 		approve: 'Компания подтверждена: в предложениях кандидатам у неё теперь метка «проверена».',
-		reject: 'Заявка отклонена, причина отправлена владельцу.',
+		reject:
+			'Заявка отклонена, причина отправлена владельцу. Каталог, вакансии и предложения компании закрыты, пока владелец не исправит данные и не подаст заявку снова.',
 		request_info: 'Заявка возвращена владельцу на уточнение.'
 	};
 	const size = (bytes: number) => `${Math.max(1, Math.round(bytes / 1024))} КБ`;
@@ -257,6 +258,11 @@
 							<Field.Description>От 10 символов: что не так или что уточнить.</Field.Description>
 							{#if fieldError('reason')}<Field.Error>{fieldError('reason')}</Field.Error>{/if}
 						</Field.Field>
+						<p class="rounded-md bg-warning-subtle p-3 text-warning" data-testid="rejection-consequence">
+							Проверка для компании добровольная, но отказ сразу закрывает ей каталог кандидатов, вакансии и предложения
+							и отзывает неотвеченные приглашения. Это действует, пока владелец не исправит данные и не подаст заявку
+							снова. Если данные нужно лишь дополнить, запросите уточнение: компания продолжит работать.
+						</p>
 						<div class="flex flex-wrap gap-2">
 							<Button type="submit" variant="outline" formaction="?/requestInfo">Запросить уточнение</Button>
 							<Button type="submit" variant="destructive" formaction="?/reject">Отклонить</Button>

@@ -92,7 +92,7 @@ export const actions: Actions = {
 				message:
 					result.reason === 'document_changed'
 						? 'Текст согласия обновился — прочитайте новую редакцию'
-						: 'Твоё согласие уже действует'
+						: 'Ваше согласие уже действует'
 			});
 		}
 		return { renewed: true };

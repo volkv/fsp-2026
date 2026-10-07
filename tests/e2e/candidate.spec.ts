@@ -358,7 +358,7 @@ test('a candidate sees the achievement with its receipt, a category without a gr
 	// Profile: the achievement, its receipt and the skills it counts toward.
 	await page.goto('/me');
 	await expect(page).toHaveURL(/\/me\/profile$/);
-	await expect(page.getByRole('heading', { level: 1 })).toHaveText('Твой профиль');
+	await expect(page.getByRole('heading', { level: 1 })).toHaveText('Ваш профиль');
 	const achievements = page.getByTestId('fsp-achievements');
 	await expect(achievements.getByTestId('fact-card')).toHaveCount(1);
 	await expect(achievements.getByText('AC · ФСП').first()).toBeVisible();
@@ -450,7 +450,7 @@ test('a candidate states the search terms, sees vacancies with the match and wha
 	await expectNoAxeViolations(page);
 
 	await page.goto('/me/vacancies');
-	await expect(page.getByRole('heading', { level: 1 })).toHaveText('Вакансии для тебя');
+	await expect(page.getByRole('heading', { level: 1 })).toHaveText('Вакансии для вас');
 	await page.getByRole('radio', { name: /Открыт к предложениям/ }).check();
 	await page.getByRole('button', { name: 'Сохранить статус' }).click();
 	await expect(page.getByText('Статус поиска сохранён.')).toBeVisible();

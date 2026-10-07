@@ -33,7 +33,7 @@
 
 {#if demand.status === 'available'}
 	<SectionCard
-		title="Спрос на твою категорию"
+		title="Спрос на вашу категорию"
 		description={`Потребности компаний, которые ищут ${labels.specializations[demand.category.specialization] ?? demand.category.specialization} ${gradeName(labels, demand.category.grade)}. Только агрегат: меньше ${demand.threshold} не показываем точно.`}
 		testId="need-demand"
 	>

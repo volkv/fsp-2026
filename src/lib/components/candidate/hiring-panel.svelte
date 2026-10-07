@@ -90,7 +90,7 @@
 	<HiringStages hiring={view} />
 	{#if process.otherSideDiffers}
 		<p class="rounded-lg bg-warning-subtle p-3 text-sm text-warning" data-testid="hiring-diverged">
-			Компания отметила исход иначе, чем ты. Расхождение видят обе стороны и оператор ФСП в агрегатах; причины другой
+			Компания отметила исход иначе, чем вы. Расхождение видят обе стороны и оператор ФСП в агрегатах; причины другой
 			стороны не показываются.
 		</p>
 	{/if}
@@ -120,14 +120,14 @@
 			{#if ownOutcome}
 				<input type="hidden" name="supersedes" value={ownOutcome.id} />
 				<p class="text-sm">
-					Ты сообщил: <span class="font-medium">{ownOutcome.outcome ? HIRING_OUTCOMES[ownOutcome.outcome] : '—'}</span>
+					Вы сообщили: <span class="font-medium">{ownOutcome.outcome ? HIRING_OUTCOMES[ownOutcome.outcome] : '—'}</span>
 					{#if ownOutcome.startDate}, выход {formatDate(ownOutcome.startDate)}{/if}. Можно исправить.
 				</p>
 			{/if}
 			<label class="grid gap-1.5 text-sm">
 				<span class="font-medium">{ownOutcome ? 'Исправить исход' : 'Сообщить исход'}</span>
 				<select name="outcome" class={selectClass} bind:value={chosenOutcome} required>
-					<option value="" disabled>— выбери —</option>
+					<option value="" disabled>— выберите —</option>
 					{#each outcomes as [key, label] (key)}
 						<option value={key}>{label}</option>
 					{/each}

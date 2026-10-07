@@ -41,7 +41,7 @@ const optional = (value: string) => (value.trim() === '' ? undefined : value.tri
 const LETTER_REFUSALS = {
 	not_applicable: 'Письмо сейчас не нужно: принятие больше не ждёт представителя.',
 	too_soon: 'Письмо только что отправлено — повторить можно через несколько минут.',
-	not_sent: 'Письмо не удалось отправить: почтовый сервер недоступен. Повтори позже.'
+	not_sent: 'Письмо не удалось отправить: почтовый сервер недоступен. Повторите позже.'
 } as const;
 
 export const actions: Actions = {

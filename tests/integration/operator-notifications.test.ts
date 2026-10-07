@@ -201,6 +201,27 @@ describe('company verification decisions', () => {
 		expect(await targetOf(toCoOwner)).toEqual({ kind: 'unavailable' });
 	});
 
+	it('tell the owner on a rejection what it closes and how to submit again', async () => {
+		const { db } = database;
+		const company = await createCompany(db, { status: 'submitted', verifiedAt: null, displayName: COMPANY_NAME });
+		const owner = await createMember(db, company.id);
+		const [verification] = await db
+			.insert(companyVerifications)
+			.values({ companyId: company.id, applicantMemberId: owner.id, authorityMethod: 'corporate_email_domain' })
+			.returning();
+		if (!verification) throw new Error('verification not inserted');
+		await decideVerification(companyDeps(), { subject: await operator(), meta: meta() }, verification.id, {
+			kind: 'reject',
+			reason: 'Реквизиты не совпадают с реестром'
+		});
+		const [rejection] = await notificationsOf(company.id);
+		if (!rejection) throw new Error('no rejection notification');
+		const letter = (await messagesOf(rejection))?.letter;
+		expect(letter?.subject).toBe('Заявка на проверку компании отклонена — ФСП | Карьера');
+		expect(letter?.text).toContain('каталог кандидатов, вакансии и предложения компании закрыты');
+		expect(letter?.text).toContain('Исправьте данные там же и подайте заявку снова');
+	});
+
 	it('are not created when the decision fails', async () => {
 		const { db } = database;
 		const company = await createCompany(db, { status: 'submitted', verifiedAt: null });
