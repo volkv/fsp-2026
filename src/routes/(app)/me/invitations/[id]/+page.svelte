@@ -15,6 +15,7 @@
 		REQUIRED_DISCLOSURE,
 		roleName,
 		skillName,
+		specializationName,
 		type DisclosureField
 	} from '$lib/components/candidate/model.js';
 	import SectionCard from '$lib/components/candidate/section-card.svelte';
@@ -162,7 +163,7 @@
 				<dt class="text-muted-foreground">Ваша категория в предложении:</dt>
 				<dd>
 					{shown.category
-						? `${shown.category.specialization} · ${gradeName(labels, shown.category.grade)}`
+						? `${specializationName(labels, shown.category.specialization)} · ${gradeName(labels, shown.category.grade)}`
 						: 'категория не подтверждена'}
 				</dd>
 			</div>
@@ -184,7 +185,7 @@
 			{/if}
 		</dl>
 		<div class="grid gap-1 rounded-lg border p-3 text-sm" data-testid="why-you">
-			<h3 class="font-semibold">Почему вы — что компания увидела в твоём профиле</h3>
+			<h3 class="font-semibold">Почему вы — что компания увидела в вашем профиле</h3>
 			<ul class="list-disc pl-5">
 				{#each shown.whyYou as point, index (index)}
 					<li>{point.text}</li>

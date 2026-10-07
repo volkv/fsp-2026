@@ -12,6 +12,7 @@ import { invitationDeps } from '$lib/server/invitations/deps';
 import {
 	offerFormContext,
 	offerFromForm,
+	offerTermsOfNeed,
 	pointOption,
 	whyYouFromShortlist,
 	whyYouOptions,
@@ -119,6 +120,7 @@ export const load: PageServerLoad = async (event) => {
 			fromShortlist: fromShortlist && {
 				shortlistId,
 				needId: fromShortlist.needId,
+				needTerms: offerTermsOfNeed(fromShortlist.form),
 				preselected: suggested.slice(0, 5).map((option) => option.key),
 				/** The candidate is of the group «грейд не подтверждён»: the offer records no confirmed category. */
 				gradeConfirmed: fromShortlist.match.group === 'confirmed',

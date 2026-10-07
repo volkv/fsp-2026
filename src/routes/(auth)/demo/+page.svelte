@@ -157,6 +157,13 @@
 									{#if data.session?.role === role.key}<Badge variant="outline">вы здесь</Badge>{/if}
 								</p>
 								<p class="text-sm text-muted-foreground">{role.part}</p>
+								{#if role.categories !== null}
+									<p class="text-sm" data-testid="demo-hero-categories">
+										{role.categories.length === 0
+											? 'Подтверждённой категории нет'
+											: `${role.categories.length === 1 ? 'Категория' : 'Категории'}: ${role.categories.join(', ')}`}
+									</p>
+								{/if}
 							</div>
 							<form
 								method="POST"

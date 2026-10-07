@@ -11,6 +11,7 @@ import type { Executor } from '$lib/server/db';
 import { searchableVacancies } from '$lib/server/employer/vacancies';
 import type { CompanyNeedMatch } from '$lib/server/matching/search';
 import type { Vocabulary } from '$lib/server/employer/vocabulary';
+import type { NeedForm } from '$lib/server/needs/form';
 import type { CandidateCard } from '$lib/server/visibility/projections';
 import { currentPolicy } from './policies';
 import type { OfferInput } from './send';
@@ -206,6 +207,23 @@ export function offerFromForm(form: FormData): OfferInput {
 		whyYou,
 		vacancyId: vacancyId === '' ? null : vacancyId,
 		message: formText(form, 'message')
+	};
+}
+
+/** The terms of the need an offer from its shortlist starts with; the employer may change each of them. */
+export interface OfferNeedTerms {
+	workFormat: NonNullable<NeedForm['work_format']> | null;
+	salary: { min: number; max: number; taxBase: 'gross' | 'net' } | null;
+}
+
+/**
+ * The work format and the range of the form of a shortlist step: the same the reasons of the shortlist are worded by,
+ * so «why you» and the terms of the offer do not disagree.
+ */
+export function offerTermsOfNeed(form: NeedForm): OfferNeedTerms {
+	return {
+		workFormat: form.work_format ?? null,
+		salary: form.salary ? { min: form.salary.min, max: form.salary.max, taxBase: form.salary.tax_base } : null
 	};
 }
 

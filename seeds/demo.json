@@ -333,7 +333,7 @@
 		{
 			"key": "k4",
 			"email": "alisa.zakharova@fsp-career.example",
-			"part": "Несовершеннолетняя, представитель ждёт проверки; тест Frontend не выпущен — без опроса",
+			"part": "Несовершеннолетняя, представитель ждёт проверки; хочет во Frontend, тестов не проходила",
 			"athlete": "teen_16",
 			"birthDate": "2010-02-20",
 			"catalogScope": [],
@@ -398,7 +398,7 @@
 		{
 			"key": "k6",
 			"email": "anna.kovaleva@fsp-career.example",
-			"part": "Две категории сразу: Middle Backend и Middle QA подтверждены тестами — видна в подборках обеих; без ФСП и резюме",
+			"part": "Проходила тесты Middle Backend и Middle QA — видна в подборках каждой подтверждённой категории; без ФСП и резюме",
 			"name": {
 				"lastName": "Ковалёва",
 				"firstName": "Анна",

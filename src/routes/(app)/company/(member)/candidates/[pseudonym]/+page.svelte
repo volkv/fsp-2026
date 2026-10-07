@@ -93,6 +93,7 @@
 						whyYouOptions={data.whyYouOptions}
 						preselected={[...data.preselected, ...(data.fromShortlist?.preselected ?? [])]}
 						needId={data.fromShortlist?.needId ?? null}
+						needTerms={data.fromShortlist?.needTerms ?? null}
 						responseWindowHours={data.offer.responseWindowHours}
 						problems={problem?.fields ?? {}}
 					/>

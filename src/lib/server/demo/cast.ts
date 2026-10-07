@@ -1,6 +1,8 @@
 // The cast of the demo scenario (`seeds/demo.json`): the accounts a visitor may act as — the heroes К-1…, the members
 // of the scenario companies Ю-1…, the FSP operator and the administrator — and their originals seeded on the stand.
 import { and, eq, inArray, isNull, ne } from 'drizzle-orm';
+import type { GradeKey, SpecializationKey } from '$lib/server/assessments/contract/catalog';
+import { activeCategories } from '$lib/server/categories/read';
 import type { FieldCrypto } from '$lib/server/crypto/fields';
 import type { Executor } from '$lib/server/db';
 import { candidates, companies, companyMembers, users } from '$lib/server/db/schema';
@@ -65,6 +67,8 @@ export interface CastOriginals {
 	users: Map<string, { id: string; displayName: string | null }>;
 	companyIds: string[];
 	candidateIds: string[];
+	/** Original candidate profile of each hero by role key. */
+	heroProfiles: Map<string, string>;
 }
 
 export class DemoCastMissing extends Error {
@@ -109,15 +113,42 @@ export async function castOriginals(
 			and(inArray(companyMembers.userId, userIds), eq(companyMembers.status, 'active'), isNull(companies.demoSessionId))
 		);
 	const profiles = await executor
-		.select({ id: candidates.id })
+		.select({ id: candidates.id, userId: candidates.userId })
 		.from(candidates)
 		.where(and(inArray(candidates.userId, userIds), isNull(candidates.demoSessionId)));
+	const profileOf = new Map(profiles.map((row) => [row.userId, row.id]));
+	const heroProfiles = new Map<string, string>();
+	for (const role of roles) {
+		if (role.group !== 'candidate') continue;
+		const user = found.get(role.key);
+		const profile = user === undefined ? undefined : profileOf.get(user.id);
+		if (profile === undefined) throw new DemoCastMissing(`the hero ${role.key} has no candidate profile`);
+		heroProfiles.set(role.key, profile);
+	}
 	return {
 		batch,
 		users: found,
 		companyIds: memberships.map((row) => row.companyId),
-		candidateIds: profiles.map((row) => row.id)
+		candidateIds: profiles.map((row) => row.id),
+		heroProfiles
 	};
+}
+
+/**
+ * The categories in force of each hero's original, oldest first: what the card of the cast says the hero holds is read
+ * from the stand — a test of a specialization without a released bank gives none, whatever the scenario planned.
+ */
+export async function heroCategories(
+	executor: Executor,
+	originals: Pick<CastOriginals, 'heroProfiles'>
+): Promise<Map<string, { specialization: SpecializationKey; grade: GradeKey }[]>> {
+	const active = await activeCategories(executor, [...originals.heroProfiles.values()]);
+	return new Map(
+		[...originals.heroProfiles].map(([key, candidateId]) => [
+			key,
+			(active.get(candidateId) ?? []).map(({ specialization, grade }) => ({ specialization, grade }))
+		])
+	);
 }
 
 /**

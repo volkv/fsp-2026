@@ -212,7 +212,7 @@
 			}}
 		>
 			<CsrfInput />
-			<label class="sr-only" for="offer-message-text">Сообщение</label>
+			<label class="sr-only" for="offer-message-text">Текст в переписку</label>
 			<Textarea
 				id="offer-message-text"
 				name="text"

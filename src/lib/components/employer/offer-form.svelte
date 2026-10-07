@@ -41,6 +41,11 @@
 		preselected?: string[];
 		/** The need the offer is made for (an offer from a shortlist). */
 		needId?: string | null;
+		/** The work format and the range of the need, to start with when there is no previous version. */
+		needTerms?: {
+			workFormat: string | null;
+			salary: { min: number; max: number; taxBase: 'gross' | 'net' } | null;
+		} | null;
 		/** Field problems by the path of the service (`title`, `salary_min`, `why_you.0.text`, …). */
 		problems?: Record<string, string>;
 		submitLabel?: string;
@@ -55,6 +60,7 @@
 		responseWindowHours,
 		preselected = [],
 		needId = null,
+		needTerms = null,
 		problems = {},
 		submitLabel = 'Отправить предложение'
 	}: Props = $props();
@@ -77,6 +83,8 @@
 	const whyYouProblem = $derived(
 		problems.why_you ?? Object.entries(problems).find(([path]) => path.startsWith('why_you.'))?.[1] ?? undefined
 	);
+	const salaryMin = $derived(initial ? initial.salaryMin : (needTerms?.salary?.min ?? null));
+	const salaryMax = $derived(initial ? initial.salaryMax : (needTerms?.salary?.max ?? null));
 	const contactProblem = $derived(
 		problems['contact_method.value'] ?? problems['contact_method.kind'] ?? problems['contact_method.note']
 	);
@@ -114,7 +122,7 @@
 					id="{id}-min"
 					name="salaryMin"
 					inputmode="numeric"
-					value={initial?.salaryMin === null || initial === undefined ? '' : String(initial.salaryMin)}
+					value={salaryMin === null ? '' : String(salaryMin)}
 					required
 				/>
 				{#if problems.salary_min}<Field.Error>{problems.salary_min}</Field.Error>{/if}
@@ -125,7 +133,7 @@
 					id="{id}-max"
 					name="salaryMax"
 					inputmode="numeric"
-					value={initial?.salaryMax === null || initial === undefined ? '' : String(initial.salaryMax)}
+					value={salaryMax === null ? '' : String(salaryMax)}
 					required
 				/>
 				{#if problems.salary_max}<Field.Error>{problems.salary_max}</Field.Error>{/if}
@@ -133,7 +141,11 @@
 		</div>
 		<Field.Field data-invalid={problems.salary_tax_base !== undefined}>
 			<Field.Label for="{id}-tax">Налоговая база</Field.Label>
-			<NativeSelect id="{id}-tax" name="salaryTaxBase" value={initial?.taxBase ?? 'gross'}>
+			<NativeSelect
+				id="{id}-tax"
+				name="salaryTaxBase"
+				value={initial?.taxBase ?? needTerms?.salary?.taxBase ?? 'gross'}
+			>
 				<option value="gross">До вычета НДФЛ</option>
 				<option value="net">На руки</option>
 			</NativeSelect>
@@ -144,7 +156,11 @@
 	<div class="grid gap-3 sm:grid-cols-2">
 		<Field.Field data-invalid={problems.work_format !== undefined}>
 			<Field.Label for="{id}-format">Формат работы</Field.Label>
-			<NativeSelect id="{id}-format" name="workFormat" value={initial?.workFormat ?? workFormats[0]?.key ?? ''}>
+			<NativeSelect
+				id="{id}-format"
+				name="workFormat"
+				value={initial?.workFormat ?? needTerms?.workFormat ?? workFormats[0]?.key ?? ''}
+			>
 				{#each workFormats as format (format.key)}
 					<option value={format.key}>{format.name}</option>
 				{/each}

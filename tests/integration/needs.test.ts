@@ -3,12 +3,13 @@
 // suggested — open is switched on in the catalog and with a released bank — a blocked text and a range not in roubles are refused, and the recommended categories count the
 // candidates of a category in force the company sees — through `canShow`, so a minor and a hidden profile are not
 // counted and small numbers are «< 5». Only members of the company see its needs.
+import { randomBytes } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { eq } from 'drizzle-orm';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { AccessSubject } from '$lib/server/access/permissions';
-import { consentEvents, hiringNeeds, mlResults, productPolicies } from '$lib/server/db/schema';
+import { consentEvents, hiringNeeds, mlResults, productPolicies, sourceFacts } from '$lib/server/db/schema';
 import { ApiError } from '$lib/server/errors/api-error';
 import { fail } from '$lib/server/ml/result';
 import { createNeed, getNeed, needCategories, updateNeed, type NeedDeps } from '$lib/server/needs/service';
@@ -93,6 +94,36 @@ async function listed(birthDate = '1996-04-12') {
 		occurredAt: new Date(Date.now() - DAY)
 	});
 	return row;
+}
+
+/** An official FSP result of the candidate's own, as the synchronization stores it: an algorithmic one confirms no skill of a backend need. */
+async function fspResult(candidateId: string) {
+	const competitionId = randomBytes(6).toString('hex');
+	const resultId = randomBytes(6).toString('hex');
+	await database.db.insert(sourceFacts).values({
+		candidateId,
+		source: 'fsp',
+		factType: 'competition_result',
+		sourceRecordRef: `fsp:result:${resultId}`,
+		eventKey: `fsp:competition:${competitionId}`,
+		trustLevel: 'fsp_verified',
+		ownershipBasis: 'operator_confirmed',
+		payload: {
+			result: { id: resultId, competitionId, place: 3, award: 'prize', status: 'official' },
+			competition: {
+				id: competitionId,
+				title: 'Кубок',
+				discipline: 'algorithmic',
+				level: 'russian_cup',
+				startDate: '2026-03-01'
+			}
+		},
+		payloadSha256: randomBytes(32).toString('hex'),
+		occurredOn: '2026-03-01',
+		observedAt: new Date(),
+		lastVerifiedAt: new Date(),
+		status: 'active'
+	});
 }
 
 async function apiError(operation: Promise<unknown>): Promise<ApiError> {
@@ -306,6 +337,8 @@ describe('recommended categories of a need', () => {
 			await decide(database.db, person.id, { specialization: 'backend', grade: 'middle' });
 		}
 		await decide(database.db, first.id, { specialization: 'backend', grade: 'senior' });
+		// «С ФСП» is the shortlist's «есть результаты ФСП»: any FSP fact in force, not only one confirming a required skill.
+		for (const person of [...rest, hidden]) await fspResult(person.id);
 
 		const { categories } = await needCategories(deps(), subject, need.id);
 		expect(categories.map((c) => [c.grade, c.basis])).toEqual([
@@ -317,7 +350,8 @@ describe('recommended categories of a need', () => {
 		expect(categories[0]?.candidates).toEqual({ value: 5 });
 		expect(categories[1]?.candidates).toEqual({ value: 0 });
 		expect(categories[2]?.candidates).toEqual({ below: 5 });
-		expect(categories[0]?.withFsp).toEqual({ value: 0 });
+		expect(categories[0]?.withFsp).toEqual({ value: 5 });
+		expect(categories[2]?.withFsp).toEqual({ value: 0 });
 	});
 
 	it('count only categories in force: a revoked one is not counted', async () => {

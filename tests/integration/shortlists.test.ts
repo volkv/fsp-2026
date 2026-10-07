@@ -29,7 +29,7 @@ import { GRADE_DECISION_RESULTS } from '$lib/server/matching/test-results';
 import { fail } from '$lib/server/ml/result';
 import { createNeed, type NeedDeps } from '$lib/server/needs/service';
 import { createFieldCrypto } from '$lib/server/crypto/fields';
-import { whyYouFromShortlist } from '$lib/server/invitations/offer-form';
+import { offerTermsOfNeed, whyYouFromShortlist } from '$lib/server/invitations/offer-form';
 import { createInvitation } from '$lib/server/invitations/send';
 import { shortlistMatchOf } from '$lib/server/shortlists/service';
 import { invitations, invitationTerms } from '$lib/server/db/schema';
@@ -676,6 +676,8 @@ describe('an offer from a shortlist', () => {
 		const { id } = await createShortlist(deps(), subject, meta, need.id, {});
 		const found = await shortlistMatchOf(deps(), subject, id, person_.id);
 		if (!found) throw new Error('the candidate is not in the shortlist');
+		// The offer starts with the format the shortlist worded «why you» by, not with the first of the list.
+		expect(offerTermsOfNeed(found.form)).toEqual({ workFormat: 'remote', salary: null });
 		const points = whyYouFromShortlist(found.match, [], {
 			skills: {},
 			workFormats: { remote: 'Удалённо' },

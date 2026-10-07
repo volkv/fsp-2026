@@ -21,7 +21,7 @@ import { categoryPredicate } from '$lib/server/categories/read';
 import { specializationsOfRole } from '$lib/server/categories/roles';
 import type { Executor } from '$lib/server/db';
 import { candidateAt, listedInCatalog } from '$lib/server/db/conditions';
-import { candidates, skillInferences, sourceFacts } from '$lib/server/db/schema';
+import { candidates, sourceFacts } from '$lib/server/db/schema';
 import { loadCatalogViewer, loadVisibilityFacts, loadVisibilityPolicy } from '$lib/server/matching/visibility';
 import { smallCell, smallCountThreshold, type SmallCell } from '$lib/server/operator/small-numbers';
 import { canShow } from '$lib/server/visibility/can-show';
@@ -153,23 +153,18 @@ export function recommendCategories(form: NeedForm, open: ReadonlySet<Specializa
 export interface CategoryCounts {
 	/** Candidates of an active category of the pair the company sees in the catalog. */
 	candidates: SmallCell;
-	/** Of them, with an active result of FSP that relates to the need. */
+	/** Of them, with an FSP fact in force. */
 	withFsp: SmallCell;
 }
 
 export type CountedCategory = RecommendedCategory & CategoryCounts;
 
 /**
- * Candidates with an active result of FSP relating to the need: an FSP fact in force and, when the need names required
- * skills, one of them confirmed directly by FSP.
+ * Candidates of the ids with an FSP fact in force — the same «есть результаты ФСП» the shortlist marks and its
+ * filter «только с ФСП» keeps, so the count of a category and the shortlist of it agree.
  */
-async function withRelevantFsp(
-	executor: Executor,
-	candidateIds: readonly string[],
-	form: NeedForm
-): Promise<Set<string>> {
+export async function candidatesWithFsp(executor: Executor, candidateIds: readonly string[]): Promise<Set<string>> {
 	if (candidateIds.length === 0) return new Set();
-	const skills = form.skill_keys;
 	const rows = await executor
 		.selectDistinct({ id: sourceFacts.candidateId })
 		.from(sourceFacts)
@@ -177,11 +172,7 @@ async function withRelevantFsp(
 			and(
 				inArray(sourceFacts.candidateId, [...candidateIds]),
 				eq(sourceFacts.source, 'fsp'),
-				eq(sourceFacts.status, 'active'),
-				skills.length === 0
-					? undefined
-					: sql`exists (select 1 from ${skillInferences} si where si.candidate_id = ${sourceFacts.candidateId}
-						and si.badge_trust = 'fsp_verified' and si.skill_key in ${skills})`
+				eq(sourceFacts.status, 'active')
 			)
 		);
 	return new Set(rows.map((row) => row.id));
@@ -195,7 +186,6 @@ async function withRelevantFsp(
 export async function countCategories<T extends { specialization: SpecializationKey; grade: GradeKey }>(
 	executor: Executor,
 	subject: AccessSubject,
-	form: NeedForm,
 	categories: readonly T[],
 	now: Date,
 	exclude: ReadonlySet<string> = new Set()
@@ -226,7 +216,7 @@ export async function countCategories<T extends { specialization: Specialization
 			return candidate !== undefined && canShow(candidate, viewer.viewer, { kind: 'catalog' }).allowed;
 		})
 	);
-	const fsp = await withRelevantFsp(executor, [...visible], form);
+	const fsp = await candidatesWithFsp(executor, [...visible]);
 	const threshold = await smallCountThreshold(executor, now);
 	return categories.map((category) => {
 		const ids = [...(members.get(`${category.specialization}:${category.grade}`) ?? [])].filter((id) =>

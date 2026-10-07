@@ -32,7 +32,7 @@ export const REASON_TEXTS: Record<DecisionReason, string> = {
 	defining_block_failed:
 		'Сумма баллов выше порога, но определяющий блок грейда провален: без него грейд не подтверждается.',
 	bank_exhausted:
-		'Для следующего задания не нашлось новых для тебя вариантов — это не провал и не засчитывается как попытка.',
+		'Для следующего задания не нашлось новых для вас вариантов — это не провал и не засчитывается как попытка.',
 	rescored_incomplete:
 		'После пересмотра баллов поданных заданий не хватило для решения — это не провал и не засчитывается как попытка.'
 };
@@ -112,7 +112,7 @@ export function explainDecision(decision: StoredDecision): Explanation {
 		summary:
 			`Набрано ${number(decision.scoreSum / SCALE)} при пороге ${number(decision.cutSum / SCALE)} по ` +
 			`${decision.items} заданиям${decision.extensionUsed ? ' (с продлением)' : ''}. Порог — сумма оценок ` +
-			'пограничного кандидата по тем заданиям, что тебе достались; практическая задача в сумму не входит — она ворота.',
+			'пограничного кандидата по тем заданиям, что вам достались; практическая задача в сумму не входит — она ворота.',
 		confident: decision.confident,
 		blocks: decision.blocks.map((block) => {
 			const spec = blockDefinition(block.block);

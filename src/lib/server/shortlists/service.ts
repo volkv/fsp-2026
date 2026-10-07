@@ -4,7 +4,7 @@
 // anew and shows a candidate only through `canShow` at that moment. A refinement is a new step; the shortlist and its
 // marks are not lost — a marked candidate the new step does not admit is shown as «не проходит новое условие», one the
 // company no longer sees as «кандидат больше недоступен», without data. Only members of the company see its shortlists.
-import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
+import { and, desc, eq, isNull } from 'drizzle-orm';
 import { can, companyAdmission, type AccessSubject } from '$lib/server/access/permissions';
 import {
 	GRADE_KEYS,
@@ -16,7 +16,7 @@ import { recordAuditEvent } from '$lib/server/audit/record';
 import { auditActorOf } from '$lib/server/companies/context';
 import { admissionRefusal, requireAdmission } from '$lib/server/companies/gate';
 import type { Database, Executor } from '$lib/server/db';
-import { hiringNeeds, shortlistMarks, shortlistRevisions, shortlists, sourceFacts } from '$lib/server/db/schema';
+import { hiringNeeds, shortlistMarks, shortlistRevisions, shortlists } from '$lib/server/db/schema';
 import { findInCatalog } from '$lib/server/employer/card';
 import { ApiError, type ErrorDetail } from '$lib/server/errors/api-error';
 import type { RequestMeta } from '$lib/server/invitations/deps';
@@ -33,6 +33,7 @@ import {
 import { openSpecializations } from '$lib/server/assessments/bank-store';
 import { parseNeedForm, type NeedForm } from '$lib/server/needs/form';
 import {
+	candidatesWithFsp,
 	countCategories,
 	needCategoriesOf,
 	recommendCategories,
@@ -346,22 +347,6 @@ export interface ShortlistView {
 	groups: CoverageGroups;
 }
 
-/** Candidates of the ids with an FSP result in force. */
-async function withFsp(executor: Executor, candidateIds: readonly string[]): Promise<Set<string>> {
-	if (candidateIds.length === 0) return new Set();
-	const rows = await executor
-		.selectDistinct({ id: sourceFacts.candidateId })
-		.from(sourceFacts)
-		.where(
-			and(
-				inArray(sourceFacts.candidateId, [...candidateIds]),
-				eq(sourceFacts.source, 'fsp'),
-				eq(sourceFacts.status, 'active')
-			)
-		);
-	return new Set(rows.map((row) => row.id));
-}
-
 /**
  * The ranked candidates of a step, each through `canShow` now: the holders of its categories, then the group «грейд не
  * подтверждён» — candidates without a category of its specializations whose declaration names one of them (domain
@@ -426,7 +411,6 @@ async function coverageOf(
 	const counted: (CategoryPair & CategoryCounts & { direction: 'below' | 'above' })[] = await countCategories(
 		deps.db,
 		subject,
-		form,
 		neighbourCategories(query.categories),
 		deps.now(),
 		shown
@@ -435,7 +419,6 @@ async function coverageOf(
 	const composite = await countCategories(
 		deps.db,
 		subject,
-		form,
 		own.categories
 			.filter((c) => c.basis === 'composite_role' && !taken.has(`${c.specialization}:${c.grade}`))
 			.map(({ specialization, grade }) => ({ specialization, grade })),
@@ -549,7 +532,7 @@ export async function openShortlist(
 		deps.db,
 		page.items.map((item) => item.candidateId)
 	);
-	const fsp = await withFsp(
+	const fsp = await candidatesWithFsp(
 		deps.db,
 		ranked.map((item) => item.candidateId)
 	);
@@ -814,7 +797,7 @@ export async function whatIf(
 		deps.db,
 		[...entered, ...left].map((entry) => entry.item.candidateId)
 	);
-	const fsp = await withFsp(
+	const fsp = await candidatesWithFsp(
 		deps.db,
 		[...entered, ...left].map((entry) => entry.item.candidateId)
 	);
@@ -885,7 +868,8 @@ export async function shortlistStep(
 
 /**
  * The fit of one candidate in the latest step of a shortlist, for the offer made from it: the reasons become points of
- * «why you» (domain 13.5) and the offer names the need. `null` — the candidate is not in the shortlist now.
+ * «why you» (domain 13.5), the offer names the need and starts with the terms of the step's form. `null` — the
+ * candidate is not in the shortlist now.
  */
 export async function shortlistMatchOf(
 	deps: ShortlistDeps,
@@ -893,9 +877,9 @@ export async function shortlistMatchOf(
 	shortlistId: string,
 	candidateId: string,
 	signal?: AbortSignal
-): Promise<{ needId: string; match: CompanyNeedMatch } | null> {
+): Promise<{ needId: string; form: NeedForm; match: CompanyNeedMatch } | null> {
 	const { shortlist, step, needText } = await shortlistStep(deps, subject, shortlistId);
 	const { ranked } = await rankStep(deps, subject, { id: shortlist.id, needText }, step, signal);
 	const item = ranked.find((entry) => entry.candidateId === candidateId);
-	return item ? { needId: shortlist.needId, match: needMatchOf(item) } : null;
+	return item ? { needId: shortlist.needId, form: step.query.form, match: needMatchOf(item) } : null;
 }

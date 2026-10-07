@@ -277,6 +277,6 @@ export async function needCategories(
 	const member = memberCompany(subject);
 	const need = viewOf(await ownNeed(deps.db, member.companyId, needId));
 	const recommended = needCategoriesOf(need.form, await openSpecializations(deps.db));
-	const categories = await countCategories(deps.db, subject, need.form, recommended.categories, deps.now());
+	const categories = await countCategories(deps.db, subject, recommended.categories, deps.now());
 	return { need, basis: recommended.basis, closed: recommended.closed, categories };
 }

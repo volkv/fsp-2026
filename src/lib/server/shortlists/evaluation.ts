@@ -10,17 +10,18 @@
 // shown candidates by the company's pseudonyms; the judgement removes them and keeps only which system put each card
 // where and whether it was chosen.
 import { createHash } from 'node:crypto';
-import { and, desc, eq, inArray, isNotNull } from 'drizzle-orm';
+import { and, desc, eq, isNotNull } from 'drizzle-orm';
 import { z } from 'zod';
 import type { AccessSubject } from '$lib/server/access/permissions';
 import { recordAuditEvent } from '$lib/server/audit/record';
 import { auditActorOf } from '$lib/server/companies/context';
-import { candidates, EVALUATION_SCOPES, shortlistEvaluations, sourceFacts } from '$lib/server/db/schema';
+import { candidates, EVALUATION_SCOPES, shortlistEvaluations } from '$lib/server/db/schema';
 import { listedInCatalog } from '$lib/server/db/conditions';
 import { currentVocabulary } from '$lib/server/employer/vocabulary';
 import { ApiError } from '$lib/server/errors/api-error';
 import type { RequestMeta } from '$lib/server/invitations/deps';
 import { keywordSearch, visibleAmong } from '$lib/server/matching/search';
+import { candidatesWithFsp } from '$lib/server/needs/recommend';
 import { uuidv7 } from '$lib/server/ids';
 import { searchOf } from './query';
 import { needMatchOf, rankStep, shortlistStep, type ShortlistDeps } from './service';
@@ -183,22 +184,9 @@ export async function startEvaluation(
 		keywords.map((item) => item.candidateId),
 		id
 	);
-	const fsp = new Set(
-		(
-			await deps.db
-				.selectDistinct({ id: sourceFacts.candidateId })
-				.from(sourceFacts)
-				.where(
-					and(
-						inArray(
-							sourceFacts.candidateId,
-							picks.map((pick) => pick.id)
-						),
-						eq(sourceFacts.source, 'fsp'),
-						eq(sourceFacts.status, 'active')
-					)
-				)
-		).map((row) => row.id)
+	const fsp = await candidatesWithFsp(
+		deps.db,
+		picks.map((pick) => pick.id)
 	);
 	const cards: EvaluationCard[] = picks.map((pick, index) => ({
 		position: index + 1,

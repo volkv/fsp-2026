@@ -7,7 +7,7 @@
 // the file, the text and the results derived from it included. Administrator actions shared by all visitors are closed
 // to demo accounts. The clone plan has a decision for every table and every foreign key of the schema.
 import { fileURLToPath } from 'node:url';
-import { and, eq, inArray, isNotNull, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, sql, TransactionRollbackError } from 'drizzle-orm';
 import postgres from 'postgres';
 import { createClient } from 'redis';
 import { afterAll, beforeAll, describe, expect, inject, it, vi } from 'vitest';
@@ -26,6 +26,7 @@ import { createFieldCrypto } from '$lib/server/crypto/fields';
 import {
 	athleteLinks,
 	auditEvents,
+	candidateCategories,
 	candidateCompanyBlocks,
 	candidates,
 	companies,
@@ -42,7 +43,7 @@ import {
 	users,
 	vacancies
 } from '$lib/server/db/schema';
-import { castOriginals, castRoles } from '$lib/server/demo/cast';
+import { castOriginals, castRoles, heroCategories } from '$lib/server/demo/cast';
 import { companyPartnerships, readPartnerPool } from '$lib/server/partner-pool/pool';
 import { MAX_LIVE_SESSIONS, openDemoSession, type OpenedSession } from '$lib/server/demo/clone';
 import { compareWithClonePlan, isPlanComplete } from '$lib/server/demo/clone-plan';
@@ -445,6 +446,35 @@ describe('demo sessions', () => {
 			.where(eq(users.demoSessionId, a.sessionId));
 		expect(copiedFiles.length).toBe(a.filesCopied);
 		for (const file of copiedFiles) expect(store.objects.has(file.key)).toBe(true);
+	});
+
+	it('tells on the card of a hero the categories the stand gives, not the ones the scenario plans', async () => {
+		const originals = await castOriginals(database.db, crypto, castRoles(data));
+		const held = await heroCategories(database.db, originals);
+		// Both banks of К-6 are released here: two categories; К-4 takes no test.
+		expect(held.get('candidate:k6')).toEqual([
+			{ specialization: 'backend', grade: 'middle' },
+			{ specialization: 'qa', grade: 'middle' }
+		]);
+		expect(held.get('candidate:k4')).toEqual([]);
+		// Without the QA category (as on a stand where its bank is not released) the card names one.
+		const k6 = originals.heroProfiles.get('candidate:k6');
+		if (!k6) throw new Error('К-6 has no profile');
+		await database.db
+			.transaction(async (tx) => {
+				await tx
+					.update(candidateCategories)
+					.set({ status: 'revoked', endedAt: new Date(), revokeReason: 'decision_annulled' })
+					.where(and(eq(candidateCategories.candidateId, k6), eq(candidateCategories.specialization, 'qa')));
+				expect((await heroCategories(tx, originals)).get('candidate:k6')).toEqual([
+					{ specialization: 'backend', grade: 'middle' }
+				]);
+				tx.rollback();
+			})
+			.catch((cause: unknown) => {
+				if (!(cause instanceof TransactionRollbackError)) throw cause;
+			});
+		expect((await heroCategories(database.db, originals)).get('candidate:k6')).toHaveLength(2);
 	});
 
 	it('keeps what one visitor does out of the other session', { timeout: 120_000 }, async () => {

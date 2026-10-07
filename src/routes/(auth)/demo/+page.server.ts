@@ -1,5 +1,6 @@
 import { error, fail, redirect, type RequestEvent } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
+import { gradeTitle, specializationTitle } from '$lib/server/assessments/titles';
 import { clearSessionCookie, requestMeta, sessionOf, setSessionCookie } from '$lib/server/auth/http';
 import { destroySession } from '$lib/server/auth/sessions';
 import { config } from '$lib/server/config';
@@ -7,7 +8,14 @@ import { fieldCrypto } from '$lib/server/crypto/fields';
 import { db } from '$lib/server/db';
 import { users } from '$lib/server/db/schema';
 import { idleEndOf, lastEndOf, nextStandReset, redisDemoActivity } from '$lib/server/demo/activity';
-import { castOriginals, castRoles, cloneEmail, DemoCastMissing, type CastRole } from '$lib/server/demo/cast';
+import {
+	castOriginals,
+	castRoles,
+	cloneEmail,
+	DemoCastMissing,
+	heroCategories,
+	type CastRole
+} from '$lib/server/demo/cast';
 import { MAX_LIVE_SESSIONS } from '$lib/server/demo/clone';
 import { readSeedData, seedsDirectory } from '$lib/server/demo/data';
 import { createNewcomer, DemoSessionEnded } from '$lib/server/demo/newcomer';
@@ -80,9 +88,16 @@ export const load: PageServerLoad = async (event) => {
 	const fsp = event.url.searchParams.get('fsp');
 	const fspNotice = fsp === null ? null : (FSP_NOTICES[fsp] ?? null);
 	let names: Map<string, string | null>;
+	let categoriesOf: Map<string, string[]>;
 	try {
 		const originals = await castOriginals(db(), fieldCrypto(), roles);
 		names = new Map([...originals.users].map(([key, user]) => [key, user.displayName]));
+		categoriesOf = new Map(
+			[...(await heroCategories(db(), originals))].map(([key, held]) => [
+				key,
+				held.map((category) => `${specializationTitle(category.specialization)} · ${gradeTitle(category.grade)}`)
+			])
+		);
 	} catch (cause) {
 		if (!(cause instanceof DemoCastMissing)) throw cause;
 		return { seeded: false as const, roles: [], session: null, joining: null, fspNotice, resetAt };
@@ -99,6 +114,7 @@ export const load: PageServerLoad = async (event) => {
 			group: role.group,
 			code: role.code,
 			part: role.part,
+			categories: role.group === 'candidate' ? (categoriesOf.get(role.key) ?? null) : null,
 			name: names.get(role.key) ?? role.email
 		})),
 		session: current
