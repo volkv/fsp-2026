@@ -224,6 +224,12 @@ export const MODEL_LICENSE_SOURCE = 'карточка модели на Hugging 
 export const FONTS: Readonly<Record<string, { name: string; license: string; version: string; note?: string }>> = {
 	'static/fonts/inter': { name: 'Inter', license: 'OFL-1.1', version: 'вариативный, 100–900' },
 	'static/fonts/jetbrains-mono': { name: 'JetBrains Mono', license: 'OFL-1.1', version: '400, 500, 700' },
+	'static/fonts/tdatext': {
+		name: 'TDAText',
+		license: 'OFL-1.1',
+		version: 'Regular (WOFF2 из TTF брендбука ФСП)',
+		note: 'акцентный шрифт брендбука ФСП: только крупные числа'
+	},
 	'src/lib/server/profile/fonts': {
 		name: 'Inter',
 		license: 'OFL-1.1',

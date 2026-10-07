@@ -4,7 +4,7 @@
 
 | Уровень | Технологии |
 |---|---|
-| Интерфейс | SvelteKit 2 и Svelte 5 (runes), TypeScript в строгом режиме, Tailwind CSS 4, компоненты shadcn-svelte, иконки Lucide; шрифты Inter и JetBrains Mono (OFL-1.1) |
+| Интерфейс | SvelteKit 2 и Svelte 5 (runes), TypeScript в строгом режиме, Tailwind CSS 4, компоненты shadcn-svelte, иконки Lucide; шрифты Inter, JetBrains Mono и TDAText — акцентный шрифт брендбука ФСП для крупных чисел (OFL-1.1) |
 | Сервер | Node 24, adapter-node; Zod 4 — схемы запросов, ответов, окружения и документа OpenAPI 3.1; `openid-client` — протокол OIDC для ФСП ID; Argon2id (`@node-rs/argon2`) — пароли; `node:crypto` — AES-256-GCM, HMAC-SHA-256, Ed25519; PDFKit — PDF-профиль кандидата |
 | Хранение | PostgreSQL 17 с pgvector, Drizzle ORM и drizzle-kit (миграции), драйвер postgres.js; Valkey (совместим с Redis), клиент `redis`; S3-совместимое хранилище SeaweedFS |
 | Фоновые задания | очередь в PostgreSQL (`FOR UPDATE SKIP LOCKED`, аренда с пульсом, повторы с паузой), отдельный процесс-воркер с планировщиком на advisory lock |

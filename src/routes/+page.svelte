@@ -1,32 +1,70 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import { page } from '$app/state';
 	import ArrowRightIcon from '@lucide/svelte/icons/arrow-right';
 	import BriefcaseIcon from '@lucide/svelte/icons/briefcase';
 	import LogInIcon from '@lucide/svelte/icons/log-in';
 	import TrophyIcon from '@lucide/svelte/icons/trophy';
 	import UserRoundIcon from '@lucide/svelte/icons/user-round';
-	import FspSign from '$lib/components/brand/fsp-sign.svelte';
+	import BrandStrip from '$lib/components/brand/brand-strip.svelte';
 	import { RecommendationNotice, TrustChip } from '$lib/components/product/index.js';
-	import { TRUST, type TrustLevel } from '$lib/components/product/model.js';
+	import { TRUST, pluralize, type TrustLevel } from '$lib/components/product/model.js';
 	import { buttonVariants } from '$lib/components/ui/button/index.js';
 	import { cn } from '$lib/components/utils.js';
 	import { SIGN_IN_HREF } from '$lib/navigation.js';
+	import type { PageProps } from './$types';
+
+	let { data }: PageProps = $props();
+
+	const description =
+		'Работодатель сам находит ИТ-специалиста по проверяемому профилю и первым предлагает вакансию с зарплатой. ' +
+		'Достижения подтверждает Федерация спортивного программирования.';
+
+	const figureFormat = new Intl.NumberFormat('ru-RU');
+
+	/** Figures of the platform from the database; a figure the database does not have yet is not shown. */
+	const metrics = $derived.by(() => {
+		const { taxonomy, taskFamilies } = data.metrics;
+		const shown: { value: number; text: string }[] = [];
+		if (taxonomy !== null && taxonomy.roles > 0) {
+			shown.push({
+				value: taxonomy.roles,
+				text: `${pluralize(taxonomy.roles, ['ИТ-роль', 'ИТ-роли', 'ИТ-ролей'])} в справочнике категорий`
+			});
+		}
+		if (taxonomy !== null && taxonomy.skills > 0) {
+			shown.push({
+				value: taxonomy.skills,
+				text: `${pluralize(taxonomy.skills, ['навык', 'навыка', 'навыков'])} с синонимами из вакансий и резюме`
+			});
+		}
+		if (taskFamilies > 0) {
+			shown.push({
+				value: taskFamilies,
+				text: `${pluralize(taskFamilies, ['шаблон', 'шаблона', 'шаблонов'])} заданий: у каждого кандидата свои варианты`
+			});
+		}
+		return shown;
+	});
 
 	const facts = [
 		{
-			value: '21,4 %',
+			value: '21,4',
+			unit: '%',
 			text: 'откликов соответствуют требованиям вакансии',
 			source: 'Хантфлоу и Джун, первое полугодие 2026, 753 162 отклика в 133 компаниях',
 			href: 'https://huntflow.media/iz-pyati-otklikov-na-vakansiyu-podhodit-tolko-odin/'
 		},
 		{
-			value: '52 часа',
+			value: '52',
+			unit: 'часа',
 			text: 'проходит до первого действия рекрутера с откликом',
 			source: 'Хантфлоу и Джун, первое полугодие 2026',
 			href: 'https://huntflow.media/iz-pyati-otklikov-na-vakansiyu-podhodit-tolko-odin/'
 		},
 		{
-			value: '44,5 дня',
+			value: '44,5',
+			unit: 'дня',
 			text: 'медиана закрытия ИТ-вакансии',
 			source: 'Поток, 2025, 1 762 ИТ-вакансии',
 			href: 'https://potok.io/blog/hr-news/time-to-hire-report-2025/'
@@ -81,17 +119,20 @@
 
 <svelte:head>
 	<title>ФСП | Карьера — платформа ИТ-найма, где навыки подтверждены</title>
-	<meta
-		name="description"
-		content="Работодатель сам находит ИТ-специалиста по проверяемому профилю и первым предлагает вакансию с зарплатой. Достижения подтверждает Федерация спортивного программирования."
-	/>
+	<meta name="description" content={description} />
+	<meta property="og:type" content="website" />
+	<meta property="og:url" content="{page.url.origin}/" />
+	<meta property="og:title" content="ФСП | Карьера — платформа ИТ-найма, где навыки подтверждены" />
+	<meta property="og:description" content={description} />
 </svelte:head>
 
-<section class="relative overflow-hidden border-b bg-card">
-	<div class="mx-auto grid max-w-7xl gap-10 px-4 py-14 sm:px-6 lg:grid-cols-[1.2fr_1fr] lg:py-20">
+<!-- The first screen is a dark brand block in both themes, as the FSP carriers are: the dark tokens apply inside it. -->
+<section class="dark relative overflow-hidden border-b bg-background text-foreground" aria-labelledby="hero-title">
+	<BrandStrip class="h-5 sm:h-6" />
+	<div class="mx-auto grid max-w-7xl gap-10 px-4 pt-12 pb-14 sm:px-6 lg:grid-cols-[1.2fr_1fr] lg:pt-16 lg:pb-20">
 		<div class="space-y-6">
 			<p class="font-mono text-label text-link uppercase">Федерация спортивного программирования России</p>
-			<h1 class="text-h1 sm:text-display">ФСП | Карьера</h1>
+			<h1 id="hero-title" class="text-h1 sm:text-display">ФСП | Карьера</h1>
 			<p class="font-heading text-h3 text-balance">Платформа ИТ-найма, где навыки подтверждены</p>
 			<p class="max-w-xl text-lg text-muted-foreground">
 				Работодатель сам находит ИТ-специалиста по проверяемому профилю и первым предлагает вакансию с зарплатой.
@@ -110,9 +151,18 @@
 					<ArrowRightIcon aria-hidden="true" />
 				</a>
 			</div>
+			{#if metrics.length > 0}
+				<dl class="grid max-w-xl grid-cols-3 gap-4 border-t pt-6" aria-label="Платформа в цифрах">
+					{#each metrics as metric (metric.text)}
+						<div class="flex flex-col-reverse justify-end gap-2">
+							<dt class="text-sm text-muted-foreground">{metric.text}</dt>
+							<dd class="accent-figure text-h1 sm:text-figure">{figureFormat.format(metric.value)}</dd>
+						</div>
+					{/each}
+				</dl>
+			{/if}
 		</div>
-		<aside class="relative rounded-2xl border bg-background p-6" aria-labelledby="trust-ladder-title">
-			<FspSign class="pointer-events-none absolute -top-10 -right-10 size-24 opacity-15" />
+		<aside class="rounded-2xl border bg-card p-6 lg:self-start" aria-labelledby="trust-ladder-title">
 			<h2 id="trust-ladder-title" class="text-h3">Уровни доверия к навыку</h2>
 			<p class="mt-1 text-sm text-muted-foreground">
 				От подтверждённого федерацией факта до слов кандидата — уровень всегда подписан.
@@ -134,7 +184,10 @@
 	<ul class="mt-6 grid gap-4 md:grid-cols-3">
 		{#each facts as fact (fact.value)}
 			<li class="flex flex-col rounded-xl border bg-card p-5 shadow-xs">
-				<p class="font-heading text-metric text-link numeric">{fact.value}</p>
+				<p class="flex items-baseline gap-2 text-link">
+					<span class="accent-figure text-figure">{fact.value}</span>
+					<span class="font-heading text-h3">{fact.unit}</span>
+				</p>
 				<p class="mt-2">{fact.text}</p>
 				<p class="mt-auto pt-4 text-xs text-muted-foreground">
 					Источник: <a

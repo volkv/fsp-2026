@@ -1,8 +1,17 @@
 // Account messages (notification category `account`, domain 3.7): always by email, never switched off.
 // Each template yields the subject, a plain-text body and the same content as simple HTML.
+import { MAIL_LOGO, MAIL_LOGO_CID } from './logo';
 import type { MailMessage } from './mailer';
 
 const PRODUCT = 'ФСП | Карьера';
+
+/** The FSP brandbook palette of the letters: text #1B1C21, a grey of its scale (6.3:1), the logo blue for the button. */
+const MAIL_COLORS = { text: '#1b1c21', muted: '#5f5f66', bar: '#9b9c9e', button: '#402fff' } as const;
+
+/** The head of every letter: the FSP logo, inline (`logo.ts`), and the product name beside it. */
+const LETTERHEAD =
+	`<p style="margin:0 0 24px"><img src="cid:${MAIL_LOGO_CID}" width="${MAIL_LOGO.width}" height="${MAIL_LOGO.height}" alt="ФСП" style="vertical-align:middle;border:0">` +
+	` <span style="vertical-align:middle;font-size:18px;font-weight:600;color:${MAIL_COLORS.text}"><span style="color:${MAIL_COLORS.bar}">|</span> Карьера</span></p>`;
 
 function escapeHtml(value: string): string {
 	return value
@@ -28,16 +37,17 @@ export function render(to: string, letter: Letter): MailMessage {
 		`— ${PRODUCT}`
 	].join('\n\n');
 	const html = [
-		'<!doctype html><html lang="ru"><body style="font-family:Inter,Arial,sans-serif;color:#1b1f24;line-height:1.5">',
+		`<!doctype html><html lang="ru"><body style="background:#ffffff;font-family:Inter,Arial,sans-serif;color:${MAIL_COLORS.text};line-height:1.5">`,
+		LETTERHEAD,
 		...letter.paragraphs.map((p) => `<p>${escapeHtml(p)}</p>`),
 		...(letter.action
 			? [
-					`<p><a href="${escapeHtml(letter.action.href)}" style="display:inline-block;padding:10px 18px;background:#1b4fd8;color:#fff;border-radius:6px;text-decoration:none">${escapeHtml(letter.action.label)}</a></p>`,
-					`<p style="font-size:13px;color:#5b6470">Если кнопка не работает, откройте ссылку: ${escapeHtml(letter.action.href)}</p>`
+					`<p><a href="${escapeHtml(letter.action.href)}" style="display:inline-block;padding:10px 18px;background:${MAIL_COLORS.button};color:#ffffff;border-radius:6px;text-decoration:none;font-weight:600">${escapeHtml(letter.action.label)}</a></p>`,
+					`<p style="font-size:13px;color:${MAIL_COLORS.muted}">Если кнопка не работает, откройте ссылку: ${escapeHtml(letter.action.href)}</p>`
 				]
 			: []),
-		`<p style="font-size:13px;color:#5b6470">${escapeHtml(letter.footnote)}</p>`,
-		`<p style="font-size:13px;color:#5b6470">— ${PRODUCT}</p>`,
+		`<p style="font-size:13px;color:${MAIL_COLORS.muted}">${escapeHtml(letter.footnote)}</p>`,
+		`<p style="font-size:13px;color:${MAIL_COLORS.muted}">— ${PRODUCT}</p>`,
 		'</body></html>'
 	].join('');
 	return { to, subject: `${letter.subject} — ${PRODUCT}`, text, html };

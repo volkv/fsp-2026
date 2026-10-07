@@ -5,13 +5,19 @@ Copyright (c) 2026 Wine Coding Team
 
 Товарные знаки и логотипы
   Наименование, товарные знаки, логотипы и элементы фирменного стиля Федерации спортивного программирования России
-  принадлежат их правообладателю и используются в интерфейсе решения только для его обозначения. Права на них этим
-  репозиторием не передаются.
+  (знак и логотип, ленты графических паттернов — src/lib/components/brand, static/favicon*, static/apple-touch-icon.png,
+  static/og.png) принадлежат их правообладателю и используются в интерфейсе решения только для его обозначения. Права
+  на них этим репозиторием не передаются.
 
 Шрифты
   static/fonts/inter           Inter, (c) The Inter Project Authors — SIL Open Font License 1.1 (static/fonts/inter/OFL.txt)
   static/fonts/jetbrains-mono  JetBrains Mono, (c) The JetBrains Mono Project Authors — SIL Open Font License 1.1
                                (static/fonts/jetbrains-mono/OFL.txt)
+  static/fonts/tdatext         TDAText, акцентный шрифт брендбука ФСП, (c) 2024–2025 Dmitry Tretyakov (Tinelix),
+                               https://github.com/tinelix/TDAText; набор символов основан на знакогенераторе микросхем
+                               Philips SAA52XX/SAA55XX/TDA93XX, (c) 1993–2001 NXP Semiconductors N.V. — SIL Open Font
+                               License 1.1 (static/fonts/tdatext/OFL.txt). Файл TDAText.ttf переведён в WOFF2 без
+                               изменения глифов.
   src/lib/server/profile/fonts Inter 4.1 (Regular, SemiBold — шрифт PDF-профиля), (c) The Inter Project Authors — SIL Open Font
                                License 1.1 (src/lib/server/profile/fonts/OFL.txt)
 

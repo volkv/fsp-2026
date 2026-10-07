@@ -5,6 +5,8 @@
 // so it scans from print and opens from the screen.
 import PDFDocument from 'pdfkit';
 import QRCode from 'qrcode';
+import { FSP_LOGO, type LogoPart } from '$lib/components/brand/logo';
+import { PATTERN_TILE, PATTERN_TILES, type PatternTone } from '$lib/components/brand/pattern';
 
 export interface ProfilePdfCategory {
 	/** «Backend · Middle». */
@@ -52,7 +54,19 @@ export interface ProfilePdfFonts {
 
 const PAGE = { size: 'A4', margin: 48 } as const;
 const QR_SIZE = 112;
-const COLORS = { text: '#111827', muted: '#4b5563', rule: '#d1d5db', accent: '#1d4ed8' } as const;
+/** The FSP brandbook palette on paper: #1B1C21 text, a grey of its scale, the logo blue for links and rules. */
+const COLORS = { text: '#1b1c21', muted: '#5f5f66', rule: '#d9d9d9', accent: '#402fff' } as const;
+/** The logo and the pattern on a light page (brandbook: light node #C8C9CA, lettering and third colour #1B1C21). */
+const BRAND_FILLS: Record<LogoPart | PatternTone, string> = {
+	light: '#c8c9ca',
+	lettering: '#1b1c21',
+	ink: '#1b1c21',
+	red: '#ec1d35',
+	blue: '#402fff'
+};
+const LOGO_HEIGHT = 26;
+/** Whole tiles of the pattern across the page: the strip under the header spans the content width exactly. */
+const STRIP_TILES = 8;
 
 /** The dark modules of the QR code of a text, row by row: what the page draws. */
 export function qrModules(text: string): { size: number; dark: [number, number][] } {
@@ -83,10 +97,52 @@ function heading(doc: Doc, text: string): void {
 	doc
 		.moveTo(doc.page.margins.left, y)
 		.lineTo(doc.page.margins.left + contentWidth(doc), y)
-		.lineWidth(0.5)
-		.strokeColor(COLORS.rule)
+		.lineWidth(0.75)
+		.strokeColor(COLORS.accent)
 		.stroke();
 	doc.moveDown(0.5);
+}
+
+/**
+ * The head of the first page: the official short FSP logo, «| Карьера», the kind of the document on the right, and the
+ * FSP pattern strip under them. Drawn as vector paths (no rectangles: the page's only rectangles are the QR modules).
+ */
+function letterhead(doc: Doc): void {
+	const left = doc.page.margins.left;
+	const top = doc.page.margins.top;
+	const width = contentWidth(doc);
+	const scale = LOGO_HEIGHT / FSP_LOGO.height;
+	doc.save().translate(left, top).scale(scale);
+	for (const path of FSP_LOGO.paths) doc.path(path.d).fill(BRAND_FILLS[path.part]);
+	doc.restore();
+	const logoWidth = FSP_LOGO.width * scale;
+	const textTop = top + LOGO_HEIGHT * 0.5 - 8;
+	doc
+		.font('semibold')
+		.fontSize(14)
+		.fillColor(COLORS.muted)
+		.text('|', left + logoWidth + 8, textTop, { lineBreak: false, continued: true })
+		.fillColor(COLORS.text)
+		.text(' Карьера', { lineBreak: false });
+	doc
+		.font('regular')
+		.fontSize(9)
+		.fillColor(COLORS.muted)
+		.text('Профиль кандидата', left, top + LOGO_HEIGHT * 0.5 - 5, { width, align: 'right', lineBreak: false });
+	const tileScale = width / (STRIP_TILES * PATTERN_TILE.width);
+	const stripTop = top + LOGO_HEIGHT + 12;
+	for (let index = 0; index < STRIP_TILES; index++) {
+		const glyphs = PATTERN_TILES[index % PATTERN_TILES.length];
+		if (glyphs === undefined) throw new Error(`the pattern has no tile ${index % PATTERN_TILES.length}`);
+		doc
+			.save()
+			.translate(left + index * PATTERN_TILE.width * tileScale, stripTop)
+			.scale(tileScale);
+		for (const glyph of glyphs) doc.path(glyph.d).fill(BRAND_FILLS[glyph.tone], 'even-odd');
+		doc.restore();
+	}
+	doc.x = left;
+	doc.y = stripTop + PATTERN_TILE.height * tileScale + 20;
 }
 
 function paragraph(doc: Doc, text: string, options: { muted?: boolean; size?: number; width?: number } = {}): void {
@@ -174,6 +230,7 @@ export function renderProfilePdf(
 	doc.registerFont('regular', Buffer.from(fonts.regular));
 	doc.registerFont('semibold', Buffer.from(fonts.semibold));
 
+	letterhead(doc);
 	doc.font('semibold').fontSize(20).fillColor(COLORS.text).text(input.name);
 	if (input.headline !== null) paragraph(doc, input.headline, { size: 12 });
 	if (input.contacts.length > 0) {

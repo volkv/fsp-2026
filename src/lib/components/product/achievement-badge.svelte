@@ -29,6 +29,16 @@
 		unknown: TrophyIcon
 	} as const;
 
+	/** The discipline code of the FSP brandbook as the fill of the icon; an unknown discipline keeps the neutral accent. */
+	const disciplineFills = {
+		algorithmic: 'bg-discipline-algorithmic text-discipline-algorithmic-foreground',
+		product: 'bg-discipline-product text-discipline-product-foreground',
+		infosec: 'bg-discipline-infosec text-discipline-infosec-foreground',
+		robotics: 'bg-discipline-robotics text-discipline-robotics-foreground',
+		uas: 'bg-discipline-uas text-discipline-uas-foreground',
+		unknown: 'bg-accent text-accent-foreground'
+	} as const;
+
 	const Icon = $derived(disciplineIcons[achievement.discipline]);
 	const FormatIcon = $derived(achievement.format === 'online' ? WifiIcon : MapPinIcon);
 	const place = $derived(achievement.exact?.place ?? null);
@@ -46,8 +56,9 @@
 	data-award={achievement.award}
 >
 	<div
-		class="flex size-11 shrink-0 items-center justify-center rounded-lg bg-accent text-accent-foreground"
+		class={cn('flex size-11 shrink-0 items-center justify-center rounded-lg', disciplineFills[achievement.discipline])}
 		aria-hidden="true"
+		data-discipline={achievement.discipline}
 	>
 		<Icon class="size-5" />
 	</div>
@@ -57,7 +68,7 @@
 		</p>
 		<p class="flex flex-wrap items-baseline gap-x-2 font-heading text-base font-medium">
 			{#if place !== null}
-				<span class="text-h3 text-link numeric">{place}</span>
+				<span class="accent-figure text-h2 text-link">{place}</span>
 				<span>место{achievement.exact?.placeOf ? ` из ${achievement.exact.placeOf}` : ''}</span>
 				<span class="text-sm text-muted-foreground">· {AWARDS[achievement.award]}</span>
 			{:else}

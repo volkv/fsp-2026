@@ -988,6 +988,7 @@ const REGISTRY: Record<string, Entry> = {
 	'api/v1/operator/funnel/+server.ts': exempt('aggregate outside sessions — funnel.test.ts'),
 	'(app)/operator/skills/+page.server.ts': exempt('aggregate outside sessions — catalog-run-in-force.test.ts'),
 	'api/v1/catalog/market/+server.ts': exempt('aggregate outside sessions — market-snapshots.test.ts'),
+	'+page.server.ts': exempt('reference counts, no accounts or sessions — landing-metrics.test.ts'),
 
 	// Letters of the demo session to its own accounts.
 	'(app)/demo/mail/+page.server.ts': exempt('letters of the own session — demo-letters.test.ts'),

@@ -2,8 +2,9 @@
  * Design tokens of «ФСП | Карьера» — the single source of colours, type, radii and elevation.
  *
  * Layers:
- *   1. Primitives (`@theme`): brand scales from the public FSP brandbook (#402FFF, #EC1D35, #1B1C21, #EDEDED, #C8C9CA),
- *      neutrals from fsp-russia.ru and lk.fsp-russia.ru, status colours from the athlete cabinet.
+ *   1. Primitives (`@theme`): brand scales from the FSP brandbook (#402FFF, #EC1D35, #1B1C21, #EDEDED, #C8C9CA), its
+ *      digital accent #0A006B and discipline code, neutrals from fsp-russia.ru and lk.fsp-russia.ru, status colours
+ *      from the athlete cabinet. The discipline fills and the digital accent are the same in both themes.
  *   2. Semantic roles (`:root` — light, `.dark` — dark): what components use. Replacing the product palette means
  *      editing these two blocks; component code never names a primitive directly.
  *   3. Tailwind bindings (`@theme inline`): expose the semantic roles as utilities (`bg-card`, `text-link`, `bg-trust-fsp`).
@@ -77,13 +78,26 @@
 	font-display: swap;
 	src: url('/fonts/jetbrains-mono/JetBrainsMono-Bold.woff2') format('woff2');
 }
+/* The brandbook accent face: one pixel-grid weight, no dashes or ellipsis — large figures only (font-accent). */
+@font-face {
+	font-family: 'TDAText';
+	font-style: normal;
+	font-weight: 400;
+	font-display: swap;
+	src: url('/fonts/tdatext/TDAText.woff2') format('woff2');
+}
 
 /* 1. Primitives */
 @theme {
-	/* Type: JetBrains Mono is the only brandbook face — headings, numbers, labels; Inter — running text and dense UI. */
+	/*
+	 * Type: JetBrains Mono, the main brandbook face — headings, labels; Inter — running text and dense UI, as in the
+	 * FSP flagship projects. TDAText, the brandbook accent face — large figures (24 px and up) and nothing else: it has
+	 * one weight and no dashes or ellipsis, so text beside a figure stays in the main faces.
+	 */
 	--font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 	--font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
 	--font-heading: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+	--font-accent: 'TDAText', 'JetBrains Mono', ui-monospace, monospace;
 
 	--text-display: 3rem;
 	--text-display--line-height: 3.5rem;
@@ -103,6 +117,10 @@
 	--text-metric: 2.5rem;
 	--text-metric--line-height: 2.75rem;
 	--text-metric--font-weight: 500;
+	/* A figure in the accent face: its single weight, never synthesized bold. */
+	--text-figure: 3rem;
+	--text-figure--line-height: 3rem;
+	--text-figure--font-weight: 400;
 	--text-label: 0.75rem;
 	--text-label--line-height: 1rem;
 	--text-label--letter-spacing: 0.02em;
@@ -130,6 +148,24 @@
 	--color-fsp-red-500: #ec1d35;
 	--color-fsp-red-600: #af0011;
 	--color-fsp-red-700: #8d0009;
+
+	/* Digital accent of the brandbook: the backdrop of brand blocks in digital media (a fill, 1.0:1 against #1B1C21). */
+	--color-fsp-digital: #0a006b;
+
+	/*
+	 * Discipline code of the brandbook (FSP flagship events, the booklet): fills only — the yellow and turquoise give
+	 * 1.9:1 as text on white. The `-foreground` of each is the icon colour on that fill (≥ 4.5:1).
+	 */
+	--color-discipline-product: #8f1bf4;
+	--color-discipline-product-foreground: #ffffff;
+	--color-discipline-algorithmic: #402ffd;
+	--color-discipline-algorithmic-foreground: #ffffff;
+	--color-discipline-uas: #1ed3ca;
+	--color-discipline-uas-foreground: #1b1c21;
+	--color-discipline-robotics: #ecb617;
+	--color-discipline-robotics-foreground: #1b1c21;
+	--color-discipline-infosec: #09a953;
+	--color-discipline-infosec-foreground: #1b1c21;
 
 	/* Neutrals from the FSP site and athlete cabinet (900 = brandbook dark #1B1C21, 50 = brandbook light #EDEDED). */
 	--color-ink-0: #ffffff;
@@ -397,4 +433,16 @@
 /* Tabular figures for salaries, scores, timers. */
 @utility numeric {
 	font-variant-numeric: tabular-nums;
+}
+
+/*
+ * A large figure in the brandbook accent face (TDAText): its only weight, never synthesized, tabular. For figures of
+ * 24 px and up with `text-figure` or a heading size; units and captions beside it stay in the main faces.
+ */
+@utility accent-figure {
+	font-family: var(--font-accent);
+	font-weight: 400;
+	font-synthesis: none;
+	font-variant-numeric: tabular-nums;
+	letter-spacing: 0;
 }

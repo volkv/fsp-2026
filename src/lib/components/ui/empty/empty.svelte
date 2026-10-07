@@ -1,4 +1,5 @@
 <script lang="ts">
+	import BrandStrip from '$lib/components/brand/brand-strip.svelte';
 	import { cn, type WithElementRef } from '$lib/components/utils.js';
 	import type { HTMLAttributes } from 'svelte/elements';
 
@@ -19,5 +20,7 @@
 	)}
 	{...restProps}
 >
+	<!-- The brand accent of every empty state: one tile of the FSP pattern above the message. -->
+	<BrandStrip tiles={1} class="h-3.5" />
 	{@render children?.()}
 </div>

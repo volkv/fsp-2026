@@ -1,6 +1,7 @@
 // Outgoing mail over SMTP (docs/contracts.md, section 7.1): Mailpit in development and on the demo stand.
 import nodemailer, { type NodemailerError } from 'nodemailer';
 import { config } from '$lib/server/config';
+import { inlineAttachments } from './logo';
 
 export interface MailMessage {
 	to: string;
@@ -58,7 +59,11 @@ export function createSmtpMailer(settings: { smtpUrl: string; from: string }): M
 	return {
 		async send(message) {
 			try {
-				const info = await transport.sendMail({ from: settings.from, ...message });
+				const info = await transport.sendMail({
+					from: settings.from,
+					...message,
+					attachments: inlineAttachments(message.html)
+				});
 				return { ok: true, value: { messageId: info.messageId } };
 			} catch (error) {
 				if (!isNodemailerError(error)) throw error;

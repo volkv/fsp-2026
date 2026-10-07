@@ -1,4 +1,7 @@
 <script lang="ts">
+	import BrandStrip from '$lib/components/brand/brand-strip.svelte';
+	import FspLogo from '$lib/components/brand/fsp-logo.svelte';
+	import FspSign from '$lib/components/brand/fsp-sign.svelte';
 	import ShowcaseSection from './showcase-section.svelte';
 	import Specimen from './specimen.svelte';
 
@@ -30,6 +33,18 @@
 		{ step: '900', swatch: 'bg-ink-900' }
 	];
 
+	const disciplines = [
+		{ name: 'Продуктовое', hex: '#8F1BF4', swatch: 'bg-discipline-product text-discipline-product-foreground' },
+		{
+			name: 'Алгоритмическое',
+			hex: '#402FFD',
+			swatch: 'bg-discipline-algorithmic text-discipline-algorithmic-foreground'
+		},
+		{ name: 'БАС', hex: '#1ED3CA', swatch: 'bg-discipline-uas text-discipline-uas-foreground' },
+		{ name: 'Робототехника', hex: '#ECB617', swatch: 'bg-discipline-robotics text-discipline-robotics-foreground' },
+		{ name: 'ИБ', hex: '#09A953', swatch: 'bg-discipline-infosec text-discipline-infosec-foreground' }
+	];
+
 	const roles = [
 		{ name: 'background', swatch: 'bg-background', note: 'страница' },
 		{ name: 'card', swatch: 'bg-card', note: 'карточки, поля' },
@@ -57,6 +72,7 @@
 		{ token: 'text-h1', sample: 'Кандидаты под вакансию', font: 'font-heading' },
 		{ token: 'text-h2', sample: 'Почему подходит', font: 'font-heading' },
 		{ token: 'text-h3', sample: 'Квитанция проверки', font: 'font-heading' },
+		{ token: 'text-figure', sample: '228', font: 'accent-figure' },
 		{ token: 'text-metric', sample: '200 000 ₽', font: 'font-heading numeric' },
 		{ token: 'text-lg', sample: 'Работодатель пишет первым — сразу с зарплатой.', font: 'font-sans' },
 		{ token: 'text-base', sample: 'Профиль собирается сам: достижения, резюме, публичные профили.', font: 'font-sans' },
@@ -79,7 +95,7 @@
 <ShowcaseSection
 	id="tokens"
 	title="Токены"
-	description="Все значения — в src/app.css: примитивы бренда ФСП, семантические роли светлой и тёмной темы, привязки к Tailwind. Замена палитры под макеты — правка двух блоков ролей."
+	description="Все значения — в src/app.css: примитивы бренда ФСП по брендбуку 2026, семантические роли светлой и тёмной темы, привязки к Tailwind. Замена палитры под макеты — правка двух блоков ролей."
 >
 	<div class="grid gap-4 lg:grid-cols-2">
 		<Specimen title="Синий ФСП (brand), 500 = #402FFF">
@@ -104,6 +120,46 @@
 		</Specimen>
 	</div>
 
+	<div class="grid gap-4 lg:grid-cols-2">
+		<Specimen title="Логотип ФСП: светлая и тёмная поверхность">
+			<div class="grid gap-3 sm:grid-cols-2">
+				<div class="flex items-center gap-3 rounded-lg border bg-background p-4">
+					<FspLogo class="h-8" />
+					<FspSign class="size-8" />
+				</div>
+				<div class="dark flex items-center gap-3 rounded-lg border bg-background p-4 text-foreground">
+					<FspLogo class="h-8" />
+					<FspSign class="size-8" />
+				</div>
+			</div>
+		</Specimen>
+		<Specimen title="Цвет дисциплин ФСП — только заливка, иконка по контрасту">
+			<ul class="grid grid-cols-3 gap-3 sm:grid-cols-5">
+				{#each disciplines as item (item.name)}
+					<li class="space-y-1">
+						<span class="flex h-10 items-center justify-center rounded-md font-mono text-xs {item.swatch}">
+							{item.hex}
+						</span>
+						<span class="block text-xs text-muted-foreground">{item.name}</span>
+					</li>
+				{/each}
+			</ul>
+		</Specimen>
+	</div>
+
+	<Specimen title="Лента паттерна ФСП: полосой во всю ширину (главная, подвал) и фрагментом (пустые состояния)">
+		<div class="space-y-4">
+			<BrandStrip class="h-6" />
+			<div class="dark rounded-lg bg-background p-4">
+				<BrandStrip class="h-5" />
+			</div>
+			<div class="flex flex-wrap items-center gap-6">
+				<BrandStrip tiles={1} class="h-4" />
+				<BrandStrip tiles={2} class="h-4" />
+			</div>
+		</div>
+	</Specimen>
+
 	<Specimen title="Семантические роли (меняются с темой)">
 		<ul class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
 			{#each roles as role (role.name)}
@@ -124,7 +180,9 @@
 		</ul>
 	</Specimen>
 
-	<Specimen title="Типографика: JetBrains Mono — заголовки, числа, метки; Inter — текст">
+	<Specimen
+		title="Типографика: JetBrains Mono — заголовки, числа, метки; Inter — текст; TDAText — только крупные числа от 24 px"
+	>
 		<ul class="space-y-3">
 			{#each type as item (item.token)}
 				<li class="grid gap-1 sm:grid-cols-[10rem_minmax(0,1fr)] sm:items-baseline">

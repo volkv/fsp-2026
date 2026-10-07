@@ -10,6 +10,17 @@
 	let { children }: LayoutProps = $props();
 </script>
 
+<svelte:head>
+	<!-- The link preview of any page of the stand: the brand card; the landing page adds its title and description. -->
+	<meta property="og:site_name" content="ФСП | Карьера" />
+	<meta property="og:locale" content="ru_RU" />
+	<meta property="og:image" content="{page.url.origin}/og.png" />
+	<meta property="og:image:width" content="1200" />
+	<meta property="og:image:height" content="630" />
+	<meta property="og:image:alt" content="ФСП | Карьера — платформа ИТ-найма, где навыки подтверждены" />
+	<meta name="twitter:card" content="summary_large_image" />
+</svelte:head>
+
 <!-- The inline theme script is disabled: the CSP allows only same-origin scripts. -->
 <ModeWatcher defaultMode="light" disableHeadScriptInjection />
 <Toaster position="bottom-right" />
