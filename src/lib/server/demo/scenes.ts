@@ -260,11 +260,15 @@ async function ensureShortlist(ctx: SeedContext, company: SeededCompany, needId:
 }
 
 /** The candidates of the shortlist as the company sees it now, best first. */
+/**
+ * The candidates of a shortlist with a confirmed grade, best first: the background funnel marks and offers to them. The
+ * group «грейд не подтверждён» after them stays in the shortlist for the employer to weigh (domain 13.10).
+ */
 async function rankedOf(ctx: SeedContext, company: SeededCompany, shortlistId: string): Promise<string[]> {
 	const view = await openShortlist(shortlistDeps(ctx), await subjectOf(ctx, sender(company).userId), shortlistId, {
 		limit: 50
 	});
-	return view.items.map((item) => item.candidateId);
+	return view.items.filter((item) => item.needMatch.group === 'confirmed').map((item) => item.candidateId);
 }
 
 async function mark(

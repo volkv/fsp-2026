@@ -25,7 +25,7 @@ const nationalTeamPayload = z.looseObject({
 const indicatorValue = z.looseObject({ computed_indicator: z.string().nullable().optional() });
 
 /** Team members who did not compete: their team's result is not their own result. */
-const NOT_COMPETING = new Set(['reserve', 'trainer']);
+export const NOT_COMPETING: ReadonlySet<string> = new Set(['reserve', 'trainer']);
 
 interface Observation {
 	factId: string;

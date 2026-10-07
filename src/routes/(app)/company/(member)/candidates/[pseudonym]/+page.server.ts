@@ -119,7 +119,10 @@ export const load: PageServerLoad = async (event) => {
 			fromShortlist: fromShortlist && {
 				shortlistId,
 				needId: fromShortlist.needId,
-				preselected: suggested.slice(0, 5).map((option) => option.key)
+				preselected: suggested.slice(0, 5).map((option) => option.key),
+				/** The candidate is of the group «грейд не подтверждён»: the offer records no confirmed category. */
+				gradeConfirmed: fromShortlist.match.group === 'confirmed',
+				declared: fromShortlist.match.declared
 			},
 			preselected: solutionPoint ? [solutionPoint.key] : [],
 			invitation: existing ? { id: existing.id, status: existing.status } : null

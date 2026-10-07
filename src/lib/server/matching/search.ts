@@ -1,8 +1,10 @@
 // Catalog search for a company (docs/domain.md, sections 7.4, 12.4, 12.7, 13.4, 14, 16; contracts 5.4–5.5): filters by
 // the category in force (specialization, grade, confirmed stack), FSP level, format and region, the facet «категория не
 // подтверждена»; full-text search plus exact vector search; with a vacancy of the company, ranking by `matchScore` with
-// the reranker as one component. A candidate without a category is found only without category filters and is marked;
-// at equal relevance or score the candidates with a category come first (domain 12.7). Every candidate passes `canShow`
+// the reranker as one component. A candidate without a category is found without category filters and is marked, and
+// in a shortlist only as its group «грейд не подтверждён», by their own declaration of one of its categories, after
+// every confirmed candidate (domain 13.10); at equal relevance or score the candidates with a category come first
+// (domain 12.7). Every candidate passes `canShow`
 // in the catalog context of the vacancy, so a minor appears only for a suitable vacancy of the viewer.
 import { and, eq, ne, sql, type SQL } from 'drizzle-orm';
 import { can, type AccessSubject } from '$lib/server/access/permissions';
@@ -12,6 +14,7 @@ import type { Executor } from '$lib/server/db';
 import { candidateAt, listedInCatalog, runAt, runInForce } from '$lib/server/db/conditions';
 import { vacancies } from '$lib/server/db/schema';
 import { demoScope } from '$lib/server/demo/scope';
+import { declaredWithoutCategory, lastDeclaredAt } from '$lib/server/grades/current';
 import { ApiError } from '$lib/server/errors/api-error';
 import { canShow, type ShowExtra } from '$lib/server/visibility/can-show';
 import type { MatchingDeps } from './deps';
@@ -31,6 +34,7 @@ import type {
 	NeedComposite,
 	NeedCoverage,
 	NeedReason,
+	NeedResult,
 	NeedSpec,
 	SkillReading
 } from './score';
@@ -56,6 +60,12 @@ export interface CandidateSearchFilters {
 	uncategorized?: boolean;
 	/** A category in force of any of these pairs «specialization × grade» (the categories of a shortlist). */
 	categories?: CandidateCategory[];
+	/**
+	 * With `categories`: also the candidates holding no category in force of a specialization of the pairs whose
+	 * declaration in force of it names one of the pairs — the group «грейд не подтверждён» of a shortlist (domain 13.10).
+	 * A filter by the confirmed stack leaves them out: no test confirmed anything of theirs.
+	 */
+	withDeclared?: boolean;
 	/** Only candidates with an FSP result in force (contracts 5.5, `has_fsp`). */
 	fspConfirmed?: boolean;
 }
@@ -129,6 +139,9 @@ export type CompanyNeedReason = NeedReason extends infer R
 
 /** The decomposition of a ranking for a need (or by strength) as a company sees it. */
 export interface CompanyNeedMatch {
+	group: NeedResult['group'];
+	declared: CandidateCategory | null;
+	fsp: NeedResult['fsp'];
 	coverage: NeedCoverage;
 	composite: NeedComposite | null;
 	score: number;
@@ -148,6 +161,9 @@ export interface CompanyNeedMatch {
 export function companyNeedMatch(entry: RankedForNeed): CompanyNeedMatch {
 	const { result } = entry;
 	return {
+		group: result.group,
+		declared: result.declared,
+		fsp: result.fsp,
 		coverage: result.coverage,
 		composite: result.composite,
 		score: result.score,
@@ -211,6 +227,8 @@ interface Listed {
 	revision: number;
 	floor: number;
 	runId: string | null;
+	/** The latest declaration of a grade: a declaration admits to the group «грейд не подтверждён» and labels it. */
+	declaredAt: string | null;
 }
 
 /** Candidates passing the filters that SQL can decide; `canShow` decides the rest. */
@@ -238,20 +256,20 @@ async function prefilter(
 	const pairs = nonEmpty('filters.categories', filters.categories);
 	const byCategory =
 		specializations !== undefined || grades !== undefined || confirmedSkillKeys !== undefined || pairs !== undefined;
+	if (filters.withDeclared && !pairs)
+		throw new Error('the group «грейд не подтверждён» is of the categories asked for');
 	if (pairs) {
 		// One category in force of one of the pairs, holding the confirmed stack asked for.
-		conditions.push(
-			sql`(${sql.join(
-				pairs.map((pair) =>
-					categoryPredicate(sql`c.id`, {
-						specializations: [pair.specialization],
-						grades: [pair.grade],
-						...(confirmedSkillKeys ? { confirmedSkillKeys } : {})
-					})
-				),
-				sql` or `
-			)})`
+		const held = pairs.map((pair) =>
+			categoryPredicate(sql`c.id`, {
+				specializations: [pair.specialization],
+				grades: [pair.grade],
+				...(confirmedSkillKeys ? { confirmedSkillKeys } : {})
+			})
 		);
+		// Or no category of a specialization of the pairs and a declaration of it naming one of them (domain 13.10).
+		const declared = filters.withDeclared && !confirmedSkillKeys ? [declaredWithoutCategory(sql`c.id`, pairs)] : [];
+		conditions.push(sql`(${sql.join([...held, ...declared], sql` or `)})`);
 	}
 	if (byCategory && (specializations || grades || (confirmedSkillKeys && !pairs))) {
 		// One category in force meets every category filter at once; without a category, never in this result (12.7).
@@ -293,9 +311,11 @@ async function prefilter(
 		revision: string;
 		floor: string;
 		run_id: string | null;
+		declared_at: string | null;
 	}>(sql`
 		select c.id::text as id, ${categoryPredicate(sql`c.id`)} as category_confirmed,
-			c.profile_revision::text as revision, c.evidence_floor_revision::text as floor, r.id::text as run_id
+			c.profile_revision::text as revision, c.evidence_floor_revision::text as floor, r.id::text as run_id,
+			${lastDeclaredAt(sql`c.id`)} as declared_at
 		from candidates c
 		left join evidence_runs r on r.candidate_id = c.id and ${runInForce(runAt('r'), candidateAt('c'))}
 		where ${sql.join(conditions, sql` and `)}
@@ -305,7 +325,8 @@ async function prefilter(
 		categoryConfirmed: row.category_confirmed,
 		revision: Number(row.revision),
 		floor: Number(row.floor),
-		runId: row.run_id
+		runId: row.run_id,
+		declaredAt: row.declared_at
 	}));
 }
 
@@ -569,7 +590,8 @@ async function computeRanking(
 
 // --- The ranking cache -----------------------------------------------------------------------------------------------
 //
-// A ranking is a function of the visible candidates at their revisions, evidence floors and runs in force, of their
+// A ranking is a function of the visible candidates at their revisions, evidence floors, runs in force and latest
+// declarations of a grade (a declaration admits to the group «грейд не подтверждён» and labels it), of their
 // vectors and the vacancy's in the active space, of the vacancy at its revision, the query, the match rule set in force
 // and of what the reranker answers right now. The key is made of exactly these, so a change of any of them is a new key
 // and nothing is invalidated by hand; visibility itself is decided afresh on every request, and the key carries the set
@@ -762,7 +784,7 @@ async function rankingKey(
 		space: space && { id: space.id, vectors: await vectorsStamp(executor, space, visibleIds, vacancy?.id ?? null) },
 		candidates: listed
 			.filter((row) => visible.has(row.id))
-			.map((row) => [row.id, row.revision, row.floor, row.runId])
+			.map((row) => [row.id, row.revision, row.floor, row.runId, row.declaredAt])
 			.sort((a, b) => (String(a[0]) < String(b[0]) ? -1 : 1))
 	});
 }

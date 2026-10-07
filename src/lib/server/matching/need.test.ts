@@ -1,8 +1,8 @@
 // Ranking for a hiring need (docs/domain.md, section 13.10): candidates covering every required skill come first, then
 // by the number of unconfirmed ones — missing, unknown and claimed told apart; what a candidate says of themselves is
-// worth its band under a ceiling below what a check confirms, the two levels add up with exact contributions, FSP is a
-// bonus only where it relates to the need and never a penalty, the test is read by blocks, and the semantic similarity
-// only orders almost equal scores.
+// worth its band under a ceiling below what a check confirms, the two levels add up with exact contributions, the FSP
+// record is a bonus by competitions and podiums and never a penalty, the test is read by blocks, a candidate without a
+// category of the need goes after every confirmed one, and the semantic similarity only orders almost equal scores.
 import { describe, expect, it } from 'vitest';
 import matchRuleset from '../../../../taxonomy/match-ruleset.json';
 import { matchRulesetParamsSchema } from './params';
@@ -11,6 +11,7 @@ import {
 	NEED_COMPONENT_KEYS,
 	needScore,
 	type ConfirmedCategory,
+	type FspResult,
 	type NeedCandidate,
 	type NeedScoreInput,
 	type NeedSpec,
@@ -58,6 +59,8 @@ const candidate = (overrides: Partial<NeedCandidate> = {}): NeedCandidate => ({
 	preferences: { workFormats: [], regionCode: null, relocation: null },
 	tests: new Map(),
 	lastConfirmedAction: null,
+	declared: [],
+	fspResults: [],
 	...overrides
 });
 
@@ -65,6 +68,25 @@ const score = (input: Partial<NeedScoreInput> & Pick<NeedScoreInput, 'candidate'
 	needScore({ need: need(), params: params.need, skillBandValue: params.skillBandValue, now: NOW, ...input });
 
 const sum = (values: number[]) => values.reduce((a, b) => a + b, 0);
+
+/** A place of a ranking for a need as `orderForNeed` reads it. */
+const place = (
+	id: string,
+	value: number,
+	strength = 0,
+	withoutFsp = value,
+	unconfirmed = 0,
+	without = unconfirmed,
+	composite = false
+) => ({
+	id,
+	confirmed: true,
+	unconfirmed,
+	composite,
+	score: value,
+	strength,
+	withoutFsp: { unconfirmed: without, score: withoutFsp }
+});
 
 describe('the fit to a need', () => {
 	it('caps what the candidate claims below what the test confirms, lower where their own test checked the skill', () => {
@@ -257,24 +279,73 @@ describe('the strength of the confirmed profile', () => {
 		});
 	});
 
-	it('gives FSP a bonus only where it confirms a skill of the need, and no penalty without it', () => {
-		const related = skill('kafka', { attestation: 'direct', badgeTrust: 'fsp_verified', factIds: ['f1'] });
-		const unrelated = skill('algorithms', { attestation: 'direct', badgeTrust: 'fsp_verified', factIds: ['f2'] });
-		const evidence = (skills: SkillEvidence[]) => ({ status: 'available' as const, runId: 'r', skills });
-		const without = score({ candidate: candidate() });
-		const withUnrelated = score({ candidate: candidate({ evidence: evidence([unrelated]) }) });
-		const withRelated = score({ candidate: candidate({ evidence: evidence([related]) }) });
-		expect(without.components.fsp).toMatchObject({ value: 0, contribution: 0, reason: 'no_related_fsp' });
-		expect(withUnrelated.score).toBe(without.score);
-		expect(withRelated.components.fsp.value).toBe(1);
-		expect(withRelated.score).toBeGreaterThan(without.score);
-		// Without FSP the related candidate scores like the one who never had it.
-		const asIfWithout = score({ candidate: candidate({ evidence: evidence([related]) }), withoutFsp: true });
-		expect(asIfWithout.score).toBe(without.score);
-		// The catalog without a need counts any FSP result.
-		expect(score({ need: null, candidate: candidate({ evidence: evidence([unrelated]) }) }).components.fsp.value).toBe(
-			1
-		);
+	describe('the FSP record', () => {
+		const record = (count: number, podiums = 0, team = false): FspResult[] =>
+			Array.from({ length: count }, (_, index) => ({
+				factId: `fact-${index}`,
+				competitionId: `competition-${index}`,
+				podium: index < podiums,
+				team
+			}));
+		const withResults = (fspResults: FspResult[], overrides: Partial<NeedCandidate> = {}) =>
+			score({ candidate: candidate({ fspResults, ...overrides }) });
+
+		it('ranks two wins above five participations without a prize, everything else equal', () => {
+			const participant = withResults(record(5));
+			const winner = withResults(record(2, 2));
+			expect(participant.fsp).toEqual({ competitions: 5, podiums: 0, team_podiums: 0 });
+			expect(winner.fsp).toEqual({ competitions: 2, podiums: 2, team_podiums: 0 });
+			expect(winner.components.fsp.value).toBeGreaterThan(participant.components.fsp.value);
+			expect(winner.score).toBeGreaterThan(participant.score);
+			// One podium outweighs any number of participations; more of either never lowers the record.
+			expect(withResults(record(1, 1)).components.fsp.value).toBeGreaterThan(
+				withResults(record(50)).components.fsp.value
+			);
+			expect(withResults(record(6)).components.fsp.value).toBeGreaterThan(participant.components.fsp.value);
+			expect(withResults(record(3, 3)).components.fsp.value).toBeGreaterThan(winner.components.fsp.value);
+		});
+
+		it('saturates below the test and gives no penalty without FSP', () => {
+			const without = withResults([]);
+			expect(without.components.fsp).toMatchObject({ value: 0, contribution: 0, reason: 'no_fsp_results' });
+			expect(without.fsp).toEqual({ competitions: 0, podiums: 0, team_podiums: 0 });
+			// However long the record, its whole contribution stays under what the test alone can move.
+			const champion = withResults(record(40, 40));
+			expect(champion.components.fsp.value).toBeLessThanOrEqual(1);
+			expect(champion.components.fsp.contribution).toBeLessThan(
+				params.need.weights.test / sum(NEED_COMPONENT_KEYS.map((key) => params.need.weights[key])) - 1e-9
+			);
+			// Without FSP the champion scores like the one who never had it; the reason names the record with its source.
+			expect(score({ candidate: candidate({ fspResults: record(40, 40) }), withoutFsp: true }).score).toBe(
+				without.score
+			);
+			expect(champion.reasons.find((reason) => reason.code === 'fsp_record')).toMatchObject({
+				competitions: 40,
+				podiums: 40,
+				source: { kind: 'fsp_fact' }
+			});
+		});
+
+		it("counts a competition once and a team podium as the team's result, not a confirmed skill", () => {
+			const twice: FspResult[] = [
+				{ factId: 'a', competitionId: 'c1', podium: false, team: false },
+				{ factId: 'b', competitionId: 'c1', podium: true, team: true }
+			];
+			expect(withResults(twice).fsp).toEqual({ competitions: 1, podiums: 1, team_podiums: 1 });
+			const team = withResults(record(2, 2, true));
+			const individual = withResults(record(2, 2));
+			expect(team.fsp).toEqual({ competitions: 2, podiums: 2, team_podiums: 2 });
+			expect(team.components.fsp.value).toBe(individual.components.fsp.value);
+			// The record confirms no skill: the coverage of the need stays the one of the test.
+			expect(team.coverage).toEqual(withResults([]).coverage);
+			// The need that says FSP does not matter leaves it out; the catalog without a need counts it.
+			expect(
+				score({ need: need({ fspRelevant: false }), candidate: candidate({ fspResults: record(2, 2) }) }).fsp
+			).toBe(null);
+			expect(score({ need: null, candidate: candidate({ fspResults: record(2, 2) }) }).components.fsp.value).toBe(
+				individual.components.fsp.value
+			);
+		});
 	});
 
 	it('ranks the catalog without a need by the strength alone; without a category the strength is zero', () => {
@@ -307,6 +378,58 @@ describe('the strength of the confirmed profile', () => {
 		expect(withoutAny.components.freshness).toMatchObject({ value: 0, reason: 'no_confirmed_action' });
 		const onlySolution = score({ need: null, candidate: candidate({ categories: [], lastConfirmedAction: NOW }) });
 		expect(onlySolution.components.freshness).toMatchObject({ value: 1, reason: null });
+	});
+});
+
+describe('the group «грейд не подтверждён»', () => {
+	const unconfirmed = (overrides: Partial<NeedCandidate> = {}) =>
+		candidate({ categories: [], declared: [{ specialization: 'backend', grade: 'middle' }], ...overrides });
+
+	it("labels the declaration, caps a claim as the declared category's test would, counts FSP as usual", () => {
+		const result = score({
+			candidate: unconfirmed({
+				evidence: {
+					status: 'available',
+					runId: 'r',
+					skills: [
+						skill('sql'),
+						skill('kafka'),
+						skill('docker', { attestation: 'direct', badgeTrust: 'public_verifiable' }),
+						skill('multithreading', { attestation: 'direct', badgeTrust: 'fsp_verified', factIds: ['f1'] })
+					]
+				},
+				fspResults: [{ factId: 'f1', competitionId: 'c1', podium: true, team: false }]
+			})
+		});
+		expect(result).toMatchObject({ group: 'unconfirmed', declared: { specialization: 'backend', grade: 'middle' } });
+		const by = (key: string) => result.skills.find((s) => s.skill_key === key);
+		// The Backend Middle test the candidate declared checks SQL: their claim of it is capped as an unconfirmed check;
+		// no block of it checks Kafka.
+		expect(by('sql')).toMatchObject({ basis: 'claimed', value: params.need.skill.claimedCeiling });
+		expect(by('kafka')).toMatchObject({
+			basis: 'claimed_untestable',
+			value: params.need.skill.untestableClaimedCeiling
+		});
+		expect(by('docker')).toMatchObject({ basis: 'public_profile', value: params.need.skill.publicProfileFactor });
+		expect(by('multithreading')).toMatchObject({ basis: 'fsp', value: 1 });
+		expect(result.toVerify).toEqual(['sql', 'kafka']);
+		expect(result.components.test).toMatchObject({ value: 0, reason: 'no_category' });
+		expect(result.components.fsp.value).toBeGreaterThan(0);
+		// Without the declaration nothing of their own checked SQL.
+		const undeclared = score({
+			candidate: unconfirmed({ declared: [], evidence: { status: 'available', runId: 'r', skills: [skill('sql')] } })
+		});
+		expect(undeclared).toMatchObject({ group: 'unconfirmed', declared: null });
+		expect(undeclared.skills.find((s) => s.skill_key === 'sql')?.basis).toBe('claimed_untestable');
+		expect(score({ candidate: candidate() })).toMatchObject({ group: 'confirmed', declared: null });
+	});
+
+	it('puts every confirmed candidate above every unconfirmed one, whatever the scores and the coverage', () => {
+		const strong = { ...place('strong', 0.99), confirmed: false };
+		const weak = { ...place('weak', 0.1), unconfirmed: 3, withoutFsp: { unconfirmed: 3, score: 0.1 } };
+		const order = orderForNeed([strong, weak, { ...place('other', 0.4), confirmed: false }], new Map(), 0.01);
+		expect(order.map((p) => p.id)).toEqual(['weak', 'strong', 'other']);
+		expect(order.find((p) => p.id === 'strong')).toMatchObject({ position: 2, positionWithoutFsp: 2 });
 	});
 });
 
@@ -345,23 +468,6 @@ describe('reasons «почему подходит»', () => {
 });
 
 describe('the order of a ranking for a need', () => {
-	const place = (
-		id: string,
-		score: number,
-		strength = 0,
-		withoutFsp = score,
-		unconfirmed = 0,
-		without = unconfirmed,
-		composite = false
-	) => ({
-		id,
-		unconfirmed,
-		composite,
-		score,
-		strength,
-		withoutFsp: { unconfirmed: without, score: withoutFsp }
-	});
-
 	it('puts those covering every required skill first, then by the number unconfirmed, by score inside', () => {
 		const order = orderForNeed(
 			[place('a', 0.95, 0, 0.95, 1), place('b', 0.5), place('c', 0.9, 0, 0.9, 2), place('d', 0.6, 0, 0.6, 1)],

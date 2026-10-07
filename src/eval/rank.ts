@@ -48,12 +48,14 @@ import {
 	bankReleases,
 	candidateCategories,
 	candidates,
+	candidateSurveys,
 	claims,
 	consentEvents,
 	embeddings,
 	evidenceRuns,
 	experienceEntries,
 	gradeDecisions,
+	gradeDeclarations,
 	legalDocuments,
 	mlResults,
 	pdOperators,
@@ -66,6 +68,7 @@ import {
 import { createEmbeddingReindexHandler } from '$lib/server/embeddings/reindex';
 import { createEvidenceHandler } from '$lib/server/evidence/job';
 import { computeGradeHint } from '$lib/server/grades/declarations';
+import { declaredWithoutCategory } from '$lib/server/grades/current';
 import { ensureEmbeddingSpace } from '$lib/server/embeddings/space';
 import type { EmbedModels } from '$lib/server/embeddings/vectors';
 import { factClaims, loadProjectionTaxonomy, type ProjectionTaxonomy } from '$lib/server/fsp/projection';
@@ -297,6 +300,12 @@ export interface RankAnswer {
 	rankings: Record<string, Record<string, string[]>>;
 	/** Ranking → need id → the candidates of the ranking without any category, apart and unranked (domain 12.7). */
 	unconfirmed: Record<string, Record<string, string[]>>;
+	/**
+	 * Ranking → need id → the group «грейд не подтверждён» of a ranking admitting by categories, in the order the shortlist
+	 * shows it after every candidate of `rankings` (domain 13.10): no category of the shortlist's specializations and a
+	 * declaration — the grade of the candidate's last test there — naming one of its categories. Not of the confirmed pool.
+	 */
+	declared: Record<string, Record<string, string[]>>;
 	/**
 	 * Ranking → need id → the first ten with their score, the contribution of every component and what the product says
 	 * of them: the reasons with their sources, the required skills with no basis, the skills resting on words alone.
@@ -586,6 +595,65 @@ async function releaseHarnessTests(db: Database, specializations: ReadonlySet<Sp
  * the confirmed stack reads (`decisionRecords`) — and its row of `grade_decisions` with the sums of its blocks, the
  * strength the ranking reads. Not a step of a confident result.
  */
+interface Survey {
+	id: string;
+	specialization: SpecializationKey;
+}
+
+/**
+ * The declaration a test was taken on (domain 12.2): the grade of the attempt, declared in the survey of its
+ * specialization an hour before it — a new survey version when the specialization changes, as the product makes one.
+ * The declared stack of the survey is the stack of the grade's defining blocks: the bridge has no answers of the
+ * survey, and no score reads that stack.
+ */
+async function recordDeclaration(
+	tx: Transaction,
+	candidateId: string,
+	result: TestResult,
+	decidedAt: Date,
+	taxonomyVersionId: string,
+	surveys: Survey[]
+): Promise<void> {
+	const declaredAt = new Date(decidedAt.getTime() - 60 * 60 * 1000);
+	let survey = surveys.at(-1);
+	if (survey?.specialization !== result.specialization) {
+		const direction = CATALOG.specializations.find((s) => s.key === result.specialization)?.direction;
+		const stack = [
+			...new Set(
+				gradeDefinition(result.specialization, result.grade).defining.flatMap(
+					(block) => blockDefinition(block).skillKeys
+				)
+			)
+		].slice(0, 10);
+		if (!direction || stack.length === 0) throw new Error(`no survey of ${result.specialization} × ${result.grade}`);
+		const [inserted] = await tx
+			.insert(candidateSurveys)
+			.values({
+				candidateId,
+				version: surveys.length + 1,
+				catalogVersion: CATALOG.version,
+				taxonomyVersionId,
+				direction,
+				specialization: result.specialization,
+				declaredSkillKeys: stack,
+				preferences: {},
+				createdAt: declaredAt
+			})
+			.returning({ id: candidateSurveys.id });
+		if (!inserted) throw new Error('survey was not inserted');
+		survey = { id: inserted.id, specialization: result.specialization };
+		surveys.push(survey);
+	}
+	await tx.insert(gradeDeclarations).values({
+		candidateId,
+		surveyId: survey.id,
+		specialization: result.specialization,
+		grade: result.grade,
+		hint: { suggested: null },
+		declaredAt
+	});
+}
+
 async function recordDecision(
 	tx: Transaction,
 	candidateId: string,
@@ -836,6 +904,23 @@ async function holdersOf(
 	return new Set(rows.map((row) => row.id));
 }
 
+/** The candidates of `ids` of the group «грейд не подтверждён» of the pairs, by the product's own condition. */
+async function declaredOf(
+	db: Database,
+	ids: readonly string[],
+	pairs: readonly { specialization: SpecializationKey; grade: GradeKey }[]
+): Promise<Set<string>> {
+	if (ids.length === 0 || pairs.length === 0) return new Set();
+	const list = sql`array[${sql.join(
+		ids.map((id) => sql`${id}::uuid`),
+		sql`, `
+	)}]`;
+	const rows = await db.execute<{ id: string }>(
+		sql`select c.id::text as id from unnest(${list}) as c(id) where ${declaredWithoutCategory(sql`c.id`, pairs)}`
+	);
+	return new Set(rows.map((row) => row.id));
+}
+
 /**
  * The candidates a need's shortlist ranks, of those it considers: holders of one of its categories; all of them, for
  * a given set; or — the experiment without a test — those whose grade hint of a specialization of the shortlist is one
@@ -970,8 +1055,10 @@ export async function rankCandidates(request: RankRequest, deps: RankDeps): Prom
 				}
 				// Decisions a day apart, the last one a day before «now», each applied as the engine applies it.
 				const results = candidate.test_results;
+				const surveys: Survey[] = [];
 				for (const [index, result] of results.entries()) {
 					const decidedAt = new Date(now.getTime() - (results.length - index) * DAY_MS);
+					await recordDeclaration(tx, row.id, result, decidedAt, published.taxonomyVersionId, surveys);
 					await recordDecision(tx, row.id, decisionId(candidate.id, index), result, decidedAt);
 					await applyGradeDecisions(
 						tx,
@@ -1031,6 +1118,7 @@ export async function rankCandidates(request: RankRequest, deps: RankDeps): Prom
 		const hints = new Map<string, GradeKey | null>();
 		const rankings: RankAnswer['rankings'] = {};
 		const unconfirmed: RankAnswer['unconfirmed'] = {};
+		const declared: RankAnswer['declared'] = {};
 		const top: RankAnswer['top'] = {};
 		const semantic: RankAnswer['semantic'] = {};
 		const rankingStarted = performance.now();
@@ -1044,6 +1132,7 @@ export async function rankCandidates(request: RankRequest, deps: RankDeps): Prom
 			const categorized = await holdersOf(db, ids, null);
 			const byNeed: Record<string, string[]> = {};
 			const apart: Record<string, string[]> = {};
+			const groupOf: Record<string, string[]> = {};
 			const topOf: RankAnswer['top'][string] = {};
 			const semanticUsage: ComponentUsage = { used: 0, unavailable: {} };
 			const storedOf = (id: string) => {
@@ -1059,18 +1148,40 @@ export async function rankCandidates(request: RankRequest, deps: RankDeps): Prom
 				const considered = ranking.per_need === undefined ? ids : (ranking.per_need[need.id] ?? []).map(storedOf);
 				apart[need.id] = considered.filter((id) => !categorized.has(id)).map((id) => requestIdOf.get(id) as string);
 				const admitted = await admit(db, ranking.admission, considered, spec.categories, hints, now);
-				const result = await rankForNeed(db, ranking.semantic ? deps.models : MODELS_OFF, spec, admitted, {
-					ruleset,
-					testResults: GRADE_DECISION_RESULTS,
-					now,
-					semanticText: ranking.semantic ? text : null,
-					priority: 'background'
-				});
-				if (result.ranked.length !== admitted.length) {
-					throw new Error(`need ${need.id}: ${result.ranked.length} of ${admitted.length} candidates ranked`);
+				// A shortlist admitting by categories shows its group «грейд не подтверждён» after them.
+				const group =
+					ranking.admission === 'categories'
+						? [...(await declaredOf(db, considered, spec.categories))].filter((id) => !admitted.includes(id))
+						: [];
+				const result = await rankForNeed(
+					db,
+					ranking.semantic ? deps.models : MODELS_OFF,
+					spec,
+					[...admitted, ...group],
+					{
+						ruleset,
+						testResults: GRADE_DECISION_RESULTS,
+						now,
+						semanticText: ranking.semantic ? text : null,
+						priority: 'background'
+					}
+				);
+				if (result.ranked.length !== admitted.length + group.length) {
+					throw new Error(
+						`need ${need.id}: ${result.ranked.length} of ${admitted.length + group.length} candidates ranked`
+					);
 				}
-				byNeed[need.id] = result.ranked.map((entry) => requestIdOf.get(entry.snapshot.id) as string);
-				topOf[need.id] = result.ranked.slice(0, 10).map((entry) => ({
+				// Of a ranking by categories the admitted hold one of them and the group follows them; a given set or the
+				// experiment by the hint is ranked whole, as it was admitted.
+				const shown = result.ranked.slice(0, admitted.length);
+				const tail = result.ranked.slice(admitted.length);
+				const grouped = new Set(group);
+				if (shown.some((entry) => grouped.has(entry.snapshot.id))) {
+					throw new Error(`need ${need.id}: the group «грейд не подтверждён» is not after every admitted candidate`);
+				}
+				byNeed[need.id] = shown.map((entry) => requestIdOf.get(entry.snapshot.id) as string);
+				groupOf[need.id] = tail.map((entry) => requestIdOf.get(entry.snapshot.id) as string);
+				topOf[need.id] = shown.slice(0, 10).map((entry) => ({
 					id: requestIdOf.get(entry.snapshot.id) as string,
 					score: entry.result.score,
 					components: Object.fromEntries(
@@ -1092,6 +1203,7 @@ export async function rankCandidates(request: RankRequest, deps: RankDeps): Prom
 			}
 			rankings[ranking.name] = byNeed;
 			unconfirmed[ranking.name] = apart;
+			declared[ranking.name] = groupOf;
 			top[ranking.name] = topOf;
 			semantic[ranking.name] = semanticUsage;
 		}
@@ -1110,6 +1222,7 @@ export async function rankCandidates(request: RankRequest, deps: RankDeps): Prom
 		return {
 			rankings,
 			unconfirmed,
+			declared,
 			top,
 			categories,
 			semantic,

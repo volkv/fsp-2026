@@ -12,6 +12,12 @@ same world, each with its own question, fixed before the runs that use it.
 (c) Sorting (`shortlist.sorting.*`): the product's ranking and the keyword sorting of the same requirements over one set
     fixed before the run — the people of the pool holding a category the need admits.
 
+The product shows after its shortlist the group «грейд не подтверждён» (domain 13.10): people without a category of the
+need whose own declaration names one. They are not of the pool, and every measure of (a)–(c) reads the shortlist
+without them; their share of the first ten the product shows is reported apart (`shortlist.unconfirmed_share_top10`),
+next to what Precision@10 would read if the group counted (`shortlist.precision_at_10.with_unconfirmed_tail`), so
+that a measure cannot rise on the group.
+
 Baselines, each named by what it is given:
 - `keywords_same_text` — automation from the same input: BM25 of the need's text over the resume texts of the pool;
 - `keywords_same_requirements` — sorting under the same requirements: the names of the skills the product read from the
@@ -193,6 +199,8 @@ class Inputs:
     semantic_used: bool
     with_fsp: frozenset[str] = frozenset()
     top: Mapping[str, Mapping[str, Sequence[Mapping[str, Any]]]] = field(default_factory=dict)
+    # Need → the product's group «грейд не подтверждён» after the shortlist of the variant `full`, in its order.
+    declared: Mapping[str, Sequence[str]] = field(default_factory=dict)
 
     @property
     def pool(self) -> list[str]:
@@ -283,8 +291,16 @@ class _Judged:
     random_values: list[float] = field(default_factory=list)
     without_suitable: list[str] = field(default_factory=list)
     exposure: dict[str, list[float]] = field(
-        default_factory=lambda: {"inflated_full": [], "inflated_keywords": [], "fsp_top": [], "fsp_all": []}
+        default_factory=lambda: {
+            "inflated_full": [],
+            "inflated_keywords": [],
+            "fsp_top": [],
+            "fsp_all": [],
+            "unconfirmed_top": [],
+            "unconfirmed_all": [],
+        }
     )
+    with_tail: list[float] = field(default_factory=list)
 
     def expose(self, inputs: Inputs, orders: Mapping[str, Sequence[str]]) -> None:
         for name, key in (("full", "inflated_full"), ("keywords_same_text", "inflated_keywords")):
@@ -296,6 +312,13 @@ class _Judged:
             first = shortlist[:K]
             self.exposure["fsp_top"].append(sum(pid not in inputs.with_fsp for pid in first) / len(first))
             self.exposure["fsp_all"].append(sum(pid not in inputs.with_fsp for pid in shortlist) / len(shortlist))
+
+    def expose_group(self, shown: Sequence[str], group: Sequence[str]) -> None:
+        """The share of the group «грейд не подтверждён» in the first ten the product shows and in all it shows."""
+        if shown:
+            first = shown[:K]
+            self.exposure["unconfirmed_top"].append(sum(pid in group for pid in first) / len(first))
+            self.exposure["unconfirmed_all"].append(len(group) / len(shown))
 
     def rate(self, row: dict[str, Any], orders: Mapping[str, Sequence[str]], rels: Mapping[str, int]) -> None:
         suitable = row["suitable"]
@@ -324,16 +347,25 @@ def _judge(inputs: Inputs, pool: Sequence[str], variants: Sequence[str]) -> _Jud
         people = set(pool).union(*orders.values())
         rels = {pid: relevance(need, inputs.truths[pid]) for pid in people}
         judged.expose(inputs, orders)
+        group = list(inputs.declared.get(need.id, ()))
+        if set(group) & set(orders["full"]):
+            raise ValueError(f"need {need.id}: the group «грейд не подтверждён» repeats people of the shortlist")
+        shown = [*orders["full"], *group]
+        judged.expose_group(shown, group)
         row: dict[str, Any] = {
             "suitable": sum(rel >= SUITABLE for rel in rels.values()),
             "partial": sum(rel == 1 for rel in rels.values()),
             "shortlist": len(orders["full"]),
             "slices": _slices(need),
         }
+        row["unconfirmed"] = len(group)
         if row["suitable"] == 0:
             judged.without_suitable.append(need.id)
         else:
             judged.rate(row, orders, rels)
+            # What Precision@10 would read if the group counted: the measure of record never does.
+            tail_rels = {**rels, **{pid: relevance(need, inputs.truths[pid]) for pid in group}}
+            judged.with_tail.append(precision_at(shown, tail_rels))
         judged.per_need[need.id] = row
     return judged
 
@@ -380,6 +412,15 @@ def _put_whole(table: MetricTable, inputs: Inputs, judged: _Judged, variants: Se
     put("inflated_share_top10", _mean(inflated), len(inflated), _mean(keywords), with_baseline=True)
     top, everyone = exposure["fsp_top"], exposure["fsp_all"]
     put("without_fsp_share_top10", _mean(top), len(top), _mean(everyone), with_baseline=True)
+    group_top, group_all = exposure["unconfirmed_top"], exposure["unconfirmed_all"]
+    put("unconfirmed_share_top10", _mean(group_top), len(group_top), _mean(group_all), with_baseline=True)
+    put(
+        "precision_at_10.with_unconfirmed_tail",
+        _mean(judged.with_tail),
+        len(judged.with_tail),
+        mean["precision_at_10"].get("full"),
+        with_baseline=True,
+    )
     return deltas
 
 

@@ -1,7 +1,8 @@
 // «Оцените подбор» (docs/contracts.md, section 11.2, item 10): the company — or an expert of the jury in a demo session
 // — sees the top ten of the shortlist and the top ten of a plain keyword search for the same need merged by team-draft
 // interleaving and shuffled, in one of two parts, each named as such: the comparison on the confirmed pool — the
-// keyword search among the candidates of the shortlist's categories and filters, the same conditions as the shortlist;
+// keyword search among the candidates of the shortlist's categories and filters, the same conditions as the shortlist,
+// against the shortlist's confirmed candidates (its group «грейд не подтверждён» is not of the pool);
 // the experiment over the whole catalog — the keyword search over everyone the company sees, candidates without a
 // category included, «эксперимент, не качество подборки»; without which system put a card there, and marks the candidates who fit. The judgement
 // gives Precision@10 of each system (out of ten: a short list does not count higher), the preference by the interleaving
@@ -22,7 +23,7 @@ import type { RequestMeta } from '$lib/server/invitations/deps';
 import { keywordSearch, visibleAmong } from '$lib/server/matching/search';
 import { uuidv7 } from '$lib/server/ids';
 import { searchOf } from './query';
-import { rankStep, shortlistStep, type ShortlistDeps } from './service';
+import { needMatchOf, rankStep, shortlistStep, type ShortlistDeps } from './service';
 
 export const TOP = 10;
 
@@ -155,7 +156,12 @@ export async function startEvaluation(
 	const { shortlist, step, needText } = await shortlistStep(deps, subject, shortlistId);
 	const membership = subject.membership;
 	if (!membership) throw new ApiError('forbidden');
-	const product = (await rankStep(deps, subject, { id: shortlistId, needText }, step, signal)).ranked.slice(0, TOP);
+	// On the confirmed pool both systems pick from the holders of the step's categories: the group «грейд не
+	// подтверждён» stays out of the ten, as it stays out of the pool of the keyword search.
+	const ranked = (await rankStep(deps, subject, { id: shortlistId, needText }, step, signal)).ranked;
+	const product = (
+		scope === 'confirmed_pool' ? ranked.filter((item) => needMatchOf(item).group === 'confirmed') : ranked
+	).slice(0, TOP);
 	const words = await keywordsOf(deps, step.query.form, needText);
 	const pool =
 		scope === 'confirmed_pool' ? searchOf(step.query, needText, { id: shortlistId, revision: step.seq }) : null;

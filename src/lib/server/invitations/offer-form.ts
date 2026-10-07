@@ -2,6 +2,7 @@
 // the candidate suggests — results of FSP by the receipts issued to the company, skills in the profile, the
 // preferences the card shows — and the reading of the posted form into the input of the sending. The service checks
 // every source again: a point the form names is not trusted for being on the page.
+import { fspRecordText } from '$lib/components/employer/shortlist.js';
 import { AWARDS, DISCIPLINES } from '$lib/components/product/model.js';
 import { CATALOG } from '$lib/server/assessments/contract/catalog';
 import { formText } from '$lib/server/auth/http';
@@ -88,7 +89,8 @@ export interface ShortlistNames {
 
 /**
  * Points of «why you» from the reasons a shortlist gave for the candidate (domain 13.10): a block of the test by its
- * code, a claimed skill by its key, the work format; an FSP result by the receipts the card issued to the company. A
+ * code, a claimed skill by its key, the work format; an FSP result and the FSP record by the receipts the card issued
+ * to the company — the record by the first of them, every other result by its own. A
  * reason with no source an offer accepts (a public profile) gives no point. The strongest reasons come first.
  */
 export function whyYouFromShortlist(
@@ -123,9 +125,17 @@ export function whyYouFromShortlist(
 				}
 				break;
 			case 'skills_fsp':
-			case 'fsp_related':
 				points.push(...cardOptions.filter((card) => card.source.kind === 'fsp_fact'));
 				break;
+			case 'fsp_record': {
+				// The record as the shortlist counted it, named by a receipt of the card; each result keeps its own point.
+				const results = cardOptions.filter((card) => card.source.kind === 'fsp_fact');
+				const [first] = results;
+				if (first !== undefined) {
+					points.push(pointOption(`Результаты ФСП: ${fspRecordText(reason)}`, first.source), ...results.slice(1));
+				}
+				break;
+			}
 			case 'skills_claimed':
 			case 'skills_claimed_untestable': {
 				const [first] = reason.skill_keys;

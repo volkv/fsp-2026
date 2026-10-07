@@ -8,7 +8,7 @@
 	import { Button, buttonVariants } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import {
-		BASIS,
+		basisOf,
 		categoryName,
 		COMPONENT_NAMES,
 		COMPONENT_REASONS,
@@ -17,6 +17,7 @@
 		coverageText,
 		OFFER_FIT,
 		reasonText,
+		unconfirmedText,
 		type NeedMatchData,
 		type ShortlistNames
 	} from './shortlist.js';
@@ -24,7 +25,8 @@
 	/**
 	 * A candidate of a shortlist (domain 13.10): the category, the required skills not confirmed and what stands for each,
 	 * the score with the exact contribution of every component, 3–5 reasons with their sources, the skills of the need
-	 * by their basis, the position without FSP,
+	 * by their basis, the position without FSP; a candidate of the group «грейд не подтверждён» says so, what they
+	 * declared and what stands confirmed,
 	 * whether the offer suits the candidate by what the card shows, the mark and the way to an offer.
 	 */
 	interface Props {
@@ -46,6 +48,7 @@
 	const percent = new Intl.NumberFormat('ru-RU', { style: 'percent', maximumFractionDigits: 0 });
 	const unconfirmed = $derived(coverageText(match.coverage, names));
 	const composite = $derived(compositeText(match.composite, names));
+	const notConfirmed = $derived(match.group === 'unconfirmed' ? unconfirmedText(match, names) : null);
 </script>
 
 <article class="grid gap-3 rounded-xl border bg-card p-4 sm:p-5" data-candidate={pseudonym} data-testid="shortlist-row">
@@ -56,7 +59,12 @@
 				<a class="hover:underline" href={cardHref} data-sveltekit-preload-data="tap">Кандидат {pseudonym}</a>
 			</h3>
 			<p class="text-sm text-muted-foreground">
-				{match.category ? categoryName(match.category, names) : 'категория подборки не найдена'}
+				{#if match.category}
+					{categoryName(match.category, names)}
+				{:else}
+					<span class="font-medium text-foreground" data-testid="grade-not-confirmed">грейд не подтверждён</span>
+					{#if match.declared}· указано кандидатом: {categoryName(match.declared, names)}{/if}
+				{/if}
 				· {hasFsp ? 'есть результаты ФСП' : 'без результатов ФСП'}
 			</p>
 		</div>
@@ -68,6 +76,15 @@
 		</div>
 	</div>
 
+	{#if notConfirmed}
+		<div
+			class="grid gap-1 rounded-lg border border-dashed border-trust-claimed-border p-3 text-sm"
+			data-testid="shortlist-not-confirmed"
+		>
+			<p>{notConfirmed.grade}</p>
+			<p class="text-muted-foreground">{notConfirmed.confirmed}</p>
+		</div>
+	{/if}
 	{#if composite}
 		<p class="text-sm" data-testid="shortlist-composite-role">{composite}</p>
 	{/if}
@@ -82,8 +99,8 @@
 		</div>
 	</div>
 
-	<section aria-label="Почему подходит">
-		<h4 class="mb-1 text-sm font-medium">Почему подходит</h4>
+	<section aria-label={match.group === 'unconfirmed' ? 'Почему в подборке' : 'Почему подходит'}>
+		<h4 class="mb-1 text-sm font-medium">{match.group === 'unconfirmed' ? 'Почему в подборке' : 'Почему подходит'}</h4>
 		<ol class="grid gap-1 text-sm" data-testid="shortlist-reasons">
 			{#each match.reasons as reason, index (index)}
 				{@const view = reasonText(reason, names)}
@@ -100,9 +117,9 @@
 
 	<div class="flex flex-wrap gap-1.5" aria-label="Навыки потребности">
 		{#each match.skills as skill (skill.skill_key)}
-			{@const basis = BASIS[skill.basis] ?? BASIS.missing}
-			<span class={`rounded-full px-2 py-0.5 text-xs ${basis?.tone ?? ''}`} data-basis={skill.basis}>
-				{names.skills[skill.skill_key] ?? skill.skill_key}{skill.requirement === 'nice' ? ' (желательно)' : ''} · {basis?.label}
+			{@const basis = basisOf(skill.basis, match.group)}
+			<span class={`rounded-full px-2 py-0.5 text-xs ${basis.tone}`} data-basis={skill.basis}>
+				{names.skills[skill.skill_key] ?? skill.skill_key}{skill.requirement === 'nice' ? ' (желательно)' : ''} · {basis.label}
 			</span>
 		{/each}
 	</div>

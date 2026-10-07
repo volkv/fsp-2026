@@ -3,6 +3,7 @@
  * contributions, the basis of each skill of the need, the second axis «подходит ли предложение кандидату», the changes
  * of the steps and the answers of «что если». The page receives plain data; nothing here reaches the server.
  */
+import { pluralize } from '$lib/components/product/model.js';
 
 export interface ShortlistNames {
 	skills: Readonly<Record<string, string>>;
@@ -16,6 +17,9 @@ export interface ShortlistNames {
 export interface ReasonData {
 	code: string;
 	skill_keys?: string[];
+	competitions?: number;
+	podiums?: number;
+	team_podiums?: number;
 	specialization?: string;
 	grade?: string;
 	margin?: number;
@@ -41,7 +45,18 @@ export interface CoverageData {
 	unconfirmed: { skill_key: string; state: 'public_profile' | 'claimed' | 'missing' | 'unknown' }[];
 }
 
+/** The FSP record the ranking counted: distinct competitions, those with a podium, those only a team put there. */
+export interface FspRecordData {
+	competitions: number;
+	podiums: number;
+	team_podiums: number;
+}
+
 export interface NeedMatchData {
+	group: 'confirmed' | 'unconfirmed';
+	/** For the unconfirmed: the category of the shortlist the candidate declared — their words, not a test. */
+	declared: { specialization: string; grade: string } | null;
+	fsp: FspRecordData | null;
 	coverage: CoverageData;
 	composite: { specializations: string[]; held: string[]; complete: boolean } | null;
 	score: number;
@@ -70,6 +85,21 @@ const list = (keys: readonly string[] | undefined, names: Readonly<Record<string
 
 export function categoryName(category: { specialization: string; grade: string }, names: ShortlistNames): string {
 	return `${names.specializations[category.specialization] ?? category.specialization} · ${names.grades[category.grade] ?? category.grade}`;
+}
+
+/** «5 соревнований ФСП, из них 2 призовых (1 — командное)»; every competition counts the same. */
+export function fspRecordText(record: FspRecordData): string {
+	const competitions = `${record.competitions} ${pluralize(record.competitions, ['соревнование', 'соревнования', 'соревнований'])} ФСП`;
+	if (record.podiums === 0) return `${competitions}, без призовых мест`;
+	const team =
+		record.team_podiums === 0
+			? ''
+			: record.team_podiums === record.podiums
+				? record.podiums === 1
+					? ' — в составе команды'
+					: ' — все в составе команды'
+				: ` (в составе команды — ${record.team_podiums})`;
+	return `${competitions}, из них ${record.podiums} ${pluralize(record.podiums, ['призовое', 'призовых', 'призовых'])}${team}`;
 }
 
 /** The text of a reason and where it comes from. */
@@ -106,10 +136,14 @@ export function reasonText(reason: ReasonData, names: ShortlistNames): { text: s
 			const words = margin > 0.05 ? 'уверенно выше порога' : margin > 0 ? 'выше порога' : 'на пороге';
 			return { text: `Результат теста ${of}: ${words}`, source: `сильнее всего — блок «${block}»` };
 		}
-		case 'fsp_related':
+		case 'fsp_record':
 			return {
-				text: `ФСП относится к потребности: ${list(reason.skill_keys, names.skills)}`,
-				source: 'квитанция ФСП в карточке'
+				text: fspRecordText({
+					competitions: reason.competitions ?? 0,
+					podiums: reason.podiums ?? 0,
+					team_podiums: reason.team_podiums ?? 0
+				}),
+				source: 'официальные протоколы ФСП — квитанции в карточке'
 			};
 		case 'format_fits':
 			return {
@@ -122,6 +156,8 @@ export function reasonText(reason: ReasonData, names: ShortlistNames): { text: s
 			return { text: reason.code, source: '' };
 	}
 }
+
+const MISSING_BASIS = { label: 'нет', tone: 'border border-dashed text-muted-foreground line-through' };
 
 export const BASIS: Record<string, { label: string; tone: string }> = {
 	test: { label: 'тест', tone: 'bg-trust-platform text-trust-platform-foreground' },
@@ -136,9 +172,40 @@ export const BASIS: Record<string, { label: string; tone: string }> = {
 		label: 'заявлено',
 		tone: 'border border-dashed border-trust-claimed-border text-trust-claimed-foreground'
 	},
-	missing: { label: 'нет', tone: 'border border-dashed text-muted-foreground line-through' },
+	missing: MISSING_BASIS,
 	unknown: { label: 'неизвестно: профиль пересчитывается', tone: 'border border-dashed text-muted-foreground' }
 };
+
+/** A claim of a candidate of the group «грейд не подтверждён»: the candidate's word, capped as any claim. */
+const DECLARED_ONLY = {
+	label: 'указано кандидатом',
+	tone: 'border border-dashed border-trust-claimed-border text-trust-claimed-foreground'
+};
+
+/** The label of a skill's basis; in the group «грейд не подтверждён» a claim is the candidate's word only. */
+export function basisOf(basis: string, group: NeedMatchData['group']): { label: string; tone: string } {
+	if (group === 'unconfirmed' && (basis === 'claimed' || basis === 'claimed_untestable')) return DECLARED_ONLY;
+	return BASIS[basis] ?? MISSING_BASIS;
+}
+
+/**
+ * What a card of the group «грейд не подтверждён» says of the grade: not confirmed by a test, what the candidate
+ * declared, and what stands confirmed — skills of the need an FSP result, the platform or a public profile shows.
+ */
+export function unconfirmedText(
+	match: Pick<NeedMatchData, 'declared' | 'skills'>,
+	names: ShortlistNames
+): { grade: string; confirmed: string } {
+	const declared = match.declared ? categoryName(match.declared, names) : 'категория подборки';
+	const shown = match.skills.filter((skill) => ['fsp', 'platform', 'public_profile'].includes(skill.basis));
+	return {
+		grade: `Грейд не подтверждён тестом: кандидат не проходил тест или не прошёл его. Указано кандидатом — ${declared}: это его слова, не доказательство; в подборке он после всех с подтверждённым грейдом.`,
+		confirmed:
+			shown.length === 0
+				? 'Подтверждённых навыков потребности нет: проверьте уровень на собеседовании или попросите пройти тест.'
+				: `Подтверждено: ${shown.map((skill) => `${names.skills[skill.skill_key] ?? skill.skill_key} (${BASIS[skill.basis]?.label ?? skill.basis})`).join(', ')}; грейд — нет.`
+	};
+}
 
 const UNCONFIRMED: Record<CoverageData['unconfirmed'][number]['state'], string> = {
 	public_profile: 'только публичный профиль',
@@ -165,7 +232,9 @@ export function compositeText(composite: NeedMatchData['composite'], names: Shor
 }
 
 /** The heading of a group of the ranking. */
-export function groupTitle(coverage: CoverageData): string {
+export function groupTitle(match: Pick<NeedMatchData, 'group' | 'coverage'>): string {
+	if (match.group === 'unconfirmed') return 'Грейд не подтверждён тестом';
+	const coverage = match.coverage;
 	if (coverage.group === 'covers') return 'Закрывают все обязательные требования';
 	const n = coverage.unconfirmed.length;
 	return `Категория подходит, не подтверждено ${n} из ${coverage.required} обязательных`;
@@ -176,13 +245,13 @@ export const COMPONENT_NAMES: Record<string, string> = {
 	nice: 'Желательные навыки',
 	format: 'Формат и регион',
 	test: 'Результат теста по блокам',
-	fsp: 'ФСП, относящийся к потребности',
+	fsp: 'Результаты ФСП: соревнования и призовые места',
 	freshness: 'Свежесть подтверждения'
 };
 
 export const COMPONENT_REASONS: Record<string, string> = {
 	test_result_missing: 'результат теста по блокам не найден — засчитано на пороге',
-	no_related_fsp: 'нет ФСП по навыкам потребности: бонуса нет, штрафа нет',
+	no_fsp_results: 'нет официальных результатов ФСП: бонуса нет, штрафа нет',
 	without_fsp: 'без ФСП',
 	need_fsp_not_relevant: 'ФСП не важен для потребности',
 	candidate_formats_unknown: 'кандидат не указал формат — не штрафуется',
@@ -190,7 +259,7 @@ export const COMPONENT_REASONS: Record<string, string> = {
 	format_other: 'другой формат',
 	region_other: 'другой регион',
 	relocation: 'готов к переезду',
-	no_category: 'категория не подтверждена',
+	no_category: 'грейд не подтверждён тестом',
 	no_confirmed_action: 'нет подтверждённых действий: ни категории, ни блок-теста, ни решения вызова'
 };
 
@@ -219,6 +288,7 @@ export const WHAT_IF_REASONS: Record<string, string> = {
 	format_not_accepted: 'не принимает формат',
 	formats_unknown: 'формат не указан',
 	category: 'категория',
+	grade_declared: 'грейд не подтверждён — заявлен кандидатом',
 	skill_confirmed: 'навык подтверждён тестом',
 	skill_not_confirmed: 'навык не подтверждён тестом',
 	fsp_present: 'есть результат ФСП',

@@ -77,7 +77,7 @@ export const matchRulesetParamsSchema = z.strictObject({
 		/**
 		 * Weights of the two levels. Fit to the need: `required`, `nice` — coverage of the need's skills; `format` — the
 		 * work format and region of the need against the candidate's preferences. Strength of the confirmed profile:
-		 * `test` — the result of the test by blocks; `fsp` — an FSP result that confirms a skill of the need; `freshness`
+		 * `test` — the result of the test by blocks; `fsp` — the FSP record of the candidate (`fsp` below); `freshness`
 		 * — how recent the last confirmed action is. A component the need does not ask for (no nice skills, no format,
 		 * FSP marked as irrelevant) is out of the score of every candidate of the need, so the denominator is one for
 		 * all of them and each contribution is exact. The catalog without a need ranks by the strength weights alone.
@@ -91,7 +91,9 @@ export const matchRulesetParamsSchema = z.strictObject({
 				fsp: z.number().nonnegative(),
 				freshness: z.number().nonnegative()
 			})
-			.refine((w) => w.test + w.fsp + w.freshness > 0, 'the strength level has a positive weight'),
+			.refine((w) => w.test + w.fsp + w.freshness > 0, 'the strength level has a positive weight')
+			// FSP lifts a candidate inside a category and never outweighs the test or the fit to the required skills.
+			.refine((w) => w.fsp < w.test && w.fsp < w.required, 'FSP weighs less than the test and the required skills'),
 		/**
 		 * Value of a skill of the need by its best basis: a skill of the confirmed stack of a category in force (the test)
 		 * is worth `test`; a direct FSP or platform confirmation — the band value; a verified public profile — the band
@@ -118,6 +120,25 @@ export const matchRulesetParamsSchema = z.strictObject({
 			marginScale: z.number().positive(),
 			unknownValue: unit
 		}),
+		/**
+		 * The FSP record: official results of FSP competitions in force, every competition of one weight, whatever its
+		 * level. `N` — distinct competitions, `M` — those with a win or a prize, individual or of the team (a team's win is
+		 * a result of the team, not a confirmation of a skill or of a personal share). The value is
+		 * `participationShare · (1 − 2^(−N / competitionsHalf)) + (1 − participationShare) · (1 − 2^(−M / podiumsHalf))`:
+		 * each part saturates — half of it at `competitionsHalf` competitions or `podiumsHalf` podiums — so the record lifts a
+		 * candidate and never runs away. One podium is worth more than any number of participations; without FSP the value
+		 * is 0, the absence of the bonus, never a penalty.
+		 */
+		fsp: z
+			.strictObject({
+				participationShare: z.number().gt(0).lt(1),
+				competitionsHalf: z.number().positive(),
+				podiumsHalf: z.number().positive()
+			})
+			.refine(
+				(f) => (1 - f.participationShare) * (1 - Math.pow(2, -1 / f.podiumsHalf)) > f.participationShare,
+				'one podium is worth more than any number of participations'
+			),
 		/** Freshness halves every `halfLifeDays` days since the last confirmed action. */
 		freshness: z.strictObject({ halfLifeDays: z.number().positive() }),
 		/**

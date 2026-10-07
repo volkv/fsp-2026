@@ -59,6 +59,14 @@
 				{#if problem}
 					<FormMessage text={problem.message} />
 				{/if}
+				{#if data.fromShortlist && !data.fromShortlist.gradeConfirmed}
+					<p class="rounded-lg border border-dashed p-3 text-sm" data-testid="offer-grade-not-confirmed">
+						Грейд кандидата не подтверждён тестом{data.fromShortlist.declared
+							? ` — указано кандидатом: ${data.labels.specializations[data.fromShortlist.declared.specialization] ?? data.fromShortlist.declared.specialization} · ${data.labels.grades[data.fromShortlist.declared.grade] ?? data.fromShortlist.declared.grade}`
+							: ''}. Предложение это покажет: категория в нём — «не подтверждена». Уровень оцените на собеседовании или
+						запросите подтверждение блока.
+					</p>
+				{/if}
 				{#if data.invitation}
 					<div class="flex flex-wrap items-center gap-2 text-sm" data-testid="existing-invitation">
 						<InvitationStatus status={data.invitation.status} />

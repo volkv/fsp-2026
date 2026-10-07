@@ -38,6 +38,16 @@
 			.map((key) => CHANGE_NAMES[key] ?? key)
 			.join(', ');
 	const coverage = $derived(shortlist.coverage);
+	/** The groups of the whole result; the group «грейд не подтверждён» is in no count of a category. */
+	const groupsText = $derived(
+		[
+			`закрывают все обязательные — ${shortlist.groups.covers}`,
+			`с неподтверждёнными — ${shortlist.groups.gaps}`,
+			...(shortlist.groups.unconfirmed > 0
+				? [`грейд не подтверждён тестом — ${shortlist.groups.unconfirmed}, в числа категорий не входят`]
+				: [])
+		].join(', ')
+	);
 	const roleName = $derived(coverage.roleKey ? (names.roles[coverage.roleKey] ?? coverage.roleKey) : null);
 	/** Why a step without categories ranks nobody. */
 	const emptyReason = $derived.by(() => {
@@ -50,13 +60,18 @@
 				return 'У потребности нет ни роли, ни специализации — подборке не из чего взять категории.';
 		}
 	});
-	/** The heading before an item: where the number of unconfirmed required skills changes. */
+	/**
+	 * The heading before an item: where the group «грейд не подтверждён» begins, or, among the confirmed, where the
+	 * number of unconfirmed required skills changes.
+	 */
 	const headingAt = (index: number) => {
 		const item = shortlist.items[index];
 		const previous = shortlist.items[index - 1];
 		if (!item) return null;
+		if (previous && previous.match.group !== item.match.group) return groupTitle(item.match);
+		if (item.match.group === 'unconfirmed') return previous ? null : groupTitle(item.match);
 		if (previous && previous.match.coverage.unconfirmed.length === item.match.coverage.unconfirmed.length) return null;
-		return groupTitle(item.match.coverage);
+		return groupTitle(item.match);
 	};
 	const MARK_STATES = {
 		in_results: 'в выдаче',
@@ -67,7 +82,7 @@
 
 <PageHeader
 	title="Подборка"
-	description="Кандидаты подтверждённых категорий по соответствию потребности и силе подтверждённого профиля. Карточки показываются заново при каждом открытии — только те, кого ваша компания видит сейчас."
+	description="Кандидаты подтверждённых категорий по соответствию потребности и силе подтверждённого профиля; после всех них — кандидаты, чей грейд не подтверждён тестом, по их заявлению. Карточки показываются заново при каждом открытии — только те, кого ваша компания видит сейчас."
 >
 	{#snippet eyebrow()}
 		<a
@@ -120,7 +135,7 @@
 				<p data-testid="shortlist-exposure">
 					Найдено: <span class="font-medium">{shortlist.total}</span>
 					{#if shortlist.total > 0}
-						(закрывают все обязательные — {shortlist.groups.covers}, с неподтверждёнными — {shortlist.groups.gaps})
+						({groupsText})
 					{/if}
 					· без результатов ФСП в первой десятке —
 					{shareText(shortlist.exposure.top)}, во всей выдаче — {shareText(shortlist.exposure.pool)}
@@ -417,7 +432,7 @@
 									{#each data.whatIf.entered as entry (entry.pseudonym)}
 										<li>
 											Кандидат {entry.pseudonym} — {WHAT_IF_REASONS[entry.reason.code] ?? entry.reason.code}
-											{entry.reason.code === 'category'
+											{entry.reason.code === 'category' || entry.reason.code === 'grade_declared'
 												? categoryName(
 														{ specialization: entry.reason.specialization, grade: entry.reason.grade },
 														names

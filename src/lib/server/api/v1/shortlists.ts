@@ -70,11 +70,14 @@ const reason = z
 			'skills_claimed_untestable',
 			'skills_claimed',
 			'test_result',
-			'fsp_related',
+			'fsp_record',
 			'format_fits',
 			'confirmed_recently'
 		]),
 		skill_keys: z.array(key).optional(),
+		competitions: z.int().optional().describe('`fsp_record`: разных соревнований ФСП с официальным результатом'),
+		podiums: z.int().optional().describe('`fsp_record`: из них с победой или призом, личным или командным'),
+		team_podiums: z.int().optional().describe('`fsp_record`: из призовых — только командным результатом'),
 		specialization: z.enum(SPECIALIZATION_KEYS).optional(),
 		grade: z.enum(GRADE_KEYS).optional(),
 		margin: z.number().optional().describe('Средний запас над порогом по блокам на задание (0 — ровно на пороге)'),
@@ -87,6 +90,23 @@ const reason = z
 
 const needMatchSchema = z
 	.object({
+		group: z
+			.enum(['confirmed', 'unconfirmed'])
+			.describe(
+				'Выше всего — грейд: `confirmed` — у кандидата действующая категория подборки; `unconfirmed` — группа «грейд ' +
+					'не подтверждён»: категории специализации нет (тест не пройден или не начат), заявление называет категорию ' +
+					'подборки; идёт после всех подтверждённых, в численность категорий не входит'
+			),
+		declared: category
+			.nullable()
+			.describe('`unconfirmed`: категория подборки, которую заявил кандидат, — его слова, не доказательство'),
+		fsp: z
+			.object({ competitions: z.int(), podiums: z.int(), team_podiums: z.int() })
+			.nullable()
+			.describe(
+				'Запись ФСП, которую считает компонент `fsp`: разные соревнования с официальным результатом и из них ' +
+					'призовые (командная победа — результат команды); все соревнования одного веса; `null` — ФСП вне счёта'
+			),
 		coverage: z
 			.object({
 				group: z
@@ -153,6 +173,9 @@ const needMatchSchema = z
 
 function needMatchView(match: CompanyNeedMatch) {
 	return {
+		group: match.group,
+		declared: match.declared,
+		fsp: match.fsp,
 		coverage: match.coverage,
 		composite: match.composite,
 		score: match.score,
@@ -288,8 +311,11 @@ const shortlistSchema = z
 			})
 			.describe('Что подборка говорит о своих категориях: пустая выдача объясняется, а не возвращается ошибкой'),
 		groups: z
-			.object({ covers: z.int(), gaps: z.int() })
-			.describe('Кандидатов всей выдачи, закрывающих все обязательные навыки, и с неподтверждёнными')
+			.object({ covers: z.int(), gaps: z.int(), unconfirmed: z.int() })
+			.describe(
+				'Кандидатов всей выдачи: подтверждённых, закрывающих все обязательные навыки, и с неподтверждёнными; ' +
+					'`unconfirmed` — группа «грейд не подтверждён» после них'
+			)
 	})
 	.meta({ id: 'Shortlist' });
 
@@ -556,6 +582,7 @@ const whatIfCandidate = z.object({
 				'format_not_accepted',
 				'formats_unknown',
 				'category',
+				'grade_declared',
 				'skill_confirmed',
 				'skill_not_confirmed',
 				'fsp_present',
@@ -567,7 +594,10 @@ const whatIfCandidate = z.object({
 			grade: z.enum(GRADE_KEYS).optional(),
 			skill_key: key.optional()
 		})
-		.describe('Почему вошёл или выпал — только по тому, что видно в карточке')
+		.describe(
+			'Почему вошёл или выпал — только по тому, что видно в карточке; `grade_declared` — группа «грейд не подтверждён»: ' +
+				'грейд заявлен кандидатом, тестом не подтверждён'
+		)
 });
 const whatIfCandidateView = (entry: WhatIfCandidate) => ({
 	pseudonym: entry.pseudonym,

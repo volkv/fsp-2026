@@ -171,6 +171,23 @@ def test_the_three_checks():
     assert report["slices"]["format"]["remote"]["n"] == 1
 
 
+def test_the_group_without_a_confirmed_grade_is_apart_from_every_measure():
+    # p5 holds no honest category; the product shows it after its shortlist of n1, by its own declaration.
+    table = MetricTable()
+    report = evaluate(table, inputs(declared={"n1": ["p5"]}))
+    rows = table.rows
+    baseline = MetricTable()
+    evaluate(baseline, inputs())
+    for key in ("ndcg_at_10", "precision_at_10", "recall_at_10", "mrr", "tz.uncategorized_positions"):
+        assert rows[f"shortlist.{key}"] == baseline.rows[f"shortlist.{key}"]
+    # One of the four the product shows; p5 fits the need, so counting the group would lift Precision@10 to 0.3.
+    assert rows["shortlist.unconfirmed_share_top10"] == {"value": 0.25, "n": 1, "baseline": 0.25}
+    assert rows["shortlist.precision_at_10.with_unconfirmed_tail"] == {"value": 0.3, "n": 1, "baseline": 0.2}
+    assert report["per_need"]["n1"]["unconfirmed"] == 1
+    with pytest.raises(ValueError, match="repeats people of the shortlist"):
+        evaluate(MetricTable(), inputs(declared={"n1": ["p1"]}))
+
+
 def test_conformance_counts_what_breaks_the_rules():
     broken = inputs(
         rankings={

@@ -3,11 +3,14 @@
 // the categories in force.
 import { and, eq, inArray, sql, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
+import type { Award } from '$lib/fsp/awards';
 import { ADMITTED_COMPANY_STATUSES } from '$lib/server/access/permissions';
 import type { Executor } from '$lib/server/db';
 import { publishedRun, runInForce } from '$lib/server/db/conditions';
 import { activeCategories } from '$lib/server/categories/read';
 import { lastConfirmedActions } from '$lib/server/challenges/freshness';
+import { NOT_COMPETING } from '$lib/server/evidence/fsp-level';
+import { currentDeclarations } from '$lib/server/grades/current';
 import {
 	candidates,
 	companies,
@@ -19,7 +22,15 @@ import {
 } from '$lib/server/db/schema';
 import { companyInDemoScope } from '$lib/server/demo/scope';
 import { parsePreferences, salaryExpectation, type CandidatePreferences } from '$lib/server/candidates/preferences';
-import type { CandidateEvidence, ConfirmedCategory, MatchCandidate, MatchVacancy, SkillEvidence } from './score';
+import type {
+	CandidateCategory,
+	CandidateEvidence,
+	ConfirmedCategory,
+	FspResult,
+	MatchCandidate,
+	MatchVacancy,
+	SkillEvidence
+} from './score';
 
 export interface CandidateSnapshot extends MatchCandidate {
 	id: string;
@@ -31,6 +42,10 @@ export interface CandidateSnapshot extends MatchCandidate {
 	confirmed: ConfirmedCategory[];
 	/** The latest valid block result or submitted solution of a call: the freshness of the ranking (domain 13.12). */
 	lastConfirmedAction: Date | null;
+	/** The declaration in force of each specialization: a filter and a label of a shortlist, never evidence (12.2). */
+	declared: CandidateCategory[];
+	/** Official FSP results in force of the candidate's own: the FSP record of the ranking (domain 13.10). */
+	fspResults: FspResult[];
 }
 
 export interface VacancySnapshot extends MatchVacancy {
@@ -54,6 +69,51 @@ export interface VacancySnapshot extends MatchVacancy {
  * the claim and every factor, ≈ 2.6 KB per inference, and the catalog has tens of thousands of inferences.
  */
 const factIdsSchema = z.array(z.uuid());
+
+/** Awards of a podium: a win or a prize (contracts 1.3), not a final or a participation. */
+const PODIUM_AWARDS: ReadonlySet<string> = new Set<Award>(['winner', 'prize']);
+
+/**
+ * Official competition results in force of each candidate, the facts the FSP record counts: only a result the source
+ * states `official` (a preliminary or annulled one is not a result yet), and a team's result is not the own result of
+ * a reserve or a trainer, who did not compete. An official result always names its competition.
+ */
+async function fspResultsOf(executor: Executor, ids: readonly string[]): Promise<Map<string, FspResult[]>> {
+	const rows = await executor
+		.select({
+			id: sourceFacts.id,
+			candidateId: sourceFacts.candidateId,
+			competitionId: sql<string | null>`${sourceFacts.payload}->'competition'->>'id'`,
+			competitionFormat: sql<string | null>`${sourceFacts.payload}->'competition'->>'format'`,
+			award: sql<string | null>`${sourceFacts.payload}->'result'->>'award'`,
+			inTeam: sql<boolean>`jsonb_typeof(${sourceFacts.payload}->'result'->'team') = 'object'`,
+			teamRole: sql<string | null>`${sourceFacts.payload}->'result'->'team'->>'role'`
+		})
+		.from(sourceFacts)
+		.where(
+			and(
+				inArray(sourceFacts.candidateId, [...ids]),
+				eq(sourceFacts.source, 'fsp'),
+				eq(sourceFacts.factType, 'competition_result'),
+				eq(sourceFacts.status, 'active'),
+				sql`${sourceFacts.payload}->'result'->>'status' = 'official'`
+			)
+		);
+	const result = new Map<string, FspResult[]>();
+	for (const row of rows) {
+		if (row.competitionId === null) throw new Error(`official FSP result ${row.id} names no competition`);
+		if (row.teamRole !== null && NOT_COMPETING.has(row.teamRole)) continue;
+		const list = result.get(row.candidateId) ?? [];
+		list.push({
+			factId: row.id,
+			competitionId: row.competitionId,
+			podium: row.award !== null && PODIUM_AWARDS.has(row.award),
+			team: row.inTeam || row.competitionFormat === 'team'
+		});
+		result.set(row.candidateId, list);
+	}
+	return result;
+}
 
 /**
  * Candidates at the current revision with their categories in force. The published evidence run is used only while
@@ -92,6 +152,8 @@ export async function loadCandidateSnapshots(
 	const validRunIds = runs.filter((run) => run.inForce).map((run) => run.id);
 	const categories = await activeCategories(executor, ids);
 	const actions = await lastConfirmedActions(executor, ids);
+	const declarations = await currentDeclarations(executor, ids);
+	const fspResults = await fspResultsOf(executor, ids);
 	const inferences = validRunIds.length
 		? await executor
 				.select({
@@ -167,7 +229,9 @@ export async function loadCandidateSnapshots(
 			})),
 			preferences,
 			salaryExpectation: salaryExpectation(preferences),
-			lastConfirmedAction: actions.get(row.id) ?? null
+			lastConfirmedAction: actions.get(row.id) ?? null,
+			declared: declarations.get(row.id) ?? [],
+			fspResults: fspResults.get(row.id) ?? []
 		});
 	}
 	return result;

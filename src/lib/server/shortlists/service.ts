@@ -314,10 +314,14 @@ export interface ShortlistCoverage {
 	otherRequirements: { name: string; requirement: 'required' | 'nice' }[];
 }
 
-/** Candidates of the whole ranking by the group of coverage of the required skills. */
+/**
+ * Candidates of the whole ranking by group: the confirmed by the coverage of the required skills, then the group
+ * «грейд не подтверждён», which no count of a category includes.
+ */
 export interface CoverageGroups {
 	covers: number;
 	gaps: number;
+	unconfirmed: number;
 }
 
 export interface ShortlistView {
@@ -358,7 +362,11 @@ async function withFsp(executor: Executor, candidateIds: readonly string[]): Pro
 	return new Set(rows.map((row) => row.id));
 }
 
-/** The ranked candidates of a step, each through `canShow` now; a step without categories ranks nobody. */
+/**
+ * The ranked candidates of a step, each through `canShow` now: the holders of its categories, then the group «грейд не
+ * подтверждён» — candidates without a category of its specializations whose declaration names one of them (domain
+ * 13.10). A step without categories ranks nobody.
+ */
 export async function rankStep(
 	deps: ShortlistDeps,
 	subject: AccessSubject,
@@ -378,7 +386,12 @@ export async function rankStep(
 		};
 	}
 	const search = searchOf(revision.query, shortlist.needText, { id: shortlist.id, revision: revision.seq });
-	return rankCandidates(deps, subject, { need: search.need, filters: search.filters }, signal);
+	return rankCandidates(
+		deps,
+		subject,
+		{ need: search.need, filters: { ...search.filters, withDeclared: true } },
+		signal
+	);
 }
 
 /** The grades next to the step's grades of each of its specializations that the step does not take. */
@@ -445,7 +458,7 @@ async function coverageOf(
 	};
 }
 
-function needMatchOf(item: CandidateSearchItem): CompanyNeedMatch {
+export function needMatchOf(item: CandidateSearchItem): CompanyNeedMatch {
 	if (!item.needMatch) throw new Error('a shortlist ranking has no fit to the need');
 	return item.needMatch;
 }
@@ -591,10 +604,16 @@ export async function openShortlist(
 		exposure: { top: share(ranked.slice(0, TOP)), pool: share(ranked) },
 		mode,
 		coverage: await coverageOf(deps, subject, revision.query, new Set(ranked.map((item) => item.candidateId))),
-		groups: {
-			covers: ranked.filter((item) => needMatchOf(item).coverage.group === 'covers').length,
-			gaps: ranked.filter((item) => needMatchOf(item).coverage.group === 'gaps').length
-		}
+		groups: groupsOf(ranked)
+	};
+}
+
+function groupsOf(ranked: readonly CandidateSearchItem[]): CoverageGroups {
+	const confirmed = ranked.map(needMatchOf).filter((match) => match.group === 'confirmed');
+	return {
+		covers: confirmed.filter((match) => match.coverage.group === 'covers').length,
+		gaps: confirmed.filter((match) => match.coverage.group === 'gaps').length,
+		unconfirmed: ranked.length - confirmed.length
 	};
 }
 
@@ -703,7 +722,7 @@ export async function unmarkCandidate(
 /** Why a candidate entered or left under a change: only what the company sees on the card, never hidden expectations. */
 export type WhatIfReason =
 	| { code: 'format_accepted' | 'format_not_accepted' | 'formats_unknown'; format: string }
-	| { code: 'category'; specialization: SpecializationKey; grade: GradeKey }
+	| { code: 'category' | 'grade_declared'; specialization: SpecializationKey; grade: GradeKey }
 	| { code: 'skill_confirmed' | 'skill_not_confirmed'; skill_key: string }
 	| { code: 'fsp_present' | 'fsp_absent' }
 	| { code: 'other_condition' };
@@ -813,11 +832,14 @@ export async function whatIf(
 		}
 		if ('grade' in change) {
 			const wanted = joined ? changed.categories : current.query.categories;
-			const held = snapshot.confirmed.find((c) =>
-				wanted.some((w) => w.specialization === c.specialization && w.grade === c.grade)
-			);
-			return held
-				? { code: 'category', specialization: held.specialization, grade: held.grade }
+			const matches = (c: { specialization: SpecializationKey; grade: GradeKey }) =>
+				wanted.some((w) => w.specialization === c.specialization && w.grade === c.grade);
+			const held = snapshot.confirmed.find(matches);
+			if (held) return { code: 'category', specialization: held.specialization, grade: held.grade };
+			// The group «грейд не подтверждён»: the candidate's own declaration, never a confirmed grade.
+			const declared = snapshot.declared.find(matches);
+			return declared
+				? { code: 'grade_declared', specialization: declared.specialization, grade: declared.grade }
 				: { code: 'other_condition' };
 		}
 		if ('confirmed_skill' in change) {

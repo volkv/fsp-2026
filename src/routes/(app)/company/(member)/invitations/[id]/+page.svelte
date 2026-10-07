@@ -109,6 +109,14 @@
 							<dd>{current.vacancy ? `«${current.vacancy.snapshot.title}»` : 'без вакансии'}</dd>
 						</div>
 						<div class="flex flex-wrap gap-1">
+							<dt class="text-muted-foreground">Грейд кандидата:</dt>
+							<dd data-testid="offer-category">
+								{current.category
+									? `${data.labels.specializations[current.category.specialization] ?? current.category.specialization} · ${data.labels.grades[current.category.grade] ?? current.category.grade} — подтверждён тестом`
+									: 'не подтверждён тестом — оцените уровень на собеседовании'}
+							</dd>
+						</div>
+						<div class="flex flex-wrap gap-1">
 							<dt class="text-muted-foreground">Связь:</dt>
 							<dd>
 								{current.contactMethod.value}{current.contactMethod.note ? ` — ${current.contactMethod.note}` : ''}

@@ -598,17 +598,22 @@ export function qualifiesForPool(
 
 // --- Ranking for a hiring need and the strength of the confirmed profile (domain 13.10) ------------------------------
 //
-// Two levels. The first is the coverage of the required skills: a candidate whose every required skill a test, an FSP
-// result or the platform confirmed covers the need; another has N of M required skills unconfirmed, and each of them
-// says what there is instead — a verified public profile, the candidate's words, nothing, or nothing known while the
-// profile is being recalculated. The ranking orders by the number of unconfirmed required skills first (`coverage`);
-// for a composite role (fullstack) a candidate confirmed in every specialization of the role comes next (`composite`).
-// The second is the score inside a group: the fit to the need (its skills by the best basis of each, the work format)
-// and the strength of the confirmed profile (the test by blocks, an FSP result that relates to the need, how recent the
-// last confirmed action is), additive. The denominator is the weight of the components the need asks for — the same
-// for every candidate of the need — so a contribution is `weight × value / denominator`, exactly, and the absence of
-// FSP is the absence of its bonus, never a penalty. The catalog without a need ranks by the strength level alone. The
-// salary expectation of a candidate is hidden from a company and never enters a score a company sees (domain 13.10).
+// Above everything, the grade: a candidate holding a category of the need is above every candidate who holds none — the
+// group «грейд не подтверждён» of a shortlist, the candidates whose own declaration names a category of the need
+// (`group`). The declaration is a filter and a label, never evidence: inside the group the same levels order, a claim
+// capped as a claim of a skill the declared category's test checks.
+// Then two levels. The first is the coverage of the required skills: a candidate whose every required skill a test, an
+// FSP result or the platform confirmed covers the need; another has N of M required skills unconfirmed, and each of
+// them says what there is instead — a verified public profile, the candidate's words, nothing, or nothing known while
+// the profile is being recalculated. The ranking orders by the number of unconfirmed required skills first
+// (`coverage`); for a composite role (fullstack) a candidate confirmed in every specialization of the role comes next
+// (`composite`). The second is the score inside a group: the fit to the need (its skills by the best basis of each, the
+// work format) and the strength of the confirmed profile (the test by blocks, the FSP record — competitions and
+// podiums, every competition of one weight — and how recent the last confirmed action is), additive. The denominator
+// is the weight of the components the need asks for — the same for every candidate of the need — so a contribution is
+// `weight × value / denominator`, exactly, and the absence of FSP is the absence of its bonus, never a penalty. The
+// catalog without a need ranks by the strength level alone. The salary expectation of a candidate is hidden from a
+// company and never enters a score a company sees (domain 13.10).
 
 export const NEED_COMPONENT_KEYS = ['required', 'nice', 'format', 'test', 'fsp', 'freshness'] as const;
 export type NeedComponentKey = (typeof NEED_COMPONENT_KEYS)[number];
@@ -633,6 +638,10 @@ export interface NeedSpec {
 	regionCode: string | null;
 	/** `false` — the employer said results of FSP do not matter for the need: the FSP component is out of its score. */
 	fspRelevant: boolean;
+	/**
+	 * The categories of the shortlist. A candidate holding one of them is confirmed; one who holds none is of the group
+	 * «грейд не подтверждён», admitted by their own declaration of one of them.
+	 */
 	categories: readonly CandidateCategory[];
 	/**
 	 * The specializations of a composite role of the need (fullstack: backend and frontend); empty for any other. A
@@ -652,9 +661,26 @@ export interface ConfirmedCategory extends CandidateCategory {
 /** The blocks of the candidate's decisions, by decision id; a decision without them is absent. */
 export type CandidateTestResults = ReadonlyMap<string, readonly TestBlockResult[]>;
 
+/**
+ * An official result of an FSP competition in force, the candidate's own: a team result of a member who competed. The
+ * FSP record counts them (`fspRecord`).
+ */
+export interface FspResult {
+	/** Internal id of the fact: a company sees the receipts of the card instead. */
+	factId: string;
+	competitionId: string;
+	/** A win or a prize. */
+	podium: boolean;
+	/** A result of the team: a podium of the team is the team's result, not a confirmation of a skill. */
+	team: boolean;
+}
+
 export interface NeedCandidate {
 	evidence: CandidateEvidence;
 	categories: readonly ConfirmedCategory[];
+	/** The declaration in force of each specialization: what the candidate says of their grade, never evidence. */
+	declared: readonly CandidateCategory[];
+	fspResults: readonly FspResult[];
 	/** What the card shows of the preferences: formats, region, readiness to relocate. */
 	preferences: { workFormats: readonly string[]; regionCode: string | null; relocation: boolean | null };
 	tests: CandidateTestResults;
@@ -755,7 +781,16 @@ export type NeedReason =
 			contribution: number;
 			source: NeedReasonSource;
 	  }
-	| { code: 'fsp_related'; skill_keys: string[]; contribution: number; source: NeedReasonSource }
+	| {
+			code: 'fsp_record';
+			/** Distinct FSP competitions with an official result of the candidate. */
+			competitions: number;
+			/** Of them, with a win or a prize; `team_podiums` — those only a team result put there. */
+			podiums: number;
+			team_podiums: number;
+			contribution: number;
+			source: NeedReasonSource;
+	  }
 	| { code: 'format_fits'; format: NeedWorkFormat; contribution: number; source: NeedReasonSource }
 	| { code: 'confirmed_recently'; days: number; contribution: number; source: NeedReasonSource };
 
@@ -766,7 +801,56 @@ export interface NeedComposite {
 	complete: boolean;
 }
 
+/** The FSP record of a candidate (the FSP component, domain 13.10). */
+export interface FspRecord {
+	competitions: number;
+	podiums: number;
+	team_podiums: number;
+	value: number;
+	/** Internal ids of the counted results: a company sees the receipts of the card. */
+	fact_ids: string[];
+}
+
+/**
+ * The FSP record over the candidate's official results: distinct competitions `N`, those with a podium `M` (a
+ * competition counts once, as a podium if any of its results is one, as a team podium only if no result of the
+ * candidate's own put it there), every competition of one weight; the value saturates in both (rule set, `need.fsp`).
+ */
+export function fspRecord(results: readonly FspResult[], params: MatchRulesetParams['need']['fsp']): FspRecord {
+	const byCompetition = new Map<string, { podium: boolean; individualPodium: boolean }>();
+	for (const result of results) {
+		const seen = byCompetition.get(result.competitionId) ?? { podium: false, individualPodium: false };
+		byCompetition.set(result.competitionId, {
+			podium: seen.podium || result.podium,
+			individualPodium: seen.individualPodium || (result.podium && !result.team)
+		});
+	}
+	const competitions = byCompetition.size;
+	const podiums = [...byCompetition.values()].filter((c) => c.podium).length;
+	const teamPodiums = [...byCompetition.values()].filter((c) => c.podium && !c.individualPodium).length;
+	const saturated = (count: number, half: number) => 1 - Math.pow(2, -count / half);
+	const value =
+		params.participationShare * saturated(competitions, params.competitionsHalf) +
+		(1 - params.participationShare) * saturated(podiums, params.podiumsHalf);
+	return {
+		competitions,
+		podiums,
+		team_podiums: teamPodiums,
+		value,
+		fact_ids: [...new Set(results.map((result) => result.factId))]
+	};
+}
+
 export interface NeedResult {
+	/**
+	 * Above the coverage: `confirmed` — the candidate holds a category of the need's (any, in the catalog without a
+	 * need); `unconfirmed` — none, the group «грейд не подтверждён», after every confirmed candidate.
+	 */
+	group: 'confirmed' | 'unconfirmed';
+	/** For the unconfirmed of a need: the category of the need their own declaration names — a label, not evidence. */
+	declared: CandidateCategory | null;
+	/** The FSP record the FSP component counts; `null` — the need leaves FSP out, or it is scored without FSP. */
+	fsp: Omit<FspRecord, 'value' | 'fact_ids'> | null;
 	/** The first level: the order goes by the number of unconfirmed required skills before the score. */
 	coverage: NeedCoverage;
 	/** For a composite role; `null` — the need's role is of one specialization or none. */
@@ -807,9 +891,11 @@ function blockOfSkill(category: ConfirmedCategory, skillKey: string): string {
 
 /**
  * Skills the candidate's own tests check: the skills of the blocks of the grades of their categories in force and the
- * practice languages of those specializations. A claim of such a skill was put to the check and not confirmed.
+ * practice languages of those specializations — and, of the group «грейд не подтверждён», of the category they declared:
+ * its test checks them, whether the candidate has not taken it or has not passed it. A claim of such a skill was put to
+ * the check, or is to be put to it, and stands unconfirmed.
  */
-function checkedByOwnTests(categories: readonly ConfirmedCategory[]): Set<string> {
+function checkedByOwnTests(categories: readonly CandidateCategory[]): Set<string> {
 	const checked = new Set<string>();
 	for (const category of categories) {
 		for (const quota of gradeDefinition(category.specialization, category.grade).blocks) {
@@ -986,8 +1072,18 @@ export function needScore(input: NeedScoreInput): NeedResult {
 	const { need, candidate, params, now } = input;
 	const evidence = candidate.evidence;
 	const skills = new Map(evidence.status === 'available' ? evidence.skills.map((s) => [s.skillKey, s]) : []);
+	// The category the strength is read from: one of the need's, or none — the group «грейд не подтверждён», labelled by
+	// the category of the need the candidate declared.
+	const category = strengthCategory(candidate.categories, need?.categories ?? null);
+	const group = category === null ? 'unconfirmed' : 'confirmed';
+	const declared =
+		need === null || group === 'confirmed'
+			? null
+			: (candidate.declared.find((d) =>
+					need.categories.some((c) => c.specialization === d.specialization && c.grade === d.grade)
+				) ?? null);
 	// Skills the candidate's own test checks: a claim of one of them is capped low, as the check did not confirm it.
-	const checked = checkedByOwnTests(candidate.categories);
+	const checked = checkedByOwnTests(declared === null ? candidate.categories : [...candidate.categories, declared]);
 	const required = (need?.requiredSkillKeys ?? []).map((key) =>
 		readSkill(key, 'required', candidate, skills, checked, input)
 	);
@@ -995,18 +1091,12 @@ export function needScore(input: NeedScoreInput): NeedResult {
 		.filter((key) => !need?.requiredSkillKeys.includes(key))
 		.map((key) => readSkill(key, 'nice', candidate, skills, checked, input));
 	const needSkills = new Set([...required, ...nice].map((s) => s.skill_key));
-	const category = strengthCategory(candidate.categories, need?.categories ?? null);
 	const test = readTest(category, candidate.tests, needSkills, params.test);
 
-	// FSP relating to the need: a skill of the need confirmed directly by an FSP result; without a need, any.
-	const fspSkills = [...skills.values()].filter(
-		(s) =>
-			s.attestation === 'direct' &&
-			s.badgeTrust === 'fsp_verified' &&
-			(need === null || needSkills.size === 0 || needSkills.has(s.skillKey))
-	);
-	const related = input.withoutFsp ? [] : fspSkills;
-	const fspValue = related.reduce((best, s) => Math.max(best, input.skillBandValue[s.band]), 0);
+	// The FSP record: every official result of the candidate, every competition of one weight (rule set, `need.fsp`).
+	const fspCounts = need === null || need.fspRelevant;
+	const record = fspCounts && !input.withoutFsp ? fspRecord(candidate.fspResults, params.fsp) : null;
+	const fspValue = record?.value ?? 0;
 
 	const lastAssigned = candidate.categories.reduce<Date | null>(
 		(latest, c) => (latest === null || c.assignedAt > latest ? c.assignedAt : latest),
@@ -1033,15 +1123,14 @@ export function needScore(input: NeedScoreInput): NeedResult {
 			? { applicable: true, ...format }
 			: { applicable: false, status: 'unknown', value: 0, reason: 'no_work_format' },
 		test: { applicable: true, status: test.status, value: test.value, reason: test.reason },
-		fsp:
-			need !== null && !need.fspRelevant
-				? { applicable: false, status: 'unknown', value: 0, reason: 'need_fsp_not_relevant' }
-				: {
-						applicable: true,
-						status: 'computed',
-						value: fspValue,
-						reason: related.length === 0 ? (input.withoutFsp ? 'without_fsp' : 'no_related_fsp') : null
-					},
+		fsp: !fspCounts
+			? { applicable: false, status: 'unknown', value: 0, reason: 'need_fsp_not_relevant' }
+			: {
+					applicable: true,
+					status: 'computed',
+					value: fspValue,
+					reason: input.withoutFsp ? 'without_fsp' : record?.competitions === 0 ? 'no_fsp_results' : null
+				},
 		freshness: {
 			applicable: true,
 			status: 'computed',
@@ -1118,12 +1207,14 @@ export function needScore(input: NeedScoreInput): NeedResult {
 			}
 		});
 	}
-	if (components.fsp.applicable && related.length > 0) {
+	if (components.fsp.applicable && record !== null && record.competitions > 0) {
 		reasons.push({
-			code: 'fsp_related',
-			skill_keys: related.map((s) => s.skillKey).sort(),
+			code: 'fsp_record',
+			competitions: record.competitions,
+			podiums: record.podiums,
+			team_podiums: record.team_podiums,
 			contribution: components.fsp.contribution,
-			source: { kind: 'fsp_fact', fact_ids: related.flatMap((s) => [...s.factIds]) }
+			source: { kind: 'fsp_fact', fact_ids: record.fact_ids }
 		});
 	}
 	if (need?.workFormat && components.format.status === 'computed' && components.format.value > 0) {
@@ -1155,6 +1246,9 @@ export function needScore(input: NeedScoreInput): NeedResult {
 	const compositeOf = need?.compositeSpecializations ?? [];
 	const held = compositeOf.filter((s) => candidate.categories.some((c) => c.specialization === s));
 	return {
+		group,
+		declared,
+		fsp: record && { competitions: record.competitions, podiums: record.podiums, team_podiums: record.team_podiums },
 		coverage: coverageOf(required),
 		composite:
 			compositeOf.length === 0

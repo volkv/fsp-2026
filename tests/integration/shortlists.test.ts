@@ -32,7 +32,7 @@ import { createFieldCrypto } from '$lib/server/crypto/fields';
 import { whyYouFromShortlist } from '$lib/server/invitations/offer-form';
 import { createInvitation } from '$lib/server/invitations/send';
 import { shortlistMatchOf } from '$lib/server/shortlists/service';
-import { invitations } from '$lib/server/db/schema';
+import { invitations, invitationTerms } from '$lib/server/db/schema';
 import { offerTerms } from '../helpers/factories';
 import { evaluationSummary, judgeEvaluation, startEvaluation } from '$lib/server/shortlists/evaluation';
 import {
@@ -46,7 +46,7 @@ import {
 } from '$lib/server/shortlists/service';
 import { publishTaxonomy } from '$lib/server/taxonomy/publish';
 import { buildRelease, readTaxonomyDatasets } from '$lib/server/taxonomy/release';
-import { releaseFixtureBank } from '../helpers/bank';
+import { declareGrade, releaseFixtureBank } from '../helpers/bank';
 import { decide } from '../helpers/categories';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
 import { createCandidate, createCompany, createMember, createPublishedDocument } from '../helpers/factories';
@@ -309,7 +309,7 @@ describe('a shortlist of a need', () => {
 		// claimed, or unknown for a profile without a published evidence run; among them the claim is worth its band under
 		// the ceiling, the stronger test wins among equals.
 		expect(ids.slice(0, 4)).toEqual([withFsp.id, claimsOnly.id, tested.id, weaker.id]);
-		expect(view.groups).toEqual({ covers: 1, gaps: 3 });
+		expect(view.groups).toEqual({ covers: 1, gaps: 3, unconfirmed: 0 });
 		const coverage = (id: string) => view.items.find((item) => item.candidateId === id)?.needMatch.coverage;
 		expect(coverage(withFsp.id)).toEqual({ group: 'covers', required: 3, unconfirmed: [] });
 		expect(coverage(claimsOnly.id)?.unconfirmed).toEqual([{ skill_key: 'kafka', state: 'claimed' }]);
@@ -710,5 +710,123 @@ describe('an offer from a shortlist', () => {
 			})
 		);
 		expect([refused.code, refused.details?.[0]?.path]).toEqual(['validation_failed', 'why_you.0.source.ref']);
+	});
+});
+
+describe('the group «грейд не подтверждён»', () => {
+	const frontendJunior = { specialization: 'frontend', grade: 'junior' } as const;
+
+	/** An official FSP result of the candidate's own, as the synchronization stores it. */
+	async function fspResult(candidateId: string, award: 'winner' | 'prize' | 'participant') {
+		const competitionId = randomBytes(6).toString('hex');
+		const resultId = randomBytes(6).toString('hex');
+		await database.db.insert(sourceFacts).values({
+			candidateId,
+			source: 'fsp',
+			factType: 'competition_result',
+			sourceRecordRef: `fsp:result:${resultId}`,
+			eventKey: `fsp:competition:${competitionId}`,
+			trustLevel: 'fsp_verified',
+			ownershipBasis: 'operator_confirmed',
+			payload: {
+				result: { id: resultId, competitionId, place: 1, award, status: 'official' },
+				competition: {
+					id: competitionId,
+					title: 'Кубок',
+					discipline: 'product',
+					level: 'russian_cup',
+					startDate: '2026-03-01'
+				}
+			},
+			payloadSha256: randomBytes(32).toString('hex'),
+			occurredOn: '2026-03-01',
+			observedAt: new Date(),
+			lastVerifiedAt: new Date(),
+			status: 'active'
+		});
+	}
+
+	it('follows every confirmed candidate by the declaration, out of the counts, ordered as the confirmed are', async () => {
+		const { subject } = await employer();
+		const { db } = database;
+		const confirmed = await person({ category: frontendJunior, margin: -8 });
+		// Never tested, a long FSP record; tested and not confirmed, nothing else: both declared Frontend Junior.
+		const neverTested = await person({ skills: [{ key: 'javascript', trust: 'claimed' }] });
+		await declareGrade(db, neverTested.id, 'frontend', 'junior');
+		await fspResult(neverTested.id, 'winner');
+		await fspResult(neverTested.id, 'participant');
+		const failed = await person({ skills: [{ key: 'javascript', trust: 'claimed' }] });
+		await declareGrade(db, failed.id, 'frontend', 'junior');
+		await decide(db, failed.id, { ...frontendJunior, outcome: 'not_confirmed' });
+		// Not of the group: declared another grade at last, or holding a category of the specialization.
+		const redeclared = await person();
+		await declareGrade(db, redeclared.id, 'frontend', 'junior');
+		await declareGrade(db, redeclared.id, 'frontend', 'senior');
+		const otherGrade = await person({ category: { specialization: 'frontend', grade: 'senior' } });
+		await declareGrade(db, otherGrade.id, 'frontend', 'junior');
+
+		const need = await createNeed(needDeps(), subject, meta, {
+			form: {
+				specialization: 'frontend',
+				grade: { min: 'junior', max: 'junior' },
+				skill_keys: ['javascript'],
+				nice_skill_keys: []
+			}
+		});
+		const { id } = await createShortlist(deps(), subject, meta, need.id, {});
+		const view = await openShortlist(deps(), subject, id);
+		const ids = view.items.map((item) => item.candidateId);
+		expect(ids).toEqual([confirmed.id, neverTested.id, failed.id]);
+		expect(view.groups).toEqual({ covers: 1, gaps: 0, unconfirmed: 2 });
+		const match = (candidateId: string) => view.items.find((item) => item.candidateId === candidateId)?.needMatch;
+		expect(match(confirmed.id)).toMatchObject({ group: 'confirmed', declared: null });
+		expect(match(neverTested.id)).toMatchObject({
+			group: 'unconfirmed',
+			declared: frontendJunior,
+			category: null,
+			fsp: { competitions: 2, podiums: 1, team_podiums: 0 }
+		});
+		// The claim of JavaScript is capped as the declared Frontend Junior test would check it; the FSP record puts the
+		// never tested candidate above the one with the same claim and no FSP.
+		expect(match(neverTested.id)?.skills).toEqual([
+			expect.objectContaining({ skill_key: 'javascript', basis: 'claimed', value: 0.3 })
+		]);
+		expect(match(neverTested.id)?.reasons.map((reason) => reason.code)).toContain('fsp_record');
+		expect(match(failed.id)?.fsp).toEqual({ competitions: 0, podiums: 0, team_podiums: 0 });
+		// A filter by what the test confirmed leaves the group out: no test confirmed anything of theirs.
+		const filtered = await whatIf(deps(), subject, id, {
+			confirmed_skill: { skill_key: 'javascript', required: true }
+		});
+		expect(filtered.left.map((entry) => entry.candidateId)).toEqual(
+			expect.arrayContaining([neverTested.id, failed.id])
+		);
+		// «What if» by the grade names a declaration as one, never as a category.
+		const senior = await whatIf(deps(), subject, id, { grade: 'senior' });
+		expect(senior.entered.map((entry) => [entry.candidateId, entry.reason])).toEqual(
+			expect.arrayContaining([
+				[redeclared.id, { code: 'grade_declared', specialization: 'frontend', grade: 'senior' }],
+				[otherGrade.id, { code: 'category', specialization: 'frontend', grade: 'senior' }]
+			])
+		);
+
+		// An offer to such a candidate records no confirmed category.
+		const found = await shortlistMatchOf(deps(), subject, id, neverTested.id);
+		expect(found?.match.group).toBe('unconfirmed');
+		const sent = await createInvitation(
+			{
+				db,
+				crypto: createFieldCrypto({
+					keys: new Map([[1, Buffer.alloc(32, 7)]]),
+					activeVersion: 1,
+					hmacSecret: Buffer.alloc(32, 9)
+				}),
+				now: () => new Date()
+			},
+			subject,
+			meta,
+			{ ...offerTerms(), candidateId: neverTested.id, needId: need.id }
+		);
+		const [terms] = await db.select().from(invitationTerms).where(eq(invitationTerms.invitationId, sent.invitationId));
+		expect(terms?.category).toBeNull();
 	});
 });

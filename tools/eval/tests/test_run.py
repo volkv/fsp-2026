@@ -172,6 +172,7 @@ class LabelEcho:
             "semantic": semantic,
             "categories": categories,
             "unconfirmed": {name: {nid: [] for nid in by_need} for name, by_need in rankings.items()},
+            "declared": {name: {nid: [] for nid in by_need} for name, by_need in rankings.items()},
             "needs": {
                 v.id: {
                     "specialization": TEST_SPECIALIZATION.get(v.role),

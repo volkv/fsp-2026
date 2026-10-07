@@ -154,6 +154,11 @@ describe('the evaluation ranking', () => {
 			categories: ['backend:junior', 'backend:middle', 'backend:senior']
 		});
 		expect(answer.unconfirmed.full?.n1?.sort()).toEqual(['failed', 'untested']);
+		// The candidate whose test of the need's category did not confirm it is of its group «грейд не подтверждён»; one
+		// who never declared a grade is not, and neither is one holding a category of the specialization.
+		expect(answer.declared.full?.n1).toEqual(['failed']);
+		expect(answer.declared.full?.n2).toEqual(['failed']);
+		expect(answer.declared.given).toEqual({ n1: [], n2: [] });
 		const [first] = answer.top.full?.n1 ?? [];
 		expect(first?.components.test).toBeGreaterThan(answer.top.full?.n1?.[1]?.components.test ?? 1);
 		expect(first?.reasons.length).toBeGreaterThan(0);

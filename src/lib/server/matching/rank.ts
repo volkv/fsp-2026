@@ -167,6 +167,8 @@ export function needCandidateOf(snapshot: CandidateSnapshot, results: TestResult
 	return {
 		evidence: snapshot.evidence,
 		categories: snapshot.confirmed,
+		declared: snapshot.declared,
+		fspResults: snapshot.fspResults,
 		preferences: {
 			workFormats: preferences.work_formats ?? [],
 			regionCode: preferences.region_code ?? null,
@@ -184,7 +186,8 @@ export function needCandidateOf(snapshot: CandidateSnapshot, results: TestResult
 
 /**
  * Ranks the candidates for a need — or, with `need = null`, by the strength of the confirmed profile alone (the catalog
- * without a need): `needScore` of every candidate; those covering every required skill first, then by the number of
+ * without a need): `needScore` of every candidate; every candidate holding a category of the need before every one who
+ * holds none (the group «грейд не подтверждён»), then those covering every required skill, then by the number of
  * unconfirmed required skills, then — for a composite role — those confirmed in each of its specializations, and inside
  * each group the highest score first; scores closer than the rule set's
  * `nearTie` are almost equal, and their order is the semantic similarity to the text of the need, then the strength,
@@ -231,6 +234,7 @@ export async function rankForNeed(
 	const order = orderForNeed(
 		scored.map((entry) => ({
 			id: entry.snapshot.id,
+			confirmed: entry.result.group === 'confirmed',
 			unconfirmed: entry.result.coverage.unconfirmed.length,
 			composite: entry.result.composite?.complete === true,
 			score: entry.result.score,
@@ -261,9 +265,11 @@ export async function rankForNeed(
 
 export interface ScoredPlace {
 	id: string;
-	/** Required skills of the need not confirmed: the first key, fewer first. */
+	/** Holds a category of the need: the first key — the group «грейд не подтверждён» goes after every confirmed one. */
+	confirmed: boolean;
+	/** Required skills of the need not confirmed: the second key, fewer first. */
 	unconfirmed: number;
-	/** Confirmed in every specialization of a composite role: the second key, such first. */
+	/** Confirmed in every specialization of a composite role: the third key, such first. */
 	composite: boolean;
 	score: number;
 	/** The strength level of the score: the next key among almost equal. */
@@ -279,9 +285,13 @@ export interface OrderedPlace {
 	tieBrokenBySemantic: boolean;
 }
 
+/** The tier of the group «грейд не подтверждён»: above any tier of coverage, as no need names a million skills. */
+const GRADE_TIER = 1_000_000;
+
 /**
- * The order of a ranking for a need: by the number of unconfirmed required skills, fewer first, then — for a composite
- * role — a candidate confirmed in each of its specializations first, then by score, highest first. Inside one group,
+ * The order of a ranking for a need: every candidate holding a category of the need first, whatever the scores, then by
+ * the number of unconfirmed required skills, fewer first, then — for a composite role — a candidate confirmed in each of
+ * its specializations first, then by score, highest first. Inside one group,
  * scores within `nearTie` of the first of a group are almost equal; inside the group the
  * semantic similarity decides (a candidate without one goes after those with one), then the strength, then the score,
  * then the id. A group is cut from the top and never spans two numbers, so the similarity never lifts a candidate above
@@ -294,7 +304,8 @@ export function orderForNeed(
 	nearTie: number
 ): OrderedPlace[] {
 	const byId = (a: ScoredPlace, b: ScoredPlace) => (a.id < b.id ? -1 : 1);
-	const tier = (place: ScoredPlace, unconfirmed = place.unconfirmed) => unconfirmed * 2 + (place.composite ? 0 : 1);
+	const tier = (place: ScoredPlace, unconfirmed = place.unconfirmed) =>
+		(place.confirmed ? 0 : GRADE_TIER) + unconfirmed * 2 + (place.composite ? 0 : 1);
 	const ordered = [...places].sort((a, b) => tier(a) - tier(b) || b.score - a.score || byId(a, b));
 	const result: OrderedPlace[] = [];
 	for (let start = 0; start < ordered.length;) {

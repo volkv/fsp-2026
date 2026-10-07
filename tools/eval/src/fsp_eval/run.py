@@ -359,6 +359,22 @@ def product_categories(answer: dict[str, Any]) -> dict[str, list[tuple[str, str,
     }
 
 
+def bridge_report(answer: dict[str, Any]) -> dict[str, Any]:
+    """What the report keeps of the bridge's answer: everything but the orders and the categories of people, and by
+    count who is apart from each shortlist — the people without a category, the same for every need of a ranking — and
+    the group «грейд не подтверждён» each shortlist shows after its confirmed candidates."""
+    report = {
+        key: value
+        for key, value in answer.items()
+        if key not in {"rankings", "top", "categories", "unconfirmed", "declared"}
+    }
+    for key in ("unconfirmed", "declared"):
+        report[key] = {
+            name: {need: len(people) for need, people in by_need.items()} for name, by_need in answer[key].items()
+        }
+    return report
+
+
 def execute(options: RunOptions, bridge: BridgeLike) -> dict[str, Any]:
     manifest = load_manifest(options.dataset_id)
     dataset = build(manifest)
@@ -462,19 +478,13 @@ def execute(options: RunOptions, bridge: BridgeLike) -> dict[str, Any]:
                 semantic_used=ranked.semantic_used,
                 with_fsp=frozenset(records),
                 top=ranked.answer["top"],
+                declared={
+                    need_id: [cid.split("/", 1)[0] for cid in order]
+                    for need_id, order in ranked.answer["declared"]["full"].items()
+                },
             ),
         )
-        matching_report["bridge"] = {
-            key: value
-            for key, value in ranked.answer.items()
-            if key not in {"rankings", "top", "categories", "unconfirmed"}
-        }
-        # Who is apart from each shortlist, by count: the names are the people without a category, the same for every
-        # need of a ranking.
-        matching_report["bridge"]["unconfirmed"] = {
-            name: {need: len(people) for need, people in by_need.items()}
-            for name, by_need in ranked.answer["unconfirmed"].items()
-        }
+        matching_report["bridge"] = bridge_report(ranked.answer)
     quotes = quote_metrics(table, documents, skill_spellings(taxonomy_dir))
     performance_metrics(table, documents)
 
