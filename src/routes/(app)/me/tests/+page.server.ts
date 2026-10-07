@@ -8,15 +8,20 @@ import { specializationTitle, gradeTitle } from '$lib/server/assessments/titles'
 import { testsOverview } from '$lib/server/assessments/views';
 import { candidateRequest, type CandidateRequest } from '$lib/server/candidates/http';
 import { db } from '$lib/server/db';
+import { demoPolicyNote } from '$lib/server/demo/grade-policy';
 import { formFailure, pageError } from '$lib/server/http/page';
 import type { Actions, PageServerLoad } from './$types';
 
 /** The tests the grade policy lets the candidate take now, why the others are closed, and the attempts so far. */
 export const load: PageServerLoad = async (event) => {
-	const { subject } = await candidateRequest(event);
+	const { subject, candidateId } = await candidateRequest(event);
 	try {
-		const overview = await testsOverview(db(), subject, new Date());
+		const [overview, demoNote] = await Promise.all([
+			testsOverview(db(), subject, new Date()),
+			demoPolicyNote(db(), candidateId)
+		]);
 		return {
+			demoNote,
 			specializations: overview.specializations.map((s) => ({
 				key: s.key,
 				title: specializationTitle(s.key),

@@ -1,7 +1,7 @@
 import { error, type RequestEvent } from '@sveltejs/kit';
 import { can } from '$lib/server/access/permissions';
 import { CATALOG, type GradeKey } from '$lib/server/assessments/contract/catalog';
-import type { GradeOption } from '$lib/server/assessments/contract/policy';
+import type { GradeOffer } from '$lib/server/grades/policy';
 import { formText } from '$lib/server/http/form';
 import { candidateDemand } from '$lib/server/candidates/demand';
 import { needDemand } from '$lib/server/candidates/need-demand';
@@ -16,7 +16,7 @@ import { blockReasonText, optionText } from '$lib/server/grades/texts';
 import { formFailure, pageError } from '$lib/server/http/page';
 import type { Actions, PageServerLoad } from './$types';
 
-function nextOption(options: readonly GradeOption[], grade: GradeKey): GradeOption {
+function nextOption(options: readonly GradeOffer[], grade: GradeKey): GradeOffer {
 	const option = options.find((o) => o.grade === grade);
 	if (!option) throw new Error(`the next step names grade ${grade} outside the options`);
 	return option;

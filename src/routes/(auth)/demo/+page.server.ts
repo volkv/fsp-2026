@@ -10,6 +10,7 @@ import { idleEndOf, lastEndOf, nextStandReset, redisDemoActivity } from '$lib/se
 import { castOriginals, castRoles, cloneEmail, DemoCastMissing, type CastRole } from '$lib/server/demo/cast';
 import { MAX_LIVE_SESSIONS } from '$lib/server/demo/clone';
 import { readSeedData, seedsDirectory } from '$lib/server/demo/data';
+import { createNewcomer, DemoSessionEnded } from '$lib/server/demo/newcomer';
 import { demoTerms } from '$lib/server/demo/terms';
 import {
 	DEMO_SESSION_COOKIE,
@@ -17,6 +18,7 @@ import {
 	enterDemoRole,
 	sessionByToken,
 	setDemoCookie,
+	signInAsClone,
 	type LiveDemoSession
 } from '$lib/server/demo/visit';
 import { redis } from '$lib/server/redis';
@@ -155,6 +157,40 @@ export const actions: Actions = {
 		setDemoCookie(event.cookies, entry.token, entry.session.expiresAt, now);
 		setSessionCookie(event.cookies, entry.signInSessionId);
 		redirect(303, role.home);
+	},
+
+	/**
+	 * «Новый кандидат в этой сессии»: a fresh candidate account in the browser's live session, the browser signed in as
+	 * it and sent to the first step of the candidate (the consent, the survey, the declared grade, the test).
+	 */
+	newcomer: async (event) => {
+		requireDemo(event);
+		const now = new Date();
+		const ended = {
+			message: 'Демо-сессия закончилась. Войдите в любую роль — откроется новая, и в ней создайте кандидата.'
+		};
+		// The session being joined by its link first, then the one of the browser's cookie — as entering a role takes it.
+		const joining = (await event.request.formData()).get('join');
+		const current = await currentSession(event, typeof joining === 'string' && joining !== '' ? joining : null, now);
+		if (!current) return fail(409, ended);
+		const meta = requestMeta(event);
+		let userId: string;
+		try {
+			({ userId } = await createNewcomer({ db: db(), crypto: fieldCrypto(), now }, current.session.id, meta));
+		} catch (cause) {
+			if (cause instanceof DemoSessionEnded) return fail(409, ended);
+			throw cause;
+		}
+		const store = await redis();
+		await redisDemoActivity(store).touch(current.session.id, now);
+		const signInSessionId = await signInAsClone(
+			store,
+			{ userId, previous: sessionOf(event), ip: meta.ip, ua: meta.userAgent },
+			now
+		);
+		setDemoCookie(event.cookies, current.token, current.session.expiresAt, now);
+		setSessionCookie(event.cookies, signInSessionId);
+		redirect(303, '/onboarding');
 	},
 
 	leave: async (event) => {

@@ -9,6 +9,7 @@ import { parseStatement } from '$lib/server/assessments/statement';
 import { attemptState } from '$lib/server/assessments/views';
 import { candidateRequest, type CandidateRequest } from '$lib/server/candidates/http';
 import { db } from '$lib/server/db';
+import { demoPolicyNote } from '$lib/server/demo/grade-policy';
 import { formFailure, pageError } from '$lib/server/http/page';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -23,14 +24,16 @@ const attemptIdOf = (event: RequestEvent): string => {
  * clusters answered so far with the candidate's own answers, the deadline, and — for an annulled one — why.
  */
 export const load: PageServerLoad = async (event) => {
-	const { subject } = await candidateRequest(event);
+	const { subject, candidateId } = await candidateRequest(event);
 	const attemptId = attemptIdOf(event);
 	try {
-		const [attempt, annulment] = await Promise.all([
+		const [attempt, annulment, demoNote] = await Promise.all([
 			attemptState(db(), subject, attemptId, new Date()),
-			ownAttemptAnnulment(db(), subject, attemptId)
+			ownAttemptAnnulment(db(), subject, attemptId),
+			demoPolicyNote(db(), candidateId)
 		]);
 		return {
+			demoNote,
 			attempt: {
 				...attempt,
 				items: attempt.items.map((item) => ({

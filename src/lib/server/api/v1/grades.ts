@@ -270,7 +270,14 @@ export const getMyGradeOptions = defineOperation({
 					grade,
 					available: z.boolean(),
 					kind: z
-						.enum(['declared', 'lower_after_failure', 'upgrade_confident', 'upgrade_interval', 'upgrade_retake'])
+						.enum([
+							'declared',
+							'lower_after_failure',
+							'upgrade_confident',
+							'upgrade_interval',
+							'upgrade_retake',
+							'demo_session'
+						])
 						.nullable(),
 					reason: z.string().nullable().describe('Код причины политики (`BlockReason`), когда тест закрыт'),
 					available_from: dateTime

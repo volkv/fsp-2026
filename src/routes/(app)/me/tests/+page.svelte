@@ -3,6 +3,7 @@
 	import PlayIcon from '@lucide/svelte/icons/play';
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
+	import DemoPolicyNote from '$lib/components/assessments/demo-policy-note.svelte';
 	import HonestNote from '$lib/components/assessments/honest-note.svelte';
 	import {
 		ATTEMPT_STATUSES,
@@ -37,6 +38,7 @@
 
 <p class="max-w-3xl text-sm text-muted-foreground">{HOW_IT_DECIDES}</p>
 <HonestNote />
+{#if data.demoNote}<DemoPolicyNote text={data.demoNote} />{/if}
 
 {#if form?.problem}<FormMessage text={form.problem.message} />{/if}
 

@@ -74,7 +74,9 @@ export const OPTION_KINDS: Record<string, string> = {
 	declared: 'Заявленный грейд',
 	lower_after_failure: 'Грейд ниже после неудачи',
 	upgrade_confident: 'Следующий грейд по уверенному результату',
-	upgrade_interval: 'Следующий грейд'
+	upgrade_interval: 'Следующий грейд',
+	upgrade_retake: 'Повтор следующего грейда после неудачи',
+	demo_session: 'Открыт демо-режимом'
 };
 
 /** Why an attempt was annulled, in the candidate's words. */

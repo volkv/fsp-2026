@@ -3,15 +3,10 @@
 // surveys and declarations. «Шаг до категории» is what is done of the survey, the declaration and the test, and the
 // nearest action available.
 import type { GradeKey, SpecializationKey } from '$lib/server/assessments/contract/catalog';
-import {
-	gradeOptions,
-	type BlockReason,
-	type GradeOption,
-	type OptionKind
-} from '$lib/server/assessments/contract/policy';
+import type { BlockReason } from '$lib/server/assessments/contract/policy';
 import type { Executor } from '$lib/server/db';
 import { declarationHistory, type Declaration } from './declarations';
-import { policyInputOf } from './policy';
+import { gradeOffers, policyInputOf, type GradeOffer, type OfferKind } from './policy';
 import type { GradeSources, SourceCategory } from './sources';
 import { surveyHistory, type Survey } from './surveys';
 
@@ -19,7 +14,7 @@ export type NextStep =
 	| { kind: 'survey' }
 	| { kind: 'declare'; specialization: SpecializationKey }
 	/** A test can start now. */
-	| { kind: 'test'; grade: GradeKey; option: OptionKind }
+	| { kind: 'test'; grade: GradeKey; option: OfferKind }
 	/** Every test of the specialization is closed for now; `availableFrom` — the earliest day one opens by itself. */
 	| { kind: 'wait'; grade: GradeKey; reason: BlockReason; availableFrom: Date | null }
 	/** The top grade is confirmed. */
@@ -36,7 +31,7 @@ export interface GradeStanding {
 	/** The category of the survey's specialization. */
 	category: SourceCategory | null;
 	/** Every grade of the survey's specialization with whether its test can start now; empty without a survey. */
-	options: GradeOption[];
+	options: GradeOffer[];
 	steps: { survey: boolean; declaration: boolean; test: boolean };
 	next: NextStep;
 }
@@ -46,21 +41,25 @@ export function nextStep(state: {
 	specialization: SpecializationKey | null;
 	declaredGrade: GradeKey | null;
 	category: { grade: GradeKey } | null;
-	options: readonly GradeOption[];
+	options: readonly GradeOffer[];
 }): NextStep {
 	if (state.specialization === null) return { kind: 'survey' };
 	if (state.declaredGrade === null && state.category === null) {
 		return { kind: 'declare', specialization: state.specialization };
 	}
-	// The highest open test: an upgrade above a category, the declared grade, or the next one down after a failure.
-	const open = [...state.options].reverse().find((o) => o.available);
+	// The highest test the policy opens: an upgrade above a category, the declared grade, or the next one down after a
+	// failure. A demo session opens every grade; the step there is still the one the policy leads to.
+	const open = [...state.options].reverse().find((o) => o.available && o.kind !== 'demo_session');
 	if (open?.available) return { kind: 'test', grade: open.grade, option: open.kind };
 	// What the candidate is aiming at: the next grade above a category, else the declared grade.
 	const target = state.category
 		? state.options[state.options.findIndex((o) => o.grade === state.category?.grade) + 1]
 		: state.options.find((o) => o.grade === state.declaredGrade);
 	if (!target) return { kind: 'done' };
-	if (target.available) throw new Error('an open option was not found among the options');
+	if (target.available) {
+		if (target.kind !== 'demo_session') throw new Error('an open option was not found among the options');
+		return { kind: 'test', grade: target.grade, option: target.kind };
+	}
 	// Of the closed options, the one that opens by itself first; without a date — the target's own reason.
 	const dated = state.options
 		.flatMap((o) =>
@@ -79,11 +78,12 @@ export async function loadGradeStanding(
 	candidateId: string,
 	now: Date
 ): Promise<GradeStanding> {
-	const [surveys, declarations, categories, attempts] = await Promise.all([
+	const [surveys, declarations, categories, attempts, demoSession] = await Promise.all([
 		surveyHistory(executor, candidateId),
 		declarationHistory(executor, candidateId),
 		sources.activeCategories(executor, candidateId),
-		sources.policyAttempts(executor, candidateId)
+		sources.policyAttempts(executor, candidateId),
+		sources.inDemoSession(executor, candidateId)
 	]);
 	const survey = surveys.at(-1) ?? null;
 	const specialization = survey?.specialization ?? null;
@@ -93,13 +93,14 @@ export async function loadGradeStanding(
 	const options =
 		specialization === null
 			? []
-			: gradeOptions(
+			: gradeOffers(
 					policyInputOf({
 						now,
 						specialization,
 						declaredGrade: declaration?.grade ?? null,
 						categories,
-						attempts
+						attempts,
+						demoSession
 					})
 				);
 	return {

@@ -228,7 +228,7 @@ export const FSP_BATCH_IMPORTED_DETAILS = {
 
 /** Required keys of events whose details the model names; other events take any code details. */
 const SPECIFIC_DETAILS: Partial<Record<AuditAction, z.ZodType>> = {
-	'auth.registered': withKeys({ method: z.enum(['password', 'fsp_id']) }),
+	'auth.registered': withKeys({ method: z.enum(['password', 'fsp_id', 'demo_newcomer']) }),
 	'auth.login': withKeys({ method: z.enum(['password', 'fsp_id']) }),
 	'operator.case_access': withKeys({
 		case_type: z.enum(['objection', 'moderation', 'authority', 'assessment', 'age', 'complaint']),

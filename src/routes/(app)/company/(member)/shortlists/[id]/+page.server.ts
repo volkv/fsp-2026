@@ -1,5 +1,6 @@
 import { formText } from '$lib/server/http/form';
 import { db } from '$lib/server/db';
+import { createdInSession } from '$lib/server/demo/newcomer';
 import { employerRequest, membershipOf } from '$lib/server/employer/http';
 import { currentVocabulary, labelsOf } from '$lib/server/employer/vocabulary';
 import { formFailure, pageError } from '$lib/server/http/page';
@@ -37,6 +38,10 @@ export const load: PageServerLoad = async (event) => {
 		const change = await whatIfFromQuery(event.url);
 		const answer = change === null ? null : await whatIf(deps, subject, event.params.id, change, event.request.signal);
 		const need = await getNeed(configuredNeedDeps(), subject, view.needId);
+		const ownCandidates = await createdInSession(
+			db(),
+			view.items.map((item) => item.candidateId)
+		);
 		const labels = labelsOf(await currentVocabulary(db()));
 		const form = view.revision.query.form;
 		const offered = recommendCategories(
@@ -73,7 +78,8 @@ export const load: PageServerLoad = async (event) => {
 					match: item.needMatch,
 					offerFit: item.offerFit,
 					mark: item.mark,
-					hasFsp: item.hasFsp
+					hasFsp: item.hasFsp,
+					createdInSession: ownCandidates.has(item.candidateId)
 				})),
 				marked: view.marked.map((mark) => ({
 					pseudonym: mark.pseudonym,

@@ -9,13 +9,12 @@ import { ApiError } from '$lib/server/errors/api-error';
 import { openSpecializations, releaseById } from './bank-store';
 import { judgementProvenance, type ItemInstance, type JudgementProvenance } from './contract/bank';
 import { blockDefinition, type GradeKey, type SpecializationKey } from './contract/catalog';
-import type { GradeOption } from './contract/policy';
 import type { BlockSummary } from './contract/procedure';
 import { expireOverdue, ownCandidateId } from './engine';
 import { explainDecision, type Explanation } from './explain';
 import { parseSignalLog, type SignalLog } from './signals';
 import { testTitle } from './titles';
-import { loadGradeOptions } from '$lib/server/grades/policy';
+import { loadGradeOptions, type GradeOffer } from '$lib/server/grades/policy';
 import { gradeSources } from '$lib/server/grades/sources';
 
 export interface AttemptSummary {
@@ -36,7 +35,7 @@ export interface AttemptSummary {
 }
 
 export interface TestsOverview {
-	specializations: { key: SpecializationKey; options: GradeOption[] }[];
+	specializations: { key: SpecializationKey; options: GradeOffer[] }[];
 	activeAttemptId: string | null;
 	attempts: AttemptSummary[];
 }
@@ -235,7 +234,7 @@ export interface DecisionView {
 	/** How the clusters of the attempt were judged (domain 10.8): any by models only, any on a provisional cut. */
 	judgement: JudgementProvenance;
 	/** What the policy offers next in the specialization. */
-	next: GradeOption[];
+	next: GradeOffer[];
 }
 
 /**

@@ -189,6 +189,7 @@
 				offerFit={item.offerFit}
 				mark={item.mark}
 				hasFsp={item.hasFsp}
+				createdInSession={item.createdInSession}
 				{names}
 				cardHref={resolve('/(app)/company/(member)/candidates/[pseudonym]', { pseudonym: item.pseudonym })}
 				offerQuery={`?shortlist=${shortlist.id}`}

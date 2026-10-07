@@ -35,6 +35,8 @@
 		offerFit: { format: string | null; region: string | null };
 		mark: { note: string | null } | null;
 		hasFsp: boolean;
+		/** A candidate created within the viewer's demo session, not a clone of the cast: the visitor's own. */
+		createdInSession: boolean;
 		names: ShortlistNames;
 		cardHref: ResolvedPathname;
 		/** The query the card opens the offer with: the shortlist it comes from. */
@@ -43,7 +45,8 @@
 		editable: boolean;
 	}
 
-	let { pseudonym, match, offerFit, mark, hasFsp, names, cardHref, offerQuery, editable }: Props = $props();
+	let { pseudonym, match, offerFit, mark, hasFsp, createdInSession, names, cardHref, offerQuery, editable }: Props =
+		$props();
 
 	const percent = new Intl.NumberFormat('ru-RU', { style: 'percent', maximumFractionDigits: 0 });
 	const unconfirmed = $derived(coverageText(match.coverage, names));
@@ -66,6 +69,9 @@
 					{#if match.declared}· указано кандидатом: {categoryName(match.declared, names)}{/if}
 				{/if}
 				· {hasFsp ? 'есть результаты ФСП' : 'без результатов ФСП'}
+				{#if createdInSession}
+					· <span class="font-medium text-foreground" data-testid="created-in-session">создан в вашей демо-сессии</span>
+				{/if}
 			</p>
 		</div>
 		<div class="text-right">

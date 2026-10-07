@@ -4,6 +4,10 @@
 //
 // `canStartAttempt` is the one answer to «may this candidate start a test of grade G now, and why not»: the test engine
 // asks it before it starts an attempt (in the transaction of the start), the cabinet and the API show it for every grade.
+//
+// Demo mode (domain 12.3, 19.3): for a candidate of a demo session the order of grades, the intervals and the attempt
+// limit close nothing — a visitor takes any grade and retakes it at once, to see the tests separate grades and repeat.
+// It lifts the answer of the automaton here, not in the contract: the automaton and the decision stay as they are.
 import { and, desc, eq } from 'drizzle-orm';
 import { specializationOpen, type GradeKey, type SpecializationKey } from '$lib/server/assessments/contract/catalog';
 import {
@@ -20,14 +24,39 @@ import { ApiError, policyViolation } from '$lib/server/errors/api-error';
 import type { GradeSources, SourceAttempt, SourceCategory } from './sources';
 import { blockReasonText } from './texts';
 
+/** The automaton's input with the place of the candidate: inside a demo session or not. */
+export interface GradeState extends PolicyInput {
+	demoSession: boolean;
+}
+
+/** Why a test is open: a kind of the automaton, or `demo_session` — closed outside a demo session, open inside one. */
+export type OfferKind = OptionKind | 'demo_session';
+
+/** A grade as the candidate is offered it: the option of the automaton, or a test the demo session opens. */
+export type GradeOffer = GradeOption | { grade: GradeKey; available: true; kind: 'demo_session'; failedRetake?: never };
+
+/** Reasons a demo session keeps: one attempt at a time and a declaration before the first test are not the policy's order. */
+const DEMO_KEEPS: readonly BlockReason[] = ['attempt_in_progress', 'not_declared'];
+
+/** Every grade of the specialization with whether its test can start now, and why not. */
+export function gradeOffers(state: GradeState): GradeOffer[] {
+	const options = gradeOptions(state);
+	if (!state.demoSession) return options;
+	return options.map((option): GradeOffer =>
+		option.available || DEMO_KEEPS.includes(option.reason)
+			? option
+			: { grade: option.grade, available: true, kind: 'demo_session' }
+	);
+}
+
 export type StartVerdict =
-	| { allowed: true; kind: OptionKind }
+	| { allowed: true; kind: OfferKind }
 	/** `availableFrom` — the moment it opens by itself; `null` — it needs another event (a decision, a declaration). */
 	| { allowed: false; reason: BlockReason; availableFrom: Date | null };
 
 /** Whether a test of `grade` may start now, and why not. Pure: the same input gives the same answer. */
-export function canStartAttempt(input: PolicyInput, grade: GradeKey): StartVerdict {
-	const option = gradeOptions(input).find((candidate) => candidate.grade === grade);
+export function canStartAttempt(state: GradeState, grade: GradeKey): StartVerdict {
+	const option = gradeOffers(state).find((candidate) => candidate.grade === grade);
 	if (!option) throw new Error(`grade ${grade} is not in the catalog`);
 	return option.available
 		? { allowed: true, kind: option.kind }
@@ -44,7 +73,8 @@ export function policyInputOf(state: {
 	declaredGrade: GradeKey | null;
 	categories: readonly SourceCategory[];
 	attempts: readonly SourceAttempt[];
-}): PolicyInput {
+	demoSession: boolean;
+}): GradeState {
 	const category = state.categories.find((c) => c.specialization === state.specialization) ?? null;
 	return {
 		now: state.now,
@@ -62,7 +92,8 @@ export function policyInputOf(state: {
 				startedAt,
 				endedAt,
 				state: attemptState
-			}))
+			})),
+		demoSession: state.demoSession
 	};
 }
 
@@ -91,18 +122,20 @@ export async function loadPolicyInput(
 	executor: Executor,
 	sources: GradeSources,
 	query: { candidateId: string; specialization: SpecializationKey; now: Date }
-): Promise<PolicyInput> {
-	const [declaration, categories, attempts] = await Promise.all([
+): Promise<GradeState> {
+	const [declaration, categories, attempts, demoSession] = await Promise.all([
 		currentDeclaration(executor, query.candidateId, query.specialization),
 		sources.activeCategories(executor, query.candidateId),
-		sources.policyAttempts(executor, query.candidateId)
+		sources.policyAttempts(executor, query.candidateId),
+		sources.inDemoSession(executor, query.candidateId)
 	]);
 	return policyInputOf({
 		now: query.now,
 		specialization: query.specialization,
 		declaredGrade: declaration?.grade ?? null,
 		categories,
-		attempts
+		attempts,
+		demoSession
 	});
 }
 
@@ -111,8 +144,8 @@ export async function loadGradeOptions(
 	executor: Executor,
 	sources: GradeSources,
 	query: { candidateId: string; specialization: SpecializationKey; now: Date }
-): Promise<GradeOption[]> {
-	return gradeOptions(await loadPolicyInput(executor, sources, query));
+): Promise<GradeOffer[]> {
+	return gradeOffers(await loadPolicyInput(executor, sources, query));
 }
 
 /** `409 conflict` with the code of the policy and the day it opens (domain 12.3, contracts 9.1). */
@@ -133,7 +166,7 @@ export async function admitGradeTest(
 	executor: Executor,
 	sources: GradeSources,
 	request: { candidateId: string; specialization: SpecializationKey; grade: GradeKey; now: Date }
-): Promise<{ kind: OptionKind }> {
+): Promise<{ kind: OfferKind }> {
 	if (!specializationOpen(request.specialization, await sources.releasedSpecializations(executor))) {
 		throw policyViolation('specialization_closed', 'specialization');
 	}

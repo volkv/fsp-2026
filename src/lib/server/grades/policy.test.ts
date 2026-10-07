@@ -8,7 +8,7 @@ import {
 } from '$lib/server/assessments/contract/policy';
 import type { DecisionReason } from '$lib/server/assessments/contract/procedure';
 import { ApiError } from '$lib/server/errors/api-error';
-import { blockedTestError, canStartAttempt, policyInputOf } from './policy';
+import { blockedTestError, canStartAttempt, gradeOffers, policyInputOf } from './policy';
 import type { SourceAttempt, SourceCategory } from './sources';
 import { nextStep } from './standing';
 import { optionText } from './texts';
@@ -50,13 +50,15 @@ function input(state: {
 	declared?: GradeKey | null;
 	categories?: SourceCategory[];
 	attempts?: SourceAttempt[];
+	demoSession?: boolean;
 }) {
 	return policyInputOf({
 		now: day(state.now),
 		specialization: 'backend',
 		declaredGrade: state.declared ?? null,
 		categories: state.categories ?? [],
-		attempts: state.attempts ?? []
+		attempts: state.attempts ?? [],
+		demoSession: state.demoSession ?? false
 	});
 }
 
@@ -212,6 +214,46 @@ describe('may the candidate start a test of a grade now', () => {
 		}
 	});
 
+	it('in a demo session retakes at once what waits 14 days outside it', () => {
+		const attempts = [decided('middle', 0, 'not_confirmed')];
+		expect(canStartAttempt(input({ now: 1, declared: 'middle', attempts }), 'middle')).toEqual({
+			allowed: false,
+			reason: 'retake_interval',
+			availableFrom: day(GRADE_POLICY.retakeIntervalDays)
+		});
+		expect(canStartAttempt(input({ now: 1, declared: 'middle', attempts, demoSession: true }), 'middle')).toEqual({
+			allowed: true,
+			kind: 'demo_session'
+		});
+	});
+
+	it('in a demo session opens every grade past the order, the interval and the limit, never two attempts at once', () => {
+		const categories = [category('junior', 0, null)];
+		const attempts = [
+			decided('junior', 0, 'confirmed'),
+			decided('senior', 0, 'not_confirmed'),
+			decided('senior', 0, 'not_confirmed')
+		];
+		const live = gradeOffers(input({ now: 0, declared: 'junior', categories, attempts }));
+		const demo = gradeOffers(input({ now: 0, declared: 'junior', categories, attempts, demoSession: true }));
+		expect(live.map((o) => o.available)).toEqual([false, false, false, false]);
+		expect(demo).toEqual(
+			(['intern', 'junior', 'middle', 'senior'] as const).map((grade) => ({
+				grade,
+				available: true,
+				kind: 'demo_session'
+			}))
+		);
+		const running: SourceAttempt = { ...decided('junior', 0, 'confirmed'), endedAt: null, state: 'in_progress' };
+		expect(
+			canStartAttempt(input({ now: 0, declared: 'junior', attempts: [running], demoSession: true }), 'junior')
+		).toMatchObject({ allowed: false, reason: 'attempt_in_progress' });
+		expect(canStartAttempt(input({ now: 0, demoSession: true }), 'junior')).toMatchObject({
+			allowed: false,
+			reason: 'not_declared'
+		});
+	});
+
 	it('refuses a closed test with 409 and the code of the reason', () => {
 		const error = blockedTestError({ allowed: false, reason: 'retake_interval', availableFrom: day(14) });
 		expect(error).toBeInstanceOf(ApiError);
@@ -223,7 +265,7 @@ describe('may the candidate start a test of a grade now', () => {
 });
 
 describe('the step to a category', () => {
-	const optionsOf = (state: Parameters<typeof input>[0]) => gradeOptions(input(state));
+	const optionsOf = (state: Parameters<typeof input>[0]) => gradeOffers(input(state));
 
 	it('starts with the survey, then the declaration', () => {
 		expect(nextStep({ specialization: null, declaredGrade: null, category: null, options: [] })).toEqual({
@@ -251,6 +293,26 @@ describe('the step to a category', () => {
 				options: optionsOf({ now: 1, declared: 'middle', attempts: [decided('middle', 0, 'not_confirmed')] })
 			})
 		).toEqual({ kind: 'test', grade: 'junior', option: 'lower_after_failure' });
+	});
+
+	it('in a demo session leads where the policy leads, not to the top grade it also opens', () => {
+		expect(
+			nextStep({
+				specialization: 'backend',
+				declaredGrade: 'junior',
+				category: null,
+				options: optionsOf({ now: 0, declared: 'junior', demoSession: true })
+			})
+		).toEqual({ kind: 'test', grade: 'junior', option: 'declared' });
+		const categories = [category('junior', 0, null)];
+		expect(
+			nextStep({
+				specialization: 'backend',
+				declaredGrade: 'junior',
+				category: categories[0] ?? null,
+				options: optionsOf({ now: 1, declared: 'junior', categories, demoSession: true })
+			})
+		).toEqual({ kind: 'test', grade: 'middle', option: 'demo_session' });
 	});
 
 	it('waits with the day the next test opens, and is done at the top grade', () => {

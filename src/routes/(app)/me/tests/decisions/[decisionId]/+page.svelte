@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
+	import DemoPolicyNote from '$lib/components/assessments/demo-policy-note.svelte';
 	import HonestNote from '$lib/components/assessments/honest-note.svelte';
 	import { BLOCK_REASONS, OUTCOMES, points, share } from '$lib/components/assessments/model.js';
 	import { OBJECTION_OUTCOMES, OBJECTION_STATUSES } from '$lib/components/candidate/model.js';
@@ -118,6 +119,7 @@
 </SectionCard>
 
 <SectionCard title="Что дальше" testId="decision-next">
+	{#if data.demoNote}<DemoPolicyNote text={data.demoNote} />{/if}
 	{#if available.length > 0}
 		<p class="text-sm">Можно пройти: {available.map((option) => option.title).join(', ')}.</p>
 		<a href={resolve('/me/tests')} class={cn(buttonVariants(), 'w-fit')}>К тестам</a>

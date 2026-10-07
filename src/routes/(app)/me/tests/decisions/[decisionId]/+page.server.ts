@@ -17,6 +17,7 @@ import {
 	type ObjectionWindow
 } from '$lib/server/categories/objections';
 import { db } from '$lib/server/db';
+import { demoPolicyNote } from '$lib/server/demo/grade-policy';
 import { formFailure, pageError } from '$lib/server/http/page';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -46,9 +47,10 @@ export const load: PageServerLoad = async (event) => {
 		const executor = db();
 		const now = new Date();
 		const view = await decisionView(executor, subject, decisionId, now);
-		const [objected, objections] = await Promise.all([
+		const [objected, objections, demoNote] = await Promise.all([
 			OBJECTION_DECISIONS.find(executor, decisionId),
-			candidateObjections(executor, candidateId)
+			candidateObjections(executor, candidateId),
+			demoPolicyNote(executor, candidateId)
 		]);
 		if (!objected) throw new Error(`decision ${decisionId} read by its view is missing for objections`);
 		const own = objections.filter((objection) => objection.decisionId === decisionId);
@@ -76,6 +78,7 @@ export const load: PageServerLoad = async (event) => {
 				dueAt: objection.dueAt.toISOString()
 			})),
 			intake: intake(active, term),
+			demoNote,
 			reasonMaxLength: OBJECTION_REASON_MAX_LENGTH
 		};
 	} catch (cause) {

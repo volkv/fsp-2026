@@ -2,13 +2,9 @@
 // what kind of test an open one is. One source for the cabinet, the registration path and the error messages of the API;
 // the numbers come from the policy data, never restated here.
 import { CATALOG } from '$lib/server/assessments/contract/catalog';
-import {
-	GRADE_POLICY,
-	type BlockReason,
-	type GradeOption,
-	type OptionKind
-} from '$lib/server/assessments/contract/policy';
+import { GRADE_POLICY, type BlockReason } from '$lib/server/assessments/contract/policy';
 import { formatDate, pluralize } from '$lib/components/product/model';
+import type { GradeOffer, OfferKind } from './policy';
 
 const days = (count: number) => `${count} ${pluralize(count, ['день', 'дня', 'дней'])}`;
 const { gradeChangeIntervalDays, retakeIntervalDays, maxAttemptsPerGrade, formWindowDays } = GRADE_POLICY;
@@ -26,13 +22,20 @@ const REASONS: Record<BlockReason, string> = {
 	attempt_limit: `Не больше ${maxAttemptsPerGrade} ${pluralize(maxAttemptsPerGrade, ['засчитанной попытки', 'засчитанных попыток', 'засчитанных попыток'])} на грейд за ${days(formWindowDays)} от их начала`
 };
 
-const KINDS: Record<OptionKind, string> = {
+const KINDS: Record<OfferKind, string> = {
 	declared: 'Тест заявленного грейда',
 	lower_after_failure: 'Тест грейда ниже — открыт после неудачи на грейде выше',
 	upgrade_confident: 'Тест следующего грейда — открыт уверенным результатом',
 	upgrade_interval: `Тест следующего грейда — прошло ${days(gradeChangeIntervalDays)} с подтверждения`,
-	upgrade_retake: `Повтор теста следующего грейда — через ${days(retakeIntervalDays)} после неудачи, без ожидания ${days(gradeChangeIntervalDays)}`
+	upgrade_retake: `Повтор теста следующего грейда — через ${days(retakeIntervalDays)} после неудачи, без ожидания ${days(gradeChangeIntervalDays)}`,
+	demo_session: `Открыт демо-режимом: порядок грейдов и интервалы политики отключены, в эксплуатации — повтор через ${days(retakeIntervalDays)}, смена грейда раз в ${days(gradeChangeIntervalDays)}`
 };
+
+/** The note of a demo session's screens of tests: the policy is lifted there, and what it is outside. */
+export const DEMO_POLICY_NOTE =
+	'Демо-режим: порядок грейдов и интервалы политики отключены — любой грейд можно пройти и сразу повторить, решение о ' +
+	`грейде то же. В эксплуатации повтор — через ${days(retakeIntervalDays)} после неудачи, на другой форме; смена ` +
+	`грейда — раз в ${days(gradeChangeIntervalDays)}; не больше ${maxAttemptsPerGrade} попыток на грейд за ${days(formWindowDays)}.`;
 
 const gradeTitle = (key: string) => CATALOG.grades.find((g) => g.key === key)?.title ?? key;
 
@@ -46,7 +49,7 @@ export function blockReasonText(reason: BlockReason, availableFrom: Date | strin
  * What an open test is. A test below a failed grade says in advance when the failed grade can be retaken: that date
  * does not depend on the result of the test below, so taking it never postpones the retake.
  */
-export function openOptionText(option: Extract<GradeOption, { available: true }>): string {
+export function openOptionText(option: Extract<GradeOffer, { available: true }>): string {
 	const text = KINDS[option.kind];
 	if (!option.failedRetake) return text;
 	const { grade, availableFrom } = option.failedRetake;
@@ -54,6 +57,6 @@ export function openOptionText(option: Extract<GradeOption, { available: true }>
 }
 
 /** What an option says: why it is open, or why it is closed and when it opens. */
-export function optionText(option: GradeOption): string {
+export function optionText(option: GradeOffer): string {
 	return option.available ? openOptionText(option) : blockReasonText(option.reason, option.availableFrom);
 }

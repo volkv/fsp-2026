@@ -5,7 +5,6 @@
 // the call to the owner of the category land in one transaction. A failure of the sandbox is never a verdict; an expired
 // attempt has no decision; an annulment and a review (`ObjectionDecisions`) change the decisions and the owner of the
 // category follows; a seeded attempt takes the same path without the sandbox. The bank is the fixture bank (tests/helpers/families.ts).
-import { execFileSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -33,7 +32,6 @@ import {
 	expireOverdue,
 	startAttempt,
 	startAttemptIn,
-	type AnswerPayload,
 	type EngineDeps
 } from '$lib/server/assessments/engine';
 import { clearExpiredArtifacts } from '$lib/server/assessments/retention';
@@ -44,12 +42,12 @@ import {
 	openObjection,
 	resolveObjection
 } from '$lib/server/categories/objections';
-import { createTestRunHandler } from '$lib/server/assessments/run-job';
 import { runSeededAttempt } from '$lib/server/assessments/seed-attempt';
 import { attemptState, decisionView, testsOverview } from '$lib/server/assessments/views';
 import {
 	bankReleases,
 	candidateCategories,
+	demoSessions,
 	gradeDecisions,
 	productPolicies,
 	testArtifacts,
@@ -57,14 +55,12 @@ import {
 	testItems
 } from '$lib/server/db/schema';
 import { JobFailure } from '$lib/server/jobs/handler';
-import { createLogger } from '$lib/server/jobs/log';
-import { cancelWaitingJobs, claimJob, completeJob, failJob, type ClaimedJob } from '$lib/server/jobs/queue';
-import { JOB_TYPES } from '$lib/server/jobs/registry';
-import type { RunRequest, RunResponse, SandboxRunner, Verdict } from '$lib/server/sandbox/types';
+import { cancelWaitingJobs } from '$lib/server/jobs/queue';
 import { checkBankTree, fileTrajectoryStore, publishBankReleases } from '../../scripts/release-bank';
 import { declareGrade, releaseFixtureBank, type FixtureBank } from '../helpers/bank';
+import { attemptRunner, FakeSandbox, STRONG_CASES } from '../helpers/attempts';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
-import { createCandidate } from '../helpers/factories';
+import { createCandidate, createUser, randomSha256 } from '../helpers/factories';
 import { fixtureFamilies } from '../helpers/families';
 
 const V = CATALOG.version;
@@ -94,49 +90,6 @@ const categoryOf = (candidateId: string, specialization: SpecializationKey) =>
 			)
 		)
 		.then((rows) => rows[0] ?? null);
-
-/** The sandbox as the job sees it: programs get `verdict`; a QA harness runs in the local Python. */
-class FakeSandbox implements SandboxRunner {
-	readonly contractVersion = 'v1' as const;
-	verdict: (testId: string) => Verdict = () => 'accepted';
-	down = false;
-	requests: RunRequest[] = [];
-	languages() {
-		return Promise.resolve({ ok: true as const, value: [] });
-	}
-	run(request: RunRequest) {
-		this.requests.push(request);
-		if (this.down) {
-			return Promise.resolve({
-				ok: false as const,
-				error: { code: 'unavailable' as const, retryable: true, message: 'the sandbox is down' }
-			});
-		}
-		const harness = request.tests[0]?.id === 'harness';
-		const tests = request.tests.map((test) => {
-			const output = harness ? execFileSync('python3', ['-c', request.source], { input: test.stdin }).toString() : null;
-			return {
-				id: test.id,
-				verdict: harness ? ('wrong_answer' as const) : this.verdict(test.id),
-				cpuTimeMs: 1,
-				wallTimeMs: 1,
-				memoryKb: 1,
-				exitCode: 0,
-				signal: null,
-				stdoutSha256: '0'.repeat(64),
-				stdoutPreview: output
-			};
-		});
-		const response: RunResponse = {
-			requestId: request.requestId,
-			engine: { name: 'fake', version: '1' },
-			language: { key: request.language, version: '1' },
-			compile: null,
-			tests
-		};
-		return Promise.resolve({ ok: true as const, value: response });
-	}
-}
 
 const sandbox = new FakeSandbox();
 
@@ -172,116 +125,12 @@ const operatorSubject = (userId: string): AccessSubject => ({
 
 const options = () => ({ now: new Date(), requestId: 'test-engine' });
 
-/** Runs the waiting `test.run` job as the worker does; a handled failure goes back through the queue. */
-async function runTestJob(standing: GradeStanding, specialization: SpecializationKey) {
-	const handler = createTestRunHandler(() => sandbox, deps(standing, specialization));
-	const claimed = await claimJob(database.db, `worker-${randomBytes(3).toString('hex')}`, ['test.run']);
-	if (claimed?.type !== 'test.run') throw new Error('no test.run job to run');
-	const job: ClaimedJob<'test.run'> = {
-		...claimed,
-		type: 'test.run',
-		payload: JOB_TYPES['test.run'].payload.parse(claimed.payload)
-	};
-	try {
-		const result = await handler.run({
-			job,
-			db: database.db,
-			signal: new AbortController().signal,
-			requestId: `job:${job.id}`,
-			log: createLogger({ service: 'test' }).child({ job_id: job.id })
-		});
-		return await completeJob(database.db, job, result);
-	} catch (error) {
-		if (!(error instanceof JobFailure)) throw error;
-		await failJob(database.db, job, { code: error.code, retryable: error.retryable, message: error.message });
-		return error;
-	}
-}
-
-/** Cases of the QA step: the bounds in reverse order kill every mutant of the changed specification. */
-const STEP_CASES = [
-	{ input: '5 9 1', expected: '5' },
-	{ input: '0 9 1', expected: '1' },
-	{ input: '10 9 1', expected: '9' },
-	{ input: '0 1 9', expected: '1' },
-	{ input: '10 1 9', expected: '9' },
-	{ input: '8 1 9', expected: '8' }
-];
-
-const STRONG_CASES = [
-	{ input: '5 1 9', expected: '5' },
-	{ input: '0 1 9', expected: '1' },
-	{ input: '10 1 9', expected: '9' },
-	{ input: '8 1 9', expected: '8' },
-	{ input: '1 1 9', expected: '1' }
-];
-
-/** How a machine candidate answers: every computed key right or wrong; a program and its step; QA cases. */
-interface Behaviour {
-	correct: boolean;
-	cases?: { input: string; expected: string }[];
-}
-
-/**
- * Answers the attempt to its end: the key of a computed item (or a wrong value), a program the fake sandbox accepts,
- * the step «измени своё решение», QA cases; the sandbox job runs after every submission.
- */
-async function takeAttempt(
-	subject: AccessSubject,
-	attemptId: string,
-	standing: GradeStanding,
-	specialization: SpecializationKey,
-	behaviour: Behaviour
-) {
-	for (let guard = 0; guard < 40; guard += 1) {
-		const state = await attemptState(database.db, subject, attemptId, new Date());
-		if (state.status !== 'in_progress') return state;
-		if (state.current === null) throw new Error('the attempt waits for nothing');
-		const [item] = await database.db
-			.select()
-			.from(testItems)
-			.where(and(eq(testItems.attemptId, attemptId), eq(testItems.seq, state.current)));
-		if (!item) throw new Error('no current item');
-		const instance = item.instance as ItemInstance;
-		let payload: AnswerPayload;
-		let sandboxed = false;
-		if (item.status === 'answered') {
-			const step = instance.changeStep;
-			if (!step) throw new Error('answered without a step');
-			payload = step.qa
-				? { kind: 'change_step_cases', cases: behaviour.cases ?? STEP_CASES }
-				: {
-						kind: 'change_step_code',
-						language: instance.practice?.languages[0] ?? 'python3',
-						source: 'print(2)'
-					};
-			sandboxed = true;
-		} else if (instance.practice) {
-			payload = { kind: 'code', language: instance.practice.languages[0] ?? 'python3', source: 'print(2)' };
-			sandboxed = true;
-		} else if (instance.qa) {
-			payload = { kind: 'cases', cases: behaviour.cases ?? STRONG_CASES };
-			sandboxed = true;
-		} else {
-			const key = instance.answer?.kind === 'exact' ? instance.answer.value : '';
-			payload = { kind: 'answer', answer: behaviour.correct ? key : `${key}0` };
-		}
-		await answerItem(
-			database.db,
-			deps(standing, specialization),
-			subject,
-			{
-				attemptId,
-				seq: item.seq,
-				payload,
-				signals: { elapsedMs: 30_000, pasteCount: 0, pastedChars: 0, blurCount: 1 }
-			},
-			options()
-		);
-		if (sandboxed) await runTestJob(standing, specialization);
-	}
-	throw new Error('the attempt did not end');
-}
+const { runTestJob, takeAttempt } = attemptRunner({
+	db: () => database.db,
+	sandbox,
+	deps,
+	requestId: 'test-engine'
+});
 
 beforeAll(async () => {
 	database = await createTestDatabase();
@@ -669,6 +518,80 @@ describe('a whole attempt', () => {
 				options()
 			);
 		}
+	});
+});
+
+describe('a demo session', () => {
+	/** A candidate of a live demo session: there the order and the intervals of the grade policy close nothing. */
+	async function sessionSubject(): Promise<AccessSubject> {
+		const [session] = await database.db
+			.insert(demoSessions)
+			.values({ joinTokenSha256: randomSha256(), seedBatchId: 'demo-1', expiresAt: new Date(Date.now() + 86_400_000) })
+			.returning({ id: demoSessions.id });
+		if (!session) throw new Error('demo session not inserted');
+		const user = await createUser(database.db, { demoSessionId: session.id });
+		const candidate = await createCandidate(database.db, { userId: user.id, demoSessionId: session.id });
+		return {
+			userId: user.id,
+			via: 'session',
+			candidate: { id: candidate.id, status: 'active' },
+			membership: null,
+			staff: { operator: false, admin: false, extraPermissions: [] }
+		};
+	}
+
+	const start = (subject: AccessSubject, standing: GradeStanding, grade: 'junior' | 'senior') =>
+		startAttempt(database.db, deps(standing, 'backend'), subject, { specialization: 'backend', grade }, options());
+
+	it('takes Junior, retakes it at once on the other form, then Senior — the same procedure decides each', async () => {
+		const standing = new MemoryStanding();
+		const subject = await sessionSubject();
+		await declareGrade(database.db, candidateIdOf(subject), 'backend', 'junior');
+		const first = await start(subject, standing, 'junior');
+		expect(await takeAttempt(subject, first.attempt.id, standing, 'backend', { correct: true })).toMatchObject({
+			status: 'decided'
+		});
+		expect(await categoryOf(candidateIdOf(subject), 'backend')).toMatchObject({ grade: 'junior' });
+		// Outside a session the confirmed grade is closed and Senior is two steps above it; here both start at once.
+		const retake = await start(subject, standing, 'junior');
+		expect(retake.attempt.form).not.toBe(first.attempt.form);
+		await takeAttempt(subject, retake.attempt.id, standing, 'backend', { correct: true });
+		sandbox.verdict = () => 'wrong_answer';
+		try {
+			const senior = await start(subject, standing, 'senior');
+			await takeAttempt(subject, senior.attempt.id, standing, 'backend', { correct: false });
+			const decisions = await database.db
+				.select({ grade: gradeDecisions.grade, outcome: gradeDecisions.outcome })
+				.from(gradeDecisions)
+				.where(eq(gradeDecisions.candidateId, candidateIdOf(subject)))
+				.orderBy(asc(gradeDecisions.decidedAt));
+			expect(decisions).toEqual([
+				{ grade: 'junior', outcome: 'confirmed' },
+				{ grade: 'junior', outcome: 'confirmed' },
+				{ grade: 'senior', outcome: 'not_confirmed' }
+			]);
+			// A failure above does not lower the category; the failed Senior is retaken at once as well.
+			expect(await categoryOf(candidateIdOf(subject), 'backend')).toMatchObject({ grade: 'junior' });
+			expect((await start(subject, standing, 'senior')).attempt.status).toBe('in_progress');
+		} finally {
+			sandbox.verdict = () => 'accepted';
+		}
+	});
+
+	it('outside a session the same retake waits for its interval', async () => {
+		const standing = new MemoryStanding();
+		const subject = await candidateSubject();
+		await declareGrade(database.db, candidateIdOf(subject), 'backend', 'junior');
+		const first = await start(subject, standing, 'junior');
+		await takeAttempt(subject, first.attempt.id, standing, 'backend', { correct: true });
+		await expect(start(subject, standing, 'junior')).rejects.toMatchObject({
+			status: 409,
+			details: [{ code: 'already_confirmed' }]
+		});
+		await expect(start(subject, standing, 'senior')).rejects.toMatchObject({
+			status: 409,
+			details: [{ code: 'above_next_grade' }]
+		});
 	});
 });
 

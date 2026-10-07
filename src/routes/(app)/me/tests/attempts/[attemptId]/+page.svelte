@@ -4,6 +4,7 @@
 	import { invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import CodeListing from '$lib/components/assessments/code-listing.svelte';
+	import DemoPolicyNote from '$lib/components/assessments/demo-policy-note.svelte';
 	import HonestNote from '$lib/components/assessments/honest-note.svelte';
 	import ItemAnswer from '$lib/components/assessments/item-answer.svelte';
 	import { ANNUL_REASONS, ATTEMPT_STATUSES, languageName } from '$lib/components/assessments/model.js';
@@ -63,6 +64,8 @@
 	{#snippet eyebrow()}<a class="underline underline-offset-4" href={resolve('/me/tests')}>Тест на грейд</a>{/snippet}
 	{#snippet actions()}{#if status}<StatusPill label={status.label} tone={status.tone} />{/if}{/snippet}
 </PageHeader>
+
+{#if data.demoNote}<DemoPolicyNote text={data.demoNote} />{/if}
 
 {#if data.annulment}
 	<div class="grid gap-1 rounded-xl border border-destructive/40 p-4 text-sm" role="note" data-testid="annulment">

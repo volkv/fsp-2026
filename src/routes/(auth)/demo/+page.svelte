@@ -2,6 +2,7 @@
 	import FileUpIcon from '@lucide/svelte/icons/file-up';
 	import LogInIcon from '@lucide/svelte/icons/log-in';
 	import MailIcon from '@lucide/svelte/icons/mail';
+	import UserPlusIcon from '@lucide/svelte/icons/user-plus';
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
 	import CsrfField from '$lib/components/forms/csrf-input.svelte';
@@ -92,6 +93,35 @@
 						Ссылка, чтобы открыть эту же сессию в другом браузере (например, работодатель и кандидат рядом):
 					</label>
 					<Input id="demo-join-link" readonly value={data.session.joinLink} class="font-mono text-xs" />
+				</div>
+				<div class="grid gap-2 rounded-lg border border-dashed p-3" data-testid="demo-newcomer">
+					<p class="text-sm">
+						<strong>Новый кандидат в этой сессии</strong> — чистая учётка без профиля: согласие, опрос, заявленный грейд и
+						тест с первого задания. Работодатели этой сессии найдут его по категории, которую даст тест. В демо-сессии порядок
+						грейдов и интервалы политики отключены: можно сразу пройти Junior и Senior и повторить тот же грейд.
+					</p>
+					<form
+						method="POST"
+						action="?/newcomer"
+						use:enhance={() => {
+							pending = 'newcomer';
+							return async ({ update }) => {
+								await update({ reset: false });
+								pending = null;
+							};
+						}}
+					>
+						<CsrfField viewer={data.viewer} />
+						<input type="hidden" name="join" value={data.session.token} />
+						<Button type="submit" variant="secondary" disabled={pending !== null}>
+							<UserPlusIcon aria-hidden="true" />
+							{pending === 'newcomer' ? 'Создаём кандидата…' : 'Новый кандидат в этой сессии'}
+						</Button>
+					</form>
+					<p class="text-xs text-muted-foreground">
+						Браузер войдёт под новым кандидатом. Работодателя этой же сессии держите в другом профиле браузера — по
+						ссылке выше. Нажимая, вы принимаете пользовательское соглашение стенда от имени вымышленного кандидата.
+					</p>
 				</div>
 				<div class="flex flex-wrap gap-3">
 					<a href={resolve('/demo/resume')} class={buttonVariants({ variant: 'outline' })}>
