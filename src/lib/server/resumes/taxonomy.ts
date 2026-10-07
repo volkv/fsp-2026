@@ -5,20 +5,17 @@ import type { Executor } from '$lib/server/db';
 import { roles, skillAliases } from '$lib/server/db/schema';
 import type { SkillLexicon } from '$lib/server/ml/quotes';
 import { languageNameSpellings } from '$lib/server/taxonomy/languages';
-import { matchSkill, type SkillIndex } from '$lib/server/taxonomy/normalize';
-import { buildSkillReader, type SkillReader } from '$lib/server/taxonomy/skill-spans';
+import { buildSkillReader, matchSkillMention, type SkillReader } from '$lib/server/taxonomy/skill-spans';
 import { latestPublishedVersion } from '$lib/server/taxonomy/vocabulary';
 
 export interface ResumeTaxonomy {
 	id: string;
 	label: string;
 	/**
-	 * What a claim of a resume normalizes against: the spellings of the skills and the name alone of a language skill
-	 * («Английский» of «Английский язык»), which a resume writes next to the level of the language.
+	 * What a claim of a resume normalizes against (`matchSkillMention`): the spellings of the skills and the name alone
+	 * of a language skill («Английский» of «Английский язык»), which a resume writes next to the level of the language.
 	 */
-	skills: SkillIndex;
-	/** Normalized spellings of every skill in `skills`, including its name. */
-	aliasesBySkill: ReadonlyMap<string, readonly string[]>;
+	claims: SkillReader;
 	/**
 	 * The scanner of skill mentions in the text: the spellings of the taxonomy only. The name of a language alone is a
 	 * skill where the resume states the language with its level, not wherever the word stands.
@@ -33,12 +30,10 @@ export function buildResumeTaxonomy(input: {
 	aliases: readonly { aliasNormalized: string; skillKey: string }[];
 	roles: readonly { key: string; nameRu: string }[];
 }): ResumeTaxonomy {
-	const claims = buildSkillReader([...input.aliases, ...languageNameSpellings(input.aliases)]);
 	return {
 		id: input.id,
 		label: input.label,
-		skills: claims.skills,
-		aliasesBySkill: claims.aliasesBySkill,
+		claims: buildSkillReader([...input.aliases, ...languageNameSpellings(input.aliases)]),
 		spans: buildSkillReader(input.aliases),
 		roles: [...input.roles].sort((a, b) => (a.key < b.key ? -1 : 1))
 	};
@@ -65,9 +60,9 @@ export async function loadResumeTaxonomy(executor: Executor): Promise<ResumeTaxo
 export function resumeLexicon(taxonomy: ResumeTaxonomy): SkillLexicon {
 	return {
 		aliasesOf: (rawText) => {
-			const match = matchSkill(taxonomy.skills, rawText);
+			const match = matchSkillMention(taxonomy.claims, rawText);
 			if (match.skillKey === null) return [];
-			return [...new Set([rawText, ...(taxonomy.aliasesBySkill.get(match.skillKey) ?? [])])];
+			return [...new Set([rawText, ...(taxonomy.claims.aliasesBySkill.get(match.skillKey) ?? [])])];
 		}
 	};
 }

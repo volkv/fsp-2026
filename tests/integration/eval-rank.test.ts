@@ -159,6 +159,9 @@ describe('the evaluation ranking', () => {
 		expect(answer.declared.full?.n1).toEqual(['failed']);
 		expect(answer.declared.full?.n2).toEqual(['failed']);
 		expect(answer.declared.given).toEqual({ n1: [], n2: [] });
+		// The group is explained as the shortlist is: what the jury's run shows of it.
+		expect(answer.declared_top.full?.n1?.map((entry) => entry.id)).toEqual(['failed']);
+		expect(answer.declared_top.full?.n1?.[0]?.score).toEqual(expect.any(Number));
 		const [first] = answer.top.full?.n1 ?? [];
 		expect(first?.components.test).toBeGreaterThan(answer.top.full?.n1?.[1]?.components.test ?? 1);
 		expect(first?.reasons.length).toBeGreaterThan(0);

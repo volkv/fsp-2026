@@ -4,14 +4,16 @@ import { eq } from 'drizzle-orm';
 import type { Executor } from '$lib/server/db';
 import { grades, roles, skillAliases, workFormats } from '$lib/server/db/schema';
 import type { VacancyLexicon } from '$lib/server/ml/vacancy-extract';
-import { buildSkillIndex, matchSkill, normalizeSkillText, type SkillIndex } from '$lib/server/taxonomy/normalize';
+import { normalizeSkillText } from '$lib/server/taxonomy/normalize';
 import type { RoleName } from '$lib/server/taxonomy/roles';
+import { buildSkillReader, matchSkillMention, type SkillReader } from '$lib/server/taxonomy/skill-spans';
 import { latestPublishedVersion, type TaxonomyVersionRef, type TermDimension } from '$lib/server/taxonomy/vocabulary';
 
 export interface VacancyTaxonomy {
 	id: string;
 	label: string;
-	skills: SkillIndex;
+	/** The scanner of skill mentions over the aliases: what a mention normalizes against (`resolveSkill`). */
+	reader: SkillReader;
 	/** Aliases with the spaces removed → skill, for tags written without spaces (`#Базыданных`); ambiguous ones dropped. */
 	compactAliases: ReadonlyMap<string, string>;
 	aliasesBySkill: ReadonlyMap<string, readonly string[]>;
@@ -37,12 +39,9 @@ export function buildVacancyTaxonomy(input: {
 	terms: readonly { dimension: string; key: string }[];
 	roles: readonly RoleName[];
 }): VacancyTaxonomy {
-	const aliasesBySkill = new Map<string, string[]>();
+	const reader = buildSkillReader(input.aliases);
 	const compactOwners = new Map<string, Set<string>>();
 	for (const { aliasNormalized, skillKey } of input.aliases) {
-		const list = aliasesBySkill.get(skillKey) ?? [];
-		list.push(aliasNormalized);
-		aliasesBySkill.set(skillKey, list);
 		const key = compact(aliasNormalized);
 		const owners = compactOwners.get(key) ?? new Set<string>();
 		owners.add(skillKey);
@@ -57,9 +56,9 @@ export function buildVacancyTaxonomy(input: {
 	return {
 		id: input.id,
 		label: input.label,
-		skills: buildSkillIndex(input.aliases),
+		reader,
 		compactAliases,
-		aliasesBySkill,
+		aliasesBySkill: reader.aliasesBySkill,
 		grades: [...input.grades].sort((a, b) => a.ordinal - b.ordinal).map((g) => g.key),
 		terms: {
 			work_format: termsOf('work_format'),
@@ -103,11 +102,14 @@ export async function loadVacancyTaxonomy(executor: Executor): Promise<VacancyTa
 	return versionContent(executor, version);
 }
 
-/** A skill mention → canonical key: exact or fuzzy alias, then the alias written without spaces. */
+/**
+ * A skill mention → canonical key: exact or fuzzy alias, then the alias written without spaces, then the one skill named
+ * inside the mention («Python 3.x»).
+ */
 export function resolveSkill(taxonomy: VacancyTaxonomy, raw: string): string | null {
-	const match = matchSkill(taxonomy.skills, raw);
-	if (match.skillKey !== null) return match.skillKey;
-	return taxonomy.compactAliases.get(compact(normalizeSkillText(raw))) ?? null;
+	const match = matchSkillMention(taxonomy.reader, raw);
+	if (match.method === 'alias' || match.method === 'fuzzy') return match.skillKey;
+	return taxonomy.compactAliases.get(compact(normalizeSkillText(raw))) ?? match.skillKey;
 }
 
 /** The keys `vacancy-extract/v1` may use and the aliases its quotes are checked against (contracts 3.2). */

@@ -23,7 +23,7 @@ import type { Docparse } from '$lib/server/documents/docparse';
 import type { ModelAdapter } from '$lib/server/ml/adapter';
 import { RESUME_SCHEMA_VERSION } from '$lib/server/resumes/extract-job';
 import { RULES_VERSION } from '$lib/server/resumes/rules';
-import { matchSkill } from '$lib/server/taxonomy/normalize';
+import { matchSkillMention } from '$lib/server/taxonomy/skill-spans';
 import { fspPageSchema, profileEvidence, snapshotSchema, withFsp } from './evidence';
 import { extractDocument, type ExtractedDocument } from './extract';
 import { rankCandidates, rankRequestSchema, type RankDeps } from './rank';
@@ -146,7 +146,7 @@ export async function handle(raw: unknown, deps: BridgeDeps): Promise<unknown> {
 			const { resume } = await deps.taxonomy();
 			return {
 				results: request.surfaces.map((surface) => {
-					const match = matchSkill(resume.skills, surface);
+					const match = matchSkillMention(resume.claims, surface);
 					return { surface, skill_key: match.skillKey, method: match.method, score: match.score };
 				})
 			};

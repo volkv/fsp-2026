@@ -4,6 +4,13 @@ of every need in two lanes — `as_product` (a category only from a confirmed te
 same text of the need over the same candidates, a blind sheet of the union of their first tens, and, by the jury's
 labels, Precision@10, nDCG@10, MRR and judged@10 with paired bootstrap intervals.
 
+The product shows two groups for a need (domain 13.10): the shortlist — the candidates holding a category of it from a
+confirmed test — and after it the group «грейд не подтверждён» — no category of its specializations, the grade of
+their last test there naming one of its categories. `as_product` is the shortlist; `as_product_shown` is what the
+employer sees, the shortlist and then the group. Who the product shows in neither, and why, is listed apart. What the
+input confirms — how many candidates carry test results and hold a category — goes with every run: without test results
+the shortlist is empty by the terms of reference, and the numbers of `as_product` say so, not how it ranks.
+
 Nothing touches the application's data: the bridge ranks in a temporary database it drops (`rank`), the resumes go
 through `docparse` and the product's extraction (`extract`).
 """
@@ -21,11 +28,37 @@ from typing import Any
 from fsp_eval.selection import SUITABLE, K, bm25_order, ndcg, paired_delta, precision_at, reciprocal_rank
 
 LANES = ("as_product", "resume_only")
-SYSTEMS = (*LANES, "keywords_same_text")
+SHOWN = "as_product_shown"
+# The group «грейд не подтверждён» of the product's lane, explained by the bridge apart from the shortlist.
+GROUP = "grade_not_confirmed"
+BASELINE = "keywords_same_text"
+# Ranked lists of the run; the product's shown order is the shortlist and its group, put together by the metrics.
+RANKED = (*LANES, BASELINE)
+COMPARED = ("as_product", SHOWN, "resume_only")
+SYSTEMS = (*COMPARED, BASELINE)
 LANE_TITLES = {
-    "as_product": "как в продукте: категория только из подтверждённого теста",
+    "as_product": "как в продукте, подборка: только кандидаты с категорией подборки из подтверждённого теста",
+    SHOWN: (
+        "как в продукте, всё показанное работодателю: подборка, затем группа «грейд не подтверждён» —"
+        " её кандидаты тестом не подтверждены"
+    ),
     "resume_only": "эксперимент без теста: категория из подсказки грейда по резюме, не подтверждена",
     "keywords_same_text": "поиск по тому же тексту потребности (BM25) среди тех же кандидатов",
+}
+GROUP_TITLE = (
+    "грейд не подтверждён: категории подборки нет, грейд последнего теста по её специальности называет её категорию;"
+    " продукт показывает группу после подборки"
+)
+NOT_SHOWN_TITLES = {
+    "no_test": "нет решений теста: без теста нет категории, продукт их не показывает",
+    "category_elsewhere": "категория из теста есть, но не из категорий подборки",
+    "not_confirmed_elsewhere": "категории нет, последний тест — не на категорию подборки",
+}
+MEASURES = {
+    "precision_at_10": "доля подходящих (метка 2–3) среди первых десяти позиций, знаменатель всегда 10",
+    "ndcg_at_10": "nDCG@10 по меткам 0–3 (выигрыш 2^метка − 1), идеальный порядок — по всем кандидатам потребности",
+    "mrr": "1 / позиция первого подходящего во всём порядке, 0 — если его нет",
+    "judged_at_10": "доля размеченных среди первых десяти; неразмеченная карточка считается неподходящей",
 }
 RESUME_EXTENSIONS = frozenset({".pdf", ".docx", ".odt", ".txt"})
 SAFE = re.compile(r"[^0-9A-Za-z_.-]")
@@ -208,33 +241,17 @@ def jury_run(
         }
     )
     rng = random.Random(f"{seed}:judging")
+    held = {
+        cid.split("/", 1)[0]: categories for cid, categories in answer["categories"].items() if "/as_product" in cid
+    }
     results, sheet = [], []
     for nk, need in need_keys.items():
-        name = {key: keys[key][1].candidate_id for key in members[nk]}
-        texts = {key: by_key[key]["text"] if by_key[key]["ok"] else None for key in members[nk]}
-        orders = {lane: [cid.split("/", 1)[0] for cid in answer["rankings"][lane][nk]] for lane in LANES}
-        orders["keywords_same_text"] = bm25_order(need.text, texts, seed, nk)
-        top = {lane: {e["id"].split("/", 1)[0]: e for e in answer["top"][lane][nk]} for lane in LANES}
-        results.append(
-            {
-                "need_id": need.need_id,
-                "read": answer["needs"][nk],
-                "lanes": {
-                    system: {
-                        "title": LANE_TITLES[system],
-                        "ranked": [
-                            {"candidate_id": name[key], "position": position + 1}
-                            | (_explained(top[system][key]) if system in LANES and key in top[system] else {})
-                            for position, key in enumerate(order)
-                        ],
-                        **_apart(system, order, members[nk], name, answer["unconfirmed"].get(system, {}).get(nk, [])),
-                    }
-                    for system, order in orders.items()
-                },
-                "unparsed": sorted(name[key] for key in members[nk] if not by_key[key]["ok"]),
-            }
+        result, orders = _need_result(
+            need, nk, people=members[nk], keys=keys, by_key=by_key, answer=answer, held=held, seed=seed
         )
-        pool = sorted({name[key] for order in orders.values() for key in order[:K]})
+        results.append(result)
+        name = {key: keys[key][1].candidate_id for key in members[nk]}
+        pool = sorted({name[key] for order in orders for key in order[:K]})
         rng.shuffle(pool)
         sheet.extend({"need_id": need.need_id, "candidate_id": cid, "label": None} for cid in pool)
     run = {
@@ -243,6 +260,8 @@ def jury_run(
         "versions": {**info["versions"], **answer["models"]},
         "mode": mode,
         "as_of": as_of.isoformat(),
+        "inputs": _run_inputs(results),
+        "warnings": _warnings(results),
         "needs": results,
     }
     (directory / "results.json").write_text(json.dumps(run, ensure_ascii=False, indent=1), encoding="utf-8")
@@ -263,16 +282,146 @@ def jury_run(
     return run
 
 
-def _apart(
-    system: str, order: Sequence[str], members: Sequence[str], name: Mapping[str, str], unconfirmed: Sequence[str]
-) -> dict[str, list[str]]:
-    """Who a lane leaves out, and why: the product's lane — the candidates without a confirmed category (domain 12.7);
-    the lane without a test — nobody there has one, so the candidates whose grade hint is outside the need's grades."""
-    if system == "as_product":
-        return {"category_not_confirmed": sorted(name[cid.split("/", 1)[0]] for cid in unconfirmed)}
-    if system == "resume_only":
-        return {"not_admitted_by_grade_hint": sorted(name[key] for key in members if key not in set(order))}
-    return {}
+def _need_result(
+    need: Need,
+    nk: str,
+    *,
+    people: Sequence[str],
+    keys: Mapping[str, tuple[Need, Candidate]],
+    by_key: Mapping[str, Mapping[str, Any]],
+    answer: Mapping[str, Any],
+    held: Mapping[str, Sequence[Any]],
+    seed: int,
+) -> tuple[dict[str, Any], list[list[str]]]:
+    """One need of a run: what the product read, what its input confirms, every lane — the product's with the group
+    «грейд не подтверждён» after its shortlist and who it shows in neither — and the orders the blind sheet unites."""
+    name = {key: keys[key][1].candidate_id for key in people}
+    texts = {key: by_key[key]["text"] if by_key[key]["ok"] else None for key in people}
+    orders = {lane: [cid.split("/", 1)[0] for cid in answer["rankings"][lane][nk]] for lane in LANES}
+    orders[BASELINE] = bm25_order(need.text, texts, seed, nk)
+    top = {lane: {e["id"].split("/", 1)[0]: e for e in answer["top"][lane][nk]} for lane in LANES}
+    top[GROUP] = {e["id"].split("/", 1)[0]: e for e in answer["declared_top"]["as_product"][nk]}
+    shortlist = orders["as_product"]
+    group = [cid.split("/", 1)[0] for cid in answer["declared"]["as_product"][nk]]
+    read = answer["needs"][nk]
+
+    def ranked(order: Sequence[str], explained: Mapping[str, Any], start: int) -> list[dict[str, Any]]:
+        return [
+            {"candidate_id": name[key], "position": start + position + 1}
+            | (_explained(explained[key]) if key in explained else {})
+            for position, key in enumerate(order)
+        ]
+
+    lanes: dict[str, Any] = {
+        system: {"title": LANE_TITLES[system], "ranked": ranked(order, top.get(system, {}), 0)}
+        for system, order in orders.items()
+    }
+    lanes["as_product"][GROUP] = {
+        "title": GROUP_TITLE,
+        "ranked": [
+            entry | {"declared": _declared(keys[key][1], read["categories"])}
+            for key, entry in zip(group, ranked(group, top[GROUP], len(shortlist)), strict=True)
+        ],
+    }
+    lanes["as_product"]["not_shown"] = _not_shown(
+        [key for key in people if key not in {*shortlist, *group}], keys, held, name
+    )
+    lanes["resume_only"]["not_admitted_by_grade_hint"] = sorted(
+        name[key] for key in people if key not in set(orders["resume_only"])
+    )
+    inputs = _inputs(need, [by_key[key]["ok"] for key in people], [bool(held.get(key)) for key in people])
+    result = {
+        "need_id": need.need_id,
+        "read": read,
+        "inputs": inputs | {"shortlist": len(shortlist), "grade_not_confirmed": len(group)},
+        "lanes": lanes,
+        "unparsed": sorted(name[key] for key in people if not by_key[key]["ok"]),
+    }
+    return result, [*orders.values(), [*shortlist, *group]]
+
+
+def _declared(candidate: Candidate, categories: Sequence[str]) -> dict[str, str] | None:
+    """The category the candidate's last test of a specialization of the shortlist was taken on: what the group
+    «грейд не подтверждён» shows of them."""
+    specializations = {category.split(":", 1)[0] for category in categories}
+    last = [result for result in candidate.test_results if result.get("specialization") in specializations]
+    if not last:
+        return None
+    return {"specialization": last[-1]["specialization"], "grade": last[-1]["grade"], "outcome": last[-1]["outcome"]}
+
+
+def _not_shown(
+    keys_apart: Sequence[str],
+    keys: Mapping[str, tuple[Need, Candidate]],
+    held: Mapping[str, Sequence[Any]],
+    name: Mapping[str, str],
+) -> dict[str, Any]:
+    """Who the product shows in neither group, by reason: no test at all; a category, but not of the shortlist; no
+    category, the last test not on a category of the shortlist."""
+    apart: dict[str, list[str]] = {reason: [] for reason in NOT_SHOWN_TITLES}
+    for key in keys_apart:
+        if not keys[key][1].test_results:
+            apart["no_test"].append(name[key])
+        elif held.get(key):
+            apart["category_elsewhere"].append(name[key])
+        else:
+            apart["not_confirmed_elsewhere"].append(name[key])
+    return {"titles": NOT_SHOWN_TITLES, **{reason: sorted(ids) for reason, ids in apart.items()}}
+
+
+def _inputs(need: Need, parsed: Sequence[bool], categorized: Sequence[bool]) -> dict[str, int]:
+    """What the input of a need confirms: candidates, resumes read, candidates with test results, with a category in
+    force after them, labelled by the jury."""
+    return {
+        "candidates": len(need.candidates),
+        "parsed": sum(parsed),
+        "with_test_results": sum(bool(c.test_results) for c in need.candidates),
+        "with_category": sum(categorized),
+        "labelled": sum(c.label is not None for c in need.candidates),
+    }
+
+
+def _run_inputs(results: Sequence[Mapping[str, Any]]) -> dict[str, int]:
+    keys = (
+        "candidates",
+        "parsed",
+        "with_test_results",
+        "with_category",
+        "labelled",
+        "shortlist",
+        "grade_not_confirmed",
+    )
+    totals = {key: sum(need["inputs"][key] for need in results) for key in keys}
+    return {
+        "needs": len(results),
+        **totals,
+        "needs_without_categories": sum(not n["read"]["categories"] for n in results),
+    }
+
+
+def _warnings(results: Sequence[Mapping[str, Any]]) -> list[str]:
+    """What the numbers of a run do not say, in words: the jury reads them next to the metrics."""
+    warnings = []
+    if not any(need["inputs"]["with_test_results"] for need in results):
+        warnings.append(
+            "Во входе нет ни одного решения теста (test_results): категорию продукт даёт только подтверждённым тестом,"
+            " поэтому подборка «как в продукте» и группа «грейд не подтверждён» пусты у каждой потребности, и метрики"
+            " as_product и as_product_shown — нули входа, а не ранжирования. Чтение тех же резюме без теста показывает"
+            " только эксперимент resume_only."
+        )
+    elif not any(need["inputs"]["with_category"] for need in results):
+        warnings.append(
+            "Во входе есть решения тестов, но ни одно не подтвердило категорию: подборка пуста, показана только группа"
+            " «грейд не подтверждён»."
+        )
+    unread = [need["need_id"] for need in results if not need["read"]["categories"]]
+    if unread:
+        warnings.append(
+            "Потребности без категорий подборки (роль без выпущенного теста или не прочитана): "
+            + ", ".join(unread)
+            + " — продукт не показывает по ним ни одного кандидата."
+        )
+    return warnings
 
 
 def _explained(entry: Mapping[str, Any]) -> dict[str, Any]:
@@ -304,7 +453,9 @@ def read_labels(path: Path) -> dict[tuple[str, str], int]:
 
 
 def jury_metrics(run: Mapping[str, Any], labels: Mapping[tuple[str, str], int], *, seed: int) -> dict[str, Any]:
-    """Every lane and the search by the same text against the jury's labels: an unlabelled card is not suitable."""
+    """Every system against the jury's labels: the product's shortlist, all the product shows (the shortlist, then the
+    group «грейд не подтверждён»), the lane without a test and the search by the same text. An unlabelled card is not
+    suitable; a need without a suitable candidate by the labels is not rated."""
     values: dict[str, dict[str, list[float]]] = {
         s: {"ndcg_at_10": [], "precision_at_10": [], "mrr": []} for s in SYSTEMS
     }
@@ -315,9 +466,15 @@ def jury_metrics(run: Mapping[str, Any], labels: Mapping[tuple[str, str], int], 
     rated = 0
     for need in run["needs"]:
         need_id = need["need_id"]
-        orders = {s: [row["candidate_id"] for row in need["lanes"][s]["ranked"]] for s in SYSTEMS}
-        people = set().union(*orders.values()) | set(need["lanes"]["as_product"]["category_not_confirmed"])
-        rels = {cid: labels.get((need_id, cid), 0) for cid in people}
+        lanes = need["lanes"]
+        orders = {s: [row["candidate_id"] for row in lanes[s]["ranked"]] for s in RANKED}
+        group = [row["candidate_id"] for row in lanes["as_product"][GROUP]["ranked"]]
+        orders[SHOWN] = [*orders["as_product"], *group]
+        # Every candidate a system orders (unlabelled — not suitable) and every labelled one, shown or not: the ideal
+        # order is over all of them.
+        rels = {cid: 0 for order in orders.values() for cid in order} | {
+            cid: label for (nid, cid), label in labels.items() if nid == need_id
+        }
         for system, order in orders.items():
             if order[:K]:
                 judged[system].append(sum((need_id, cid) in labels for cid in order[:K]) / len(order[:K]))
@@ -336,6 +493,9 @@ def jury_metrics(run: Mapping[str, Any], labels: Mapping[tuple[str, str], int], 
         "needs": len(run["needs"]),
         "rated_needs": rated,
         "labels": len(labels),
+        "inputs": run["inputs"],
+        "warnings": run["warnings"],
+        "measures": MEASURES,
         "systems": {
             system: {
                 "title": LANE_TITLES[system],
@@ -345,11 +505,11 @@ def jury_metrics(run: Mapping[str, Any], labels: Mapping[tuple[str, str], int], 
             for system in SYSTEMS
         },
         "deltas": {
-            f"{lane}_minus_keywords_same_text": {
-                measure: paired_delta(seed, values[lane][measure], values["keywords_same_text"][measure])
-                for measure in values[lane]
+            f"{system}_minus_keywords_same_text": {
+                measure: paired_delta(seed, values[system][measure], values[BASELINE][measure])
+                for measure in values[system]
             }
-            for lane in LANES
+            for system in COMPARED
             if rated
         },
     }

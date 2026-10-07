@@ -1,5 +1,6 @@
 // Skill normalization (docs/domain.md sections 9.2, 11): exact alias → fuzzy match with a threshold → unknown.
-// Two canonical skills that are equally close to the text are a refusal, not a guess.
+// Two canonical skills that are equally close to the text are a refusal, not a guess. A mention that is a name with
+// more words around it («Java 17», «SQL-запросы») is read by the scanner of skill mentions (`matchSkillMention`).
 
 /** Fuzzy matching is not attempted below this length: short names (`c`, `r`, `go`, `c#`) differ by one character. */
 const FUZZY_MIN_LENGTH = 5;
@@ -61,6 +62,7 @@ interface SkillCandidate {
 export type SkillMatch =
 	| { method: 'alias'; skillKey: string; score: 1; normalized: string; alternatives: [] }
 	| { method: 'fuzzy'; skillKey: string; score: number; normalized: string; alternatives: [] }
+	| { method: 'contained'; skillKey: string; score: number; normalized: string; alternatives: [] }
 	| { method: 'unknown'; skillKey: null; score: number | null; normalized: string; alternatives: SkillCandidate[] };
 
 /** Builds the lookup structure of one taxonomy version; an alias pointing to two skills is a data error. */

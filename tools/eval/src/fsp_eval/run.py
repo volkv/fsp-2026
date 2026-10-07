@@ -366,7 +366,7 @@ def bridge_report(answer: dict[str, Any]) -> dict[str, Any]:
     report = {
         key: value
         for key, value in answer.items()
-        if key not in {"rankings", "top", "categories", "unconfirmed", "declared"}
+        if key not in {"rankings", "top", "declared_top", "categories", "unconfirmed", "declared"}
     }
     for key in ("unconfirmed", "declared"):
         report[key] = {

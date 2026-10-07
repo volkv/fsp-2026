@@ -173,6 +173,9 @@ export const METRICS: Record<string, string> = {
 	'shortlist.needs_without_suitable': 'Доля потребностей без подходящих в пуле («честно пусто»)',
 	'shortlist.inflated_share_top10': 'Доля завышенных резюме в первой десятке (базовый — поиск по тексту)',
 	'shortlist.without_fsp_share_top10': 'Доля кандидатов без ФСП в первой десятке (базовый — во всей подборке)',
+	'shortlist.unconfirmed_share_top10':
+		'Доля группы «грейд не подтверждён» в первой десятке показанного (базовый — во всём показанном)',
+	'shortlist.precision_at_10.with_unconfirmed_tail': 'Precision@10 показанного вместе с группой «грейд не подтверждён»',
 	'shortlist.sorting.ndcg_at_10': 'Сортировка одного набора: nDCG@10 подборки',
 	'shortlist.sorting.ndcg_at_10.keywords_same_requirements':
 		'Сортировка одного набора: nDCG@10 поиска по тем же требованиям',

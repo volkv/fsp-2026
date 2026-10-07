@@ -131,6 +131,9 @@ def main(argv: list[str] | None = None) -> int:
             seed=args.seed,
         )
         print(f"jury run: {run['directory']} — {len(run['needs'])} needs, revision {run['product_revision']}")
+        print("inputs: " + ", ".join(f"{key} {value}" for key, value in run["inputs"].items()))
+        for warning in run["warnings"]:
+            print(f"WARNING {warning}", file=sys.stderr)
         if "metrics" in run:
             print(json.dumps(run["metrics"]["systems"], ensure_ascii=False, indent=1))
     elif args.command == "jury-metrics":

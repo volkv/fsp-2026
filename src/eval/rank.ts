@@ -78,7 +78,7 @@ import { createLogger } from '$lib/server/jobs/log';
 import { claimJob, completeJob } from '$lib/server/jobs/queue';
 import { JOB_TYPES } from '$lib/server/jobs/registry';
 import { canonicalJson } from '$lib/server/json/canonical';
-import { rankForNeed } from '$lib/server/matching/rank';
+import { rankForNeed, type RankedForNeed } from '$lib/server/matching/rank';
 import { loadActiveMatchRuleset } from '$lib/server/matching/ruleset';
 import type { NeedSpec } from '$lib/server/matching/score';
 import type { MatchingModels } from '$lib/server/matching/semantic';
@@ -311,6 +311,8 @@ export interface RankAnswer {
 	 * of them: the reasons with their sources, the required skills with no basis, the skills resting on words alone.
 	 */
 	top: Record<string, Record<string, TopEntry[]>>;
+	/** Ranking → need id → the first ten of the group «грейд не подтверждён» (`declared`), explained the same way. */
+	declared_top: Record<string, Record<string, TopEntry[]>>;
 	/** Candidate id → the categories in force after its decisions, with the skills each confirms. */
 	categories: Record<string, { specialization: string; grade: string; confirmed_skill_keys: string[] }[]>;
 	/** Ranking → needs whose almost equal the semantic similarity could order, and the reasons it could not. */
@@ -1115,11 +1117,25 @@ export async function rankCandidates(request: RankRequest, deps: RankDeps): Prom
 		const embeddingSeconds = (performance.now() - embeddingStarted) / 1000;
 
 		const requestIdOf = new Map([...idOf].map(([requestId, id]) => [id, requestId]));
+		const explained = (entry: RankedForNeed): TopEntry => ({
+			id: requestIdOf.get(entry.snapshot.id) as string,
+			score: entry.result.score,
+			components: Object.fromEntries(
+				Object.entries(entry.result.components).map(([key, component]) => [
+					key,
+					component.applicable ? component.contribution : null
+				])
+			),
+			reasons: entry.result.reasons,
+			gaps: entry.result.gaps,
+			to_verify: entry.result.toVerify
+		});
 		const hints = new Map<string, GradeKey | null>();
 		const rankings: RankAnswer['rankings'] = {};
 		const unconfirmed: RankAnswer['unconfirmed'] = {};
 		const declared: RankAnswer['declared'] = {};
 		const top: RankAnswer['top'] = {};
+		const declaredTop: RankAnswer['declared_top'] = {};
 		const semantic: RankAnswer['semantic'] = {};
 		const rankingStarted = performance.now();
 		for (const ranking of request.rankings) {
@@ -1134,6 +1150,7 @@ export async function rankCandidates(request: RankRequest, deps: RankDeps): Prom
 			const apart: Record<string, string[]> = {};
 			const groupOf: Record<string, string[]> = {};
 			const topOf: RankAnswer['top'][string] = {};
+			const groupTopOf: RankAnswer['declared_top'][string] = {};
 			const semanticUsage: ComponentUsage = { used: 0, unavailable: {} };
 			const storedOf = (id: string) => {
 				const stored = idOf.get(id);
@@ -1181,19 +1198,8 @@ export async function rankCandidates(request: RankRequest, deps: RankDeps): Prom
 				}
 				byNeed[need.id] = shown.map((entry) => requestIdOf.get(entry.snapshot.id) as string);
 				groupOf[need.id] = tail.map((entry) => requestIdOf.get(entry.snapshot.id) as string);
-				topOf[need.id] = shown.slice(0, 10).map((entry) => ({
-					id: requestIdOf.get(entry.snapshot.id) as string,
-					score: entry.result.score,
-					components: Object.fromEntries(
-						Object.entries(entry.result.components).map(([key, component]) => [
-							key,
-							component.applicable ? component.contribution : null
-						])
-					),
-					reasons: entry.result.reasons,
-					gaps: entry.result.gaps,
-					to_verify: entry.result.toVerify
-				}));
+				topOf[need.id] = shown.slice(0, 10).map(explained);
+				groupTopOf[need.id] = tail.slice(0, 10).map(explained);
 				// A need of one candidate has nothing to order: `no_query`.
 				if (result.semantic.reason === null) semanticUsage.used++;
 				else {
@@ -1205,6 +1211,7 @@ export async function rankCandidates(request: RankRequest, deps: RankDeps): Prom
 			unconfirmed[ranking.name] = apart;
 			declared[ranking.name] = groupOf;
 			top[ranking.name] = topOf;
+			declaredTop[ranking.name] = groupTopOf;
 			semantic[ranking.name] = semanticUsage;
 		}
 		const tested = request.candidates.filter((c) => c.test_results.length > 0).map((c) => idOf.get(c.id) as string);
@@ -1224,6 +1231,7 @@ export async function rankCandidates(request: RankRequest, deps: RankDeps): Prom
 			unconfirmed,
 			declared,
 			top,
+			declared_top: declaredTop,
 			categories,
 			semantic,
 			needs,

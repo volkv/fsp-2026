@@ -343,7 +343,7 @@ export function extractByRules(blocks: readonly RuleBlock[], taxonomy: ResumeTax
 			});
 			// A language the taxonomy has as a skill, stated with its level, is that skill («Английский — B2» — `english`);
 			// a name the scanner has taken already («English — B2») is not a second mention.
-			const named = matchSkill(taxonomy.skills, language);
+			const named = matchSkill(taxonomy.claims.skills, language);
 			if (named.method === 'alias' && !skills.some((span) => span.start === match.index)) {
 				add({ kind: 'skill_mention', raw_text: language, polarity: 'asserted', block_id: block.id, quote: whole });
 			}

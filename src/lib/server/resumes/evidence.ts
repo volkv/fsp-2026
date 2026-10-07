@@ -12,7 +12,7 @@ import {
 	type ResumeItem,
 	type ResumeItemOf
 } from '$lib/server/ml/resume-extract';
-import { matchSkill } from '$lib/server/taxonomy/normalize';
+import { matchSkillMention } from '$lib/server/taxonomy/skill-spans';
 import { findMarker } from './markers';
 import { parsePeriod, type ParsedPeriod } from './periods';
 import { resumeRecordRef } from './revision';
@@ -143,7 +143,7 @@ export function planEvidence(items: readonly ResumeItem[], source: EvidenceSourc
 		};
 		switch (item.kind) {
 			case 'skill_mention': {
-				const match = matchSkill(source.taxonomy.skills, item.rawText);
+				const match = matchSkillMention(source.taxonomy.claims, item.rawText);
 				return {
 					...base,
 					skillKey: match.skillKey,

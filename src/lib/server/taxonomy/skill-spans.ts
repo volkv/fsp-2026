@@ -1,6 +1,13 @@
 // Skill mentions of a text by the aliases of one taxonomy version (docs/domain.md, section 11): the one scanner the
 // rules of resumes and of pasted vacancies read skills with.
-import { buildSkillIndex, matchSkill, normalizeSkillText, type SkillAlias, type SkillIndex } from './normalize';
+import {
+	buildSkillIndex,
+	matchSkill,
+	normalizeSkillText,
+	type SkillAlias,
+	type SkillIndex,
+	type SkillMatch
+} from './normalize';
 
 /**
  * A word of a skill name: a run of letters, digits, `+` and `#`, with inner dots (`Next.js`, `.NET`). Names of several
@@ -174,4 +181,37 @@ export function skillSpans(source: string, reader: SkillReader, wrapped: boolean
 		i += Math.max(matched, 1);
 	}
 	return found;
+}
+
+/**
+ * One skill mention → a canonical key. The whole mention is matched first (`matchSkill`); a mention it does not resolve
+ * and does not refuse is read by the scanner as one entry: a name with a version, an edition or a qualifier («Java 17»,
+ * «MongoDB Atlas», «Linux (CentOS)»), a Russian compound («SQL-запросы») or a phrase around it («администрирование
+ * Linux») is the skill of the names inside, when they are names of exactly one skill (`contained`). Names of two skills
+ * («Java Spring») are a refusal with both as alternatives: the mention does not say which one it means.
+ */
+export function matchSkillMention(reader: SkillReader, raw: string): SkillMatch {
+	const whole = matchSkill(reader.skills, raw);
+	if (whole.method !== 'unknown' || whole.alternatives.length > 0) return whole;
+	const bestBySkill = new Map<string, number>();
+	for (const span of skillSpans(raw, reader, true)) {
+		const named = matchSkill(reader.skills, span.text);
+		if (named.skillKey === null) throw new Error(`skill span "${span.text}" does not resolve`);
+		bestBySkill.set(named.skillKey, Math.max(named.score, bestBySkill.get(named.skillKey) ?? 0));
+	}
+	const found = [...bestBySkill]
+		.map(([skillKey, score]) => ({ skillKey, score }))
+		.sort((a, b) => b.score - a.score || a.skillKey.localeCompare(b.skillKey));
+	const [only] = found;
+	if (only === undefined) return whole;
+	if (found.length > 1) {
+		return { method: 'unknown', skillKey: null, score: only.score, normalized: whole.normalized, alternatives: found };
+	}
+	return {
+		method: 'contained',
+		skillKey: only.skillKey,
+		score: only.score,
+		normalized: whole.normalized,
+		alternatives: []
+	};
 }

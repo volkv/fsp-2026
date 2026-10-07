@@ -8,7 +8,7 @@ import type { Block } from '$lib/server/ml/quotes';
 import { checkVacancyAnswer, type VacancyItem, type VacancyLexicon } from '$lib/server/ml/vacancy-extract';
 import type { CheckedItems } from '$lib/server/ml/extract-common';
 import { foldTitle, roleOfTitle, ROLE_TITLE_RULES_VERSION, TITLE_WORD } from '$lib/server/taxonomy/roles';
-import { buildSkillReader, skillSpans, type SkillReader } from '$lib/server/taxonomy/skill-spans';
+import { skillSpans } from '$lib/server/taxonomy/skill-spans';
 import type { VacancyTaxonomy } from './taxonomy';
 
 /** Version of these rules (`ml_results.rules_version`): any change of what they find is a new version. */
@@ -363,24 +363,6 @@ function cityOf(line: string): string | null {
 	return CITY_PATTERNS.find(({ pattern }) => pattern.test(text))?.city ?? CITY_ABBREVIATION.exec(text)?.[1] ?? null;
 }
 
-// --- The reader -------------------------------------------------------------------------------------------------------
-
-const skillReaders = new WeakMap<VacancyTaxonomy, SkillReader>();
-
-/** The aliases of the taxonomy in the shape the scanner of skill mentions reads them. */
-function skillReader(taxonomy: VacancyTaxonomy): SkillReader {
-	let reader = skillReaders.get(taxonomy);
-	if (!reader) {
-		reader = buildSkillReader(
-			[...taxonomy.aliasesBySkill].flatMap(([skillKey, aliases]) =>
-				aliases.map((aliasNormalized) => ({ aliasNormalized, skillKey }))
-			)
-		);
-		skillReaders.set(taxonomy, reader);
-	}
-	return reader;
-}
-
 const located = (block: Block, quote: string) => ({ block_id: block.id, quote });
 
 /**
@@ -420,7 +402,7 @@ export function readVacancyByRules(blocks: readonly Block[], taxonomy: VacancyTa
 		cities: [] as { raw_text: string; block_id: string; quote: string }[]
 	};
 
-	const reader = skillReader(taxonomy);
+	const { reader } = taxonomy;
 	// The text before the first heading is read as requirements: the pasted vacancy is the employer's own.
 	let section: Section = 'requirements';
 	for (const block of blocks) {
