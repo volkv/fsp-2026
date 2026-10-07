@@ -14,6 +14,7 @@ import {
 	resumeDocuments,
 	sourceFacts
 } from '$lib/server/db/schema';
+import { readModelEnvelope, type ModelReading } from '$lib/server/ml/envelope';
 import { selfCandidate } from './deps';
 import type { ResumeParseError } from './parse-errors';
 import type { ResumeParseStatus } from './parse-job';
@@ -35,6 +36,8 @@ export interface ResumeUpload {
 
 export interface ResumeReading {
 	processingMode: 'model' | 'rules_only' | 'partial' | 'failed';
+	/** The model that read the resume and its runtime profile (where the text went); `null` — no model read it. */
+	model: ModelReading | null;
 	/** Shown with a reading without the model. */
 	notice: string | null;
 	failureCode: string | null;
@@ -155,7 +158,7 @@ export async function readOwnResumes(db: Database, subject: AccessSubject): Prom
 	let reading: ResumeReading | null = null;
 	if (extraction) {
 		const [envelope] = await db
-			.select({ mode: mlResults.processingMode, failure: mlResults.failure })
+			.select({ mode: mlResults.processingMode, model: mlResults.model, failure: mlResults.failure })
 			.from(mlResults)
 			.where(
 				and(
@@ -170,6 +173,7 @@ export async function readOwnResumes(db: Database, subject: AccessSubject): Prom
 			const failure = envelope.failure as { code?: unknown } | null;
 			reading = {
 				processingMode: envelope.mode,
+				model: envelope.mode === 'model' ? readModelEnvelope(envelope.model) : null,
 				notice: envelope.mode === 'model' ? null : RULES_ONLY_NOTICE,
 				failureCode: typeof failure?.code === 'string' ? failure.code : null
 			};

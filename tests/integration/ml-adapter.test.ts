@@ -155,7 +155,8 @@ const alwaysOn: ModelAdapterDeps['modes'] = {
 
 function extractConfig(overrides: Partial<ExtractConfig> = {}): ExtractConfig {
 	return {
-		baseUrl: llm.url,
+		baseUrl: `${llm.url}/v1`,
+		runtime: 'vllm',
 		model: 'extractor-7b',
 		apiKey: 'llm-key',
 		timeoutMs: 2_000,
@@ -168,7 +169,7 @@ function extractConfig(overrides: Partial<ExtractConfig> = {}): ExtractConfig {
 
 function embedConfig(overrides: Partial<EmbedConfig> = {}): EmbedConfig {
 	return {
-		baseUrl: embedder.url,
+		baseUrl: `${embedder.url}/v1`,
 		model: 'test-embedder',
 		apiKey: null,
 		spaceId: SPACE.id,
@@ -182,7 +183,7 @@ function embedConfig(overrides: Partial<EmbedConfig> = {}): EmbedConfig {
 
 function rerankConfig(overrides: Partial<RerankConfig> = {}): RerankConfig {
 	return {
-		baseUrl: reranker.url,
+		baseUrl: `${reranker.url}/v1`,
 		model: 'test-reranker',
 		apiKey: null,
 		timeoutMs: 2_000,
@@ -428,9 +429,16 @@ describe('extract', () => {
 		expect(errorCode(result)).toBe('unavailable');
 	});
 
-	it('maps statuses: 5xx, 429, context length, other 4xx', async () => {
+	it('maps statuses: 5xx, a schema failure the gateway found, 429, context length, other 4xx', async () => {
 		const cases: [number, unknown, string, boolean][] = [
 			[503, { error: 'loading' }, 'unavailable', true],
+			[
+				502,
+				{ error: { message: 'model output failed json_schema validation twice', code: 'json_validation_failed' } },
+				'invalid_output',
+				false
+			],
+			[400, { error: { message: 'unsupported field: tools', code: 'unsupported_field' } }, 'request_rejected', false],
 			[429, { error: 'busy' }, 'rate_limited', true],
 			[400, { error: { message: "This model's maximum context length is 8192 tokens" } }, 'context_too_long', false],
 			[401, { error: 'bad key' }, 'request_rejected', false]

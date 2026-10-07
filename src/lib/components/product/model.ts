@@ -265,6 +265,49 @@ export const HIRING_PARTIES: Record<HiringParty, string> = {
 /** Operations of the model adapter that can be down independently (contracts §3.5). */
 export type ModelOperation = 'extract' | 'embed' | 'rerank';
 
+/** Profile of the runtime of `extract` (contracts §3.1): `api` — an external model, `vllm` — the platform's own. */
+export type ModelRuntime = 'api' | 'vllm';
+
+/** The model that read a text; `runtime: null` — read before the runtime was recorded, where the text went is unknown. */
+export interface ModelReadingView {
+	modelId: string;
+	runtime: ModelRuntime | null;
+}
+
+/** Where a text goes when it is sent now: the configured runtime and its switch. */
+export type ExtractRoute = { kind: 'external' | 'own'; model: string } | { kind: 'none' };
+
+/** The mode a reading was made in, shown next to its result; `null` — the rules read it, without a model. */
+export function modelReadingLabel(reading: ModelReadingView | null): {
+	label: string;
+	tone: 'neutral' | 'info' | 'warning';
+	hint: string;
+} {
+	if (reading === null) {
+		return {
+			label: 'Без модели',
+			tone: 'warning',
+			hint: 'Текст разобран правилами: языковая модель в разборе не участвовала.'
+		};
+	}
+	switch (reading.runtime) {
+		case 'api':
+			return {
+				label: 'Внешняя модель',
+				tone: 'info',
+				hint: `Текст разобран внешней языковой моделью ${reading.modelId} через API — он передавался её провайдеру.`
+			};
+		case 'vllm':
+			return {
+				label: 'Своя модель',
+				tone: 'info',
+				hint: `Текст разобран моделью ${reading.modelId} на сервере платформы — за её пределы он не уходил.`
+			};
+		case null:
+			return { label: 'Модель', tone: 'neutral', hint: `Текст разобран моделью ${reading.modelId}.` };
+	}
+}
+
 const plural = new Intl.PluralRules('ru-RU');
 
 /** Russian plural form: `pluralize(5, ['день', 'дня', 'дней'])`. */

@@ -1,5 +1,6 @@
 import { env } from '$env/dynamic/private';
 import { z } from 'zod';
+import { LLM_RUNTIMES, type LlmRuntime } from '$lib/server/ml/runtime';
 
 // Environment of the application (docs/contracts.md sections 1, 2.1, 3.1, 6, 8; docs/domain.md section 0).
 // An empty value means «not set». Optional integrations are configured as a whole group or not at all.
@@ -132,6 +133,7 @@ const envSchema = z
 		FSP_ASSERTION_SECRET: optional(z.string().min(32)),
 
 		LLM_BASE_URL: optional(httpUrl),
+		LLM_RUNTIME: optional(z.enum(LLM_RUNTIMES)),
 		LLM_MODEL: optional(z.string().min(1)),
 		LLM_API_KEY: optional(z.string().min(1)),
 		LLM_TIMEOUT_MS: optional(positiveInt),
@@ -297,9 +299,14 @@ const envSchema = z
 
 type Env = z.infer<typeof envSchema>;
 
-/** `baseUrl` is the server root without `/v1`: the adapter appends `/v1/<endpoint>`. */
+/**
+ * `baseUrl` of every operation is the base of the OpenAI-compatible API with its version path, as its provider
+ * publishes it (`https://llmgate.volkv.com/v1`, `http://gpu-host:8000/v1`): the adapter appends `/<endpoint>`.
+ */
 export interface ExtractConfig {
 	baseUrl: string;
+	/** What kind of server answers (`LLM_RUNTIME`, `api` by default): where the text goes and what the request needs. */
+	runtime: LlmRuntime;
 	model: string;
 	apiKey: string | null;
 	/** Deadline of a background request. */
@@ -470,6 +477,7 @@ function build(e: Env): Config {
 			extract: e.LLM_BASE_URL
 				? {
 						baseUrl: e.LLM_BASE_URL,
+						runtime: e.LLM_RUNTIME ?? 'api',
 						model: present(e.LLM_MODEL, 'LLM_MODEL'),
 						apiKey: e.LLM_API_KEY ?? null,
 						...deadlines('extract', e.LLM_TIMEOUT_MS, e.LLM_INTERACTIVE_TIMEOUT_MS),

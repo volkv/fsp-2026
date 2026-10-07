@@ -92,8 +92,12 @@
 				<p class="font-medium break-all">{resume.upload.declaredName}</p>
 				<p class="text-xs text-muted-foreground">
 					Загружено {formatDateTime(resume.upload.uploadedAt)}{resume.reading
-						? resume.reading.processingMode === 'model'
-							? ' · разобрано моделью'
+						? resume.reading.model
+							? resume.reading.model.runtime === 'api'
+								? ' · разобрано внешней моделью через API'
+								: resume.reading.model.runtime === 'vllm'
+									? ' · разобрано своей моделью платформы'
+									: ' · разобрано моделью'
 							: ' · разобрано правилами, без модели — проверь поля'
 						: ''}
 				</p>

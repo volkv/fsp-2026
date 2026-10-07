@@ -1,7 +1,10 @@
 import { redirect } from '@sveltejs/kit';
 import { formText } from '$lib/server/auth/http';
+import { config } from '$lib/server/config';
 import { employerRequest, membershipOf } from '$lib/server/employer/http';
 import { formFailure, pageError } from '$lib/server/http/page';
+import { modelModes } from '$lib/server/ml';
+import { extractRoute } from '$lib/server/ml/disclosure';
 import { configuredNeedDeps, needFormFromPost, needFormOptions } from '$lib/server/needs/page';
 import { createNeed, listNeeds } from '$lib/server/needs/service';
 import type { Actions, PageServerLoad } from './$types';
@@ -12,7 +15,11 @@ export const load: PageServerLoad = async (event) => {
 	membershipOf(event, subject);
 	try {
 		const needs = await listNeeds(configuredNeedDeps(), subject);
-		return { needs, options: await needFormOptions() };
+		return {
+			needs,
+			options: await needFormOptions(),
+			extractRoute: await extractRoute(config().models.extract, modelModes())
+		};
 	} catch (cause) {
 		pageError(event, cause);
 	}

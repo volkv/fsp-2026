@@ -26,6 +26,7 @@ export const EFFECTIVE_MODES: Record<string, { label: string; tone: Tone }> = {
 	model: { label: 'Работает с моделью', tone: 'success' },
 	switched_off: { label: 'Выключена администратором', tone: 'warning' },
 	not_configured: { label: 'Не настроена — путь без модели', tone: 'neutral' },
+	no_api_key: { label: 'Нет ключа API (LLM_API_KEY) — путь без модели', tone: 'neutral' },
 	mode_unknown: { label: 'Режим не прочитан — вызовы отвечают «недоступно»', tone: 'danger' }
 };
 
@@ -50,7 +51,8 @@ export const MODEL_ERROR_CODES: Record<string, string> = {
 
 export const MODEL_ERROR_REASONS: Record<string, string> = {
 	switched_off: 'выключена администратором',
-	not_configured: 'не настроена'
+	not_configured: 'не настроена',
+	no_api_key: 'нет ключа API'
 };
 
 export const INPUT_TYPES: Record<string, string> = {

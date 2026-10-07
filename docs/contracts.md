@@ -615,17 +615,20 @@ ID-токена из разрешённого списка (2.1) в `id_token_si
 
 | Переменная | Операция | Смысл |
 |---|---|---|
-| `LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY` | `extract` | `/v1/chat/completions` со structured output (`response_format: json_schema`, `strict`) |
+| `LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY` | `extract` | `/chat/completions` со structured output (`response_format: json_schema`, `strict`) |
+| `LLM_RUNTIME` | `extract` | профиль рантайма: `api` (по умолчанию) — внешняя модель по API, ключ обязателен; `vllm` — своя модель платформы ([`docs/models.md`](models.md), «Три режима») |
 | `LLM_TIMEOUT_MS`, `LLM_INTERACTIVE_TIMEOUT_MS`, `LLM_MAX_CONCURRENCY` | `extract` | по умолчанию 120 000, 30 000 и 8 |
-| `EMBED_BASE_URL`, `EMBED_MODEL`, `EMBED_API_KEY`, `EMBED_SPACE_ID` | `embed` | `/v1/embeddings`; адаптер проверяет, что модель соответствует пространству `EMBED_SPACE_ID` |
+| `EMBED_BASE_URL`, `EMBED_MODEL`, `EMBED_API_KEY`, `EMBED_SPACE_ID` | `embed` | `/embeddings`; адаптер проверяет, что модель соответствует пространству `EMBED_SPACE_ID` |
 | `EMBED_TIMEOUT_MS`, `EMBED_INTERACTIVE_TIMEOUT_MS`, `EMBED_BATCH_SIZE` | `embed` | по умолчанию 30 000, 5 000 и 32 |
-| `RERANK_BASE_URL`, `RERANK_MODEL`, `RERANK_API_KEY` | `rerank` | `/v1/rerank` |
+| `RERANK_BASE_URL`, `RERANK_MODEL`, `RERANK_API_KEY` | `rerank` | `/rerank` |
 | `RERANK_TIMEOUT_MS`, `RERANK_INTERACTIVE_TIMEOUT_MS`, `RERANK_TOP_N` | `rerank` | по умолчанию 30 000, 5 000 и 50 |
 | `RERANK_TRUNCATE_TOKENS` | `rerank` | по умолчанию 1024: столько токенов пары «запрос + документ» оставляет рантайм (раздел 3.4) |
 | `LLM_BREAKER_FAILURES`, `LLM_BREAKER_COOLDOWN_MS`, `EMBED_BREAKER_FAILURES`, `EMBED_BREAKER_COOLDOWN_MS`, `RERANK_BREAKER_FAILURES`, `RERANK_BREAKER_COOLDOWN_MS` | `extract`, `embed`, `rerank` | по умолчанию 3 и 30 000: подряд отказов рантайма до открытия брейкера и срок открытия |
 
-- `*_BASE_URL` — корень сервера без `/v1` (`http://gpu-host:8000`); адаптер сам добавляет `/v1/<метод>`. Пустой `*_BASE_URL` означает,
-  что операция не настроена: адаптер сразу отвечает `disabled` (`reason: not_configured`).
+- `*_BASE_URL` — база OpenAI-совместимого API с путём версии, как её публикует провайдер (`http://gpu-host:8000/v1`,
+  `https://llmgate.volkv.com/v1`); адаптер добавляет `/<метод>`. Пустой `*_BASE_URL` означает, что операция не настроена:
+  адаптер сразу отвечает `disabled` (`reason: not_configured`). `extract` с профилем `api` без `LLM_API_KEY` отвечает
+  `disabled` (`reason: no_api_key`) без обращения к рантайму.
 - **Вызов фона и интерактивный вызов.** Вызов из задания (по умолчанию) даёт каждому запросу `*_TIMEOUT_MS`. Интерактивный вызов
   (человек ждёт ответа: разбор вставленного текста вакансии, эмбеддинг поискового запроса) укладывается целиком, включая ожидание
   свободного слота, в `*_INTERACTIVE_TIMEOUT_MS` и обслуживается раньше фоновых. Интерактивный срок не больше фонового: иначе конфигурация
@@ -639,8 +642,11 @@ ID-токена из разрешённого списка (2.1) в `id_token_si
   общий для интерактивного вызова и вызова из задания: за одним рантаймом стоят оба, и отказы одного открывают брейкер для
   другого — ответивший `cooling_down` не платит своим сроком ожидания за то, что брейкер уже знает.
 - **Отмена.** Каждый вызов принимает `AbortSignal`; отменённый вызов отвечает `cancelled`.
-- Отправка текста резюме во внешний облачный рантайм допустима только при явной настройке и с учётом ч. 5 ст. 18 152-ФЗ; по умолчанию
-  рантайм — в закрытом контуре.
+- Отправка текста во внешний рантайм (профиль `api`) называется человеку до отправки и у результата: подпись у загрузки резюме и
+  у поля текста потребности говорит, куда уйдёт текст при текущих настройках и выключателе; метка у разбора — какой профиль и какая
+  модель его сделали (`ml_results.model.runtime`, `hiring_needs.parse.model`). Демонстрационный стенд по умолчанию — внешняя модель
+  (Gemini Flash), согласие на обработку данных это называет; в эксплуатации — свой рантайм или российский провайдер с учётом
+  ч. 5 ст. 18 152-ФЗ.
 
 **Переключение без перезапуска.** Администратор выключает и включает каждую операцию во время работы. Режим хранится в Redis
 (`ml:mode:<операция>`, значения `on` · `off`; нет записи — `on`, решает конфигурация) и читается каждым процессом с кешем 2 с.

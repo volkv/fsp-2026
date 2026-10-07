@@ -440,7 +440,7 @@ describe('profile fields from the resume', () => {
 			extract: () =>
 				Promise.resolve(
 					ok({
-						model: { modelId: 'extractor-test', modelRevision: null, params: {} },
+						model: { modelId: 'extractor-test', modelRevision: null, runtime: 'vllm', params: {} },
 						items: checked.items,
 						rejected: checked.rejected,
 						attempts: 1,

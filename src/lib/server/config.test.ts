@@ -51,6 +51,13 @@ describe('parseConfig', () => {
 		expect(config.fspId?.issuer).toBe('http://fsp-mock.localhost:57610/realms/fsp');
 		expect(config.fspAchievements?.adapter).toBe('mock');
 		expect(config.sandbox).toEqual({ url: 'http://localhost:57950', maxConcurrentRuns: 2 });
+		// The external model of the demonstration stand by default; without a key — the path without a model.
+		expect(config.models.extract).toMatchObject({
+			baseUrl: 'https://llmgate.volkv.com/v1',
+			runtime: 'api',
+			model: 'gemini-flash:latest',
+			apiKey: null
+		});
 	});
 
 	it('requires the sandbox address and a positive whole number of concurrent runs', () => {
@@ -143,16 +150,24 @@ describe('parseConfig', () => {
 	});
 
 	it('applies the contract defaults of a configured model operation', () => {
-		const config = parseConfig(testEnvironment({ LLM_BASE_URL: 'http://llm:8000', LLM_MODEL: 'qwen' }));
+		const config = parseConfig(testEnvironment({ LLM_BASE_URL: 'https://llm.example/v1', LLM_MODEL: 'flash' }));
 		expect(config.models.extract).toEqual({
-			baseUrl: 'http://llm:8000',
-			model: 'qwen',
+			baseUrl: 'https://llm.example/v1',
+			runtime: 'api',
+			model: 'flash',
 			apiKey: null,
 			timeoutMs: 120_000,
 			interactiveTimeoutMs: 30_000,
 			maxConcurrency: 8,
 			breaker: { failures: 3, cooldownMs: 30_000 }
 		});
+		expect(
+			parseConfig(testEnvironment({ LLM_BASE_URL: 'http://llm:8000/v1', LLM_MODEL: 'qwen', LLM_RUNTIME: 'vllm' }))
+				.models.extract?.runtime
+		).toBe('vllm');
+		expect(() =>
+			parseConfig(testEnvironment({ LLM_BASE_URL: 'http://llm:8000/v1', LLM_MODEL: 'qwen', LLM_RUNTIME: 'ollama' }))
+		).toThrow(/LLM_RUNTIME/);
 		const rerank = { RERANK_BASE_URL: 'http://rerank:8001', RERANK_MODEL: 'bge' };
 		expect(parseConfig(testEnvironment(rerank)).models.rerank).toMatchObject({ topN: 50, truncateTokens: 1_024 });
 		expect(

@@ -267,7 +267,7 @@ LibreOffice, Tesseract и poppler. Любое изменение, способн
 Векторы профилей, вакансий и поисковых запросов (`docs/contracts.md`, раздел 3.3; `docs/domain.md`, раздел 16) считает
 сервис `embedder` — llama.cpp server на CPU (официальный образ `ghcr.io/ggml-org/llama.cpp:server-b11176`) с моделью
 bge-m3 в GGUF Q8_0: 1024 измерения, CLS-пулинг, без префиксов, векторы единичной длины. Поиск от GPU не зависит. В
-`compose.yaml` приложение и воркер ходят к нему по `http://embedder:8080`, с хоста — `http://localhost:57820`.
+`compose.yaml` приложение и воркер ходят к нему по `http://embedder:8080/v1`, с хоста — `http://localhost:57820/v1`.
 
 **Модель** лежит в томе `embedder-models`. Первый старт скачивает файл с Hugging Face по закреплённому коммиту репозитория
 `ggml-org/bge-m3-Q8_0-GGUF` (635 МБ, локально ≈ 15 с вместе с загрузкой модели), каждый старт сверяет SHA-256 файла
@@ -308,7 +308,7 @@ init-контейнера нет — `docker compose up --wait` на нём па
 текстом не считается заново — её вектор переходит на новую ревизию. Пишется в настроенное пространство, пока оно
 `building` или `active`; результат условный — ревизия сдвинулась, пока модель считала, — `discarded_stale`.
 
-**Разработка на хосте.** `pnpm dev` и `make worker` ходят к эмбеддеру по адресам из `.env`: `EMBED_BASE_URL=http://localhost:57820`,
+**Разработка на хосте.** `pnpm dev` и `make worker` ходят к эмбеддеру по адресам из `.env`: `EMBED_BASE_URL=http://localhost:57820/v1`,
 `EMBED_MODEL=bge-m3`, `EMBED_SPACE_ID` — идентификатор выше, затем `pnpm db:seed-embedding-space` и воркер с типами
 `embedding.reindex,profile.embed,vacancy.embed`. Пустой `EMBED_BASE_URL` — поиск только по словам.
 

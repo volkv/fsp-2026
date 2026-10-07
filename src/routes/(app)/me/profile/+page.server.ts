@@ -79,7 +79,7 @@ async function currentResume(subject: AccessSubject, suggestions: readonly Quote
 			uploadedAt: upload.uploadedAt,
 			failureMessage: upload.failureMessage
 		},
-		reading: reading === null ? null : { processingMode: reading.processingMode },
+		reading: reading === null ? null : { processingMode: reading.processingMode, model: reading.model },
 		// The parse and the extraction run in the background: the fields come once the reading is known.
 		inProgress:
 			upload.parseStatus === 'pending' ||

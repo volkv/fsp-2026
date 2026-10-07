@@ -234,7 +234,7 @@ describe('evaluation bridge', () => {
 			return Promise.resolve({
 				ok: true,
 				value: {
-					model: { modelId: 'extractor@test', modelRevision: null, params: {} },
+					model: { modelId: 'extractor@test', modelRevision: null, runtime: 'vllm', params: {} },
 					items: [],
 					rejected: [],
 					attempts: 1,

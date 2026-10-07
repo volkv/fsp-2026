@@ -3,6 +3,8 @@
 	import { enhance } from '$app/forms';
 	import CsrfInput from '$lib/components/forms/csrf-input.svelte';
 	import FormMessage from '$lib/components/forms/form-message.svelte';
+	import type { ExtractRoute } from '$lib/components/product/model.js';
+	import ExtractRouteNote from '$lib/components/product/extract-route-note.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 
@@ -13,8 +15,15 @@
 	let {
 		problem,
 		uploaded,
-		hasCurrent
-	}: { problem: { message: string } | null; uploaded: boolean; hasCurrent: boolean } = $props();
+		hasCurrent,
+		route
+	}: {
+		problem: { message: string } | null;
+		uploaded: boolean;
+		hasCurrent: boolean;
+		/** Where the text of the file goes once it is read. */
+		route: ExtractRoute;
+	} = $props();
 
 	/** The parser limit (docs/contracts.md, section 4.3). */
 	const MAX_BYTES = 10 * 1024 * 1024;
@@ -73,6 +82,7 @@
 			{#if hasCurrent}Новый файл заменит текущее резюме: поля извлекутся заново.{/if}
 		</p>
 	</div>
+	<ExtractRouteNote {route} />
 	<Button type="submit" class="w-fit" disabled={pending}>
 		<UploadIcon aria-hidden="true" />
 		{pending ? 'Загружаем…' : 'Загрузить резюме'}

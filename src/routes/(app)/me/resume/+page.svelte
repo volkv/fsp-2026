@@ -106,6 +106,7 @@
 			problem={problemOf('upload')}
 			uploaded={Boolean(form && 'uploaded' in form)}
 			hasCurrent={current !== null}
+			route={data.extractRoute}
 		/>
 	{/if}
 </SectionCard>
@@ -147,6 +148,7 @@
 	{#if current.reading}
 		<ResumeReading
 			mode={current.reading.processingMode}
+			model={current.reading.model}
 			ocrUsed={resumeText.flags.ocrUsed}
 			incomplete={resumeText.flags.incomplete}
 		/>

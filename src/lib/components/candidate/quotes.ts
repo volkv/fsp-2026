@@ -4,6 +4,7 @@
 // every conversion goes through `$lib/text/offsets`.
 import { z } from 'zod';
 import { codePointLength, codePointToUtf16, sliceByCodePoints } from '$lib/text/offsets';
+import type { ModelReadingView } from '$lib/components/product/model';
 
 export interface ResumeQuote {
 	extractionId: string;
@@ -290,7 +291,7 @@ export function resumeFields<C extends { id: string; quote: unknown }, E extends
 /** The current resume as the profile shows it: the upload, where its reading stands, the fields and the text. */
 export interface ResumeSummaryView {
 	upload: { declaredName: string; parseStatus: ParseStatus; uploadedAt: Date; failureMessage: string | null };
-	reading: { processingMode: 'model' | 'rules_only' | 'partial' | 'failed' } | null;
+	reading: { processingMode: 'model' | 'rules_only' | 'partial' | 'failed'; model: ModelReadingView | null } | null;
 	inProgress: boolean;
 	claims: ResumeClaimView[];
 	experience: ResumeEntryView[];

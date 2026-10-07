@@ -41,8 +41,12 @@ x-app-environment: &app-environment
   FSP_ASSERTION_SECRET: ${FSP_ASSERTION_SECRET:?set in .env}
   # Optional integrations as configured in .env; an empty value disables one (docs/contracts.md, sections 3.1
   # and 8.2). Their addresses must be reachable from the containers, not only from the host.
-  LLM_BASE_URL: ${LLM_BASE_URL:-}
-  LLM_MODEL: ${LLM_MODEL:-}
+  # Text extraction by default: Gemini Flash through the OpenAI-compatible gateway (docs/models.md, «Три режима»).
+  # Without LLM_API_KEY it is off and the rules read the texts; the platform's own vLLM server instead — LLM_RUNTIME=vllm
+  # with its LLM_BASE_URL and LLM_MODEL.
+  LLM_BASE_URL: ${LLM_BASE_URL:-https://llmgate.volkv.com/v1}
+  LLM_RUNTIME: ${LLM_RUNTIME:-api}
+  LLM_MODEL: ${LLM_MODEL:-gemini-flash:latest}
   LLM_API_KEY: ${LLM_API_KEY:-}
   LLM_TIMEOUT_MS: ${LLM_TIMEOUT_MS:-}
   LLM_INTERACTIVE_TIMEOUT_MS: ${LLM_INTERACTIVE_TIMEOUT_MS:-}
@@ -50,7 +54,7 @@ x-app-environment: &app-environment
   # The stand's own embedder (the embedder service below); the space is registered at the start of the app
   # (docs/development.md, «Эмбеддер»). Batches of 8 keep a search query waiting behind background work for about a
   # second; a batch of 32 makes it wait longer than EMBED_INTERACTIVE_TIMEOUT_MS.
-  EMBED_BASE_URL: http://embedder:8080
+  EMBED_BASE_URL: http://embedder:8080/v1
   EMBED_MODEL: bge-m3
   EMBED_SPACE_ID: bge-m3@aa473d51f451/q:none/d:none/cls/l2/1024/t512/sections-v1
   EMBED_TIMEOUT_MS: ${EMBED_TIMEOUT_MS:-}

@@ -28,6 +28,7 @@ import { LLM_DEFAULT_MAX_CONCURRENCY } from '$lib/server/config';
 import { fieldCrypto, type FieldCrypto } from '$lib/server/crypto/fields';
 import { modelAdapter } from '$lib/server/ml';
 import type { ModelAdapter } from '$lib/server/ml/adapter';
+import { extractModelEnvelope, type ExtractModelEnvelope } from '$lib/server/ml/envelope';
 import type { Rejected } from '$lib/server/ml/extract-common';
 import { checkResumeItems, type ResumeItem } from '$lib/server/ml/resume-extract';
 import { insertProfileSuggestions, planProfileSuggestions } from '$lib/server/profile/suggestions';
@@ -109,7 +110,7 @@ interface Extraction {
 	producer: string;
 	items: ResumeItem[];
 	rejected: Rejected[];
-	model: Record<string, unknown> | null;
+	model: ExtractModelEnvelope | null;
 	failure: Record<string, unknown> | null;
 	latencyMs: number | null;
 }
@@ -235,12 +236,7 @@ export function createResumeExtractHandler(deps: ResumeExtractDeps): JobHandler<
 					producer: value.model.modelId,
 					items: value.items,
 					rejected: value.rejected,
-					model: {
-						endpoint_profile: 'extract',
-						model_id: value.model.modelId,
-						model_revision: value.model.modelRevision,
-						params: value.model.params
-					},
+					model: extractModelEnvelope(value.model),
 					failure: null,
 					latencyMs: value.latencyMs
 				};

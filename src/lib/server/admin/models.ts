@@ -10,6 +10,7 @@ import { mlResults } from '$lib/server/db/schema';
 import { ApiError } from '$lib/server/errors/api-error';
 import type { ModelMode, ModelModes } from '$lib/server/ml/modes';
 import { MODEL_OPERATIONS, type ModelOperation } from '$lib/server/ml/result';
+import { lacksApiKey, RUNTIME_PROFILES } from '$lib/server/ml/runtime';
 
 export interface ModelsDeps {
 	db: Executor;
@@ -32,8 +33,8 @@ export interface OperationState {
 	settings: SettingLine[] | null;
 	/** `null` — the mode store cannot be read; the adapter answers `unavailable` and does not guess. */
 	mode: ModelMode | null;
-	/** What calls get right now. */
-	effective: 'model' | 'switched_off' | 'not_configured' | 'mode_unknown';
+	/** What calls get right now; `no_api_key` — an external runtime without its key, the path without a model. */
+	effective: 'model' | 'switched_off' | 'not_configured' | 'no_api_key' | 'mode_unknown';
 	/** Calls of the last 24 hours by how they were processed. */
 	lastDay: Record<ProcessingMode, number>;
 }
@@ -73,6 +74,13 @@ function settingsOf(operation: ModelOperation, models: Config['models']): Settin
 			if (!settings) return null;
 			return [
 				{ label: 'Модель', value: settings.model },
+				{
+					label: 'Профиль',
+					value:
+						RUNTIME_PROFILES[settings.runtime].hosting === 'external'
+							? 'внешняя модель по API — текст уходит провайдеру'
+							: 'своя модель платформы'
+				},
 				{ label: 'Рантайм', value: hostOf(settings.baseUrl) },
 				{ label: 'Ключ доступа', value: settings.apiKey ? 'задан' : 'не задан' },
 				{ label: 'Срок фонового вызова', value: seconds(settings.timeoutMs) },
@@ -145,8 +153,16 @@ export async function modelsOverview(deps: ModelsDeps, ctx: ActionContext): Prom
 		const mode = modes.ok ? modes.value[operation] : null;
 		const lastDay = emptyDay();
 		for (const row of counts) if (row.operation === operation) lastDay[row.mode] = row.n;
-		const effective =
-			settings === null ? 'not_configured' : mode === null ? 'mode_unknown' : mode === 'off' ? 'switched_off' : 'model';
+		const effective: OperationState['effective'] =
+			settings === null
+				? 'not_configured'
+				: operation === 'extract' && deps.models.extract && lacksApiKey(deps.models.extract)
+					? 'no_api_key'
+					: mode === null
+						? 'mode_unknown'
+						: mode === 'off'
+							? 'switched_off'
+							: 'model';
 		return { operation, settings, mode, effective, lastDay };
 	});
 	return {

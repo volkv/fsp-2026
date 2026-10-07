@@ -13,7 +13,8 @@ const post = vi.mocked(postJson);
 const breaker = { failures: 2, cooldownMs: 30_000 };
 
 const extractConfig: ExtractConfig = {
-	baseUrl: 'http://extractor:8000',
+	baseUrl: 'http://extractor:8000/v1',
+	runtime: 'vllm',
 	model: 'extractor-7b',
 	apiKey: null,
 	timeoutMs: 2_000,
@@ -262,5 +263,79 @@ describe('extract breaker', () => {
 		expect(await embed(models)).toMatchObject({ ok: true });
 		post.mockResolvedValue(reranked);
 		expect(await rerank(models)).toMatchObject({ ok: true });
+	});
+});
+
+describe('extract runtime profiles', () => {
+	const withExtract = (overrides: Partial<ExtractConfig>) =>
+		new ModelAdapter({
+			models: { extract: { ...extractConfig, ...overrides }, embed: null, rerank: null },
+			modes: { current: () => Promise.resolve(ok('on')) },
+			spaces: () => Promise.resolve(null)
+		});
+
+	/** The `extract` request body the adapter sent. */
+	function sentBody(): Record<string, unknown> {
+		const call = post.mock.calls[0];
+		if (!call) throw new Error('nothing was sent');
+		return call[3] as Record<string, unknown>;
+	}
+
+	function keysOf(node: unknown, keys = new Set<string>()): Set<string> {
+		if (Array.isArray(node)) node.forEach((value) => keysOf(value, keys));
+		else if (typeof node === 'object' && node !== null) {
+			for (const [key, value] of Object.entries(node)) {
+				keys.add(key);
+				keysOf(value, keys);
+			}
+		}
+		return keys;
+	}
+
+	it('an external runtime without its key is off and is not called', async () => {
+		const result = await extract(withExtract({ runtime: 'api', apiKey: null }));
+		expect(result).toMatchObject({ ok: false, error: { code: 'disabled', details: { reason: 'no_api_key' } } });
+		expect(post).not.toHaveBeenCalled();
+	});
+
+	it('sends an external runtime only fields a strict gateway accepts, its arrays unbounded', async () => {
+		post.mockResolvedValue(extracted);
+		const result = await extract(withExtract({ runtime: 'api', apiKey: 'key' }));
+		expect(result).toMatchObject({ ok: true, value: { model: { runtime: 'api' } } });
+		const body = sentBody();
+		expect(Object.keys(body).sort()).toEqual(['max_tokens', 'messages', 'model', 'response_format', 'temperature']);
+		expect(body.max_tokens).toBe(16_384);
+		expect(body.response_format).toMatchObject({ type: 'json_schema', json_schema: { strict: true } });
+		expect(keysOf(body.response_format).has('maxItems')).toBe(false);
+	});
+
+	it('keeps the bounds of the arrays and the context-sized output limit for its own vLLM server', async () => {
+		post.mockResolvedValue(extracted);
+		const result = await extract(withExtract({ runtime: 'vllm', apiKey: null }));
+		expect(result).toMatchObject({ ok: true, value: { model: { runtime: 'vllm', params: { max_tokens: 8_192 } } } });
+		const body = sentBody();
+		expect(body.max_tokens).toBe(8_192);
+		expect(keysOf(body.response_format).has('maxItems')).toBe(true);
+	});
+
+	it('reads an answer whose usage counts reasoning tokens', async () => {
+		post.mockResolvedValue(
+			ok({
+				id: 'chatcmpl-1',
+				object: 'chat.completion',
+				model: 'gemini/gemini-flash',
+				choices: [{ index: 0, finish_reason: 'stop', message: { role: 'assistant', content: emptyResumeAnswer } }],
+				usage: {
+					prompt_tokens: 2062,
+					completion_tokens: 1362,
+					total_tokens: 3424,
+					completion_tokens_details: { reasoning_tokens: 1180 }
+				}
+			})
+		);
+		expect(await extract(withExtract({ runtime: 'api', apiKey: 'key' }))).toMatchObject({
+			ok: true,
+			value: { model: { modelId: 'gemini/gemini-flash', runtime: 'api' }, attempts: 1 }
+		});
 	});
 });

@@ -12,6 +12,8 @@ import { specializationsOfRole } from '$lib/server/categories/roles';
 import type { Database } from '$lib/server/db';
 import { mlResults } from '$lib/server/db/schema';
 import type { ModelAdapter } from '$lib/server/ml/adapter';
+import { extractModelEnvelope } from '$lib/server/ml/envelope';
+import type { LlmRuntime } from '$lib/server/ml/runtime';
 import type { Block, QuoteLocation } from '$lib/server/ml/quotes';
 import type { VacancyItem } from '$lib/server/ml/vacancy-extract';
 import { placeReference } from '$lib/server/places';
@@ -46,6 +48,8 @@ export interface NeedParse {
 	rules_version: string;
 	/** Why the rules read the text: the adapter error code (`disabled`, `timeout`, …). */
 	model_failure: string | null;
+	/** The model that read the text and its runtime profile (where the text went); `null` — the rules read it. */
+	model: { id: string; runtime: LlmRuntime } | null;
 	fields: ParsedField[];
 }
 
@@ -256,12 +260,7 @@ export async function parseNeedText(
 		fields = toFields(response.value.items);
 		values = {
 			...envelope,
-			model: {
-				endpoint_profile: 'extract',
-				model_id: response.value.model.modelId,
-				model_revision: response.value.model.modelRevision,
-				params: response.value.model.params
-			},
+			model: extractModelEnvelope(response.value.model),
 			processingMode: 'model',
 			rejectedItems: response.value.rejected.map((r) => ({ reason: r.reason })),
 			latencyMs: response.value.latencyMs
@@ -298,6 +297,7 @@ export async function parseNeedText(
 			ml_result_id: row.id,
 			rules_version: NEED_RULES_VERSION,
 			model_failure: response.ok ? null : response.error.code,
+			model: response.ok ? { id: response.value.model.modelId, runtime: response.value.model.runtime } : null,
 			fields: parsed
 		}
 	};

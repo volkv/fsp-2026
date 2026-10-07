@@ -454,7 +454,8 @@ function modelGroup(): ComponentGroup {
 	const guide = readFileSync(join(ROOT, 'docs/models.md'), 'utf8');
 	return {
 		title: 'Модели и их рантайм',
-		description: 'Модели работают в закрытом контуре; как их поднять — `docs/models.md`.',
+		description:
+			'Свои модели платформы для работы в закрытом контуре; на демонстрационном стенде разбор текста делает внешняя модель по API — `docs/models.md`.',
 		components: MODELS.map((model) => {
 			if (!guide.includes(model.reference)) {
 				throw new Error(`docs/models.md does not mention ${model.reference}: update MODELS in license-data.ts`);

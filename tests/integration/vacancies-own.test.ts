@@ -557,7 +557,8 @@ describe('vacancy from pasted text', () => {
 		return new ModelAdapter({
 			models: {
 				extract: {
-					baseUrl: runtime.url,
+					baseUrl: `${runtime.url}/v1`,
+					runtime: 'vllm',
 					model: 'extractor-7b',
 					apiKey: null,
 					timeoutMs: 5_000,

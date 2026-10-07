@@ -18,7 +18,7 @@ down:
 
 ## Start infrastructure only: Postgres, Redis, the object storage (SeaweedFS), Mailpit, the FSP simulator (fsp-mock),
 ## docparse and the code sandbox with their gateways, and the embedder (llama.cpp, bge-m3; first start downloads the
-## model, 635 MB). For pnpm dev and make worker on the host: EMBED_BASE_URL=http://localhost:57820 in .env.
+## model, 635 MB). For pnpm dev and make worker on the host: EMBED_BASE_URL=http://localhost:57820/v1 in .env.
 infra: .env
 	docker compose up -d --wait
 

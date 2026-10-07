@@ -80,16 +80,16 @@ save_failure() { # <release>
 	remote "tail -n 60 $file"
 }
 
-# The models behind the tunnel (docs/models.md, «Модели вне стенда: обратный туннель»), asked from the app container
-# with the app's own settings: the tunnel, the model machine's runtime, its key and the model itself answer, or the
-# probe names the step that did not. /health would answer even with a hung engine, so each model gets a real request.
+# The models (docs/models.md, «Три режима»), asked from the app container with the app's own settings: the external
+# API or the tunnel to the model machine, the key and the model itself answer, or the probe names the step that did
+# not. /health would answer even with a hung engine, so each model gets a real request.
 probe_models() {
 	ssh "$HOST" 'docker exec -i fsp-career-app node --input-type=module' <<'JS'
 const env = process.env;
 const probes = [
-	['extract', env.LLM_BASE_URL, env.LLM_API_KEY, '/v1/chat/completions',
+	['extract', env.LLM_BASE_URL, env.LLM_API_KEY, '/chat/completions',
 		{ model: env.LLM_MODEL, messages: [{ role: 'user', content: 'ok' }], max_tokens: 1, temperature: 0 }],
-	['rerank', env.RERANK_BASE_URL, env.RERANK_API_KEY, '/v1/rerank',
+	['rerank', env.RERANK_BASE_URL, env.RERANK_API_KEY, '/rerank',
 		{ model: env.RERANK_MODEL, query: 'python', documents: ['python'] }]
 ];
 let failed = false;

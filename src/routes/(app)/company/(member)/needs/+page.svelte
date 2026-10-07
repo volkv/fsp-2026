@@ -5,6 +5,7 @@
 	import NeedForm from '$lib/components/employer/need-form.svelte';
 	import CsrfInput from '$lib/components/forms/csrf-input.svelte';
 	import FormMessage from '$lib/components/forms/form-message.svelte';
+	import { ExtractRouteNote } from '$lib/components/product/index.js';
 	import PageHeader from '$lib/components/forms/page-header.svelte';
 	import StatusPill from '$lib/components/forms/status-pill.svelte';
 	import { formatDateTime } from '$lib/components/product/model.js';
@@ -55,6 +56,7 @@
 						placeholder="Ищем бэкенд-разработчика уровня middle в команду платежей. Нужны Go и PostgreSQL. Удалённо."
 					/>
 					{#if problem?.fields.text}<Field.Error>{problem.fields.text}</Field.Error>{/if}
+					<ExtractRouteNote route={data.extractRoute} />
 				</Field.Field>
 				<details class="rounded-lg border">
 					<summary class="cursor-pointer px-3 py-2 text-sm font-medium">Заполнить форму</summary>

@@ -4,6 +4,7 @@
 import { z } from 'zod';
 import { GRADE_KEYS, SPECIALIZATION_KEYS } from '$lib/server/assessments/contract/catalog';
 import { OFFER_WORK_FORMATS } from '$lib/server/invitations/terms';
+import { LLM_RUNTIMES } from '$lib/server/ml/runtime';
 import { createNeed, getNeed, listNeeds, needCategories, updateNeed, type NeedView } from '$lib/server/needs/service';
 import { defineOperation } from '../operation';
 import { dateTime, id, iso, key } from '../schemas';
@@ -64,6 +65,15 @@ const needSchema = z
 				ml_result_id: z.uuid(),
 				rules_version: z.string(),
 				model_failure: z.string().nullable(),
+				model: z
+					.object({
+						id: z.string().describe('Модель, ответившая на разбор'),
+						runtime: z
+							.enum(LLM_RUNTIMES)
+							.describe('`api` — внешняя модель по API (текст уходил провайдеру), `vllm` — своя модель платформы')
+					})
+					.nullable()
+					.describe('`null` — текст разобран правилами'),
 				fields: z.array(
 					z.object({
 						path: z.string(),

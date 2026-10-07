@@ -129,7 +129,8 @@ function chat(res: ServerResponse, arrays: Record<string, unknown[]>) {
 
 function extractConfig(): ExtractConfig {
 	return {
-		baseUrl: runtime.url,
+		baseUrl: `${runtime.url}/v1`,
+		runtime: 'vllm',
 		model: 'extractor-7b',
 		apiKey: null,
 		timeoutMs: 5_000,
@@ -371,7 +372,13 @@ describe('a PDF resume read by the model', () => {
 			.select()
 			.from(mlResults)
 			.where(sql`${mlResults.inputRef} ->> 'id' = ${extraction.id}`);
-		expect(envelope).toMatchObject({ processingMode: 'model', schemaVersion: 'resume-extract/v3', rulesVersion: null });
+		expect(envelope).toMatchObject({
+			processingMode: 'model',
+			schemaVersion: 'resume-extract/v3',
+			rulesVersion: null,
+			// The journal says where the text went.
+			model: { model_id: 'extractor-7b', runtime: 'vllm' }
+		});
 		expect(envelope?.model).toMatchObject({ endpoint_profile: 'extract', model_id: 'extractor-7b' });
 		const reasons = (envelope?.rejectedItems as { reason: string }[]).map((r) => r.reason).sort();
 		expect(reasons).toEqual(['forbidden_field', 'forbidden_field', 'quote_not_found', 'quote_not_supporting']);
@@ -441,7 +448,12 @@ describe('a PDF resume read by the model', () => {
 		expect(await queued('evidence.compute', String(after.revision))).toHaveLength(1);
 
 		const view = await readOwnResumes(database.db, subjectOf(candidate));
-		expect(view.current?.reading).toEqual({ processingMode: 'model', notice: null, failureCode: null });
+		expect(view.current?.reading).toEqual({
+			processingMode: 'model',
+			model: { modelId: 'extractor-7b', runtime: 'vllm' },
+			notice: null,
+			failureCode: null
+		});
 
 		// A repeated delivery neither calls the model again nor writes twice.
 		const calls = runtime.calls;
@@ -468,6 +480,7 @@ describe('a PDF resume read by the model', () => {
 		const view = await readOwnResumes(database.db, subjectOf(candidate));
 		expect(view.current?.reading).toEqual({
 			processingMode: 'rules_only',
+			model: null,
 			notice: 'Разбор выполнен без модели — проверьте поля',
 			failureCode: 'unavailable'
 		});

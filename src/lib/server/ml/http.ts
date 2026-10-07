@@ -20,9 +20,12 @@ export interface CallControl {
 const CONTEXT_TOO_LONG =
 	/context[_ ]length|maximum context|context window|too many tokens|input (is )?too long|exceeds? the (model'?s? )?(maximum|max)/i;
 
-/** `{baseUrl}/v1/{path}`: the base URL is the server root, as in `http://gpu-host:8000`. */
+/**
+ * `{baseUrl}/{path}`: the base URL is the base of the OpenAI-compatible API with its version path, as providers publish
+ * it (`http://gpu-host:8000/v1`, `https://llmgate.volkv.com/v1`, `https://openrouter.ai/api/v1`).
+ */
 export function endpointUrl(baseUrl: string, path: string): string {
-	return `${baseUrl.replace(/\/+$/, '')}/v1/${path}`;
+	return `${baseUrl.replace(/\/+$/, '')}/${path}`;
 }
 
 async function readBounded(response: Response, signal: AbortSignal): Promise<string> {
@@ -105,7 +108,31 @@ export async function postJson(
 	}
 }
 
+/** The `error.code` of an OpenAI-style error body, or `null` when the body is not one. */
+function errorCode(body: string): string | null {
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(body);
+	} catch {
+		return null;
+	}
+	if (typeof parsed !== 'object' || parsed === null || !('error' in parsed)) return null;
+	const { error } = parsed;
+	if (typeof error !== 'object' || error === null || !('code' in error)) return null;
+	return typeof error.code === 'string' ? error.code : null;
+}
+
+/**
+ * A gateway that checks structured output itself answers `json_validation_failed` after its own retries: the model
+ * did answer, its answer failed the schema. That is `invalid_output`, not a runtime that is down.
+ */
+const SCHEMA_FAILURE_CODES: ReadonlySet<string> = new Set(['json_validation_failed']);
+
 function classifyStatus(operation: string, status: number, body: string): { ok: false; error: ModelError } {
+	const code = status >= 400 ? errorCode(body) : null;
+	if (code !== null && SCHEMA_FAILURE_CODES.has(code)) {
+		return fail('invalid_output', `${operation}: the runtime found the answer failing the schema`, { status, code });
+	}
 	if (status === 429) return fail('rate_limited', `${operation}: runtime is rate limiting`, { status });
 	if (status >= 500) return fail('unavailable', `${operation}: runtime answered ${status}`, { status });
 	if ((status === 400 || status === 413 || status === 422) && CONTEXT_TOO_LONG.test(body)) {

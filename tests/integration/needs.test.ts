@@ -118,7 +118,7 @@ describe('a hiring need', () => {
 		});
 		expect(need.form.skill_keys).toEqual(expect.arrayContaining(['sql', 'python']));
 		expect(need.form.salary).toEqual({ min: 120_000, max: 150_000, currency: 'RUB', period: 'month', tax_base: 'net' });
-		expect(need.parse).toMatchObject({ mode: 'rules', model_failure: 'disabled' });
+		expect(need.parse).toMatchObject({ mode: 'rules', model_failure: 'disabled', model: null });
 		for (const field of need.parse?.fields ?? []) expect(need.text).toContain(field.quote);
 		const [envelope] = await database.db
 			.select()

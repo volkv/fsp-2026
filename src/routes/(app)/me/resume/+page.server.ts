@@ -5,9 +5,12 @@ import { currentCandidateVocabulary, vocabularyLabels } from '$lib/server/candid
 import { candidateRequest } from '$lib/server/candidates/http';
 import { processingRefusal } from '$lib/server/consent/processing';
 import { formFailure, pageError, type FormProblem } from '$lib/server/http/page';
+import { config } from '$lib/server/config';
 import { db } from '$lib/server/db';
 import { assertResumeSize } from '$lib/server/documents/limits';
 import { ApiError } from '$lib/server/errors/api-error';
+import { modelModes } from '$lib/server/ml';
+import { extractRoute } from '$lib/server/ml/disclosure';
 import { deleteResume } from '$lib/server/resumes/delete';
 import { resumeDeps } from '$lib/server/resumes/deps';
 import { readOwnResumes } from '$lib/server/resumes/read';
@@ -99,6 +102,7 @@ export const load: PageServerLoad = async (event) => {
 				? (await readOwnProfile(database, crypto, candidateId)).email
 				: null,
 			inProgress,
+			extractRoute: await extractRoute(config().models.extract, modelModes()),
 			labels: vocabularyLabels(vocabulary),
 			roles: vocabulary?.roles ?? []
 		};

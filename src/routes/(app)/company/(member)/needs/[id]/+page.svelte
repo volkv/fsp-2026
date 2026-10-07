@@ -6,6 +6,7 @@
 	import FormMessage from '$lib/components/forms/form-message.svelte';
 	import PageHeader from '$lib/components/forms/page-header.svelte';
 	import StatusPill from '$lib/components/forms/status-pill.svelte';
+	import { ModelModeLabel } from '$lib/components/product/index.js';
 	import * as Alert from '$lib/components/ui/alert/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
@@ -127,6 +128,11 @@
 					</Card.Description>
 				</Card.Header>
 				<Card.Content class="grid gap-4 text-sm">
+					{#if need.parse}
+						<ModelModeLabel
+							reading={need.parse.model ? { modelId: need.parse.model.id, runtime: need.parse.model.runtime } : null}
+						/>
+					{/if}
 					<p class="rounded-md border bg-muted/40 p-3 whitespace-pre-line">{need.text}</p>
 					{#if need.parse && need.parse.fields.length > 0}
 						<ul class="grid gap-2">

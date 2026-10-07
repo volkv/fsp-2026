@@ -11,6 +11,7 @@ import { extractRetryMessage, extractUserMessage } from './prompts';
 import type { SkillLexicon } from './quotes';
 import { fail, ok, type ModelError, type ModelErrorCode, type ModelOperation, type ModelResult } from './result';
 import { prepareResumeExtract, type ResumeItem } from './resume-extract';
+import { lacksApiKey, requestSchema, RUNTIME_PROFILES, type LlmRuntime } from './runtime';
 import { l2Normalize, type EmbeddingSpace, type SpaceLookup } from './spaces';
 import { prepareVacancyExtract, type VacancyItem, type VacancyLexicon } from './vacancy-extract';
 
@@ -48,6 +49,8 @@ export interface ExtractRequest<V extends ExtractSchemaVersion> {
 export interface ModelInfo {
 	modelId: string;
 	modelRevision: string | null;
+	/** The profile of the runtime that answered: where the text went (`api` — an external model, `vllm` — our own). */
+	runtime: LlmRuntime;
 	params: Record<string, unknown>;
 }
 
@@ -91,9 +94,6 @@ export interface ModelAdapterDeps {
 	modes: { current(operation: ModelOperation): Promise<ModelResult<ModelMode>> };
 	spaces: SpaceLookup;
 }
-
-/** Sampling of `extract`: extraction must be reproducible, not creative. */
-const EXTRACT_PARAMS = { temperature: 0, max_tokens: 8_192 } as const;
 
 const extractBlocks = z
 	.array(z.object({ id: z.string().min(1), text: z.string() }))
@@ -175,7 +175,8 @@ type AttemptOutcome<I> =
 function readExtractAnswer<I>(
 	body: unknown,
 	prepared: PreparedExtract<I>,
-	blocks: readonly { id: string; text: string }[]
+	blocks: readonly { id: string; text: string }[],
+	maxTokens: number
 ): AttemptOutcome<I> {
 	const completion = chatCompletionSchema.safeParse(body);
 	if (!completion.success) return { kind: 'broken', problem: 'the response is not a chat completion' };
@@ -188,14 +189,14 @@ function readExtractAnswer<I>(
 			failure: fail('unavailable', 'extract: the runtime aborted the generation', { cause: 'aborted' })
 		};
 	}
-	// The answer does not fit the output limit: the document yields more facts than one answer holds. A retry with the
-	// same limit at temperature 0 is cut at the same place.
+	// The answer does not fit the output limit (a reasoning model counts its thinking in it too): the document yields
+	// more than one answer holds. A retry with the same limit at temperature 0 is cut at the same place.
 	if (choice?.finish_reason === 'length') {
 		return {
 			kind: 'failed',
 			failure: fail('context_too_long', 'extract: the answer was cut off by the output token limit', {
 				limit: 'output',
-				max_tokens: EXTRACT_PARAMS.max_tokens
+				max_tokens: maxTokens
 			})
 		};
 	}
@@ -325,9 +326,17 @@ export class ModelAdapter {
 	): Promise<ModelResult<ExtractResponse<ExtractSchemas[V]['item']>>> {
 		extractRequestSchema.parse(request);
 		const prepared = prepareExtract(request.schemaVersion, lexicon);
-		const gate = await this.#gate('extract', this.#deps.models.extract);
+		const configured = this.#deps.models.extract;
+		// An external runtime without its key would refuse every call: the operation is off, and says why.
+		if (configured && lacksApiKey(configured)) {
+			return fail('disabled', 'extract: the external runtime has no API key', { reason: 'no_api_key' });
+		}
+		const gate = await this.#gate('extract', configured);
 		if (!gate.ok) return gate;
 		const settings = gate.value;
+		const profile = RUNTIME_PROFILES[settings.runtime];
+		const { params } = profile;
+		const schema = requestSchema(profile, prepared.jsonSchema);
 		const started = Date.now();
 		// Checked before the limiter: a breaker already open must not make a new call wait for a slot the runtime will
 		// not fill either, interactive or background.
@@ -363,20 +372,25 @@ export class ModelAdapter {
 					{
 						model: settings.model,
 						messages,
-						...EXTRACT_PARAMS,
+						...params,
 						response_format: {
 							type: 'json_schema',
-							json_schema: { name: prepared.schemaName, strict: true, schema: prepared.jsonSchema }
+							json_schema: { name: prepared.schemaName, strict: true, schema }
 						}
 					},
 					this.#control(callDeadline, timeoutMs, priority, options.signal)
 				);
 				if (!response.ok) return response;
-				const answer = readExtractAnswer(response.value, prepared, request.blocks);
+				const answer = readExtractAnswer(response.value, prepared, request.blocks, params.max_tokens);
 				if (answer.kind === 'failed') return answer.failure;
 				if (answer.kind === 'checked') {
 					return ok({
-						model: { modelId: answer.modelId ?? settings.model, modelRevision: null, params: { ...EXTRACT_PARAMS } },
+						model: {
+							modelId: answer.modelId ?? settings.model,
+							modelRevision: null,
+							runtime: settings.runtime,
+							params: { ...params }
+						},
 						items: answer.checked.items,
 						rejected: answer.checked.rejected,
 						attempts: attempt,

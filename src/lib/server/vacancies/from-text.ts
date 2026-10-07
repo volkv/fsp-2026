@@ -12,6 +12,7 @@ import { mlResults } from '$lib/server/db/schema';
 import { uuidv7 } from '$lib/server/ids';
 import { vacancyMarketPosition, type VacancyForPosition, type VacancyMarketPosition } from '$lib/server/market/read';
 import type { ModelAdapter } from '$lib/server/ml/adapter';
+import { extractModelEnvelope } from '$lib/server/ml/envelope';
 import type { Block, QuoteLocation } from '$lib/server/ml/quotes';
 import type { VacancyItem } from '$lib/server/ml/vacancy-extract';
 import { invalid } from './errors';
@@ -340,12 +341,7 @@ export async function extractVacancyFromText(
 		fields = toFields(response.value.items);
 		values = {
 			...envelope,
-			model: {
-				endpoint_profile: 'extract',
-				model_id: response.value.model.modelId,
-				model_revision: response.value.model.modelRevision,
-				params: response.value.model.params
-			},
+			model: extractModelEnvelope(response.value.model),
 			processingMode: 'model',
 			rejectedItems: response.value.rejected.map((r) => ({ reason: r.reason })),
 			latencyMs: response.value.latencyMs

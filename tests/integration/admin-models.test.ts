@@ -58,7 +58,8 @@ function adapter(switcher: ModelModes) {
 	return new ModelAdapter({
 		models: {
 			extract: {
-				baseUrl: 'http://127.0.0.1:9',
+				baseUrl: 'http://127.0.0.1:9/v1',
+				runtime: 'vllm',
 				model: 'extractor-7b',
 				apiKey: 'secret-key',
 				timeoutMs: 1_000,
@@ -195,7 +196,8 @@ describe('models overview', () => {
 				modes: page,
 				models: {
 					extract: {
-						baseUrl: 'http://llm.internal:8000',
+						baseUrl: 'http://llm.internal:8000/v1',
+						runtime: 'vllm',
 						model: 'extractor-7b',
 						apiKey: 'secret-key',
 						timeoutMs: 120_000,

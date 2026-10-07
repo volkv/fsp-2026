@@ -13,3 +13,5 @@ export { default as TrustChip } from './trust-chip.svelte';
 export { default as TrustSignal } from './trust-signal.svelte';
 export { default as VerificationReceipt } from './verification-receipt.svelte';
 export { default as TrustFacts } from './trust-facts.svelte';
+export { default as ExtractRouteNote } from './extract-route-note.svelte';
+export { default as ModelModeLabel } from './model-mode-label.svelte';

@@ -61,7 +61,7 @@ docker run -d --name "$RUN-app" --network "$NETWORK" \
 	--env-file .env.example \
 	-e DATABASE_URL="postgres://fsp:$DB_PASSWORD@postgres:5432/fsp" \
 	-e REDIS_URL="redis://:$REDIS_PASSWORD@redis:6379" \
-	-e EMBED_BASE_URL=http://embedder:8080 -e EMBED_MODEL=bge-m3 \
+	-e EMBED_BASE_URL=http://embedder:8080/v1 -e EMBED_MODEL=bge-m3 \
 	-e EMBED_SPACE_ID=bge-m3@aa473d51f451/q:none/d:none/cls/l2/1024/t512/sections-v1 \
 	-e BOOTSTRAP_ADMIN_EMAIL=admin@image-check.invalid -e BOOTSTRAP_ADMIN_PASSWORD="$(openssl rand -hex 12)" \
 	-e DEMO_MODE=true \
