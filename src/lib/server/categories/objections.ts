@@ -96,6 +96,20 @@ async function lockObjection(tx: Transaction, objectionId: string): Promise<Asse
 	return objection;
 }
 
+/** Whether a decision takes an objection now: a decision in force, while the artifacts of its attempt are kept. */
+export type ObjectionWindow = { open: true; until: Date } | { open: false; reason: 'not_in_force' | 'expired' };
+
+export const OBJECTION_CLOSED_TEXTS: Record<Extract<ObjectionWindow, { open: false }>['reason'], string> = {
+	not_in_force: 'Решение уже аннулировано: возражать не против чего',
+	expired: 'Срок хранения попытки истёк: возражение больше не принимается'
+};
+
+export function objectionWindow(decision: ObjectedDecision, now: Date): ObjectionWindow {
+	if (decision.status !== 'valid') return { open: false, reason: 'not_in_force' };
+	if (now.getTime() > decision.artifactsKeptUntil.getTime()) return { open: false, reason: 'expired' };
+	return { open: true, until: decision.artifactsKeptUntil };
+}
+
 /**
  * The candidate objects to their own decision (domain 12.5): while the artifacts of the attempt are kept, one open
  * objection per decision. Another candidate's decision is «not found».
@@ -116,12 +130,8 @@ export async function openObjection(
 	const reason = text(input.reason, 'reason', OBJECTION_REASON_MAX_LENGTH);
 	const decision = await decisions.find(db, input.decisionId);
 	if (!decision || decision.candidateId !== input.candidateId) throw new ApiError('not_found');
-	if (decision.status !== 'valid') {
-		throw new ApiError('conflict', { message: 'Решение уже аннулировано: возражать не против чего' });
-	}
-	if (input.now.getTime() > decision.artifactsKeptUntil.getTime()) {
-		throw new ApiError('conflict', { message: 'Срок хранения попытки истёк: возражение больше не принимается' });
-	}
+	const term = objectionWindow(decision, input.now);
+	if (!term.open) throw new ApiError('conflict', { message: OBJECTION_CLOSED_TEXTS[term.reason] });
 	return db.transaction(async (tx) => {
 		const [candidate] = await tx
 			.select({ id: candidates.id })

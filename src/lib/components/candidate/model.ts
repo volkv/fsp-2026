@@ -218,6 +218,13 @@ export const OBJECTION_STATUSES: Record<
 	withdrawn: { label: 'Отозвано тобой', tone: 'neutral' }
 };
 
+/** The outcomes of an objection the operator answered with (domain 12.5). */
+export const OBJECTION_OUTCOMES: Record<string, string> = {
+	upheld: 'решение теста оставлено',
+	annulled: 'попытка аннулирована, тест можно пройти снова',
+	rescored: 'оценка заданий исправлена, решение пересчитано'
+};
+
 // --- Search, visibility, consents -------------------------------------------------------------------------------
 
 export type SearchStatus = 'active' | 'open_to_offers' | 'not_looking';

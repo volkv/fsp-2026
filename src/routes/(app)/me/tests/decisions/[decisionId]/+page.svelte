@@ -1,21 +1,28 @@
 <script lang="ts">
+	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
 	import HonestNote from '$lib/components/assessments/honest-note.svelte';
 	import { BLOCK_REASONS, OUTCOMES, points, share } from '$lib/components/assessments/model.js';
+	import { OBJECTION_OUTCOMES, OBJECTION_STATUSES } from '$lib/components/candidate/model.js';
 	import SectionCard from '$lib/components/candidate/section-card.svelte';
+	import CsrfInput from '$lib/components/forms/csrf-input.svelte';
+	import FormMessage from '$lib/components/forms/form-message.svelte';
 	import PageHeader from '$lib/components/forms/page-header.svelte';
 	import StatusPill from '$lib/components/forms/status-pill.svelte';
+	import { ResponseDeadline } from '$lib/components/product/index.js';
 	import { formatDate, formatDateTime } from '$lib/components/product/model.js';
-	import { buttonVariants } from '$lib/components/ui/button/index.js';
+	import { Button, buttonVariants } from '$lib/components/ui/button/index.js';
+	import { Textarea } from '$lib/components/ui/textarea/index.js';
 	import { cn } from '$lib/components/utils.js';
 	import type { PageProps } from './$types';
 
-	let { data }: PageProps = $props();
+	let { data, form }: PageProps = $props();
 
 	const decision = $derived(data.decision);
 	const explanation = $derived(decision.explanation);
 	const outcome = $derived(OUTCOMES[decision.outcome]);
 	const available = $derived(decision.next.filter((option) => option.available));
+	const problem = $derived(form && 'problem' in form ? form.problem : null);
 
 	const verdictTone: Record<string, string> = {
 		'выше порога': 'text-success',
@@ -123,11 +130,71 @@
 			</li>
 		{/each}
 	</ul>
-	<p class="text-sm">
-		Не согласен с результатом — подай возражение на странице
-		<a class="text-link underline underline-offset-4" href={resolve('/me/category')}>«Категория и грейд»</a>: его
-		рассмотрит человек в течение 30 дней по сохранённым заданиям и ответам.
-	</p>
+</SectionCard>
+
+<SectionCard
+	title="Возражение"
+	description="Решение принято автоматически по правилам теста. Не согласен — возрази здесь: возражение рассматривает оператор ФСП, человек, по сохранённым заданиям и ответам попытки и отвечает в течение 30 дней. До ответа решение и категория остаются как есть. Итог — решение оставлено; попытка аннулирована и не засчитывается, тест можно пройти снова сразу; или оценка заданий исправлена и решение пересчитано, а категория приводится к новому решению. Об ответе придёт уведомление."
+	testId="decision-objection"
+>
+	{#if problem}
+		<FormMessage text={problem.message} />
+	{:else if form && 'objectionOpened' in form}
+		<FormMessage tone="success" text="Возражение подано." />
+	{:else if form && 'objectionWithdrawn' in form}
+		<FormMessage tone="success" text="Возражение отозвано." />
+	{/if}
+	{#if data.objections.length > 0}
+		<ul class="grid gap-2 text-sm">
+			{#each data.objections as objection (objection.id)}
+				{@const status = OBJECTION_STATUSES[objection.status]}
+				<li class="grid gap-2 rounded-md border p-3" data-objection={objection.id} data-status={objection.status}>
+					<span class="flex flex-wrap items-center gap-2">
+						<StatusPill label={status.label} tone={status.tone} />
+						<span class="text-xs text-muted-foreground">подано {formatDate(objection.openedAt)}</span>
+						{#if objection.status === 'open' || objection.status === 'in_review'}
+							<ResponseDeadline dueAt={objection.dueAt} label="Ответ оператора до" />
+						{/if}
+					</span>
+					<span class="whitespace-pre-line">{objection.reason}</span>
+					{#if objection.outcome}
+						<span>Итог: {OBJECTION_OUTCOMES[objection.outcome] ?? objection.outcome}.</span>
+					{/if}
+					{#if objection.resolution}<span>Ответ оператора: {objection.resolution}</span>{/if}
+					{#if objection.status === 'open' || objection.status === 'in_review'}
+						<form method="POST" action="?/withdraw" use:enhance>
+							<CsrfInput />
+							<input type="hidden" name="objectionId" value={objection.id} />
+							<Button type="submit" variant="outline" size="sm">Отозвать возражение</Button>
+						</form>
+					{/if}
+				</li>
+			{/each}
+		</ul>
+	{/if}
+	{#if data.intake.state === 'open'}
+		<form method="POST" action="?/object" use:enhance class="grid gap-3" data-testid="objection-form">
+			<CsrfInput />
+			<label class="grid gap-1.5 text-sm">
+				<span class="font-medium">С чем не согласен и почему</span>
+				<Textarea
+					name="reason"
+					rows={5}
+					maxlength={data.reasonMaxLength}
+					required
+					value={form && 'reason' in form ? form.reason : ''}
+					aria-invalid={problem?.fields.reason ? 'true' : undefined}
+				/>
+				<span class="text-xs text-muted-foreground">
+					Например: какое задание и почему, на твой взгляд, оценено неверно. Возразить можно до
+					{formatDate(data.intake.until)}, пока хранится попытка.
+				</span>
+			</label>
+			<Button type="submit" class="justify-self-start">Подать возражение</Button>
+		</form>
+	{:else if data.intake.state === 'closed'}
+		<p class="text-sm text-muted-foreground">{data.intake.text}.</p>
+	{/if}
 </SectionCard>
 
 <p class="text-xs text-muted-foreground">

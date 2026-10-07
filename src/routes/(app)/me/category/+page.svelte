@@ -5,7 +5,7 @@
 	import { resolve } from '$app/paths';
 	import DemandBlock from '$lib/components/candidate/demand-block.svelte';
 	import NeedDemandBlock from '$lib/components/candidate/need-demand-block.svelte';
-	import { OBJECTION_STATUSES } from '$lib/components/candidate/model.js';
+	import { OBJECTION_OUTCOMES, OBJECTION_STATUSES } from '$lib/components/candidate/model.js';
 	import SectionCard from '$lib/components/candidate/section-card.svelte';
 	import CsrfInput from '$lib/components/forms/csrf-input.svelte';
 	import FormMessage from '$lib/components/forms/form-message.svelte';
@@ -42,11 +42,6 @@
 		decision_annulled: 'отозвана: решение теста аннулировано',
 		objection_annulled: 'отозвана: попытка аннулирована по возражению',
 		objection_rescored: 'отозвана: решение пересчитано по возражению'
-	};
-	const OUTCOMES: Record<string, string> = {
-		upheld: 'решение теста оставлено',
-		annulled: 'попытка аннулирована, тест можно пройти снова',
-		rescored: 'оценка заданий исправлена, решение пересчитано'
 	};
 
 	const STEPS = [
@@ -214,7 +209,7 @@
 
 <SectionCard
 	title="Возражения"
-	description="Не согласен с результатом теста — возрази с экрана результата. Оператор ФСП отвечает в течение 30 дней."
+	description="Возражение подаётся на экране результата теста — «Тест на грейд», итог попытки. Его рассматривает оператор ФСП, человек, и отвечает в течение 30 дней; до ответа решение и категория остаются как есть."
 	testId="objections"
 >
 	{#if problem}
@@ -231,14 +226,18 @@
 				<li class="grid gap-2 rounded-md border p-3" data-objection={objection.id}>
 					<span class="flex flex-wrap items-center gap-2">
 						<StatusPill label={status.label} tone={status.tone} />
-						<span class="text-xs text-muted-foreground">подано {formatDate(objection.openedAt)}</span>
+						<a
+							class="text-xs text-link underline underline-offset-4"
+							href={resolve('/(app)/me/tests/decisions/[decisionId]', { decisionId: objection.decisionId })}
+							>подано {formatDate(objection.openedAt)} на результат теста</a
+						>
 						{#if objection.status === 'open' || objection.status === 'in_review'}
 							<ResponseDeadline dueAt={objection.dueAt} label="Ответ оператора до" />
 						{/if}
 					</span>
 					<span class="whitespace-pre-line">{objection.reason}</span>
 					{#if objection.outcome}
-						<span>Итог: {name(OUTCOMES, objection.outcome)}.</span>
+						<span>Итог: {name(OBJECTION_OUTCOMES, objection.outcome)}.</span>
 					{/if}
 					{#if objection.resolution}<span>Ответ оператора: {objection.resolution}</span>{/if}
 					{#if objection.status === 'open' || objection.status === 'in_review'}

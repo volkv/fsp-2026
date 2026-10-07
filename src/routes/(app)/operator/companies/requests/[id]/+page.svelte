@@ -33,7 +33,7 @@
 	const fieldError = (name: string) => problem?.fields[name];
 	const open = $derived(v.state === 'pending' && company.status === 'submitted');
 	const DECIDED: Record<string, string> = {
-		approve: 'Компания подтверждена: каталог, вакансии и приглашения ей открыты.',
+		approve: 'Компания подтверждена: в предложениях кандидатам у неё теперь метка «проверена».',
 		reject: 'Заявка отклонена, причина отправлена владельцу.',
 		request_info: 'Заявка возвращена владельцу на уточнение.'
 	};
