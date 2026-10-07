@@ -57,7 +57,6 @@ import { createTestDatabase, type TestDatabase } from '../helpers/database';
 import {
 	createCandidate,
 	createCompany,
-	createExternalVacancy,
 	createMember,
 	createOwnVacancy,
 	createPublishedDocument,
@@ -1028,13 +1027,10 @@ describe('catalog search: the kept ranking and the comparison', () => {
 // --- The candidate's side -------------------------------------------------------------------------------------------
 
 describe('recommendations to the candidate', () => {
-	it('ranks own and external vacancies with the same explanation, also for a hidden profile', async () => {
+	it('ranks the vacancies with the same explanation, also for a hidden profile', async () => {
 		const { company, member } = await employer();
 		const own = await ownVacancy(company.id, member.id, { requiredSkillKeys: ['go'] });
-		const external = await createExternalVacancy(database.db, taxonomyVersionId, {
-			title: 'Python developer',
-			requiredSkillKeys: ['python']
-		});
+		const other = await ownVacancy(company.id, member.id, { title: 'Python developer', requiredSkillKeys: ['python'] });
 		const person = await candidate({
 			visibility: 'hidden',
 			skills: [{ key: 'go', band: 'strong', attestation: 'direct' }],
@@ -1044,7 +1040,7 @@ describe('recommendations to the candidate', () => {
 
 		const result = await recommendVacancies({ db: database.db }, subject, { limit: 100 });
 		const vacancyIds = result.items.map((item) => item.vacancyId);
-		expect(vacancyIds.indexOf(own.id)).toBeLessThan(vacancyIds.indexOf(external.id));
+		expect(vacancyIds.indexOf(own.id)).toBeLessThan(vacancyIds.indexOf(other.id));
 		const top = result.items.find((item) => item.vacancyId === own.id);
 		expect(top?.match.explanation.matches).toContainEqual(
 			expect.objectContaining({ kind: 'skill', skill_key: 'go', fact_ids: [person.factId] })
@@ -1053,12 +1049,8 @@ describe('recommendations to the candidate', () => {
 			status: 'unavailable',
 			details: { reason: 'pair_not_reranked' }
 		});
-		const other = result.items.find((item) => item.vacancyId === external.id);
-		expect(other?.match.explanation.gaps).toContainEqual({ code: 'required_skill_missing', skill_key: 'python' });
-		expect(other?.match.components.grade).toMatchObject({
-			status: 'unknown',
-			details: { reason: 'vacancy_grade_unknown' }
-		});
+		const python = result.items.find((item) => item.vacancyId === other.id);
+		expect(python?.match.explanation.gaps).toContainEqual({ code: 'required_skill_missing', skill_key: 'python' });
 	});
 
 	it('does not compare an expectation in another tax base with the vacancy range', async () => {

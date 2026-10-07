@@ -1,7 +1,7 @@
 // The candidate's own application to a vacancy (docs/domain.md, 13.5, 13.6; CONCEPT 4 — the secondary way to contact):
-// the showcase is the published own vacancies of the companies of the platform within the candidate's reach — no
-// external vacancy; the application carries the match of the pair at that moment and discloses the contacts the
-// candidate chose to that company (`disclosures` with the application as its basis and the consent scoped to it). The
+// the showcase is the published vacancies of the companies of the platform within the candidate's reach; the
+// application carries the match of the pair at that moment and discloses the contacts the candidate chose to that
+// company (`disclosures` with the application as its basis and the consent scoped to it). The
 // candidate sees their applications with statuses; the company sees the applications to its vacancies by pseudonym with
 // the match and the disclosed contacts, rejects or invites — an offer the company sends to the applicant marks it
 // `invited`. Applications are open to adults: a candidate aged 14–17 is reached by a company through a vacancy for
@@ -131,8 +131,8 @@ function disclosureChoice(fields: readonly string[]): DisclosureField[] {
 }
 
 /**
- * A vacancy of the showcase for the candidate: an own published vacancy of a company the admission policy lets act,
- * within the candidate's reach (domain 19.3). An external vacancy, another session's or a missing one is `404`.
+ * A vacancy of the showcase for the candidate: a published vacancy of a company the admission policy lets act, within
+ * the candidate's reach (domain 19.3). Another session's or a missing one is `404`.
  */
 async function showcaseVacancy(executor: Executor, userId: string, vacancyId: string) {
 	const [row] = await executor
@@ -145,7 +145,7 @@ async function showcaseVacancy(executor: Executor, userId: string, vacancyId: st
 		})
 		.from(vacancies)
 		.innerJoin(companies, eq(companies.id, vacancies.companyId))
-		.where(and(eq(vacancies.id, vacancyId), eq(vacancies.origin, 'own')));
+		.where(eq(vacancies.id, vacancyId));
 	if (!row || !inDemoScope(row, await demoSessionOfUser(executor, userId)))
 		throw refuse('not_found', 'not_in_showcase');
 	if (!companyAdmission(row.companyStatus).admitted) throw refuse('not_found', 'company_closed');
@@ -212,7 +212,7 @@ export async function applyToVacancy(
 		await requireProcessingConsent(tx, side.candidateId, now);
 		const found = await showcaseVacancy(tx, side.userId, input.vacancyId);
 		const vacancy = found.vacancy;
-		if (vacancy.status !== 'published' || vacancy.companyId === null || vacancy.createdByMemberId === null) {
+		if (vacancy.status !== 'published') {
 			throw refuse('conflict', 'vacancy_closed', [
 				{ code: 'vacancy_closed', message: 'Вакансия больше не принимает отклики' }
 			]);
@@ -327,8 +327,6 @@ export async function applyToVacancy(
 
 /** Who of the company receives the disclosure: the author of the vacancy while active, otherwise an active owner. */
 async function recipientMember(tx: Transaction, vacancy: VacancyRow): Promise<string> {
-	if (vacancy.companyId === null || vacancy.createdByMemberId === null)
-		throw new Error(`vacancy ${vacancy.id} is not own`);
 	const [author] = await tx
 		.select({ status: companyMembers.status })
 		.from(companyMembers)
@@ -414,12 +412,12 @@ export interface ShowcaseVacancy {
 	vacancy: {
 		id: string;
 		title: string;
-		description: string | null;
+		description: string;
 		status: string;
-		roleKey: string | null;
-		gradeMin: string | null;
-		gradeMax: string | null;
-		workFormat: string | null;
+		roleKey: string;
+		gradeMin: string;
+		gradeMax: string;
+		workFormat: string;
 		requiredSkillKeys: string[];
 		niceSkillKeys: string[];
 		salary: {
@@ -454,7 +452,6 @@ export async function showcaseVacancyFor(
 	const now = deps.now();
 	const found = await showcaseVacancy(deps.db, side.userId, vacancyId);
 	const vacancy = found.vacancy;
-	if (vacancy.companyId === null) throw new Error(`own vacancy ${vacancy.id} has no company`);
 	const { result } = await pairMatch(deps.db, vacancy, side.candidateId);
 	const [row] = await deps.db
 		.select()

@@ -12,7 +12,6 @@ import { ApiError, type ErrorDetail } from '$lib/server/errors/api-error';
 import { withdrawOpenInvitations } from '$lib/server/invitations/send';
 import { enqueueJob } from '$lib/server/jobs/queue';
 import { notify } from '$lib/server/notifications/notify';
-import { onCompanyVerificationDecided } from '$lib/server/vacancies/claims';
 import {
 	auditActorOf,
 	conflict,
@@ -541,10 +540,7 @@ export async function decideVerification(
 				break;
 		}
 		await tx.update(companies).set(companyValues).where(eq(companies.id, company.id));
-		// «This is our vacancy» claims wait for the company: a verified one sends them to review, a rejected one closes them.
-		if (decision.kind === 'approve') await onCompanyVerificationDecided(tx, company.id, 'verified', now);
 		if (decision.kind === 'reject') {
-			await onCompanyVerificationDecided(tx, company.id, 'rejected', now);
 			// A company acts before its check (domain 5.1): the rejection closes its unanswered offers at once.
 			await withdrawOpenInvitations(tx, { companyId: company.id }, 'company_rejected', {
 				requestId: ctx.meta.requestId,

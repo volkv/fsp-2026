@@ -1,7 +1,7 @@
-// Publishes the product policies from `policies/` (docs/domain.md, section 13.8) and registers the vacancy sources of
-// the catalog (section 13.2) in the database from DATABASE_URL. Runs with plain Node (type stripping), without the
-// SvelteKit runtime. A policy version is immutable: a published version with the same parameters is left as it is, one
-// with other parameters is refused (a change is a new version in the file). Sources are added disabled.
+// Publishes the product policies from `policies/` (docs/domain.md, section 13.8) in the database from DATABASE_URL.
+// Runs with plain Node (type stripping), without the SvelteKit runtime. A policy version is immutable: a published
+// version with the same parameters is left as it is, one with other parameters is refused (a change is a new version in
+// the file).
 import { readdir, readFile } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -9,7 +9,6 @@ import postgres from 'postgres';
 import { z } from 'zod';
 import { parsePolicyParams, POLICY_KINDS, type PolicyKind } from '../src/lib/server/consent/kinds.ts';
 import { uuidv7 } from '../src/lib/server/ids.ts';
-import { registerVacancySources } from '../src/lib/server/vacancies/sources/definitions.ts';
 
 /** Why a parameter has its value: a reference to the model, or `product_default` — a product decision of our own. */
 const basisSchema = z.string().min(1);
@@ -119,10 +118,6 @@ if (import.meta.main) {
 	try {
 		const policies = await publishPolicies(client, release);
 		console.log(`Product policies: ${policies.map((p) => `${p.kind} v${p.version} ${p.outcome}`).join(', ')}`);
-		const sources = await registerVacancySources(client);
-		console.log(
-			`Vacancy sources: ${sources.map((s) => `${s.key} ${s.outcome} ${s.enabled ? 'enabled' : 'disabled'}`).join(', ')}`
-		);
 	} finally {
 		await client.end({ timeout: 5 });
 	}

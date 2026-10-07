@@ -22,13 +22,11 @@ import { loadMarketPolicy } from '$lib/server/market/policy';
 import { loadCandidateSnapshots, loadGradeOrdinals, matchableVacancyFor } from '$lib/server/matching/evidence';
 import { latestPublishedVersion } from '$lib/server/taxonomy/vocabulary';
 
-/** When a vacancy entered the aggregator: published on the platform, or first seen by an import. */
+/** When a vacancy was seen by candidates: its publication, or its creation for one never published. */
 export const vacancySeenAt = sql`coalesce(${vacancies.publishedAt}, ${vacancies.createdAt})`;
 
 export interface VacancySkillDemand {
 	vacancies: number;
-	own: number;
-	external: number;
 	/** Some of the counted vacancies are seeded demo records. */
 	seeded: boolean;
 	/** The latest `vacancySeenAt` among the counted vacancies. */
@@ -42,8 +40,6 @@ export async function vacancySkillDemand(executor: Executor, where: SQL | undefi
 	const [totals] = await executor
 		.select({
 			n: sql<number>`count(*)::int`,
-			own: sql<number>`count(*) filter (where ${vacancies.origin} = 'own')::int`,
-			external: sql<number>`count(*) filter (where ${vacancies.origin} = 'external')::int`,
 			seeded: sql<boolean>`coalesce(bool_or(${vacancies.seedBatchId} is not null), false)`,
 			latest: sql<Date | null>`max(${vacancySeenAt})`.mapWith(vacancies.createdAt)
 		})
@@ -60,8 +56,6 @@ export async function vacancySkillDemand(executor: Executor, where: SQL | undefi
 	if (!totals) throw new Error('an aggregate query returned no row');
 	return {
 		vacancies: totals.n,
-		own: totals.own,
-		external: totals.external,
 		seeded: totals.seeded,
 		latestSeenAt: totals.latest,
 		skills: rows
@@ -214,8 +208,6 @@ export async function candidateDemand(executor: Executor, subject: AccessSubject
 		asOf: now,
 		source: {
 			vacancies: demand.vacancies,
-			own: demand.own,
-			external: demand.external,
 			latestSeenAt: demand.latestSeenAt,
 			synthetic: demand.seeded
 		},

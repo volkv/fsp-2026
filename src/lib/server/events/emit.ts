@@ -1,4 +1,4 @@
-// Outgoing events of a company (docs/domain.md, section 5.7; contracts 13): a change that matters to the company's own
+// Outgoing events of a company (docs/domain.md, section 5.7; contracts 12): a change that matters to the company's own
 // systems emits an event in the transaction of the change. Every active subscription of the company asking for the
 // type gets a delivery row and a `event.deliver` job — the change, its deliveries and their jobs commit together.
 // The event carries identifiers and codes only: an ATS reads the data by the API with its own key, under the same

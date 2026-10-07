@@ -1,11 +1,10 @@
 // Job `vacancies.text_recheck` (docs/domain.md, section 13.1): a new version of the text check applies to the vacancies
 // already stored, not only to the texts written after it. A vacancy whose `text_check` comes from another version is
-// checked again, a batch per run; a run that found more enqueues its own continuation. An own vacancy follows the rules
-// of an edit that keeps its text: a listed one whose text is now blocked goes to an operator unless the operator
-// already approved the same phrases; one in moderation whose text now passes returns to where it left from, and one
-// whose blocking phrases changed gets a new revision, so a decision on the phrases read before is refused. An external
-// one is recomputed as its import does, so a blocked text hides it and a text no longer blocked brings it back. The
-// schedule enqueues the job while vacancies lag behind the version.
+// checked again, a batch per run; a run that found more enqueues its own continuation. A vacancy follows the rules of an
+// edit that keeps its text: a listed one whose text is now blocked goes to an operator unless the operator already
+// approved the same phrases; one in moderation whose text now passes returns to where it left from, and one whose
+// blocking phrases changed gets a new revision, so a decision on the phrases read before is refused. The schedule
+// enqueues the job while vacancies lag behind the version.
 import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 import { recordAuditEvent } from '$lib/server/audit/record';
 import type { Database, Executor, Transaction } from '$lib/server/db';
@@ -14,7 +13,6 @@ import { defineHandler, type JobHandler } from '$lib/server/jobs/handler';
 import { enqueueJob, type JobCreator } from '$lib/server/jobs/queue';
 import { jobSpec } from '$lib/server/jobs/registry';
 import { LOCK_NAMESPACE } from '$lib/server/jobs/scheduler';
-import { loadStaleAfterDays, recomputeCluster } from './clusters';
 import { companyAdmitted, enqueueRevisionDerivations } from './derivations';
 import { moderationCaseOf, publishNow } from './own';
 import {
@@ -36,13 +34,13 @@ const CREATOR: JobCreator = { kind: 'system', id: TYPE };
 /** A vacancy whose stored check is of another version than the one in force. */
 const lagging = sql`${vacancies.textCheck} ->> 'validator_version' is distinct from ${TEXT_CHECK_VERSION}`;
 
-type Outcome = 'restamped' | 'moderation' | 'revised' | 'cleared' | 'hidden' | 'shown' | 'unchanged';
+type Outcome = 'restamped' | 'moderation' | 'revised' | 'cleared';
 
 /**
- * The check of an own vacancy under the version in force. The operator decided on the phrases, not on the version that
+ * The check of a vacancy under the version in force. The operator decided on the phrases, not on the version that
  * found them: an approval, like a confirmation of warnings, stays while the new version finds the same phrases.
  */
-async function recheckOwn(
+async function recheck(
 	tx: Transaction,
 	row: typeof vacancies.$inferSelect,
 	now: Date,
@@ -116,7 +114,6 @@ async function clearModeration(
 	requestId: string
 ): Promise<void> {
 	const resumeTo = moderationCaseOf(textCheckSchema.parse(row.textCheck)).resume_to;
-	if (row.companyId === null) throw new Error('an own vacancy carries no company');
 	const status = (await companyAdmitted(tx, row.companyId)) ? resumeTo : 'draft';
 	const [cleared] = await tx
 		.update(vacancies)
@@ -139,19 +136,6 @@ async function clearModeration(
 	if (status === 'published') await publishNow(tx, cleared, now, { kind: 'system' }, requestId, CREATOR);
 }
 
-/** An external vacancy recomputed from its postings, as the import and the freshness check do. */
-async function recheckExternal(
-	tx: Transaction,
-	row: typeof vacancies.$inferSelect,
-	now: Date,
-	staleAfterDays: number | null
-): Promise<Outcome> {
-	const change = await recomputeCluster(tx, row.id, { taxonomyVersionId: null, now, staleAfterDays });
-	if (change.revised) await enqueueRevisionDerivations(tx, row.id, change.revision, CREATOR);
-	if (!change.statusChanged) return 'unchanged';
-	return change.status === 'hidden' ? 'hidden' : row.status === 'hidden' ? 'shown' : 'unchanged';
-}
-
 async function laggingBatch(executor: Executor): Promise<{ ids: string[]; more: boolean }> {
 	const rows = await executor
 		.select({ id: vacancies.id })
@@ -171,10 +155,7 @@ export const vacanciesTextRecheck: JobHandler<'vacancies.text_recheck'> = define
 			restamped: 0,
 			moderation: 0,
 			revised: 0,
-			cleared: 0,
-			hidden: 0,
-			shown: 0,
-			unchanged: 0
+			cleared: 0
 		};
 		// A job of another version was enqueued by a worker of another release: the version in force has a job of its own.
 		const outdated = job.payload.validator_version !== TEXT_CHECK_VERSION;
@@ -184,7 +165,6 @@ export const vacanciesTextRecheck: JobHandler<'vacancies.text_recheck'> = define
 			write: async (tx) => {
 				if (batch.ids.length === 0) return;
 				const now = new Date();
-				const staleAfterDays = await loadStaleAfterDays(tx, now);
 				// Locked in the order of ids, as they were read; a vacancy edited meanwhile already carries the new check.
 				const rows = await tx
 					.select()
@@ -192,13 +172,7 @@ export const vacanciesTextRecheck: JobHandler<'vacancies.text_recheck'> = define
 					.where(and(inArray(vacancies.id, batch.ids), lagging))
 					.orderBy(asc(vacancies.id))
 					.for('update');
-				for (const row of rows) {
-					const outcome =
-						row.origin === 'own'
-							? await recheckOwn(tx, row, now, requestId)
-							: await recheckExternal(tx, row, now, staleAfterDays);
-					counts[outcome]++;
-				}
+				for (const row of rows) counts[await recheck(tx, row, now, requestId)]++;
 				// The vacancies just checked no longer lag: the continuation reads the next ones. It waits under the same
 				// key until this run finishes.
 				if (batch.more) {

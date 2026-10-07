@@ -64,10 +64,9 @@ async function storagePolicy(executor: Executor, ruleset: MatchRuleset): Promise
 /** A candidate the catalog could show to some company: out of it the candidate is in no pool (domain 7.4, 13.3). */
 const inCatalog = listedInCatalog(candidates);
 
-/** A vacancy the pool and the matches are kept for; a closed, hidden or replaced one is left as it is. */
+/** A vacancy the pool and the matches are kept for; a closed one is left as it is. */
 function refreshable(vacancy: VacancySnapshot): boolean {
-	if (vacancy.origin === 'own') return vacancy.status !== 'closed';
-	return (vacancy.status === 'active' || vacancy.status === 'stale') && vacancy.supersededByVacancyId === null;
+	return vacancy.status !== 'closed';
 }
 
 function computedPair(

@@ -2,9 +2,8 @@
 // administrator reaches the rows of its own session only, and no demo account takes an action that changes what every
 // visitor of the stand shares. The world is written straight into the tables: two demo sessions and the stand outside
 // them, each with a company waiting for verification (with the copy of its authority document), a verified company, an
-// objection, a representation of a minor (with the copy of the authority document), a claim of an external vacancy and
-// events in the journal. Every dangerous action is tried by the clone over the rows of its session, of another session
-// and outside sessions. Around it: FSP ID never signs in to an account of the demo seed or a clone, a clone signs in no
+// objection, a representation of a minor (with the copy of the authority document) and events in the journal. Every
+// dangerous action is tried by the clone over the rows of its session, of another session and outside sessions. Around it: FSP ID never signs in to an account of the demo seed or a clone, a clone signs in no
 // longer than its demo session lives, and the demo screen gives a new session to an address within its budget, takes
 // the place of the quietest session when the stand is full and lets a browser switch roles for free.
 import { randomBytes, randomUUID } from 'node:crypto';
@@ -47,8 +46,7 @@ import {
 	representations,
 	staffRoles,
 	testAttempts,
-	users,
-	vacancyClaims
+	users
 } from '$lib/server/db/schema';
 import { DEMO_EVICTABLE_MINUTES, DEMO_IDLE_MINUTES, redisDemoActivity } from '$lib/server/demo/activity';
 import { castRoles } from '$lib/server/demo/cast';
@@ -59,7 +57,6 @@ import { enterDemoRole, type DemoEntry } from '$lib/server/demo/visit';
 import { batchHistory, importBatch, previewBatch, type BatchDeps } from '$lib/server/fsp/import/batches';
 import { RATE_LIMIT_RULES } from '$lib/server/http/rate-limit';
 import { resolveAgeConflict } from '$lib/server/operator/ages';
-import { decideClaim } from '$lib/server/operator/claims';
 import { takeObjection } from '$lib/server/operator/objections';
 import { openPartnershipFromForm } from '$lib/server/operator/partnership-forms';
 import { decideAuthority } from '$lib/server/operator/representatives';
@@ -69,15 +66,7 @@ import type { ObjectStore, StoredObject } from '$lib/server/storage/object-store
 import { insertAttempt, releaseFixtureBank } from '../helpers/bank';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
 import { recordDecision } from '../helpers/categories';
-import {
-	createCandidate,
-	createCompany,
-	createExternalVacancy,
-	createMember,
-	createTaxonomyVersion,
-	createUser,
-	randomSha256
-} from '../helpers/factories';
+import { createCandidate, createCompany, createMember, createUser, randomSha256 } from '../helpers/factories';
 
 const ROOT = new URL('../../', import.meta.url);
 const path = (relative: string) => fileURLToPath(new URL(relative, ROOT));
@@ -127,7 +116,6 @@ let database: TestDatabase;
 let redis: Redis;
 let data: SeedData;
 const store = new MemoryStore();
-let taxonomyVersionId: string;
 let bankReleaseId: string;
 
 /** What one place of the stand holds: a demo session, or the stand outside sessions (`session: null`). */
@@ -141,7 +129,6 @@ interface Place {
 	objectionId: string;
 	representationId: string;
 	authorityFileId: string;
-	claimId: string;
 	/** An event of the journal done by an account of the place. */
 	eventUserId: string;
 	/** A submitted attempt of the place's candidate, waiting for the operator's decision. */
@@ -299,19 +286,6 @@ async function place(session: string | null): Promise<Place> {
 		note: 'Копия неразборчива'
 	});
 
-	const external = await createExternalVacancy(db, taxonomyVersionId);
-	const [claim] = await db
-		.insert(vacancyClaims)
-		.values({
-			vacancyId: external.id,
-			companyId: verified.id,
-			requestedByUserId: recruiter.userId,
-			status: 'pending_review',
-			matchEvidence: { inn: 'unknown', posting_inns: [], name_similarity: 0.5 }
-		})
-		.returning();
-	if (!claim) throw new Error('claim not inserted');
-
 	const submittedCandidate = await createCandidate(db, { userId: await account(), demoSessionId: session });
 	const attempt = await insertAttempt(db, {
 		candidateId: submittedCandidate.id,
@@ -336,7 +310,6 @@ async function place(session: string | null): Promise<Place> {
 		objectionId: objection.id,
 		representationId: representation.id,
 		authorityFileId,
-		claimId: claim.id,
 		attemptId: attempt.id,
 		ageConflictCandidateId: ageConflictCandidate.id,
 		eventUserId: recruiter.userId
@@ -373,7 +346,6 @@ beforeAll(async () => {
 	await redis.flushDb();
 	data = await readSeedData(path('seeds'));
 	const { db } = database;
-	taxonomyVersionId = (await createTaxonomyVersion(db)).id;
 	bankReleaseId = (await releaseFixtureBank(db, 'backend')).releaseId;
 	first = await place(await demoSession());
 	second = await place(await demoSession());
@@ -457,15 +429,6 @@ describe('a clone of the FSP operator', () => {
 			).rejects.toMatchObject({ code: 'not_found' });
 		}
 		await decideAuthority(database.db, first.operator, meta, first.representationId, decision, new Date());
-	});
-
-	it('decides the vacancy claims of its own session only', async () => {
-		for (const other of others()) {
-			await expect(
-				decideClaim(database.db, first.operator, meta, other.claimId, 'rejected', 'Не наша вакансия')
-			).rejects.toMatchObject({ code: 'not_found' });
-		}
-		await decideClaim(database.db, first.operator, meta, first.claimId, 'rejected', 'Не наша вакансия');
 	});
 
 	it('opens and ends partnerships of the companies of its own session only', async () => {

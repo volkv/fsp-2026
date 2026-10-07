@@ -1,6 +1,6 @@
 // Records the category market is computed from (docs/domain.md, section 12.8): salary expectations of catalog
-// candidates by their categories in force, salary ranges of own published and fresh external vacancies by the
-// specializations of their roles (domain 12.10), and the external salary reference of the published taxonomy version. Clones of demo sessions and the
+// candidates by their categories in force, salary ranges of published vacancies by the specializations of their roles
+// (domain 12.10), and the external salary reference of the published taxonomy version. Clones of demo sessions and the
 // vacancies of their companies are not counted: they copy the cast, which is counted already (domain 19.3).
 import { eq, sql } from 'drizzle-orm';
 import { parsePreferences, salaryExpectation } from '$lib/server/candidates/preferences';
@@ -67,7 +67,6 @@ export async function loadCandidateRecords(
 
 export interface VacancyRecord {
 	vacancyId: string;
-	origin: 'own' | 'external';
 	synthetic: boolean;
 	salary: SalaryTerms;
 	keys: CategoryKey[];
@@ -75,38 +74,26 @@ export interface VacancyRecord {
 
 interface VacancyRow extends Record<string, unknown> {
 	id: string;
-	origin: 'own' | 'external';
 	seed_batch_id: string | null;
 	taxonomy_version_id: string;
 	role_key: string;
-	grade_min: string | null;
-	grade_max: string | null;
-	salary_min: number | null;
-	salary_max: number | null;
-	salary_currency: string | null;
+	grade_min: string;
+	grade_max: string;
+	salary_min: number;
+	salary_max: number;
+	salary_currency: string;
 	salary_period: SalaryTerms['period'];
 	salary_tax_base: SalaryTerms['taxBase'];
 }
 
-/**
- * Vacancies of the market window with a role of some specialization and a salary: own vacancies published now, and
- * external ones in search (active or stale, not replaced by an own vacancy) with a posting confirmed within the window.
- * An external vacancy hidden by the text check or by an operator does not count (domain 13.1).
- */
-export async function loadVacancyRecords(executor: Executor, windowFrom: Date): Promise<VacancyRecord[]> {
+/** Vacancies published now with a role of some specialization (domain 12.10); each has a full range (domain 13.1). */
+export async function loadVacancyRecords(executor: Executor): Promise<VacancyRecord[]> {
 	const rows = await executor.execute<VacancyRow>(sql`
-		select v.id::text as id, v.origin, v.seed_batch_id, v.taxonomy_version_id::text as taxonomy_version_id,
+		select v.id::text as id, v.seed_batch_id, v.taxonomy_version_id::text as taxonomy_version_id,
 			v.role_key, v.grade_min, v.grade_max,
 			v.salary_min, v.salary_max, v.salary_currency, v.salary_period, v.salary_tax_base
 		from vacancies v
-		where v.role_key is not null and ${outsideDemoSessions(companySession(sql`v.company_id`))}
-			and (v.salary_min is not null or v.salary_max is not null)
-			and (
-				(v.origin = 'own' and v.status = 'published')
-				or (v.origin = 'external' and v.status in ('active', 'stale') and v.superseded_by_vacancy_id is null
-					and exists (select 1 from vacancy_postings p where p.vacancy_id = v.id and p.freshness <> 'gone'
-						and p.last_checked_at >= ${windowFrom.toISOString()}))
-			)
+		where v.status = 'published' and ${outsideDemoSessions(companySession(sql`v.company_id`))}
 	`);
 	const ordinals = await loadGradeOrdinals(
 		executor,
@@ -118,7 +105,6 @@ export async function loadVacancyRecords(executor: Executor, windowFrom: Date): 
 		return [
 			{
 				vacancyId: row.id,
-				origin: row.origin,
 				synthetic: row.seed_batch_id !== null,
 				salary: {
 					min: row.salary_min,

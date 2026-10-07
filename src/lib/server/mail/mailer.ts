@@ -1,4 +1,4 @@
-// Outgoing mail over SMTP (docs/contracts.md, section 8.1): Mailpit in development and on the demo stand.
+// Outgoing mail over SMTP (docs/contracts.md, section 7.1): Mailpit in development and on the demo stand.
 import nodemailer, { type NodemailerError } from 'nodemailer';
 import { config } from '$lib/server/config';
 
@@ -24,7 +24,7 @@ const CONNECTION_CODES = new Set(['ECONNECTION', 'ETIMEDOUT', 'ESOCKET', 'EDNS',
 
 function classify(error: NodemailerError): { code: MailErrorCode; retryable: boolean } {
 	const status = error.responseCode;
-	// A temporary SMTP failure (4xx) is retried; a permanent one (5xx) fails the delivery (contracts 8.1).
+	// A temporary SMTP failure (4xx) is retried; a permanent one (5xx) fails the delivery (contracts 7.1).
 	if (typeof status === 'number') {
 		return status >= 500 ? { code: 'rejected', retryable: false } : { code: 'unavailable', retryable: true };
 	}

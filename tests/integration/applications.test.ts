@@ -1,5 +1,5 @@
-// The candidate's own application (docs/domain.md, 6.5, 13.5, 13.6): only to a published own vacancy of a company of
-// the platform within reach — never to an external one; it carries the match of the pair and discloses the chosen
+// The candidate's own application (docs/domain.md, 6.5, 13.5, 13.6): only to a published vacancy of a company of the
+// platform within reach; it carries the match of the pair and discloses the chosen
 // contacts to that company by a consent scoped to the application (`disclosures.application_id`); the company sees the
 // applications to its vacancies by pseudonym with the contacts while the consent holds, a withdrawn application closes
 // the access; an offer to the applicant marks the application `invited`.
@@ -28,7 +28,7 @@ import {
 import { createInvitation } from '$lib/server/invitations/send';
 import { recommendVacancies } from '$lib/server/matching/recommendations';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
-import { createExternalVacancy, createOwnVacancy, offerTerms } from '../helpers/factories';
+import { createOwnVacancy, offerTerms } from '../helpers/factories';
 import {
 	DAY,
 	contactWorld,
@@ -72,18 +72,17 @@ const apply = (candidate: Awaited<ReturnType<typeof person>>, vacancyId: string,
 	});
 
 describe('the showcase of the platform', () => {
-	it('holds only the own vacancies of the companies of the platform', async () => {
+	it('holds only the published vacancies of the companies of the platform', async () => {
 		const company = await employer(database.db);
-		const own = await vacancyOf(company);
-		const external = await createExternalVacancy(database.db, world.taxonomyVersionId);
+		const published = await vacancyOf(company);
+		const paused = await vacancyOf(company, { status: 'paused' });
 		const candidate = await person(database.db, world, { category: { specialization: 'backend', grade: 'middle' } });
-		const page = await recommendVacancies({ db: database.db }, candidate.subject, { origin: 'own' });
+		const page = await recommendVacancies({ db: database.db }, candidate.subject, {});
 		const ids = page.items.map((item) => item.vacancyId);
-		expect(ids).toContain(own.id);
-		expect(ids).not.toContain(external.id);
-		expect(page.items.every((item) => item.origin === 'own')).toBe(true);
-		// An application to an external vacancy is not a thing: «not found».
-		expect((await refusal(apply(candidate, external.id))).code).toBe('not_found');
+		expect(ids).toContain(published.id);
+		expect(ids).not.toContain(paused.id);
+		// A vacancy out of the showcase takes no application.
+		expect((await refusal(apply(candidate, paused.id))).code).toBe('conflict');
 	});
 
 	it('does not show a vacancy of another demo session, nor take an application to it', async () => {
@@ -99,7 +98,7 @@ describe('the showcase of the platform', () => {
 		const sessionCompany = await employer(database.db, { demoSessionId: session.id });
 		const foreign = await vacancyOf(sessionCompany);
 		const candidate = await person(database.db, world, {});
-		const page = await recommendVacancies({ db: database.db }, candidate.subject, { origin: 'own' });
+		const page = await recommendVacancies({ db: database.db }, candidate.subject, {});
 		expect(page.items.map((item) => item.vacancyId)).not.toContain(foreign.id);
 		expect((await refusal(apply(candidate, foreign.id))).code).toBe('not_found');
 	});

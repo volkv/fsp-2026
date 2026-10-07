@@ -1,4 +1,4 @@
-// Linking Telegram, the bot webhook and the notification settings (docs/domain.md 3.7, contracts 8.2).
+// Linking Telegram, the bot webhook and the notification settings (docs/domain.md 3.7, contracts 7.2).
 import { and, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { sha256Hex } from '$lib/server/auth/secrets';

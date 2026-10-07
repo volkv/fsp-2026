@@ -1,6 +1,6 @@
 // `GET /api/v1/verify/{handle}` (contracts 5.5; domain 9.6): anyone checks a receipt without signing in and learns what
 // was verified, with which source and when — never who the person is. `GET /api/v1/verify/categories/{handle}` and
-// `POST …/holder` (contracts 10.3; domain 12.9) check a confirmation of a category the same way, and whether it belongs
+// `POST …/holder` (contracts 9.3; domain 12.9) check a confirmation of a category the same way, and whether it belongs
 // to the person presenting it. The rate of requests per address is limited by
 // the hooks (`receipt.verify` is enumerable).
 import { z } from 'zod';

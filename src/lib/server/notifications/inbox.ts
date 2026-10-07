@@ -197,8 +197,8 @@ async function targetOf(
 			const [vacancy] = await db
 				.select({ companyId: vacancies.companyId })
 				.from(vacancies)
-				.where(and(eq(vacancies.id, objectId), eq(vacancies.origin, 'own')));
-			return vacancy && vacancy.companyId !== null && (await isActiveMember(db, vacancy.companyId, userId))
+				.where(eq(vacancies.id, objectId));
+			return vacancy && (await isActiveMember(db, vacancy.companyId, userId))
 				? { kind: 'company_vacancy', vacancyId: objectId }
 				: { kind: 'unavailable' };
 		}

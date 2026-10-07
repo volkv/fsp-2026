@@ -237,7 +237,7 @@ export async function revokeCatalogVisibility(
 	});
 }
 
-/** The consent to notifications in Telegram: the ground of linking the bot (contracts 8.2). */
+/** The consent to notifications in Telegram: the ground of linking the bot (contracts 7.2). */
 export async function grantTelegramConsent(
 	db: Database,
 	subject: AccessSubject,

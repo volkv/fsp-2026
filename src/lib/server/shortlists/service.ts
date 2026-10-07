@@ -339,7 +339,7 @@ export interface ShortlistView {
 	marked: MarkedCandidate[];
 	/** The range of the need against the cohorts of the categories; `null` — the need states no range. */
 	salary: SalaryAnswer[] | null;
-	/** Candidates without FSP results in the top ten against their share in the whole result (contracts 11.2). */
+	/** Candidates without FSP results in the top ten against their share in the whole result (contracts 10.2). */
 	exposure: { top: ExposureShare; pool: ExposureShare };
 	mode: SearchMode;
 	coverage: ShortlistCoverage;
@@ -650,7 +650,7 @@ export async function markCandidate(
 	}
 	await ownShortlist(deps.db, member.companyId, shortlistId);
 	const found = await findInCatalog(deps, subject, pseudonym, undefined);
-	// A candidate the company does not see is not known to it (contracts 10.2).
+	// A candidate the company does not see is not known to it (contracts 9.2).
 	if (!found) throw new ApiError('not_found');
 	const now = deps.now();
 	return deps.db.transaction(async (tx) => {

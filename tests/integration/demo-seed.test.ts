@@ -30,8 +30,7 @@ import {
 	representations,
 	sourceFacts,
 	users,
-	vacancies,
-	vacancyPostings
+	vacancies
 } from '$lib/server/db/schema';
 import { resetDemo } from '$lib/server/demo/reset';
 import { batchId, releasedBanks, seedDemo, type SeedSummary } from '$lib/server/demo/seed';
@@ -175,7 +174,6 @@ async function census() {
 		'companies',
 		'company_members',
 		'vacancies',
-		'vacancy_postings',
 		'athlete_links',
 		'source_facts',
 		'claims',
@@ -312,10 +310,10 @@ describe('demo seed', () => {
 			batchId(await readSeedData(path('seeds')), services.settings, await releasedBanks(services))
 		);
 		expect(first.counts.candidates).toBe(40);
-		expect(first.counts.vacancies).toBeGreaterThanOrEqual(25);
+		expect(first.counts.vacancies).toBeGreaterThanOrEqual(30);
 
-		// Every seeded account, profile, company, vacancy and posting carries the batch.
-		for (const table of [users, candidates, companies, vacancies, vacancyPostings]) {
+		// Every seeded account, profile, company and vacancy carries the batch.
+		for (const table of [users, candidates, companies, vacancies]) {
 			const unlabelled = await db
 				.select({ n: sql<number>`count(*)::int` })
 				.from(table)
@@ -402,7 +400,7 @@ describe('demo seed', () => {
 			poolConsents.map((grant) => grant.candidateId).sort()
 		);
 
-		// The internship from 16 of the main employer and the external listing with duplicates clustered.
+		// The internship from 16 of the main employer.
 		// The internship refers to the main employer's acceptance of the terms of work with minors.
 		const [internship] = await db
 			.select({
@@ -422,10 +420,6 @@ describe('demo seed', () => {
 			join companies c on c.id = a.company_id
 			where a.id = ${internship?.acceptance ?? null}`;
 		expect(minorTerms).toEqual({ kind: 'minor_employment_terms', companyId: internship?.companyId, referred: true });
-		const [clustered] = await db.execute<{ n: number }>(
-			sql`select count(*)::int as n from (select vacancy_id from vacancy_postings group by vacancy_id having count(*) > 1) c`
-		);
-		expect(clustered?.n).toBeGreaterThan(0);
 
 		// The heroes' resumes are real PDF and DOCX files: parsed by docparse with their layout, read by the product's
 		// extraction with a quote behind every claim. The heroes go to the model adapter — without a configured model it

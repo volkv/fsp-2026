@@ -7,7 +7,6 @@
 	import { candidateMatchView } from '$lib/components/candidate/match.js';
 	import { gradeName, SEARCH_STATUSES, skillName, type SearchStatus } from '$lib/components/candidate/model.js';
 	import SectionCard from '$lib/components/candidate/section-card.svelte';
-	import VacancySource from '$lib/components/candidate/vacancy-source.svelte';
 	import NativeSelect from '$lib/components/employer/native-select.svelte';
 	import CsrfInput from '$lib/components/forms/csrf-input.svelte';
 	import FormMessage from '$lib/components/forms/form-message.svelte';
@@ -44,9 +43,7 @@
 	}
 
 	const search = $derived(data.search);
-	const filtered = $derived(
-		search.text !== '' || search.origin !== null || search.roleKey !== null || search.workFormats.length > 0
-	);
+	const filtered = $derived(search.text !== '' || search.roleKey !== null || search.workFormats.length > 0);
 	const roleOptions = $derived(Object.entries(labels.roles).sort(([, a], [, b]) => a.localeCompare(b, 'ru')));
 	const formatOptions = $derived(Object.entries(labels.workFormats));
 
@@ -54,7 +51,6 @@
 	function searchQuery(cursor: string | null): string {
 		const pairs: [string, string][] = [];
 		if (search.text !== '') pairs.push(['q', search.text]);
-		if (search.origin !== null) pairs.push(['origin', search.origin]);
 		if (search.roleKey !== null) pairs.push(['role', search.roleKey]);
 		for (const format of search.workFormats) pairs.push(['format', format]);
 		if (cursor !== null) pairs.push(['cursor', cursor]);
@@ -63,15 +59,14 @@
 
 	const searchId = $props.id();
 
-	function gradeRange(min: string | null, max: string | null): string | null {
-		if (min === null || max === null) return null;
+	function gradeRange(min: string, max: string): string {
 		return min === max ? gradeName(labels, min) : `${gradeName(labels, min)} – ${gradeName(labels, max)}`;
 	}
 </script>
 
 <PageHeader
 	title="Вакансии для тебя"
-	description="Ты видишь вакансии и своё соответствие им. Обычно контакт начинает работодатель — сразу с зарплатой и сроком ответа; на вакансию компании платформы можно откликнуться и самому, с тем же соответствием."
+	description="Ты видишь вакансии и своё соответствие им. Обычно контакт начинает работодатель — сразу с зарплатой и сроком ответа; на вакансию можно откликнуться и самому, с тем же соответствием."
 >
 	{#snippet eyebrow()}<a class="underline underline-offset-4" href={resolve('/me/profile')}>Профиль</a>{/snippet}
 	{#snippet actions()}
@@ -131,7 +126,7 @@
 
 <form
 	method="GET"
-	class="grid gap-4 rounded-xl border bg-card p-4 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]"
+	class="grid gap-4 rounded-xl border bg-card p-4 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]"
 	aria-label="Поиск вакансий"
 	data-testid="vacancy-search"
 	data-sveltekit-keepfocus
@@ -139,14 +134,6 @@
 	<Field.Field>
 		<Field.Label for="{searchId}-q">Название, навыки, компания</Field.Label>
 		<Input id="{searchId}-q" name="q" type="search" value={search.text} placeholder="Например: Go, Kubernetes" />
-	</Field.Field>
-	<Field.Field>
-		<Field.Label for="{searchId}-origin">Откуда вакансия</Field.Label>
-		<NativeSelect id="{searchId}-origin" name="origin" value={search.origin ?? ''}>
-			<option value="">Все</option>
-			<option value="own">Проверенные компании платформы</option>
-			<option value="external">Хабр Карьера и «Работа России»</option>
-		</NativeSelect>
 	</Field.Field>
 	<Field.Field>
 		<Field.Label for="{searchId}-role">Роль</Field.Label>
@@ -194,7 +181,7 @@
 				<Empty.Description>Измените запрос или фильтры.</Empty.Description>
 			{:else}
 				<Empty.Title>Подходящих открытых вакансий сейчас нет</Empty.Title>
-				<Empty.Description>Список обновляется по мере публикации и импорта вакансий.</Empty.Description>
+				<Empty.Description>Список обновляется по мере публикации вакансий.</Empty.Description>
 			{/if}
 		</Empty.Header>
 	</Empty.Root>
@@ -207,11 +194,9 @@
 					<div class="grid gap-1">
 						<h2 class="font-heading text-h3">{item.title}</h2>
 						<p class="text-sm text-muted-foreground">
-							{item.organization ?? 'Организация не указана'}{item.companyVerification === 'verified'
+							{item.company}{item.companyVerification === 'verified'
 								? ' · компания проверена'
-								: item.companyVerification === 'unverified'
-									? ' · компания не проверена'
-									: ''}
+								: ' · компания не проверена'}
 						</p>
 					</div>
 					<p class="text-right">
@@ -219,13 +204,10 @@
 						<span class="block text-xs text-muted-foreground">соответствие</span>
 					</p>
 				</div>
-				{#if item.origin === 'external'}
-					<VacancySource postings={item.sources} />
-				{/if}
 				<div class="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
 					<SalaryRange salary={salaryOf(item.salary)} />
-					<span>Грейд: {grade ?? 'не указан'}</span>
-					{#if item.workFormat}<span>{labels.workFormats[item.workFormat] ?? item.workFormat}</span>{/if}
+					<span>Грейд: {grade}</span>
+					<span>{labels.workFormats[item.workFormat] ?? item.workFormat}</span>
 				</div>
 				{#if item.requiredSkillKeys.length > 0}
 					<p class="text-sm">
@@ -233,13 +215,11 @@
 						{item.requiredSkillKeys.map((key) => skillName(labels, key)).join(', ')}
 					</p>
 				{/if}
-				{#if item.origin === 'own'}
-					<a
-						class="justify-self-start text-sm text-link underline underline-offset-4"
-						href={resolve('/(app)/me/vacancies/[id]', { id: item.vacancyId })}
-						data-testid="vacancy-apply">Вакансия и отклик</a
-					>
-				{/if}
+				<a
+					class="justify-self-start text-sm text-link underline underline-offset-4"
+					href={resolve('/(app)/me/vacancies/[id]', { id: item.vacancyId })}
+					data-testid="vacancy-apply">Вакансия и отклик</a
+				>
 				{#if item.invitation}
 					<p class="flex flex-wrap items-center gap-2 text-sm">
 						<InvitationStatus status={item.invitation.status} />

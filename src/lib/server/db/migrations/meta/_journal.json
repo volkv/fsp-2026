@@ -239,6 +239,13 @@
       "when": 1791238503730,
       "tag": "0033_trust_and_events",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1791381048724,
+      "tag": "0034_drop_vacancy_aggregator",
+      "breakpoints": true
     }
   ]
 }

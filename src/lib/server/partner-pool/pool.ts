@@ -289,13 +289,7 @@ export async function poolOffers(
 	const rows = await executor
 		.select()
 		.from(vacancies)
-		.where(
-			and(
-				eq(vacancies.origin, 'own'),
-				eq(vacancies.companyId, viewer.viewer.companyId),
-				inArray(vacancies.status, ['published'])
-			)
-		);
+		.where(and(eq(vacancies.companyId, viewer.viewer.companyId), inArray(vacancies.status, ['published'])));
 	for (const vacancy of rows) {
 		const invitability = await loadInvitability(executor, vacancy.id);
 		if (!invitability?.invitable) continue;
@@ -304,7 +298,6 @@ export async function poolOffers(
 			vacancy: {
 				id: vacancy.id,
 				companyId: vacancy.companyId,
-				origin: vacancy.origin,
 				status: vacancy.status,
 				minAge: vacancy.minAge
 			}

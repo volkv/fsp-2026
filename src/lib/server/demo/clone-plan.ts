@@ -65,7 +65,6 @@ export const DEMO_CLONE_PLAN: Readonly<Record<string, TableDecision>> = {
 	pd_operators: reference,
 	legal_documents: reference,
 	product_policies: reference,
-	vacancy_sources: reference,
 	bank_releases: reference,
 	embedding_spaces: reference,
 	search_settings: reference,
@@ -78,8 +77,6 @@ export const DEMO_CLONE_PLAN: Readonly<Record<string, TableDecision>> = {
 	erasure_ledger: { kind: 'shared', why: 'the ledger of removed accounts outlives them' },
 	inbound_events: { kind: 'shared', why: 'deliveries of the integrations, nobody’s own' },
 	market_snapshots: { kind: 'shared', why: 'aggregates of the whole stand' },
-	unknown_skill_mentions: { kind: 'shared', why: 'counters of the taxonomy review, no person in them' },
-	vacancy_import_runs: { kind: 'shared', why: 'runs of the external sources' },
 	legal_representatives: {
 		kind: 'shared',
 		why: 'the person of a representative; the clone’s representation names the same person'
@@ -274,30 +271,9 @@ export const DEMO_CLONE_PLAN: Readonly<Record<string, TableDecision>> = {
 		edges: {
 			company_id: 'owner',
 			created_by_member_id: 'owner',
-			// A company of a session records neither on the shared external vacancy (its claim and its own vacancy do).
-			claimed_company_id: 'mention',
-			derived_from_vacancy_id: 'owner',
-			superseded_by_vacancy_id: 'mention',
 			taxonomy_version_id: 'reference',
 			minor_terms_acceptance_id: 'owner',
 			draft_ml_result_id: 'detach'
-		}
-	},
-	vacancy_postings: {
-		kind: 'owned',
-		copy: false,
-		edges: { vacancy_id: 'owner', source: 'reference', last_import_run_id: 'reference' },
-		why: 'a listing of an external source is one per source and external id'
-	},
-	vacancy_claims: {
-		kind: 'owned',
-		copy: true,
-		edges: {
-			vacancy_id: 'owner',
-			company_id: 'owner',
-			requested_by_user_id: 'mention',
-			decided_by: 'mention',
-			demo_session_id: 'reference'
 		}
 	},
 	match_scores: {

@@ -640,7 +640,7 @@ function checkSource(source: string): void {
 	}
 }
 
-/** Answers the current cluster of an attempt (contracts 10.1). */
+/** Answers the current cluster of an attempt (contracts 9.1). */
 export async function answerItemIn(
 	tx: Transaction,
 	deps: EngineDeps,
@@ -790,7 +790,7 @@ export async function itemFamily(executor: Executor, attempt: AttemptRow, item: 
 
 // --- Entry points of a request -----------------------------------------------------------------------------------
 
-/** The candidate starts a test of a grade (contracts 10.1, `POST /me/tests`). */
+/** The candidate starts a test of a grade (contracts 9.1, `POST /me/tests`). */
 export async function startAttempt(
 	database: Database,
 	deps: EngineDeps,

@@ -12,13 +12,12 @@
 4. [Сервис разбора файлов `docparse`](#4-сервис-разбора-файлов-docparse)
 5. [Публичный API приложения](#5-публичный-api-приложения)
 6. [Песочница исполнения кода](#6-песочница-исполнения-кода)
-7. [Адаптер источника вакансий](#7-адаптер-источника-вакансий)
-8. [Каналы уведомлений](#8-каналы-уведомлений)
-9. [Контрпримеры по контрактам](#9-контрпримеры-по-контрактам)
-10. [API теста, категории и контакта](#10-api-теста-категории-и-контакта)
-11. [Режим оценки жюри и эталон подбора](#11-режим-оценки-жюри-и-эталон-подбора)
-12. [Нагрузка](#12-нагрузка)
-13. [Исходящие события компании и адаптер Хантфлоу](#13-исходящие-события-компании-и-адаптер-хантфлоу)
+7. [Каналы уведомлений](#7-каналы-уведомлений)
+8. [Контрпримеры по контрактам](#8-контрпримеры-по-контрактам)
+9. [API теста, категории и контакта](#9-api-теста-категории-и-контакта)
+10. [Режим оценки жюри и эталон подбора](#10-режим-оценки-жюри-и-эталон-подбора)
+11. [Нагрузка](#11-нагрузка)
+12. [Исходящие события компании и адаптер Хантфлоу](#12-исходящие-события-компании-и-адаптер-хантфлоу)
 
 ---
 
@@ -1209,7 +1208,7 @@ interface ParseResponse {
 | 404 | `not_found` | объекта нет **или** актор не вправе знать о нём (в том числе отказ `canShow`) |
 | 409 | `conflict` | нарушение перехода состояния (ответ на истёкшее приглашение, ответ на заменённую версию условий — в `details` отличия); тест недоступен по политике грейда — `details[].code` из `BlockReason` (`retake_interval`, `grade_change_interval`, `attempt_limit`, `attempt_in_progress`, `lower_requires_failure`, `above_declared`, `above_next_grade`, `already_confirmed`, `below_confirmed`, `not_declared`) и `available_from` (domain 12.3); `bank_capacity_exhausted` — у банка нет невиденных классов для блока запроса подтверждения |
 | 409 | `idempotency_conflict` | повтор ключа идемпотентности с другим телом |
-| 422 | `policy_violation` | нарушение продуктовой политики; `details[].code`: `vacancy_not_invitable` (внешняя вакансия, неполная вилка, неизвестная налоговая база), `salary_not_rub`, `salary_below_vacancy`, `reopen_cooldown`, `minor_age_mismatch`, `scope_fields_minor`, `company_profile_incomplete`, `text_blocked`, `specialization_closed`, `qa_budget_too_small`, `qa_budget_exceeded`, `confirmation_block_confirmed` (определяющий блок категории), `block_not_testable` (пара «блок × грейд» без блок-теста, domain 13.11), `application_adult_only` (отклик — с 18 лет, domain 13.13) |
+| 422 | `policy_violation` | нарушение продуктовой политики; `details[].code`: `vacancy_not_invitable` (вакансия не опубликована, неполная вилка, неизвестная налоговая база), `salary_not_rub`, `salary_below_vacancy`, `reopen_cooldown`, `minor_age_mismatch`, `scope_fields_minor`, `company_profile_incomplete`, `text_blocked`, `specialization_closed`, `qa_budget_too_small`, `qa_budget_exceeded`, `confirmation_block_confirmed` (определяющий блок категории), `block_not_testable` (пара «блок × грейд» без блок-теста, domain 13.11), `application_adult_only` (отклик — с 18 лет, domain 13.13) |
 | 429 | `rate_limited` | с `Retry-After` |
 | 503 | `degraded` | зависимость недоступна, а безопасного режима у операции нет |
 
@@ -1252,9 +1251,7 @@ interface ParseResponse {
 | `POST /api/v1/vacancies`, `PATCH /api/v1/vacancies/{id}` | владелец, рекрутер | собственная вакансия; ответ содержит результат проверки текста. Заблокированный текст уводит опубликованную или приостановленную вакансию на модерацию (`status = pending_moderation`), если оператор не допускал те же блокирующие фрагменты; правка вакансии на модерации, прошедшая проверку, сразу возвращает её в каталог или в паузу (`draft`, если компания не проверена), заблокированная — оставляет у оператора с новыми фрагментами (domain 13.1) |
 | `POST /api/v1/vacancies/{id}/publish` | владелец, рекрутер | `draft → published`; заблокированный текст — `pending_moderation` вместо каталога |
 | `POST /api/v1/vacancies/drafts/from-text` | владелец, рекрутер | `{ text }` → черновик с предложенными полями, категорией, счётчиком пула и положением вилки относительно рынка |
-| `GET /api/v1/vacancies`, `GET /api/v1/vacancies/{id}` | все | общий поиск вакансий (опубликованных собственных и внешних): происхождение, публикации с источниками, дата проверки актуальности, «не указано» для неизвестных полей, счётчик пула |
-| `POST /api/v1/vacancies/{id}/claims` | пользователь-работодатель | «это наша вакансия» → заявка (domain 13.3) |
-| `POST /api/v1/vacancies/{id}/claims/{claim_id}/withdrawal` | заявитель (`vacancy_claim.create`, сессия) | отзыв открытой заявки (`awaiting_company_verification` \| `pending_review` → `withdrawn`) тем же правом, что и подача; `204`; рассмотренная или уже отозванная — `422 policy_violation` (`claim_not_open`); заявка другой компании или другой вакансии — `404` |
+| `GET /api/v1/vacancies`, `GET /api/v1/vacancies/{id}` | все | общий поиск опубликованных вакансий компаний платформы со счётчиком пула; вакансия в любом статусе — участникам её компании |
 | `GET /api/v1/me/matches` | кандидат | своё соответствие вакансиям с разложением, пробелами и «что подтянуть» |
 | `POST /api/v1/invitations` | владелец, рекрутер | предложение (domain 13.5): `{ candidate_pseudonym, title, description, salary_min, salary_max, salary_currency: "RUB", salary_tax_base: gross \| net, work_format, contact_method: {kind, value, note?}, why_you: [{text, source}], vacancy_id?, need_id?, message? }`; `201` с версией условий; повтор при открытом предложении той же компании этому кандидату — `409 conflict` (`offer_open`) со ссылкой на него |
 | `POST /api/v1/invitations/{id}/terms` | владелец, рекрутер | пересмотр или возобновление: новая версия условий; ответ содержит отличия от предыдущей |
@@ -1274,13 +1271,13 @@ interface ParseResponse {
 | `GET /api/v1/me/data` | кандидат (сессия) | «Мои данные»: выгрузка всего, что платформа хранит о кандидате, тем же документом, что скачивается со страницы `/me/export` (`fsp-career-data-export/v4`, domain 19.2); каждая выгрузка — событие `data.exported` с каналом `api` |
 | `PUT /api/v1/me/catalog-scope` | кандидат 18+ | `{ scope_fields }` — точные достижения, профили и зарплатные ожидания (`salary_expectations`, domain 13.10) в каталоге; новое событие `catalog_visibility` |
 | `POST /api/v1/me/tests/decisions/{decision_id}/objections` | кандидат (сессия) | возражение против результата теста (domain 12.5) |
-| `POST /api/v1/me/notification-channels/telegram` | любой пользователь | ссылка привязки бота (раздел 8.2) |
+| `POST /api/v1/me/notification-channels/telegram` | любой пользователь | ссылка привязки бота (раздел 7.2) |
 | `GET /api/v1/company/trust` | член компании (сессия или ключ) | факты доверия к своей компании (domain 5.6) |
 | `POST`, `GET /api/v1/invitations/{id}/complaint` | кандидат (сессия) | жалоба на предложение `{reason_code, text}` и её статус (domain 13.14) |
 | `GET /api/v1/operator/complaints`, `GET …/{complaint_id}`, `POST …/{complaint_id}/decision` | оператор (`complaint.review`, сессия) | очередь, дело, решение `{decision: no_action \| warning \| suspension, resolution}` |
-| `/api/v1/companies/{company_id}/event-subscriptions` (`GET`, `POST`), `…/huntflow`, `…/{id}` (`PATCH`, `DELETE`), `…/{id}/secret`, `…/{id}/ping`, `…/{id}/deliveries` | владелец (`company.events.manage`, сессия) | исходящие события, раздел 13 |
+| `/api/v1/companies/{company_id}/event-subscriptions` (`GET`, `POST`), `…/huntflow`, `…/{id}` (`PATCH`, `DELETE`), `…/{id}/secret`, `…/{id}/ping`, `…/{id}/deliveries` | владелец (`company.events.manage`, сессия) | исходящие события, раздел 12 |
 | `POST /api/v1/integrations/fsp/webhooks` | ФСП (подпись) | раздел 1.5 |
-| `POST /api/v1/integrations/telegram/webhook` | Telegram (секрет) | раздел 8.2 |
+| `POST /api/v1/integrations/telegram/webhook` | Telegram (секрет) | раздел 7.2 |
 
 **Компоненты `role` и `trust`** (`match.components` в ответах `matches`, `matches/{pseudonym}`, `me/matches`, а также поля `role` и
 `trust` у каждого кандидата в `GET /api/v1/catalog/comparison`; domain 13.4): `components.role.details` — `{vacancy_specialization,
@@ -1314,10 +1311,7 @@ public_profile, confirmed_coverage, grade_agreement: number|null, grade_agreemen
 - `/operator/assessments`, `/operator/assessments/{attempt_id}` — попытки тестов на пересмотр и дело попытки со всеми артефактами
   (право `assessment.review`); открытие — `operator.case_access` (`case_type = assessment`) и `assessment.artifact_viewed`.
   Кабинет оператора целиком — `cache-control: private, no-store`; вне досягаемости персонала (domain 19.3) дело — `404`.
-- `/company/vacancies/external` — поиск внешних вакансий (`origin=external`) со счётчиком пула; `?/claim` подаёт заявку «это наша
-  вакансия» по тем же правилам, что `POST /api/v1/vacancies/{id}/claims` (domain 13.3): компания проверена → `pending_review`, не
-  проверена → `awaiting_company_verification`; компания `rejected` или `suspended` — `403`.
-- `/me/vacancies?q=&origin=own|external&role=&format=&cursor=` — вакансии кандидата по происхождению; неизвестный `origin` — `400`.
+- `/me/vacancies?q=&role=&format=&cursor=` — вакансии кандидата по словам, роли и формату работы, с соответствием.
 - `/me/profile` — профиль кандидата (domain 7.1): форма ФИО, контактов, желаемой должности и мягких навыков; под ней — что нашёл разбор
   текущего резюме для этих полей, с цитатой (клик открывает текст резюме на этих словах) и решением «принять / отклонить»; опыт,
   указанный вручную; PDF-профиль: выбор контактов на странице и подтверждения категорий со статусом и кодом владельца.
@@ -1528,83 +1522,7 @@ U+FFFD. Сравнение, `stdoutPreview` и `stdoutSha256` считаются
 
 ---
 
-## 7. Адаптер источника вакансий
-
-Один интерфейс для всех внешних источников (кандидаты — Хабр Карьера, getmatch, GeekJob, «Работа России»). Какие поля отдаёт
-конкретный источник, его условия использования и лимиты — отдельный ресерч; контракт фиксирует только общую форму. Нормализацию
-к таксономии, склейку дублей и запись публикаций выполняет приложение (domain 13.2), а не адаптер.
-
-### 7.1. Интерфейс
-
-```ts
-interface VacancySource {
-  readonly source: string;                     // vacancy_sources.key
-  readonly adapterVersion: string;
-  /** Что покрывает `full`: `snapshot` — все живые публикации области импорта (отсутствие в полном списке = снятие);
-   *  `recent_window` — только свежие (лента), отсутствие ничего не доказывает, снятие — только через `get`. */
-  readonly listing: 'snapshot' | 'recent_window';
-
-  /** Страница публикаций; адаптер соблюдает лимиты источника. */
-  list(input: { mode: 'full' | 'incremental'; since?: string; cursor?: string }): Promise<Result<{
-    items: SourcePosting[];
-    nextCursor: string | null;                 // null — последняя страница
-    sourceVersion: string | null;              // версия выдачи, если источник её сообщает
-    declaredTotal: number | null;
-  }, 'unavailable' | 'rate_limited' | 'forbidden' | 'protocol_error'>>;
-
-  /** Проверка актуальности одной публикации. */
-  get(externalId: string): Promise<Result<SourcePosting | { gone: true },
-    'unavailable' | 'rate_limited' | 'forbidden' | 'protocol_error'>>;
-}
-
-interface SourcePosting {
-  externalId: string;
-  url: string;
-  title: string;
-  organization: { name: string; inn: string | null; sourceOrgId: string | null };
-  publishedAt: string | null;
-  updatedAt: string | null;
-  salary: {
-    min: number | null; max: number | null;
-    currency: string | null;                   // ISO 4217
-    period: 'month' | 'year' | 'hour' | 'project' | null;
-    taxBase: 'gross' | 'net' | null;           // null — источник не указывает
-    rawText: string | null;
-  };
-  grade: { raw: string } | null;
-  location: { city: string | null; remote: boolean | null; raw: string | null };
-  employment: { raw: string } | null;
-  skillsRaw: string[];
-  description: string | null;                  // только если terms.store_description источника разрешает
-  contactsRemoved: boolean;                    // в description найдены и вырезаны контакты
-  rawSha256: string;                           // хэш записи источника до отбора полей
-}
-```
-
-### 7.2. Правила
-
-- **Белый список полей.** Схема `SourcePosting` не содержит полей для контактов людей. Адаптер не переносит ФИО, почту, телефоны,
-  мессенджеры и ссылки на личные профили; в `description` (если хранится) такие фрагменты вырезаются до возврата, признак
-  `contactsRemoved` адаптера ложится в `original_terms.contacts_removed`. Тест схемы сверяет свойства со словарём запрещённых имён, как в domain 8.
-- **Неизвестное остаётся неизвестным.** Нет зарплаты — `min` и `max` `null`; нет налоговой базы — `taxBase: null` (в модели —
-  `unknown`); грейд без явного указания — `null`. Адаптер не угадывает.
-- **Полнота.** Импорт `full` считается полным, только если `list` дошёл до `nextCursor = null` без ошибок и `sourceVersion` не менялся
-  между страницами. Иначе `completeness = partial`, и отсутствующие публикации не снимаются (domain 13.2). `incremental` снятий не
-  порождает никогда; снятие — по полному `full` источника с `listing: 'snapshot'` или по `get → { gone: true }`. У источника
-  `recent_window` (лента Хабр Карьеры) отсутствие в списке не снимает публикацию никогда.
-- **Идемпотентность.** Повтор страницы или записи с тем же `rawSha256` не меняет публикацию, кроме `last_fetched_at`.
-- **Вежливость к источнику.** Адаптер представляется собственным User-Agent платформы, соблюдает лимиты и `Retry-After`, а при
-  `forbidden` (отказ по правам или условиям) источник выключается до решения администратора.
-
-| Код | `retryable` | Действие задания |
-|---|---|---|
-| `unavailable`, `rate_limited` | да | повтор с паузой; `Retry-After` учитывается |
-| `forbidden` | нет | импорт или проверка остановлены, `vacancy_sources.enabled = false`, в журнал — `vacancy_source.disabled` (вместо `vacancies.import_completed`) |
-| `protocol_error` | нет | импорт `failed`, полнота `partial`; администратору — ошибка контракта |
-
----
-
-## 8. Каналы уведомлений
+## 7. Каналы уведомлений
 
 Модель уведомлений и доставок — domain 3.7. Каналы — адаптеры одного интерфейса; пустая настройка канала означает `disabled`, и
 доставки по нему получают `skipped (channel_inactive)`.
@@ -1621,7 +1539,7 @@ interface NotificationChannel {
 }
 ```
 
-### 8.1. Почта
+### 7.1. Почта
 
 `SMTP_URL`, `MAIL_FROM`; в разработке и на демо — Mailpit. Шаблоны — по типу уведомления; в письмах категорий кроме `account` —
 ссылка на настройки уведомлений. Временная ошибка SMTP (4xx) — `unavailable`, повтор; постоянная (5xx) — `rejected`, доставка `failed`.
@@ -1638,7 +1556,7 @@ interface NotificationChannel {
 `representation.consents_revoked` `{ representation_id, catalog_visibility, fsp_import }` (ссылка — `/me/consents`). Отзыв
 представителем согласия на обработку уведомлением не сообщается: профиль удаляется, и письмо кандидату уходит прямо через почту.
 
-### 8.2. Telegram-бот
+### 7.2. Telegram-бот
 
 | Переменная | Смысл |
 |---|---|
@@ -1659,7 +1577,7 @@ interface NotificationChannel {
 
 ---
 
-## 9. Контрпримеры по контрактам
+## 8. Контрпримеры по контрактам
 
 | Сценарий | Ожидаемое поведение | Где закрыто |
 |---|---|---|
@@ -1707,25 +1625,21 @@ interface NotificationChannel {
 | Программа кандидата открывает сетевое соединение | соединение невозможно (нет интерфейсов, кроме `lo`); вердикт по фактическому поведению программы | 6.3 |
 | Песочница упала на одном тесте | `sandbox_error`, повтор, затем попытка без оценки и задача оператору — не `wrong_answer` | 6.2, 6.4 |
 | Кандидат пытается увидеть вход и эталон скрытого теста | видны только вердикт и число пройденных | 6.1, 6.4 |
-| Импорт вакансий оборвался на середине | `partial`; публикации не снимаются | 7.2 |
-| Публикация без зарплаты и налоговой базы | `min`, `max`, `taxBase` — `null`; в модели «не указано» и `unknown` | 7.2, domain 13.1 |
-| В описании вакансии телефон и Telegram рекрутера | вырезаны до записи, признак `contacts_removed` | 7.2 |
-| Источник ответил отказом по правам | источник выключен до решения администратора | 7.2 |
-| Приглашение по внешней вакансии через API | `422 policy_violation (vacancy_not_invitable)` | 5.3, domain 13.1 |
+| Приглашение по неопубликованной вакансии через API | `422 policy_violation (vacancy_not_invitable)` | 5.3, domain 13.1 |
 | Ответ кандидата на версию условий, заменённую пересмотром | `409 conflict` с отличиями | 5.3, domain 13.5 |
 | Предложение в другой валюте или без обеих границ | `422 policy_violation (salary_not_rub)` / `400 validation_failed` | 5.3, domain 13.5 |
 | Проверка квитанции без входа | `200` с заявлением и подписью, без ПДн; подпись проверяется открытым ключом | 5.5, domain 9.6 |
-| Webhook Telegram без секрета или с чужим токеном привязки | `401` / канал не привязывается | 8.2 |
-| Бот заблокирован пользователем | `recipient_blocked`, канал `blocked_by_user`, почта и интерфейс продолжают работать | 8.2 |
+| Webhook Telegram без секрета или с чужим токеном привязки | `401` / канал не привязывается | 7.2 |
+| Бот заблокирован пользователем | `recipient_blocked`, канал `blocked_by_user`, почта и интерфейс продолжают работать | 7.2 |
 
 ---
 
-## 10. API теста, категории и контакта
+## 9. API теста, категории и контакта
 
 Новые методы — сразу в `/api/v1` со схемами Zod и описанием в OpenAPI (5.1); у каждой операции — перечень кодов ошибок из 5.3. Кандидат —
 сессия; работодатель — сессия или ключ API (кроме отмеченных); тела и ответы — `snake_case`. Ниже — состав и смысл; поля — по domain.
 
-### 10.1. Кандидат: опрос, заявление, политика, тест
+### 9.1. Кандидат: опрос, заявление, политика, тест
 
 | Метод и путь | Смысл | Ошибки сверх общих |
 |---|---|---|
@@ -1749,10 +1663,10 @@ interface NotificationChannel {
 | `PUT /api/v1/me/block-confirmations/{id}/visibility` | `{visibility: requester \| all_companies}` — кому виден результат блок-теста | `404` чужой |
 | `GET /api/v1/me/challenges`, `POST /api/v1/me/challenges/{delivery_id}/viewed`, `POST …/solutions`, `DELETE …/solutions/{id}`, `POST …/dismissal` | доставленные вызовы, отметка «открыт» (свежесть не меняет), решение или подход (освежает профиль), отзыв решения (текст стирается), «не интересно» (domain 13.12) | `409 challenge_closed`; `409 already_submitted`; `404` чужая доставка |
 | `GET /api/v1/me/demand` | спрос на категорию по потребностям компаний: `{needs: {value} \| {below}, salary: {gross, net}, skills}` — агрегат с порогом `catalog_policy`, медиана и навыки — от порога | — |
-| `POST /api/v1/me/applications`, `GET /api/v1/me/applications`, `POST …/{id}/withdrawal` | отклик на вакансию витрины `{vacancy_id, message?, disclose_fields, disclosure_document_id}` со снимком соответствия и раскрытием выбранных контактов этой компании; мои отклики со статусами; отзыв (domain 13.14) | `404` не вакансия витрины (внешняя, чужой сессии); `409 vacancy_closed`, `already_applied`, `disclosure_document_changed`; `422 application_adult_only` |
+| `POST /api/v1/me/applications`, `GET /api/v1/me/applications`, `POST …/{id}/withdrawal` | отклик на вакансию витрины `{vacancy_id, message?, disclose_fields, disclosure_document_id}` со снимком соответствия и раскрытием выбранных контактов этой компании; мои отклики со статусами; отзыв (domain 13.14) | `404` не вакансия витрины (чужой сессии или несуществующая); `409 vacancy_closed`, `already_applied`, `disclosure_document_changed`; `422 application_adult_only` |
 | `POST /api/v1/demo/clock` | «промотать неделю» учётки демо-сессии: часы сессии +7 дней и прогон доставки вызовов её компаний (domain 13.12) | `403` учётка вне демо-сессий |
 
-### 10.2. Работодатель: профиль, потребность, подборка, предложение
+### 9.2. Работодатель: профиль, потребность, подборка, предложение
 
 | Метод и путь | Смысл | Ошибки сверх общих |
 |---|---|---|
@@ -1767,7 +1681,7 @@ interface NotificationChannel {
 | `POST /api/v1/shortlists/{id}/revisions` | уточнение `{change}` (поля запроса шага, `null` снимает необязательное) → `201 {revision, change: {поле: {from, to}}}`; отмеченные сохраняются с признаком «не проходит новое условие» | `400 no_change`; `409 shortlist_archived`; `422 specialization_closed` |
 | `PUT`, `DELETE /api/v1/shortlists/{id}/marks/{pseudonym}` | отметить `{note?}` (до 500 символов, видна только компании) / снять | `404` кандидат не виден (снять можно и недоступного — по тому же псевдониму) |
 | `GET /api/v1/shortlists/{id}/what-if?change=` | «что если» (domain 13.10), `change` — JSON одного условия: `{work_format}`, `{grade}`, `{confirmed_skill: {skill_key, required}}`, `{fsp_only}` — поимённо, кто вошёл и кто выпал, с причиной по карточке; `{salary: {min, max, tax_base}}` — только агрегат по фиксированной когорте категорий подборки (суточный снимок, интервалы политики каталога), не по отмеченным | `400 one_condition` — больше одного изменения; `400 invalid_json` |
-| `POST /api/v1/shortlists/{id}/evaluations` | «Оцените подбор» (11.2), только сессия: `{scope: confirmed_pool \| whole_catalog}` — первая десятка подборки и поиска по ключевым словам (на подтверждённом пуле — среди кандидатов тех же категорий и фильтров, и десятка подборки — только из подтверждённых; по всей базе — эксперимент, включая кандидатов без категории), смешанные чередованием и перемешанные → `201 {evaluation_id, cards: [{position, pseudonym}]}` без указания системы | `409 nothing_to_compare` |
+| `POST /api/v1/shortlists/{id}/evaluations` | «Оцените подбор» (10.2), только сессия: `{scope: confirmed_pool \| whole_catalog}` — первая десятка подборки и поиска по ключевым словам (на подтверждённом пуле — среди кандидатов тех же категорий и фильтров, и десятка подборки — только из подтверждённых; по всей базе — эксперимент, включая кандидатов без категории), смешанные чередованием и перемешанные → `201 {evaluation_id, cards: [{position, pseudonym}]}` без указания системы | `409 nothing_to_compare` |
 | `POST /api/v1/shortlists/{id}/evaluations/{evaluation_id}/judgement` | `{selected: [position]}` → `{selected, precision_at_10: {product, keywords}, preference: {product, keywords, winner}, without_fsp_top10, overlap}`; псевдонимы из оценки стираются | `409 already_judged`; `400` позиции не этой оценки |
 | `GET /api/v1/shortlists/{id}/evaluations` | сохранённые оценки подборки с `scope` и средние каждой части отдельно: `mean: {confirmed_pool, whole_catalog}` | — |
 | `POST /api/v1/invitations` (5.5), `POST /api/v1/invitations/{id}/terms` | предложение без вакансии и пересмотр: `{candidate_pseudonym, title, description, salary_min, salary_max, salary_currency: "RUB", salary_tax_base: gross \| net, work_format: office \| hybrid \| remote, contact_method: {kind, value, note?}, why_you: [{text, source: {kind, ref, receipt_handle?}}], vacancy_id?, need_id?, message?}`; источник `test_block` — код определяющего блока или практики действующей категории кандидата (пункт из подборки) (у `/terms` — без `candidate_pseudonym` и `need_id`); период не принимается — вилка помесячная. `POST /invitations` после закрытого предложения пары — возобновление той же линии. Ответ — предложение с профилем компании (`company: {…, verification}`) и версиями (`title`, `description`, `vacancy_id`, `vacancy`, `category`, `salary`, `work_format`, `contact_method`, `why_you`, `changes`) | `422 salary_not_rub`, `company_profile_incomplete`, `text_blocked`, `vacancy_not_invitable`, `salary_below_vacancy`, `reopen_cooldown`; `409 offer_open`, `reopen_limit`; `403 company_*`; `400` «почему вы» без источника, с блоком, не подтверждённым тестом действующей категории, `confirmation` — не подтверждённый действующий результат блок-теста, который компания видит, `challenge_solution` — не неотозванное решение вызова этой компании |
@@ -1776,7 +1690,7 @@ interface NotificationChannel {
 | `POST`, `GET /api/v1/challenges`, `GET`, `PATCH /api/v1/challenges/{id}`, `GET …/{id}/solutions`, `POST …/solutions/{solution_id}/dismissal` | вызов компании (черновик или сразу опубликован; у опубликованного меняется только `ends_at`, `status: closed` закрывает) и псевдонимные решения; пригласить из решения — `POST /invitations` с пунктом `{source: {kind: challenge_solution, ref}}` | `422 text_blocked`, `company_profile_incomplete`, `salary_not_rub`, `specialization_closed`; `409 challenge_published`, `challenge_closed` |
 | `GET /api/v1/applications`, `GET /api/v1/applications/{id}`, `POST …/{id}/rejection` | входящие отклики на свои вакансии по псевдонимам; отклик с контактами по нему, пока согласие действует (первое чтение — `viewed`); отказ. Пригласить — `POST /invitations`: открытые отклики пары станут `invited` (domain 13.14) | `404` чужой; `409` закрытый |
 
-### 10.3. Публичное и оператор
+### 9.3. Публичное и оператор
 
 | Метод и путь | Кто | Смысл |
 |---|---|---|
@@ -1787,9 +1701,9 @@ interface NotificationChannel {
 
 ---
 
-## 11. Режим оценки жюри и эталон подбора
+## 10. Режим оценки жюри и эталон подбора
 
-### 11.1. Режим оценки жюри: пакетная загрузка пар «вакансия — кандидат»
+### 10.1. Режим оценки жюри: пакетная загрузка пар «вакансия — кандидат»
 
 Жюри проверяет подбор на своих потребностях и своих кандидатах командой стенда оценки — без учётных записей, без засева и
 без доступа к базе приложения: каждый прогон идёт во временной базе рядом с базой приложения, мигрированной миграциями
@@ -1839,7 +1753,7 @@ interface JuryNeed {
   качеством продукта не смешивается.
 
 Рядом с каждой дорожкой — базовый вариант на тех же входах: **поиск по тому же тексту** (BM25 текста потребности по
-текстам резюме всех её кандидатов, 11.2).
+текстам резюме всех её кандидатов, 10.2).
 
 **Выход** (`tools/eval/out/jury/<время>/`): `results.json` — на потребность и дорожку ранжированный список (`candidate_id`,
 позиция, балл, разложение по компонентам, 3–5 оснований с источником, пробелы, «проверить на интервью»), список
@@ -1847,12 +1761,12 @@ interface JuryNeed {
 слепой разметки: **объединение первых десяток** продукта (обеих дорожек) и базового варианта по каждой потребности,
 перемешанное, без позиции, балла, системы и объяснений — `need_id`, `candidate_id`, `label: null`.
 
-**Метрики** (`eval:jury-metrics`): по разметке жюри 0–3 (шкала 11.2) — Precision@10 со знаменателем 10, nDCG@10, MRR
+**Метрики** (`eval:jury-metrics`): по разметке жюри 0–3 (шкала 10.2) — Precision@10 со знаменателем 10, nDCG@10, MRR
 первого подходящего и `judged@10` (доля размеченных в первой десятке; неразмеченная карточка считается неподходящей) для
 каждой дорожки и базового варианта; разность «продукт − базовый» с бутстреп-интервалом по потребностям (95 %).
 Precision@10 обеих систем считается по одной разметке объединения их первых десяток — смешанная выдача не нужна.
 
-### 11.2. Методика v3
+### 10.2. Методика v3
 
 Закреплена 2026-10-05 до первого прогона по ней; меняется только новой версией методики с записью в отчёте. Реализация —
 `tools/eval/src/fsp_eval/selection.py`, мир стенда — `matching.py`, описание с ключами метрик — `tools/eval/README.md`
@@ -1891,7 +1805,7 @@ Precision@10 обеих систем считается по одной разм
 8. **Разбиение dev / holdout — по потребностям и по исходным профилям**: ни потребность, ни кандидат не попадают в обе
    части. На dev продукт настраивается; holdout открывается **один раз** перед сдачей — одна ревизия, по одному прогону
    каждого режима, запись в журнале обращений до прогона; повторное обращение стенд отклоняет.
-9. **Человеческая разметка** — путь жюри (11.1): слепая разметка объединения первых десяток; синтетическая рубрика — мера
+9. **Человеческая разметка** — путь жюри (10.1): слепая разметка объединения первых десяток; синтетическая рубрика — мера
    стенда, публикуется с подписью «синтетический мир», не как оценка людей.
 10. **«Оцените подбор»** (domain 13.10) — слепое сравнение в продукте, две части, каждая подписана: **сравнение на
     подтверждённом пуле** — первая десятка подборки против первой десятки поиска по словам среди кандидатов с действующей
@@ -1899,7 +1813,7 @@ Precision@10 обеих систем считается по одной разм
     включая кандидатов без категории, с пометкой «эксперимент, не качество подборки». Precision@10 каждой системы — по
     отметкам объединения первых десяток (знаменатель 10); поочерёдное слияние даёт только предпочтение между системами.
 
-## 12. Нагрузка
+## 11. Нагрузка
 
 Состав и бюджеты закреплены до прогона; прогон — на засеве (domain 23.3) на стенде 4 CPU / 5,7 ГБ RAM вместе со всеми сервисами.
 
@@ -1919,9 +1833,9 @@ Precision@10 обеих систем считается по одной разм
 Отчёт нагрузки: коммит, дата, состав, число запросов по операциям, p50/p95/p99, доля ошибок, пиковая память по сервисам, доля холодных
 запросов, оба режима (с моделью и без).
 
-## 13. Исходящие события компании и адаптер Хантфлоу
+## 12. Исходящие события компании и адаптер Хантфлоу
 
-### 13.1. Подписка и тело события
+### 12.1. Подписка и тело события
 
 Подписку регистрирует владелец компании в кабинете («События для ATS») или по API в сессии
 (`/api/v1/companies/{company_id}/event-subscriptions…`, domain 5.7). Тело `POST` вебхука:
@@ -1936,7 +1850,7 @@ Precision@10 обеих систем считается по одной разм
 согласием кандидата, что интерфейс. `contacts.disclosed` несёт `fields` (какие поля раскрыты), `hiring.reported` — `hiring_process_id`,
 `party`, `kind`, `value`, `start_date`, `outcome_state`; `ping` — проверочная доставка по кнопке.
 
-### 13.2. Подпись, повторы, адреса
+### 12.2. Подпись, повторы, адреса
 
 | Заголовок | Значение |
 |---|---|
@@ -1950,7 +1864,7 @@ Precision@10 обеих систем считается по одной разм
 link-local сетей отвергаются при регистрации и ещё раз на адресе, в который имя разрешилось при соединении; редиректы не выполняются.
 Каждая попытка пишется в `event_deliveries` сразу; владелец видит журнал в кабинете и по `GET …/deliveries`.
 
-### 13.3. Адаптер Хантфлоу
+### 12.3. Адаптер Хантфлоу
 
 Включается переменной `HUNTFLOW_API_URL` (база API v2, например `https://api.huntflow.ru/v2`); без неё подключение отвергается
 (`409 huntflow_disabled`), а доставки пропускаются. Компания подключает аккаунт своим токеном (хранится зашифрованным) и сопоставлением
@@ -1963,4 +1877,4 @@ link-local сетей отвергаются при регистрации и е
 
 Формы запросов сверяются тестом с фрагментом OpenAPI Хантфлоу (`tests/fixtures/huntflow/openapi-fragment.json`, источник
 `https://api.huntflow.ru/v2/openapi.json`). Обновление токена Хантфлоу (`/token/refresh`) и обратный вебхук Хантфлоу → платформа —
-развитие; Talantix, Поток, E-Staff подключаются вебхуком (13.1–13.2) и API с ключом.
+развитие; Talantix, Поток, E-Staff подключаются вебхуком (12.1–12.2) и API с ключом.

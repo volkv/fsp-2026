@@ -117,7 +117,7 @@ export async function computeMarket(
 		const fact = facts.get(id);
 		return fact !== undefined && catalogVisibleToAnyVerifiedCompany(fact);
 	};
-	const vacancies = await loadVacancyRecords(executor, windowFrom);
+	const vacancies = await loadVacancyRecords(executor);
 	const observed = [
 		...aggregate(candidateInputs(candidates, visible), {
 			threshold: policy.threshold,

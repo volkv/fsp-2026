@@ -365,7 +365,7 @@ export function openApiDocument(
 					type: 'apiKey',
 					in: 'header',
 					name: 'X-Telegram-Bot-Api-Secret-Token',
-					description: 'Секрет вебхука бота (раздел 8.2 контракта)'
+					description: 'Секрет вебхука бота (раздел 7.2 контракта)'
 				}
 			}
 		}

@@ -7,8 +7,7 @@
 // The places: two demo sessions, the stand outside sessions and the originals of the scenario cast (outside sessions,
 // `demo_original`). Each holds the same world: a verified company with its owner and a published vacancy, a candidate
 // of the catalog invited to it and hired into a process, and the cases of an FSP operator — a company waiting for
-// verification, an objection, a representation to check, a claim of an external vacancy, a vacancy on moderation and a
-// conflict of a birth date. Who sees which place:
+// verification, an objection, a representation to check, a vacancy on moderation and a conflict of a birth date. Who sees which place:
 // - the catalog, the cards and the vacancies (`scope`): a viewer inside a session sees it and the stand, never another
 //   session or the originals; a viewer outside sessions sees the stand and the originals;
 // - the cases of the staff (`reach`): a clone operator sees its session only; the operator outside sessions sees the
@@ -43,16 +42,11 @@ import {
 	skillInferences,
 	sourceFacts,
 	staffRoles,
-	taxonomyVersions,
-	vacancyClaims,
-	vacancyImportRuns,
-	vacancyPostings
+	taxonomyVersions
 } from '$lib/server/db/schema';
 import { grantPartnerPoolConsent } from '$lib/server/candidates/consents';
 import { uuidv7 } from '$lib/server/ids';
 import { publishTaxonomy } from '$lib/server/taxonomy/publish';
-import { PENDING_NORMALIZATION, PENDING_VERSION } from '$lib/server/vacancies/clusters';
-import { HABR_SOURCE_KEY, registerVacancySources } from '$lib/server/vacancies/sources/definitions';
 import { buildRelease, readTaxonomyDatasets } from '$lib/server/taxonomy/release';
 import { insertDecidedAttempt, releaseFixtureBank } from '../helpers/bank';
 import { decide } from '../helpers/categories';
@@ -60,7 +54,6 @@ import { createTestDatabase, type TestDatabase } from '../helpers/database';
 import {
 	createCandidate,
 	createCompany,
-	createExternalVacancy,
 	createMember,
 	createOwnVacancy,
 	createUser,
@@ -135,7 +128,6 @@ interface Place {
 	/** The candidate's declared grade over a survey (domain 12.2). */
 	declarationId: string;
 	minor: { id: string; representationId: string };
-	claimId: string;
 	moderatedVacancyId: string;
 	ageConflictId: string;
 	attemptId: string;
@@ -464,19 +456,6 @@ async function place(
 		.returning({ id: representations.id });
 	if (!representation) throw new Error('representation not inserted');
 
-	const external = await externalVacancy();
-	const [claim] = await db
-		.insert(vacancyClaims)
-		.values({
-			vacancyId: external.id,
-			companyId: company.id,
-			requestedByUserId: ownerUser.id,
-			status: 'pending_review',
-			matchEvidence: { inn: 'unknown', posting_inns: [], name_similarity: 0.5 }
-		})
-		.returning({ id: vacancyClaims.id });
-	if (!claim) throw new Error('claim not inserted');
-
 	const moderated = await createOwnVacancy(
 		db,
 		{ companyId: company.id, memberId: owner.id, taxonomyVersionId },
@@ -542,7 +521,6 @@ async function place(
 		objectionId: objection.id,
 		declarationId: declaration.id,
 		minor: { id: minor.id, representationId: representation.id },
-		claimId: claim.id,
 		moderatedVacancyId: moderated.id,
 		ageConflictId: conflict.id,
 		attemptId: attempt.attemptId,
@@ -550,51 +528,6 @@ async function place(
 		adminUserId: admin.id,
 		partnershipId: active.id
 	};
-}
-
-/**
- * An external vacancy with the posting it was imported from. External vacancies are shared by every place: its title
- * carries no tag of a place.
- */
-async function externalVacancy() {
-	const { db } = database;
-	const vacancy = await createExternalVacancy(db, taxonomyVersionId, { title: 'Внешняя вакансия Go' });
-	const at = new Date();
-	const [run] = await db
-		.insert(vacancyImportRuns)
-		.values({
-			source: HABR_SOURCE_KEY,
-			adapterVersion: 'test/1',
-			mode: 'full',
-			startedAt: at,
-			finishedAt: at,
-			status: 'succeeded',
-			completeness: 'partial',
-			incompleteReason: 'recent_window_listing',
-			counts: {}
-		})
-		.returning({ id: vacancyImportRuns.id });
-	if (!run) throw new Error('import run not inserted');
-	const externalId = String(randomBytes(4).readUInt32BE());
-	await db.insert(vacancyPostings).values({
-		vacancyId: vacancy.id,
-		source: HABR_SOURCE_KEY,
-		externalId,
-		url: `https://career.habr.com/vacancies/${externalId}`,
-		organization: { name: 'Пример', inn: null, source_org_id: null },
-		title: vacancy.title,
-		originalTerms: {},
-		rawSha256: randomSha256(),
-		normalized: PENDING_NORMALIZATION,
-		normalizationVersion: PENDING_VERSION,
-		firstFetchedAt: at,
-		lastFetchedAt: at,
-		lastCheckedAt: at,
-		freshness: 'active',
-		dedup: { method: 'exact', score: 1 },
-		lastImportRunId: run.id
-	});
-	return vacancy;
 }
 
 /** Everything of a place an answer could carry: its ids, its names, its candidates' pseudonyms for the viewer. */
@@ -615,7 +548,6 @@ function markersOf(target: Place, viewer: Place): string[] {
 		target.declarationId,
 		target.minor.id,
 		target.minor.representationId,
-		target.claimId,
 		target.moderatedVacancyId,
 		target.ageConflictId,
 		target.attemptId,
@@ -638,7 +570,6 @@ beforeAll(async () => {
 	} finally {
 		await client.end({ timeout: 5 });
 	}
-	await registerVacancySources(database.sql);
 	const { db } = database;
 	const [version] = await db.select({ id: taxonomyVersions.id }).from(taxonomyVersions);
 	const [ruleset] = await db.select({ id: categorizationRulesets.id }).from(categorizationRulesets);
@@ -1000,7 +931,6 @@ const REGISTRY: Record<string, Entry> = {
 		(_, t) => `/operator/representatives/${t.minor.representationId}`,
 		(_, t) => ({ id: t.minor.representationId })
 	),
-	'(app)/operator/claims/+page.server.ts': list('operator', 'reach', () => '/operator/claims'),
 	'(app)/operator/vacancies/+page.server.ts': list('operator', 'reach', () => '/operator/vacancies'),
 	'(app)/operator/vacancies/[id]/+page.server.ts': target(
 		'operator',
@@ -1062,9 +992,6 @@ const REGISTRY: Record<string, Entry> = {
 	'(app)/operator/+layout.server.ts': exempt('role check, no rows'),
 	'(app)/admin/+layout.server.ts': exempt('role check, no rows'),
 	'(app)/company/+layout.server.ts': exempt('headers only'),
-	'(app)/company/(member)/vacancies/external/+page.server.ts': exempt(
-		'the search of `api/v1/vacancies` narrowed to external vacancies, with the claims of the own company'
-	),
 	'(app)/me/+layout.server.ts': exempt('headers only'),
 	'(auth)/+layout.server.ts': exempt('headers only'),
 	'(app)/company/+page.server.ts': exempt('redirect only'),
@@ -1079,11 +1006,7 @@ const REGISTRY: Record<string, Entry> = {
 	'(app)/admin/quality/[id]/+page.server.ts': exempt('quality runs of the models'),
 	'(app)/admin/quality/[id]/report/+server.ts': exempt('quality runs of the models'),
 	'(app)/admin/rules/+page.server.ts': exempt('rule sets of the stand'),
-	'(app)/admin/sources/+page.server.ts': exempt('vacancy sources of the stand'),
 	'(app)/admin/taxonomy/+page.server.ts': exempt('taxonomy of the stand'),
-	'(app)/admin/taxonomy/unknown-skills/+page.server.ts': exempt(
-		'skill tags of external postings the taxonomy does not know, shared by the stand; no person in them'
-	),
 	'api/v1/taxonomy/grades/+server.ts': exempt('taxonomy of the stand'),
 	'api/v1/taxonomy/roles/+server.ts': exempt('taxonomy of the stand'),
 	'api/v1/taxonomy/skills/+server.ts': exempt('taxonomy of the stand'),
@@ -1240,8 +1163,6 @@ const REGISTRY: Record<string, Entry> = {
 	'api/v1/operator/moderation/vacancies/[vacancy_id]/decision/+server.ts': WRITES,
 	'api/v1/operator/objections/[objection_id]/assign/+server.ts': WRITES,
 	'api/v1/operator/objections/[objection_id]/resolution/+server.ts': WRITES,
-	'api/v1/vacancies/[vacancy_id]/claims/+server.ts': WRITES,
-	'api/v1/vacancies/[vacancy_id]/claims/[claim_id]/withdrawal/+server.ts': WRITES,
 	'api/v1/vacancies/[vacancy_id]/close/+server.ts': WRITES,
 	'api/v1/vacancies/[vacancy_id]/pause/+server.ts': WRITES,
 	'api/v1/vacancies/[vacancy_id]/publish/+server.ts': WRITES,

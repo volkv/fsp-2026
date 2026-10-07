@@ -169,12 +169,8 @@ export async function notificationFacts(
 			const [vacancy] = await executor
 				.select({ companyId: vacancies.companyId, title: vacancies.title })
 				.from(vacancies)
-				.where(and(eq(vacancies.id, notification.objectId), eq(vacancies.origin, 'own')));
-			if (
-				!vacancy ||
-				vacancy.companyId === null ||
-				!(await isActiveMember(executor, vacancy.companyId, notification.userId))
-			) {
+				.where(eq(vacancies.id, notification.objectId));
+			if (!vacancy || !(await isActiveMember(executor, vacancy.companyId, notification.userId))) {
 				return null;
 			}
 			return { object: 'vacancy', side: 'company', vacancyTitle: vacancy.title };

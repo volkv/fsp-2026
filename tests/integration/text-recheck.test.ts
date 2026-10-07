@@ -1,20 +1,16 @@
 // `vacancies.text_recheck` (docs/domain.md, section 13.1): the vacancies whose text was checked by another version of
-// the validator are checked again by the version in force, a batch per run. An own listed vacancy whose text is now
-// blocked goes to an operator, as an edit would send it, unless the operator approved the same phrases; one in
-// moderation whose phrases changed gets a new revision the operator decides on, and one whose text now passes returns
-// to where it left from; an external one
-// is recomputed as its import does, a blocked text hiding it and a passing one bringing it back. Every vacancy ends on
-// the version in force, and a second pass changes nothing. The schedule enqueues the recheck while a vacancy lags and
+// the validator are checked again by the version in force, a batch per run. A listed vacancy whose text is now blocked
+// goes to an operator, as an edit would send it, unless the operator approved the same phrases; one in moderation whose
+// phrases changed gets a new revision the operator decides on, and one whose text now passes returns to where it left
+// from. Every vacancy ends on the version in force, and a second pass changes nothing. The schedule enqueues the recheck while a vacancy lags and
 // no job of the version waits, runs or failed.
-import { randomBytes, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { and, eq, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { auditEvents, jobs, vacancies, vacancyImportRuns, vacancyPostings } from '$lib/server/db/schema';
+import { auditEvents, jobs, vacancies } from '$lib/server/db/schema';
 import { createLogger } from '$lib/server/jobs/log';
 import { claimJob, completeJob, type ClaimedJob } from '$lib/server/jobs/queue';
-import { PENDING_NORMALIZATION, PENDING_VERSION } from '$lib/server/vacancies/clusters';
 import { decideVacancyModeration } from '$lib/server/vacancies/own';
-import { HABR_SOURCE_KEY, registerVacancySources } from '$lib/server/vacancies/sources/definitions';
 import {
 	TEXT_CHECK_VERSION,
 	checkVacancyText,
@@ -23,14 +19,7 @@ import {
 } from '$lib/server/vacancies/text-check';
 import { RECHECK_BATCH, scheduleTextRecheck, vacanciesTextRecheck } from '$lib/server/vacancies/text-recheck';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
-import {
-	createCompany,
-	createExternalVacancy,
-	createMember,
-	createOwnVacancy,
-	createTaxonomyVersion,
-	randomSha256
-} from '../helpers/factories';
+import { createCompany, createMember, createOwnVacancy, createTaxonomyVersion } from '../helpers/factories';
 
 const BLOCKED = 'Только мужчины до 30 лет';
 const CLEAN = 'Разработка сервисов на Go, код-ревью, дежурства';
@@ -67,7 +56,6 @@ let company: { id: string; memberId: string };
 
 beforeAll(async () => {
 	database = await createTestDatabase();
-	await registerVacancySources(database.sql);
 	taxonomyVersionId = (await createTaxonomyVersion(database.db)).id;
 	const created = await createCompany(database.db);
 	company = { id: created.id, memberId: (await createMember(database.db, created.id)).id };
@@ -83,56 +71,6 @@ const own = (overrides: Parameters<typeof createOwnVacancy>[2] = {}) =>
 		{ companyId: company.id, memberId: company.memberId, taxonomyVersionId },
 		{ textCheck: oldClean, ...overrides }
 	);
-
-/** An external vacancy with the posting it was imported from; its title and description are the posting's. */
-async function external(description: string, status: 'active' | 'hidden', textCheck: TextCheck = oldClean) {
-	const { db } = database;
-	const vacancy = await createExternalVacancy(db, taxonomyVersionId, { description, status, textCheck });
-	const at = new Date();
-	const [run] = await db
-		.insert(vacancyImportRuns)
-		.values({
-			source: HABR_SOURCE_KEY,
-			adapterVersion: 'test/1',
-			mode: 'full',
-			startedAt: at,
-			finishedAt: at,
-			status: 'succeeded',
-			completeness: 'complete',
-			counts: {}
-		})
-		.returning({ id: vacancyImportRuns.id });
-	if (!run) throw new Error('import run not inserted');
-	const externalId = String(randomBytes(4).readUInt32BE());
-	await db.insert(vacancyPostings).values({
-		vacancyId: vacancy.id,
-		source: HABR_SOURCE_KEY,
-		externalId,
-		url: `https://career.habr.com/vacancies/${externalId}`,
-		organization: { name: 'Пример', inn: null, source_org_id: null },
-		title: vacancy.title,
-		originalTerms: {
-			salary_text: null,
-			salary: { min: null, max: null, currency: null, period: null, tax_base: null },
-			grade_raw: null,
-			employment_raw: null,
-			location: { city: null, remote: null, raw: null },
-			skills_raw: [],
-			description,
-			contacts_removed: true
-		},
-		rawSha256: randomSha256(),
-		normalized: PENDING_NORMALIZATION,
-		normalizationVersion: PENDING_VERSION,
-		firstFetchedAt: at,
-		lastFetchedAt: at,
-		lastCheckedAt: at,
-		freshness: 'active',
-		dedup: { method: 'exact', score: 1 },
-		lastImportRunId: run.id
-	});
-	return vacancy;
-}
 
 async function stored(vacancyId: string) {
 	const [row] = await database.db.select().from(vacancies).where(eq(vacancies.id, vacancyId));
@@ -387,25 +325,9 @@ describe('vacancies.text_recheck', () => {
 		expect(refresh).toHaveLength(1);
 	});
 
-	it('hides an external vacancy the new version blocks and shows one it no longer blocks', async () => {
-		const blocked = await external(BLOCKED, 'active');
-		const cleared = await external(CLEAN, 'hidden', { ...oldClean, result: 'blocked' });
-
-		await recheckAll();
-
-		expect(await stored(blocked.id)).toMatchObject({
-			status: 'hidden',
-			check: { validator_version: TEXT_CHECK_VERSION, result: 'blocked' }
-		});
-		expect(await stored(cleared.id)).toMatchObject({
-			status: 'active',
-			check: { validator_version: TEXT_CHECK_VERSION, result: 'clean' }
-		});
-	});
-
 	it('leaves every vacancy on the version in force, and a second pass finds nothing to do', async () => {
 		await own({ description: BLOCKED });
-		await external(BLOCKED, 'active');
+		await own({ description: CLEAN, status: 'draft', publishedAt: null });
 		await recheckAll();
 		expect(await lagging()).toBe(0);
 		const before = await database.db.select().from(vacancies).orderBy(vacancies.id);
@@ -422,7 +344,7 @@ describe('vacancies.text_recheck', () => {
 			maxAttempts: 3,
 			createdBy: { kind: 'system' }
 		});
-		expect(await runRecheck()).toMatchObject({ restamped: 0, moderation: 0, hidden: 0, shown: 0, unchanged: 0 });
+		expect(await runRecheck()).toMatchObject({ restamped: 0, moderation: 0, revised: 0, cleared: 0 });
 		expect(await database.db.select().from(vacancies).orderBy(vacancies.id)).toEqual(before);
 	});
 

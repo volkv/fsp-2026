@@ -51,15 +51,13 @@ export interface CandidateSnapshot extends MatchCandidate {
 export interface VacancySnapshot extends MatchVacancy {
 	id: string;
 	revision: number;
-	origin: 'own' | 'external';
-	companyId: string | null;
+	companyId: string;
 	status: string;
 	title: string;
 	description: string | null;
 	taxonomyVersionId: string;
 	workFormat: string | null;
 	minAge: number | null;
-	supersededByVacancyId: string | null;
 	publishedAt: Date | null;
 }
 
@@ -243,7 +241,6 @@ export function vacancySnapshot(row: VacancyRow): VacancySnapshot {
 	return {
 		id: row.id,
 		revision: row.revision,
-		origin: row.origin,
 		companyId: row.companyId,
 		status: row.status,
 		title: row.title,
@@ -251,10 +248,9 @@ export function vacancySnapshot(row: VacancyRow): VacancySnapshot {
 		taxonomyVersionId: row.taxonomyVersionId,
 		workFormat: row.workFormat,
 		minAge: row.minAge,
-		supersededByVacancyId: row.supersededByVacancyId,
 		publishedAt: row.publishedAt,
 		roleKey: row.roleKey,
-		grade: row.gradeMin !== null && row.gradeMax !== null ? { min: row.gradeMin, max: row.gradeMax } : null,
+		grade: { min: row.gradeMin, max: row.gradeMax },
 		requiredSkillKeys: row.requiredSkillKeys,
 		niceSkillKeys: row.niceSkillKeys,
 		salary: {
@@ -273,34 +269,24 @@ export async function loadVacancySnapshot(executor: Executor, vacancyId: string)
 }
 
 /**
- * Vacancies a candidate may be matched with: published own vacancies of companies the admission policy lets act
- * (domain 5.1: a check by an operator is not required) and external vacancies
- * that are active or awaiting a freshness check and not replaced by an own one (domain 13.1, 13.2).
+ * Vacancies a candidate may be matched with: published vacancies of companies the admission policy lets act
+ * (domain 5.1: a check by an operator is not required).
  */
 export const matchableVacancy = sql`(
-	(${vacancies.origin} = 'own' and ${vacancies.status} = 'published'
+	${vacancies.status} = 'published'
 		and exists (select 1 from ${companies} where ${companies.id} = ${vacancies.companyId}
 			and ${companies.status} in (${sql.join(
 				ADMITTED_COMPANY_STATUSES.map((status) => sql`${status}`),
 				sql`, `
-			)})))
-	or (${vacancies.origin} = 'external' and ${vacancies.status} in ('active', 'stale')
-		and ${vacancies.supersededByVacancyId} is null)
+			)}))
 )`;
 
 /**
  * The vacancies a viewer of demo session `viewerSession` (`null` — outside sessions) may be shown or matched with
- * (domain 13.1, 13.2, 19.3): matchable vacancies of the companies the viewer sees, and inside a session no external
- * vacancy that a company of that session replaced with its own published one — the replacement is recorded on the
- * shared vacancy only by a company outside sessions.
+ * (domain 13.1, 19.3): matchable vacancies of the companies the viewer sees.
  */
 export function matchableVacancyFor(viewerSession: string | null): SQL {
-	const scoped = sql`${matchableVacancy} and ${companyInDemoScope(vacancies.companyId, viewerSession)}`;
-	if (viewerSession === null) return sql`(${scoped})`;
-	return sql`(${scoped} and not exists (select 1 from vacancies replacement
-		join companies replacing on replacing.id = replacement.company_id
-		where replacement.derived_from_vacancy_id = ${vacancies.id} and replacement.published_at is not null
-		and replacing.demo_session_id = ${viewerSession}::uuid))`;
+	return sql`(${matchableVacancy} and ${companyInDemoScope(vacancies.companyId, viewerSession)})`;
 }
 
 /** Grade ordinals of each taxonomy version asked for. */

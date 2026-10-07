@@ -1,26 +1,22 @@
-// Vacancies as the API shows them (docs/domain.md, sections 13.1–13.3; contracts 5.5): the general search over
-// published own vacancies of verified companies and external vacancies with their postings, and the own vacancies of a
-// company in every status. Unknown fields stay unknown («не указано»): nothing is filled with zero or an estimate.
+// Vacancies as the API shows them (docs/domain.md, sections 13.1, 13.3; contracts 5.5): the general search over
+// published vacancies of the companies the admission policy lets act, and the vacancies of a company in every status.
 import { and, desc, eq, inArray, sql, type SQL } from 'drizzle-orm';
 import type { Executor } from '$lib/server/db';
 import { companies, vacancies } from '$lib/server/db/schema';
 import { vacancyDocuments } from '$lib/server/matching/documents';
 import { matchableVacancyFor } from '$lib/server/matching/evidence';
-import { shownPostings, vacancyPostingViews, type PostingView } from '$lib/server/vacancies/attribution';
 import { loadPoolCount, type PoolCount } from '$lib/server/vacancies/pool';
 
 export type VacancyRow = typeof vacancies.$inferSelect;
 
 export interface VacancyView {
 	row: VacancyRow;
-	companyName: string | null;
-	postings: PostingView[];
+	companyName: string;
 	pool: PoolCount;
 }
 
 export interface VacancySearch {
 	text?: string | undefined;
-	origin?: 'own' | 'external' | undefined;
 	roleKeys?: readonly string[] | undefined;
 	workFormats?: readonly string[] | undefined;
 }
@@ -39,7 +35,6 @@ export async function searchVacancyIds(
 	viewerSession: string | null
 ): Promise<string[]> {
 	const conditions: SQL[] = searchable(viewerSession);
-	if (search.origin) conditions.push(eq(vacancies.origin, search.origin));
 	if (search.roleKeys?.length) conditions.push(inArray(vacancies.roleKey, [...search.roleKeys]));
 	if (search.workFormats?.length) conditions.push(inArray(vacancies.workFormat, [...search.workFormats]));
 	const rows = await executor
@@ -65,37 +60,31 @@ export async function vacancyViews(executor: Executor, ids: readonly string[], n
 		.from(vacancies)
 		.where(inArray(vacancies.id, [...ids]));
 	const byId = new Map(rows.map((row) => [row.id, row]));
-	const companyIds = [...new Set(rows.flatMap((row) => (row.companyId === null ? [] : [row.companyId])))];
+	const companyIds = [...new Set(rows.map((row) => row.companyId))];
 	const names = new Map(
-		companyIds.length === 0
-			? []
-			: (
-					await executor
-						.select({ id: companies.id, name: companies.displayName })
-						.from(companies)
-						.where(inArray(companies.id, companyIds))
-				).map((row) => [row.id, row.name])
+		(
+			await executor
+				.select({ id: companies.id, name: companies.displayName })
+				.from(companies)
+				.where(inArray(companies.id, companyIds))
+		).map((row) => [row.id, row.name])
 	);
-	const postingsOf = await vacancyPostingViews(executor, ids);
 	const views: VacancyView[] = [];
 	for (const id of ids) {
 		const row = byId.get(id);
 		if (!row) throw new Error(`vacancy ${id} disappeared between the search and the read`);
 		const pool = await loadPoolCount(executor, id, now);
 		if (!pool) throw new Error(`vacancy ${id} has no pool counter`);
-		views.push({
-			row,
-			companyName: row.companyId === null ? null : (names.get(row.companyId) ?? null),
-			postings: shownPostings(row, postingsOf),
-			pool
-		});
+		const companyName = names.get(row.companyId);
+		if (companyName === undefined) throw new Error(`company ${row.companyId} of vacancy ${id} is missing`);
+		views.push({ row, companyName, pool });
 	}
 	return views;
 }
 
 /**
- * A vacancy by id for a viewer: one the viewer's search would find, an own vacancy in any status for an active member
- * of its company. `null` — nothing the viewer may see.
+ * A vacancy by id for a viewer: one the viewer's search would find, a vacancy in any status for an active member of
+ * its company. `null` — nothing the viewer may see.
  */
 export async function visibleVacancyId(
 	executor: Executor,
@@ -115,12 +104,12 @@ export async function visibleVacancyId(
 	return viewer.companyId !== null && row.companyId === viewer.companyId ? row.id : null;
 }
 
-/** Own vacancies of a company, every status, newest first. */
+/** Vacancies of a company, every status, newest first. */
 export async function companyVacancyIds(executor: Executor, companyId: string): Promise<string[]> {
 	const rows = await executor
 		.select({ id: vacancies.id })
 		.from(vacancies)
-		.where(and(eq(vacancies.origin, 'own'), eq(vacancies.companyId, companyId)))
+		.where(eq(vacancies.companyId, companyId))
 		.orderBy(desc(vacancies.createdAt), desc(vacancies.id));
 	return rows.map((row) => row.id);
 }

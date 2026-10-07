@@ -191,12 +191,7 @@
 </section>
 
 <section aria-labelledby="integrations-heading" class="grid gap-4">
-	<div class="flex flex-wrap items-end justify-between gap-2">
-		<h2 id="integrations-heading" class="font-heading text-h3">Интеграции</h2>
-		<a class="text-sm font-medium text-link underline-offset-4 hover:underline" href={resolve('/admin/sources')}
-			>Источники вакансий: включение и импорт</a
-		>
-	</div>
+	<h2 id="integrations-heading" class="font-heading text-h3">Интеграции</h2>
 	<ul class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
 		<li>
 			<Card.Root class="h-full" data-integration="storage">

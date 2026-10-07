@@ -1,5 +1,5 @@
-// The taxonomy version vacancies are normalized against (docs/domain.md, section 11): the latest published version with
-// its skill index, grade scale, work format keys and roles.
+// The taxonomy version vacancy texts and forms are read against (docs/domain.md, section 11): the latest published
+// version with its skill index, grade scale, work format keys and roles.
 import { eq } from 'drizzle-orm';
 import type { Executor } from '$lib/server/db';
 import { grades, roles, skillAliases, workFormats } from '$lib/server/db/schema';
@@ -96,7 +96,7 @@ async function versionContent(executor: Executor, version: TaxonomyVersionRef): 
 	});
 }
 
-/** The latest published taxonomy version; without one vacancies cannot be normalized. */
+/** The latest published taxonomy version; without one a vacancy cannot be read or checked. */
 export async function loadVacancyTaxonomy(executor: Executor): Promise<VacancyTaxonomy> {
 	const version = await latestPublishedVersion(executor);
 	if (!version) throw new TaxonomyUnavailable('no published taxonomy version');
@@ -108,12 +108,6 @@ export function resolveSkill(taxonomy: VacancyTaxonomy, raw: string): string | n
 	const match = matchSkill(taxonomy.skills, raw);
 	if (match.skillKey !== null) return match.skillKey;
 	return taxonomy.compactAliases.get(compact(normalizeSkillText(raw))) ?? null;
-}
-
-/** A skill mention → canonical key by an exact alias, as written or without spaces; no fuzzy match. */
-export function resolveSkillExactly(taxonomy: VacancyTaxonomy, raw: string): string | null {
-	const normalized = normalizeSkillText(raw);
-	return taxonomy.skills.exact.get(normalized) ?? taxonomy.compactAliases.get(compact(normalized)) ?? null;
 }
 
 /** The keys `vacancy-extract/v1` may use and the aliases its quotes are checked against (contracts 3.2). */

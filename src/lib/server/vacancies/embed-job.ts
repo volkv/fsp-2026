@@ -23,7 +23,7 @@ export function vacancyDocument(
 ): string {
 	const parts = [
 		v.title,
-		v.roleKey === null ? null : `Роль: ${v.roleKey}`,
+		`Роль: ${v.roleKey}`,
 		v.requiredSkillKeys.length > 0 ? `Обязательные навыки: ${v.requiredSkillKeys.join(', ')}` : null,
 		v.niceSkillKeys.length > 0 ? `Желательные навыки: ${v.niceSkillKeys.join(', ')}` : null,
 		v.description

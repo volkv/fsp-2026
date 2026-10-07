@@ -26,7 +26,6 @@
 		{ href: resolve('/operator/representatives'), label: 'Представители', exact: false },
 		{ href: resolve('/operator/ages'), label: 'Конфликты возраста', exact: false },
 		{ href: resolve('/operator/vacancies'), label: 'Модерация вакансий', exact: false },
-		{ href: resolve('/operator/claims'), label: '«Это наша вакансия»', exact: false },
 		{ href: resolve('/operator/assessments'), label: 'Попытки тестов', exact: false },
 		{ href: resolve('/operator/partnerships'), label: 'Партнёрства', exact: false },
 		{ href: resolve('/operator/outcomes'), label: 'Карьерные исходы', exact: false },

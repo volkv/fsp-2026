@@ -4,7 +4,7 @@ import { timingSafeEqual } from 'node:crypto';
 export const SESSION_COOKIE = '__Host-session';
 export const CSRF_HEADER = 'x-csrf-token';
 
-/** Routes authenticated by a signature of the caller instead of a browser session (contracts 1.5, 8.2). */
+/** Routes authenticated by a signature of the caller instead of a browser session (contracts 1.5, 7.2). */
 export const SIGNED_WEBHOOK_PREFIX = '/api/v1/integrations/';
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);

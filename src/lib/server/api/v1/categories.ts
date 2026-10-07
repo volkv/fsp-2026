@@ -1,4 +1,4 @@
-// Categories and objections (contracts 10.1, 10.3; domain 12.4, 12.5): the candidate's categories with their history,
+// Categories and objections (contracts 9.1, 9.3; domain 12.4, 12.5): the candidate's categories with their history,
 // an objection to a test result and its withdrawal; the FSP operator's queue of objections, taking one into review and
 // the answer. The decision objected to belongs to the engine of the test (`OBJECTION_DECISIONS`). Browser session only.
 import { z } from 'zod';

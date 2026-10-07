@@ -1,4 +1,4 @@
-// The test on a declared grade (contracts 10.1, 10.3; domain 10): the candidate starts a test the grade policy lets them
+// The test on a declared grade (contracts 9.1, 9.3; domain 10): the candidate starts a test the grade policy lets them
 // take, reads the attempt — statements of the served clusters, never keys — answers the current cluster and reads the
 // decision with its explanation by blocks. The administrator reads the releases of the bank with their admission and
 // capacity reports. Candidate operations are the browser session only.

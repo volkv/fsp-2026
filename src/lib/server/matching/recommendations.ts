@@ -1,8 +1,8 @@
-// The candidate's side of matching (docs/domain.md, section 13.4; contracts 5.5 `GET /api/v1/me/matches`): own vacancies
-// of verified companies and external vacancies ranked by the same `matchScore`, with the same explanation — what fits,
+// The candidate's side of matching (docs/domain.md, section 13.4; contracts 5.5 `GET /api/v1/me/matches`): vacancies of
+// the companies of the platform ranked by the same `matchScore`, with the same explanation — what fits,
 // what it rests on, what is unknown, what to improve. The candidate sees their own evidence, fact ids included. A clone
 // of a demo session sees the vacancies of its session and those outside sessions.
-import { and, inArray, sql, type SQL } from 'drizzle-orm';
+import { and, inArray, type SQL } from 'drizzle-orm';
 import { can, type AccessSubject } from '$lib/server/access/permissions';
 import { vacancies } from '$lib/server/db/schema';
 import { demoSessionOfUser } from '$lib/server/demo/scope';
@@ -17,17 +17,14 @@ import { loadActiveSpace, pairKey, pairSimilarities, semanticSignal } from './se
 
 export interface VacancyRecommendationQuery extends PageRequest {
 	text?: string;
-	origin?: 'own' | 'external';
 	roleKeys?: string[];
 	workFormats?: string[];
 }
 
 export interface VacancyRecommendation {
 	vacancyId: string;
-	origin: 'own' | 'external';
 	title: string;
-	/** Company of an own vacancy; an external one names its organization in its postings. */
-	companyId: string | null;
+	companyId: string;
 	status: string;
 	match: MatchResult;
 	relevance: { fts: number | null };
@@ -59,7 +56,6 @@ export async function recommendVacancies(
 	// Vacancies of demo companies are seen from their own demo session only, and a clone does not see the vacancies of
 	// the originals of the scenario companies (domain 19.3).
 	const conditions: SQL[] = [matchableVacancyFor(await demoSessionOfUser(executor, subject.userId))];
-	if (rest.origin) conditions.push(sql`${vacancies.origin} = ${rest.origin}`);
 	if (rest.roleKeys?.length) conditions.push(inArray(vacancies.roleKey, rest.roleKeys));
 	if (rest.workFormats?.length) conditions.push(inArray(vacancies.workFormat, rest.workFormats));
 	const rows = await executor
@@ -98,7 +94,6 @@ export async function recommendVacancies(
 		if (!gradeOrdinals) throw new Error('grade ordinals were not loaded');
 		return {
 			vacancyId: vacancy.id,
-			origin: vacancy.origin,
 			title: vacancy.title,
 			companyId: vacancy.companyId,
 			status: vacancy.status,

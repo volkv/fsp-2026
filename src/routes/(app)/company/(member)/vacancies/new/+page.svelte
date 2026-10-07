@@ -41,21 +41,13 @@
 				: null
 	);
 	const text = $derived(form && 'text' in form && typeof form.text === 'string' ? form.text : '');
-	const values = $derived(
-		form && 'values' in form && form.values ? form.values : (draft?.values ?? data.derived?.values ?? data.empty)
-	);
+	const values = $derived(form && 'values' in form && form.values ? form.values : (draft?.values ?? data.empty));
 	const problems = $derived(form && 'problems' in form && form.problems ? form.problems : {});
 	const problem = $derived(form && 'problem' in form ? form.problem : null);
 	const marketPosition = $derived(form && 'marketPosition' in form ? form.marketPosition : null);
 	const mlResultId = $derived(draft?.mlResultId ?? formMlResultId);
 	/** The pool of the vacancy as it stands now, before saving: from the parse or from the last recalculation. */
 	const pool = $derived(form && 'pool' in form ? form.pool : null);
-	/** The external vacancy this one is created from: from the link, then carried by every post of the page. */
-	const derivedFromVacancyId = $derived(
-		form && 'derivedFromVacancyId' in form && typeof form.derivedFromVacancyId === 'string'
-			? form.derivedFromVacancyId
-			: (data.derived?.id ?? '')
-	);
 
 	const nameOf = (list: { key: string; name: string }[], key: string) =>
 		list.find((item) => item.key === key)?.name ?? key;
@@ -96,14 +88,6 @@
 	{/snippet}
 </PageHeader>
 
-{#if data.derived}
-	<p class="text-sm text-muted-foreground" data-testid="derived-from">
-		На основе внешней вакансии <span class="font-medium text-foreground">«{data.derived.title}»</span>, подтверждённой
-		за вашей компанией: поля заполнены из публикации — проверьте их и дополните вилку. После публикации своя вакансия
-		заменит внешнюю в выдаче.
-	</p>
-{/if}
-
 {#if problem}
 	<FormMessage text={problem.message} />
 {/if}
@@ -117,9 +101,6 @@
 		<Card.Content>
 			<form method="POST" action="?/parse" use:enhance class="grid gap-4">
 				<CsrfInput />
-				{#if derivedFromVacancyId !== ''}
-					<input type="hidden" name="derivedFromVacancyId" value={derivedFromVacancyId} />
-				{/if}
 				<Field.Field>
 					<Field.Label for="vacancy-text">Текст вакансии</Field.Label>
 					<Textarea id="vacancy-text" name="text" value={text} rows={14} maxlength={data.textMaxLength} required />
@@ -225,9 +206,6 @@
 					{/snippet}
 					{#snippet hidden()}
 						{#if mlResultId !== ''}<input type="hidden" name="mlResultId" value={mlResultId} />{/if}
-						{#if derivedFromVacancyId !== ''}
-							<input type="hidden" name="derivedFromVacancyId" value={derivedFromVacancyId} />
-						{/if}
 					{/snippet}
 				</VacancyForm>
 			{/key}

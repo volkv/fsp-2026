@@ -37,14 +37,14 @@ export function demoScope(row: DemoPlaceColumns, viewerSession: string | null): 
 		: sql`coalesce(${row.demoSessionId} = ${viewerSession}::uuid, not ${row.demoOriginal})`;
 }
 
-/** `demoScope` of the company named by the expression; no company (an external vacancy) is outside sessions. */
+/** `demoScope` of the company named by the expression. */
 export function companyInDemoScope(companyId: AnyColumn | SQL, viewerSession: string | null): SQL {
 	const company = {
 		demoSessionId: sql`demo_scope_company.demo_session_id`,
 		demoOriginal: sql`demo_scope_company.demo_original`
 	};
-	return sql`coalesce((select ${demoScope(company, viewerSession)} from companies demo_scope_company
-		where demo_scope_company.id = ${companyId}), true)`;
+	return sql`(select ${demoScope(company, viewerSession)} from companies demo_scope_company
+		where demo_scope_company.id = ${companyId})`;
 }
 
 /** The row belongs to no demo session: what the aggregates of the stand count. */
@@ -52,7 +52,7 @@ export function outsideDemoSessions(rowSession: AnyColumn | SQL): SQL {
 	return sql`${rowSession} is null`;
 }
 
-/** The session of the company named by the expression; `null` for no company or a company outside sessions. */
+/** The session of the company named by the expression; `null` for a company outside sessions. */
 export function companySession(companyId: AnyColumn | SQL): SQL {
 	return sql`(select demo_scope_company.demo_session_id from companies demo_scope_company
 		where demo_scope_company.id = ${companyId})`;

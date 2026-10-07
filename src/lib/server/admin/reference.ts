@@ -1,9 +1,7 @@
 // The reference books for the administrator, read only: taxonomy versions with roles and skills, rule sets of
 // categorization and matching, legal documents and product policies. Every book is versioned and immutable once
 // published (migration 0002); a change is a new version published by the seed scripts at start, not an edit here.
-// The one thing the administrator marks here is the queue of skills the taxonomy does not know: the mark says what
-// became of a spelling, the dictionary itself still changes only by a new version.
-import { and, asc, count, desc, eq, ilike, inArray, or, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, ilike, inArray, or } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ActionContext } from '$lib/server/companies/context';
 import { requirePermission } from '$lib/server/companies/context';
@@ -19,20 +17,10 @@ import {
 	skillAliases,
 	skills,
 	taxonomyVersions,
-	unknownSkillMentions,
-	vacancyPostings,
-	vacancies,
 	workFormats
 } from '$lib/server/db/schema';
 import { ApiError } from '$lib/server/errors/api-error';
-import { normalizeSkillText } from '$lib/server/taxonomy/normalize';
-import {
-	markUnknownSkill,
-	UNKNOWN_SKILL_REVIEW_STATUSES,
-	type UnknownSkillReviewStatus
-} from '$lib/server/taxonomy/unknown-mentions';
 import { latestPublishedVersion } from '$lib/server/taxonomy/vocabulary';
-import { PENDING_VERSION } from '$lib/server/vacancies/clusters';
 
 // --- Taxonomy ---
 
@@ -208,175 +196,6 @@ export async function taxonomyView(
 			skillsTruncated: skillRows.length > SKILLS_SHOWN
 		}
 	};
-}
-
-// --- Queue of unknown skills ---
-
-export type UnknownSkillFilter = UnknownSkillReviewStatus | 'all';
-
-export interface UnknownSkillRow {
-	/** The spelling in the canonical form of skill normalization, the key of the queue. */
-	spelling: string;
-	/** Postings the spelling was found in. */
-	count: number;
-	firstSeenAt: Date;
-	status: UnknownSkillReviewStatus;
-	/**
-	 * The latest fetched posting that brought the spelling, when it was fetched and how it writes the spelling; `null` —
-	 * that posting is gone or no longer carries the spelling.
-	 */
-	lastSeen: { at: Date; written: string; vacancyId: string; title: string; url: string } | null;
-	/** Taxonomy versions whose aliases know the spelling as it is, with the skill it stands for. */
-	inTaxonomy: { label: string; status: 'draft' | 'published' | 'retired'; skillKey: string }[];
-}
-
-export interface UnknownSkillQueueView {
-	filter: UnknownSkillFilter;
-	query: string;
-	counts: Record<UnknownSkillReviewStatus, number>;
-	rows: UnknownSkillRow[];
-	/** More spellings match than are shown. */
-	truncated: boolean;
-}
-
-const UNKNOWN_SKILLS_SHOWN = 100;
-
-const unknownSkillFilterSchema = z.enum([...UNKNOWN_SKILL_REVIEW_STATUSES, 'all']);
-
-/** The filter of the address: `?status=`; without one — the spellings waiting for review. */
-export function unknownSkillFilterOf(value: string | null): UnknownSkillFilter {
-	if (value === null || value === '') return 'pending';
-	const parsed = unknownSkillFilterSchema.safeParse(value);
-	if (!parsed.success)
-		throw new ApiError('validation_failed', {
-			details: [{ path: 'status', code: 'invalid', message: 'Нет такого состояния очереди' }]
-		});
-	return parsed.data;
-}
-
-const unknownMentionsSchema = z.array(z.string());
-
-/**
- * How the posting where a spelling was last seen writes it, while its normalization still leaves the spelling unknown;
- * `null` — the posting no longer carries it (normalized again, or waiting for that).
- */
-function writtenIn(posting: { version: string; unknown: unknown }, spelling: string): string | null {
-	if (posting.version === PENDING_VERSION) return null;
-	return (
-		unknownMentionsSchema.parse(posting.unknown).find((written) => normalizeSkillText(written) === spelling) ?? null
-	);
-}
-
-function lastSeenOf(
-	mention: typeof unknownSkillMentions.$inferSelect,
-	posting: { version: string; unknown: unknown; url: string; vacancyId: string; title: string } | null
-): UnknownSkillRow['lastSeen'] {
-	if (posting === null || mention.lastSeenAt === null) return null;
-	const written = writtenIn(posting, mention.rawNormalized);
-	if (written === null) return null;
-	return { at: mention.lastSeenAt, written, vacancyId: posting.vacancyId, title: posting.title, url: posting.url };
-}
-
-/**
- * The queue of spellings the taxonomy does not know, the most frequent first: how many postings carry each, since
- * when, the latest posting with it and the taxonomy versions that already know it as an alias.
- */
-export async function unknownSkillQueue(
-	executor: Executor,
-	ctx: ActionContext,
-	input: { filter: UnknownSkillFilter; query: string }
-): Promise<UnknownSkillQueueView> {
-	requirePermission(ctx.subject, 'taxonomy.manage', null);
-	const query = normalizeSkillText(input.query);
-	const where = and(
-		input.filter === 'all' ? undefined : eq(unknownSkillMentions.reviewStatus, input.filter),
-		query === '' ? undefined : ilike(unknownSkillMentions.rawNormalized, likePattern(query))
-	);
-	const [rows, statusCounts] = await Promise.all([
-		executor
-			.select({
-				mention: unknownSkillMentions,
-				posting: {
-					version: vacancyPostings.normalizationVersion,
-					url: vacancyPostings.url,
-					vacancyId: vacancyPostings.vacancyId
-				},
-				unknown: sql<unknown>`${vacancyPostings.normalized}->'skills'->'unknown'`,
-				vacancy: { title: vacancies.title }
-			})
-			.from(unknownSkillMentions)
-			.leftJoin(vacancyPostings, eq(vacancyPostings.id, unknownSkillMentions.lastPostingId))
-			.leftJoin(vacancies, eq(vacancies.id, vacancyPostings.vacancyId))
-			.where(where)
-			.orderBy(
-				desc(unknownSkillMentions.count),
-				asc(unknownSkillMentions.firstSeenAt),
-				asc(unknownSkillMentions.rawNormalized)
-			)
-			.limit(UNKNOWN_SKILLS_SHOWN + 1),
-		executor
-			.select({ status: unknownSkillMentions.reviewStatus, n: count() })
-			.from(unknownSkillMentions)
-			.groupBy(unknownSkillMentions.reviewStatus)
-	]);
-	const shown = rows.slice(0, UNKNOWN_SKILLS_SHOWN);
-	const spellings = new Set(shown.map((row) => row.mention.rawNormalized));
-	const aliases =
-		spellings.size === 0
-			? []
-			: await executor
-					.select({
-						alias: skillAliases.aliasNormalized,
-						skillKey: skillAliases.skillKey,
-						label: taxonomyVersions.label,
-						status: taxonomyVersions.status
-					})
-					.from(skillAliases)
-					.innerJoin(taxonomyVersions, eq(taxonomyVersions.id, skillAliases.taxonomyVersionId))
-					.where(inArray(skillAliases.aliasNormalized, [...spellings]))
-					.orderBy(desc(taxonomyVersions.createdAt));
-	const counts: Record<UnknownSkillReviewStatus, number> = { pending: 0, added: 0, rejected: 0 };
-	for (const row of statusCounts) counts[row.status] = row.n;
-	return {
-		filter: input.filter,
-		query: input.query.trim(),
-		counts,
-		rows: shown.map(({ mention, posting, unknown, vacancy }) => ({
-			spelling: mention.rawNormalized,
-			count: mention.count,
-			firstSeenAt: mention.firstSeenAt,
-			status: mention.reviewStatus,
-			lastSeen: lastSeenOf(mention, posting && vacancy && { ...posting, ...vacancy, unknown }),
-			inTaxonomy: aliases
-				.filter((alias) => alias.alias === mention.rawNormalized)
-				.map(({ label, status, skillKey }) => ({ label, status, skillKey }))
-		})),
-		truncated: rows.length > UNKNOWN_SKILLS_SHOWN
-	};
-}
-
-const reviewSchema = z.object({
-	spelling: z.string().min(1),
-	status: z.enum(UNKNOWN_SKILL_REVIEW_STATUSES)
-});
-
-/**
- * The administrator's mark on a spelling of the queue: `added` — it went into the dictionary (an alias of a new taxonomy
- * version), `rejected` — it is not a skill, `pending` — back to the queue.
- */
-export async function reviewUnknownSkill(
-	executor: Executor,
-	ctx: ActionContext,
-	input: { spelling: string; status: string }
-): Promise<{ spelling: string; status: UnknownSkillReviewStatus }> {
-	requirePermission(ctx.subject, 'taxonomy.manage', null);
-	const parsed = reviewSchema.safeParse(input);
-	if (!parsed.success)
-		throw new ApiError('validation_failed', {
-			details: [{ path: 'status', code: 'invalid', message: 'Неизвестная отметка' }]
-		});
-	if (!(await markUnknownSkill(executor, parsed.data.spelling, parsed.data.status))) throw new ApiError('not_found');
-	return parsed.data;
 }
 
 // --- Rule sets ---

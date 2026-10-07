@@ -1,4 +1,4 @@
-// The candidate's side of the calls of companies (docs/domain.md, 13.12; contracts 10.1): the calls delivered to them,
+// The candidate's side of the calls of companies (docs/domain.md, 13.12; contracts 9.1): the calls delivered to them,
 // opening one, a solution or an approach, its withdrawal at any time. Opening a call does not refresh the profile; a
 // submitted solution does — it is a confirmed action of the candidate (freshness of the ranking). A solution belongs to
 // the candidate: a withdrawn one the company no longer sees.

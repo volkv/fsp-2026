@@ -23,14 +23,7 @@
 <PageHeader
 	title="Таксономия"
 	description="Версии справочника ролей, навыков с синонимами, грейдов и форматов. Версия неизменяема после публикации: изменение — новая версия, которую публикует посев при старте приложения."
->
-	{#snippet actions()}
-		<a
-			class="text-sm font-medium text-link underline-offset-4 hover:underline"
-			href={resolve('/admin/taxonomy/unknown-skills')}>Неизвестные навыки из вакансий</a
-		>
-	{/snippet}
-</PageHeader>
+></PageHeader>
 
 <section aria-labelledby="versions-heading" class="grid gap-4">
 	<h2 id="versions-heading" class="font-heading text-h3">Версии</h2>

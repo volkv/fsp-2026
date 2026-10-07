@@ -1,4 +1,4 @@
-// Offers (contracts 5.5, 10.2; domain 13.5–13.6): the company writes first — a description, a range in roubles, its
+// Offers (contracts 5.5, 9.2; domain 13.5–13.6): the company writes first — a description, a range in roubles, its
 // profile, a way to reach it, a deadline and «why you» with sources; a vacancy is optional. Every offer is an immutable
 // version of terms; the candidate answers a concrete version; contacts are disclosed to that company only after
 // acceptance and only as the candidate chose.

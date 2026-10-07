@@ -3,7 +3,7 @@
 // the law does not allow to state as a condition of hiring (sex, age, marital status, nationality, appearance);
 // the vacancy goes to an operator instead of being published, because some of them may be lawful (citizenship for a
 // state secret clearance). `warning` — a phrasing that often hides such a requirement; the employer confirms it
-// consciously. The same check runs on external vacancies: a blocked one is hidden.
+// consciously.
 import { z } from 'zod';
 import { codePointLength, codePointToUtf16, utf16ToCodePoint } from '$lib/text/offsets';
 

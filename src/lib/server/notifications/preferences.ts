@@ -19,7 +19,7 @@ export interface NotificationSettings {
 	channels: {
 		email: 'active' | 'not_linked';
 		telegram: 'active' | 'not_linked' | 'unlinked' | 'blocked_by_user';
-		/** Whether Telegram can be linked on this installation (contracts 8.2). */
+		/** Whether Telegram can be linked on this installation (contracts 7.2). */
 		telegramAvailable: boolean;
 	};
 	categories: CategorySetting[];

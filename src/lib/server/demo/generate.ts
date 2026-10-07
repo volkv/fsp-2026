@@ -1,5 +1,5 @@
-// Deterministic plans of the demo data: who the candidates are, which companies exist, what they publish and what the
-// synthetic vacancy sources list. Everything here is computed from the seed data, the simulator's dataset and the
+// Deterministic plans of the demo data: who the candidates are, which companies exist and what they publish.
+// Everything here is computed from the seed data, the simulator's dataset and the
 // batch id with seeded random numbers, so the same inputs give the same plans; nothing touches the database.
 import { createHash } from 'node:crypto';
 import { Random } from '../../../../services/fsp-mock/src/seed/random.ts';
@@ -10,7 +10,6 @@ import type { CatalogScopeField } from '$lib/server/consent/kinds';
 import type { NeedForm } from '$lib/server/needs/form';
 import type { ExperienceInput } from '$lib/server/profile/experience';
 import { SOFT_SKILLS } from '$lib/server/profile/soft-skills';
-import type { SourcePosting } from '$lib/server/vacancies/sources/types';
 import {
 	type DemoPreferences,
 	type HeroAssessment,
@@ -835,107 +834,4 @@ export function ownVacancyPlans(
 		});
 	}
 	return plans;
-}
-
-// --- Synthetic vacancy sources ---------------------------------------------------------------------------------------
-
-interface DemoSource {
-	key: string;
-	name: string;
-	storeDescription: boolean;
-	attribution: string;
-}
-
-/** Two synthetic listings: a posting may appear in both, and the aggregator clusters the duplicates. */
-export const DEMO_SOURCES: readonly DemoSource[] = [
-	{
-		key: 'demo_board',
-		name: 'Демо-лента вакансий «Доска»',
-		storeDescription: true,
-		attribution: 'Демо-данные: синтетическая лента вакансий'
-	},
-	{
-		key: 'demo_portal',
-		name: 'Демо-портал вакансий',
-		storeDescription: false,
-		attribution: 'Демо-данные: синтетический портал вакансий'
-	}
-];
-
-const CITIES = ['Москва', 'Санкт-Петербург', 'Новосибирск', 'Казань', 'Екатеринбург', 'Нижний Новгород', 'Томск', null];
-const EMPLOYMENT_RAW = ['Полная занятость', 'Полный день', 'Частичная занятость', 'Проектная работа'];
-
-function sha256(value: string): string {
-	return createHash('sha256').update(value).digest('hex');
-}
-
-/**
- * Postings of the synthetic sources: `count` vacancies, some listed by both sources (the same title, organization and
- * city), a part without a salary, tax bases mostly unstated as in real listings. One posting of the organization that
- * matches the company under review is listed by both sources without a salary: «this is our vacancy».
- */
-export function externalPostings(
-	data: SeedData,
-	count: number,
-	batch: string,
-	/** The day the listing is dated by: a fixed day keeps a repeated import of the same postings unchanged. */
-	asOf: Date,
-	claimOrganization: string,
-	skillNames: ReadonlyMap<string, string>
-): Map<string, SourcePosting[]> {
-	const rnd = new Random(`${batch}:vacancies:external`);
-	const bySource = new Map<string, SourcePosting[]>(DEMO_SOURCES.map((s) => [s.key, []]));
-	const organizations = data.companies.organizations.filter((o) => o !== claimOrganization);
-	for (let i = 0; i < count; i++) {
-		const claim = i === 0;
-		const role = claim ? roleByKey(data, 'backend') : pickRole(data, rnd);
-		const stack = claim ? (role.stacks[0] ?? rnd.pick(role.stacks)) : rnd.pick(role.stacks);
-		const grade = rnd.weighted<(typeof GRADES)[number]>([
-			['junior', 0.25],
-			['middle', 0.45],
-			['senior', 0.3]
-		]);
-		const organization = claim ? claimOrganization : rnd.pick(organizations);
-		const city = claim ? 'Казань' : rnd.pick(CITIES);
-		const withSalary = !claim && rnd.chance(0.5);
-		const [low, high] = band(data, grade, role.multiplier);
-		const min = withSalary && rnd.chance(0.85) ? round5k(low / 0.87) : null;
-		const max = withSalary && (min === null || rnd.chance(0.7)) ? round5k(high / 0.87) : null;
-		const skills = [...stack.required, ...stack.nice.filter(() => rnd.chance(0.5))].map(
-			(key) => skillNames.get(key) ?? key
-		);
-		const title = claim ? 'Backend-разработчик Go' : `${data.roles.gradeTitles[grade] ?? ''} ${role.title}`.trim();
-		const published = new Date(asOf.getTime() - rnd.int(0, 20) * DAY);
-		const both = claim || rnd.chance(0.15);
-		const sources = both ? DEMO_SOURCES : [rnd.pick(DEMO_SOURCES)];
-		for (const source of sources) {
-			const externalId = `${source.key}-${String(i + 1).padStart(5, '0')}`;
-			const posting: Omit<SourcePosting, 'rawSha256'> = {
-				externalId,
-				url: `https://example.com/demo-vacancies/${externalId}`,
-				title,
-				organization: { name: organization, inn: null, sourceOrgId: `org-${sha256(organization).slice(0, 8)}` },
-				publishedAt: published.toISOString(),
-				updatedAt: published.toISOString(),
-				salary: {
-					min,
-					max,
-					currency: min === null && max === null ? null : 'RUB',
-					period: min === null && max === null ? null : 'month',
-					taxBase: min === null && max === null ? null : rnd.chance(0.3) ? 'gross' : null,
-					rawText: min === null && max === null ? null : `${min ?? ''}–${max ?? ''} ₽`
-				},
-				grade: claim ? null : { raw: data.roles.gradeTitles[grade] ?? grade },
-				location: { city, remote: city === null ? true : rnd.chance(0.3), raw: city },
-				employment: { raw: rnd.pick(EMPLOYMENT_RAW) },
-				skillsRaw: skills,
-				description: source.storeDescription
-					? `${organization} ищет специалиста: ${title}. Стек: ${skills.join(', ')}.`
-					: null,
-				contactsRemoved: false
-			};
-			bySource.get(source.key)?.push({ ...posting, rawSha256: sha256(JSON.stringify(posting)) });
-		}
-	}
-	return bySource;
 }

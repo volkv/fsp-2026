@@ -40,11 +40,9 @@
 		...(vacancy.salary.taxBase === null ? {} : { taxBase: vacancy.salary.taxBase })
 	});
 	const grade = $derived(
-		vacancy.gradeMin === null || vacancy.gradeMax === null
-			? 'не указан'
-			: vacancy.gradeMin === vacancy.gradeMax
-				? gradeName(labels, vacancy.gradeMin)
-				: `${gradeName(labels, vacancy.gradeMin)} – ${gradeName(labels, vacancy.gradeMax)}`
+		vacancy.gradeMin === vacancy.gradeMax
+			? gradeName(labels, vacancy.gradeMin)
+			: `${gradeName(labels, vacancy.gradeMin)} – ${gradeName(labels, vacancy.gradeMax)}`
 	);
 </script>
 
@@ -66,7 +64,7 @@
 	<div class="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
 		<SalaryRange {salary} />
 		<span>Грейд: {grade}</span>
-		{#if vacancy.workFormat}<span>{labels.workFormats[vacancy.workFormat] ?? vacancy.workFormat}</span>{/if}
+		<span>{labels.workFormats[vacancy.workFormat] ?? vacancy.workFormat}</span>
 	</div>
 	{#if vacancy.requiredSkillKeys.length > 0}
 		<p class="text-sm">
@@ -74,7 +72,7 @@
 			{vacancy.requiredSkillKeys.map((key) => skillName(labels, key)).join(', ')}
 		</p>
 	{/if}
-	{#if vacancy.description}<p class="whitespace-pre-line">{vacancy.description}</p>{/if}
+	<p class="whitespace-pre-line">{vacancy.description}</p>
 </SectionCard>
 
 <SectionCard

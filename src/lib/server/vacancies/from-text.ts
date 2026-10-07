@@ -15,8 +15,8 @@ import type { ModelAdapter } from '$lib/server/ml/adapter';
 import { extractModelEnvelope } from '$lib/server/ml/envelope';
 import type { Block, QuoteLocation } from '$lib/server/ml/quotes';
 import type { VacancyItem } from '$lib/server/ml/vacancy-extract';
+import { roleOfTitle } from '$lib/server/taxonomy/roles';
 import { invalid } from './errors';
-import { roleOfTitle } from './normalize';
 import type { UnsavedVacancy } from './pool';
 import { checkVacancyText, type TextCheck } from './text-check';
 import { extractVacancyByRules, VACANCY_TEXT_RULES_VERSION } from './text-rules';
@@ -333,7 +333,7 @@ export async function extractVacancyFromText(
 			items,
 			blocks,
 			(raw) => resolveSkill(taxonomy, raw),
-			(title) => roleOfTitle(title, taxonomy).key
+			(title) => roleOfTitle(title, taxonomy.roleNames)
 		);
 	let fields: VacancyTextFields;
 	let values: typeof mlResults.$inferInsert;

@@ -1,4 +1,4 @@
-// Shortlists of hiring needs (contracts 10.2; domain 13.10): a need gives a shortlist ranked by the fit to it and the
+// Shortlists of hiring needs (contracts 9.2; domain 13.10): a need gives a shortlist ranked by the fit to it and the
 // strength of the confirmed profile, with 3–5 reasons and their sources; refinements are steps that lose nothing;
 // marks; «what if» by one condition; the range of the need only as an aggregate of a fixed cohort; the blind
 // comparison with a keyword search («Оцените подбор»). Cards are shown through `canShow` at every opening.
@@ -699,7 +699,7 @@ export const startShortlistEvaluation = defineOperation({
 	summary: '«Оцените подбор»: начать',
 	description:
 		'Первая десятка подборки и первая десятка поиска по ключевым словам на той же потребности, смешанные ' +
-		'чередованием команд и перемешанные: какая система выбрала карточку — не указано. Две части (contracts 11.2, ' +
+		'чередованием команд и перемешанные: какая система выбрала карточку — не указано. Две части (contracts 10.2, ' +
 		'п. 10): `confirmed_pool` — поиск по словам среди кандидатов тех же категорий и фильтров, что у подборки; ' +
 		'`whole_catalog` — эксперимент: поиск по всему видимому каталогу, включая кандидатов без категории, — не ' +
 		'качество подборки. Нечего сравнивать — `409`.',

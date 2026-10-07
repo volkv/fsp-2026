@@ -1,4 +1,4 @@
-// What the candidate reads about their tests (docs/domain.md, 10.6–10.7; contracts 10.1): the tests the grade policy
+// What the candidate reads about their tests (docs/domain.md, 10.6–10.7; contracts 9.1): the tests the grade policy
 // lets them take, their attempts and decisions, an attempt with the statements of its served clusters — never a key, a
 // hidden test or a mutant — and a decision with its explanation by blocks. Every read is the candidate's own.
 import { and, asc, desc, eq, inArray } from 'drizzle-orm';

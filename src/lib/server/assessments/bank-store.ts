@@ -275,7 +275,7 @@ function familyJudgements(manifest: ReleaseManifest): FamilyJudgements[] {
 	});
 }
 
-/** Every release of the bank, newest first, with the reports of its manifest (contracts 10.3). */
+/** Every release of the bank, newest first, with the reports of its manifest (contracts 9.3). */
 export async function bankReleasesOverview(executor: Executor): Promise<BankReleaseOverview[]> {
 	const rows = await executor.select().from(bankReleases).orderBy(desc(bankReleases.releasedAt));
 	return rows.map((row) => {

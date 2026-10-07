@@ -287,7 +287,7 @@ async function authorizeSending(
 	let invitability: Invitability | null = null;
 	if (offer.vacancyId !== null) {
 		vacancy = await loadVacancy(tx, offer.vacancyId);
-		if (!vacancy || (vacancy.origin === 'own' && vacancy.companyId !== member.companyId)) {
+		if (!vacancy || vacancy.companyId !== member.companyId) {
 			throw refuse('not_found', 'foreign_vacancy');
 		}
 		invitability = isInvitable(vacancy);

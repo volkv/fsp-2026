@@ -31,7 +31,7 @@ export interface Declaration {
 	declaredAt: Date;
 }
 
-/** `409 conflict (not_declared)`: the survey comes first (contracts 10.1). */
+/** `409 conflict (not_declared)`: the survey comes first (contracts 9.1). */
 function noSurvey(): ApiError {
 	return new ApiError('conflict', {
 		message: 'Сначала пройдите опрос',

@@ -1,4 +1,4 @@
-// The public check of a confirmation of a category (docs/domain.md, section 12.9; contracts 10.3): its status is
+// The public check of a confirmation of a category (docs/domain.md, section 12.9; contracts 9.3): its status is
 // computed at the moment of the request from the assignment it speaks of, read through the category module like every
 // other reader of categories — `valid` while the assignment is in force, `superseded` once another assignment of the
 // specialization replaced it (a past result, not the category in force, which is named), `annulled` once the decision

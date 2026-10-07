@@ -330,7 +330,7 @@ async function prefilter(
 	}));
 }
 
-/** An own vacancy of the viewer's company that is not closed; anything else is «not found» for this viewer. */
+/** A vacancy of the viewer's company that is not closed; anything else is «not found» for this viewer. */
 export async function companyVacancy(
 	executor: Executor,
 	vacancyId: string,
@@ -339,14 +339,7 @@ export async function companyVacancy(
 	const [row] = await executor
 		.select()
 		.from(vacancies)
-		.where(
-			and(
-				eq(vacancies.id, vacancyId),
-				eq(vacancies.origin, 'own'),
-				eq(vacancies.companyId, companyId),
-				ne(vacancies.status, 'closed')
-			)
-		);
+		.where(and(eq(vacancies.id, vacancyId), eq(vacancies.companyId, companyId), ne(vacancies.status, 'closed')));
 	if (!row) throw new ApiError('not_found');
 	return vacancySnapshot(row);
 }
@@ -399,7 +392,6 @@ async function visibleOf(
 						vacancy: {
 							id: vacancy.id,
 							companyId: vacancy.companyId,
-							origin: vacancy.origin,
 							status: vacancy.status,
 							minAge: vacancy.minAge
 						}
@@ -858,7 +850,7 @@ export async function visibleAmong(
 }
 
 /**
- * The baseline of «Оцените подбор» (contracts 11.2): plain keyword search among the candidates the viewer sees that
+ * The baseline of «Оцените подбор» (contracts 10.2): plain keyword search among the candidates the viewer sees that
  * pass the filters — the shortlist's categories and filters for the comparison on the confirmed pool, none for the
  * experiment over the whole catalog — the words of the query against the catalog documents, by full-text relevance
  * alone, ties by id. No strength, no meaning: what a recruiter has without the platform's ranking.

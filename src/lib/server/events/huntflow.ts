@@ -1,4 +1,4 @@
-// The Huntflow adapter (docs/contracts.md, section 13.3): a receiver of the company's events that turns them into calls
+// The Huntflow adapter (docs/contracts.md, section 12.3): a receiver of the company's events that turns them into calls
 // of the public Huntflow API v2 — the accepted offer creates the applicant with the contacts the candidate disclosed to
 // this company and puts them on the company's vacancy in the mapped status; a stage or an outcome the company reports
 // moves the applicant to the mapped status. The platform calls Huntflow only when `HUNTFLOW_API_URL` is set; the token

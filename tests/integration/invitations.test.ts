@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { invitations, invitationTerms, vacancyClaims } from '$lib/server/db/schema';
+import { invitations, invitationTerms } from '$lib/server/db/schema';
 import { uuidv7 } from '$lib/server/ids';
 import { loadInvitability } from '$lib/server/vacancies/invitable';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
@@ -7,7 +7,6 @@ import { expectDbError, SQLSTATE } from '../helpers/errors';
 import {
 	createCandidate,
 	createCompany,
-	createExternalVacancy,
 	createMember,
 	createOwnVacancy,
 	createPolicy,
@@ -131,34 +130,20 @@ describe('invitations', () => {
 });
 
 describe('isInvitable', () => {
-	it('accepts a published own vacancy with a full range in roubles', async () => {
+	it('accepts a published vacancy with a full range in roubles', async () => {
 		const ctx = await setup();
 		expect(await loadInvitability(database.db, ctx.vacancy.id)).toEqual({ invitable: true });
 	});
 
-	it('refuses an external vacancy, also after an approved claim', async () => {
-		const { db } = database;
+	it('refuses a vacancy that is not published', async () => {
 		const ctx = await setup();
-		const external = await createExternalVacancy(db, ctx.taxonomy.id, {
-			salaryMin: 200_000,
-			salaryMax: 300_000,
-			salaryCurrency: 'RUB',
-			salaryPeriod: 'month',
-			salaryTaxBase: 'gross',
-			claimedCompanyId: ctx.company.id
-		});
-		const applicant = ctx.member.userId;
-		if (!applicant) throw new Error('member without user');
-		await db.insert(vacancyClaims).values({
-			vacancyId: external.id,
-			companyId: ctx.company.id,
-			requestedByUserId: applicant,
-			status: 'approved',
-			matchEvidence: {},
-			decidedBy: applicant,
-			decidedAt: new Date()
-		});
-		expect(await loadInvitability(db, external.id)).toEqual({ invitable: false, reason: 'external_vacancy' });
+		const { db } = database;
+		const vacancy = await createOwnVacancy(
+			db,
+			{ companyId: ctx.company.id, memberId: ctx.member.id, taxonomyVersionId: ctx.taxonomy.id },
+			{ status: 'paused' }
+		);
+		expect(await loadInvitability(db, vacancy.id)).toEqual({ invitable: false, reason: 'not_published' });
 	});
 
 	it('refuses a vacancy with a range not in roubles', async () => {
@@ -172,7 +157,7 @@ describe('isInvitable', () => {
 		expect(await loadInvitability(db, vacancy.id)).toEqual({ invitable: false, reason: 'incomplete_salary' });
 	});
 
-	it('cannot meet an own vacancy without a full range: the database refuses it', async () => {
+	it('cannot meet a vacancy without a full range: the database refuses it', async () => {
 		const { db } = database;
 		const company = await createCompany(db);
 		const member = await createMember(db, company.id);
@@ -184,7 +169,7 @@ describe('isInvitable', () => {
 				{ salaryMax: null }
 			),
 			SQLSTATE.checkViolation,
-			/vacancies_own_fields/
+			/vacancies_full_salary/
 		);
 		await expectDbError(
 			createOwnVacancy(
@@ -193,19 +178,7 @@ describe('isInvitable', () => {
 				{ salaryTaxBase: 'unknown' }
 			),
 			SQLSTATE.checkViolation,
-			/vacancies_own_fields/
-		);
-	});
-
-	it('keeps an external vacancy without salary and grade as unknown', async () => {
-		const { db } = database;
-		const taxonomy = await createTaxonomyVersion(db);
-		const external = await createExternalVacancy(db, taxonomy.id);
-		expect(external).toMatchObject({ salaryMin: null, salaryMax: null, gradeMin: null, gradeBasis: 'unknown' });
-		await expectDbError(
-			createExternalVacancy(db, taxonomy.id, { salaryMin: 100_000 }),
-			SQLSTATE.checkViolation,
-			/vacancies_salary_terms/
+			/vacancies_full_salary/
 		);
 	});
 });

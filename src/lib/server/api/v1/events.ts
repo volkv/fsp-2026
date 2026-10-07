@@ -1,4 +1,4 @@
-// Outgoing events of a company (domain 5.7; contracts 13): webhook subscriptions with HMAC signatures, the Huntflow
+// Outgoing events of a company (domain 5.7; contracts 12): webhook subscriptions with HMAC signatures, the Huntflow
 // adapter, the rotation of secrets, a test delivery and the journal of deliveries. Operations of the owner in a browser
 // session: keys never manage subscriptions, which hold secrets.
 import { z } from 'zod';

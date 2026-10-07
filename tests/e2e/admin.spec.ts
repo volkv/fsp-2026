@@ -1,6 +1,6 @@
 // The administrator cabinet in the browser against the local infrastructure (`make infra`): the administrator switches
-// the `extract` model operation off and back on with a confirmation, each switch lands in the action journal; enables a
-// vacancy source, which puts its import in the queue, and disables it again; the reference books, the quality panel, people and the journal render; somebody who is not an administrator does not get
+// the `extract` model operation off and back on with a confirmation, each switch lands in the action journal; the
+// reference books, the quality panel, people and the journal render; somebody who is not an administrator does not get
 // into the cabinet. The main screens have no accessibility violations.
 //
 // People register through the form (their passwords and addresses need the keys of the running application). The
@@ -10,9 +10,9 @@ import AxeBuilder from '@axe-core/playwright';
 import type { Browser, Page } from '@playwright/test';
 import { expect, test } from './helpers/test';
 import { APP_ORIGIN } from './helpers/ports';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { createClient } from 'redis';
-import { auditEvents, companies, companyMembers, jobs, staffRoles, vacancySources } from '$lib/server/db/schema';
+import { auditEvents, companies, companyMembers, staffRoles } from '$lib/server/db/schema';
 
 const PASSWORD = 'e2e passphrase long';
 
@@ -122,57 +122,6 @@ test('the administrator switches extract off and back on, and each switch is jou
 	await page.context().close();
 });
 
-test('the administrator enables a vacancy source with its import queued, then disables it', async ({ browser }) => {
-	// A run that stopped halfway may have left the source on: start from the state the seed registers.
-	await db().update(vacancySources).set({ enabled: false }).where(eq(vacancySources.key, 'trudvsem'));
-	const { page, userId } = await signInAdmin(browser);
-	await page.goto('/admin/sources');
-	await expect(page.getByRole('heading', { level: 1 })).toHaveText('Источники вакансий');
-	await expectNoAxeViolations(page);
-
-	const card = page.locator('[data-source="trudvsem"]');
-	const trudvsem = page.getByRole('switch', { name: 'Работа России' });
-	await expect(trudvsem).toHaveAttribute('aria-checked', 'false');
-
-	await trudvsem.click();
-	const dialog = page.getByRole('alertdialog');
-	await expect(dialog).toContainText('Включить «Работа России»?');
-	await expect(dialog).toContainText('полный импорт');
-	await dialog.getByRole('button', { name: 'Включить' }).click();
-	await expect(page.getByRole('status')).toContainText('«Работа России» включён: полный импорт поставлен в очередь');
-	await expect(trudvsem).toHaveAttribute('aria-checked', 'true');
-	await expect(card).toContainText('импорт в очереди');
-	// The page is checked once the confirmation has faded out.
-	await expect(dialog).toBeHidden();
-	await expectNoAxeViolations(page);
-
-	await trudvsem.click();
-	await page.getByRole('alertdialog').getByRole('button', { name: 'Выключить' }).click();
-	await expect(page.getByRole('status')).toContainText('«Работа России» выключен');
-	await expect(trudvsem).toHaveAttribute('aria-checked', 'false');
-
-	const journal = await db()
-		.select({ action: auditEvents.action, details: auditEvents.details })
-		.from(auditEvents)
-		.where(and(eq(auditEvents.objectId, 'trudvsem'), eq(auditEvents.actorUserId, userId)));
-	const enabled = journal.find((row) => row.action === 'vacancy_source.enabled');
-	expect(enabled?.details).toMatchObject({ source: 'trudvsem' });
-	expect(journal.find((row) => row.action === 'vacancy_source.disabled')?.details).toEqual({
-		source: 'trudvsem',
-		reason: 'administrator'
-	});
-	expect(journal).toHaveLength(2);
-
-	// No worker runs against the test stand; the queued import would skip a disabled source anyway.
-	const jobId = (enabled?.details as { import_job_id?: unknown } | null)?.import_job_id;
-	if (typeof jobId !== 'string') throw new Error('the enabling entry names no import job');
-	await db()
-		.update(jobs)
-		.set({ status: 'cancelled', finishedAt: sql`now()` })
-		.where(and(eq(jobs.id, jobId), eq(jobs.status, 'queued')));
-	await page.context().close();
-});
-
 test('the reference books, the quality panel, people and the journal render without violations', async ({
 	browser
 }) => {
@@ -232,11 +181,6 @@ test('somebody who is not an administrator does not get into the cabinet', async
 	});
 	expect(refusedAction.status()).toBe(403);
 	expect(await refusedAction.text()).toContain('Кабинет администратора доступен только администраторам');
-	const refusedSource = await page.request.post('/admin/sources?/switchSource', {
-		headers: { origin: APP_ORIGIN },
-		form: { csrf_token: csrfToken, source: 'trudvsem', enabled: 'true' }
-	});
-	expect(refusedSource.status()).toBe(403);
 });
 
 test('an anonymous visitor is sent to sign in instead of the cabinet', async ({ page }) => {

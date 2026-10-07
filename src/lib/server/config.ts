@@ -2,7 +2,7 @@ import { env } from '$env/dynamic/private';
 import { z } from 'zod';
 import { LLM_RUNTIMES, type LlmRuntime } from '$lib/server/ml/runtime';
 
-// Environment of the application (docs/contracts.md sections 1, 2.1, 3.1, 6, 8; docs/domain.md section 0).
+// Environment of the application (docs/contracts.md sections 1, 2.1, 3.1, 6, 7; docs/domain.md section 0).
 // An empty value means «not set». Optional integrations are configured as a whole group or not at all.
 
 const optional = <T extends z.ZodType>(schema: T) =>
@@ -120,7 +120,7 @@ const envSchema = z
 		FSP_ID_SCOPES: optional(z.string().regex(/^openid( [a-z_:.]+)*$/, 'must start with openid')),
 
 		COMPANY_REGISTRY: optional(z.enum(['egrul'])),
-		/** Base of the Huntflow API v2 (`https://api.huntflow.ru/v2`); unset — the Huntflow adapter is off (contracts 13.3). */
+		/** Base of the Huntflow API v2 (`https://api.huntflow.ru/v2`); unset — the Huntflow adapter is off (contracts 12.3). */
 		HUNTFLOW_API_URL: optional(httpUrl),
 
 		CODEFORCES_API_URL: optional(httpUrl),
@@ -392,7 +392,7 @@ export interface Config {
 	 * elsewhere. `githubToken` — without it GitHub allows 60 requests an hour from the address.
 	 */
 	publicProfiles: { codeforcesApiUrl: string; githubApiUrl: string; githubToken: string | null };
-	/** `null` — the Telegram channel is disabled (contracts 8.2). */
+	/** `null` — the Telegram channel is disabled (contracts 7.2). */
 	telegram: { botToken: string; botUsername: string; webhookSecret: string } | null;
 	/**
 	 * The bootstrap administrator (domain 4.1): the account `build/admin/main.js ensure` creates or confirms at the start

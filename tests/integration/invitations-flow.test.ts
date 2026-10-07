@@ -44,7 +44,6 @@ import { expectDbError, SQLSTATE } from '../helpers/errors';
 import {
 	createCandidate,
 	createCompany,
-	createExternalVacancy,
 	createMember,
 	createOwnVacancy,
 	createPublishedDocument,
@@ -561,21 +560,18 @@ describe('refusals of an invitation', () => {
 		expect(denied).toMatchObject({ outcome: 'denied', details: { reason: 'foreign_vacancy' } });
 	});
 
-	it('refuses an external vacancy as not invitable', async () => {
+	it('refuses a paused vacancy as not invitable', async () => {
 		clock = new Date();
 		const company = await employer();
 		const person = await candidate();
-		const external = await createExternalVacancy(database.db, taxonomyVersionId, {
-			salaryMin: 200_000,
-			salaryMax: 300_000,
-			salaryCurrency: 'RUB',
-			salaryPeriod: 'month',
-			salaryTaxBase: 'gross',
-			claimedCompanyId: company.company.id
-		});
+		const paused = await createOwnVacancy(
+			database.db,
+			{ companyId: company.company.id, memberId: company.member.id, taxonomyVersionId },
+			{ status: 'paused' }
+		);
 		const error = await refusal(
 			createInvitation(deps, company.subject, meta, {
-				...offerTerms({ vacancyId: external.id, salaryMin: 250_000, salaryMax: 300_000 }),
+				...offerTerms({ vacancyId: paused.id, salaryMin: 250_000, salaryMax: 300_000 }),
 				candidateId: person.id
 			})
 		);

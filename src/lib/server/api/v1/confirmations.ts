@@ -1,4 +1,4 @@
-// Requests of a missing confirmation and the results of block tests (contracts 10.1, 10.2; domain 13.11): the employer
+// Requests of a missing confirmation and the results of block tests (contracts 9.1, 9.2; domain 13.11): the employer
 // asks a candidate it sees to confirm a block of the candidate's specialization; the candidate takes the block test or
 // declines; the result is evidence of its own, never a change of the category.
 import { z } from 'zod';

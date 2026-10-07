@@ -1,4 +1,4 @@
-// Requests of a missing confirmation (docs/domain.md, 13.11; contracts 10.1, 10.2). The employer asks a candidate it sees
+// Requests of a missing confirmation (docs/domain.md, 13.11; contracts 9.1, 9.2). The employer asks a candidate it sees
 // to confirm a block × grade pair of the candidate's specialization that the category does not cover; the candidate
 // takes the block test of their own will — refusing changes nothing. The result is evidence of its own: the category
 // never changes. A repeated request returns the open one; a result of the block on the same or a higher grade the

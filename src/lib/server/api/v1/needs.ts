@@ -1,4 +1,4 @@
-// Hiring needs (contracts 10.2; domain 13.10): the employer writes who they look for, the text is parsed by the model or
+// Hiring needs (contracts 9.2; domain 13.10): the employer writes who they look for, the text is parsed by the model or
 // by the rules into a suggested form with quotes, the employer confirms the form, and the need gives the categories
 // recommended for it with the numbers of candidates the company sees.
 import { z } from 'zod';

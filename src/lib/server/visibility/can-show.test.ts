@@ -63,7 +63,7 @@ function teenFacts(overrides: Partial<VisibilityFacts> = {}): VisibilityFacts {
 			hasCardReadPermission: true,
 			minorTermsAccepted: true
 		},
-		vacancy: { id: 'v-teen', companyId: COMPANY, origin: 'own', status: 'published', minAge: 16 },
+		vacancy: { id: 'v-teen', companyId: COMPANY, status: 'published', minAge: 16 },
 		...overrides
 	};
 }
@@ -190,7 +190,6 @@ describe('canShow: teenager 14–17', () => {
 		const vacancy = base.vacancy ?? {
 			id: 'v-teen',
 			companyId: COMPANY,
-			origin: 'own' as const,
 			status: 'published',
 			minAge: 16
 		};

@@ -61,13 +61,6 @@
 			href: resolve('/operator/vacancies'),
 			count: overview.vacancies.pending,
 			lines: [{ text: 'проверка текста нашла недопустимые требования', alert: false }]
-		},
-		{
-			key: 'claims',
-			title: '«Это наша вакансия»',
-			href: resolve('/operator/claims'),
-			count: overview.claims.pending,
-			lines: [{ text: 'заявки проверенных компаний на внешние вакансии', alert: false }]
 		}
 	]);
 </script>

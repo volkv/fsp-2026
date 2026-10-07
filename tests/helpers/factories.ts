@@ -168,7 +168,6 @@ export async function createOwnVacancy(
 	const [row] = await db
 		.insert(vacancies)
 		.values({
-			origin: 'own',
 			companyId: input.companyId,
 			createdByMemberId: input.memberId,
 			taxonomyVersionId: input.taxonomyVersionId,
@@ -177,7 +176,6 @@ export async function createOwnVacancy(
 			roleKey: 'backend',
 			gradeMin: 'middle',
 			gradeMax: 'senior',
-			gradeBasis: 'stated',
 			requiredSkillKeys: ['go'],
 			workFormat: 'remote',
 			employmentForm: 'full_time',
@@ -190,28 +188,6 @@ export async function createOwnVacancy(
 			textCheck,
 			status: 'published',
 			publishedAt: new Date(),
-			...overrides
-		})
-		.returning();
-	if (!row) throw new Error('vacancy not inserted');
-	return row;
-}
-
-export async function createExternalVacancy(
-	db: Executor,
-	taxonomyVersionId: string,
-	overrides: Insert<typeof vacancies> = {}
-) {
-	const [row] = await db
-		.insert(vacancies)
-		.values({
-			origin: 'external',
-			externalOrg: { name: 'Пример', source_org_ids: [] },
-			taxonomyVersionId,
-			title: 'Go developer',
-			gradeBasis: 'unknown',
-			textCheck,
-			status: 'active',
 			...overrides
 		})
 		.returning();

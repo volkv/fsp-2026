@@ -1,8 +1,8 @@
 // The bootstrap administrator from the environment (docs/domain.md, section 4.1): created once with the confirmed
 // address, the password and the administrator role, journaled without the password; a repeated start changes nothing,
 // the password is set again only on request and may leave the environment once the account exists; the account signs
-// in by password on a stand whose seed accounts do not, and switches a vacancy source on. An address of a demo account
-// or of an account that is not active is refused.
+// in by password on a stand whose seed accounts do not, and holds the administrator's permissions. An address of a demo
+// account or of an account that is not active is refused.
 import { randomUUID } from 'node:crypto';
 import { and, eq } from 'drizzle-orm';
 import { createClient } from 'redis';
@@ -12,7 +12,7 @@ import {
 	ensureBootstrapAdmin,
 	type BootstrapAdminDeps
 } from '$lib/server/admin/bootstrap/ensure';
-import { switchVacancySource } from '$lib/server/admin/sources';
+import { can } from '$lib/server/access/permissions';
 import { authenticateSession } from '$lib/server/auth/authenticate';
 import type { AuthDeps, RequestMeta } from '$lib/server/auth/context';
 import { loginWithPassword } from '$lib/server/auth/login';
@@ -20,16 +20,8 @@ import { hashPassword } from '$lib/server/auth/password';
 import { createSession, readSession } from '$lib/server/auth/sessions';
 import { loadAccessSubject } from '$lib/server/companies/subject';
 import { createFieldCrypto } from '$lib/server/crypto/fields';
-import {
-	auditEvents,
-	notificationChannels,
-	passwordCredentials,
-	staffRoles,
-	users,
-	vacancySources
-} from '$lib/server/db/schema';
+import { auditEvents, notificationChannels, passwordCredentials, staffRoles, users } from '$lib/server/db/schema';
 import type { Redis } from '$lib/server/redis';
-import { HABR_SOURCE_KEY, registerVacancySources } from '$lib/server/vacancies/sources/definitions';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
 
 const REDIS_DATABASE = 15;
@@ -95,7 +87,6 @@ async function refusal(promise: Promise<unknown>): Promise<BootstrapAdminRefused
 
 beforeAll(async () => {
 	database = await createTestDatabase();
-	await registerVacancySources(database.sql);
 	redis = createClient({ url: `${inject('redisUrl')}/${REDIS_DATABASE}` });
 	await redis.connect();
 	await redis.flushDb();
@@ -169,7 +160,7 @@ describe('bootstrap administrator', () => {
 		).toHaveLength(1);
 	});
 
-	it('signs in by password on a stand whose seed accounts do not, and switches a vacancy source on', async () => {
+	it('signs in by password on a stand whose seed accounts do not, and acts as the administrator', async () => {
 		const email = newEmail();
 		const { userId } = await ensure(email);
 		// A seed account with the same kind of password is refused before its password is checked (domain 19.3).
@@ -200,14 +191,7 @@ describe('bootstrap administrator', () => {
 		const subject = await loadAccessSubject(database.db, actor);
 		expect(subject.staff).toMatchObject({ admin: true, operator: false });
 
-		const switched = await switchVacancySource(
-			{ db: database.db, now },
-			{ subject, meta: meta() },
-			{ source: HABR_SOURCE_KEY, enabled: true }
-		);
-		expect(switched).toMatchObject({ changed: true });
-		const [source] = await database.db.select().from(vacancySources).where(eq(vacancySources.key, HABR_SOURCE_KEY));
-		expect(source?.enabled).toBe(true);
+		expect(can(subject, 'taxonomy.manage', null)).toEqual({ allowed: true });
 	});
 
 	it('sets the password again only on request, ending every session of the account', async () => {

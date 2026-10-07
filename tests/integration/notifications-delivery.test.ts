@@ -1,4 +1,4 @@
-// Delivery of notifications over email and Telegram (docs/domain.md 3.7, contracts 8): a fake SMTP server and a fake
+// Delivery of notifications over email and Telegram (docs/domain.md 3.7, contracts 7): a fake SMTP server and a fake
 // Bot API stand in for the providers, the jobs go through the real queue.
 import { createServer as createHttpServer, type Server as HttpServer } from 'node:http';
 import { createServer as createTcpServer, type AddressInfo, type Server as TcpServer } from 'node:net';

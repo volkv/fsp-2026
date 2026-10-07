@@ -14,7 +14,6 @@ describe('job registry', () => {
 			['external_profile.refresh', { external_profile_id: id }, `external_profile.refresh:${id}`],
 			['notification.deliver', { notification_id: id, channel_id: id }, `notify:${id}:${id}`],
 			['hiring.outcome_request', { process_id: id, reminder: 2 }, `hiring.outcome:${id}:2`],
-			['vacancies.import', { source: 'habr_career', mode: 'full' }, 'vacancies.import:habr_career:full'],
 			['account.purge', { user_id: id }, `purge:${id}`],
 			['consent.revocation_cleanup', { consent_event_id: id }, `revocation:${id}`],
 			['consent.revocation_cleanup', { athlete_link_id: id }, `revocation:link:${id}`],
@@ -37,6 +36,6 @@ describe('job registry', () => {
 	});
 
 	it('covers every type of the model registry', () => {
-		expect(Object.keys(JOB_TYPES)).toHaveLength(31);
+		expect(Object.keys(JOB_TYPES)).toHaveLength(28);
 	});
 });

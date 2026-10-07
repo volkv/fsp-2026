@@ -6,7 +6,6 @@
 	/** Sections of the administrator cabinet: operations first, then the reference books, people and the journal. */
 	const tabs = [
 		{ href: resolve('/admin'), label: 'Обзор и модели', exact: true },
-		{ href: resolve('/admin/sources'), label: 'Источники вакансий', exact: false },
 		{ href: resolve('/admin/quality'), label: 'Качество моделей', exact: false },
 		{ href: resolve('/admin/taxonomy'), label: 'Таксономия', exact: false },
 		{ href: resolve('/admin/rules'), label: 'Правила', exact: false },

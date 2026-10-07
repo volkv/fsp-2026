@@ -3,7 +3,6 @@
 // directly, visible to some verified company when read — with the required skills a published platform test confirms.
 import { randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
-import postgres from 'postgres';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import type { SpecializationKey } from '$lib/server/assessments/contract/catalog';
 import {
@@ -19,9 +18,7 @@ import {
 	skillInferences,
 	skills,
 	sourceFacts,
-	vacancies,
-	vacancyImportRuns,
-	vacancyPostings
+	vacancies
 } from '$lib/server/db/schema';
 import { createLogger } from '$lib/server/jobs/log';
 import { claimJob, completeJob, enqueueJob, type ClaimedJob } from '$lib/server/jobs/queue';
@@ -30,10 +27,7 @@ import { matchRulesetParamsSchema } from '$lib/server/matching/params';
 import { createMatchRefreshHandler } from '$lib/server/matching/refresh';
 import type { MatchingModels } from '$lib/server/matching/semantic';
 import { ok } from '$lib/server/ml/result';
-import { recomputeCluster } from '$lib/server/vacancies/clusters';
-import type { NormalizedPosting } from '$lib/server/vacancies/normalize';
 import { loadPoolCount, loadPoolCounter } from '$lib/server/vacancies/pool';
-import { HABR_SOURCE_KEY, registerVacancySources } from '$lib/server/vacancies/sources/definitions';
 import shippedMatchRuleset from '../../taxonomy/match-ruleset.json';
 import { releaseFixtureBank } from '../helpers/bank';
 import { decide } from '../helpers/categories';
@@ -41,7 +35,6 @@ import { createTestDatabase, type TestDatabase } from '../helpers/database';
 import {
 	createCandidate,
 	createCompany,
-	createExternalVacancy,
 	createMember,
 	createOwnVacancy,
 	createPublishedDocument,
@@ -114,13 +107,6 @@ beforeAll(async () => {
 			effectiveFrom: new Date(Date.now() + DAY)
 		}
 	]);
-
-	const client = postgres(database.url, { max: 1, onnotice: () => {} });
-	try {
-		await registerVacancySources(client);
-	} finally {
-		await client.end({ timeout: 5 });
-	}
 });
 
 afterAll(async () => {
@@ -353,9 +339,6 @@ describe('pool of a vacancy and the matching candidates without confirmation', (
 			.where(eq(vacancies.id, vacancy.id));
 		expect(await loadPoolCounter(database.db, vacancy.id, new Date())).toEqual({ status: 'pending' });
 
-		const external = await createExternalVacancy(database.db, taxonomyVersionId);
-		expect(await loadPoolCounter(database.db, external.id, new Date())).toEqual({ status: 'insufficient_data' });
-
 		// A role without required skills: nobody can have a required skill confirmed, so the pool is not counted at all.
 		const roleOnly = await ownVacancy([]);
 		expect(roleOnly.roleKey).not.toBeNull();
@@ -381,84 +364,5 @@ describe('pool of a vacancy and the matching candidates without confirmation', (
 			countedAt: expect.any(Date) as Date
 		});
 		expect(await loadPoolCount(database.db, randomUUID(), new Date())).toBeNull();
-	});
-
-	it('is counted anew when an import raises the revision of an external vacancy, and kept when it does not', async () => {
-		const { db } = database;
-		const vacancy = await createExternalVacancy(db, taxonomyVersionId, {
-			roleKey: 'backend',
-			requiredSkillKeys: ['go'],
-			poolCount: 3,
-			poolCountedAt: new Date()
-		});
-		const at = new Date();
-		const [run] = await db
-			.insert(vacancyImportRuns)
-			.values({
-				source: HABR_SOURCE_KEY,
-				adapterVersion: 'test/1',
-				mode: 'full',
-				startedAt: at,
-				finishedAt: at,
-				status: 'succeeded',
-				completeness: 'complete',
-				counts: {}
-			})
-			.returning({ id: vacancyImportRuns.id });
-		if (!run) throw new Error('import run not inserted');
-		const normalized = (required: string[]): NormalizedPosting => ({
-			rules_version: 'test',
-			role: { key: 'backend', method: 'title_rules', rule: null },
-			grade: { min: null, max: null, basis: 'unknown', method: 'none' },
-			skills: { required, nice: [], unknown: [], methods: {} },
-			salary: { status: 'absent', reason: null, min: null, max: null, currency: null, period: null, tax_base: null },
-			work_format: null,
-			employment_form: null,
-			city: null
-		});
-		const externalId = randomSha256().slice(0, 12);
-		await db.insert(vacancyPostings).values({
-			vacancyId: vacancy.id,
-			source: HABR_SOURCE_KEY,
-			externalId,
-			url: `https://career.habr.com/vacancies/${externalId}`,
-			organization: { name: 'Пример', inn: null, source_org_id: null },
-			title: vacancy.title,
-			originalTerms: {
-				salary_text: null,
-				salary: { min: null, max: null, currency: null, period: null, tax_base: null },
-				grade_raw: null,
-				employment_raw: null,
-				location: { city: null, remote: null, raw: null },
-				skills_raw: [],
-				description: vacancy.description,
-				contacts_removed: false
-			},
-			rawSha256: randomSha256(),
-			normalized: normalized(['go']),
-			normalizationVersion: 'test',
-			firstFetchedAt: at,
-			lastFetchedAt: at,
-			lastCheckedAt: at,
-			freshness: 'active',
-			dedup: { method: 'exact', score: 1 },
-			lastImportRunId: run.id
-		});
-		const recompute = () =>
-			db.transaction((tx) =>
-				recomputeCluster(tx, vacancy.id, { taxonomyVersionId: null, now: new Date(), staleAfterDays: null })
-			);
-
-		// The same content keeps the revision, and the count of it stays.
-		expect(await recompute()).toMatchObject({ revision: vacancy.revision, revised: false });
-		expect(await loadPoolCount(db, vacancy.id, new Date())).toMatchObject({ status: 'counted', count: 3 });
-
-		// A new required skill is a new revision: until its refresh the old count is not shown.
-		await db
-			.update(vacancyPostings)
-			.set({ normalized: normalized(['go', 'postgresql']) })
-			.where(eq(vacancyPostings.vacancyId, vacancy.id));
-		expect(await recompute()).toMatchObject({ revision: vacancy.revision + 1, revised: true });
-		expect(await loadPoolCounter(db, vacancy.id, new Date())).toEqual({ status: 'pending' });
 	});
 });

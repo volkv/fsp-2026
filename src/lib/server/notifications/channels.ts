@@ -1,4 +1,4 @@
-// Delivery channels (docs/contracts.md, section 8): adapters of one interface. Errors never cross the adapter as
+// Delivery channels (docs/contracts.md, section 7): adapters of one interface. Errors never cross the adapter as
 // exceptions; the delivery job decides from the code and `retryable` whether to try again.
 import { z } from 'zod';
 import type { AdapterResult } from '$lib/server/fsp/types';
@@ -91,7 +91,7 @@ const failure = (code: ChannelErrorCode, retryable: boolean, message: string, de
 	({ ok: false, error: { code, retryable, message, ...(details === undefined ? {} : { details }) } }) as const;
 
 /**
- * `sendMessage` of the Bot API (contracts 8.2). Without settings the channel is `disabled`. `403` — the user blocked
+ * `sendMessage` of the Bot API (contracts 7.2). Without settings the channel is `disabled`. `403` — the user blocked
  * the bot; `429` — `rate_limited` with `retry_after`; `5xx`, network errors and timeouts — `unavailable`; a refused
  * bot token is `unavailable` too: the deliveries wait for the configuration to be fixed. Messages carry no chat id.
  */

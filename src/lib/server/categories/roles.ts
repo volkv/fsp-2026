@@ -1,5 +1,5 @@
-// A role of a vacancy → the specializations of the catalog (docs/domain.md, section 12.10). Vacancies, external
-// postings, salary references and the market speak in roles of the taxonomy (backend, data_analyst, sre…); a category
+// A role of a vacancy → the specializations of the catalog (docs/domain.md, section 12.10). Vacancies, salary
+// references and the market speak in roles of the taxonomy (backend, data_analyst, sre…); a category
 // is a specialization of the catalog. A role maps to the specializations whose test checks the core work of the role:
 // a candidate with a category of one of them is a candidate of that role's vacancies. A role whose work no test of the
 // catalog checks (1C, game engines, security, management, design…) maps to none: its vacancies have no category, and

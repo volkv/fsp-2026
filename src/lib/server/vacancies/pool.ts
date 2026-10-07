@@ -76,22 +76,18 @@ const inCatalog = listedInCatalog(candidates);
 
 /**
  * Candidates of the catalog within the reach of the company of a vacancy (domain 19.3): a company of a demo session —
- * those of its session and outside sessions; an external vacancy or a company outside sessions — those outside sessions.
+ * those of its session and outside sessions; a company outside sessions — those outside sessions.
  */
-async function poolCandidateIds(executor: Executor, companyId: string | null): Promise<string[]> {
-	let session: string | null = null;
-	if (companyId !== null) {
-		const [row] = await executor
-			.select({ session: companies.demoSessionId })
-			.from(companies)
-			.where(eq(companies.id, companyId));
-		if (!row) throw new Error(`company ${companyId} is missing`);
-		session = row.session;
-	}
+async function poolCandidateIds(executor: Executor, companyId: string): Promise<string[]> {
+	const [company] = await executor
+		.select({ session: companies.demoSessionId })
+		.from(companies)
+		.where(eq(companies.id, companyId));
+	if (!company) throw new Error(`company ${companyId} is missing`);
 	const rows = await executor
 		.select({ id: candidates.id })
 		.from(candidates)
-		.where(and(inCatalog, demoScope(candidates, session)));
+		.where(and(inCatalog, demoScope(candidates, company.session)));
 	return rows.map((row) => row.id);
 }
 
@@ -166,7 +162,6 @@ export async function estimateVacancyPool(
 	const vacancy: VacancySnapshot = {
 		id: uuidv7(),
 		revision: 0,
-		origin: 'own',
 		companyId,
 		status: 'draft',
 		title: unsaved.title,
@@ -174,7 +169,6 @@ export async function estimateVacancyPool(
 		taxonomyVersionId: unsaved.taxonomyVersionId,
 		workFormat: unsaved.workFormat,
 		minAge: null,
-		supersededByVacancyId: null,
 		publishedAt: null,
 		roleKey: unsaved.roleKey,
 		grade:

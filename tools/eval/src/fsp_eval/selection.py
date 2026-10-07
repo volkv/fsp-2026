@@ -1,4 +1,4 @@
-"""Methodology v3 of the shortlist evaluation (README «Методика v3», docs/contracts.md 11.2): three checks over the
+"""Methodology v3 of the shortlist evaluation (README «Методика v3», docs/contracts.md 10.2): three checks over the
 same world, each with its own question, fixed before the runs that use it.
 
 (a) Conformance to the requirements of the task (`shortlist.tz.*`): no position of a category shortlist held by a

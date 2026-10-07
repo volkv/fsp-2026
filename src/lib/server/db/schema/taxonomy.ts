@@ -1,19 +1,7 @@
 // Versioned taxonomy and rule sets (domain 11). Rows of a version other than `draft` are immutable (migration 0002).
 import { sql } from 'drizzle-orm';
-import {
-	type AnyPgColumn,
-	check,
-	integer,
-	jsonb,
-	numeric,
-	pgTable,
-	primaryKey,
-	text,
-	unique,
-	uuid
-} from 'drizzle-orm/pg-core';
+import { check, integer, jsonb, numeric, pgTable, primaryKey, text, unique, uuid } from 'drizzle-orm/pg-core';
 import { enumCheck, id, salaryUnitChecks, salaryUnitColumns, timestamps, ts } from './_columns';
-import { vacancyPostings } from './vacancies';
 
 const TAXONOMY_STATUSES = ['draft', 'published', 'retired'] as const;
 
@@ -248,29 +236,5 @@ export const salaryReferences = pgTable(
 			sql`(${t.p25} is null or ${t.median} is null or ${t.p25} <= ${t.median})
 				and (${t.median} is null or ${t.p75} is null or ${t.median} <= ${t.p75})`
 		)
-	]
-);
-
-const UNKNOWN_SKILL_REVIEW_STATUSES = ['pending', 'added', 'rejected'] as const;
-
-/**
- * Queue of skill mentions the dictionary does not know yet (domain 9.2, 11). `last_seen_at` — when a vacancy text last
- * brought the spelling (`null` — before it was kept); `last_posting_id` — the external posting it came from, `null` when
- * the text was an own vacancy's or the posting is gone.
- */
-export const unknownSkillMentions = pgTable(
-	'unknown_skill_mentions',
-	{
-		rawNormalized: text().primaryKey(),
-		count: integer().notNull().default(1),
-		firstSeenAt: ts().notNull().defaultNow(),
-		lastSeenAt: ts(),
-		lastPostingId: uuid().references((): AnyPgColumn => vacancyPostings.id, { onDelete: 'set null' }),
-		reviewStatus: text({ enum: UNKNOWN_SKILL_REVIEW_STATUSES }).notNull().default('pending'),
-		...timestamps()
-	},
-	(t) => [
-		enumCheck('unknown_skill_mentions', 'review_status', t.reviewStatus, UNKNOWN_SKILL_REVIEW_STATUSES),
-		check('unknown_skill_mentions_count_positive', sql`${t.count} >= 1`)
 	]
 );

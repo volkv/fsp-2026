@@ -94,7 +94,7 @@ export interface VisibilityFacts {
 		minorTermsAccepted: boolean;
 	};
 	/** The vacancy of a catalog or invitation context. */
-	vacancy?: { id: string; companyId: string | null; origin: 'own' | 'external'; status: string; minAge: number | null };
+	vacancy?: { id: string; companyId: string; status: string; minAge: number | null };
 	invitation?: {
 		id: string;
 		companyId: string;
@@ -143,7 +143,6 @@ function catalogDecision(
 		const vacancy = facts.vacancy;
 		if (
 			vacancy?.id !== vacancyId ||
-			vacancy.origin !== 'own' ||
 			vacancy.companyId !== viewer.companyId ||
 			vacancy.status !== 'published' ||
 			vacancy.minAge === null ||
@@ -235,7 +234,7 @@ export function canShow(facts: VisibilityFacts, viewer: Viewer, context: ViewCon
 
 /**
  * Whether any verified company could find the candidate in the catalog: rule 9 without company conditions,
- * adults only. Used for anonymous counters such as the pool size of an external vacancy (domain 7.4, 13.3). Which
+ * adults only. Used for anonymous counters such as the pool size of a vacancy (domain 7.4, 13.3). Which
  * demo sessions a counter spans is the caller's choice (`demo/scope.ts`).
  */
 export function catalogVisibleToAnyVerifiedCompany(

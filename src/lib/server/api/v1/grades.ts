@@ -1,4 +1,4 @@
-// The catalog of categories and the candidate's way to a test (contracts 10.1; domain 12.1–12.3): the catalog of the
+// The catalog of categories and the candidate's way to a test (contracts 9.1; domain 12.1–12.3): the catalog of the
 // current version, the survey, the grade hint, the declaration and what the grade policy opens now.
 import { z } from 'zod';
 import {

@@ -1,4 +1,4 @@
-// `event.deliver` (docs/domain.md, section 5.7; contracts 13.2): one delivery of an event to one subscription. A webhook
+// `event.deliver` (docs/domain.md, section 5.7; contracts 12.2): one delivery of an event to one subscription. A webhook
 // gets the signed body; the Huntflow adapter turns the event into its API calls. A `2xx` delivers; a network failure,
 // a timeout, `429` and `5xx` go back to the queue on the schedule below until the attempts run out; any other answer
 // and a refused private address fail at once. Each attempt is recorded on the delivery at once — the request has

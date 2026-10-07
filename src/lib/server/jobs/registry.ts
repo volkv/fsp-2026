@@ -99,30 +99,6 @@ export const JOB_TYPES = {
 		leaseSeconds: 600,
 		priority: 10
 	}),
-	'vacancies.import': defineJob({
-		typeVersion: 1,
-		payload: z.strictObject({ source: z.string().regex(/^[a-z][a-z0-9_]*$/), mode: z.enum(['full', 'incremental']) }),
-		dedupKey: (p) => `vacancies.import:${p.source}:${p.mode}`,
-		maxAttempts: 5,
-		leaseSeconds: 900,
-		priority: 20
-	}),
-	'vacancies.freshness_check': defineJob({
-		typeVersion: 1,
-		payload: ids('posting_id'),
-		dedupKey: (p) => `vacancies.check:${p.posting_id}`,
-		maxAttempts: 5,
-		leaseSeconds: 60,
-		priority: 10
-	}),
-	'vacancy.normalize': defineJob({
-		typeVersion: 1,
-		payload: ids('posting_id'),
-		dedupKey: (p) => `vacancy.normalize:${p.posting_id}`,
-		maxAttempts: 3,
-		leaseSeconds: 120,
-		priority: 20
-	}),
 	// Vacancies whose text was checked by another version of the validator are checked again, a batch per run
 	// (vacancies/text-recheck.ts). `validator_version` — the version the run brings them to.
 	'vacancies.text_recheck': defineJob({

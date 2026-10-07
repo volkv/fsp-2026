@@ -517,7 +517,7 @@ services:
       # ≈ 340 MB of the process with it (docs/deploy.md); without it the heap grows past the limit before collecting.
       - --max-old-space-size=256
       - build/worker/main.js
-      - '--types=retention.sweep,fsp.sync,external_profile.refresh,evidence.compute,match.refresh,derivations.reconcile,objection.deadline_watch,company.registry_lookup,invitation.expire,invitation.remind_due,hiring.outcome_request,vacancies.import,vacancies.freshness_check,vacancy.normalize,vacancies.text_recheck,vacancy.embed,profile.embed,embedding.reindex,resume.parse,resume.extract,test.run,market.refresh,notification.deliver,demo.reset,demo.purge,consent.revocation_cleanup,account.purge,candidate.majority_transition,challenge.deliver,confirmation.expire,event.deliver'
+      - '--types=retention.sweep,fsp.sync,external_profile.refresh,evidence.compute,match.refresh,derivations.reconcile,objection.deadline_watch,company.registry_lookup,invitation.expire,invitation.remind_due,hiring.outcome_request,vacancies.text_recheck,vacancy.embed,profile.embed,embedding.reindex,resume.parse,resume.extract,test.run,market.refresh,notification.deliver,demo.reset,demo.purge,consent.revocation_cleanup,account.purge,candidate.majority_transition,challenge.deliver,confirmation.expire,event.deliver'
     environment: *app-environment
     read_only: true
     tmpfs:

@@ -100,7 +100,6 @@ export async function findInCatalog(
 						vacancy: {
 							id: vacancy.id,
 							companyId: vacancy.companyId,
-							origin: vacancy.origin,
 							status: vacancy.status,
 							minAge: vacancy.minAge
 						}

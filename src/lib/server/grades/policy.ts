@@ -115,7 +115,7 @@ export async function loadGradeOptions(
 	return gradeOptions(await loadPolicyInput(executor, sources, query));
 }
 
-/** `409 conflict` with the code of the policy and the day it opens (domain 12.3, contracts 10.1). */
+/** `409 conflict` with the code of the policy and the day it opens (domain 12.3, contracts 9.1). */
 export function blockedTestError(verdict: Extract<StartVerdict, { allowed: false }>): ApiError {
 	return new ApiError('conflict', {
 		message: blockReasonText(verdict.reason, verdict.availableFrom),

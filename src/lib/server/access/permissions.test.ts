@@ -54,7 +54,7 @@ describe('can', () => {
 	it('refuses an invitation by a vacancy that is not invitable', () => {
 		const show = { allowed: true as const, projection: 'catalog' as const, extras: [], policyVersion: '1' };
 		expect(
-			can(recruiter(), 'invitation.create', { invitability: { invitable: false, reason: 'external_vacancy' }, show })
+			can(recruiter(), 'invitation.create', { invitability: { invitable: false, reason: 'not_published' }, show })
 		).toEqual({ allowed: false, reason: 'object' });
 		expect(can(recruiter(), 'invitation.create', { invitability: { invitable: true }, show })).toEqual({
 			allowed: true
@@ -81,7 +81,7 @@ describe('can', () => {
 		};
 		expect(can(key, 'catalog.search', null)).toEqual({ allowed: true });
 		expect(can(key, 'api_key.manage', { companyId: 'company-a' })).toEqual({ allowed: false, reason: 'api_key_scope' });
-		expect(can(key, 'vacancy.write', { origin: 'own', companyId: 'company-a' })).toEqual({
+		expect(can(key, 'vacancy.write', { companyId: 'company-a' })).toEqual({
 			allowed: false,
 			reason: 'api_key_scope'
 		});

@@ -310,7 +310,7 @@ describe('matchScore', () => {
 		});
 	});
 
-	it('keeps an external vacancy without range and grade unknown, not penalized', () => {
+	it('keeps a vacancy without range and grade unknown, not penalized', () => {
 		const base = input();
 		const result = matchScore({
 			...base,

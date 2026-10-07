@@ -60,7 +60,7 @@ def _parser() -> argparse.ArgumentParser:
     jury = commands.add_parser("jury-run", help="the jury's needs and candidates: both lanes and a blind sheet")
     jury.add_argument("--repo", type=Path, required=True, help="application checkout with .eval-build/main.js")
     jury.add_argument("--out", type=Path, required=True, help="directory for the run (out/jury/<time>/)")
-    jury.add_argument("--input", type=Path, required=True, help="JSONL of needs with their candidates (contracts 11.1)")
+    jury.add_argument("--input", type=Path, required=True, help="JSONL of needs with their candidates (contracts 10.1)")
     jury.add_argument("--mode", choices=("rules_only", "model"), default="rules_only")
     jury.add_argument("--env-file", type=Path, help="environment of the bridge (default: <repo>/.env)")
     jury.add_argument("--concurrency", type=int, default=2, help="documents parsed at once")

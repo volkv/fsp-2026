@@ -66,8 +66,8 @@ export const PERIODIC_JOBS: readonly AnyPeriodicJob[] = [
 ];
 
 /**
- * A schedule that decides itself what is due on each tick, such as the imports of vacancy sources by their own
- * timetables. `tick` enqueues under its own advisory lock and returns how many jobs it enqueued.
+ * A schedule that decides itself what is due on each tick, such as the recheck of vacancy texts while some lag behind
+ * the validator. `tick` enqueues under its own advisory lock and returns how many jobs it enqueued.
  */
 export interface ScheduleTick {
 	type: JobType;

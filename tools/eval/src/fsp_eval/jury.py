@@ -1,4 +1,4 @@
-"""The jury's mode (docs/contracts.md 11.1): needs and candidates of the jury in a JSONL file → the product's shortlist
+"""The jury's mode (docs/contracts.md 10.1): needs and candidates of the jury in a JSONL file → the product's shortlist
 of every need in two lanes — `as_product` (a category only from a confirmed test, the product's path) and `resume_only`
 (the experiment without a test: a category from the grade hint of the resume, unconfirmed) — next to the search by the
 same text of the need over the same candidates, a blind sheet of the union of their first tens, and, by the jury's

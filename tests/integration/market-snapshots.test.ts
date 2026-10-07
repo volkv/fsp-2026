@@ -9,10 +9,7 @@ import {
 	productPolicies,
 	salaryReferences,
 	taxonomyVersions,
-	vacancies,
-	vacancyImportRuns,
-	vacancyPostings,
-	vacancySources
+	vacancies
 } from '$lib/server/db/schema';
 import type { SpecializationKey } from '$lib/server/assessments/contract/catalog';
 import type { CatalogViewer } from '$lib/server/matching/visibility';
@@ -25,7 +22,6 @@ import { createTestDatabase, type TestDatabase } from '../helpers/database';
 import {
 	createCandidate,
 	createCompany,
-	createExternalVacancy,
 	createMember,
 	createOwnVacancy,
 	createPublishedDocument,
@@ -97,15 +93,6 @@ beforeAll(async () => {
 	const member = await createMember(db, company.id);
 	if (!member.userId) throw new Error('member without user');
 	employer = { companyId: company.id, memberId: member.id, userId: member.userId };
-
-	await db.insert(vacancySources).values({
-		key: 'test_board',
-		name: 'Тестовая доска',
-		siteUrl: 'https://example.org',
-		adapterVersion: '1',
-		terms: { status: 'allowed' },
-		schedule: {}
-	});
 });
 
 afterAll(async () => {
@@ -116,8 +103,6 @@ beforeEach(async () => {
 	const { db } = database;
 	await db.delete(marketSnapshots);
 	await db.delete(candidateCompanyBlocks);
-	await db.delete(vacancyPostings);
-	await db.delete(vacancyImportRuns);
 	await db.delete(vacancies);
 });
 
@@ -184,58 +169,6 @@ async function ownVacancy(
 			seedBatchId: seed ? 'demo-1' : null
 		}
 	);
-}
-
-/** An external vacancy in search with one posting checked `checkedDaysAgo` days ago. */
-async function externalVacancy(min: number, max: number, checkedDaysAgo: number) {
-	const { db } = database;
-	const vacancy = await createExternalVacancy(db, taxonomyVersionId, {
-		roleKey: 'backend',
-		gradeMin: 'middle',
-		gradeMax: 'middle',
-		gradeBasis: 'inferred',
-		requiredSkillKeys: ['go'],
-		salaryMin: min,
-		salaryMax: max,
-		salaryCurrency: 'RUB',
-		salaryPeriod: 'month',
-		salaryTaxBase: 'unknown'
-	});
-	const [run] = await db
-		.insert(vacancyImportRuns)
-		.values({
-			source: 'test_board',
-			adapterVersion: '1',
-			mode: 'incremental',
-			startedAt: new Date(),
-			finishedAt: new Date(),
-			status: 'succeeded',
-			completeness: 'partial',
-			incompleteReason: 'test',
-			counts: {}
-		})
-		.returning();
-	if (!run) throw new Error('import run not inserted');
-	const checked = new Date(Date.now() - checkedDaysAgo * DAY);
-	await db.insert(vacancyPostings).values({
-		vacancyId: vacancy.id,
-		source: 'test_board',
-		externalId: randomSha256().slice(0, 12),
-		url: 'https://example.org/v',
-		organization: {},
-		title: vacancy.title,
-		originalTerms: {},
-		rawSha256: randomSha256(),
-		normalized: {},
-		normalizationVersion: '1',
-		firstFetchedAt: checked,
-		lastFetchedAt: checked,
-		lastCheckedAt: checked,
-		freshness: 'active',
-		dedup: { method: 'exact' },
-		lastImportRunId: run.id
-	});
-	return vacancy;
 }
 
 async function reference(values: {
@@ -337,30 +270,33 @@ describe('category market', () => {
 		]);
 	});
 
-	it('keeps gross, net and an unknown tax base in separate rows', async () => {
+	it('keeps gross and net in separate rows', async () => {
 		await ownVacancy(300_000, 400_000, 'gross');
 		await ownVacancy(300_000, 400_000, 'gross');
 		await ownVacancy(300_000, 400_000, 'gross');
 		await ownVacancy(100_000, 140_000, 'net');
 		await ownVacancy(100_000, 140_000, 'net');
 		await ownVacancy(100_000, 140_000, 'net');
-		await externalVacancy(900_000, 1_000_000, 2);
 		await refresh();
 
 		const { indicators } = await loadCategoryMarket(database.db, { category: middle, viewer: null, now: NOW });
 		const byBase = new Map(indicators.vacancy_ranges.map((figure) => [figure.taxBase, figure]));
 		expect(byBase.get('gross')).toMatchObject({ status: 'ok', sampleSize: 3, median: 350_000 });
 		expect(byBase.get('net')).toMatchObject({ status: 'ok', sampleSize: 3, median: 120_000 });
-		expect(byBase.get('unknown')).toMatchObject({ status: 'insufficient_data', sampleSize: 1 });
-		expect(indicators.vacancy_ranges).toHaveLength(3);
+		expect(indicators.vacancy_ranges).toHaveLength(2);
 	});
 
-	it('does not count an external vacancy not confirmed within the window', async () => {
-		await externalVacancy(200_000, 300_000, 1);
-		await externalVacancy(200_000, 300_000, 45);
+	it('counts only the vacancies published now', async () => {
+		await ownVacancy(300_000, 400_000, 'gross');
+		await ownVacancy(300_000, 400_000, 'gross');
+		await ownVacancy(300_000, 400_000, 'gross');
+		const paused = await ownVacancy(900_000, 1_000_000, 'gross');
+		await database.db.update(vacancies).set({ status: 'paused' }).where(eq(vacancies.id, paused.id));
 		await refresh();
 		const { indicators } = await loadCategoryMarket(database.db, { category: middle, viewer: null, now: NOW });
-		expect(indicators.vacancy_ranges).toEqual([expect.objectContaining({ taxBase: 'unknown', sampleSize: 1 })]);
+		expect(indicators.vacancy_ranges).toEqual([
+			expect.objectContaining({ status: 'ok', taxBase: 'gross', sampleSize: 3, median: 350_000 })
+		]);
 	});
 
 	it('shows no number below the threshold and hides a small candidate count', async () => {

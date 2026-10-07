@@ -1,4 +1,4 @@
-// The profile of the caller's company (contracts 10.2; domain 5.1): the description, the line of business and the
+// The profile of the caller's company (contracts 9.2; domain 5.1): the description, the line of business and the
 // contacts the candidate reads in an offer, with the label of the check — read-only here. Members read it by a session
 // or an API key; the owner edits it in a session while the admission policy lets the company act.
 import { z } from 'zod';

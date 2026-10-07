@@ -40,7 +40,6 @@ export const listMyMatches = defineOperation({
 	permission: 'match.read',
 	query: z.strictObject({
 		text: z.string().max(500).optional(),
-		origin: z.enum(['own', 'external']).optional(),
 		role_key: z.array(key).max(20).optional(),
 		work_format: z.array(key).max(10).optional(),
 		...pageQuery
@@ -53,9 +52,8 @@ export const listMyMatches = defineOperation({
 			items: z.array(
 				z.object({
 					vacancy_id: z.uuid(),
-					origin: z.enum(['own', 'external']),
 					title: z.string(),
-					company_id: z.uuid().nullable(),
+					company_id: z.uuid(),
 					status: z.string(),
 					match: candidateMatch,
 					relevance: z.object({ fts: z.number().nullable() })
@@ -69,19 +67,17 @@ export const listMyMatches = defineOperation({
 	},
 	async handle(ctx) {
 		const { subject } = await selfCandidate(ctx, 'candidate.self.read');
-		const { cursor, limit, text, origin, role_key: roleKeys, work_format: workFormats } = ctx.query;
+		const { cursor, limit, text, role_key: roleKeys, work_format: workFormats } = ctx.query;
 		const page = await recommendVacancies({ db: ctx.services.db }, subject, {
 			limit,
 			...(cursor === undefined ? {} : { cursor }),
 			...(text === undefined ? {} : { text }),
-			...(origin === undefined ? {} : { origin }),
 			...(roleKeys === undefined ? {} : { roleKeys }),
 			...(workFormats === undefined ? {} : { workFormats })
 		});
 		return {
 			items: page.items.map((item) => ({
 				vacancy_id: item.vacancyId,
-				origin: item.origin,
 				title: item.title,
 				company_id: item.companyId,
 				status: item.status,

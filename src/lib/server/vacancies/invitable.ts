@@ -1,13 +1,12 @@
 // `isInvitable(vacancy)` — the only check whether an offer may name a vacancy (docs/domain.md, section 13.1). The offer
-// itself does not need a vacancy; when it names one, that is an own published vacancy with a full range in roubles and
-// a known tax base. Whether the company may act at all is the admission policy (domain 5.1), checked separately; that
+// itself does not need a vacancy; when it names one, that is a published vacancy with a full range in roubles and a
+// known tax base. Whether the company may act at all is the admission policy (domain 5.1), checked separately; that
 // the vacancy belongs to the sender's company is checked by the sending.
 import { eq } from 'drizzle-orm';
 import type { Executor } from '$lib/server/db';
 import { vacancies } from '$lib/server/db/schema';
 
 export interface InvitabilityFacts {
-	origin: 'own' | 'external';
 	status: string;
 	salaryMin: number | null;
 	salaryMax: number | null;
@@ -15,16 +14,12 @@ export interface InvitabilityFacts {
 	salaryTaxBase: 'gross' | 'net' | 'unknown' | null;
 }
 
-export type InvitabilityDenial = 'external_vacancy' | 'not_published' | 'incomplete_salary';
+export type InvitabilityDenial = 'not_published' | 'incomplete_salary';
 
 export type Invitability = { invitable: true } | { invitable: false; reason: InvitabilityDenial };
 
-/**
- * An own vacancy, published, with both salary bounds in roubles and a known tax base. An external vacancy is never
- * invitable, including one with an approved «this is our vacancy» claim.
- */
+/** A published vacancy with both salary bounds in roubles and a known tax base. */
 export function isInvitable(vacancy: InvitabilityFacts): Invitability {
-	if (vacancy.origin !== 'own') return { invitable: false, reason: 'external_vacancy' };
 	if (vacancy.status !== 'published') return { invitable: false, reason: 'not_published' };
 	if (
 		vacancy.salaryMin === null ||
@@ -42,7 +37,6 @@ export function isInvitable(vacancy: InvitabilityFacts): Invitability {
 export async function loadInvitability(executor: Executor, vacancyId: string): Promise<Invitability | null> {
 	const [row] = await executor
 		.select({
-			origin: vacancies.origin,
 			status: vacancies.status,
 			salaryMin: vacancies.salaryMin,
 			salaryMax: vacancies.salaryMax,

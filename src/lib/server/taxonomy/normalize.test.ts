@@ -108,7 +108,7 @@ describe('matchSkill on the release dictionary', () => {
 		expect(matchSkill(index, raw)).toMatchObject({ method: 'alias', skillKey });
 	});
 
-	// Tags of Habr Career postings the import did not recognize before release 2026.09.7.
+	// Skill spellings of vacancies the taxonomy did not recognize before release 2026.09.7.
 	it.each([
 		['Базы данных', 'databases'],
 		['JSON', 'json'],
@@ -124,7 +124,7 @@ describe('matchSkill on the release dictionary', () => {
 		['Техническая поддержка', 'technical_support'],
 		['Администрирование серверов', 'server_administration'],
 		['Pre-sale', 'presale']
-	])('maps the posting tag %s to %s', (raw, skillKey) => {
+	])('maps the spelling %s to %s', (raw, skillKey) => {
 		expect(matchSkill(index, raw)).toMatchObject({ method: 'alias', skillKey });
 	});
 

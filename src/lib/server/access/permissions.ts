@@ -33,9 +33,6 @@ export const PERMISSIONS = {
 	'confirmation.request': { roles: EMPLOYER, apiKey: true },
 	// Applications of candidates to the company's own vacancies (domain 13.5, 13.6).
 	'application.manage': { roles: EMPLOYER, apiKey: true },
-	'vacancy.external.read': { roles: EVERYONE, apiKey: true },
-	'vacancy_claim.create': { roles: EMPLOYER, apiKey: false },
-	'vacancy_claim.review': { roles: ['operator'], apiKey: false },
 	'match.read': { roles: [...EMPLOYER, 'candidate'], apiKey: true },
 	'market.read': { roles: [...EMPLOYER, 'candidate'], apiKey: true },
 	'partner_pool.read': { roles: EMPLOYER, apiKey: true },
@@ -136,7 +133,7 @@ export interface PermissionObjects {
 	'candidate.self.write': { candidateId: string };
 	'catalog.search': null;
 	'candidate.card.read': { show: ShowDecision };
-	'vacancy.write': { origin: 'own' | 'external'; companyId: string | null };
+	'vacancy.write': { companyId: string | null };
 	/** `invitability` — of the vacancy the version names; `null` — an offer without a vacancy (domain 13.5). */
 	/** `ownApplication` — the candidate applied to this company (domain 13.14): the offer needs no catalog visibility. */
 	'invitation.create': { invitability: Invitability | null; show: ShowDecision; ownApplication?: boolean };
@@ -148,9 +145,6 @@ export interface PermissionObjects {
 	'challenge.manage': { companyId: string };
 	'confirmation.request': { show: ShowDecision };
 	'application.manage': { companyId: string };
-	'vacancy.external.read': null;
-	'vacancy_claim.create': null;
-	'vacancy_claim.review': { status: string };
 	'match.read': { vacancyCompanyId: string | null; candidateId: string; show: ShowDecision | null };
 	'market.read': { ownCategory: boolean };
 	'partner_pool.read': { partnershipCompanyId: string; partnershipActive: boolean };
@@ -233,7 +227,7 @@ function objectRule<P extends Permission>(
 			return (o as PermissionObjects['candidate.card.read']).show.allowed;
 		case 'vacancy.write': {
 			const vacancy = o as PermissionObjects['vacancy.write'];
-			return vacancy.origin === 'own' && ownCompany(subject, vacancy.companyId);
+			return ownCompany(subject, vacancy.companyId);
 		}
 		case 'invitation.create': {
 			const facts = o as PermissionObjects['invitation.create'];
@@ -258,14 +252,6 @@ function objectRule<P extends Permission>(
 			const candidateSide = roles.has('candidate') && subject.candidate?.id === facts.candidateId;
 			return companySide || candidateSide;
 		}
-		case 'vacancy_claim.create':
-			return (
-				subject.membership !== null &&
-				subject.membership.status !== 'removed' &&
-				companyAdmission(subject.membership.companyStatus).admitted
-			);
-		case 'vacancy_claim.review':
-			return (o as PermissionObjects['vacancy_claim.review']).status === 'pending_review';
 		case 'match.read': {
 			const facts = o as PermissionObjects['match.read'];
 			const companySide =

@@ -39,8 +39,6 @@ import {
 	sourceFacts,
 	taxonomyVersions,
 	users,
-	vacancyImportRuns,
-	vacancyPostings,
 	verificationReceipts
 } from '$lib/server/db/schema';
 import { createReceiptSigner, issueSelfReceipt } from '$lib/server/fsp/receipts';
@@ -51,15 +49,12 @@ import { fail } from '$lib/server/ml/result';
 import type { Redis } from '$lib/server/redis';
 import { publishTaxonomy } from '$lib/server/taxonomy/publish';
 import { buildRelease, readTaxonomyDatasets } from '$lib/server/taxonomy/release';
-import { PENDING_NORMALIZATION, PENDING_VERSION } from '$lib/server/vacancies/clusters';
-import { HABR_SOURCE_KEY, registerVacancySources } from '$lib/server/vacancies/sources/definitions';
 import { releaseFixtureBank } from '../helpers/bank';
 import { decide } from '../helpers/categories';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
 import {
 	createCandidate,
 	createCompany,
-	createExternalVacancy,
 	createMember,
 	createOwnVacancy,
 	createPublishedDocument,
@@ -96,7 +91,6 @@ beforeAll(async () => {
 	const [version] = await db.select({ id: taxonomyVersions.id }).from(taxonomyVersions);
 	if (!version) throw new Error('taxonomy not published');
 	taxonomyVersionId = version.id;
-	await registerVacancySources(database.sql);
 	// A need may name a specialization only with a released bank.
 	await releaseFixtureBank(db, 'backend');
 
@@ -168,48 +162,6 @@ afterAll(async () => {
 	redis.destroy();
 	await database.drop();
 });
-
-/** An external vacancy with the posting it was imported from: an external vacancy exists only through its postings. */
-async function externalVacancy(overrides: Parameters<typeof createExternalVacancy>[2] = {}) {
-	const { db } = database;
-	const vacancy = await createExternalVacancy(db, taxonomyVersionId, overrides);
-	const at = new Date();
-	const [run] = await db
-		.insert(vacancyImportRuns)
-		.values({
-			source: HABR_SOURCE_KEY,
-			adapterVersion: 'test/1',
-			mode: 'full',
-			startedAt: at,
-			finishedAt: at,
-			status: 'succeeded',
-			completeness: 'partial',
-			incompleteReason: 'recent_window_listing',
-			counts: {}
-		})
-		.returning({ id: vacancyImportRuns.id });
-	if (!run) throw new Error('import run not inserted');
-	const externalId = String(randomBytes(4).readUInt32BE());
-	await db.insert(vacancyPostings).values({
-		vacancyId: vacancy.id,
-		source: HABR_SOURCE_KEY,
-		externalId,
-		url: `https://career.habr.com/vacancies/${externalId}`,
-		organization: { name: 'Пример', inn: null, source_org_id: null },
-		title: vacancy.title,
-		originalTerms: {},
-		rawSha256: randomSha256(),
-		normalized: PENDING_NORMALIZATION,
-		normalizationVersion: PENDING_VERSION,
-		firstFetchedAt: at,
-		lastFetchedAt: at,
-		lastCheckedAt: at,
-		freshness: 'active',
-		dedup: { method: 'exact', score: 1 },
-		lastImportRunId: run.id
-	});
-	return vacancy;
-}
 
 // --- Requests -------------------------------------------------------------------------------------------------------
 
@@ -674,18 +626,19 @@ describe('validation', () => {
 
 describe('pagination', () => {
 	it('walks a list with the cursor and refuses a cursor of another query', async () => {
+		const { company, owner } = await employer();
 		for (let i = 0; i < 5; i++) {
-			await externalVacancy({
-				title: `Pagination ${i}`,
-				roleKey: 'frontend',
-				publishedAt: new Date(Date.now() - i * 1000)
-			});
+			await createOwnVacancy(
+				database.db,
+				{ companyId: company.id, memberId: owner.id, taxonomyVersionId },
+				{ title: `Pagination ${i}`, roleKey: 'frontend', publishedAt: new Date(Date.now() - i * 1000) }
+			);
 		}
 		const seen: string[] = [];
 		let cursor: string | null = null;
 		let pages = 0;
 		do {
-			const query: Record<string, string> = { role_key: 'frontend', origin: 'external', limit: '2' };
+			const query: Record<string, string> = { role_key: 'frontend', limit: '2' };
 			if (cursor !== null) query.cursor = cursor;
 			const answer = await call(vacancies.searchVacancies, { query });
 			expect(answer.status, answer.text).toBe(200);
@@ -702,20 +655,6 @@ describe('pagination', () => {
 		});
 		expectError(foreign, 400, 'validation_failed');
 		expect(foreign.json.error?.details?.[0]?.code).toBe('invalid_cursor');
-	});
-
-	it('marks unknown fields of an external vacancy as unknown, not zero', async () => {
-		const vacancy = await externalVacancy({ title: 'Без вилки' });
-		const answer = await call(vacancies.getVacancy, { params: { vacancy_id: vacancy.id } });
-		expect(answer.status, answer.text).toBe(200);
-		expect(answer.json).toMatchObject({
-			origin: 'external',
-			salary: { min: null, max: null, tax_base: null },
-			grade_min: null,
-			company: null,
-			postings: [{ source: HABR_SOURCE_KEY, source_name: 'Хабр Карьера', attribution: 'По данным Хабр Карьеры' }]
-		});
-		expect(answer.json.own).toBeUndefined();
 	});
 });
 
@@ -820,7 +759,7 @@ describe('catalog projection', () => {
 		expect(companySide.text).toContain('"skill_key":"go"');
 		for (const secret of [fact.id, candidate.id]) expect(companySide.text).not.toContain(secret);
 
-		const own = await call(me.listMyMatches, { actor: candidateActor, query: { origin: 'own' } });
+		const own = await call(me.listMyMatches, { actor: candidateActor, query: {} });
 		expect(own.status, own.text).toBe(200);
 		const mine = (own.json.items as { vacancy_id: string }[]).find((item) => item.vacancy_id === vacancy.id);
 		expect(JSON.stringify(mine)).toContain(fact.id);
@@ -911,7 +850,7 @@ describe('market of a category', () => {
 	});
 });
 
-/** The terms of an offer as the API takes them (contracts 10.2). */
+/** The terms of an offer as the API takes them (contracts 9.2). */
 const OFFER = {
 	title: 'Backend-разработчик на Go',
 	description: 'Развиваем платёжный шлюз: Go, PostgreSQL, Kafka. Команда из шести инженеров, релизы каждую неделю.',
@@ -927,7 +866,7 @@ const OFFER = {
 };
 
 describe('invitation through the API', () => {
-	it('invites by pseudonym, refuses an external vacancy and discloses contacts only after acceptance', async () => {
+	it('invites by pseudonym, refuses a paused vacancy and discloses contacts only after acceptance', async () => {
 		const { company, actor: ownerSession, vacancy } = await employer();
 		const key = await apiKey(ownerSession, company.id, [
 			'invitation.create',
@@ -938,10 +877,14 @@ describe('invitation through the API', () => {
 		const { candidate, email, actor: candidateActor } = await catalogCandidate();
 		const pseudonym = crypto.pseudonym(candidate.id, company.id);
 
-		const external = await createExternalVacancy(database.db, taxonomyVersionId);
+		const paused = await createOwnVacancy(
+			database.db,
+			{ companyId: company.id, memberId: (await createMember(database.db, company.id)).id, taxonomyVersionId },
+			{ status: 'paused' }
+		);
 		const refused = await call(invitations.sendInvitation, {
 			actor: key,
-			body: { ...OFFER, vacancy_id: external.id, candidate_pseudonym: pseudonym }
+			body: { ...OFFER, vacancy_id: paused.id, candidate_pseudonym: pseudonym }
 		});
 		expectError(refused, 422, 'policy_violation');
 		expect(refused.json.error?.details?.[0]?.code).toBe('vacancy_not_invitable');

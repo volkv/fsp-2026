@@ -9,13 +9,7 @@ import { attemptsForReviewCount } from '$lib/server/assessments/review';
 import { requirePermission } from '$lib/server/companies/context';
 import { REVIEW_DUE_HOURS } from '$lib/server/companies/verification';
 import type { Executor } from '$lib/server/db';
-import {
-	assessmentObjections,
-	companies,
-	companyVerifications,
-	representations,
-	vacancyClaims
-} from '$lib/server/db/schema';
+import { assessmentObjections, companies, companyVerifications, representations } from '$lib/server/db/schema';
 import { ageConflictCount } from './ages';
 import { pendingVacancyModeration } from './vacancies';
 
@@ -25,7 +19,6 @@ export interface OperatorOverview {
 	companies: { open: number; overdue: number };
 	objections: { open: number; unassigned: number; overdue: number; dueSoon: number };
 	representatives: { awaiting: number };
-	claims: { pending: number };
 	vacancies: { pending: number };
 	/** Profiles closed by a conflict of the birth date. */
 	ages: { open: number };
@@ -44,7 +37,6 @@ export async function operatorOverview(
 	requirePermission(subject, 'company.review', { companyStatus: 'submitted' });
 	requirePermission(subject, 'objection.manage', null);
 	requirePermission(subject, 'representation.review', null);
-	requirePermission(subject, 'vacancy_claim.review', { status: 'pending_review' });
 	requirePermission(subject, 'vacancy.moderate', null);
 	requirePermission(subject, 'age.review', null);
 	requirePermission(subject, 'assessment.review', null);
@@ -84,10 +76,6 @@ export async function operatorOverview(
 				reach.candidate(representations.candidateId)
 			)
 		);
-	const [claims] = await executor
-		.select({ n: count() })
-		.from(vacancyClaims)
-		.where(and(eq(vacancyClaims.status, 'pending_review'), reach.company(vacancyClaims.companyId)));
 	return {
 		companies: { open: verification?.open ?? 0, overdue: verification?.overdue ?? 0 },
 		objections: {
@@ -97,7 +85,6 @@ export async function operatorOverview(
 			dueSoon: objections?.dueSoon ?? 0
 		},
 		representatives: { awaiting: awaiting?.n ?? 0 },
-		claims: { pending: claims?.n ?? 0 },
 		vacancies: { pending: await pendingVacancyModeration(executor, reach) },
 		ages: { open: await ageConflictCount(executor, subject) },
 		attempts: await attemptsForReviewCount(executor, subject, now)

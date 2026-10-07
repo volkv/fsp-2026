@@ -1,4 +1,4 @@
-// «Оцените подбор» (docs/contracts.md, section 11.2, item 10): the company — or an expert of the jury in a demo session
+// «Оцените подбор» (docs/contracts.md, section 10.2, item 10): the company — or an expert of the jury in a demo session
 // — sees the top ten of the shortlist and the top ten of a plain keyword search for the same need merged by team-draft
 // interleaving and shuffled, in one of two parts, each named as such: the comparison on the confirmed pool — the
 // keyword search among the candidates of the shortlist's categories and filters, the same conditions as the shortlist,

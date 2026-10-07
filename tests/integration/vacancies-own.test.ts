@@ -152,7 +152,7 @@ describe('own vacancy', () => {
 	it('is created as a draft and enqueues its vector and matches in the same transaction', async () => {
 		const author = await employer();
 		const vacancy = await createOwnVacancy(deps, author, input());
-		expect(vacancy).toMatchObject({ origin: 'own', status: 'draft', revision: 1, gradeBasis: 'stated' });
+		expect(vacancy).toMatchObject({ status: 'draft', revision: 1 });
 		expect(await queued('match.refresh', vacancy.id)).toEqual([expect.objectContaining({ inputVersion: '1' })]);
 		expect(await queued('vacancy.embed', vacancy.id)).toEqual([expect.objectContaining({ inputVersion: '1' })]);
 	});

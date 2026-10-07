@@ -65,7 +65,6 @@ import { testEnvironment } from '../helpers/environment';
 import {
 	createCandidate,
 	createCompany,
-	createExternalVacancy,
 	createMember,
 	createOwnVacancy,
 	createPublishedDocument,
@@ -752,11 +751,11 @@ describe('the export of own data', () => {
 		const company = await createCompany(db, { displayName: 'Видимый работодатель' });
 		const member = await createMember(db, company.id);
 		const visible = await createOwnVacancy(db, { companyId: company.id, memberId: member.id, taxonomyVersionId });
-		const hidden = await createExternalVacancy(db, taxonomyVersionId, {
-			title: 'Скрытая вакансия',
-			status: 'hidden',
-			externalOrg: { name: 'Скрытая организация', source_org_ids: [] }
-		});
+		const hidden = await createOwnVacancy(
+			db,
+			{ companyId: company.id, memberId: member.id, taxonomyVersionId },
+			{ title: 'Скрытая вакансия', status: 'draft', publishedAt: null }
+		);
 		const scene = { visible: visible.id, hidden: hidden.id };
 		const annas = await seedTheRest(anna, 'anna-mark', scene);
 		const boriss = await seedTheRest(boris, 'boris-mark', scene);
@@ -864,10 +863,8 @@ describe('the export of own data', () => {
 		expect(document.matches[0]).toMatchObject({
 			vacancy: {
 				id: visible.id,
-				origin: 'own',
 				title: visible.title,
-				company: { id: company.id, name: 'Видимый работодатель' },
-				organization: null
+				company: { id: company.id, name: 'Видимый работодатель' }
 			},
 			score: 0.64,
 			components: {
@@ -879,7 +876,7 @@ describe('the export of own data', () => {
 		// The API gives the same document: its response schema keeps every section.
 		const api = await exportThroughApi(anna.userId);
 		expect(api.status, JSON.stringify(api.json)).toBe(200);
-		expect(api.json.format).toBe('fsp-career-data-export/v5');
+		expect(api.json.format).toBe('fsp-career-data-export/v6');
 		expect(document.surveys.map((survey) => [survey.version, survey.specialization])).toEqual([
 			[1, 'frontend'],
 			[2, 'backend']

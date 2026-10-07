@@ -1,7 +1,7 @@
 // Isolation of demo sessions in what the FSP operator works and in the link with an FSP athlete (docs/domain.md,
 // section 19.3). The world is written straight into the tables: two demo sessions, the stand outside them and the
 // originals of the scenario cast (outside sessions too), each with an operator, a company waiting for verification, an
-// objection, a representation waiting for the check and a claim of an external vacancy. An operator of a session works
+// objection and a representation waiting for the check. An operator of a session works
 // the cases of that session only — never of the stand, the originals or another session; the operator of the stand
 // works the stand and the originals, and a case out of reach is «not found» however it is asked for. A clone of
 // an athlete holds an active link with the athlete within its session, while outside sessions the athlete still has one
@@ -26,10 +26,8 @@ import {
 	demoSessions,
 	externalIdentities,
 	legalRepresentatives,
-	representations,
-	vacancyClaims
+	representations
 } from '$lib/server/db/schema';
-import { claimQueue } from '$lib/server/operator/claims';
 import { companyDirectory, moderationCard } from '$lib/server/operator/companies';
 import { objectionCase, objectionQueueView } from '$lib/server/operator/objections';
 import { operatorOverview } from '$lib/server/operator/overview';
@@ -40,10 +38,8 @@ import { recordDecision } from '../helpers/categories';
 import {
 	createCandidate,
 	createCompany,
-	createExternalVacancy,
 	createMember,
 	createPublishedDocument,
-	createTaxonomyVersion,
 	createUser,
 	randomSha256
 } from '../helpers/factories';
@@ -60,7 +56,6 @@ const crypto = createFieldCrypto({
 
 let database: TestDatabase;
 let redis: Redis;
-let taxonomyVersionId: string;
 
 /** Decisions of the test engine the objections refer to: the id of a decision → its candidate. */
 const decided = new Map<string, string>();
@@ -97,7 +92,6 @@ interface Place {
 	verifiedCompanyId: string;
 	objectionId: string;
 	representationId: string;
-	claimId: string;
 }
 
 let stand: Place;
@@ -153,8 +147,6 @@ async function place(session: string | null, demoOriginal = false): Promise<Plac
 		.insert(companyVerifications)
 		.values({ companyId: submitted.id, applicantMemberId: applicant.id, authorityMethod: 'director_self' });
 	const verified = await createCompany(db, { demoSessionId: session, demoOriginal });
-	const recruiter = await member(verified.id);
-	if (!recruiter.userId) throw new Error('member without user');
 
 	const objecting = await profile(session, undefined, demoOriginal);
 	const decisionId = (
@@ -198,27 +190,13 @@ async function place(session: string | null, demoOriginal = false): Promise<Plac
 		.returning();
 	if (!representation) throw new Error('representation not inserted');
 
-	const external = await createExternalVacancy(db, taxonomyVersionId);
-	const [claim] = await db
-		.insert(vacancyClaims)
-		.values({
-			vacancyId: external.id,
-			companyId: verified.id,
-			requestedByUserId: recruiter.userId,
-			status: 'pending_review',
-			matchEvidence: { inn: 'unknown', posting_inns: [], name_similarity: 0.5 }
-		})
-		.returning();
-	if (!claim) throw new Error('claim not inserted');
-
 	return {
 		session,
 		operator,
 		submittedCompanyId: submitted.id,
 		verifiedCompanyId: verified.id,
 		objectionId: objection.id,
-		representationId: representation.id,
-		claimId: claim.id
+		representationId: representation.id
 	};
 }
 
@@ -226,8 +204,6 @@ beforeAll(async () => {
 	database = await createTestDatabase();
 	redis = createClient({ url: `${inject('redisUrl')}/${REDIS_DATABASE}` });
 	await redis.connect();
-	const { db } = database;
-	taxonomyVersionId = (await createTaxonomyVersion(db)).id;
 	stand = await place(null);
 	cast = await place(null, true);
 	first = await place(await demoSession());
@@ -245,17 +221,12 @@ describe('operator cases across demo sessions', () => {
 	it('counts on the first screen the cases of the own session only, and the stand its own with the originals', async () => {
 		const counts = async (who: Place) => {
 			const overview = await operatorOverview(database.db, who.operator, new Date());
-			return [
-				overview.companies.open,
-				overview.objections.open,
-				overview.representatives.awaiting,
-				overview.claims.pending
-			];
+			return [overview.companies.open, overview.objections.open, overview.representatives.awaiting];
 		};
-		expect(await counts(stand)).toEqual([2, 2, 2, 2]);
-		expect(await counts(first)).toEqual([1, 1, 1, 1]);
-		expect(await counts(second)).toEqual([1, 1, 1, 1]);
-		expect(await counts(cast)).toEqual([2, 2, 2, 2]);
+		expect(await counts(stand)).toEqual([2, 2, 2]);
+		expect(await counts(first)).toEqual([1, 1, 1]);
+		expect(await counts(second)).toEqual([1, 1, 1]);
+		expect(await counts(cast)).toEqual([2, 2, 2]);
 	});
 
 	it('lists the companies and the verification requests of the own session only', async () => {
@@ -341,14 +312,6 @@ describe('operator cases across demo sessions', () => {
 		await expect(
 			representationCase(database.db, crypto, first.operator, meta, cast.representationId, new Date())
 		).rejects.toMatchObject({ code: 'not_found' });
-	});
-
-	it('queues the claims of the companies of the own session only', async () => {
-		const claims = async (who: Place) =>
-			sorted((await claimQueue(database.db, who.operator)).items.map((item) => item.id));
-		expect(await claims(stand)).toEqual(sorted([stand.claimId, cast.claimId]));
-		expect(await claims(first)).toEqual([first.claimId]);
-		expect(await claims(second)).toEqual([second.claimId]);
 	});
 });
 

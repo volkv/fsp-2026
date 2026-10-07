@@ -3,8 +3,8 @@
 // categories, receipts, resumes and their files, vectors, matches, vacancies, invitations with their terms and
 // answers, hiring processes, disputes, representatives' consents, notifications — so that what one visitor does
 // happens to their copies only. Rows that already belong to another demo session (a row naming an original and a
-// clone of another session) are not copied. Reference data, the journal and the rows of the background — other candidates, other
-// companies, external vacancies — stay shared.
+// clone of another session) are not copied. Reference data, the journal and the rows of the background — other
+// candidates, other companies — stay shared.
 //
 // Copies are made in the database: every row is read as JSON, every identifier of a copied row inside it — keys,
 // references, identifiers inside JSON and text (storage keys, record references) — is replaced by the copy's, and the
@@ -146,9 +146,6 @@ function overridesOf(
 			// consents of the background to the pool of a partner), and it keeps the taxpayer number, unique within the
 			// session as outside sessions.
 			return { demo_session_id: ctx.sessionId, demo_original: false, demo_clone_of: original.id };
-		case 'vacancy_claims':
-			// The claim holds within the place of its company (domain 13.3): the clone's claim is of the session.
-			return { demo_session_id: ctx.sessionId };
 		case 'external_identities':
 			// The identity within the session: FSP ID finds the clone there and refuses it (the cast is entered at
 			// `/demo`), while outside sessions the identity stays the original's.

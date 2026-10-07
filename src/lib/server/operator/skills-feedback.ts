@@ -22,8 +22,8 @@ export function parseFeedbackWindow(value: string | null): FeedbackWindow {
 	return FEEDBACK_WINDOWS.find((window) => window === days) ?? 90;
 }
 
-/** Vacancies that were open to candidates: published own ones and external ones seen by an import. */
-const OPEN_STATUSES = ['published', 'paused', 'closed', 'active', 'stale'] as const;
+/** Vacancies that were open to candidates: published at some moment. */
+const OPEN_STATUSES = ['published', 'paused', 'closed'] as const;
 
 export interface SkillFeedbackRow {
 	skillKey: string;

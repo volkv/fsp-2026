@@ -2,7 +2,7 @@
 // and of the background, verified and under review, candidates on real FSP competitions of the simulator's dataset and
 // with synthetic resumes, each through the survey, the declared grade and the seeded tests of the specializations with a
 // released bank, the categories their decisions give, the needs of the companies with shortlists and offers in every
-// status, own and external vacancies, and the states the scenario starts from. Data flow through the product: FSP sync →
+// status, vacancies of the companies, and the states the scenario starts from. Data flow through the product: FSP sync →
 // facts → claims → evidence, resume parse → extraction, survey → declaration → attempt → decision → category, need →
 // shortlist → offer → acceptance → disclosure → hiring. Every record the seed creates carries the batch id. The seed is
 // deterministic in what it creates and idempotent: its batch id is a hash of its inputs (the released banks included),
@@ -39,8 +39,7 @@ import {
 	skills,
 	sourceFacts,
 	users,
-	vacancies,
-	vacancyPostings
+	vacancies
 } from '$lib/server/db/schema';
 import { createFspSyncHandler } from '$lib/server/fsp/sync';
 import { handlerRegistry } from '$lib/server/jobs/handler';
@@ -55,7 +54,6 @@ import { fail } from '$lib/server/ml/result';
 import { createResumeExtractHandler } from '$lib/server/resumes/extract-job';
 import { createResumeParseHandler } from '$lib/server/resumes/parse-job';
 import { latestPublishedVersion } from '$lib/server/taxonomy/vocabulary';
-import { createVacancyNormalizeHandler } from '$lib/server/vacancies/normalize-job';
 import { ensureStaffRole, ensureUser, DemoBatchConflict, type SeedContext } from './accounts';
 import { ensureAssessment, type AssessmentState } from './assessments';
 import { ensureCandidate, inPool, type SeededCandidate } from './candidates';
@@ -65,7 +63,6 @@ import { readSeedData, type SeedData } from './data';
 import {
 	athletePlan,
 	companyPlans,
-	externalPostings,
 	heroPlan,
 	minorPlan,
 	needPlans,
@@ -86,17 +83,15 @@ import {
 	type FunnelSummary
 } from './scenes';
 import { LetterBox, type DemoServices } from './services';
-import { ensureOwnVacancies, importExternalVacancies } from './vacancies';
+import { ensureOwnVacancies } from './vacancies';
 import { demoWorld, eligibleAthletes, heroAthlete, minorAthletes, type World } from './world';
 import { syntheticName } from '../../../../services/fsp-mock/src/seed/names.ts';
 
 /** Bump when the seed code changes what it creates from the same inputs: a new version is a new batch. */
-const SEED_VERSION = 6;
+const SEED_VERSION = 7;
 
 /** Share of FSP athletes among the synthetic candidates; the rest have a resume and no FSP history. */
 const FSP_SHARE = 0.9;
-/** Share of own vacancies of verified companies among all vacancies; the rest come from the synthetic sources. */
-const OWN_SHARE = 0.4;
 /** Share of background candidates who revoked the catalog consent. */
 const REVOKED_SHARE = 0.03;
 
@@ -127,7 +122,6 @@ const CHAIN: readonly JobType[] = [
 	'resume.extract',
 	'evidence.compute',
 	'match.refresh',
-	'vacancy.normalize',
 	'company.registry_lookup',
 	'market.refresh'
 ];
@@ -182,7 +176,6 @@ function seedHandlers(services: DemoServices, heroCandidateIds: ReadonlySet<stri
 			crypto: () => services.crypto,
 			now: () => new Date()
 		}),
-		createVacancyNormalizeHandler(),
 		// The companies are fictional: a registry would not find them.
 		companyRegistryLookup(() => registryNotConfigured),
 		marketRefresh
@@ -207,8 +200,6 @@ interface SeedCounts {
 	disclosures: number;
 	hiringProcesses: number;
 	vacancies: number;
-	ownVacancies: number;
-	externalPostings: number;
 	matchScores: number;
 }
 
@@ -325,15 +316,6 @@ async function seedCounts(services: DemoServices, batch: string): Promise<SeedCo
 		disclosures: await one(db.select({ n: count() }).from(disclosures)),
 		hiringProcesses: await one(db.select({ n: count() }).from(hiringProcesses)),
 		vacancies: await one(db.select({ n: count() }).from(vacancies).where(eq(vacancies.seedBatchId, batch))),
-		ownVacancies: await one(
-			db
-				.select({ n: count() })
-				.from(vacancies)
-				.where(and(eq(vacancies.seedBatchId, batch), eq(vacancies.origin, 'own')))
-		),
-		externalPostings: await one(
-			db.select({ n: count() }).from(vacancyPostings).where(eq(vacancyPostings.seedBatchId, batch))
-		),
 		matchScores: await one(db.select({ n: count() }).from(matchScores))
 	};
 }
@@ -541,23 +523,11 @@ export async function seedDemo(services: DemoServices): Promise<SeedSummary> {
 	await drain('categories');
 
 	log.info('demo seed: vacancies', { batch });
-	const ownCount = Math.round(settings.vacancies * OWN_SHARE);
-	const ownVacancies = await ensureOwnVacancies(ctx, ownVacancyPlans(data, plans, ownCount, batch, names), companyMap);
-	const claimCompany = plans.find((p) => p.status === 'submitted');
-	await importExternalVacancies(
+	const ownVacancies = await ensureOwnVacancies(
 		ctx,
-		externalPostings(
-			data,
-			settings.vacancies - ownCount,
-			batch,
-			new Date(`${world.asOf}T09:00:00Z`),
-			claimCompany?.displayName ?? '',
-			names
-		),
-		log
+		ownVacancyPlans(data, plans, settings.vacancies, batch, names),
+		companyMap
 	);
-	// Normalized first: an external vacancy is matched once, at the revision its normalization gives.
-	await drain('vacancy normalization', ['vacancy.normalize']);
 	await drain('vacancies');
 
 	log.info('demo seed: needs, shortlists and offers', { batch });

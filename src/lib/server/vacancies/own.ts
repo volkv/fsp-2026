@@ -8,7 +8,7 @@ import { z } from 'zod';
 import type { AuditActor } from '$lib/server/audit/record';
 import { recordAuditEvent } from '$lib/server/audit/record';
 import type { Database, Transaction } from '$lib/server/db';
-import { companies, companyMembers, mlResults, vacancies } from '$lib/server/db/schema';
+import { companyMembers, mlResults, vacancies } from '$lib/server/db/schema';
 import { uuidv7 } from '$lib/server/ids';
 import { withdrawOpenInvitations } from '$lib/server/invitations/send';
 import { conflict } from '$lib/server/companies/context';
@@ -16,7 +16,6 @@ import { requireAdmission } from '$lib/server/companies/gate';
 import { minorTermsAcceptance } from '$lib/server/companies/profile';
 import type { JobCreator } from '$lib/server/jobs/queue';
 import { notify } from '$lib/server/notifications/notify';
-import { holdsApprovedClaim } from './claims';
 import { companyAdmitted, enqueueMatchRefresh, enqueueRevisionDerivations } from './derivations';
 import { invalid, refuse, violation } from './errors';
 import { VACANCY_SCHEMA_VERSION } from './from-text';
@@ -135,7 +134,6 @@ function columnsOf(input: OwnVacancyInput, taxonomy: VacancyTaxonomy) {
 		roleKey: input.roleKey,
 		gradeMin: input.gradeMin,
 		gradeMax: input.gradeMax,
-		gradeBasis: 'stated' as const,
 		requiredSkillKeys: [...new Set(input.requiredSkillKeys)],
 		niceSkillKeys: [...new Set(input.niceSkillKeys)],
 		workFormat: input.workFormat,
@@ -156,8 +154,7 @@ type VacancyRow = typeof vacancies.$inferSelect;
 async function lockOwnVacancy(tx: Transaction, vacancyId: string, companyId: string): Promise<VacancyRow> {
 	const [row] = await tx.select().from(vacancies).where(eq(vacancies.id, vacancyId)).for('update');
 	// Another company's vacancy is indistinguishable from a missing one.
-	if (!row || (row.origin === 'own' && row.companyId !== companyId)) throw refuse('not_found', 'vacancy_not_found');
-	if (row.origin !== 'own') throw violation('external_vacancy_read_only');
+	if (!row || row.companyId !== companyId) throw refuse('not_found', 'vacancy_not_found');
 	return row;
 }
 
@@ -176,17 +173,9 @@ async function draftParse(tx: Transaction, mlResultId: string, companyId: string
 	return { vacancyId: ref.data.id };
 }
 
-/** The external vacancy a derived one replaces: the company holds its approved claim. */
-async function derivableFrom(tx: Transaction, externalId: string, companyId: string): Promise<void> {
-	if (!(await holdsApprovedClaim(tx, externalId, companyId)))
-		throw invalid('derivedFromVacancyId', 'no approved claim of this company on the vacancy');
-}
-
 export interface CreateOwnVacancyOptions {
 	/** The draft was built from pasted text: the `ml_results` row of its parse. */
 	fromText?: { mlResultId: string };
-	/** Created from an external vacancy after an approved «this is our vacancy» claim. */
-	derivedFromVacancyId?: string;
 }
 
 /** Saves a new vacancy as a draft; its matches and pool are computed right away for the preview. */
@@ -203,19 +192,14 @@ export async function createOwnVacancy(
 		const id = options.fromText
 			? (await draftParse(tx, options.fromText.mlResultId, author.companyId)).vacancyId
 			: uuidv7();
-		if (options.derivedFromVacancyId !== undefined) {
-			await derivableFrom(tx, options.derivedFromVacancyId, author.companyId);
-		}
 		const [row] = await tx
 			.insert(vacancies)
 			.values({
 				id,
-				origin: 'own',
 				companyId: author.companyId,
 				createdByMemberId: author.memberId,
 				...columnsOf(input, taxonomy),
 				...(await minorTerms(tx, input, author.companyId, deps.now())),
-				derivedFromVacancyId: options.derivedFromVacancyId ?? null,
 				draftMlResultId: options.fromText?.mlResultId ?? null,
 				textCheck: checkVacancyText({ title: input.title, description: input.description }),
 				status: 'draft'
@@ -345,20 +329,8 @@ export type PublishOutcome =
 	| { status: 'published'; vacancy: VacancyRow }
 	| { status: 'pending_moderation'; vacancy: VacancyRow; textCheck: TextCheck };
 
-/** The demo session of the company of an own vacancy; `null` outside sessions. */
-async function companySessionOf(tx: Transaction, companyId: string | null): Promise<string | null> {
-	if (companyId === null) throw new Error('an own vacancy without a company');
-	const [company] = await tx
-		.select({ session: companies.demoSessionId })
-		.from(companies)
-		.where(eq(companies.id, companyId));
-	if (!company) throw new Error(`company ${companyId} of an own vacancy is missing`);
-	return company.session;
-}
-
 /**
- * Lists a vacancy leaving a draft or moderation: its moment, the external vacancy it replaces, the journal and the
- * matches of its revision.
+ * Lists a vacancy leaving a draft or moderation: its moment, the journal and the matches of its revision.
  */
 export async function publishNow(
 	tx: Transaction,
@@ -374,15 +346,6 @@ export async function publishNow(
 		.where(eq(vacancies.id, row.id))
 		.returning();
 	if (!published) throw new Error('vacancy disappeared while locked');
-	// The external vacancy this one was made from leaves the search: the company publishes its own (domain 13.1). The
-	// vacancy is shared by the demo sessions, so a company of a session replaces it within its session only, where the
-	// search finds the replacement by `derived_from_vacancy_id` (domain 19.3).
-	if (row.derivedFromVacancyId !== null && (await companySessionOf(tx, row.companyId)) === null) {
-		await tx
-			.update(vacancies)
-			.set({ supersededByVacancyId: row.id })
-			.where(and(eq(vacancies.id, row.derivedFromVacancyId), eq(vacancies.origin, 'external')));
-	}
 	await recordAuditEvent(tx, {
 		action: 'vacancy.published',
 		outcome: 'success',
@@ -514,7 +477,7 @@ export async function decideVacancyModeration(
 	if (reason !== null && reason.length > MODERATION_REASON_MAX) throw invalid('reason', 'the reason is too long');
 	return deps.db.transaction(async (tx) => {
 		const [row] = await tx.select().from(vacancies).where(eq(vacancies.id, vacancyId)).for('update');
-		if (!row || row.origin !== 'own' || row.companyId === null) throw refuse('not_found', 'vacancy_not_found');
+		if (!row) throw refuse('not_found', 'vacancy_not_found');
 		if (row.status !== 'pending_moderation') throw violation('vacancy_not_editable');
 		if (row.revision !== decision.revision) throw vacancyChanged();
 		const now = deps.now();

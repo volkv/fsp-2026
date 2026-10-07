@@ -63,7 +63,7 @@ export function companyDeps(): CompanyDeps {
 /** The member acting on the vacancies of its company, after `vacancy.write` of an own vacancy of that company. */
 export function vacancyAuthor(subject: AccessSubject, meta: RequestMeta): VacancyAuthor {
 	const membership = subject.membership;
-	requirePermission(subject, 'vacancy.write', { origin: 'own', companyId: membership?.companyId ?? null });
+	requirePermission(subject, 'vacancy.write', { companyId: membership?.companyId ?? null });
 	if (!membership) throw new Error('vacancy.write granted without a membership');
 	return {
 		memberId: membership.memberId,

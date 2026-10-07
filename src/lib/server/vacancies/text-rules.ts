@@ -7,9 +7,8 @@ import { NOT_STATED } from '$lib/server/ml/extract-common';
 import type { Block } from '$lib/server/ml/quotes';
 import { checkVacancyAnswer, type VacancyItem, type VacancyLexicon } from '$lib/server/ml/vacancy-extract';
 import type { CheckedItems } from '$lib/server/ml/extract-common';
-import { roleOfTitle, ROLE_TITLE_RULES_VERSION, TITLE_WORD } from '$lib/server/taxonomy/roles';
+import { foldTitle, roleOfTitle, ROLE_TITLE_RULES_VERSION, TITLE_WORD } from '$lib/server/taxonomy/roles';
 import { buildSkillReader, skillSpans, type SkillReader } from '$lib/server/taxonomy/skill-spans';
-import { gradeRangeIn } from './normalize';
 import type { VacancyTaxonomy } from './taxonomy';
 
 /** Version of these rules (`ml_results.rules_version`): any change of what they find is a new version. */
@@ -128,6 +127,26 @@ function findTitle(blocks: readonly Block[], taxonomy: VacancyTaxonomy): { block
 }
 
 // --- Grade ------------------------------------------------------------------------------------------------------------
+
+const GRADE_WORDS: readonly { grade: string; pattern: RegExp }[] = [
+	{ grade: 'intern', pattern: w('intern|стажер|стажировк') },
+	{ grade: 'junior', pattern: w('junior|джуниор|младш') },
+	{ grade: 'middle', pattern: w('middle|мидл') },
+	{ grade: 'senior', pattern: w('senior|сеньор|синьор|старш|ведущ') },
+	{ grade: 'lead', pattern: w('lead(?![\\p{L}])|тимлид|team ?lead|tech ?lead') },
+	{ grade: 'principal', pattern: w('principal') }
+];
+
+/** The range of the grade words a text names: «Middle/Senior» is middle to senior; `null` — it names none. */
+function gradeRangeIn(text: string, taxonomy: VacancyTaxonomy): { min: string; max: string } | null {
+	const folded = foldTitle(text);
+	const ordered = GRADE_WORDS.filter((g) => g.pattern.test(folded) && taxonomy.grades.includes(g.grade))
+		.map((g) => g.grade)
+		.sort((a, b) => taxonomy.grades.indexOf(a) - taxonomy.grades.indexOf(b));
+	const min = ordered[0];
+	const max = ordered.at(-1);
+	return min !== undefined && max !== undefined ? { min, max } : null;
+}
 
 const GRADE_LINE = w('грейд|уровень|level|seniority|позиция', 'i');
 

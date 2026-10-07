@@ -1,4 +1,4 @@
-// Webhooks of external systems under `/api/v1/integrations` (contracts 1.5, 8.2). Their route files serve them with the
+// Webhooks of external systems under `/api/v1/integrations` (contracts 1.5, 7.2). Their route files serve them with the
 // FSP and notification modules; here they are only described, so the document covers every route of the version.
 import { z } from 'zod';
 import { webhookEventSchema } from '$lib/server/fsp/schema';

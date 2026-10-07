@@ -207,7 +207,6 @@ export const POLICY_KINDS = [
 	'minor_policy',
 	'catalog_policy',
 	'market_policy',
-	'sourcing_policy',
 	'assessment_policy',
 	'retention_policy',
 	'matching_policy',
@@ -283,9 +282,6 @@ export const POLICY_PARAMS = {
 	market_policy: z.strictObject({
 		window_days: positiveInt,
 		min_sample: positiveInt
-	}),
-	sourcing_policy: z.strictObject({
-		stale_after_days: positiveInt
 	}),
 	assessment_policy: z.strictObject({
 		artifact_retention_days: positiveInt

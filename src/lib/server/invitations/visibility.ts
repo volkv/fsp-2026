@@ -21,7 +21,6 @@ export interface VisibilityOutcome {
 const vacancyFacts = (vacancy: VacancyRow) => ({
 	id: vacancy.id,
 	companyId: vacancy.companyId,
-	origin: vacancy.origin,
 	status: vacancy.status,
 	minAge: vacancy.minAge
 });

@@ -1,6 +1,6 @@
 // Reset of the demonstration stand (docs/domain.md, section 19.2; counterexample 46): every table of the schema is
 // emptied except the reference data — taxonomy, legal texts, policies, rulesets, the releases of the test bank,
-// vacancy sources, embedding spaces and evaluation runs. Each table of the database has a decision below; a table without one stops the
+// embedding spaces and evaluation runs. Each table of the database has a decision below; a table without one stops the
 // reset (and its invariant test) instead of staying out of it. The real staff of the stand stay: their accounts, passwords,
 // roles, email channels and notification settings (sessions go with Redis). Objects of the removed files leave the bucket, Redis
 // (sessions, counters, caches) is emptied, and the simulator returns to its seeded dataset.
@@ -54,7 +54,6 @@ export const DEMO_RESET_PLAN: Readonly<Record<string, TableDecision>> = {
 	pd_operators: reference,
 	legal_documents: reference,
 	product_policies: reference,
-	vacancy_sources: reference,
 	bank_releases: reference,
 	embedding_spaces: reference,
 	search_settings: reference,
@@ -116,12 +115,8 @@ export const DEMO_RESET_PLAN: Readonly<Record<string, TableDecision>> = {
 	profile_experience_entries: clear,
 	profile_suggestions: clear,
 	category_attestations: clear,
-	unknown_skill_mentions: clear,
 	// Vacancies, matches, invitations and hiring (domain 13).
 	vacancies: clear,
-	vacancy_import_runs: clear,
-	vacancy_postings: clear,
-	vacancy_claims: clear,
 	match_scores: clear,
 	market_snapshots: clear,
 	hiring_needs: clear,

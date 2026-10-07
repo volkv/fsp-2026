@@ -13,7 +13,6 @@ import { checkHealth } from '$lib/server/health';
 import { modelModes } from '$lib/server/ml';
 import type { IntegrationsDeps } from './integrations';
 import type { ModelsDeps } from './models';
-import type { SourcesDeps } from './sources';
 import type { StaffDeps } from './staff';
 
 export interface AdminRequest {
@@ -45,10 +44,6 @@ export function modelsDeps(): ModelsDeps {
 
 export function integrationsDeps(): IntegrationsDeps {
 	return { db: db(), config: config(), health: checkHealth, fetch };
-}
-
-export function sourcesDeps(): SourcesDeps {
-	return { db: db(), now: () => new Date() };
 }
 
 export function staffDeps(): StaffDeps {

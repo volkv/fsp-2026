@@ -37,14 +37,6 @@ export const VACANCY_STATUSES: Record<VacancyStatus, string> = {
 	closed: 'Закрыта'
 };
 
-export const CLAIM_STATUSES: Record<string, string> = {
-	awaiting_company_verification: 'Ждёт проверки компании',
-	pending_review: 'На проверке у оператора',
-	approved: 'Подтверждена',
-	rejected: 'Отклонена',
-	withdrawn: 'Отозвана'
-};
-
 export const MEMBER_ROLES: Record<'owner' | 'recruiter', string> = {
 	owner: 'Владелец',
 	recruiter: 'Рекрутер'

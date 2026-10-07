@@ -1,12 +1,12 @@
 // A job title as written → a role of the taxonomy (docs/domain.md, sections 9.5, 11, 13.2): one rule for the title of
-// a resume entry, of an external posting and of a pasted vacancy. The title is matched against the role names of the
+// a resume entry, of a hiring need and of a pasted vacancy. The title is matched against the role names of the
 // version first, then against title patterns in order: the more specific role wins («Frontend тимлид» is a team lead,
 // «Python-разработчик» is a backend developer). A key the version does not have is not returned; a title naming no
 // role («программист», «инженер») stays without one — the rules do not guess a role from a generic word. A title
 // inside a sentence is inflected («Ищем аналитика данных», «в команду дата-инженера», «на позицию тестировщика»): the
 // job nouns are brought to the nominative before the patterns are matched, so the patterns are written once, in it.
 
-/** Version of the title rules; the rules of resumes and of postings that use them name it in their own versions. */
+/** Version of the title rules; the rules of resumes and of vacancy texts that use them name it in their own versions. */
 export const ROLE_TITLE_RULES_VERSION = 'role-title/3';
 
 export interface RoleName {

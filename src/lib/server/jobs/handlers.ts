@@ -27,10 +27,6 @@ import { notificationDeliver } from '$lib/server/notifications/deps';
 import { resumeExtract } from '$lib/server/resumes/extract-job';
 import { resumeParse } from '$lib/server/resumes/parse-job';
 import { vacancyEmbed } from '$lib/server/vacancies/embed-job';
-import { vacanciesFreshnessCheck } from '$lib/server/vacancies/freshness-job';
-import { vacanciesImport } from '$lib/server/vacancies/import-job';
-import { vacancyNormalize } from '$lib/server/vacancies/normalize-job';
-import { scheduleVacancyImports } from '$lib/server/vacancies/schedule';
 import { scheduleTextRecheck, vacanciesTextRecheck } from '$lib/server/vacancies/text-recheck';
 import { handlerRegistry } from './handler';
 import { retentionSweep } from './retention';
@@ -49,9 +45,6 @@ export const JOB_HANDLERS = handlerRegistry([
 	invitationExpire,
 	invitationRemindDue,
 	hiringOutcomeRequest,
-	vacanciesImport,
-	vacanciesFreshnessCheck,
-	vacancyNormalize,
 	vacanciesTextRecheck,
 	vacancyEmbed,
 	profileEmbed,
@@ -72,11 +65,6 @@ export const JOB_HANDLERS = handlerRegistry([
 
 /** Schedules with their own timetables, ticked by a worker that runs their job type. */
 export const SCHEDULE_TICKS: readonly ScheduleTick[] = [
-	{
-		// Each source by its own schedule (`vacancy_sources.schedule`).
-		type: 'vacancies.import',
-		tick: async (db, now) => (await scheduleVacancyImports(db, now)).length
-	},
 	{
 		// Daily: adults whose consents or representation still date from minority (domain 7.3).
 		type: 'candidate.majority_transition',

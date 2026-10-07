@@ -4,7 +4,7 @@ vi.mock('$env/dynamic/private', () => ({ env: {} }));
 
 const { repositoryTaxonomy } = await import('./fixtures/taxonomy');
 const { fieldsFromItems, missingFields, textBlocks } = await import('./from-text');
-const { roleOfTitle } = await import('./normalize');
+const { roleOfTitle } = await import('$lib/server/taxonomy/roles');
 const { resolveSkill, vacancyLexicon } = await import('./taxonomy');
 const { extractVacancyByRules, readVacancyByRules } = await import('./text-rules');
 
@@ -17,7 +17,7 @@ function read(text: string) {
 		checked.items,
 		blocks,
 		(raw) => resolveSkill(taxonomy, raw),
-		(title) => roleOfTitle(title, taxonomy).key
+		(title) => roleOfTitle(title, taxonomy.roleNames)
 	);
 	return { fields, rejected: checked.rejected, blocks };
 }

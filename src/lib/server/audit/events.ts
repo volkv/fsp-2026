@@ -114,16 +114,6 @@ const GROUPS = {
 		'shortlist.unmarked',
 		'shortlist.evaluated'
 	],
-	aggregator: [
-		'vacancies.import_completed',
-		'vacancy_source.enabled',
-		'vacancy_source.disabled',
-		'vacancy.posting_moved',
-		'vacancy.hidden',
-		'vacancy_claim.submitted',
-		'vacancy_claim.withdrawn',
-		'vacancy_claim.decided'
-	],
 	partners: ['partnership.opened', 'partnership.ended', 'partner_pool.viewed'],
 	notifications: ['notification.channel_linked', 'notification.channel_unlinked'],
 	grades: ['survey.submitted', 'grade.declared'],
@@ -274,19 +264,6 @@ const SPECIFIC_DETAILS: Partial<Record<AuditAction, z.ZodType>> = {
 	}),
 	// The employer's edit cleared the text of a vacancy in moderation: where it went.
 	'vacancy.moderation_cleared': withKeys({ status: z.enum(['published', 'paused', 'draft']) }),
-	'vacancies.import_completed': withKeys({ source: token, completeness: z.enum(['complete', 'partial']) }),
-	// The administrator switched a source on; its out-of-turn full import is the job of the same transaction.
-	'vacancy_source.enabled': withKeys({ source: token, import_job_id: token }),
-	// A source switched off by the administrator, or after a refusal by rights or terms (contracts 7.2) met by an import
-	// run or a check.
-	'vacancy_source.disabled': z.union([
-		withKeys({ source: token, reason: z.literal('administrator') }),
-		withKeys({
-			source: token,
-			reason: z.literal('source_forbidden'),
-			via: z.enum(['import', 'freshness_check'])
-		})
-	]),
 	'telegram.webhook_rejected': withKeys({ reason: z.enum(['secret_missing', 'secret_mismatch']) }),
 	'partner_pool.viewed': withKeys({ competition_ref: token, card_count: z.int().nonnegative() }),
 	'receipt.verified': withKeys({

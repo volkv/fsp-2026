@@ -1,4 +1,4 @@
-// Pure parts of shortlists (docs/domain.md 13.10, contracts 11.2): the scale of salary intervals and the cohort answer,
+// Pure parts of shortlists (docs/domain.md 13.10, contracts 10.2): the scale of salary intervals and the cohort answer,
 // refinements and their diff, the team-draft interleaving and the judgement of a blind comparison.
 import { describe, expect, it } from 'vitest';
 import { intervalOf, salaryAnswerOf, type Cohort } from './cohort';

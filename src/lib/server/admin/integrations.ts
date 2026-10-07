@@ -1,7 +1,6 @@
 // State of the integrations for the administrator: what is configured (addresses and names, never secrets), whether
 // the internal services answer right now, and the latest traces each integration leaves in the database. A probe that
-// fails is shown as down with its reason; the details stay in the server log. Vacancy sources have a page of their own
-// (`admin/sources.ts`).
+// fails is shown as down with its reason; the details stay in the server log.
 import { and, count, eq, isNull, max } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ActionContext } from '$lib/server/companies/context';

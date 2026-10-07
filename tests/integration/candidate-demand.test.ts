@@ -27,7 +27,6 @@ import { createTestDatabase, type TestDatabase } from '../helpers/database';
 import {
 	createCandidate,
 	createCompany,
-	createExternalVacancy,
 	createMember,
 	createOwnVacancy,
 	createUser,
@@ -175,25 +174,14 @@ beforeAll(async () => {
 	for (let i = 0; i < 4; i++) await own({ requiredSkillKeys: ['go', 'sql', 'docker'] });
 	await own({ gradeMin: 'junior', gradeMax: 'middle', requiredSkillKeys: ['go', 'kafka', 'algorithms'] });
 	await own({ gradeMin: 'senior', gradeMax: 'lead', requiredSkillKeys: ['go', 'kubernetes'] });
-	// An external backend posting with a stated middle grade.
-	await createExternalVacancy(db, taxonomyVersionId, {
-		roleKey: 'backend',
-		gradeMin: 'middle',
-		gradeMax: 'middle',
-		gradeBasis: 'inferred',
-		requiredSkillKeys: ['sql', 'python']
-	});
-	// Backend outside the grades, backend of unknown grade, another role, and vacancies nobody can be matched with.
+	// A backend vacancy of the middle grade alone.
+	await own({ gradeMin: 'middle', gradeMax: 'middle', requiredSkillKeys: ['sql', 'python'] });
+	// Backend outside the grades (twice), another role, and vacancies nobody can be matched with.
 	await own({ gradeMin: 'lead', gradeMax: 'principal', requiredSkillKeys: ['rust'] });
-	await createExternalVacancy(db, taxonomyVersionId, { roleKey: 'backend', requiredSkillKeys: ['php'] });
+	await own({ gradeMin: 'lead', gradeMax: 'lead', requiredSkillKeys: ['php'] });
 	await own({ roleKey: 'frontend', requiredSkillKeys: ['javascript'] });
 	await own({ status: 'draft', publishedAt: null, requiredSkillKeys: ['haskell'] });
-	await createExternalVacancy(db, taxonomyVersionId, {
-		roleKey: 'backend',
-		status: 'closed',
-		closedAt: NOW,
-		requiredSkillKeys: ['perl']
-	});
+	await own({ status: 'closed', closedAt: NOW, requiredSkillKeys: ['perl'] });
 	// A company the admission policy refused: its vacancy reaches nobody (a company without a check would).
 	const refused = await createCompany(db, { status: 'rejected' });
 	await createOwnVacancy(
@@ -241,7 +229,7 @@ describe('what the market asks for in the category', () => {
 			widenedFrom: null
 		});
 		expect(result.threshold).toBe(MIN_SAMPLE);
-		expect(result.source).toMatchObject({ vacancies: 7, own: 6, external: 1, synthetic: false });
+		expect(result.source).toMatchObject({ vacancies: 7, synthetic: false });
 		expect(result.source.latestSeenAt).toBeInstanceOf(Date);
 		// Go is confirmed by the platform and is not a gap; a claim, a derived inference and a public profile are.
 		expect(shares(result)).toEqual({
@@ -274,13 +262,13 @@ describe('what the market asks for in the category', () => {
 		const intern = await categorized({ category: { specialization: 'backend', grade: 'intern' } });
 		const result = available(await candidateDemand(database.db, intern, NOW));
 
-		// Intern and junior meet one vacancy; backend has nine reachable ones, the unknown grade included.
+		// Intern and junior meet one vacancy; backend has nine reachable ones, those outside the grades included.
 		expect(result.cohort).toMatchObject({
 			specialization: 'backend',
 			gradeKeys: null,
 			widenedFrom: { gradeKeys: ['intern', 'junior'], vacancies: 1 }
 		});
-		expect(result.source).toMatchObject({ vacancies: 9, own: 7, external: 2 });
+		expect(result.source).toMatchObject({ vacancies: 9 });
 	});
 
 	it('says there is not enough data below the minimal sample, across the grades too', async () => {
@@ -318,7 +306,7 @@ describe('what the market asks for in the category', () => {
 		const clone = await categorized({ ...middleBackend, session });
 		const inside = available(await candidateDemand(database.db, clone, NOW));
 
-		expect(inside.source).toMatchObject({ vacancies: 8, own: 7, synthetic: true });
+		expect(inside.source).toMatchObject({ vacancies: 8, synthetic: true });
 		expect(shares(inside)).toMatchObject({ graphql: [1, 'missing'] });
 		const outside = available(await candidateDemand(database.db, await categorized(middleBackend), NOW));
 		expect(outside.source).toMatchObject({ vacancies: 7, synthetic: false });

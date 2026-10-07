@@ -62,7 +62,7 @@ export const RATE_LIMIT_RULES = {
 	fspSignIn: { name: 'fsp-sign-in', limit: 60, windowSeconds: 600 }
 } as const satisfies Record<string, RateLimitRule>;
 
-/** Routes of incoming webhooks (contracts 1.5, 8.2). */
+/** Routes of incoming webhooks (contracts 1.5, 7.2). */
 const WEBHOOK_PATHS = new Set(['/api/v1/integrations/telegram/webhook', '/api/v1/integrations/fsp/webhooks']);
 
 /** The sign-in through FSP ID (contracts 2.3): its start and the return from the provider. */

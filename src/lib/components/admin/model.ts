@@ -286,7 +286,6 @@ export const POLICY_KINDS: Record<string, string> = {
 	catalog_policy: 'Каталог',
 	matching_policy: 'Хранение соответствий',
 	market_policy: 'Рынок категории',
-	sourcing_policy: 'Внешние вакансии',
 	assessment_policy: 'Тесты платформы',
 	retention_policy: 'Сроки хранения',
 	challenge_policy: 'Вызовы компаний'

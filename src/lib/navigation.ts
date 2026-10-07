@@ -1,7 +1,6 @@
 import type { Component } from 'svelte';
 import { resolve } from '$app/paths';
 import type { ResolvedPathname } from '$app/types';
-import BadgeCheckIcon from '@lucide/svelte/icons/badge-check';
 import BookOpenCheckIcon from '@lucide/svelte/icons/book-open-check';
 import BriefcaseIcon from '@lucide/svelte/icons/briefcase';
 import ChartColumnIcon from '@lucide/svelte/icons/chart-column';
@@ -11,7 +10,6 @@ import FileTextIcon from '@lucide/svelte/icons/file-text';
 import FileUpIcon from '@lucide/svelte/icons/file-up';
 import FileUserIcon from '@lucide/svelte/icons/file-user';
 import GaugeIcon from '@lucide/svelte/icons/gauge';
-import GlobeIcon from '@lucide/svelte/icons/globe';
 import GitCompareArrowsIcon from '@lucide/svelte/icons/git-compare-arrows';
 import HandshakeIcon from '@lucide/svelte/icons/handshake';
 import InboxIcon from '@lucide/svelte/icons/inbox';
@@ -21,7 +19,6 @@ import MessageSquareWarningIcon from '@lucide/svelte/icons/message-square-warnin
 import ScaleIcon from '@lucide/svelte/icons/scale';
 import ScrollTextIcon from '@lucide/svelte/icons/scroll-text';
 import ScanTextIcon from '@lucide/svelte/icons/scan-text';
-import RssIcon from '@lucide/svelte/icons/rss';
 import SearchIcon from '@lucide/svelte/icons/search';
 import SendIcon from '@lucide/svelte/icons/send';
 import ShieldCheckIcon from '@lucide/svelte/icons/shield-check';
@@ -86,7 +83,6 @@ export const WORKSPACES: Record<Workspace, WorkspaceNav> = {
 			{ label: 'Потребности', icon: TargetIcon, href: resolve('/company/needs') },
 			{ label: 'Кандидаты', icon: SearchIcon, href: resolve('/company/candidates') },
 			{ label: 'Вакансии', icon: BriefcaseIcon, href: resolve('/company/vacancies') },
-			{ label: 'Внешние вакансии', icon: GlobeIcon, href: resolve('/company/vacancies/external') },
 			{ label: 'Приглашения', icon: InboxIcon, href: resolve('/company/invitations') },
 			{ label: 'Отклики', icon: SendIcon, href: resolve('/company/applications') },
 			{ label: 'Вызовы', icon: SwordsIcon, href: resolve('/company/challenges') },
@@ -105,7 +101,6 @@ export const WORKSPACES: Record<Workspace, WorkspaceNav> = {
 		items: [
 			{ label: 'Компании', icon: ShieldCheckIcon, href: resolve('/operator/companies') },
 			{ label: 'Возражения', icon: MessageSquareWarningIcon, href: resolve('/operator/objections') },
-			{ label: 'Заявки', icon: BadgeCheckIcon, href: resolve('/operator/claims') },
 			{ label: 'Представители', icon: BookOpenCheckIcon, href: resolve('/operator/representatives') },
 			{ label: 'Вакансии', icon: ScanTextIcon, href: resolve('/operator/vacancies') },
 			{ label: 'Исходы', icon: ChartColumnIcon, href: resolve('/operator/outcomes') },
@@ -120,7 +115,6 @@ export const WORKSPACES: Record<Workspace, WorkspaceNav> = {
 		items: [
 			{ label: 'Справочники', icon: LayersIcon, href: resolve('/admin/taxonomy') },
 			{ label: 'Правила', icon: SlidersHorizontalIcon, href: resolve('/admin/rules') },
-			{ label: 'Источники вакансий', icon: RssIcon, href: resolve('/admin/sources') },
 			{ label: 'Качество моделей', icon: GaugeIcon, href: resolve('/admin/quality') },
 			{ label: 'Политики', icon: ScaleIcon, href: resolve('/admin/policies') },
 			{ label: 'Задания', icon: ClipboardCheckIcon, href: resolve('/admin/bank') },
@@ -167,19 +161,8 @@ export function permittedItems<T extends { permission?: NavPermission }>(
 	return items.filter((item) => item.permission === undefined || permissions.includes(item.permission));
 }
 
-const inside = (pathname: string, href: string) => pathname === href || pathname.startsWith(`${href}/`);
-
-const SECTION_HREFS: readonly string[] = Object.values(WORKSPACES).flatMap((workspace) =>
-	workspace.items.map((item) => item.href)
-);
-
-/**
- * Whether `pathname` is inside the section (its page or any page under it) and not inside a nested section of its own
- * («Внешние вакансии» under «Вакансии»); fragment links are never active.
- */
+/** Whether `pathname` is inside the section: its page or any page under it; fragment links are never active. */
 export function isActive(pathname: string, item: NavItem): boolean {
-	if (item.href.includes('#') || !inside(pathname, item.href)) return false;
-	return !SECTION_HREFS.some(
-		(href) => href.length > item.href.length && inside(href, item.href) && inside(pathname, href)
-	);
+	if (item.href.includes('#')) return false;
+	return pathname === item.href || pathname.startsWith(`${item.href}/`);
 }

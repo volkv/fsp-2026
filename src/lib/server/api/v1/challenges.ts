@@ -1,4 +1,4 @@
-// Calls of companies (contracts 10.1, 10.2; domain 13.12): the company writes a short task with the range and the goal,
+// Calls of companies (contracts 9.1, 9.2; domain 13.12): the company writes a short task with the range and the goal,
 // the platform delivers it regularly to candidates of its categories, the company sees solutions by pseudonym and
 // invites from a solution (an offer with a point of «why you» naming it); the candidate solves or withdraws. A demo
 // session moves its clock a week on to show the next cycle of delivery at once.

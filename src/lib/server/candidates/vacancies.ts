@@ -1,7 +1,7 @@
 // «Вакансии для меня» (docs/domain.md, section 13.4; CONCEPT, promise 4): vacancies ranked by the same `matchScore` the
-// companies use, with what the candidate sees of each vacancy — title, company or organization, range, format and
-// grade — and the invitation of this vacancy if a company already sent one. Contact starts with the company; the
-// candidate's own application to an own vacancy is the secondary way (`applications/service.ts`).
+// companies use, with what the candidate sees of each vacancy — title, company, range, format and grade — and the
+// invitation of this vacancy if a company already sent one. Contact starts with the company; the candidate's own
+// application to a vacancy is the secondary way (`applications/service.ts`).
 import { and, eq, inArray, isNull } from 'drizzle-orm';
 import type { AccessSubject } from '$lib/server/access/permissions';
 import type { Executor } from '$lib/server/db';
@@ -16,12 +16,10 @@ import type { MatchResult } from '$lib/server/matching/score';
 
 export interface RecommendedVacancy {
 	vacancyId: string;
-	origin: 'own' | 'external';
 	title: string;
-	/** The company of an own vacancy, or the organization an external posting names. */
-	organization: string | null;
-	/** The label of the check of the company of an own vacancy (domain 5.1); `null` — an external vacancy. */
-	companyVerification: 'verified' | 'unverified' | null;
+	company: string;
+	/** The label of the check of the company (domain 5.1). */
+	companyVerification: 'verified' | 'unverified';
 	salary: {
 		min: number | null;
 		max: number | null;
@@ -29,10 +27,10 @@ export interface RecommendedVacancy {
 		period: 'month' | 'year' | 'hour' | 'project' | null;
 		taxBase: 'gross' | 'net' | 'unknown' | null;
 	};
-	roleKey: string | null;
-	gradeMin: string | null;
-	gradeMax: string | null;
-	workFormat: string | null;
+	roleKey: string;
+	gradeMin: string;
+	gradeMax: string;
+	workFormat: string;
 	requiredSkillKeys: string[];
 	match: MatchResult;
 	invitation: { id: string; status: (typeof invitations.$inferSelect)['status'] } | null;
@@ -45,13 +43,6 @@ export interface RecommendedPage {
 }
 
 const PAGE_SIZE = 20;
-
-/** The organization an external vacancy names in `external_org`. */
-export function organizationOf(externalOrg: unknown): string | null {
-	if (typeof externalOrg !== 'object' || externalOrg === null) return null;
-	const name = (externalOrg as { name?: unknown }).name;
-	return typeof name === 'string' ? name : null;
-}
 
 /** The search of the page: the same filters as `GET /api/v1/me/matches`; an empty filter is no filter. */
 export type RecommendedQuery = Omit<VacancyRecommendationQuery, 'limit'>;
@@ -70,7 +61,6 @@ export async function recommendedVacancies(
 					id: vacancies.id,
 					companyName: companies.displayName,
 					companyStatus: companies.status,
-					externalOrg: vacancies.externalOrg,
 					salaryMin: vacancies.salaryMin,
 					salaryMax: vacancies.salaryMax,
 					salaryCurrency: vacancies.salaryCurrency,
@@ -83,7 +73,7 @@ export async function recommendedVacancies(
 					requiredSkillKeys: vacancies.requiredSkillKeys
 				})
 				.from(vacancies)
-				.leftJoin(companies, eq(companies.id, vacancies.companyId))
+				.innerJoin(companies, eq(companies.id, vacancies.companyId))
 				.where(inArray(vacancies.id, ids))
 		: [];
 	const candidateId = subject.candidate?.id;
@@ -109,11 +99,9 @@ export async function recommendedVacancies(
 			const invitation = sent.find((entry) => entry.vacancyId === item.vacancyId);
 			return {
 				vacancyId: item.vacancyId,
-				origin: item.origin,
 				title: item.title,
-				organization: row.companyName ?? organizationOf(row.externalOrg),
-				companyVerification:
-					row.companyStatus === null ? null : row.companyStatus === 'verified' ? 'verified' : 'unverified',
+				company: row.companyName,
+				companyVerification: row.companyStatus === 'verified' ? 'verified' : 'unverified',
 				salary: {
 					min: row.salaryMin,
 					max: row.salaryMax,

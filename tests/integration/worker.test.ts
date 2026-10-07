@@ -397,7 +397,7 @@ describe('periodic jobs', () => {
 		const calls: string[] = [];
 		const ticks = [
 			{
-				type: 'vacancies.import' as const,
+				type: 'candidate.majority_transition' as const,
 				tick: (_db: Database, now: Date) => {
 					calls.push(now.toISOString());
 					return Promise.resolve(0);
@@ -408,8 +408,8 @@ describe('periodic jobs', () => {
 		await sleep(300);
 		expect(calls).toEqual([]);
 		launch({
-			handlers: handlerRegistry([recordingHandler('vacancies.import', [])]),
-			types: ['vacancies.import'],
+			handlers: handlerRegistry([recordingHandler('candidate.majority_transition', [])]),
+			types: ['candidate.majority_transition'],
 			ticks,
 			now: () => at
 		});

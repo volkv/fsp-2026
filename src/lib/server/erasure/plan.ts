@@ -37,7 +37,6 @@ export const ERASURE_PLAN: Readonly<Record<string, ErasureDecision>> = {
 	),
 	'company_members.user_id': kept('the membership is ended at the request; the team’s records name the member'),
 	'hiring_reports.reported_by_user_id': kept('a company member’s report on the company’s process'),
-	'vacancy_claims.requested_by_user_id': kept('the company’s claim of a vacancy'),
 
 	// Acts of the person on someone else's rows.
 	'candidates.birth_date_verified_by': actOfAnother,
@@ -50,7 +49,6 @@ export const ERASURE_PLAN: Readonly<Record<string, ErasureDecision>> = {
 	'competition_partnerships.granted_by': actOfAnother,
 	'staff_roles.granted_by': actOfAnother,
 	'staff_roles.revoked_by': actOfAnother,
-	'vacancy_claims.decided_by': actOfAnother,
 
 	// The candidate profile and everything derived from it.
 	'candidate_company_blocks.candidate_id': erased,

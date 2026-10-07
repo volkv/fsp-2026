@@ -1,5 +1,5 @@
 // The candidate's own applications (domain 13.5, 13.6; CONCEPT 4 — the secondary way to contact): the showcase is the
-// published own vacancies of the companies of the platform (`GET /me/matches?origin=own`); an application carries the
+// published vacancies of the companies of the platform (`GET /me/matches`); an application carries the
 // match of the pair and discloses the chosen contacts to that company; the candidate sees the statuses, the company sees
 // the applications to its vacancies by pseudonym and declines or invites by an offer.
 import { z } from 'zod';
@@ -98,8 +98,8 @@ export const createApplication = defineOperation({
 	tag: TAG,
 	summary: 'Откликнуться на вакансию',
 	description:
-		'Только на опубликованную собственную вакансию компании платформы (витрина — `GET /me/matches?origin=own`); ' +
-		'внешняя, чужой демо-сессии или несуществующая — `404`, закрытая — `409 vacancy_closed`, повтор — ' +
+		'Только на опубликованную вакансию компании платформы (витрина — `GET /me/matches`); ' +
+		'чужой демо-сессии или несуществующая — `404`, закрытая — `409 vacancy_closed`, повтор — ' +
 		'`409 already_applied`. С откликом кандидат даёт согласие на раскрытие выбранных контактов этой компании (ФИО и ' +
 		'почта — минимум) по тексту `disclosure_document_id`; изменившийся текст — `409 disclosure_document_changed`. ' +
 		'Отклик — с 18 лет (`422 application_adult_only`).',

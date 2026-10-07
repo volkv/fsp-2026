@@ -80,7 +80,6 @@ import {
 import { candidateObjections } from '$lib/server/categories/objections';
 import { categoryHistory } from '$lib/server/categories/read';
 import { demoSessionOfUser } from '$lib/server/demo/scope';
-import { organizationOf } from './vacancies';
 import { matchableVacancyFor } from '$lib/server/matching/evidence';
 import { COMPONENT_KEYS } from '$lib/server/matching/params';
 import { storedComponent } from '$lib/server/matching/storage';
@@ -92,9 +91,9 @@ import { storedComponent } from '$lib/server/matching/storage';
  * Also in v3: the way to a category (domain 23.2) — every version of the survey and every grade declaration with its
  * hint. v5: the requests of a confirmation with the results of the block tests, the calls delivered with the
  * candidate's solutions and the candidate's own applications (domain 23.2); a disclosure names its invitation or
- * application.
+ * application. v6: a match names the vacancy and its company only — every vacancy is a company's of the platform.
  */
-export const DATA_EXPORT_FORMAT = 'fsp-career-data-export/v5';
+export const DATA_EXPORT_FORMAT = 'fsp-career-data-export/v6';
 
 const iso = (value: Date | null) => (value === null ? null : value.toISOString());
 
@@ -317,10 +316,8 @@ async function buildDataExport(
 	const matches = await executor
 		.select({
 			vacancyId: vacancies.id,
-			vacancyOrigin: vacancies.origin,
 			vacancyTitle: vacancies.title,
 			vacancyCompanyId: vacancies.companyId,
-			vacancyExternalOrg: vacancies.externalOrg,
 			vacancyRevision: matchScores.vacancyRevision,
 			candidateRevision: matchScores.candidateRevision,
 			evidenceRunId: matchScores.evidenceRunId,
@@ -575,7 +572,7 @@ async function buildDataExport(
 	const names = await companyNames(executor, [
 		...receipts.flatMap((row) => present(row.audienceCompanyId)),
 		...blocks.map((row) => row.companyId),
-		...matches.flatMap((row) => present(row.vacancyCompanyId)),
+		...matches.map((row) => row.vacancyCompanyId),
 		...consents.flatMap((row) => present(row.scopeCompanyId)),
 		...acceptances.flatMap((row) => present(row.companyId)),
 		...invited.map((row) => row.companyId),
@@ -841,10 +838,8 @@ async function buildDataExport(
 		matches: matches.map((row) => ({
 			vacancy: {
 				id: row.vacancyId,
-				origin: row.vacancyOrigin,
 				title: row.vacancyTitle,
-				company: companyOf(row.vacancyCompanyId),
-				organization: row.vacancyCompanyId === null ? organizationOf(row.vacancyExternalOrg) : null
+				company: companyOf(row.vacancyCompanyId)
 			},
 			score: Number(row.score),
 			components: Object.fromEntries(COMPONENT_KEYS.map((key) => [key, storedComponent(row, key)])),

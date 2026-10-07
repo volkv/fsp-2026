@@ -1,4 +1,4 @@
-// The engine of the test on a declared grade against the database (docs/domain.md, 10.4–10.9; contracts 6.5, 10.1):
+// The engine of the test on a declared grade against the database (docs/domain.md, 10.4–10.9; contracts 6.5, 9.1):
 // an attempt starts only when the grade policy lets it and the specialization is open, slots are served one by one from
 // the release, computed answers are scored at once, programs and QA test cases by the sandbox job — QA harnesses are
 // run by the local Python as the sandbox would run them — and the procedure of the contract decides; the decision and

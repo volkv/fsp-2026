@@ -90,10 +90,9 @@ test('showcase renders every component group without errors', async ({ page }) =
 	// Every section of a workspace leads to its page.
 	const sections = {
 		кандидат: { Профиль: '/me/profile', Категория: '/me/category', Резюме: '/me/resume', Тесты: '/me/tests' },
-		'оператор фсп': { Заявки: '/operator/claims', Навыки: '/operator/skills', Импорт: '/operator/fsp-import' },
+		'оператор фсп': { Вакансии: '/operator/vacancies', Навыки: '/operator/skills', Импорт: '/operator/fsp-import' },
 		администратор: {
 			Правила: '/admin/rules',
-			'Источники вакансий': '/admin/sources',
 			Политики: '/admin/policies',
 			Документы: '/admin/documents'
 		}

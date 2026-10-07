@@ -1,4 +1,4 @@
-// The Telegram channel of a user (docs/domain.md, section 3.7; contracts 8.2): a one-time link from the signed-in
+// The Telegram channel of a user (docs/domain.md, section 3.7; contracts 7.2): a one-time link from the signed-in
 // account, confirmation by the bot webhook, unlinking by the user, by the `/stop` command or when the bot is blocked.
 // The chat id is kept encrypted with a keyed hash for lookup, and only while the channel is active.
 import { and, eq } from 'drizzle-orm';
@@ -18,7 +18,7 @@ export interface TelegramDeps {
 	db: Database;
 	crypto: FieldCrypto;
 	now: () => Date;
-	/** `null` — the channel is disabled (contracts 8.2). */
+	/** `null` — the channel is disabled (contracts 7.2). */
 	telegram: { botUsername: string; webhookSecret: string } | null;
 }
 
@@ -261,7 +261,7 @@ async function endChat(
 }
 
 /**
- * `POST /api/v1/integrations/telegram/webhook` (contracts 8.2). The secret header is checked first (`401` otherwise;
+ * `POST /api/v1/integrations/telegram/webhook` (contracts 7.2). The secret header is checked first (`401` otherwise;
  * `404` while the channel is disabled). A valid update is always answered `200`, so Telegram does not repeat it; the
  * bot's reply goes back in the answer itself.
  */

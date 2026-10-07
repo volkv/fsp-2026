@@ -143,7 +143,7 @@ export function diffQueries(before: ShortlistQuery, after: ShortlistQuery): Quer
 	return diff;
 }
 
-/** «What if»: exactly one condition changes (contracts 10.2). */
+/** «What if»: exactly one condition changes (contracts 9.2). */
 export const whatIfSchema = z.union([
 	z.strictObject({ work_format: z.enum(OFFER_WORK_FORMATS).nullable() }),
 	z.strictObject({ grade: z.enum(GRADE_KEYS) }),

@@ -48,7 +48,7 @@ export interface ObjectedDecision {
 	artifactsKeptUntil: Date;
 }
 
-/** A corrected score of one cluster with the operator's grounds (contracts 10.3, `rescored_items`). */
+/** A corrected score of one cluster with the operator's grounds (contracts 9.3, `rescored_items`). */
 export interface RescoredItem {
 	seq: number;
 	score: number;

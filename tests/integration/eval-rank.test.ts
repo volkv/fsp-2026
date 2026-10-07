@@ -1,4 +1,4 @@
-// `rank` of the evaluation bridge goes the product's way of a shortlist (contracts 11.1, domain 13.10): the need is a
+// `rank` of the evaluation bridge goes the product's way of a shortlist (contracts 10.1, domain 13.10): the need is a
 // text read by the rules, its categories are the ones a shortlist takes by default, only the candidates holding one
 // are ranked — by `rankForNeed` with the blocks of their tests — and the candidates without a category are apart. A
 // candidate's decisions are applied in order by the owner of categories, the practice language of a confirmation is

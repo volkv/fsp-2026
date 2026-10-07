@@ -1,4 +1,4 @@
-// The candidate's own profile (contracts 10.1; domain 7.1, 12.9): the fields typed by hand — the name, the contacts,
+// The candidate's own profile (contracts 9.1; domain 7.1, 12.9): the fields typed by hand — the name, the contacts,
 // the headline, the soft skills — with the suggestions of the resume for them, the experience stated by hand, and the
 // list of blocked companies. Browser session only. The PDF profile is a file of the cabinet (`/me/profile/pdf`).
 import { z } from 'zod';

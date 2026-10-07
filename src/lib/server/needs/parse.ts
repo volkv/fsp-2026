@@ -23,8 +23,7 @@ import {
 	VACANCY_SCHEMA_VERSION,
 	type VacancyTextFields
 } from '$lib/server/vacancies/from-text';
-import { TITLE_WORD } from '$lib/server/taxonomy/roles';
-import { roleOfTitle } from '$lib/server/vacancies/normalize';
+import { roleOfTitle, TITLE_WORD } from '$lib/server/taxonomy/roles';
 import { loadVacancyTaxonomy, resolveSkill, vacancyLexicon } from '$lib/server/vacancies/taxonomy';
 import { extractVacancyByRules, VACANCY_TEXT_RULES_VERSION } from '$lib/server/vacancies/text-rules';
 import { OFFER_WORK_FORMATS } from '$lib/server/invitations/terms';
@@ -244,7 +243,7 @@ export async function parseNeedText(
 			items,
 			blocks,
 			(raw) => resolveSkill(taxonomy, raw),
-			(title) => roleOfTitle(title, taxonomy).key
+			(title) => roleOfTitle(title, taxonomy.roleNames)
 		);
 	const envelope = {
 		operation: 'extract' as const,
@@ -287,7 +286,7 @@ export async function parseNeedText(
 	const { form, parsed } = await suggestion(
 		fields,
 		blocks,
-		(text) => roleOfTitle(text, taxonomy).key,
+		(text) => roleOfTitle(text, taxonomy.roleNames),
 		await openSpecializations(deps.db)
 	);
 	return {

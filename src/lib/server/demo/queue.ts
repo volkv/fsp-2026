@@ -5,10 +5,9 @@ import { randomUUID } from 'node:crypto';
 import { and, count, eq, gte, inArray, sql } from 'drizzle-orm';
 import type { Database } from '$lib/server/db';
 import { jobs } from '$lib/server/db/schema';
-import { JobFailure, type AnyJobHandler, type HandlerRegistry, type JobHandler } from '$lib/server/jobs/handler';
+import type { HandlerRegistry } from '$lib/server/jobs/handler';
 import type { JobLogger } from '$lib/server/jobs/log';
-import { completeJob, failJob, type ClaimedJob } from '$lib/server/jobs/queue';
-import { jobSpec, type JobPayload, type JobType } from '$lib/server/jobs/registry';
+import type { JobType } from '$lib/server/jobs/registry';
 import { startWorker } from '$lib/server/jobs/worker';
 
 class DemoJobsFailed extends Error {
@@ -64,71 +63,5 @@ export async function drainJobs(
 		throw new DemoJobsFailed(
 			`${options.label}: jobs failed — ${failed.map((f) => `${f.type} ${f.code} ×${f.n}`).join(', ')}`
 		);
-	}
-}
-
-/**
- * Runs one job of a type now, in this process: the row is inserted already captured by the seed, so no worker takes
- * it, and the result is written conditionally as the worker writes it. Used where the seed's own dependencies must run
- * the job (the synthetic vacancy sources have an adapter only here).
- */
-export async function runJobInline<T extends JobType>(
-	db: Database,
-	handler: JobHandler<T>,
-	payload: JobPayload<T>,
-	options: { inputVersion: string; log: JobLogger; before?: Parameters<Database['transaction']>[0] }
-): Promise<void> {
-	const type = handler.type;
-	const spec = jobSpec(type);
-	const parsed = spec.payload.parse(payload) as JobPayload<T>;
-	const leaseOwner = `demo-seed:${randomUUID().slice(0, 8)}`;
-	const id = await db.transaction(async (tx) => {
-		if (options.before) await options.before(tx);
-		const [row] = await tx
-			.insert(jobs)
-			.values({
-				type,
-				typeVersion: spec.typeVersion,
-				payload: parsed,
-				inputVersion: options.inputVersion,
-				dedupKey: spec.dedupKey(parsed),
-				status: 'running',
-				priority: spec.priority,
-				attempts: 1,
-				maxAttempts: spec.maxAttempts,
-				leaseOwner,
-				leaseExpiresAt: sql`now() + make_interval(secs => ${spec.leaseSeconds})`,
-				createdBy: { kind: 'system', id: 'demo-seed' }
-			})
-			.returning({ id: jobs.id });
-		if (!row) throw new Error(`inline job ${type} was not inserted`);
-		return row.id;
-	});
-	const job: ClaimedJob<T> = {
-		id,
-		type,
-		payload: parsed,
-		inputVersion: options.inputVersion,
-		attempt: 1,
-		maxAttempts: spec.maxAttempts,
-		leaseOwner
-	};
-	const anyHandler = handler as unknown as AnyJobHandler;
-	try {
-		const result = await anyHandler.run({
-			job,
-			db,
-			signal: new AbortController().signal,
-			requestId: `job:${id}`,
-			log: options.log
-		});
-		const outcome = await completeJob(db, job, result);
-		if (outcome !== 'succeeded') throw new DemoJobsFailed(`inline job ${type} ended ${outcome}`);
-	} catch (error) {
-		// The row must not stay captured: after its lease a worker of the stand would retry it without the seed's
-		// dependencies. It fails for good, and the seed stops with the cause.
-		const code = error instanceof JobFailure ? error.code : error instanceof Error ? error.name : 'unknown';
-		await failJob(db, job, { code, retryable: false, message: `the demo seed ran ${type} inline and stopped` });
-		throw error;
 	}
 }

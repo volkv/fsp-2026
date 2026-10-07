@@ -2,7 +2,7 @@ import { telegramDeps } from '$lib/server/notifications/deps';
 import { receiveTelegramUpdate } from '$lib/server/notifications/telegram';
 import type { RequestHandler } from './$types';
 
-/** Updates of the notification bot (docs/contracts.md, section 8.2): authenticated by the secret header. */
+/** Updates of the notification bot (docs/contracts.md, section 7.2): authenticated by the secret header. */
 export const POST: RequestHandler = async ({ request, locals, getClientAddress }) =>
 	receiveTelegramUpdate(telegramDeps(), {
 		headers: request.headers,

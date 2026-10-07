@@ -1,11 +1,10 @@
-// Vacancies (contracts 5.5; domain 13.1–13.3): the general search with the attribution of external postings, own
-// vacancies of a company from draft to publication, a draft from pasted text and the «this is our vacancy» claim.
+// Vacancies (contracts 5.5; domain 13.1, 13.3): the general search, the vacancies of a company from draft to
+// publication and a draft from pasted text.
 import { z } from 'zod';
 import { can, type AccessSubject } from '$lib/server/access/permissions';
 import { demoSessionOfUser } from '$lib/server/demo/scope';
 import { ApiError } from '$lib/server/errors/api-error';
 import { positionText, type IndicatorPosition, type VacancyMarketPosition } from '$lib/server/market/read';
-import { claimRequesterOf, submitVacancyClaim, withdrawVacancyClaim } from '$lib/server/vacancies/claims';
 import { extractVacancyFromText, VACANCY_TEXT_MAX_LENGTH } from '$lib/server/vacancies/from-text';
 import {
 	closeOwnVacancy,
@@ -61,53 +60,23 @@ const poolSchema = z
 	])
 	.meta({ id: 'PoolCounter', description: 'Счётчик «в пуле N подтверждённых кандидатов» (domain 13.3)' });
 
-const postingSchema = z
-	.object({
-		source: z.string().describe('Ключ источника'),
-		source_name: z.string(),
-		attribution: z
-			.string()
-			.describe('Подпись, которую условия источника требуют показывать рядом с вакансией, со ссылкой на `url`'),
-		url: z.string().describe('Публикация на сайте источника'),
-		title: z.string(),
-		organization_name: z.string().nullable().describe('Организация, как её называет публикация'),
-		freshness: z.enum(['active', 'gone', 'unknown']),
-		source_published_at: dateTime.nullable(),
-		first_fetched_at: dateTime,
-		last_checked_at: dateTime.describe('Последняя проверка актуальности')
-	})
-	.meta({ id: 'VacancyPosting', description: 'Публикация внешней вакансии в источнике' });
-
 const vacancyFields = {
 	id: z.uuid(),
-	origin: z
-		.enum(['own', 'external'])
-		.describe('`own` — вакансия компании на платформе, `external` — собрана из источников'),
 	status: z.string(),
 	title: z.string(),
-	description: z.string().nullable(),
-	company: z
-		.object({ id: z.uuid(), name: z.string() })
-		.nullable()
-		.describe('Компания собственной вакансии; у внешней — `null`'),
-	organization_name: z.string().nullable().describe('Организация внешней вакансии по публикациям'),
-	role_key: key.nullable().describe('`null` — роль не указана и не распознана'),
-	grade_min: key.nullable(),
-	grade_max: key.nullable(),
-	grade_basis: z.enum(['stated', 'inferred', 'unknown']),
+	description: z.string(),
+	company: z.object({ id: z.uuid(), name: z.string() }),
+	role_key: key,
+	grade_min: key,
+	grade_max: key,
 	required_skill_keys: z.array(key),
 	nice_skill_keys: z.array(key),
-	work_format: key.nullable(),
-	employment_form: key.nullable(),
-	contract_types: z.array(key).nullable(),
+	work_format: key,
+	employment_form: key,
+	contract_types: z.array(key),
 	city_id: z.string().nullable(),
 	salary: salaryRange,
-	terms_conflict: z.boolean().describe('Публикации внешней вакансии расходятся в вилке или грейде'),
 	published_at: dateTime.nullable(),
-	checked_at: dateTime.nullable().describe('Последняя проверка актуальности внешней вакансии'),
-	postings: z
-		.array(postingSchema)
-		.describe('Публикации внешней вакансии — у каждой источник и атрибуция; у собственной — пусто'),
 	pool: poolSchema
 };
 
@@ -117,35 +86,29 @@ const ownBlock = z
 		min_age: z.int().nullable().describe('Вакансия для несовершеннолетних с этого возраста; `null` — только 18+'),
 		text_check: textCheckSchema.describe('Проверка текста на дискриминационные формулировки'),
 		from_text: z.boolean().describe('Черновик собран из вставленного текста'),
-		derived_from_vacancy_id: z.uuid().nullable().describe('Внешняя вакансия, по которой создана эта'),
 		closed_at: dateTime.nullable(),
 		created_at: dateTime,
 		updated_at: dateTime
 	})
-	.meta({ id: 'OwnVacancyState', description: 'Состояние собственной вакансии для её компании' });
+	.meta({ id: 'OwnVacancyState', description: 'Состояние вакансии для её компании' });
 
 const vacancySchema = z
 	.object({
 		...vacancyFields,
 		own: ownBlock.optional().describe('Только участникам компании-владельца')
 	})
-	.meta({ id: 'Vacancy', description: 'Вакансия; неизвестные поля — `null` («не указано»)' });
+	.meta({ id: 'Vacancy', description: 'Вакансия компании платформы' });
 
-function vacancyView({ row, companyName, postings, pool }: VacancyView, withOwn: boolean) {
-	const external = row.externalOrg as { name?: unknown } | null;
-	const checked = postings.map((posting) => posting.lastCheckedAt.getTime());
+function vacancyView({ row, companyName, pool }: VacancyView, withOwn: boolean) {
 	return {
 		id: row.id,
-		origin: row.origin,
 		status: row.status,
 		title: row.title,
 		description: row.description,
-		company: row.companyId === null || companyName === null ? null : { id: row.companyId, name: companyName },
-		organization_name: typeof external?.name === 'string' ? external.name : null,
+		company: { id: row.companyId, name: companyName },
 		role_key: row.roleKey,
 		grade_min: row.gradeMin,
 		grade_max: row.gradeMax,
-		grade_basis: row.gradeBasis,
 		required_skill_keys: row.requiredSkillKeys,
 		nice_skill_keys: row.niceSkillKeys,
 		work_format: row.workFormat,
@@ -159,21 +122,7 @@ function vacancyView({ row, companyName, postings, pool }: VacancyView, withOwn:
 			period: row.salaryPeriod,
 			tax_base: row.salaryTaxBase
 		},
-		terms_conflict: row.termsConflict,
 		published_at: isoOrNull(row.publishedAt),
-		checked_at: checked.length === 0 ? null : new Date(Math.max(...checked)).toISOString(),
-		postings: postings.map((posting) => ({
-			source: posting.source,
-			source_name: posting.sourceName,
-			attribution: posting.attribution,
-			url: posting.url,
-			title: posting.title,
-			organization_name: posting.organizationName,
-			freshness: posting.freshness,
-			source_published_at: isoOrNull(posting.sourcePublishedAt),
-			first_fetched_at: iso(posting.firstFetchedAt),
-			last_checked_at: iso(posting.lastCheckedAt)
-		})),
 		pool:
 			pool.status === 'counted'
 				? { status: pool.status, count: pool.count, counted_at: iso(pool.countedAt) }
@@ -187,7 +136,6 @@ function vacancyView({ row, companyName, postings, pool }: VacancyView, withOwn:
 						min_age: row.minAge,
 						text_check: textCheckSchema.parse(row.textCheck),
 						from_text: row.draftMlResultId !== null,
-						derived_from_vacancy_id: row.derivedFromVacancyId,
 						closed_at: isoOrNull(row.closedAt),
 						created_at: iso(row.createdAt),
 						updated_at: iso(row.updatedAt)
@@ -209,13 +157,10 @@ export const searchVacancies = defineOperation({
 	path: '/vacancies',
 	tag: TAG,
 	summary: 'Поиск вакансий',
-	description:
-		'Опубликованные вакансии проверенных компаний и внешние вакансии из источников (кроме заменённых собственной ' +
-		'вакансией компании): происхождение, публикации с источниками, дата проверки актуальности, счётчик пула.',
+	description: 'Опубликованные вакансии компаний платформы со счётчиком пула.',
 	auth: 'public',
 	query: z.strictObject({
 		text: z.string().max(500).optional().describe('Полнотекстовый запрос'),
-		origin: z.enum(['own', 'external']).optional(),
 		role_key: z.array(key).max(20).optional().describe('Роли (параметр повторяется)'),
 		work_format: z.array(key).max(10).optional().describe('Форматы работы (параметр повторяется)'),
 		...pageQuery
@@ -228,7 +173,6 @@ export const searchVacancies = defineOperation({
 			services.db,
 			{
 				text: search.text,
-				origin: search.origin,
 				roleKeys: search.role_key,
 				workFormats: search.work_format
 			},
@@ -247,7 +191,7 @@ export const getVacancy = defineOperation({
 	tag: TAG,
 	summary: 'Вакансия',
 	description:
-		'Вакансия из общего поиска — любому; собственная вакансия в любом статусе — участникам её компании (с проверкой ' +
+		'Вакансия из общего поиска — любому; вакансия в любом статусе — участникам её компании (с проверкой ' +
 		'текста и редакцией). Иначе — `404`.',
 	auth: 'public',
 	params: vacancyParams,
@@ -290,7 +234,7 @@ async function authorOf(ctx: BaseContext): Promise<VacancyAuthor> {
 }
 
 function requireVacancyWrite(subject: AccessSubject, companyId: string | null): void {
-	const decision = can(subject, 'vacancy.write', { origin: 'own', companyId });
+	const decision = can(subject, 'vacancy.write', { companyId });
 	if (decision.allowed) return;
 	throw new ApiError(decision.reason === 'unauthenticated' ? 'unauthenticated' : 'forbidden');
 }
@@ -300,7 +244,7 @@ const salaryInput = z.strictObject({
 	max: z.int(),
 	currency: z.string().describe('Код валюты ISO 4217, например `RUB`'),
 	period: salaryPeriod,
-	tax_base: z.enum(['gross', 'net']).describe('У собственной вакансии налоговая база известна всегда')
+	tax_base: z.enum(['gross', 'net']).describe('У вакансии налоговая база известна всегда')
 });
 
 const vacancyInputFields = {
@@ -375,30 +319,30 @@ export const createVacancy = defineOperation({
 	method: 'POST',
 	path: '/vacancies',
 	tag: TAG,
-	summary: 'Создать собственную вакансию',
+	summary: 'Создать вакансию',
 	description:
 		'Сохраняет черновик вакансии компании: роль, грейд, условия и полная вилка с известной налоговой базой. Ответ ' +
-		'содержит проверку текста. `from_text` — черновик из разбора вставленного текста; `derived_from_vacancy_id` — ' +
-		'вакансия по внешней после одобренной заявки «это наша вакансия».',
+		'содержит проверку текста. `from_text` — черновик из разбора вставленного текста.',
 	auth: 'account',
 	permission: 'vacancy.write',
 	idempotent: true,
 	body: z
 		.strictObject({
 			...vacancyInputFields,
-			from_text: z.strictObject({ ml_result_id: z.uuid() }).optional().describe('Разбор текста, из которого черновик'),
-			derived_from_vacancy_id: z.uuid().optional()
+			from_text: z.strictObject({ ml_result_id: z.uuid() }).optional().describe('Разбор текста, из которого черновик')
 		})
 		.meta({ examples: [VACANCY_EXAMPLE] }),
 	errors: ['not_found'],
 	response: { status: 201, description: 'Черновик сохранён', schema: vacancySchema },
 	async handle(ctx) {
 		const author = await authorOf(ctx);
-		const { from_text: fromText, derived_from_vacancy_id: derivedFrom, ...fields } = ctx.body;
-		const row = await createOwnVacancy({ db: ctx.services.db, now: ctx.services.now }, author, serviceInput(fields), {
-			...(fromText === undefined ? {} : { fromText: { mlResultId: fromText.ml_result_id } }),
-			...(derivedFrom === undefined ? {} : { derivedFromVacancyId: derivedFrom })
-		});
+		const { from_text: fromText, ...fields } = ctx.body;
+		const row = await createOwnVacancy(
+			{ db: ctx.services.db, now: ctx.services.now },
+			author,
+			serviceInput(fields),
+			fromText === undefined ? {} : { fromText: { mlResultId: fromText.ml_result_id } }
+		);
 		return ownVacancyView(ctx, row.id);
 	}
 });
@@ -433,7 +377,7 @@ export const updateVacancy = defineOperation({
 	method: 'PATCH',
 	path: '/vacancies/{vacancy_id}',
 	tag: TAG,
-	summary: 'Изменить собственную вакансию',
+	summary: 'Изменить вакансию',
 	description:
 		'Меняет переданные поля (`salary` — целиком) незакрытой вакансии; текст проверяется заново. Новые предупреждения ' +
 		'опубликованной вакансии подтверждаются `confirm_warnings`; заблокированный текст уводит её на модерацию.',
@@ -765,63 +709,5 @@ export const draftVacancyFromText = defineOperation({
 			market_position: marketPositionView(draft.marketPosition, fields.salary),
 			taxonomy_version_id: draft.taxonomyVersionId
 		};
-	}
-});
-
-export const claimVacancy = defineOperation({
-	id: 'claimVacancy',
-	method: 'POST',
-	path: '/vacancies/{vacancy_id}/claims',
-	tag: TAG,
-	summary: '«Это наша вакансия»',
-	description:
-		'Заявка компании на внешнюю вакансию. Ждёт проверки компании, затем оператора. Одобрение не делает внешнюю ' +
-		'вакансию пригодной для приглашений: компания создаёт по ней собственную.',
-	auth: 'session',
-	permission: 'vacancy_claim.create',
-	idempotent: true,
-	params: vacancyParams,
-	errors: ['not_found', 'policy_violation'],
-	response: {
-		status: 201,
-		description: 'Заявка подана',
-		schema: z.object({
-			claim_id: z.uuid(),
-			status: z.enum(['awaiting_company_verification', 'pending_review', 'approved', 'rejected', 'withdrawn']),
-			created_at: dateTime
-		})
-	},
-	async handle(ctx) {
-		const claim = await submitVacancyClaim(
-			{ db: ctx.services.db, now: ctx.services.now },
-			claimRequesterOf(await ctx.subject(), ctx.meta.requestId),
-			ctx.params.vacancy_id
-		);
-		return { claim_id: claim.id, status: claim.status, created_at: iso(claim.createdAt) };
-	}
-});
-
-export const withdrawClaim = defineOperation({
-	id: 'withdrawVacancyClaim',
-	method: 'POST',
-	path: '/vacancies/{vacancy_id}/claims/{claim_id}/withdrawal',
-	tag: TAG,
-	summary: 'Отозвать заявку «это наша вакансия»',
-	description:
-		'Компания отзывает свою открытую заявку (`awaiting_company_verification` или `pending_review`) — с тем же правом, ' +
-		'что и подача. Оператор её больше не видит, компания может подать новую. Рассмотренная или уже отозванная ' +
-		'заявка — `422 policy_violation` (`claim_not_open`); заявка другой компании или другой вакансии — `404`.',
-	auth: 'session',
-	permission: 'vacancy_claim.create',
-	params: z.strictObject({ vacancy_id: id('Вакансия'), claim_id: id('Заявка') }),
-	errors: ['not_found', 'policy_violation'],
-	response: { status: 204, description: 'Заявка отозвана' },
-	async handle(ctx) {
-		await withdrawVacancyClaim(
-			{ db: ctx.services.db, now: ctx.services.now },
-			claimRequesterOf(await ctx.subject(), ctx.meta.requestId),
-			ctx.params.vacancy_id,
-			ctx.params.claim_id
-		);
 	}
 });

@@ -1,4 +1,4 @@
-// Creating notifications (docs/domain.md, section 3.7; contracts 8). An event always creates the notification in the
+// Creating notifications (docs/domain.md, section 3.7; contracts 7). An event always creates the notification in the
 // interface; delivery by channel is a `notification.deliver` job per notification and channel, decided and sent by
 // the channel adapters. Payloads carry identifiers only: texts are built at delivery.
 import { and, eq, sql } from 'drizzle-orm';

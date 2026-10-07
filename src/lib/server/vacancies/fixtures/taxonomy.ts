@@ -1,4 +1,4 @@
-// The taxonomy of the repository (`taxonomy/`) as `VacancyTaxonomy`, for unit tests of normalization and parsing.
+// The taxonomy of the repository (`taxonomy/`) as `VacancyTaxonomy`, for unit tests of reading vacancy texts.
 import { fileURLToPath } from 'node:url';
 import { buildRelease, readTaxonomyDatasets } from '$lib/server/taxonomy/release';
 import { buildVacancyTaxonomy, type VacancyTaxonomy } from '../taxonomy';
@@ -16,5 +16,3 @@ export async function repositoryTaxonomy(): Promise<VacancyTaxonomy> {
 		roles: release.content.roles.map((r) => ({ key: r.key, nameRu: r.name_ru }))
 	});
 }
-
-export const fixturePath = (name: string) => fileURLToPath(new URL(name, import.meta.url));

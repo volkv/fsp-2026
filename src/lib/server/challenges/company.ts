@@ -1,4 +1,4 @@
-// Calls of a company (docs/domain.md, 13.12; contracts 10.2): a short task with the range and the goal in view. The
+// Calls of a company (docs/domain.md, 13.12; contracts 9.2): a short task with the range and the goal in view. The
 // company writes it, publishes it for a period, sees the solutions or approaches by pseudonym and invites from a
 // solution — the offer then names the solution in «why you». Only members of a company the admission policy lets act
 // see and change its calls; publishing needs the profile of the company filled in, as an offer does.

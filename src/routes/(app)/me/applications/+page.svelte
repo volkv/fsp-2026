@@ -42,7 +42,7 @@
 			<Empty.Description>Откликнуться можно на вакансию компании платформы со страницы вакансии.</Empty.Description>
 		</Empty.Header>
 		<Empty.Content>
-			<a class="text-sm text-link underline underline-offset-4" href="{resolve('/me/vacancies')}?origin=own"
+			<a class="text-sm text-link underline underline-offset-4" href={resolve('/me/vacancies')}
 				>Вакансии компаний платформы</a
 			>
 		</Empty.Content>

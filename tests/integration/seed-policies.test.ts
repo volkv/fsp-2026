@@ -1,6 +1,5 @@
-// Publication of the product policies and registration of the vacancy sources (`scripts/seed-policies.ts`): every
-// policy the modules read is in force after the seed, a repeat changes nothing, a published version is never edited,
-// sources arrive disabled and keep the administrator's switch.
+// Publication of the product policies (`scripts/seed-policies.ts`): every policy the modules read is in force after the
+// seed, a repeat changes nothing, a published version is never edited.
 import { fileURLToPath } from 'node:url';
 import { and, eq } from 'drizzle-orm';
 import postgres from 'postgres';
@@ -8,14 +7,12 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { publishPolicies, readPolicyRelease, type PolicyVersion } from '../../scripts/seed-policies';
 import { assessmentPolicy } from '$lib/server/assessments/policy';
 import { minorsAllowed } from '$lib/server/auth/age';
-import { productPolicies, vacancySources } from '$lib/server/db/schema';
+import { productPolicies } from '$lib/server/db/schema';
 import { requiredPolicy } from '$lib/server/invitations/policies';
 import { currentRetentionPolicy } from '$lib/server/jobs/retention';
 import { loadMarketPolicy } from '$lib/server/market/policy';
 import { matchRulesetParamsSchema } from '$lib/server/matching/params';
 import { loadMatchStoragePolicy } from '$lib/server/matching/storage';
-import { loadStaleAfterDays } from '$lib/server/vacancies/clusters';
-import { registerVacancySources, SOURCE_DEFINITIONS } from '$lib/server/vacancies/sources/definitions';
 import shippedMatchRuleset from '../../taxonomy/match-ruleset.json';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
 
@@ -52,8 +49,7 @@ describe('product policies seed', () => {
 			'notification_policy v1',
 			'retention_policy v1',
 			'retention_policy v2',
-			'retention_policy v3',
-			'sourcing_policy v1'
+			'retention_policy v3'
 		]);
 		const first = await publishPolicies(client, release);
 		expect(first.map((p) => `${p.kind} v${p.version} ${p.outcome}`).sort()).toEqual(
@@ -75,7 +71,6 @@ describe('product policies seed', () => {
 				{ until: null, step: 100_000 }
 			]
 		});
-		expect(await loadStaleAfterDays(database.db, now)).toBe(7);
 		expect(await minorsAllowed(database.db, now)).toBe(true);
 		expect(await loadMarketPolicy(database.db, now)).toMatchObject({
 			windowDays: 30,
@@ -115,21 +110,5 @@ describe('product policies seed', () => {
 			.from(productPolicies)
 			.where(and(eq(productPolicies.kind, 'catalog_policy'), eq(productPolicies.version, 1)));
 		expect(catalog?.params).toEqual({ small_count_threshold: 5 });
-	});
-});
-
-describe('vacancy sources registration', () => {
-	it('adds the sources disabled and keeps the switch of the administrator on repeat', async () => {
-		const first = await registerVacancySources(client);
-		expect(first).toEqual(SOURCE_DEFINITIONS.map((d) => ({ key: d.key, outcome: 'added', enabled: false })));
-		await database.db.update(vacancySources).set({ enabled: true }).where(eq(vacancySources.key, 'trudvsem'));
-		const second = await registerVacancySources(client);
-		expect(second).toEqual(
-			SOURCE_DEFINITIONS.map((d) => ({ key: d.key, outcome: 'updated', enabled: d.key === 'trudvsem' }))
-		);
-		const rows = await database.db.select().from(vacancySources);
-		expect(rows.map((r) => [r.key, r.terms, r.schedule]).sort()).toEqual(
-			SOURCE_DEFINITIONS.map((d) => [d.key, d.terms, d.schedule]).sort()
-		);
 	});
 });

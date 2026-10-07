@@ -30,8 +30,6 @@
 				asOf: Date;
 				source: {
 					vacancies: number;
-					own: number;
-					external: number;
 					latestSeenAt: Date | null;
 					synthetic: boolean;
 				};
@@ -120,11 +118,8 @@
 					'вакансиям',
 					'вакансиям'
 				])}
-				{cohort}: {available.source.own} на платформе, {available.source.external} из внешних источников. Данные на {formatDate(
-					available.asOf
-				)}{#if available.source.latestSeenAt}, самая свежая вакансия — от {formatDate(
-						available.source.latestSeenAt
-					)}{/if}.
+				{cohort} на платформе. Данные на {formatDate(available.asOf)}{#if available.source.latestSeenAt}, самая свежая
+					вакансия — от {formatDate(available.source.latestSeenAt)}{/if}.
 				{#if available.source.synthetic}Среди них есть демонстрационные вакансии стенда.{/if}
 			</p>
 			{#if available.cohort.widenedFrom}

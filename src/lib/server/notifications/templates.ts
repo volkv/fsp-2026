@@ -1,4 +1,4 @@
-// Texts of notifications by type (docs/domain.md, section 3.7; contracts 8.1): a letter may name the recipient's own
+// Texts of notifications by type (docs/domain.md, section 3.7; contracts 7.1): a letter may name the recipient's own
 // data — the company and the title of the candidate's offer, the vacancy of the company's one — but the other
 // side only by pseudonym. A Telegram message carries the kind of the event and the link, nothing else. A letter about
 // an operator's decision names the decision only; its reasons are read in the product. A candidate aged 14–17 learns
@@ -17,7 +17,7 @@ import { NOTIFICATION_TYPES, type NotificationType } from './types';
 export interface NotificationLinks {
 	/** The notification in the product: it leads to its object. */
 	open: string;
-	/** Notification settings: every letter outside the `account` category links to them (contracts 8.1). */
+	/** Notification settings: every letter outside the `account` category links to them (contracts 7.1). */
 	settings: string;
 }
 

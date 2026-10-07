@@ -15,8 +15,8 @@ export type EmbedModels = Pick<ModelAdapter, 'embed'>;
 
 export const sha256 = (text: string) => createHash('sha256').update(text).digest('hex');
 
-/** Vacancies without vectors: closed and hidden ones take part in no match. */
-export const UNEMBEDDED_VACANCY_STATUSES = ['closed', 'hidden'] as const;
+/** Vacancies without vectors: closed ones take part in no match. */
+export const UNEMBEDDED_VACANCY_STATUSES = ['closed'] as const;
 
 interface Input {
 	/** `candidate:section` or the vacancy id; unique within one call. */

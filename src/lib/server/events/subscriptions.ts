@@ -1,4 +1,4 @@
-// Subscriptions of a company to its outgoing events (docs/domain.md, section 5.7; contracts 13): the owner registers a
+// Subscriptions of a company to its outgoing events (docs/domain.md, section 5.7; contracts 12): the owner registers a
 // webhook — an HTTPS address, the events, a signing secret shown once — or connects Huntflow with the company's token.
 // The secret rotates with a day of overlap: the webhook is signed with both secrets meanwhile. The journal of deliveries
 // shows every attempt. Subscriptions are managed in a browser session by the owner of an admitted company, never by a

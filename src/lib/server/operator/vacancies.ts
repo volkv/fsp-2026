@@ -55,7 +55,7 @@ export interface ModerationQueueItem {
 type Row = Pick<typeof vacancies.$inferSelect, 'title' | 'description' | 'textCheck'>;
 
 function findingsOf(row: Row, severity?: TextCheckPhrase['severity']): ModerationFinding[] {
-	const fields: Record<string, string> = { title: row.title, description: row.description ?? '' };
+	const fields: Record<string, string> = { title: row.title, description: row.description };
 	return textCheckSchema
 		.parse(row.textCheck)
 		.phrases.filter((phrase) => severity === undefined || phrase.severity === severity)
@@ -76,9 +76,9 @@ function findingsOf(row: Row, severity?: TextCheckPhrase['severity']): Moderatio
 const openedAtSql = sql`(${vacancies.textCheck} -> 'moderation' ->> 'opened_at')::timestamptz`;
 
 const pending = (reach: StaffReach) =>
-	and(eq(vacancies.origin, 'own'), eq(vacancies.status, 'pending_moderation'), reach.rows(companies.demoSessionId));
+	and(eq(vacancies.status, 'pending_moderation'), reach.rows(companies.demoSessionId));
 
-/** Own vacancies waiting for the operator's decision, oldest case first. */
+/** Vacancies waiting for the operator's decision, oldest case first. */
 export async function vacancyModerationQueue(
 	executor: Executor,
 	subject: AccessSubject
@@ -164,7 +164,7 @@ async function reachedVacancy(executor: Executor, subject: AccessSubject, vacanc
 		.select({ vacancy: vacancies, company: companies })
 		.from(vacancies)
 		.innerJoin(companies, eq(companies.id, vacancies.companyId))
-		.where(and(eq(vacancies.id, vacancyId), eq(vacancies.origin, 'own')));
+		.where(eq(vacancies.id, vacancyId));
 	if (!row) throw new ApiError('not_found');
 	(await StaffReach.of(executor, subject)).require(row.company.demoSessionId);
 	return row;

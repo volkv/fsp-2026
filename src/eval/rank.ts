@@ -1,5 +1,5 @@
 // `rank` of the bridge: the product's path from a hiring need to its shortlist (docs/domain.md, sections 12.4, 12.7,
-// 13.10; contracts 11) over a catalog of its own. A temporary database is created next to the application's one,
+// 13.10; contracts 10) over a catalog of its own. A temporary database is created next to the application's one,
 // migrated from this checkout, and gets the taxonomy release of the checkout. Every candidate is stored the way the
 // product stores its evidence — the resume rows `resume.extract` inserts, the FSP facts and claims the synchronization
 // drafts (without the FSP ID link and receipts, which do not enter a score), the answers of the survey — and its evidence
@@ -157,7 +157,7 @@ const evidenceSchema = z.strictObject({
 });
 
 /**
- * A decision of a test of the harness (contracts 11.1): the specialization and grade tested, the outcome, the sums of its
+ * A decision of a test of the harness (contracts 10.1): the specialization and grade tested, the outcome, the sums of its
  * blocks and the language the practice program was written in. The confirmed stack follows from the grade and that
  * language (`confirmedStack`), not from the scores of the attempt; the blocks are the strength of the result the ranking
  * reads. A practice that is code the candidate writes names its language on a confirmation; a practice that is not
@@ -219,7 +219,7 @@ export const rankRequestSchema = z.strictObject({
 				/** What the candidate answered in the survey (`candidates.preferences`); absent — nothing. */
 				preferences: candidatePreferencesSchema.optional(),
 				/**
-				 * The decisions of the candidate's tests on the grade, oldest first (contracts 11.1, `test_result`): a
+				 * The decisions of the candidate's tests on the grade, oldest first (contracts 10.1, `test_result`): a
 				 * confirmed one gives the category; none — no test, no category.
 				 */
 				test_results: z.array(testResultSchema)
@@ -244,7 +244,7 @@ export const rankRequestSchema = z.strictObject({
 					/**
 					 * Who a need's shortlist ranks: `categories` — the candidates holding a category the shortlist takes, as the
 					 * product admits them; `given` — exactly the candidates `per_need` names; `grade_hint` — the experiment
-					 * without a test (contracts 11.1, `resume_only`): the candidates whose grade hint of a specialization of the
+					 * without a test (contracts 10.1, `resume_only`): the candidates whose grade hint of a specialization of the
 					 * shortlist is one of its grades, marked unconfirmed.
 					 */
 					admission: z.enum(['categories', 'given', 'grade_hint']),

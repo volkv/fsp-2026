@@ -382,7 +382,6 @@ test('the operator sees the career funnel by stage, the skills feedback and the 
 	// The other queues and the partnerships render in any state of the shared database.
 	for (const [path, heading] of [
 		['/operator/representatives', 'Законные представители'],
-		['/operator/claims', '«Это наша вакансия»'],
 		['/operator/partnerships', 'Партнёрства с соревнованиями']
 	] as const) {
 		await operator.goto(path);

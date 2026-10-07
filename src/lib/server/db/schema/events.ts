@@ -1,4 +1,4 @@
-// Outgoing events of a company to its own systems (docs/domain.md, section 5.7; contracts 13): subscriptions — a signed
+// Outgoing events of a company to its own systems (docs/domain.md, section 5.7; contracts 12): subscriptions — a signed
 // webhook or the Huntflow adapter — and the journal of deliveries. Events carry identifiers only.
 import { sql } from 'drizzle-orm';
 import { check, index, integer, jsonb, pgTable, text, unique, uuid } from 'drizzle-orm/pg-core';

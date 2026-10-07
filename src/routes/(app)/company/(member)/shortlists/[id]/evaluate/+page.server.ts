@@ -12,7 +12,7 @@ import { shortlistStep } from '$lib/server/shortlists/service';
 import type { Actions, PageServerLoad } from './$types';
 
 /**
- * «Оцените подбор» (contracts 11.2, item 10): the cards of the shortlist's top ten and of a keyword search — on the
+ * «Оцените подбор» (contracts 10.2, item 10): the cards of the shortlist's top ten and of a keyword search — on the
  * confirmed pool, or over the whole catalog as an experiment — mixed and shuffled,
  * shown as the catalog shows a candidate — categories and skills with their basis — without score, position or system.
  */

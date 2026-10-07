@@ -241,19 +241,19 @@ describe('OpenAPI document of /api/v1', () => {
 		expect(JSON.stringify(candidate.trust)).toContain('public_profile');
 	});
 
-	it('withdraws a «this is our vacancy» claim by the session of a company member, answering without a body', () => {
-		const withdrawal = document.paths['/api/v1/vacancies/{vacancy_id}/claims/{claim_id}/withdrawal']?.post as {
+	it('revokes an API key by the session of the owner, answering without a body', () => {
+		const revocation = document.paths['/api/v1/companies/{company_id}/api-keys/{key_id}']?.delete as {
 			operationId: string;
 			security: unknown;
 			parameters: { name: string; in: string; required: boolean }[];
 			responses: Record<string, { content?: unknown }>;
 		};
-		expect(withdrawal.operationId).toBe('withdrawVacancyClaim');
-		expect(withdrawal.security).toEqual([{ session: [] }]);
-		expect(withdrawal.parameters.filter((p) => p.in === 'path').map((p) => p.name)).toEqual(['vacancy_id', 'claim_id']);
-		expect(withdrawal.responses['204']?.content).toBeUndefined();
-		expect(Object.keys(withdrawal.responses)).toEqual(expect.arrayContaining(['204', '404', '422']));
-		expect(withdrawal.responses['201']).toBeUndefined();
+		expect(revocation.operationId).toBe('revokeCompanyApiKey');
+		expect(revocation.security).toEqual([{ session: [] }]);
+		expect(revocation.parameters.filter((p) => p.in === 'path').map((p) => p.name)).toEqual(['company_id', 'key_id']);
+		expect(revocation.responses['204']?.content).toBeUndefined();
+		expect(Object.keys(revocation.responses)).toEqual(expect.arrayContaining(['204', '404']));
+		expect(revocation.responses['200']).toBeUndefined();
 	});
 
 	it('takes an offer without a vacancy: the range in roubles with its tax base, «why you» and the contact', () => {
