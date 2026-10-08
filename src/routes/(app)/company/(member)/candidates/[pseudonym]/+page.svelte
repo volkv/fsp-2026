@@ -43,7 +43,13 @@
 </PageHeader>
 
 <div class="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-	<CandidateCard card={data.card} evidenceState={data.evidenceState} receipts={data.receipts} labels={data.labels} />
+	<CandidateCard
+		card={data.card}
+		evidenceState={data.evidenceState}
+		receipts={data.receipts}
+		labels={data.labels}
+		signals={data.signals}
+	/>
 	<aside class="grid content-start gap-4">
 		<RecommendationNotice compact />
 		{#if data.application}

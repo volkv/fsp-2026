@@ -1,6 +1,7 @@
 import { error, type RequestEvent } from '@sveltejs/kit';
 import { can } from '$lib/server/access/permissions';
 import { CATALOG, type GradeKey } from '$lib/server/assessments/contract/catalog';
+import { categorySignals } from '$lib/server/assessments/signals';
 import type { GradeOffer } from '$lib/server/grades/policy';
 import { formText } from '$lib/server/http/form';
 import { candidateDemand } from '$lib/server/candidates/demand';
@@ -29,7 +30,8 @@ function nextOption(options: readonly GradeOffer[], grade: GradeKey): GradeOffer
  * «Категория и грейд» (domain 12.3, 12.5, 12.7): the step to a category, the declared and the confirmed grade, the tests
  * the grade policy opens now and why the others are closed, the categories in force and their history, the objections
  * to test results, the history of surveys and declarations, what the vacancies of the category ask for and how many
- * needs of companies match it.
+ * needs of companies match it. Beside the categories in force — the signal totals of the attempt behind each, the same
+ * a company sees on the card (domain 10.7).
  */
 export const load: PageServerLoad = async (event) => {
 	const { subject, candidateId } = await candidateRequest(event);
@@ -45,6 +47,10 @@ export const load: PageServerLoad = async (event) => {
 			currentCandidateVocabulary(executor)
 		]);
 		const next = standing.next;
+		const signals = await categorySignals(
+			executor,
+			categories.filter((category) => category.status === 'active')
+		);
 		return {
 			catalog: {
 				directions: Object.fromEntries(CATALOG.directions.map((d) => [d.key, d.title])),
@@ -101,6 +107,7 @@ export const load: PageServerLoad = async (event) => {
 				}))
 				.reverse(),
 			categories,
+			signals,
 			objections,
 			demand,
 			needs,

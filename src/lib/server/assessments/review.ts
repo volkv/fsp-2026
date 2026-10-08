@@ -13,7 +13,7 @@ import type { Database, Executor } from '$lib/server/db';
 import { candidates, gradeDecisions, sourceFacts, testArtifacts, testAttempts, testItems } from '$lib/server/db/schema';
 import { ApiError } from '$lib/server/errors/api-error';
 import type { ItemInstance } from './contract/bank';
-import { parseSignalLog, type SignalLog } from './signals';
+import { parseSignalLog, summarizeSignals, type SignalLog, type SignalSummary } from './signals';
 import { testTitle } from './titles';
 
 type AttemptRow = typeof testAttempts.$inferSelect;
@@ -27,29 +27,6 @@ export type ReviewFilter = 'attention' | 'all';
 function requireReview(subject: AccessSubject): void {
 	const access = can(subject, 'assessment.review', null);
 	if (!access.allowed) throw new ApiError(access.reason === 'unauthenticated' ? 'unauthenticated' : 'forbidden');
-}
-
-/** Totals of the signal journal an operator looks at first. */
-export interface SignalSummary {
-	pastes: number;
-	pastedChars: number;
-	departures: number;
-	/** Entries whose page sent no signals (scripts off). */
-	silent: number;
-}
-
-export function summarizeSignals(log: SignalLog): SignalSummary {
-	const summary: SignalSummary = { pastes: 0, pastedChars: 0, departures: 0, silent: 0 };
-	for (const entry of log.entries) {
-		if (entry.client === null) {
-			summary.silent++;
-			continue;
-		}
-		summary.pastes += entry.client.pasteCount;
-		summary.pastedChars += entry.client.pastedChars;
-		summary.departures += entry.client.blurCount;
-	}
-	return summary;
 }
 
 export interface ReviewListItem {

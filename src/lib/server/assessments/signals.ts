@@ -1,8 +1,12 @@
-// Journal of attempt signals (docs/domain.md, 10.7 `integrity_signals`): time spent, pastes, leaving the page. They
-// are kept for the FSP operator who reviews the attempt and are shown to the candidate as they are; an employer never
-// sees them. They never decide anything automatically and are not a detection of borrowed or generated
-// code: the platform does not claim one.
+// Journal of attempt signals (docs/domain.md, 10.7 `integrity_signals`): time spent, pastes, leaving the page. The FSP
+// operator who reviews the attempt reads the journal whole and the candidate sees it as it is; a company that sees the
+// candidate's card gets only its totals for the attempt that assigned each category in force (`SignalSummary`), never
+// the entries or the timings of single items. They never decide anything automatically — the test does not read them —
+// and are not a detection of borrowed or generated code: the platform does not claim one.
+import { eq, inArray } from 'drizzle-orm';
 import { z } from 'zod';
+import type { Executor } from '$lib/server/db';
+import { gradeDecisions, testAttempts } from '$lib/server/db/schema';
 
 const count = z.int().min(0).max(100_000);
 
@@ -51,4 +55,68 @@ export function readClientSignals(raw: string | null): ClientSignals | null | 'i
 	}
 	const result = clientSignalsSchema.safeParse(parsed);
 	return result.success ? result.data : 'invalid';
+}
+
+/** Totals of the journal: what the operator looks at first and all a company sees of it. */
+export interface SignalSummary {
+	/** Entries of the journal: answers, submissions and change steps. */
+	entries: number;
+	pastes: number;
+	pastedChars: number;
+	departures: number;
+	/** Entries whose page sent no signals (scripts off). */
+	silent: number;
+}
+
+export function summarizeSignals(log: SignalLog): SignalSummary {
+	const summary: SignalSummary = { entries: log.entries.length, pastes: 0, pastedChars: 0, departures: 0, silent: 0 };
+	for (const entry of log.entries) {
+		if (entry.client === null) {
+			summary.silent++;
+			continue;
+		}
+		summary.pastes += entry.client.pasteCount;
+		summary.pastedChars += entry.client.pastedChars;
+		summary.departures += entry.client.blurCount;
+	}
+	return summary;
+}
+
+/** The totals of the signal journal of the attempt that assigned a category in force. */
+export interface CategorySignals {
+	specialization: string;
+	grade: string;
+	summary: SignalSummary;
+}
+
+/**
+ * The totals of the deciding attempt of each category given, in its order — the same for the card a company sees and
+ * for the candidate's own screen of categories.
+ */
+export async function categorySignals(
+	executor: Executor,
+	categories: readonly { specialization: string; grade: string; decisionId: string }[]
+): Promise<CategorySignals[]> {
+	if (categories.length === 0) return [];
+	const rows = await executor
+		.select({ decisionId: gradeDecisions.id, signals: testAttempts.integritySignals })
+		.from(gradeDecisions)
+		.innerJoin(testAttempts, eq(testAttempts.id, gradeDecisions.attemptId))
+		.where(
+			inArray(
+				gradeDecisions.id,
+				categories.map((category) => category.decisionId)
+			)
+		);
+	const journals = new Map(rows.map((row) => [row.decisionId, row.signals]));
+	return categories.map((category) => {
+		if (!journals.has(category.decisionId)) {
+			throw new Error(`the grade decision ${category.decisionId} of a category has no attempt`);
+		}
+		return {
+			specialization: category.specialization,
+			grade: category.grade,
+			summary: summarizeSignals(parseSignalLog(journals.get(category.decisionId)))
+		};
+	});
 }
