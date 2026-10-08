@@ -1,6 +1,6 @@
 # Отчёт ворот банка
 
-Среда исполнения: образ песочницы `fsp-sandbox:test` — Python 3.13.15, SQLite 3.46.1. Сидов на класс: 200. Проверено семейств: 323, время 9451 с.
+Среда исполнения: образ песочницы `fsp-sandbox:test` — Python 3.13.15, SQLite 3.46.1. Сидов на класс: 200. Проверено семейств: 323, время 8682 с.
 
 ## Семейства
 
@@ -21,10 +21,10 @@
 | `be.api.retry-backoff`                  | compute       | middle, senior | 1600 | 0               | 7 / 7              | 0.0009   | 0                   | —                              | —       | 0       |
 | `be.api.webhook-delivery`               | compute       | senior         | 800  | 0               | 6 / 6              | 0        | 0                   | —                              | —       | 0       |
 | `be.api.webhook-signatures`             | compute       | senior         | 800  | 0               | 6 / 6              | 0.0002   | 0                   | —                              | —       | 0       |
-| `be.code.order-summary`                 | practice_code | intern, junior | 1600 | 0               | 6 / 6              | 0        | —                   | 498 / 519 − 21 = 1             | 0       | 0       |
-| `be.code.rate-limiter`                  | practice_code | middle, senior | 1600 | 0               | 3 / 3              | 0        | —                   | 879 / 924 − 36 = 0.9899        | 0       | 0       |
-| `be.code.sessionize`                    | practice_code | intern, junior | 1600 | 0               | 7 / 7              | 0        | —                   | 1408 / 1440 − 27 = 0.9965      | 0       | 0       |
-| `be.code.stock-reservations`            | practice_code | middle, senior | 1600 | 0               | 8 / 8              | 0        | —                   | 1989 / 1998 − 9 = 1            | 0       | 0       |
+| `be.code.order-summary`                 | practice_code | intern, junior | 1600 | 0               | 7 / 7              | 0        | —                   | 609 / 654 − 45 = 1             | 0.0006  | 0       |
+| `be.code.rate-limiter`                  | practice_code | middle, senior | 1600 | 0               | 5 / 5              | 0        | —                   | 881 / 924 − 40 = 0.9966        | 0.0017  | 0       |
+| `be.code.sessionize`                    | practice_code | intern, junior | 1600 | 0               | 7 / 7              | 0        | —                   | 1408 / 1440 − 23 = 0.9936      | 0.0026  | 0       |
+| `be.code.stock-reservations`            | practice_code | middle, senior | 1600 | 0               | 9 / 9              | 0        | —                   | 2073 / 2088 − 12 = 0.9986      | 0.0059  | 0       |
 | `be.concurrency.asyncio-order`          | code_trace    | middle, senior | 1600 | 0               | 13 / 13            | 0.0007   | 0                   | —                              | —       | 0       |
 | `be.concurrency.deadlock-detect`        | compute       | middle, senior | 1600 | 0               | 7 / 7              | 0.0021   | 0.005               | —                              | —       | 0       |
 | `be.concurrency.lost-update`            | compute       | middle, senior | 1600 | 0               | 8 / 8              | 0.0101   | 0.005               | —                              | —       | 0       |
@@ -124,7 +124,7 @@
 | `mob.code.screen-reducer`               | practice_code | middle, senior | 1600 | 0               | 8 / 8              | 0        | —                   | 1193 / 1347 − 132 = 0.9819     | 0       | 0       |
 | `mob.coroutines.cancellation`           | code_trace    | junior, middle | 1600 | 0               | 13 / 13            | 0.0081   | 0                   | —                              | —       | 0       |
 | `mob.coroutines.channels`               | code_trace    | senior         | 800  | 0               | 8 / 8              | 0.0137   | 0                   | —                              | —       | 0       |
-| `mob.coroutines.delay-timeline`         | code_trace    | junior, middle | 1600 | 0               | 7 / 7              | 0        | 0                   | —                              | —       | 0       |
+| `mob.coroutines.delay-timeline`         | code_trace    | junior, middle | 1600 | 1               | 7 / 7              | 0        | 0                   | —                              | —       | 2       |
 | `mob.coroutines.exceptions`             | code_trace    | middle, senior | 1600 | 0               | 12 / 12            | 0.0006   | 0                   | —                              | —       | 0       |
 | `mob.coroutines.flow-operators`         | code_trace    | junior, middle | 1600 | 0               | 14 / 14            | 0.0002   | 0                   | —                              | —       | 0       |
 | `mob.coroutines.launch-order`           | code_trace    | junior, middle | 1600 | 0               | 9 / 9              | 0        | 0                   | —                              | —       | 0       |
@@ -347,10 +347,10 @@
 - `be.api.retry-backoff`: no-cap — отвергнуто 680 из 680; pause-from-start — отвергнуто 1577 из 1577; ignore-retry-after — отвергнуто 569 из 569; retry-everything — отвергнуто 200 из 200; deadline-at-start — отвергнуто 400 из 400; retry-4xx — отвергнуто 302 из 302; limit-as-retries — отвергнуто 200 из 200
 - `be.api.webhook-delivery`: apply-in-arrival-order — отвергнуто 616 из 616; seq-global — отвергнуто 763 из 763; mark-on-failure — отвергнуто 200 из 200; no-dedup — отвергнуто 600 из 600; refund-seq-checked — отвергнуто 500 из 500; reissue-detected — отвергнуто 200 из 200
 - `be.api.webhook-signatures`: future-ok — отвергнуто 200 из 200; old-secret-forever — отвергнуто 200 из 200; all-signatures — отвергнуто 200 из 200; record-on-reject — отвергнуто 200 из 200; no-replay-check — отвергнуто 200 из 200; timestamp-not-signed — отвергнуто 200 из 200
-- `be.code.order-summary`: no-tie-break — отвергнуто 1400 из 1400; ignores-status — отвергнуто 1600 из 1600; first-wins — отвергнуто 800 из 800; keeps-empty — отвергнуто 800 из 800; int32-sum — отвергнуто 800 из 800; streak-no-reset — отвергнуто 200 из 200
-- `be.code.rate-limiter`: denied-counts — отвергнуто 1000 из 1000; window-edge — отвергнуто 1600 из 1600; shared-limit — отвергнуто 1600 из 1600
+- `be.code.order-summary`: no-tie-break — отвергнуто 1400 из 1400; ignores-status — отвергнуто 1600 из 1600; first-wins — отвергнуто 800 из 800; keeps-empty — отвергнуто 800 из 800; int32-sum — отвергнуто 800 из 800; streak-no-reset — отвергнуто 200 из 200; min-before-latest — отвергнуто 800 из 800
+- `be.code.rate-limiter`: denied-counts — отвергнуто 1400 из 1400; window-edge — отвергнуто 1600 из 1600; shared-limit — отвергнуто 1600 из 1600; continuous-refill — отвергнуто 400 из 400; own-spent-on-global-deny — отвергнуто 1400 из 1400
 - `be.code.sessionize`: boundary — отвергнуто 1600 из 1600; global-gap — отвергнуто 1200 из 1200; sliding-window — отвергнуто 400 из 400; ignores-logout — отвергнуто 800 из 800; no-tie-break — отвергнуто 800 из 800; unclosed-last — отвергнуто 1600 из 1600; ignores-day — отвергнуто 400 из 400
-- `be.code.stock-reservations`: stale-release — отвергнуто 1600 из 1600; exact-stock — отвергнуто 1200 из 1200; release-requested — отвергнуто 200 из 200; late-expiry — отвергнуто 400 из 400; single-warehouse — отвергнуто 600 из 600; confirm-returns — отвергнуто 1600 из 1600; queue-jump — отвергнуто 400 из 400; skip-ahead — отвергнуто 400 из 400
+- `be.code.stock-reservations`: stale-release — отвергнуто 1600 из 1600; exact-stock — отвергнуто 1200 из 1200; release-requested — отвергнуто 200 из 200; late-expiry — отвергнуто 400 из 400; single-warehouse — отвергнуто 600 из 600; confirm-returns — отвергнуто 1600 из 1600; queue-jump — отвергнуто 400 из 400; skip-ahead — отвергнуто 400 из 400; release-waiting-no-serve — отвергнуто 400 из 400
 - `be.concurrency.asyncio-order`: eager-create — отвергнуто 1279 из 1279; lazy-tasks — отвергнуто 1461 из 1461; gather-completion-order — отвергнуто 200 из 200; get-always-yields — отвергнуто 200 из 200; set-switches — отвергнуто 200 из 200; unstarted-runs — отвергнуто 288 из 288; cancel-immediate — отвергнуто 600 из 600; lock-barging — отвергнуто 200 из 200; release-switches — отвергнуто 200 из 200; shield-cancels-inner — отвергнуто 200 из 200; no-propagation — отвергнуто 200 из 200; await-coro-as-task — отвергнуто 200 из 200; swallow-still-cancelled — отвергнуто 200 из 200
 - `be.concurrency.deadlock-detect`: abort-oldest — отвергнуто 1000 из 1000; abort-requester — отвергнуто 610 из 610; abort-youngest-waiter — отвергнуто 251 из 251; shared-exclusive — отвергнуто 502 из 502; upgrade-free — отвергнуто 200 из 200; wait-aborts — отвергнуто 1468 из 1468; self-conflict — отвергнуто 400 из 400
 - `be.concurrency.lost-update`: atomic — отвергнуто 1000 из 1000; ignore-lock — отвергнуто 200 из 200; lock-guards-data — отвергнуто 200 из 200; cas-as-write — отвергнуто 575 из 575; cas-no-retry — отвергнуто 584 из 584; aba-detected — отвергнуто 200 из 200; value-only-cas — отвергнуто 200 из 200; check-at-write — отвергнуто 200 из 200
@@ -658,11 +658,13 @@
 
 ## Проблемы ворот
 
-Нет.
+- mob.coroutines.delay-timeline@middle/thread-sleep#170: reference printed ["menu","footer","banner start","screen open","banner request","avatar busy","avatar free","banner done","inbox done","render"], expected ["menu","footer","banner start","screen open","banner request","avatar busy","avatar free","inbox done","banner done","render"]
+- family mob.coroutines.delay-timeline: gate reference on 200 seeds with 1 failures
 
 ## Валидатор контракта
 
-Проблем нет.
+- family mob.coroutines.delay-timeline: the gate report is not for the current source (the gates failed or never ran)
+- family mob.coroutines.delay-timeline: gate reference on 200 seeds with 1 failures
 
 ## Выпуск и вместимость
 
@@ -908,23 +910,27 @@
 
 Выжившие мутанты `be.code.rate-limiter`:
 
-- middle/sliding-counter#1: line 5: const -> 1
-- middle/sliding-counter#1: line 9: const -> -1
-- middle/sliding-counter#2: line 9: const -> -1
 - senior/sliding-counter#0: line 5: const -> 1
-- senior/sliding-counter#0: line 9: const -> -1
-- senior/sliding-counter#1: line 5: const -> 1
 - senior/sliding-counter#2: line 5: const -> 1
-- senior/sliding-counter#2: line 5: const -> -1
 - senior/sliding-counter#2: line 9: const -> -1
 
 Выжившие мутанты `be.code.sessionize`:
 
-- intern/gap#0: line 8: const -> 1
-- intern/gap-capped#0: line 8: const -> 1
-- intern/gap-capped#1: line 8: const -> 1
-- intern/gap-capped#2: line 8: const -> 1
-- intern/gap-daily#0: line 8: const -> 1
+- intern/gap#0: line 9: const -> 1
+- intern/gap#1: line 9: const -> 1
+- intern/gap-capped#0: line 9: const -> 1
+- intern/gap-capped#2: line 9: const -> 1
+- intern/gap-capped#2: line 9: const -> -1
+- intern/gap-daily#1: line 9: const -> -1
+- intern/gap-daily#1: line 10: const -> 1
+- intern/gap-daily#2: line 9: const -> 1
+- junior/gap-daily#0: line 10: const -> 2
+
+Выжившие мутанты `be.code.stock-reservations`:
+
+- senior/expiring#0: line 12: const -> 2
+- senior/expiring#1: line 12: const -> 2
+- senior/expiring#2: line 12: const -> 2
 
 Выжившие мутанты `fe.code.request-dedupe`:
 
