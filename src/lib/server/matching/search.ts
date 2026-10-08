@@ -20,6 +20,7 @@ import { canShow, type ShowExtra } from '$lib/server/visibility/can-show';
 import type { MatchingDeps } from './deps';
 import { candidateDocuments } from './documents';
 import { vacancySnapshot, type VacancySnapshot } from './evidence';
+import { hasFspResult } from './fsp-results';
 import { paginate, queryFingerprint, type Page, type PageRequest } from './page';
 import { rankForNeed, scoreCandidatesForVacancy, type RankedForNeed } from './rank';
 import { loadActiveMatchRuleset } from './ruleset';
@@ -66,7 +67,7 @@ export interface CandidateSearchFilters {
 	 * A filter by the confirmed stack leaves them out: no test confirmed anything of theirs.
 	 */
 	withDeclared?: boolean;
-	/** Only candidates with an FSP result in force (contracts 5.5, `has_fsp`). */
+	/** Only candidates with an FSP result — an official competition result of their own (`hasFspResult`, `has_fsp`). */
 	fspConfirmed?: boolean;
 }
 
@@ -285,8 +286,7 @@ async function prefilter(
 		);
 	}
 	if (filters.fspConfirmed) {
-		conditions.push(sql`exists (select 1 from source_facts sf where sf.candidate_id = c.id and sf.source = 'fsp'
-			and sf.status = 'active')`);
+		conditions.push(hasFspResult(sql`c.id`));
 	}
 	if (filters.fspLevel) {
 		if (!FSP_LEVELS.includes(filters.fspLevel.minLevel)) throw validationError('filters.fspLevel.minLevel', 'L1–L5');
@@ -432,8 +432,9 @@ interface Ranking {
 /**
  * Ranks the visible candidates: with a vacancy, `matchScore` of every pair (a query narrows the list by words, the match
  * ranks it); with a need, its fit and the strength of the confirmed profile (domain 13.10); without either, the query
- * by words and by meaning, the nearest candidates by meaning joining the word matches, at equal relevance the stronger
- * confirmed profile first — and without a query, the strength of the confirmed profile alone. The heavy part of a
+ * by words and by meaning, the nearest candidates by meaning joining the word matches, at equal relevance a candidate
+ * with a category first, then the stronger confirmed profile — and without a query, the candidates with a category by
+ * the strength of the confirmed profile, then those without one. The heavy part of a
  * search — documents, vectors, the reranker — is here, and only here.
  */
 async function computeRanking(
@@ -563,13 +564,14 @@ async function computeRanking(
 			strength: ofStrength.result.score
 		};
 	});
-	// At equal relevance the stronger confirmed profile, then a candidate with a category in force (domain 12.7).
+	// At equal relevance — and without a query, always — every candidate with a category in force before every one
+	// without, then the stronger confirmed profile (domain 12.7).
 	const confirmed = (id: string) => (visible.get(id)?.categoryConfirmed ? 1 : 0);
 	ranked.sort(
 		(a, b) =>
 			b.order - a.order ||
-			b.strength - a.strength ||
 			confirmed(b.entry.candidateId) - confirmed(a.entry.candidateId) ||
+			b.strength - a.strength ||
 			(a.entry.candidateId < b.entry.candidateId ? -1 : 1)
 	);
 	return {

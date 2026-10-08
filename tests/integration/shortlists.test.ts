@@ -208,7 +208,13 @@ async function person(setup: Person = {}) {
 				sourceRecordRef: `ref:${randomBytes(6).toString('hex')}`,
 				trustLevel: setup.fsp ? 'fsp_verified' : 'claimed',
 				ownershipBasis: setup.fsp ? 'operator_confirmed' : 'self_upload',
-				payload: {},
+				// An FSP fact is an official result of the candidate's own: what «с ФСП» reads.
+				payload: setup.fsp
+					? {
+							result: { status: 'official', award: 'participant' },
+							competition: { id: randomBytes(6).toString('hex'), discipline: 'algorithmic' }
+						}
+					: {},
 				payloadSha256: randomBytes(32).toString('hex'),
 				observedAt: new Date(),
 				lastVerifiedAt: new Date(),

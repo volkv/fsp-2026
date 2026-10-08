@@ -42,7 +42,7 @@ export interface CatalogQueryValues {
 	/** Codes of the reference of regions. */
 	regions: string[];
 	uncategorized: boolean;
-	/** Only candidates with an FSP result in force. */
+	/** Only candidates with an FSP result (`hasFspResult`). */
 	hasFsp: boolean;
 }
 

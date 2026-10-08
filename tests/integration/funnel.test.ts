@@ -74,6 +74,8 @@ interface Person {
 	category?: { specialization: SpecializationKey; grade: GradeKey };
 	levels?: [string, string][];
 	competitions?: (typeof C1)[];
+	/** The status of the results of `competitions`; official by default. */
+	resultStatus?: 'official' | 'preliminary';
 }
 
 async function person(setup: Person) {
@@ -97,7 +99,10 @@ async function person(setup: Person) {
 				eventKey: `fsp:competition:${competition.id}`,
 				trustLevel: 'fsp_verified',
 				ownershipBasis: 'operator_confirmed',
-				payload: { competition: { ...competition, startDate: '2025-04-10' }, result: { award: 'participant' } },
+				payload: {
+					competition: { ...competition, startDate: '2025-04-10' },
+					result: { status: setup.resultStatus ?? 'official', award: 'participant' }
+				},
 				payloadSha256: randomSha256(),
 				observedAt: NOW,
 				lastVerifiedAt: NOW,
@@ -317,9 +322,11 @@ beforeAll(async () => {
 		});
 		await invite(row, 'silent');
 	}
-	// C: three from Krasnodar and D: two without a region, no category, no FSP; invited, no answer.
+	// C: three from Krasnodar and D: two without a region, no category, no FSP result — one of D has only a preliminary
+	// result, which is not a result yet; invited, no answer.
 	for (let i = 0; i < 3; i++) await invite(await person({ region: 'RU-KDA' }), 'sent');
-	for (let i = 0; i < 2; i++) await invite(await person({ seed: i === 0 }), 'sent');
+	await invite(await person({ seed: true }), 'sent');
+	await invite(await person({ competitions: [C1], resultStatus: 'preliminary' }), 'sent');
 });
 
 afterAll(async () => {

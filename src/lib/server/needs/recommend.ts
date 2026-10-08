@@ -8,7 +8,7 @@
 // category with the number of candidates of an active category the company sees (`canShow` in the catalog and the
 // predicate of the module of categories), of them with results of FSP that relate to the need; small numbers are «< 5».
 // The categories are a pure function of the form; the numbers are read at the moment of the request.
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 import type { AccessSubject } from '$lib/server/access/permissions';
 import {
 	CATALOG,
@@ -21,7 +21,8 @@ import { categoryPredicate } from '$lib/server/categories/read';
 import { specializationsOfRole } from '$lib/server/categories/roles';
 import type { Executor } from '$lib/server/db';
 import { candidateAt, listedInCatalog } from '$lib/server/db/conditions';
-import { candidates, sourceFacts } from '$lib/server/db/schema';
+import { candidates } from '$lib/server/db/schema';
+import { candidatesWithFsp } from '$lib/server/matching/fsp-results';
 import { loadCatalogViewer, loadVisibilityFacts, loadVisibilityPolicy } from '$lib/server/matching/visibility';
 import { smallCell, smallCountThreshold, type SmallCell } from '$lib/server/operator/small-numbers';
 import { canShow } from '$lib/server/visibility/can-show';
@@ -153,30 +154,11 @@ export function recommendCategories(form: NeedForm, open: ReadonlySet<Specializa
 export interface CategoryCounts {
 	/** Candidates of an active category of the pair the company sees in the catalog. */
 	candidates: SmallCell;
-	/** Of them, with an FSP fact in force. */
+	/** Of them, with an FSP result (`candidatesWithFsp`): the same as the shortlist's label and filter «только с ФСП». */
 	withFsp: SmallCell;
 }
 
 export type CountedCategory = RecommendedCategory & CategoryCounts;
-
-/**
- * Candidates of the ids with an FSP fact in force — the same «есть результаты ФСП» the shortlist marks and its
- * filter «только с ФСП» keeps, so the count of a category and the shortlist of it agree.
- */
-export async function candidatesWithFsp(executor: Executor, candidateIds: readonly string[]): Promise<Set<string>> {
-	if (candidateIds.length === 0) return new Set();
-	const rows = await executor
-		.selectDistinct({ id: sourceFacts.candidateId })
-		.from(sourceFacts)
-		.where(
-			and(
-				inArray(sourceFacts.candidateId, [...candidateIds]),
-				eq(sourceFacts.source, 'fsp'),
-				eq(sourceFacts.status, 'active')
-			)
-		);
-	return new Set(rows.map((row) => row.id));
-}
 
 /**
  * Categories with their numbers for the subject's company: candidates of a category in force by the predicate of the
