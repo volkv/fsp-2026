@@ -38,6 +38,8 @@ interface Flaky {
 	breaks: string[];
 	/** Python statements of the check's own: the contract of a helper the tests rely on; each returns a failure. */
 	contract: string[];
+	/** Module data the tests must leave as they found it, after a whole run in any order; the statement says so. */
+	keeps?: string[];
 	/** What the statement says about the environment of the run. */
 	environment: string;
 }
@@ -191,6 +193,17 @@ function check(f: Flaky): string {
 		'        if not caught:',
 		"            return 'fail: ' + name + ' passes on broken product code'",
 		...f.contract.map((line) => `    ${line}`),
+		...(f.keeps?.length
+			? [
+					'    for name, value in _SAVED.items():',
+					'        globals()[name] = _copy.deepcopy(value)',
+					`    unittest.TestSuite([${f.testClass}(name) for name in names]).run(unittest.TestResult())`,
+					`    changed = [name for name in [${f.keeps.map(pyStr).join(', ')}] if globals()[name] != _SAVED[name]]`,
+					'    _mock.patch.stopall()',
+					'    if changed:',
+					"        return 'fail: the tests leave ' + ' '.join(changed) + ' changed'"
+				]
+			: []),
 		"    return 'ok'",
 		'',
 		'',
@@ -282,7 +295,9 @@ function sharedFixture(rng: Rng): Flaky {
 				'_mock.patch.object(Cart, "__init__", lambda self, items: setattr(self, "items", []))'
 			],
 			contract: [],
-			environment: 'На CI тесты запускаются в разном порядке и выборочно: тест должен проходить при любом порядке.'
+			keeps: ['DEFAULT_ITEMS'],
+			environment:
+				'На CI тесты запускаются в разном порядке и выборочно: тест должен проходить при любом порядке. Тесты не должны менять общие данные модуля: после прогона `DEFAULT_ITEMS` такой же, как до него.'
 		};
 	}
 	const stock = [rng.int(2, 9), rng.int(2, 9)];
@@ -345,7 +360,9 @@ function sharedFixture(rng: Rng): Flaky {
 			'_mock.patch.object(Inventory, "reserve", lambda self, item, qty: None)'
 		],
 		contract: [],
-		environment: 'На CI тесты запускаются в разном порядке и выборочно: тест должен проходить при любом порядке.'
+		keeps: ['DEFAULT_STOCK'],
+		environment:
+			'На CI тесты запускаются в разном порядке и выборочно: тест должен проходить при любом порядке. Тесты не должны менять общие данные модуля: после прогона `DEFAULT_STOCK` такой же, как до него.'
 	};
 }
 
@@ -706,7 +723,9 @@ function workerFlaky(rng: Rng, kind: 'sleep' | 'timeout'): Flaky {
 				]
 			])
 		],
-		fix: `        ${wait(flaky, 5000)}`,
+		// The repair of a fixed pause is a pause no shorter than the longest latency; a wait for the condition would add a
+		// lambda the line does not have.
+		fix: kind === 'sleep' ? '        self.clock.sleep(3000)' : `        ${wait(flaky, 5000)}`,
 		state: ['LATENCY'],
 		permute: false,
 		conditions: [50, 300, 1200, 2900].map((l) => `lambda: globals().update(LATENCY=${l})`),
@@ -774,7 +793,9 @@ function leakedPatch(rng: Rng): Flaky {
 			'_mock.patch.dict(globals(), {"price_label": lambda amount: str(amount)})'
 		],
 		contract: [],
-		environment: 'На CI тесты запускаются в разном порядке и выборочно: тест должен проходить при любом порядке.'
+		keeps: ['config'],
+		environment:
+			'На CI тесты запускаются в разном порядке и выборочно: тест должен проходить при любом порядке. Тест не должен оставлять после себя изменённые настройки: после прогона `config` такой же, как до него.'
 	};
 }
 
@@ -858,13 +879,14 @@ const MAKERS: Record<string, (rng: Rng) => Flaky | null> = {
 
 function statement(environment: string): string {
 	return [
-		'Модуль на Python 3: код продукта и тесты `unittest`. При обычном запуске все тесты проходят, но на CI один из них',
+		'Модуль на CPython 3.12–3.13: код продукта и тесты `unittest`. При обычном запуске все тесты проходят, но на CI один из них',
 		'время от времени падает, хотя код продукта верен и соответствует строкам документации.',
 		'',
 		environment,
 		'',
 		'Найдите строку тестов — источник нестабильности: если исправить только её, все тесты стабильно проходят в любых',
-		'условиях запуска и по-прежнему ловят ошибки в коде продукта. Введите номер этой строки (нумерация с 1), например `42`.'
+		'условиях запуска и по-прежнему ловят ошибки в коде продукта. Введите номер этой строки (нумерация с 1), например `42`.',
+		'Если исправить можно в нескольких строках — засчитывается любая из них. Исправление — одна простая инструкция того же вида, что исправляемая строка: не добавляйте конструкций, которых в ней нет (`:=`, lambda, обёртки, новые функции), и не переносите в неё логику из другой строки.'
 	].join('\n');
 }
 
@@ -879,7 +901,16 @@ export function build(input: GenerateInput): Built {
 		if (f === null) continue;
 		const { source, at } = render(rng, f);
 		const lines = source.split('\n');
-		const unchanged = (line: number) => ({ kind: 'line' as const, line, replacement: lines[line - 1] ?? '' });
+		// A wrong line taken for the source: the candidate drops its statement (a header becomes always true).
+		const dropped = (line: number) => {
+			const text = lines[line - 1] ?? '';
+			const indent = /^\s*/.exec(text)?.[0] ?? '';
+			return {
+				kind: 'line' as const,
+				line,
+				replacement: `${indent}${text.trimEnd().endsWith(':') ? 'if True:' : 'pass'}`
+			};
+		};
 		const instance = makeInstance(descriptor, input, {
 			statement: { markdown: statement(f.environment), code: { language: 'python3', source } },
 			answer: { kind: 'line_no', value: at.defect }
@@ -889,8 +920,8 @@ export function build(input: GenerateInput): Built {
 			instance,
 			reference: () => ({ kind: 'bug', check: probe, fix: f.fix }),
 			wrong: () => ({
-				'test-other-line': unchanged(at.other),
-				'product-line': unchanged(at.product)
+				'test-other-line': dropped(at.other),
+				'product-line': dropped(at.product)
 			})
 		};
 	}

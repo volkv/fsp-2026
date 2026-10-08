@@ -1,5 +1,5 @@
-// Rate limits through the eyes of a tester: the algorithm is stated (fixed window, sliding window, token bucket or two
-// limits together), the requests come at given moments; the tester predicts which requests get 429, the Retry-After of
+// Rate limits through the eyes of a tester: the algorithm is stated (fixed window, a window opened by the client's first
+// request, sliding window with request costs, token bucket or two limits together), the requests come at given moments; the tester predicts which requests get 429, the Retry-After of
 // the first refusal and X-RateLimit-Remaining in a given response.
 import {
 	instanceRng,
@@ -15,7 +15,8 @@ import type { Rng } from '../../_lib/rng.ts';
 const descriptor = readDescriptor(import.meta.url);
 
 interface Limit {
-	algo: 'fixed' | 'sliding' | 'bucket';
+	/** `anchored` — a fixed-length window opened by the first request that comes when no window is open. */
+	algo: 'fixed' | 'anchored' | 'sliding' | 'bucket';
 	/** Requests per window, or the capacity of the bucket. */
 	limit: number;
 	/** The window, or the time one token takes to refill, ms. */
@@ -26,6 +27,8 @@ interface Params {
 	limits: Limit[];
 	/** Moments of the requests, ms, ascending and distinct. */
 	times: number[];
+	/** The cost of each request in units of a sliding limit; absent — every request costs 1. */
+	costs?: number[];
 	/** The 1-based number of the request whose Remaining is asked. */
 	ask: number;
 }
@@ -40,6 +43,8 @@ interface Rules {
 	bucketNoCap: boolean;
 	bucketDiscrete: boolean;
 	retryMin: boolean;
+	windowAligned: boolean;
+	retryOldest: boolean;
 }
 
 const RIGHT: Rules = {
@@ -51,7 +56,9 @@ const RIGHT: Rules = {
 	remainingBefore: false,
 	bucketNoCap: false,
 	bucketDiscrete: false,
-	retryMin: false
+	retryMin: false,
+	windowAligned: false,
+	retryOldest: false
 };
 
 interface Outcome {
@@ -71,35 +78,63 @@ interface Decision {
 
 function run(p: Params, rules: Rules): Outcome {
 	const logs: number[][] = p.limits.map(() => []);
+	const opened: (number | null)[] = p.limits.map(() => null);
 	const buckets = p.limits.map((l) => ({ credit: l.limit * l.span, tokens: l.limit, last: 0 }));
+	const costOf = (t: number): number => p.costs?.[p.times.indexOf(t)] ?? 1;
 	const out: Outcome = { rejected: [], retry: [], remaining: [] };
 	p.times.forEach((t, index) => {
+		const cost = costOf(t);
 		const decisions = p.limits.map((l, i): Decision => {
 			const log = logs[i] ?? [];
 			const algo =
-				l.algo === 'fixed' && rules.fixedAsSliding
+				(l.algo === 'fixed' || l.algo === 'anchored') && rules.fixedAsSliding
 					? 'sliding'
-					: l.algo === 'sliding' && rules.slidingAsFixed
+					: l.algo === 'anchored' && rules.windowAligned
 						? 'fixed'
-						: l.algo;
-			const used = (n: number): number => l.limit - n - (rules.remainingBefore ? 0 : 1);
+						: l.algo === 'sliding' && rules.slidingAsFixed
+							? 'fixed'
+							: l.algo;
+			const left = (used: number): number => l.limit - used - (rules.remainingBefore ? 0 : cost);
 			if (algo === 'fixed') {
 				const window = Math.floor(t / l.span);
 				const count = log.filter((s) => Math.floor(s / l.span) === window).length;
 				return {
 					allow: count < l.limit,
 					retryMs: rules.retryFullPeriod ? l.span : (window + 1) * l.span - t,
-					remaining: used(count),
+					remaining: left(count),
 					commit: () => log.push(t)
+				};
+			}
+			if (algo === 'anchored') {
+				const open = opened[i] ?? null;
+				const from = open === null || t >= open + l.span ? t : open;
+				const count = log.filter((s) => s >= from).length;
+				return {
+					allow: count < l.limit,
+					retryMs: rules.retryFullPeriod ? l.span : from + l.span - t,
+					remaining: left(count),
+					commit: () => {
+						opened[i] = from;
+						log.push(t);
+					}
 				};
 			}
 			if (algo === 'sliding') {
 				const inside = log.filter((s) => (rules.inclusiveBoundary ? s >= t - l.span : s > t - l.span));
-				const leaves = inside[inside.length - l.limit];
+				const used = inside.reduce((sum, s) => sum + costOf(s), 0);
+				// The request fits once enough of the oldest accepted ones have left the window.
+				let freed = 0;
+				let leaves = t - l.span;
+				for (const s of inside) {
+					if (used - freed + cost <= l.limit) break;
+					freed += costOf(s);
+					leaves = s;
+				}
+				const oldest = inside[0] ?? t - l.span;
 				return {
-					allow: inside.length < l.limit,
-					retryMs: rules.retryFullPeriod ? l.span : (leaves ?? t) + l.span - t,
-					remaining: used(inside.length),
+					allow: used + cost <= l.limit,
+					retryMs: rules.retryFullPeriod ? l.span : (rules.retryOldest ? oldest : leaves) + l.span - t,
+					remaining: left(used),
 					commit: () => log.push(t)
 				};
 			}
@@ -155,6 +190,8 @@ function answerOf(p: Params, rules: Rules): string {
 interface Shape {
 	limits: (rng: Rng) => Limit[];
 	times: (rng: Rng, limits: readonly Limit[]) => number[];
+	/** Request costs for the sorted moments; absent — every request costs 1. */
+	costs?: (rng: Rng, times: readonly number[]) => number[];
 }
 
 const ms = (seconds: number): number => Math.round(seconds * 1000);
@@ -202,14 +239,17 @@ const SHAPES: Record<string, Shape> = {
 		}
 	},
 	'middle/remaining-headers': {
-		limits: (rng) => [{ algo: 'fixed', limit: rng.int(3, 6), span: ms(rng.pick([10, 20, 30])) }],
+		limits: (rng) => [{ algo: 'anchored', limit: rng.int(3, 5), span: ms(rng.pick([10, 20, 30])) }],
 		times: (rng, [l]) => {
 			const span = l?.span ?? 10000;
-			const edge = span * rng.int(1, 2);
+			// The first request opens the window off the grid of multiples of W, so the two readings part ways.
+			const open = rng.int(15, span / 100 - 15) * 100;
+			const first = burst(rng, open, (l?.limit ?? 3) + rng.int(0, 2), 2, 8);
+			const straddle = burst(rng, open + span - rng.int(5, 25) * 100, rng.int(3, 5), 2, 8);
 			return [
-				...burst(rng, edge - rng.int(20, 50) * 100, rng.int(2, 6), 2, 8),
-				...burst(rng, edge + rng.int(0, 20) * 100, rng.int(3, 7), 2, 10),
-				...burst(rng, edge + span + rng.int(0, 30) * 100, rng.int(1, 4), 3, 15)
+				...first,
+				...straddle,
+				...burst(rng, (straddle.at(-1) ?? 0) + rng.int(5, 40) * 100, rng.int(1, 3), 3, 15)
 			];
 		}
 	},
@@ -243,15 +283,16 @@ const SHAPES: Record<string, Shape> = {
 		]
 	},
 	'senior/sliding-retry': {
-		limits: (rng) => [{ algo: 'sliding', limit: rng.int(3, 5), span: ms(rng.pick([10, 15, 20])) }],
+		limits: (rng) => [{ algo: 'sliding', limit: rng.int(5, 7), span: ms(rng.pick([10, 15, 20])) }],
 		times: (rng, [l]) => {
 			const span = l?.span ?? 10000;
-			const start = Math.floor(span / 2) + rng.int(0, 30) * 100;
-			return [
-				...burst(rng, start, (l?.limit ?? 3) + rng.int(1, 2), 5, 25),
-				...burst(rng, start + span + rng.int(-20, 20) * 100, rng.int(3, 5), 3, 20)
-			];
-		}
+			const start = rng.int(0, 30) * 100;
+			const first = burst(rng, start, rng.int(4, 6), 5, 25);
+			// One request comes exactly W after an early one: that one has just left the window.
+			const echo = (first[rng.int(0, 2)] ?? 0) + span;
+			return [...first, echo, ...burst(rng, start + span + rng.int(-20, 20) * 100, rng.int(3, 5), 3, 20)];
+		},
+		costs: (rng, times) => times.map(() => rng.pick([1, 1, 2, 3]))
 	}
 };
 
@@ -278,7 +319,7 @@ function scenario(rng: Rng, grade: string, classId: string): Omit<Params, 'ask'>
 	if (!shape) throw new Error(`${descriptor.key}: no shape for ${grade}/${classId}`);
 	const limits = shape.limits(rng);
 	const times = [...new Set(shape.times(rng, limits).filter((t) => t >= 0))].sort((a, b) => a - b);
-	return { limits, times };
+	return shape.costs ? { limits, times, costs: shape.costs(rng, times) } : { limits, times };
 }
 
 const seconds = (value: number): string => (value / 1000).toFixed(1);
@@ -293,9 +334,13 @@ function plural(n: number, forms: readonly [string, string, string]): string {
 	return forms[2];
 }
 
-function limitText(l: Limit): string {
+function limitText(l: Limit, weighted: boolean): string {
 	if (l.algo === 'fixed')
 		return `фиксированное окно: время делится на окна [0; ${plain(l.span)}), [${plain(l.span)}; ${plain(2 * l.span)}) и так далее по ${plain(l.span)} с; в каждом окне принимаются первые ${l.limit} ${plural(l.limit, ['запрос', 'запроса', 'запросов'])}, остальные получают \`429\`. Retry-After — сколько секунд осталось до конца текущего окна.`;
+	if (l.algo === 'anchored')
+		return `окно от первого запроса: окно длиной ${plain(l.span)} с открывает запрос, пришедший, когда открытого окна нет, — с момента t0 этого запроса окно занимает промежуток [t0; t0 + ${plain(l.span)}); в окне принимаются первые ${l.limit} ${plural(l.limit, ['запрос', 'запроса', 'запросов'])}, остальные получают \`429\`; первый запрос в момент t0 + ${plain(l.span)} или позже открывает новое окно. Retry-After — сколько секунд осталось до конца текущего окна.`;
+	if (l.algo === 'sliding' && weighted)
+		return `скользящее окно с весом запроса: у каждого запроса есть стоимость в единицах; запрос в момент t принимается, если сумма стоимостей запросов, принятых за промежуток (t − ${plain(l.span)}; t], вместе с его стоимостью не больше ${l.limit}; запрос, принятый ровно ${plain(l.span)} с назад, в промежуток уже не входит. Retry-After — через сколько секунд этот запрос был бы принят: когда из промежутка выйдет столько самых старых принятых запросов, что его стоимость поместится в лимит.`;
 	if (l.algo === 'sliding')
 		return `скользящее окно: запрос в момент t принимается, если за промежуток (t − ${plain(l.span)}; t] принято меньше ${l.limit} ${plural(l.limit, ['запроса', 'запросов', 'запросов'])}; запрос, принятый ровно ${plain(l.span)} с назад, в промежуток уже не входит. Retry-After — через сколько секунд запрос был бы принят: когда из промежутка выйдет самый старый из принятых в нём запросов.`;
 	return `корзина токенов: ёмкость ${l.limit} ${plural(l.limit, ['токен', 'токена', 'токенов'])}, в момент 0 корзина полная; токены пополняются непрерывно — один токен за ${plain(l.span)} с — и сверх ёмкости не копятся. Запрос принимается, если в корзине есть целый токен, и забирает его. Retry-After — через сколько секунд в корзине накопится целый токен.`;
@@ -303,12 +348,13 @@ function limitText(l: Limit): string {
 
 function describe(p: Params): string {
 	const two = p.limits.length > 1;
+	const costs = p.costs;
 	return [
 		'Тестировщик проверяет ограничение частоты запросов к `POST /api/v1/search` для одного клиента и заранее записывает ожидаемые ответы.',
 		'',
 		two ? '## Лимиты' : '## Лимит',
 		'',
-		...p.limits.map((l) => `- ${limitText(l)}`),
+		...p.limits.map((l) => `- ${limitText(l, costs !== undefined)}`),
 		...(two
 			? [
 					'',
@@ -319,15 +365,21 @@ function describe(p: Params): string {
 		'## Заголовки',
 		'',
 		'- Отклонённые запросы (`429`) лимит не расходуют: их не считают в окнах, токенов они не забирают.',
-		`- \`Retry-After\` есть только в ответе \`429\`: число секунд, округлённое вверх до целого${two ? '; если запрос отклонили оба лимита — наибольшее из их значений' : ''}.`,
-		`- \`X-RateLimit-Remaining\` в принятом ответе — сколько ещё запросов можно сделать прямо сейчас, уже с учётом этого запроса: для окна — лимит минус число принятых в окне, для корзины — число целых токенов после списания${two ? '; при двух лимитах — наименьшее из двух' : ''}. В ответе \`429\` — \`0\`.`,
+		`- \`Retry-After\` есть только в ответе \`429\`: число секунд, округлённое вверх до целого${two ? '; если запрос отклонил один лимит — его значение, если оба — наибольшее из их значений' : ''}.`,
+		costs
+			? '- `X-RateLimit-Remaining` в принятом ответе — сколько единиц лимита осталось прямо сейчас, уже с учётом этого запроса: лимит минус сумма стоимостей принятых в промежутке. В ответе `429` — `0`.'
+			: `- \`X-RateLimit-Remaining\` в принятом ответе — сколько ещё запросов можно сделать прямо сейчас, уже с учётом этого запроса: для окна — лимит минус число принятых в окне, для корзины — число целых токенов после списания${two ? '; при двух лимитах — наименьшее из двух' : ''}. В ответе \`429\` — \`0\`.`,
 		'',
 		'## Запросы',
 		'',
-		'Номер и момент запроса в секундах от начала отсчёта:',
+		costs
+			? 'Номер, момент запроса в секундах от начала отсчёта и его стоимость:'
+			: 'Номер и момент запроса в секундах от начала отсчёта:',
 		'',
 		'```',
-		...p.times.map((t, i) => `${String(i + 1).padStart(2)}  ${seconds(t)}`),
+		...p.times.map(
+			(t, i) => `${String(i + 1).padStart(2)}  ${costs ? `${seconds(t).padStart(5)}  ${costs[i] ?? 1}` : seconds(t)}`
+		),
 		'```',
 		'',
 		`Введите через пробел номера запросов, получивших \`429\`, по возрастанию, затем знак \`|\`, значение \`Retry-After\` в ответе на первый из них, затем знак \`|\` и значение \`X-RateLimit-Remaining\` в ответе на запрос номер ${p.ask}. Например: \`4 5 9 | 3 | 1\`.`
@@ -338,26 +390,42 @@ const PYTHON_REFERENCE = `import json
 
 p = json.loads(input())
 limits = p["limits"]
+costs = p.get("costs") or [1] * len(p["times"])
 accepted = [[] for _ in limits]
+opened = [None for _ in limits]
 credit = [l["limit"] * l["span"] for l in limits]
 last = [0 for _ in limits]
 refused, retry, remaining = [], {}, {}
 
 for n, t in enumerate(p["times"], start=1):
+    cost = costs[n - 1]
     oks, waits, rests = [], [], []
     for i, l in enumerate(limits):
         L, S = l["limit"], l["span"]
         if l["algo"] == "fixed":
             w = t // S
-            c = sum(1 for s in accepted[i] if s // S == w)
+            c = sum(1 for s, _ in accepted[i] if s // S == w)
             oks.append(c < L)
             waits.append((w + 1) * S - t)
             rests.append(L - c - 1)
+        elif l["algo"] == "anchored":
+            start = t if opened[i] is None or t >= opened[i] + S else opened[i]
+            c = sum(1 for s, _ in accepted[i] if s >= start)
+            oks.append(c < L)
+            waits.append(start + S - t)
+            rests.append(L - c - 1)
         elif l["algo"] == "sliding":
-            inside = sorted(s for s in accepted[i] if t - S < s <= t)
-            oks.append(len(inside) < L)
-            waits.append(inside[len(inside) - L] + S - t if len(inside) >= L else 0)
-            rests.append(L - len(inside) - 1)
+            inside = sorted((s, k) for s, k in accepted[i] if t - S < s <= t)
+            used = sum(k for _, k in inside)
+            oks.append(used + cost <= L)
+            wait, free = 0, used
+            for s, k in inside:
+                if free + cost <= L:
+                    break
+                free -= k
+                wait = s + S - t
+            waits.append(wait)
+            rests.append(L - used - cost)
         else:
             credit[i] = min(L * S, credit[i] + t - last[i])
             last[i] = t
@@ -369,7 +437,9 @@ for n, t in enumerate(p["times"], start=1):
             if l["algo"] == "bucket":
                 credit[i] -= l["span"]
             else:
-                accepted[i].append(t)
+                if l["algo"] == "anchored" and (opened[i] is None or t >= opened[i] + l["span"]):
+                    opened[i] = t
+                accepted[i].append((t, cost))
         remaining[n] = min(rests)
     else:
         refused.append(n)
@@ -387,7 +457,9 @@ const WRONG: Record<string, Partial<Rules>> = {
 	'remaining-before': { remainingBefore: true },
 	'bucket-no-cap': { bucketNoCap: true },
 	'bucket-discrete': { bucketDiscrete: true },
-	'retry-min': { retryMin: true }
+	'retry-min': { retryMin: true },
+	'window-aligned': { windowAligned: true },
+	'retry-oldest': { retryOldest: true }
 };
 
 /** The misconceptions every instance of a class must expose. */
@@ -395,10 +467,10 @@ const REQUIRED: Record<string, string[]> = {
 	'middle/fixed-window': ['fixed-as-sliding', 'retry-full-period'],
 	'middle/sliding-log': ['inclusive-boundary', 'rejected-counted'],
 	'middle/token-bucket': ['bucket-no-cap'],
-	'middle/remaining-headers': ['remaining-before', 'fixed-as-sliding'],
+	'middle/remaining-headers': ['window-aligned', 'fixed-as-sliding', 'remaining-before'],
 	'senior/two-limits': ['rejected-counted', 'retry-min'],
 	'senior/bucket-retry': ['retry-full-period', 'bucket-discrete'],
-	'senior/sliding-retry': ['sliding-as-fixed', 'retry-full-period'],
+	'senior/sliding-retry': ['sliding-as-fixed', 'retry-full-period', 'inclusive-boundary', 'retry-oldest'],
 	'senior/bucket-and-quota': ['bucket-no-cap', 'retry-min']
 };
 

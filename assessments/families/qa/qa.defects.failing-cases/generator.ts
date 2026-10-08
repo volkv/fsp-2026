@@ -215,8 +215,9 @@ function needsReview(rng: Rng): Rule {
 function discountedPrice(rng: Rng): Rule {
 	const variant = rng.int(0, 1);
 	const right = (price: number, pct: number) => Math.floor((price * (100 - pct)) / 100);
+	// Variant 0 forgets to floor: a whole result compares equal (900.0 == 900), a fractional one does not.
 	const wrong = (price: number, pct: number) =>
-		variant === 0 ? roundHalfEven(price * (100 - pct), 100) : price - Math.floor((price * pct) / 100);
+		variant === 0 ? (price * (100 - pct)) / 100 : price - Math.floor((price * pct) / 100);
 	const pool: V[][] = [];
 	for (let i = 0; i < 24; i += 1) {
 		const pct = rng.pick([5, 10, 15, 20, 25, 30, 35, 50]);
@@ -232,7 +233,7 @@ function discountedPrice(rng: Rng): Rule {
 		],
 		source: [
 			'def discounted_price(price, pct):',
-			variant === 0 ? '    return round(price * (100 - pct) / 100)' : '    return price - price * pct // 100'
+			variant === 0 ? '    return price * (100 - pct) / 100' : '    return price - price * pct // 100'
 		],
 		call: plainCall('discounted_price'),
 		expected: ([a, b]) => right(num(a), num(b)),
@@ -248,11 +249,11 @@ function pagesCount(rng: Rng): Rule {
 	const variant = rng.int(0, 1);
 	const right = (total: number, size: number) => ceilDiv(total, size);
 	const wrong = (total: number, size: number) =>
-		variant === 0 ? Math.floor(total / size) + 1 : roundHalfEven(total, size);
+		variant === 0 ? Math.floor(total / size) + 1 : Math.floor(total / size);
 	const pool: V[][] = [[0, rng.pick([10, 20, 25, 50])]];
 	for (let i = 0; i < 24; i += 1) {
 		const size = rng.pick([10, 20, 25, 50]);
-		// Whole pages, a remainder below half a page, exactly half a page and above half a page.
+		// Whole pages, a small remainder, half a page and a large remainder.
 		const kind = rng.int(0, 3);
 		const pages = rng.int(0, 20) * size;
 		const total =
@@ -273,7 +274,7 @@ function pagesCount(rng: Rng): Rule {
 		],
 		source: [
 			'def pages_count(total, size):',
-			variant === 0 ? '    return total // size + 1' : '    return round(total / size)'
+			variant === 0 ? '    return total // size + 1' : '    return total // size'
 		],
 		call: plainCall('pages_count'),
 		expected: ([a, b]) => right(num(a), num(b)),
@@ -416,7 +417,7 @@ function canBook(rng: Rng): Rule {
 	const variant = rng.int(0, 1);
 	const right = (a: number, pass: boolean, balance: number) => (a >= age || pass) && balance >= price;
 	const wrong = (a: number, pass: boolean, balance: number) =>
-		variant === 0 ? a >= age || (pass && balance >= price) : a >= age && pass && balance >= price;
+		variant === 0 ? a >= age || (pass && balance >= price) : pass || (a >= age && balance >= price);
 	const ages = [age - 1, age, rng.int(age - 6, age - 2), rng.int(age + 1, age + 40)];
 	const balances = [price - 1, price, rng.int(0, price - 2), rng.int(price + 1, price * 3)];
 	const pool = uniquePool(ages.flatMap((a) => balances.flatMap((b) => [[a, false, b] as V[], [a, true, b] as V[]])));
@@ -430,14 +431,14 @@ function canBook(rng: Rng): Rule {
 			'def can_book(age, has_pass, balance):',
 			variant === 0
 				? `    return age >= ${age} or has_pass and balance >= ${price}`
-				: `    return age >= ${age} and has_pass and balance >= ${price}`
+				: `    return has_pass or age >= ${age} and balance >= ${price}`
 		],
 		call: plainCall('can_book'),
 		expected: ([a, p, b]) => right(num(a), flag(p), num(b)),
 		actual: ([a, p, b]) => wrong(num(a), flag(p), num(b)),
 		pool,
 		boundary: ([a, , b]) => num(a) === age || num(b) === price,
-		touches: ([a, p, b]) => (variant === 0 ? num(a) >= age : num(a) >= age !== flag(p) || num(b) < price),
+		touches: ([a, p]) => (variant === 0 ? num(a) >= age : flag(p)),
 		negative: (v) => v === false
 	};
 }
@@ -447,7 +448,7 @@ function promoApplies(rng: Rng): Rule {
 	const variant = rng.int(0, 1);
 	const right = (member: boolean, total: number, sale: boolean) => (member || total >= t) && !sale;
 	const wrong = (member: boolean, total: number, sale: boolean) =>
-		variant === 0 ? member || (total >= t && !sale) : member && total >= t && !sale;
+		variant === 0 ? member || (total >= t && !sale) : (!sale && member) || total >= t;
 	const totals = [t - 1, t, rng.int(100, t - 2), rng.int(t + 1, t * 2)];
 	const pool = uniquePool(
 		totals.flatMap((x) => [
@@ -468,14 +469,14 @@ function promoApplies(rng: Rng): Rule {
 			'def promo_applies(member, total, discounted):',
 			variant === 0
 				? `    return member or total >= ${t} and not discounted`
-				: `    return member and total >= ${t} and not discounted`
+				: `    return not discounted and member or total >= ${t}`
 		],
 		call: plainCall('promo_applies'),
 		expected: ([m, x, s]) => right(flag(m), num(x), flag(s)),
 		actual: ([m, x, s]) => wrong(flag(m), num(x), flag(s)),
 		pool,
 		boundary: ([, x]) => num(x) === t,
-		touches: ([m, , s]) => (variant === 0 ? flag(m) : !flag(s)),
+		touches: ([m, x]) => (variant === 0 ? flag(m) : num(x) >= t),
 		negative: (v) => v === false
 	};
 }
@@ -506,9 +507,11 @@ function cartTotal(rng: Rng): Rule {
 		for (let j = 0; j < count; j += 1) {
 			const qty = rng.bool(0.6) ? rng.int(q, q + 6) : rng.int(1, q - 1);
 			const price = rng.bool(0.25) ? rng.int(1, 40) * 20 : rng.int(99, 2999);
+			// No discount of exactly half a kopeck: where round() goes there is Python's tie rule, not the defect.
+			if (variant === 1 && qty >= q && (price * qty * p) % 100 === 50) continue;
 			lines.push([price, qty]);
 		}
-		pool.push([lines]);
+		if (lines.length) pool.push([lines]);
 	}
 	return {
 		name: 'cart_total',

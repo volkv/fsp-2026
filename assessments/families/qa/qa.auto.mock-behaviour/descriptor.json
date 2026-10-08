@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.4,
+						"ratedAt": "2026-10-07",
+						"sourceSha256": "37e63fe74ad4e3b0bdb129ceef1fd42ee5207d6adf099bb3678ac3939e8f99f1"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.6,
+						"ratedAt": "2026-10-07",
+						"sourceSha256": "37e63fe74ad4e3b0bdb129ceef1fd42ee5207d6adf099bb3678ac3939e8f99f1"
+					}
+				],
+				"mean": 0.5
+			},
 			"constructive": {
 				"mocks": "1–2 объекта Mock или MagicMock",
 				"calls": "4–7 вызовов",
@@ -134,6 +151,28 @@
 		"answerCollision": 0.0005,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-07",
+				"verdict": "approved",
+				"remarks": [
+					"Исполнены на Python 3.12.3 (-I, отдельная папка) все 4 программы из условий (junior: side-effect-list, side-effect-function, call-records, auto-attributes): вывод совпал с ожидаемым построчно. Ловушки поведения (StopIteration после исчерпания списка, DEFAULT возвращает return_value, len(mock_calls) считает вызовы дочерних атрибутов, bool(MagicMock()) истинен при len 0, reset_mock не сбрасывает настройку) подтверждены исполнением. Другие сиды и версии CPython не запускались.",
+					"Мелкое (грейд): задание требует точного знания внутренностей unittest.mock: что mock_calls родителя включает вызовы дочерних атрибутов (в экземпляре call-records ответ 5 складывается из трёх deliver, вызова mailer('mila') и close), что исчерпанный side_effect даёт StopIteration, что reset_mock не трогает настройку. Это ближе к середине шкалы, чем к «уверенному применению граничных значений» из определения junior; вердикт не меняю, но Angoff для junior занижен до 0.4.",
+					"Мелкое: в условии не названа минорная версия Python и не сказано, что mock - стандартный unittest.mock; поведение показанных конструкций в CPython 3.8-3.13 одинаково по моим сведениям (не проверялось на версиях, кроме 3.12)."
+				],
+				"sourceSha256": "37e63fe74ad4e3b0bdb129ceef1fd42ee5207d6adf099bb3678ac3939e8f99f1"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-07",
+				"verdict": "approved",
+				"remarks": [
+					"Проверка: исполнил кандидатские программы всех 4 классов на Python 3.12.3; выводы совпали, включая исключения в side_effect, DEFAULT, записи дочерних вызовов, reset_mock и истинность MagicMock. Проверил 14 применимых ошибочных ответов по всем 12 заблуждениям, восстановив экземпляры временными копиями генераторов без descriptor.json. Полные ворота на 200 сидах каждого класса и остальные версии Python не проверял.",
+					"Angoff Junior для binary: 0.60. Пять минут достаточны для короткой программы, но минимально достаточный QA Junior может не знать DEFAULT, разницу call_count родителя и дочернего мока и независимость bool(MagicMock) от len; нужен полностью правильный вывод."
+				],
+				"sourceSha256": "37e63fe74ad4e3b0bdb129ceef1fd42ee5207d6adf099bb3678ac3939e8f99f1"
+			}
+		]
 	}
 }

@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.8,
+						"ratedAt": "2026-10-07",
+						"sourceSha256": "c7ea7c7ebd9dada2a04f233423b3795e963f7580c8d17580edbb3d649722328b"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.75,
+						"ratedAt": "2026-10-07",
+						"sourceSha256": "c7ea7c7ebd9dada2a04f233423b3795e963f7580c8d17580edbb3d649722328b"
+					}
+				],
+				"mean": 0.8
+			},
 			"constructive": { "fields": 6, "nesting": "плоский объект", "responses": "6–8", "deviationsPerResponse": "0–1" },
 			"constructiveRank": 3,
 			"timeNormSec": 300,
@@ -37,7 +54,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.65,
+						"ratedAt": "2026-10-07",
+						"sourceSha256": "c7ea7c7ebd9dada2a04f233423b3795e963f7580c8d17580edbb3d649722328b"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.7,
+						"ratedAt": "2026-10-07",
+						"sourceSha256": "c7ea7c7ebd9dada2a04f233423b3795e963f7580c8d17580edbb3d649722328b"
+					}
+				],
+				"mean": 0.7
+			},
 			"constructive": {
 				"fields": "8 + вложенный объект",
 				"nesting": "объект и массив",
@@ -140,6 +174,28 @@
 		"answerCollision": 0.0083,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-07",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчитано вручную все 8 показанных экземпляров (intern: nullable, optional, types-enum, extra-fields; junior: nested-extra, arrays, dates, combined) проверкой каждого ответа по схеме и правилам из условия, включая существование календарных дат (2026-13-02, 2026-04-31, 2026-02-30, 2026/08/11 - нарушения): множества нарушений совпали с эталоном. Генератор и другие сиды не запускались.",
+					"Мелкое: в экземпляре junior/combined нарушают 7 из 8 ответов, исправен один (8); при такой плотности кандидат, не дочитавший правила, угадывает ответ «все, кроме последнего». Лучше ограничить долю нарушающих ответов (например, не более половины).",
+					"Мелкое: правило «integer без дробной части» заявлено в контракте, но ни одно из ошибочных решений его не проверяет (нет решения «1.5 допустимо как integer»); на показанных экземплярах дробных значений нет. Стоит добавить ошибочное решение и экземпляры с дробью либо убрать оговорку."
+				],
+				"sourceSha256": "c7ea7c7ebd9dada2a04f233423b3795e963f7580c8d17580edbb3d649722328b"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-07",
+				"verdict": "approved",
+				"remarks": [
+					"Проверка: независимо восстановил схемы из условий и проверил все фактические JSON-ответы во всех 8 экземплярах собственным валидатором на Python 3.12; множества нарушений совпали. Исполнил эталоны с полными восстановленными входами и проверил 25 применимых ошибочных ответов по всем 10 заблуждениям. Полные ворота на 200 сидах каждого класса и сторонние валидаторы JSON Schema/OpenAPI не проверял; задания используют явно выписанные правила схемы.",
+					"Angoff для binary: Intern 0.75 — плоская схема, одно отклонение и 300 с; Junior 0.70 — длинные ответы с вложенным объектом, массивом и иногда двумя отклонениями за 420 с. Нужен полный набор номеров без пропуска допустимого null, необязательного поля или запрещённого свойства."
+				],
+				"sourceSha256": "c7ea7c7ebd9dada2a04f233423b3795e963f7580c8d17580edbb3d649722328b"
+			}
+		]
 	}
 }

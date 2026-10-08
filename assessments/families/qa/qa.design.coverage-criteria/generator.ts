@@ -189,20 +189,10 @@ function pairsOf(test: readonly number[]): string[] {
 	return out;
 }
 
+/** The pairs a valid test can contain: a pair the constraints rule out, directly or together, cannot be covered. */
 function allowedPairs(p: CombParams, rules: Rules): string[] {
-	const forbidden = new Set(
-		rules.countForbidden || rules.ignoreConstraints ? [] : p.forbids.map(([[i, vi], [j, vj]]) => pairKey(i, vi, j, vj))
-	);
-	const out: string[] = [];
-	const ps = p.parameters;
-	for (let i = 0; i < ps.length; i += 1)
-		for (let j = i + 1; j < ps.length; j += 1)
-			for (let vi = 0; vi < (ps[i]?.values.length ?? 0); vi += 1)
-				for (let vj = 0; vj < (ps[j]?.values.length ?? 0); vj += 1) {
-					const key = pairKey(i, vi, j, vj);
-					if (!forbidden.has(key)) out.push(key);
-				}
-	return out;
+	const pool = rules.countForbidden ? allTests(p) : allTests(p).filter((t) => isValid(p, t, rules));
+	return [...new Set(pool.flatMap(pairsOf))];
 }
 
 const valueKey = ([i, v]: Value): string => `${i}:${v}`;
@@ -592,7 +582,7 @@ function describeComb(p: CombParams, classId: string): string {
 				'',
 				BASE_CHOICE,
 				'',
-				'Команда решает, переходить ли с base-choice на попарное покрытие. Пара — два значения разных параметров; тест покрывает все пары своих значений; покрывать нужно только пары, которые ограничения не запрещают.',
+				'Команда решает, переходить ли с base-choice на попарное покрытие. Пара — два значения разных параметров; тест покрывает все пары своих значений; покрывать нужно только пары, которые встречаются хотя бы в одном допустимом тесте: пару, которую ограничения исключают — прямо или в сочетании друг с другом, — покрыть нельзя.',
 				'',
 				'Введите через пробел два числа: число тестов в наборе base-choice (вместе с базовым) и число допустимых пар, которые этот набор не покрывает. Например: `10 23`.'
 			);
@@ -708,7 +698,7 @@ else:
         return steps
 
 
-    allowed = [q for i, j in combinations(range(k), 2) for q in product([i], range(sizes[i]), [j], range(sizes[j])) if ((q[0], q[1]), (q[2], q[3])) not in bad]
+    allowed = set().union(*(pairs(t) for t in space))
     if cls == "base-choice":
         tests, lost = base_choice()
         out = f"{len(tests)} | " + (" ".join(name(x) for x in lost) or "-")

@@ -1,7 +1,7 @@
 // State-transition testing of a state machine: transition and transition-pair (1-switch) coverage of a test set whose
 // tests stop at an invalid event, the invalid state × event pairs negative tests need, and at the senior level the
 // shortest event sequences that cover every transition — without a reset, with a reset that costs a step, and as the
-// fewest separate tests.
+// fewest separate tests — and the cheapest set of new tests that completes the 1-switch coverage of a given set.
 import {
 	instanceRng,
 	levelAndClass,
@@ -115,11 +115,18 @@ function reachable(p: Params): Set<number> {
 	return seen;
 }
 
-/** `<all pairs> <pairs the tests pass>` of 1-switch coverage. */
-function switchCoverage(p: Params, rules: Rules): string {
+/** The pairs of consecutive transitions a rule set counts, as `a>b`. */
+function allPairs(p: Params, rules: Rules): string[] {
+	const use = counted(p, rules);
+	const pairs: string[] = [];
+	for (const a of use)
+		for (const b of use) if (p.transitions[a]?.to === p.transitions[b]?.from) pairs.push(`${a}>${b}`);
+	return pairs;
+}
+
+/** The pairs the tests pass, as `a>b` (and `start>k` under the misconception that counts the start). */
+function passedPairs(p: Params, rules: Rules): Set<string> {
 	const use = new Set(counted(p, rules));
-	let total = 0;
-	for (const a of use) for (const b of use) if (p.transitions[a]?.to === p.transitions[b]?.from) total += 1;
 	const seen = new Set<string>();
 	for (const test of p.tests) {
 		const path = run(p, test, rules).filter((k) => use.has(k));
@@ -131,8 +138,108 @@ function switchCoverage(p: Params, rules: Rules): string {
 		}
 		if (rules.start && path.length > 0) seen.add(`start>${path[0]}`);
 	}
-	if (rules.start) total += [...use].filter((k) => p.transitions[k]?.from === 0).length;
-	return `${total} ${seen.size}`;
+	return seen;
+}
+
+/** `<all pairs> <pairs the tests pass>` of 1-switch coverage. */
+function switchCoverage(p: Params, rules: Rules): string {
+	let total = allPairs(p, rules).length;
+	if (rules.start) total += counted(p, rules).filter((k) => p.transitions[k]?.from === 0).length;
+	return `${total} ${passedPairs(p, rules).size}`;
+}
+
+/**
+ * The pairs the tests miss and the cheapest set of new tests that passes all of them: the fewest tests, then the fewest
+ * events. Dijkstra over (last transition, passed missing pairs); a new test starts with no last transition.
+ */
+function completeSwitch(p: Params, rules: Rules): { missing: number; tests: number; events: number } | null {
+	const use = counted(p, rules);
+	const seen = passedPairs(p, rules);
+	const missing = allPairs(p, rules).filter((pair) => !seen.has(pair));
+	if (missing.length === 0 || missing.length > 12) return null;
+	const bitOf = new Map(missing.map((pair, i) => [pair, 1 << i]));
+	const full = (1 << missing.length) - 1;
+	const lasts = p.transitions.length + 1;
+	const big = 1024;
+	const best = new Map<number, number>();
+	const queue = new Heap();
+	queue.push(big, 0);
+	best.set(0, big);
+	while (queue.size > 0) {
+		const [cost, node] = queue.pop();
+		if (best.get(node) !== cost) continue;
+		const last = (node % lasts) - 1;
+		const mask = Math.floor(node / lasts);
+		if (mask === full) return { missing: missing.length, tests: Math.floor(cost / big), events: cost % big };
+		const state = last < 0 ? 0 : (p.transitions[last]?.to ?? 0);
+		const moves: [number, number][] = [];
+		for (const k of use) {
+			if (p.transitions[k]?.from !== state) continue;
+			const passed = last < 0 ? 0 : (bitOf.get(`${last}>${k}`) ?? 0);
+			moves.push([k + 1 + lasts * (mask | passed), 1]);
+		}
+		if (last >= 0) moves.push([lasts * mask, big]);
+		for (const [next, add] of moves) {
+			const nc = cost + add;
+			if (nc < (best.get(next) ?? Infinity)) {
+				best.set(next, nc);
+				queue.push(nc, next);
+			}
+		}
+	}
+	return null;
+}
+
+/**
+ * The greedy completion: within the current test, to the nearest missing pair (ties by the order of pairs), a new
+ * test when no missing pair is reachable.
+ */
+function greedySwitch(p: Params, rules: Rules): { missing: number; tests: number; events: number } | null {
+	const use = counted(p, rules);
+	const seen = passedPairs(p, rules);
+	const missing = allPairs(p, rules).filter((pair) => !seen.has(pair));
+	if (missing.length === 0) return null;
+	const left = new Set(missing);
+	const order = (pair: string): number => missing.indexOf(pair);
+	const from = (last: number): number => (last < 0 ? 0 : (p.transitions[last]?.to ?? 0));
+	let tests = 1;
+	let events = 0;
+	let last = -1;
+	while (left.size > 0) {
+		// Breadth-first over the last transition; the path to each is kept.
+		const paths = new Map<number, number[]>([[last, []]]);
+		let frontier = [last];
+		let found: number[] | null = null;
+		while (frontier.length > 0 && !found) {
+			const candidates: { path: number[]; pair: string }[] = [];
+			const next: number[] = [];
+			for (const l of frontier) {
+				for (const k of use) {
+					if (p.transitions[k]?.from !== from(l)) continue;
+					const path = [...(paths.get(l) ?? []), k];
+					if (l >= 0 && left.has(`${l}>${k}`)) candidates.push({ path, pair: `${l}>${k}` });
+					if (!paths.has(k)) {
+						paths.set(k, path);
+						next.push(k);
+					}
+				}
+			}
+			if (candidates.length > 0) found = candidates.sort((a, b) => order(a.pair) - order(b.pair))[0]?.path ?? null;
+			frontier = next;
+		}
+		if (!found) {
+			if (last < 0) return null;
+			tests += 1;
+			last = -1;
+			continue;
+		}
+		for (const k of found) {
+			if (last >= 0) left.delete(`${last}>${k}`);
+			last = k;
+			events += 1;
+		}
+	}
+	return { missing: missing.length, tests, events };
 }
 
 interface Walk {
@@ -313,8 +420,11 @@ function solve(p: Params, classId: string, rules: Rules): string | null {
 	switch (classId) {
 		case 'switch1':
 		case 'loops':
-		case 'switch1-tests':
 			return switchCoverage(p, rules);
+		case 'switch1-tests': {
+			const c = rules.greedy ? greedySwitch(p, rules) : completeSwitch(p, rules);
+			return c ? `${c.missing} ${c.tests} ${c.events}` : null;
+		}
 		case 'negative': {
 			const live = reachable(p);
 			const checked = p.states
@@ -471,7 +581,10 @@ function scenario(rng: Rng, classId: string): Params {
 			break;
 		case 'uncovered':
 		case 'switch1-tests': {
-			const tests = Array.from({ length: rng.int(2, 3) }, () => randomWalk(rng, p, rng.int(3, 6)));
+			const long = classId === 'switch1-tests';
+			const tests = Array.from({ length: rng.int(2, 3) }, () =>
+				randomWalk(rng, p, long ? rng.int(5, 8) : rng.int(3, 6))
+			);
 			tests.push(brokenWalk(rng, p));
 			if (rng.bool()) tests.push(brokenWalk(rng, p));
 			p.tests = rng.shuffle(tests);
@@ -492,6 +605,11 @@ function suits(p: Params, classId: string, answer: string): boolean {
 	if (loops < shape.loops[0]) return false;
 	if (p.tests.some((t) => t.length === 0)) return false;
 	if (classId === 'uncovered') return answer !== '-';
+	if (classId === 'switch1-tests') {
+		// A handful of missing pairs: the completion is planned by hand.
+		const [missing = 0, tests = 0] = answer.split(' ').map(Number);
+		return missing >= 4 && missing <= 7 && tests <= 3;
+	}
 	return true;
 }
 
@@ -527,20 +645,28 @@ function describe(p: Params, classId: string): string {
 	}
 	out.push('');
 	const pairs =
-		'Пара переходов (1-switch) — два перехода, идущих подряд: первый приводит в состояние, из которого выходит второй; начало теста переходом не считается. Тест проходит пару, если выполняет эти два перехода друг за другом.';
+		'Пара переходов (1-switch) — два перехода, идущих подряд: первый приводит в состояние, из которого выходит второй (в том числе петля, за которой идёт та же петля, — это пара петли с самой собой); начало теста переходом не считается. Тест проходит пару, если выполняет эти два перехода друг за другом.';
 	switch (classId) {
 		case 'switch1':
 		case 'loops':
-		case 'switch1-tests':
 			out.push(
 				pairs,
 				'',
 				'Введите через пробел два числа: сколько всего пар переходов есть в автомате и сколько разных пар проходят тесты вместе. Например: `24 9`.'
 			);
 			break;
+		case 'switch1-tests':
+			out.push(
+				pairs,
+				'',
+				'Набор нужно дополнить новыми тестами так, чтобы старые и новые тесты вместе прошли каждую пару переходов автомата. В новых тестах все события допустимы, каждый новый тест начинается в начальном состоянии; пара засчитывается, только если оба её перехода выполнены подряд в одном тесте. Найдите, сколько пар не проходит данный набор, наименьшее число новых тестов и — среди дополнений с этим числом тестов — наименьшее общее число событий в новых тестах.',
+				'',
+				'Введите через пробел три числа: число непройденных пар, число новых тестов и общее число событий в них. Например: `6 2 11`.'
+			);
+			break;
 		case 'negative':
 			out.push(
-				'Для негативных тестов нужно подать каждое недопустимое событие в каждом состоянии, в которое можно попасть из начального. Введите число таких пар «состояние × событие», затем знак `|` и состояния, недостижимые из начального, в порядке списка состояний (если таких нет — `-`). Например: `17 | архив`.'
+				'Для негативных тестов нужно подать каждое недопустимое событие в каждом состоянии, в которое можно попасть из начального (само начальное состояние тоже входит в их число). Введите число таких пар «состояние × событие», затем знак `|` и состояния, недостижимые из начального, в порядке списка состояний (если таких нет — `-`). Например: `17 | архив`.'
 			);
 			break;
 		case 'uncovered':
@@ -608,12 +734,41 @@ def reach():
 full = (1 << len(trans)) - 1
 out = None
 if cls in ("switch1", "loops", "switch1-tests"):
-    total = sum(1 for a in trans for b in trans if a[2] == b[0])
+    pairs = [(a, b) for a in range(len(trans)) for b in range(len(trans)) if trans[a][2] == trans[b][0]]
     seen = set()
     for t in p["tests"]:
         path = run(t)
         seen |= set(zip(path, path[1:]))
-    out = f"{total} {len(seen)}"
+    if cls != "switch1-tests":
+        out = f"{len(pairs)} {len(seen)}"
+    else:
+        # Dijkstra over (last transition, passed missing pairs); cost (new tests, events).
+        missing = [pair for pair in pairs if pair not in seen]
+        index = {pair: i for i, pair in enumerate(missing)}
+        need = (1 << len(missing)) - 1
+        best = {(None, 0): (1, 0)}
+        heap = [(1, 0, -1, 0)]
+        while heap:
+            tests, events, last, m = heapq.heappop(heap)
+            key = (None if last < 0 else last, m)
+            if best.get(key) != (tests, events):
+                continue
+            if m == need:
+                out = f"{len(missing)} {tests} {events}"
+                break
+            s = 0 if last < 0 else trans[last][2]
+            options = []
+            for k, (f, e, to) in enumerate(trans):
+                if f == s:
+                    nm = m | (1 << index[(last, k)] if last >= 0 and (last, k) in index else 0)
+                    options.append((k, nm, tests, events + 1))
+            if last >= 0:
+                options.append((-1, m, tests + 1, events))
+            for nl, nm, t2, e2 in options:
+                nk = (None if nl < 0 else nl, nm)
+                if nk not in best or (t2, e2) < best[nk]:
+                    best[nk] = (t2, e2)
+                    heapq.heappush(heap, (t2, e2, nl, nm))
 elif cls == "negative":
     live = reach()
     count = sum(1 for s in live for e in p["events"] if (s, e) not in go)
@@ -684,7 +839,7 @@ const REQUIRED: Record<string, string[]> = {
 	'middle/loops': ['forget-loops'],
 	'senior/tour': ['greedy', 'forget-loops'],
 	'senior/tour-reset': ['greedy'],
-	'senior/switch1-tests': ['forget-loops', 'continue-after-invalid'],
+	'senior/switch1-tests': ['forget-loops', 'continue-after-invalid', 'greedy'],
 	'senior/min-tests': ['greedy']
 };
 

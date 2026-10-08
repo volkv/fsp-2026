@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.65,
+						"ratedAt": "2026-10-07",
+						"sourceSha256": "de4de2dd53f1da5b2010595ba62479d6558931cd688e70a8dd39e744abaeb931"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.6,
+						"ratedAt": "2026-10-07",
+						"sourceSha256": "de4de2dd53f1da5b2010595ba62479d6558931cd688e70a8dd39e744abaeb931"
+					}
+				],
+				"mean": 0.65
+			},
 			"constructive": {
 				"tests": "3–5 методов в одном классе",
 				"fixtures": "setUpClass/tearDownClass, setUp/tearDown, addCleanup",
@@ -129,6 +146,29 @@
 		"answerCollision": 0,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-07",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчитано исполнением: код 4 показанных экземпляров запущен в Python 3.12.3, вывод совпал с ожидаемым; семантику проверил вручную (setUp падает: tearDown не вызывается, cleanup вызывается; cleanup LIFO после tearDown; префикс `test` без подчёркивания, сортировка имён как строк с заглавными раньше строчных). Генератор не запускал.",
+					"Существенных проблем нет, неоднозначных прочтений не нашёл. Алфавитный порядок запуска в условии не назван, это сознательно проверяемое знание (ошибочные решения declaration-order и natural-order его ловят).",
+					"Мелочь: класс name-sorting (X) проверяет знание префикса `test` и сортировки, а не жизненный цикл фикстур; пространство ответа — перестановка 3–5 имён, но answerCollision 0."
+				],
+				"sourceSha256": "de4de2dd53f1da5b2010595ba62479d6558931cd688e70a8dd39e744abaeb931"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-07",
+				"verdict": "approved",
+				"remarks": [
+					"Независимо исполнил все 4 программы из условий на CPython 3.12.3: все строки совпали с ответами; проверены сортировка имён, tearDown после assertion, отсутствие tearDown после ошибки setUp и порядок LIFO для addCleanup. Перечисленные заблуждения дают неверные трассы в соответствующих классах; 200 сидов каждого класса и все ветви генератора не прогонял.",
+					"Рубрика sequence нормирует только пробелы по краям, поэтому setUp  test_export не равнозначно setUp test_export для чекера. Условие явно требует один пробел; рекомендуется нормировать разделители внутри строки.",
+					"Angoff 0.60 учитывает полный бинарный ответ за 300 с: в показанных классах A/B/anchor нужны 11–14 строк без пропусков и перестановок. Parts по этапам жизненного цикла уменьшили бы влияние одиночной ошибки."
+				],
+				"sourceSha256": "de4de2dd53f1da5b2010595ba62479d6558931cd688e70a8dd39e744abaeb931"
+			}
+		]
 	}
 }

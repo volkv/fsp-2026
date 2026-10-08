@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.7,
+						"ratedAt": "2026-10-07",
+						"sourceSha256": "200b576c35d01f4b0a4e06778f52aebd95ba449c6c5dfd280f33148243b00aa2"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.75,
+						"ratedAt": "2026-10-07",
+						"sourceSha256": "200b576c35d01f4b0a4e06778f52aebd95ba449c6c5dfd280f33148243b00aa2"
+					}
+				],
+				"mean": 0.75
+			},
 			"constructive": { "fields": 1, "classes": "4–7", "tests": "9–11", "coverage": "значение — класс" },
 			"constructiveRank": 2,
 			"timeNormSec": 300,
@@ -37,7 +54,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.5,
+						"ratedAt": "2026-10-07",
+						"sourceSha256": "200b576c35d01f4b0a4e06778f52aebd95ba449c6c5dfd280f33148243b00aa2"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.65,
+						"ratedAt": "2026-10-07",
+						"sourceSha256": "200b576c35d01f4b0a4e06778f52aebd95ba449c6c5dfd280f33148243b00aa2"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": {
 				"fields": "2–3",
 				"tests": "8–11",
@@ -138,6 +172,28 @@
 		"answerCollision": 0.0137,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-07",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчитано вручную все 8 экземпляров по правилам условия (классы по пунктам, несмежные диапазоны, правила Майерса о маскировании ошибок): ответы эталона верны. В генераторе проверил значения форматных классов (abc, 12a, десять, n/a, 5кг): ни одно не попадает в два формата. Другие сиды не запускал.",
+					"Мелочь: junior — 10 тестов по 3 поля при бинарной оценке, одна ошибка в учёте маскирования обнуляет ответ; учтено в Angoff."
+				],
+				"sourceSha256": "200b576c35d01f4b0a4e06778f52aebd95ba449c6c5dfd280f33148243b00aa2"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-07",
+				"verdict": "approved",
+				"remarks": [
+					"Независимо классифицировал все значения и пересчитал покрытие всех 8 наборов на Python 3.12.3, сверяя классы с пунктами требований. Подтверждены раздельные несмежные диапазоны, правила формата, отсутствие покрытия при нескольких ошибках и избыточность нового сочетания уже покрытых классов. Эталонные ответы совпали, заявленные ошибочные наборы отличаются. Полный диапазон сидов не проверял.",
+					"Intern, split-invalid (anchor), i=0: фактически три класса — нижний отказ, допустимый диапазон и верхний отказ, тогда как параметры сложности обещают 4–7 классов. Исправить численное описание сложности этого класса; правило разделения двух отказов и ответ корректны.",
+					"Angoff учитывает binary и 8–11 тестов: Junior дополнительно должен отличить покрытие ошибочного класса от маскирования и не засчитывать допустимые поля теста с ошибкой."
+				],
+				"sourceSha256": "200b576c35d01f4b0a4e06778f52aebd95ba449c6c5dfd280f33148243b00aa2"
+			}
+		]
 	}
 }

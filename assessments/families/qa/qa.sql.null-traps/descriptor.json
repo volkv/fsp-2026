@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "b0a009f225abb673075bef0810a815aa924905c1a81420ba827f686fcd6d5072"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "b0a009f225abb673075bef0810a815aa924905c1a81420ba827f686fcd6d5072"
+					}
+				],
+				"mean": 0.55
+			},
 			"constructive": { "tables": 1, "rows": "7–10", "nullColumns": "1–2", "clauses": "NOT IN, COUNT, = NULL, AVG" },
 			"constructiveRank": 2,
 			"timeNormSec": 240,
@@ -33,7 +50,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "b0a009f225abb673075bef0810a815aa924905c1a81420ba827f686fcd6d5072"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.5,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "b0a009f225abb673075bef0810a815aa924905c1a81420ba827f686fcd6d5072"
+					}
+				],
+				"mean": 0.55
+			},
 			"constructive": {
 				"tables": "1–2",
 				"rows": "8–12",
@@ -124,6 +158,30 @@
 		"answerCollision": 0,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Прежние существенные замечания о формате устранены: условие явно требует разделитель « | » и сохранение пробелов внутри значений. В junior/case-concat, экземпляр 1, строки с anna pavlovna, sasha borisovich и rita olegovna согласованы с запросом, эталоном и scorer.",
+					"Независимый пересчёт: все восемь показанных SQL-экземпляров исполнены непосредственно из условий в Python 3.12.3 / SQLite 3.45.1, затем сверены с ожидаемыми ответами и выводом восьми эталонов; расхождений нет. Независимо воспроизведены десять применимых ошибочных запросов, все дают неверный ответ и отвергаются scorer. Во всех запросах определён порядок результата; существенные NULL-ловушки меняют ответ. sourceSha256 и все восемь экземпляров сверены с текущим генератором; scorer принимает крайние пробелы вокруг полной строки. Другие SQL-сиды, полные ворота на 200 сидах, интерфейс кандидата и эмпирическую калибровку не проверял.",
+					"Angoff для binary оценён заново: intern 0.55 — объём доступен за 240 с, но NOT IN с NULL и трёхзначная логика труднее обычного COUNT; junior 0.60 — за 360 с можно пересчитать данные, однако anchor объединяет конкатенацию и два вида CASE. Учтено, что одна ошибка в таблице обнуляет задание."
+				],
+				"sourceSha256": "b0a009f225abb673075bef0810a815aa924905c1a81420ba827f686fcd6d5072"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчёт: все 8 показанных экземпляров исполнил в SQLite 3.45.1 и сравнил со строками ответа — совпали; дополнительно прогнал по 100 сидов каждого класса через генератор (результат не зависит от порядка вставки и reverse_unordered_selects, дробных значений нет — средние в avg-null целые по построению). Генератор открывал только для проверки AVG и формата.",
+					"Формат строки задан явно (« | », NULL, числа без лишних нулей, пример), прежнее замечание о пробелах снято. Во всех запросах есть ORDER BY по уникальному ключу.",
+					"Классы дают разные пути (NOT IN с NULL, COUNT по группам, = NULL, AVG; COALESCE, SUM по LEFT JOIN, CASE WHEN NULL и конкатенация, NOT с NULL), все 9 ошибочных решений меняют результат в своих классах. Мелочь: avg-null всегда выдаёт ровно 3 строки, а not-in-null всегда содержит NULL в втором столбце у не-приглашающих — форма ответа повторяется, но значения надо вычислять.",
+					"Angoff: intern 0.55 — 240 с, ловушки NOT IN/COUNT(DISTINCT) для кандидата, пропускающего граничные случаи, нетривиальны, бинарная оценка; junior 0.50 — 360 с, по 6–9 строк по 4 столбца с NULL-ловушками (CASE WHEN NULL, конкатенация), одна ошибка обнуляет ответ."
+				],
+				"sourceSha256": "b0a009f225abb673075bef0810a815aa924905c1a81420ba827f686fcd6d5072"
+			}
+		]
 	}
 }

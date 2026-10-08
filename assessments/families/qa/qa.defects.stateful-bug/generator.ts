@@ -30,6 +30,8 @@ interface Defect {
 	neighbour: At & { text: string };
 	/** A patch where the bug of the report shows; it fixes the report's steps but not the specification. */
 	symptom: (At & { text: string }) | null;
+	/** Other lines whose one-instruction replacement also restores the specification. */
+	alternatives?: (At & { text: string })[];
 	report: { steps: string[]; expected: string; actual: string };
 }
 
@@ -48,7 +50,8 @@ const CART: Program = {
 		'      цена — из последнего добавления.',
 		'    - remove(sku) убирает товар целиком; если после этого сумма товаров меньше 1000, купон снимается',
 		'      и сам не возвращается.',
-		'    - apply_coupon("SAVE10") включает скидку 10 % (дробная часть рубля отбрасывается), только если',
+		'    - apply_coupon("SAVE10") включает скидку 10 % от суммы товаров (дробная часть рубля отбрасывается',
+		'      у суммы скидки, не у итога), только если',
 		'      корзина не оформлена и сумма товаров не меньше 1000; иначе возвращает False и ничего не меняет.',
 		'    - checkout() оформляет корзину и возвращает итог.',
 		'    - items() возвращает копию позиций: её изменение не влияет на корзину.',
@@ -134,7 +137,10 @@ const CART: Program = {
 		'k = Cart()',
 		'k.add("tv", 1000)',
 		'assert k.checkout() == 1000',
-		'assert not k.apply_coupon("SAVE10") and k.total() == 1000'
+		'assert not k.apply_coupon("SAVE10") and k.total() == 1000',
+		'f = Cart()',
+		'f.add("lamp", 1005)',
+		'assert f.apply_coupon("SAVE10") and f.total() == 905'
 	],
 	defects: [
 		{
@@ -575,7 +581,9 @@ const RETRY_QUEUE: Program = {
 		'      в dead_letters(); иначе возвращается в очередь с ready_at = now + backoff * 2 ** (attempts - 1),',
 		'      где attempts — число сделанных попыток этой задачи.',
 		'    - ack(task): задача выполнена.',
-		'    - dead_letters() — копия списка задач, исчерпавших попытки."""'
+		'    - dead_letters() — копия списка задач, исчерпавших попытки.',
+		'    Порядок вызовов: каждая задача ставится через put один раз; после каждой выдачи задачи через take',
+		'    для неё вызывается ровно один из ack и fail, других вызовов ack и fail нет."""'
 	],
 	methods: [
 		{
@@ -670,6 +678,8 @@ const RETRY_QUEUE: Program = {
 			text: '        if attempts > self.max_attempts:',
 			neighbour: { method: 'fail', line: 1, text: '        attempts = self._attempts.get(task, 0)' },
 			symptom: null,
+			// max_attempts is read by this comparison only: storing one less restores the contract too.
+			alternatives: [{ method: '__init__', line: 1, text: '        self.max_attempts = max_attempts - 1' }],
 			report: {
 				steps: [
 					'q = RetryQueue(max_attempts=3, backoff=10)',
@@ -703,7 +713,8 @@ const WALLET: Program = {
 		'class Wallet:',
 		'    """Бонусный кошелёк.',
 		'    - credit(op_id, amount) и debit(op_id, amount) идемпотентны по op_id: повтор операции с тем же op_id',
-		'      ничего не меняет и возвращает результат первого вызова.',
+		'      ничего не меняет и возвращает результат первого вызова. op_id у credit и debit общие: операция',
+		'      с op_id, который уже встречался в любом из них, — повтор.',
 		'    - debit больше баланса отклоняется (False); отказ тоже запоминается: повтор с тем же op_id снова',
 		'      возвращает False, даже если баланс за это время вырос.',
 		'    - history() — копия списка применённых операций (op_id, сумма со знаком)."""'
@@ -832,8 +843,8 @@ const CATALOG: Program = {
 		'    - set_price(sku, price) задаёт цену товара; set_discount(percent) — скидку на итог.',
 		'    - line(sku, qty) — стоимость строки price * qty; результат кэшируется, но после set_price товара',
 		'      line должна давать новую стоимость.',
-		'    - quote(cart) — итог по корзине {sku: qty}: сумма line по строкам минус discount процентов',
-		'      от суммы (дробная часть рубля отбрасывается)."""'
+		'    - quote(cart) — итог по корзине {sku: qty}: сумма line по строкам минус скидка — discount процентов',
+		'      от этой суммы, у скидки дробная часть рубля отбрасывается."""'
 	],
 	methods: [
 		{
@@ -886,7 +897,9 @@ const CATALOG: Program = {
 		'assert cat.quote({"tea": 2, "cup": 1}) == 490',
 		'cat.set_discount(10)',
 		'assert cat.quote({"tea": 2, "cup": 1}) == 441',
-		'assert cat.quote({"tea": 1}) == 108'
+		'assert cat.quote({"tea": 1}) == 108',
+		'cat.set_price("jam", 101)',
+		'assert cat.quote({"jam": 1}) == 91'
 	],
 	defects: [
 		{
@@ -894,6 +907,8 @@ const CATALOG: Program = {
 			at: { method: 'set_price', line: 2 },
 			text: '        for key in [k for k in self._lines if k == sku]:',
 			neighbour: { method: 'set_price', line: 1, text: '        self._prices.update({sku: price})' },
+			// The price in the key of the cache keeps a line up to date as well: the stale entries are never read.
+			alternatives: [{ method: 'line', line: 1, text: '        key = (sku, qty, self._prices[sku])' }],
 			symptom: {
 				method: 'quote',
 				line: 1,
@@ -940,10 +955,11 @@ const BUS: Program = {
 		'class EventBus:',
 		'    """Подписки на события.',
 		'    - subscribe(event, handler, once=False) добавляет обработчик; once=True — обработчик вызывается',
-		'      один раз и отписывается.',
+		'      один раз и отписывается. Один и тот же обработчик на одно событие подписывают не больше одного раза.',
 		'    - publish(event, payload) вызывает обработчики события в порядке подписки: каждого, кто был подписан',
 		'      в момент публикации, ровно один раз, даже если обработчики во время вызова отписываются или',
-		'      подписывают новых (новые получают события со следующей публикации). Возвращает число вызовов."""'
+		'      подписывают новых (новые получают события со следующей публикации). Возвращает число вызовов.',
+		'      Обработчики не вызывают publish (вложенных публикаций нет)."""'
 	],
 	methods: [
 		{ name: '__init__', lines: ['    def __init__(self):', '        self._subs = {}'] },
@@ -1028,7 +1044,8 @@ const INVENTORY: Program = {
 		'    - release(rid) снимает резерв и возвращает товар в остаток; повторный release того же rid —',
 		'      False, ничего не меняется.',
 		'    - release_expired(now) снимает все резервы с until <= now и возвращает их число.',
-		'    - available(sku) — свободный остаток."""'
+		'    - available(sku) — свободный остаток.',
+		'    Резервируются только товары из stock, переданного при создании, и qty больше 0."""'
 	],
 	methods: [
 		{
@@ -1184,6 +1201,7 @@ interface Composed {
 	fix: string;
 	neighbour: { line: number; text: string };
 	symptom: { line: number; text: string } | null;
+	alternatives: { line: number; fix: string }[];
 	report: Defect['report'];
 	className: string;
 }
@@ -1236,6 +1254,7 @@ function compose(rng: Rng, library: readonly Program[], kind: string): Composed 
 		fix,
 		neighbour: { line: lineOf(d.neighbour), text: d.neighbour.text },
 		symptom: d.symptom ? { line: lineOf(d.symptom), text: d.symptom.text } : null,
+		alternatives: (d.alternatives ?? []).map((a) => ({ line: lineOf(a), fix: a.text })),
 		report: d.report,
 		className: (p.head[0] ?? '').replace(/^class (\w+):$/, '$1')
 	};
@@ -1257,15 +1276,25 @@ export function build(input: GenerateInput): Built {
 		`- Ожидаемо: ${c.report.expected}.`,
 		`- Фактически: ${c.report.actual}.`,
 		'',
-		'Ровно одна строка модуля расходится со спецификацией, и баг из репорта — её следствие: если заменить только её, класс будет работать по спецификации во всех сценариях, не только в этом. Введите номер этой строки (нумерация с 1). Например: `23`.'
+		'Найдите строку модуля, которая расходится со спецификацией и даёт баг из репорта: если заменить только её, класс будет работать по спецификации во всех сценариях, не только в этом. Введите номер этой строки (нумерация с 1). Например: `23`.',
+		'Если исправить можно в нескольких строках — засчитывается любая из них. Исправление — одна простая инструкция того же вида, что исправляемая строка: не добавляйте конструкций, которых в ней нет (`:=`, lambda, обёртки, новые функции), и не переносите в неё логику из другой строки.'
 	].join('\n');
 	const instance = makeInstance(descriptor, input, {
 		statement: { markdown, code: { language: 'python3', source: c.source } },
-		answer: { kind: 'line_no', value: c.answer }
+		answer: {
+			kind: 'line_no',
+			value: c.answer,
+			...(c.alternatives.length ? { alternatives: c.alternatives.map((a) => a.line) } : {})
+		}
 	});
 	return {
 		instance,
-		reference: () => ({ kind: 'bug', check: c.check, fix: c.fix }),
+		reference: () => ({
+			kind: 'bug',
+			check: c.check,
+			fix: c.fix,
+			...(c.alternatives.length ? { alternatives: c.alternatives } : {})
+		}),
 		wrong: () => ({
 			'neighbour-line': { kind: 'line', line: c.neighbour.line, replacement: c.neighbour.text },
 			'symptom-line': c.symptom ? { kind: 'line', line: c.symptom.line, replacement: c.symptom.text } : null

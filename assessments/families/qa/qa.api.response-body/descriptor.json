@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.8,
+						"ratedAt": "2026-10-07",
+						"sourceSha256": "ae156a095e6d3b4c8f9a63685e017e40b06fb7270897740d2c95a1e66fe65b17"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.7,
+						"ratedAt": "2026-10-07",
+						"sourceSha256": "ae156a095e6d3b4c8f9a63685e017e40b06fb7270897740d2c95a1e66fe65b17"
+					}
+				],
+				"mean": 0.75
+			},
 			"constructive": { "records": "8–10", "pagination": "page/per_page", "filters": "0–1", "sortKeys": 1 },
 			"constructiveRank": 2,
 			"timeNormSec": 240,
@@ -37,7 +54,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.7,
+						"ratedAt": "2026-10-07",
+						"sourceSha256": "ae156a095e6d3b4c8f9a63685e017e40b06fb7270897740d2c95a1e66fe65b17"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.75,
+						"ratedAt": "2026-10-07",
+						"sourceSha256": "ae156a095e6d3b4c8f9a63685e017e40b06fb7270897740d2c95a1e66fe65b17"
+					}
+				],
+				"mean": 0.75
+			},
 			"constructive": { "records": "11–14", "pagination": "limit/offset", "filters": "1–2", "sortKeys": "1–2" },
 			"constructiveRank": 4,
 			"timeNormSec": 360,
@@ -124,6 +158,28 @@
 		"answerCollision": 0.0001,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-07",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчитано вручную все 8 показанных экземпляров (intern: page-numbering, total-filtered, sort-ties, last-page; junior: exact-boundary, range-filter, multi-sort, odd-offset): фильтр, сортировка с вторичным ключом id, срез, total и next совпали с эталоном; контракт (границы фильтра включены, сортировка по алфавиту, next = offset+limit или номер страницы) однозначен. Генератор и другие сиды не запускались.",
+					"Мелкое: в показанном экземпляре last-page последняя страница не заполнена целиком (2 из 3), поэтому ошибочное решение next-if-full на нём не ловится; по отчёту ворот оно отвергается на других сидах класса. Желательно, чтобы показанный экземпляр класса демонстрировал именно полную последнюю страницу.",
+					"Мелкое: сортировка строк «по алфавиту» на кириллических городах не оговаривает регистр и букву «ё»; на показанных данных (имена латиницей строчными, города без «ё») это ответ не меняет."
+				],
+				"sourceSha256": "ae156a095e6d3b4c8f9a63685e017e40b06fb7270897740d2c95a1e66fe65b17"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-07",
+				"verdict": "approved",
+				"remarks": [
+					"Проверка: независимо пересчитал все 8 экземпляров отдельной реализацией фильтров, составного сравнения и пагинации на Python 3.12 непосредственно из условий; total, порядок items и next совпали. Исполнил эталоны с полными восстановленными входами и проверил 31 применимый ошибочный ответ по всем 9 заблуждениям. Полные ворота на 200 сидах каждого класса, реальные БД/API и эмпирическую калибровку не проверял.",
+					"Angoff для binary: Intern 0.70 — фильтрация, сортировка и три выходных поля за 240 с, включая равенства; Junior 0.75 — до 14 записей и два ключа за 360 с при более уверенном чтении контракта. Учитываю полное обнуление из-за одного неверного id или next."
+				],
+				"sourceSha256": "ae156a095e6d3b4c8f9a63685e017e40b06fb7270897740d2c95a1e66fe65b17"
+			}
+		]
 	}
 }

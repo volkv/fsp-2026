@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.7,
+						"ratedAt": "2026-10-07",
+						"sourceSha256": "bf4c9696e411128a06777c6eefdb2398231b161f46f35ade9f7b9372c982f325"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.75,
+						"ratedAt": "2026-10-07",
+						"sourceSha256": "bf4c9696e411128a06777c6eefdb2398231b161f46f35ade9f7b9372c982f325"
+					}
+				],
+				"mean": 0.75
+			},
 			"constructive": { "conditions": "2–3", "rules": "3–4", "cases": "5–6", "reading": "первое подходящее правило" },
 			"constructiveRank": 2,
 			"timeNormSec": 300,
@@ -37,7 +54,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.55,
+						"ratedAt": "2026-10-07",
+						"sourceSha256": "bf4c9696e411128a06777c6eefdb2398231b161f46f35ade9f7b9372c982f325"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.65,
+						"ratedAt": "2026-10-07",
+						"sourceSha256": "bf4c9696e411128a06777c6eefdb2398231b161f46f35ade9f7b9372c982f325"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": {
 				"conditions": "3–4",
 				"rules": "4–5",
@@ -122,6 +156,27 @@
 		"answerCollision": 0.0062,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-07",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчитано вручную все 8 экземпляров по таблицам из условия (не по эталону): интерн — чтение правил слева направо с «-», пороги на границе (>33, ≥10600); junior — развёртка 16 сочетаний с невозможными сочетаниями, в том числе перекрытое правило (D = 0, Z = 0). Все ответы совпали. Генератор на других сидах не запускал.",
+					"Мелочь: в intern/priority отличие первого и последнего подходящего правила проявляется только на одном из пяти случаев (№ 4); ответ от параметра зависит, но слабо."
+				],
+				"sourceSha256": "bf4c9696e411128a06777c6eefdb2398231b161f46f35ade9f7b9372c982f325"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-07",
+				"verdict": "approved",
+				"remarks": [
+					"Независимо пересчитал все 8 экземпляров на Python 3.12.3, читая и транспонируя показанные таблицы: для Intern применил правила к каждому случаю, для Junior перечислил все булевы сочетания и удалил невозможные. Показанные ответы, эталоны и отбрасывание перекрытых правил согласованы; порядок и повторы sequence заданы явно, заявленные ошибочные ответы отличаются. Все сиды не проверял.",
+					"Angoff учитывает binary: Junior должен полностью правильно посчитать 5–6 чисел с исключениями и приоритетом, поэтому вероятность полного ответа ниже, чем для выбора действия в отдельных Intern-случаях."
+				],
+				"sourceSha256": "bf4c9696e411128a06777c6eefdb2398231b161f46f35ade9f7b9372c982f325"
+			}
+		]
 	}
 }

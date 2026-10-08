@@ -1,7 +1,7 @@
 // MC/DC (unique-cause) of a decision written as a Boolean expression: the pairs of tests that show a condition's
 // independent effect, the smallest subset of a test set that gives MC/DC, the gaps of a set and the smallest set of
 // truth-table rows that completes it — at the senior level with domain constraints that make some combinations of
-// conditions impossible.
+// conditions impossible, including the tests a set cannot lose without losing some condition's pair.
 import {
 	instanceRng,
 	levelAndClass,
@@ -33,8 +33,6 @@ interface Params {
 	constraints: Constraint[];
 	/** The test set of the statement, numbered from 1; empty for the class that looks at the whole table. */
 	tests: number[];
-	/** The condition whose pairs are asked, for the pair classes. */
-	target: number | null;
 }
 
 interface Rules {
@@ -255,10 +253,21 @@ function solve(p: Params, classId: string, rules: Rules): { answer: string[] | n
 				unique: found.length === 1
 			};
 		}
-		case 'pairs':
+		case 'pairs': {
+			// Every pair of the set for any condition, then the conditions without one.
+			const pairs = p.names.map((_, i) => pairsOf(p, p.tests, i, rules));
+			const lines = [...new Set(pairs.flat().map(([a, b]) => `${a + 1}-${b + 1}`))];
+			const missing = p.names.filter((_, i) => pairs[i]?.length === 0);
+			return { answer: orDash([...lines, ...missing]), unique: true };
+		}
 		case 'feasible-pairs': {
-			const pairs = pairsOf(p, p.tests, p.target ?? 0, rules);
-			return { answer: orDash(pairs.map(([a, b]) => `${a + 1}-${b + 1}`)), unique: true };
+			// A test is indispensable when some condition has pairs in the set and every one of them uses the test.
+			const pairs = p.names.map((_, i) => pairsOf(p, p.tests, i, rules));
+			const missing = p.names.filter((_, i) => pairs[i]?.length === 0);
+			const indispensable = p.tests
+				.map((_, k) => k)
+				.filter((k) => pairs.some((list) => list.length > 0 && list.every(([a, b]) => a === k || b === k)));
+			return { answer: orDash([...missing, ...ids(indispensable)]), unique: true };
 		}
 		case 'gaps': {
 			const cov = covered(p, p.tests, rules);
@@ -322,8 +331,7 @@ function scenario(rng: Rng, grade: string, classId: string): Params {
 		expr: render(tree, names),
 		decisions,
 		constraints,
-		tests: [],
-		target: null
+		tests: []
 	};
 	const feasibleRows = allRows(n).filter((row) => feasible(row, constraints));
 	const infeasibleRows = allRows(n).filter((row) => !feasible(row, constraints));
@@ -354,12 +362,20 @@ function scenario(rng: Rng, grade: string, classId: string): Params {
 			plant(every);
 			pad(rng.int(1, 3));
 			break;
-		case 'pairs':
-		case 'feasible-pairs':
-			p.target = rng.int(0, n - 1);
-			plant([p.target, p.target, p.target]);
-			pad(rng.int(6, 8) - rows.size);
+		case 'pairs': {
+			// A pair for all conditions but at most one, a second pair for some of them, then rows up to 7–8.
+			const shown = some(rng.int(0, 1));
+			plant([...shown, ...rng.sample(shown, rng.int(1, 2))]);
+			pad(rng.int(7, 8) - rows.size);
 			break;
+		}
+		case 'feasible-pairs': {
+			// A pair for all conditions but at most one, a second pair for some of them, then a few more rows.
+			const shown = some(rng.int(0, 1));
+			plant([...shown, ...rng.sample(shown, rng.int(1, 2))]);
+			pad(rng.int(0, 2));
+			break;
+		}
 		case 'gaps':
 			plant(some(rng.int(1, 2)));
 			pad(rng.int(1, 3));
@@ -388,9 +404,23 @@ function suits(p: Params, classId: string, answer: readonly string[]): boolean {
 		case 'min-subset':
 		case 'feasible-min':
 			return cov.every(Boolean) && answer.length < usable(p, p.tests, RIGHT).length;
-		case 'pairs':
-		case 'feasible-pairs':
-			return key(answer) !== '-';
+		case 'pairs': {
+			// Several pairs over at least two conditions, among a set where the misconceptions find other pairs.
+			const pairs = answer.filter((line) => !p.names.includes(line));
+			const shown = cov.filter(Boolean).length;
+			return pairs.length >= 3 && shown >= 2 && p.tests.length <= 9;
+		}
+		case 'feasible-pairs': {
+			// Most conditions are shown; some tests are indispensable, and some tests in pairs are not: being in a pair is
+			// not enough.
+			const tests = answer.filter((line) => !p.names.includes(line));
+			const inPair = new Set<number>();
+			p.names.forEach((_, i) => {
+				for (const [a, b] of pairsOf(p, p.tests, i, RIGHT)) inPair.add(a).add(b);
+			});
+			const missing = answer.length - tests.length;
+			return missing <= 2 && tests.length > 0 && inPair.size > tests.length && p.tests.length <= 10;
+		}
 		case 'gaps':
 			return cov.some((c) => !c) && cov.some(Boolean);
 		case 'complete':
@@ -447,7 +477,6 @@ function describe(p: Params, classId: string): string {
 		);
 	}
 	const body: string[] = [];
-	const target = `\`${p.names[p.target ?? 0] ?? ''}\``;
 	const tests = p.tests.length > 0 ? ['', 'Набор тестов:', '', ...table(p)] : [];
 	switch (classId) {
 		case 'min-subset':
@@ -468,18 +497,33 @@ function describe(p: Params, classId: string): string {
 			);
 			break;
 		case 'pairs':
-		case 'feasible-pairs':
 			body.push(
 				...tests,
 				'',
-				`Найдите в наборе все пары тестов, которые показывают независимое влияние условия ${target}.`,
+				'Найдите в наборе все пары тестов, которые показывают независимое влияние какого-либо условия, и условия, для которых такой пары в наборе нет.',
 				'',
-				'Введите пары по одной в строке, в любом порядке, каждую в виде `меньший номер-больший номер`; если таких пар нет — одна строка `-`. Например:',
+				'Введите по одному в строке, в любом порядке, пары в виде `меньший номер-больший номер` и имена условий без пары; если нет ни тех, ни других — одна строка `-`. Например:',
 				'',
 				'```',
 				'1-4',
 				'2-6',
 				'3-6',
+				'is_x',
+				'```'
+			);
+			break;
+		case 'feasible-pairs':
+			body.push(
+				...tests,
+				'',
+				'Найдите условия, для которых в наборе нет пары независимости, и незаменимые тесты: тест незаменим, если для какого-то условия в наборе есть пары независимости и каждая из них содержит этот тест — без него набор теряет MC/DC по этому условию.',
+				'',
+				'Введите имена условий без пары и номера незаменимых тестов по одному в строке, в любом порядке; если нет ни тех, ни других — одна строка `-`. Например:',
+				'',
+				'```',
+				'is_x',
+				'3',
+				'6',
 				'```'
 			);
 			break;
@@ -580,14 +624,19 @@ if cls in ("min-subset", "feasible-min"):
         if found:
             out = "\\n".join(str(k) for k, _ in found[0])
             break
-elif cls in ("pairs", "feasible-pairs"):
-    i = p["target"]
-    pairs = []
-    for a in range(len(tests)):
-        for b in range(a + 1, len(tests)):
-            if shows(tests[a], tests[b], i):
-                pairs.append(f"{a + 1}-{b + 1}")
-    out = "\\n".join(pairs) or "-"
+elif cls == "pairs":
+    lines, missing = [], []
+    for i in range(n):
+        found = [f"{a + 1}-{b + 1}" for a, b in combinations(range(len(tests)), 2) if shows(tests[a], tests[b], i)]
+        lines += [x for x in found if x not in lines]
+        if not found:
+            missing.append(names[i])
+    out = "\\n".join(lines + missing) or "-"
+elif cls == "feasible-pairs":
+    pairs = [[(a, b) for a, b in combinations(range(len(tests)), 2) if shows(tests[a], tests[b], i)] for i in range(n)]
+    missing = [names[i] for i in range(n) if not pairs[i]]
+    keep = [k + 1 for k in range(len(tests)) if any(ps and all(k in pr for pr in ps) for ps in pairs)]
+    out = "\\n".join(missing + [str(k) for k in keep]) or "-"
 elif cls == "gaps":
     got = covered(tests)
     missing = [names[i] for i in range(n) if not got >> i & 1]
@@ -679,8 +728,7 @@ export function build(input: GenerateInput): Built {
 			names: p.names,
 			expr: p.expr,
 			constraints: p.constraints,
-			tests: p.tests,
-			target: p.target
+			tests: p.tests
 		});
 		return {
 			instance,

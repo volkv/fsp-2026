@@ -16,7 +16,6 @@ import { greedyCover, QA_BUDGET, QA_TASK_TEXT, qaBuilt, type QaPrograms, qaHarne
 import type { Rng } from '../../_lib/rng.ts';
 
 const descriptor = readDescriptor(import.meta.url);
-
 type Op = '<' | '<=' | '>' | '>=';
 interface Var {
 	name: string;
@@ -375,17 +374,20 @@ function programs(program: Program, list: readonly Mutant[]): QaPrograms {
 }
 
 /**
- * Every mutant compared with the program over the whole input domain: equivalent when no input tells them apart. Kept
- * in its own function, so the domain is not held by the closures of the built instance.
+ * Every mutant compared with the program over the whole input domain: equivalent when no input tells them apart;
+ * `null` when somewhere in the domain the program prints a negative price or rounds down a negative one (the
+ * specification does not define either). Kept in its own function, so the domain is not held by
+ * the closures of the built instance.
  */
-function withEquivalence(program: Program, list: readonly Mutant[]): (Mutant & { equivalent: boolean })[] {
-	const reference = compileNumeric(program);
+function withEquivalence(program: Program, list: readonly Mutant[]): (Mutant & { equivalent: boolean })[] | null {
+	const reference = compileNumeric(program, true);
 	const runs = list.map((m) => compileNumeric(m.program));
 	const differs = new Uint8Array(list.length);
 	const x = new Float64Array(program.vars.map((v) => v.min));
 	// Every point of the domain, the last variable varying fastest, in one reused array.
 	for (;;) {
 		const expected = reference(x);
+		if (Number.isNaN(expected)) return null;
 		runs.forEach((r, i) => {
 			if (differs[i] === 0 && r(x) !== expected) differs[i] = 1;
 		});
@@ -403,8 +405,11 @@ function withEquivalence(program: Program, list: readonly Mutant[]): (Mutant & {
 	return list.map((m, i) => ({ ...m, equivalent: differs[i] === 0 }));
 }
 
-/** The program over the values of its variables in their order: `run` without lookups by name. */
-function compileNumeric(program: Program): (x: Float64Array) => number {
+/**
+ * The program over the values of its variables in their order: `run` without lookups by name. `nonNegative` — NaN
+ * when the final price is negative or a percent rule meets a negative price.
+ */
+function compileNumeric(program: Program, nonNegative = false): (x: Float64Array) => number {
 	const at = (name: string): number => program.vars.findIndex((v) => v.name === name);
 	const base = typeof program.base === 'number' ? -1 : at(program.base);
 	const baseValue = typeof program.base === 'number' ? program.base : 0;
@@ -430,9 +435,10 @@ function compileNumeric(program: Program): (x: Float64Array) => number {
 			if (a.kind === 'set') cost = a.value;
 			else if (a.kind === 'add') cost += a.value;
 			else if (a.kind === 'per') cost += a.step * ((x[rule.per] as number) - a.over);
+			else if (nonNegative && cost < 0) return NaN;
 			else cost = Math.floor((cost * a.value) / 100);
 		}
-		return cost;
+		return nonNegative && cost < 0 ? NaN : cost;
 	};
 }
 
@@ -445,6 +451,7 @@ export function build(input: GenerateInput): Built {
 	for (let tries = 0; tries < 50; tries += 1) {
 		const program = makeProgram(rng, input.classId, junior);
 		const list = withEquivalence(program, mutants(program));
+		if (list === null) continue;
 		const killable = list.filter((m) => !m.equivalent);
 		if (killable.length < 6) continue;
 		const cover = coverSet(rng, program, killable);

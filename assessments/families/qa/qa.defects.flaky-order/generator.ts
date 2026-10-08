@@ -1,6 +1,6 @@
 // An order-dependent flaky test: a matrix of runs in random order — every test's position in every run and which
 // tests failed. The tester names the tests that cause the failures. Middle: the mechanism is given (anywhere before,
-// right before, within the same module) and one polluter explains every run. Senior: the mechanism is not given —
+// one of the two places right before, within the same module) and one polluter explains every run. Senior: the mechanism is not given —
 // one or two polluters, two that are needed together, a polluter with a cleaning test, a missing setup test — and
 // exactly one explanation fits all runs. The generator enumerates every hypothesis of the level and keeps only data
 // with a single consistent one. The mechanism is the essential class; names and orders are surface.
@@ -66,7 +66,7 @@ function fails(h: Hyp, pos: ReadonlyMap<string, number>, v: string, moduleOf: Re
 		case 'precedes':
 			return at(a) < pv;
 		case 'adjacent':
-			return at(a) === pv - 1;
+			return at(a) < pv && pv - at(a) <= 2;
 		case 'module':
 			return moduleOf.get(a ?? '') === moduleOf.get(v) && at(a) < pv;
 		case 'or':
@@ -170,6 +170,7 @@ function scenario(rng: Rng, level: string, classId: string): Scenario {
 		roles = picked.slice(victimCount);
 	}
 	const truth: Hyp = { kind, tests: roles };
+	const decoy = classId === 'adjacent' ? rng.pick(tests.filter((t) => !victims.includes(t) && !roles.includes(t))) : '';
 	const runCount = middle ? rng.int(6, 8) : rng.int(8, 10);
 	const runs: Run[] = [];
 	for (let r = 0; r < runCount; r += 1) {
@@ -178,11 +179,13 @@ function scenario(rng: Rng, level: string, classId: string): Scenario {
 			const modules = rng.shuffle([...new Set(moduleOf.values())]);
 			order = modules.flatMap((m) => rng.shuffle(tests.filter((t) => moduleOf.get(t) === m)));
 		} else order = rng.shuffle(tests);
-		if (classId === 'adjacent' && rng.bool(0.6)) {
-			// Put a victim right after the polluter: otherwise it would rarely fail.
+		if (classId === 'adjacent' && rng.bool(0.5)) {
+			// Put a victim right after the polluter and the decoy, in either order: otherwise it would rarely fail, and
+			// the red runs alone could not tell the polluter from the decoy.
 			const v = rng.pick(victims);
-			order = order.filter((t) => t !== v);
-			order.splice(order.indexOf(roles[0] ?? '') + 1, 0, v);
+			const pair = rng.shuffle([roles[0] ?? '', decoy]);
+			order = order.filter((t) => t !== v && !pair.includes(t));
+			order.splice(rng.int(0, order.length), 0, ...pair, v);
 		}
 		const pos = new Map(order.map((t, i) => [t, i]));
 		runs.push({ order, failed: victims.filter((v) => fails(truth, pos, v, moduleOf)) });
@@ -204,7 +207,7 @@ def fails(kind, tests, pos, v):
     if kind == "precedes":
         return pos[tests[0]] < pos[v]
     if kind == "adjacent":
-        return pos[tests[0]] == pos[v] - 1
+        return 0 < pos[v] - pos[tests[0]] <= 2
     if kind == "module":
         return module[tests[0]] == module[v] and pos[tests[0]] < pos[v]
     if kind == "or":
@@ -243,7 +246,7 @@ const MECHANISM: Record<string, string> = {
 	precedes:
 		'Известно: падения вызывает один тест-загрязнитель (сам он не падает). Тест-жертва падает в прогоне тогда и только тогда, когда загрязнитель выполнился в этом прогоне раньше неё — в любом месте.',
 	adjacent:
-		'Известно: падения вызывает один тест-загрязнитель (сам он не падает). Он оставляет открытую транзакцию, и её получает только следующий тест: тест-жертва падает тогда и только тогда, когда загрязнитель выполнился **непосредственно перед ней**. Чувствительных тестов несколько.',
+		'Известно: падения вызывает один тест-загрязнитель (сам он не падает). Он запускает фоновую задачу, которая портит общий кэш, пока выполняются два следующих за ним теста: тест-жертва падает тогда и только тогда, когда она выполнилась **сразу после загрязнителя или через один тест после него**. Чувствительных тестов несколько.',
 	module:
 		'Тесты лежат в модулях; модуль выполняется целиком, модули идут по очереди, и перед каждым модулем база создаётся заново. Известно: падения вызывает один тест-загрязнитель (сам он не падает). Тест-жертва падает тогда и только тогда, когда загрязнитель выполнился раньше неё **в том же модуле**.'
 };
@@ -277,13 +280,17 @@ function describe(sc: Scenario, level: string, kind: Kind): string {
 		'Набор автотестов запускают в случайном порядке, и он иногда краснеет. Тесты пользуются общим состоянием (база, кэш, глобальные настройки). В таблице — позиция каждого теста в каждом прогоне (1 — выполнился первым); `*` — тест в этом прогоне упал. Других причин падений нет.';
 	const body =
 		level === 'middle'
-			? [MECHANISM[kind] ?? '', '', 'Какой тест — загрязнитель? Введите его имя. Например: `test_cart_merge`.']
+			? [
+					MECHANISM[kind] ?? '',
+					'',
+					'Какой тест — загрязнитель? Введите имя тестовой функции без имени файла и `::`. Например: `test_cart_merge`.'
+				]
 			: [
 					'Падения вызывает порядок выполнения. Возможные механизмы (у всех упавших тестов он один и тот же):',
 					'',
 					...SENIOR_MECHANISMS.map((m, i) => `${i + 1}. ${m}`),
 					'',
-					'Тесты-причины сами не падают. С данными согласуется ровно одно объяснение. Назовите тесты-причины: загрязнителя (или обоих), загрязнителя вместе с очищающим тестом или тест, готовящий данные. Введите имена по одному в строке, в любом порядке. Например:',
+					'Тесты-причины сами не падают. С данными согласуется ровно одно объяснение. Назовите тесты-причины: загрязнителя (или обоих), загрязнителя вместе с очищающим тестом или тест, готовящий данные. Введите имена тестовых функций без имени файла и `::`, по одному в строке, в любом порядке. Например:',
 					'',
 					'```',
 					'test_cart_merge',
@@ -323,6 +330,17 @@ export function build(input: GenerateInput): Built {
 			consistent(h, indexed, sc.victims, sc.moduleOf)
 		);
 		if (found.length !== 1) continue;
+		// One of two places: no single run settles the polluter, and the red cells of all runs together leave a second
+		// suspect — only the green cells rule it out.
+		if (cls.id === 'adjacent') {
+			const all = hypotheses(input.grade, kind, sc.tests, sc.victims);
+			if (
+				all.filter((h) => indexed.every((run) => [...run.failed].every((v) => fails(h, run.pos, v, sc.moduleOf))))
+					.length < 2
+			)
+				continue;
+			if (indexed.some((run) => all.filter((h) => consistent(h, [run], sc.victims, sc.moduleOf)).length < 2)) continue;
+		}
 		const answer = [...sc.truth.tests].sort();
 		if (JSON.stringify([...(found[0]?.tests ?? [])].sort()) !== JSON.stringify(answer)) continue;
 		const firstRed = sc.runs.find((r) => r.failed.length > 0);

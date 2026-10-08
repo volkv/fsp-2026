@@ -40,6 +40,7 @@ interface Rules {
 	counterTotal: boolean;
 	noReset: boolean;
 	eventCoverage: boolean;
+	noLock: boolean;
 }
 
 const RIGHT: Rules = {
@@ -47,7 +48,8 @@ const RIGHT: Rules = {
 	selfLoopRejected: false,
 	counterTotal: false,
 	noReset: false,
-	eventCoverage: false
+	eventCoverage: false,
+	noLock: false
 };
 
 const t = (from: string, event: string, to: string): Transition => ({ from, event, to });
@@ -165,7 +167,7 @@ function trace(p: Params, rules: Rules): string {
 		if (p.lockAfter !== null) {
 			if (event === 'login_fail') {
 				fails += 1;
-				if (fails >= p.lockAfter) {
+				if (fails >= p.lockAfter && !rules.noLock) {
 					state = 'LOCKED';
 					fails = 0;
 				}
@@ -367,14 +369,15 @@ const WRONG: Record<string, Partial<Rules>> = {
 	'self-loop-rejected': { selfLoopRejected: true },
 	'counter-total': { counterTotal: true },
 	'no-reset': { noReset: true },
-	'event-coverage': { eventCoverage: true }
+	'event-coverage': { eventCoverage: true },
+	'no-lock': { noLock: true }
 };
 
 /** The misconceptions every instance of a class must expose. */
 const REQUIRED: Record<string, string[]> = {
 	'intern/order': ['invalid-changes'],
 	'intern/self-loops': ['self-loop-rejected', 'invalid-changes'],
-	'intern/counter': ['counter-total', 'invalid-changes'],
+	'intern/counter': ['counter-total', 'invalid-changes', 'no-lock'],
 	'intern/terminal': ['invalid-changes', 'self-loop-rejected'],
 	'junior/reset': ['no-reset'],
 	'junior/same-event': ['event-coverage'],
@@ -403,9 +406,9 @@ export function build(input: GenerateInput): Built {
 		if (!fits(p, input.grade, input.classId, answer)) continue;
 		const wrong = Object.fromEntries(
 			Object.entries(WRONG).map(([id, change]) => {
-				// The counter misconception is about the login machine only; self-loops of the login machine are counted
+				// The counter misconceptions are about the login machine only; self-loops of the login machine are counted
 				// by its own rules.
-				if (id === 'counter-total' && p.lockAfter === null) return [id, null];
+				if ((id === 'counter-total' || id === 'no-lock') && p.lockAfter === null) return [id, null];
 				if (id === 'self-loop-rejected' && p.lockAfter !== null) return [id, null];
 				const value = solve(p, input.grade, { ...RIGHT, ...change });
 				return [id, value === answer ? null : value];

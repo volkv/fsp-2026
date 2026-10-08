@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.7,
+						"ratedAt": "2026-10-07",
+						"sourceSha256": "7a1d7297ab744c46f327f652617f24a70a5195e69e6616585c31a75d3cb2452d"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.75,
+						"ratedAt": "2026-10-07",
+						"sourceSha256": "7a1d7297ab744c46f327f652617f24a70a5195e69e6616585c31a75d3cb2452d"
+					}
+				],
+				"mean": 0.75
+			},
 			"constructive": {
 				"fields": 1,
 				"ranges": "1–2",
@@ -42,7 +59,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.6,
+						"ratedAt": "2026-10-07",
+						"sourceSha256": "7a1d7297ab744c46f327f652617f24a70a5195e69e6616585c31a75d3cb2452d"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.7,
+						"ratedAt": "2026-10-07",
+						"sourceSha256": "7a1d7297ab744c46f327f652617f24a70a5195e69e6616585c31a75d3cb2452d"
+					}
+				],
+				"mean": 0.65
+			},
 			"constructive": {
 				"fields": 1,
 				"ranges": "3–5",
@@ -140,6 +174,27 @@
 		"answerCollision": 0,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-07",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчитано вручную все 8 экземпляров (строгие и нестрогие концы, смежные ступени, исключённые значения, пересечение с пределом режима, трёхточечный анализ): ответы эталона верны. Генератор на других сидах не запускал.",
+					"Мелочь: бинарная рубрика на наборе из 10–15 чисел (junior three-point-tiers) обнуляет ответ из-за одной пропущенной границы; учтено в Angoff."
+				],
+				"sourceSha256": "7a1d7297ab744c46f327f652617f24a70a5195e69e6616585c31a75d3cb2452d"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-07",
+				"verdict": "approved",
+				"remarks": [
+					"Независимо пересчитал все 8 показанных наборов символическими соседями границ и собственной реализацией условий на Python 3.12.3; эталоны совпали. Проверены исключения, пересечение пределов выбранного режима, строгие сравнения и заданное определение трёхточечного метода; заявленные ошибочные наборы отличаются от правильных. Полный диапазон сидов не проверял.",
+					"Angoff учитывает binary: Junior должен без пропусков ввести 10–15 значений в некоторых классах. Порядок набора произвольный, чекер set убирает повторы и пробелы вокруг элементов; штраф за единственный пропуск остаётся частью трудности."
+				],
+				"sourceSha256": "7a1d7297ab744c46f327f652617f24a70a5195e69e6616585c31a75d3cb2452d"
+			}
+		]
 	}
 }

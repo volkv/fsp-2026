@@ -146,10 +146,11 @@ function makeForm(rng: Rng, classId: string, junior: boolean): Form {
 	const notice = rng.int(5, 14);
 	const rules: Rule[] = [
 		{ when: [{ field: 'days', op: '<', c: 1 }], out: 'E_DAYS' },
+		// Intern has at most one rule over two fields: the cap on days holds for every type there.
 		{
 			when: [
-				{ field: 'type', op: 'notin', values: ['sick'] },
-				{ field: 'days', op: '>', c: maxDays }
+				...(junior ? [{ field: 'type', op: 'notin' as const, values: ['sick'] }] : []),
+				{ field: 'days', op: '>' as const, c: maxDays }
 			],
 			out: 'E_DAYS'
 		},

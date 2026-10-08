@@ -97,6 +97,14 @@ function affected(p: Params, rules: Rules): Set<number> {
 	return out;
 }
 
+/** The impact crosses at least one API edge, from a module whose API changed: the API rule both passes and blocks. */
+function passesChangedApi(p: Params): boolean {
+	const hit = affected(p, RIGHT);
+	const changed = new Set(p.changed.map((c) => c.module));
+	const apiChanged = new Set(p.changed.filter((c) => c.api).map((c) => c.module));
+	return p.edges.some((e) => e.api && apiChanged.has(e.provider) && hit.has(e.user) && !changed.has(e.user));
+}
+
 function solve(p: Params, rules: Rules): string[] {
 	const hit = affected(p, rules);
 	const changed = new Set(p.changed.map((c) => c.module));
@@ -211,7 +219,7 @@ function describe(p: Params, classId: string): string {
 	if (classId === 'contracts')
 		out.push(
 			'',
-			'Контрактный тест «потребитель → поставщик» проверяет, что поставщик выполняет ожидания потребителя; он входит в регрессию, только если изменён сам потребитель или сам поставщик.'
+			'Контрактный тест «потребитель → поставщик» проверяет, что поставщик выполняет ожидания потребителя; он входит в регрессию тогда и только тогда, когда изменён сам потребитель или сам поставщик.'
 		);
 	if (classId === 'stable-api')
 		out.push(
@@ -270,7 +278,7 @@ const WRONG: Record<string, Partial<Rules>> = {
 const REQUIRED: Record<string, string[]> = {
 	transitive: ['direct-only', 'reverse-direction', 'forget-always'],
 	contracts: ['contract-transitive', 'reverse-direction'],
-	'stable-api': ['ignore-stable-api'],
+	'stable-api': ['ignore-stable-api', 'direct-only'],
 	quarantine: ['keep-quarantined', 'direct-only']
 };
 
@@ -290,6 +298,7 @@ export function build(input: GenerateInput): Built {
 			wrong[id] = key(value) === key(answer) ? null : value;
 		}
 		if ((REQUIRED[classId] ?? []).some((id) => wrong[id] === null)) continue;
+		if (classId === 'stable-api' && !passesChangedApi(p)) continue;
 		const instance = makeInstance(descriptor, input, {
 			statement: { markdown: describe(p, classId), code: null },
 			answer: { kind: 'set', value: answer }

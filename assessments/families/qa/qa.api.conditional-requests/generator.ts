@@ -456,15 +456,23 @@ const REQUIRED: Record<string, string[]> = {
 	'senior/create-and-delete': ['star-always-matches']
 };
 
+/** The responses every instance of a class must contain: what the class is about has to happen in the feed. */
+const SHOWN: Record<string, string[]> = {
+	'senior/create-and-delete': ['201', '404', '412']
+};
+
 export function build(input: GenerateInput): Built {
 	levelAndClass(descriptor, input);
 	const rng = instanceRng(descriptor, input);
 	const required = REQUIRED[`${input.grade}/${input.classId}`] ?? [];
+	const shown = SHOWN[`${input.grade}/${input.classId}`] ?? [];
 	// Feeds are drawn until every misconception the class is about changes the answer.
 	for (let tries = 0; tries < 500; tries += 1) {
 		const p = scenario(rng, input.grade, input.classId);
 		const answer = simulate(p, RIGHT);
 		if (answer === null) continue;
+		const codes = answer.split(' ');
+		if (shown.some((code) => !codes.includes(code))) continue;
 		const wrong = Object.fromEntries(
 			Object.entries(WRONG).map(([id, change]) => {
 				const value = simulate(p, { ...RIGHT, ...change });

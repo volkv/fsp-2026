@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "middle",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.5,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "3166d6ef00b09116e13aa97a0f0e7f2aec0e4b18b2744ecab127c8e0ddf148f2"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "3166d6ef00b09116e13aa97a0f0e7f2aec0e4b18b2744ecab127c8e0ddf148f2"
+					}
+				],
+				"mean": 0.55
+			},
 			"constructive": {
 				"classes": "1–2 класса тестов, 2–4 теста",
 				"fixtures": "setUpClass, addClassCleanup, addCleanup, ExitStack, наследование setUp",
@@ -41,7 +58,24 @@
 		},
 		{
 			"grade": "senior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.4,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "3166d6ef00b09116e13aa97a0f0e7f2aec0e4b18b2744ecab127c8e0ddf148f2"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "3166d6ef00b09116e13aa97a0f0e7f2aec0e4b18b2744ecab127c8e0ddf148f2"
+					}
+				],
+				"mean": 0.5
+			},
 			"constructive": {
 				"classes": "1–3 класса тестов, примеси",
 				"fixtures": "очистка уровня класса и теста, enterContext, suppress, цепочки super()",
@@ -208,6 +242,30 @@
 		"answerCollision": 0.0001,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Исполнил код всех 8 экземпляров (CPython 3.12.3, python3 -I во временной папке): вывод построчно совпал с ожидаемым. Исполнение на 3.13 не проверял; различий в поведении TestCase.enterContext, addClassCleanup и ExitStack между 3.12 и 3.13 по моим сведениям нет (не проверено).",
+					"Прежние существенные замечания устранены: условие называет CPython 3.12–3.13 и фиксирует алфавитный порядок запуска test* методов (он влияет на ответы cleanup-error, exit-stack, enter-context). Счёт errors в итоговой строке (setUpClass и tearDownClass считаются отдельными ошибками, тесты упавшего класса в run не входят) следует из стандартного unittest и воспроизводится исполнением.",
+					"Мелкое: ответ binary и длинный (до 21 строки на middle/cleanup-error и exit-stack); одна перестановка обнуляет задание. Это учтено в Angoff. Senior остаётся трассировкой готовой процедуры (замечание формата банка по решению ведущего)."
+				],
+				"sourceSha256": "3166d6ef00b09116e13aa97a0f0e7f2aec0e4b18b2744ecab127c8e0ddf148f2"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Прежние замечания к среде и порядку устранены: условие задаёт CPython 3.12–3.13 и сортировку имён test*-методов. enterContext доступен в названной среде; порядок объявления методов больше не даёт альтернативного прочтения.",
+					"Middle, cleanup-error и exit-stack, экземпляры 1: ответы содержат по 21 строке, а binary обнуляет результат при единственном пропуске или перестановке. Рекомендую parts по отдельным тестам и итоговой статистике; текущая бинарность учтена в Angoff.",
+					"Проверка: исполнил код условий всех 8 экземпляров в отдельных процессах CPython 3.12.3; выводы полностью совпали построчно. Проверил восстановление экземпляров из генератора и отличие 25 применимых ошибочных ответов. Полные ворота на 200 сидах каждого класса и запуск на CPython 3.13 не выполнял.",
+					"Angoff для binary: Middle 0.55, Senior 0.60. За 420/480 с нужно восстановить всю последовательность LIFO, исключений, фикстур и итоговых счётчиков. Senior-формат исполнения готовой процедуры принят согласно решению ведущего; самостоятельный выбор стратегии этим семейством не проверяется."
+				],
+				"sourceSha256": "3166d6ef00b09116e13aa97a0f0e7f2aec0e4b18b2744ecab127c8e0ddf148f2"
+			}
+		]
 	}
 }

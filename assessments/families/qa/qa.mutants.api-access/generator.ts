@@ -147,6 +147,23 @@ function makeApi(rng: Rng, classId: string): Api {
 	};
 }
 
+/**
+ * The rules of each class, as indices into its pool: the rules in force, the rule the change step brings and, for
+ * Senior, the rule it replaces (the table keeps its size). The mechanisms are the class's own; limits of size and the
+ * order of the fields in the input line are what varies. Every task has a limit of size (requests far from it
+ * are the typical-only misconception), and no rule of a set is shadowed by an earlier one with the same answer.
+ */
+const SETS: Record<string, { rules: number[]; extra: number; dropped: number | null }> = {
+	'middle/articles': { rules: [1, 3, 4, 5], extra: 2, dropped: null },
+	'middle/files': { rules: [0, 1, 2, 4], extra: 3, dropped: null },
+	'middle/tickets': { rules: [0, 2, 3, 4], extra: 6, dropped: null },
+	'middle/calendar': { rules: [1, 2, 3, 5], extra: 0, dropped: null },
+	'senior/articles': { rules: [1, 2, 3, 4, 5], extra: 6, dropped: 2 },
+	'senior/files': { rules: [0, 1, 2, 4, 5], extra: 3, dropped: 0 },
+	'senior/tickets': { rules: [0, 2, 3, 4, 6], extra: 5, dropped: 0 },
+	'senior/calendar': { rules: [1, 2, 3, 4, 5], extra: 6, dropped: 5 }
+};
+
 /** One part of the cluster: the program, its mutants with their equivalence, the kill matrix and the author's cover. */
 interface Part {
 	program: RuleProgram;
@@ -211,17 +228,14 @@ const toPrograms = (x: { program: RuleProgram; list: readonly RuleMutant[] }): Q
 export function build(input: GenerateInput): Built {
 	levelAndClass(descriptor, input);
 	const rng = instanceRng(descriptor, input);
-	const senior = input.grade === 'senior';
 	for (let tries = 0; tries < 80; tries += 1) {
 		const drawn = makeApi(rng, input.classId);
 		// The order of the fields in the input line is surface: the rules name the fields.
 		const api: Api = { ...drawn, fields: rng.shuffle(drawn.fields) };
-		// The rules in force: a subset of the pool in its order; one rule left out arrives with the change step.
-		// The rules in force: a subset of the pool in its order. The change step brings a rule of the pool left out:
-		// Middle adds it, Senior puts it in place of one of the rules in force (the table keeps its size).
-		const chosen = new Set(rng.sample([...api.pool.keys()], senior ? 5 : 4));
-		const extra = rng.pick([...api.pool.keys()].filter((i) => !chosen.has(i)));
-		const dropped = senior ? rng.pick([...chosen]) : null;
+		const set = SETS[`${input.grade}/${input.classId}`];
+		if (!set) throw new Error(`${descriptor.key}: no rules for ${input.grade}/${input.classId}`);
+		const chosen = new Set(set.rules);
+		const { extra, dropped } = set;
 		const before = api.pool.filter((_, i) => chosen.has(i));
 		const after = api.pool.filter((_, i) => (chosen.has(i) && i !== dropped) || i === extra);
 		const task = solvePart(rng, program(api.fields, before));

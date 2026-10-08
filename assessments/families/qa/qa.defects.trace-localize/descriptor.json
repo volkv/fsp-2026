@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.65,
+						"ratedAt": "2026-10-07",
+						"sourceSha256": "ea4ccdb045ee0fbdf11bd760d3853083803343867dd11ae13f0ebbe2cc9361bb"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.65,
+						"ratedAt": "2026-10-07",
+						"sourceSha256": "ea4ccdb045ee0fbdf11bd760d3853083803343867dd11ae13f0ebbe2cc9361bb"
+					}
+				],
+				"mean": 0.65
+			},
 			"constructive": { "steps": "4–5", "requests": 1, "defect": "один шаг нарушает свой контракт" },
 			"constructiveRank": 2,
 			"timeNormSec": 240,
@@ -33,7 +50,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.5,
+						"ratedAt": "2026-10-07",
+						"sourceSha256": "ea4ccdb045ee0fbdf11bd760d3853083803343867dd11ae13f0ebbe2cc9361bb"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.6,
+						"ratedAt": "2026-10-07",
+						"sourceSha256": "ea4ccdb045ee0fbdf11bd760d3853083803343867dd11ae13f0ebbe2cc9361bb"
+					}
+				],
+				"mean": 0.55
+			},
 			"constructive": {
 				"steps": 6,
 				"requests": 3,
@@ -115,6 +149,28 @@
 		"answerCollision": 0.0034,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-07",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчитано вручную все 8 экземпляров: каждый шаг трассы до первого нарушения проверен по контракту, ожидаемые значения совпадают с эталоном; в junior до нарушения чистые запросы действительно чисты. Генератор на других сидах не запускал.",
+					"Мелочь: junior — 3 запроса по 6 шагов, включая деление на курс вида 92063·100/1308 вручную за 360 с; без калькулятора это тяжело для пограничного кандидата. Учтено в Angoff."
+				],
+				"sourceSha256": "ea4ccdb045ee0fbdf11bd760d3853083803343867dd11ae13f0ebbe2cc9361bb"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-07",
+				"verdict": "approved",
+				"remarks": [
+					"Intern, boundary (A), i=0: описание класса обещает изменение ветки следующего шага, но в показанном экземпляре этого нет. Исправный discount выдаёт 127800, после coupon получается 112800; фактически после coupon получается 127000. Обе суммы выше порога shipping=56000, обе ветки coupon также ненулевые. Убрать обещание изменения последующей ветки из описания класса либо обеспечить такой переход генератором; поиск первого нарушения и ответ discount 127800 остаются корректными.",
+					"Независимо пересчитал все 8 экземпляров по текстам контрактов и фактическим входам каждого шага собственной программой на Python 3.12.3; ответы совпали с эталонами. Проверил порядок первого нарушившего запроса/шага и отличия всех заявленных ошибочных ответов. Все сиды и работу реального сервиса расчёта цен не проверял.",
+					"Angoff учитывает binary и точную арифметику: для Junior приходится проверять до 18 шагов, включая деление при конвертации и округление; за 360 секунд одна ошибка в имени шага или числе обнуляет ответ."
+				],
+				"sourceSha256": "ea4ccdb045ee0fbdf11bd760d3853083803343867dd11ae13f0ebbe2cc9361bb"
+			}
+		]
 	}
 }

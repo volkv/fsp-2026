@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.5,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "69a8af124170638bf2ec666b21af48094b06a52b6af065073f392a5cc4c2986d"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "69a8af124170638bf2ec666b21af48094b06a52b6af065073f392a5cc4c2986d"
+					}
+				],
+				"mean": 0.55
+			},
 			"constructive": {
 				"tests": "5–9 методов",
 				"outcomes": "успех, провал, ошибка, пропуск, ожидаемый провал, неожиданный успех",
@@ -117,6 +134,29 @@
 		"answerCollision": 0,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Исполнил код всех 4 экземпляров (CPython 3.12.3, python3 -I), вывод сравнён по словам с ожидаемым: совпал. Вручную сверил исходы: KeyError внутри subTest и вне него — ошибки, упавший assertLess в subTest — отдельная запись, пропущенные тесты входят в testsRun, setUp с исключением или skipTest не запускает tearDown, tearDown после провала даёт и failure, и error для одного метода. Python 3.13 не запускал.",
+					"Прежние замечания устранены: условие называет CPython 3.12–3.13 и показывает формат id() подтеста с примерами `(n=3)` и `(name='a')`; ответ собирается из короткого имени метода и этого описания, формат однозначен.",
+					"Мелкое: ответ binary и состоит из testsRun и пяти списков; одна пропущенная запись обнуляет задание, особенно в fixture-errors (тест может попасть и в failures, и в errors). Учтено в Angoff."
+				],
+				"sourceSha256": "69a8af124170638bf2ec666b21af48094b06a52b6af065073f392a5cc4c2986d"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Прежние существенные замечания устранены: условие задаёт CPython 3.12–3.13 и формат id() подтестов с примерами числового и строкового параметра. Форма записей subTest в ответе теперь выводится из явно указанного контракта.",
+					"Проверка: исполнил код условий всех 4 экземпляров в отдельных процессах CPython 3.12.3; testsRun и все пять списков совпали по токенам. Проверил отдельные записи subTest, expectedFailure, пропуски и сочетание failure/error одного метода, а также отличие 14 применимых ошибочных ответов. Полные ворота на 200 сидах каждого класса и CPython 3.13 не проверял.",
+					"Angoff для binary: Junior 0.55. За 360 с требуется полный ответ по пяти спискам; одна ошибка в учёте фикстур или лексикографическом порядке параметров обнуляет результат. Явные примеры id() устраняют прежнюю дополнительную трудность оформления; рекомендую parts по testsRun и независимым спискам."
+				],
+				"sourceSha256": "69a8af124170638bf2ec666b21af48094b06a52b6af065073f392a5cc4c2986d"
+			}
+		]
 	}
 }

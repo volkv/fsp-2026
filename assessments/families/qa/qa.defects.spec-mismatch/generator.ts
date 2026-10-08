@@ -21,8 +21,17 @@ interface Fn {
 	lines: string[];
 	/** Python statements, each raising when the specification is broken. */
 	checks: string[];
-	/** `line` and `neighbour.line` are 0-based within the function. */
-	defects: { kind: string; line: number; text: string; neighbour: { line: number; text: string } }[];
+	/**
+	 * `line`, `neighbour.line` and `alternatives[].line` are 0-based within the function; `alternatives` — other lines
+	 * whose one-instruction replacement also restores the specification.
+	 */
+	defects: {
+		kind: string;
+		line: number;
+		text: string;
+		neighbour: { line: number; text: string };
+		alternatives?: { line: number; text: string }[];
+	}[];
 }
 
 const INTERN: Fn[] = [
@@ -97,8 +106,8 @@ const INTERN: Fn[] = [
 		name: 'discounted_price',
 		lines: [
 			'def discounted_price(price, percent, coupon):',
-			'    """Цена в рублях: сначала скидка percent процентов от price (дробная часть рубля отбрасывается),',
-			'    затем вычитается купон coupon рублей. Цена не бывает меньше 0."""',
+			'    """Цена в рублях: сначала price уменьшается на percent процентов, и у полученной цены дробная',
+			'    часть рубля отбрасывается; затем вычитается купон coupon рублей. Цена не бывает меньше 0."""',
 			'    result = price * (100 - percent) // 100 - coupon',
 			'    return max(result, 0)'
 		],
@@ -118,7 +127,7 @@ const INTERN: Fn[] = [
 			{
 				kind: 'rounding',
 				line: 3,
-				text: '    result = round(price * (100 - percent) / 100) - coupon',
+				text: '    result = -(-price * (100 - percent) // 100) - coupon',
 				neighbour: { line: 4, text: '    return result if result > 0 else 0' }
 			}
 		]
@@ -267,8 +276,8 @@ const INTERN: Fn[] = [
 		name: 'vat_part',
 		lines: [
 			'def vat_part(total):',
-			'    """НДС 20 % внутри суммы total в копейках: total * 20 / 120, округление до копейки по правилам',
-			'    арифметики — половина копейки округляется вверх."""',
+			'    """НДС 20 % внутри суммы total в копейках (целое total >= 0): total * 20 / 120, округление до копейки',
+			'    по правилам арифметики — половина копейки округляется вверх."""',
 			'    return (total * 20 + 60) // 120'
 		],
 		checks: [
@@ -284,12 +293,6 @@ const INTERN: Fn[] = [
 				line: 3,
 				text: '    return total * 20 // 120',
 				neighbour: { line: 0, text: 'def vat_part(total=0):' }
-			},
-			{
-				kind: 'rounding',
-				line: 3,
-				text: '    return round(total * 20 / 120)',
-				neighbour: { line: 0, text: 'def vat_part(total=120):' }
 			}
 		]
 	},
@@ -366,7 +369,7 @@ const INTERN: Fn[] = [
 		lines: [
 			'def price_with_tax(net, discount):',
 			'    """Цена с налогом в рублях: сначала из net вычитается скидка discount рублей, затем начисляется',
-			'    налог 20 %; дробная часть рубля отбрасывается."""',
+			'    налог 20 %; дробная часть рубля отбрасывается. Скидка не больше цены: целые 0 <= discount <= net."""',
 			'    return (net - discount) * 120 // 100'
 		],
 		checks: [
@@ -384,7 +387,7 @@ const INTERN: Fn[] = [
 			{
 				kind: 'rounding',
 				line: 3,
-				text: '    return round((net - discount) * 1.2)',
+				text: '    return round((net - discount) * 120 / 100)',
 				neighbour: { line: 0, text: 'def price_with_tax(net, discount=0):' }
 			}
 		]
@@ -415,6 +418,189 @@ const INTERN: Fn[] = [
 				neighbour: { line: 4, text: '        if applies is True:' }
 			}
 		]
+	},
+	{
+		name: 'average_rating',
+		lines: [
+			'def average_rating(scores):',
+			'    """Средняя оценка: среднее арифметическое списка scores, округлённое до целого функцией round',
+			'    (половина — к ближайшему чётному); оценки — целые от 1 до 5; пустой список — 0."""',
+			'    if not scores:',
+			'        return 0',
+			'    return round(sum(scores) / len(scores))'
+		],
+		checks: [
+			'assert average_rating([5, 4, 4]) == 4',
+			'assert average_rating([4, 5, 5]) == 5',
+			'assert average_rating([3, 4]) == 4',
+			'assert average_rating([2, 3]) == 2',
+			'assert average_rating([2]) == 2',
+			'assert average_rating([]) == 0'
+		],
+		defects: [
+			{
+				kind: 'rounding',
+				line: 5,
+				text: '    return sum(scores) // len(scores)',
+				neighbour: { line: 3, text: '    if len(scores) == 0:' }
+			},
+			{
+				kind: 'logic',
+				line: 3,
+				text: '    if scores:',
+				neighbour: { line: 5, text: '    return round(sum(scores) / max(len(scores), 1))' }
+			}
+		]
+	},
+	{
+		name: 'boxes_needed',
+		lines: [
+			'def boxes_needed(items):',
+			'    """Сколько коробок нужно для items штук товара (items >= 0): в коробку входит 12 штук,',
+			'    неполная коробка тоже нужна."""',
+			'    return -(-items // 12)'
+		],
+		checks: [
+			'assert boxes_needed(0) == 0',
+			'assert boxes_needed(1) == 1',
+			'assert boxes_needed(12) == 1',
+			'assert boxes_needed(13) == 2',
+			'assert boxes_needed(24) == 2'
+		],
+		defects: [
+			{
+				kind: 'rounding',
+				line: 3,
+				text: '    return items // 12 + 1',
+				neighbour: { line: 0, text: 'def boxes_needed(items=0):' }
+			},
+			{
+				kind: 'rounding',
+				line: 3,
+				text: '    return items // 12',
+				neighbour: { line: 0, text: 'def boxes_needed(items=12):' }
+			}
+		]
+	},
+	{
+		name: 'percent_done',
+		lines: [
+			'def percent_done(done, total):',
+			'    """Процент выполнения: done * 100 / total, округлённый до целого функцией round (половина — к',
+			'    ближайшему чётному); целые 0 <= done <= total, 0 < total <= 10**6."""',
+			'    return round(done * 100 / total)'
+		],
+		checks: [
+			'assert percent_done(1, 3) == 33',
+			'assert percent_done(2, 3) == 67',
+			'assert percent_done(1, 8) == 12',
+			'assert percent_done(3, 8) == 38',
+			'assert percent_done(5, 5) == 100',
+			'assert percent_done(0, 4) == 0'
+		],
+		defects: [
+			{
+				kind: 'rounding',
+				line: 3,
+				text: '    return done * 100 // total',
+				neighbour: { line: 0, text: 'def percent_done(done, total=100):' }
+			}
+		]
+	},
+	{
+		name: 'unique_tags',
+		lines: [
+			'def unique_tags(tags):',
+			'    """Теги без повторов: пробелы по краям убираются, тег приводится к нижнему регистру; результат —',
+			'    список по возрастанию в обычном сравнении строк Python (по кодам символов)."""',
+			'    return sorted({tag.strip().lower() for tag in tags})'
+		],
+		checks: [
+			'assert unique_tags([" Python", "python ", "SQL"]) == ["python", "sql"]',
+			'assert unique_tags(["b", "A", "a"]) == ["a", "b"]',
+			'assert unique_tags([]) == []',
+			'assert unique_tags(["ёлка", "жук"]) == ["жук", "ёлка"]'
+		],
+		defects: []
+	},
+	{
+		name: 'night_tariff',
+		lines: [
+			'def night_tariff(hour):',
+			'    """Ночной тариф действует с 23:00 до 06:00: час hour (целое от 0 до 23) строго больше 22',
+			'    или строго меньше 6."""',
+			'    return hour > 22 or hour < 6'
+		],
+		checks: [
+			'assert night_tariff(23)',
+			'assert night_tariff(0)',
+			'assert night_tariff(5)',
+			'assert not night_tariff(22)',
+			'assert not night_tariff(6)',
+			'assert not night_tariff(12)'
+		],
+		defects: [
+			{
+				kind: 'boundary',
+				line: 3,
+				text: '    return hour >= 22 or hour < 6',
+				neighbour: { line: 0, text: 'def night_tariff(hour=0):' }
+			},
+			{
+				kind: 'logic',
+				line: 3,
+				text: '    return hour > 22 and hour < 6',
+				neighbour: { line: 0, text: 'def night_tariff(hour=23):' }
+			}
+		]
+	},
+	{
+		name: 'baggage_fee',
+		lines: [
+			'def baggage_fee(weight):',
+			'    """Доплата за багаж: при весе weight строго больше 20 кг — 1500 рублей, иначе 0."""',
+			'    return 1500 if weight > 20 else 0'
+		],
+		checks: ['assert baggage_fee(20) == 0', 'assert baggage_fee(21) == 1500', 'assert baggage_fee(5) == 0'],
+		defects: [
+			{
+				kind: 'boundary',
+				line: 2,
+				text: '    return 1500 if weight >= 20 else 0',
+				neighbour: { line: 0, text: 'def baggage_fee(weight=0):' }
+			}
+		]
+	},
+	{
+		name: 'free_entry',
+		lines: [
+			'def free_entry(age, student, exhibition):',
+			'    """В дни выставок (exhibition = True) вход платный для всех; в остальные дни он бесплатный',
+			'    детям младше 7 лет и студентам (student)."""',
+			'    return (age < 7 or student) and not exhibition'
+		],
+		checks: [
+			'assert free_entry(6, False, False)',
+			'assert not free_entry(7, False, False)',
+			'assert free_entry(30, True, False)',
+			'assert not free_entry(6, False, True)',
+			'assert not free_entry(30, True, True)',
+			'assert not free_entry(30, False, False)'
+		],
+		defects: [
+			{
+				kind: 'boundary',
+				line: 3,
+				text: '    return (age <= 7 or student) and not exhibition',
+				neighbour: { line: 0, text: 'def free_entry(age, student=False, exhibition=False):' }
+			},
+			{
+				kind: 'logic',
+				line: 3,
+				text: '    return age < 7 or student and not exhibition',
+				neighbour: { line: 0, text: 'def free_entry(age, student=True, exhibition=False):' }
+			}
+		]
 	}
 ];
 
@@ -423,7 +609,7 @@ const JUNIOR: Fn[] = [
 		name: 'loan_decision',
 		lines: [
 			'def loan_decision(age, income, debt):',
-			'    """Решение по заявке на кредит, правила проверяются по порядку:',
+			'    """Решение по заявке на кредит (целые 0 < income <= 10**9, 0 <= debt <= 10**9), правила по порядку:',
 			'    - возраст вне 21..70 (оба конца включены) — "reject";',
 			'    - нагрузка debt / income больше 0.5 — "reject";',
 			'    - доход от 100000 включительно и нагрузка не больше 0.3 — "approve";',
@@ -476,7 +662,7 @@ const JUNIOR: Fn[] = [
 			{
 				kind: 'combination',
 				line: 6,
-				text: '    if age < 21 and age > 70:',
+				text: '    if age < 21 or age > 70 and income < 100000:',
 				neighbour: { line: 8, text: '    load = debt / max(income, 1)' }
 			},
 			{
@@ -491,7 +677,7 @@ const JUNIOR: Fn[] = [
 		name: 'cart_total',
 		lines: [
 			'def cart_total(lines):',
-			'    """Итог корзины в копейках. lines — пары (цена в копейках, количество). На позицию с количеством',
+			'    """Итог корзины в копейках. lines — пары целых чисел (цена в копейках, количество). На позицию с количеством',
 			'    от 10 штук включительно — скидка 5 % от стоимости позиции; скидка каждой позиции округляется',
 			'    вниз до копейки отдельно, затем позиции складываются."""',
 			'    total = 0',
@@ -512,7 +698,7 @@ const JUNIOR: Fn[] = [
 			{
 				kind: 'rounding-step',
 				line: 8,
-				text: '            amount -= round(amount * 0.05)',
+				text: '            amount -= round(amount * 5 / 100)',
 				neighbour: { line: 6, text: '        amount = qty * price' }
 			},
 			{
@@ -558,7 +744,9 @@ const JUNIOR: Fn[] = [
 				kind: 'priority',
 				line: 6,
 				text: '    return min(flags, key=priority.get)',
-				neighbour: { line: 3, text: '    priority = {"blocked": 30, "overdue": 20, "active": 10}' }
+				neighbour: { line: 3, text: '    priority = {"blocked": 30, "overdue": 20, "active": 10}' },
+				// Reversed weights make min pick the right flag.
+				alternatives: [{ line: 3, text: '    priority = {"blocked": 1, "overdue": 2, "active": 3}' }]
 			}
 		]
 	},
@@ -588,7 +776,8 @@ const JUNIOR: Fn[] = [
 			'assert not can_withdraw(10**6, 1000, 99001, False)',
 			'assert can_withdraw(10**6, 1000, 299000, True)',
 			'assert not can_withdraw(10**6, 1000, 299001, True)',
-			'assert not can_withdraw(10**6, 1000, 150000, False)'
+			'assert not can_withdraw(10**6, 1000, 150000, False)',
+			'assert not can_withdraw(10**6, 50001, 0, True)'
 		],
 		defects: [
 			{
@@ -612,7 +801,7 @@ const JUNIOR: Fn[] = [
 			{
 				kind: 'combination',
 				line: 5,
-				text: '    if amount < 100 and amount > 50000:',
+				text: '    if amount < 100 or amount > 50000 and not vip:',
 				neighbour: { line: 7, text: '    if amount > balance:' }
 			},
 			{
@@ -627,9 +816,9 @@ const JUNIOR: Fn[] = [
 		name: 'monthly_payments',
 		lines: [
 			'def monthly_payments(total, months):',
-			'    """Платежи рассрочки в копейках: total делится на months частей; каждый платёж, кроме последнего,',
-			'    равен total / months с округлением вверх до целого рубля (кратно 100 копейкам); последний —',
-			'    остаток, чтобы сумма платежей была равна total."""',
+			'    """Платежи рассрочки в копейках (total >= 100 * months * (months - 1)): total делится на months',
+			'    частей; каждый платёж, кроме последнего, равен total / months с округлением вверх до целого рубля',
+			'    (кратно 100 копейкам); последний — остаток, чтобы сумма платежей была равна total."""',
 			'    payment = -(-total // months)',
 			'    payment = -(-payment // 100) * 100',
 			'    last = total - payment * (months - 1)',
@@ -662,7 +851,8 @@ const JUNIOR: Fn[] = [
 			'def pick_warehouse(warehouses, city):',
 			'    """Склад для отгрузки. warehouses — тройки (имя, город, остаток). Подходят склады с остатком',
 			'    больше 0. Склад в городе city важнее любого другого; среди равных по этому признаку — с наибольшим',
-			'    остатком; при равных остатках — первый по алфавиту имени. Подходящих нет — None."""',
+			'    остатком; при равных остатках — с меньшим именем в обычном сравнении строк Python (по кодам',
+			'    символов). Подходящих нет — None."""',
 			'    available = [w for w in warehouses if w[2] > 0]',
 			'    if not available:',
 			'        return None',
@@ -675,20 +865,21 @@ const JUNIOR: Fn[] = [
 			'assert pick_warehouse([("c", "Тула", 4), ("b", "Тула", 4)], "Омск") == "b"',
 			'assert pick_warehouse([("x", "Тула", 3), ("y", "Тула", 7)], "Омск") == "y"',
 			'assert pick_warehouse([], "Омск") is None',
-			'assert pick_warehouse([("a", "Омск", 0)], "Омск") is None'
+			'assert pick_warehouse([("a", "Омск", 0)], "Омск") is None',
+			'assert pick_warehouse([("ёлка", "Тула", 4), ("жук", "Тула", 4)], "Омск") == "жук"'
 		],
 		defects: [
 			{
 				kind: 'priority',
-				line: 7,
+				line: 8,
 				text: '    best = min(available, key=lambda w: (-w[2], w[1] != city, w[0]))',
-				neighbour: { line: 8, text: '    return best[0] if best else None' }
+				neighbour: { line: 9, text: '    return best[0] if best else None' }
 			},
 			{
 				kind: 'boundary-of-many',
-				line: 4,
+				line: 5,
 				text: '    available = [w for w in warehouses if w[2] >= 0]',
-				neighbour: { line: 5, text: '    if len(available) == 0:' }
+				neighbour: { line: 6, text: '    if len(available) == 0:' }
 			}
 		]
 	},
@@ -747,8 +938,8 @@ const JUNIOR: Fn[] = [
 		name: 'receipt_total',
 		lines: [
 			'def receipt_total(subtotal, discount_pct, vat_pct):',
-			'    """Сумма чека в копейках: сначала скидка discount_pct % от subtotal, затем НДС vat_pct % на сумму',
-			'    после скидки. Скидка и налог считаются в копейках и каждый округляется вниз отдельно."""',
+			'    """Сумма чека в копейках (входы — целые неотрицательные числа, discount_pct <= 100): сначала скидка discount_pct %',
+			'    от subtotal, затем НДС vat_pct % на сумму после скидки; скидка и налог округляются вниз каждый отдельно."""',
 			'    discount = subtotal * discount_pct // 100',
 			'    after_discount = subtotal - discount',
 			'    vat = after_discount * vat_pct // 100',
@@ -829,6 +1020,61 @@ const JUNIOR: Fn[] = [
 				neighbour: { line: 7, text: '        "security": (security is True, "security"),' }
 			}
 		]
+	},
+	{
+		name: 'progress_report',
+		lines: [
+			'def progress_report(done, total, deadline_passed):',
+			'    """Статус задачи; процент — done * 100 / total, округлённый до целого функцией round (половина —',
+			'    к ближайшему чётному); целые 0 <= done <= total, 0 < total <= 10**6. Правила проверяются по порядку:',
+			'    - процент равен 100 — "done";',
+			'    - срок прошёл (deadline_passed) — "late";',
+			'    - процент от 50 включительно — "on_track"; иначе — "behind"."""',
+			'    percent = round(done * 100 / total)',
+			'    if percent == 100:',
+			'        return "done"',
+			'    if deadline_passed:',
+			'        return "late"',
+			'    if percent >= 50:',
+			'        return "on_track"',
+			'    return "behind"'
+		],
+		checks: [
+			'assert progress_report(10, 10, True) == "done"',
+			'assert progress_report(10, 10, False) == "done"',
+			'assert progress_report(9, 10, True) == "late"',
+			'assert progress_report(1, 2, False) == "on_track"',
+			'assert progress_report(299, 600, False) == "on_track"',
+			'assert progress_report(294, 600, False) == "behind"',
+			'assert progress_report(9, 10, False) == "on_track"',
+			'assert progress_report(0, 3, False) == "behind"'
+		],
+		defects: [
+			{
+				kind: 'rounding-step',
+				line: 6,
+				text: '    percent = done * 100 // total',
+				neighbour: { line: 7, text: '    if percent >= 100:' }
+			},
+			{
+				kind: 'boundary-of-many',
+				line: 11,
+				text: '    if percent > 50:',
+				neighbour: { line: 6, text: '    percent = round(100 * done / total)' }
+			},
+			{
+				kind: 'priority',
+				line: 7,
+				text: '    if percent == 100 and not deadline_passed:',
+				neighbour: { line: 9, text: '    if deadline_passed and percent < 100:' }
+			},
+			{
+				kind: 'combination',
+				line: 9,
+				text: '    if not deadline_passed:',
+				neighbour: { line: 11, text: '    if not percent < 50:' }
+			}
+		]
 	}
 ];
 
@@ -854,17 +1100,77 @@ interface Program {
 	fix: string;
 	neighbour: { line: number; text: string };
 	other: { line: number; text: string };
+	alternatives: { line: number; fix: string }[];
 }
+
+/** The calls, idioms and operators a line is written with (`round(`, `sorted(`, `-(-`, true division, `<`, `or`, …). */
+function constructs(line: string): string[] {
+	const out = new Set<string>();
+	for (const m of line.matchAll(/\b(round|int|sorted|reversed|min|max|any|all|len|sum|abs|float)\(/g))
+		out.add(`${m[1]}(`);
+	if (line.includes('-(-')) out.add('-(-');
+	if (/[^/]\/[^/]/.test(line)) out.add('/');
+	if (/\d\.\d/.test(line)) out.add('0.0');
+	// Comparison and logic operators outside string literals: a defect must not be the only strict comparison or
+	// the only «or» of the module.
+	const code = line.replace(/"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/g, '""');
+	const operators: [string, RegExp][] = [
+		['<', /(?<![<>=!])<(?![<=])/],
+		['>', /(?<![<>=!-])>(?![>=])/],
+		['<=', /<=/],
+		['>=', />=/],
+		['==', /==/],
+		['!=', /!=/],
+		['and', /\band\b/],
+		['or', /\bor\b/],
+		['not', /\bnot\b/]
+	];
+	for (const [name, pattern] of operators) if (pattern.test(code)) out.add(name);
+	return [...out];
+}
+
+/** The code lines of a function, its docstring left out. */
+function codeOf(lines: readonly string[]): string[] {
+	let inDoc = false;
+	return lines.filter((line) => {
+		const quotes = (line.match(/"""/g) ?? []).length;
+		if (inDoc) {
+			if (quotes % 2 === 1) inDoc = false;
+			return false;
+		}
+		if (quotes % 2 === 1) {
+			inDoc = true;
+			return false;
+		}
+		return quotes === 0;
+	});
+}
+
+const writtenWith = (lines: readonly string[], token: string): boolean =>
+	codeOf(lines).some((line) => constructs(line).includes(token));
 
 function compose(rng: Rng, library: readonly Fn[], kind: string, contextCount: number): Program {
 	const candidates = library.flatMap((fn) =>
 		fn.defects.filter((d) => d.kind === kind).map((defect) => ({ fn, defect }))
 	);
 	const { fn: buggy, defect } = rng.pick(candidates);
-	const context = rng.sample(
-		library.filter((fn) => fn !== buggy),
-		contextCount
-	);
+	const rest = library.filter((fn) => fn !== buggy);
+	const context = rng.sample(rest, contextCount);
+	// A search for a construct the defect is written with must not single its line out: when no other line of the
+	// module has it, a correct function written with it takes the place of a context function that is not the only
+	// one giving another such construct.
+	const buggyRest = buggy.lines.filter((_, i) => i !== defect.line);
+	const needed = constructs(defect.text).filter((token) => !writtenWith(buggyRest, token));
+	const soleGiver = (fn: Fn): boolean =>
+		needed.some((t) => writtenWith(fn.lines, t) && context.filter((o) => writtenWith(o.lines, t)).length === 1);
+	for (const token of needed) {
+		if (context.some((fn) => writtenWith(fn.lines, token))) continue;
+		const holders = rest.filter((fn) => writtenWith(fn.lines, token) && !context.includes(fn));
+		if (holders.length === 0) continue;
+		const free = context.flatMap((fn, i) => (soleGiver(fn) ? [] : [i]));
+		const slot = free.length ? rng.pick(free) : rng.int(0, context.length - 1);
+		context[slot] = rng.pick(holders);
+	}
 	const order = rng.shuffle([buggy, ...context]);
 	// A module header of random length: a docstring and constants, so the defect's line number carries no hint.
 	const constants = rng.sample(HEADER_CONSTANTS, rng.int(0, 5));
@@ -878,12 +1184,14 @@ function compose(rng: Rng, library: readonly Fn[], kind: string, contextCount: n
 	let answer = 0;
 	let neighbour = { line: 0, text: '' };
 	let other = { line: 0, text: '' };
+	let alternatives: { line: number; fix: string }[] = [];
 	for (const fn of order) {
 		const offset = lines.length;
 		fn.lines.forEach((line, i) => lines.push(fn === buggy && i === defect.line ? defect.text : line));
 		if (fn === buggy) {
 			answer = offset + defect.line + 1;
 			neighbour = { line: offset + defect.neighbour.line + 1, text: defect.neighbour.text };
+			alternatives = (defect.alternatives ?? []).map((a) => ({ line: offset + a.line + 1, fix: a.text }));
 		} else if (other.line === 0) {
 			// A defect of the same kind in a correct function is the most tempting wrong line.
 			const sibling = fn.defects.find((d) => d.kind === kind) ?? fn.defects[0];
@@ -904,7 +1212,7 @@ function compose(rng: Rng, library: readonly Fn[], kind: string, contextCount: n
 		'except Exception as exc:',
 		"    print('fail', type(exc).__name__)"
 	].join('\n');
-	return { source: lines.join('\n'), check, answer, fix, neighbour, other };
+	return { source: lines.join('\n'), check, answer, fix, neighbour, other, alternatives };
 }
 
 export function build(input: GenerateInput): Built {
@@ -915,22 +1223,32 @@ export function build(input: GenerateInput): Built {
 	const instance = makeInstance(descriptor, input, {
 		statement: {
 			markdown: [
-				'Модуль бизнес-правил на Python 3. Спецификация каждой функции записана в её строке документации — это требования, по которым идёт проверка.',
+				'Модуль бизнес-правил на Python 3. Спецификация каждой функции записана в её строке документации — это требования, по которым идёт проверка. Все числовые аргументы функций — целые числа (суммы — в целых рублях или копейках, проценты — целые).',
 				'',
 				intern
 					? 'Тестировщик прогнал функции на граничных и типичных входах из спецификации: одна функция ведёт себя не так, как описано.'
 					: 'Тестировщик прогнал функции на граничных значениях каждого условия и на их сочетаниях: одна функция ведёт себя не так, как описано.',
-				'Ровно одна строка модуля расходится со спецификацией своей функции: если заменить только её, все функции будут работать по спецификации.',
+				'Найдите строку модуля, которая расходится со спецификацией своей функции: если заменить только её, все функции будут работать по спецификации.',
 				'',
-				'Введите номер этой строки (нумерация с 1). Например: `17`.'
+				'Введите номер этой строки (нумерация с 1). Например: `17`.',
+				'Если исправить можно в нескольких строках — засчитывается любая из них. Исправление — одна простая инструкция того же вида, что исправляемая строка: не добавляйте конструкций, которых в ней нет (`:=`, lambda, обёртки, новые функции), и не переносите в неё логику из другой строки.'
 			].join('\n'),
 			code: { language: 'python3', source: p.source }
 		},
-		answer: { kind: 'line_no', value: p.answer }
+		answer: {
+			kind: 'line_no',
+			value: p.answer,
+			...(p.alternatives.length ? { alternatives: p.alternatives.map((a) => a.line) } : {})
+		}
 	});
 	return {
 		instance,
-		reference: () => ({ kind: 'bug', check: p.check, fix: p.fix }),
+		reference: () => ({
+			kind: 'bug',
+			check: p.check,
+			fix: p.fix,
+			...(p.alternatives.length ? { alternatives: p.alternatives } : {})
+		}),
 		wrong: () => ({
 			'neighbour-line': { kind: 'line', line: p.neighbour.line, replacement: p.neighbour.text },
 			'other-function': p.other.line === 0 ? null : { kind: 'line', line: p.other.line, replacement: p.other.text }

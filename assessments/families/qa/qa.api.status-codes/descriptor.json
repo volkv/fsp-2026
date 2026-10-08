@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.65 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.8,
+						"ratedAt": "2026-10-07",
+						"sourceSha256": "28c2e0a21b1ad1412f793b9733f904bc81c47c7b596957b346a6eb1eff379071"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.75,
+						"ratedAt": "2026-10-07",
+						"sourceSha256": "28c2e0a21b1ad1412f793b9733f904bc81c47c7b596957b346a6eb1eff379071"
+					}
+				],
+				"mean": 0.8
+			},
 			"constructive": { "requests": "5–6", "collidingRules": 1, "stateChanges": "создание и удаление без конфликтов" },
 			"constructiveRank": 2,
 			"timeNormSec": 240,
@@ -37,7 +54,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.6,
+						"ratedAt": "2026-10-07",
+						"sourceSha256": "28c2e0a21b1ad1412f793b9733f904bc81c47c7b596957b346a6eb1eff379071"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.7,
+						"ratedAt": "2026-10-07",
+						"sourceSha256": "28c2e0a21b1ad1412f793b9733f904bc81c47c7b596957b346a6eb1eff379071"
+					}
+				],
+				"mean": 0.65
+			},
 			"constructive": {
 				"requests": "7–8",
 				"collidingRules": "2–3 в одном запросе",
@@ -146,6 +180,28 @@
 		"answerCollision": 0.0007,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-07",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчитано вручную все 8 показанных экземпляров (intern: auth-role, body-validation, success-codes, method-check; junior: rights-vs-existence, body-vs-existence, stateful, mixed) по семиступенчатому порядку проверок из контракта с учётом состояния (удаления, переименования, номера создаваемых вакансий): все коды совпали с эталоном. Контракт во всех экземплярах отличается только начальным номером; в generator.ts проверено, что PATCH с лишними полями и PATCH с одним salary_from выше хранимого salary_to в экземплярах не порождаются, так что пробелы контракта на ответы не влияют. Другие сиды не запускались.",
+					"Мелкое: в контракте не сказано прямо, что неизвестное поле в теле PATCH - ошибка 422 (для POST сказано «других полей нет»). Генератор такого не создаёт, но формулировку стоит выровнять.",
+					"Мелкое: показанный экземпляр success-codes (anchor) не содержит ни одного 204, хотя в описании класса заявлены коды 200, 201 и 204; на других сидах класса 204 может быть, но стоило бы гарантировать присутствие всех трёх успешных кодов."
+				],
+				"sourceSha256": "28c2e0a21b1ad1412f793b9733f904bc81c47c7b596957b346a6eb1eff379071"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-07",
+				"verdict": "approved",
+				"remarks": [
+					"Проверка: независимо пересчитал все 8 экземпляров собственной моделью на Python 3.12 из исходного состояния и порядка проверок в условии; коды совпали, включая повторное удаление, освобождение названия и частичный PATCH. Исполнил эталоны с полными восстановленными входами и проверил 20 применимых ошибочных ответов по всем 9 заблуждениям. Полные ворота на 200 сидах каждого класса и маршрутизацию настоящего фреймворка не проверял.",
+					"Angoff для binary: Intern 0.75 — 5–6 запросов с преимущественно одной причиной отказа за 240 с; Junior 0.70 — 7–8 запросов с конкурирующими проверками и изменением состояния за 360 с. Один неверный код обнуляет последовательность."
+				],
+				"sourceSha256": "28c2e0a21b1ad1412f793b9733f904bc81c47c7b596957b346a6eb1eff379071"
+			}
+		]
 	}
 }

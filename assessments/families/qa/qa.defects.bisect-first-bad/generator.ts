@@ -1,7 +1,7 @@
 // The first bad commit of a regression. Intern: the result of the check is known for every commit, and the noise is
 // what to read past — builds that did not compile, a flaky test with a rerun rule, an earlier breakage that was fixed,
 // a log listed newest first. Junior: a binary search over the history by a given rule for the middle, unbuildable
-// commits and reruns — how many checks it makes and which commit it ends on. The kind of noise and the procedure are
+// commits and reruns — which commits it checks, in order, and which commit it ends on. The kind of noise and the procedure are
 // the essential class; hashes, messages and positions are surface.
 import {
 	instanceRng,
@@ -205,12 +205,15 @@ const RIGHT: Options = {
 	countEnds: false
 };
 
-/** Bisect from commit 0 (good) to the last commit (bad): the checks it makes and the commit it ends on; `null` when unbuildable commits leave the boundary unknown. */
-function bisect(results: readonly Result[], o: Options): { checks: number; first: number } | null {
+/**
+ * Bisect from commit 0 (good) to the last commit (bad): the commits of its checks in order (a rerun repeats its commit)
+ * and the commit it ends on; `null` when unbuildable commits leave the boundary unknown.
+ */
+function bisect(results: readonly Result[], o: Options): { checks: number[]; first: number } | null {
 	let lo = 0;
 	let hi = results.length - 1;
 	const skipped = new Set<number>();
-	let checks = 0;
+	const checks: number[] = [];
 	for (;;) {
 		const inside: number[] = [];
 		for (let i = lo + 1; i < hi; i += 1) if (!skipped.has(i)) inside.push(i);
@@ -224,34 +227,34 @@ function bisect(results: readonly Result[], o: Options): { checks: number; first
 		}
 		const r = results[pick] ?? { kind: 'skip' };
 		if (r.kind === 'skip') {
-			if (o.countSkips) checks += 1;
+			if (o.countSkips) checks.push(pick);
 			skipped.add(pick);
 			continue;
 		}
 		let good: boolean;
 		if (r.kind === 'runs') {
 			const [first, rerun] = r.runs;
-			checks += 1;
+			checks.push(pick);
 			if (first) good = true;
 			else if (o.rerun) {
-				if (o.countRuns) checks += 1;
+				if (o.countRuns) checks.push(pick);
 				good = rerun === true;
 			} else good = false;
 		} else {
-			checks += 1;
+			checks.push(pick);
 			good = r.kind === 'pass';
 		}
 		if (good) lo = pick;
 		else hi = pick;
 	}
 	if (hi - lo !== 1) return null;
-	return { checks: checks + (o.countEnds ? 2 : 0), first: hi };
+	return { checks: o.countEnds ? [0, results.length - 1, ...checks] : checks, first: hi };
 }
 
 interface JuniorCase {
 	commits: Commit[];
-	right: { checks: number; first: number };
-	wrong: Record<string, { checks: number; first: number } | null>;
+	right: { checks: number[]; first: number };
+	wrong: Record<string, { checks: number[]; first: number } | null>;
 }
 
 function juniorCase(rng: Rng, classId: string): JuniorCase | null {
@@ -324,7 +327,7 @@ function juniorStatement(c: JuniorCase, classId: string): string {
 		...rows,
 		'```',
 		'',
-		'Сколько проверок сделает поиск и какой коммит он назовёт первым плохим? Введите число проверок и хэш через пробел. Например: `5 3fa91c2`.'
+		'Какие проверки сделает поиск и какой коммит он назовёт первым плохим? Введите через пробел номера коммитов в порядке проверок (каждая проверка — отдельный номер, даже если коммит тот же), затем знак `|` и хэш первого плохого коммита. Например: `9 4 6 7 | 3fa91c2`.'
 	].join('\n');
 }
 
@@ -351,7 +354,7 @@ if d["level"] == "intern":
 else:
     lo, hi = 0, len(commits) - 1
     tried = set()
-    checks = 0
+    checks = []
     while True:
         inside = [i for i in range(lo + 1, hi) if i not in tried]
         if not inside:
@@ -362,7 +365,7 @@ else:
             older = [i for i in inside if i < mid]
             mid = newer[0] if newer else older[-1]
         r = commits[mid]["result"]
-        checks += 1
+        checks.append(mid)
         if r["kind"] == "skip":
             tried.add(mid)
             continue
@@ -370,7 +373,7 @@ else:
             if r["runs"][0]:
                 good = True
             else:
-                checks += 1
+                checks.append(mid)
                 good = r["runs"][1]
         else:
             good = r["kind"] == "pass"
@@ -378,7 +381,7 @@ else:
             lo = mid
         else:
             hi = mid
-    print(checks, commits[hi]["hash"])
+    print(*checks, "|", commits[hi]["hash"])
 `;
 
 const REQUIRED: Record<string, string[]> = {
@@ -423,7 +426,8 @@ export function build(input: GenerateInput): Built {
 			const c = juniorCase(rng, cls.id);
 			if (!c) continue;
 			commits = c.commits;
-			const text = (r: { checks: number; first: number }) => `${r.checks} ${commits[r.first]?.hash ?? ''}`;
+			const text = (r: { checks: number[]; first: number }) =>
+				`${r.checks.join(' ')} | ${commits[r.first]?.hash ?? ''}`;
 			answer = text(c.right);
 			wrong = Object.fromEntries(
 				WRONG_IDS.map((id) => {

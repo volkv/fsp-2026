@@ -63,7 +63,7 @@ const SUTS: Sut[] = [
 			'def normalize_phone(raw):',
 			'    """Номер из 11 цифр в виде +7XXXXXXXXXX; ведущая 8 заменяется на 7; иначе ValueError."""',
 			"    digits = ''.join(ch for ch in raw if ch.isdigit())",
-			'    if len(digits) != 11:',
+			"    if len(digits) != 11 or digits[0] not in '78':",
 			'        raise ValueError(raw)',
 			"    if digits.startswith('8'):",
 			"        digits = '7' + digits[1:]",
@@ -146,9 +146,9 @@ const SUTS: Sut[] = [
 		lines: [
 			'def parse_duration(text):',
 			'    """Длительность вида 2h15m в минутах; другой формат — ValueError."""',
-			"    hours, _, rest = text.partition('h')",
-			"    minutes = rest.rstrip('m')",
-			'    if not hours.isdigit() or not minutes.isdigit():',
+			"    hours, sep, rest = text.partition('h')",
+			"    minutes = rest.removesuffix('m')",
+			'    if not sep or minutes == rest or not hours.isdigit() or not minutes.isdigit():',
 			'        raise ValueError(text)',
 			'    return int(hours) * 60 + int(minutes)'
 		],
@@ -204,6 +204,7 @@ const SUTS: Sut[] = [
 /** How a test checks its function; the vacuous styles are the classes, the others are working checks. */
 type Style =
 	| 'equal'
+	| 'equal-inline'
 	| 'equal-true'
 	| 'zip-strict'
 	| 'raises'
@@ -217,6 +218,7 @@ type Style =
 
 const DEFECT_OF: Record<Style, Defect> = {
 	equal: 'truthy',
+	'equal-inline': 'truthy',
 	'equal-true': 'truthy',
 	'zip-strict': 'shorter',
 	raises: 'wrongError',
@@ -247,6 +249,8 @@ interface TestCode {
 	fix: string;
 	/** Index of the line that calls the function. */
 	act: number;
+	/** Other lines whose one-instruction replacement repairs the test too, with that replacement. */
+	alternatives?: { at: number; fix: string }[];
 }
 
 function testCode(sut: Sut, style: Style): TestCode {
@@ -265,9 +269,12 @@ function testCode(sut: Sut, style: Style): TestCode {
 	}
 	const head = [`    def test_${sut.name}(self):`, `        result = ${sut.call}`];
 	const expected = `        expected = ${sut.expected}`;
+	const inline = `        self.assertEqual(result, ${sut.expected})`;
 	switch (style) {
 		case 'equal':
 			return { lines: [...head, expected, EQUAL], key: 3, fix: EQUAL, act: 1 };
+		case 'equal-inline':
+			return { lines: [...head, inline], key: 2, fix: inline, act: 1 };
 		case 'equal-true':
 			return { lines: [...head, expected, '        self.assertTrue(result == expected)'], key: 3, fix: EQUAL, act: 1 };
 		case 'zip-strict':
@@ -286,7 +293,7 @@ function testCode(sut: Sut, style: Style): TestCode {
 		case 'truthy':
 			return { lines: [...head, expected, '        self.assertTrue(result, expected)'], key: 3, fix: EQUAL, act: 1 };
 		case 'not-none':
-			return { lines: [...head, expected, '        self.assertIsNotNone(result)'], key: 3, fix: EQUAL, act: 1 };
+			return { lines: [...head, '        self.assertIsNotNone(result)'], key: 2, fix: inline, act: 1 };
 		case 'length':
 			return {
 				lines: [...head, expected, '        self.assertEqual(len(result), len(expected))'],
@@ -295,14 +302,19 @@ function testCode(sut: Sut, style: Style): TestCode {
 				act: 1
 			};
 		case 'oracle':
+			// The expected value computed by the function itself: putting the literal in place of either side repairs it.
 			return {
 				lines: [...head, `        expected = ${sut.call}`, EQUAL],
 				key: 2,
 				fix: expected,
-				act: 1
+				act: 1,
+				alternatives: [
+					{ at: 1, fix: `        result = ${sut.expected}` },
+					{ at: 3, fix: inline }
+				]
 			};
 		case 'self-compare':
-			return { lines: [...head, expected, '        self.assertEqual(result, result)'], key: 3, fix: EQUAL, act: 1 };
+			return { lines: [...head, '        self.assertEqual(result, result)'], key: 2, fix: inline, act: 1 };
 	}
 }
 
@@ -337,8 +349,9 @@ interface Program {
 	check: string;
 	answer: number;
 	fix: string;
+	alternatives: { line: number; fix: string }[];
 	distractor: { line: number; text: string } | null;
-	act: { line: number; text: string };
+	act: { line: number; text: string } | null;
 }
 
 function compose(rng: Rng, classId: string): Program | null {
@@ -348,14 +361,19 @@ function compose(rng: Rng, classId: string): Program | null {
 		SUTS.filter((s) => s !== target),
 		rng.int(2, 3)
 	);
-	// Working tests: every one in its own style, at least one of them looking like a weak check.
+	// Working tests: every one in its own style, at least one of them looking like a weak check. A test with
+	// `expected` on its own line and one with the value inline both occur, so an unused name gives nothing away; next to
+	// a broad `assertRaises` stands a working one.
 	const lookalike: Style[] = ['equal-true', 'zip-strict', 'raises'];
 	const styles = new Map<Sut, Style>([[target, vacuousStyle]]);
 	for (const sut of others) {
-		const options = (['equal', ...lookalike] as Style[]).filter((s) => supports(sut, s));
+		const options = (['equal', 'equal-inline', ...lookalike] as Style[]).filter((s) => supports(sut, s));
 		styles.set(sut, rng.pick(options));
 	}
 	if (!others.some((s) => lookalike.includes(styles.get(s) ?? 'equal'))) return null;
+	if (classId === 'broad-raises' && !others.some((s) => styles.get(s) === 'raises')) return null;
+	const noExpectedLine: Style[] = ['not-none', 'self-compare'];
+	if (noExpectedLine.includes(vacuousStyle) && !others.some((s) => styles.get(s) === 'equal-inline')) return null;
 	const functions = rng.shuffle([target, ...others]);
 	const tests = rng.shuffle([target, ...others]);
 	const constants = rng.sample(HEADER_CONSTANTS, rng.int(0, 6));
@@ -372,7 +390,8 @@ function compose(rng: Rng, classId: string): Program | null {
 	lines.push(`class ${className}(unittest.TestCase):`);
 	let answer = 0;
 	let fix = '';
-	let act = { line: 0, text: '' };
+	let alternatives: Program['alternatives'] = [];
+	let act: Program['act'] = null;
 	let distractor: Program['distractor'] = null;
 	tests.forEach((sut, i) => {
 		if (i > 0) lines.push('');
@@ -383,7 +402,11 @@ function compose(rng: Rng, classId: string): Program | null {
 		if (sut === target) {
 			answer = offset + code.key + 1;
 			fix = code.fix;
-			act = { line: offset + code.act + 1, text: code.lines[code.act] ?? '' };
+			alternatives = (code.alternatives ?? []).map((a) => ({ line: offset + a.at + 1, fix: a.fix }));
+			// When the call line is itself a repair, naming it is not a wrong answer.
+			act = alternatives.some((a) => a.line === offset + code.act + 1)
+				? null
+				: { line: offset + code.act + 1, text: code.lines[code.act] ?? '' };
 		} else if (distractor === null && lookalike.includes(style)) {
 			const text = code.lines[code.key] ?? '';
 			distractor = { line: offset + code.key + 1, text: style === 'equal-true' ? EQUAL : text };
@@ -398,7 +421,12 @@ function compose(rng: Rng, classId: string): Program | null {
 			'',
 			'',
 			`def _const_${sut.name}(${sut.params}):`,
-			'    return None'
+			'    return None',
+			'',
+			'',
+			// An empty list as well: a loop over pairs of elements checks nothing on it.
+			`def _empty_${sut.name}(${sut.params}):`,
+			'    return []'
 		];
 	});
 	const check = [
@@ -416,7 +444,7 @@ function compose(rng: Rng, classId: string): Program | null {
 		"        return 'fail: the tests fail on the right functions'",
 		`    for name in [${[target, ...others].map((s) => `'${s.name}'`).join(', ')}]:`,
 		'        right = globals()[name]',
-		"        for wrong in ('_bad_', '_const_'):",
+		"        for wrong in ('_bad_', '_const_', '_empty_'):",
 		'            globals()[name] = globals()[wrong + name]',
 		'            try:',
 		'                caught = not _suite_passes()',
@@ -429,16 +457,17 @@ function compose(rng: Rng, classId: string): Program | null {
 		'',
 		'print(_check())'
 	].join('\n');
-	return { source: lines.join('\n').trimEnd(), check, answer, fix, distractor, act };
+	return { source: lines.join('\n').trimEnd(), check, answer, fix, alternatives, distractor, act };
 }
 
 const STATEMENT = [
-	'Модуль на Python 3 с тестами `unittest`. У каждой функции в строке документации записана её спецификация,',
+	'Модуль на CPython 3.12–3.13 с тестами `unittest`. У каждой функции в строке документации записана её спецификация,',
 	'функции написаны верно, все тесты проходят. Но один тест ничего толком не проверяет: он прошёл бы и на неверной',
 	'реализации своей функции.',
 	'',
 	'Найдите строку, из-за которой этот тест не ловит дефект: если заменить только её, тест упадёт на неверной',
-	'реализации и по-прежнему пройдёт на верной. Введите номер этой строки (нумерация с 1), например `42`.'
+	'реализации и по-прежнему пройдёт на верной. Введите номер этой строки (нумерация с 1), например `42`.',
+	'Если исправить можно в нескольких строках — засчитывается любая из них. Исправление — одна простая инструкция того же вида, что исправляемая строка: не добавляйте конструкций, которых в ней нет (`:=`, lambda, обёртки, новые функции), и не переносите в неё логику из другой строки.'
 ].join('\n');
 
 export function build(input: GenerateInput): Built {
@@ -449,15 +478,19 @@ export function build(input: GenerateInput): Built {
 		if (p === null) continue;
 		const instance = makeInstance(descriptor, input, {
 			statement: { markdown: STATEMENT, code: { language: 'python3', source: p.source } },
-			answer: { kind: 'line_no', value: p.answer }
+			answer: {
+				kind: 'line_no',
+				value: p.answer,
+				...(p.alternatives.length ? { alternatives: p.alternatives.map((a) => a.line) } : {})
+			}
 		});
 		return {
 			instance,
-			reference: () => ({ kind: 'bug', check: p.check, fix: p.fix }),
+			reference: () => ({ kind: 'bug', check: p.check, fix: p.fix, alternatives: p.alternatives }),
 			wrong: () => ({
 				'distractor-assertion':
 					p.distractor === null ? null : { kind: 'line', line: p.distractor.line, replacement: p.distractor.text },
-				'act-line': { kind: 'line', line: p.act.line, replacement: p.act.text }
+				'act-line': p.act === null ? null : { kind: 'line', line: p.act.line, replacement: p.act.text }
 			})
 		};
 	}

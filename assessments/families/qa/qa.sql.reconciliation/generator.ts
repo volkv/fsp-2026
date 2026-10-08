@@ -196,7 +196,7 @@ export function build(input: GenerateInput): Built {
 		if (Object.values(wrongRows).some((w) => JSON.stringify(w) === JSON.stringify(rows))) continue;
 		const instance = makeInstance(descriptor, input, {
 			statement: {
-				markdown: `${d.purpose} Что вернёт запрос? База — SQLite, схема и данные приведены вместе с запросом.\n\n${SQL_ROW_FORMAT}`,
+				markdown: `${d.purpose} Что вернёт запрос? База — SQLite, схема и данные приведены вместе с запросом.\n\n${SQL_ROW_FORMAT} Значения разделяются ровно так: пробел, черта, пробел — без лишних пробелов вокруг черты; пробелы внутри самих значений сохраняются как есть. Например, строка из трёх столбцов: \`7 | NULL | anna pavlova\`.`,
 				code: { language: 'sql', source: `${d.setup}\n\n${d.query}` }
 			},
 			answer: { kind: 'sequence', value: rows }
