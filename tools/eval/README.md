@@ -250,11 +250,29 @@ checkout, публикует таксономию checkout, заводит ка�
 в индекс или неотслеживаемые файлы; игнорируемые — `out/`, `.env`, сборки — не в счёт), сообщает коммит с суффиксом
 `-dirty` (`src/eval/bundle.config.ts`), и на holdout такой прогон не пускается при любой записи в журнале. `APP_COMMIT`
 из окружения сборка моста берёт, только если дерево чистое или значение само помечено `-dirty`. Прогон на dev идёт и с
-такой сборкой; ревизия пишется в отчёт и в `eval_runs` как есть. Порядок:
+такой сборкой; ревизия пишется в отчёт и в `eval_runs` как есть.
 
-1. внести запись (`report` и `seen` — `null`) и прогнать `--split holdout`; сводка прогона печатает, каким по счёту
-   обращением к набору он стал, отчёт хранит его в `holdout_access`;
-2. положить `summary.json` в `reports/holdout/`, вписать в запись файл и главные числа, закоммитить вместе.
+Запись в журнале — правка отслеживаемого файла: после неё дерево изменено, и мост, собранный заново, сообщает `-dirty`.
+`pnpm eval:run` пересобирает мост при каждом запуске, поэтому для holdout он не годится — мост собирается до записи, а
+прогон идёт прямым вызовом образа без пересборки. Порядок:
+
+1. на чистом дереве ревизии собрать мост и образ: `pnpm eval:build && pnpm eval:image`;
+2. внести запись (`report` и `seen` — `null`) и прогнать образ напрямую (`--env-file` — файл в `tools/eval/out/`, если
+   переменные модели не в `.env`):
+
+   ```sh
+   docker run --rm --network host -u "$(id -u):$(id -g)" -v "$PWD:/repo:ro" -v "$PWD/tools/eval/out:/out" \
+     fsp-eval:local run --repo /repo --out /out --split holdout --mode rules_only
+   ```
+
+   сводка прогона печатает, каким по счёту обращением к набору он стал, отчёт хранит его в `holdout_access`;
+
+3. положить `summary.json` в `reports/holdout/`, вписать в запись файл и главные числа, закоммитить вместе.
+
+Второй режим на той же ревизии, когда в ветке уже лежат коммиты отчёта первого: мост собирается из checkout самой ревизии
+(`git checkout --detach <ревизия> && pnpm eval:build`, затем возврат в ветку; `.eval-build/` игнорируется и остаётся), и
+только если коммиты после ревизии не трогают ничего, кроме отчётов и документов (`git diff --stat <ревизия> HEAD`): мост
+читает таксономию и миграции из checkout во время прогона.
 
 `--split` обязателен: голый `run` не выбирает holdout сам. **Holdout открывается один раз**: одна ревизия и по одному
 прогону каждого режима на ней. Вторую запись того же набора в том же режиме, запись другой ревизии и любой прогон на
@@ -283,11 +301,11 @@ checkout, публикует таксономию checkout, заводит ка�
 pnpm eval:build                                                   # сборка моста .eval-build/main.js
 pnpm eval:run --split dev --mode rules_only --semantic            # прогон, отчёт в tools/eval/out/runs/
 pnpm eval:run --split dev --mode rules_only --semantic --record admin@…  # и строка eval_runs с файлом отчёта
-pnpm eval:run --split holdout --mode rules_only --semantic        # только с записью в журнале holdout
 pnpm check:eval                                                   # ruff и pytest в тестовом образе, без сети
 ```
 
-Режим оценки жюри (`pnpm eval:jury-run`, `pnpm eval:jury-metrics`) — раздел ниже.
+Прогон на holdout — не `pnpm eval:run`, а порядок из раздела «Журнал holdout». Режим оценки жюри (`pnpm eval:jury-run`,
+`pnpm eval:jury-metrics`) — раздел ниже.
 
 Прямой вызов образа — `python -m fsp_eval run --repo <checkout> --out <каталог> --split dev|holdout
 [--mode rules_only|model] [--semantic] [--record <почта администратора>] [--fsp-layer <id>|none] [--matching <id>|none]
