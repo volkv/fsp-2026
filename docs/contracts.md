@@ -1294,7 +1294,7 @@ interface ParseResponse {
 **Компоненты `role` и `trust`** (`match.components` в ответах `matches`, `matches/{pseudonym}`, `me/matches`, а также поля `role` и
 `trust` у каждого кандидата в `GET /api/v1/catalog/comparison`; domain 13.4): `components.role.details` — `{vacancy_specialization,
 candidate_specializations: string[], basis: category|none, reason?}`; `components.trust.details` — вариант «вычислено» `{direct, total,
-public_profile, confirmed_coverage, grade_agreement: number|null, grade_agreement_reason?: category_not_confirmed|vacancy_grade_unknown}`
+public_profile, confirmed_coverage, grade_agreement: number|null, grade_agreement_reason?: candidate_grade_not_confirmed|vacancy_grade_unknown}`
 или, когда доверие не вычислено, `{reason}`.
 
 **Счёт без расчёта доказательств.** У кандидата без действующего расчёта доказательств (расчёта не было, или доказательства под ним

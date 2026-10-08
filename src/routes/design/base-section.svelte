@@ -215,7 +215,7 @@
 				<div class="flex flex-wrap items-center gap-2">
 					<Badge>Опубликована</Badge>
 					<Badge variant="secondary">Черновик</Badge>
-					<Badge variant="outline">Внешняя вакансия</Badge>
+					<Badge variant="outline">Приостановлена</Badge>
 					<Badge variant="destructive">Заблокирована проверкой текста</Badge>
 				</div>
 				<Alert.Root variant="destructive" class="mt-3">

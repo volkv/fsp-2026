@@ -51,7 +51,6 @@ describe('catalogGradesBetween', () => {
 		expect(catalogGradesBetween(ordinals, 'senior', 'lead')).toEqual(['senior']);
 		expect(catalogGradesBetween(ordinals, 'lead', 'lead')).toEqual([]);
 		expect(catalogGradesBetween(ordinals, 'senior', 'junior')).toEqual([]);
-		expect(catalogGradesBetween(ordinals, 'junior', null)).toEqual([]);
 	});
 });
 

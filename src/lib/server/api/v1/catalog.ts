@@ -515,7 +515,7 @@ export const getCategoryMarket = defineOperation({
 			.object({
 				category_key: marketCategoryKey,
 				candidate_expectations: indicatorList('Ожидания доступных кандидатов'),
-				vacancy_ranges: indicatorList('Вилки собственных и внешних вакансий за окно'),
+				vacancy_ranges: indicatorList('Вилки вакансий компаний платформы за окно'),
 				external_reference: indicatorList('Внешний ориентир версии таксономии')
 			})
 			.meta({ id: 'CategoryMarket' })

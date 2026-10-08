@@ -8,7 +8,9 @@
 // while the family's source is the one it was made for) and its source hash in `gate-sources.json`. Then every family
 // is validated (`familyProblems`) and the bank side of the release of every specialization is checked — anchors, the
 // families behind every block test (`blockTestPairs`) and every extreme history (`capacityChecks`); the simulation of
-// trajectories is the engine's (`pnpm bank:check`). Probes (`_probes/`) are gated but never released. The report goes to `gates-report.md`.
+// trajectories is the engine's (`pnpm bank:check`). Probes (`_probes/`) are gated but never released. The report of a
+// full run goes to `gates-report.md`; a run of some families (`--family`) records their gates and leaves the report:
+// it stays the picture of the whole bank.
 //
 //   node scripts/assessments/gates.ts [--family <key prefix>] [--seeds <n>] [--pending-review-ok] [--local-python]
 //                                     [--no-write]
@@ -1032,7 +1034,8 @@ async function main(): Promise<number> {
 				''
 			])
 	].join('\n');
-	if (write) await writeFormatted(join(FAMILIES_DIR, 'gates-report.md'), report);
+	if (write && args.family === undefined) await writeFormatted(join(FAMILIES_DIR, 'gates-report.md'), report);
+	else if (write) console.log('a run of some families: gates-report.md is written by a full run only');
 	console.log(
 		`\n${checks.length} families checked in ${seconds.toFixed(1)} s; blocking problems: ${blocking}; judgements pending (reviews, raters): ${pendingReviews}`
 	);

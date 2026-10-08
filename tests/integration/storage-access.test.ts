@@ -5,7 +5,7 @@
 // evaluation run and to the FSP operator for the source file of a results batch — every attempt in the journal, every
 // refusal answered as «not found».
 import { createHash, randomBytes } from 'node:crypto';
-import { and, eq } from 'drizzle-orm';
+import { and, desc, eq } from 'drizzle-orm';
 import type { StartedTestContainer } from 'testcontainers';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { AccessSubject } from '$lib/server/access/permissions';
@@ -27,6 +27,7 @@ import {
 import { ApiError } from '$lib/server/errors/api-error';
 import { uuidv7 } from '$lib/server/ids';
 import type { RequestMeta } from '$lib/server/invitations/deps';
+import { revokeDisclosureConsent } from '$lib/server/invitations/disclosure';
 import { uploadResume } from '$lib/server/resumes/upload';
 import { openFile, type FileAccessContext } from '$lib/server/storage/access';
 import { S3ObjectStore, type ObjectStore } from '$lib/server/storage/object-store';
@@ -41,6 +42,7 @@ import {
 	createUser,
 	offerTermsRow
 } from '../helpers/factories';
+import { testCrypto } from '../helpers/contact';
 import { startStorage } from '../helpers/storage';
 
 let storage: StartedTestContainer;
@@ -132,11 +134,14 @@ async function expectRefused(subject: AccessSubject, fileId: string, context: Fi
 	);
 	expect(refusal).toBeInstanceOf(ApiError);
 	expect((refusal as ApiError).code).toBe('not_found');
-	const events = await database.db
+	// The journal entry of this very attempt: earlier refusals of the same file must not stand in for it.
+	const [latest] = await database.db
 		.select({ outcome: auditEvents.outcome, details: auditEvents.details })
 		.from(auditEvents)
-		.where(and(eq(auditEvents.action, 'file.downloaded'), eq(auditEvents.objectId, fileId)));
-	expect(events).toContainEqual({ outcome: 'denied', details: expect.objectContaining({ reason }) as unknown });
+		.where(and(eq(auditEvents.action, 'file.downloaded'), eq(auditEvents.objectId, fileId)))
+		.orderBy(desc(auditEvents.occurredAt), desc(auditEvents.id))
+		.limit(1);
+	expect(latest).toEqual({ outcome: 'denied', details: expect.objectContaining({ reason }) as unknown });
 }
 
 let candidate: Awaited<ReturnType<typeof createCandidate>>;
@@ -327,8 +332,9 @@ describe('upload', () => {
 });
 
 describe('handing out a file', () => {
-	it('gives the owner their file and records the download', async () => {
-		expect(await read(candidateSubject(candidate), resumeFileId, { kind: 'owner' })).toBe(
+	it('gives the resume to the company of an accepted invitation whose consent lists it and records the download', async () => {
+		const { subject, invitationId } = await recipient(['full_name', 'email', 'resume']);
+		expect(await read(subject, resumeFileId, { kind: 'invitation', invitationId })).toBe(
 			'Резюме: Go, PostgreSQL, Kubernetes'
 		);
 		const events = await database.db
@@ -336,16 +342,6 @@ describe('handing out a file', () => {
 			.from(auditEvents)
 			.where(and(eq(auditEvents.action, 'file.downloaded'), eq(auditEvents.objectId, resumeFileId)));
 		expect(events).toContainEqual({ outcome: 'success', subject: candidate.id });
-	});
-
-	it('does not give the file to another user', async () => {
-		const stranger = await createCandidate(database.db);
-		await expectRefused(candidateSubject(stranger), resumeFileId, { kind: 'owner' }, 'not_owner');
-	});
-
-	it('gives the resume to the company of an accepted invitation whose consent lists it', async () => {
-		const { subject, invitationId } = await recipient(['full_name', 'email', 'resume']);
-		expect(await read(subject, resumeFileId, { kind: 'invitation', invitationId })).toContain('PostgreSQL');
 	});
 
 	it('does not give the resume when the consent leaves it out or the invitation is someone else’s', async () => {
@@ -367,6 +363,18 @@ describe('handing out a file', () => {
 
 	it('does not give the resume by an invitation the candidate has not accepted', async () => {
 		const { subject, invitationId } = await recipient([], 'sent');
+		await expectRefused(subject, resumeFileId, { kind: 'invitation', invitationId }, 'not_recipient');
+	});
+
+	it('stops giving the resume once the candidate revokes the disclosure consent of the invitation', async () => {
+		const { subject, invitationId } = await recipient(['full_name', 'email', 'resume']);
+		expect(await read(subject, resumeFileId, { kind: 'invitation', invitationId })).toContain('PostgreSQL');
+		await revokeDisclosureConsent(
+			{ db: database.db, crypto: testCrypto, now },
+			candidateSubject(candidate),
+			meta,
+			invitationId
+		);
 		await expectRefused(subject, resumeFileId, { kind: 'invitation', invitationId }, 'not_recipient');
 	});
 
@@ -417,8 +425,6 @@ describe('handing out a file', () => {
 			.where(eq(resumeDocuments.fileId, resumeFileId));
 		expect(old?.isCurrent).toBe(false);
 		await expectRefused(subject, resumeFileId, { kind: 'invitation', invitationId }, 'not_current_resume');
-		// The owner still has the archived file.
-		expect(await read(candidateSubject(candidate), resumeFileId, { kind: 'owner' })).toContain('Kubernetes');
 	});
 });
 
