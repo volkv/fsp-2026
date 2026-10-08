@@ -3,6 +3,9 @@
 // Senior has several warehouses taken in priority order, except the queue class, which keeps one warehouse. Two of the
 // five groups of hidden tests are short logs of reservations and restocks only; three check the whole life cycle. The
 // step «измени своё решение» adds a limit on the active reservations of a client.
+// The safety stock, the term of a reservation, the words of the answers and the order of the final numbers are the
+// instance's own (`Spec`): they are given only in the statement, never in the input, and every group of hidden tests
+// fails a program with a neighbouring specification, so a program written for another instance of the class fails here.
 import {
 	instanceRng,
 	levelAndClass,
@@ -26,14 +29,60 @@ type Ev =
 	| { t: number; op: 'release' | 'confirm'; id: string }
 	| { t: number; op: 'restock'; warehouse: string; product: string; qty: number };
 
-/** One warehouse is never named in the input. `ttl` is 0 outside the expiring class. */
+/** One warehouse is never named in the input. */
 interface Input {
 	warehouses: string[];
 	products: string[];
 	stock: number[][];
-	ttl: number;
 	limit: number | null;
 	events: Ev[];
+}
+
+/** The answers a solution prints. */
+interface Words {
+	ok: string;
+	reject: string;
+	ignore: string;
+	wait: string;
+}
+
+/** The constants of the instance's specification, stated in the text only. */
+interface Spec {
+	/** The safety stock: so many units of every product on every warehouse are never reserved. */
+	safety: number;
+	/** The term of a reservation, seconds; 0 outside the expiring class. */
+	ttl: number;
+	words: Words;
+	/** The final rows give the reserved quantity before the free one. */
+	swap: boolean;
+}
+
+const SAFETY = [1, 2, 3, 4] as const;
+const TTLS = [20, 30, 45, 60, 90, 120] as const;
+/** No word is shared by two sets. */
+const WORDS: readonly Words[] = [
+	{ ok: 'ok', reject: 'reject', ignore: 'ignore', wait: 'wait' },
+	{ ok: 'accepted', reject: 'declined', ignore: 'skipped', wait: 'queued' },
+	{ ok: 'yes', reject: 'no', ignore: 'noop', wait: 'hold' },
+	{ ok: 'done', reject: 'fail', ignore: 'none', wait: 'pending' },
+	{ ok: 'granted', reject: 'refused', ignore: 'unchanged', wait: 'waiting' }
+];
+
+function drawSpec(rng: Rng, kind: string): Spec {
+	return {
+		safety: rng.pick(SAFETY),
+		ttl: kind === 'expiring' ? rng.pick(TTLS) : 0,
+		words: rng.pick(WORDS),
+		swap: rng.bool()
+	};
+}
+
+/** The specifications one constant away from the instance's (other words are told apart by any test). */
+function neighbours(kind: string, spec: Spec): Spec[] {
+	const list: Spec[] = [{ ...spec, swap: !spec.swap }];
+	for (const safety of SAFETY) if (safety !== spec.safety) list.push({ ...spec, safety });
+	if (kind === 'expiring') for (const ttl of TTLS) if (ttl !== spec.ttl) list.push({ ...spec, ttl });
+	return list;
 }
 
 type Variant = 'right' | (typeof WRONG_IDS)[number];
@@ -58,12 +107,14 @@ class Store {
 	readonly lines = new Map<string, string[]>();
 	readonly kind: string;
 	readonly input: Input;
+	readonly spec: Spec;
 	readonly multi: boolean;
 	readonly variant: Variant;
 
-	constructor(kind: string, input: Input, multi: boolean, variant: Variant) {
+	constructor(kind: string, input: Input, spec: Spec, multi: boolean, variant: Variant) {
 		this.kind = kind;
 		this.input = input;
+		this.spec = spec;
 		this.multi = multi;
 		this.variant = variant;
 		input.warehouses.forEach((w, i) => {
@@ -75,6 +126,11 @@ class Store {
 
 	get(map: Map<string, Map<string, number>>, w: string, p: string): number {
 		return map.get(w)?.get(p) ?? 0;
+	}
+
+	/** What a reservation may take: the free stock over the safety stock. */
+	available(w: string, p: string): number {
+		return Math.max(0, this.get(this.free, w, p) - this.spec.safety);
 	}
 
 	add(map: Map<string, Map<string, number>>, w: string, p: string, q: number): void {
@@ -108,7 +164,7 @@ class Store {
 	place(product: string, qty: number): string | undefined {
 		const exact = this.variant === 'exact-stock';
 		return this.candidates(product).find((x) => {
-			const free = this.get(this.free, x, product);
+			const free = this.available(x, product);
 			return exact ? qty < free : qty <= free;
 		});
 	}
@@ -141,7 +197,7 @@ class Store {
 
 	backorder(e: Extract<Ev, { op: 'reserve' }>): string {
 		const owed = this.owed.get(e.client) ?? 0;
-		if (this.input.limit !== null && owed + e.qty > this.input.limit) return 'reject';
+		if (this.input.limit !== null && owed + e.qty > this.input.limit) return this.spec.words.reject;
 		this.owed.set(e.client, owed + e.qty);
 		this.waiting.set(e.id, { product: e.product, qty: e.qty, client: e.client });
 		const line = this.lines.get(e.product) ?? [];
@@ -149,15 +205,15 @@ class Store {
 		else line.push(e.id);
 		this.serve(e.product);
 		const h = this.held.get(e.id);
-		if (!h) return 'wait';
-		return this.multi ? `ok ${h.parts[0]?.[0] ?? ''}` : 'ok';
+		if (!h) return this.spec.words.wait;
+		return this.multi ? `${this.spec.words.ok} ${h.parts[0]?.[0] ?? ''}` : this.spec.words.ok;
 	}
 
 	/** The warehouses a reservation may take from, in priority order. */
 	candidates(product: string): string[] {
 		const all = this.input.warehouses;
 		if (this.variant !== 'single-warehouse') return all;
-		return all.filter((w) => this.get(this.free, w, product) > 0).slice(0, 1);
+		return all.filter((w) => this.available(w, product) > 0).slice(0, 1);
 	}
 
 	reserve(e: Extract<Ev, { op: 'reserve' }>): string {
@@ -166,7 +222,7 @@ class Store {
 		if (this.kind === 'partial') {
 			let need = Math.min(e.qty, room);
 			for (const w of this.candidates(e.product)) {
-				const take = Math.min(need, this.get(this.free, w, e.product));
+				const take = Math.min(need, this.available(w, e.product));
 				if (take > 0) {
 					parts.push([w, take]);
 					need -= take;
@@ -176,7 +232,7 @@ class Store {
 			const w = this.place(e.product, e.qty);
 			if (w !== undefined) parts = [[w, e.qty]];
 		}
-		if (parts.length === 0) return 'reject';
+		if (parts.length === 0) return this.spec.words.reject;
 		const total = parts.reduce((s, [, q]) => s + q, 0);
 		this.take(e.id, e.product, e.client, parts, total);
 		if (this.variant === 'release-requested') {
@@ -186,9 +242,10 @@ class Store {
 		}
 		const recorded = this.variant === 'release-requested' ? e.qty : total;
 		this.owed.set(e.client, (this.owed.get(e.client) ?? 0) + recorded);
-		if (this.kind === 'expiring') this.queue.push({ deadline: e.t + this.input.ttl, id: e.id });
-		if (this.kind === 'partial') return `ok ${total}`;
-		return this.multi ? `ok ${parts[0]?.[0] ?? ''}` : 'ok';
+		if (this.kind === 'expiring') this.queue.push({ deadline: e.t + this.spec.ttl, id: e.id });
+		const { ok } = this.spec.words;
+		if (this.kind === 'partial') return `${ok} ${total}`;
+		return this.multi ? `${ok} ${parts[0]?.[0] ?? ''}` : ok;
 	}
 
 	apply(e: Ev): string {
@@ -206,15 +263,23 @@ class Store {
 			line.splice(line.indexOf(e.id), 1);
 			this.owed.set(order.client, (this.owed.get(order.client) ?? 0) - order.qty);
 			this.serve(order.product);
-			return 'ok';
+			return this.spec.words.ok;
 		}
-		return this.drop(e.id, e.op === 'release' || this.variant === 'confirm-returns') ? 'ok' : 'ignore';
+		return this.drop(e.id, e.op === 'release' || this.variant === 'confirm-returns')
+			? this.spec.words.ok
+			: this.spec.words.ignore;
 	}
 
 	final(): string[] {
 		const stock = this.input.warehouses.flatMap((w) =>
 			this.input.products.map((p) =>
-				[...(this.multi ? [w] : []), p, this.get(this.free, w, p), this.get(this.busy, w, p)].join(' ')
+				[
+					...(this.multi ? [w] : []),
+					p,
+					...(this.spec.swap
+						? [this.get(this.busy, w, p), this.get(this.free, w, p)]
+						: [this.get(this.free, w, p), this.get(this.busy, w, p)])
+				].join(' ')
 			)
 		);
 		if (this.kind !== 'backorder') return stock;
@@ -226,18 +291,17 @@ class Store {
 	}
 }
 
-function simulate(kind: string, input: Input, multi: boolean, variant: Variant = 'right'): string {
-	const store = new Store(kind, input, multi, variant);
+function simulate(kind: string, input: Input, spec: Spec, multi: boolean, variant: Variant = 'right'): string {
+	const store = new Store(kind, input, spec, multi, variant);
 	const out = input.events.map((e) => store.apply(e));
 	return `${[...out, ...store.final()].join('\n')}\n`;
 }
 
-function render(kind: string, input: Input, multi: boolean): string {
+function render(input: Input, multi: boolean): string {
 	const head = [
 		...(multi ? [input.warehouses.length] : []),
 		input.products.length,
 		input.events.length,
-		...(kind === 'expiring' ? [input.ttl] : []),
 		...(input.limit === null ? [] : [input.limit])
 	].join(' ');
 	const stock = multi
@@ -263,7 +327,7 @@ function multiOf(kind: string, senior: boolean): boolean {
 
 /** The numbers of the first line of the main task: the classes with the same count read each other's input. */
 function arity(kind: string, senior: boolean): number {
-	return (multiOf(kind, senior) ? 3 : 2) + (kind === 'expiring' ? 1 : 0);
+	return multiOf(kind, senior) ? 3 : 2;
 }
 
 const PRODUCTS = ['apple', 'pear', 'milk', 'bread', 'cheese', 'rice', 'tea', 'soap', 'salt', 'sugar', 'honey', 'juice'];
@@ -275,17 +339,17 @@ function distinct(rng: Rng, pool: readonly string[], count: number): string[] {
 	return [...names];
 }
 
-function makeInput(rng: Rng, kind: string, group: GroupId, multi: boolean, withLimit: boolean): Input {
+function makeInput(rng: Rng, kind: string, group: GroupId, multi: boolean, withLimit: boolean, spec: Spec): Input {
 	const scale = group === 'scale';
 	const simple = SIMPLE.has(group);
 	const warehouses = multi ? distinct(rng, WAREHOUSES, scale ? rng.int(4, 6) : rng.int(2, 4)) : ['main'];
 	const products = distinct(rng, PRODUCTS, scale ? rng.int(15, 30) : rng.int(2, multi ? 3 : 4));
-	const stock = warehouses.map(() => products.map(() => (rng.bool(0.2) ? 0 : rng.int(1, 8))));
+	// Over the safety stock, as much as a reservation may take as without it.
+	const stock = warehouses.map(() => products.map(() => (rng.bool(0.2) ? 0 : rng.int(1, 8) + spec.safety)));
 	const clients = distinct(rng, PERSON_NAMES, scale ? 16 : rng.int(2, 4));
-	const ttl = kind === 'expiring' ? rng.pick([20, 30, 45, 60, 90]) : 0;
-	const unit = kind === 'expiring' ? Math.floor(ttl / 3) : rng.pick([5, 10, 20]);
-	const input: Input = { warehouses, products, stock, ttl, limit: withLimit ? rng.int(4, 10) : null, events: [] };
-	const store = new Store(kind, input, multi, 'right');
+	const unit = kind === 'expiring' ? Math.floor(spec.ttl / 3) : rng.pick([5, 10, 20]);
+	const input: Input = { warehouses, products, stock, limit: withLimit ? rng.int(4, 10) : null, events: [] };
+	const store = new Store(kind, input, spec, multi, 'right');
 	const issued: string[] = [];
 	let serial = rng.int(1, 900);
 	let t = rng.int(0, 100);
@@ -304,7 +368,7 @@ function makeInput(rng: Rng, kind: string, group: GroupId, multi: boolean, withL
 		let e: Ev;
 		if (roll < reserves || issued.length === 0) {
 			const product = rng.pick(products);
-			const most = Math.max(...warehouses.map((w) => store.get(store.free, w, product)));
+			const most = Math.max(...warehouses.map((w) => store.available(w, product)));
 			const exact = group === 'exact' && most > 0 && rng.bool(0.6);
 			const qty = exact ? most : rng.int(1, 6);
 			e = { t, op: 'reserve', id: `r${(serial += 1)}`, client: rng.pick(clients), product, qty };
@@ -342,29 +406,54 @@ function traps(kind: string, group: GroupId, multi: boolean): Variant[] {
 	return list;
 }
 
-/** Hidden tests of the class; every test tells the class from the others, and the step's tests feel the limit. */
+/**
+ * Hidden tests of the class; every test tells the class from the others, the step's tests feel the limit, and every
+ * group fails a program with a neighbouring specification: each neighbour is told apart by some test of the group,
+ * every test tells apart one not told yet. Nothing expires in the short logs, so there the term is not felt.
+ */
 function groups(
 	rng: Rng,
 	kind: string,
 	others: readonly string[],
 	senior: boolean,
-	withLimit: boolean
+	withLimit: boolean,
+	spec: Spec
 ): HiddenTestGroup[] {
 	const multi = multiOf(kind, senior);
 	const ids: GroupId[] = ['reserve', 'exact', 'release', 'lifecycle', 'scale'];
 	// A class with another first line reads a test of this class as garbage, so only the same shape is compared.
 	const comparable = others.filter((other) => arity(other, senior) === arity(kind, senior));
+	// The expiring class is compared with its shortest term; in the short logs nothing expires, so there it answers as
+	// the class without expiry by design.
+	const otherSpec = (other: string): Spec => (other === 'expiring' ? { ...spec, ttl: TTLS[0] } : spec);
+	const sameInShortLogs = new Set(['expiring', 'all-or-nothing']);
+	const distinctIn = (other: string, id: GroupId): boolean =>
+		!SIMPLE.has(id) || !(sameInShortLogs.has(kind) && sameInShortLogs.has(other));
 	return ids.map((id) => {
 		const count = id === 'scale' ? 1 : 4;
+		const open = neighbours(kind, spec).filter((n) => !SIMPLE.has(id) || n.ttl === spec.ttl);
 		const tests: { stdin: string; expected: string }[] = [];
 		for (let attempt = 0; tests.length < count; attempt += 1) {
-			if (attempt > 500) throw new Error(`${descriptor.key}: no distinguishing ${id} test for ${kind}`);
-			const input = makeInput(rng, kind, id, multi, withLimit);
-			const expected = simulate(kind, input, multi);
-			if (comparable.some((other) => simulate(other, input, multi) === expected)) continue;
-			if (withLimit && simulate(kind, { ...input, limit: null }, multi) === expected) continue;
-			if (!withLimit && traps(kind, id, multi).some((v) => simulate(kind, input, multi, v) === expected)) continue;
-			tests.push({ stdin: render(kind, input, multi), expected });
+			if (attempt > 2000)
+				throw new Error(
+					`${descriptor.key}: no distinguishing ${id} test for ${kind}${open.length > 0 ? ` (${JSON.stringify(spec)} not told from ${JSON.stringify(open)})` : ''}`
+				);
+			const input = makeInput(rng, kind, id, multi, withLimit, spec);
+			const expected = simulate(kind, input, spec, multi);
+			if (
+				comparable.some(
+					(other) => distinctIn(other, id) && simulate(other, input, otherSpec(other), multi) === expected
+				)
+			)
+				continue;
+			if (withLimit && simulate(kind, { ...input, limit: null }, spec, multi) === expected) continue;
+			if (!withLimit && traps(kind, id, multi).some((v) => simulate(kind, input, spec, multi, v) === expected))
+				continue;
+			const told = open.filter((n) => simulate(kind, input, n, multi) !== expected);
+			if (open.length > 0 && told.length === 0) continue;
+			if (tests.length === count - 1 && told.length < open.length) continue;
+			for (const n of told) open.splice(open.indexOf(n), 1);
+			tests.push({ stdin: render(input, multi), expected });
 		}
 		return { id, tests };
 	});
@@ -373,27 +462,27 @@ function groups(
 const RULE: Record<string, (multi: boolean) => string[]> = {
 	'all-or-nothing': (multi) => [
 		multi
-			? 'Резерв удовлетворяется целиком с одного склада — первого по приоритету, где свободный остаток товара не меньше `q`: остаток этого склада уменьшается на `q`, резерв становится активным. Если такого склада нет, резерв отклоняется и ничего не меняет.'
-			: 'Резерв удовлетворяется целиком, если свободный остаток товара не меньше `q`: остаток уменьшается на `q`, резерв становится активным. Иначе резерв отклоняется и ничего не меняет.'
+			? 'Резерв удовлетворяется целиком с одного склада — первого по приоритету, где доступный остаток товара не меньше `q`: свободный остаток этого склада уменьшается на `q`, резерв становится активным. Если такого склада нет, резерв отклоняется и ничего не меняет.'
+			: 'Резерв удовлетворяется целиком, если доступный остаток товара не меньше `q`: свободный остаток уменьшается на `q`, резерв становится активным. Иначе резерв отклоняется и ничего не меняет.'
 	],
 	partial: (multi) => [
 		multi
-			? 'Резерв набирается по складам в порядке приоритета: с каждого склада берётся `min(сколько ещё не хватает, свободный остаток товара на складе)`, пока не наберётся `q` или не кончатся склады. Выдано — сумма взятого; если выдано 0, резерв отклоняется и ничего не меняет, иначе резерв становится активным с выданным количеством. Снятый резерв возвращает товар на те склады и в тех количествах, с которых он взят.'
-			: 'Резерв получает `min(q, свободный остаток товара)` единиц. Если это 0, резерв отклоняется и ничего не меняет; иначе остаток уменьшается на выданное количество и резерв становится активным с этим количеством.'
+			? 'Резерв набирается по складам в порядке приоритета: с каждого склада берётся `min(сколько ещё не хватает, доступный остаток товара на складе)`, пока не наберётся `q` или не кончатся склады. Выдано — сумма взятого; если выдано 0, резерв отклоняется и ничего не меняет, иначе резерв становится активным с выданным количеством. Снятый резерв возвращает товар на те склады и в тех количествах, с которых он взят.'
+			: 'Резерв получает `min(q, доступный остаток товара)` единиц. Если это 0, резерв отклоняется и ничего не меняет; иначе свободный остаток уменьшается на выданное количество и резерв становится активным с этим количеством.'
 	],
 	expiring: (multi) => [
 		...(RULE['all-or-nothing']?.(multi) ?? []),
 		`Активный резерв, принятый в момент \`t₀\`, истекает в момент \`t₀ + T\`, если до этого его не сняли и не подтвердили: товар возвращается в свободный остаток${multi ? ' того склада, с которого взят' : ''}, резерв перестаёт быть активным. Истечения момента обрабатываются **до** событий этого момента: событие в момент \`t₀ + T\` уже видит возвращённый товар, а снять или подтвердить истёкший резерв нельзя.`
 	],
 	backorder: () => [
-		'Заявки на товар обслуживаются строго в порядке поступления. Новый резерв встаёт в конец очереди своего товара, после чего очередь обслуживается: пока первой заявке очереди хватает свободного остатка (остаток не меньше её `q`), она удовлетворяется целиком — остаток уменьшается на `q`, заявка становится активным резервом и уходит из очереди. Заявка, которой не хватает, ждёт и не пропускает вперёд следующие, даже если им товара хватило бы; поэтому новый резерв при непустой очереди тоже ждёт.',
-		'Очередь товара обслуживается так же после каждой поставки этого товара, после снятия активного резерва этого товара и после снятия ожидающей заявки. `release` ожидающей заявки убирает её из очереди (ответ `ok`); `confirm` ожидающей заявки ничего не меняет (`ignore`).'
+		'Заявки на товар обслуживаются строго в порядке поступления. Новый резерв встаёт в конец очереди своего товара, после чего очередь обслуживается: пока первой заявке очереди хватает доступного остатка (доступный остаток не меньше её `q`), она удовлетворяется целиком — свободный остаток уменьшается на `q`, заявка становится активным резервом и уходит из очереди. Заявка, которой не хватает, ждёт и не пропускает вперёд следующие, даже если им товара хватило бы; поэтому новый резерв при непустой очереди тоже ждёт.',
+		'Очередь товара обслуживается так же после каждой поставки этого товара, после снятия активного резерва этого товара и после снятия ожидающей заявки. `release` ожидающей заявки убирает её из очереди (ответ — как на снятие активного резерва); `confirm` ожидающей заявки ничего не меняет (ответ — как на событие, которое ничего не меняет).'
 	]
 };
 
 /** A ready parser of the input in Python, so the candidate writes the rules, not the reading. */
-function parseSnippet(kind: string, multi: boolean): string[] {
-	const head = [...(multi ? ['s'] : []), 'p', 'e', ...(kind === 'expiring' ? ['ttl'] : [])];
+function parseSnippet(multi: boolean): string[] {
+	const head = [...(multi ? ['s'] : []), 'p', 'e'];
 	const n = head.length;
 	return [
 		'```python',
@@ -426,20 +515,26 @@ function parseSnippet(kind: string, multi: boolean): string[] {
 	];
 }
 
-function statement(kind: string, multi: boolean): string {
+function statement(kind: string, multi: boolean, spec: Spec): string {
 	const expiring = kind === 'expiring';
 	const backorder = kind === 'backorder';
+	const { ok, reject, ignore, wait } = spec.words;
 	const head = multi
-		? `\`S P E${expiring ? ' T' : ''}\`: число складов (1 ≤ S ≤ 10), число товаров (1 ≤ P ≤ 50), число событий (1 ≤ E ≤ 1500)`
-		: `\`P E${expiring ? ' T' : ''}\`: число товаров (1 ≤ P ≤ 50), число событий (1 ≤ E ≤ 1500)`;
+		? '`S P E`: число складов (1 ≤ S ≤ 10), число товаров (1 ≤ P ≤ 50), число событий (1 ≤ E ≤ 1500)'
+		: '`P E`: число товаров (1 ≤ P ≤ 50), число событий (1 ≤ E ≤ 1500)';
+	const numbers = spec.swap
+		? '<количество в активных резервах> <свободный остаток>'
+		: '<свободный остаток> <количество в активных резервах>';
 	return [
 		multi
 			? 'Сеть складов интернет-магазина резервирует товар под заказы. Напишите программу, которая обрабатывает журнал событий и печатает решение по каждому событию и итоговые остатки.'
 			: 'Склад интернет-магазина резервирует товар под заказы. Напишите программу, которая обрабатывает журнал событий склада и печатает решение по каждому событию и итоговые остатки.',
 		'',
+		`**Страховой запас R = ${spec.safety}**: ${multi ? 'на каждом складе ' : ''}${spec.safety} ${spec.safety === 1 ? 'единица' : 'единицы'} каждого товара под резервы не ${spec.safety === 1 ? 'отдаётся' : 'отдаются'}. **Доступный остаток** товара${multi ? ' на складе' : ''} — \`max(0, свободный остаток − R)\`; резерв берёт только из доступного остатка.${expiring ? ` **Срок резерва T = ${spec.ttl} с.**` : ''} Во входе ${expiring ? 'R и T' : 'R'} нет.`,
+		'',
 		'## Вход',
 		'',
-		`В первой строке — ${head}${expiring ? ', срок резерва в секундах (1 ≤ T ≤ 10⁶)' : ''}.`,
+		`В первой строке — ${head}.`,
 		...(multi
 			? [
 					'Во второй строке — `P` различных названий товаров. Далее `S` строк `<склад> q₁ … q_P` — свободные остатки товаров на складе в порядке второй строки (0 ≤ qᵢ ≤ 10⁶). Склады перечислены в порядке приоритета: первый — самый приоритетный.'
@@ -456,7 +551,7 @@ function statement(kind: string, multi: boolean): string {
 		'',
 		'Разбор входа можно взять готовым (на Python; на другом языке — тем же порядком):',
 		'',
-		...parseSnippet(kind, multi),
+		...parseSnippet(multi),
 		'',
 		'## Правило',
 		'',
@@ -469,13 +564,13 @@ function statement(kind: string, multi: boolean): string {
 		'',
 		'По строке на каждое событие, по порядку:',
 		'',
-		`- \`reserve\` — ${kind === 'partial' ? '`ok <выдано>`' : multi ? '`ok <склад>`' : '`ok`'} или ${backorder ? '`wait`, если заявка встала в очередь (о её удовлетворении позже ничего не печатается)' : '`reject`'};`,
-		`- \`release\`, \`confirm\` — \`ok\`, если резерв был активен${backorder ? ' (или снята ожидающая заявка)' : ''}, иначе \`ignore\`;`,
+		`- \`reserve\` — ${kind === 'partial' ? `\`${ok} <выдано>\`` : multi ? `\`${ok} <склад>\`` : `\`${ok}\``} или ${backorder ? `\`${wait}\`, если заявка встала в очередь (о её удовлетворении позже ничего не печатается)` : `\`${reject}\``};`,
+		`- \`release\`, \`confirm\` — \`${ok}\`, если резерв был активен${backorder ? ' (или снята ожидающая заявка)' : ''}, иначе \`${ignore}\`;`,
 		`- \`restock\` — свободный остаток товара${multi ? ' на этом складе' : ''} после поставки${backorder ? ' и обслуживания очереди' : ''}.`,
 		'',
 		multi
-			? 'Затем `S·P` строк `<склад> <товар> <свободный остаток> <количество в активных резервах>`: склады в порядке приоритета, внутри склада — товары в порядке второй строки.'
-			: 'Затем `P` строк `<товар> <свободный остаток> <количество в активных резервах>` в порядке товаров во входе.',
+			? `Затем \`S·P\` строк \`<склад> <товар> ${numbers}\`: склады в порядке приоритета, внутри склада — товары в порядке второй строки.`
+			: `Затем \`P\` строк \`<товар> ${numbers}\` в порядке товаров во входе.`,
 		...(expiring
 			? [
 					'Итог — сразу после последнего события: резервы, срок которых наступает позже последнего момента журнала, остаются активными.'
@@ -487,16 +582,16 @@ function statement(kind: string, multi: boolean): string {
 				]
 			: []),
 		'',
-		`Скрытые тесты — пять групп разной сложности. Две простые — короткие журналы только из \`reserve\` и \`restock\`: обычные запросы и запросы ровно на остаток. Три полные: снятия и подтверждения, в том числе повторные в один момент; весь жизненный цикл резервов${expiring ? ' с событиями точно в момент истечения' : ''}; большой объём (до 1500 событий). Группа засчитывается, если пройдены все её тесты.`
+		`Скрытые тесты — пять групп разной сложности. Две простые — короткие журналы только из \`reserve\` и \`restock\`: обычные запросы и запросы ровно на доступный остаток. Три полные: снятия и подтверждения, в том числе повторные в один момент; весь жизненный цикл резервов${expiring ? ' с событиями точно в момент истечения' : ''}; большой объём (до 1500 событий). Группа засчитывается, если пройдены все её тесты.`
 	].join('\n');
 }
 
-function changeStatement(kind: string, multi: boolean): string {
-	const header = `${multi ? 'S ' : ''}P E${kind === 'expiring' ? ' T' : ''} C`;
+function changeStatement(kind: string, multi: boolean, spec: Spec): string {
+	const header = `${multi ? 'S ' : ''}P E C`;
 	if (kind === 'backorder') {
 		return [
 			`**Новое условие.** У каждого клиента сумма количеств в его активных резервах и ожидающих заявках (по всем товарам${multi ? ' и складам' : ''}) не может превышать \`C\`.`,
-			'Заявка, после которой сумма превысила бы `C`, отклоняется (ответ `reject`) и в очередь не встаёт; удовлетворение заявки из очереди сумму не меняет.',
+			`Заявка, после которой сумма превысила бы \`C\`, отклоняется (ответ \`${spec.words.reject}\`) и в очередь не встаёт; удовлетворение заявки из очереди сумму не меняет.`,
 			'Снятие и подтверждение активного резерва и снятие ожидающей заявки освобождают лимит клиента.',
 			`Первая строка входа теперь \`${header}\` (1 ≤ C ≤ 10⁶). Измените решение и отправьте его снова; формат вывода прежний.`
 		].join('\n');
@@ -504,7 +599,7 @@ function changeStatement(kind: string, multi: boolean): string {
 	return [
 		`**Новое условие.** У каждого клиента сумма количеств в его активных резервах (по всем товарам${multi ? ' и складам' : ''}) не может превышать \`C\`.`,
 		kind === 'partial'
-			? `Резерв клиента, у которого в активных резервах уже \`h\` единиц, получает не больше \`C − h\`: ${multi ? 'набирается не больше `min(q, C − h)` по прежнему правилу' : 'выдаётся `min(q, свободный остаток, C − h)`'}; если выдано 0 — резерв отклоняется.`
+			? `Резерв клиента, у которого в активных резервах уже \`h\` единиц, получает не больше \`C − h\`: ${multi ? 'набирается не больше `min(q, C − h)` по прежнему правилу' : 'выдаётся `min(q, доступный остаток, C − h)`'}; если выдано 0 — резерв отклоняется.`
 			: 'Резерв, после которого сумма превысила бы `C`, отклоняется, даже если товара хватает.',
 		`${kind === 'expiring' ? 'Снятие, подтверждение и истечение' : 'Снятие и подтверждение'} резерва освобождают лимит клиента; отклонённый резерв лимит не занимает.`,
 		`Первая строка входа теперь \`${header}\` (1 ≤ C ≤ 10⁶). Измените решение и отправьте его снова; формат вывода прежний.`
@@ -512,9 +607,10 @@ function changeStatement(kind: string, multi: boolean): string {
 }
 
 /** The reference program in Python; a variant other than `right` is a wrong solution. */
-function referenceSource(kind: string, multi: boolean, withLimit: boolean, variant: Variant): string {
+function referenceSource(kind: string, multi: boolean, withLimit: boolean, spec: Spec, variant: Variant): string {
 	const expiring = kind === 'expiring';
-	const head = [...(multi ? ['s'] : []), 'p', 'e', ...(expiring ? ['ttl'] : []), ...(withLimit ? ['cap'] : [])];
+	const { ok, reject, ignore } = spec.words;
+	const head = [...(multi ? ['s'] : []), 'p', 'e', ...(withLimit ? ['cap'] : [])];
 	const take = variant === 'stale-release' ? 'held.get' : 'held.pop';
 	const fits = variant === 'exact-stock' ? '<' : '<=';
 	// A hold is (product, parts) and with the limit also (client, total); parts are (warehouse, quantity) pairs on
@@ -527,11 +623,13 @@ function referenceSource(kind: string, multi: boolean, withLimit: boolean, varia
 				'                free[w][r[0]] += q'
 			]
 		: ['        busy[r[0]] -= r[1]', '        if back:', '            free[r[0]] += r[1]'];
-	if (kind === 'backorder') return backorderSource(multi, withLimit, variant);
+	if (kind === 'backorder') return backorderSource(multi, withLimit, spec, variant);
 	const lines: string[] = [
 		'import sys',
 		...(expiring ? ['from collections import deque'] : []),
 		'',
+		`SAFETY = ${spec.safety}`,
+		...(expiring ? [`TTL = ${spec.ttl}`] : []),
 		...parseStock(multi, head)
 	];
 	lines.push(
@@ -568,26 +666,26 @@ function referenceSource(kind: string, multi: boolean, withLimit: boolean, varia
 	const accept = (parts: string, total: string, answer: string): string[] => [
 		`            held[rid] = (product, ${parts}${withLimit ? `, client, ${total}` : ''})`,
 		...(withLimit ? [`            owed[client] = owed.get(client, 0) + ${total}`] : []),
-		...(expiring ? ['            queue.append((t + ttl, rid))'] : []),
+		...(expiring ? ['            queue.append((t + TTL, rid))'] : []),
 		`            print(${answer})`
 	];
 	if (kind === 'partial' && !multi) {
 		const kept = variant === 'release-requested' ? 'qty' : 'got';
 		lines.push(
-			`        got = min(qty, free[product]${withLimit ? ', room' : ''})`,
+			`        got = min(qty, max(0, free[product] - SAFETY)${withLimit ? ', room' : ''})`,
 			'        if got > 0:',
 			'            free[product] -= got',
 			'            busy[product] += got',
-			...accept(kept, kept, "'ok', got"),
+			...accept(kept, kept, `'${ok}', got`),
 			'        else:',
-			"            print('reject')"
+			`            print('${reject}')`
 		);
 	} else if (kind === 'partial') {
-		const order = variant === 'single-warehouse' ? '[w for w in free if free[w][product] > 0][:1]' : 'free';
+		const order = variant === 'single-warehouse' ? '[w for w in free if free[w][product] > SAFETY][:1]' : 'free';
 		lines.push(
 			`        need, parts = ${withLimit ? 'min(qty, room)' : 'qty'}, []`,
 			`        for w in ${order}:`,
-			'            got = min(need, free[w][product])',
+			'            got = min(need, max(0, free[w][product] - SAFETY))',
 			'            if got > 0:',
 			'                free[w][product] -= got',
 			'                busy[w][product] += got',
@@ -595,30 +693,30 @@ function referenceSource(kind: string, multi: boolean, withLimit: boolean, varia
 			'                need -= got',
 			'        if parts:',
 			'            total = sum(q for w, q in parts)',
-			...accept('parts', 'total', "'ok', total"),
+			...accept('parts', 'total', `'${ok}', total`),
 			'        else:',
-			"            print('reject')"
+			`            print('${reject}')`
 		);
 	} else if (multi) {
-		const order = variant === 'single-warehouse' ? '[w for w in free if free[w][product] > 0][:1]' : 'free';
+		const order = variant === 'single-warehouse' ? '[w for w in free if free[w][product] > SAFETY][:1]' : 'free';
 		lines.push(
 			`        for w in ${order}:`,
-			`            if qty ${fits} free[w][product]${withLimit ? ' and qty <= room' : ''}:`,
+			`            if qty ${fits} free[w][product] - SAFETY${withLimit ? ' and qty <= room' : ''}:`,
 			'                free[w][product] -= qty',
 			'                busy[w][product] += qty',
-			...accept('[(w, qty)]', 'qty', "'ok', w").map((l) => `    ${l}`),
+			...accept('[(w, qty)]', 'qty', `'${ok}', w`).map((l) => `    ${l}`),
 			'                break',
 			'        else:',
-			"            print('reject')"
+			`            print('${reject}')`
 		);
 	} else {
 		lines.push(
-			`        if qty ${fits} free[product]${withLimit ? ' and qty <= room' : ''}:`,
+			`        if qty ${fits} free[product] - SAFETY${withLimit ? ' and qty <= room' : ''}:`,
 			'            free[product] -= qty',
 			'            busy[product] += qty',
-			...accept('qty', 'qty', "'ok'"),
+			...accept('qty', 'qty', `'${ok}'`),
 			'        else:',
-			"            print('reject')"
+			`            print('${reject}')`
 		);
 	}
 	const at = multi ? 'free[data[pos + 2]][data[pos + 3]]' : 'free[data[pos + 2]]';
@@ -628,13 +726,19 @@ function referenceSource(kind: string, multi: boolean, withLimit: boolean, varia
 		`        print(${at})`,
 		`        pos += ${multi ? 5 : 4}`,
 		'    else:',
-		`        print('ok' if drop(data[pos + 2], ${variant === 'confirm-returns' ? 'True' : "op == 'release'"}) else 'ignore')`,
+		`        print('${ok}' if drop(data[pos + 2], ${variant === 'confirm-returns' ? 'True' : "op == 'release'"}) else '${ignore}')`,
 		'        pos += 3',
-		...(multi
-			? ['for w in free:', '    for name in names:', '        print(w, name, free[w][name], busy[w][name])']
-			: ['for product in free:', '    print(product, free[product], busy[product])'])
+		...finalRows(multi, spec)
 	);
 	return lines.join('\n');
+}
+
+/** The final rows of the stock, in the order of the numbers the instance sets. */
+function finalRows(multi: boolean, spec: Spec): string[] {
+	const pair = (free: string, busy: string): string => (spec.swap ? `${busy}, ${free}` : `${free}, ${busy}`);
+	return multi
+		? ['for w in free:', '    for name in names:', `        print(w, name, ${pair('free[w][name]', 'busy[w][name]')})`]
+		: ['for product in free:', `    print(product, ${pair('free[product]', 'busy[product]')})`];
 }
 
 /** The header and the stock of the input, parsed the same way by every class. */
@@ -666,10 +770,11 @@ function parseStock(multi: boolean, head: readonly string[]): string[] {
 }
 
 /** The reference of the backorder class: whole reservations served from a strict first-come queue per product. */
-function backorderSource(multi: boolean, withLimit: boolean, variant: Variant): string {
+function backorderSource(multi: boolean, withLimit: boolean, spec: Spec, variant: Variant): string {
+	const { ok, reject, ignore, wait } = spec.words;
 	const head = [...(multi ? ['s'] : []), 'p', 'e', ...(withLimit ? ['cap'] : [])];
 	const fits = variant === 'exact-stock' ? '<' : '<=';
-	const order = variant === 'single-warehouse' ? '[w for w in free if free[w][product] > 0][:1]' : 'free';
+	const order = variant === 'single-warehouse' ? '[w for w in free if free[w][product] > SAFETY][:1]' : 'free';
 	const extra = withLimit ? ', client, qty' : '';
 	const pop = withLimit ? 'qty, client = waiting.pop(rid)[1:]' : 'qty = waiting.pop(rid)[1]';
 	// Activating a waiting reservation `rid` of `product` for `qty`, with several warehouses from the warehouse `w`.
@@ -684,7 +789,7 @@ function backorderSource(multi: boolean, withLimit: boolean, variant: Variant): 
 			: ['free[product] -= qty', 'busy[product] += qty', `held[rid] = (product, qty${extra})`]
 		).map((l) => indent + l);
 	const ready = (qty: string): string =>
-		multi ? `place(product, ${qty}) is not None` : `${qty} ${fits} free[product]`;
+		multi ? `place(product, ${qty}) is not None` : `${qty} ${fits} free[product] - SAFETY`;
 	const serve =
 		variant === 'skip-ahead'
 			? [
@@ -717,7 +822,9 @@ function backorderSource(multi: boolean, withLimit: boolean, variant: Variant): 
 		variant === 'queue-jump'
 			? `queue[product].insert(0 if ${ready('qty')} else len(queue[product]), rid)`
 			: 'queue[product].append(rid)';
-	const answer = multi ? "f'ok {held[rid][1][0][0]}' if rid in held else 'wait'" : "'ok' if rid in held else 'wait'";
+	const answer = multi
+		? `f'${ok} {held[rid][1][0][0]}' if rid in held else '${wait}'`
+		: `'${ok}' if rid in held else '${wait}'`;
 	const admit = [
 		...(withLimit ? ['owed[client] = owed.get(client, 0) + qty'] : []),
 		`waiting[rid] = (product, qty${withLimit ? ', client' : ''})`,
@@ -729,6 +836,7 @@ function backorderSource(multi: boolean, withLimit: boolean, variant: Variant): 
 	return [
 		'import sys',
 		'',
+		`SAFETY = ${spec.safety}`,
 		...parseStock(multi, head),
 		'held = {}',
 		'waiting = {}',
@@ -740,7 +848,7 @@ function backorderSource(multi: boolean, withLimit: boolean, variant: Variant): 
 			? [
 					'def place(product, qty):',
 					`    for w in ${order}:`,
-					`        if qty ${fits} free[w][product]:`,
+					`        if qty ${fits} free[w][product] - SAFETY:`,
 					'            return w',
 					'    return None',
 					'',
@@ -768,7 +876,7 @@ function backorderSource(multi: boolean, withLimit: boolean, variant: Variant): 
 		...(withLimit
 			? [
 					'        if owed.get(client, 0) + qty > cap:',
-					"            print('reject')",
+					`            print('${reject}')`,
 					'        else:',
 					...admit.map((l) => `            ${l}`)
 				]
@@ -786,20 +894,13 @@ function backorderSource(multi: boolean, withLimit: boolean, variant: Variant): 
 		...(withLimit ? ['            owed[client] -= qty'] : []),
 		'            queue[product].remove(rid)',
 		'            serve(product)',
-		"            print('ok')",
+		`            print('${ok}')`,
 		'        else:',
-		`            print('ok' if drop(rid, ${variant === 'confirm-returns' ? 'True' : "op == 'release'"}) else 'ignore')`,
+		`            print('${ok}' if drop(rid, ${variant === 'confirm-returns' ? 'True' : "op == 'release'"}) else '${ignore}')`,
+		...finalRows(multi, spec),
 		...(multi
-			? [
-					'for w in free:',
-					'    for name in names:',
-					'        print(w, name, free[w][name], busy[w][name])',
-					'for name in names:',
-					'    print(name, len(queue[name]), sum(waiting[rid][1] for rid in queue[name]))'
-				]
+			? ['for name in names:', '    print(name, len(queue[name]), sum(waiting[rid][1] for rid in queue[name]))']
 			: [
-					'for product in free:',
-					'    print(product, free[product], busy[product])',
 					'for product in free:',
 					'    print(product, len(queue[product]), sum(waiting[rid][1] for rid in queue[product]))'
 				])
@@ -843,28 +944,35 @@ export function build(input: GenerateInput): Built {
 	const senior = input.grade === 'senior';
 	const kind = input.classId;
 	const multi = multiOf(kind, senior);
+	const spec = drawSpec(rng, kind);
 	const others = level.classes.map((c) => c.id).filter((id) => id !== kind);
-	const main = groups(rng, kind, others, senior, false);
-	const step = groups(rng, kind, others, senior, true);
+	const main = groups(rng, kind, others, senior, false, spec);
+	const step = groups(rng, kind, others, senior, true, spec);
 	const instance = makeInstance(descriptor, input, {
-		statement: { markdown: statement(kind, multi), code: null },
+		statement: { markdown: statement(kind, multi, spec), code: null },
 		answer: null,
 		practice: { languages: [...LANGUAGES], groups: main, checker: { kind: 'tokens' } },
-		changeStep: { markdown: changeStatement(kind, multi), weight: CHANGE_WEIGHT, answer: null, groups: step, qa: null }
+		changeStep: {
+			markdown: changeStatement(kind, multi, spec),
+			weight: CHANGE_WEIGHT,
+			answer: null,
+			groups: step,
+			qa: null
+		}
 	});
 	return {
 		instance,
 		reference: () => ({
 			kind: 'practice',
-			source: referenceSource(kind, multi, false, 'right'),
-			changeSource: referenceSource(kind, multi, true, 'right')
+			source: referenceSource(kind, multi, false, spec, 'right'),
+			changeSource: referenceSource(kind, multi, true, spec, 'right')
 		}),
 		wrong: () =>
 			Object.fromEntries(
 				WRONG_IDS.map((id) => [
 					id,
 					applies(id, kind, multi)
-						? { kind: 'program' as const, source: referenceSource(kind, multi, false, id) }
+						? { kind: 'program' as const, source: referenceSource(kind, multi, false, spec, id) }
 						: null
 				])
 			)

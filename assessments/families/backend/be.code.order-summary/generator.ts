@@ -1,6 +1,9 @@
 // Practice: a summary of orders per customer from a plain-text log, by a rule the class sets (an aggregate, a count,
 // a streak in log order); from Junior up the log carries updates of orders and the answer is the top K. Parametric
 // hidden tests in five groups, one of them with sums past 2³¹.
+// The words of the statuses and the smallest amount an order needs to count are the instance's own (`Spec`): they are
+// given only in the statement, and every group of hidden tests fails a program with another smallest amount or other
+// words, so a program written for another instance of the class fails here.
 import {
 	instanceRng,
 	levelAndClass,
@@ -19,6 +22,27 @@ const LANGUAGES = ['python3', 'go', 'java21', 'javascript', 'typescript', 'cpp17
 const descriptor = readDescriptor(import.meta.url);
 
 type Status = 'paid' | 'cancelled' | 'new';
+
+/** The constants of the instance's specification, stated in the text only. */
+interface Spec {
+	/** The words of `paid`, `new` and `cancelled` in the log; no word is shared by two sets. */
+	words: Readonly<Record<Status, string>>;
+	/** An order counts only with an amount of at least this. */
+	min: number;
+}
+
+const WORDS: readonly Readonly<Record<Status, string>>[] = [
+	{ paid: 'paid', new: 'new', cancelled: 'cancelled' },
+	{ paid: 'settled', new: 'pending', cancelled: 'voided' },
+	{ paid: 'captured', new: 'created', cancelled: 'refunded' },
+	{ paid: 'complete', new: 'open', cancelled: 'rejected' }
+];
+/** At least 100 apart, so an amount 50 under the smallest is still over the next smaller one. */
+const MINS = [100, 200, 300, 500, 800, 1200, 2000] as const;
+
+function drawSpec(rng: Rng): Spec {
+	return { words: rng.pick(WORDS), min: rng.pick(MINS) };
+}
 interface Order {
 	id: number;
 	customer: string;
@@ -45,9 +69,9 @@ const wrap32 = (x: number): number => ((x + 2 ** 31) % 2 ** 32) - 2 ** 31;
 const SUMMED = new Set(['paid-sum', 'top-paid', 'top-orders', 'top-average']);
 
 /** The rows of the class before ordering: a key, the printed text, kept or not. */
-function rowsOf(classId: string, orders: readonly Order[], updates: boolean, variant: Variant): Row[] {
+function rowsOf(classId: string, orders: readonly Order[], updates: boolean, min: number, variant: Variant): Row[] {
 	const ignores = variant === 'ignores-status';
-	const rows = latest(orders, updates, variant === 'first-wins');
+	const rows = latest(orders, updates, variant === 'first-wins').filter((o) => o.amount >= min);
 	if (classId === 'paid-streak') {
 		const per = new Map<string, { run: number; best: number }>();
 		for (const o of rows) {
@@ -108,18 +132,26 @@ interface Row {
 	kept: boolean;
 }
 
-/** The expected output of the class on an input; a variant other than `right` reproduces a wrong solution. */
-function solve(classId: string, orders: readonly Order[], k: number, variant: Variant = 'right'): string {
+/**
+ * The expected output of the class on an input with the smallest amount `min`; a variant other than `right` reproduces
+ * a wrong solution.
+ */
+function solve(classId: string, orders: readonly Order[], k: number, min: number, variant: Variant = 'right'): string {
 	const updates = k > 0;
-	const lines = rowsOf(classId, orders, updates, variant).filter((r) => r.kept);
+	const lines = rowsOf(classId, orders, updates, min, variant).filter((r) => r.kept);
 	if (classId === 'paid-sum') lines.sort((a, b) => byName(a.name, b.name));
 	else lines.sort((a, b) => b.key - a.key || (variant === 'no-tie-break' ? 0 : byName(a.name, b.name)));
 	return (updates ? lines.slice(0, k) : lines).map((l) => l.text).join('\n');
 }
 
-function render(orders: readonly Order[], k: number): string {
+function render(orders: readonly Order[], k: number, words: Spec['words']): string {
 	const head = k > 0 ? `${orders.length} ${k}` : `${orders.length}`;
-	return `${[head, ...orders.map((o) => `${o.id} ${o.customer} ${o.amount} ${o.status}`)].join('\n')}\n`;
+	return `${[head, ...orders.map((o) => `${o.id} ${o.customer} ${o.amount} ${words[o.status]}`)].join('\n')}\n`;
+}
+
+/** An amount: now and then on or just under the smallest one that counts, so the threshold decides. */
+function amountOf(rng: Rng, min: number): number {
+	return rng.bool(0.4) ? rng.pick([min - 50, min, min, min + 50]) : rng.int(1, 200) * 50;
 }
 
 /** A pool of customer names large enough for the scale tests. */
@@ -143,7 +175,7 @@ interface TestShape {
 	k: number;
 }
 
-function makeOrders(rng: Rng, shape: TestShape): Order[] {
+function makeOrders(rng: Rng, shape: TestShape, min: number): Order[] {
 	const people = names(rng, shape.customers);
 	let id = rng.int(1000, 5000);
 	const status = (): Status => rng.pick<Status>(['paid', 'paid', 'paid', 'new', 'cancelled']);
@@ -152,7 +184,7 @@ function makeOrders(rng: Rng, shape: TestShape): Order[] {
 		base.push({
 			id: (id += rng.int(1, 3)),
 			customer: rng.pick(people),
-			amount: rng.int(1, 200) * 50,
+			amount: amountOf(rng, min),
 			status: status()
 		});
 	}
@@ -160,12 +192,20 @@ function makeOrders(rng: Rng, shape: TestShape): Order[] {
 	if (shape.ties) {
 		// Two customers with identical baskets, written in the reverse order of their names.
 		const [x, y] = [`zz${rng.pick(PERSON_NAMES)}`, `aa${rng.pick(PERSON_NAMES)}`];
-		for (const amount of [rng.int(1, 40) * 50, rng.int(1, 40) * 50]) {
-			orders.push({ id: (id += 1), customer: x, amount, status: 'paid' });
-			orders.push({ id: (id += 1), customer: y, amount, status: 'paid' });
+		const pair: Order[] = [];
+		for (const amount of [amountOf(rng, min), amountOf(rng, min)]) {
+			pair.push({ id: (id += 1), customer: x, amount, status: 'paid' });
+			pair.push({ id: (id += 1), customer: y, amount, status: 'paid' });
 		}
-		orders.push({ id: (id += 1), customer: x, amount: 50, status: 'new' });
-		orders.push({ id: (id += 1), customer: y, amount: 50, status: 'new' });
+		orders.push(...pair);
+		orders.push({ id: (id += 1), customer: x, amount: min, status: 'new' });
+		orders.push({ id: (id += 1), customer: y, amount: min, status: 'new' });
+		if (shape.updates && rng.bool()) {
+			// Both cancel the same paid order after the payment: the baskets stay equal, and orders cancelled after a
+			// payment tie too.
+			const [ox, oy] = [pair[0], pair[1]];
+			if (ox && oy) orders.push({ ...ox, status: 'cancelled' }, { ...oy, status: 'cancelled' });
+		}
 	}
 	if (shape.large) {
 		// A customer whose paid sum passes 2³¹, and a few small ones around.
@@ -183,10 +223,17 @@ function makeOrders(rng: Rng, shape: TestShape): Order[] {
 	if (shape.updates) {
 		// Later lines rewrite earlier orders; one large paid order is cancelled by its update.
 		for (const o of rng.sample(base, Math.max(2, Math.floor(base.length / 5)))) {
-			orders.push({ ...o, status: rng.pick<Status>(['paid', 'cancelled']), amount: rng.int(1, 200) * 50 });
+			orders.push({ ...o, status: rng.pick<Status>(['paid', 'cancelled']), amount: amountOf(rng, min) });
 		}
 		const big: Order = { id: id + 1, customer: rng.pick(people), amount: 900_000, status: 'paid' };
 		orders.push(big, { ...big, status: 'cancelled' });
+		if (shape.large || rng.bool(0.3)) {
+			// Two orders paid and cancelled right on either side of the smallest amount that counts.
+			for (const [i, amount] of [min - 50, rng.pick([min, min + 50])].entries()) {
+				const edge: Order = { id: id + 2 + i, customer: rng.pick(people), amount, status: 'paid' };
+				orders.push(edge, { ...edge, status: 'cancelled' });
+			}
+		}
 	}
 	return orders;
 }
@@ -221,7 +268,8 @@ const SHAPES: Record<string, (rng: Rng, junior: boolean) => TestShape> = {
 	}),
 	large: (rng, junior) => ({
 		customers: rng.int(2, 4),
-		orders: rng.int(4, 10),
+		// Junior: enough orders that the updates cancel some after a payment, on both sides of the smallest amount.
+		orders: junior ? rng.int(10, 16) : rng.int(4, 10),
 		ties: false,
 		edge: false,
 		large: true,
@@ -256,45 +304,89 @@ function traps(classId: string, group: string, junior: boolean): Variant[] {
 }
 
 /** Hidden tests of the class; every test tells this class from the others of the level. */
-function groups(rng: Rng, classId: string, others: readonly string[], junior: boolean): HiddenTestGroup[] {
+/**
+ * A program of another instance of the class: another smallest amount, or other words of the statuses — it knows none
+ * of this log's words, so every order is neither paid nor cancelled for it.
+ */
+interface Neighbour {
+	name: string;
+	solve(classId: string, orders: readonly Order[], k: number): string;
+}
+
+function neighbours(spec: Spec): Neighbour[] {
+	return [
+		...MINS.filter((m) => m !== spec.min).map((m) => ({
+			name: `min ${m}`,
+			solve: (classId: string, orders: readonly Order[], k: number) => solve(classId, orders, k, m)
+		})),
+		{
+			name: 'other words',
+			solve: (classId: string, orders: readonly Order[], k: number) =>
+				solve(
+					classId,
+					orders.map((o) => ({ ...o, status: 'new' as const })),
+					k,
+					spec.min
+				)
+		}
+	];
+}
+
+/**
+ * Hidden tests of the class; every test tells this class from the others of the level, and every group fails a
+ * program of a neighbouring specification: each neighbour is told apart by some test of the group, every test tells
+ * apart one not told yet.
+ */
+function groups(rng: Rng, classId: string, others: readonly string[], junior: boolean, spec: Spec): HiddenTestGroup[] {
 	return Object.entries(SHAPES).map(([id, shapeOf]) => {
 		const count = id === 'scale' || id === 'large' ? 1 : 4;
+		const open = neighbours(spec);
 		const tests: { stdin: string; expected: string }[] = [];
 		for (let attempt = 0; tests.length < count; attempt += 1) {
-			if (attempt > 500) throw new Error(`${descriptor.key}: no distinguishing ${id} test for ${classId}`);
+			if (attempt > 2000)
+				throw new Error(
+					`${descriptor.key}: no distinguishing ${id} test for ${classId}${open.length > 0 ? ` (min ${spec.min} not told from ${open.map((n) => n.name).join(', ')})` : ''}`
+				);
 			const shape = shapeOf(rng, junior);
-			const orders = makeOrders(rng, shape);
-			const expected = solve(classId, orders, shape.k);
-			if (expected === '' || others.some((other) => solve(other, orders, shape.k) === expected)) continue;
-			if (traps(classId, id, junior).some((v) => solve(classId, orders, shape.k, v) === expected)) continue;
-			tests.push({ stdin: render(orders, shape.k), expected: `${expected}\n` });
+			const orders = makeOrders(rng, shape, spec.min);
+			const expected = solve(classId, orders, shape.k, spec.min);
+			if (expected === '' || others.some((other) => solve(other, orders, shape.k, spec.min) === expected)) continue;
+			if (traps(classId, id, junior).some((v) => solve(classId, orders, shape.k, spec.min, v) === expected)) continue;
+			const told = open.filter((n) => n.solve(classId, orders, shape.k) !== expected);
+			if (open.length > 0 && told.length === 0) continue;
+			if (tests.length === count - 1 && told.length < open.length) continue;
+			for (const n of told) open.splice(open.indexOf(n), 1);
+			tests.push({ stdin: render(orders, shape.k, spec.words), expected: `${expected}\n` });
 		}
 		return { id, tests };
 	});
 }
 
-const RULES: Record<string, string> = {
-	'paid-sum':
-		'Для каждого клиента, у которого есть хотя бы один заказ со статусом `paid`, выведите строку `<клиент> <сумма оплаченных заказов>`. Строки — по имени клиента в лексикографическом порядке.',
-	'active-count':
-		'Для каждого клиента выведите строку `<клиент> <число заказов со статусом не cancelled>`; клиентов, у которых таких заказов нет, не выводите. Строки — по убыванию числа, при равенстве — по имени клиента в лексикографическом порядке.',
-	'max-paid':
-		'Для каждого клиента, у которого есть хотя бы один заказ со статусом `paid`, выведите строку `<клиент> <наибольшая сумма оплаченного заказа>`. Строки — по убыванию суммы, при равенстве — по имени клиента в лексикографическом порядке.',
-	'top-paid':
-		'Выведите K клиентов с наибольшей суммой оплаченных (`paid`) заказов, строками `<клиент> <сумма>`: по убыванию суммы, при равенстве — по имени в лексикографическом порядке. Клиенты без оплаченных заказов не участвуют; если участников меньше K — выведите всех.',
-	'top-orders':
-		'Выведите K клиентов с наибольшим числом оплаченных (`paid`) заказов, строками `<клиент> <число> <сумма оплаченных>`: по убыванию числа, при равенстве — по имени в лексикографическом порядке. Клиенты без оплаченных заказов не участвуют; если участников меньше K — выведите всех.',
-	'top-average':
-		'Выведите K клиентов с наибольшей средней суммой оплаченного (`paid`) заказа, строками `<клиент> <среднее>`, где среднее — сумма, делённая на число оплаченных заказов, с округлением вниз до целого. Порядок — по убыванию среднего, при равенстве — по имени в лексикографическом порядке. Клиенты без оплаченных заказов не участвуют; если участников меньше K — выведите всех.',
-	'paid-streak':
-		'Для каждого клиента найдите самую длинную серию подряд идущих оплаченных (`paid`) заказов среди **его** заказов в порядке строк журнала: заказ этого клиента с другим статусом прерывает серию, заказы других клиентов — нет. Выведите строки `<клиент> <длина серии>` для клиентов, у которых есть хотя бы один оплаченный заказ: по убыванию длины, при равенстве — по имени клиента в лексикографическом порядке.',
-	'cancel-after-paid':
-		'Заказ «отменён после оплаты», если среди строк с его номером есть строка со статусом `paid`, а последняя строка — `cancelled`. Для каждого клиента (по последней записи заказа) посчитайте число таких заказов и сумму их сумм из последних записей. Выведите K клиентов с наибольшим числом таких заказов строками `<клиент> <число> <сумма>`: по убыванию числа, при равенстве — по имени в лексикографическом порядке. Клиенты без таких заказов не участвуют; если участников меньше K — выведите всех.'
+const RULES: Record<string, (w: Spec['words']) => string> = {
+	'paid-sum': (w) =>
+		`Для каждого клиента, у которого есть хотя бы один заказ со статусом \`${w.paid}\`, выведите строку \`<клиент> <сумма оплаченных заказов>\`. Строки — по имени клиента в лексикографическом порядке.`,
+	'active-count': (w) =>
+		`Для каждого клиента выведите строку \`<клиент> <число заказов со статусом не ${w.cancelled}>\`; клиентов, у которых таких заказов нет, не выводите. Строки — по убыванию числа, при равенстве — по имени клиента в лексикографическом порядке.`,
+	'max-paid': (w) =>
+		`Для каждого клиента, у которого есть хотя бы один заказ со статусом \`${w.paid}\`, выведите строку \`<клиент> <наибольшая сумма оплаченного заказа>\`. Строки — по убыванию суммы, при равенстве — по имени клиента в лексикографическом порядке.`,
+	'top-paid': (w) =>
+		`Выведите K клиентов с наибольшей суммой оплаченных (\`${w.paid}\`) заказов, строками \`<клиент> <сумма>\`: по убыванию суммы, при равенстве — по имени в лексикографическом порядке. Клиенты без оплаченных заказов не участвуют; если участников меньше K — выведите всех.`,
+	'top-orders': (w) =>
+		`Выведите K клиентов с наибольшим числом оплаченных (\`${w.paid}\`) заказов, строками \`<клиент> <число> <сумма оплаченных>\`: по убыванию числа, при равенстве — по имени в лексикографическом порядке. Клиенты без оплаченных заказов не участвуют; если участников меньше K — выведите всех.`,
+	'top-average': (w) =>
+		`Выведите K клиентов с наибольшей средней суммой оплаченного (\`${w.paid}\`) заказа, строками \`<клиент> <среднее>\`, где среднее — сумма, делённая на число оплаченных заказов, с округлением вниз до целого. Порядок — по убыванию среднего, при равенстве — по имени в лексикографическом порядке. Клиенты без оплаченных заказов не участвуют; если участников меньше K — выведите всех.`,
+	'paid-streak': (w) =>
+		`Для каждого клиента найдите самую длинную серию подряд идущих оплаченных (\`${w.paid}\`) заказов среди **его** заказов в порядке строк журнала: заказ этого клиента с другим статусом прерывает серию, заказы других клиентов — нет. Выведите строки \`<клиент> <длина серии>\` для клиентов, у которых есть хотя бы один оплаченный заказ: по убыванию длины, при равенстве — по имени клиента в лексикографическом порядке.`,
+	'cancel-after-paid': (w) =>
+		`Заказ «отменён после оплаты», если среди строк с его номером есть строка со статусом \`${w.paid}\`, а последняя строка — \`${w.cancelled}\`. Для каждого клиента (по последней записи заказа) посчитайте число таких заказов и сумму их сумм из последних записей. Выведите K клиентов с наибольшим числом таких заказов строками \`<клиент> <число> <сумма>\`: по убыванию числа, при равенстве — по имени в лексикографическом порядке. Клиенты без таких заказов не участвуют; если участников меньше K — выведите всех.`
 };
 
-function statement(classId: string, junior: boolean): string {
+function statement(classId: string, junior: boolean, spec: Spec): string {
+	const w = spec.words;
 	return [
 		'Сервис заказов пишет журнал: одна строка — один заказ. Напишите программу, которая читает журнал со стандартного ввода и печатает сводку по клиентам.',
+		'',
+		`Заказ с суммой меньше **M = ${spec.min}** в сводке не участвует вовсе — как будто его ${junior ? 'последней записи' : 'строки'} нет в журнале${classId === 'paid-streak' ? ' (серию он не прерывает)' : ''}. M во входе нет.`,
 		'',
 		'## Вход',
 		'',
@@ -303,7 +395,7 @@ function statement(classId: string, junior: boolean): string {
 			: 'В первой строке — число `N` (1 ≤ N ≤ 10 000). Далее `N` строк `<номер> <клиент> <сумма> <статус>`.',
 		'',
 		'- номер — целое от 1 до 10⁹; клиент — строка из латинских букв и цифр без пробелов; сумма — целое от 1 до 10⁶;',
-		'- статус — `paid`, `new` или `cancelled`.',
+		`- статус — \`${w.paid}\` (оплачен), \`${w.new}\` (новый) или \`${w.cancelled}\` (отменён).`,
 		...(junior
 			? [
 					'- журнал содержит обновления: строка с номером, который уже встречался, заменяет прежнюю запись этого заказа целиком (клиент, сумма, статус); учитывается только последняя запись каждого номера.'
@@ -312,7 +404,7 @@ function statement(classId: string, junior: boolean): string {
 		'',
 		'## Выход',
 		'',
-		RULES[classId] ?? '',
+		RULES[classId]?.(w) ?? '',
 		'',
 		'Программа проверяется скрытыми тестами пяти групп: обычные данные, равенство ключей, граничные случаи, большие суммы, большой объём. Группа засчитывается, если пройдены все её тесты.'
 	].join('\n');
@@ -330,8 +422,8 @@ const VALUE: Record<string, string> = {
 };
 
 /** The reference of the streak class: the current and the longest run of paid orders per customer. */
-function streakSource(variant: Variant): string {
-	const paid = variant === 'ignores-status' ? 'True' : "status == 'paid'";
+function streakSource(spec: Spec, variant: Variant): string {
+	const paid = variant === 'ignores-status' ? 'True' : `status == '${spec.words.paid}'`;
 	const broken = variant === 'streak-no-reset' ? 'run.get(customer, 0)' : '0';
 	const rows =
 		variant === 'no-tie-break'
@@ -344,9 +436,12 @@ function streakSource(variant: Variant): string {
 		'',
 		'data = sys.stdin.read().split()',
 		'n = int(data[0])',
+		`MIN = ${spec.min}`,
 		'best, run = {}, {}',
 		'for i in range(n):',
-		'    customer, status = data[2 + 4 * i], data[4 + 4 * i]',
+		'    customer, amount, status = data[2 + 4 * i], int(data[3 + 4 * i]), data[4 + 4 * i]',
+		'    if amount < MIN:',
+		'        continue',
 		`    run[customer] = run.get(customer, 0) + 1 if ${paid} else ${broken}`,
 		'    best[customer] = max(best.get(customer, 0), run[customer])',
 		`rows = ${rows}`,
@@ -356,22 +451,24 @@ function streakSource(variant: Variant): string {
 }
 
 /** The reference of the class of orders cancelled after a payment, on the orders after updates. */
-function cancelSource(variant: Variant): string {
+function cancelSource(spec: Spec, variant: Variant): string {
+	const { paid, cancelled } = spec.words;
 	return [
 		'import sys',
 		'',
 		'data = sys.stdin.read().split()',
 		'n, k = int(data[0]), int(data[1])',
+		`MIN = ${spec.min}`,
 		'orders, paid = {}, set()',
 		'for i in range(n):',
 		'    oid, customer, amount, status = data[2 + 4 * i:6 + 4 * i]',
 		...(variant === 'first-wins' ? ['    if oid in orders:', '        continue'] : []),
 		'    orders[oid] = (customer, int(amount), status)',
-		"    if status == 'paid':",
+		`    if status == '${paid}':`,
 		'        paid.add(oid)',
 		'count = {}',
 		'for oid, (customer, amount, status) in orders.items():',
-		`    if status == 'cancelled'${variant === 'ignores-status' ? '' : ' and oid in paid'}:`,
+		`    if amount >= MIN and status == '${cancelled}'${variant === 'ignores-status' ? '' : ' and oid in paid'}:`,
 		'        c = count.setdefault(customer, [0, 0])',
 		'        c[0] += 1',
 		'        c[1] += amount',
@@ -382,9 +479,9 @@ function cancelSource(variant: Variant): string {
 }
 
 /** The reference program of a class in Python; a variant other than `right` is a wrong solution. */
-function referenceSource(classId: string, variant: Variant): string {
-	if (classId === 'paid-streak') return streakSource(variant);
-	if (classId === 'cancel-after-paid') return cancelSource(variant);
+function referenceSource(classId: string, spec: Spec, variant: Variant): string {
+	if (classId === 'paid-streak') return streakSource(spec, variant);
+	if (classId === 'cancel-after-paid') return cancelSource(spec, variant);
 	const updates = classId.startsWith('top-');
 	const store = !updates
 		? 'orders[i]'
@@ -392,7 +489,11 @@ function referenceSource(classId: string, variant: Variant): string {
 			? 'orders.setdefault(oid, None) or orders'
 			: 'orders[oid]';
 	const filter =
-		variant === 'ignores-status' ? 'True' : classId === 'active-count' ? "status != 'cancelled'" : "status == 'paid'";
+		variant === 'ignores-status'
+			? 'True'
+			: classId === 'active-count'
+				? `status != '${spec.words.cancelled}'`
+				: `status == '${spec.words.paid}'`;
 	const sort = classId === 'paid-sum' ? 'r[0]' : variant === 'no-tie-break' ? '-r[1]' : '(-r[1], r[0])';
 	const overflow = variant === 'int32-sum';
 	const total = overflow ? 'wrap(sum(v))' : 'sum(v)';
@@ -405,6 +506,7 @@ function referenceSource(classId: string, variant: Variant): string {
 		'n = int(data[0])',
 		`k = ${updates ? 'int(data[1])' : '0'}`,
 		`pos = ${updates ? 2 : 1}`,
+		`MIN = ${spec.min}`,
 		...(overflow ? ['wrap = lambda x: (x + 2 ** 31) % 2 ** 32 - 2 ** 31'] : []),
 		'orders = {}',
 		'for i in range(n):',
@@ -415,6 +517,8 @@ function referenceSource(classId: string, variant: Variant): string {
 			: `    ${store} = (customer, int(amount), status)`,
 		'groups = {}',
 		'for customer, amount, status in orders.values():',
+		'    if amount < MIN:',
+		'        continue',
 		'    values = groups.setdefault(customer, [])',
 		`    if ${filter}:`,
 		'        values.append(amount)',
@@ -458,22 +562,23 @@ export function build(input: GenerateInput): Built {
 	const { level } = levelAndClass(descriptor, input);
 	const rng = instanceRng(descriptor, input);
 	const junior = input.grade === 'junior';
+	const spec = drawSpec(rng);
 	const others = level.classes.map((c) => c.id).filter((id) => id !== input.classId);
-	const hidden = groups(rng, input.classId, others, junior);
+	const hidden = groups(rng, input.classId, others, junior, spec);
 	const instance = makeInstance(descriptor, input, {
-		statement: { markdown: statement(input.classId, junior), code: null },
+		statement: { markdown: statement(input.classId, junior, spec), code: null },
 		answer: null,
 		practice: { languages: [...LANGUAGES], groups: hidden, checker: { kind: 'tokens' } }
 	});
 	return {
 		instance,
-		reference: () => ({ kind: 'practice', source: referenceSource(input.classId, 'right'), changeSource: null }),
+		reference: () => ({ kind: 'practice', source: referenceSource(input.classId, spec, 'right'), changeSource: null }),
 		wrong: () =>
 			Object.fromEntries(
 				WRONG_IDS.map((id) => [
 					id,
 					applies(id, input.classId, junior)
-						? { kind: 'program' as const, source: referenceSource(input.classId, id) }
+						? { kind: 'program' as const, source: referenceSource(input.classId, spec, id) }
 						: null
 				])
 			)
