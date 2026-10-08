@@ -1,5 +1,7 @@
 // Adapters from the request context of an operation to the contexts the domain modules take.
-import type { AccessSubject } from '$lib/server/access/permissions';
+import { can, type AccessSubject } from '$lib/server/access/permissions';
+import type { RequestMeta as AuthMeta } from '$lib/server/auth/context';
+import type { SessionRef } from '$lib/server/auth/sessions';
 import type { ActionContext } from '$lib/server/companies/context';
 import type { RequestMeta as InvitationMeta } from '$lib/server/invitations/deps';
 import { ApiError } from '$lib/server/errors/api-error';
@@ -46,4 +48,28 @@ export async function candidateOfPseudonymFor(
 	const candidateId = await candidateOfPseudonym(ctx.services.db, ctx.services.crypto, membership.companyId, pseudonym);
 	if (candidateId === null) throw new ApiError('not_found');
 	return { subject, candidateId };
+}
+
+/** The signed-in candidate holding the permission over their own profile; anyone else — `403`. */
+export async function ownCandidate(
+	ctx: Pick<AnyContext, 'subject'>,
+	permission: 'candidate.self.read' | 'candidate.self.write'
+): Promise<{ subject: AccessSubject; candidateId: string; userId: string }> {
+	const subject = await ctx.subject();
+	const candidateId = subject.candidate?.id;
+	if (candidateId === undefined || subject.userId === null) throw new ApiError('forbidden');
+	if (!can(subject, permission, { candidateId }).allowed) throw new ApiError('forbidden');
+	return { subject, candidateId, userId: subject.userId };
+}
+
+/** The browser session of a session-only operation, as the sign-in module takes it. */
+export function sessionOf(ctx: Pick<AnyContext, 'actor'>): SessionRef {
+	const { actor } = ctx;
+	if (actor.kind !== 'session') throw new ApiError('forbidden');
+	return { hash: actor.sessionHash, userId: actor.userId, authTime: actor.authTime };
+}
+
+/** The request metadata of the sign-in module. */
+export function requestMetaOf(ctx: Pick<AnyContext, 'meta'>): AuthMeta {
+	return { requestId: ctx.meta.requestId, ip: ctx.meta.ip, userAgent: ctx.meta.userAgent };
 }

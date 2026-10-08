@@ -33,6 +33,7 @@ import {
 import { textCheckSchema } from '$lib/server/vacancies/text-check';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
 import { createCompany, createMember, createUser, randomSha256 } from '../helpers/factories';
+import { noFiles } from '../helpers/storage';
 
 const TAXONOMY_DIR = fileURLToPath(new URL('../../taxonomy', import.meta.url));
 const BLOCKED = 'Разрабатываем платёжные сервисы на Go. Гражданство РФ обязательно: работа с гостайной.';
@@ -64,6 +65,7 @@ beforeAll(async () => {
 			hmacSecret: Buffer.alloc(32, 8)
 		}),
 		mailer: { send: () => Promise.reject(new Error('no letters in moderation')) },
+		store: noFiles,
 		registry: registryNotConfigured,
 		models: {
 			embed: () => Promise.resolve(fail('disabled', 'embed: switched off', { reason: 'switched_off' })),

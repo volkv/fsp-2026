@@ -13,7 +13,7 @@ import { modelModes } from '$lib/server/ml';
 import { extractRoute } from '$lib/server/ml/disclosure';
 import { deleteResume } from '$lib/server/resumes/delete';
 import { resumeDeps } from '$lib/server/resumes/deps';
-import { readOwnResumes } from '$lib/server/resumes/read';
+import { readingFlags, readOwnResumes, resumeInProgress } from '$lib/server/resumes/read';
 import { correctExperienceEntry, reviewExperienceEntry, reviewResumeClaim } from '$lib/server/resumes/review';
 import { uploadResume } from '$lib/server/resumes/upload';
 import { fieldCrypto } from '$lib/server/crypto/fields';
@@ -23,30 +23,6 @@ import type { Actions, PageServerLoad } from './$types';
 
 /** Key the page invalidates while the resume is still being read. */
 const RESUME_DEPENDENCY = 'app:me-resume';
-
-const INCOMPLETE_REASONS: Record<string, string> = {
-	page_limit: 'прочитаны не все страницы — файл длиннее лимита',
-	ocr_low_confidence: 'часть скана распознана неуверенно',
-	unsupported_element: 'часть содержимого не удалось прочитать',
-	encrypted_part: 'часть файла защищена',
-	embedded_object_skipped: 'вложенные объекты пропущены'
-};
-
-/** What the parser tells about the reading that the candidate should know: a partial text, a recognized scan. */
-function readingFlags(flags: unknown): { ocrUsed: boolean; incomplete: string[] } {
-	if (typeof flags !== 'object' || flags === null) throw new Error('document flags are not an object');
-	const { ocrUsed, incompleteReasons } = flags as { ocrUsed?: unknown; incompleteReasons?: unknown };
-	if (typeof ocrUsed !== 'boolean' || !Array.isArray(incompleteReasons)) {
-		throw new Error('document flags have an unexpected shape');
-	}
-	return {
-		ocrUsed,
-		incomplete: incompleteReasons.map((reason) => {
-			if (typeof reason !== 'string') throw new Error('an incomplete reason is not a string');
-			return INCOMPLETE_REASONS[reason] ?? reason;
-		})
-	};
-}
 
 /**
  * The candidate's resume: every upload with the state of its parse, and for the current one the document text with
@@ -73,12 +49,6 @@ export const load: PageServerLoad = async (event) => {
 						current,
 						suggestions.map((suggestion) => ({ key: suggestion.sourceKey, quotes: [suggestion.quote] }))
 					);
-		const upload = current?.upload ?? null;
-		// The parse and the extraction run in the background: the page asks again until the reading is known.
-		const inProgress =
-			upload !== null &&
-			(upload.parseStatus === 'pending' ||
-				((upload.parseStatus === 'parsed' || upload.parseStatus === 'partial') && current?.reading === null));
 		return {
 			/** Why a resume is not taken now; the upload form is replaced by the reason. */
 			processingRefusal: refusal?.message ?? null,
@@ -101,7 +71,8 @@ export const load: PageServerLoad = async (event) => {
 			accountEmail: suggestions.some((suggestion) => suggestion.field === 'email')
 				? (await readOwnProfile(database, crypto, candidateId)).email
 				: null,
-			inProgress,
+			// The parse and the extraction run in the background: the page asks again until the reading is known.
+			inProgress: resumeInProgress(current),
 			extractRoute: await extractRoute(config().models.extract, modelModes()),
 			labels: vocabularyLabels(vocabulary),
 			roles: vocabulary?.roles ?? []

@@ -2,30 +2,15 @@
 // improve, and everything the platform keeps about the candidate («Мои данные»). Categories and objections are in
 // `categories.ts`. Browser session only.
 import { z } from 'zod';
-import { can, type AccessSubject } from '$lib/server/access/permissions';
 import { DATA_EXPORT_FORMAT, exportOwnData } from '$lib/server/candidates/data-export';
-import { ApiError } from '$lib/server/errors/api-error';
 import { recommendVacancies } from '$lib/server/matching/recommendations';
 import { defineOperation } from '../operation';
 import { candidateMatch, dateTime, key, pageQuery } from '../schemas';
-import type { BaseContext } from './context';
+import { ownCandidate } from './context';
 
 const TAG = 'Кандидат';
 
 const json = z.record(z.string(), z.unknown());
-
-/** The candidate of the subject holding the permission for their own profile. */
-async function selfCandidate(
-	ctx: BaseContext,
-	permission: 'candidate.self.read' | 'candidate.self.write'
-): Promise<{ subject: AccessSubject; candidateId: string; userId: string }> {
-	const subject = await ctx.subject();
-	const candidateId = subject.candidate?.id;
-	if (candidateId === undefined || subject.userId === null) throw new ApiError('forbidden');
-	const decision = can(subject, permission, { candidateId });
-	if (!decision.allowed) throw new ApiError('forbidden');
-	return { subject, candidateId, userId: subject.userId };
-}
 
 export const listMyMatches = defineOperation({
 	id: 'listMyMatches',
@@ -66,7 +51,7 @@ export const listMyMatches = defineOperation({
 		})
 	},
 	async handle(ctx) {
-		const { subject } = await selfCandidate(ctx, 'candidate.self.read');
+		const { subject } = await ownCandidate(ctx, 'candidate.self.read');
 		const { cursor, limit, text, role_key: roleKeys, work_format: workFormats } = ctx.query;
 		const page = await recommendVacancies({ db: ctx.services.db }, subject, {
 			limit,
@@ -158,7 +143,7 @@ export const getMyData = defineOperation({
 		})
 	},
 	async handle(ctx) {
-		const { candidateId, userId } = await selfCandidate(ctx, 'candidate.self.read');
+		const { candidateId, userId } = await ownCandidate(ctx, 'candidate.self.read');
 		return exportOwnData(ctx.services.db, ctx.services.crypto, {
 			userId,
 			candidateId,
