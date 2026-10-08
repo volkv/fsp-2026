@@ -51,8 +51,9 @@
 		"check:fsp-mock": "pnpm fsp-mock:install && pnpm -C services/fsp-mock check && docker build -t fsp-mock:check services/fsp-mock",
 		"docs:licenses": "node scripts/docs/licenses.ts",
 		"docs:build": "node scripts/docs/build.ts",
+		"docs:bank-facts": "node scripts/docs/bank-facts.ts",
 		"check:sandbox": "vitest run --project integration tests/integration/sandbox.test.ts",
-		"check:fast": "pnpm lint && pnpm check && pnpm test:unit",
+		"check:fast": "pnpm lint && pnpm check && pnpm docs:bank-facts && pnpm test:unit",
 		"check:all": "pnpm check:fast && pnpm test:integration && pnpm build && docker compose up -d --wait postgres redis storage mailpit fsp-mock && pnpm test:e2e && pnpm check:image && pnpm check:docparse && pnpm check:eval && pnpm check:fsp-mock"
 	},
 	"dependencies": {
