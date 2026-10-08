@@ -119,8 +119,6 @@ export async function playAttempt(spec: AttemptSpec, score: AsyncScorer): Promis
 	}
 }
 
-const clip = (p: number): number => Math.min(0.98, Math.max(0.02, p));
-
 /**
  * The honest candidate of the trajectory report's model (`simulatedScore`) with a shift from the cut that may depend on
  * the block and the grade of the item. Each slot draws from its own stream, so replays and pasted answers elsewhere in
@@ -156,10 +154,6 @@ export const profileShift =
 	(profile: Profile) =>
 	(block: string, grade: GradeKey): number =>
 		profile.byGrade[grade] + (profile.byBlock[block] ?? 0);
-
-/** The chance of a profile on a computed item: the item's estimate plus the profile's shift, clipped as in the report. */
-export const profileChance = (profile: Profile, block: string, grade: GradeKey, angoff: number): number =>
-	clip(angoff + profileShift(profile)(block, grade));
 
 /** What a candidate types for a computed answer: the value, a list one item per line. */
 export function typedAnswer(answer: ComputedAnswer): CandidateAnswer {

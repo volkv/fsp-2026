@@ -46,12 +46,7 @@ export function categoryKeysOf(record: {
  * The grades of the catalog a range of the taxonomy scale `[min, max]` covers; unknown bounds or an inverted range
  * give none. Grades the catalog does not confirm (Lead) are not a category and count nowhere.
  */
-export function catalogGradesBetween(
-	ordinals: ReadonlyMap<string, number>,
-	min: string | null,
-	max: string | null
-): GradeKey[] {
-	if (min === null || max === null) return [];
+export function catalogGradesBetween(ordinals: ReadonlyMap<string, number>, min: string, max: string): GradeKey[] {
 	const from = ordinals.get(min);
 	const to = ordinals.get(max);
 	if (from === undefined || to === undefined || from > to) return [];

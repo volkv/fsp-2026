@@ -520,10 +520,6 @@ function strengthBand(strength: number, rules: RulesContext): StrengthBand {
 	return 'weak';
 }
 
-const BAND_ORDER: readonly StrengthBand[] = ['weak', 'moderate', 'strong'];
-export const bandAtLeast = (band: StrengthBand, min: StrengthBand) =>
-	BAND_ORDER.indexOf(band) >= BAND_ORDER.indexOf(min);
-
 /** Skill inferences with strength, band, attestation and badge (domain 9.3), ordered by skill key. */
 export function buildInferences(skills: Map<string, Contribution[]>, rules: RulesContext): SkillInference[] {
 	return [...skills.entries()]

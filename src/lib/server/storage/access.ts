@@ -1,6 +1,5 @@
 // Handing out a stored file (docs/domain.md, sections 14, 15.1): only through the application, after an access check,
 // and every attempt is a journal event. Who may read a file:
-// - its owner;
 // - a company that received the resume by an accepted invitation: `canShow` in the invitation context gives the
 //   recipient projection and the disclosure consent of that invitation lists `resume`;
 // - a company that received the resume by an application to its vacancy: a member managing the applications of that
@@ -39,7 +38,6 @@ import type { ObjectStore } from './object-store';
 
 /** On what grounds the file is asked for. */
 export type FileAccessContext =
-	| { kind: 'owner' }
 	| { kind: 'invitation'; invitationId: string }
 	| { kind: 'application'; applicationId: string }
 	/**
@@ -72,7 +70,6 @@ export interface FileDownload {
 
 export type FileDenyReason =
 	| 'file_missing'
-	| 'not_owner'
 	| 'not_resume'
 	| 'invitation_missing'
 	| 'application_missing'
@@ -118,11 +115,6 @@ async function decide(
 	const candidateId = resume?.candidateId ?? null;
 
 	switch (context.kind) {
-		case 'owner':
-			return subject.via === 'session' && subject.userId === file.ownerUserId
-				? { allowed: true, candidateId, caseAccess: null }
-				: deny('not_owner', candidateId);
-
 		case 'invitation': {
 			if (!resume) return deny('not_resume');
 			const [invitation] = await deps.db.select().from(invitations).where(eq(invitations.id, context.invitationId));

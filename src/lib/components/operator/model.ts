@@ -103,12 +103,6 @@ export const AUTHORITY_BASES: Record<string, string> = {
 	custodianship_act: 'Акт о попечительстве'
 };
 
-export const CLAIM_INN: Record<'match' | 'mismatch' | 'unknown', { label: string; tone: Tone }> = {
-	match: { label: 'ИНН публикации совпадает с ИНН компании', tone: 'success' },
-	mismatch: { label: 'ИНН публикации не совпадает с ИНН компании', tone: 'danger' },
-	unknown: { label: 'Источник не публикует ИНН', tone: 'neutral' }
-};
-
 export const PARTNERSHIP_KINDS: Record<string, string> = {
 	case_provider: 'Кейсодатель',
 	sponsor: 'Спонсор',
