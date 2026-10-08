@@ -219,3 +219,12 @@ describe('the sign-in through FSP ID', () => {
 		expect((await send('/auth/fsp', { from: address() })).status).toBe(200);
 	});
 });
+
+describe('the counter of a window', () => {
+	it('counts a hit in the last half second of its window instead of failing the request', async () => {
+		const key = `ratelimit:test:${randomUUID()}`;
+		await redis.set(key, '3', { PX: 400 });
+		const hit = await redisRateLimitStore(redis).hit(key, 60);
+		expect(hit).toEqual({ count: 4, resetSeconds: 1 });
+	});
+});

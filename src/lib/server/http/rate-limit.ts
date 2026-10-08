@@ -172,13 +172,14 @@ export function rateLimitHeaders(decision: RateLimitDecision): Record<string, st
 export function redisRateLimitStore(client: Redis): RateLimitStore {
 	return {
 		async hit(key, windowSeconds) {
-			const [count, , ttl] = await client.multi().incr(key).expire(key, windowSeconds, 'NX').ttl(key).exec();
-			if (typeof count !== 'number' || typeof ttl !== 'number') {
+			// PTTL, not TTL: TTL rounds to whole seconds and answers 0 in the last half second of a window.
+			const [count, , pttl] = await client.multi().incr(key).expire(key, windowSeconds, 'NX').pTTL(key).exec();
+			if (typeof count !== 'number' || typeof pttl !== 'number') {
 				throw new Error(`rate limit counter ${key}: unexpected replies`);
 			}
-			// The transaction sets the expiry before reading it, so a counter without one is a broken invariant.
-			if (ttl <= 0) throw new Error(`rate limit counter ${key} has no expiry`);
-			return { count, resetSeconds: ttl };
+			// The transaction sets the expiry before reading it, so a counter without one (-1) is a broken invariant.
+			if (pttl < 0) throw new Error(`rate limit counter ${key} has no expiry`);
+			return { count, resetSeconds: Math.ceil(pttl / 1000) };
 		}
 	};
 }
