@@ -52,9 +52,23 @@ export const matchRulesetParamsSchema = z.strictObject({
 	/**
 	 * Value of a skill of the confirmed stack of a category in force — a skill of a block the candidate passed in the test
 	 * of the grade (domain 12.4) — wherever a skill is read: its coverage and its confirmation in the match with a
-	 * vacancy (a skill the run also has counts by the higher of the two) and its value in the ranking for a need.
+	 * vacancy (a skill the run also has counts by the higher of the two) and its value in the ranking for a need (`skill`).
 	 */
 	testedSkillValue: positiveUnit,
+	/**
+	 * The one rule of a skill's value, in the match with a vacancy and in the ranking for a need alike: a skill counts by
+	 * its best basis. The test's confirmed stack is worth `testedSkillValue`; a direct FSP or platform confirmation — the
+	 * band value; a verified public profile — the band value times `publicProfileFactor`; a claim or a derivation from the
+	 * resume — the band value times `claimedCeiling` when the candidate's own test checks the skill, so what the candidate
+	 * says of themselves cannot outweigh a check. A skill the candidate's test does not check (ClickHouse, Kafka) has no
+	 * check to outweigh: its claim is capped by `untestableClaimedCeiling`, still below a verified public profile.
+	 */
+	skill: z
+		.strictObject({ publicProfileFactor: unit, claimedCeiling: unit, untestableClaimedCeiling: unit })
+		.refine(
+			(s) => s.claimedCeiling <= s.untestableClaimedCeiling && s.untestableClaimedCeiling <= s.publicProfileFactor,
+			'a claim weighs no more than a claim of an untestable skill, and that no more than a public profile'
+		),
 	/**
 	 * Trust in the score: the share of the required skills covered by confirmations — the test's confirmed stack
 	 * (`testedSkillValue`) or directly confirmed inferences (by their band), the higher —
@@ -105,19 +119,6 @@ export const matchRulesetParamsSchema = z.strictObject({
 			.refine((w) => w.test + w.fsp + w.freshness > 0, 'the strength level has a positive weight')
 			// FSP lifts a candidate inside a category and never outweighs the test or the fit to the required skills.
 			.refine((w) => w.fsp < w.test && w.fsp < w.required, 'FSP weighs less than the test and the required skills'),
-		/**
-		 * Value of a skill of the need by its best basis: a skill of the confirmed stack of a category in force (the test)
-		 * is worth `testedSkillValue`; a direct FSP or platform confirmation — the band value; a verified public profile — the band
-		 * value times `publicProfileFactor`; a claim or a derivation from the resume — the band value, but never more than
-		 * `claimedCeiling`, so what the candidate says of themselves cannot outweigh a check. A skill no block of the
-		 * need's specializations can confirm (ClickHouse, Kafka) has no check to outweigh: its claim is capped by
-		 * `untestableClaimedCeiling`, still below a verified public profile.
-		 */
-		skill: z.strictObject({
-			publicProfileFactor: unit,
-			claimedCeiling: unit,
-			untestableClaimedCeiling: unit
-		}),
 		/**
 		 * The test by blocks: the margin of a block is `(S − C) / (20 · items)`, shrunk toward zero as `items / (items +
 		 * shrinkItems)` so that a lucky short block counts less; blocks whose skills the need asks for weigh

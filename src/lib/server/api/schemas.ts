@@ -147,6 +147,11 @@ function matchSchema(withFacts: boolean) {
 	const evidenceSkillMatch = skillMatch
 		.extend({
 			source: z.literal('evidence'),
+			basis: z
+				.enum(['fsp', 'platform', 'public_profile', 'claimed', 'claimed_untestable'])
+				.describe(
+					'Основание навыка, по которому он засчитан: подтверждение ФСП или платформы, публичный профиль, заявлено (тест кандидата навык проверяет и не подтвердил), заявлено и тестом не проверяется'
+				),
 			band,
 			attestation,
 			badge_trust: trust.nullable(),

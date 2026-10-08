@@ -667,6 +667,7 @@ describe('catalog search: match with a vacancy', () => {
 			requirement: 'required',
 			skill_key: 'go',
 			source: 'evidence',
+			basis: 'fsp',
 			band: 'strong',
 			attestation: 'direct',
 			badge_trust: 'fsp_verified'

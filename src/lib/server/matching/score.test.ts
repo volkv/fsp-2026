@@ -3,6 +3,7 @@ import matchRuleset from '../../../../taxonomy/match-ruleset.json';
 import { matchRulesetParamsSchema } from './params';
 import {
 	matchScore,
+	needScore,
 	qualifiesForPool,
 	type CandidateCategory,
 	type ConfirmedCategory,
@@ -112,6 +113,7 @@ describe('matchScore', () => {
 			requirement: 'required',
 			skill_key: 'go',
 			source: 'evidence',
+			basis: 'fsp',
 			band: 'strong',
 			attestation: 'direct',
 			badge_trust: 'fsp_verified',
@@ -134,11 +136,22 @@ describe('matchScore', () => {
 		expect(result.explanation.matches.some((m) => m.kind === 'skill' && m.skill_key === 'postgresql')).toBe(false);
 	});
 
-	it('counts a skill confirmed by FSP as trusted and the same skill claimed in a resume as not', () => {
+	it('counts a skill confirmed by FSP above the same skill claimed in a resume, in the coverage and in the trust', () => {
 		const confirmed = matchScore(withSkills([goFromFsp]));
 		const claimed = matchScore(withSkills([goFromResume]));
-		// Coverage is the same: both have strong grounds for Go.
-		expect(confirmed.components.required.value).toBe(claimed.components.required.value);
+		// Both have strong grounds for Go, but the claim is capped: the candidate's own test checks Go (a practice language
+		// of Backend) and did not confirm it.
+		expect(confirmed.components.required.details.skills).toContainEqual(
+			expect.objectContaining({ skill_key: 'go', basis: 'fsp', value: params.skillBandValue.strong })
+		);
+		expect(claimed.components.required.details.skills).toContainEqual(
+			expect.objectContaining({
+				skill_key: 'go',
+				basis: 'claimed',
+				value: params.skillBandValue.strong * params.skill.claimedCeiling
+			})
+		);
+		expect(confirmed.components.required.value).toBeGreaterThan(claimed.components.required.value ?? 1);
 		expect(confirmed.components.trust).toMatchObject({
 			status: 'computed',
 			value: 0.5,
@@ -158,21 +171,28 @@ describe('matchScore', () => {
 			value: 0.5,
 			details: { direct: 1, total: 2, public_profile: 0, confirmed_coverage: 0.5 }
 		});
-		// Repository languages cover the requirement as strongly as the test, but do not confirm it.
-		expect(github.components.required.value).toBe(tested.components.required.value);
+		// Repository languages cover the requirement below the test and above a claim, and do not confirm it.
+		expect(github.components.required.details.skills).toContainEqual(
+			expect.objectContaining({
+				skill_key: 'go',
+				basis: 'public_profile',
+				value: params.skillBandValue.strong * params.skill.publicProfileFactor
+			})
+		);
 		expect(github.components.trust).toMatchObject({
 			status: 'computed',
 			value: 0,
 			details: { direct: 0, total: 2, public_profile: 1, confirmed_coverage: 0 }
 		});
-		expect(github.score).toBe(claimed.score);
 		expect(tested.score).toBeGreaterThan(github.score);
+		expect(github.score).toBeGreaterThan(claimed.score);
 		// The badge still reaches the explanation, and the skill asks for no check as a claim would.
 		expect(github.explanation.matches).toContainEqual({
 			kind: 'skill',
 			requirement: 'required',
 			skill_key: 'go',
 			source: 'evidence',
+			basis: 'public_profile',
 			band: 'strong',
 			attestation: 'direct',
 			badge_trust: 'public_verifiable',
@@ -484,7 +504,7 @@ describe('trust component', () => {
 		});
 	});
 
-	it('ranks a confirmed senior who claims the skills above a junior with both confirmed for a senior vacancy', () => {
+	it('ranks for a senior vacancy a senior whose test confirmed the skills above a junior, and one who only claims them below', () => {
 		// Without the model components, which would dilute what the rules decide.
 		const seniorVacancy = (base: MatchInput): MatchInput => ({
 			...base,
@@ -498,13 +518,19 @@ describe('trust component', () => {
 				withSkills([goFromFsp, { ...goFromFsp, skillKey: 'postgresql' }])
 			)
 		);
-		const senior = seniorVacancy(
-			withCategories(
-				[{ specialization: 'backend', grade: 'senior' }],
-				withSkills([goFromResume, { ...goFromResume, skillKey: 'postgresql' }])
-			)
-		);
-		expect(matchScore(senior).score).toBeGreaterThan(matchScore(junior).score);
+		const seniorWith = (confirmedSkillKeys: string[]): MatchInput => {
+			const base = withSkills([goFromResume, { ...goFromResume, skillKey: 'postgresql' }]);
+			return seniorVacancy({
+				...base,
+				candidate: {
+					...base.candidate,
+					categories: [held({ specialization: 'backend', grade: 'senior' }, confirmedSkillKeys)]
+				}
+			});
+		};
+		// The grade decides between equally confirmed skills; a claim does not stand for a confirmation.
+		expect(matchScore(seniorWith(['go', 'postgresql'])).score).toBeGreaterThan(matchScore(junior).score);
+		expect(matchScore(seniorWith([])).score).toBeLessThan(matchScore(junior).score);
 	});
 });
 
@@ -596,6 +622,89 @@ describe('the confirmed stack of a category in force', () => {
 		expect(tested.explanation.to_verify).not.toContainEqual({ code: 'skill_claimed', skill_key: 'postgresql' });
 		expect(tested.components.trust.value ?? 0).toBeGreaterThan(before.components.trust.value ?? 0);
 		expect(tested.score).toBeGreaterThan(before.score);
+	});
+});
+
+describe('the one rule of a skill value', () => {
+	const modelsOff = {
+		semantic: { status: 'unavailable', reason: 'disabled' },
+		reranker: { status: 'unavailable', reason: 'disabled' }
+	} as const;
+	const postgresqlFrom = (skill: SkillEvidence): SkillEvidence => ({ ...skill, skillKey: 'postgresql' });
+	/** The fixture candidate with both required skills on one basis; `stack` — the skills their test confirmed. */
+	const candidateWith = (skill: SkillEvidence, stack: string[] = []): MatchInput => {
+		const base = { ...withSkills([skill, postgresqlFrom(skill)]), ...modelsOff };
+		return {
+			...base,
+			candidate: { ...base.candidate, categories: [held({ specialization: 'backend', grade: 'middle' }, stack)] }
+		};
+	};
+
+	it('puts a candidate who claims the skills of a vacancy below one whose skills are confirmed, all else equal', () => {
+		const claimed = matchScore(candidateWith(goFromResume));
+		for (const confirmed of [
+			matchScore(candidateWith(goFromFsp)),
+			matchScore(candidateWith(goFromTest)),
+			matchScore(candidateWith(goFromResume, ['go', 'postgresql']))
+		]) {
+			expect(confirmed.components.required.value).toBeGreaterThan(claimed.components.required.value ?? 1);
+			expect(confirmed.score).toBeGreaterThan(claimed.score);
+		}
+		// Go is checked by the candidate's own test, PostgreSQL by none: the lower ceiling where a check was passed by.
+		expect(claimed.components.required.details.skills).toEqual([
+			expect.objectContaining({ skill_key: 'go', basis: 'claimed', value: params.skill.claimedCeiling }),
+			expect.objectContaining({
+				skill_key: 'postgresql',
+				basis: 'claimed_untestable',
+				value: params.skill.untestableClaimedCeiling
+			})
+		]);
+		expect(claimed.explanation.matches).toContainEqual(
+			expect.objectContaining({ skill_key: 'postgresql', source: 'evidence', basis: 'claimed_untestable' })
+		);
+	});
+
+	it('values every skill of a vacancy as the ranking for a need values the same skill', () => {
+		for (const skill of [
+			goFromFsp,
+			goFromTest,
+			goFromGithub,
+			goFromResume,
+			{ ...goFromResume, band: 'weak' as const }
+		]) {
+			const match = candidateWith(skill, ['kubernetes']);
+			const ranked = needScore({
+				need: {
+					requiredSkillKeys: match.vacancy.requiredSkillKeys,
+					niceSkillKeys: match.vacancy.niceSkillKeys,
+					workFormat: null,
+					regionCode: null,
+					fspRelevant: true,
+					categories: [{ specialization: 'backend', grade: 'middle' }],
+					compositeSpecializations: []
+				},
+				candidate: {
+					evidence: match.candidate.evidence,
+					categories: match.candidate.categories,
+					declared: [],
+					fspResults: [],
+					preferences: { workFormats: [], regionCode: null, relocation: null },
+					tests: new Map(),
+					lastConfirmedAction: null
+				},
+				params: params.need,
+				skillRule: params,
+				now: new Date('2026-10-08T00:00:00Z')
+			});
+			const result = matchScore(match);
+			const coverage = [
+				...(result.components.required.details.skills ?? []),
+				...(result.components.nice.details.skills ?? [])
+			];
+			expect(coverage.map((c) => [c.skill_key, c.source === 'evidence' ? c.basis : c.source, c.value])).toEqual(
+				ranked.skills.map((s) => [s.skill_key, s.basis, s.value])
+			);
+		}
 	});
 });
 

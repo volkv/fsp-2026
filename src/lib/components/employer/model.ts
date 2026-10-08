@@ -150,6 +150,7 @@ export interface CompanyMatchData {
 					requirement: 'required' | 'nice';
 					skill_key: string;
 					source: 'evidence';
+					basis: 'fsp' | 'platform' | 'public_profile' | 'claimed' | 'claimed_untestable';
 					band: 'weak' | 'moderate' | 'strong';
 					attestation: 'direct' | 'derived' | 'claimed';
 					badge_trust: 'fsp_verified' | 'platform_verified' | 'public_verifiable' | 'claimed' | null;
@@ -177,6 +178,15 @@ const BANDS: Record<'weak' | 'moderate' | 'strong', string> = {
 	weak: 'слабое основание',
 	moderate: 'среднее основание',
 	strong: 'сильное основание'
+};
+
+/** What a skill of the evidence counts by: the basis the one rule of a skill's value read it from. */
+const BASES: Record<'fsp' | 'platform' | 'public_profile' | 'claimed' | 'claimed_untestable', string> = {
+	fsp: 'подтверждено ФСП',
+	platform: 'подтверждено заданием платформы',
+	public_profile: 'публичный профиль — засчитано ниже подтверждённого',
+	claimed: 'указано кандидатом, тест не подтвердил — засчитано ниже подтверждённого',
+	claimed_untestable: 'указано кандидатом, тестом не проверяется — засчитано ниже подтверждённого'
 };
 
 const SALARY_MATCH: Record<'lower' | 'equal' | 'overlap', string> = {
@@ -330,7 +340,11 @@ export function matchView(match: CompanyMatchData, labels: Labels): MatchView {
 								evidence: `подтверждён тестом на грейд ${label(labels.specializations, item.specialization)} ${label(labels.grades, item.grade)}`,
 								trust: 'platform_verified'
 							}
-						: { requirement, evidence: BANDS[item.band], trust: trustOf(item.attestation, item.badge_trust) };
+						: {
+								requirement,
+								evidence: `${BANDS[item.band]} · ${BASES[item.basis]}`,
+								trust: trustOf(item.attestation, item.badge_trust)
+							};
 				}
 				case 'role':
 					return {

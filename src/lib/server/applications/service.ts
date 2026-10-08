@@ -83,6 +83,7 @@ function matchSnapshot(result: MatchResult, rulesetVersion: number): Application
 						requirement: match.requirement,
 						skill_key: match.skill_key,
 						source: match.source,
+						basis: match.basis,
 						band: match.band,
 						attestation: match.attestation,
 						badge_trust: match.badge_trust

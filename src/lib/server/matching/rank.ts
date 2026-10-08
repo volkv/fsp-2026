@@ -210,14 +210,7 @@ export async function rankForNeed(
 	const params = ruleset.params.need;
 	const scored = snapshots.map((snapshot) => {
 		const candidate = needCandidateOf(snapshot, answer);
-		const input = {
-			need,
-			candidate,
-			params,
-			skillBandValue: ruleset.params.skillBandValue,
-			testedSkillValue: ruleset.params.testedSkillValue,
-			now
-		};
+		const input = { need, candidate, params, skillRule: ruleset.params, now };
 		const result = needScore(input);
 		return { snapshot, result, withoutFsp: needScore({ ...input, withoutFsp: true }) };
 	});

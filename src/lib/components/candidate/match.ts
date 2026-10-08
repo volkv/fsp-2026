@@ -54,6 +54,7 @@ export interface MatchResultData {
 					requirement: 'required' | 'nice';
 					skill_key: string;
 					source: 'evidence';
+					basis: 'fsp' | 'platform' | 'public_profile' | 'claimed' | 'claimed_untestable';
 					band: 'weak' | 'moderate' | 'strong';
 					attestation: Attestation;
 					badge_trust: TrustLevel | null;
@@ -91,6 +92,15 @@ const COMPONENT_REASONS: Record<string, string> = {
 	pair_not_reranked: 'уточняющая модель работает только в каталоге работодателя',
 	outside_rerank_top_n: 'за пределами окна уточняющей модели',
 	switched_off: 'модель выключена'
+};
+
+/** What a skill of the evidence counts by: the basis the one rule of a skill's value read it from. */
+const BASES: Record<'fsp' | 'platform' | 'public_profile' | 'claimed' | 'claimed_untestable', string> = {
+	fsp: 'подтверждён результатом ФСП',
+	platform: 'подтверждён заданием платформы',
+	public_profile: 'публичный профиль — засчитан ниже подтверждённого',
+	claimed: 'указан вами, тест его не подтвердил — засчитан ниже подтверждённого',
+	claimed_untestable: 'указан вами, тестом не проверяется — засчитан ниже подтверждённого'
 };
 
 const reasonOf = (reason: string | undefined) => (reason ? (COMPONENT_REASONS[reason] ?? reason) : undefined);
@@ -186,7 +196,7 @@ export function candidateMatchView(result: MatchResultData, labels: Labels): Mat
 							}
 						: {
 								requirement: skillName(labels, item.skill_key),
-								evidence: `${requirement} · ${STRENGTH_BANDS[item.band]}`,
+								evidence: `${requirement} · ${STRENGTH_BANDS[item.band]} · ${BASES[item.basis]}`,
 								trust: skillMark({ attestation: item.attestation, badgeTrust: item.badge_trust })
 							};
 				}

@@ -68,8 +68,7 @@ const score = (input: Partial<NeedScoreInput> & Pick<NeedScoreInput, 'candidate'
 	needScore({
 		need: need(),
 		params: params.need,
-		skillBandValue: params.skillBandValue,
-		testedSkillValue: params.testedSkillValue,
+		skillRule: params,
 		now: NOW,
 		...input
 	});
@@ -114,17 +113,17 @@ describe('the fit to a need', () => {
 		// Kafka no block of that test checks: the resume is the best evidence there is, capped higher, still below a
 		// verified public profile.
 		const by = (result: ReturnType<typeof score>, key: string) => result.skills.find((s) => s.skill_key === key);
-		expect(by(claimed, 'sql')).toMatchObject({ basis: 'claimed', value: params.need.skill.claimedCeiling });
+		expect(by(claimed, 'sql')).toMatchObject({ basis: 'claimed', value: params.skill.claimedCeiling });
 		expect(by(claimed, 'multithreading')).toMatchObject({
 			basis: 'claimed',
-			value: params.need.skill.claimedCeiling
+			value: params.skill.claimedCeiling
 		});
 		expect(by(claimed, 'kafka')).toMatchObject({
 			basis: 'claimed_untestable',
-			value: params.need.skill.untestableClaimedCeiling
+			value: params.skill.untestableClaimedCeiling
 		});
-		expect(params.need.skill.claimedCeiling).toBeLessThan(params.need.skill.untestableClaimedCeiling);
-		expect(params.need.skill.untestableClaimedCeiling).toBeLessThan(params.need.skill.publicProfileFactor);
+		expect(params.skill.claimedCeiling).toBeLessThan(params.skill.untestableClaimedCeiling);
+		expect(params.skill.untestableClaimedCeiling).toBeLessThan(params.skill.publicProfileFactor);
 		expect(by(tested, 'sql')).toMatchObject({ basis: 'test', value: 1, block: 'be.db' });
 		expect(tested.components.required.value).toBeGreaterThan(claimed.components.required.value);
 		expect(claimed.toVerify).toEqual(['sql', 'multithreading', 'kafka']);
@@ -133,7 +132,7 @@ describe('the fit to a need', () => {
 
 		// The value of a claim follows its band: a weak claim is worth less than a strong one, never the same ceiling.
 		const weak = claims('weak');
-		expect(by(weak, 'sql')?.value).toBeCloseTo(params.skillBandValue.weak * params.need.skill.claimedCeiling, 6);
+		expect(by(weak, 'sql')?.value).toBeCloseTo(params.skillBandValue.weak * params.skill.claimedCeiling, 6);
 		expect(by(weak, 'kafka')?.value).toBeLessThan(by(claimed, 'kafka')?.value ?? 0);
 		// Without a category no test of the candidate checked SQL: the claim is capped as an unchecked one.
 		expect(by(claims('strong', []), 'sql')).toMatchObject({ basis: 'claimed_untestable' });
@@ -189,7 +188,7 @@ describe('the fit to a need', () => {
 		const by = (key: string) => result.skills.find((s) => s.skill_key === key);
 		expect(by('sql')).toMatchObject({ basis: 'test', value: 1 });
 		expect(by('kafka')).toMatchObject({ basis: 'fsp', value: params.skillBandValue.moderate, fact_ids: ['f1'] });
-		expect(by('docker')).toMatchObject({ basis: 'public_profile', value: params.need.skill.publicProfileFactor });
+		expect(by('docker')).toMatchObject({ basis: 'public_profile', value: params.skill.publicProfileFactor });
 	});
 
 	it('adds the levels up with exact contributions over one denominator for the need', () => {
@@ -459,12 +458,12 @@ describe('the group «грейд не подтверждён»', () => {
 		const by = (key: string) => result.skills.find((s) => s.skill_key === key);
 		// The Backend Middle test the candidate declared checks SQL: their claim of it is capped as an unconfirmed check;
 		// no block of it checks Kafka.
-		expect(by('sql')).toMatchObject({ basis: 'claimed', value: params.need.skill.claimedCeiling });
+		expect(by('sql')).toMatchObject({ basis: 'claimed', value: params.skill.claimedCeiling });
 		expect(by('kafka')).toMatchObject({
 			basis: 'claimed_untestable',
-			value: params.need.skill.untestableClaimedCeiling
+			value: params.skill.untestableClaimedCeiling
 		});
-		expect(by('docker')).toMatchObject({ basis: 'public_profile', value: params.need.skill.publicProfileFactor });
+		expect(by('docker')).toMatchObject({ basis: 'public_profile', value: params.skill.publicProfileFactor });
 		expect(by('multithreading')).toMatchObject({ basis: 'fsp', value: 1 });
 		expect(result.toVerify).toEqual(['sql', 'kafka']);
 		expect(result.components.test).toMatchObject({ value: 0, reason: 'no_category' });
