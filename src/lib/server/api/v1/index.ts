@@ -3,6 +3,7 @@
 import { z } from 'zod';
 import { defineOperation, type Operation } from '../operation';
 import { openApiDocument, type ExternalRoute, type OpenApiDocument } from '../openapi';
+import * as account from './account';
 import * as applications from './applications';
 import * as catalog from './catalog';
 import * as categories from './categories';
@@ -12,6 +13,7 @@ import * as complaints from './complaints';
 import * as events from './events';
 import * as companyProfile from './company-profile';
 import * as confirmations from './confirmations';
+import * as consents from './consents';
 import * as demand from './demand';
 import * as grades from './grades';
 import * as hiring from './hiring';
@@ -23,6 +25,7 @@ import * as needs from './needs';
 import * as operator from './operator';
 import * as partnerPools from './partner-pools';
 import * as profile from './profile';
+import * as resumes from './resumes';
 import * as shortlists from './shortlists';
 import * as taxonomy from './taxonomy';
 import * as tests from './tests';
@@ -60,6 +63,9 @@ export const API_OPERATIONS: readonly Operation[] = [
 	...Object.values(partnerPools),
 	...Object.values(me),
 	...Object.values(profile),
+	...Object.values(resumes),
+	...Object.values(consents),
+	...Object.values(account),
 	...Object.values(tests),
 	...Object.values(companyProfile),
 	...Object.values(needs),

@@ -1,5 +1,6 @@
 // What the public API works with: the configured infrastructure, built lazily so that `vite build` needs no
 // environment. Route files serve operations with `apiServices()`; tests pass their own services.
+import type { AuthDeps } from '$lib/server/auth/context';
 import { configuredRegistry, type CompanyRegistry } from '$lib/server/companies/registry';
 import type { CompanyDeps } from '$lib/server/companies/context';
 import { config } from '$lib/server/config';
@@ -19,6 +20,8 @@ import type { ConfirmationDeps } from '$lib/server/confirmations/requests';
 import type { ShortlistDeps } from '$lib/server/shortlists/service';
 import type { ModelAdapter } from '$lib/server/ml/adapter';
 import { redis, type Redis } from '$lib/server/redis';
+import type { ResumeDeps } from '$lib/server/resumes/deps';
+import { objectStore, type ObjectStore } from '$lib/server/storage/object-store';
 import { redisTextParseCache } from '$lib/server/vacancies/text-extract';
 
 export interface ApiServices {
@@ -27,6 +30,8 @@ export interface ApiServices {
 	redis: () => Promise<Redis>;
 	crypto: FieldCrypto;
 	mailer: Mailer;
+	/** The bucket of uploaded files: resumes. */
+	store: ObjectStore;
 	registry: CompanyRegistry;
 	models: MatchingModels & Pick<ModelAdapter, 'extract' | 'extractModelKey'>;
 	/** Signs the receipts of facts a catalog card issues. */
@@ -46,6 +51,7 @@ export function apiServices(): ApiServices {
 		redis,
 		crypto: fieldCrypto(),
 		mailer: mailer(),
+		store: objectStore(),
 		registry: configuredRegistry(config().companyRegistry),
 		models: modelAdapter(),
 		receiptSigner: configuredReceiptSigner(),
@@ -92,5 +98,17 @@ export const shortlistDeps = (s: ApiServices): ShortlistDeps => ({ ...matchingDe
 export const contactDeps = (s: ApiServices): ConfirmationDeps & ChallengeDeps & ApplicationDeps => ({
 	db: s.db,
 	crypto: s.crypto,
+	now: s.now
+});
+
+export const resumeApiDeps = (s: ApiServices): ResumeDeps => ({ db: s.db, store: s.store, now: s.now });
+
+/** The sign-in module: consents signed at sign-up and the deletion of the account (domain 3.4, 6.2). */
+export const authDepsOf = async (s: ApiServices): Promise<AuthDeps> => ({
+	db: s.db,
+	redis: await s.redis(),
+	crypto: s.crypto,
+	mailer: s.mailer,
+	appOrigin: s.appOrigin,
 	now: s.now
 });

@@ -211,6 +211,21 @@ export const API_TAGS: { name: string; description: string }[] = [
 		description:
 			'Поля профиля, которые кандидат ведёт сам, предложения для них из резюме с цитатами, опыт со слов кандидата, блок-лист компаний'
 	},
+	{
+		name: 'Согласия',
+		description:
+			'Действующие тексты согласий и свои согласия кандидата по видам: дать по точной версии текста, отозвать; ' +
+			'раскрытие контактов — по приглашениям'
+	},
+	{
+		name: 'Резюме',
+		description:
+			'Загрузка PDF/DOCX, статус разбора, распознанный текст с цитатами каждого поля и места работы, решения кандидата по ним'
+	},
+	{
+		name: 'Учётная запись',
+		description: 'Удаление учётной записи: что будет удалено и что мешает, запрос со свежим входом'
+	},
 	{ name: 'Потребности', description: 'Потребность компании с разбором текста и рекомендованными категориями' },
 	{
 		name: 'Подборки',
@@ -302,7 +317,11 @@ export function openApiDocument(
 				: {
 						requestBody: {
 							required: true,
-							content: { 'application/json': { schema: components.convert(operation.body, 'input') } }
+							content: {
+								[operation.bodyEncoding === 'multipart' ? 'multipart/form-data' : 'application/json']: {
+									schema: components.convert(operation.body, 'input')
+								}
+							}
 						}
 					}),
 			responses: responsesOf(components, operation),
