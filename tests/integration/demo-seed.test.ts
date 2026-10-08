@@ -34,7 +34,7 @@ import {
 	vacancies
 } from '$lib/server/db/schema';
 import { resetDemo } from '$lib/server/demo/reset';
-import { batchId, releasedBanks, seedDemo, type SeedSummary } from '$lib/server/demo/seed';
+import { batchId, publishedReconsents, releasedBanks, seedDemo, type SeedSummary } from '$lib/server/demo/seed';
 import { readSeedData } from '$lib/server/demo/data';
 import type { DemoServices } from '$lib/server/demo/services';
 import { HttpAchievementsSource } from '$lib/server/fsp/adapter';
@@ -325,7 +325,12 @@ describe('demo seed', () => {
 		firstWarnings = logLines.filter((line) => line.includes('demo seed: no stored model parse'));
 		expect(first.status).toBe('seeded');
 		expect(first.batch).toBe(
-			batchId(await readSeedData(services.seedsDir), services.settings, await releasedBanks(services))
+			batchId(
+				await readSeedData(services.seedsDir),
+				services.settings,
+				await releasedBanks(services),
+				await publishedReconsents(services)
+			)
 		);
 		expect(first.counts.candidates).toBe(40);
 		expect(first.counts.vacancies).toBeGreaterThanOrEqual(30);

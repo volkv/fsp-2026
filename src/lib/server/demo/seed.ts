@@ -5,10 +5,11 @@
 // status, vacancies of the companies, and the states the scenario starts from. Data flow through the product: FSP sync →
 // facts → claims → evidence, resume parse → extraction, survey → declaration → attempt → decision → category, need →
 // shortlist → offer → acceptance → disclosure → hiring. Every record the seed creates carries the batch id. The seed is
-// deterministic in what it creates and idempotent: its batch id is a hash of its inputs (the released banks included),
+// deterministic in what it creates and idempotent: its batch id is a hash of its inputs (the released banks and the
+// legal documents that asked for consent again included),
 // a finished batch is recorded in the journal and not seeded again, and a stopped one continues where it stopped.
 import { createHash } from 'node:crypto';
-import { and, count, eq, inArray, lte, max, sql } from 'drizzle-orm';
+import { and, count, eq, inArray, isNotNull, lte, max, sql } from 'drizzle-orm';
 import { recordAuditEvent } from '$lib/server/audit/record';
 import { currentDocument, type CurrentDocument } from '$lib/server/auth/documents';
 import { openSpecializations } from '$lib/server/assessments/bank-store';
@@ -240,8 +241,50 @@ export async function releasedBanks(services: DemoServices): Promise<string[]> {
 	return rows.map((row) => row.id).sort();
 }
 
-/** The batch of these inputs: seed data, world, sizes, released banks and the seed code version. */
-export function batchId(data: SeedData, settings: DemoServices['settings'], releases: readonly string[]): string {
+/** A version of a legal document as the batch reads it. */
+export interface PublishedDocumentVersion {
+	kind: DocumentKind;
+	version: number;
+	requiresReconsent: boolean;
+}
+
+/**
+ * The newest version of each document the seed accepts that was published with `requires_reconsent`, as `kind@version`.
+ * Such a version ends the consents given to the earlier ones (`consent/effective.ts`): the catalog would hide every
+ * seeded candidate, so it is a new batch. A version published without it keeps the seeded consents and the batch.
+ */
+export function reconsentVersions(documents: readonly PublishedDocumentVersion[]): string[] {
+	const newest = new Map<DocumentKind, number>();
+	for (const document of documents) {
+		if (!document.requiresReconsent || !DOCUMENT_KINDS.includes(document.kind)) continue;
+		newest.set(document.kind, Math.max(newest.get(document.kind) ?? 0, document.version));
+	}
+	return [...newest].map(([kind, version]) => `${kind}@${version}`).sort();
+}
+
+/** The published versions of the legal documents the batch is seeded against (`scripts/seed-legal.ts` publishes them). */
+export async function publishedReconsents(services: DemoServices): Promise<string[]> {
+	const rows = await services.db
+		.select({
+			kind: legalDocuments.kind,
+			version: legalDocuments.version,
+			requiresReconsent: legalDocuments.requiresReconsent
+		})
+		.from(legalDocuments)
+		.where(and(inArray(legalDocuments.kind, [...DOCUMENT_KINDS]), isNotNull(legalDocuments.publishedAt)));
+	return reconsentVersions(rows);
+}
+
+/**
+ * The batch of these inputs: seed data, world, sizes, released banks, the versions of the legal documents that asked
+ * for consent again (`reconsentVersions`) and the seed code version.
+ */
+export function batchId(
+	data: SeedData,
+	settings: DemoServices['settings'],
+	releases: readonly string[],
+	documents: readonly string[]
+): string {
 	const hash = createHash('sha256')
 		.update(
 			JSON.stringify({
@@ -250,7 +293,8 @@ export function batchId(data: SeedData, settings: DemoServices['settings'], rele
 				world: settings.world,
 				candidates: settings.candidates,
 				vacancies: settings.vacancies,
-				releases
+				releases,
+				documents
 			})
 		)
 		.digest('hex');
@@ -422,7 +466,7 @@ export async function seedDemo(services: DemoServices): Promise<SeedSummary> {
 	const { db, settings, log } = services;
 	const now = () => new Date();
 	const data = await readSeedData(services.seedsDir);
-	const batch = batchId(data, settings, await releasedBanks(services));
+	const batch = batchId(data, settings, await releasedBanks(services), await publishedReconsents(services));
 	if (await isSeeded(services, batch)) {
 		return {
 			status: 'already_seeded',
