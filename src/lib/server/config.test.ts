@@ -55,7 +55,7 @@ describe('parseConfig', () => {
 		expect(config.models.extract).toMatchObject({
 			baseUrl: 'https://llmgate.volkv.com/v1',
 			runtime: 'api',
-			model: 'claude-sonnet:latest',
+			model: 'claude-haiku:latest',
 			apiKey: null
 		});
 	});

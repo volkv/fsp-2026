@@ -448,8 +448,8 @@ interface KeptReplies {
 	calls: number;
 	replies: KeptReply[];
 }
-/** The model `--assistant` asks: `LLM_MODEL`, Claude Sonnet through the gateway by default. */
-const assistantModel = process.env.LLM_MODEL ?? 'claude-sonnet:latest';
+/** The model `--assistant` asks: `LLM_MODEL`, Claude Haiku through the gateway by default. */
+const assistantModel = process.env.LLM_MODEL ?? 'claude-haiku:latest';
 const kept: KeptReplies = existsSync(ASSISTANT_FILE)
 	? (JSON.parse(readFileSync(ASSISTANT_FILE, 'utf8')) as KeptReplies)
 	: { model: assistantModel, calls: 0, replies: [] };

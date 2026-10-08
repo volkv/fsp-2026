@@ -41,12 +41,12 @@ x-app-environment: &app-environment
   FSP_ASSERTION_SECRET: ${FSP_ASSERTION_SECRET:?set in .env}
   # Optional integrations as configured in .env; an empty value disables one (docs/contracts.md, sections 3.1
   # and 8.2). Their addresses must be reachable from the containers, not only from the host.
-  # Text extraction by default: Claude Sonnet through the OpenAI-compatible gateway (docs/models.md, «Три режима»).
+  # Text extraction by default: Claude Haiku through the OpenAI-compatible gateway (docs/models.md, «Три режима»).
   # Without LLM_API_KEY it is off and the rules read the texts; the platform's own vLLM server instead — LLM_RUNTIME=vllm
   # with its LLM_BASE_URL and LLM_MODEL.
   LLM_BASE_URL: ${LLM_BASE_URL:-https://llmgate.volkv.com/v1}
   LLM_RUNTIME: ${LLM_RUNTIME:-api}
-  LLM_MODEL: ${LLM_MODEL:-claude-sonnet:latest}
+  LLM_MODEL: ${LLM_MODEL:-claude-haiku:latest}
   LLM_API_KEY: ${LLM_API_KEY:-}
   LLM_TIMEOUT_MS: ${LLM_TIMEOUT_MS:-}
   LLM_INTERACTIVE_TIMEOUT_MS: ${LLM_INTERACTIVE_TIMEOUT_MS:-}

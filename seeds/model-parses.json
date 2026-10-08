@@ -1,4 +1,2067 @@
 {
 	"description": "Ответы модели на резюме героев и потребности сценария (seeds/demo.json): засев берёт их отсюда и модель не вызывает. Ключ — schemaVersion, taxonomy (метка версии таксономии) и inputSha256 (ml_results.input_sha256 разбора). Обновляется командой scripts/demo-model-parses.ts (docs/deploy.md, «Бюджет шлюза модели»).",
-	"parses": []
+	"parses": [
+		{
+			"schemaVersion": "vacancy-extract/v2",
+			"taxonomy": "2026.09.11",
+			"inputSha256": "e6fff936dcde7a6019a6b66953d2075136edd724ff3bb4f6ac9ba835fc8255a3",
+			"about": "need novaya_komanda.go_middle",
+			"model": {
+				"modelId": "anthropic/claude-sonnet-5-5",
+				"modelRevision": null,
+				"runtime": "api",
+				"params": {
+					"max_tokens": 16384
+				}
+			},
+			"output": {
+				"items": [
+					{
+						"kind": "role_title",
+						"grade": null,
+						"quote": {
+							"end": 20,
+							"text": "Go-разработчик",
+							"start": 6,
+							"blockId": "p1"
+						},
+						"value": null,
+						"salary": null,
+						"rawText": "Go-разработчик",
+						"polarity": null,
+						"modelPolarity": null
+					},
+					{
+						"kind": "grade",
+						"grade": {
+							"max": "middle",
+							"min": "middle"
+						},
+						"quote": {
+							"end": 34,
+							"text": "Middle",
+							"start": 28,
+							"blockId": "p1"
+						},
+						"value": null,
+						"salary": null,
+						"rawText": "Middle",
+						"polarity": null,
+						"modelPolarity": null
+					},
+					{
+						"kind": "required_skill",
+						"grade": null,
+						"quote": {
+							"end": 20,
+							"text": "Go-разработчик",
+							"start": 6,
+							"blockId": "p1"
+						},
+						"value": null,
+						"salary": null,
+						"rawText": "Go",
+						"polarity": "asserted",
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "required_skill",
+						"grade": null,
+						"quote": {
+							"end": 87,
+							"text": "PostgreSQL",
+							"start": 77,
+							"blockId": "p1"
+						},
+						"value": null,
+						"salary": null,
+						"rawText": "PostgreSQL",
+						"polarity": "asserted",
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "required_skill",
+						"grade": null,
+						"quote": {
+							"end": 96,
+							"text": "Docker",
+							"start": 90,
+							"blockId": "p1"
+						},
+						"value": null,
+						"salary": null,
+						"rawText": "Docker",
+						"polarity": "asserted",
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "work_format",
+						"grade": null,
+						"quote": {
+							"end": 75,
+							"text": "Удалённо",
+							"start": 67,
+							"blockId": "p1"
+						},
+						"value": "remote",
+						"salary": null,
+						"rawText": "Удалённо",
+						"polarity": null,
+						"modelPolarity": null
+					}
+				],
+				"rejectedReasons": []
+			}
+		},
+		{
+			"schemaVersion": "vacancy-extract/v2",
+			"taxonomy": "2026.09.11",
+			"inputSha256": "6bab6c66cd8c8e554f399e1edba37b49c0912fe29c4d5d542d1be98be501616c",
+			"about": "need severny_kod.payments_backend",
+			"model": {
+				"modelId": "anthropic/claude-sonnet-5-5",
+				"modelRevision": null,
+				"runtime": "api",
+				"params": {
+					"max_tokens": 16384
+				}
+			},
+			"output": {
+				"items": [
+					{
+						"kind": "role_title",
+						"grade": null,
+						"quote": {
+							"end": 19,
+							"text": "Backend-разработчик",
+							"start": 0,
+							"blockId": "p1"
+						},
+						"value": null,
+						"salary": null,
+						"rawText": "Backend-разработчик",
+						"polarity": null,
+						"modelPolarity": null
+					},
+					{
+						"kind": "grade",
+						"grade": {
+							"max": "senior",
+							"min": "middle"
+						},
+						"quote": {
+							"end": 34,
+							"text": "Middle/Senior",
+							"start": 21,
+							"blockId": "p1"
+						},
+						"value": null,
+						"salary": null,
+						"rawText": "Middle/Senior",
+						"polarity": null,
+						"modelPolarity": null
+					},
+					{
+						"kind": "required_skill",
+						"grade": null,
+						"quote": {
+							"end": 18,
+							"text": "Python",
+							"start": 12,
+							"blockId": "p3"
+						},
+						"value": null,
+						"salary": null,
+						"rawText": "Python",
+						"polarity": "asserted",
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "required_skill",
+						"grade": null,
+						"quote": {
+							"end": 23,
+							"text": "SQL",
+							"start": 20,
+							"blockId": "p3"
+						},
+						"value": null,
+						"salary": null,
+						"rawText": "SQL",
+						"polarity": "asserted",
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "required_skill",
+						"grade": null,
+						"quote": {
+							"end": 40,
+							"text": "многопоточность",
+							"start": 25,
+							"blockId": "p3"
+						},
+						"value": null,
+						"salary": null,
+						"rawText": "многопоточность",
+						"polarity": "asserted",
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "nice_skill",
+						"grade": null,
+						"quote": {
+							"end": 24,
+							"text": "PostgreSQL",
+							"start": 14,
+							"blockId": "p4"
+						},
+						"value": null,
+						"salary": null,
+						"rawText": "PostgreSQL",
+						"polarity": "asserted",
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "nice_skill",
+						"grade": null,
+						"quote": {
+							"end": 32,
+							"text": "Docker",
+							"start": 26,
+							"blockId": "p4"
+						},
+						"value": null,
+						"salary": null,
+						"rawText": "Docker",
+						"polarity": "asserted",
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "nice_skill",
+						"grade": null,
+						"quote": {
+							"end": 39,
+							"text": "Kafka",
+							"start": 34,
+							"blockId": "p4"
+						},
+						"value": null,
+						"salary": null,
+						"rawText": "Kafka",
+						"polarity": "asserted",
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "salary",
+						"grade": null,
+						"quote": {
+							"end": 72,
+							"text": "220 000 – 280 000 ₽ в месяц до вычета НДФЛ",
+							"start": 30,
+							"blockId": "p5"
+						},
+						"value": null,
+						"salary": {
+							"max": 280000,
+							"min": 220000,
+							"period": "month",
+							"taxBase": "gross",
+							"currency": "RUB"
+						},
+						"rawText": "220 000 – 280 000 ₽ в месяц до вычета НДФЛ",
+						"polarity": null,
+						"modelPolarity": null
+					},
+					{
+						"kind": "work_format",
+						"grade": null,
+						"quote": {
+							"end": 14,
+							"text": "гибрид",
+							"start": 8,
+							"blockId": "p5"
+						},
+						"value": "hybrid",
+						"salary": null,
+						"rawText": "гибрид",
+						"polarity": null,
+						"modelPolarity": null
+					},
+					{
+						"kind": "city",
+						"grade": null,
+						"quote": {
+							"end": 22,
+							"text": "Москва",
+							"start": 16,
+							"blockId": "p5"
+						},
+						"value": null,
+						"salary": null,
+						"rawText": "Москва",
+						"polarity": null,
+						"modelPolarity": null
+					}
+				],
+				"rejectedReasons": []
+			}
+		},
+		{
+			"schemaVersion": "resume-extract/v3",
+			"taxonomy": "2026.09.11",
+			"inputSha256": "d60d54b16a7e2d720ef76ef2f4b1946e0869d24e32cfea9901de4fb9f171bf1e",
+			"about": "resume «Резюме Орлов Дмитрий.docx»",
+			"model": {
+				"modelId": "anthropic/claude-sonnet-5-5",
+				"modelRevision": null,
+				"runtime": "api",
+				"params": {
+					"max_tokens": 16384
+				}
+			},
+			"output": {
+				"items": [
+					{
+						"kind": "role_title",
+						"group": "job-1",
+						"level": null,
+						"quote": {
+							"end": 57,
+							"text": "Ведущий Go-разработчик",
+							"start": 35,
+							"blockId": "d-b010"
+						},
+						"rawText": "Ведущий Go-разработчик",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "organization",
+						"group": "job-1",
+						"level": null,
+						"quote": {
+							"end": 34,
+							"text": "ООО «Балтийские платёжные системы»",
+							"start": 0,
+							"blockId": "d-b010"
+						},
+						"rawText": "ООО «Балтийские платёжные системы»",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "experience_period",
+						"group": "job-1",
+						"level": null,
+						"quote": {
+							"end": 27,
+							"text": "Март 2021 — настоящее время",
+							"start": 0,
+							"blockId": "d-b009"
+						},
+						"rawText": "Март 2021 — настоящее время",
+						"periodTo": "настоящее время",
+						"polarity": "asserted",
+						"periodFrom": "Март 2021",
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": "job-1",
+						"level": null,
+						"quote": {
+							"end": 25,
+							"text": "на Go",
+							"start": 20,
+							"blockId": "d-b011"
+						},
+						"rawText": "Go",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": "job-1",
+						"level": null,
+						"quote": {
+							"end": 37,
+							"text": "PostgreSQL",
+							"start": 27,
+							"blockId": "d-b011"
+						},
+						"rawText": "PostgreSQL",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": "job-1",
+						"level": null,
+						"quote": {
+							"end": 44,
+							"text": "Kafka",
+							"start": 39,
+							"blockId": "d-b011"
+						},
+						"rawText": "Kafka",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": "job-1",
+						"level": null,
+						"quote": {
+							"end": 50,
+							"text": "gRPC",
+							"start": 46,
+							"blockId": "d-b011"
+						},
+						"rawText": "gRPC",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": "job-1",
+						"level": null,
+						"quote": {
+							"end": 132,
+							"text": "Kubernetes",
+							"start": 122,
+							"blockId": "d-b011"
+						},
+						"rawText": "Kubernetes",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": "job-1",
+						"level": null,
+						"quote": {
+							"end": 148,
+							"text": "CI/CD",
+							"start": 143,
+							"blockId": "d-b011"
+						},
+						"rawText": "CI/CD",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": "job-1",
+						"level": null,
+						"quote": {
+							"end": 157,
+							"text": "GitLab",
+							"start": 151,
+							"blockId": "d-b011"
+						},
+						"rawText": "GitLab",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "role_title",
+						"group": "job-2",
+						"level": null,
+						"quote": {
+							"end": 62,
+							"text": "Go-разработчик (частичная занятость)",
+							"start": 26,
+							"blockId": "d-b013"
+						},
+						"rawText": "Go-разработчик (частичная занятость)",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "organization",
+						"group": "job-2",
+						"level": null,
+						"quote": {
+							"end": 25,
+							"text": "ООО «Невский маркетплейс»",
+							"start": 0,
+							"blockId": "d-b013"
+						},
+						"rawText": "ООО «Невский маркетплейс»",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "experience_period",
+						"group": "job-2",
+						"level": null,
+						"quote": {
+							"end": 26,
+							"text": "Январь 2023 — декабрь 2024",
+							"start": 0,
+							"blockId": "d-b012"
+						},
+						"rawText": "Январь 2023 — декабрь 2024",
+						"periodTo": "декабрь 2024",
+						"polarity": "asserted",
+						"periodFrom": "Январь 2023",
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": "job-2",
+						"level": null,
+						"quote": {
+							"end": 29,
+							"text": "на Go",
+							"start": 24,
+							"blockId": "d-b014"
+						},
+						"rawText": "Go",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": "job-2",
+						"level": null,
+						"quote": {
+							"end": 42,
+							"text": "PostgreSQL",
+							"start": 32,
+							"blockId": "d-b014"
+						},
+						"rawText": "PostgreSQL",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": "job-2",
+						"level": null,
+						"quote": {
+							"end": 65,
+							"text": "Elasticsearch",
+							"start": 52,
+							"blockId": "d-b014"
+						},
+						"rawText": "Elasticsearch",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "role_title",
+						"group": "job-3",
+						"level": null,
+						"quote": {
+							"end": 37,
+							"text": "Backend-разработчик",
+							"start": 18,
+							"blockId": "d-b016"
+						},
+						"rawText": "Backend-разработчик",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "organization",
+						"group": "job-3",
+						"level": null,
+						"quote": {
+							"end": 17,
+							"text": "ООО «Дельта Софт»",
+							"start": 0,
+							"blockId": "d-b016"
+						},
+						"rawText": "ООО «Дельта Софт»",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "experience_period",
+						"group": "job-3",
+						"level": null,
+						"quote": {
+							"end": 26,
+							"text": "Август 2019 — февраль 2021",
+							"start": 0,
+							"blockId": "d-b015"
+						},
+						"rawText": "Август 2019 — февраль 2021",
+						"periodTo": "февраль 2021",
+						"polarity": "asserted",
+						"periodFrom": "Август 2019",
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": "job-3",
+						"level": null,
+						"quote": {
+							"end": 28,
+							"text": "Python",
+							"start": 22,
+							"blockId": "d-b017"
+						},
+						"rawText": "Python",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": "job-3",
+						"level": null,
+						"quote": {
+							"end": 33,
+							"text": "Go",
+							"start": 31,
+							"blockId": "d-b017"
+						},
+						"rawText": "Go",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": "job-3",
+						"level": null,
+						"quote": {
+							"end": 40,
+							"text": "Redis",
+							"start": 35,
+							"blockId": "d-b017"
+						},
+						"rawText": "Redis",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": "job-3",
+						"level": null,
+						"quote": {
+							"end": 48,
+							"text": "Docker",
+							"start": 42,
+							"blockId": "d-b017"
+						},
+						"rawText": "Docker",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": null,
+						"level": null,
+						"quote": {
+							"end": 2,
+							"text": "Go",
+							"start": 0,
+							"blockId": "d-b019"
+						},
+						"rawText": "Go",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": null,
+						"level": null,
+						"quote": {
+							"end": 14,
+							"text": "PostgreSQL",
+							"start": 4,
+							"blockId": "d-b019"
+						},
+						"rawText": "PostgreSQL",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": null,
+						"level": null,
+						"quote": {
+							"end": 21,
+							"text": "Kafka",
+							"start": 16,
+							"blockId": "d-b019"
+						},
+						"rawText": "Kafka",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": null,
+						"level": null,
+						"quote": {
+							"end": 27,
+							"text": "gRPC",
+							"start": 23,
+							"blockId": "d-b019"
+						},
+						"rawText": "gRPC",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": null,
+						"level": null,
+						"quote": {
+							"end": 39,
+							"text": "Kubernetes",
+							"start": 29,
+							"blockId": "d-b019"
+						},
+						"rawText": "Kubernetes",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": null,
+						"level": null,
+						"quote": {
+							"end": 47,
+							"text": "Docker",
+							"start": 41,
+							"blockId": "d-b019"
+						},
+						"rawText": "Docker",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": null,
+						"level": null,
+						"quote": {
+							"end": 54,
+							"text": "Redis",
+							"start": 49,
+							"blockId": "d-b019"
+						},
+						"rawText": "Redis",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": null,
+						"level": null,
+						"quote": {
+							"end": 69,
+							"text": "Elasticsearch",
+							"start": 56,
+							"blockId": "d-b019"
+						},
+						"rawText": "Elasticsearch",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": null,
+						"level": null,
+						"quote": {
+							"end": 77,
+							"text": "Python",
+							"start": 71,
+							"blockId": "d-b019"
+						},
+						"rawText": "Python",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": null,
+						"level": null,
+						"quote": {
+							"end": 88,
+							"text": "GitLab CI",
+							"start": 79,
+							"blockId": "d-b019"
+						},
+						"rawText": "GitLab CI",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "education",
+						"group": null,
+						"level": null,
+						"quote": {
+							"end": 47,
+							"text": "Санкт-Петербургский политехнический университет",
+							"start": 0,
+							"blockId": "d-b021"
+						},
+						"rawText": "Санкт-Петербургский политехнический университет",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "language_level",
+						"group": null,
+						"level": "C1",
+						"quote": {
+							"end": 15,
+							"text": "Английский — C1",
+							"start": 0,
+							"blockId": "d-b023"
+						},
+						"rawText": "Английский",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": null,
+						"level": null,
+						"quote": {
+							"end": 15,
+							"text": "Английский — C1",
+							"start": 0,
+							"blockId": "d-b023"
+						},
+						"rawText": "Английский",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "full_name",
+						"group": null,
+						"level": null,
+						"quote": {
+							"end": 23,
+							"text": "Орлов Дмитрий Андреевич",
+							"start": 0,
+							"blockId": "d-b001"
+						},
+						"rawText": "Орлов Дмитрий Андреевич",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "contact_email",
+						"group": null,
+						"level": null,
+						"quote": {
+							"end": 49,
+							"text": "dmitry.orlov@fsp-career.example",
+							"start": 18,
+							"blockId": "d-b002"
+						},
+						"rawText": "dmitry.orlov@fsp-career.example",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "contact_phone",
+						"group": null,
+						"level": null,
+						"quote": {
+							"end": 68,
+							"text": "+7 900 000-03-14",
+							"start": 52,
+							"blockId": "d-b002"
+						},
+						"rawText": "+7 900 000-03-14",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					}
+				],
+				"rejected": []
+			}
+		},
+		{
+			"schemaVersion": "resume-extract/v3",
+			"taxonomy": "2026.09.11",
+			"inputSha256": "561f14b177b8720e0205c9d81fe67a0a250c77df1cd31a62ab64d2819a8c16d5",
+			"about": "resume «Резюме Петров Олег.pdf»",
+			"model": {
+				"modelId": "anthropic/claude-sonnet-5-5",
+				"modelRevision": null,
+				"runtime": "api",
+				"params": {
+					"max_tokens": 16384
+				}
+			},
+			"output": {
+				"items": [
+					{
+						"kind": "role_title",
+						"group": "job-1",
+						"level": null,
+						"quote": {
+							"end": 26,
+							"text": "Ведущий Python-разработчик",
+							"start": 0,
+							"blockId": "p1-b008"
+						},
+						"rawText": "Ведущий Python-разработчик",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "organization",
+						"group": "job-1",
+						"level": null,
+						"quote": {
+							"end": 27,
+							"text": "ООО «Логистические решения»",
+							"start": 0,
+							"blockId": "p1-b007"
+						},
+						"rawText": "ООО «Логистические решения»",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "experience_period",
+						"group": "job-1",
+						"level": null,
+						"quote": {
+							"end": 31,
+							"text": "Сентябрь 2018 — настоящее время",
+							"start": 0,
+							"blockId": "p1-b006"
+						},
+						"rawText": "Сентябрь 2018 — настоящее время",
+						"periodTo": "настоящее время",
+						"polarity": "asserted",
+						"periodFrom": "Сентябрь 2018",
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": "job-1",
+						"level": null,
+						"quote": {
+							"end": 14,
+							"text": "Python",
+							"start": 8,
+							"blockId": "p1-b008"
+						},
+						"rawText": "Python",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": "job-1",
+						"level": null,
+						"quote": {
+							"end": 52,
+							"text": "FastAPI",
+							"start": 45,
+							"blockId": "p1-b009"
+						},
+						"rawText": "FastAPI",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": "job-1",
+						"level": null,
+						"quote": {
+							"end": 64,
+							"text": "PostgreSQL",
+							"start": 54,
+							"blockId": "p1-b009"
+						},
+						"rawText": "PostgreSQL",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": "job-1",
+						"level": null,
+						"quote": {
+							"end": 72,
+							"text": "Celery",
+							"start": 66,
+							"blockId": "p1-b009"
+						},
+						"rawText": "Celery",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": "job-1",
+						"level": null,
+						"quote": {
+							"end": 82,
+							"text": "RabbitMQ",
+							"start": 74,
+							"blockId": "p1-b009"
+						},
+						"rawText": "RabbitMQ",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "responsibility_marker",
+						"group": "job-1",
+						"level": null,
+						"quote": {
+							"end": 42,
+							"text": "Руководил группой из шести разработчиков",
+							"start": 2,
+							"blockId": "p1-b010"
+						},
+						"rawText": "Руководил группой из шести разработчиков",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "role_title",
+						"group": "job-2",
+						"level": null,
+						"quote": {
+							"end": 18,
+							"text": "Python-разработчик",
+							"start": 0,
+							"blockId": "p1-b013"
+						},
+						"rawText": "Python-разработчик",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "organization",
+						"group": "job-2",
+						"level": null,
+						"quote": {
+							"end": 23,
+							"text": "ООО «Городские сервисы»",
+							"start": 0,
+							"blockId": "p1-b012"
+						},
+						"rawText": "ООО «Городские сервисы»",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "experience_period",
+						"group": "job-2",
+						"level": null,
+						"quote": {
+							"end": 27,
+							"text": "Сентябрь 2015 — август 2018",
+							"start": 0,
+							"blockId": "p1-b011"
+						},
+						"rawText": "Сентябрь 2015 — август 2018",
+						"periodTo": "август 2018",
+						"polarity": "asserted",
+						"periodFrom": "Сентябрь 2015",
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": "job-2",
+						"level": null,
+						"quote": {
+							"end": 6,
+							"text": "Python",
+							"start": 0,
+							"blockId": "p1-b013"
+						},
+						"rawText": "Python",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": "job-2",
+						"level": null,
+						"quote": {
+							"end": 35,
+							"text": "Django",
+							"start": 29,
+							"blockId": "p1-b014"
+						},
+						"rawText": "Django",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": "job-2",
+						"level": null,
+						"quote": {
+							"end": 48,
+							"text": "PostgreSQL",
+							"start": 38,
+							"blockId": "p1-b014"
+						},
+						"rawText": "PostgreSQL",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": "job-2",
+						"level": null,
+						"quote": {
+							"end": 68,
+							"text": "REST",
+							"start": 64,
+							"blockId": "p1-b014"
+						},
+						"rawText": "REST",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "role_title",
+						"group": "job-3",
+						"level": null,
+						"quote": {
+							"end": 19,
+							"text": "Младший разработчик",
+							"start": 0,
+							"blockId": "p1-b017"
+						},
+						"rawText": "Младший разработчик",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "organization",
+						"group": "job-3",
+						"level": null,
+						"quote": {
+							"end": 23,
+							"text": "ООО «Первый интегратор»",
+							"start": 0,
+							"blockId": "p1-b016"
+						},
+						"rawText": "ООО «Первый интегратор»",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "experience_period",
+						"group": "job-3",
+						"level": null,
+						"quote": {
+							"end": 23,
+							"text": "Июль 2014 — август 2015",
+							"start": 0,
+							"blockId": "p1-b015"
+						},
+						"rawText": "Июль 2014 — август 2015",
+						"periodTo": "август 2015",
+						"polarity": "asserted",
+						"periodFrom": "Июль 2014",
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": "job-3",
+						"level": null,
+						"quote": {
+							"end": 36,
+							"text": "Python",
+							"start": 30,
+							"blockId": "p1-b018"
+						},
+						"rawText": "Python",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": "job-3",
+						"level": null,
+						"quote": {
+							"end": 52,
+							"text": "Excel",
+							"start": 47,
+							"blockId": "p1-b018"
+						},
+						"rawText": "Excel",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": null,
+						"level": null,
+						"quote": {
+							"end": 6,
+							"text": "Python",
+							"start": 0,
+							"blockId": "p1-b020"
+						},
+						"rawText": "Python",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": null,
+						"level": null,
+						"quote": {
+							"end": 15,
+							"text": "FastAPI",
+							"start": 8,
+							"blockId": "p1-b020"
+						},
+						"rawText": "FastAPI",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": null,
+						"level": null,
+						"quote": {
+							"end": 23,
+							"text": "Django",
+							"start": 17,
+							"blockId": "p1-b020"
+						},
+						"rawText": "Django",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": null,
+						"level": null,
+						"quote": {
+							"end": 35,
+							"text": "PostgreSQL",
+							"start": 25,
+							"blockId": "p1-b020"
+						},
+						"rawText": "PostgreSQL",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": null,
+						"level": null,
+						"quote": {
+							"end": 43,
+							"text": "Celery",
+							"start": 37,
+							"blockId": "p1-b020"
+						},
+						"rawText": "Celery",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": null,
+						"level": null,
+						"quote": {
+							"end": 53,
+							"text": "RabbitMQ",
+							"start": 45,
+							"blockId": "p1-b020"
+						},
+						"rawText": "RabbitMQ",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": null,
+						"level": null,
+						"quote": {
+							"end": 61,
+							"text": "Docker",
+							"start": 55,
+							"blockId": "p1-b020"
+						},
+						"rawText": "Docker",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": null,
+						"level": null,
+						"quote": {
+							"end": 68,
+							"text": "Linux",
+							"start": 63,
+							"blockId": "p1-b020"
+						},
+						"rawText": "Linux",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": null,
+						"level": null,
+						"quote": {
+							"end": 75,
+							"text": "Redis",
+							"start": 70,
+							"blockId": "p1-b020"
+						},
+						"rawText": "Redis",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "education",
+						"group": null,
+						"level": null,
+						"quote": {
+							"end": 22,
+							"text": "МГТУ им. Н. Э. Баумана",
+							"start": 0,
+							"blockId": "p1-b022"
+						},
+						"rawText": "МГТУ им. Н. Э. Баумана",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "language_level",
+						"group": null,
+						"level": "B2",
+						"quote": {
+							"end": 15,
+							"text": "Английский — B2",
+							"start": 0,
+							"blockId": "p1-b024"
+						},
+						"rawText": "Английский",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": null,
+						"level": null,
+						"quote": {
+							"end": 15,
+							"text": "Английский — B2",
+							"start": 0,
+							"blockId": "p1-b024"
+						},
+						"rawText": "Английский",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "full_name",
+						"group": null,
+						"level": null,
+						"quote": {
+							"end": 20,
+							"text": "Петров Олег Игоревич",
+							"start": 0,
+							"blockId": "p1-b001"
+						},
+						"rawText": "Петров Олег Игоревич",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "contact_email",
+						"group": null,
+						"level": null,
+						"quote": {
+							"end": 39,
+							"text": "oleg.petrov@fsp-career.example",
+							"start": 9,
+							"blockId": "p1-b002"
+						},
+						"rawText": "oleg.petrov@fsp-career.example",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "contact_phone",
+						"group": null,
+						"level": null,
+						"quote": {
+							"end": 58,
+							"text": "+7 900 000-11-03",
+							"start": 42,
+							"blockId": "p1-b002"
+						},
+						"rawText": "+7 900 000-11-03",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					}
+				],
+				"rejected": []
+			}
+		},
+		{
+			"schemaVersion": "resume-extract/v3",
+			"taxonomy": "2026.09.11",
+			"inputSha256": "4f791de4e87170e3aa0dc6cbf463b473940788da60d245f6558222e232af8c35",
+			"about": "resume «Резюме Родионов Степан.pdf»",
+			"model": {
+				"modelId": "anthropic/claude-sonnet-5-5",
+				"modelRevision": null,
+				"runtime": "api",
+				"params": {
+					"max_tokens": 16384
+				}
+			},
+			"output": {
+				"items": [
+					{
+						"kind": "role_title",
+						"group": "job-1",
+						"level": null,
+						"quote": {
+							"end": 27,
+							"text": "Стажёр backend-разработчика",
+							"start": 0,
+							"blockId": "p1-b027"
+						},
+						"rawText": "Стажёр backend-разработчика",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "organization",
+						"group": "job-1",
+						"level": null,
+						"quote": {
+							"end": 25,
+							"text": "ООО «Цифровая мастерская»",
+							"start": 0,
+							"blockId": "p1-b026"
+						},
+						"rawText": "ООО «Цифровая мастерская»",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "experience_period",
+						"group": "job-1",
+						"level": null,
+						"quote": {
+							"end": 24,
+							"text": "Февраль 2026 — июль 2026",
+							"start": 0,
+							"blockId": "p1-b025"
+						},
+						"rawText": "Февраль 2026 — июль 2026",
+						"periodTo": "июль 2026",
+						"polarity": "asserted",
+						"periodFrom": "Февраль 2026",
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": "job-1",
+						"level": null,
+						"quote": {
+							"end": 26,
+							"text": "Go",
+							"start": 24,
+							"blockId": "p1-b028"
+						},
+						"rawText": "Go",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": "job-1",
+						"level": null,
+						"quote": {
+							"end": 39,
+							"text": "PostgreSQL",
+							"start": 29,
+							"blockId": "p1-b028"
+						},
+						"rawText": "PostgreSQL",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": "job-1",
+						"level": null,
+						"quote": {
+							"end": 92,
+							"text": "Prometheus",
+							"start": 82,
+							"blockId": "p1-b028"
+						},
+						"rawText": "Prometheus",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": "job-1",
+						"level": null,
+						"quote": {
+							"end": 31,
+							"text": "Docker",
+							"start": 25,
+							"blockId": "p1-b029"
+						},
+						"rawText": "Docker",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": null,
+						"level": null,
+						"quote": {
+							"end": 2,
+							"text": "Go",
+							"start": 0,
+							"blockId": "p1-b007"
+						},
+						"rawText": "Go",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": null,
+						"level": null,
+						"quote": {
+							"end": 10,
+							"text": "PostgreSQL",
+							"start": 0,
+							"blockId": "p1-b008"
+						},
+						"rawText": "PostgreSQL",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": null,
+						"level": null,
+						"quote": {
+							"end": 6,
+							"text": "Docker",
+							"start": 0,
+							"blockId": "p1-b009"
+						},
+						"rawText": "Docker",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": null,
+						"level": null,
+						"quote": {
+							"end": 3,
+							"text": "Git",
+							"start": 0,
+							"blockId": "p1-b010"
+						},
+						"rawText": "Git",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": null,
+						"level": null,
+						"quote": {
+							"end": 5,
+							"text": "Linux",
+							"start": 0,
+							"blockId": "p1-b011"
+						},
+						"rawText": "Linux",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": null,
+						"level": null,
+						"quote": {
+							"end": 4,
+							"text": "REST",
+							"start": 0,
+							"blockId": "p1-b012"
+						},
+						"rawText": "REST",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": null,
+						"level": null,
+						"quote": {
+							"end": 4,
+							"text": "gRPC",
+							"start": 0,
+							"blockId": "p1-b013"
+						},
+						"rawText": "gRPC",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": null,
+						"level": null,
+						"quote": {
+							"end": 10,
+							"text": "Prometheus",
+							"start": 0,
+							"blockId": "p1-b014"
+						},
+						"rawText": "Prometheus",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": null,
+						"level": null,
+						"quote": {
+							"end": 115,
+							"text": "Go",
+							"start": 113,
+							"blockId": "p1-b031"
+						},
+						"rawText": "Go",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": null,
+						"level": null,
+						"quote": {
+							"end": 142,
+							"text": "PostgreSQL",
+							"start": 132,
+							"blockId": "p1-b031"
+						},
+						"rawText": "PostgreSQL",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": null,
+						"level": null,
+						"quote": {
+							"end": 166,
+							"text": "Docker",
+							"start": 160,
+							"blockId": "p1-b031"
+						},
+						"rawText": "Docker",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "education",
+						"group": null,
+						"level": null,
+						"quote": {
+							"end": 33,
+							"text": "Казанский федеральный\nуниверситет",
+							"start": 0,
+							"blockId": "p1-b018"
+						},
+						"rawText": "Казанский федеральный университет",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "language_level",
+						"group": null,
+						"level": "B2",
+						"quote": {
+							"end": 15,
+							"text": "Английский — B2",
+							"start": 0,
+							"blockId": "p1-b016"
+						},
+						"rawText": "Английский",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "skill_mention",
+						"group": null,
+						"level": null,
+						"quote": {
+							"end": 15,
+							"text": "Английский — B2",
+							"start": 0,
+							"blockId": "p1-b016"
+						},
+						"rawText": "Английский",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "achievement_mention",
+						"group": null,
+						"level": null,
+						"quote": {
+							"end": 74,
+							"text": "Капитан команды чемпиона России по\nпродуктовому программированию 2025 года",
+							"start": 0,
+							"blockId": "p1-b031"
+						},
+						"rawText": "Капитан команды чемпиона России по продуктовому программированию 2025 года",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "full_name",
+						"group": null,
+						"level": null,
+						"quote": {
+							"end": 26,
+							"text": "Родионов Степан\nВикторович",
+							"start": 0,
+							"blockId": "p1-b020"
+						},
+						"rawText": "Родионов Степан Викторович",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "contact_email",
+						"group": null,
+						"level": null,
+						"quote": {
+							"end": 34,
+							"text": "stepan.rodionov@fsp-career.example",
+							"start": 0,
+							"blockId": "p1-b002"
+						},
+						"rawText": "stepan.rodionov@fsp-career.example",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					},
+					{
+						"kind": "contact_phone",
+						"group": null,
+						"level": null,
+						"quote": {
+							"end": 16,
+							"text": "+7 900 000-01-17",
+							"start": 0,
+							"blockId": "p1-b003"
+						},
+						"rawText": "+7 900 000-01-17",
+						"periodTo": null,
+						"polarity": "asserted",
+						"periodFrom": null,
+						"organization": null,
+						"modelPolarity": "asserted"
+					}
+				],
+				"rejected": []
+			}
+		}
+	]
 }
