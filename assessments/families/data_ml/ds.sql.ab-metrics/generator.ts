@@ -1,12 +1,17 @@
 // Metrics of an A/B experiment in SQL: the first assignment of a reassigned user and orders only after it, users seen
 // in both variants excluded, revenue per user against per order with users who bought nothing, and the ratio of sums
 // against the mean of per-user ratios with SQLite's integer division.
+import { DatabaseSync } from 'node:sqlite';
 import { type Built, readDescriptor, type GenerateInput, type ItemInstance } from '../../_lib/family.ts';
 import type { Rng } from '../../_lib/rng.ts';
 import { insertRows } from '../../_lib/sql.ts';
 import { buildFromDraft, type SqlDraft } from '../../_lib/sql-draft.ts';
 
 const descriptor = readDescriptor(import.meta.url);
+
+/** The answer lines are compared as text: the separator is fixed exactly. */
+const ROW_SPACING =
+	'Значения разделяются ровно так: пробел, черта, пробел — без лишних пробелов вокруг черты; пробелы внутри самих значений сохраняются как есть. Например, строка из трёх столбцов: `7 | NULL | 2.5`.';
 
 type Row = (string | number | null)[];
 
@@ -83,7 +88,10 @@ function excludeCrossed(rng: Rng): SqlDraft {
 	return {
 		setup: setupOf(rng, assignments, orders),
 		query: q(clean),
-		wrong: { 'crossed-in-both': q('SELECT DISTINCT user_id, variant FROM assignments') },
+		wrong: {
+			'crossed-in-both': q('SELECT DISTINCT user_id, variant FROM assignments'),
+			'repeat-as-crossed': q(clean.replace('COUNT(DISTINCT variant)', 'COUNT(*)'))
+		},
 		purpose: 'Аналитик сравнивает варианты, исключив пользователей, попавших в оба варианта.'
 	};
 }
@@ -141,17 +149,57 @@ function intDivision(rng: Rng): SqlDraft {
 	};
 }
 
+/**
+ * Whether a ROUND of the query meets an exact half of its last place. SQLite rounds it away from zero, Python's round()
+ * to even: a draw with such a value is redrawn, so the answer does not hinge on that convention.
+ */
+function meetsHalf(setup: string, query: string): boolean {
+	const db = new DatabaseSync(':memory:');
+	try {
+		let half = false;
+		const probe = (x: unknown, digits: unknown): unknown => {
+			if (typeof x !== 'number') return x;
+			const scaled = Math.abs(x) * 10 ** Number(digits);
+			if (Math.abs(scaled - Math.floor(scaled) - 0.5) < 1e-7) half = true;
+			return x;
+		};
+		db.function('round', { deterministic: true }, (x: unknown) => probe(x, 0) as number);
+		db.function('round', { deterministic: true }, (x: unknown, digits: unknown) => probe(x, digits) as number);
+		db.exec(setup);
+		db.prepare(query).all();
+		return half;
+	} finally {
+		db.close();
+	}
+}
+
+/** A draft redrawn until no ROUND of its query meets an exact half. */
+function noHalves(draft: (rng: Rng) => SqlDraft): (rng: Rng) => SqlDraft {
+	return (rng) => {
+		for (let attempt = 0; attempt < 1000; attempt += 1) {
+			const d = draft(rng);
+			if (!meetsHalf(d.setup, d.query)) return d;
+		}
+		throw new Error(`${descriptor.key}: every draw rounds an exact half`);
+	};
+}
+
 const DRAFTS: Record<string, (rng: Rng) => SqlDraft> = {
-	'senior/first-assignment': firstAssignment,
-	'senior/exclude-crossed': excludeCrossed,
-	'senior/arpu-vs-aov': arpuVsAov,
-	'senior/int-division': intDivision
+	'senior/first-assignment': noHalves(firstAssignment),
+	'senior/exclude-crossed': noHalves(excludeCrossed),
+	'senior/arpu-vs-aov': noHalves(arpuVsAov),
+	'senior/int-division': noHalves(intDivision)
 };
 
 export function build(input: GenerateInput): Built {
 	const draft = DRAFTS[`${input.grade}/${input.classId}`];
 	if (!draft) throw new Error(`${descriptor.key}: no draft for ${input.grade}/${input.classId}`);
-	return buildFromDraft(descriptor, input, draft);
+	const built = buildFromDraft(descriptor, input, draft);
+	const { statement } = built.instance;
+	return {
+		...built,
+		instance: { ...built.instance, statement: { ...statement, markdown: `${statement.markdown} ${ROW_SPACING}` } }
+	};
 }
 
 export function generate(input: GenerateInput): ItemInstance {

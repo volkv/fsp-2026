@@ -1,6 +1,6 @@
 // Multiple testing: which of the experiment's hypotheses a procedure rejects — Bonferroni, Holm, Benjamini–Hochberg,
-// Hochberg; Senior — Benjamini–Yekutieli, a primary metric gating the secondary ones, z-statistics instead of p-values
-// and weighted Bonferroni. The answer is the set of rejected metrics.
+// Hochberg; Senior — Benjamini–Yekutieli, a primary metric whose outcome sets the level of the secondary ones,
+// z-statistics instead of p-values and weighted Bonferroni. The answer is the set of rejected metrics.
 import {
 	readDescriptor,
 	type Built,
@@ -200,12 +200,23 @@ const DRAW: Record<string, (rng: Rng) => ComputedScenario | null> = {
 function gatekeeping(rng: Rng): ComputedScenario | null {
 	const m = rng.int(5, 10);
 	const alpha = rng.pick([0.05, 0.1]);
+	const half = alpha / 2;
 	const all = hypotheses(rng, m + 1);
-	const primary = { ...(all[0] as Hypothesis), p: rng.int(1, Math.round(alpha * 10000) - 1) / 10000 };
+	// Both outcomes of the primary test: below α/2 it is rejected; between α/2 and α it is not, though it is below α.
+	const opens = rng.bool();
+	const ticks = Math.round(half * 10000);
+	const primary = {
+		...(all[0] as Hypothesis),
+		p: (opens ? rng.int(1, ticks - 1) : rng.int(ticks + 1, 2 * ticks)) / 10000
+	};
 	const secondary = all.slice(1);
-	if (!clearOf(secondary, thresholds(m, alpha)) || !clearOf([primary, ...secondary], thresholds(m + 1, alpha)))
+	if (
+		!clearOf(secondary, thresholds(m, alpha)) ||
+		!clearOf(secondary, thresholds(m, half)) ||
+		!clearOf([primary, ...secondary], thresholds(m + 1, alpha))
+	)
 		return null;
-	const answer = [primary.name, ...holm(secondary, alpha)];
+	const answer = opens ? [primary.name, ...holm(secondary, alpha)] : holm(secondary, half);
 	if (answer.length < 2) return null;
 	return {
 		markdown: [
@@ -213,14 +224,22 @@ function gatekeeping(rng: Rng): ComputedScenario | null {
 			'',
 			...pTable(secondary),
 			'',
-			`По протоколу (иерархическая процедура с FWER ≤ α = ${alpha}): первичная метрика проверяется на уровне α; если её гипотеза отвергнута, вторичные проверяются процедурой Холма на уровне α среди ${m} вторичных (p₍ᵢ₎ сравнивается с α/(m − i + 1), пока сравнение проходит); если нет — вторичные не проверяются. Какие гипотезы отвергаются (включая первичную)?`,
+			`По протоколу (процедура с переносом уровня, FWER ≤ α = ${alpha}): первичная метрика проверяется на уровне α/2 = ${num(half)}. Если её гипотеза отвергнута, вторичные проверяются процедурой Холма на уровне α = ${alpha}; если нет — процедурой Холма на уровне α/2 = ${num(half)}. Холм на уровне a среди ${m} вторичных: p-value сортируются по возрастанию, p₍ᵢ₎ сравнивается с a/(m − i + 1), начиная с наименьшего, пока сравнение проходит. Какие гипотезы отвергаются (включая первичную, если она отвергнута)?`,
 			'',
 			ANSWER_RULE
 		].join('\n'),
 		code: null,
 		answer: set(answer),
 		input: { cls: 'gatekeeping', alpha, primary, hypotheses: secondary },
-		wrong: { 'pooled-holm': set(holm([primary, ...secondary], alpha)) }
+		wrong: {
+			'pooled-holm': set(holm([primary, ...secondary], alpha)),
+			...(opens
+				? {}
+				: {
+						'ignores-gate': set(holm(secondary, alpha)),
+						'primary-at-alpha': set([primary.name, ...holm(secondary, alpha)])
+					})
+		}
 	};
 }
 
@@ -327,7 +346,10 @@ elif cls == "by":
     c = lambda m: sum(1 / k for k in range(1, m + 1))
     res = rejected(adjusted(p["hypotheses"], lambda i, m: m * c(m) / i, "up"))
 elif cls == "gatekeeping":
-    res = [p["primary"]["name"]] + holm(p["hypotheses"]) if p["primary"]["p"] <= alpha else []
+    if p["primary"]["p"] <= alpha / 2 + 1e-12:
+        res = [p["primary"]["name"]] + holm(p["hypotheses"])
+    else:
+        res = rejected(adjusted(p["hypotheses"], lambda i, m: (m - i + 1) * 2, "down"))
 elif cls == "holm-from-z":
     res = holm([{"name": h["name"], "p": 2 * NormalDist().cdf(-abs(h["z"]))} for h in p["zs"]])
 elif cls == "weighted-bonferroni":

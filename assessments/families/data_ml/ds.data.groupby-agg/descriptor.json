@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "62e2164f6c672499ca41881698f3c4d8fdfc08d15e953272b0dff70f89154165"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.65,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "62e2164f6c672499ca41881698f3c4d8fdfc08d15e953272b0dff70f89154165"
+					}
+				],
+				"mean": 0.65
+			},
 			"constructive": { "rows": "9–12", "keys": 1, "steps": 1, "trap": "NaN в значении или в ключе группы" },
 			"constructiveRank": 2,
 			"timeNormSec": 240,
@@ -37,7 +54,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.5,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "62e2164f6c672499ca41881698f3c4d8fdfc08d15e953272b0dff70f89154165"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.7,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "62e2164f6c672499ca41881698f3c4d8fdfc08d15e953272b0dff70f89154165"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": { "rows": "12–16", "keys": "1–2", "steps": 2, "trap": "transform, filter, несколько ключей" },
 			"constructiveRank": 3,
 			"timeNormSec": 330,
@@ -133,6 +167,30 @@
 		"answerCollision": 0.0048,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчитано вручную по семантике pandas 2 все 8 показанных экземпляров (mean с пропуском, NaN в ключе выпадает, nunique включает покупателя с пропуском суммы, сортировка ключей groupby, transform('mean'), две группы по ключам, filter по count(), среднее групповых средних): ответы 268.33, 466.67, 253.75, 605, 92.5, 243.89, 1180, 222.33 совпали с ожидаемыми. Настоящий pandas в песочнице недоступен, прогон не делался.",
+					"Проверил неоднозначность: порядок групп в sorted-groups идёт по коду символов, названия городов (генератор: десять кириллических слов без «ё») сортируются однозначно, а порядок появления даёт другой ответ (1175 против 605), так что класс не пустышка. В per-buyer пропуск суммы не убирает покупателя из nunique, и это отличает ответ от решения с делением на число покупателей с известной суммой.",
+					"Список из 9 ошибочных решений привязан к классам и покрывает типичные заблуждения (NaN как ноль, NaN-ключ как группа, порядок появления, size вместо count); существенных замечаний нет.",
+					"Мелочь: в Intern-классе sorted-groups ответ зависит от знания, что groupby по умолчанию сортирует ключи (sort=True); это стандартное поведение, но в условии не оговорено, что порядок строк результата определяется им; допустимо, потому что это и есть проверяемая ловушка.",
+					"Angoff: бинарная рубрика; Junior ошибается на filter по count() непустых значений и на transform с NaN."
+				],
+				"sourceSha256": "62e2164f6c672499ca41881698f3c4d8fdfc08d15e953272b0dff70f89154165"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Независимо пересчитал все 8 экземпляров на Python 3.12 по группам таблиц: sum/count/size/nunique, transform, фильтр групп, несколько ключей и невзвешенное среднее средних. Все ответы совпали; проверены 12 применимых ошибочных вариантов. Проверены исключение NaN, порядок групп и отличие числа строк от числа непустых значений. Сам pandas и полный прогон ворот на 200 сидах каждого класса не исполнял.",
+					"Angoff: Intern 0.65, Junior 0.70 — вероятность полного ответа при binary. Арифметика короткая, но требуется сохранить различия count/size/nunique и порядок результата; у Junior больший риск связан с transform, фильтрацией и средним средних, при более уверенном владении группировкой."
+				],
+				"sourceSha256": "62e2164f6c672499ca41881698f3c4d8fdfc08d15e953272b0dff70f89154165"
+			}
+		]
 	}
 }

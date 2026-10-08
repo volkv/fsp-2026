@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.65,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "58225d1cab605f3592665c7577d18eb14ba91981c8eb90bff0fcbb1604f94380"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.65,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "58225d1cab605f3592665c7577d18eb14ba91981c8eb90bff0fcbb1604f94380"
+					}
+				],
+				"mean": 0.65
+			},
 			"constructive": {
 				"tables": 1,
 				"rows": "9–16",
@@ -42,7 +59,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.65,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "58225d1cab605f3592665c7577d18eb14ba91981c8eb90bff0fcbb1604f94380"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "58225d1cab605f3592665c7577d18eb14ba91981c8eb90bff0fcbb1604f94380"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": {
 				"tables": 1,
 				"rows": "8–16",
@@ -152,6 +186,31 @@
 		"answerCollision": 0.0001,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Прежнее существенное замечание устранено по решению ведущего 2: точный разделитель строки задан во всех условиях, внешние пробелы строк принимаются. Порядок результата задан ORDER BY; в NTILE по amount генератор использует различные суммы, а в NTILE с NULL дополнительно задан id.",
+					"Заявленные размеры данных не всегда соблюдаются: Intern/share-distinct (X), экземпляр 1, содержит 17 строк при диапазоне 9–16; на 200 сидах where-vs-having и share-distinct достигали 21 строки, Junior/pivot — также 21 при диапазоне 8–16. Согласовать диапазоны с генерацией по классам; это замечание о метаданных нагрузки, ответы остаются однозначными.",
+					"Angoff: Intern 0.65, Junior 0.65 — при 240/360 с основной риск полного бинарного ответа связан с пропущенной строкой группы. Intern проверяет порядок CASE, NULL-группу и WHERE до HAVING; Junior — размеры NTILE и NULL в условных агрегатах, причём anchor требует заполнить несколько столбцов для каждого месяца.",
+					"Проверка: все 8 показанных экземпляров и 1600 экземпляров на 200 сидах каждого класса исполнены непосредственно из SQL условия в SQLite 3.45.1; ответы совпали, reverse_unordered_selects их не изменил. Действующий answerMatches отверг 1600 применимых ошибочных ответов; sourceSha256 подтверждён. Генератор запускался только во временной копии без gates и Angoff; полный штатный запуск ворот, продуктовый интерфейс и эмпирическое время кандидатов не проверялись."
+				],
+				"sourceSha256": "58225d1cab605f3592665c7577d18eb14ba91981c8eb90bff0fcbb1604f94380"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчитал: выполнил SQL из условия на 100 сидах каждого из 8 классов (800 экземпляров) в SQLite 3.45.1 через python sqlite3, все ответы совпали с эталоном; 8 показанных экземпляров проверил вручную (недостижимая ветка large в case-order, группа NULL первой в else-null — оговорено в условии, WHERE до HAVING, NTILE(3) на 14 строках = 5/5/4, AVG и SUM(CASE) без ELSE дают NULL, COUNT(CASE) — 0). Перемешал порядок INSERT: ответ не меняется (ничьи NTILE по amount не влияют на COUNT/MIN/MAX корзины, в ntile-nulls есть тай-брейк id). Ничьих ROUND нет. Порядок текстовых ключей (латиница строчная, кириллица с заглавной буквы, без ё) совпадает с двоичным порядком SQLite и с естественным. Не проверял: ошибочные решения по каждому сиду (отчёт ворот 8 из 8).",
+					"Прежнее замечание о формате строки устранено (' | ' с примером).",
+					"Мелочь: заявленный диапазон rows 9–16 (Intern) и 8–16 (Junior) нарушается: share-distinct выше 16 в 31 из 100 сидов (до 21), pivot — в 12 из 100 (до 20), where-vs-having и case-in-aggregate иногда ниже 9 и 8 строк. Либо привести генератор к диапазону, либо поправить параметры сложности.",
+					"Мелочь: в case-in-aggregate и where-vs-having слово «крупных»/«средний чек заказов из канала ads» в тексте условия не определено — определяет запрос; для sql_trace достаточно."
+				],
+				"sourceSha256": "58225d1cab605f3592665c7577d18eb14ba91981c8eb90bff0fcbb1604f94380"
+			}
+		]
 	}
 }

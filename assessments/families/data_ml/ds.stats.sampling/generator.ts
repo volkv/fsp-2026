@@ -197,19 +197,19 @@ function finitePopulation(rng: Rng): ComputedScenario {
 	const N = rng.int(200, 1500);
 	const n = rng.int(Math.round(N * 0.15), Math.round(N * 0.6));
 	const s = rng.int(40, 300) / 10;
-	const se = (s / Math.sqrt(n)) * Math.sqrt((N - n) / (N - 1));
+	const se = (s / Math.sqrt(n)) * Math.sqrt(1 - n / N);
 	return {
 		markdown: [
 			`В компании ${N} сотрудников. Для оценки среднего времени на задачу случайно, **без возвращения**, опросили ${n} из них; выборочное стандартное отклонение (n − 1) — ${num(s)} ч.`,
 			'',
-			'Найдите стандартную ошибку выборочного среднего как оценки среднего по всем сотрудникам компании (с поправкой на конечную совокупность).',
+			'Найдите стандартную ошибку выборочного среднего как оценки среднего по всем сотрудникам компании с поправкой на конечную совокупность: обычная стандартная ошибка s/√n, умноженная на √(1 − n/N), где N — число сотрудников, n — размер выборки.',
 			'',
 			roundingRule(DIGITS)
 		].join('\n'),
 		code: null,
 		answer: f(se),
 		input: { cls: 'finite-population', N, n, s },
-		wrong: { 'no-fpc': f(s / Math.sqrt(n)), 'sd-not-se': f(s * Math.sqrt((N - n) / (N - 1))) }
+		wrong: { 'no-fpc': f(s / Math.sqrt(n)), 'sd-not-se': f(s * Math.sqrt(1 - n / N)) }
 	};
 }
 
@@ -255,7 +255,7 @@ elif cls == "correlated-sum":
     print(repr(math.sqrt(p["sx"] ** 2 + p["sy"] ** 2 + 2 * sign * cov)))
 elif cls == "finite-population":
     big, n = p["N"], p["n"]
-    print(repr(p["s"] / math.sqrt(n) * math.sqrt((big - n) / (big - 1))))
+    print(repr(p["s"] / math.sqrt(n) * math.sqrt(1 - n / big)))
 `;
 
 export function build(input: GenerateInput): Built {

@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.7,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "dfb12d2f7487eb90972ae1f41a9dd7566ac5fb9677c314be47f7dcfe1604529d"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.7,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "dfb12d2f7487eb90972ae1f41a9dd7566ac5fb9677c314be47f7dcfe1604529d"
+					}
+				],
+				"mean": 0.7
+			},
 			"constructive": { "users": "5–8", "listLength": "6–9", "k": "3–6", "averaging": "среднее по пользователям" },
 			"constructiveRank": 2,
 			"timeNormSec": 270,
@@ -37,7 +54,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.75,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "dfb12d2f7487eb90972ae1f41a9dd7566ac5fb9677c314be47f7dcfe1604529d"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "dfb12d2f7487eb90972ae1f41a9dd7566ac5fb9677c314be47f7dcfe1604529d"
+					}
+				],
+				"mean": 0.7
+			},
 			"constructive": { "users": "5–8", "listLength": "7–9", "k": "3–6", "averaging": "с исключениями и ничьими" },
 			"constructiveRank": 4,
 			"timeNormSec": 360,
@@ -136,6 +170,29 @@
 		"answerCollision": 0.0202,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Независимо пересчитаны все 8 экземпляров в Python 3.12: сортировка выдач по правилам условия, отсечение на k, знаменатели precision/recall/AP и усреднение по пользователям. Ответы совпали; 11 применимых ошибочных вариантов отвергаются. Новые 200 сидов каждого класса, эмпирическое answerCollision и боевой интерфейс не проверялись.",
+					"Angoff: intern 0.70 — 270 с на 5–8 пользователей достаточно, но различие знаменателей precision, recall и AP требует внимания; junior 0.75 — дополнительные 90 с компенсируют исключение пустых пользователей, MAP и разрешение ничьих. Оценки относятся к полному правильному ответу при binary-рубрике."
+				],
+				"sourceSha256": "dfb12d2f7487eb90972ae1f41a9dd7566ac5fb9677c314be47f7dcfe1604529d"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчитал все 8 показанных экземпляров собственным парсером таблиц из условия (сортировка по скору с номером объекта на ничьих, деление на k, на всех релевантных, MRR, MAP с min(R, k), исключение пользователей без релевантных): ответы совпали. Не проверял полные входы в пакете (обрезаны), но таблицы в условии полные.",
+					"Класс ties (junior): на границе k=5 у пользователя timur ничья 0.6 (#14 релевантен, #53 нет), порядок по номеру объекта меняет ответ (3/5 против 4/5 у этого пользователя), то есть класс существенно зависит от правила ничьей; правило в условии названо.",
+					"Список ошибочных решений содержит типичные заблуждения (смена знаменателей, micro, без сортировки, деление на длину выдачи, MAP по числу попаданий), лишних или ловящих верное нет.",
+					"Мелочь: в экземплярах mrr (k=3 в данных эталона) столбец «всего релевантных» не нужен для ответа; это отвлекающая информация, на ответ не влияет."
+				],
+				"sourceSha256": "dfb12d2f7487eb90972ae1f41a9dd7566ac5fb9677c314be47f7dcfe1604529d"
+			}
+		]
 	}
 }

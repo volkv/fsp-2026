@@ -8,6 +8,10 @@ import { addDays, buildFromDraft, type SqlDraft } from '../../_lib/sql-draft.ts'
 
 const descriptor = readDescriptor(import.meta.url);
 
+/** The answer lines are compared as text: the separator is fixed exactly. */
+const ROW_SPACING =
+	'Значения разделяются ровно так: пробел, черта, пробел — без лишних пробелов вокруг черты; пробелы внутри самих значений сохраняются как есть. Например, строка из трёх столбцов: `7 | NULL | 2.5`.';
+
 type Row = (string | number | null)[];
 
 interface Data {
@@ -182,16 +186,18 @@ function shareInt(rng: Rng): SqlDraft {
 		(r) => (r.bool(0.6) ? [r.int(1, 7), ...(r.bool(0.5) ? [r.int(8, 20)] : [])] : [r.int(8, 30)]),
 		true
 	);
-	const retained = `COUNT(DISTINCT CASE WHEN a.day BETWEEN date(u.signup, '+1 day') AND date(u.signup, '+7 days') THEN u.id END)`;
-	const q = (join: string, share: string): string =>
-		`SELECT ${cohortSelect}, COUNT(DISTINCT u.id), ${retained},\n       ${share}\nFROM users u ${join} ${table} a ON a.user_id = u.id\nGROUP BY cohort ORDER BY cohort;`;
+	// The window of week 1 is a condition of the LEFT JOIN: users without activity in it stay in the cohort with NULL.
+	const window = `a.day BETWEEN date(u.signup, '+1 day') AND date(u.signup, '+7 days')`;
+	const retained = 'COUNT(DISTINCT a.user_id)';
 	const intShare = `100 * ${retained} / COUNT(DISTINCT u.id)`;
+	const q = (share: string, where = false): string =>
+		`SELECT ${cohortSelect}, COUNT(DISTINCT u.id), ${retained},\n       ${share}\nFROM users u LEFT JOIN ${table} a ON a.user_id = u.id${where ? `\nWHERE ${window}` : ` AND ${window}`}\nGROUP BY cohort ORDER BY cohort;`;
 	return {
 		setup: setupOf(rng, data, table),
-		query: q('LEFT JOIN', intShare),
+		query: q(intShare),
 		wrong: {
-			'real-division': q('LEFT JOIN', `ROUND(100.0 * ${retained} / COUNT(DISTINCT u.id), 1)`),
-			'inner-join-cohort': q('JOIN', intShare)
+			'real-division': q(`ROUND(100.0 * ${retained} / COUNT(DISTINCT u.id), 1)`),
+			'on-filter-as-where': q(intShare, true)
 		},
 		purpose: 'Аналитик считает долю пользователей когорты, вернувшихся в первую неделю, в процентах.'
 	};
@@ -256,8 +262,7 @@ function weekCohort(rng: Rng): SqlDraft {
 		setup: setupOf(rng, { users, activity }, table),
 		query: q('c.week'),
 		wrong: { 'week-from-signup': q('c.signup') },
-		purpose:
-			"Аналитик строит недельные когорты: `date(d, '-6 days', 'weekday 1')` — понедельник недели, в которую попал день `d`; неделя 1 когорты — дни с 7-го по 13-й после этого понедельника."
+		purpose: `Аналитик строит недельные когорты: \`date(d, '-6 days', 'weekday 1')\` — понедельник недели, в которую попал день \`d\`; неделя 1 когорты — дни с 7-го по 13-й после этого понедельника. Для справки: ${mondays[0]} — понедельник.`
 	};
 }
 
@@ -275,7 +280,12 @@ const DRAFTS: Record<string, (rng: Rng) => SqlDraft> = {
 export function build(input: GenerateInput): Built {
 	const draft = DRAFTS[`${input.grade}/${input.classId}`];
 	if (!draft) throw new Error(`${descriptor.key}: no draft for ${input.grade}/${input.classId}`);
-	return buildFromDraft(descriptor, input, draft);
+	const built = buildFromDraft(descriptor, input, draft);
+	const { statement } = built.instance;
+	return {
+		...built,
+		instance: { ...built.instance, statement: { ...statement, markdown: `${statement.markdown} ${ROW_SPACING}` } }
+	};
 }
 
 export function generate(input: GenerateInput): ItemInstance {

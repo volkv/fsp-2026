@@ -10,6 +10,10 @@ import { buildFromDraft, type SqlDraft } from '../../_lib/sql-draft.ts';
 
 const descriptor = readDescriptor(import.meta.url);
 
+/** The answer lines are compared as text: the separator is fixed exactly. */
+const ROW_SPACING =
+	'Значения разделяются ровно так: пробел, черта, пробел — без лишних пробелов вокруг черты; пробелы внутри самих значений сохраняются как есть. Например, строка из трёх столбцов: `7 | NULL | 2.5`.';
+
 type Row = (string | number | null)[];
 
 const NULL_ORDER = 'В SQLite NULL при сортировке считается меньше любого значения.';
@@ -230,7 +234,12 @@ const DRAFTS: Record<string, (rng: Rng) => SqlDraft> = {
 export function build(input: GenerateInput): Built {
 	const draft = DRAFTS[`${input.grade}/${input.classId}`];
 	if (!draft) throw new Error(`${descriptor.key}: no draft for ${input.grade}/${input.classId}`);
-	return buildFromDraft(descriptor, input, draft);
+	const built = buildFromDraft(descriptor, input, draft);
+	const { statement } = built.instance;
+	return {
+		...built,
+		instance: { ...built.instance, statement: { ...statement, markdown: `${statement.markdown} ${ROW_SPACING}` } }
+	};
 }
 
 export function generate(input: GenerateInput): ItemInstance {

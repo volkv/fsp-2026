@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "middle",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.7,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "6f30438923db4ddbf108a4ae4b1bc48f936b664afa9a0a463c35b145e0e89674"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "6f30438923db4ddbf108a4ae4b1bc48f936b664afa9a0a463c35b145e0e89674"
+					}
+				],
+				"mean": 0.65
+			},
 			"constructive": {
 				"scoreValues": "8–11",
 				"criterion": "одна целевая функция по порогу",
@@ -33,7 +50,24 @@
 		},
 		{
 			"grade": "senior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.75,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "6f30438923db4ddbf108a4ae4b1bc48f936b664afa9a0a463c35b145e0e89674"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "6f30438923db4ddbf108a4ae4b1bc48f936b664afa9a0a463c35b145e0e89674"
+					}
+				],
+				"mean": 0.7
+			},
 			"constructive": {
 				"scoreValues": "8–11",
 				"criterion": "экономика решения",
@@ -114,6 +148,11 @@
 			"mustBeCaught": true
 		},
 		{
+			"id": "fill-capacity",
+			"defect": "берёт самый низкий порог, укладывающийся в лимит проверок, не сравнивая прибыль",
+			"mustBeCaught": true
+		},
+		{
 			"id": "no-reweight",
 			"defect": "выбирает порог по прореженной выборке без восстановления доли отрицательных",
 			"mustBeCaught": true
@@ -124,11 +163,36 @@
 	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
 	"gates": {
 		"reference": { "seeds": 200, "failures": 0 },
-		"wrongSolutions": { "mustBeCaught": 9, "caught": 9 },
+		"wrongSolutions": { "mustBeCaught": 10, "caught": 10 },
 		"hiddenTestsMutationScore": null,
 		"answerCollision": 0.0005,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Прежний дефект senior/capacity-profit устранён: в экземпляре 1 допустимы пять порогов, оптимален t=0.64 с прибылью 804/393 = 2.0458015267; самый низкий допустимый t=0.57 даёт 760/393. На 200 сидах класса везде допустимы как минимум два порога, fill-capacity и ignore-capacity отвергаются.",
+					"Независимо пересчитаны все 8 экземпляров пакета и по 200 сидов каждого класса, всего 1600, в Python 3.12.3 по таблицам и формулам условия с рациональной арифметикой; ответы совпали. Проверены накопленные TP/FP/FN/TN, Fβ, ограничение recall, Youden, прибыль, восстановление доли отрицательных, байесовское правило и net benefit; 2800 применимых ошибочных ответов отвергнуты настоящим answerMatches. Штатный полный запуск ворот и боевой интерфейс не проверялись.",
+					"Angoff: middle 0.70 — за 420 с нужно вспомнить метрику и аккуратно сравнить 8–11 порогов; senior 0.75 — за 480 с нужно применить экономическое правило, ограничение или восстановление доли классов. Готовые формулы anchor/X облегчают расчёт; binary требует полностью правильного числового ответа. Замечание прошлого раунда о формате Senior пересмотрено согласно решению ведущего 1."
+				],
+				"sourceSha256": "6f30438923db4ddbf108a4ae4b1bc48f936b664afa9a0a463c35b145e0e89674"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Прежние замечания устранены: capacity-profit (senior) теперь требует минимум двух допустимых порогов (проверка в build); в показанном экземпляре допустимых порогов пять, оптимум 268/131 приходится на четвёртый, а не на самый низкий, поэтому `fill-capacity` и `ignore-capacity` дают другое число. Ответ зависит от ёмкости и выбора порога.",
+					"Пересчитал все 8 показанных экземпляров собственным кодом на рациональной арифметике (Fraction): min-cost, Fβ при β=3, precision при recall>=0.7, Юден, прибыль при ёмкости, стоимость при прореживании отрицательных в 10 раз, байесовский порог 2/22, чистая польза при pt=0.1. Все ответы совпали с ожидаемыми (с точностью до 3 знаков). Генератор на новых сидах не гонял.",
+					"Мелочь: в условии prior-shift-cost опечатка «в 10 раза больше» (должно быть «в 10 раз»); смысл не меняется.",
+					"Мелочь: в bayes-threshold скор назван откалиброванным, хотя частоты в строках ему не соответствуют (скор 0.92 при доле положительных 11/21); на ответ не влияет, правило порога и сравнение «не ниже» заданы явно.",
+					"Senior: bayes-threshold и net-benefit — подстановка в заданную формулу с одним суммированием, без перебора; по решению ведущего это замечание формата, не основание для изменений, учтено в Angoff. Не проверял: 200 сидов каждого класса, поведение при равенстве скора и порога на других сидах."
+				],
+				"sourceSha256": "6f30438923db4ddbf108a4ae4b1bc48f936b664afa9a0a463c35b145e0e89674"
+			}
+		]
 	}
 }

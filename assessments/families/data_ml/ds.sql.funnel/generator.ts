@@ -8,6 +8,10 @@ import { addMinutes, buildFromDraft, type SqlDraft } from '../../_lib/sql-draft.
 
 const descriptor = readDescriptor(import.meta.url);
 
+/** The answer lines are compared as text: the separator is fixed exactly. */
+const ROW_SPACING =
+	'Значения разделяются ровно так: пробел, черта, пробел — без лишних пробелов вокруг черты; пробелы внутри самих значений сохраняются как есть. Например, строка из трёх столбцов: `7 | NULL | 2.5`.';
+
 type Row = (string | number | null)[];
 
 const PLATFORMS = ['android', 'ios', 'web'] as const;
@@ -32,13 +36,13 @@ function uniqueUsers(rng: Rng): SqlDraft {
 	const table = rng.pick(['events', 'app_events', 'tracking']);
 	const steps = ['visit', 'search', 'cart', 'purchase'];
 	const rows: Row[] = [];
-	const users = rng.int(5, 8);
+	const users = rng.int(4, 7);
 	for (let user = 1; user <= users; user += 1) {
 		const platform = rng.pick(PLATFORMS);
 		const depth = user === 1 ? 4 : rng.int(1, 4);
 		for (const step of steps.slice(0, depth)) {
 			// The trap: user 1 repeats every step, the others sometimes.
-			const times = user === 1 ? 2 : rng.bool(0.35) ? rng.int(2, 3) : 1;
+			const times = user === 1 ? 2 : rng.bool(0.3) ? 2 : 1;
 			for (let k = 0; k < times; k += 1) rows.push([user, step, moment(rng), platform]);
 		}
 	}
@@ -260,25 +264,43 @@ function lastStep(rng: Rng): SqlDraft {
 		setup: eventsSetup(table, rows, rng),
 		query: right,
 		wrong: { 'reached-not-last': reached },
-		purpose: 'Аналитик ищет, на каком шаге воронки останавливаются пользователи.'
+		purpose:
+			'Аналитик считает, сколько пользователей дошли до каждого шага воронки как до самого дальнего (по порядку шагов).'
+	};
+}
+
+/** A draft redrawn until its log has `min`–`max` events, the size the time norm of the level is set for. */
+function sized(draft: (rng: Rng) => SqlDraft, min: number, max: number): (rng: Rng) => SqlDraft {
+	return (rng) => {
+		for (let attempt = 0; attempt < 1000; attempt += 1) {
+			const d = draft(rng);
+			const events = d.setup.match(/^INSERT /gm)?.length ?? 0;
+			if (events >= min && events <= max) return d;
+		}
+		throw new Error(`${descriptor.key}: no log of ${min}–${max} events after 1000 draws`);
 	};
 }
 
 const DRAFTS: Record<string, (rng: Rng) => SqlDraft> = {
-	'intern/unique-users': uniqueUsers,
-	'intern/conversion': conversion,
-	'intern/both-steps': bothSteps,
-	'intern/having-users': havingUsers,
-	'junior/ordered-funnel': orderedFunnel,
-	'junior/window-hours': windowHours,
-	'junior/per-session': perSession,
-	'junior/last-step': lastStep
+	'intern/unique-users': sized(uniqueUsers, 8, 25),
+	'intern/conversion': sized(conversion, 8, 25),
+	'intern/both-steps': sized(bothSteps, 8, 25),
+	'intern/having-users': sized(havingUsers, 8, 25),
+	'junior/ordered-funnel': sized(orderedFunnel, 10, 30),
+	'junior/window-hours': sized(windowHours, 10, 30),
+	'junior/per-session': sized(perSession, 10, 30),
+	'junior/last-step': sized(lastStep, 10, 30)
 };
 
 export function build(input: GenerateInput): Built {
 	const draft = DRAFTS[`${input.grade}/${input.classId}`];
 	if (!draft) throw new Error(`${descriptor.key}: no draft for ${input.grade}/${input.classId}`);
-	return buildFromDraft(descriptor, input, draft);
+	const built = buildFromDraft(descriptor, input, draft);
+	const { statement } = built.instance;
+	return {
+		...built,
+		instance: { ...built.instance, statement: { ...statement, markdown: `${statement.markdown} ${ROW_SPACING}` } }
+	};
 }
 
 export function generate(input: GenerateInput): ItemInstance {

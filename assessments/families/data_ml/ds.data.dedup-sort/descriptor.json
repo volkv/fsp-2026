@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.7,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "d87044b541931f8dcf301f73463f011fe817de1c44477918ffaec6567d14bebd"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "d87044b541931f8dcf301f73463f011fe817de1c44477918ffaec6567d14bebd"
+					}
+				],
+				"mean": 0.65
+			},
 			"constructive": { "rows": "7–10", "steps": "1–2", "trap": "какая строка остаётся и где оказывается NaN" },
 			"constructiveRank": 2,
 			"timeNormSec": 240,
@@ -37,7 +54,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.7,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "d87044b541931f8dcf301f73463f011fe817de1c44477918ffaec6567d14bebd"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "d87044b541931f8dcf301f73463f011fe817de1c44477918ffaec6567d14bebd"
+					}
+				],
+				"mean": 0.65
+			},
 			"constructive": { "rows": "9–13", "steps": 2, "trap": "равные значения и порядок строк" },
 			"constructiveRank": 4,
 			"timeNormSec": 330,
@@ -132,6 +166,30 @@
 		"answerCollision": 0.0141,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Независимо пересчитал все 8 экземпляров на Python 3.12: выбор сохраняемых дублей, порядок сортировки, первые строки групп, ранги min и сохранение всех равных максимумов. Все ответы совпали; проверены 13 применимых ошибочных вариантов. Равенства и порядок разобраны отдельно, скрытой зависимости ответа от нестабильной сортировки не обнаружено. Сам pandas и полный прогон ворот на 200 сидах каждого класса не исполнял.",
+					"Angoff: Intern 0.70, Junior 0.70 — вероятность полного ответа при binary. Объём таблиц посилен в норму времени; основной риск Intern — спутать keep и порядок операций, Junior — исключить связанные равенством строки при rank/nlargest или потерять заданную стабильность сортировки."
+				],
+				"sourceSha256": "d87044b541931f8dcf301f73463f011fe817de1c44477918ffaec6567d14bebd"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчитано вручную по документированной семантике pandas 2 все 8 показанных экземпляров (drop_duplicates subset+keep, sort_values с NaN в конце, сортировка по двум столбцам с разным направлением, value_counts без NaN, last-per-user по ts, rank(method='min') по группе, устойчивая сортировка по убыванию, nlargest keep='all'): ответы 1740, 1660, 1990, 623.33, 1360, 7630, 1520, 1310 совпали с ожидаемыми. Настоящий pandas в песочнице недоступен, прогон не делался.",
+					"По генератору проверил источники неоднозначности: значения score в sort-nan-last и ts в last-per-user различны (sample без повторов), поэтому неустойчивость quicksort в sort_values не влияет на ответ; в value-counts-top максимум частоты среди городов единственный (3–4 против 1–2), а пропусков больше максимума; в top-per-group равенства внутри города на сумму не влияют; в stable-ties условие явно задаёт kind='stable', а при убывании pandas сохраняет исходный порядок равных (проверил по семантике nargsort).",
+					"Список из 13 ошибочных решений привязан к классам (REQUIRED) и бьёт в настоящие заблуждения (keep, NaN, направление, rank method, exactly-k). Замечаний существенных нет.",
+					"Мелочь: nlargest(…, keep='all') в Junior требует знать значение параметра keep; пограничный кандидат Junior может его не знать, хотя название параметра подсказывает. Рубрика binary, норма 240 и 330 с для 7–13 строк достаточна.",
+					"Angoff: бинарная рубрика; Intern путается на NaN в value_counts и сортировке, Junior на rank(method='min') и nlargest keep='all'."
+				],
+				"sourceSha256": "d87044b541931f8dcf301f73463f011fe817de1c44477918ffaec6567d14bebd"
+			}
+		]
 	}
 }

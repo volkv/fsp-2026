@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.8,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "885b7471257862fcd12f25ada3c6f71bbac51682e9abd0ad3fa7f951fceefabd"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.8,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "885b7471257862fcd12f25ada3c6f71bbac51682e9abd0ad3fa7f951fceefabd"
+					}
+				],
+				"mean": 0.8
+			},
 			"constructive": { "scoreValues": "7–9", "threshold": "совпадает со скором объектов", "metric": "одна базовая" },
 			"constructiveRank": 2,
 			"timeNormSec": 240,
@@ -33,7 +50,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "885b7471257862fcd12f25ada3c6f71bbac51682e9abd0ad3fa7f951fceefabd"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.65,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "885b7471257862fcd12f25ada3c6f71bbac51682e9abd0ad3fa7f951fceefabd"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": {
 				"scoreValues": "9–12",
 				"threshold": "совпадает со скором объектов",
@@ -127,6 +161,28 @@
 		"answerCollision": 0.0007,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчитал на чистом Python все 8 показанных экземпляров независимо: построил матрицу ошибок по правилу «скор не меньше порога» (в каждом экземпляре порог равен скору одной из строк, так что правило нестрогого сравнения реально участвует в ответе), затем precision, recall, F1, специфичность, F-beta (beta=2), NPV, MCC, сбалансированную точность: 0.3856, 0.7172, 0.6667, 0.5495, 0.8424, 0.7696, 0.2047, 0.6982 совпали с эталоном. Генератор не открывал.",
+					"Мелочь: junior mcc (anchor) заметно тяжелее остальных классов уровня (11 строк, четыре суммы под корнем при 3 знаках в бинарной рубрике за 330 с без калькулятора); классы сопоставимы по смыслу, но не по объёму счёта. Учтено в Angoff.",
+					"Мелочь: поле beta в входе эталона присутствует у классов, где оно не используется, на условие кандидата это не влияет."
+				],
+				"sourceSha256": "885b7471257862fcd12f25ada3c6f71bbac51682e9abd0ad3fa7f951fceefabd"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчитал все 8 экземпляров независимым скриптом Python 3.12 по строкам таблиц и правилу score >= threshold; F-меры проверены через клетки матрицы, MCC — через корреляцию бинарных меток. Все ответы совпали; все 8 описанных ошибочных решений отвергаются. Положительный класс, включение порога и смысл NPV/специфичности в условиях заданы. Ворота на 200 сидах не повторял, подбор порога и многоклассовые метрики не проверял.",
+					"Angoff: Intern 0.80, Junior 0.65. Нормы 240/330 секунд учтены вместе с binary: сначала нужно безошибочно сложить 7–12 строк, затем выбрать знаменатель. На Junior Fβ и особенно MCC требуют формул, которых в условии нет; MCC заметно труднее NPV, что снижает общую оценку уровня."
+				],
+				"sourceSha256": "885b7471257862fcd12f25ada3c6f71bbac51682e9abd0ad3fa7f951fceefabd"
+			}
+		]
 	}
 }

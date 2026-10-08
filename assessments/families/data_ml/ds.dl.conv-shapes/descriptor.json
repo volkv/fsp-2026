@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "middle",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.75,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "5264f00bf7b4bfe9f7447001b2a15e25c3348d61bf78ff965195b03a76c32b90"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.65,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "5264f00bf7b4bfe9f7447001b2a15e25c3348d61bf78ff965195b03a76c32b90"
+					}
+				],
+				"mean": 0.7
+			},
 			"constructive": {
 				"layers": "1–3",
 				"sizeRules": "stride, padding, dilation или пулинг",
@@ -37,7 +54,24 @@
 		},
 		{
 			"grade": "senior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.7,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "5264f00bf7b4bfe9f7447001b2a15e25c3348d61bf78ff965195b03a76c32b90"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "5264f00bf7b4bfe9f7447001b2a15e25c3348d61bf78ff965195b03a76c32b90"
+					}
+				],
+				"mean": 0.65
+			},
 			"constructive": {
 				"layers": "1–5",
 				"sizeRules": "цепочка свёрток и пулинга, groups, транспонированная свёртка, ленивый линейный слой",
@@ -132,6 +166,28 @@
 		"answerCollision": 0,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчитал все 8 экземпляров независимым скриптом Python 3.12 по коду условия: пространственные размеры, формы весов, смещения, два обучаемых вектора BatchNorm, groups и размер входа LazyLinear. Все последовательности ответов совпали; все 10 описанных ошибок отвергаются. Формулы размеров сверены с документацией Conv2d и ConvTranspose2d: https://docs.pytorch.org/docs/2.14/generated/torch.nn.Conv2d.html и https://docs.pytorch.org/docs/2.14/generated/torch.nn.ConvTranspose2d.html. PyTorch не установлен, прямой проход моделей не запускал; ворота на 200 сидах не повторял.",
+					"Angoff: Middle 0.75, Senior 0.70. Учтены 360/480 секунд и binary по всем четырём полям либо двум полям flatten-linear: верные параметры не компенсируют ошибку размера. На Senior дополнительные правила groups, ConvTranspose2d и LazyLinear требуют знания устройства слоёв, а не только повторения формулы обычной свёртки."
+				],
+				"sourceSha256": "5264f00bf7b4bfe9f7447001b2a15e25c3348d61bf78ff965195b03a76c32b90"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчитал вручную по формулам PyTorch (размеры с округлением вниз, dilation, MaxPool с шагом по умолчанию равным окну, ConvTranspose2d, groups, BatchNorm только gamma и beta, LazyLinear после Flatten) все 8 показанных экземпляров: 32 14 16 2336, 64 6 21 1792, 64 84 41 1792, 32 92 28 864, 48 14 16 11328, 32 24 56 3808, 16 69 27 4624, 8640 19706 совпали с эталоном. torch не запускал, генератор не открывал.",
+					"Мелочь: Senior-экземпляры (depthwise, transposed, chain) проверяют применение формул размера и числа параметров, а не решение под ограничение из определения грейда; формально это пункт «проверяет размерности и шаг обучения сети», поэтому вердикт не меняю. Anchor Middle (dilation) и Senior (transposed) проще соседних классов уровня: одна формула и один слой.",
+					"Мелочь: ответ из четырёх токенов, любая ошибка в одном обнуляет задание (бинарная рубрика); для Senior chain с пятью слоями это учтено в Angoff."
+				],
+				"sourceSha256": "5264f00bf7b4bfe9f7447001b2a15e25c3348d61bf78ff965195b03a76c32b90"
+			}
+		]
 	}
 }

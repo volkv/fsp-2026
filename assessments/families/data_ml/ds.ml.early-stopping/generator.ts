@@ -80,7 +80,7 @@ function earlyStop(
 		const target = rule.mode === 'min' ? Math.min(...seen) : Math.max(...seen);
 		restored = seen.indexOf(target) + 1;
 	}
-	return `${stop} ${restored} ${milli(values[restored - 1] ?? 0)}`;
+	return `${stop} ${restored}`;
 }
 
 /** A loss curve: falls to a minimum at epoch `bottom`, then wanders up with occasional dips. */
@@ -132,7 +132,7 @@ const STOP_TEXT = (rule: StopRule, metric: string): string =>
 	].join('\n');
 
 const STOP_ANSWER =
-	'Введите три значения через пробел: номер эпохи, после которой обучение остановится, номер эпохи, чьи веса восстановятся, и значение отслеживаемой метрики на ней — как в таблице. Например: `9 6 0.412`.';
+	'Введите два номера эпох через пробел: после какой эпохи обучение остановится и чьи веса восстановятся. Например: `9 6`.';
 
 function curveTable(columns: string[], cols: readonly (readonly number[])[]): string {
 	const rows: Cell[][] = (cols[0] ?? []).map((_, i) => [i + 1, ...cols.map((c) => milli(c[i] ?? 0))]);
@@ -366,7 +366,7 @@ function middleTask(rng: Rng, classId: string): Task | null {
 				'',
 				`Модель выбирают по правилу одной стандартной ошибки: среди моделей, у которых \`cv_mse\` не больше, чем \`cv_mse\` + \`cv_se\` модели с наименьшей \`cv_mse\`, берут самую простую.`,
 				'',
-				`Введите через пробел выбранное значение \`${name}\` и его \`cv_mse\` — как в таблице. Например: \`${degree ? '3' : '0.1'} 0.245\`.`
+				`Введите через пробел выбранное значение \`${name}\` и его \`cv_mse\` — оба точно так, как они записаны в таблице (\`cv_mse\` — с тремя знаками после точки). Например: \`${degree ? '3' : '0.1'} 0.245\`.`
 			].join('\n'),
 			answer: oneSe(g, true, 'right'),
 			wrong: {
@@ -437,7 +437,7 @@ if kind == "stop":
             if wait >= p["patience"]:
                 stop = epoch
                 break
-    print(stop, best_epoch, "%.3f" % (vals[best_epoch - 1] / 1000))
+    print(stop, best_epoch)
 elif kind == "one-se":
     cv, se, labels = p["cv"], p["se"], p["labels"]
     b = min(range(len(cv)), key=lambda i: cv[i])

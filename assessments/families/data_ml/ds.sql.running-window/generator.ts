@@ -9,6 +9,10 @@ import { buildFromDraft, type SqlDraft } from '../../_lib/sql-draft.ts';
 
 const descriptor = readDescriptor(import.meta.url);
 
+/** The answer lines are compared as text: the separator is fixed exactly. */
+const ROW_SPACING =
+	'Значения разделяются ровно так: пробел, черта, пробел — без лишних пробелов вокруг черты; пробелы внутри самих значений сохраняются как есть. Например, строка из трёх столбцов: `7 | NULL | 2.5`.';
+
 type Row = (string | number | null)[];
 
 /** User ids that are not 1, 2, 3, so a column of ids is not read as a row number. */
@@ -183,21 +187,23 @@ function orderChangesFrame(rng: Rng): SqlDraft {
 /** LAST_VALUE under the default frame (up to the current row) returns the current row's value. */
 function lastValue(rng: Rng): SqlDraft {
 	const table = rng.pick(['order_status', 'status_log', 'transitions']);
-	const statuses = ['created', 'paid', 'packed', 'shipped'];
+	const statuses = ['created', 'paid', 'packed', 'shipped', 'delayed', 'returned'];
 	const rows: Row[] = [];
 	const base = rng.int(1, 9) * 100;
 	for (let k = 0; k < 2; k += 1) {
 		const order = base + k * rng.int(2, 9);
 		let ts = rng.int(1, 50);
-		for (const status of statuses.slice(0, rng.int(2, 4))) rows.push([order, (ts += rng.int(1, 30)), status]);
+		// Statuses in no fixed order: the neighbour of a row is read from the data, not from the lifecycle.
+		for (const status of rng.sample(statuses, rng.int(3, 4))) rows.push([order, (ts += rng.int(1, 30)), status]);
 	}
 	const setup = `CREATE TABLE ${table} (id INTEGER PRIMARY KEY, order_id INTEGER NOT NULL, ts INTEGER NOT NULL, status TEXT NOT NULL);\n${insertRows(
 		table,
 		['id', 'order_id', 'ts', 'status'],
 		rng.shuffle(rows).map((r, i) => [i + 1, ...r])
 	)}`;
+	// Two frames over one ordering: the default one ends at the current row, the explicit one a row later.
 	const q = (frame: string): string =>
-		`SELECT order_id, ts, status,\n       LAST_VALUE(status) OVER (PARTITION BY order_id ORDER BY ts${frame}) AS final_status\nFROM ${table} ORDER BY order_id, ts;`;
+		`SELECT order_id, ts, status,\n       LAST_VALUE(status) OVER (PARTITION BY order_id ORDER BY ts${frame}) AS final_status,\n       LAST_VALUE(status) OVER (PARTITION BY order_id ORDER BY ts ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING) AS near_status\nFROM ${table} ORDER BY order_id, ts;`;
 	return {
 		setup,
 		query: q(''),
@@ -220,7 +226,12 @@ const DRAFTS: Record<string, (rng: Rng) => SqlDraft> = {
 export function build(input: GenerateInput): Built {
 	const draft = DRAFTS[`${input.grade}/${input.classId}`];
 	if (!draft) throw new Error(`${descriptor.key}: no draft for ${input.grade}/${input.classId}`);
-	return buildFromDraft(descriptor, input, draft);
+	const built = buildFromDraft(descriptor, input, draft);
+	const { statement } = built.instance;
+	return {
+		...built,
+		instance: { ...built.instance, statement: { ...statement, markdown: `${statement.markdown} ${ROW_SPACING}` } }
+	};
 }
 
 export function generate(input: GenerateInput): ItemInstance {

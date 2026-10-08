@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.65,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "1fbed3f63566fbe8c47d0b99fdcf09b55c60db2be33ac5c06c185bb6ff26bab5"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "1fbed3f63566fbe8c47d0b99fdcf09b55c60db2be33ac5c06c185bb6ff26bab5"
+					}
+				],
+				"mean": 0.65
+			},
 			"constructive": { "trials": "3–20", "terms": "1 или сумма", "distribution": "биномиальное, геометрическое" },
 			"constructiveRank": 2,
 			"timeNormSec": 240,
@@ -25,7 +42,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.7,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "1fbed3f63566fbe8c47d0b99fdcf09b55c60db2be33ac5c06c185bb6ff26bab5"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.5,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "1fbed3f63566fbe8c47d0b99fdcf09b55c60db2be33ac5c06c185bb6ff26bab5"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": {
 				"trials": "4–20",
 				"terms": "сумма или другое распределение",
@@ -110,6 +144,28 @@
 		"answerCollision": 0.0084,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Все 8 экземпляров независимо пересчитаны в Python 3.12: биномиальные массы получены рекуррентным добавлением испытаний, гипергеометрическая вероятность — переходами состояний выборки без возвращения, отрицательная биномиальная — через вероятность первых t − 1 испытаний. Ответы совпали. Проверены 8 результатов всех 7 перечисленных типов ошибок, все отвергаются. Полный прогон ворот на 200 сидах каждого класса не выполнялся.",
+					"Angoff: intern 0.65 — за 240 с надо самостоятельно выбрать биномиальную или геометрическую модель и не забыть коэффициент либо включённую границу; at-least-one существенно короче хвоста at-least-k. Junior 0.70 — 360 с позволяют вычислить сумму программно, основные риски связаны с отсутствием возвращения и фиксацией последнего успеха. Оценивается вероятность полного ответа binary."
+				],
+				"sourceSha256": "1fbed3f63566fbe8c47d0b99fdcf09b55c60db2be33ac5c06c185bb6ff26bab5"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчитал на Python (math.comb) все 8 экземпляров: exactly-k, хотя бы один, хвост, первый успех, гипергеометрическое, большинство, диапазон, отрицательное биномиальное совпали с эталоном до 1e-15. Не проверял другие сиды.",
+					"Мелочь: junior, binomial-range (n = 19, диапазон 2..10) без кода требует девяти слагаемых или дополнения с тремя; в условии не сказано, можно ли пользоваться кодом. Для пограничного кандидата это самый трудоёмкий класс уровня, учтено в Angoff.",
+					"Мелочь: ответы вида 0.0091 (intern, exactly-k) при допуске 1e-4 дают две значащие цифры; промежуточное округление вероятностей кандидатом может сдвинуть ответ за допуск."
+				],
+				"sourceSha256": "1fbed3f63566fbe8c47d0b99fdcf09b55c60db2be33ac5c06c185bb6ff26bab5"
+			}
+		]
 	}
 }

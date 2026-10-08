@@ -42,6 +42,8 @@ interface Spec {
 	weights: [number, number];
 	/** Mini-batch size; 0 — full batch. */
 	batch: number;
+	/** The starting value of every feature weight; the intercept starts at zero. */
+	w0: number;
 }
 
 /** Gradient of the loss over `rows` at θ = [w₁, …, w_d, b], one component `j` (all when `j` is null). */
@@ -67,8 +69,9 @@ function gradient(s: Spec, theta: readonly number[], rows: readonly number[], v:
 }
 
 function train(s: Spec, v: Variant = {}): number[] {
-	// Weights of the features and the intercept last, all starting at zero.
-	let theta: number[] = Array.from({ length: (s.xs[0]?.length ?? 0) + 1 }, () => 0);
+	// Weights of the features from w0 and the intercept last, from zero.
+	const d = s.xs[0]?.length ?? 0;
+	let theta: number[] = Array.from({ length: d + 1 }, (_, j) => (j < d ? s.w0 : 0));
 	const all = s.xs.map((_, i) => i);
 	const batches: number[][] = [];
 	if (s.batch === 0 || v.fullBatch) for (let k = 0; k < s.steps; k += 1) batches.push(all);
@@ -184,7 +187,8 @@ function middleTask(rng: Rng, classId: string): Task {
 			steps: 2,
 			lambda: 0,
 			weights: [1, 1],
-			batch: 0
+			batch: 0,
+			w0: 0
 		};
 		const which = rng.int(0, 1);
 		const name = which === 0 ? 'w' : 'b';
@@ -220,7 +224,9 @@ function middleTask(rng: Rng, classId: string): Task {
 		steps: 2,
 		lambda: classId === 'l2' ? rng.pick([0.1, 0.2, 0.5, 1]) : 0,
 		weights: [1, 1],
-		batch: 0
+		batch: 0,
+		// From w = 0 the penalty λw is zero on the first step, and the intercept after two steps would not depend on λ.
+		w0: classId === 'l2' ? rng.pick([-1, -0.5, 0.5, 1]) : 0
 	};
 	const which = two ? rng.int(0, 1) : rng.int(0, 1);
 	const names = two ? ['x1', 'x2'] : ['x'];
@@ -233,13 +239,14 @@ function middleTask(rng: Rng, classId: string): Task {
 		classId === 'l2'
 			? ` К потерям добавлен штраф (λ/2)·w² с λ = ${num(s.lambda)}; свободный член b не штрафуется.`
 			: '';
+	const start = classId === 'l2' ? `Начало — w = ${num(s.w0)}, b = 0` : 'Начало — все параметры равны 0';
 	return {
 		markdown: [
 			'Логистическая регрессия обучается градиентным спуском на данных:',
 			'',
 			dataTable(xs, ys, names),
 			'',
-			`${model}${penalty} ${SIMULTANEOUS} Начало — все параметры равны 0, шаг η = ${num(s.lr)}.`,
+			`${model}${penalty} ${SIMULTANEOUS} ${start}, шаг η = ${num(s.lr)}.`,
 			'',
 			`Чему будет равен \`${paramNames[which]}\` после двух шагов?`,
 			'',
@@ -251,7 +258,8 @@ function middleTask(rng: Rng, classId: string): Task {
 			'no-sigmoid': pick(train(s, { noSigmoid: true })),
 			sequential: classId === 'two-features' || classId === 'logistic-gd' ? pick(train(s, { sequential: true })) : null,
 			'regularize-bias': classId === 'l2' && which === 1 ? pick(train(s, { regularizeBias: true })) : null,
-			'lambda-not-halved': classId === 'l2' && which === 0 ? pick(train(s, { lambdaNotHalved: true })) : null
+			'lambda-not-halved': classId === 'l2' && which === 0 ? pick(train(s, { lambdaNotHalved: true })) : null,
+			'no-penalty': classId === 'l2' ? pick(train({ ...s, lambda: 0 })) : null
 		},
 		probe: gdProbe(s, which)
 	};
@@ -328,7 +336,8 @@ function seniorTask(rng: Rng, classId: string): Task {
 			steps: 1,
 			lambda: 0,
 			weights: [1, 1],
-			batch
+			batch,
+			w0: 0
 		};
 		return {
 			markdown: [
@@ -360,7 +369,8 @@ function seniorTask(rng: Rng, classId: string): Task {
 		steps: 2,
 		lambda: 0,
 		weights: [1, weight],
-		batch: 0
+		batch: 0,
+		w0: 0
 	};
 	return {
 		markdown: [
@@ -396,7 +406,7 @@ def sig(z):
 if kind == "gd":
     xs, ys = p["xs"], p["ys"]
     d = len(xs[0])
-    w, b = [0.0] * d, 0.0
+    w, b = [float(p["w0"])] * d, 0.0
     n = len(xs)
     if p["batch"]:
         batches = [list(range(i, min(i + p["batch"], n))) for i in range(0, n, p["batch"])]

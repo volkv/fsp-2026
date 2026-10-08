@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "senior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.5,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "9428f83a51eb71deeec17998e5739718e9f920759556b1442c36bdc473a1ae38"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.65,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "9428f83a51eb71deeec17998e5739718e9f920759556b1442c36bdc473a1ae38"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": {
 				"steps": "3–5",
 				"state": "буфер момента или два момента Adam",
@@ -79,6 +96,28 @@
 		"answerCollision": 0,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчитал на чистом Python по алгоритмам PyTorch (SGD: buf=g на первом шаге, затем mu*buf+g; Nesterov: d=g+wd*w, шаг d+mu*buf; Adam с поправкой смещения и eps=1e-8; AdamW: w*=1-lr*wd до шага) все 4 показанных экземпляра: -0.2552, 1.89775, -0.16404, -0.28661 совпали с эталоном до последнего знака. torch не запускал, генератор не открывал.",
+					"Мелочь: Adam/AdamW на 3 шага с корнем и поправкой смещения при 4 знаках вручную за 480 с тяжелее классов momentum и nesterov; это неоднородность сложности внутри уровня, учтено в Angoff. Значение eps=1e-8 в условии не названо, но на 4-м знаке ответ не меняет.",
+					"Мелочь: формально тема (ручной шаг оптимизатора) ближе к «шаг обучения сети» из ожидаемого списка Senior, чем к постановке и мониторингу; вердикт не меняю."
+				],
+				"sourceSha256": "9428f83a51eb71deeec17998e5739718e9f920759556b1442c36bdc473a1ae38"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Независимо пересчитал все 4 экземпляра в Python 3.12 по начальным весам, параметрам и градиентам из кода условия; моменты Adam рассчитаны через явные суммы прошлых градиентов. Все ответы совпали, все 6 описанных ошибочных правил отвергаются. Инициализация momentum, Nesterov, поправки моментов и порядок AdamW сверены с официальными алгоритмами: https://docs.pytorch.org/docs/2.14/generated/torch.optim.SGD.html, https://docs.pytorch.org/docs/2.14/generated/torch.optim.Adam.html, https://docs.pytorch.org/docs/2.14/generated/torch.optim.AdamW.html. PyTorch не установлен, opt.step() в нём не запускал; ворота на 200 сидах не повторял.",
+					"Angoff: Senior 0.65. За 480 секунд пограничному кандидату нужно сохранить состояние 3–5 шагов, помнить конкретную инициализацию буфера PyTorch и различить L2 и AdamW. Два момента Adam, поправки смещения и binary по конечному весу существенно увеличивают вероятность арифметической ошибки."
+				],
+				"sourceSha256": "9428f83a51eb71deeec17998e5739718e9f920759556b1442c36bdc473a1ae38"
+			}
+		]
 	}
 }

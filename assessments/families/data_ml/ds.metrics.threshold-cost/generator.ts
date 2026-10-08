@@ -184,6 +184,11 @@ function wrongAnswers(classId: string, s: Scenario): Record<string, number | nul
 						best(pts, (p) => profit(s, p))
 					)
 				: null,
+		// Filling the capacity: the lowest threshold that still fits, as if more reviews always paid off.
+		'fill-capacity':
+			classId === 'capacity-profit'
+				? profit(s, pts.filter((p) => p.tp + p.fp <= s.capacity).at(-1) ?? (pts[0] as Point))
+				: null,
 		'no-reweight':
 			classId === 'prior-shift-cost'
 				? cost(s, prod[pts.indexOf(best(pts, (p) => cost(s, p), true))] ?? (prod[0] as Point))
@@ -320,7 +325,8 @@ export function build(input: GenerateInput): Built {
 		if (pts.some((p) => p.tp + p.fp === 0) || (pts.at(-1)?.tp ?? 0) === 0 || (pts.at(-1)?.fp ?? 0) === 0) continue;
 		if (!s.rows.some((r) => r.score >= 0.5) || !s.rows.some((r) => r.score < 0.5)) continue;
 		if (input.classId === 'precision-at-recall' && !pts.some((p) => recall(p) >= s.recallMin)) continue;
-		if (input.classId === 'capacity-profit' && (pts[0]?.tp ?? 0) + (pts[0]?.fp ?? 0) > s.capacity) continue;
+		// At least two thresholds fit the capacity, so the profit chooses between them.
+		if (input.classId === 'capacity-profit' && pts.filter((p) => p.tp + p.fp <= s.capacity).length < 2) continue;
 		const answer = metric(input.classId, s);
 		const wrong = wrongAnswers(input.classId, s);
 		if (Object.values(wrong).some((w) => w !== null && !farApart(answer, w, DIGITS))) continue;

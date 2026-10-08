@@ -2,12 +2,17 @@
 // COUNT(column), AVG over non-NULL values, a share through AVG(CASE …), integer division of SQLite, SUM of a group of
 // NULLs, LEFT JOIN that brings NULLs into averages, NULLIF against division by zero, an average of averages and
 // COUNT(DISTINCT) that skips NULL.
+import { DatabaseSync } from 'node:sqlite';
 import { type Built, readDescriptor, type GenerateInput, type ItemInstance } from '../../_lib/family.ts';
 import type { Rng } from '../../_lib/rng.ts';
 import { insertRows } from '../../_lib/sql.ts';
 import { buildFromDraft, type SqlDraft } from '../../_lib/sql-draft.ts';
 
 const descriptor = readDescriptor(import.meta.url);
+
+/** The answer lines are compared as text: the separator is fixed exactly. */
+const ROW_SPACING =
+	'Значения разделяются ровно так: пробел, черта, пробел — без лишних пробелов вокруг черты; пробелы внутри самих значений сохраняются как есть. Например, строка из трёх столбцов: `7 | NULL | 2.5`.';
 
 type Row = (string | number | null)[];
 
@@ -186,12 +191,16 @@ function avgOfAvgs(rng: Rng): SqlDraft {
 		if (user === 2) rows.push([user, amount()]);
 	}
 	const setup = `CREATE TABLE ${table} (id INTEGER PRIMARY KEY, user_id INTEGER NOT NULL, amount INTEGER);\n${insertRows(table, ['id', 'user_id', 'amount'], numbered(rng, rows))}`;
-	const q = (inner: string): string =>
-		`WITH per_user AS (SELECT user_id, ${inner} AS user_avg FROM ${table} GROUP BY user_id)\nSELECT (SELECT ROUND(AVG(amount), 2) FROM ${table}), ROUND(AVG(user_avg), 2), COUNT(*), COUNT(user_avg) FROM per_user;`;
+	const q = (inner: string, outer = 'AVG(user_avg)'): string =>
+		`WITH per_user AS (SELECT user_id, ${inner} AS user_avg FROM ${table} GROUP BY user_id)\nSELECT (SELECT ROUND(AVG(amount), 2) FROM ${table}), ROUND(${outer}, 2), COUNT(*), COUNT(user_avg) FROM per_user;`;
 	return {
 		setup,
 		query: q('AVG(amount)'),
-		wrong: { 'null-as-zero': q('AVG(COALESCE(amount, 0))') },
+		wrong: {
+			'null-as-zero': q('AVG(COALESCE(amount, 0))'),
+			// The mean of the users' means read as the mean of all payments: rows weighted, not users.
+			'avg-of-all': q('AVG(amount)', `(SELECT AVG(amount) FROM ${table})`)
+		},
 		purpose: 'Аналитик сравнивает средний платёж со средним по пользователям средним платежом.'
 	};
 }
@@ -220,21 +229,61 @@ function countDistinctNull(rng: Rng): SqlDraft {
 	};
 }
 
+/**
+ * Whether a ROUND of the query meets an exact half of its last place. SQLite rounds it away from zero, Python's round()
+ * to even: a draw with such a value is redrawn, so the answer does not hinge on that convention.
+ */
+function meetsHalf(setup: string, query: string): boolean {
+	const db = new DatabaseSync(':memory:');
+	try {
+		let half = false;
+		const probe = (x: unknown, digits: unknown): unknown => {
+			if (typeof x !== 'number') return x;
+			const scaled = Math.abs(x) * 10 ** Number(digits);
+			if (Math.abs(scaled - Math.floor(scaled) - 0.5) < 1e-7) half = true;
+			return x;
+		};
+		db.function('round', { deterministic: true }, (x: unknown) => probe(x, 0) as number);
+		db.function('round', { deterministic: true }, (x: unknown, digits: unknown) => probe(x, digits) as number);
+		db.exec(setup);
+		db.prepare(query).all();
+		return half;
+	} finally {
+		db.close();
+	}
+}
+
+/** A draft redrawn until no ROUND of its query meets an exact half. */
+function noHalves(draft: (rng: Rng) => SqlDraft): (rng: Rng) => SqlDraft {
+	return (rng) => {
+		for (let attempt = 0; attempt < 1000; attempt += 1) {
+			const d = draft(rng);
+			if (!meetsHalf(d.setup, d.query)) return d;
+		}
+		throw new Error(`${descriptor.key}: every draw rounds an exact half`);
+	};
+}
+
 const DRAFTS: Record<string, (rng: Rng) => SqlDraft> = {
-	'intern/count-avg-null': countAvgNull,
-	'intern/int-division': intDivision,
-	'intern/case-share': caseShare,
-	'intern/sum-all-null': sumAllNull,
-	'junior/left-join-avg': leftJoinAvg,
-	'junior/nullif-ctr': nullifCtr,
-	'junior/avg-of-avgs': avgOfAvgs,
-	'junior/count-distinct-null': countDistinctNull
+	'intern/count-avg-null': noHalves(countAvgNull),
+	'intern/int-division': noHalves(intDivision),
+	'intern/case-share': noHalves(caseShare),
+	'intern/sum-all-null': noHalves(sumAllNull),
+	'junior/left-join-avg': noHalves(leftJoinAvg),
+	'junior/nullif-ctr': noHalves(nullifCtr),
+	'junior/avg-of-avgs': noHalves(avgOfAvgs),
+	'junior/count-distinct-null': noHalves(countDistinctNull)
 };
 
 export function build(input: GenerateInput): Built {
 	const draft = DRAFTS[`${input.grade}/${input.classId}`];
 	if (!draft) throw new Error(`${descriptor.key}: no draft for ${input.grade}/${input.classId}`);
-	return buildFromDraft(descriptor, input, draft);
+	const built = buildFromDraft(descriptor, input, draft);
+	const { statement } = built.instance;
+	return {
+		...built,
+		instance: { ...built.instance, statement: { ...statement, markdown: `${statement.markdown} ${ROW_SPACING}` } }
+	};
 }
 
 export function generate(input: GenerateInput): ItemInstance {

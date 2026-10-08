@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "senior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.7,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "d33dbe85556a3e5fdd0d6ea5df5100a06b22a63106a9882c549a14675e063d8b"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "d33dbe85556a3e5fdd0d6ea5df5100a06b22a63106a9882c549a14675e063d8b"
+					}
+				],
+				"mean": 0.65
+			},
 			"constructive": {
 				"modules": "MultiheadAttention, TransformerEncoderLayer, GQA или KV-кэш",
 				"terms": "3–6 слагаемых на слой",
@@ -99,6 +116,28 @@
 		"answerCollision": 0.0032,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчитал все 4 экземпляра независимым скриптом Python 3.12 по размерам тензоров параметров и конфигурациям из условия: MHA 56696832, KV-кэш 227278848 байт, encoder 3290880, GQA 40697856. Все ответы совпали; проверил отклонение ответов всех 8 описанных ошибок. Значения по умолчанию MHA сверены с официальной документацией PyTorch: https://docs.pytorch.org/docs/stable/generated/torch.nn.modules.activation.MultiheadAttention.html. PyTorch в среде отсутствует, реальные модули не создавал; ворота на 200 сидах не повторял.",
+					"Angoff: Senior 0.70. Для полного ответа за 420 секунд нужны знания устройства проекций внимания, смещений и LayerNorm; у KV-кэша дополнительно нужно различать головы запросов и ключей-значений. Большое пространство целочисленных ответов и зависимость результата от типа модуля не дают содержательного способа угадать ответ."
+				],
+				"sourceSha256": "d33dbe85556a3e5fdd0d6ea5df5100a06b22a63106a9882c549a14675e063d8b"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчитал вручную и скриптом все 4 показанных экземпляра (MHA 4d²+4d на слой, KV-кэш 2·L·B·S·kv·hd·байты, энкодер: внимание + два линейных слоя FFN со смещениями + две LayerNorm, GQA без смещений): 56696832, 227278848, 3290880, 40697856 совпали с эталоном. Генератор просмотрел выборочно (диапазоны параметров), на реальном PyTorch не запускал.",
+					"Мелочь: в генераторе kvHeads берётся из [1, 2, 4, 8] без проверки делимости, поэтому при heads=12 возможен kv=8 (12 голов запросов не делятся на 8 групп). Ответ это не меняет, но конфигурация нефизична и может смутить сильного кандидата; лучше фильтровать kvHeads по heads % kv == 0.",
+					"Мелочь: специфичной для класса kv-cache ошибки «забыл батч» в списке нет (общие ошибки перечислены, ответ однозначный, угадывание невозможно: ответ — большое целое)."
+				],
+				"sourceSha256": "d33dbe85556a3e5fdd0d6ea5df5100a06b22a63106a9882c549a14675e063d8b"
+			}
+		]
 	}
 }

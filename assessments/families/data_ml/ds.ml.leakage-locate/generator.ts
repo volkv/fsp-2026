@@ -1,5 +1,5 @@
 // A module of a training pipeline in plain Python: functions that prepare data and validate a model, each with its
-// specification in the docstring; exactly one line breaks its function's specification and leaks information the model
+// specification in the docstring; one line breaks its function's specification and leaks information the model
 // must not see — test statistics, the target, the future, the folds being validated. The candidate names that line.
 // The kind of leak is the essential class; the other functions, their order and the module header are surface.
 import {
@@ -146,8 +146,8 @@ const MIDDLE: Fn[] = [
 		[
 			{
 				kind: 'split-order',
-				from: '    ordered = sorted(rows, key=lambda r: r["ts"])',
-				to: '    ordered = list(rows)',
+				from: '    return ordered[:cut], ordered[cut:]',
+				to: '    return rows[:cut], rows[cut:]',
 				near: '    cut = len(ordered) - test_size',
 				nearTo: '    cut = len(rows) - test_size'
 			},
@@ -229,7 +229,7 @@ const MIDDLE: Fn[] = [
 			{
 				kind: 'target-in-features',
 				from: '        result.append((sums[c] - y) / n if n else None)',
-				to: '        result.append(sums[c] / counts[c] if n else None)',
+				to: '        result.append((sums[c] - y) / n if n else y)',
 				near: '        n = counts[c] - 1',
 				nearTo: '        n = counts.get(c, 1) - 1'
 			}
@@ -375,8 +375,8 @@ const SENIOR: Fn[] = [
 		[
 			{
 				kind: 'selection-before-cv',
-				from: '        train = [row for row, g in zip(rows, folds) if g != f]',
-				to: '        train = list(rows)',
+				from: '            pos = [x[name] for x, y in train if y == 1]',
+				to: '            pos = [x[name] for x, y in rows if y == 1]',
 				near: '        names = sorted(rows[0][0], key=lambda n: (-gap(n), n))',
 				nearTo: '        names = sorted(train[0][0], key=lambda n: (-gap(n), n))'
 			}
@@ -403,10 +403,10 @@ const SENIOR: Fn[] = [
 		[
 			{
 				kind: 'selection-before-cv',
-				from: '        fit = [v for v, g in zip(values, folds) if g != f]',
-				to: '        fit = list(values)',
-				near: '        mean = sum(fit) / len(fit)',
-				nearTo: '        mean = sum(fit) / max(len(fit), 1)'
+				from: '        mean = sum(fit) / len(fit)',
+				to: '        mean = sum(values) / len(values)',
+				near: '        fit = [v for v, g in zip(values, folds) if g != f]',
+				nearTo: '        fit = [v for v, g in zip(values, folds) if not g == f]'
 			}
 		]
 	),
@@ -456,7 +456,7 @@ const SENIOR: Fn[] = [
 			{
 				kind: 'oof-encoding',
 				from: '        other = [(cc, y) for cc, y, g in zip(categories, targets, folds) if g != f]',
-				to: '        other = [(cc, y) for cc, y, g in zip(categories, targets, folds)]',
+				to: '        other = [(cc, y) for cc, y, g in zip(categories, targets, folds) if g == f]',
 				near: '        ys = [y for cc, y in other if cc == c]',
 				nearTo: '        ys = [y for cc, y in other if cc == c and y is not None]'
 			},
@@ -575,7 +575,7 @@ const SENIOR: Fn[] = [
 			{
 				kind: 'temporal-purge',
 				from: '    return [t for t in days if t < val_start - horizon or t > val_end]',
-				to: '    return [t for t in days if t < val_start or t > val_end]',
+				to: '    return [t for t in days if t < val_start or t > val_end + horizon]',
 				near: 'def purged_train(days, val_start, val_end, horizon):',
 				nearTo: 'def purged_train(days, val_start, val_end, horizon=1):'
 			},
@@ -618,7 +618,7 @@ const SENIOR: Fn[] = [
 			{
 				kind: 'temporal-purge',
 				from: '    return [values[t - horizon] if t >= horizon else None for t in range(len(values))]',
-				to: '    return [values[t - 1] if t >= 1 else None for t in range(len(values))]',
+				to: '    return [values[t - horizon + 1] if t >= horizon - 1 else None for t in range(len(values))]',
 				near: 'def known_target_feature(values, horizon):',
 				nearTo: 'def known_target_feature(values, horizon=1):'
 			}
@@ -701,9 +701,11 @@ export function build(input: GenerateInput): Built {
 		statement: {
 			markdown:
 				'Модуль конвейера обучения модели на Python 3. У каждой функции в строке документации записана её ' +
-				'спецификация. Ровно одна строка модуля нарушает спецификацию своей функции и тем самым пропускает в ' +
-				'обучение или в признаки информацию, которой там быть не должно: если заменить только её, все функции ' +
-				'будут работать по спецификации. Введите номер этой строки (нумерация с 1).',
+				'спецификация. В модуле один дефект: одна функция нарушает свою спецификацию и тем самым пропускает в ' +
+				'обучение или в признаки информацию, которой там быть не должно. ' +
+				'Введите номер строки, замена которой одной инструкцией восстанавливает спецификацию всех функций (нумерация с 1). ' +
+				'Если исправить можно в нескольких строках — засчитывается любая из них, где замена одной инструкцией восстанавливает спецификацию. Исправление — одна простая инструкция того же вида, что исправляемая строка: не добавляйте ' +
+				'конструкций, которых в ней нет (`:=`, lambda, обёртки, новые функции), и не переносите в неё логику из другой строки.',
 			code: { language: 'python3', source: p.source }
 		},
 		answer: { kind: 'line_no', value: p.answer }

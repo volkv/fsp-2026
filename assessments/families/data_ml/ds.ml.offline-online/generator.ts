@@ -1,6 +1,6 @@
 // Why offline metrics disagree with online ones, as a computation: the value of a new policy estimated from the logs
-// of the old one (IPS, self-normalized IPS, doubly robust) and the click-through rate of an item corrected for the
-// examination probability of the positions it was shown at. The estimator is named; its formula is the task.
+// of the old one (IPS, self-normalized IPS, doubly robust) and the click-through rates of items corrected for the
+// examination probability of the positions they were shown at. The estimator is named; its formula is the task.
 import { farApart, floatAnswer, frameMarkdown, num, roundingRule, stdinJson, type Cell } from '../../_lib/ds.ts';
 import {
 	instanceRng,
@@ -87,7 +87,6 @@ function task(rng: Rng, classId: string): Task | null {
 	if (classId === 'position-bias') {
 		const theta = [1, rng.int(55, 80) / 100, rng.int(35, 54) / 100, rng.int(15, 34) / 100];
 		const items = rng.sample(['item_17', 'item_42', 'item_08', 'item_73', 'item_29'], 3);
-		const asked = rng.pick(items);
 		const rows: { item: string; pos: number; shows: number; clicks: number }[] = [];
 		for (const item of items) {
 			const rel = rng.int(5, 40) / 100;
@@ -97,10 +96,17 @@ function task(rng: Rng, classId: string): Task | null {
 				rows.push({ item, pos, shows, clicks });
 			}
 		}
-		const mine = rows.filter((r) => r.item === asked);
-		const clicks = mine.reduce((s, r) => s + r.clicks, 0);
-		const shows = mine.reduce((s, r) => s + r.shows, 0);
-		const examined = mine.reduce((s, r) => s + r.shows * (theta[r.pos - 1] ?? 1), 0);
+		// Every item's estimate from its own rows: clicks over the examined impressions (or another denominator).
+		const estimate = (weight: (shows: number, theta: number) => number): number[] =>
+			items.map((item) => {
+				const mine = rows.filter((r) => r.item === item);
+				const clicks = mine.reduce((s, r) => s + r.clicks, 0);
+				return clicks / mine.reduce((s, r) => s + weight(r.shows, theta[r.pos - 1] ?? 1), 0);
+			});
+		const rel = estimate((shows, t) => shows * t);
+		const ctr = estimate((shows) => shows);
+		// The item with the best raw CTR is not the most relevant one: the correction changes the choice.
+		if (ctr.indexOf(Math.max(...ctr)) === rel.indexOf(Math.max(...rel))) return null;
 		return {
 			markdown: [
 				'Объекты выдачи показывали на разных позициях. Журнал показов и кликов:',
@@ -112,16 +118,16 @@ function task(rng: Rng, classId: string): Task | null {
 				'',
 				`Модель клика: пользователь просматривает позицию k с вероятностью θₖ и, просмотрев, кликает по объекту с вероятностью rel объекта, независимо от позиции. θ₁ = ${num(theta[0] ?? 1)}, θ₂ = ${num(theta[1] ?? 1)}, θ₃ = ${num(theta[2] ?? 1)}, θ₄ = ${num(theta[3] ?? 1)}.`,
 				'',
-				`Оцените rel объекта \`${asked}\` так, чтобы ожидаемое по модели число его кликов совпало с наблюдаемым.`,
+				'Оцените rel каждого объекта так, чтобы ожидаемое по модели число его кликов совпало с наблюдаемым, и введите наибольшую из этих оценок.',
 				'',
 				roundingRule(DIGITS)
 			].join('\n'),
-			answer: clicks / examined,
+			answer: Math.max(...rel),
 			wrong: {
-				'raw-ctr': clicks / shows,
-				'theta-inverted': clicks / mine.reduce((s, r) => s + r.shows / (theta[r.pos - 1] ?? 1), 0)
+				'raw-ctr': Math.max(...ctr),
+				'theta-inverted': Math.max(...estimate((shows, t) => shows / t))
 			},
-			probe: { kind: 'position', rows, theta, asked }
+			probe: { kind: 'position', rows, theta, items }
 		};
 	}
 	const { rows, target, actions, segments } = logs(rng);
@@ -196,8 +202,11 @@ p = json.loads(input())
 kind = p["kind"]
 if kind == "position":
     theta = p["theta"]
-    mine = [r for r in p["rows"] if r["item"] == p["asked"]]
-    print(repr(sum(r["clicks"] for r in mine) / sum(r["shows"] * theta[r["pos"] - 1] for r in mine)))
+    rel = []
+    for item in p["items"]:
+        mine = [r for r in p["rows"] if r["item"] == item]
+        rel.append(sum(r["clicks"] for r in mine) / sum(r["shows"] * theta[r["pos"] - 1] for r in mine))
+    print(repr(max(rel)))
 else:
     rows, target = p["rows"], p["target"]
     n = len(rows)

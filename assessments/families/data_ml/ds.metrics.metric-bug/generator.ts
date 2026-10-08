@@ -1,6 +1,7 @@
 // A module of quality metrics in plain Python: functions that compute classification, regression and ranking metrics,
-// each with its specification in the docstring; exactly one line breaks its function's specification. The candidate
-// names that line. The defect's kind is the essential class; the other functions, their order and the header are surface.
+// each with its specification in the docstring; one line breaks its function's specification. The candidate
+// names that line or another line whose one-instruction repair restores the specification (listed as an alternative).
+// The defect's kind is the essential class; the other functions, their order and the header are surface.
 import {
 	instanceRng,
 	levelAndClass,
@@ -19,14 +20,21 @@ interface Fn {
 	lines: string[];
 	/** Python statements, each raising when the specification is broken. */
 	checks: string[];
-	defects: { kind: string; line: number; text: string; neighbour: { line: number; text: string } }[];
+	defects: {
+		kind: string;
+		line: number;
+		text: string;
+		neighbour: { line: number; text: string };
+		/** Other lines of the function whose one-instruction repair also restores the specification. */
+		alternatives?: { line: number; text: string }[];
+	}[];
 }
 
 const INTERN: Fn[] = [
 	{
 		lines: [
 			'def precision_recall(y_true, y_pred):',
-			'    """Метки 0/1. Пара (precision, recall) класса 1; при нулевом знаменателе метрика равна 0."""',
+			'    """Метки 0/1, списки одной длины. Пара (precision, recall) класса 1; при нулевом знаменателе метрика равна 0."""',
 			'    tp = fp = fn = 0',
 			'    for t, p in zip(y_true, y_pred):',
 			'        if t == 1 and p == 1:',
@@ -41,7 +49,8 @@ const INTERN: Fn[] = [
 		],
 		checks: [
 			'assert precision_recall([1, 1, 1, 1, 0, 0, 0, 0], [1, 1, 0, 0, 1, 0, 0, 0]) == (2 / 3, 0.5)',
-			'assert precision_recall([0, 0], [0, 0]) == (0.0, 0.0)'
+			'assert precision_recall([0, 0], [0, 0]) == (0.0, 0.0)',
+			'assert precision_recall([1, 0, 1, 0, 0], [1, 1, 0, 0, 0]) == (0.5, 0.5)'
 		],
 		defects: [
 			{
@@ -59,7 +68,7 @@ const INTERN: Fn[] = [
 			{
 				kind: 'denominator',
 				line: 10,
-				text: '    precision = tp / (tp + fn) if tp + fn else 0.0',
+				text: '    precision = tp / len(y_pred) if y_pred else 0.0',
 				neighbour: { line: 11, text: '    recall = tp / (fn + tp) if tp + fn else 0.0' }
 			}
 		]
@@ -67,7 +76,7 @@ const INTERN: Fn[] = [
 	{
 		lines: [
 			'def f1(precision, recall):',
-			'    """F1 — гармоническое среднее precision и recall; 0, если обе равны 0."""',
+			'    """precision и recall из [0, 1]. F1 — их гармоническое среднее; 0, если обе равны 0."""',
 			'    if precision + recall == 0:',
 			'        return 0.0',
 			'    return 2 * precision * recall / (precision + recall)'
@@ -146,7 +155,7 @@ const INTERN: Fn[] = [
 		lines: [
 			'def precision_at_k(scores, relevant, k):',
 			'    """scores — словарь объект -> скор, relevant — множество релевантных объектов.',
-			'    Доля релевантных среди k объектов с наибольшим скором."""',
+			'    Скоры различны, 1 <= k <= len(scores). Доля релевантных среди k объектов с наибольшим скором."""',
 			'    ranked = sorted(scores, key=lambda item: scores[item], reverse=True)',
 			'    top = ranked[:k]',
 			'    hits = sum(1 for item in top if item in relevant)',
@@ -162,7 +171,8 @@ const INTERN: Fn[] = [
 				kind: 'ranking',
 				line: 3,
 				text: '    ranked = sorted(scores, key=lambda item: scores[item])',
-				neighbour: { line: 4, text: '    top = list(ranked[:k])' }
+				neighbour: { line: 4, text: '    top = list(ranked[:k])' },
+				alternatives: [{ line: 4, text: '    top = ranked[-k:]' }]
 			},
 			{
 				kind: 'ranking',
@@ -181,14 +191,18 @@ const INTERN: Fn[] = [
 	{
 		lines: [
 			'def recall_at_k(ranking, relevant, k):',
-			'    """ranking — список объектов по убыванию скора. Доля релевантных, попавших в первые k."""',
+			'    """ranking — различные объекты по убыванию скора, relevant — непустое множество, k >= 0. Доля релевантных в первых k."""',
 			'    found = 0',
 			'    for item in ranking[:k]:',
 			'        if item in relevant:',
 			'            found += 1',
 			'    return found / len(relevant)'
 		],
-		checks: ['assert recall_at_k(["a", "b", "c", "d"], {"a", "c", "x", "y"}, 3) == 0.5'],
+		checks: [
+			'assert recall_at_k(["a", "b", "c", "d"], {"a", "c", "x", "y"}, 3) == 0.5',
+			'assert recall_at_k(["a", "b", "c"], {"b", "c"}, 3) == 1.0',
+			'assert recall_at_k(["a", "b", "c"], {"a", "d"}, 2) == 0.5'
+		],
 		defects: [
 			{
 				kind: 'ranking',
@@ -213,7 +227,7 @@ const INTERN: Fn[] = [
 	{
 		lines: [
 			'def accuracy(y_true, y_pred):',
-			'    """Доля объектов, у которых предсказание совпало с истинной меткой."""',
+			'    """Доля объектов, у которых предсказание совпало с истинной меткой; списки одинаковой непустой длины."""',
 			'    correct = 0',
 			'    for t, p in zip(y_true, y_pred):',
 			'        if t == p:',
@@ -225,7 +239,7 @@ const INTERN: Fn[] = [
 			{
 				kind: 'counting',
 				line: 4,
-				text: '        if t == p == 1:',
+				text: '        if t == 1 and p == 1:',
 				neighbour: { line: 5, text: '            correct = correct + 1' }
 			}
 		]
@@ -233,7 +247,7 @@ const INTERN: Fn[] = [
 	{
 		lines: [
 			'def confusion(y_true, scores, threshold):',
-			'    """Объект со скором не ниже порога предсказан классом 1. Кортеж (TP, FP, FN, TN)."""',
+			'    """Метки 0/1, списки одной длины. Скор не ниже порога — предсказан класс 1. Кортеж (TP, FP, FN, TN)."""',
 			'    tp = fp = fn = tn = 0',
 			'    for t, s in zip(y_true, scores):',
 			'        predicted = s >= threshold',
@@ -266,7 +280,7 @@ const INTERN: Fn[] = [
 	{
 		lines: [
 			'def top_k(scores, k):',
-			'    """Список k объектов с наибольшим скором, по убыванию; при равенстве скоров — по имени объекта."""',
+			'    """0 <= k <= len(scores). Имена k объектов с наибольшим скором, по убыванию скора; при равных — по возрастанию имени."""',
 			'    order = sorted(scores.items(), key=lambda kv: (-kv[1], kv[0]))',
 			'    return [name for name, _ in order[:k]]'
 		],
@@ -292,7 +306,7 @@ const JUNIOR: Fn[] = [
 	{
 		lines: [
 			'def roc_auc(y_true, scores):',
-			'    """Доля пар (положительный, отрицательный), где скор положительного выше; ничья — половина пары."""',
+			'    """Метки 0/1, есть оба класса. Доля пар (положительный, отрицательный), где скор положительного выше; ничья — половина пары."""',
 			'    pos = [s for t, s in zip(y_true, scores) if t == 1]',
 			'    neg = [s for t, s in zip(y_true, scores) if t == 0]',
 			'    good = 0.0',
@@ -329,7 +343,7 @@ const JUNIOR: Fn[] = [
 	{
 		lines: [
 			'def macro_f1(y_true, y_pred, labels):',
-			'    """Среднее F1 по всем классам из labels. F1 класса = 2TP / (2TP + FP + FN), при нулевом знаменателе — 0."""',
+			'    """labels — непустой список различных классов. Среднее F1 по ним; F1 класса = 2TP / (2TP + FP + FN), 0 при нулевом знаменателе."""',
 			'    scores = []',
 			'    for c in labels:',
 			'        tp = sum(1 for t, p in zip(y_true, y_pred) if t == c and p == c)',
@@ -340,7 +354,8 @@ const JUNIOR: Fn[] = [
 			'    return sum(scores) / len(labels)'
 		],
 		checks: [
-			'assert abs(macro_f1(["a", "b", "a", "c", "a"], ["a", "a", "a", "b", "c"], ["a", "b", "c", "d"]) - 1 / 6) < 1e-9'
+			'assert abs(macro_f1(["a", "b", "a", "c", "a"], ["a", "a", "a", "b", "c"], ["a", "b", "c", "d"]) - 1 / 6) < 1e-9',
+			'assert abs(macro_f1([1, 2, 2, 3], [1, 2, 3, 3], [1, 2, 3, 4]) - 7 / 12) < 1e-9'
 		],
 		defects: [
 			{
@@ -352,7 +367,7 @@ const JUNIOR: Fn[] = [
 			{
 				kind: 'averaging',
 				line: 9,
-				text: '    return sum(1 for t, p in zip(y_true, y_pred) if t == p) / len(y_true)',
+				text: '    return sum(scores) / len(set(y_true))',
 				neighbour: { line: 7, text: '        denom = fp + fn + 2 * tp' }
 			},
 			{
@@ -366,7 +381,7 @@ const JUNIOR: Fn[] = [
 	{
 		lines: [
 			'def precision_at_k(ranking, relevant, k):',
-			'    """ranking — объекты по убыванию скора. Число релевантных в первых k, делённое на k,',
+			'    """ranking — различные объекты по убыванию скора, k >= 0. Число релевантных в первых k, делённое на k,',
 			'    даже если объектов меньше k; при k = 0 — 0."""',
 			'    if k == 0:',
 			'        return 0.0',
@@ -389,7 +404,8 @@ const JUNIOR: Fn[] = [
 				kind: 'edge-cases',
 				line: 3,
 				text: '    if not ranking:',
-				neighbour: { line: 4, text: '        return 0' }
+				neighbour: { line: 4, text: '        return 0' },
+				alternatives: [{ line: 6, text: '    return hits / (k or 1)' }]
 			},
 			{
 				kind: 'thresholds',
@@ -440,7 +456,7 @@ const JUNIOR: Fn[] = [
 	{
 		lines: [
 			'def recall_at_threshold(y_true, scores, threshold):',
-			'    """Recall класса 1, если положительным предсказан скор не ниже порога; без положительных объектов — 0."""',
+			'    """Метки 0/1, списки одной длины. Recall класса 1, если положительным предсказан скор не ниже порога; без положительных объектов — 0."""',
 			'    positives = [s for t, s in zip(y_true, scores) if t == 1]',
 			'    if not positives:',
 			'        return 0.0',
@@ -449,6 +465,7 @@ const JUNIOR: Fn[] = [
 		],
 		checks: [
 			'assert recall_at_threshold([1, 0, 1, 1], [0.7, 0.9, 0.5, 0.2], 0.5) == 2 / 3',
+			'assert recall_at_threshold([1, 1, 1, 0], [0.9, 0.8, 0.1, 0.6], 0.5) == 2 / 3',
 			'assert recall_at_threshold([0, 0], [0.1, 0.9], 0.5) == 0.0'
 		],
 		defects: [
@@ -460,22 +477,23 @@ const JUNIOR: Fn[] = [
 			},
 			{
 				kind: 'thresholds',
-				line: 2,
-				text: '    positives = [s for t, s in zip(y_true, scores) if s >= threshold]',
+				line: 5,
+				text: '    caught = sum(1 for s in positives if s <= threshold)',
 				neighbour: { line: 3, text: '    if len(positives) == 0:' }
 			},
 			{
 				kind: 'edge-cases',
 				line: 3,
 				text: '    if positives is None:',
-				neighbour: { line: 4, text: '        return 0' }
+				neighbour: { line: 4, text: '        return 0' },
+				alternatives: [{ line: 6, text: '    return caught / (len(positives) or 1)' }]
 			}
 		]
 	},
 	{
 		lines: [
 			'def weighted_average(per_class, support):',
-			'    """per_class — метрика каждого класса, support — число объектов класса.',
+			'    """per_class и support — словари с одними ключами: метрика класса и число объектов класса (>= 0).',
 			'    Среднее метрик с весами support; если объектов нет — 0."""',
 			'    total = sum(support.values())',
 			'    if total == 0:',
@@ -503,14 +521,18 @@ const JUNIOR: Fn[] = [
 				kind: 'edge-cases',
 				line: 4,
 				text: '    if total < 0:',
-				neighbour: { line: 5, text: '        return 0' }
+				neighbour: { line: 5, text: '        return 0' },
+				alternatives: [
+					{ line: 3, text: '    total = sum(support.values()) or 1' },
+					{ line: 6, text: '    return sum(per_class[c] * support[c] for c in per_class) / (total or 1)' }
+				]
 			}
 		]
 	},
 	{
 		lines: [
 			'def flag_top_share(scores, share):',
-			'    """Помечает долю share объектов с наибольшим скором: помеченных int(share * n) (с округлением вниз).',
+			'    """Помечает долю share (0 <= share <= 1) объектов с наибольшим скором: помеченных int(share * n) (с округлением вниз).',
 			'    Список 0/1 в исходном порядке; при равных скорах раньше помечается объект с меньшим индексом."""',
 			'    n_flag = int(share * len(scores))',
 			'    order = sorted(range(len(scores)), key=lambda i: (-scores[i], i))',
@@ -563,6 +585,8 @@ interface Program {
 	fix: string;
 	neighbour: { line: number; text: string };
 	other: { line: number; text: string };
+	/** Accepted other repairs: absolute line and its replacement. */
+	alternatives: { line: number; fix: string }[];
 }
 
 function compose(rng: Rng, library: readonly Fn[], kind: string, contextCount: number): Program {
@@ -588,11 +612,13 @@ function compose(rng: Rng, library: readonly Fn[], kind: string, contextCount: n
 	let answer = 0;
 	let neighbour = { line: 0, text: '' };
 	let other = { line: 0, text: '' };
+	let alternatives: Program['alternatives'] = [];
 	for (const fn of order) {
 		const offset = lines.length;
 		fn.lines.forEach((line, i) => lines.push(fn === buggy && i === defect.line ? defect.text : line));
 		if (fn === buggy) {
 			answer = offset + defect.line + 1;
+			alternatives = (defect.alternatives ?? []).map((a) => ({ line: offset + a.line + 1, fix: a.text }));
 			neighbour = { line: offset + defect.neighbour.line + 1, text: defect.neighbour.text };
 		} else if (other.line === 0) {
 			const sibling = fn.defects[0];
@@ -613,7 +639,7 @@ function compose(rng: Rng, library: readonly Fn[], kind: string, contextCount: n
 		'except Exception as exc:',
 		"    print('fail', type(exc).__name__)"
 	].join('\n');
-	return { source: lines.join('\n'), check, answer, fix, neighbour, other };
+	return { source: lines.join('\n'), check, answer, fix, neighbour, other, alternatives };
 }
 
 export function build(input: GenerateInput): Built {
@@ -624,17 +650,31 @@ export function build(input: GenerateInput): Built {
 		statement: {
 			markdown:
 				'Модуль расчёта метрик качества модели на Python 3. У каждой функции в строке документации записана её ' +
-				'спецификация. Ровно одна строка модуля нарушает спецификацию своей функции: если заменить только её, все ' +
-				'функции будут работать по спецификации. Введите номер этой строки (нумерация с 1).',
+				'спецификация. В модуле один дефект: одна функция нарушает свою спецификацию. ' +
+				'Введите номер строки, замена которой одной инструкцией восстанавливает спецификацию всех функций (нумерация с 1). ' +
+				'Если исправить можно в нескольких строках — засчитывается любая из них, где замена одной инструкцией восстанавливает спецификацию. Исправление — одна простая инструкция того же вида, что исправляемая строка: не добавляйте ' +
+				'конструкций, которых в ней нет (`:=`, lambda, обёртки, новые функции), и не переносите в неё логику из другой строки.',
 			code: { language: 'python3', source: p.source }
 		},
-		answer: { kind: 'line_no', value: p.answer }
+		answer: {
+			kind: 'line_no',
+			value: p.answer,
+			...(p.alternatives.length ? { alternatives: p.alternatives.map((a) => a.line) } : {})
+		}
 	});
 	return {
 		instance,
-		reference: () => ({ kind: 'bug', check: p.check, fix: p.fix }),
+		reference: () => ({
+			kind: 'bug',
+			check: p.check,
+			fix: p.fix,
+			...(p.alternatives.length ? { alternatives: p.alternatives } : {})
+		}),
 		wrong: () => ({
-			'neighbour-line': { kind: 'line', line: p.neighbour.line, replacement: p.neighbour.text },
+			// A neighbour that is itself an accepted alternative is not a wrong answer.
+			'neighbour-line': p.alternatives.some((a) => a.line === p.neighbour.line)
+				? null
+				: { kind: 'line', line: p.neighbour.line, replacement: p.neighbour.text },
 			'other-function': p.other.line === 0 ? null : { kind: 'line', line: p.other.line, replacement: p.other.text }
 		})
 	};

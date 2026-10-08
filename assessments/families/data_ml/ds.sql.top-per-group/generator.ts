@@ -9,6 +9,10 @@ import { buildFromDraft, type SqlDraft } from '../../_lib/sql-draft.ts';
 
 const descriptor = readDescriptor(import.meta.url);
 
+/** The answer lines are compared as text: the separator is fixed exactly. */
+const ROW_SPACING =
+	'Значения разделяются ровно так: пробел, черта, пробел — без лишних пробелов вокруг черты; пробелы внутри самих значений сохраняются как есть. Например, строка из трёх столбцов: `7 | NULL | 2.5`.';
+
 type Row = (string | number | null)[];
 
 const DEPTS = ['sales', 'ops', 'dev', 'hr', 'risk', 'growth'] as const;
@@ -176,11 +180,19 @@ function topSumNull(rng: Rng): SqlDraft {
 	const table = rng.pick(['purchases', 'orders', 'payments']);
 	const customers = rng.sample(PERSON_NAMES, rng.int(3, 4));
 	const rows: Row[] = [];
+	// The traps: a NULL next to at least two values stays out of the top two; next to one value it is the second row
+	// of the top and COUNT skips it; a customer with NULL amounts only gets COUNT 0 and SUM NULL.
+	const roles = rng.shuffle([
+		'one-value',
+		rng.bool(0.5) ? 'nulls-only' : 'values',
+		...customers.slice(2).map(() => 'values')
+	]);
 	customers.forEach((c, i) => {
-		// The trap: every customer but the last has a NULL amount next to at least two values.
-		const k = rng.int(2, 3);
+		const role = roles[i];
+		const k = role === 'one-value' ? 1 : role === 'nulls-only' ? 0 : rng.int(2, 3);
 		for (let j = 0; j < k; j += 1) rows.push([c, rng.int(2, 60) * 10]);
-		if (i < customers.length - 1 || rng.bool(0.5)) rows.push([c, null]);
+		const nulls = role === 'nulls-only' ? rng.int(1, 2) : role === 'one-value' || rng.bool(0.6) ? 1 : 0;
+		for (let j = 0; j < nulls; j += 1) rows.push([c, null]);
 	});
 	const setup = `CREATE TABLE ${table} (id INTEGER PRIMARY KEY, customer TEXT NOT NULL, amount INTEGER);\n${insertRows(table, ['id', 'customer', 'amount'], numbered(rng, rows))}`;
 	const q = (order: string): string =>
@@ -207,7 +219,12 @@ const DRAFTS: Record<string, (rng: Rng) => SqlDraft> = {
 export function build(input: GenerateInput): Built {
 	const draft = DRAFTS[`${input.grade}/${input.classId}`];
 	if (!draft) throw new Error(`${descriptor.key}: no draft for ${input.grade}/${input.classId}`);
-	return buildFromDraft(descriptor, input, draft);
+	const built = buildFromDraft(descriptor, input, draft);
+	const { statement } = built.instance;
+	return {
+		...built,
+		instance: { ...built.instance, statement: { ...statement, markdown: `${statement.markdown} ${ROW_SPACING}` } }
+	};
 }
 
 export function generate(input: GenerateInput): ItemInstance {

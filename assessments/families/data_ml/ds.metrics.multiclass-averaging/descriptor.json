@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.65,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "8abd82a086c503ca713b7a59f8624684e0e38713db8335daaf08385bbaf2f14e"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.65,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "8abd82a086c503ca713b7a59f8624684e0e38713db8335daaf08385bbaf2f14e"
+					}
+				],
+				"mean": 0.65
+			},
 			"constructive": { "classes": 3, "layout": "строки — истинный класс", "averaging": "macro или micro" },
 			"constructiveRank": 3,
 			"timeNormSec": 300,
@@ -37,7 +54,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.7,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "8abd82a086c503ca713b7a59f8624684e0e38713db8335daaf08385bbaf2f14e"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "8abd82a086c503ca713b7a59f8624684e0e38713db8335daaf08385bbaf2f14e"
+					}
+				],
+				"mean": 0.65
+			},
 			"constructive": {
 				"classes": 4,
 				"layout": "ориентация указана в условии",
@@ -124,6 +158,29 @@
 		"answerCollision": 0.0006,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Независимо пересчитаны все 8 экземпляров в Python 3.12 через TP, FP и FN из таблиц условия, с рациональной арифметикой; ответы совпали. Проверены 13 применимых вариантов ошибочных решений, все отвергаются. Новые 200 сидов каждого класса и боевой интерфейс не проверялись.",
+					"Angoff: intern 0.65 — за 300 с требуется без ошибок различить macro и micro и выполнить арифметику по трём классам; junior 0.70 — 390 с достаточно для четырёх классов, но пустой класс, отказы и транспонированная таблица повышают риск одной обнуляющей ошибки при binary-рубрике."
+				],
+				"sourceSha256": "8abd82a086c503ca713b7a59f8624684e0e38713db8335daaf08385bbaf2f14e"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчитал все 8 показанных экземпляров собственным кодом по формулам из условия (precision по столбцу, recall по строке, macro/micro/weighted, пустой класс, транспонированная матрица, отказы): все ответы совпали с ожидаемыми. Генератор прогнал по 200 сидов на класс только на предмет нулевых столбцов предсказаний: вне класса empty-class-f1 их нет, условие там не остаётся неопределённым.",
+					"Правило пустого класса (precision и F1 = 0, класс входит в среднее) и определение micro-F1 с отказами (precision по объектам с ответом, recall по всем) названы в условии явно, второго прочтения нет.",
+					"Класс abstain-f1 (junior) использует нестандартное определение micro-F1; оно полностью задано в условии, но кандидат, помнящий библиотечный micro-F1, обязан читать формулировку, а не вспоминать. Для резервного класса это допустимо.",
+					"Junior weighted-f1: матрица 4x4 с числами до 304, четыре F1 с весами вручную за 390 с трудоёмко; ошибок в данных нет, учтено в Angoff."
+				],
+				"sourceSha256": "8abd82a086c503ca713b7a59f8624684e0e38713db8335daaf08385bbaf2f14e"
+			}
+		]
 	}
 }

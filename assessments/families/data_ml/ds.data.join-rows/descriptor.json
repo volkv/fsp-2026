@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "ec7af92301f65e8f282be75b88a8a6f6c36d437c54904bf7ca5213496a146bae"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.65,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "ec7af92301f65e8f282be75b88a8a6f6c36d437c54904bf7ca5213496a146bae"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": { "tables": 2, "rows": "4–9", "how": "inner / left / outer", "steps": 2 },
 			"constructiveRank": 2,
 			"timeNormSec": 270,
@@ -37,7 +54,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.5,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "ec7af92301f65e8f282be75b88a8a6f6c36d437c54904bf7ca5213496a146bae"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.7,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "ec7af92301f65e8f282be75b88a8a6f6c36d437c54904bf7ca5213496a146bae"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": {
 				"tables": 2,
 				"rows": "5–10",
@@ -138,6 +172,30 @@
 		"answerCollision": 0.0118,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчитано вручную по семантике pandas 2 все 8 показанных экземпляров (inner с повтором ключа справа, left с NaN и mean, many-to-many, outer с fillna(0), свёртка до left join, анти-соединение через indicator, соединение по паре ключей с mean по NaN, NaN в ключе): ответы 5300, 9, 1225, 1330, 2410, 320, 9.6443, 830 совпали с ожидаемыми. Настоящий pandas в песочнице недоступен, прогон не делался.",
+					"Поведение «pandas соединяет NaN-ключ с NaN-ключом» (класс nan-keys) соответствует документации pandas.DataFrame.merge («rows where the key is a null value are matched against each other») для pandas 2 и 3, условие называет версию (pandas 2 и новее); неоднозначности нет. Порядок строк результата merge в вопросах не используется (суммы, средние).",
+					"Список из 9 ошибочных решений привязан к классам и покрывает типичные заблуждения (размножение строк, потеря NaN в left join, NaN как ноль, SQL-семантика NaN); существенных замечаний нет.",
+					"Мелочь: в Intern-классе outer выражение abs(budget.fillna(0) - spent.fillna(0)).sum() длиннее остальных; время 270 с достаточно, но ошибка в одном из 6 ключей обнуляет ответ, это учтено в Angoff.",
+					"Angoff: бинарная рубрика; Intern ошибается на размножении строк при повторах в обеих таблицах, Junior на NaN-ключах (ловушка, противоположная SQL) и на mean по NaN после left join."
+				],
+				"sourceSha256": "ec7af92301f65e8f282be75b88a8a6f6c36d437c54904bf7ca5213496a146bae"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Независимо пересчитал все 8 экземпляров на Python 3.12, явно перечисляя пары строк по ключам и затем выполняя агрегации. Все ответы совпали; проверены 12 применимых ошибочных вариантов. Проверены размножение many-to-many, пропуски после left/outer join, свёртка до соединения, антисоединение, составной ключ и совпадение NaN-ключей по правилам pandas. Последнее сверено с официальной документацией merge. Сам pandas и полный прогон ворот на 200 сидах каждого класса не исполнял.",
+					"Angoff: Intern 0.65, Junior 0.70 — вероятность полного ответа при binary за 270/360 секунд. Основной риск — забыть кратность соединения либо включить NaN в среднее; составной ключ и NaN-ключи усложняют Junior, но таблицы небольшие и времени достаточно."
+				],
+				"sourceSha256": "ec7af92301f65e8f282be75b88a8a6f6c36d437c54904bf7ca5213496a146bae"
+			}
+		]
 	}
 }

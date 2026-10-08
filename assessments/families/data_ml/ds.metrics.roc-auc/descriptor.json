@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.65,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "17107a2b66da402fe1a850ec3e57fe29797461b8ef863ec613ef63d0dba68a85"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "17107a2b66da402fe1a850ec3e57fe29797461b8ef863ec613ef63d0dba68a85"
+					}
+				],
+				"mean": 0.65
+			},
 			"constructive": { "scoreValues": "6–9", "ties": true, "source": "сгруппированные скоры или точки ROC" },
 			"constructiveRank": 4,
 			"timeNormSec": 390,
@@ -29,7 +46,24 @@
 		},
 		{
 			"grade": "middle",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.7,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "17107a2b66da402fe1a850ec3e57fe29797461b8ef863ec613ef63d0dba68a85"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.5,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "17107a2b66da402fe1a850ec3e57fe29797461b8ef863ec613ef63d0dba68a85"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": { "scoreValues": "6–9", "ties": true, "source": "веса, группы, PR-кривая, жёсткие метки" },
 			"constructiveRank": 5,
 			"timeNormSec": 420,
@@ -109,6 +143,29 @@
 		"answerCollision": 0.0319,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Независимо пересчитаны все 8 экземпляров в Python 3.12: ROC-AUC через площадь трапеций ROC, включая равные скоры, обратное направление и веса; отдельно — среднее групповых AUC, Average Precision и AUC жёстких меток. Ответы совпали; 11 применимых ошибочных вариантов отвергаются. Новые 200 сидов каждого класса, эмпирическое answerCollision и боевой интерфейс не проверялись.",
+					"Angoff: junior 0.65 — 390 с позволяют посчитать 6–9 групп, но пограничный кандидат может ошибиться с ничьими и направлением скора; middle 0.70 — 420 с достаточны при явных правилах, однако переход между весами, групповым усреднением, AP и жёсткими метками остаётся содержательной развилкой. Учтён полный ответ при binary-рубрике."
+				],
+				"sourceSha256": "17107a2b66da402fe1a850ec3e57fe29797461b8ef863ec613ef63d0dba68a85"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчитал все 8 показанных экземпляров собственным кодом (AUC по сгруппированным парам с ½ за ничью, инверсия скора, трапеции по точкам ROC, Джини, AP по порогам с ничьей как одним порогом, AUC по регионам, взвешенный AUC по парам, AUC жёстких меток): ответы совпали; для hard-labels проверил равенство (TPR+TNR)/2.",
+					"Класс roc-points (junior anchor) заметно проще остальных классов уровня: шесть точек и одна формула трапеций против 7–9 групп с ничьими; по правилу anchor не должен быть тривиальнее остальных. Для рубрики это не обнуляет задание, но учтено в Angoff как завышающая составляющая.",
+					"Middle, группа group-macro: три таблицы по 4–5 строк с ничьями, три AUC и среднее за 420 с вручную тяжело; ошибка в любой группе обнуляет ответ (бинарная рубрика), что учтено в Angoff.",
+					"Ошибочные решения типичны (ничьи, ориентация, прямоугольники, pooled, веса, скоры вместо меток) и отвергаются на показанных экземплярах."
+				],
+				"sourceSha256": "17107a2b66da402fe1a850ec3e57fe29797461b8ef863ec613ef63d0dba68a85"
+			}
+		]
 	}
 }

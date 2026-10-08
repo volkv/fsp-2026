@@ -1,7 +1,7 @@
 // Practice: a classification report from pairs «true label — predicted label», by the metric the class sets (the
-// metrics of a positive class, macro- or weighted-averaged F1, the confusion counts, balanced accuracy, the Matthews
-// coefficient), with the convention 0/0 = 0 and an explicit set of labels to average over. Hidden tests in five groups:
-// ordinary data, labels on one side only, two labels, a rare positive class, a large volume.
+// metrics of a positive class, macro- or weighted-averaged F1, the confusion counts with specificity and NPV, balanced
+// accuracy, the Matthews coefficient), with the convention 0/0 = 0 and an explicit set of labels to average over. Hidden
+// tests in five groups: ordinary data, labels on one side only, two labels, a rare positive class, a large volume.
 import {
 	instanceRng,
 	levelAndClass,
@@ -75,7 +75,8 @@ function solve(classId: string, input: Input, variant: Variant = 'right'): strin
 				.join(' ');
 		case 'pos-counts': {
 			const c = counts(input, input.pos, variant);
-			return [c.tp, c.fp, c.fn, n - c.tp - c.fp - c.fn].join(' ');
+			const tn = n - c.tp - c.fp - c.fn;
+			return [c.tp, c.fp, c.fn, tn, f6(ratio(tn, tn + c.fp, variant)), f6(ratio(tn, tn + c.fn, variant))].join(' ');
 		}
 		case 'macro-f1':
 		case 'weighted-f1': {
@@ -117,7 +118,7 @@ const APPLIES: Record<string, Record<string, readonly Variant[]>> = {
 	intern: {
 		'positive-prf': ['undefined-as-one', 'swap-axes'],
 		'macro-f1': ['label-set', 'average-mismatch'],
-		'pos-counts': ['swap-axes'],
+		'pos-counts': ['undefined-as-one', 'swap-axes'],
 		'balanced-accuracy': ['swap-axes', 'label-set']
 	},
 	junior: {
@@ -154,14 +155,17 @@ function makeInput(rng: Rng, group: GroupId, classId: string, junior: boolean): 
 		pairs.push([t, p]);
 	}
 	if (group === 'rare' && !pairs.some(([t]) => t === pos)) pairs[rng.int(0, n - 1)] = [pos, pos];
+	// The specificity and the NPV of the confusion counts: the binary group predicts the positive class only, so the
+	// NPV meets 0/0 there as the specificity does in the one-sided group.
+	if (group === 'binary' && classId === 'pos-counts') for (const pair of pairs) pair[1] = pos;
 	if (group === 'one-sided') {
 		// A label only among the predictions, and a label (the positive one where it matters) never predicted, or —
-		// for the Matthews coefficient — no negative among the true labels.
+		// for the Matthews coefficient and the specificity — no negative among the true labels.
 		for (let k = rng.int(1, 3); k > 0; k -= 1) {
 			const i = rng.int(0, n - 1);
 			pairs[i] = [pairs[i]?.[0] ?? pos, ghost];
 		}
-		if (classId === 'mcc') {
+		if (classId === 'mcc' || classId === 'pos-counts') {
 			for (const pair of pairs) pair[0] = pos;
 		} else {
 			const silent = classId === 'positive-prf' || !junior ? pos : rng.pick(labels);
@@ -217,7 +221,7 @@ const TASK: Record<string, string> = {
 	'macro-f1':
 		'Выведите macro-F1: F1 каждой метки в постановке «один против остальных», усреднённый без весов по всем меткам, которые встречаются **хотя бы в одном** из столбцов (истинном или предсказанном). Строку `pos` первой строки входа игнорируйте.',
 	'pos-counts':
-		'Выведите через пробел четыре целых числа TP FP FN TN для позитивного класса `pos` в постановке «один против остальных».',
+		'Выведите через пробел TP FP FN TN для позитивного класса `pos` в постановке «один против остальных» (четыре целых), затем specificity = TN / (TN + FP) и NPV = TN / (TN + FN).',
 	'balanced-accuracy':
 		'Выведите balanced accuracy: среднее без весов значений recall по всем меткам, которые встречаются среди **истинных** меток (recall метки — доля её строк, где предсказание совпало с истиной). Метки, встречающиеся только среди предсказанных, в среднее не входят. Строку `pos` первой строки входа игнорируйте.',
 	fbeta:
@@ -254,7 +258,11 @@ function statement(classId: string, junior: boolean): string {
 
 const PY_TASK: Record<string, (v: Variant) => string[]> = {
 	'positive-prf': () => ["print(' '.join(f'{x:.6f}' for x in prf(*counts(pos))))"],
-	'pos-counts': () => ['tp, fp, fn = counts(pos)', 'print(tp, fp, fn, n - tp - fp - fn)'],
+	'pos-counts': () => [
+		'tp, fp, fn = counts(pos)',
+		'tn = n - tp - fp - fn',
+		"print(tp, fp, fn, tn, f'{ratio(tn, tn + fp):.6f}', f'{ratio(tn, tn + fn):.6f}')"
+	],
 	'macro-f1': (v) => [
 		v === 'label-set'
 			? 'labels = set(t for t, p in pairs)'

@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.65,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "0898652910b708a13d19cc651ccda9b4027db2bf3d44fdd1064508cdf4cae5c6"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.7,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "0898652910b708a13d19cc651ccda9b4027db2bf3d44fdd1064508cdf4cae5c6"
+					}
+				],
+				"mean": 0.7
+			},
 			"constructive": { "rows": "8–11", "metric": "одна по ошибкам прогноза", "weights": false },
 			"constructiveRank": 2,
 			"timeNormSec": 240,
@@ -25,7 +42,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.8,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "0898652910b708a13d19cc651ccda9b4027db2bf3d44fdd1064508cdf4cae5c6"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.7,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "0898652910b708a13d19cc651ccda9b4027db2bf3d44fdd1064508cdf4cae5c6"
+					}
+				],
+				"mean": 0.75
+			},
 			"constructive": { "rows": "9–12", "metric": "с весами, нулями или отрицательным R²", "weights": true },
 			"constructiveRank": 3,
 			"timeNormSec": 330,
@@ -106,6 +140,29 @@
 		"answerCollision": 0.0123,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Независимо пересчитаны все 8 экземпляров в Python 3.12 по ошибкам прогноза из таблиц условия, включая веса, исключение нулевых y из MAPE, sMAPE и отрицательный R². Ответы совпали; 12 применимых ошибочных вариантов отвергаются. Новые 200 сидов каждого класса и боевой интерфейс не проверялись.",
+					"Angoff: intern 0.65 — 240 с на 8–11 строк, запоминание определения R² и различение MAE/MSE/MAPE дают заметный риск полного неверного ответа; junior 0.80 — за 330 с с явно заданными правилами весов и нулей пограничный кандидат обычно справится. Учтена binary-рубрика."
+				],
+				"sourceSha256": "0898652910b708a13d19cc651ccda9b4027db2bf3d44fdd1064508cdf4cae5c6"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчитал все 8 показанных экземпляров собственным кодом (MAE, RMSE, MAPE, R², sMAPE, взвешенная MAE, отрицательный R², MAPE без нулевого факта): ответы совпали.",
+					"Intern, класс r2: в условии не записана формула R² (junior её приводит). Читаемое как «квадрат корреляции» второе прочтение даёт другой ответ, но это именно типичное заблуждение, на которое нацелено ошибочное решение r2-squared-corr; считаю допустимым, но для согласованности с junior формулу лучше назвать или оставить как явную проверку знания.",
+					"Intern: R² на 8 строках вручную (среднее, SST, SSE) заметно тяжелее MAE и RMSE; классы одного уровня не равны по трудности, для резервного класса X допустимо.",
+					"Формат ответа: отрицательный R² (-3.886) не оговорён отдельно, но float_eps его принимает; формат ответа не наказывает за несущественное."
+				],
+				"sourceSha256": "0898652910b708a13d19cc651ccda9b4027db2bf3d44fdd1064508cdf4cae5c6"
+			}
+		]
 	}
 }

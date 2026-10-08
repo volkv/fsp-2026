@@ -253,7 +253,7 @@ function middleCode(kind: Kind, feature: string, k: number): string {
 		'from sklearn.pipeline import make_pipeline',
 		c.import,
 		'',
-		'# df — таблица из условия, y — метки тех же строк',
+		'# df — таблица из условия, y — метки 0/1 тех же строк; в каждом обучающем фолде есть оба класса',
 		`model = make_pipeline(${c.make}, LogisticRegression())`,
 		`cv = KFold(n_splits=${k}, shuffle=False)`,
 		`scores = cross_val_score(model, df[['${feature}']], y, cv=cv)`
@@ -296,7 +296,8 @@ function statement(kind: Kind, s: Scenario, feature: string): { markdown: string
 			'',
 			frameMarkdown(['row', feature], rows),
 			'',
-			'Модель оценивают кросс-валидацией кодом ниже. ' + RULES_TEXT[kind],
+			'Модель оценивают кросс-валидацией кодом ниже. Метки `y` не показаны: они 0/1, в каждом обучающем фолде есть оба класса, и обучение на каждом фолде проходит без ошибок. ' +
+				RULES_TEXT[kind],
 			'',
 			`Какое значение признака после подготовки получит логистическая регрессия для строки ${s.target}, когда эта строка окажется в валидационном фолде?`,
 			'',

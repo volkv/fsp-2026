@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "80c10945a42fcec53afa06c517421771f6389e3525815f91c7651d2e123c3e1c"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "80c10945a42fcec53afa06c517421771f6389e3525815f91c7651d2e123c3e1c"
+					}
+				],
+				"mean": 0.55
+			},
 			"constructive": { "hypotheses": "2–3", "evidence": "1–2 наблюдения", "baseRate": "0,5–20 %" },
 			"constructiveRank": 3,
 			"timeNormSec": 300,
@@ -37,7 +54,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.65,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "80c10945a42fcec53afa06c517421771f6389e3525815f91c7651d2e123c3e1c"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "80c10945a42fcec53afa06c517421771f6389e3525815f91c7651d2e123c3e1c"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": {
 				"hypotheses": 2,
 				"evidence": "2–4 наблюдения или смена базовой частоты",
@@ -128,6 +162,28 @@
 		"answerCollision": 0.0001,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Все 8 экземпляров независимо пересчитаны в Python 3.12 через отношения вероятностей и произведения условных правдоподобий; для трёх поставщиков использованы точные рациональные числа. Ответы совпали. Проверены 15 результатов перечисленных ошибочных решений, все отвергаются. Полный прогон ворот на 200 сидах каждого класса не выполнялся.",
+					"Angoff: intern 0.55 — определение пограничного кандидата прямо допускает путаницу в условных вероятностях; формула Байеса не дана, в резерве нужны два условно независимых наблюдения. Junior 0.65 — учитываются отрицательное наблюдение, отсутствие слова и новая базовая частота; 360 с достаточно для расчёта, но знание формулы и выбор правильных правдоподобий обязательны. Рубрика binary требует одного полностью верного числа."
+				],
+				"sourceSha256": "80c10945a42fcec53afa06c517421771f6389e3525815f91c7651d2e123c3e1c"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчитал на Python все 8 экземпляров (апостериорная по формуле Байеса, шансы по двум тестам, наивный Байес, пересчёт precision, «хотя бы один» из k детекторов): совпало с эталоном до 1e-15. Не проверял другие сиды.",
+					"Мелочь: ответы с малой величиной (junior, positive-then-negative: 0.0038; intern, negative-posterior: 0.0215) при допуске 1e-4 дают всего 2-3 значащих цифры, поэтому промежуточное округление кандидата до трёх знаков может сдвинуть ответ на 0.0001 и больше. Стоит выбирать сиды с ответом не меньше 0.01 либо просить 5 знаков.",
+					"Мелочь: intern-класс two-tests (последовательное обновление по двум тестам) заметно тяжелее остальных трёх классов intern; на вердикт не влияет, учтено в Angoff."
+				],
+				"sourceSha256": "80c10945a42fcec53afa06c517421771f6389e3525815f91c7651d2e123c3e1c"
+			}
+		]
 	}
 }

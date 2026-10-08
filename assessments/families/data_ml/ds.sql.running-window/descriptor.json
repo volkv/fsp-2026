@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.7,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "8e11dd700b44f53f6ee051c6f5db92eda2f667f54afefbd3b6d13183f378d1e8"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.65,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "8e11dd700b44f53f6ee051c6f5db92eda2f667f54afefbd3b6d13183f378d1e8"
+					}
+				],
+				"mean": 0.7
+			},
 			"constructive": { "tables": 1, "rows": "5–8", "windows": 1, "frame": "по умолчанию или явный ROWS" },
 			"constructiveRank": 3,
 			"timeNormSec": 360,
@@ -37,7 +54,24 @@
 		},
 		{
 			"grade": "middle",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.65,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "8e11dd700b44f53f6ee051c6f5db92eda2f667f54afefbd3b6d13183f378d1e8"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "8e11dd700b44f53f6ee051c6f5db92eda2f667f54afefbd3b6d13183f378d1e8"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": {
 				"tables": 1,
 				"rows": "5–8",
@@ -65,7 +99,7 @@
 				{
 					"id": "last-value",
 					"form": "X",
-					"description": "LAST_VALUE с рамкой по умолчанию возвращает значение текущей строки, а не последнее в разделе"
+					"description": "LAST_VALUE с рамкой по умолчанию возвращает значение текущей строки, а не последнее в разделе; с рамкой ROWS 1 PRECEDING … 1 FOLLOWING — значение следующей строки"
 				}
 			]
 		}
@@ -140,6 +174,32 @@
 		"answerCollision": 0,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Прежние существенные замечания устранены: условие задаёт точный разделитель столбцов; в Middle/last-value добавлено второе окно ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING, а статусы больше не следуют фиксированному жизненному циклу. В показанном экземпляре final_status равен текущему статусу, near_status — следующему, кроме последней строки заказа; эти столбцы требуют различить две рамки.",
+					"Мелочь, параметры сложности: заявленные 5–8 строк не совпадают с генерацией. На 200 сидах Junior/last-record содержит 5–19 строк, Middle/order-changes-frame — 4–8. Уточнить диапазоны по классам; last-record при этом требует только 3–4 строки ответа и остаётся легче классов с арифметикой по всему ряду.",
+					"Angoff: Junior 0.70, Middle 0.65. За 360 с Junior должен полностью отсортировать разделы и без ошибок посчитать накопления, разности либо средние; короткий якорь повышает вероятность. За 420 с Middle различает RANGE и ROWS, ровни и границы раздела; у якоря три вычисляемых столбца. Binary обнуляет ответ при одной ошибке в любой строке.",
+					"Проверка: все 8 показанных экземпляров исполнены из SQL условия в Python 3.12.3 / SQLite 3.45.1; ответы совпали. Дополнительно независимо исполнены 1600 экземпляров, по 200 сидов review|ds.sql.running-window|i каждого класса; 1800 применимых ошибочных ответов отвергнуты действующим answerMatches, внешние пробелы принимаются. sourceSha256 совпал с исходниками. Генератор запускался во временной копии; полный штатный запуск ворот и интерфейс кандидата не проверялись."
+				],
+				"sourceSha256": "8e11dd700b44f53f6ee051c6f5db92eda2f667f54afefbd3b6d13183f378d1e8"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчёт: SQL условия всех 1600 экземпляров (200 сидов × 8 классов, генератор build с сидами review|ключ|i) выполнен в SQLite 3.45.1 (python sqlite3), результат совпал с ожидаемым ответом без исключений; для running-sum и lag-diff дополнительно посчитано независимой реализацией на Python; показанные range-offset и last-value проверены вручную. С PRAGMA reverse_unordered_selects=ON ответы не меняются ни на одном экземпляре (порядок строк целиком задан ORDER BY, дни и моменты различны внутри раздела). Все семь ошибочных решений из reference/wrong() отличаются от эталона на каждом применимом экземпляре. Не проверял: штатный запуск ворот, чекер sequence.",
+					"Прежние замечания устранены: last-value теперь содержит второй вычисляемый столбец near_status (ROWS 1 PRECEDING … 1 FOLLOWING), ответ нельзя получить копированием столбца status; формат строки ответа задан в условии явно с примером.",
+					"Мелочь: ответы moving-avg содержат ROUND(AVG, 2) (например 50.67); ошибка округления на одной из 7 строк обнуляет задание, учтено в Angoff. Средние по двум или трём целым не дают значений на границе округления, неоднозначности нет.",
+					"Мелочь: раздел «Ожидается» обоих уровней описывает метрики и кросс-валидацию, а не SQL; к семейству отношения не имеет.",
+					"Angoff: Junior 0.65 — одно окно, 7–8 строк, 360 с, но одна ошибка обнуляет ответ, а NULL у первой строки LAG и ROW_NUMBER по убыванию требуют точности; Middle 0.55 — различить RANGE и ROWS с ровнями и пропусками дней, три оконных столбца на 6–8 строках, LAST_VALUE с двумя рамками."
+				],
+				"sourceSha256": "8e11dd700b44f53f6ee051c6f5db92eda2f667f54afefbd3b6d13183f378d1e8"
+			}
+		]
 	}
 }

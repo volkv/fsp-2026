@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.65,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "c04381680ee5f56ec38d230c76b78da2da7645eafa63fb69fd4838d2d8218578"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.65,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "c04381680ee5f56ec38d230c76b78da2da7645eafa63fb69fd4838d2d8218578"
+					}
+				],
+				"mean": 0.65
+			},
 			"constructive": { "tables": 1, "rows": "6–16", "groups": "2–3", "trap": "одна: NULL или целочисленное деление" },
 			"constructiveRank": 2,
 			"timeNormSec": 240,
@@ -37,7 +54,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.7,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "c04381680ee5f56ec38d230c76b78da2da7645eafa63fb69fd4838d2d8218578"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "c04381680ee5f56ec38d230c76b78da2da7645eafa63fb69fd4838d2d8218578"
+					}
+				],
+				"mean": 0.65
+			},
 			"constructive": { "tables": "1–2", "rows": "8–20", "groups": "2–3", "trap": "NULL из соединения или подзапроса" },
 			"constructiveRank": 3,
 			"timeNormSec": 360,
@@ -108,6 +142,11 @@
 			"defect": "считает NULL нулём: в среднем, в сумме из одних NULL, в максимуме, в доле",
 			"mustBeCaught": true
 		},
+		{
+			"id": "avg-of-all",
+			"defect": "принимает среднее средних по пользователям за среднее по всем строкам",
+			"mustBeCaught": true
+		},
 		{ "id": "real-division", "defect": "ожидает дробную долю от деления целого на целое", "mustBeCaught": true },
 		{
 			"id": "null-dropped",
@@ -123,11 +162,38 @@
 	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
 	"gates": {
 		"reference": { "seeds": 200, "failures": 0 },
-		"wrongSolutions": { "mustBeCaught": 5, "caught": 5 },
+		"wrongSolutions": { "mustBeCaught": 6, "caught": 6 },
 		"hiddenTestsMutationScore": null,
 		"answerCollision": 0.0004,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Существенное замечание раунда 2 об округлении устранено: независимый перехват вызовов ROUND в SQLite 3.45.1 не обнаружил точных середин разряда ни в одном из 1600 экземпляров на 200 сидах каждого класса, включая Junior/avg-of-avgs. Формат строки задан явно; ошибочное решение avg-of-all независимо воспроизведено и отвергнуто на всех 200 сидах anchor.",
+					"Junior/nullif-ctr (B): прежнее замечание о покрытии осталось. SQLite при делении на ноль возвращает NULL; в нулевой кампании SUM(clicks) к тому же уже NULL. Удаление NULLIF(SUM(views), 0) не изменило ни один из 200 ответов. Условие и ключ верны, но описание «NULLIF против деления на ноль» и комментарий генератора о предотвращении ошибки завышают роль конструкции. Описать фактическое покрытие: SUM с NULL и отношение агрегатов.",
+					"Заявленные диапазоны строк не согласованы с генерацией: на 200 сидах Intern/int-division даёт 6–21 строку, case-share — 8–17, sum-all-null — 4–10 при общей норме 6–16; Junior/nullif-ctr даёт 4–9, avg-of-avgs — 6–17 при норме 8–20. Указать диапазоны по классам. Это замечание о нагрузке; дополнительных прочтений SQL и неверных ответов оно не создаёт.",
+					"Angoff: Intern 0.65, Junior 0.70 — полный бинарный ответ за 240/360 с требует не перепутать NULL с нулём, COUNT(*) с COUNT(столбец) и целочисленное деление с дробным. Junior добавляет строки LEFT JOIN, среднее средних и различие COUNT(DISTINCT) с SELECT DISTINCT; единичная ошибка в любом поле обнуляет ответ.",
+					"Проверка: все 8 показанных экземпляра и 1600 дополнительных экземпляров на 200 сидах review|<ключ>|i каждого класса исполнены непосредственно из SQL условия в SQLite 3.45.1 (Python 3.12.3); ответы совпали. Перестановка INSERT и reverse_unordered_selects не изменили результаты. Независимо исполнены запросы 2200 применимых ошибочных решений; их ответы совпали с мутантами генератора и отвергнуты действующим answerMatches. sourceSha256 подтверждён. Генераторы запускались только во временной копии с удалёнными gates и Angoff. Полный штатный запуск ворот, интерфейс кандидата и эмпирическое время решения не проверялись."
+				],
+				"sourceSha256": "c04381680ee5f56ec38d230c76b78da2da7645eafa63fb69fd4838d2d8218578"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Прежнее существенное замечание раунда 2 (ничьи ROUND на середине разряда в avg-of-avgs и др.) устранено: на 200 сидах каждого из 8 классов (1600 экземпляров) ответ SQLite совпал с round-half-even и с round-half-up по десятичной записи аргумента, расхождений нет. Новое ошибочное решение avg-of-all присутствует.",
+					"Пересчитал исполнением: SQL всех 1600 экземпляров выполнен в SQLite через python sqlite3, ответ совпал с ожидаемым; 2 перестановки порядка INSERT на экземпляр ответа не меняют (ORDER BY везде по ключу группы). Показанные 8 экземпляров сверены с условием вручную. Не проверял: ошибочные решения по каждому сиду (опора на отчёт ворот 6 из 6) и время решения кандидатами.",
+					"Мелочь: объём данных расходится с заявленным. Intern 6–16 строк: int-division до 21 INSERT, case-share до 17; Junior 8–20 строк: nullif-ctr даёт только 4–9. Согласовать параметры сложности с генератором; на корректность ответов не влияет, учтено в Angoff.",
+					"Мелочь: Junior/nullif-ctr — в SQLite деление на ноль само даёт NULL, поэтому NULLIF не меняет ответ; из ошибочных решений есть только null-as-zero. В покрытии не приписывать NULLIF защиту от ошибки деления: класс проверяет NULL от SUM из NULL и отношение агрегатов.",
+					"Мелочь: Senior-замечаний нет; Angoff: Intern 240 с, 2–3 группы, 3–5 столбцов и одна ловушка NULL или целочисленного деления, бинарный ответ; Junior 360 с, LEFT JOIN и среднее средних, четыре значения в строке."
+				],
+				"sourceSha256": "c04381680ee5f56ec38d230c76b78da2da7645eafa63fb69fd4838d2d8218578"
+			}
+		]
 	}
 }

@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "307ea7c9a05a4fef49230d9a4f6c65f9bbff2132a16136b7c1d0994c2d86d566"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.75,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "307ea7c9a05a4fef49230d9a4f6c65f9bbff2132a16136b7c1d0994c2d86d566"
+					}
+				],
+				"mean": 0.7
+			},
 			"constructive": {
 				"rows": "7–10",
 				"columns": "1–4",
@@ -42,7 +59,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.5,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "307ea7c9a05a4fef49230d9a4f6c65f9bbff2132a16136b7c1d0994c2d86d566"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.7,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "307ea7c9a05a4fef49230d9a4f6c65f9bbff2132a16136b7c1d0994c2d86d566"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": {
 				"rows": "9–13",
 				"groups": "1–4",
@@ -158,6 +192,30 @@
 		"answerCollision": 0.0039,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчитано вручную по семантике pandas 2 все 8 показанных экземпляров (fillna медианой, dropna(subset), fillna(0).mean(), dropna(thresh) с учётом столбца name, ffill по группам после сортировки, заполнение средним группы через transform, interpolate с ведущими и хвостовыми пропусками, bfill(limit=1)): ответы 47.43, 332, 27.67, 286, 468, 897, 622, 377 совпали с ожидаемыми. Настоящий pandas в песочнице недоступен, прогон не делался.",
+					"Проверил границы поведения: interpolate() по умолчанию линейная, игнорирует индекс, оставляет ведущие NaN и заполняет хвостовые последним значением (limit_direction по умолчанию 'forward'); bfill(limit=1) заполняет не более одного пропуска перед значением; dropna(thresh=k) считает непустые значения во всех столбцах, включая name. Условие называет версию (pandas 2 и новее); расхождений между 2.x и 3.x по этим вызовам не знаю.",
+					"Список из 15 ошибочных решений привязан к классам и покрывает типичные заблуждения (направление, ведущие и хвостовые пропуски при интерполяции, межгрупповое заполнение, thresh как число пропусков); существенных замечаний нет.",
+					"Мелочь: в Intern-классе thresh ответ зависит от того, что столбец name тоже считается; это отмечено в описании класса, в условии экземпляра стоит просто код, и это допустимо как ловушка, но Intern по определению грейда такой тонкости не требует.",
+					"Angoff: бинарная рубрика; Intern путается в thresh и в том, что fillna(0) меняет знаменатель, Junior в границах interpolate/bfill(limit)."
+				],
+				"sourceSha256": "307ea7c9a05a4fef49230d9a4f6c65f9bbff2132a16136b7c1d0994c2d86d566"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Независимо пересчитал все 8 экземпляров на Python 3.12: медианное/нулевое заполнение, удаление строк по subset/thresh, заполнение внутри групп, линейную интерполяцию по позиции и bfill с limit=1. Все ответы совпали; проверены 16 применимых ошибочных вариантов. Учтены ключ в thresh, начало новой группы, ведущие и хвостовые пропуски. Интерполяция сверена с официальной документацией; сам pandas и полный прогон ворот на 200 сидах каждого класса не исполнял.",
+					"Angoff: Intern 0.75, Junior 0.70 — вероятность полного ответа при binary за 240/330 секунд. Базовые заполнения и фильтры доступны пограничному Intern; Junior должен дополнительно удержать направление, границу группы и ограничение числа заполняемых пропусков."
+				],
+				"sourceSha256": "307ea7c9a05a4fef49230d9a4f6c65f9bbff2132a16136b7c1d0994c2d86d566"
+			}
+		]
 	}
 }

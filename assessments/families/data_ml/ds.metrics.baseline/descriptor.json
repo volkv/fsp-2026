@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.75,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "a82c0db322bb1f11ff3c8f47ec88db242720b644bef9f0ff92743537c924e2ef"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.85,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "a82c0db322bb1f11ff3c8f47ec88db242720b644bef9f0ff92743537c924e2ef"
+					}
+				],
+				"mean": 0.8
+			},
 			"constructive": {
 				"positiveShare": "5–30 %",
 				"baseline": "константа или случайный классификатор",
@@ -41,7 +58,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "a82c0db322bb1f11ff3c8f47ec88db242720b644bef9f0ff92743537c924e2ef"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.75,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "a82c0db322bb1f11ff3c8f47ec88db242720b644bef9f0ff92743537c924e2ef"
+					}
+				],
+				"mean": 0.7
+			},
 			"constructive": {
 				"positiveShare": "5–30 %",
 				"baseline": "поправка на случайность или смена доли классов",
@@ -158,6 +192,28 @@
 		"answerCollision": 0.0008,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчитал на чистом Python все 8 показанных экземпляров независимо (accuracy константы, precision случайного классификатора как доля позитивов, lift, прирост над мажоритарной базой, F1 случайного по ожидаемым клеткам, каппа Коэна по маргиналам, accuracy при смене доли классов, относительное снижение ошибки): 0.8987, 0.2253, 3.0746, 0.1234, 0.3323, 0.3126, 0.8616, 0.6368 совпали с эталоном. Генератор не открывал.",
+					"Мелочь: в prior-shift-accuracy в условии указана исходная доля 0,0809 как отвлекающая величина (ответ от неё не зависит, это ловит ошибка old-prior); для Junior это честная ловушка, но она единственная в семействе, где данные лишние, имеет смысл следить за этим при пересмотре.",
+					"Мелочь: intern random-precision решается чтением доли позитивов из условия (374/1660) без вычислений на вероятностях; это сознательная проверка понимания, но по трудности класс легче остальных."
+				],
+				"sourceSha256": "a82c0db322bb1f11ff3c8f47ec88db242720b644bef9f0ff92743537c924e2ef"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Независимо пересчитал все 8 экземпляров в Python 3.12 по числам и матрицам условия: мажоритарную accuracy, precision и F1 по ожидаемым клеткам, lift, прирост, kappa, перенос accuracy и относительное снижение ошибки. Все ответы совпали, все 13 описанных ошибочных решений отвергаются на применимых показанных экземплярах. Различие отношения ожидаемых счётчиков и математического ожидания случайного отношения явно оговорено для случайных метрик. Ворота на 200 сидах и статистические интервалы не проверял.",
+					"Angoff: Intern 0.85, Junior 0.75. На Intern хватает 240 секунд для простых долей и отношений; lift требует двух разных знаменателей. На Junior за 330 секунд нужно дополнительно построить ожидаемую матрицу либо случайное согласие по маргиналам, поэтому вероятность полного правильного binary-ответа ниже."
+				],
+				"sourceSha256": "a82c0db322bb1f11ff3c8f47ec88db242720b644bef9f0ff92743537c924e2ef"
+			}
+		]
 	}
 }

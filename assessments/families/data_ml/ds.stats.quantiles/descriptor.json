@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.8,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "fd5fb13b22d39085ff9ec2b1c92991a91a65c44e542a2e3cad930f9f0b9ee85b"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.7,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "fd5fb13b22d39085ff9ec2b1c92991a91a65c44e542a2e3cad930f9f0b9ee85b"
+					}
+				],
+				"mean": 0.75
+			},
 			"constructive": { "values": "8–14", "method": "линейная интерполяция", "steps": "1–3 квантиля" },
 			"constructiveRank": 2,
 			"timeNormSec": 270,
@@ -29,7 +46,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.75,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "fd5fb13b22d39085ff9ec2b1c92991a91a65c44e542a2e3cad930f9f0b9ee85b"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "fd5fb13b22d39085ff9ec2b1c92991a91a65c44e542a2e3cad930f9f0b9ee85b"
+					}
+				],
+				"mean": 0.65
+			},
 			"constructive": { "values": "12–40", "method": "линейная интерполяция", "steps": "квантили и пересчёт" },
 			"constructiveRank": 4,
 			"timeNormSec": 360,
@@ -120,6 +154,28 @@
 		"answerCollision": 0.0223,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Все 8 экземпляров независимо пересчитаны в Python 3.12 прямой интерполяцией по позиции (n − 1)·p; медиана по частотам найдена через накопленные количества, без разворачивания списка. Ответы совпали. Проверены 9 результатов всех 8 перечисленных типов ошибок, все отвергаются. Повторы и методы интерполяции заданы условием; полный прогон ворот на 200 сидах каждого класса не выполнялся.",
+					"Angoff: intern 0.80 — процедура и производные статистики даны, 270 с достаточно для сортировки 8–14 чисел, остаются риски индексации и арифметики. Junior 0.75 — объединение, винзоризация и веса требуют дополнительных операций; за 360 с возможен полный расчёт, но binary не даёт частичного балла за верные промежуточные квантили."
+				],
+				"sourceSha256": "fd5fb13b22d39085ff9ec2b1c92991a91a65c44e542a2e3cad930f9f0b9ee85b"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчитал на Python все 8 экземпляров (линейная интерполяция по (n-1)·p, IQR, граница выбросов, робастная оценка, перцентиль объединения, винзоризация, перцентильный ранг, медиана по частотам): совпало с эталоном. Не проверял другие сиды.",
+					"Мелочь: answerCollision 0.0223 — самый высокий в пачке; источник — weighted-median и percentile-rank с маленьким пространством ответов. На вердикт не влияет.",
+					"Мелочь: junior-класс winsorize (два перцентиля с интерполяцией и среднее 16 значений) в 360 с трудоёмок без кода; учтено в Angoff."
+				],
+				"sourceSha256": "fd5fb13b22d39085ff9ec2b1c92991a91a65c44e542a2e3cad930f9f0b9ee85b"
+			}
+		]
 	}
 }

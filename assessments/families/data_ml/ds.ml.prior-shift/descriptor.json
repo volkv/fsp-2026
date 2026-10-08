@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "middle",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "1510120d5a0d2427a53d3e48f31fc4c2d7ab093a85ed61652163b7325bddeb20"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "1510120d5a0d2427a53d3e48f31fc4c2d7ab093a85ed61652163b7325bddeb20"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": { "inputs": "матрица ошибок и новая доля позитивов", "steps": "2–3", "formula": "не дана" },
 			"constructiveRank": 5,
 			"timeNormSec": 360,
@@ -33,7 +50,24 @@
 		},
 		{
 			"grade": "senior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.65,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "1510120d5a0d2427a53d3e48f31fc4c2d7ab093a85ed61652163b7325bddeb20"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.5,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "1510120d5a0d2427a53d3e48f31fc4c2d7ab093a85ed61652163b7325bddeb20"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": {
 				"inputs": "калиброванная модель, априорные доли, стоимости или выборка эксплуатации",
 				"steps": "3–4",
@@ -132,6 +166,29 @@
 		"answerCollision": 0.0057,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Senior, anchor bbse: путь решения заметно короче A threshold-shift и B cost-threshold: одна смесь q = TPR·π + FPR·(1−π) против пересчёта шансов и стоимости ошибок. Эталон anchor 0.1083333333 верен; при калибровке трудности отдельно проверить сопоставимость форм и anchor.",
+					"Angoff: Middle 0.60, Senior 0.65 — формулы не даны; полное решение требует самостоятельно восстановить поправку априорных шансов, а в B Senior ещё и порог по стоимости ошибок. Простая оценка доли в anchor повышает вероятность успеха.",
+					"Проверка: все 8 показанных экземпляров пересчитаны в Python 3.12.3 формулами из определения метрик и закона Байеса, с точными рациональными числами; ответы совпали. Дополнительно 1600 экземпляров (200 сидов каждого класса) пересчитаны тем же независимым способом; 3400 применимых ошибочных ответов отвергнуты действующим чекером. Генераторы запускались только во временной копии с метаданными из пакета; descriptor.json и полный штатный запуск ворот не проверялись."
+				],
+				"sourceSha256": "1510120d5a0d2427a53d3e48f31fc4c2d7ab093a85ed61652163b7325bddeb20"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчитал все 8 экземпляров независимым Python-кодом по формулам из условия (TPR/TNR при новой доле, поправка шансов при прореживании, пересчёт порога через отношение шансов, байесовский порог по стоимостям, BBSE, вероятностный подсчёт): все ответы совпали с эталоном. Генератор не открывал.",
+					"Мелочь, Senior: классы threshold-shift и cost-threshold сводятся к одной формуле пересчёта шансов, а bbse и probabilistic-count к одной линейной формуле; по сути 3-4 шага, но формула не дана, поэтому для пограничного Senior задание скорее среднее по трудности. Классы заметно различаются по сложности (bbse проще threshold-shift).",
+					"Мелочь: допуск float_eps к значению, округлённому до 3 знаков, в условии не назван; при округлении кандидатом до 3 знаков расхождение с эталоном до 0.0005 должно приниматься, это свойство проверки, не проверялось."
+				],
+				"sourceSha256": "1510120d5a0d2427a53d3e48f31fc4c2d7ab093a85ed61652163b7325bddeb20"
+			}
+		]
 	}
 }

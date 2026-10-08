@@ -30,7 +30,8 @@ function counts(rng: Rng, segments: number): { users: number[]; conv: number[] }
 	return { users, conv };
 }
 
-const RATE_RULE = 'Конверсия — доля пользователей с покупкой.';
+const RATE_RULE =
+	'Сегменты не пересекаются: каждый пользователь — ровно в одном сегменте. Конверсия — доля пользователей с покупкой.';
 
 function overallRate(rng: Rng): ComputedScenario {
 	const names = segmentsOf(rng, rng.int(2, 4));
@@ -117,18 +118,19 @@ function mixShift(rng: Rng): ComputedScenario {
 function arpu(rng: Rng): ComputedScenario {
 	const names = segmentsOf(rng, rng.int(2, 4));
 	const users = names.map(() => rng.int(200, 20000));
-	const paying = names.map(() => rng.int(5, 200) / 1000);
+	// Whole numbers of paying users: a share would have to be rounded back to a count.
+	const paying = users.map((u) => Math.max(1, Math.round((u * rng.int(5, 200)) / 1000)));
 	const payment = names.map(() => rng.int(150, 3000));
-	const revenue = users.map((u, i) => u * (paying[i] ?? 0) * (payment[i] ?? 0));
+	const revenue = paying.map((p, i) => p * (payment[i] ?? 0));
 	return {
 		markdown: [
 			'Данные игры по платформам за месяц:',
 			'',
-			'| платформа | пользователей | доля платящих | средний платёж платящего, ₽ |',
+			'| платформа | пользователей | платящих | средняя выручка за месяц с одного платящего, ₽ |',
 			'| --- | --- | --- | --- |',
-			...names.map((n, i) => `| ${n} | ${users[i]} | ${share(paying[i] ?? 0)} | ${payment[i]} |`),
+			...names.map((n, i) => `| ${n} | ${users[i]} | ${paying[i]} | ${payment[i]} |`),
 			'',
-			'Найдите **ARPU** — выручку на одного пользователя по всем платформам вместе, ₽.',
+			'Каждый пользователь играет ровно на одной платформе. Найдите **ARPU** — выручку на одного пользователя по всем платформам вместе, ₽.',
 			'',
 			roundingRule(DIGITS)
 		].join('\n'),
@@ -140,7 +142,13 @@ function arpu(rng: Rng): ComputedScenario {
 }
 
 function reversal(rng: Rng): ComputedScenario | null {
-	const [low, high] = rng.sample(['мобильные', 'десктоп', 'новые', 'вернувшиеся'], 2);
+	// Two values of one attribute: the segments split the users, every user is in exactly one of them.
+	const [low, high] = rng.shuffle(
+		rng.pick([
+			['мобильные', 'десктоп'],
+			['новые', 'вернувшиеся']
+		] as const)
+	);
 	const rLow = rng.int(15, 60) / 1000;
 	const rHigh = rng.int(150, 350) / 1000;
 	const nA = rng.int(1500, 6000);
@@ -290,7 +298,7 @@ elif cls in ("rate-difference", "reversal"):
 elif cls == "mix-shift":
     print(repr(sum(w * r for w, r in zip(p["weights"], p["rates"]))))
 elif cls == "arpu":
-    revenue = sum(u * s * m for u, s, m in zip(p["users"], p["paying"], p["payment"]))
+    revenue = sum(k * m for k, m in zip(p["paying"], p["payment"]))
     print(repr(revenue / sum(p["users"])))
 elif cls == "standardized":
     a, b = p["groups"]

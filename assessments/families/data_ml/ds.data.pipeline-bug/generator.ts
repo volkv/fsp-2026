@@ -1,7 +1,7 @@
 // A module of data preparation for a model: functions that aggregate, fill, parse, join, scale, split and encode
-// tables, each with its specification in the docstring; exactly one line breaks its function's specification. The
-// candidate names that line. The kind of defect is the essential class; the other functions, their order and the
-// module header are surface.
+// tables, each with its specification in the docstring; the module has one defect. The candidate names its line (any
+// line where a one-instruction replacement restores the specification counts). The kind of defect is the essential
+// class; the other functions, their order and the module header are surface.
 import {
 	instanceRng,
 	levelAndClass,
@@ -15,19 +15,29 @@ import type { Rng } from '../../_lib/rng.ts';
 
 const descriptor = readDescriptor(import.meta.url);
 
-/** A function of the module: its lines, the checks of its specification and its possible defects (0-based lines). */
+/** A defect of a function (0-based lines): the replaced line, a plausible but wrong neighbouring change, and other lines
+ * where a one-instruction replacement also restores the specification. */
+interface Defect {
+	kind: string;
+	line: number;
+	text: string;
+	neighbour: { line: number; text: string };
+	alternatives?: { line: number; text: string }[];
+}
+
+/** A function of the module: its lines, the checks of its specification and its possible defects. */
 interface Fn {
 	lines: string[];
 	/** Python statements, each raising when the specification is broken. */
 	checks: string[];
-	defects: { kind: string; line: number; text: string; neighbour: { line: number; text: string } }[];
+	defects: Defect[];
 }
 
 const JUNIOR: Fn[] = [
 	{
 		lines: [
 			'def mean_by_key(rows, key, field):',
-			'    """rows — словари. Словарь: значение key -> среднее field по строкам, где field не None; ключ без значений в результат не попадает."""',
+			'    """rows — словари с полями key и field. Словарь: значение key -> среднее field по строкам, где field не None; ключ без значений в результат не попадает."""',
 			'    sums, counts = {}, {}',
 			'    for row in rows:',
 			'        value = row[field]',
@@ -47,7 +57,8 @@ const JUNIOR: Fn[] = [
 				kind: 'aggregation',
 				line: 9,
 				text: '        counts[k] = counts.get(k, 1) + 1',
-				neighbour: { line: 7, text: '        k = str(row[key])' }
+				neighbour: { line: 7, text: '        k = str(row[key])' },
+				alternatives: [{ line: 10, text: '    return {k: sums[k] / (counts[k] - 1) for k in sums}' }]
 			},
 			{
 				kind: 'missing',
@@ -60,7 +71,7 @@ const JUNIOR: Fn[] = [
 	{
 		lines: [
 			'def count_distinct(rows, key, field):',
-			'    """rows — словари. Словарь: значение key -> число различных значений field, кроме None."""',
+			'    """rows — словари с полями key и field. Словарь: значение key -> число различных значений field, кроме None; ключ без значений в результат не попадает."""',
 			'    seen = {}',
 			'    for row in rows:',
 			'        if row[field] is None:',
@@ -69,14 +80,16 @@ const JUNIOR: Fn[] = [
 			'    return {k: len(v) for k, v in seen.items()}'
 		],
 		checks: [
-			'assert count_distinct([{"u": "a", "i": "x"}, {"u": "a", "i": "x"}, {"u": "a", "i": None}, {"u": "b", "i": "y"}, {"u": "a", "i": "z"}], "u", "i") == {"a": 2, "b": 1}'
+			'assert count_distinct([{"u": "a", "i": "x"}, {"u": "a", "i": "x"}, {"u": "a", "i": None}, {"u": "b", "i": "y"}, {"u": "a", "i": "z"}], "u", "i") == {"a": 2, "b": 1}',
+			'assert count_distinct([{"u": "c", "i": None}], "u", "i") == {}'
 		],
 		defects: [
 			{
 				kind: 'aggregation',
 				line: 6,
 				text: '        seen.setdefault(row[key], []).append(row[field])',
-				neighbour: { line: 4, text: '        if not row[field]:' }
+				neighbour: { line: 4, text: '        if not row[field]:' },
+				alternatives: [{ line: 7, text: '    return {k: len(set(v)) for k, v in seen.items()}' }]
 			},
 			{
 				kind: 'missing',
@@ -106,7 +119,7 @@ const JUNIOR: Fn[] = [
 			{
 				kind: 'types',
 				line: 5,
-				text: '    cleaned = cleaned.replace(",", ".")',
+				text: '    cleaned = cleaned.replace(" ", "").replace(",", "")',
 				neighbour: { line: 3, text: '    if cleaned == "":' }
 			},
 			{
@@ -126,7 +139,7 @@ const JUNIOR: Fn[] = [
 	{
 		lines: [
 			'def to_int_column(values):',
-			'    """Список строк или None. Список int; пустая или пробельная строка и None — None; \'007\' — 7."""',
+			'    """Список: строки с целым числом (возможны пробелы по краям), пустые или пробельные строки, None. Список int; пустая или пробельная строка и None — None; \'007\' — 7."""',
 			'    result = []',
 			'    for v in values:',
 			'        if v is None or v.strip() == "":',
@@ -154,7 +167,7 @@ const JUNIOR: Fn[] = [
 	{
 		lines: [
 			'def left_join(left, right, key):',
-			'    """Списки словарей, в right ключ уникален. Для каждой строки left — её копия с добавленными полями пары из right; без пары — только поля left. Порядок left сохраняется, входные списки не меняются."""',
+			'    """Списки словарей с полем key; в right ключ уникален, других общих полей у строк left и right нет. Для каждой строки left — её копия с добавленными полями пары из right; без пары — только поля left. Порядок left сохраняется, входные списки не меняются."""',
 			'    index = {row[key]: row for row in right}',
 			'    result = []',
 			'    for row in left:',
@@ -189,7 +202,7 @@ const JUNIOR: Fn[] = [
 	{
 		lines: [
 			'def join_all(left, right, key):',
-			'    """Все пары строк с равным ключом (ключ может повторяться в обеих таблицах); None в ключе ни с чем не соединяется. Список слияний {**строка left, **строка right} в порядке left, затем right."""',
+			'    """Строки обеих таблиц — словари с полем key. Все пары строк с равным ключом (ключ может повторяться в обеих таблицах); None в ключе ни с чем не соединяется. Список слияний {**строка left, **строка right} в порядке left, затем right."""',
 			'    groups = {}',
 			'    for row in right:',
 			'        if row[key] is not None:',
@@ -214,7 +227,7 @@ const JUNIOR: Fn[] = [
 			{
 				kind: 'join',
 				line: 4,
-				text: '        if True:',
+				text: '        if key is not None:',
 				neighbour: { line: 9, text: '            result.append(dict(row, **match))' }
 			}
 		]
@@ -259,7 +272,10 @@ const JUNIOR: Fn[] = [
 			'        totals[group] = totals.get(group, 0) + amount',
 			'    return totals'
 		],
-		checks: ['assert total_by_group([("a", 5), ("b", 1), ("a", None), ("a", 2)]) == {"a": 7, "b": 1}'],
+		checks: [
+			'assert total_by_group([("a", 5), ("b", 1), ("a", None), ("a", 2)]) == {"a": 7, "b": 1}',
+			'assert total_by_group([("c", None)]) == {}'
+		],
 		defects: [
 			{
 				kind: 'aggregation',
@@ -270,7 +286,7 @@ const JUNIOR: Fn[] = [
 			{
 				kind: 'missing',
 				line: 4,
-				text: '        if amount is None and group is None:',
+				text: '        if group is None:',
 				neighbour: { line: 7, text: '    return dict(totals)' }
 			}
 		]
@@ -305,7 +321,8 @@ const JUNIOR: Fn[] = [
 				kind: 'aggregation',
 				line: 9,
 				text: '    return (data[mid] + data[mid + 1]) / 2',
-				neighbour: { line: 3, text: '    n = len(list(data))' }
+				neighbour: { line: 3, text: '    n = len(list(data))' },
+				alternatives: [{ line: 6, text: '    mid = (n - 1) // 2' }]
 			}
 		]
 	},
@@ -322,13 +339,15 @@ const JUNIOR: Fn[] = [
 				kind: 'types',
 				line: 2,
 				text: '    year, month, day = text.strip().split(".")',
-				neighbour: { line: 3, text: '    return int(year), int(month), int(day.lstrip("0") or 0)' }
+				neighbour: { line: 3, text: '    return int(year), int(month), int(day.lstrip("0") or 0)' },
+				alternatives: [{ line: 3, text: '    return int(day), int(month), int(year)' }]
 			},
 			{
 				kind: 'types',
 				line: 3,
 				text: '    return year, month, day',
-				neighbour: { line: 2, text: '    day, month, year = text.split(".")' }
+				neighbour: { line: 2, text: '    day, month, year = text.split(".")' },
+				alternatives: [{ line: 2, text: '    day, month, year = map(int, text.strip().split("."))' }]
 			}
 		]
 	}
@@ -338,7 +357,7 @@ const MIDDLE: Fn[] = [
 	{
 		lines: [
 			'def standardize(train, test):',
-			'    """Списки чисел. Пара (train, test), стандартизованных средним и стандартным отклонением (делитель n), посчитанными только по train."""',
+			'    """Списки чисел; train непустой, и его значения не все равны. Пара (train, test), стандартизованных средним и стандартным отклонением (делитель n), посчитанными только по train."""',
 			'    mean = sum(train) / len(train)',
 			'    std = (sum((x - mean) ** 2 for x in train) / len(train)) ** 0.5',
 			'    scale = lambda xs: [(x - mean) / std for x in xs]',
@@ -363,7 +382,7 @@ const MIDDLE: Fn[] = [
 	{
 		lines: [
 			'def impute_median(train_col, test_col):',
-			'    """Пропуски (None) в обоих списках заполняются медианой непустых значений train; пара новых списков."""',
+			'    """Списки чисел с None; в train есть хотя бы одно значение не None. Пропуски (None) в обоих списках заполняются медианой непустых значений train; пара новых списков."""',
 			'    known = sorted(v for v in train_col if v is not None)',
 			'    n = len(known)',
 			'    med = known[n // 2] if n % 2 else (known[n // 2 - 1] + known[n // 2]) / 2',
@@ -386,7 +405,7 @@ const MIDDLE: Fn[] = [
 	{
 		lines: [
 			'def scale_features(train, test, field):',
-			'    """train, test — списки словарей. Добавляет каждой строке field + \'_scaled\': min-max по min и max field в train (тест может выйти за [0, 1])."""',
+			'    """train, test — списки словарей с числовым field; в train есть строки с разными field. Добавляет каждой строке field + \'_scaled\': min-max по min и max field в train (тест может выйти за [0, 1])."""',
 			'    lo = min(r[field] for r in train)',
 			'    hi = max(r[field] for r in train)',
 			'    for r in train + test:',
@@ -410,7 +429,7 @@ const MIDDLE: Fn[] = [
 	{
 		lines: [
 			'def time_split(rows, cutoff):',
-			'    """rows — словари с \'ts\'. train — строки с ts < cutoff, test — с ts >= cutoff; обе части по возрастанию ts."""',
+			'    """rows — словари с \'ts\', значения ts различны. train — строки с ts < cutoff, test — с ts >= cutoff; обе части по возрастанию ts."""',
 			'    ordered = sorted(rows, key=lambda r: r["ts"])',
 			'    train = [r for r in ordered if r["ts"] < cutoff]',
 			'    test = [r for r in ordered if r["ts"] >= cutoff]',
@@ -426,19 +445,13 @@ const MIDDLE: Fn[] = [
 				line: 3,
 				text: '    train = [r for r in ordered if r["ts"] <= cutoff]',
 				neighbour: { line: 2, text: '    ordered = sorted(rows, key=lambda r: (r["ts"], r.get("id", 0)))' }
-			},
-			{
-				kind: 'time-split',
-				line: 2,
-				text: '    ordered = list(rows)',
-				neighbour: { line: 5, text: '    return list(train), list(test)' }
 			}
 		]
 	},
 	{
 		lines: [
 			'def holdout_last(rows, share):',
-			'    """rows — словари с \'ts\' в любом порядке. Последние по времени round(len(rows) * share) строк — test, остальные — train; обе части по возрастанию ts."""',
+			'    """rows — словари с \'ts\' в любом порядке, значения ts различны; 0 <= share <= 1. Последние по времени round(len(rows) * share) строк — test, остальные — train; обе части по возрастанию ts."""',
 			'    ordered = sorted(rows, key=lambda r: r["ts"])',
 			'    k = round(len(ordered) * share)',
 			'    cut = len(ordered) - k',
@@ -452,7 +465,7 @@ const MIDDLE: Fn[] = [
 			{
 				kind: 'time-split',
 				line: 5,
-				text: '    return ordered[k:], ordered[:k]',
+				text: '    return ordered[cut:], ordered[:cut]',
 				neighbour: { line: 4, text: '    cut = max(0, len(ordered) - k)' }
 			},
 			{
@@ -466,7 +479,7 @@ const MIDDLE: Fn[] = [
 	{
 		lines: [
 			'def lag_feature(rows):',
-			"    \"\"\"rows — словари с 'user', 'ts', 'y' в любом порядке. Добавляет 'prev_y': y предыдущей по времени строки того же пользователя, у первой — None.\"\"\"",
+			"    \"\"\"rows — словари с 'user', 'ts', 'y' в любом порядке. Пары (user, ts) не повторяются. Добавляет 'prev_y': y предыдущей по времени строки того же пользователя, у первой — None.\"\"\"",
 			'    last = {}',
 			'    for r in sorted(rows, key=lambda r: r["ts"]):',
 			'        r["prev_y"] = last.get(r["user"])',
@@ -482,7 +495,7 @@ const MIDDLE: Fn[] = [
 			{
 				kind: 'time-split',
 				line: 3,
-				text: '    for r in rows:',
+				text: '    for r in sorted(rows, key=lambda r: r["user"]):',
 				neighbour: { line: 5, text: '        last[r["user"]] = r.get("y")' }
 			},
 			{
@@ -510,7 +523,8 @@ const MIDDLE: Fn[] = [
 				kind: 'encoding',
 				line: 3,
 				text: '    for v in train_values + test_values:',
-				neighbour: { line: 2, text: '    cats = list()' }
+				neighbour: { line: 2, text: '    cats = list()' },
+				alternatives: [{ line: 4, text: '        if v not in cats and v in train_values:' }]
 			},
 			{
 				kind: 'encoding',
@@ -540,9 +554,12 @@ const MIDDLE: Fn[] = [
 			},
 			{
 				kind: 'encoding',
-				line: 3,
-				text: '    return [codes[v] for v in train_values], [codes.get(v, len(codes)) for v in test_values]',
-				neighbour: { line: 2, text: '    codes = {c: i for i, c in enumerate(sorted(list(set(train_values))))}' }
+				line: 2,
+				text: '    codes = {c: i for i, c in enumerate(sorted(set(train_values)), start=1)}',
+				neighbour: {
+					line: 3,
+					text: '    return [codes[v] for v in train_values], [codes.get(v, unknown) for v in list(test_values)]'
+				}
 			}
 		]
 	},
@@ -571,7 +588,7 @@ const MIDDLE: Fn[] = [
 	{
 		lines: [
 			'def split_by_user(rows, share):',
-			'    """rows — словари с \'user\'. Различные пользователи по возрастанию; первые round(число пользователей * share) — в test, остальные — в train. Строки пользователя не попадают в обе части; порядок строк сохраняется."""',
+			'    """rows — словари с \'user\'; 0 <= share <= 1. Различные пользователи по возрастанию; первые round(число пользователей * share) — в test, остальные — в train. Строки пользователя не попадают в обе части; порядок строк сохраняется."""',
 			'    users = sorted({r["user"] for r in rows})',
 			'    k = round(len(users) * share)',
 			'    test_users = set(users[:k])',
@@ -583,7 +600,9 @@ const MIDDLE: Fn[] = [
 			'su = [{"user": u} for u in [5, 2, 5, 7, 9, 5, 7]]',
 			'su_train, su_test = split_by_user(su, 0.25)',
 			'assert [r["user"] for r in su_test] == [2]',
-			'assert [r["user"] for r in su_train] == [5, 5, 7, 9, 5, 7]'
+			'assert [r["user"] for r in su_train] == [5, 5, 7, 9, 5, 7]',
+			'su2_train, su2_test = split_by_user([{"user": u} for u in [3, 3, 1, 1, 2]], 0.5)',
+			'assert [r["user"] for r in su2_test] == [1, 1, 2]'
 		],
 		defects: [
 			{
@@ -603,7 +622,7 @@ const MIDDLE: Fn[] = [
 	{
 		lines: [
 			'def dedup_events(rows):',
-			'    """rows — словари с \'user\', \'item\', \'ts\'. Из повторов пары (user, item) остаётся самая ранняя по ts; результат по возрастанию ts."""',
+			'    """rows — словари с \'user\', \'item\', \'ts\', значения ts различны. Из повторов пары (user, item) остаётся самая ранняя по ts; результат по возрастанию ts."""',
 			'    seen = set()',
 			'    result = []',
 			'    for r in sorted(rows, key=lambda r: r["ts"]):',
@@ -636,24 +655,28 @@ const MIDDLE: Fn[] = [
 	{
 		lines: [
 			'def kfold_by_group(groups, k):',
-			'    """groups — id группы каждой строки. Фолд строки — позиция её группы в отсортированном списке различных групп по модулю k: строки одной группы всегда в одном фолде."""',
+			'    """groups — id группы каждой строки (сравнимые между собой), k >= 1. Фолд строки — позиция её группы в отсортированном списке различных групп по модулю k: строки одной группы всегда в одном фолде."""',
 			'    order = sorted(set(groups))',
 			'    fold_of = {g: i % k for i, g in enumerate(order)}',
 			'    return [fold_of[g] for g in groups]'
 		],
-		checks: ['assert kfold_by_group(["b", "a", "b", "c", "a"], 2) == [1, 0, 1, 0, 0]'],
+		checks: [
+			'assert kfold_by_group(["b", "a", "b", "c", "a"], 2) == [1, 0, 1, 0, 0]',
+			'assert kfold_by_group(["d", "c", "b", "a"], 3) == [0, 2, 1, 0]'
+		],
 		defects: [
 			{
 				kind: 'group-split',
-				line: 4,
-				text: '    return [i % k for i, g in enumerate(groups)]',
-				neighbour: { line: 3, text: '    fold_of = {g: i % k for i, g in enumerate(sorted(order))}' }
+				line: 3,
+				text: '    fold_of = {g: i // k for i, g in enumerate(order)}',
+				neighbour: { line: 2, text: '    order = list(sorted(set(groups)))' }
 			},
 			{
 				kind: 'group-split',
 				line: 2,
 				text: '    order = sorted(groups)',
-				neighbour: { line: 4, text: '    return [fold_of.get(g) for g in groups]' }
+				neighbour: { line: 4, text: '    return [fold_of.get(g) for g in groups]' },
+				alternatives: [{ line: 3, text: '    fold_of = {g: i % k for i, g in enumerate(dict.fromkeys(order))}' }]
 			}
 		]
 	}
@@ -682,6 +705,7 @@ interface Program {
 	fix: string;
 	neighbour: { line: number; text: string };
 	other: { line: number; text: string };
+	alternatives: { line: number; fix: string }[];
 }
 
 function compose(rng: Rng, library: readonly Fn[], kind: string, contextCount: number): Program {
@@ -707,11 +731,13 @@ function compose(rng: Rng, library: readonly Fn[], kind: string, contextCount: n
 	let answer = 0;
 	let neighbour = { line: 0, text: '' };
 	let other = { line: 0, text: '' };
+	let alternatives: Program['alternatives'] = [];
 	for (const fn of order) {
 		const offset = lines.length;
 		fn.lines.forEach((line, i) => lines.push(fn === buggy && i === defect.line ? defect.text : line));
 		if (fn === buggy) {
 			answer = offset + defect.line + 1;
+			alternatives = (defect.alternatives ?? []).map((a) => ({ line: offset + a.line + 1, fix: a.text }));
 			neighbour = { line: offset + defect.neighbour.line + 1, text: defect.neighbour.text };
 		} else if (other.line === 0) {
 			const sibling = fn.defects[0];
@@ -732,7 +758,7 @@ function compose(rng: Rng, library: readonly Fn[], kind: string, contextCount: n
 		'except Exception as exc:',
 		"    print('fail', type(exc).__name__)"
 	].join('\n');
-	return { source: lines.join('\n'), check, answer, fix, neighbour, other };
+	return { source: lines.join('\n'), check, answer, fix, neighbour, other, alternatives };
 }
 
 export function build(input: GenerateInput): Built {
@@ -743,17 +769,31 @@ export function build(input: GenerateInput): Built {
 		statement: {
 			markdown:
 				'Модуль подготовки данных для модели на Python 3. У каждой функции в строке документации записана её ' +
-				'спецификация. Ровно одна строка модуля нарушает спецификацию своей функции: если заменить только её, все ' +
-				'функции будут работать по спецификации. Введите номер этой строки (нумерация с 1).',
+				'спецификация. В модуле один дефект: одна функция нарушает свою спецификацию. ' +
+				'Введите номер строки, замена которой одной инструкцией восстанавливает спецификацию всех функций (нумерация с 1). ' +
+				'Если исправить можно в нескольких строках — засчитывается любая из них, где замена одной инструкцией восстанавливает спецификацию. Исправление — одна простая инструкция того же вида, что исправляемая строка: не добавляйте ' +
+				'конструкций, которых в ней нет (`:=`, lambda, обёртки, новые функции), и не переносите в неё логику из другой строки.',
 			code: { language: 'python3', source: p.source }
 		},
-		answer: { kind: 'line_no', value: p.answer }
+		answer: {
+			kind: 'line_no',
+			value: p.answer,
+			...(p.alternatives.length ? { alternatives: p.alternatives.map((a) => a.line) } : {})
+		}
 	});
 	return {
 		instance,
-		reference: () => ({ kind: 'bug', check: p.check, fix: p.fix }),
+		reference: () => ({
+			kind: 'bug',
+			check: p.check,
+			fix: p.fix,
+			...(p.alternatives.length ? { alternatives: p.alternatives } : {})
+		}),
 		wrong: () => ({
-			'neighbour-line': { kind: 'line', line: p.neighbour.line, replacement: p.neighbour.text },
+			// A neighbour that is itself an accepted alternative is not a wrong answer.
+			'neighbour-line': p.alternatives.some((a) => a.line === p.neighbour.line)
+				? null
+				: { kind: 'line', line: p.neighbour.line, replacement: p.neighbour.text },
 			'other-function': p.other.line === 0 ? null : { kind: 'line', line: p.other.line, replacement: p.other.text }
 		})
 	};

@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.75,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "52bc89c1f2d44dfc4e7ee9b008d08187f6da14c215e43b8eb2f3a800b76771a4"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.65,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "52bc89c1f2d44dfc4e7ee9b008d08187f6da14c215e43b8eb2f3a800b76771a4"
+					}
+				],
+				"mean": 0.7
+			},
 			"constructive": { "rows": "7–11", "groups": "1–3", "window": "1–4", "steps": "2–3" },
 			"constructiveRank": 4,
 			"timeNormSec": 360,
@@ -37,7 +54,24 @@
 		},
 		{
 			"grade": "middle",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.7,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "52bc89c1f2d44dfc4e7ee9b008d08187f6da14c215e43b8eb2f3a800b76771a4"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.5,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "52bc89c1f2d44dfc4e7ee9b008d08187f6da14c215e43b8eb2f3a800b76771a4"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": {
 				"rows": "6–11",
 				"groups": "1–3",
@@ -138,6 +172,28 @@
 		"answerCollision": 0.0055,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Независимо пересчитал все 8 экземпляров в Python 3.12 по таблицам и коду условия: групповые сдвиги и суммы, окна с min_periods и NaN, pct_change, среднее прошлых значений и ewm через явные веса. Все ответы совпали; все 14 видов ошибочных правил отвергаются на применимых показанных экземплярах. Правила rolling и ewm сверены с документацией pandas: https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.rolling.html и https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.ewm.html. pandas в среде отсутствует, исходные программы с ним не запускал; ворота на 200 сидах не повторял.",
+					"Angoff: Junior 0.75, Middle 0.70. Учтены групповые границы, порядок строк, пропуск NaN при итоговом суммировании и арифметика нескольких окон. При binary одна ошибка в промежуточном расчёте меняет весь ответ; 360/420 секунд достаточно для кандидата, владеющего соответствующими операциями pandas."
+				],
+				"sourceSha256": "52bc89c1f2d44dfc4e7ee9b008d08187f6da14c215e43b8eb2f3a800b76771a4"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчитал все 8 показанных экземпляров независимо на чистом Python (pandas в песочнице нет, правила окон, shift, expanding, ewm adjust=False и min_periods выписал вручную): все ответы совпали с ожидаемыми, включая 395 (при обходе без сортировки получилось бы 305, то есть ловушка unsorted настоящая), 743.33, 2645, -0.1603, 1266.67, 1178.33, 189.93, 1210. Генератор не открывал, на pandas живьём не проверял.",
+					"Мелочь: junior group-cumsum (anchor) заметно проще остальных классов уровня (одна операция cumsum по группе без сортировки и окон); при желании добавить в него сортировку или несколько групп с неравным размером, чтобы anchor не был самым лёгким.",
+					"Мелочь: middle ewm (anchor) требует семь последовательных шагов с дробью 0,3 за 420 с при бинарной рубрике; для пограничного кандидата это ощутимо, учтено в Angoff."
+				],
+				"sourceSha256": "52bc89c1f2d44dfc4e7ee9b008d08187f6da14c215e43b8eb2f3a800b76771a4"
+			}
+		]
 	}
 }
