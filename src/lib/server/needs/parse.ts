@@ -12,6 +12,7 @@ import { specializationsOfRole } from '$lib/server/categories/roles';
 import type { Database } from '$lib/server/db';
 import { mlResults } from '$lib/server/db/schema';
 import { extractModelEnvelope } from '$lib/server/ml/envelope';
+import type { VacancyOutput } from '$lib/server/ml/extract-output';
 import type { LlmRuntime } from '$lib/server/ml/runtime';
 import type { Block, QuoteLocation } from '$lib/server/ml/quotes';
 import type { VacancyItem } from '$lib/server/ml/vacancy-extract';
@@ -251,9 +252,13 @@ export async function parseNeedText(
 		fields = toFields(response.value.items);
 		values = {
 			...envelope,
-			model: extractModelEnvelope(response.value.model),
+			model: extractModelEnvelope(response.value.model, response.value.stored),
 			processingMode: 'model',
 			rejectedItems: response.value.rejectedReasons.map((reason) => ({ reason })),
+			output: {
+				items: response.value.items,
+				rejectedReasons: response.value.rejectedReasons
+			} satisfies VacancyOutput,
 			latencyMs: response.value.latencyMs
 		};
 	} else {

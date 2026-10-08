@@ -6,6 +6,7 @@ import { db } from '$lib/server/db';
 import { docparse } from '$lib/server/documents/docparse';
 import { fspIntegration } from '$lib/server/fsp/integration';
 import type { JobLogger } from '$lib/server/jobs/log';
+import { modelAdapter } from '$lib/server/ml';
 import { redis } from '$lib/server/redis';
 import { objectStore } from '$lib/server/storage/object-store';
 import { seedsDirectory } from './data';
@@ -32,6 +33,7 @@ export async function configuredDemoServices(log: JobLogger): Promise<DemoServic
 		crypto: fieldCrypto(),
 		store: objectStore(),
 		parser: docparse(),
+		models: modelAdapter,
 		fsp: fspIntegration(),
 		fspIdIssuer: settings.fspId.issuer,
 		fspMockOrigin: settings.fspAchievements.baseUrl,

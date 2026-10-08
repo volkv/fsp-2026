@@ -1,0 +1,4 @@
+{
+	"description": "Ответы модели на резюме героев и потребности сценария (seeds/demo.json): засев берёт их отсюда и модель не вызывает. Ключ — schemaVersion, taxonomy (метка версии таксономии) и inputSha256 (ml_results.input_sha256 разбора). Обновляется командой scripts/demo-model-parses.ts (docs/deploy.md, «Бюджет шлюза модели»).",
+	"parses": []
+}

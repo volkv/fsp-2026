@@ -8,6 +8,7 @@ import type { Docparse } from '$lib/server/documents/docparse';
 import type { FspIntegration } from '$lib/server/fsp/integration';
 import type { JobLogger } from '$lib/server/jobs/log';
 import type { Mailer, MailMessage } from '$lib/server/mail/mailer';
+import type { ModelAdapter } from '$lib/server/ml/adapter';
 import type { Redis } from '$lib/server/redis';
 import type { ObjectStore } from '$lib/server/storage/object-store';
 
@@ -19,6 +20,8 @@ export interface DemoServices {
 	crypto: FieldCrypto;
 	store: ObjectStore;
 	parser: Docparse;
+	/** The product's model adapter: the heroes' resumes and the scenario needs, in the `live` mode of the seed only. */
+	models: () => Pick<ModelAdapter, 'extract' | 'extractModelKey'>;
 	fsp: FspIntegration;
 	/** Issuer of FSP ID: external identities of the linked athletes. */
 	fspIdIssuer: string;

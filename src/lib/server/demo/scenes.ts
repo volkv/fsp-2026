@@ -50,7 +50,6 @@ import {
 import type { MatchingModels } from '$lib/server/matching/semantic';
 import { sendMessage } from '$lib/server/messages/conversation';
 import { GRADE_DECISION_RESULTS } from '$lib/server/matching/test-results';
-import { modelAdapter } from '$lib/server/ml';
 import type { ModelAdapter } from '$lib/server/ml/adapter';
 import { fail } from '$lib/server/ml/result';
 import type { NeedForm } from '$lib/server/needs/form';
@@ -68,6 +67,7 @@ import { documentOf, metaOf, sessionOf, subjectOf, type SeedContext } from './ac
 import type { SeededCandidate } from './candidates';
 import type { SeededCompany } from './companies';
 import type { ScenarioOffer, SeedData } from './data';
+import type { SeedModels } from './model-parses';
 import { Random, type NeedPlan } from './generate';
 
 /** Shortlists of the seed rank without the models: the stand does not wait for them. */
@@ -196,7 +196,7 @@ function shortlistDeps(ctx: SeedContext): ShortlistDeps {
 	};
 }
 
-/** Needs of a scenario company go to the product's model adapter, like the heroes' resumes; others are read by rules. */
+/** Needs of a scenario company get the model's stored answer, like the heroes' resumes (`model-parses.ts`); others are read by rules. */
 const RULES_ONLY: Pick<ModelAdapter, 'extract' | 'extractModelKey'> = {
 	extract: () =>
 		Promise.resolve(
@@ -607,7 +607,8 @@ export async function stageScenario(
 	ctx: SeedContext,
 	cast: Cast,
 	data: SeedData,
-	open: ReadonlySet<SpecializationKey>
+	open: ReadonlySet<SpecializationKey>,
+	models: SeedModels
 ): Promise<string[]> {
 	const closed: string[] = [];
 	for (const plan of data.demo.companies) {
@@ -619,7 +620,13 @@ export async function stageScenario(
 				closed.push(`${plan.key}.${need.key}`);
 				continue;
 			}
-			const needId = await ensureNeed(ctx, company, index, { text: need.text, form: need.form }, modelAdapter());
+			const needId = await ensureNeed(
+				ctx,
+				company,
+				index,
+				{ text: need.text, form: need.form },
+				models.need(need.text)
+			);
 			const shortlistId = await ensureShortlist(ctx, company, needId);
 			shortlistOf.set(need.key, shortlistId);
 			for (const marked of need.marks) {

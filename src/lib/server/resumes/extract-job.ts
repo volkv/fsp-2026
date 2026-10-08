@@ -29,6 +29,7 @@ import { fieldCrypto, type FieldCrypto } from '$lib/server/crypto/fields';
 import { modelAdapter } from '$lib/server/ml';
 import type { ModelAdapter } from '$lib/server/ml/adapter';
 import { extractModelEnvelope, type ExtractModelEnvelope } from '$lib/server/ml/envelope';
+import type { ResumeOutput } from '$lib/server/ml/extract-output';
 import type { Rejected } from '$lib/server/ml/extract-common';
 import { checkResumeItems, type ResumeItem } from '$lib/server/ml/resume-extract';
 import { insertProfileSuggestions, planProfileSuggestions } from '$lib/server/profile/suggestions';
@@ -39,6 +40,11 @@ import { extractByRules, RULES_VERSION, type RuleBlock } from './rules';
 import { loadResumeTaxonomy, resumeLexicon, type ResumeTaxonomy } from './taxonomy';
 
 export const RESUME_SCHEMA_VERSION = 'resume-extract/v3';
+
+/** `ml_results.input_sha256` of a resume's reading: the hash of the blocks the model sees. */
+export function resumeInputSha256(blocks: readonly { id: string; text: string }[]): string {
+	return createHash('sha256').update(canonicalJson(blocks), 'utf8').digest('hex');
+}
 
 const storedBlocks = z.array(
 	z.object({
@@ -106,6 +112,8 @@ const stale: JobResult = { isCurrent: () => Promise.resolve(false), write: () =>
 
 interface Extraction {
 	mode: 'model' | 'rules_only';
+	/** The model's checked answer as `ml_results.output` keeps it; `null` — the rules read the resume. */
+	output: ResumeOutput | null;
 	/** Model id or rules version that produced the items. */
 	producer: string;
 	items: ResumeItem[];
@@ -127,6 +135,7 @@ function rulesExtraction(target: Target, taxonomy: ResumeTaxonomy, failure: Reco
 	const checked = checkResumeItems(extractByRules(target.blocks, taxonomy), target.blocks, resumeLexicon(taxonomy));
 	return {
 		mode: 'rules_only',
+		output: null,
 		producer: RULES_VERSION,
 		items: checked.items,
 		rejected: checked.rejected,
@@ -233,10 +242,11 @@ export function createResumeExtractHandler(deps: ResumeExtractDeps): JobHandler<
 				const { value } = answer;
 				extraction = {
 					mode: 'model',
+					output: { items: value.items, rejected: value.rejected },
 					producer: value.model.modelId,
 					items: value.items,
 					rejected: value.rejected,
-					model: extractModelEnvelope(value.model),
+					model: extractModelEnvelope(value.model, value.stored === true),
 					failure: null,
 					latencyMs: value.latencyMs
 				};
@@ -292,7 +302,7 @@ export function createResumeExtractHandler(deps: ResumeExtractDeps): JobHandler<
 						operation: 'extract',
 						jobId: job.id,
 						inputRef: { type: 'document_extraction', id: target.extractionId },
-						inputSha256: createHash('sha256').update(canonicalJson(blocks), 'utf8').digest('hex'),
+						inputSha256: resumeInputSha256(blocks),
 						inputVersion: String(target.seq),
 						schemaVersion: RESUME_SCHEMA_VERSION,
 						taxonomyVersionId: taxonomy.id,
@@ -308,6 +318,7 @@ export function createResumeExtractHandler(deps: ResumeExtractDeps): JobHandler<
 							profile_suggestions: suggestions.map((suggestion) => suggestion.id)
 						},
 						rejectedItems: rejected,
+						output: extraction.output,
 						latencyMs: extraction.latencyMs
 					});
 					await insertEvidence(tx, target, plan, extraction, mlResultId, now);

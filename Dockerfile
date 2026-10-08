@@ -44,7 +44,7 @@ COPY package.json ./
 # Scripts run by plain Node (type stripping) next to the server. They import modules of src/ by relative path, so the
 # whole source tree comes along (tests are left out by .dockerignore): a script that runs from the repository runs
 # here, and a new import needs no line in this file. `pnpm check:image` starts the image to prove it.
-COPY scripts/migrate.ts scripts/seed-taxonomy.ts scripts/seed-legal.ts scripts/seed-policies.ts scripts/release-bank.ts ./scripts/
+COPY scripts/migrate.ts scripts/seed-taxonomy.ts scripts/seed-legal.ts scripts/seed-policies.ts scripts/release-bank.ts scripts/demo-model-parses.ts ./scripts/
 COPY src ./src
 COPY taxonomy ./taxonomy
 COPY legal ./legal

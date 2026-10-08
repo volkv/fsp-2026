@@ -48,7 +48,6 @@ import type { JobType } from '$lib/server/jobs/registry';
 import { marketRefresh } from '$lib/server/market/refresh';
 import { createMatchRefreshHandler } from '$lib/server/matching/refresh';
 import type { MatchingModels } from '$lib/server/matching/semantic';
-import { modelAdapter } from '$lib/server/ml';
 import type { ModelAdapter } from '$lib/server/ml/adapter';
 import { fail } from '$lib/server/ml/result';
 import { createResumeExtractHandler } from '$lib/server/resumes/extract-job';
@@ -61,6 +60,7 @@ import { ensureCandidate, inPool, type SeededCandidate } from './candidates';
 import { castOriginals, castRoles, markCastOriginals } from './cast';
 import { ensureCompany, type SeededCompany } from './companies';
 import { readSeedData, type SeedData } from './data';
+import { SeedModels, type SeedParses } from './model-parses';
 import {
 	athletePlan,
 	companyPlans,
@@ -148,16 +148,19 @@ async function candidateOfExtraction(services: DemoServices, extractionId: strin
 }
 
 /**
- * `extract` of the seed's resume jobs. The heroes' resumes go to the product's model adapter: the model reads them
- * when it is configured, switched on and answers; otherwise the job takes the product's rules path and the result
- * names the adapter's reason. The background candidates' resumes — hundreds of them — are read by the rules without a
- * model call, which would add minutes of the model per hundred resumes to the seed; their results name that reason.
+ * `extract` of the seed's resume jobs. The heroes' resumes get the model's stored answer, or the rules or the model
+ * (`model-parses.ts`). The background candidates' resumes — hundreds of them — are read by the rules without a model
+ * call, which would add minutes of the model per hundred resumes to the seed; their results name that reason.
  */
-function seedExtract(services: DemoServices, heroCandidateIds: ReadonlySet<string>): Pick<ModelAdapter, 'extract'> {
+function seedExtract(
+	services: DemoServices,
+	heroCandidateIds: ReadonlySet<string>,
+	models: SeedModels
+): Pick<ModelAdapter, 'extract'> {
 	return {
 		extract: async (request, lexicon, options) => {
 			if (heroCandidateIds.has(await candidateOfExtraction(services, request.input.id))) {
-				return modelAdapter().extract(request, lexicon, options);
+				return models.resume().extract(request, lexicon, options);
 			}
 			return fail('disabled', 'extract: background resumes of the demo seed are read by the rules', {
 				reason: 'demo_seed_background'
@@ -166,14 +169,14 @@ function seedExtract(services: DemoServices, heroCandidateIds: ReadonlySet<strin
 	};
 }
 
-function seedHandlers(services: DemoServices, heroCandidateIds: ReadonlySet<string>) {
+function seedHandlers(services: DemoServices, heroCandidateIds: ReadonlySet<string>, models: SeedModels) {
 	return handlerRegistry([
 		createFspSyncHandler(() => services.fsp),
 		createEvidenceHandler(),
 		createMatchRefreshHandler(() => MODELS_OFF),
 		createResumeParseHandler({ store: () => services.store, parser: () => services.parser }),
 		createResumeExtractHandler({
-			adapter: () => seedExtract(services, heroCandidateIds),
+			adapter: () => seedExtract(services, heroCandidateIds, models),
 			crypto: () => services.crypto,
 			now: () => new Date()
 		}),
@@ -223,6 +226,8 @@ export interface SeedSummary {
 	counts: SeedCounts;
 	/** `null` for a batch seeded earlier. */
 	tests: SeedTests | null;
+	/** How the heroes' resumes and the scenario needs were read; `null` for a batch seeded earlier. */
+	parses: SeedParses | null;
 	durationMs: number;
 }
 
@@ -419,7 +424,14 @@ export async function seedDemo(services: DemoServices): Promise<SeedSummary> {
 	const data = await readSeedData(services.seedsDir);
 	const batch = batchId(data, settings, await releasedBanks(services));
 	if (await isSeeded(services, batch)) {
-		return { status: 'already_seeded', batch, counts: await seedCounts(services, batch), tests: null, durationMs: 0 };
+		return {
+			status: 'already_seeded',
+			batch,
+			counts: await seedCounts(services, batch),
+			tests: null,
+			parses: null,
+			durationMs: 0
+		};
 	}
 	const foreign = (await seededBatches(services)).filter((b) => b !== batch);
 	if (foreign.length > 0) {
@@ -496,7 +508,8 @@ export async function seedDemo(services: DemoServices): Promise<SeedSummary> {
 	];
 	const heroes = new Map<string, SeededCandidate>();
 	for (const plan of heroPlans) heroes.set(plan.key, await ensureCandidate(ctx, plan));
-	const handlers = seedHandlers(services, new Set([...heroes.values()].map((hero) => hero.candidateId)));
+	const models = new SeedModels({ db, parses: data.modelParses, mode: settings.seedModel, models: services.models });
+	const handlers = seedHandlers(services, new Set([...heroes.values()].map((hero) => hero.candidateId)), models);
 	const drain = (label: string, types: readonly JobType[] = CHAIN) =>
 		drainJobs(db, handlers, types, { since: new Date(started), log, label });
 	// The whole cast is seeded now: its profiles and companies are the originals the demo sessions clone.
@@ -550,7 +563,7 @@ export async function seedDemo(services: DemoServices): Promise<SeedSummary> {
 
 	log.info('demo seed: needs, shortlists and offers', { batch });
 	const cast = { companies: companyMap, heroes, background: seededBackground, operatorUserId };
-	tests.closedScenes = await stageScenario(ctx, cast, data, open);
+	tests.closedScenes = await stageScenario(ctx, cast, data, open, models);
 	const gateway = ownVacancies.find((vacancy) => vacancy.scenarioKey === 'go_payments');
 	if (!gateway) throw new Error('the scenario needs the vacancy go_payments');
 	if (!(await stageContacts(ctx, cast, gateway.id, open))) tests.closedScenes.push('contacts');
@@ -585,6 +598,15 @@ export async function seedDemo(services: DemoServices): Promise<SeedSummary> {
 	);
 	await drain('scenario and market');
 
+	const parses = models.summary();
+	if (parses.missing.length > 0) {
+		// One line for the whole seed: what to export from a stand that read these texts with the model (docs/deploy.md).
+		log.warn('demo seed: no stored model parse, read by the rules', {
+			batch,
+			mode: settings.seedModel,
+			keys: parses.missing.join(' ')
+		});
+	}
 	const counts = await seedCounts(services, batch);
 	await recordAuditEvent(db, {
 		action: 'demo.seeded',
@@ -602,7 +624,7 @@ export async function seedDemo(services: DemoServices): Promise<SeedSummary> {
 			tests_closed_scenes: tests.closedScenes
 		}
 	});
-	return { status: 'seeded', batch, counts, tests, durationMs: Date.now() - started };
+	return { status: 'seeded', batch, counts, tests, parses, durationMs: Date.now() - started };
 }
 
 function required<T>(value: T | undefined): T {

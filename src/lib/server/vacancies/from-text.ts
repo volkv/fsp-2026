@@ -13,6 +13,7 @@ import { mlResults } from '$lib/server/db/schema';
 import { uuidv7 } from '$lib/server/ids';
 import { vacancyMarketPosition, type VacancyForPosition, type VacancyMarketPosition } from '$lib/server/market/read';
 import { extractModelEnvelope } from '$lib/server/ml/envelope';
+import type { VacancyOutput } from '$lib/server/ml/extract-output';
 import type { Block, QuoteLocation } from '$lib/server/ml/quotes';
 import type { VacancyItem } from '$lib/server/ml/vacancy-extract';
 import { roleOfTitle } from '$lib/server/taxonomy/roles';
@@ -338,9 +339,13 @@ export async function extractVacancyFromText(
 		fields = toFields(response.value.items);
 		values = {
 			...envelope,
-			model: extractModelEnvelope(response.value.model),
+			model: extractModelEnvelope(response.value.model, response.value.stored),
 			processingMode: 'model',
 			rejectedItems: response.value.rejectedReasons.map((reason) => ({ reason })),
+			output: {
+				items: response.value.items,
+				rejectedReasons: response.value.rejectedReasons
+			} satisfies VacancyOutput,
 			latencyMs: response.value.latencyMs
 		};
 	} else {

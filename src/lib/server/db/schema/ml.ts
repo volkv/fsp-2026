@@ -39,6 +39,8 @@ export const mlResults = pgTable(
 		failure: jsonb(),
 		evidenceRefs: jsonb(),
 		rejectedItems: jsonb(),
+		/** The checked answer of the model to `extract`: the items with their quotes, as the adapter gave them (domain 16.1). */
+		output: jsonb(),
 		latencyMs: integer(),
 		createdAt: ts().notNull().defaultNow()
 	},
@@ -54,6 +56,10 @@ export const mlResults = pgTable(
 			when 'rules_only' then ${t.model} is null and ${t.rulesVersion} is not null
 			when 'failed' then ${t.failure} is not null
 			else true end`
+		),
+		check(
+			'ml_results_output',
+			sql`${t.output} is null or (${t.operation} = 'extract' and ${t.processingMode} = 'model')`
 		),
 		check('ml_results_embed_space', sql`${t.operation} <> 'embed' or ${t.embeddingSpaceId} is not null`),
 		check('ml_results_latency', sql`${t.latencyMs} is null or ${t.latencyMs} >= 0`),

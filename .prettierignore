@@ -8,4 +8,5 @@ test-results/
 playwright-report/
 src/lib/server/db/migrations/meta/
 docs/
+seeds/model-parses.json
 static/

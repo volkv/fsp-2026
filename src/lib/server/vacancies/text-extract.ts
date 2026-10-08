@@ -6,16 +6,11 @@
 // answer of the model is kept — a failed call is not, so the next parse asks the model again.
 import { z } from 'zod';
 import type { CallOptions, ExtractResponse, ModelAdapter, ModelInfo } from '$lib/server/ml/adapter';
-import { POLARITIES, type Block } from '$lib/server/ml/quotes';
+import type { RejectReason } from '$lib/server/ml/extract-common';
+import { modelInfoSchema, vacancyOutputSchema } from '$lib/server/ml/extract-output';
+import type { Block } from '$lib/server/ml/quotes';
 import { ok, type ModelResult } from '$lib/server/ml/result';
-import { LLM_RUNTIMES } from '$lib/server/ml/runtime';
-import {
-	SALARY_PERIODS,
-	TAX_BASES,
-	VACANCY_ITEM_KINDS,
-	type VacancyItem,
-	type VacancyLexicon
-} from '$lib/server/ml/vacancy-extract';
+import type { VacancyItem, VacancyLexicon } from '$lib/server/ml/vacancy-extract';
 import type { Redis } from '$lib/server/redis';
 
 /** Schema of a pasted text's parse; a draft is saved only from a parse of this schema. */
@@ -28,14 +23,16 @@ export const TEXT_PARSE_CACHE_SECONDS = 86_400;
 export interface TextExtract {
 	model: ModelInfo;
 	items: VacancyItem[];
-	rejectedReasons: string[];
+	rejectedReasons: RejectReason[];
 	/** Time of this reading: the model's call, or the read of the kept answer. */
 	latencyMs: number;
 	/** The answer was kept from an earlier parse of the same text; the model was not called. */
 	cached: boolean;
+	/** The answer the model gave earlier, given again by the demo seed (`ExtractResponse.stored`); the model was not called. */
+	stored: boolean;
 }
 
-type KeptExtract = Omit<TextExtract, 'latencyMs' | 'cached'>;
+type KeptExtract = Omit<TextExtract, 'latencyMs' | 'cached' | 'stored'>;
 
 /** Where the answers are kept. */
 export interface TextParseCache {
@@ -66,36 +63,7 @@ export function memoryTextParseCache(): TextParseCache {
 	};
 }
 
-const quoteSchema = z.object({ blockId: z.string(), start: z.number(), end: z.number(), text: z.string() });
-const keptSchema = z.object({
-	model: z.object({
-		modelId: z.string(),
-		modelRevision: z.string().nullable(),
-		runtime: z.enum(LLM_RUNTIMES),
-		params: z.record(z.string(), z.unknown())
-	}),
-	items: z.array(
-		z.object({
-			kind: z.enum(VACANCY_ITEM_KINDS),
-			rawText: z.string(),
-			polarity: z.enum(POLARITIES).nullable(),
-			modelPolarity: z.enum(POLARITIES).nullable(),
-			grade: z.object({ min: z.string().nullable(), max: z.string().nullable() }).nullable(),
-			value: z.string().nullable(),
-			salary: z
-				.object({
-					min: z.number().nullable(),
-					max: z.number().nullable(),
-					currency: z.string().nullable(),
-					period: z.enum(SALARY_PERIODS).nullable(),
-					taxBase: z.enum(TAX_BASES)
-				})
-				.nullable(),
-			quote: quoteSchema
-		})
-	),
-	rejectedReasons: z.array(z.string())
-}) satisfies z.ZodType<KeptExtract>;
+const keptSchema = vacancyOutputSchema.extend({ model: modelInfoSchema }) satisfies z.ZodType<KeptExtract>;
 
 export interface TextExtractDeps {
 	models: Pick<ModelAdapter, 'extract' | 'extractModelKey'>;
@@ -132,7 +100,7 @@ export async function extractPastedText(
 	const stored = key === null ? null : await deps.parseCache.read(key);
 	if (stored !== null) {
 		const kept = keptSchema.parse(JSON.parse(stored));
-		return ok({ ...kept, latencyMs: Date.now() - started, cached: true });
+		return ok({ ...kept, latencyMs: Date.now() - started, cached: true, stored: false });
 	}
 	const response = await deps.models.extract(
 		{
@@ -147,7 +115,7 @@ export async function extractPastedText(
 	if (!response.ok) return response;
 	const kept = keptOf(response.value);
 	if (key !== null) await deps.parseCache.write(key, JSON.stringify(kept), TEXT_PARSE_CACHE_SECONDS);
-	return ok({ ...kept, latencyMs: response.value.latencyMs, cached: false });
+	return ok({ ...kept, latencyMs: response.value.latencyMs, cached: false, stored: response.value.stored === true });
 }
 
 function keptOf(answer: ExtractResponse<VacancyItem>): KeptExtract {

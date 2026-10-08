@@ -6,16 +6,19 @@ import { locateQuote, readsAsInstruction, type Block, type QuoteLocation } from 
 /** A value the text does not state, where structured output cannot leave the field out. */
 export const NOT_STATED = 'not_stated';
 
-export type RejectReason =
-	| 'schema_violation'
-	| 'block_not_found'
-	| 'quote_not_found'
-	| 'quote_not_supporting'
-	| 'quote_is_instruction'
-	| 'forbidden_field'
-	| 'unknown_enum'
-	| 'incomplete_group'
-	| 'duplicate';
+export const REJECT_REASONS = [
+	'schema_violation',
+	'block_not_found',
+	'quote_not_found',
+	'quote_not_supporting',
+	'quote_is_instruction',
+	'forbidden_field',
+	'unknown_enum',
+	'incomplete_group',
+	'duplicate'
+] as const;
+
+export type RejectReason = (typeof REJECT_REASONS)[number];
 
 export interface Rejected {
 	item: unknown;

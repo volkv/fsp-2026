@@ -3,6 +3,7 @@
 // shortlists and offers, vacancies, and the states the demo scenario starts from, all reached through the product's own
 // actions and jobs. Every seeded record carries the batch id; a repeated seed, even of a batch whose
 // completion was lost, adds nothing; a reset followed by a seed gives the same stand again.
+import { writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { eq, isNotNull, isNull, sql } from 'drizzle-orm';
 import postgres from 'postgres';
@@ -41,7 +42,8 @@ import { ServiceGrantIssuer } from '$lib/server/fsp/grant';
 import { createReceiptSigner } from '$lib/server/fsp/receipts';
 import { createLogger } from '$lib/server/jobs/log';
 import type { MatchingModels } from '$lib/server/matching/semantic';
-import { fail } from '$lib/server/ml/result';
+import type { ExtractResponse, ModelAdapter } from '$lib/server/ml/adapter';
+import { fail, ok } from '$lib/server/ml/result';
 import { readPartnerPool } from '$lib/server/partner-pool/pool';
 import { openShortlist } from '$lib/server/shortlists/service';
 import { PERIODIC_JOBS, periodicJobsFor } from '$lib/server/jobs/scheduler';
@@ -49,7 +51,7 @@ import type { Redis } from '$lib/server/redis';
 import type { ObjectStore, StoredObject } from '$lib/server/storage/object-store';
 import { publishTaxonomy } from '$lib/server/taxonomy/publish';
 import { buildRelease, readTaxonomyDatasets } from '$lib/server/taxonomy/release';
-import { sliceByCodePoints } from '$lib/text/offsets';
+import { codePointLength, sliceByCodePoints } from '$lib/text/offsets';
 import { getOwnVacancy } from '$lib/server/employer/vacancies';
 import { vocabularyOf } from '$lib/server/employer/vocabulary';
 import { loadVacancyTaxonomy } from '$lib/server/vacancies/taxonomy';
@@ -58,6 +60,8 @@ import { DEFAULT_SEED } from '../../services/fsp-mock/src/config.ts';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
 import { releaseBankAhead } from '../helpers/demo-bank';
 import { startParser, type StartedParser } from '../helpers/docparse';
+import { modelsNotCalled, seedsWithParses } from '../helpers/demo-models';
+import { exportParses, missingParses, type StoredParseEntry } from '../../scripts/demo-model-parses';
 import { testEnvironment } from '../helpers/environment';
 import { FSP_MOCK_CREDENTIALS, startFspMock, type FspMock } from '../helpers/fsp-mock';
 
@@ -107,6 +111,8 @@ class MemoryStore implements ObjectStore {
 }
 
 let parser: StartedParser;
+/** The seed's log: the warning of the texts without a stored parse. */
+const logLines: string[] = [];
 const store = new MemoryStore();
 const crypto = createFieldCrypto({
 	keys: new Map([[1, Buffer.alloc(32, 1)]]),
@@ -141,6 +147,7 @@ beforeAll(async () => {
 		crypto,
 		store,
 		parser: parser.client,
+		models: modelsNotCalled,
 		fsp: {
 			source: new HttpAchievementsSource({ baseUrl: mock.origin, webhookSecret: credentials.webhookSecret }),
 			grants: new ServiceGrantIssuer({
@@ -159,11 +166,12 @@ beforeAll(async () => {
 			world: { seed: DEFAULT_SEED, athletes: ATHLETES },
 			nightlyReset: true,
 			review: false,
+			seedModel: 'stored',
 			fspMockControlToken: credentials.controlToken
 		},
 		appOrigin: 'http://localhost:57173',
-		seedsDir: path('seeds'),
-		log: createLogger({}, () => undefined)
+		seedsDir: await seedsWithParses([]),
+		log: createLogger({}, (_level, line) => logLines.push(line))
 	};
 }, 900_000);
 
@@ -280,6 +288,8 @@ const MODELS_OFF: MatchingModels = {
 };
 
 let first: SeedSummary;
+/** The warnings of the first seed about texts without a stored parse. */
+let firstWarnings: string[] = [];
 let before: Record<string, number>;
 
 describe('nightly demo reset', () => {
@@ -312,9 +322,10 @@ describe('demo seed', () => {
 	it('seeds the stand of the scenario through the product', { timeout: 300_000 }, async () => {
 		const { db } = database;
 		first = await seedDemo(services);
+		firstWarnings = logLines.filter((line) => line.includes('demo seed: no stored model parse'));
 		expect(first.status).toBe('seeded');
 		expect(first.batch).toBe(
-			batchId(await readSeedData(path('seeds')), services.settings, await releasedBanks(services))
+			batchId(await readSeedData(services.seedsDir), services.settings, await releasedBanks(services))
 		);
 		expect(first.counts.candidates).toBe(40);
 		expect(first.counts.vacancies).toBeGreaterThanOrEqual(30);
@@ -429,8 +440,9 @@ describe('demo seed', () => {
 		expect(minorTerms).toEqual({ kind: 'minor_employment_terms', companyId: internship?.companyId, referred: true });
 
 		// The heroes' resumes are real PDF and DOCX files: parsed by docparse with their layout, read by the product's
-		// extraction with a quote behind every claim. The heroes go to the model adapter — without a configured model it
-		// answers why, and the result is the rules' one under that reason; background resumes are read by the rules.
+		// extraction with a quote behind every claim. The heroes get the model's stored answer — `seeds/model-parses.json`
+		// of the repository holds none for these texts here, so the rules read them under that reason and the seed names
+		// their keys (tests/integration/demo-seed-parses.test.ts); background resumes are read by the rules.
 		const stepan = await resumeOf('stepan.rodionov@fsp-career.example');
 		expect(stepan).toMatchObject({ mime: 'application/pdf', name: 'Резюме Родионов Степан.pdf' });
 		// Two columns: the sidebar and the experience are read column by column.
@@ -447,7 +459,7 @@ describe('demo seed', () => {
 		] as const) {
 			expect(resume).toMatchObject({
 				mode: 'rules_only',
-				failure: { code: 'disabled', details: { reason: 'not_configured' } }
+				failure: { code: 'disabled', details: { reason: 'demo_seed_not_stored' } }
 			});
 			expectQuotesInText(resume);
 			expect(resume.claims.every((claim) => claim.extractor === 'rules')).toBe(true);
@@ -742,5 +754,144 @@ describe('demo seed', () => {
 		expect(again.status).toBe('seeded');
 		expect(again.batch).toBe(first.batch);
 		expect(await census()).toEqual(before);
+	});
+});
+
+describe('the model parses of the demo seed (seeds/model-parses.json)', () => {
+	const reset = () =>
+		resetDemo(
+			{
+				db: database.db,
+				redis,
+				store,
+				fspMock: { origin: mock.origin, controlToken: FSP_MOCK_CREDENTIALS.controlToken }
+			},
+			{ requestId: 'demo-seed-test', trigger: 'manual' }
+		);
+
+	/** A model that answers every reading with the first block quoted, and counts what reached it. */
+	function countingModel() {
+		const calls = { adapter: 0, extract: 0 };
+		const extract: ModelAdapter['extract'] = (request) => {
+			calls.extract++;
+			const [block] = request.blocks;
+			if (!block) throw new Error('a reading without blocks');
+			const quote = { blockId: block.id, start: 0, end: codePointLength(block.text), text: block.text };
+			const answer: ExtractResponse<unknown> = {
+				model: { modelId: 'test-model', modelRevision: 'r1', runtime: 'api', params: { temperature: 0 } },
+				items:
+					request.schemaVersion === 'resume-extract/v3'
+						? [
+								{
+									kind: 'achievement_mention',
+									group: null,
+									rawText: block.text,
+									polarity: 'asserted',
+									modelPolarity: 'asserted',
+									periodFrom: null,
+									periodTo: null,
+									organization: null,
+									level: null,
+									quote
+								}
+							]
+						: [],
+				rejected: [{ item: { raw_text: 'Haskell' }, reason: 'quote_not_found' }],
+				attempts: 1,
+				latencyMs: 5
+			};
+			return Promise.resolve(ok(answer) as Awaited<ReturnType<ModelAdapter['extract']>>);
+		};
+		const models = () => {
+			calls.adapter++;
+			return { extract, extractModelKey: () => 'api:test-model' };
+		};
+		return { calls, models };
+	}
+
+	/** The readings of the heroes' resumes and of the scenario needs, as `ml_results` keeps them. */
+	async function readings() {
+		return database.sql<
+			{ type: string; mode: string; model: Record<string, unknown> | null; output: unknown; reason: string | null }[]
+		>`
+			select m.input_ref->>'type' as type, m.processing_mode as mode, m.model, m.output,
+				m.failure->'details'->>'reason' as reason
+			from ml_results m
+			left join document_extractions e on e.id::text = m.input_ref->>'id'
+			left join resume_documents d on d.id = e.resume_document_id
+			left join candidates c on c.id = d.candidate_id
+			where m.operation = 'extract' and (c.demo_original or m.input_ref->>'type' = 'hiring_need')
+				and (m.input_ref->>'type' <> 'hiring_need' or m.failure->>'reason' is distinct from 'demo_seed_background')
+			order by 1, m.input_sha256`;
+	}
+
+	it('reads a text without a stored parse by the rules, without the model, and names its key', () => {
+		// The first seed of this file: the copy of seeds/ stores no parse. Three heroes have a resume; two scenario needs.
+		expect(first.parses).toMatchObject({ stored: 0, live: 0 });
+		expect(first.parses?.missing).toHaveLength(5);
+		expect(first.parses?.missing.filter((key) => key.startsWith('resume-extract/v3:'))).toHaveLength(3);
+		// One line for the whole seed, naming every key.
+		expect(firstWarnings).toHaveLength(1);
+		for (const key of first.parses?.missing ?? []) expect(firstWarnings[0]).toContain(key);
+	});
+
+	let exported: StoredParseEntry[] = [];
+
+	it('calls the model only when told to, and the stand keeps its answer', { timeout: 300_000 }, async () => {
+		await reset();
+		const model = countingModel();
+		const live = await seedDemo({
+			...services,
+			models: model.models,
+			settings: { ...services.settings, seedModel: 'live' }
+		});
+		expect(live.parses).toEqual({ stored: 0, live: 5, missing: [] });
+		expect(model.calls.extract).toBe(5);
+		const rows = await readings();
+		expect(rows).toHaveLength(5);
+		for (const row of rows) {
+			expect(row.mode).toBe('model');
+			expect(row.model).toMatchObject({ model_id: 'test-model', runtime: 'api' });
+			expect(row.model).not.toHaveProperty('origin');
+			expect(row.output).not.toBeNull();
+		}
+
+		const { file, added } = await exportParses(database.sql, { description: 'test', parses: [] }, services.seedsDir);
+		expect(added).toHaveLength(5);
+		expect(new Set(file.parses.map((entry) => entry.about))).toEqual(
+			new Set([
+				'resume «Резюме Родионов Степан.pdf»',
+				expect.stringMatching(/^resume «.+\.docx»$/),
+				expect.stringMatching(/^resume «.+\.pdf»$/),
+				'need severny_kod.payments_backend',
+				'need novaya_komanda.go_middle'
+			])
+		);
+		exported = file.parses;
+	});
+
+	it('gives the stored answers again without a call, marked stored', { timeout: 300_000 }, async () => {
+		expect(exported).toHaveLength(5);
+		const seedsDir = await seedsWithParses([]);
+		await writeFile(`${seedsDir}/model-parses.json`, JSON.stringify({ description: 'test', parses: exported }));
+		await reset();
+		logLines.length = 0;
+		const model = countingModel();
+		const replay = await seedDemo({ ...services, seedsDir, models: model.models });
+		expect(replay.parses).toEqual({ stored: 5, live: 0, missing: [] });
+		expect(model.calls).toEqual({ adapter: 0, extract: 0 });
+		expect(logLines.filter((line) => line.includes('demo seed: no stored model parse'))).toEqual([]);
+		const rows = await readings();
+		expect(rows).toHaveLength(5);
+		const outputs = new Set(exported.map((entry) => JSON.stringify(entry.output)));
+		for (const row of rows) {
+			expect(row.mode).toBe('model');
+			expect(row.model).toMatchObject({ model_id: 'test-model', model_revision: 'r1', origin: 'stored' });
+			expect(outputs.has(JSON.stringify(row.output))).toBe(true);
+		}
+		expect(await missingParses(database.sql, { description: 'test', parses: exported }, seedsDir)).toEqual({
+			missing: [],
+			unseededNeeds: []
+		});
 	});
 });

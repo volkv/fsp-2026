@@ -2,6 +2,10 @@ import { env } from '$env/dynamic/private';
 import { z } from 'zod';
 import { LLM_RUNTIMES, type LlmRuntime } from '$lib/server/ml/runtime';
 
+/** How the demo seed reads the heroes' resumes and the scenario needs (`DEMO_SEED_MODEL`, `demo/model-parses.ts`). */
+export const SEED_MODEL_MODES = ['stored', 'live'] as const;
+export type SeedModelMode = (typeof SEED_MODEL_MODES)[number];
+
 // Environment of the application (docs/contracts.md sections 1, 2.1, 3.1, 6, 7; docs/domain.md section 0).
 // An empty value means «not set». Optional integrations are configured as a whole group or not at all.
 
@@ -174,6 +178,7 @@ const envSchema = z
 		DEMO_VACANCIES: optional(z.coerce.number().int().min(1).max(5_000)),
 		DEMO_NIGHTLY_RESET: optional(z.enum(['true', 'false']).transform((value) => value === 'true')),
 		DEMO_REVIEW_MODE: optional(z.enum(['true', 'false']).transform((value) => value === 'true')),
+		DEMO_SEED_MODEL: optional(z.enum(SEED_MODEL_MODES)),
 		FSP_MOCK_SEED: optional(z.string().min(1).max(200)),
 		FSP_MOCK_ATHLETES: optional(z.coerce.number().int().min(200).max(5_000)),
 		FSP_MOCK_CONTROL_TOKEN: optional(z.string().min(32))
@@ -418,13 +423,16 @@ export interface Config {
 	 * night at 00:00 UTC and a demo session ends no later than that; off — nothing resets the stand by itself, a session
 	 * lives to its own end or its idle time, and the operator cleans the stand by hand (docs/deploy.md). `review`
 	 * (`DEMO_REVIEW_MODE`, off by default, only with the nightly reset off): the stand is in review by the jury and its
-	 * sessions live by the review terms of `retention_policy` (`demo/terms.ts`).
+	 * sessions live by the review terms of `retention_policy` (`demo/terms.ts`). `seedModel` (`DEMO_SEED_MODEL`, `stored`
+	 * by default): the seed gives the stored parses of the model (`seeds/model-parses.json`) and reads a text without
+	 * one by the rules; `live` — the model reads such a text (`demo/model-parses.ts`).
 	 */
 	demo: {
 		candidates: number;
 		vacancies: number;
 		nightlyReset: boolean;
 		review: boolean;
+		seedModel: SeedModelMode;
 		world: { seed: string; athletes: number };
 		fspMockControlToken: string;
 	} | null;
@@ -540,6 +548,7 @@ function build(e: Env): Config {
 						vacancies: e.DEMO_VACANCIES ?? 300,
 						nightlyReset: e.DEMO_NIGHTLY_RESET ?? true,
 						review: e.DEMO_REVIEW_MODE ?? false,
+						seedModel: e.DEMO_SEED_MODEL ?? 'stored',
 						world: {
 							seed: present(e.FSP_MOCK_SEED, 'FSP_MOCK_SEED'),
 							athletes: present(e.FSP_MOCK_ATHLETES, 'FSP_MOCK_ATHLETES')

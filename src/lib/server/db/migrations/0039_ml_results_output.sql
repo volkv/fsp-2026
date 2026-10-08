@@ -1,0 +1,2 @@
+ALTER TABLE "ml_results" ADD COLUMN "output" jsonb;--> statement-breakpoint
+ALTER TABLE "ml_results" ADD CONSTRAINT "ml_results_output" CHECK ("ml_results"."output" is null or ("ml_results"."operation" = 'extract' and "ml_results"."processing_mode" = 'model'));

@@ -59,9 +59,14 @@ export interface ExtractResponse<I> {
 	/** Items that passed every check. */
 	items: I[];
 	rejected: Rejected[];
-	/** 1, or 2 when the first answer failed the schema. */
+	/** 1, or 2 when the first answer failed the schema; 0 — a stored answer, no call. */
 	attempts: number;
 	latencyMs: number;
+	/**
+	 * The answer the model gave to the same input earlier, kept and given again without a call (the demo seed's stored
+	 * parses, `seeds/model-parses.json`); absent — the model answered this call. Recorded on the envelope.
+	 */
+	stored?: true;
 }
 
 export interface EmbedRequest {

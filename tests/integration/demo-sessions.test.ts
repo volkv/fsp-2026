@@ -84,6 +84,7 @@ import { DEFAULT_SEED } from '../../services/fsp-mock/src/config.ts';
 import { releaseBankAhead } from '../helpers/demo-bank';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
 import { startParser, type StartedParser } from '../helpers/docparse';
+import { modelsNotCalled } from '../helpers/demo-models';
 import { testEnvironment } from '../helpers/environment';
 import { createUser, offerTerms } from '../helpers/factories';
 import { FSP_MOCK_CREDENTIALS, startFspMock, type FspMock } from '../helpers/fsp-mock';
@@ -184,6 +185,7 @@ beforeAll(async () => {
 		crypto,
 		store,
 		parser: parser.client,
+		models: modelsNotCalled,
 		fsp: {
 			source: new HttpAchievementsSource({ baseUrl: mock.origin, webhookSecret: FSP_MOCK_CREDENTIALS.webhookSecret }),
 			grants: new ServiceGrantIssuer({
@@ -202,6 +204,7 @@ beforeAll(async () => {
 			world: { seed: DEFAULT_SEED, athletes: ATHLETES },
 			nightlyReset: true,
 			review: false,
+			seedModel: 'stored',
 			fspMockControlToken: FSP_MOCK_CREDENTIALS.controlToken
 		},
 		appOrigin: 'http://localhost:57173',

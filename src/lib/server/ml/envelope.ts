@@ -9,15 +9,18 @@ export interface ExtractModelEnvelope {
 	model_revision: string | null;
 	runtime: LlmRuntime;
 	params: Record<string, unknown>;
+	/** `stored` — the model gave this answer earlier and it was given again without a call; absent — this call's answer. */
+	origin?: 'stored';
 }
 
-export function extractModelEnvelope(model: ModelInfo): ExtractModelEnvelope {
+export function extractModelEnvelope(model: ModelInfo, stored: boolean): ExtractModelEnvelope {
 	return {
 		endpoint_profile: 'extract',
 		model_id: model.modelId,
 		model_revision: model.modelRevision,
 		runtime: model.runtime,
-		params: model.params
+		params: model.params,
+		...(stored ? { origin: 'stored' as const } : {})
 	};
 }
 

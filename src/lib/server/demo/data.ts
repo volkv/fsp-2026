@@ -15,6 +15,7 @@ import { needFormSchema } from '$lib/server/needs/form';
 import { CONTACT_KINDS, OFFER_WORK_FORMATS } from '$lib/server/invitations/terms';
 import { isSoftSkillKey } from '$lib/server/profile/soft-skills';
 import { RegionReference, regionsFileSchema } from '$lib/server/regions';
+import { modelParsesFile, storedParses, type StoredParse } from './model-parses';
 
 const key = z.string().regex(/^[a-z0-9_]+$/);
 const email = z.email().max(254);
@@ -236,6 +237,8 @@ export interface SeedData {
 	regions: RegionReference;
 	/** Resume files of the heroes by their path in `seeds/`. */
 	resumes: Map<string, Uint8Array<ArrayBuffer>>;
+	/** The model's parses of the heroes' resumes and the scenario needs, by key (`model-parses.ts`). */
+	modelParses: ReadonlyMap<string, StoredParse>;
 	/** SHA-256 over every file read: changed seed data is a new batch. */
 	sha256: string;
 }
@@ -299,5 +302,6 @@ export async function readSeedData(directory: string): Promise<SeedData> {
 			resumes.set(candidate.resume, await read(candidate.resume));
 		}
 	}
-	return { demo, companies, roles, regions, resumes, sha256: hash.digest('hex') };
+	const modelParses = storedParses(await parse('model-parses.json', modelParsesFile));
+	return { demo, companies, roles, regions, resumes, modelParses, sha256: hash.digest('hex') };
 }
