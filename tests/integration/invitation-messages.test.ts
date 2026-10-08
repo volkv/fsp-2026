@@ -8,6 +8,7 @@ import { auditEvents, companies, demoSessions, invitationMessages, notifications
 import { Refusal } from '$lib/server/invitations/errors';
 import { revokeDisclosureConsent } from '$lib/server/invitations/disclosure';
 import { getConversation, markConversationRead, sendMessage } from '$lib/server/messages/conversation';
+import { blockCompany, unblockCompany } from '$lib/server/profile/company-blocks';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
 import { createUser } from '../helpers/factories';
 import { createOfferWorld, testMeta, type Employer, type OfferWorld } from '../helpers/offers';
@@ -207,6 +208,37 @@ describe('the conversation of an offer', () => {
 			await refusal(sendMessage(world.deps, suspended(company), testMeta, invitationId, 'Мы на связи'))
 		).toMatchObject({ code: 'conflict', reason: 'conversation_company_closed' });
 		expect((await getConversation(world.deps, suspended(company), invitationId)).closure).toBe('company_closed');
+	});
+
+	it('closes for writing and for the reading of the company the candidate blocked; the candidate still reads', async () => {
+		const company = await world.employer();
+		const person = await world.candidate();
+		const { invitationId } = await world.acceptedOffer(company, person);
+		await sendMessage(world.deps, company.subject, testMeta, invitationId, 'Когда удобно созвониться?');
+		await sendMessage(world.deps, person.subject, testMeta, invitationId, 'Завтра после обеда');
+
+		await blockCompany(world.deps, person.subject, testMeta, company.company.id);
+		for (const subject of [company.subject, person.subject]) {
+			expect(await refusal(sendMessage(world.deps, subject, testMeta, invitationId, 'Ещё'))).toMatchObject({
+				code: 'conflict',
+				reason: 'conversation_candidate_unavailable'
+			});
+		}
+		const seenByCompany = await getConversation(world.deps, company.subject, invitationId);
+		expect(seenByCompany).toMatchObject({ closure: 'candidate_unavailable', messages: [], unread: 0 });
+		expect(await markConversationRead(world.deps, company.subject, invitationId)).toBe(0);
+		const seenByCandidate = await getConversation(world.deps, person.subject, invitationId);
+		expect(seenByCandidate.closure).toBe('candidate_unavailable');
+		expect(seenByCandidate.messages.map((message) => message.text)).toEqual([
+			'Когда удобно созвониться?',
+			'Завтра после обеда'
+		]);
+
+		// The block lifted: the company reads the history again, its unread message among it, and both write.
+		await unblockCompany(world.deps, person.subject, testMeta, company.company.id);
+		const reopened = await getConversation(world.deps, company.subject, invitationId);
+		expect(reopened).toMatchObject({ closure: null, unread: 1 });
+		await sendMessage(world.deps, company.subject, testMeta, invitationId, 'Договорились');
 	});
 
 	it('keeps demo sessions apart: an offer of a company of a session is not the conversation of a candidate outside it', async () => {

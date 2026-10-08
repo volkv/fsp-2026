@@ -1,5 +1,6 @@
 <script lang="ts" module>
-	export type ConversationClosure = 'not_accepted' | 'consent_revoked' | 'candidate_left' | 'company_closed';
+	export type ConversationClosure =
+		'not_accepted' | 'consent_revoked' | 'candidate_left' | 'candidate_unavailable' | 'company_closed';
 
 	export interface ConversationMessage {
 		id: string;
@@ -68,6 +69,10 @@
 				return 'Кандидат отозвал согласие на раскрытие контактов — переписка закрыта, история остаётся.';
 			case 'candidate_left':
 				return 'Профиль кандидата удаляется — переписка закрыта.';
+			case 'candidate_unavailable':
+				return reader === 'candidate'
+					? 'Вы заблокировали эту компанию — переписка закрыта, компания её больше не видит. Снимите блокировку, чтобы продолжить.'
+					: 'Кандидат больше недоступен — переписка закрыта.';
 			case 'company_closed':
 				return 'Работа компании на платформе приостановлена — переписка закрыта, история остаётся.';
 			case null:
