@@ -7,11 +7,11 @@
 // also says where the suggested salary range stands against the market of its category (domain 12.5), so the
 // employer sees it before saving; `unsavedVacancyOf` gives the draft to the estimate of its pool (`pool.ts`).
 import { createHash } from 'node:crypto';
+import { requireAdmission } from '$lib/server/companies/gate';
 import type { Database } from '$lib/server/db';
 import { mlResults } from '$lib/server/db/schema';
 import { uuidv7 } from '$lib/server/ids';
 import { vacancyMarketPosition, type VacancyForPosition, type VacancyMarketPosition } from '$lib/server/market/read';
-import type { ModelAdapter } from '$lib/server/ml/adapter';
 import { extractModelEnvelope } from '$lib/server/ml/envelope';
 import type { Block, QuoteLocation } from '$lib/server/ml/quotes';
 import type { VacancyItem } from '$lib/server/ml/vacancy-extract';
@@ -21,15 +21,12 @@ import type { UnsavedVacancy } from './pool';
 import { checkVacancyText, type TextCheck } from './text-check';
 import { extractVacancyByRules, VACANCY_TEXT_RULES_VERSION } from './text-rules';
 import { loadVacancyTaxonomy, resolveSkill, vacancyLexicon } from './taxonomy';
+import { extractPastedText, VACANCY_SCHEMA_VERSION, type TextExtractDeps } from './text-extract';
 
 export const VACANCY_TEXT_MAX_LENGTH = 20_000;
 
-/** Schema of the parse; a draft is saved only from a parse of this schema. */
-export const VACANCY_SCHEMA_VERSION = 'vacancy-extract/v2';
-
-export interface VacancyTextDeps {
+export interface VacancyTextDeps extends TextExtractDeps {
 	db: Database;
-	models: Pick<ModelAdapter, 'extract'>;
 }
 
 interface Quoted<T> {
@@ -291,8 +288,10 @@ export function unsavedVacancyOf(
 const sha256 = (text: string) => createHash('sha256').update(text).digest('hex');
 
 /**
- * Parses pasted vacancy text for the company of the author. The call is interactive: the employer waits. Any model
- * failure gives the rules mode with its reason; the envelope records what happened either way.
+ * Parses pasted vacancy text for the company of the author, an admitted one: a company that may not save a vacancy
+ * does not spend the model on its draft. The call is interactive: the employer waits; the same text parsed again
+ * gets the answer the model gave (`extractPastedText`). Any model failure gives the rules mode with its reason; the
+ * envelope records what happened either way.
  */
 export async function extractVacancyFromText(
 	deps: VacancyTextDeps,
@@ -303,27 +302,25 @@ export async function extractVacancyFromText(
 	const trimmed = text.trim();
 	if (trimmed.length === 0) throw invalid('text', 'the text is empty');
 	if (trimmed.length > VACANCY_TEXT_MAX_LENGTH) throw invalid('text', 'the text is too long');
+	await requireAdmission(deps.db, author.companyId);
 	const blocks = textBlocks(trimmed);
 	const taxonomy = await loadVacancyTaxonomy(deps.db);
 	const lexicon = vacancyLexicon(taxonomy);
 	const vacancyId = uuidv7();
 	const inputRef = { type: 'vacancy', id: vacancyId, revision: 0, company_id: author.companyId };
+	const inputSha256 = sha256(trimmed);
 
-	const response = await deps.models.extract(
-		{
-			schemaVersion: VACANCY_SCHEMA_VERSION,
-			input: { type: 'vacancy', id: vacancyId, revision: 0 },
-			taxonomyVersionId: taxonomy.id,
-			blocks
-		},
+	const response = await extractPastedText(
+		deps,
+		{ companyId: author.companyId, inputSha256, inputId: vacancyId, taxonomyVersionId: taxonomy.id, blocks },
 		lexicon,
-		{ priority: 'interactive', ...(signal ? { signal } : {}) }
+		signal ? { signal } : {}
 	);
 
 	const envelope = {
 		operation: 'extract' as const,
 		inputRef,
-		inputSha256: sha256(trimmed),
+		inputSha256,
 		inputVersion: '0',
 		schemaVersion: VACANCY_SCHEMA_VERSION,
 		taxonomyVersionId: taxonomy.id
@@ -343,7 +340,7 @@ export async function extractVacancyFromText(
 			...envelope,
 			model: extractModelEnvelope(response.value.model),
 			processingMode: 'model',
-			rejectedItems: response.value.rejected.map((r) => ({ reason: r.reason })),
+			rejectedItems: response.value.rejectedReasons.map((reason) => ({ reason })),
 			latencyMs: response.value.latencyMs
 		};
 	} else {

@@ -86,6 +86,7 @@ import { GRADE_DECISION_RESULTS } from '$lib/server/matching/test-results';
 import type { ModelAdapter } from '$lib/server/ml/adapter';
 import { fail } from '$lib/server/ml/result';
 import { parseNeedText } from '$lib/server/needs/parse';
+import { memoryTextParseCache } from '$lib/server/vacancies/text-extract';
 import { compositeSpecializations } from '$lib/server/needs/recommend';
 import { defaultCategories } from '$lib/server/shortlists/service';
 import { openSpecializations } from '$lib/server/assessments/bank-store';
@@ -1086,10 +1087,15 @@ export async function rankCandidates(request: RankRequest, deps: RankDeps): Prom
 			.where(eq(evidenceRuns.status, 'published'));
 
 		// Each need as the employer writes it, read by the rules, with the categories its shortlist takes.
+		const parseCache = memoryTextParseCache();
 		const needs: RankAnswer['needs'] = {};
 		const specs = new Map<string, { spec: NeedSpec; text: string }>();
 		for (const need of request.needs) {
-			const { form } = await parseNeedText({ db, models: MODELS_OFF }, { id: uuidv7(), companyId: 'eval' }, need.text);
+			const { form } = await parseNeedText(
+				{ db, models: MODELS_OFF, parseCache },
+				{ id: uuidv7(), companyId: 'eval' },
+				need.text
+			);
 			const categories = defaultCategories(form, await openSpecializations(db));
 			needs[need.id] = {
 				specialization: form.specialization ?? null,

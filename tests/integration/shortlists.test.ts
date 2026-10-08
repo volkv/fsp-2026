@@ -50,6 +50,7 @@ import { declareGrade, releaseFixtureBank } from '../helpers/bank';
 import { decide } from '../helpers/categories';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
 import { createCandidate, createCompany, createMember, createPublishedDocument } from '../helpers/factories';
+import { memoryTextParseCache } from '$lib/server/vacancies/text-extract';
 
 const TAXONOMY_DIR = fileURLToPath(new URL('../../taxonomy', import.meta.url));
 const DAY = 86_400_000;
@@ -75,7 +76,12 @@ const deps = (): ShortlistDeps & MatchingDeps => ({
 	now: () => clock(),
 	testResults: GRADE_DECISION_RESULTS
 });
-const needDeps = (): NeedDeps => ({ db: database.db, models: modelsOff, now: () => new Date() });
+const needDeps = (): NeedDeps => ({
+	db: database.db,
+	models: modelsOff,
+	parseCache: memoryTextParseCache(),
+	now: () => new Date()
+});
 
 beforeAll(async () => {
 	database = await createTestDatabase();

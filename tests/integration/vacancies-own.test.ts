@@ -46,6 +46,7 @@ import {
 import { textCheckSchema } from '$lib/server/vacancies/text-check';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
 import { createCompany, createMember, createPublishedDocument, createUser } from '../helpers/factories';
+import { memoryTextParseCache } from '$lib/server/vacancies/text-extract';
 
 const TAXONOMY_DIR = fileURLToPath(new URL('../../taxonomy', import.meta.url));
 
@@ -606,7 +607,16 @@ describe('vacancy from pasted text', () => {
 			cities: []
 		});
 		const author = await employer();
-		const draft = await extractVacancyFromText({ db: database.db, models: adapter(on) }, author, TEXT);
+		let calls = 0;
+		const model = adapter(on);
+		const counted: Pick<ModelAdapter, 'extract'> = {
+			extract: (request, lexicon, options) => {
+				calls++;
+				return model.extract(request, lexicon, options);
+			}
+		};
+		const textDeps = { db: database.db, models: counted, parseCache: memoryTextParseCache() };
+		const draft = await extractVacancyFromText(textDeps, author, TEXT);
 		expect(draft.mode).toBe('model');
 		expect(draft.fields.title?.value).toBe('Senior Python-разработчик');
 		expect(draft.fields.roleKey).toBe('backend');
@@ -653,6 +663,24 @@ describe('vacancy from pasted text', () => {
 		);
 		expect(saved.id).toBe(draft.vacancyId);
 		expect(saved.draftMlResultId).toBe(draft.mlResultId);
+
+		// The same text again is the model's answer kept by its hash: a draft of its own, without a call of the model.
+		expect(calls).toBe(1);
+		const again = await extractVacancyFromText(textDeps, author, `\n${TEXT}  `);
+		expect(calls).toBe(1);
+		expect(again).toMatchObject({ mode: 'model', fields: draft.fields, missing: draft.missing });
+		expect(again.vacancyId).not.toBe(draft.vacancyId);
+		const [kept] = await database.db.select().from(mlResults).where(eq(mlResults.id, again.mlResultId));
+		expect(kept).toMatchObject({ processingMode: 'model', inputSha256: envelope?.inputSha256 });
+		// Another company's parse of the same text is its own call.
+		await extractVacancyFromText(textDeps, await employer(), TEXT);
+		expect(calls).toBe(2);
+		// A company that may not save a vacancy does not spend the model on a draft.
+		await expect(extractVacancyFromText(textDeps, await employer('suspended'), TEXT)).rejects.toMatchObject({
+			code: 'forbidden',
+			details: [{ code: 'company_suspended' }]
+		});
+		expect(calls).toBe(2);
 		// The parse belongs to its company and serves one vacancy.
 		expect(
 			await refusalOf(createOwnVacancy(deps, author, input(), { fromText: { mlResultId: draft.mlResultId } }))
@@ -665,7 +693,11 @@ describe('vacancy from pasted text', () => {
 	it('reads the fields by rules with quotes when the model is switched off, and says so', async () => {
 		const author = await employer();
 		const before = runtime.answer;
-		const draft = await extractVacancyFromText({ db: database.db, models: adapter(off) }, author, TEXT);
+		const draft = await extractVacancyFromText(
+			{ db: database.db, models: adapter(off), parseCache: memoryTextParseCache() },
+			author,
+			TEXT
+		);
 		expect(draft).toMatchObject({ mode: 'rules', modelFailure: 'disabled' });
 		expect(draft.fields.title).toMatchObject({ value: 'Senior Python-разработчик', quote: { blockId: 'p1' } });
 		expect(draft.fields.roleKey).toBe('backend');
@@ -694,7 +726,7 @@ describe('vacancy from pasted text', () => {
 
 	it('checks the pasted text for discriminatory requirements before anything is saved', async () => {
 		const draft = await extractVacancyFromText(
-			{ db: database.db, models: adapter(off) },
+			{ db: database.db, models: adapter(off), parseCache: memoryTextParseCache() },
 			await employer(),
 			'Python-разработчик\nТолько мужчины до 30 лет'
 		);

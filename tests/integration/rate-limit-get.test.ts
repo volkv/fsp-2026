@@ -17,6 +17,14 @@ import type { Redis } from '$lib/server/redis';
 import { employerRequest } from '$lib/server/employer/http';
 import { GET as startFspSignIn } from '../../src/routes/auth/fsp/+server';
 import { GET as fspCallback } from '../../src/routes/auth/fsp/callback/+server';
+import { actions as needsActions } from '../../src/routes/(app)/company/(member)/needs/+page.server';
+
+/** The action «Новая потребность» of the page, as SvelteKit calls it. */
+function createNeedAction(event: RequestEvent) {
+	const action = needsActions.create;
+	if (!action) throw new Error('the needs page has no create action');
+	return action(event as Parameters<typeof action>[0]);
+}
 
 const REDIS_DATABASE = 6;
 
@@ -54,11 +62,11 @@ const apiKey = (userId: string): Actor => ({
 	permissions: []
 });
 
-function requestEvent(path: string, from: string, actor: Actor): RequestEvent {
+function requestEvent(path: string, from: string, actor: Actor, method = 'GET'): RequestEvent {
 	const url = new URL(`http://localhost:57173${path}`);
 	return {
 		url,
-		request: new Request(url),
+		request: new Request(url, { method }),
 		locals: { requestId: `req-${randomUUID()}`, actor, rateLimited: false },
 		isDataRequest: url.pathname.endsWith('/__data.json'),
 		getClientAddress: () => from
@@ -79,8 +87,8 @@ const resolve = (event: RequestEvent) => {
 };
 
 /** The request through both hooks, in the order of the chain: the address, then the account. */
-function send(path: string, options: { from?: string; actor?: Actor } = {}): Promise<Response> {
-	const event = requestEvent(path, options.from ?? address(), options.actor ?? { kind: 'anonymous' });
+function send(path: string, options: { from?: string; actor?: Actor; method?: string } = {}): Promise<Response> {
+	const event = requestEvent(path, options.from ?? address(), options.actor ?? { kind: 'anonymous' }, options.method);
 	const accountStep: Handle = ({ event }) => hooks.byAccount({ event, resolve });
 	return Promise.resolve(hooks.byAddress({ event, resolve: (next) => accountStep({ event: next, resolve }) }));
 }
@@ -187,6 +195,46 @@ describe('the export of own data', () => {
 		// Another account keeps its own budget; the page that offers the file stays open to this one.
 		expect((await send('/me/export/download', { actor: person() })).status).toBe(200);
 		expect((await send('/me/export', { actor })).status).toBe(200);
+	});
+});
+
+describe('the parses of a pasted text', () => {
+	const { limit, message } = RATE_LIMIT_RULES.textParse;
+
+	it('share one budget per account between the API and the forms that parse, refused past it in words', async () => {
+		const actor = person();
+		const before = resolved;
+		const paths = [
+			'/api/v1/needs',
+			'/company/needs?/create',
+			'/api/v1/vacancies/drafts/from-text',
+			'/company/vacancies/new?/parse'
+		];
+		for (let hit = 1; hit <= limit; hit++) {
+			const path = paths[hit % paths.length] ?? '/api/v1/needs';
+			const response = await send(path, { actor, method: 'POST' });
+			expect(response.status, `hit ${String(hit)} ${path}`).toBe(200);
+			expect(response.headers.get('ratelimit-remaining')).toBe(String(limit - hit));
+		}
+		expect(resolved - before).toBe(limit);
+
+		const api = await send('/api/v1/vacancies/drafts/from-text', { actor, method: 'POST' });
+		expect(api.status).toBe(429);
+		expect(api.headers.get('retry-after')).toMatch(/^\d+$/u);
+		expect(await api.json()).toMatchObject({ error: { code: 'rate_limited', message } });
+
+		// The form is let through, marked, and answers in its own words before reading the session or the text.
+		const refusedBefore = refusedByRoute.length;
+		expectRefusedByRoute(await send('/company/needs?/create', { actor, method: 'POST' }), limit);
+		const [marked] = refusedByRoute.slice(refusedBefore);
+		if (!marked) throw new Error('no marked event');
+		const refusal = await createNeedAction(marked);
+		expect(refusal).toMatchObject({ status: 429, data: { problem: { code: 'rate_limited', message } } });
+		expect(resolved - before).toBe(limit);
+
+		// Another account keeps its own budget; other posts of this one are not parses.
+		expect((await send('/api/v1/needs', { actor: person(), method: 'POST' })).status).toBe(200);
+		expect((await send('/company/vacancies/new?/create', { actor, method: 'POST' })).status).toBe(200);
 	});
 });
 

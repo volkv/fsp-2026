@@ -19,6 +19,7 @@ import type { ConfirmationDeps } from '$lib/server/confirmations/requests';
 import type { ShortlistDeps } from '$lib/server/shortlists/service';
 import type { ModelAdapter } from '$lib/server/ml/adapter';
 import { redis, type Redis } from '$lib/server/redis';
+import { redisTextParseCache } from '$lib/server/vacancies/text-extract';
 
 export interface ApiServices {
 	db: Database;
@@ -73,6 +74,7 @@ export const invitationDeps = (s: ApiServices): InvitationDeps => ({
 export const needDeps = (s: ApiServices): NeedDeps => ({
 	db: s.db,
 	models: s.models,
+	parseCache: redisTextParseCache(s.redis),
 	now: s.now
 });
 

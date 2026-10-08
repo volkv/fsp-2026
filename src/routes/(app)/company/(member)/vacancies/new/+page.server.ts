@@ -5,6 +5,7 @@ import { minorTermsAcceptance } from '$lib/server/companies/profile';
 import { db } from '$lib/server/db';
 import { employerRequest, vacancyAuthor } from '$lib/server/employer/http';
 import { formFailure, pageError } from '$lib/server/http/page';
+import { RATE_LIMIT_RULES } from '$lib/server/http/rate-limit';
 import {
 	EMPTY_VACANCY_FORM,
 	readVacancyForm,
@@ -17,6 +18,7 @@ import { ApiError } from '$lib/server/errors/api-error';
 import type { CategoryKey } from '$lib/server/market/aggregate';
 import { positionText, vacancyMarketPosition, type VacancyMarketPosition } from '$lib/server/market/read';
 import { modelAdapter } from '$lib/server/ml';
+import { redis } from '$lib/server/redis';
 import type { SalaryTerms } from '$lib/server/salary/compare';
 import {
 	extractVacancyFromText,
@@ -25,6 +27,7 @@ import {
 	VACANCY_TEXT_MAX_LENGTH
 } from '$lib/server/vacancies/from-text';
 import { createOwnVacancy, type OwnVacancyInput } from '$lib/server/vacancies/own';
+import { redisTextParseCache } from '$lib/server/vacancies/text-extract';
 import { estimateVacancyPool, type UnsavedVacancy } from '$lib/server/vacancies/pool';
 import { loadVacancyTaxonomy } from '$lib/server/vacancies/taxonomy';
 import { draftTestSpecOf } from '$lib/server/vacancies/test-spec';
@@ -108,13 +111,19 @@ export const load: PageServerLoad = async (event) => {
 export const actions: Actions = {
 	/** The pasted text becomes a draft to check: fields with quotes, suggested by the model or read by the rules. */
 	parse: async (event) => {
+		// Over the limit of parses the hook lets the post through, for the form to say so in its own words.
+		if (event.locals.rateLimited) {
+			const text = formText(await event.request.formData(), 'text');
+			const failure = formFailure(new ApiError('rate_limited', { message: RATE_LIMIT_RULES.textParse.message }));
+			return fail(failure.status, { ...failure.data, text });
+		}
 		const { subject, meta } = await employerRequest(event);
 		const form = await event.request.formData();
 		const text = formText(form, 'text');
 		try {
 			const author = vacancyAuthor(subject, meta);
 			const draft = await extractVacancyFromText(
-				{ db: db(), models: modelAdapter() },
+				{ db: db(), models: modelAdapter(), parseCache: redisTextParseCache(redis) },
 				{ companyId: author.companyId },
 				text,
 				event.request.signal
