@@ -58,12 +58,12 @@ x-app-environment: &app-environment
   FSP_ACHIEVEMENTS_BASE_URL: http://fsp-career-fsp-mock:57610
   FSP_WEBHOOK_SECRET: ${FSP_WEBHOOK_SECRET:?}
   FSP_ASSERTION_SECRET: ${FSP_ASSERTION_SECRET:?}
-  # Text extraction by default: Claude Opus through the OpenAI-compatible gateway, with LLM_API_KEY from .env.prod
+  # Text extraction by default: Claude Sonnet through the OpenAI-compatible gateway, with LLM_API_KEY from .env.prod
   # (docs/models.md, «Три режима»); without the key the rules read the texts. The models behind the reverse tunnel
   # instead — LLM_RUNTIME=vllm with their LLM_BASE_URL and LLM_MODEL (.env.prod.example).
   LLM_BASE_URL: ${LLM_BASE_URL:-https://llmgate.volkv.com/v1}
   LLM_RUNTIME: ${LLM_RUNTIME:-api}
-  LLM_MODEL: ${LLM_MODEL:-claude-opus:latest}
+  LLM_MODEL: ${LLM_MODEL:-claude-sonnet:latest}
   LLM_API_KEY: ${LLM_API_KEY:-}
   LLM_TIMEOUT_MS: ${LLM_TIMEOUT_MS:-}
   LLM_INTERACTIVE_TIMEOUT_MS: ${LLM_INTERACTIVE_TIMEOUT_MS:-}
