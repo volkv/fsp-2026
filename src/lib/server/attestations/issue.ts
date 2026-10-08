@@ -2,9 +2,10 @@
 // one confirmation per assignment of a category in force, signed with Ed25519 by the key of the receipts (domain 9.6).
 // A repeated PDF of the same assignment gives the same confirmation; a new assignment (the next grade, a returned
 // category after an annulment) is a new row of `candidate_categories` and so a new confirmation, while the old one
-// answers `superseded` or `annulled` at its check.
+// answers `superseded` or `annulled` at its check. A changed name of the holder supersedes the confirmation of the same
+// assignment by a new one: the commitment is made of the name, and the PDF prints the name it has now.
 import { createHash, randomBytes } from 'node:crypto';
-import { eq, inArray } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import { decisionJudgement } from '$lib/server/assessments/views';
 import { activeCategories, type ActiveCategory } from '$lib/server/categories/read';
 import { base32 } from '$lib/server/crypto/encoding';
@@ -28,9 +29,25 @@ export interface IssuedAttestation {
 	judgementNote: string | null;
 }
 
+/** A confirmation of the assignment in force for the name of the holder; `null` — none. */
+async function currentAttestation(executor: Executor, categoryId: string) {
+	const [row] = await executor
+		.select({
+			id: categoryAttestations.id,
+			handle: categoryAttestations.handle,
+			holderNonce: categoryAttestations.holderNonce,
+			statement: categoryAttestations.statement
+		})
+		.from(categoryAttestations)
+		.where(and(eq(categoryAttestations.categoryId, categoryId), isNull(categoryAttestations.supersededAt)));
+	return row ?? null;
+}
+
 /**
  * The confirmations of every category in force of the candidate, issuing the missing ones. The holder commitment is
- * made with the name the profile has now; it needs a name, so the caller refuses a profile without one.
+ * made with the name the profile has now; it needs a name, so the caller refuses a profile without one. A confirmation
+ * whose commitment speaks of another name — the candidate changed it since — is superseded by a new one with a new salt:
+ * the PDF made now prints the name the new commitment is made of, and the old confirmation answers `superseded`.
  */
 export async function ensureAttestations(
 	tx: Transaction,
@@ -38,34 +55,25 @@ export async function ensureAttestations(
 	input: { candidateId: string; holder: FullName; now: Date }
 ): Promise<IssuedAttestation[]> {
 	const categories = (await activeCategories(tx, [input.candidateId])).get(input.candidateId) ?? [];
-	if (categories.length === 0) return [];
-	const existing = await tx
-		.select({
-			categoryId: categoryAttestations.categoryId,
-			handle: categoryAttestations.handle,
-			holderNonce: categoryAttestations.holderNonce,
-			statement: categoryAttestations.statement
-		})
-		.from(categoryAttestations)
-		.where(
-			inArray(
-				categoryAttestations.categoryId,
-				categories.map((category) => category.id)
-			)
-		);
-	const byCategory = new Map(existing.map((row) => [row.categoryId, row]));
 	const result: IssuedAttestation[] = [];
 	for (const category of categories) {
-		const found = byCategory.get(category.id);
+		const found = await currentAttestation(tx, category.id);
 		if (found) {
-			result.push({
-				handle: found.handle,
-				category,
-				holderCode: base32(found.holderNonce),
-				issued: false,
-				judgementNote: noteOf(found.statement)
-			});
-			continue;
+			const statement = attestationStatementSchema.parse(found.statement);
+			if (statement.holder_commitment === commitmentOfName(input.holder, found.holderNonce)) {
+				result.push({
+					handle: found.handle,
+					category,
+					holderCode: base32(found.holderNonce),
+					issued: false,
+					judgementNote: statement.judgement.note
+				});
+				continue;
+			}
+			await tx
+				.update(categoryAttestations)
+				.set({ supersededAt: input.now })
+				.where(and(eq(categoryAttestations.id, found.id), isNull(categoryAttestations.supersededAt)));
 		}
 		const nonce = randomBytes(32);
 		const statement = categoryStatement(category, {
@@ -93,7 +101,10 @@ export async function ensureAttestations(
 				holderNonce: nonce,
 				issuedAt: input.now
 			})
-			.onConflictDoNothing({ target: categoryAttestations.categoryId })
+			.onConflictDoNothing({
+				target: categoryAttestations.categoryId,
+				where: sql`${categoryAttestations.supersededAt} is null`
+			})
 			.returning({ handle: categoryAttestations.handle });
 		if (inserted.length > 0) {
 			result.push({
@@ -105,14 +116,7 @@ export async function ensureAttestations(
 			});
 			continue;
 		}
-		const [concurrent] = await tx
-			.select({
-				handle: categoryAttestations.handle,
-				holderNonce: categoryAttestations.holderNonce,
-				statement: categoryAttestations.statement
-			})
-			.from(categoryAttestations)
-			.where(eq(categoryAttestations.categoryId, category.id));
+		const concurrent = await currentAttestation(tx, category.id);
 		if (!concurrent) throw new Error(`the confirmation of category ${category.id} conflicted and is missing`);
 		result.push({
 			handle: concurrent.handle,
@@ -146,7 +150,7 @@ export async function ownAttestations(
 		})
 		.from(categoryAttestations)
 		.innerJoin(candidateCategories, eq(candidateCategories.id, categoryAttestations.categoryId))
-		.where(eq(categoryAttestations.candidateId, candidateId));
+		.where(and(eq(categoryAttestations.candidateId, candidateId), isNull(categoryAttestations.supersededAt)));
 	return rows.map((row) => ({
 		handle: row.handle,
 		categoryId: row.categoryId,

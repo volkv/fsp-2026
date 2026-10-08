@@ -785,4 +785,48 @@ describe('PDF profile and the confirmation of the category', () => {
 		// An unknown handle is `404`.
 		expect((await checkThroughApi('a'.repeat(26))).status).toBe(404);
 	});
+
+	it('is issued anew when the holder changes their name: the new PDF proves the new name, the old one is superseded', async () => {
+		const candidate = await person();
+		await updateOwnProfile(deps(), candidate.subject, meta, fields);
+		await decide(database.db, candidate.id, { specialization: 'backend', grade: 'junior' });
+		await buildProfilePdf(pdfDeps(), candidate.subject, meta, choice);
+		const before = (await ownProfileView(deps(), candidate.subject)).attestations;
+		const [old] = before;
+		if (!old) throw new Error('no confirmation issued');
+
+		await updateOwnProfile(deps(), candidate.subject, meta, { ...fields, last_name: 'Петрова' });
+		const input = await buildProfilePdf(pdfDeps(), candidate.subject, meta, choice);
+		expect(input.name).toBe('Петрова Мария Сергеевна');
+		const after = (await ownProfileView(deps(), candidate.subject)).attestations;
+		expect(after).toHaveLength(1);
+		const [fresh] = after;
+		if (!fresh) throw new Error('no confirmation for the new name');
+		expect(fresh.handle).not.toBe(old.handle);
+		expect(input.categories.map((category) => category.verifyUrl)).toEqual([attestationUrl(ORIGIN, fresh.handle)]);
+
+		// The new PDF: the name it prints and its holder code match.
+		expect(
+			await holderThroughApi(fresh.handle, { full_name: 'Петрова Мария Сергеевна', nonce: fresh.holderCode })
+		).toBe(true);
+		expect((await verifyAttestation(database.db, fresh.handle))?.status).toBe('valid');
+		// The old PDF: `superseded` with the category in force, and it proves the old name only.
+		const response = await checkThroughApi(old.handle);
+		expect(await response.json()).toMatchObject({
+			status: 'superseded',
+			reissued: true,
+			current_grade: { grade: 'junior' }
+		});
+		expect(await holderThroughApi(old.handle, { full_name: 'Иванова Мария Сергеевна', nonce: old.holderCode })).toBe(
+			true
+		);
+		expect(await holderThroughApi(old.handle, { full_name: 'Петрова Мария Сергеевна', nonce: old.holderCode })).toBe(
+			false
+		);
+		// The same name again: no new confirmation.
+		await buildProfilePdf(pdfDeps(), candidate.subject, meta, choice);
+		expect(
+			await database.db.select().from(categoryAttestations).where(eq(categoryAttestations.candidateId, candidate.id))
+		).toHaveLength(2);
+	});
 });

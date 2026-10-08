@@ -5,7 +5,12 @@
 // any call within `candidate_interval_days`; at most `per_run_per_challenge` per run, those longest without a call
 // first. The pair «call × candidate» is unique, so a repeated run or a repeated job delivers nothing twice. A delivery
 // not opened within three days is reminded once, never again; after the end of the call the unopened ones expire.
-import { and, eq, isNull, lte, sql } from 'drizzle-orm';
+// The interval and the order count the deliveries of the calls of the same place only — of companies of the same demo
+// session, or of companies outside sessions: a candidate outside sessions is shared by every session, and a call of one
+// session must not hold them back from another session or from the companies of the platform. A delivery keeps two
+// moments: `delivered_at`, the real one the candidate sees, and `clock_at`, the moment on the clock of the call, which
+// the interval and the reminder count — «промотать неделю» moves the clock of its session, never the real time.
+import { and, eq, isNull, lte, sql, type SQL } from 'drizzle-orm';
 import type { AccessSubject } from '$lib/server/access/permissions';
 import { companyAdmission } from '$lib/server/access/permissions';
 import { GRADE_KEYS, type GradeKey } from '$lib/server/assessments/contract/catalog';
@@ -87,10 +92,22 @@ async function companyViewer(
 	};
 }
 
-/** Candidates the run may offer the call to, the longest without any call first, then by id. */
+/**
+ * The deliveries to the candidate `c` of the calls of companies in the place `demoSessionId` (`null` — outside
+ * sessions): what the interval and the order of a call of that place count.
+ */
+function deliveriesInPlace(demoSessionId: string | null): SQL {
+	return sql`${challengeDeliveries} d
+		join ${companyChallenges} dc on dc.id = d.challenge_id
+		join ${companies} dco on dco.id = dc.company_id
+		where d.candidate_id = c.id and dco.demo_session_id is not distinct from ${demoSessionId}::uuid`;
+}
+
+/** Candidates the run may offer the call to, the longest without a call of its place first, then by id. */
 async function eligibleCandidates(
 	executor: Executor,
 	challenge: ChallengeRow,
+	demoSessionId: string | null,
 	at: Date,
 	intervalDays: number
 ): Promise<string[]> {
@@ -101,9 +118,8 @@ async function eligibleCandidates(
 		where ${listedInCatalog(c)}
 			and ${categoryPredicate(sql`c.id`, { specializations: [challenge.specialization], grades: challenge.grades.filter(isGrade) })}
 			and not exists (select 1 from ${challengeDeliveries} d where d.challenge_id = ${challenge.id} and d.candidate_id = c.id)
-			and not exists (select 1 from ${challengeDeliveries} d where d.candidate_id = c.id
-				and d.delivered_at > ${since.toISOString()}::timestamptz)
-		order by (select max(d.delivered_at) from ${challengeDeliveries} d where d.candidate_id = c.id) asc nulls first, c.id
+			and not exists (select 1 from ${deliveriesInPlace(demoSessionId)} and d.clock_at > ${since.toISOString()}::timestamptz)
+		order by (select max(d.clock_at) from ${deliveriesInPlace(demoSessionId)}) asc nulls first, c.id
 	`);
 	return rows.map((row) => row.id);
 }
@@ -119,10 +135,14 @@ async function userOf(executor: Executor, candidateId: string): Promise<string> 
 	return row.userId;
 }
 
-/** One run of one call at `at`, the moment on its clock; `realNow` — the clock of the application for `canShow`. */
+/**
+ * One run of one call at `at`, the moment on its clock; `realNow` — the clock of the application, for `canShow` and
+ * for the moments recorded; `demoSessionId` — the place of the company of the call.
+ */
 async function runChallenge(
 	tx: Transaction,
 	challenge: ChallengeRow,
+	demoSessionId: string | null,
 	policy: PolicyVersion<'challenge_policy'>,
 	at: Date,
 	realNow: Date
@@ -141,14 +161,14 @@ async function runChallenge(
 
 	const due = await tx
 		.update(challengeDeliveries)
-		.set({ remindedAt: at })
+		.set({ remindedAt: realNow })
 		.where(
 			and(
 				eq(challengeDeliveries.challengeId, challenge.id),
 				eq(challengeDeliveries.status, 'delivered'),
 				isNull(challengeDeliveries.openedAt),
 				isNull(challengeDeliveries.remindedAt),
-				lte(challengeDeliveries.deliveredAt, new Date(at.getTime() - REMIND_AFTER_MS))
+				lte(challengeDeliveries.clockAt, new Date(at.getTime() - REMIND_AFTER_MS))
 			)
 		)
 		.returning({ id: challengeDeliveries.id, candidateId: challengeDeliveries.candidateId });
@@ -167,7 +187,7 @@ async function runChallenge(
 	const company = await companyViewer(tx, challenge, realNow);
 	await tx.update(companyChallenges).set({ lastDeliveryRunAt: at }).where(eq(companyChallenges.id, challenge.id));
 	if (!company) return run;
-	const eligible = await eligibleCandidates(tx, challenge, at, policy.params.candidate_interval_days);
+	const eligible = await eligibleCandidates(tx, challenge, demoSessionId, at, policy.params.candidate_interval_days);
 	const facts = await loadVisibilityFacts(tx, eligible, {
 		now: realNow,
 		policy: await loadVisibilityPolicy(tx, realNow),
@@ -188,7 +208,7 @@ async function runChallenge(
 	for (const candidateId of chosen) {
 		const [delivery] = await tx
 			.insert(challengeDeliveries)
-			.values({ challengeId: challenge.id, candidateId, deliveredAt: at, status: 'delivered' })
+			.values({ challengeId: challenge.id, candidateId, deliveredAt: realNow, clockAt: at, status: 'delivered' })
 			.onConflictDoNothing({ target: [challengeDeliveries.challengeId, challengeDeliveries.candidateId] })
 			.returning({ id: challengeDeliveries.id });
 		if (!delivery) continue;
@@ -214,7 +234,7 @@ export async function deliverChallenges(
 	requestId: string
 ): Promise<ChallengeRun[]> {
 	const challenges = await tx
-		.select({ challenge: companyChallenges })
+		.select({ challenge: companyChallenges, demoSessionId: companies.demoSessionId })
 		.from(companyChallenges)
 		.innerJoin(companies, eq(companies.id, companyChallenges.companyId))
 		.where(
@@ -232,9 +252,9 @@ export async function deliverChallenges(
 		challenges.map((row) => row.challenge.companyId)
 	);
 	const runs: ChallengeRun[] = [];
-	for (const { challenge } of challenges) {
+	for (const { challenge, demoSessionId } of challenges) {
 		const at = new Date(now.getTime() + (offsets.get(challenge.companyId) ?? 0));
-		const run = await runChallenge(tx, challenge, policy, at, now);
+		const run = await runChallenge(tx, challenge, demoSessionId, policy, at, now);
 		runs.push(run);
 		if (run.delivered > 0 || run.reminded > 0 || run.expired > 0) {
 			await recordAuditEvent(tx, {

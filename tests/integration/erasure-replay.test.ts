@@ -252,6 +252,7 @@ beforeAll(async () => {
 			challengeId: challenge.id,
 			candidateId: candidate.id,
 			deliveredAt: new Date(),
+			clockAt: new Date(),
 			status: 'solved',
 			openedAt: new Date()
 		})

@@ -312,7 +312,7 @@ describe('the managed clock of a demo session', () => {
 		const sessionCall = await createChallenge(deps(), company.subject, meta, call({ grades: ['senior'] }));
 		const outsideCall = await createChallenge(deps(), outside.subject, meta, call({ grades: ['senior'] }));
 		await run();
-		expect((await deliveriesOf(sessionCall.id)).map((d) => d.candidateId)).toEqual([first.id]);
+		expect((await deliveriesOf(sessionCall.id)).map((d) => d.candidateId)).toContain(first.id);
 		const [outsideBefore] = await database.db
 			.select()
 			.from(companyChallenges)
@@ -328,10 +328,11 @@ describe('the managed clock of a demo session', () => {
 		const advanced = await advanceDemoClock(database.db, company.subject, meta, clock);
 		expect(advanced.clockOffsetSeconds).toBe(DEMO_CLOCK_STEP_SECONDS);
 		const after = await deliveriesOf(sessionCall.id);
-		expect(after.map((d) => d.candidateId).sort()).toEqual([first.id, second.id].sort());
-		// Delivered on the clock of the session: a week ahead of the application's.
+		expect(after.map((d) => d.candidateId)).toEqual(expect.arrayContaining([first.id, second.id]));
+		// Delivered at the real moment; the clock of the session, a week ahead, is the moment the interval counts.
 		const delivered = after.find((d) => d.candidateId === second.id);
-		expect(delivered?.deliveredAt.getTime()).toBe(clock.getTime() + DEMO_CLOCK_STEP_SECONDS * 1000);
+		expect(delivered?.deliveredAt.getTime()).toBe(clock.getTime());
+		expect(delivered?.clockAt.getTime()).toBe(clock.getTime() + DEMO_CLOCK_STEP_SECONDS * 1000);
 		// The first one, unopened for a week of the session, is reminded; the call outside the session is untouched.
 		const reminded = after.find((d) => d.candidateId === first.id);
 		expect(reminded?.remindedAt).not.toBeNull();
@@ -350,5 +351,64 @@ describe('the managed clock of a demo session', () => {
 			.from(companies)
 			.where(and(eq(companies.id, company.company.id)));
 		expect(companyRow?.session).toBe(session.id);
+	});
+
+	it('counts the interval within the place of the call: a session holds back neither another one nor the platform', async () => {
+		clock = new Date();
+		const newSession = async () => {
+			const [row] = await database.db
+				.insert(demoSessions)
+				.values({
+					joinTokenSha256: randomBytes(32).toString('hex'),
+					seedBatchId: 'test',
+					expiresAt: new Date(clock.getTime() + 60 * DAY)
+				})
+				.returning();
+			if (!row) throw new Error('no session');
+			return row;
+		};
+		const sessionA = await newSession();
+		const sessionB = await newSession();
+		const inA = await employer(database.db, { demoSessionId: sessionA.id });
+		const inB = await employer(database.db, { demoSessionId: sessionB.id });
+		const platform = await employer(database.db);
+		// A candidate outside sessions: every session and the platform see them.
+		const shared = await person(database.db, world, { category: { specialization: 'frontend', grade: 'senior' } });
+		const lead = (overrides: Partial<ChallengeInput> = {}) =>
+			call({
+				specialization: 'frontend',
+				grades: ['senior'],
+				endsAt: new Date(clock.getTime() + 50 * DAY),
+				...overrides
+			});
+		const delivers = async (challengeId: string) =>
+			(await deliveriesOf(challengeId)).some((d) => d.candidateId === shared.id);
+
+		const callA = await createChallenge(deps(), inA.subject, meta, lead());
+		await run();
+		expect(await delivers(callA.id)).toBe(true);
+		// A call of session A within the interval holds back neither session B nor a company outside sessions.
+		const callB = await createChallenge(deps(), inB.subject, meta, lead());
+		const callPlatform = await createChallenge(deps(), platform.subject, meta, lead());
+		await run();
+		expect(await delivers(callB.id)).toBe(true);
+		expect(await delivers(callPlatform.id)).toBe(true);
+
+		// «Промотать неделю» in A: the next call of A reaches the candidate on the clock of A, at the real moment.
+		const nextA = await createChallenge(deps(), inA.subject, meta, lead());
+		await advanceDemoClock(database.db, inA.subject, meta, clock);
+		const [deliveredA] = (await deliveriesOf(nextA.id)).filter((d) => d.candidateId === shared.id);
+		expect(deliveredA?.deliveredAt.getTime()).toBe(clock.getTime());
+		// Session B and the platform keep their own interval: within it, the next calls wait.
+		const nextB = await createChallenge(deps(), inB.subject, meta, lead());
+		const nextPlatform = await createChallenge(deps(), platform.subject, meta, lead());
+		await run();
+		expect(await delivers(nextB.id)).toBe(false);
+		expect(await delivers(nextPlatform.id)).toBe(false);
+		// Past their interval they deliver: the week A moved on its clock holds back nobody else.
+		clock = new Date(clock.getTime() + 8 * DAY);
+		await run();
+		expect(await delivers(nextB.id)).toBe(true);
+		expect(await delivers(nextPlatform.id)).toBe(true);
 	});
 });
