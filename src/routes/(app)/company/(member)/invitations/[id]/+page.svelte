@@ -4,8 +4,14 @@
 	import ContactRoundIcon from '@lucide/svelte/icons/contact-round';
 	import MessagesSquareIcon from '@lucide/svelte/icons/messages-square';
 	import TrendingDownIcon from '@lucide/svelte/icons/trending-down';
+	import ContactsHidden from '$lib/components/employer/contacts-hidden.svelte';
 	import OfferForm from '$lib/components/employer/offer-form.svelte';
-	import { DISCLOSURE_FIELD_LABELS, TERMS_FIELD_LABELS, hiringView } from '$lib/components/employer/model.js';
+	import {
+		DISCLOSURE_FIELD_LABELS,
+		TERMS_FIELD_LABELS,
+		disclosedFields,
+		hiringView
+	} from '$lib/components/employer/model.js';
 	import NativeSelect from '$lib/components/employer/native-select.svelte';
 	import OfferConversation from '$lib/components/product/offer-conversation.svelte';
 	import CsrfInput from '$lib/components/forms/csrf-input.svelte';
@@ -30,6 +36,9 @@
 	// The conversation opens with the acceptance; a closed offer without messages has none to show.
 	const showConversation = $derived(invitation.status === 'accepted' || data.conversation.messages.length > 0);
 	const stageLabel = (key: string) => HIRING_STAGES.find((stage) => stage.key === key)?.label ?? key;
+
+	const named = (fields: readonly string[]) =>
+		fields.map((field) => DISCLOSURE_FIELD_LABELS[field] ?? field).join(', ');
 
 	const RESPONSE = { accept: 'Принято', decline: 'Отклонено' } as const;
 
@@ -214,6 +223,17 @@
 	</div>
 
 	<aside class="grid content-start gap-6">
+		{#if data.application}
+			<p class="rounded-lg border p-3 text-sm" data-testid="contacts-by-application">
+				Кандидат откликнулся на вашу вакансию «{data.application.vacancyTitle}» — контакты, которые он выбрал, в
+				<a
+					class="text-link underline"
+					href={resolve('/(app)/company/(member)/applications/[id]', { id: data.application.id })}>отклике</a
+				>.
+			</p>
+		{:else if invitation.status !== 'accepted' && !invitation.awaitingRepresentative}
+			<ContactsHidden closed={!open} />
+		{/if}
 		{#if invitation.status === 'accepted'}
 			<Card.Root data-testid="contacts">
 				<Card.Header>
@@ -258,8 +278,12 @@
 								</div>
 							{/if}
 						</dl>
-						<p class="text-xs text-muted-foreground">
-							Раскрыто: {contacts.fields.map((field) => DISCLOSURE_FIELD_LABELS[field] ?? field).join(', ')}.
+						{@const split = disclosedFields(contacts)}
+						<p class="text-xs text-muted-foreground" data-testid="disclosed-fields">
+							Раскрыто: {named(split.disclosed)}.
+							{#if split.empty.length > 0}
+								Кандидат разрешил, но не указал в профиле: {named(split.empty)}.
+							{/if}
 						</p>
 					{:else}
 						<Alert.Root>

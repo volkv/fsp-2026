@@ -9,6 +9,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
 	applyToVacancy,
 	companyApplications,
+	disclosingApplication,
+	disclosingApplicationOfInvitation,
 	getApplication,
 	myApplications,
 	rejectApplication,
@@ -156,6 +158,12 @@ describe('an application', () => {
 		expect(opened.application.status).toBe('viewed');
 		expect(opened.contacts?.fields).toEqual(['full_name', 'email', 'phone']);
 		expect(opened.contacts).toMatchObject({ email: 'applicant@example.ru', phone: '+79990000000' });
+		// The card of the candidate tells the company it holds the contacts by this application.
+		const pair = { candidateId: candidate.id, companyId: company.company.id };
+		expect(await disclosingApplication(database.db, pair, new Date())).toEqual({
+			id: sent.id,
+			vacancyTitle: vacancy.title
+		});
 
 		// Another company sees nothing of it.
 		const other = await employer(database.db);
@@ -175,6 +183,7 @@ describe('an application', () => {
 		expect(withdrawn).toMatchObject({ status: 'withdrawn', disclosedFields: [] });
 		const reopened = await getApplication(deps(), company.subject, meta, sent.id);
 		expect(reopened.contacts).toBeNull();
+		expect(await disclosingApplication(database.db, pair, new Date())).toBeNull();
 		const revoked = await database.db
 			.select({ action: consentEvents.action })
 			.from(consentEvents)
@@ -206,6 +215,11 @@ describe('an application', () => {
 				[two.id, 'invited', offer.invitationId]
 			])
 		);
+		// The page of the offer tells the company it holds the contacts by the newest application.
+		expect(await disclosingApplicationOfInvitation(database.db, offer.invitationId, new Date())).toEqual({
+			id: two.id,
+			vacancyTitle: 'Backend-разработчик на Python'
+		});
 		const decisions = await database.db
 			.select({ payload: notifications.payload })
 			.from(notifications)

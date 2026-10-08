@@ -43,6 +43,7 @@
 			className
 		)}
 		{type}
+		lang={type === 'date' ? 'ru' : undefined}
 		bind:value
 		{...restProps}
 	/>

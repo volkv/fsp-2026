@@ -3,6 +3,7 @@
  * with their interface wording. Components receive domain values and never invent their own labels.
  */
 import type { Award } from '$lib/fsp/awards';
+import { PRODUCT_TIME_ZONE } from '$lib/dates';
 
 /** Trust level of a source fact (domain §9.1). */
 export type TrustLevel = 'fsp_verified' | 'platform_verified' | 'public_verifiable' | 'claimed';
@@ -322,7 +323,7 @@ const dateFormat = new Intl.DateTimeFormat('ru-RU', {
 	day: '2-digit',
 	month: '2-digit',
 	year: 'numeric',
-	timeZone: 'Europe/Moscow'
+	timeZone: PRODUCT_TIME_ZONE
 });
 
 const dateTimeFormat = new Intl.DateTimeFormat('ru-RU', {
@@ -330,7 +331,7 @@ const dateTimeFormat = new Intl.DateTimeFormat('ru-RU', {
 	month: 'long',
 	hour: '2-digit',
 	minute: '2-digit',
-	timeZone: 'Europe/Moscow',
+	timeZone: PRODUCT_TIME_ZONE,
 	timeZoneName: 'short'
 });
 

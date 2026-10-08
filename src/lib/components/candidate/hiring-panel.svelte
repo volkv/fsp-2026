@@ -136,7 +136,7 @@
 			{#if chosenOutcome === 'hired'}
 				<label class="grid gap-1.5 text-sm">
 					<span>Дата выхода</span>
-					<input type="date" name="start_date" class={selectClass} />
+					<input type="date" lang="ru" name="start_date" class={selectClass} />
 				</label>
 			{/if}
 			{#if outcomeReasonCodes.length > 0 && chosenOutcome !== '' && chosenOutcome !== 'hired'}

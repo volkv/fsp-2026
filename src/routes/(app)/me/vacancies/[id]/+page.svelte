@@ -127,11 +127,11 @@
 							name="disclose_fields"
 							value={field}
 							class="size-4 accent-primary"
-							disabled={field === 'phone' && !card.hasPhone}
+							disabled={card.emptyFields.includes(field)}
 						/>
 						{DISCLOSURE_FIELDS[field]}
-						{#if field === 'phone' && !card.hasPhone}
-							<span class="text-xs text-muted-foreground">— не указан в профиле</span>
+						{#if card.emptyFields.includes(field)}
+							<span class="text-xs text-muted-foreground">— нет в профиле</span>
 						{/if}
 					</label>
 				{/each}

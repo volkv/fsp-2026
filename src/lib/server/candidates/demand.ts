@@ -18,6 +18,7 @@ import type { Executor } from '$lib/server/db';
 import { evidenceRuns, fspProjectionRules, vacancies } from '$lib/server/db/schema';
 import { demoSessionOfUser } from '$lib/server/demo/scope';
 import { ApiError } from '$lib/server/errors/api-error';
+import { latestSurvey } from '$lib/server/grades/surveys';
 import { loadMarketPolicy } from '$lib/server/market/policy';
 import { loadCandidateSnapshots, loadGradeOrdinals, matchableVacancyFor } from '$lib/server/matching/evidence';
 import { latestPublishedVersion } from '$lib/server/taxonomy/vocabulary';
@@ -65,9 +66,10 @@ export async function vacancySkillDemand(executor: Executor, where: SQL | undefi
 }
 
 /**
- * Where the candidate stands with a skill the market asks for. Confirmed — a direct inference with an FSP or a platform
- * badge — is not a gap; everything else is: no inference, a claim of the resume, an inference derived from another
- * skill, a public profile nobody checked the skill in.
+ * Where the candidate stands with a skill the market asks for. Confirmed — in the stack a test of a category in force
+ * confirmed, or a direct inference with an FSP or a platform badge — is not a gap; everything else is: a claim of the
+ * resume or of the survey's declared stack, an inference derived from another skill, a public profile nobody checked
+ * the skill in, and nothing at all.
  */
 export type DemandSkillStatus = 'missing' | 'claimed' | 'derived' | 'public_profile';
 
@@ -185,9 +187,12 @@ export async function candidateDemand(executor: Executor, subject: AccessSubject
 	}
 
 	const skills = new Map(evidence.skills.map((skill) => [skill.skillKey, skill]));
+	const tested = new Set(snapshot.confirmed.flatMap((held) => held.confirmedSkillKeys));
+	const declared = new Set((await latestSurvey(executor, candidateId))?.declaredSkillKeys ?? []);
 	const statusOf = (skillKey: string): DemandSkillStatus | 'confirmed' => {
+		if (tested.has(skillKey)) return 'confirmed';
 		const skill = skills.get(skillKey);
-		if (!skill) return 'missing';
+		if (!skill) return declared.has(skillKey) ? 'claimed' : 'missing';
 		if (skill.attestation === 'claimed') return 'claimed';
 		if (skill.attestation === 'derived') return 'derived';
 		return skill.badgeTrust !== null && CONFIRMING_BADGES.has(skill.badgeTrust) ? 'confirmed' : 'public_profile';

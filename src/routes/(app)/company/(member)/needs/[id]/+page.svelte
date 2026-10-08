@@ -133,7 +133,7 @@
 							reading={need.parse.model ? { modelId: need.parse.model.id, runtime: need.parse.model.runtime } : null}
 						/>
 					{/if}
-					<p class="rounded-md border bg-muted/40 p-3 whitespace-pre-line">{need.text}</p>
+					<p class="rounded-md border bg-muted/40 p-3 whitespace-pre-line">{need.text.trim()}</p>
 					{#if need.parse && need.parse.fields.length > 0}
 						<ul class="grid gap-2">
 							{#each need.parse.fields as field, index (index)}

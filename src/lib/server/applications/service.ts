@@ -21,6 +21,7 @@ import {
 	companyMembers,
 	consentEvents,
 	disclosures,
+	invitations,
 	resumeDocuments,
 	users,
 	vacancies
@@ -28,7 +29,7 @@ import {
 import { demoSessionOfUser, inDemoScope } from '$lib/server/demo/scope';
 import { policyViolation } from '$lib/server/errors/api-error';
 import { emitCompanyEvent } from '$lib/server/events/emit';
-import { currentDisclosureDocument, effectiveDisclosure } from '$lib/server/invitations/consent';
+import { currentDisclosureDocument, effectiveDisclosure, emptyDisclosureFields } from '$lib/server/invitations/consent';
 import { auditActor, channelOf, type RequestMeta } from '$lib/server/invitations/deps';
 import { invalid, refuse } from '$lib/server/invitations/errors';
 import { candidateSide, memberSide } from '$lib/server/invitations/records';
@@ -436,7 +437,8 @@ export interface ShowcaseVacancy {
 	disclosureDocument: { id: string; title: string; version: number; body: string } | null;
 	/** Applications are open to adults only. */
 	adult: boolean;
-	hasPhone: boolean;
+	/** Disclosure fields the profile has no value for: allowing them hands the company nothing. */
+	emptyFields: DisclosureField[];
 }
 
 /** A vacancy of the showcase as its page shows it to the candidate: the match and the application. */
@@ -461,8 +463,7 @@ export async function showcaseVacancyFor(
 		.select({
 			birthDate: candidates.birthDate,
 			precision: candidates.birthDatePrecision,
-			status: candidates.birthDateStatus,
-			phone: candidates.phoneEnc
+			status: candidates.birthDateStatus
 		})
 		.from(candidates)
 		.where(eq(candidates.id, side.candidateId));
@@ -500,7 +501,7 @@ export async function showcaseVacancyFor(
 				? { id: document.id, title: document.title, version: document.version, body: document.body }
 				: null,
 		adult: ageBand(candidate, now) === 'adult',
-		hasPhone: candidate.phone !== null
+		emptyFields: await emptyDisclosureFields(deps.db, side.candidateId)
 	};
 }
 
@@ -642,6 +643,47 @@ export async function companyApplications(
 		)
 		.orderBy(desc(applications.submittedAt));
 	return viewsOf(deps.db, deps, rows, 'company', deps.now());
+}
+
+/**
+ * The candidate's application to the company whose disclosure consent is in effect now: the company holds the contacts
+ * by it (domain 13.6); `null` — none. The newest one, when there are several.
+ */
+export async function disclosingApplication(
+	executor: Executor,
+	pair: { candidateId: string; companyId: string },
+	now: Date
+): Promise<{ id: string; vacancyTitle: string } | null> {
+	const rows = await executor
+		.select({ id: applications.id, vacancyTitle: vacancies.title })
+		.from(applications)
+		.innerJoin(vacancies, eq(vacancies.id, applications.vacancyId))
+		.where(
+			and(
+				eq(applications.candidateId, pair.candidateId),
+				eq(applications.companyId, pair.companyId),
+				isNull(applications.purgedAt)
+			)
+		)
+		.orderBy(desc(applications.submittedAt));
+	for (const row of rows) {
+		if (await effectiveDisclosure(executor, pair.candidateId, { applicationId: row.id }, now)) return row;
+	}
+	return null;
+}
+
+/** `disclosingApplication` of the pair of an invitation: the company of the offer may hold the contacts by an application. */
+export async function disclosingApplicationOfInvitation(
+	executor: Executor,
+	invitationId: string,
+	now: Date
+): Promise<{ id: string; vacancyTitle: string } | null> {
+	const [pair] = await executor
+		.select({ candidateId: invitations.candidateId, companyId: invitations.companyId })
+		.from(invitations)
+		.where(eq(invitations.id, invitationId));
+	if (!pair) throw new Error(`invitation ${invitationId} does not exist`);
+	return disclosingApplication(executor, pair, now);
 }
 
 export interface ApplicationContacts {

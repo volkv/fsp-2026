@@ -314,19 +314,17 @@ export interface OfferTerms {
  * The offer from a shortlist, as the card opened from it writes it (domain 13.5, 13.10): the reasons of the shortlist
  * become the points of «why you», the offer names the need.
  */
-async function offerInput(
-	ctx: SeedContext,
-	company: SeededCompany,
-	shortlistId: string,
-	candidateId: string,
-	terms: OfferTerms
-): Promise<CreateInvitationInput> {
+/**
+ * The points of «why you» the shortlist gives the candidate, as the employer takes them into an offer, and the need of
+ * the shortlist. The shortlist may name the strongest block of the test, which need not be a defining one, while an
+ * offer accepts only the defining blocks and the practice of the category (domain 13.5): the employer leaves such a
+ * point out.
+ */
+async function shortlistPoints(ctx: SeedContext, company: SeededCompany, shortlistId: string, candidateId: string) {
 	const subject = await subjectOf(ctx, sender(company).userId);
 	const found = await shortlistMatchOf(shortlistDeps(ctx), subject, shortlistId, candidateId);
 	if (!found) throw new Error(`candidate ${candidateId} is not in shortlist ${shortlistId} of ${company.key}`);
 	const labels = labelsOf(await currentVocabulary(ctx.services.db));
-	// The shortlist may name the strongest block of the test, which need not be a defining one, while an offer accepts
-	// only the defining blocks and the practice of the category (domain 13.5): the employer leaves such a point out.
 	const categories = (await activeCategories(ctx.services.db, [candidateId])).get(candidateId) ?? [];
 	const passed = new Set(
 		categories.flatMap((category) => [
@@ -342,6 +340,17 @@ async function offerInput(
 	})
 		.filter((point) => point.source.kind !== 'test_block' || passed.has(point.source.ref))
 		.slice(0, 5);
+	return { points, needId: found.needId };
+}
+
+async function offerInput(
+	ctx: SeedContext,
+	company: SeededCompany,
+	shortlistId: string,
+	candidateId: string,
+	terms: OfferTerms
+): Promise<CreateInvitationInput> {
+	const { points, needId } = await shortlistPoints(ctx, company, shortlistId, candidateId);
 	if (points.length === 0) throw new Error(`the shortlist gives no point of «why you» for ${candidateId}`);
 	return {
 		title: terms.title,
@@ -355,7 +364,7 @@ async function offerInput(
 		whyYou: points.map((point) => ({ text: point.text, source: point.source })),
 		message: terms.message,
 		candidateId,
-		needId: found.needId
+		needId
 	};
 }
 
@@ -725,8 +734,14 @@ export async function stageFunnel(
 		// One line of offers per company and candidate: a candidate the company's other need already reached is skipped.
 		const reached = offered.get(company.key) ?? new Set<string>();
 		offered.set(company.key, reached);
-		for (const candidateId of ranked.filter((id) => !reached.has(id)).slice(0, plan.offers)) {
-			if (summary.offers >= count) break;
+		// An offer names why the candidate: one the shortlist explains nothing about is not offered to.
+		let sent = 0;
+		for (const candidateId of ranked.filter((id) => !reached.has(id))) {
+			if (sent >= plan.offers || summary.offers >= count) break;
+			const offeredBefore = await invitationOf(ctx, company.id, candidateId);
+			if (!offeredBefore && (await shortlistPoints(ctx, company, shortlistId, candidateId)).points.length === 0)
+				continue;
+			sent++;
 			reached.add(candidateId);
 			// The daily limit of the invitation policy is 50 per company.
 			if ((perCompany.get(company.key) ?? 0) >= 40) break;
@@ -833,10 +848,12 @@ export async function grantPartnerPool(
 // --- Calls, applications and requests of a confirmation --------------------------------------------------------------
 
 /**
- * The other ways of contact of the scenario (domain 13.6, 13.11, 13.12), around К-1: the partner company publishes a call
- * for the backend categories; the hourly delivery offers it, К-1 and a few background candidates send solutions, the
- * company sets one of them aside; К-1 applies to the main employer's vacancy of the payment gateway; the main employer
- * asks К-1 to confirm a block the category does not cover. A repeated seed finds each of them done.
+ * The other ways of contact of the scenario (domain 13.6, 13.11, 13.12): the main employer publishes a call for the
+ * backend categories; the hourly delivery offers it, a few background candidates send solutions and the company sets
+ * one of them aside, while К-1 leaves it unanswered — he sends his approach on stage; К-2 applies to the main employer's
+ * vacancy of the payment gateway, so its applications are not empty before the stage; the main employer asks К-1 to
+ * confirm a block the category does not cover. К-1 neither applies nor answers: until he accepts the offer of the
+ * stage, the main employer holds none of his contacts. A repeated seed finds each of them done.
  */
 export async function stageContacts(
 	ctx: SeedContext,
@@ -847,17 +864,17 @@ export async function stageContacts(
 	if (!open.has('backend')) return false;
 	const { db, crypto } = ctx.services;
 	const stepan = required(cast.heroes.get('k1'), 'hero k1');
-	const partner = required(cast.companies.get('teply_stek'), 'company teply_stek');
+	const dmitry = required(cast.heroes.get('k2'), 'hero k2');
 	const main = required(cast.companies.get('severny_kod'), 'company severny_kod');
 	const deps = { db, crypto, now: ctx.now };
 
 	// The call and its solutions.
-	const author = sender(partner);
+	const author = sender(main);
 	const authorSubject = await subjectOf(ctx, author.userId);
 	let [call] = await db
 		.select({ id: companyChallenges.id })
 		.from(companyChallenges)
-		.where(eq(companyChallenges.companyId, partner.id));
+		.where(eq(companyChallenges.companyId, main.id));
 	if (!call) {
 		call = await createChallenge(deps, authorSubject, metaOf(ctx, author.userId), {
 			title: 'Идемпотентный приём платежей',
@@ -882,11 +899,11 @@ export async function stageContacts(
 		.from(challengeDeliveries)
 		.where(eq(challengeDeliveries.challengeId, call.id))
 		.orderBy(asc(challengeDeliveries.id));
-	const byCandidate = new Map([...cast.background, ...cast.heroes.values()].map((c) => [c.candidateId, c]));
-	const solvers = [
-		...deliveries.filter((d) => d.candidateId === stepan.candidateId),
-		...deliveries.filter((d) => d.candidateId !== stepan.candidateId && byCandidate.has(d.candidateId)).slice(0, 3)
-	];
+	if (!deliveries.some((d) => d.candidateId === stepan.candidateId)) {
+		throw new Error('the call of the main employer was not offered to К-1');
+	}
+	const byCandidate = new Map(cast.background.map((c) => [c.candidateId, c]));
+	const solvers = deliveries.filter((d) => byCandidate.has(d.candidateId)).slice(0, 3);
 	for (const delivery of solvers) {
 		const solver = required(byCandidate.get(delivery.candidateId), 'a solver');
 		const [solution] = await db
@@ -901,31 +918,29 @@ export async function stageContacts(
 			subject,
 			metaOf(ctx, solver.userId),
 			delivery.id,
-			solver === stepan
-				? 'Ключ идемпотентности от партнёра — уникальный индекс в PostgreSQL; запись запроса и результата в одной транзакции, повтор возвращает сохранённый ответ; при сбое между записью и ответом запрос остаётся «в обработке» и доводится воркером по исходящему журналу.'
-				: 'Храню ключ запроса в таблице с уникальным индексом и на повтор отдаю сохранённый ответ.'
+			'Храню ключ запроса в таблице с уникальным индексом и на повтор отдаю сохранённый ответ.'
 		);
 	}
 	const [setAside] = await db
 		.select({ id: challengeSolutions.id, decision: challengeSolutions.companyDecision })
 		.from(challengeSolutions)
 		.innerJoin(challengeDeliveries, eq(challengeDeliveries.id, challengeSolutions.deliveryId))
-		.where(and(eq(challengeDeliveries.challengeId, call.id), ne(challengeDeliveries.candidateId, stepan.candidateId)))
+		.where(eq(challengeDeliveries.challengeId, call.id))
 		.orderBy(asc(challengeSolutions.id))
 		.limit(1);
 	if (setAside && setAside.decision === null) {
 		await dismissSolution(deps, authorSubject, metaOf(ctx, author.userId), call.id, setAside.id);
 	}
 
-	// The application of К-1 to the main employer's vacancy.
+	// The application of К-2 to the main employer's vacancy.
 	const [applied] = await db
 		.select({ id: applications.id })
 		.from(applications)
-		.where(eq(applications.candidateId, stepan.candidateId));
+		.where(eq(applications.candidateId, dmitry.candidateId));
 	if (!applied) {
-		await applyToVacancy(deps, await subjectOf(ctx, stepan.userId), metaOf(ctx, stepan.userId), {
+		await applyToVacancy(deps, await subjectOf(ctx, dmitry.userId), metaOf(ctx, dmitry.userId), {
 			vacancyId,
-			message: 'Интересна команда платёжного шлюза: работал с Kafka и PostgreSQL под нагрузкой.',
+			message: 'Пишу платёжные сервисы на Go: PostgreSQL и Kafka под нагрузкой — интересен ваш шлюз.',
 			discloseFields: ['full_name', 'email'],
 			disclosureDocumentId: documentOf(ctx, 'contact_disclosure').id
 		});

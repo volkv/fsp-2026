@@ -29,8 +29,9 @@
 	}
 </script>
 
-<div class={cn('space-y-3', className)}>
-	<ol class="grid gap-2 sm:grid-cols-4" aria-label="Этапы найма">
+<!-- Columns follow the width of the place the stages stand in, not of the window: in a side column four labels do not fit. -->
+<div class={cn('@container space-y-3', className)}>
+	<ol class="grid gap-2 @sm:grid-cols-2 @2xl:grid-cols-4" aria-label="Этапы найма">
 		{#each HIRING_STAGES as stage, index (stage.key)}
 			{@const done = index <= reached}
 			<li
@@ -50,7 +51,7 @@
 				>
 					{#if done}<CheckIcon class="size-3" />{:else}{index + 1}{/if}
 				</span>
-				<span>
+				<span class="min-w-0 hyphens-auto">
 					<span class="block font-medium">{stage.label}</span>
 					{#if hiring.stages[stage.key]?.length}
 						<span class="block text-xs opacity-90">{reporters(hiring.stages[stage.key])}</span>

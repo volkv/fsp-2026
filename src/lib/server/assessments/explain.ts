@@ -46,7 +46,7 @@ export function judgementNote(judgement: JudgementProvenance): string | null {
 	const note = judgementBasis(judgement);
 	if (note === null) return null;
 	return judgement.sameVendorReviewer
-		? `${note}; одна из моделей-рецензентов — того же поставщика, что автор заданий.`
+		? `${note}. Задания проверяли две разные модели: одна — того же поставщика, что модель-автор, другая — другого поставщика.`
 		: `${note}.`;
 }
 

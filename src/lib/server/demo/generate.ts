@@ -738,7 +738,10 @@ function vacancyTerms(
 	};
 }
 
-/** Vacancies of the scenario's main employer: the internship open from 16 and the two of the invitations. */
+/**
+ * Vacancies of the scenario's main employer: the internship open from 16, the two of the invitations and the one of
+ * Python payouts a Python Middle without offers applies to on stage.
+ */
 function scenarioVacancies(companyKey: string, companyName: string): OwnVacancyPlan[] {
 	const fixed = (
 		scenarioKey: string,
@@ -802,6 +805,24 @@ function scenarioVacancies(companyKey: string, companyName: string): OwnVacancyP
 				employmentForm: 'full',
 				contractTypes: ['labor'],
 				salary: { min: 360_000, max: 450_000, currency: 'RUB', period: 'month', taxBase: 'net' }
+			},
+			null
+		),
+		fixed(
+			'python_payouts',
+			{
+				title: 'Middle Python-разработчик (сервис выплат партнёрам)',
+				roleKey: 'backend',
+				gradeMin: 'middle',
+				gradeMax: 'middle',
+				requiredSkillKeys: ['python', 'postgresql'],
+				requiredNames: ['Python', 'PostgreSQL'],
+				niceSkillKeys: ['fastapi', 'docker'],
+				niceNames: ['FastAPI', 'Docker'],
+				workFormat: 'hybrid',
+				employmentForm: 'full',
+				contractTypes: ['labor'],
+				salary: { min: 200_000, max: 260_000, currency: 'RUB', period: 'month', taxBase: 'net' }
 			},
 			null
 		),

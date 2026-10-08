@@ -8,9 +8,10 @@ import { and, desc, eq } from 'drizzle-orm';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { AccessSubject } from '$lib/server/access/permissions';
-import type { GradeKey, SpecializationKey } from '$lib/server/assessments/contract/catalog';
+import { CATALOG, type GradeKey, type SpecializationKey } from '$lib/server/assessments/contract/catalog';
 import { candidateDemand, type CandidateDemand } from '$lib/server/candidates/demand';
 import {
+	candidateSurveys,
 	categorizationRulesets,
 	evidenceRuns,
 	demoSessions,
@@ -214,7 +215,7 @@ describe('what the market asks for in the category', () => {
 		category: { specialization: 'backend', grade: 'middle' },
 		skills: [
 			{ skillKey: 'go', attestation: 'direct', badgeTrust: 'platform_verified' },
-			{ skillKey: 'sql', attestation: 'claimed' },
+			{ skillKey: 'kafka', attestation: 'claimed' },
 			{ skillKey: 'docker', attestation: 'derived' },
 			{ skillKey: 'python', attestation: 'direct', badgeTrust: 'public_verifiable' }
 		]
@@ -231,31 +232,53 @@ describe('what the market asks for in the category', () => {
 		expect(result.threshold).toBe(MIN_SAMPLE);
 		expect(result.source).toMatchObject({ vacancies: 7, synthetic: false });
 		expect(result.source.latestSeenAt).toBeInstanceOf(Date);
-		// Go is confirmed by the platform and is not a gap; a claim, a derived inference and a public profile are.
+		// Go is confirmed by the platform and SQL by the test of the category (block «Базы данных»): neither is a gap;
+		// a claim, a derived inference and a public profile are.
 		expect(shares(result)).toEqual({
-			sql: [5, 'claimed'],
 			docker: [4, 'derived'],
 			algorithms: [1, 'missing'],
-			kafka: [1, 'missing'],
+			kafka: [1, 'claimed'],
 			kubernetes: [1, 'missing'],
 			python: [1, 'public_profile']
 		});
-		expect(result.gaps.map((gap) => gap.skillKey).slice(0, 2)).toEqual(['sql', 'docker']);
-		expect(result.gaps[0]?.share).toBeCloseTo(5 / 7);
-		expect(result.confirmed).toEqual([{ skillKey: 'go', share: 6 / 7 }]);
+		expect(result.gaps[0]).toMatchObject({ skillKey: 'docker', share: 4 / 7 });
+		expect(result.confirmed).toEqual([
+			{ skillKey: 'go', share: 6 / 7 },
+			{ skillKey: 'sql', share: 5 / 7 }
+		]);
 	});
 
 	it('points each gap to a block of an open test or an FSP result, or says there is neither', async () => {
 		const result = available(await candidateDemand(database.db, await categorized(middleBackend), NOW));
 		const path = (key: string) => result.gaps.find((gap) => gap.skillKey === key)?.path;
 
-		// SQL is confirmed by the block of databases of the open Backend test; DevOps, whose block confirms Docker, is closed.
-		expect(path('sql')?.tests).toEqual([
-			{ block: 'be.db', specialization: 'backend', title: 'Backend: Базы данных и SQL' }
+		// Algorithms are confirmed by a block of the open Backend test; DevOps, whose block confirms Docker, is closed.
+		expect(path('algorithms')?.tests).toEqual([
+			{ block: 'be.algo', specialization: 'backend', title: 'Backend: Алгоритмы и структуры данных' }
 		]);
 		expect(path('docker')?.tests).toEqual([]);
 		expect(path('algorithms')).toMatchObject({ fspDisciplines: ['algorithmic'] });
 		expect(path('kafka')).toEqual({ tests: [], fspDisciplines: [] });
+	});
+
+	it('reads a skill of the declared stack of the survey as a claim, not as missing from the profile', async () => {
+		const subject = await categorized({ category: { specialization: 'backend', grade: 'middle' } });
+		const candidateId = subject.candidate?.id;
+		if (!candidateId) throw new Error('the subject has no candidate');
+		await database.db.insert(candidateSurveys).values({
+			candidateId,
+			version: 1,
+			catalogVersion: CATALOG.version,
+			taxonomyVersionId,
+			direction: 'development',
+			specialization: 'backend',
+			declaredSkillKeys: ['go', 'kubernetes'],
+			preferences: {}
+		});
+		const result = available(await candidateDemand(database.db, subject, NOW));
+
+		expect(shares(result)).toMatchObject({ go: [6, 'claimed'], kubernetes: [1, 'claimed'], kafka: [1, 'missing'] });
+		expect(result.confirmed).toEqual([{ skillKey: 'sql', share: 5 / 7 }]);
 	});
 
 	it('counts the whole specialization when the grade has fewer vacancies than the minimal sample', async () => {

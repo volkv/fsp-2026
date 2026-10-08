@@ -479,6 +479,34 @@ export const DISCLOSURE_FIELD_LABELS: Record<string, string> = {
 	resume: 'резюме'
 };
 
+/** The disclosed contacts as the company page receives them: the fields the candidate allowed and their values. */
+export interface DisclosedContacts {
+	fields: readonly string[];
+	fullName?: { last: string | null; first: string | null; middle: string | null };
+	email?: string;
+	phone?: string | null;
+	telegram?: string | null;
+	resumeFileId?: string | null;
+}
+
+/**
+ * The allowed fields split by whether the profile has a value for them: a field the candidate allowed but never filled
+ * in discloses nothing, so it is not listed as disclosed.
+ */
+export function disclosedFields(contacts: DisclosedContacts): { disclosed: string[]; empty: string[] } {
+	const filled: Record<string, boolean> = {
+		full_name: [contacts.fullName?.last, contacts.fullName?.first, contacts.fullName?.middle].some(Boolean),
+		email: Boolean(contacts.email),
+		phone: Boolean(contacts.phone),
+		telegram: Boolean(contacts.telegram),
+		resume: Boolean(contacts.resumeFileId)
+	};
+	return {
+		disclosed: contacts.fields.filter((field) => filled[field]),
+		empty: contacts.fields.filter((field) => !filled[field])
+	};
+}
+
 /** Names of fields that differ between versions of invitation terms (`invitation_terms.changes`). */
 export const TERMS_FIELD_LABELS: Record<string, string> = {
 	title: 'Название',

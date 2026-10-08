@@ -1,5 +1,6 @@
 import { error } from '@sveltejs/kit';
 import { formText } from '$lib/server/http/form';
+import { disclosingApplicationOfInvitation } from '$lib/server/applications/service';
 import { db } from '$lib/server/db';
 import { employerRequest, membershipOf, type EmployerRequest } from '$lib/server/employer/http';
 import { formFailure, pageError } from '$lib/server/http/page';
@@ -40,11 +41,12 @@ export const load: PageServerLoad = async (event) => {
 		const current = invitation.versions.find((version) => version.id === invitation.currentTermsId);
 		if (!current) throw new Error(`invitation ${invitation.id} lost its current terms`);
 		const vocabulary = await currentVocabulary(db());
-		const [offer, process, contacts, conversation] = await Promise.all([
+		const [offer, process, contacts, conversation, application] = await Promise.all([
 			offerFormContext(db(), membership.companyId, vocabulary, now),
 			invitation.hiringProcessId === null ? null : getHiringProcess(deps, subject, invitation.hiringProcessId),
 			accepted && invitation.status === 'accepted' ? contactsOf(request, invitation.id) : null,
-			getConversation(deps, subject, invitation.id)
+			getConversation(deps, subject, invitation.id),
+			invitation.status === 'accepted' ? null : disclosingApplicationOfInvitation(db(), invitation.id, now)
 		]);
 		return {
 			invitation,
@@ -53,6 +55,7 @@ export const load: PageServerLoad = async (event) => {
 			whyYouOptions: optionsOfPoints(current.whyYou),
 			process,
 			contacts,
+			application,
 			conversation,
 			stages: [...HIRING_STAGES],
 			outcomes: [...OUTCOMES],

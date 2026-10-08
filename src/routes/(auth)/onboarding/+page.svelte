@@ -4,7 +4,7 @@
 	import CsrfField from '$lib/components/forms/csrf-input.svelte';
 	import { Button, buttonVariants } from '$lib/components/ui/button/index.js';
 	import * as Field from '$lib/components/ui/field/index.js';
-	import { Input } from '$lib/components/ui/input/index.js';
+	import DateInput from '$lib/components/forms/date-input.svelte';
 	import { ACCOUNT_HREF } from '$lib/navigation.js';
 	import AuthPage from '../auth-page.svelte';
 	import FormMessage from '$lib/components/forms/form-message.svelte';
@@ -98,7 +98,7 @@
 						<CsrfField viewer={data.viewer} />
 						<Field.Field>
 							<Field.Label for="onb-birth">Дата рождения</Field.Label>
-							<Input id="onb-birth" name="birthDate" type="date" max={data.today} required />
+							<DateInput id="onb-birth" name="birthDate" max={data.today} required />
 						</Field.Field>
 						<Button type="submit">Продолжить</Button>
 					</form>

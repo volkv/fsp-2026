@@ -4,6 +4,7 @@
 // candidates of a category in force the company sees — through `canShow`, so a minor and a hidden profile are not
 // counted and small numbers are «< 5». Only members of the company see its needs.
 import { randomBytes } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { eq } from 'drizzle-orm';
 import postgres from 'postgres';
@@ -160,6 +161,33 @@ describe('a hiring need', () => {
 			inputRef: { type: 'hiring_need', id: need.id, company_id: company.id }
 		});
 		expect(need.status).toBe('draft');
+	});
+
+	it('reads the need of the demo scenario by the rules as the seed of the stand states it', async () => {
+		const seed = JSON.parse(await readFile(new URL('../../seeds/demo.json', import.meta.url), 'utf8')) as {
+			companies: { key: string; needs?: { key: string; text: string; form: Record<string, unknown> }[] }[];
+		};
+		const scenario = seed.companies
+			.find((c) => c.key === 'severny_kod')
+			?.needs?.find((n) => n.key === 'payments_backend');
+		if (!scenario) throw new Error('the seed has no need of the scenario');
+		const { subject } = await employer();
+		const need = await createNeed(deps(), subject, meta, { text: scenario.text });
+
+		// What the presenter pastes on stage gives the need the stand is seeded with: the shortlist shows the same.
+		const read = [
+			'role_key',
+			'specialization',
+			'grade',
+			'skill_keys',
+			'nice_skill_keys',
+			'work_format',
+			'region_code',
+			'salary'
+		];
+		expect(Object.fromEntries(read.map((key) => [key, need.form[key as keyof typeof need.form]]))).toEqual(
+			Object.fromEntries(read.map((key) => [key, scenario.form[key]]))
+		);
 	});
 
 	it('takes the role from the title: a stack line never names it, a role no test checks keeps no specialization', async () => {

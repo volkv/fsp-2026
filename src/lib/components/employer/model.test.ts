@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { matchView, trustNote, type CompanyMatchData } from './model';
+import { disclosedFields, matchView, trustNote, type CompanyMatchData } from './model';
 
 const labels = { roles: {}, specializations: {}, grades: {}, skills: {} };
 
@@ -122,5 +122,19 @@ describe('matchView', () => {
 		expect(matchView(data, labels).toVerify).toEqual([
 			'Недостаточно данных: доказательства профиля ещё не рассчитаны — навыки в счёт идут как неподтверждённые, проверьте их на собеседовании'
 		]);
+	});
+});
+
+describe('disclosedFields', () => {
+	it('lists as disclosed only the allowed fields the profile has a value for', () => {
+		expect(
+			disclosedFields({
+				fields: ['full_name', 'email', 'telegram', 'phone'],
+				fullName: { last: 'Родионов', first: 'Степан', middle: null },
+				email: 'stepan@example.com',
+				telegram: null,
+				phone: ''
+			})
+		).toEqual({ disclosed: ['full_name', 'email'], empty: ['telegram', 'phone'] });
 	});
 });

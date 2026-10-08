@@ -2,6 +2,7 @@
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
 	import CandidateCard from '$lib/components/employer/candidate-card.svelte';
+	import ContactsHidden from '$lib/components/employer/contacts-hidden.svelte';
 	import OfferForm from '$lib/components/employer/offer-form.svelte';
 	import NativeSelect from '$lib/components/employer/native-select.svelte';
 	import CsrfInput from '$lib/components/forms/csrf-input.svelte';
@@ -45,6 +46,17 @@
 	<CandidateCard card={data.card} evidenceState={data.evidenceState} receipts={data.receipts} labels={data.labels} />
 	<aside class="grid content-start gap-4">
 		<RecommendationNotice compact />
+		{#if data.application}
+			<p class="rounded-lg border p-3 text-sm" data-testid="contacts-by-application">
+				Кандидат откликнулся на вакансию «{data.application.vacancyTitle}» — контакты, которые он выбрал, в
+				<a
+					class="text-link underline"
+					href={resolve('/(app)/company/(member)/applications/[id]', { id: data.application.id })}>отклике</a
+				>.
+			</p>
+		{:else if data.invitation?.status !== 'accepted'}
+			<ContactsHidden />
+		{/if}
 		<Card.Root>
 			<Card.Header>
 				<Card.Title><h2 class="font-heading text-h3">Предложить работу</h2></Card.Title>

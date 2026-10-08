@@ -43,6 +43,7 @@ import { createLogger } from '$lib/server/jobs/log';
 import type { MatchingModels } from '$lib/server/matching/semantic';
 import { fail } from '$lib/server/ml/result';
 import { readPartnerPool } from '$lib/server/partner-pool/pool';
+import { openShortlist } from '$lib/server/shortlists/service';
 import { PERIODIC_JOBS, periodicJobsFor } from '$lib/server/jobs/scheduler';
 import type { Redis } from '$lib/server/redis';
 import type { ObjectStore, StoredObject } from '$lib/server/storage/object-store';
@@ -533,13 +534,82 @@ describe('demo seed', () => {
 			select count(*)::int as n from shortlist_marks where candidate_id = ${stepanProfile.id}`;
 		expect(marked?.n).toBe(1);
 		expect(await db.select().from(invitations).where(eq(invitations.candidateId, stepanProfile.id))).toEqual([]);
-		// К-1 also solved the partner's call, applied to the main employer's vacancy and was asked to confirm a block.
-		const [contacts] = await database.sql<{ solutions: number; applications: number; requests: number }[]>`
-			select (select count(*)::int from challenge_solutions s join challenge_deliveries d on d.id = s.delivery_id
+		// The main employer's call waits for К-1 unanswered — he sends his approach on stage — while background
+		// candidates answered it; К-1 applied nowhere, so the main employer holds none of his contacts before the offer
+		// of the stage, and was asked to confirm a block.
+		const [contacts] = await database.sql<
+			{
+				company: string;
+				delivered: number;
+				solutions: number;
+				others: number;
+				applications: number;
+				requests: number;
+			}[]
+		>`
+			select (select c.display_name from company_challenges h join companies c on c.id = h.company_id) as company,
+				(select count(*)::int from challenge_deliveries where candidate_id = ${stepanProfile.id}) as delivered,
+				(select count(*)::int from challenge_solutions s join challenge_deliveries d on d.id = s.delivery_id
 					where d.candidate_id = ${stepanProfile.id}) as solutions,
+				(select count(*)::int from challenge_solutions) as others,
 				(select count(*)::int from applications where candidate_id = ${stepanProfile.id}) as applications,
 				(select count(*)::int from confirmation_requests where candidate_id = ${stepanProfile.id}) as requests`;
-		expect(contacts).toEqual({ solutions: 1, applications: 1, requests: 1 });
+		expect(contacts).toMatchObject({
+			company: 'Северный код',
+			delivered: 1,
+			solutions: 0,
+			applications: 0,
+			requests: 1
+		});
+		expect(contacts?.others).toBeGreaterThan(0);
+		// К-2 applied to the vacancy of the payment gateway: the main employer's applications are not empty before the stage.
+		const dmitryProfile = await candidateOf('dmitry.orlov@fsp-career.example');
+		const [gatewayApplication] = await database.sql<{ title: string }[]>`
+			select v.title from applications a join vacancies v on v.id = a.vacancy_id where a.candidate_id = ${dmitryProfile.id}`;
+		expect(gatewayApplication?.title).toBe('Middle Go-разработчик (платёжный шлюз)');
+
+		// The shortlist of the scenario's need: on top the group that closes every required skill, К-1 and К-6 in it, and
+		// a claim of the resume to check at the interview — Kafka of К-2.
+		const severny = await userByEmail('recruiter@severny-kod.example');
+		const severnySubject = await loadAccessSubject(db, {
+			kind: 'session',
+			userId: severny.id,
+			sessionHash: 'demo-seed-test',
+			authTime: new Date(),
+			authMethod: 'password',
+			csrfToken: ''
+		});
+		const [scenarioShortlist] = await database.sql<{ id: string }[]>`
+			select s.id from shortlists s join hiring_needs n on n.id = s.need_id join companies c on c.id = n.company_id
+			where c.display_name = 'Северный код' order by s.created_at limit 1`;
+		const shortlist = await openShortlist(
+			{
+				db,
+				models: MODELS_OFF,
+				pseudonym: (candidateId, companyId) => crypto.pseudonym(candidateId, companyId),
+				now: () => new Date(),
+				testResults: GRADE_DECISION_RESULTS
+			},
+			severnySubject,
+			scenarioShortlist?.id ?? '',
+			{ limit: 100 }
+		);
+		expect(shortlist.groups.covers).toBeGreaterThan(0);
+		const annaProfile = await candidateOf('anna.kovaleva@fsp-career.example');
+		const groupOf = (candidateId: string) =>
+			shortlist.items.find((item) => item.candidateId === candidateId)?.needMatch.coverage.group;
+		expect(groupOf(stepanProfile.id)).toBe('covers');
+		expect(groupOf(annaProfile.id)).toBe('covers');
+		expect(shortlist.items.find((item) => item.candidateId === dmitryProfile.id)?.needMatch.toVerify).toContain(
+			'kafka'
+		);
+
+		// К-6, a Python Middle without offers, finds a published vacancy of her profile with the main employer.
+		const [payouts] = await db
+			.select({ status: vacancies.status, required: vacancies.requiredSkillKeys })
+			.from(vacancies)
+			.where(eq(vacancies.title, 'Middle Python-разработчик (сервис выплат партнёрам)'));
+		expect(payouts).toEqual({ status: 'published', required: ['python', 'postgresql'] });
 		// К-2: an offer of the company under review, unanswered.
 		const dmitry = await candidateOf('dmitry.orlov@fsp-career.example');
 		const [unverified] = await db

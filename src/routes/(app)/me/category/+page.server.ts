@@ -8,6 +8,7 @@ import { needDemand } from '$lib/server/candidates/need-demand';
 import { candidateRequest, type CandidateRequest } from '$lib/server/candidates/http';
 import { currentCandidateVocabulary, vocabularyLabels } from '$lib/server/candidates/vocabulary';
 import { candidateObjections, withdrawObjection } from '$lib/server/categories/objections';
+import { CATEGORY_OPTIONS } from '$lib/server/categories/labels';
 import { categoryHistory } from '$lib/server/categories/read';
 import { db } from '$lib/server/db';
 import { gradeSources } from '$lib/server/grades/sources';
@@ -15,6 +16,8 @@ import { loadGradeStanding } from '$lib/server/grades/standing';
 import { blockReasonText, optionText } from '$lib/server/grades/texts';
 import { formFailure, pageError } from '$lib/server/http/page';
 import type { Actions, PageServerLoad } from './$types';
+
+const CATEGORY_GRADE_NAMES = Object.fromEntries(CATEGORY_OPTIONS.grades.map(({ key, name }) => [key, name]));
 
 function nextOption(options: readonly GradeOffer[], grade: GradeKey): GradeOffer {
 	const option = options.find((o) => o.grade === grade);
@@ -46,7 +49,6 @@ export const load: PageServerLoad = async (event) => {
 			catalog: {
 				directions: Object.fromEntries(CATALOG.directions.map((d) => [d.key, d.title])),
 				specializations: Object.fromEntries(CATALOG.specializations.map((s) => [s.key, s.title])),
-				grades: Object.fromEntries(CATALOG.grades.map((g) => [g.key, g.title])),
 				blocks: Object.fromEntries(CATALOG.blocks.map((b) => [b.code, b.title]))
 			},
 			survey: standing.survey && {
@@ -102,7 +104,9 @@ export const load: PageServerLoad = async (event) => {
 			objections,
 			demand,
 			needs,
-			labels: vocabularyLabels(vocabulary)
+			// Every grade on this screen is a grade of a category: named by the catalog, as the survey, the declaration
+			// and the tests name it, not by the wider grade scale of vacancies.
+			labels: { ...vocabularyLabels(vocabulary), grades: CATEGORY_GRADE_NAMES }
 		};
 	} catch (cause) {
 		pageError(event, cause);

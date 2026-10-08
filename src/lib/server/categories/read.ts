@@ -2,6 +2,7 @@
 // uses. Nobody else reads `candidate_categories`: catalog filters, counters, the market, cards, the export, the
 // operator and the quality evaluation all go through here, so «has a category» means the same everywhere — a category
 // in force (`active`), whatever happened to the profile evidence since (domain 12.4, 12.6).
+import { productDay } from '$lib/dates';
 import { and, asc, desc, eq, inArray, sql, type AnyColumn, type SQL } from 'drizzle-orm';
 import type { GradeKey, SpecializationKey } from '$lib/server/assessments/contract/catalog';
 import type { PolicyCategory } from '$lib/server/assessments/contract/policy';
@@ -139,7 +140,7 @@ export function categoryViews(categories: readonly ActiveCategory[]): CategoryVi
 			grade: category.grade,
 			confirmedBlocks: category.confirmedBlocks,
 			confirmedSkillKeys: category.confirmedSkillKeys,
-			assignedOn: category.assignedAt.toISOString().slice(0, 10),
+			assignedOn: productDay(category.assignedAt),
 			bankReleaseId: category.bankReleaseId
 		}));
 }

@@ -11,7 +11,7 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Field from '$lib/components/ui/field/index.js';
-	import { Input } from '$lib/components/ui/input/index.js';
+	import DateInput from '$lib/components/forms/date-input.svelte';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
@@ -158,10 +158,9 @@
 					<CsrfInput />
 					<Field.Field data-invalid={fieldError('birthDate') !== undefined}>
 						<Field.Label for="birth-date">Дата рождения по документу</Field.Label>
-						<Input
+						<DateInput
 							id="birth-date"
 							name="birthDate"
-							type="date"
 							required
 							value={c.declared.precision === 'day' ? (c.declared.birthDate ?? '') : ''}
 						/>

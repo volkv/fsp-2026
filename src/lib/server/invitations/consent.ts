@@ -5,7 +5,7 @@ import { and, asc, desc, eq, inArray, isNotNull, isNull, lte } from 'drizzle-orm
 import { effectiveConsent, type ConsentEventFacts } from '$lib/server/consent/effective';
 import { DISCLOSURE_FIELDS, type DisclosureField } from '$lib/server/consent/kinds';
 import type { Executor } from '$lib/server/db';
-import { candidates, consentEvents, legalDocuments, representations } from '$lib/server/db/schema';
+import { candidates, consentEvents, legalDocuments, representations, resumeDocuments } from '$lib/server/db/schema';
 import { ageBand, isMinorBand } from '$lib/server/visibility/age';
 
 interface DisclosureEvent extends ConsentEventFacts {
@@ -136,4 +136,26 @@ export async function currentDisclosureDocument(
 		.orderBy(desc(legalDocuments.version))
 		.limit(1);
 	return row ?? null;
+}
+
+/**
+ * The disclosure fields the candidate's profile has no value for — no phone, no Telegram, no current resume: allowing
+ * them hands the company nothing, so the forms say so next to the field.
+ */
+export async function emptyDisclosureFields(executor: Executor, candidateId: string): Promise<DisclosureField[]> {
+	const [row] = await executor
+		.select({ phone: candidates.phoneEnc, telegram: candidates.telegramEnc })
+		.from(candidates)
+		.where(eq(candidates.id, candidateId));
+	if (!row) throw new Error(`candidate ${candidateId} does not exist`);
+	const [resume] = await executor
+		.select({ id: resumeDocuments.id })
+		.from(resumeDocuments)
+		.where(and(eq(resumeDocuments.candidateId, candidateId), eq(resumeDocuments.isCurrent, true)))
+		.limit(1);
+	const empty: DisclosureField[] = [];
+	if (row.phone === null) empty.push('phone');
+	if (row.telegram === null) empty.push('telegram');
+	if (!resume) empty.push('resume');
+	return empty;
 }

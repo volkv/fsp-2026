@@ -6,10 +6,10 @@ import { eq, inArray } from 'drizzle-orm';
 import type { AccessSubject } from '$lib/server/access/permissions';
 import { currentDocument } from '$lib/server/auth/documents';
 import type { DisclosureField } from '$lib/server/consent/kinds';
-import { candidates, hiringProcesses, invitations } from '$lib/server/db/schema';
+import { hiringProcesses, invitations } from '$lib/server/db/schema';
 import { getHiringProcess, processReports, type HiringProcessView } from '$lib/server/hiring/process';
 import { hiringState } from '$lib/server/hiring/state';
-import { effectiveDisclosure } from '$lib/server/invitations/consent';
+import { effectiveDisclosure, emptyDisclosureFields } from '$lib/server/invitations/consent';
 import type { InvitationDeps } from '$lib/server/invitations/deps';
 import { policyById } from '$lib/server/invitations/policies';
 import {
@@ -51,7 +51,8 @@ export interface InvitationCard {
 	disclosedFields: DisclosureField[];
 	/** The exact text the acceptance consents to; `null` — no disclosure document is published. */
 	disclosureDocument: { id: string; title: string; version: number; body: string } | null;
-	hasPhone: boolean;
+	/** Disclosure fields the profile has no value for: allowing them hands the company nothing. */
+	emptyFields: DisclosureField[];
 	process: HiringProcessView | null;
 	hiringPolicy: { stages: string[]; outcomeReasonCodes: string[] } | null;
 	labels: VocabularyLabels;
@@ -65,9 +66,8 @@ export async function candidateInvitationCard(
 	const invitation = await getInvitation(deps, subject, invitationId);
 	const now = deps.now();
 	const [row] = await deps.db
-		.select({ policyId: invitations.policyId, candidateId: invitations.candidateId, phone: candidates.phoneEnc })
+		.select({ policyId: invitations.policyId, candidateId: invitations.candidateId })
 		.from(invitations)
-		.innerJoin(candidates, eq(candidates.id, invitations.candidateId))
 		.where(eq(invitations.id, invitation.id));
 	if (!row) throw new Error(`invitation ${invitation.id} disappeared`);
 	const policy = await policyById(deps.db, 'invitation_policy', row.policyId);
@@ -95,7 +95,7 @@ export async function candidateInvitationCard(
 			document?.available === true
 				? { id: document.id, title: document.title, version: document.version, body: document.body }
 				: null,
-		hasPhone: row.phone !== null,
+		emptyFields: await emptyDisclosureFields(deps.db, row.candidateId),
 		process,
 		hiringPolicy,
 		labels: vocabularyLabels(await currentCandidateVocabulary(deps.db))

@@ -140,14 +140,16 @@
 			<div class="grid gap-1" data-testid="bank-judgement">
 				<p class="font-medium">Ревью и пороги</p>
 				<p class="text-muted-foreground">
-					Рубрики и Angoff-оценки проверяют независимые рецензенты: две модели разных линеек или человек команды. Порог
-					по оценкам только моделей — предварительный.
+					Рубрики и Angoff-оценки проверяют независимые рецензенты: две модели разных поставщиков или человек команды.
+					Порог по оценкам только моделей — предварительный.
 				</p>
 				<ul class="grid gap-1">
 					{#each Object.entries(release.judgement) as [grade, j] (grade)}
 						<li>
 							{grade}: семейств-уровней {j.levels}, рубрика только от моделей — {j.rubricByModelsOnly}, предварительный
-							порог — {j.angoffProvisional}, рецензент того же поставщика, что автор — {j.sameVendorReviewer}
+							порог — {j.angoffProvisional}, один рецензент того же поставщика, что модель-автор, другой — другого
+							поставщика —
+							{j.sameVendorReviewer}
 						</li>
 					{/each}
 				</ul>
@@ -174,7 +176,7 @@
 								{#each family.levels as level (level.grade)}
 									<li>
 										Angoff {level.grade}, раунд {level.round}, среднее {points(level.mean)}{level.sameVendorReviewer
-											? ' · рецензент того же поставщика, что автор'
+											? ' · один рецензент того же поставщика, что модель-автор, другой — другого поставщика'
 											: ''}:
 										{level.ratings
 											.map((r) => `${reviewerName(r.rater)} — ${points(r.p)}${stale(r.onCurrentSources)}`)

@@ -7,6 +7,7 @@
 	import CsrfField from '$lib/components/forms/csrf-input.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Field from '$lib/components/ui/field/index.js';
+	import DateInput from '$lib/components/forms/date-input.svelte';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { LOGIN_HREF, SIGN_IN_HREF } from '$lib/navigation.js';
 	import AuthPage from '../auth-page.svelte';
@@ -195,10 +196,9 @@
 				{#if role === 'candidate'}
 					<Field.Field data-invalid={invalid('birthDate')}>
 						<Field.Label for="reg-birth">Дата рождения</Field.Label>
-						<Input
+						<DateInput
 							id="reg-birth"
 							name="birthDate"
-							type="date"
 							max={today}
 							required
 							value={values?.birthDate ?? ''}

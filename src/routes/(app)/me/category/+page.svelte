@@ -13,13 +13,14 @@
 	import StatusPill from '$lib/components/forms/status-pill.svelte';
 	import { CategoryList, RecommendationNotice, ResponseDeadline } from '$lib/components/product/index.js';
 	import { formatDate, type CategoryBadgeView } from '$lib/components/product/model.js';
+	import { productDay } from '$lib/dates';
 	import { Button, buttonVariants } from '$lib/components/ui/button/index.js';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
 
 	const catalog = $derived(data.catalog);
-	const grade = (key: string | null) => (key === null ? '—' : (catalog.grades[key] ?? key));
+	const grade = (key: string | null) => (key === null ? '—' : (data.labels.grades[key] ?? key));
 	const specialization = (key: string) => catalog.specializations[key] ?? key;
 	const skill = (key: string) => data.labels.skills[key] ?? key;
 
@@ -31,7 +32,7 @@
 		grade: name(labels.grades, item.grade),
 		skills: item.confirmedSkillKeys.map((key) => name(labels.skills, key)),
 		blocks: item.confirmedBlocks.length,
-		assignedOn: item.assignedAt.toISOString().slice(0, 10)
+		assignedOn: productDay(item.assignedAt)
 	});
 	const inForce = $derived(data.categories.filter((item) => item.status === 'active').map(badge));
 	const ended = $derived(data.categories.filter((item) => item.status !== 'active'));

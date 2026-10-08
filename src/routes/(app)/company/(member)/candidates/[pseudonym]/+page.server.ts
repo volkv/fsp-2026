@@ -22,6 +22,7 @@ import { listInvitations } from '$lib/server/invitations/read';
 import { createInvitation } from '$lib/server/invitations/send';
 import { matchingDeps } from '$lib/server/matching/deps';
 import { configuredShortlistDeps } from '$lib/server/shortlists/page';
+import { disclosingApplication } from '$lib/server/applications/service';
 import { solutionsOfCandidate } from '$lib/server/challenges/company';
 import {
 	companyRequests,
@@ -127,7 +128,8 @@ export const load: PageServerLoad = async (event) => {
 				declared: fromShortlist.match.declared
 			},
 			preselected: solutionPoint ? [solutionPoint.key] : [],
-			invitation: existing ? { id: existing.id, status: existing.status } : null
+			invitation: existing ? { id: existing.id, status: existing.status } : null,
+			application: await disclosingApplication(database, pair, now)
 		};
 	} catch (cause) {
 		pageError(event, cause);

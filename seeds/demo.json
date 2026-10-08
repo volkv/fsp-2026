@@ -39,7 +39,7 @@
 			"needs": [
 				{
 					"key": "payments_backend",
-					"text": "Ищем backend-разработчика уровня Middle или Senior в команду платёжного шлюза. Пишем на Go и Python, храним данные в PostgreSQL, события гоняем через Kafka. Нужен опыт с высоконагруженными сервисами и желание разбираться в предметной области платежей. Гибридный формат, вилка 230 000 – 380 000 ₽ на руки.",
+					"text": "Backend-разработчик (Middle/Senior) в команду платежей\nКоманда из шести человек ведёт сервис платёжных операций и выплат партнёрам.\nТребования: Python, SQL, многопоточность.\nБудет плюсом: PostgreSQL, Docker, Kafka.\nФормат: гибрид, Москва. Вилка 220 000 – 280 000 ₽ в месяц до вычета НДФЛ.",
 					"form": {
 						"role_key": "backend",
 						"specialization": "backend",
@@ -47,23 +47,24 @@
 							"min": "middle",
 							"max": "senior"
 						},
-						"skill_keys": ["go", "postgresql"],
-						"nice_skill_keys": ["python", "kafka", "docker"],
-						"team": "Команда платёжного шлюза, 7 инженеров",
+						"skill_keys": ["python", "sql", "multithreading"],
+						"nice_skill_keys": ["postgresql", "docker", "kafka"],
+						"team": "Команда платежей, 6 инженеров",
 						"work_format": "hybrid",
+						"region_code": "RU-MOW",
 						"salary": {
-							"min": 230000,
-							"max": 380000,
+							"min": 220000,
+							"max": 280000,
 							"currency": "RUB",
 							"period": "month",
-							"tax_base": "net"
+							"tax_base": "gross"
 						},
 						"fsp_relevant": true
 					},
 					"marks": [
 						{
 							"candidate": "k1",
-							"note": "Уверенный Middle по тесту и финалист ФСП: предложить роль в шлюзе"
+							"note": "Уверенный Middle по тесту и финалист ФСП: предложить роль в команде платежей"
 						},
 						{
 							"candidate": "k5",
@@ -204,7 +205,7 @@
 		{
 			"key": "k1",
 			"email": "stepan.rodionov@fsp-career.example",
-			"part": "Middle Backend подтверждён уверенно, достижения ФСП и резюме; ждёт предложения от «Северного кода»",
+			"part": "Middle Backend подтверждён уверенно, достижения ФСП и резюме; ждёт предложения от «Северного кода», вызов «Северного кода» ждёт его ответа",
 			"athlete": "captain_backend",
 			"birthDate": "1999-04-17",
 			"catalogScope": ["fsp_achievements_exact", "external_profiles"],
@@ -245,7 +246,7 @@
 		{
 			"key": "k2",
 			"email": "dmitry.orlov@fsp-career.example",
-			"part": "Senior Backend не подтверждён, Middle подтверждён тестом ниже; опыт по резюме, без ФСП; предложение непроверенной компании",
+			"part": "Senior Backend не подтверждён, Middle подтверждён тестом ниже; опыт по резюме, без ФСП; предложение непроверенной компании; откликнулся на вакансию платёжного шлюза «Северного кода»",
 			"name": {
 				"lastName": "Орлов",
 				"firstName": "Дмитрий",
@@ -398,7 +399,7 @@
 		{
 			"key": "k6",
 			"email": "anna.kovaleva@fsp-career.example",
-			"part": "Проходила тесты Middle Backend и Middle QA — видна в подборках каждой подтверждённой категории; без ФСП и резюме",
+			"part": "Проходила тесты Middle Backend и Middle QA — видна в подборках каждой подтверждённой категории; без ФСП и резюме; в ленте — вакансия Python «Северного кода» под её профиль",
 			"name": {
 				"lastName": "Ковалёва",
 				"firstName": "Анна",

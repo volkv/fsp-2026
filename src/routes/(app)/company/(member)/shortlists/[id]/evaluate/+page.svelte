@@ -41,7 +41,9 @@
 
 {#if data.needText}
 	<Card.Root>
-		<Card.Content class="pt-6 text-sm whitespace-pre-line">{data.needText}</Card.Content>
+		<Card.Content>
+			<p class="text-sm whitespace-pre-line" data-testid="need-text">{data.needText.trim()}</p>
+		</Card.Content>
 	</Card.Root>
 {/if}
 
