@@ -23,6 +23,7 @@ import {
 import {
 	ANSWER_KINDS,
 	FAMILY_GATES,
+	answerItem,
 	blockTestPairs,
 	isAuthor,
 	reviewerIdentity,
@@ -258,7 +259,14 @@ const familySchema = z.strictObject({
 const answerSchema = z.discriminatedUnion('kind', [
 	z.strictObject({ kind: z.enum(['exact', 'tokens']), value: z.string() }),
 	z.strictObject({ kind: z.literal('float_eps'), value: z.number(), eps: z.number().gt(0).max(1) }),
-	z.strictObject({ kind: z.enum(['set', 'sequence']), value: z.array(z.string()).min(1) }),
+	z.strictObject({
+		kind: z.enum(['set', 'sequence']),
+		value: z
+			.array(
+				z.string().refine((item) => item === answerItem(item), 'an item is not in the form answers are compared in')
+			)
+			.min(1)
+	}),
 	z
 		.strictObject({ kind: z.literal('line_no'), value: positiveInt, alternatives: z.array(positiveInt).optional() })
 		.refine((a) => !a.alternatives?.includes(a.value), 'an alternative repeats the line of the key')

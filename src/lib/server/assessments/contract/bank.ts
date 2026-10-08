@@ -181,6 +181,13 @@ export type ComputedAnswer =
 	 */
 	| { kind: 'line_no'; value: number; alternatives?: readonly number[] };
 
+/**
+ * One item of a `set` or `sequence` answer as it is compared: every run of whitespace inside it is one space, none at
+ * the ends. A key item is stored in this form (the validator rejects another), so a space the candidate doubled is not
+ * a different answer, while `570d` and `570 d` still are.
+ */
+export const answerItem = (text: string): string => text.replace(/\s+/gu, ' ').trim();
+
 export interface HiddenTestGroup {
 	id: string;
 	tests: readonly { stdin: string; expected: string }[];

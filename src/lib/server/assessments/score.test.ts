@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
 import { clampHarness, fixtureFamilies } from '../../../../tests/helpers/families';
 import type { RunResponse } from '../sandbox/types';
+import type { FamilyModule } from './contract/bank';
 import {
 	SandboxFailure,
 	shareDown,
@@ -30,6 +31,31 @@ describe('computed answers', () => {
 		expect(answerMatches({ kind: 'set', value: ['b', 'a'] }, ['a'])).toBe(false);
 		expect(answerMatches({ kind: 'sequence', value: ['b', 'a'] }, ['a', 'b'])).toBe(false);
 		expect(answerMatches({ kind: 'sequence', value: ['b', 'a'] }, 'b\na')).toBe(true);
+	});
+
+	it('reads whitespace inside an item of a set or a sequence as one space, and nothing as nothing', () => {
+		const key = { kind: 'sequence', value: ['570 d', '12 x'] } as const;
+		expect(answerMatches(key, '570  d\n12\tx')).toBe(true);
+		expect(answerMatches(key, ['  570 \t d ', '12 x'])).toBe(true);
+		expect(answerMatches(key, '570d\n12 x')).toBe(false);
+		expect(answerMatches(key, '570 e\n12 x')).toBe(false);
+		expect(answerMatches({ kind: 'set', value: ['a b', 'c'] }, 'c\na   b')).toBe(true);
+		expect(answerMatches({ kind: 'set', value: ['a b', 'c'] }, 'c\nab')).toBe(false);
+	});
+
+	it('keeps the rows of a query answer with « | » apart', async () => {
+		const { generate } = (await import('../../../../assessments/families/backend/be.db.group-having/generator.ts')) as {
+			generate: FamilyModule['generate'];
+		};
+		const { answer } = generate({ seed: 's1', grade: 'junior', classId: 'where-then-having' });
+		if (answer?.kind !== 'sequence') throw new Error('the query family answers with a sequence');
+		expect(answer.value.every((row) => row.includes(' | '))).toBe(true);
+		const rows = answer.value;
+		expect(answerMatches(answer, rows.join('\n'))).toBe(true);
+		expect(answerMatches(answer, rows.map((row) => row.replaceAll(' | ', '  |   ')).join('\n'))).toBe(true);
+		expect(answerMatches(answer, rows.map((row) => row.replaceAll(' | ', '|')).join('\n'))).toBe(false);
+		expect(answerMatches(answer, rows.map((row) => row.replaceAll(' | ', ' ')).join('\n'))).toBe(false);
+		expect(answerMatches(answer, [...rows].reverse().join('\n'))).toBe(rows.length === 1);
 	});
 });
 

@@ -697,6 +697,20 @@ describe('instance', () => {
 		expect(instanceProblems(fixed, qaFamily)).toEqual([]);
 	});
 
+	it('keeps a key item of a sequence in the form answers are compared in', () => {
+		const sequenceFamily: FamilyDescriptor = { ...family, answerKind: 'sequence' };
+		const keyed = (value: string[]): ItemInstance => ({
+			...instance,
+			answerKind: 'sequence',
+			answer: { kind: 'sequence', value }
+		});
+		expect(instanceProblems(keyed(['570 | d', 'x']), sequenceFamily)).toEqual([]);
+		for (const item of ['570  | d', '570\t| d', ' 570 | d'])
+			expect(instanceProblems(keyed([item]), sequenceFamily)).toEqual([
+				'instance be.db.null-aggregate/seed-1.answer.value.0: an item is not in the form answers are compared in'
+			]);
+	});
+
 	it('refuses an unknown class, a missing answer and an unknown language', () => {
 		expect(
 			instanceProblems(

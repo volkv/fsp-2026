@@ -2,17 +2,22 @@
 // program against the hidden test groups of its instance, QA test cases against the reference and the mutants, and the
 // step «измени своё решение» folded into its task. Every score is a multiple of 1/20, rounded down (the scale of the
 // procedure). Pure functions over the instance and the sandbox's answer; a failure of the sandbox is never a score.
-import type { ComputedAnswer, HiddenTestGroup, ItemInstance, Rubric } from './contract/bank.ts';
+import {
+	answerItem,
+	type ComputedAnswer,
+	type HiddenTestGroup,
+	type ItemInstance,
+	type Rubric
+} from './contract/bank.ts';
 import { SCALE, twentieths } from './contract/procedure.ts';
 import type { RunLimits, RunRequest, RunResponse } from '../sandbox/types.ts';
 
 /** What the candidate typed: one value, or the items of a set or a sequence (one per line in the form). */
 export type CandidateAnswer = string | readonly string[];
 
+/** The items of a set or a sequence the candidate typed, each in the compared form (`answerItem`); blank lines dropped. */
 const lines = (value: CandidateAnswer): string[] =>
-	(typeof value === 'string' ? value.split(/\r?\n/) : [...value])
-		.map((item) => item.trim())
-		.filter((item) => item !== '');
+	(typeof value === 'string' ? value.split(/\r?\n/) : [...value]).map(answerItem).filter((item) => item !== '');
 
 const single = (value: CandidateAnswer): string => (typeof value === 'string' ? value : value.join('\n')).trim();
 
@@ -45,12 +50,12 @@ export function answerMatches(expected: ComputedAnswer, given: CandidateAnswer):
 		}
 		case 'set': {
 			const left = new Set(lines(given));
-			const right = new Set(expected.value.map((item) => item.trim()));
+			const right = new Set(expected.value.map(answerItem));
 			return left.size === right.size && [...left].every((item) => right.has(item));
 		}
 		case 'sequence': {
 			const left = lines(given);
-			const right = expected.value.map((item) => item.trim());
+			const right = expected.value.map(answerItem);
 			return left.length === right.length && left.every((item, i) => item === right[i]);
 		}
 	}
