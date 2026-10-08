@@ -101,6 +101,12 @@ export function extractUserMessage(blocks: readonly { id: string; text: string }
 	return `${DOCUMENT_OPEN}\n${document.replaceAll('<', '\\u003c')}\n${DOCUMENT_CLOSE}`;
 }
 
+/** The schema of the answer for a runtime that takes it in the prompt (`answerFormat: 'json_object'`, runtime.ts). */
+export function answerSchemaInstruction(schema: Record<string, unknown>): string {
+	return `The answer is one JSON object, without markdown fences or any text around it, valid against this JSON Schema:
+${JSON.stringify(schema)}`;
+}
+
 export function extractRetryMessage(problem: string): string {
 	return `Your previous answer is unusable: ${problem}. Answer again with only a JSON object that matches the schema.`;
 }

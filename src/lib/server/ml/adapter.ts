@@ -7,11 +7,11 @@ import type { CheckedItems, PreparedExtract, Rejected } from './extract-common';
 import { postJson, type CallControl, type Endpoint } from './http';
 import { ConcurrencyLimiter, type CallPriority } from './limiter';
 import type { ModelMode } from './modes';
-import { extractRetryMessage, extractUserMessage } from './prompts';
+import { answerSchemaInstruction, extractRetryMessage, extractUserMessage } from './prompts';
 import type { SkillLexicon } from './quotes';
 import { fail, ok, type ModelError, type ModelErrorCode, type ModelOperation, type ModelResult } from './result';
 import { prepareResumeExtract, type ResumeItem } from './resume-extract';
-import { lacksApiKey, requestSchema, RUNTIME_PROFILES, type LlmRuntime } from './runtime';
+import { lacksApiKey, RUNTIME_PROFILES, type LlmRuntime } from './runtime';
 import { l2Normalize, type EmbeddingSpace, type SpaceLookup } from './spaces';
 import { prepareVacancyExtract, type VacancyItem, type VacancyLexicon } from './vacancy-extract';
 
@@ -195,7 +195,7 @@ function readExtractAnswer<I>(
 		};
 	}
 	// The answer does not fit the output limit (a reasoning model counts its thinking in it too): the document yields
-	// more than one answer holds. A retry with the same limit at temperature 0 is cut at the same place.
+	// more than one answer holds. A retry with the same limit is cut about the same place.
 	if (choice?.finish_reason === 'length') {
 		return {
 			kind: 'failed',
@@ -203,6 +203,13 @@ function readExtractAnswer<I>(
 				limit: 'output',
 				max_tokens: maxTokens
 			})
+		};
+	}
+	// The model refused to answer on its safety policy (a Claude `refusal`): the same document is refused again.
+	if (choice?.finish_reason === 'content_filter') {
+		return {
+			kind: 'failed',
+			failure: fail('request_rejected', 'extract: the model refused to answer', { cause: 'content_filter' })
 		};
 	}
 	const content = choice?.message.content;
@@ -348,9 +355,18 @@ export class ModelAdapter {
 		const gate = await this.#gate('extract', configured);
 		if (!gate.ok) return gate;
 		const settings = gate.value;
-		const profile = RUNTIME_PROFILES[settings.runtime];
-		const { params } = profile;
-		const schema = requestSchema(profile, prepared.jsonSchema);
+		const { params, answerFormat } = RUNTIME_PROFILES[settings.runtime];
+		const responseFormat =
+			answerFormat === 'json_schema'
+				? {
+						type: 'json_schema',
+						json_schema: { name: prepared.schemaName, strict: true, schema: prepared.jsonSchema }
+					}
+				: { type: 'json_object' };
+		const systemPrompt =
+			answerFormat === 'json_schema'
+				? prepared.systemPrompt
+				: `${prepared.systemPrompt}\n\n${answerSchemaInstruction(prepared.jsonSchema)}`;
 		const started = Date.now();
 		// Checked before the limiter: a breaker already open must not make a new call wait for a slot the runtime will
 		// not fill either, interactive or background.
@@ -375,7 +391,7 @@ export class ModelAdapter {
 		try {
 			const endpoint: Endpoint = { baseUrl: settings.baseUrl, apiKey: settings.apiKey };
 			const messages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [
-				{ role: 'system', content: prepared.systemPrompt },
+				{ role: 'system', content: systemPrompt },
 				{ role: 'user', content: extractUserMessage(request.blocks) }
 			];
 			for (let attempt = 1; attempt <= 2; attempt++) {
@@ -387,10 +403,7 @@ export class ModelAdapter {
 						model: settings.model,
 						messages,
 						...params,
-						response_format: {
-							type: 'json_schema',
-							json_schema: { name: prepared.schemaName, strict: true, schema }
-						}
+						response_format: responseFormat
 					},
 					this.#control(callDeadline, timeoutMs, priority, options.signal)
 				);

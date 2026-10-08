@@ -442,9 +442,11 @@ interface KeptReplies {
 	calls: number;
 	replies: KeptReply[];
 }
+/** The model `--assistant` asks: `LLM_MODEL`, Claude Opus through the gateway by default. */
+const assistantModel = process.env.LLM_MODEL ?? 'claude-opus:latest';
 const kept: KeptReplies = existsSync(ASSISTANT_FILE)
 	? (JSON.parse(readFileSync(ASSISTANT_FILE, 'utf8')) as KeptReplies)
-	: { model: process.env.LLM_MODEL ?? 'gemini-flash:latest', calls: 0, replies: [] };
+	: { model: assistantModel, calls: 0, replies: [] };
 const keptByKey = new Map(kept.replies.map((r) => [r.key, r]));
 let newCalls = 0;
 
@@ -466,6 +468,12 @@ async function ask(instance: ItemInstance, stage: KeptReply['stage'], prompt: st
 	if (known) return known.reply;
 	if (!args.assistant) throw new Error(`no kept reply for ${key}: run with --assistant`);
 	if (newCalls >= CALL_BUDGET) throw new Error(`the call budget of ${CALL_BUDGET} is spent`);
+	// The report measures one model: replies of another one are not added to the kept ones.
+	if (kept.model !== assistantModel) {
+		throw new Error(
+			`the kept replies are of ${kept.model}, LLM_MODEL asks ${assistantModel}: remove ${ASSISTANT_FILE} to measure ${assistantModel} anew`
+		);
+	}
 	const baseUrl = process.env.LLM_BASE_URL;
 	if (!baseUrl) throw new Error('LLM_BASE_URL is not set');
 	newCalls += 1;
@@ -476,7 +484,7 @@ async function ask(instance: ItemInstance, stage: KeptReply['stage'], prompt: st
 			'content-type': 'application/json',
 			...(process.env.LLM_API_KEY ? { authorization: `Bearer ${process.env.LLM_API_KEY}` } : {})
 		},
-		body: JSON.stringify({ model: kept.model, messages: [{ role: 'user', content: prompt }], temperature: 0 }),
+		body: JSON.stringify({ model: kept.model, messages: [{ role: 'user', content: prompt }] }),
 		signal: AbortSignal.timeout(300_000)
 	});
 	if (!response.ok)

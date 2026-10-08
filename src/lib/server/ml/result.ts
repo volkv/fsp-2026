@@ -13,7 +13,8 @@ export const MODEL_OPERATIONS: readonly ModelOperation[] = ['extract', 'embed', 
  * - `invalid_output` — the response failed validation (for `extract`, after the one allowed retry);
  * - `context_too_long` — the input exceeds the model context;
  * - `space_mismatch` — the model or the vector dimension does not match the embedding space;
- * - `request_rejected` — any other 4xx: the runtime refused the request (credentials, unknown model);
+ * - `request_rejected` — any other 4xx: the runtime refused the request (credentials, unknown model), or the model
+ *   refused to answer (`details.cause: content_filter`);
  * - `cancelled` — the caller aborted the call.
  */
 export type ModelErrorCode =

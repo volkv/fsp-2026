@@ -88,7 +88,7 @@ probe_models() {
 const env = process.env;
 const probes = [
 	['extract', env.LLM_BASE_URL, env.LLM_API_KEY, '/chat/completions',
-		{ model: env.LLM_MODEL, messages: [{ role: 'user', content: 'ok' }], max_tokens: 1, temperature: 0 }],
+		{ model: env.LLM_MODEL, messages: [{ role: 'user', content: 'ok' }], max_tokens: 1 }],
 	['rerank', env.RERANK_BASE_URL, env.RERANK_API_KEY, '/rerank',
 		{ model: env.RERANK_MODEL, query: 'python', documents: ['python'] }]
 ];

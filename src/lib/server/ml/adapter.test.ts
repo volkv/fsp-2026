@@ -4,6 +4,7 @@ import { ModelAdapter } from './adapter';
 import { postJson } from './http';
 import type { ModelMode } from './modes';
 import type { SkillLexicon } from './quotes';
+import { RESUME_EXTRACT_JSON_SCHEMA } from './resume-extract';
 import { fail, ok, type ModelOperation, type ModelResult } from './result';
 import type { EmbeddingSpace } from './spaces';
 
@@ -298,24 +299,33 @@ describe('extract runtime profiles', () => {
 		expect(post).not.toHaveBeenCalled();
 	});
 
-	it('sends an external runtime only fields a strict gateway accepts, its arrays unbounded', async () => {
+	it('sends an external runtime only fields a strict gateway accepts, the schema in the prompt', async () => {
 		post.mockResolvedValue(extracted);
 		const result = await extract(withExtract({ runtime: 'api', apiKey: 'key' }));
-		expect(result).toMatchObject({ ok: true, value: { model: { runtime: 'api' } } });
+		expect(result).toMatchObject({ ok: true, value: { model: { runtime: 'api', params: { max_tokens: 16_384 } } } });
 		const body = sentBody();
-		expect(Object.keys(body).sort()).toEqual(['max_tokens', 'messages', 'model', 'response_format', 'temperature']);
+		expect(Object.keys(body).sort()).toEqual(['max_tokens', 'messages', 'model', 'response_format']);
 		expect(body.max_tokens).toBe(16_384);
-		expect(body.response_format).toMatchObject({ type: 'json_schema', json_schema: { strict: true } });
-		expect(keysOf(body.response_format).has('maxItems')).toBe(false);
+		expect(body.response_format).toEqual({ type: 'json_object' });
+		const [system] = body.messages as { role: string; content: string }[];
+		expect(system?.role).toBe('system');
+		expect(system?.content).toContain(JSON.stringify(RESUME_EXTRACT_JSON_SCHEMA));
 	});
 
-	it('keeps the bounds of the arrays and the context-sized output limit for its own vLLM server', async () => {
+	it('sends its own vLLM server temperature 0 and the context-sized output limit', async () => {
 		post.mockResolvedValue(extracted);
 		const result = await extract(withExtract({ runtime: 'vllm', apiKey: null }));
-		expect(result).toMatchObject({ ok: true, value: { model: { runtime: 'vllm', params: { max_tokens: 8_192 } } } });
+		expect(result).toMatchObject({
+			ok: true,
+			value: { model: { runtime: 'vllm', params: { temperature: 0, max_tokens: 8_192 } } }
+		});
 		const body = sentBody();
+		expect(body.temperature).toBe(0);
 		expect(body.max_tokens).toBe(8_192);
+		expect(body.response_format).toMatchObject({ type: 'json_schema', json_schema: { strict: true } });
 		expect(keysOf(body.response_format).has('maxItems')).toBe(true);
+		const [system] = body.messages as { content: string }[];
+		expect(system?.content).not.toContain('"maxItems"');
 	});
 
 	it('reads an answer whose usage counts reasoning tokens', async () => {
@@ -323,7 +333,7 @@ describe('extract runtime profiles', () => {
 			ok({
 				id: 'chatcmpl-1',
 				object: 'chat.completion',
-				model: 'gemini/gemini-flash',
+				model: 'anthropic/claude-opus-5-5',
 				choices: [{ index: 0, finish_reason: 'stop', message: { role: 'assistant', content: emptyResumeAnswer } }],
 				usage: {
 					prompt_tokens: 2062,
@@ -335,7 +345,7 @@ describe('extract runtime profiles', () => {
 		);
 		expect(await extract(withExtract({ runtime: 'api', apiKey: 'key' }))).toMatchObject({
 			ok: true,
-			value: { model: { modelId: 'gemini/gemini-flash', runtime: 'api' }, attempts: 1 }
+			value: { model: { modelId: 'anthropic/claude-opus-5-5', runtime: 'api' }, attempts: 1 }
 		});
 	});
 });

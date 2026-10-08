@@ -614,7 +614,7 @@ ID-токена из разрешённого списка (2.1) в `id_token_si
 
 | Переменная | Операция | Смысл |
 |---|---|---|
-| `LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY` | `extract` | `/chat/completions` со structured output (`response_format: json_schema`, `strict`) |
+| `LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY` | `extract` | `/chat/completions` с ответом в JSON: профиль `vllm` — structured output (`response_format: json_schema`, `strict`), профиль `api` — JSON-режим (`json_object`) со схемой в системном промпте ([`docs/models.md`](models.md), «Три режима») |
 | `LLM_RUNTIME` | `extract` | профиль рантайма: `api` (по умолчанию) — внешняя модель по API, ключ обязателен; `vllm` — своя модель платформы ([`docs/models.md`](models.md), «Три режима») |
 | `LLM_TIMEOUT_MS`, `LLM_INTERACTIVE_TIMEOUT_MS`, `LLM_MAX_CONCURRENCY` | `extract` | по умолчанию 120 000, 30 000 и 8 |
 | `EMBED_BASE_URL`, `EMBED_MODEL`, `EMBED_API_KEY`, `EMBED_SPACE_ID` | `embed` | `/embeddings`; адаптер проверяет, что модель соответствует пространству `EMBED_SPACE_ID` |
@@ -644,7 +644,7 @@ ID-токена из разрешённого списка (2.1) в `id_token_si
 - Отправка текста во внешний рантайм (профиль `api`) называется человеку до отправки и у результата: подпись у загрузки резюме и
   у поля текста потребности говорит, куда уйдёт текст при текущих настройках и выключателе; метка у разбора — какой профиль и какая
   модель его сделали (`ml_results.model.runtime`, `hiring_needs.parse.model`). Демонстрационный стенд по умолчанию — внешняя модель
-  (Gemini Flash), согласие на обработку данных это называет; в эксплуатации — свой рантайм или российский провайдер с учётом
+  (Claude Opus), согласие на обработку данных это называет; в эксплуатации — свой рантайм или российский провайдер с учётом
   ч. 5 ст. 18 152-ФЗ.
 
 **Переключение без перезапуска.** Администратор выключает и включает каждую операцию во время работы. Режим хранится в Redis
@@ -985,7 +985,7 @@ interface RerankResponse { model: { modelId: string }; scores: { id: string; sco
 | `invalid_output` | нет | конверт ответа не прошёл проверку после повторной попытки; ответ HTTP не JSON; ответ `embed`/`rerank` не по формату |
 | `context_too_long` | нет | вход длиннее контекста модели (400/413/422 с признаком длины контекста); ответ `extract` не уместился в `max_tokens` (`finish_reason: length`, `details.limit: output`) |
 | `space_mismatch` | нет | модель, пространство или размерность не соответствуют |
-| `request_rejected` | нет | прочие 4xx: рантайм отверг запрос (ключ, неизвестная модель) |
+| `request_rejected` | нет | прочие 4xx: рантайм отверг запрос (ключ, неизвестная модель); модель отказалась отвечать по своей политике безопасности (`finish_reason: content_filter`, `details.cause: content_filter`) — без повтора |
 | `cancelled` | нет | вызывающий отменил вызов |
 
 Повторов внутри адаптера нет, кроме одной повторной попытки `extract` при битом конверте (но не при `abort` и `length`); повторять ли

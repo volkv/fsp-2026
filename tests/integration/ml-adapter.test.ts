@@ -366,6 +366,20 @@ describe('extract', () => {
 		expect(llm.requests).toHaveLength(1);
 	});
 
+	it('answers request_rejected without a retry when the model refuses to answer', async () => {
+		llm.handle((_, res) => {
+			json(res, 200, {
+				model: 'extractor-7b',
+				choices: [{ finish_reason: 'content_filter', message: { content: '' } }]
+			});
+		});
+		expect(await adapter().extract(RESUME, lexicon)).toMatchObject({
+			ok: false,
+			error: { code: 'request_rejected', retryable: false, details: { cause: 'content_filter' } }
+		});
+		expect(llm.requests).toHaveLength(1);
+	});
+
 	it('treats a non-JSON HTTP body as invalid output without a retry', async () => {
 		llm.handle((_, res) => {
 			res.writeHead(200, { 'content-type': 'text/html' }).end('<html>gateway</html>');
