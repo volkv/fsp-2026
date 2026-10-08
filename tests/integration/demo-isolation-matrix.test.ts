@@ -979,6 +979,12 @@ const REGISTRY: Record<string, Entry> = {
 	// Files of the cases: read from the storage by the case they belong to, within the same reach as the case.
 	'(app)/operator/companies/requests/[id]/evidence/+server.ts': exempt('case file — demo-actor.test.ts'),
 	'(app)/operator/representatives/[id]/evidence/+server.ts': exempt('case file — demo-actor.test.ts'),
+	'(app)/company/(member)/invitations/[id]/resume/+server.ts': exempt(
+		'resume disclosed to the own company — storage-access.test.ts'
+	),
+	'(app)/company/(member)/applications/[id]/resume/+server.ts': exempt(
+		'resume disclosed to the own company — storage-access.test.ts'
+	),
 	'(app)/operator/fsp-import/files/[id]/+server.ts': exempt('batch file of the stand — demo-actor.test.ts'),
 	'(app)/operator/fsp-import/+page.server.ts': exempt('batches of the stand, none to a clone — demo-actor.test.ts'),
 

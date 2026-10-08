@@ -277,6 +277,20 @@
 									<dd>{contacts.telegram}</dd>
 								</div>
 							{/if}
+							{#if contacts.resumeFileId}
+								<div>
+									<dt class="text-muted-foreground">Резюме</dt>
+									<dd>
+										<a
+											class="text-link underline"
+											href="{resolve('/(app)/company/(member)/invitations/[id]/resume', {
+												id: invitation.id
+											})}?file={contacts.resumeFileId}"
+											data-testid="disclosed-resume">Скачать файл резюме</a
+										>
+									</dd>
+								</div>
+							{/if}
 						</dl>
 						{@const split = disclosedFields(contacts)}
 						<p class="text-xs text-muted-foreground" data-testid="disclosed-fields">

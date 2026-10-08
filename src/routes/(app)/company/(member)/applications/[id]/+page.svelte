@@ -107,6 +107,24 @@
 					<dd>{contacts.telegram ?? 'не указан'}</dd>
 				</div>
 			{/if}
+			{#if contacts.resumeFileId !== undefined}
+				<div>
+					<dt class="text-muted-foreground">{DISCLOSURE_FIELDS.resume}</dt>
+					<dd>
+						{#if contacts.resumeFileId}
+							<a
+								class="text-link underline"
+								href="{resolve('/(app)/company/(member)/applications/[id]/resume', {
+									id: application.id
+								})}?file={contacts.resumeFileId}"
+								data-testid="disclosed-resume">Скачать</a
+							>
+						{:else}
+							не загружено
+						{/if}
+					</dd>
+				</div>
+			{/if}
 		</dl>
 	{:else}
 		<p class="text-sm text-muted-foreground">Кандидат отозвал отклик: контакты больше не передаются.</p>

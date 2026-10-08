@@ -3,6 +3,8 @@
 // - its owner;
 // - a company that received the resume by an accepted invitation: `canShow` in the invitation context gives the
 //   recipient projection and the disclosure consent of that invitation lists `resume`;
+// - a company that received the resume by an application to its vacancy: a member managing the applications of that
+//   company, the application not withdrawn and its disclosure consent in effect lists `resume`;
 // - an operator within a case in its reach (a clone operator of a demo session — a case of its session only, domain
 //   19.3), recorded as case access: the authority document of a company's verification request, the copy of a
 //   representative's authority document;
@@ -17,6 +19,7 @@ import { can, rolesOf, type AccessSubject } from '$lib/server/access/permissions
 import { recordAuditEvent } from '$lib/server/audit/record';
 import type { Database, Executor } from '$lib/server/db';
 import {
+	applications,
 	authorityChecks,
 	candidates,
 	companies,
@@ -28,6 +31,7 @@ import {
 	users
 } from '$lib/server/db/schema';
 import { ApiError } from '$lib/server/errors/api-error';
+import { effectiveDisclosure } from '$lib/server/invitations/consent';
 import { auditActor, type RequestMeta } from '$lib/server/invitations/deps';
 import { showInInvitationContext } from '$lib/server/invitations/visibility';
 import { fileById, type FileRow } from './files';
@@ -37,6 +41,7 @@ import type { ObjectStore } from './object-store';
 export type FileAccessContext =
 	| { kind: 'owner' }
 	| { kind: 'invitation'; invitationId: string }
+	| { kind: 'application'; applicationId: string }
 	/**
 	 * A case of the FSP operator: `moderation` — a company verification request, `authority` — a representation whose
 	 * authority is checked.
@@ -70,6 +75,7 @@ export type FileDenyReason =
 	| 'not_owner'
 	| 'not_resume'
 	| 'invitation_missing'
+	| 'application_missing'
 	| 'not_current_resume'
 	| 'not_recipient'
 	| 'resume_not_disclosed'
@@ -128,6 +134,40 @@ async function decide(
 			const { decision, disclosure } = await showInInvitationContext(deps.db, subject, invitation, deps.now());
 			if (!can(subject, 'candidate.card.read', { show: decision }).allowed) return deny('not_recipient', candidateId);
 			if (!decision.allowed || decision.projection !== 'recipient') return deny('not_recipient', candidateId);
+			if (!disclosure?.fields.includes('resume')) return deny('resume_not_disclosed', candidateId);
+			return { allowed: true, candidateId, caseAccess: null };
+		}
+
+		case 'application': {
+			if (!resume) return deny('not_resume');
+			const [application] = await deps.db
+				.select({
+					candidateId: applications.candidateId,
+					companyId: applications.companyId,
+					status: applications.status,
+					purgedAt: applications.purgedAt
+				})
+				.from(applications)
+				.where(eq(applications.id, context.applicationId));
+			if (
+				!application ||
+				application.purgedAt !== null ||
+				application.status === 'withdrawn' ||
+				application.candidateId !== resume.candidateId
+			) {
+				return deny('application_missing', candidateId);
+			}
+			if (!can(subject, 'application.manage', { companyId: application.companyId }).allowed) {
+				return deny('not_recipient', candidateId);
+			}
+			// The recipient receives the resume the candidate has now, as the application page shows it.
+			if (!resume.isCurrent) return deny('not_current_resume', candidateId);
+			const disclosure = await effectiveDisclosure(
+				deps.db,
+				resume.candidateId,
+				{ applicationId: context.applicationId },
+				deps.now()
+			);
 			if (!disclosure?.fields.includes('resume')) return deny('resume_not_disclosed', candidateId);
 			return { allowed: true, candidateId, caseAccess: null };
 		}
@@ -214,7 +254,8 @@ async function decideCase(
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 /** A company member reads a file for the company; anyone else reads it in their own name. */
-const sideOf = (context: FileAccessContext) => (context.kind === 'invitation' ? 'company' : 'candidate');
+const sideOf = (context: FileAccessContext) =>
+	context.kind === 'invitation' || context.kind === 'application' ? 'company' : 'candidate';
 
 /**
  * Opens a stored file for the subject. A refusal is `not_found` whatever the reason — an outside viewer does not learn

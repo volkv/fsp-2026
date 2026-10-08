@@ -1,6 +1,6 @@
 // Journal of attempt signals (docs/domain.md, 10.7 `integrity_signals`): time spent, pastes, leaving the page. They
-// are kept for a person who reviews the attempt and for the employer next to the result, and are shown to the
-// candidate as they are. They never decide anything automatically and are not a detection of borrowed or generated
+// are kept for the FSP operator who reviews the attempt and are shown to the candidate as they are; an employer never
+// sees them. They never decide anything automatically and are not a detection of borrowed or generated
 // code: the platform does not claim one.
 import { z } from 'zod';
 

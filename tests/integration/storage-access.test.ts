@@ -1,5 +1,6 @@
 // Stored files against a real object storage: an upload is checked by content before anything is stored, and a file is handed
-// out only to its owner, to a company that received the resume by an accepted invitation, to an operator within a
+// out only to its owner, to a company that received the resume by an accepted invitation or by an application to its
+// vacancy, to an operator within a
 // case (a company verification, a representative's authority), to an administrator for the report of an
 // evaluation run and to the FSP operator for the source file of a results batch — every attempt in the journal, every
 // refusal answered as «not found».
@@ -9,6 +10,7 @@ import type { StartedTestContainer } from 'testcontainers';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { AccessSubject } from '$lib/server/access/permissions';
 import {
+	applications,
 	auditEvents,
 	authorityChecks,
 	companyVerifications,
@@ -33,7 +35,9 @@ import {
 	createCandidate,
 	createCompany,
 	createMember,
+	createOwnVacancy,
 	createPublishedDocument,
+	createTaxonomyVersion,
 	createUser,
 	offerTermsRow
 } from '../helpers/factories';
@@ -140,8 +144,11 @@ let resumeFileId: string;
 let documents: Record<'pd' | 'disclosure', { id: string }>;
 let policyId: string;
 
-/** An accepted invitation of a new company to the candidate, with the disclosure consent listing `fields`. */
-async function recipient(fields: string[]) {
+/**
+ * An invitation of a new company to the candidate — accepted, with the disclosure consent listing `fields`, or still
+ * awaiting the answer, with no consent.
+ */
+async function recipient(fields: string[], status: 'accepted' | 'sent' = 'accepted') {
 	const company = await createCompany(database.db);
 	const member = await createMember(database.db, company.id);
 	const invitationId = uuidv7();
@@ -153,9 +160,9 @@ async function recipient(fields: string[]) {
 			companyId: company.id,
 			candidateId: candidate.id,
 			sentByMemberId: member.id,
-			status: 'accepted',
+			status,
 			currentTermsId: termsId,
-			acceptedTermsId: termsId,
+			acceptedTermsId: status === 'accepted' ? termsId : null,
 			policyId,
 			sentAt
 		});
@@ -173,6 +180,7 @@ async function recipient(fields: string[]) {
 			createdByMemberId: member.id,
 			createdAt: sentAt
 		});
+		if (status !== 'accepted') return;
 		await tx.insert(consentEvents).values({
 			subjectCandidateId: candidate.id,
 			kind: 'contact_disclosure',
@@ -190,6 +198,46 @@ async function recipient(fields: string[]) {
 	});
 	if (member.userId === null) throw new Error('member without a user');
 	return { subject: memberSubject({ id: member.id, userId: member.userId, companyId: company.id }), invitationId };
+}
+
+/** An application of the candidate to a vacancy of a new company, with the disclosure consent listing `fields`. */
+async function applicant(fields: string[]) {
+	const company = await createCompany(database.db);
+	const member = await createMember(database.db, company.id);
+	const taxonomy = await createTaxonomyVersion(database.db);
+	const vacancy = await createOwnVacancy(database.db, {
+		companyId: company.id,
+		memberId: member.id,
+		taxonomyVersionId: taxonomy.id
+	});
+	const applicationId = uuidv7();
+	await database.db.transaction(async (tx) => {
+		await tx.insert(applications).values({
+			id: applicationId,
+			candidateId: candidate.id,
+			companyId: company.id,
+			vacancyId: vacancy.id,
+			match: {},
+			status: 'submitted',
+			submittedAt: new Date(Date.now() - 120_000)
+		});
+		await tx.insert(consentEvents).values({
+			subjectCandidateId: candidate.id,
+			kind: 'contact_disclosure',
+			documentId: documents.disclosure.id,
+			action: 'grant',
+			signerKind: 'subject',
+			signerUserId: candidate.userId,
+			scopeCompanyId: company.id,
+			scopeApplicationId: applicationId,
+			scopeFields: fields,
+			method: 'separate_screen_button',
+			evidence: { ip: '127.0.0.1' },
+			occurredAt: new Date(Date.now() - 60_000)
+		});
+	});
+	if (member.userId === null) throw new Error('member without a user');
+	return { subject: memberSubject({ id: member.id, userId: member.userId, companyId: company.id }), applicationId };
 }
 
 beforeAll(async () => {
@@ -314,6 +362,44 @@ describe('handing out a file', () => {
 			resumeFileId,
 			{ kind: 'invitation', invitationId: other.invitationId },
 			'not_recipient'
+		);
+	});
+
+	it('does not give the resume by an invitation the candidate has not accepted', async () => {
+		const { subject, invitationId } = await recipient([], 'sent');
+		await expectRefused(subject, resumeFileId, { kind: 'invitation', invitationId }, 'not_recipient');
+	});
+
+	it('gives the resume to the company of an application whose consent lists it', async () => {
+		const { subject, applicationId } = await applicant(['full_name', 'email', 'resume']);
+		expect(await read(subject, resumeFileId, { kind: 'application', applicationId })).toContain('PostgreSQL');
+	});
+
+	it('does not give the resume by an application when the consent leaves it out, it is withdrawn or someone else’s', async () => {
+		const withoutResume = await applicant(['full_name', 'email']);
+		await expectRefused(
+			withoutResume.subject,
+			resumeFileId,
+			{ kind: 'application', applicationId: withoutResume.applicationId },
+			'resume_not_disclosed'
+		);
+		const other = await applicant(['full_name', 'email', 'resume']);
+		await expectRefused(
+			withoutResume.subject,
+			resumeFileId,
+			{ kind: 'application', applicationId: other.applicationId },
+			'not_recipient'
+		);
+		const now = new Date();
+		await database.db
+			.update(applications)
+			.set({ status: 'withdrawn', closedAt: now })
+			.where(eq(applications.id, other.applicationId));
+		await expectRefused(
+			other.subject,
+			resumeFileId,
+			{ kind: 'application', applicationId: other.applicationId },
+			'application_missing'
 		);
 	});
 

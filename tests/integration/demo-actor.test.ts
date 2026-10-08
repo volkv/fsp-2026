@@ -317,7 +317,10 @@ async function place(session: string | null): Promise<Place> {
 	};
 }
 
-/** The originals of the scenario cast: one account per role of `seeds/demo.json`, nothing else. */
+/**
+ * The originals of the scenario cast: one account per role of `seeds/demo.json` and the candidate profile of each hero,
+ * as the demo seed leaves them — a session is cloned only from a cast whose heroes have their profiles.
+ */
 async function seedCast(): Promise<Map<string, string>> {
 	const accounts = new Map<string, string>();
 	for (const role of castRoles(data)) {
@@ -327,6 +330,7 @@ async function seedCast(): Promise<Map<string, string>> {
 			displayName: role.part,
 			seedBatchId: SEED_BATCH
 		});
+		if (role.group === 'candidate') await createCandidate(database.db, { userId: user.id });
 		accounts.set(role.key, user.id);
 	}
 	return accounts;
