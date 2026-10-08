@@ -58,6 +58,8 @@ interface Spec {
 }
 
 const SAFETY = [1, 2, 3, 4] as const;
+/** A term no log reaches. */
+const NEVER = 10 ** 9;
 const TTLS = [20, 30, 45, 60, 90, 120] as const;
 /** No word is shared by two sets. */
 const WORDS: readonly Words[] = [
@@ -85,7 +87,11 @@ function neighbours(kind: string, spec: Spec): Spec[] {
 	return list;
 }
 
-type Variant = 'right' | (typeof WRONG_IDS)[number];
+/**
+ * A wrong solution, or `no-queue`: the backorder class as a solution without the queue answers it — a request is
+ * met only when the queue is empty and it fits, a waiting one is never met (the short logs keep to it).
+ */
+type Variant = 'right' | (typeof WRONG_IDS)[number] | 'no-queue';
 
 interface Hold {
 	product: string;
@@ -179,7 +185,7 @@ class Store {
 
 	/** The backorder queue of a product, served from its head while the head fits (or any that fits, wrongly). */
 	serve(product: string): void {
-		if (this.kind !== 'backorder') return;
+		if (this.kind !== 'backorder' || this.variant === 'no-queue') return;
 		const line = this.lines.get(product) ?? [];
 		const skip = this.variant === 'skip-ahead';
 		for (let i = 0; i < line.length;) {
@@ -201,6 +207,12 @@ class Store {
 		this.owed.set(e.client, owed + e.qty);
 		this.waiting.set(e.id, { product: e.product, qty: e.qty, client: e.client });
 		const line = this.lines.get(e.product) ?? [];
+		const now = this.variant === 'no-queue' && line.length === 0 ? this.place(e.product, e.qty) : undefined;
+		if (now !== undefined) {
+			this.waiting.delete(e.id);
+			this.take(e.id, e.product, e.client, [[now, e.qty]], e.qty);
+			return this.multi ? `${this.spec.words.ok} ${now}` : this.spec.words.ok;
+		}
 		if (this.variant === 'queue-jump' && this.place(e.product, e.qty) !== undefined) line.unshift(e.id);
 		else line.push(e.id);
 		this.serve(e.product);
@@ -262,7 +274,7 @@ class Store {
 			const line = this.lines.get(order.product) ?? [];
 			line.splice(line.indexOf(e.id), 1);
 			this.owed.set(order.client, (this.owed.get(order.client) ?? 0) - order.qty);
-			this.serve(order.product);
+			if (this.variant !== 'release-waiting-no-serve') this.serve(order.product);
 			return this.spec.words.ok;
 		}
 		return this.drop(e.id, e.op === 'release' || this.variant === 'confirm-returns')
@@ -356,8 +368,9 @@ function makeInput(rng: Rng, kind: string, group: GroupId, multi: boolean, withL
 	const count = scale ? rng.int(1000, 1500) : simple ? rng.int(8, 14) : rng.int(14, 24);
 	while (input.events.length < count) {
 		const due = store.queue[store.head]?.deadline;
-		// The short logs last less than any term of a reservation: nothing expires there.
-		if (simple) t += rng.int(0, 1);
+		// The short logs, and the releases of the expiring class, last less than any term of a reservation: nothing
+		// expires there.
+		if (simple || (group === 'release' && kind === 'expiring')) t += rng.int(0, 1);
 		else if (group === 'lifecycle' && due !== undefined && due >= t && rng.bool(0.4)) t = due;
 		else if (group === 'release') t += rng.bool(0.6) ? 0 : rng.int(1, 2 * unit);
 		else t += rng.int(0, unit);
@@ -375,7 +388,14 @@ function makeInput(rng: Rng, kind: string, group: GroupId, multi: boolean, withL
 			issued.push(e.id);
 		} else if (roll < settles) {
 			const active = [...store.held.keys()];
-			const id = active.length > 0 && rng.bool(0.6) ? rng.pick(active) : rng.pick(issued);
+			// The backorder class: the head of a queue withdrawn now and then, so the next one may be met.
+			const heads = [...store.lines.values()].map((line) => line[0]).filter((x) => x !== undefined);
+			const id =
+				kind === 'backorder' && heads.length > 0 && rng.bool(0.4)
+					? rng.pick(heads)
+					: active.length > 0 && rng.bool(0.6)
+						? rng.pick(active)
+						: rng.pick(issued);
 			e = { t, op: rng.bool(group === 'lifecycle' ? 0.25 : 0.55) ? 'release' : 'confirm', id };
 		} else {
 			e = { t, op: 'restock', warehouse: rng.pick(warehouses), product: rng.pick(products), qty: rng.int(1, 8) };
@@ -399,10 +419,10 @@ function traps(kind: string, group: GroupId, multi: boolean): Variant[] {
 	if (group === 'exact' && kind !== 'partial') list.push('exact-stock');
 	if (group === 'release') list.push('stale-release');
 	if (group === 'release' && kind === 'partial' && !multi) list.push('release-requested');
-	if (group === 'release' && kind === 'backorder') list.push('queue-jump');
+	if (group === 'release' && kind === 'backorder') list.push('queue-jump', 'release-waiting-no-serve');
 	if (group === 'lifecycle') list.push('confirm-returns');
 	if (group === 'lifecycle' && kind === 'expiring') list.push('late-expiry');
-	if (group === 'lifecycle' && kind === 'backorder') list.push('skip-ahead');
+	if (group === 'lifecycle' && kind === 'backorder') list.push('skip-ahead', 'release-waiting-no-serve');
 	return list;
 }
 
@@ -423,15 +443,17 @@ function groups(
 	const ids: GroupId[] = ['reserve', 'exact', 'release', 'lifecycle', 'scale'];
 	// A class with another first line reads a test of this class as garbage, so only the same shape is compared.
 	const comparable = others.filter((other) => arity(other, senior) === arity(kind, senior));
-	// The expiring class is compared with its shortest term; in the short logs nothing expires, so there it answers as
-	// the class without expiry by design.
+	// The expiring class is compared with its shortest term; where nothing expires (the short logs, and its releases)
+	// it answers as the class without expiry by design.
 	const otherSpec = (other: string): Spec => (other === 'expiring' ? { ...spec, ttl: TTLS[0] } : spec);
 	const sameInShortLogs = new Set(['expiring', 'all-or-nothing']);
+	const timelessIn = (id: GroupId): boolean => SIMPLE.has(id) || (id === 'release' && kind === 'expiring');
 	const distinctIn = (other: string, id: GroupId): boolean =>
-		!SIMPLE.has(id) || !(sameInShortLogs.has(kind) && sameInShortLogs.has(other));
+		!timelessIn(id) || !(sameInShortLogs.has(kind) && sameInShortLogs.has(other));
 	return ids.map((id) => {
 		const count = id === 'scale' ? 1 : 4;
-		const open = neighbours(kind, spec).filter((n) => !SIMPLE.has(id) || n.ttl === spec.ttl);
+		const timeless = timelessIn(id);
+		const open = neighbours(kind, spec).filter((n) => !timeless || n.ttl === spec.ttl);
 		const tests: { stdin: string; expected: string }[] = [];
 		for (let attempt = 0; tests.length < count; attempt += 1) {
 			if (attempt > 2000)
@@ -447,6 +469,11 @@ function groups(
 			)
 				continue;
 			if (withLimit && simulate(kind, { ...input, limit: null }, spec, multi) === expected) continue;
+			// Nothing expires where the statement says so; the short logs of the queue class never meet a waiting request.
+			if (timeless && kind === 'expiring' && simulate(kind, input, { ...spec, ttl: NEVER }, multi) !== expected)
+				continue;
+			if (SIMPLE.has(id) && kind === 'backorder' && simulate(kind, input, spec, multi, 'no-queue') !== expected)
+				continue;
 			if (!withLimit && traps(kind, id, multi).some((v) => simulate(kind, input, spec, multi, v) === expected))
 				continue;
 			const told = open.filter((n) => simulate(kind, input, n, multi) !== expected);
@@ -582,7 +609,7 @@ function statement(kind: string, multi: boolean, spec: Spec): string {
 				]
 			: []),
 		'',
-		`Скрытые тесты — пять групп разной сложности. Две простые — короткие журналы только из \`reserve\` и \`restock\`: обычные запросы и запросы ровно на доступный остаток. Три полные: снятия и подтверждения, в том числе повторные в один момент; весь жизненный цикл резервов${expiring ? ' с событиями точно в момент истечения' : ''}; большой объём (до 1500 событий). Группа засчитывается, если пройдены все её тесты.`
+		`Скрытые тесты — пять групп разной сложности. Две простые — короткие журналы только из \`reserve\` и \`restock\`: обычные запросы и запросы ровно на доступный остаток${backorder ? '; в них ни одна ожидающая заявка не удовлетворяется позже — очередь только копится' : ''}. Три полные: снятия и подтверждения, в том числе повторные в один момент${expiring ? ' (короткие журналы, резервы в них не истекают)' : ''}; весь жизненный цикл резервов${expiring ? ' с событиями точно в момент истечения' : ''}; большой объём (до 1500 событий). Группа засчитывается, если пройдены все её тесты.`
 	].join('\n');
 }
 
@@ -893,7 +920,7 @@ function backorderSource(multi: boolean, withLimit: boolean, spec: Spec, variant
 		`            product${withLimit ? ', qty, client' : ''} = waiting.pop(rid)${withLimit ? '' : '[0]'}`,
 		...(withLimit ? ['            owed[client] -= qty'] : []),
 		'            queue[product].remove(rid)',
-		'            serve(product)',
+		...(variant === 'release-waiting-no-serve' ? [] : ['            serve(product)']),
 		`            print('${ok}')`,
 		'        else:',
 		`            print('${ok}' if drop(rid, ${variant === 'confirm-returns' ? 'True' : "op == 'release'"}) else '${ignore}')`,
@@ -915,7 +942,8 @@ const WRONG_IDS = [
 	'single-warehouse',
 	'confirm-returns',
 	'queue-jump',
-	'skip-ahead'
+	'skip-ahead',
+	'release-waiting-no-serve'
 ] as const;
 
 function applies(id: (typeof WRONG_IDS)[number], kind: string, multi: boolean): boolean {
@@ -934,6 +962,7 @@ function applies(id: (typeof WRONG_IDS)[number], kind: string, multi: boolean): 
 			return true;
 		case 'queue-jump':
 		case 'skip-ahead':
+		case 'release-waiting-no-serve':
 			return kind === 'backorder';
 	}
 }

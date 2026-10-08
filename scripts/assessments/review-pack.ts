@@ -182,7 +182,9 @@ function familyPack(family: TreeFamily, built: Map<string, Built[]>, seeds: numb
 		'',
 		'Ошибочные решения (ворота отвергают каждое на всех экземплярах, к которым оно применимо):',
 		'',
-		...d.wrongSolutions.map((w) => `- \`${w.id}\` — ${w.defect}`),
+		...d.wrongSolutions.map(
+			(w) => `- \`${w.id}\`${w.part === 'change_step' ? ' (шаг «измени своё решение»)' : ''} — ${w.defect}`
+		),
 		'',
 		`Отчёт ворот: \`${JSON.stringify({ ...d.gates, rubricReviews: undefined })}\`.`,
 		''

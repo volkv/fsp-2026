@@ -11,7 +11,8 @@ import {
 	type HiddenTestGroup,
 	readDescriptor,
 	type GenerateInput,
-	type ItemInstance
+	type ItemInstance,
+	type WrongProbe
 } from '../../_lib/family.ts';
 import { PERSON_NAMES } from '../../_lib/names.ts';
 import type { Rng } from '../../_lib/rng.ts';
@@ -54,14 +55,15 @@ function drawSpec(rng: Rng): Spec {
 	return { period: rng.pick(PERIODS), verdicts: rng.pick(VERDICTS) };
 }
 
-type Variant = 'right' | 'denied-counts' | 'window-edge' | 'shared-limit';
+type Variant =
+	'right' | 'denied-counts' | 'window-edge' | 'shared-limit' | 'continuous-refill' | 'own-spent-on-global-deny';
 
 interface Limiter {
 	allows(t: number, cost: number): boolean;
 	take(t: number, cost: number): void;
 }
 
-function limiter(kind: string, limit: number, period: number, edge = false): Limiter {
+function limiter(kind: string, limit: number, period: number, edge = false, continuous = false): Limiter {
 	if (kind === 'fixed-window') {
 		let window: number | null = null;
 		let used = 0;
@@ -115,6 +117,21 @@ function limiter(kind: string, limit: number, period: number, edge = false): Lim
 			}
 		};
 	}
+	if (continuous) {
+		// The usual lazy bucket: tokens grow with time since the last request, a token per P ms, in P-ths of a token.
+		let last: number | null = null;
+		let parts = limit * period;
+		return {
+			allows(t, cost) {
+				parts = Math.min(limit * period, parts + t - (last ?? t));
+				last = t;
+				return parts >= cost * period;
+			},
+			take(_t, cost) {
+				parts -= cost * period;
+			}
+		};
+	}
 	let start: number | null = null;
 	let tokens = limit;
 	let ticks = 0;
@@ -138,19 +155,21 @@ function limiter(kind: string, limit: number, period: number, edge = false): Lim
  */
 function simulate(kind: string, input: Input, period: number, variant: Variant = 'right'): string {
 	const edge = variant === 'window-edge';
+	const continuous = variant === 'continuous-refill';
 	const clients = new Map<string, Limiter>();
-	const global = input.global === null ? null : limiter(kind, input.global, period, edge);
+	const global = input.global === null ? null : limiter(kind, input.global, period, edge, continuous);
 	const out: string[] = [];
 	for (const r of input.requests) {
 		const key = variant === 'shared-limit' ? '*' : r.client;
 		let own = clients.get(key);
 		if (!own) {
-			own = limiter(kind, input.limit, period, edge);
+			own = limiter(kind, input.limit, period, edge, continuous);
 			clients.set(key, own);
 		}
 		const a = own.allows(r.t, r.cost);
 		const b = global ? global.allows(r.t, r.cost) : true;
-		if ((a && b) || variant === 'denied-counts') own.take(r.t, r.cost);
+		// The wrong revision of the step spends the client's limit when the client's rule allows, before the global one.
+		if ((a && b) || variant === 'denied-counts' || (variant === 'own-spent-on-global-deny' && a)) own.take(r.t, r.cost);
 		if (a && b) global?.take(r.t, r.cost);
 		out.push(a && b ? '+' : '-');
 	}
@@ -175,7 +194,14 @@ type GroupId = 'basic' | 'boundary' | 'burst' | 'clients' | 'scale';
  */
 const PLAIN: ReadonlySet<GroupId> = new Set(['basic', 'clients']);
 
-function makeInput(rng: Rng, group: GroupId, senior: boolean, withGlobal: boolean, period: number): Input {
+function makeInput(
+	rng: Rng,
+	kind: string,
+	group: GroupId,
+	senior: boolean,
+	withGlobal: boolean,
+	period: number
+): Input {
 	// Unit requests need a small limit to meet it.
 	const limit = senior && !PLAIN.has(group) ? rng.int(4, 10) : rng.int(2, 5);
 	const clientCount =
@@ -192,17 +218,36 @@ function makeInput(rng: Rng, group: GroupId, senior: boolean, withGlobal: boolea
 		else t += rng.int(0, Math.floor(period / 2));
 		requests.push({ t, client: rng.pick(people), cost: senior && !PLAIN.has(group) ? rng.int(1, 3) : 1 });
 	}
+	if (kind === 'token-bucket' && rng.bool(0.5)) {
+		// A client that empties its bucket half a period after its first request and comes back just after the first
+		// refill: the grid gives a token, a bucket refilled continuously from the last request does not.
+		const t0 = rng.pick(requests).t;
+		const half = t0 + Math.floor(period / 2);
+		const client = `${rng.pick(PERSON_NAMES)}${rng.int(100, 999)}`;
+		requests.push({ t: t0, client, cost: 1 });
+		for (let i = 0; i < limit; i += 1) requests.push({ t: half, client, cost: 1 });
+		requests.push({ t: t0 + period + rng.int(0, Math.floor(period / 4)), client, cost: 1 });
+		requests.sort((a, b) => a.t - b.t);
+	}
 	const global = withGlobal ? limit + rng.int(1, limit) : null;
 	return { limit, global, requests };
 }
 
 /**
  * Whether counting denied requests changes any decision: in a fixed window of unit requests a denied request comes
- * only after the window is full, so it changes nothing; a token bucket takes no token for a denied request by its
- * nature. Both have no such mistake to catch.
+ * only after the window is full, so it changes nothing — that one has no such mistake to catch. A token bucket that
+ * takes the cost of a denied request goes below zero and refuses the next ones longer.
  */
 function deniedCountsApplies(kind: string, senior: boolean): boolean {
-	return kind === 'sliding-log' || kind === 'sliding-counter' || (kind === 'fixed-window' && senior);
+	return kind !== 'fixed-window' || senior;
+}
+
+/**
+ * Whether spending a client's limit on a request the global limit denies changes any decision: in a fixed window of
+ * unit requests the global window is full until it ends, and the client's window ends with it, so it changes nothing.
+ */
+function ownSpentApplies(kind: string, senior: boolean): boolean {
+	return kind !== 'fixed-window' || senior;
 }
 
 /**
@@ -234,18 +279,33 @@ function groups(
 	return ids.map((id) => {
 		const count = id === 'scale' ? 2 : 4;
 		const tests: { stdin: string; expected: string }[] = [];
+		let lazyCaught = false;
 		for (let attempt = 0; tests.length < count; attempt += 1) {
 			if (attempt > 2000) throw new Error(`${descriptor.key}: no distinguishing ${id} test for ${kind}`);
-			const input = makeInput(rng, id, senior, withGlobal, period);
+			const input = makeInput(rng, kind, id, senior, withGlobal, period);
 			const expected = simulate(kind, input, period);
 			if (others.some((other) => simulate(other, input, period) === expected)) continue;
 			if (otherPeriods.some((p) => simulate(kind, input, p) === expected)) continue;
 			if (withGlobal && simulate(kind, { ...input, global: null }, period) === expected) continue;
 			if (senior && PLAIN.has(id) && onEdge(kind, input, period, expected)) continue;
+			// The usual lazy bucket instead of the grid of refills fails some test of every group of the task: it scores at
+			// most the step's weight, under the gate. In the step the global bucket is mostly empty, so there it often
+			// answers as the grid.
+			const lazy =
+				!withGlobal && kind === 'token-bucket' && simulate(kind, input, period, 'continuous-refill') !== expected;
+			if (!withGlobal && kind === 'token-bucket' && !lazyCaught && !lazy && tests.length === count - 1) continue;
 			// Each group exposes its own mistake on every test: the edge of the period, a denied request in a burst, one
 			// limit for many clients.
 			if (!withGlobal && id === 'boundary' && simulate(kind, input, period, 'window-edge') === expected) continue;
 			if (!withGlobal && id === 'clients' && simulate(kind, input, period, 'shared-limit') === expected) continue;
+			// The step: a global limit that denies what a client's allows — many clients, or Senior's costs at scale.
+			if (
+				withGlobal &&
+				id === (senior ? 'scale' : 'clients') &&
+				ownSpentApplies(kind, senior) &&
+				simulate(kind, input, period, 'own-spent-on-global-deny') === expected
+			)
+				continue;
 			if (
 				!withGlobal &&
 				id === 'burst' &&
@@ -253,6 +313,7 @@ function groups(
 				simulate(kind, input, period, 'denied-counts') === expected
 			)
 				continue;
+			lazyCaught ||= lazy;
 			tests.push({ stdin: render(input, senior), expected: printed(expected, spec) });
 		}
 		return { id, tests };
@@ -373,22 +434,40 @@ function referenceSource(kind: string, senior: boolean, withGlobal: boolean, spe
 			'    def take(self, t, cost):',
 			'        self.used += cost'
 		],
-		'token-bucket': [
-			'class Limiter:',
-			'    def __init__(self, limit, period):',
-			'        self.limit, self.period, self.start, self.tokens, self.ticks = limit, period, None, limit, 0',
-			'    def allows(self, t, cost):',
-			'        if self.start is None:',
-			'            self.start = t',
-			`        ticks = ${ticks}`,
-			'        self.tokens = min(self.limit, self.tokens + ticks - self.ticks)',
-			'        self.ticks = ticks',
-			'        return self.tokens >= cost',
-			'    def take(self, t, cost):',
-			'        self.tokens -= cost'
-		]
+		'token-bucket':
+			variant === 'continuous-refill'
+				? [
+						'class Limiter:',
+						'    def __init__(self, limit, period):',
+						'        self.limit, self.period, self.last, self.parts = limit, period, None, limit * period',
+						'    def allows(self, t, cost):',
+						'        self.parts = min(self.limit * self.period, self.parts + t - (t if self.last is None else self.last))',
+						'        self.last = t',
+						'        return self.parts >= cost * self.period',
+						'    def take(self, t, cost):',
+						'        self.parts -= cost * self.period'
+					]
+				: [
+						'class Limiter:',
+						'    def __init__(self, limit, period):',
+						'        self.limit, self.period, self.start, self.tokens, self.ticks = limit, period, None, limit, 0',
+						'    def allows(self, t, cost):',
+						'        if self.start is None:',
+						'            self.start = t',
+						`        ticks = ${ticks}`,
+						'        self.tokens = min(self.limit, self.tokens + ticks - self.ticks)',
+						'        self.ticks = ticks',
+						'        return self.tokens >= cost',
+						'    def take(self, t, cost):',
+						'        self.tokens -= cost'
+					]
 	};
-	const takeOwn = variant === 'denied-counts' ? '    own.take(t, cost)' : '    if ok:\n        own.take(t, cost)';
+	const takeOwn =
+		variant === 'denied-counts'
+			? '    own.take(t, cost)'
+			: variant === 'own-spent-on-global-deny'
+				? '    if a:\n        own.take(t, cost)'
+				: '    if ok:\n        own.take(t, cost)';
 	const [allow, deny] = spec.verdicts;
 	return [
 		'import sys',
@@ -424,7 +503,9 @@ function referenceSource(kind: string, senior: boolean, withGlobal: boolean, spe
 		.join('\n');
 }
 
-const WRONG_IDS: readonly Variant[] = ['denied-counts', 'window-edge', 'shared-limit'];
+const WRONG_IDS: readonly Variant[] = ['denied-counts', 'window-edge', 'shared-limit', 'continuous-refill'];
+/** Wrong revisions of the step: programs with the global limit, met by the step's tests. */
+const STEP_WRONG_IDS: readonly Variant[] = ['own-spent-on-global-deny'];
 
 export function build(input: GenerateInput): Built {
 	const { level } = levelAndClass(descriptor, input);
@@ -448,15 +529,20 @@ export function build(input: GenerateInput): Built {
 			source: referenceSource(kind, senior, false, spec, 'right'),
 			changeSource: referenceSource(kind, senior, true, spec, 'right')
 		}),
-		wrong: () =>
-			Object.fromEntries(
-				WRONG_IDS.map((id) => [
-					id,
-					id === 'denied-counts' && !deniedCountsApplies(kind, senior)
+		wrong: () => {
+			const probes: Record<string, WrongProbe | null> = {};
+			for (const id of WRONG_IDS)
+				probes[id] =
+					(id === 'denied-counts' && !deniedCountsApplies(kind, senior)) ||
+					(id === 'continuous-refill' && kind !== 'token-bucket')
 						? null
-						: { kind: 'program' as const, source: referenceSource(kind, senior, false, spec, id) }
-				])
-			)
+						: { kind: 'program', source: referenceSource(kind, senior, false, spec, id) };
+			for (const id of STEP_WRONG_IDS)
+				probes[id] = ownSpentApplies(kind, senior)
+					? { kind: 'program', source: referenceSource(kind, senior, true, spec, id) }
+					: null;
+			return probes;
+		}
 	};
 }
 

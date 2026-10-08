@@ -113,6 +113,11 @@ export interface WrongSolution {
 	defect: string;
 	/** `true` — the hidden tests (or the answer check) must catch it; `false` — listed in `coverage.doesNotCheck`. */
 	mustBeCaught: boolean;
+	/**
+	 * `change_step` — a wrong revision for the step «измени своё решение»: its program meets the step's hidden tests,
+	 * not the task's. Absent — the task.
+	 */
+	part?: 'change_step';
 }
 
 export interface FamilyGateReport {

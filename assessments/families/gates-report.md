@@ -1,22 +1,22 @@
 # Отчёт ворот банка
 
-Среда исполнения: образ песочницы `fsp-sandbox:test` — Python 3.13.15, SQLite 3.46.1. Сидов на класс: 200. Проверено семейств: 4, время 604 с.
+Среда исполнения: образ песочницы `fsp-sandbox:test` — Python 3.13.15, SQLite 3.46.1. Сидов на класс: 200. Проверено семейств: 4, время 610 с.
 
 ## Семейства
 
 | Семейство                    | Формат        | Уровни         | Экз. | Эталон: отказов | Ошибочные: поймано | Коллизия | Пересечение классов | Мутанты (убито / всего − экв.) | Перенос | Проблем |
 | ---------------------------- | ------------- | -------------- | ---- | --------------- | ------------------ | -------- | ------------------- | ------------------------------ | ------- | ------- |
-| `be.code.order-summary`      | practice_code | intern, junior | 1600 | 0               | 6 / 6              | 0        | —                   | 609 / 654 − 45 = 1             | 0.0008  | 0       |
-| `be.code.rate-limiter`       | practice_code | middle, senior | 1600 | 0               | 3 / 3              | 0        | —                   | 881 / 924 − 40 = 0.9966        | 0.0015  | 0       |
+| `be.code.order-summary`      | practice_code | intern, junior | 1600 | 0               | 7 / 7              | 0        | —                   | 609 / 654 − 45 = 1             | 0.0006  | 0       |
+| `be.code.rate-limiter`       | practice_code | middle, senior | 1600 | 0               | 5 / 5              | 0        | —                   | 881 / 924 − 40 = 0.9966        | 0.0017  | 0       |
 | `be.code.sessionize`         | practice_code | intern, junior | 1600 | 0               | 7 / 7              | 0        | —                   | 1408 / 1440 − 23 = 0.9936      | 0.0026  | 0       |
-| `be.code.stock-reservations` | practice_code | middle, senior | 1600 | 0               | 8 / 8              | 0        | —                   | 2072 / 2088 − 12 = 0.9981      | 0.0049  | 0       |
+| `be.code.stock-reservations` | practice_code | middle, senior | 1600 | 0               | 9 / 9              | 0        | —                   | 2073 / 2088 − 12 = 0.9986      | 0.0059  | 0       |
 
 ## Ошибочные решения
 
-- `be.code.order-summary`: no-tie-break — отвергнуто 1400 из 1400; ignores-status — отвергнуто 1600 из 1600; first-wins — отвергнуто 800 из 800; keeps-empty — отвергнуто 800 из 800; int32-sum — отвергнуто 800 из 800; streak-no-reset — отвергнуто 200 из 200
-- `be.code.rate-limiter`: denied-counts — отвергнуто 1000 из 1000; window-edge — отвергнуто 1600 из 1600; shared-limit — отвергнуто 1600 из 1600
+- `be.code.order-summary`: no-tie-break — отвергнуто 1400 из 1400; ignores-status — отвергнуто 1600 из 1600; first-wins — отвергнуто 800 из 800; keeps-empty — отвергнуто 800 из 800; int32-sum — отвергнуто 800 из 800; streak-no-reset — отвергнуто 200 из 200; min-before-latest — отвергнуто 800 из 800
+- `be.code.rate-limiter`: denied-counts — отвергнуто 1400 из 1400; window-edge — отвергнуто 1600 из 1600; shared-limit — отвергнуто 1600 из 1600; continuous-refill — отвергнуто 400 из 400; own-spent-on-global-deny — отвергнуто 1400 из 1400
 - `be.code.sessionize`: boundary — отвергнуто 1600 из 1600; global-gap — отвергнуто 1200 из 1200; sliding-window — отвергнуто 400 из 400; ignores-logout — отвергнуто 800 из 800; no-tie-break — отвергнуто 800 из 800; unclosed-last — отвергнуто 1600 из 1600; ignores-day — отвергнуто 400 из 400
-- `be.code.stock-reservations`: stale-release — отвергнуто 1600 из 1600; exact-stock — отвергнуто 1200 из 1200; release-requested — отвергнуто 200 из 200; late-expiry — отвергнуто 400 из 400; single-warehouse — отвергнуто 600 из 600; confirm-returns — отвергнуто 1600 из 1600; queue-jump — отвергнуто 400 из 400; skip-ahead — отвергнуто 400 из 400
+- `be.code.stock-reservations`: stale-release — отвергнуто 1600 из 1600; exact-stock — отвергнуто 1200 из 1200; release-requested — отвергнуто 200 из 200; late-expiry — отвергнуто 400 из 400; single-warehouse — отвергнуто 600 из 600; confirm-returns — отвергнуто 1600 из 1600; queue-jump — отвергнуто 400 из 400; skip-ahead — отвергнуто 400 из 400; release-waiting-no-serve — отвергнуто 400 из 400
 
 ## Проблемы ворот
 
@@ -299,7 +299,6 @@
 
 Выжившие мутанты `be.code.stock-reservations`:
 
-- middle/expiring#2: line 5: const -> 119
 - senior/expiring#0: line 12: const -> 2
 - senior/expiring#1: line 12: const -> 2
 - senior/expiring#2: line 12: const -> 2

@@ -71,7 +71,10 @@ const SUMMED = new Set(['paid-sum', 'top-paid', 'top-orders', 'top-average']);
 /** The rows of the class before ordering: a key, the printed text, kept or not. */
 function rowsOf(classId: string, orders: readonly Order[], updates: boolean, min: number, variant: Variant): Row[] {
 	const ignores = variant === 'ignores-status';
-	const rows = latest(orders, updates, variant === 'first-wins').filter((o) => o.amount >= min);
+	// The wrong solution `min-before-latest` drops the lines under the smallest amount while reading, so an earlier
+	// version of the order comes back.
+	const lines = variant === 'min-before-latest' ? orders.filter((o) => o.amount >= min) : orders;
+	const rows = latest(lines, updates, variant === 'first-wins').filter((o) => o.amount >= min);
 	if (classId === 'paid-streak') {
 		const per = new Map<string, { run: number; best: number }>();
 		for (const o of rows) {
@@ -88,9 +91,7 @@ function rowsOf(classId: string, orders: readonly Order[], updates: boolean, min
 		}));
 	}
 	if (classId === 'cancel-after-paid') {
-		const paid = new Set(
-			(variant === 'first-wins' ? rows : orders).filter((o) => o.status === 'paid').map((o) => o.id)
-		);
+		const paid = new Set((variant === 'first-wins' ? rows : lines).filter((o) => o.status === 'paid').map((o) => o.id));
 		const per = new Map<string, { count: number; sum: number }>();
 		for (const o of rows) {
 			if (o.status !== 'cancelled' || (!ignores && !paid.has(o.id))) continue;
@@ -215,6 +216,15 @@ function makeOrders(rng: Rng, shape: TestShape, min: number): Order[] {
 			orders.push({ id: (id += 1), customer: whale, amount: rng.int(900_000, 1_000_000), status });
 		}
 	}
+	if (rng.bool(0.5)) {
+		// A customer whose only paid order is under the smallest amount: a solution without the threshold prints it.
+		orders.push({
+			id: (id += 1),
+			customer: `${rng.pick(PERSON_NAMES)}${rng.int(10, 99)}`,
+			amount: min - 50,
+			status: 'paid'
+		});
+	}
 	if (shape.edge) {
 		// A customer with only a cancelled order, and large cancelled orders that must not count.
 		orders.push({ id: (id += 1), customer: `${rng.pick(PERSON_NAMES)}x`, amount: 999_950, status: 'cancelled' });
@@ -233,6 +243,18 @@ function makeOrders(rng: Rng, shape: TestShape, min: number): Order[] {
 				const edge: Order = { id: id + 2 + i, customer: rng.pick(people), amount, status: 'paid' };
 				orders.push(edge, { ...edge, status: 'cancelled' });
 			}
+		}
+		if (rng.bool(0.6)) {
+			// The threshold on the last record only: a paid order rewritten under the smallest amount drops out whole, and
+			// one paid under it and then cancelled over it counts as cancelled after a payment.
+			const drops: Order = { id: id + 4, customer: rng.pick(people), amount: min + 50 * rng.int(0, 4), status: 'paid' };
+			const counts: Order = { id: id + 5, customer: rng.pick(people), amount: min - 50, status: 'paid' };
+			orders.push(
+				drops,
+				counts,
+				{ ...drops, amount: min - 50 },
+				{ ...counts, amount: min + 50 * rng.int(0, 4), status: 'cancelled' }
+			);
 		}
 	}
 	return orders;
@@ -303,7 +325,6 @@ function traps(classId: string, group: string, junior: boolean): Variant[] {
 	}
 }
 
-/** Hidden tests of the class; every test tells this class from the others of the level. */
 /**
  * A program of another instance of the class: another smallest amount, or other words of the statuses — it knows none
  * of this log's words, so every order is neither paid nor cancelled for it.
@@ -313,8 +334,21 @@ interface Neighbour {
 	solve(classId: string, orders: readonly Order[], k: number): string;
 }
 
-function neighbours(spec: Spec): Neighbour[] {
+function neighbours(spec: Spec, junior: boolean): Neighbour[] {
 	return [
+		{
+			name: 'no smallest amount',
+			solve: (classId: string, orders: readonly Order[], k: number) => solve(classId, orders, k, 1)
+		},
+		...(junior
+			? [
+					{
+						name: 'smallest amount before the last record',
+						solve: (classId: string, orders: readonly Order[], k: number) =>
+							solve(classId, orders, k, spec.min, 'min-before-latest')
+					}
+				]
+			: []),
 		...MINS.filter((m) => m !== spec.min).map((m) => ({
 			name: `min ${m}`,
 			solve: (classId: string, orders: readonly Order[], k: number) => solve(classId, orders, k, m)
@@ -340,7 +374,7 @@ function neighbours(spec: Spec): Neighbour[] {
 function groups(rng: Rng, classId: string, others: readonly string[], junior: boolean, spec: Spec): HiddenTestGroup[] {
 	return Object.entries(SHAPES).map(([id, shapeOf]) => {
 		const count = id === 'scale' || id === 'large' ? 1 : 4;
-		const open = neighbours(spec);
+		const open = neighbours(spec, junior);
 		const tests: { stdin: string; expected: string }[] = [];
 		for (let attempt = 0; tests.length < count; attempt += 1) {
 			if (attempt > 2000)
@@ -386,7 +420,9 @@ function statement(classId: string, junior: boolean, spec: Spec): string {
 	return [
 		'Сервис заказов пишет журнал: одна строка — один заказ. Напишите программу, которая читает журнал со стандартного ввода и печатает сводку по клиентам.',
 		'',
-		`Заказ с суммой меньше **M = ${spec.min}** в сводке не участвует вовсе — как будто его ${junior ? 'последней записи' : 'строки'} нет в журнале${classId === 'paid-streak' ? ' (серию он не прерывает)' : ''}. M во входе нет.`,
+		junior
+			? `Наименьшая сумма заказа — **M = ${spec.min}**; M во входе нет. Порог проверяется только по **последней** записи номера: если в ней сумма меньше M, заказ в сводке не участвует целиком, а прежние записи этого номера не возвращаются. Например, при строках \`7 anna ${spec.min + 600} ${w.paid}\` и затем \`7 anna ${spec.min - 50} ${w.paid}\` заказа 7 в сводке нет.${classId === 'cancel-after-paid' ? ` Более ранняя запись \`${w.paid}\` считается оплатой при любой своей сумме.` : ''}`
+			: `Заказ с суммой меньше **M = ${spec.min}** в сводке не участвует вовсе — как будто его строки нет в журнале${classId === 'paid-streak' ? ' (серию он не прерывает)' : ''}. M во входе нет.`,
 		'',
 		'## Вход',
 		'',
@@ -463,6 +499,7 @@ function cancelSource(spec: Spec, variant: Variant): string {
 		'for i in range(n):',
 		'    oid, customer, amount, status = data[2 + 4 * i:6 + 4 * i]',
 		...(variant === 'first-wins' ? ['    if oid in orders:', '        continue'] : []),
+		...(variant === 'min-before-latest' ? ['    if int(amount) < MIN:', '        continue'] : []),
 		'    orders[oid] = (customer, int(amount), status)',
 		`    if status == '${paid}':`,
 		'        paid.add(oid)',
@@ -512,6 +549,7 @@ function referenceSource(classId: string, spec: Spec, variant: Variant): string 
 		'for i in range(n):',
 		'    oid, customer, amount, status = data[pos:pos + 4]',
 		'    pos += 4',
+		...(variant === 'min-before-latest' ? ['    if int(amount) < MIN:', '        continue'] : []),
 		variant === 'first-wins'
 			? '    if oid not in orders:\n        orders[oid] = (customer, int(amount), status)'
 			: `    ${store} = (customer, int(amount), status)`,
@@ -538,7 +576,8 @@ const WRONG_IDS = [
 	'first-wins',
 	'keeps-empty',
 	'int32-sum',
-	'streak-no-reset'
+	'streak-no-reset',
+	'min-before-latest'
 ] as const;
 
 function applies(id: (typeof WRONG_IDS)[number], classId: string, junior: boolean): boolean {
@@ -555,6 +594,8 @@ function applies(id: (typeof WRONG_IDS)[number], classId: string, junior: boolea
 			return SUMMED.has(classId);
 		case 'streak-no-reset':
 			return classId === 'paid-streak';
+		case 'min-before-latest':
+			return junior;
 	}
 }
 

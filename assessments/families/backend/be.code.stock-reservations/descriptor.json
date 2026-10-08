@@ -147,15 +147,20 @@
 			"id": "skip-ahead",
 			"defect": "класс очереди: обслуживает любую подходящую заявку, а не только первую в очереди",
 			"mustBeCaught": true
+		},
+		{
+			"id": "release-waiting-no-serve",
+			"defect": "класс очереди: после снятия ожидающей заявки очередь товара не обслуживается",
+			"mustBeCaught": true
 		}
 	],
 	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
 	"gates": {
 		"reference": { "seeds": 200, "failures": 0 },
-		"wrongSolutions": { "mustBeCaught": 8, "caught": 8 },
-		"hiddenTestsMutationScore": 0.9981,
+		"wrongSolutions": { "mustBeCaught": 9, "caught": 9 },
+		"hiddenTestsMutationScore": 0.9986,
 		"answerCollision": 0,
-		"transfer": 0.0049,
+		"transfer": 0.0059,
 		"bruteForceInputs": null,
 		"rubricReviews": []
 	}

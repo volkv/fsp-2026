@@ -196,6 +196,8 @@ interface Sample {
 interface WrongStat {
 	id: string;
 	mustBeCaught: boolean;
+	/** A wrong revision of the change step: it meets the step's tests. */
+	step: boolean;
 	applied: number;
 	rejected: number;
 }
@@ -576,6 +578,7 @@ async function checkFamily(harness: Harness, family: TreeFamily): Promise<Family
 	const wrong: WrongStat[] = d.wrongSolutions.map((w) => ({
 		id: w.id,
 		mustBeCaught: w.mustBeCaught,
+		step: w.part === 'change_step',
 		applied: 0,
 		rejected: 0
 	}));
@@ -633,7 +636,10 @@ async function checkFamily(harness: Harness, family: TreeFamily): Promise<Family
 						rubric.kind !== 'mutants' || qaScore(instance, rubric.levels, probe.cases, onReference, onMutants).score < 1
 				});
 			} else {
-				const runs = groupRuns(probe.source, instance.practice?.groups ?? []);
+				const runs = groupRuns(
+					probe.source,
+					(stat.step ? instance.changeStep?.groups : instance.practice?.groups) ?? []
+				);
 				const from = wrongRuns.length;
 				wrongRuns.push(...runs.runs);
 				pendingRuns.push({

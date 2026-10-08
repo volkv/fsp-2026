@@ -86,7 +86,7 @@
 			"ведро токенов с дискретным пополнением",
 			"взвешенный счётчик скользящего окна (резервный класс)",
 			"стоимость запроса (Senior)",
-			"доработка решения под новое существенное условие"
+			"доработка решения под новое существенное условие: отклонённый общим лимитом запрос не расходует лимит клиента"
 		],
 		"doesNotCheck": ["распределённый лимитер и хранилище состояния", "реальное время и часы"]
 	},
@@ -97,15 +97,26 @@
 			"defect": "граница окна или пополнения сдвинута: включает начало вместо конца",
 			"mustBeCaught": true
 		},
-		{ "id": "shared-limit", "defect": "один лимит на всех клиентов вместо лимита на клиента", "mustBeCaught": true }
+		{ "id": "shared-limit", "defect": "один лимит на всех клиентов вместо лимита на клиента", "mustBeCaught": true },
+		{
+			"id": "continuous-refill",
+			"defect": "ведро токенов: обычное ленивое ведро — токены растут непрерывно от последнего запроса вместо пополнений в моменты t₀ + jP",
+			"mustBeCaught": true
+		},
+		{
+			"id": "own-spent-on-global-deny",
+			"defect": "шаг «измени своё решение»: лимит клиента расходуется, когда его разрешает сам клиент, хотя общий лимит запрос отклонил",
+			"mustBeCaught": true,
+			"part": "change_step"
+		}
 	],
 	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
 	"gates": {
 		"reference": { "seeds": 200, "failures": 0 },
-		"wrongSolutions": { "mustBeCaught": 3, "caught": 3 },
+		"wrongSolutions": { "mustBeCaught": 5, "caught": 5 },
 		"hiddenTestsMutationScore": 0.9966,
 		"answerCollision": 0,
-		"transfer": 0.0015,
+		"transfer": 0.0017,
 		"bruteForceInputs": null,
 		"rubricReviews": []
 	}

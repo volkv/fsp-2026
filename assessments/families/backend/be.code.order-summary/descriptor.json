@@ -114,15 +114,20 @@
 			"id": "streak-no-reset",
 			"defect": "класс серий: заказ с другим статусом не прерывает серию",
 			"mustBeCaught": true
+		},
+		{
+			"id": "min-before-latest",
+			"defect": "Junior: строки с суммой меньше M отбрасываются при чтении, до выбора последней записи, и возвращается прежняя версия заказа",
+			"mustBeCaught": true
 		}
 	],
 	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
 	"gates": {
 		"reference": { "seeds": 200, "failures": 0 },
-		"wrongSolutions": { "mustBeCaught": 6, "caught": 6 },
+		"wrongSolutions": { "mustBeCaught": 7, "caught": 7 },
 		"hiddenTestsMutationScore": 1,
 		"answerCollision": 0,
-		"transfer": 0.0008,
+		"transfer": 0.0006,
 		"bruteForceInputs": null,
 		"rubricReviews": []
 	}
