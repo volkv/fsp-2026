@@ -134,6 +134,10 @@ export const cardSchema = z
 						competition_level: z.string(),
 						season: z.int().optional(),
 						result_group: z.string().optional(),
+						team_result: z
+							.boolean()
+							.optional()
+							.describe('Результат команды, а не личный: командная победа не подтверждает личный вклад'),
 						format: z.string().optional(),
 						computed_indicator: z.string().nullable().optional()
 					})
@@ -247,7 +251,8 @@ export function cardView(loaded: EmployerCard) {
 			badge_trust: skill.badgeTrust
 		})),
 		fsp_achievements: card.fspAchievements.map((achievement) => {
-			const { discipline, competitionLevel, season, resultGroup, format, computedIndicator } = achievement.generalized;
+			const { discipline, competitionLevel, season, resultGroup, teamResult, format, computedIndicator } =
+				achievement.generalized;
 			if (discipline === undefined || competitionLevel === undefined) {
 				throw new Error('a catalog achievement lacks its discipline or competition level');
 			}
@@ -257,6 +262,7 @@ export function cardView(loaded: EmployerCard) {
 					competition_level: competitionLevel,
 					season,
 					result_group: resultGroup,
+					team_result: teamResult,
 					format,
 					computed_indicator: computedIndicator
 				},

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { candidateLabel } from '$lib/text/candidate-label';
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
 	import CandidateCard from '$lib/components/employer/candidate-card.svelte';
@@ -28,7 +29,7 @@
 </script>
 
 <PageHeader
-	title={`Кандидат ${data.pseudonym}`}
+	title={candidateLabel(data.pseudonym)}
 	description="Псевдоним виден только вашей компании. Имя и контакты — после принятия предложения и только с согласия кандидата."
 >
 	{#snippet eyebrow()}

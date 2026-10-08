@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { candidateLabel } from '$lib/text/candidate-label';
 	import SendIcon from '@lucide/svelte/icons/send';
 	import { resolve } from '$app/paths';
 	import PageHeader from '$lib/components/forms/page-header.svelte';
@@ -36,7 +37,7 @@
 					data-application-status={item.status}
 				>
 					<span class="grid gap-1">
-						<span class="font-medium">Кандидат {item.candidatePseudonym} · {item.vacancy.title}</span>
+						<span class="font-medium">{candidateLabel(item.candidatePseudonym)} · {item.vacancy.title}</span>
 						<span class="text-sm text-muted-foreground">
 							{formatDate(item.submittedAt)} · соответствие {percent.format(item.match.score)}
 						</span>

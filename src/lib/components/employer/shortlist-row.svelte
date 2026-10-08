@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { candidateLabel } from '$lib/text/candidate-label';
 	import { enhance } from '$app/forms';
 	import type { ResolvedPathname } from '$app/types';
 	import BookmarkIcon from '@lucide/svelte/icons/bookmark';
@@ -18,6 +19,7 @@
 		OFFER_FIT,
 		reasonText,
 		unconfirmedText,
+		type FspSource,
 		type NeedMatchData,
 		type ShortlistNames
 	} from './shortlist.js';
@@ -38,6 +40,8 @@
 		/** A candidate created within the viewer's demo session, not a clone of the cast: the visitor's own. */
 		createdInSession: boolean;
 		names: ShortlistNames;
+		/** Where the FSP results come from: the reason of the FSP record names its source by it. */
+		fspSource: FspSource;
 		cardHref: ResolvedPathname;
 		/** The query the card opens the offer with: the shortlist it comes from. */
 		offerQuery: string;
@@ -45,8 +49,19 @@
 		editable: boolean;
 	}
 
-	let { pseudonym, match, offerFit, mark, hasFsp, createdInSession, names, cardHref, offerQuery, editable }: Props =
-		$props();
+	let {
+		pseudonym,
+		match,
+		offerFit,
+		mark,
+		hasFsp,
+		createdInSession,
+		names,
+		fspSource,
+		cardHref,
+		offerQuery,
+		editable
+	}: Props = $props();
 
 	const percent = new Intl.NumberFormat('ru-RU', { style: 'percent', maximumFractionDigits: 0 });
 	const unconfirmed = $derived(coverageText(match.coverage, names));
@@ -59,7 +74,7 @@
 		<div class="grid gap-1">
 			<h3 class="font-heading text-h3">
 				<span class="text-muted-foreground numeric">#{match.position}</span>
-				<a class="hover:underline" href={cardHref} data-sveltekit-preload-data="tap">Кандидат {pseudonym}</a>
+				<a class="hover:underline" href={cardHref} data-sveltekit-preload-data="tap">{candidateLabel(pseudonym)}</a>
 			</h3>
 			<p class="text-sm text-muted-foreground">
 				{#if match.category}
@@ -109,7 +124,7 @@
 		<h4 class="mb-1 text-sm font-medium">{match.group === 'unconfirmed' ? 'Почему в подборке' : 'Почему подходит'}</h4>
 		<ol class="grid gap-1 text-sm" data-testid="shortlist-reasons">
 			{#each match.reasons as reason, index (index)}
-				{@const view = reasonText(reason, names)}
+				{@const view = reasonText(reason, names, fspSource)}
 				<li class="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
 					<span>
 						{view.text}

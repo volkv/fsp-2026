@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { candidateLabel } from '$lib/text/candidate-label';
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
 	import ShortlistRow from '$lib/components/employer/shortlist-row.svelte';
@@ -191,6 +192,7 @@
 				hasFsp={item.hasFsp}
 				createdInSession={item.createdInSession}
 				{names}
+				fspSource={{ fspSimulator: data.fspSimulator }}
 				cardHref={resolve('/(app)/company/(member)/candidates/[pseudonym]', { pseudonym: item.pseudonym })}
 				offerQuery={`?shortlist=${shortlist.id}`}
 				{editable}
@@ -292,7 +294,7 @@
 							<a
 								class="text-link underline-offset-4 hover:underline"
 								href={resolve('/(app)/company/(member)/candidates/[pseudonym]', { pseudonym: mark.pseudonym })}
-								>Кандидат {mark.pseudonym}</a
+								>{candidateLabel(mark.pseudonym)}</a
 							>
 						{:else}
 							Кандидат
@@ -432,7 +434,7 @@
 								<ul class="grid gap-1">
 									{#each data.whatIf.entered as entry (entry.pseudonym)}
 										<li>
-											Кандидат {entry.pseudonym} — {WHAT_IF_REASONS[entry.reason.code] ?? entry.reason.code}
+											{candidateLabel(entry.pseudonym)} — {WHAT_IF_REASONS[entry.reason.code] ?? entry.reason.code}
 											{entry.reason.code === 'category' || entry.reason.code === 'grade_declared'
 												? categoryName(
 														{ specialization: entry.reason.specialization, grade: entry.reason.grade },
@@ -447,7 +449,9 @@
 								<p class="font-medium">Выпадут</p>
 								<ul class="grid gap-1">
 									{#each data.whatIf.left as entry (entry.pseudonym)}
-										<li>Кандидат {entry.pseudonym} — {WHAT_IF_REASONS[entry.reason.code] ?? entry.reason.code}</li>
+										<li>
+											{candidateLabel(entry.pseudonym)} — {WHAT_IF_REASONS[entry.reason.code] ?? entry.reason.code}
+										</li>
 									{/each}
 								</ul>
 							{/if}

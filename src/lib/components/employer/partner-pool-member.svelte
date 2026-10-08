@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { candidateLabel } from '$lib/text/candidate-label';
 	import { resolve } from '$app/paths';
 	import type { Snippet } from 'svelte';
 	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
@@ -40,7 +41,7 @@
 <article class="grid gap-3 rounded-xl border bg-card p-4 sm:p-5" data-pool-candidate={pseudonym}>
 	<div class="flex flex-wrap items-start justify-between gap-3">
 		<div class="grid gap-1">
-			<h3 class="font-heading text-h3">Кандидат {pseudonym}</h3>
+			<h3 class="font-heading text-h3">{candidateLabel(pseudonym)}</h3>
 			<p class="text-sm text-muted-foreground">
 				{line ?? 'Категория не подтверждена: тест на грейд не пройден'}
 			</p>

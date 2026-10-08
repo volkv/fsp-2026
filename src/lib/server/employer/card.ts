@@ -176,6 +176,7 @@ function competitionAchievement(
 			competitionLevel: competition.level,
 			season: Number(competition.startDate.slice(0, 4)),
 			resultGroup: result.award ?? 'unknown',
+			teamResult: result.team != null,
 			format: competition.online === undefined ? 'unknown' : competition.online ? 'online' : 'onsite',
 			computedIndicator: result.evskFulfilled ?? null
 		},

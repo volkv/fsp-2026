@@ -39,6 +39,7 @@
 			competitionLevel?: string;
 			season?: number;
 			resultGroup?: string;
+			teamResult?: boolean;
 			format?: string;
 			computedIndicator?: string | null;
 		};
@@ -46,6 +47,7 @@
 			competitionTitle: string;
 			stage: string | null;
 			place: number | null;
+			placeOf: number | null;
 			team: { name: string; role: string | null } | null;
 		};
 	}
@@ -135,7 +137,14 @@
 	/** A full achievement for the badge; the generalized minor view (discipline and level only) is shown as text. */
 	function achievementView(item: Achievement): AchievementView | null {
 		const g = item.generalized;
-		if (g.season === undefined || g.discipline === undefined || g.competitionLevel === undefined) return null;
+		if (
+			g.season === undefined ||
+			g.discipline === undefined ||
+			g.competitionLevel === undefined ||
+			g.teamResult === undefined
+		) {
+			return null;
+		}
 		return {
 			discipline: (g.discipline in DISCIPLINES ? g.discipline : 'unknown') as DisciplineCode | 'unknown',
 			level: (g.competitionLevel in COMPETITION_LEVELS ? g.competitionLevel : 'unknown') as
@@ -143,13 +152,14 @@
 			award: ((g.resultGroup ?? 'unknown') in AWARDS ? (g.resultGroup ?? 'unknown') : 'unknown') as Award | 'unknown',
 			format: g.format === 'onsite' || g.format === 'online' ? g.format : 'unknown',
 			season: g.season,
-			team: item.exact?.team != null,
+			team: g.teamResult,
 			evskIndicator: (g.computedIndicator ?? null) as EvskRank | null,
 			...(item.exact
 				? {
 						exact: {
 							competition: item.exact.competitionTitle,
 							place: item.exact.place,
+							...(item.exact.placeOf === null ? {} : { placeOf: item.exact.placeOf }),
 							...(item.exact.team ? { teamName: item.exact.team.name } : {})
 						}
 					}

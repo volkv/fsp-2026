@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { candidateLabel } from '$lib/text/candidate-label';
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
 	import ContactRoundIcon from '@lucide/svelte/icons/contact-round';
@@ -52,7 +53,7 @@
 </script>
 
 <PageHeader
-	title={`Приглашение: ${invitation.candidatePseudonym ?? ''}`}
+	title={`Приглашение: ${candidateLabel(invitation.candidatePseudonym)}`}
 	description={current
 		? `${current.title}${current.vacancy ? ` · вакансия «${current.vacancy.snapshot.title}»` : ''}`
 		: ''}
@@ -169,7 +170,7 @@
 				<Card.Content>
 					<OfferConversation
 						conversation={data.conversation}
-						otherName={invitation.candidatePseudonym ?? 'Кандидат'}
+						otherName={candidateLabel(invitation.candidatePseudonym)}
 						reader="company"
 					/>
 				</Card.Content>

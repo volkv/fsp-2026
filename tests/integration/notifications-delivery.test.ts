@@ -35,6 +35,7 @@ import { ensureEmailChannel, notify, type NotificationInput } from '$lib/server/
 import { setCategoryChannels } from '$lib/server/notifications/preferences';
 import { notificationLetter, telegramText } from '$lib/server/notifications/templates';
 import { NOTIFICATION_TYPES, type NotificationType } from '$lib/server/notifications/types';
+import { candidateCode, candidateLabel } from '$lib/text/candidate-label';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
 import {
 	createCandidate,
@@ -439,7 +440,7 @@ describe('email', () => {
 		expect(delivery.providerMessageId).toBeTruthy();
 	});
 
-	it('names the candidate to the company by pseudonym only', async () => {
+	it('names the candidate to the company by the short code of the pseudonym only', async () => {
 		const w = await world();
 		await send({
 			userId: w.memberUser.id,
@@ -452,7 +453,7 @@ describe('email', () => {
 		const raw = smtp.received[0] ?? '';
 		expect(raw).toContain(`To: ${w.memberEmail}`);
 		const text = plainText(raw);
-		expect(text).toContain(`Кандидат ${w.pseudonym} отклонил приглашение «${VACANCY_TITLE}»`);
+		expect(text).toContain(`${candidateLabel(w.pseudonym)} отклонил приглашение «${VACANCY_TITLE}»`);
 		expect(raw).not.toContain(w.candidateEmail);
 	});
 
@@ -542,7 +543,14 @@ describe('telegram', () => {
 		expect(request?.body.chat_id).toBe(w.chatId);
 		const text = String(request?.body.text);
 		expect(text).toBe(`Новое приглашение — ФСП | Карьера\n\n${APP_ORIGIN}/notifications/${id}`);
-		for (const personal of [COMPANY_NAME, VACANCY_TITLE, w.pseudonym, w.candidateEmail, w.memberEmail]) {
+		for (const personal of [
+			COMPANY_NAME,
+			VACANCY_TITLE,
+			w.pseudonym,
+			candidateCode(w.pseudonym),
+			w.candidateEmail,
+			w.memberEmail
+		]) {
 			expect(text).not.toContain(personal);
 		}
 		expect(request?.body).not.toHaveProperty('parse_mode');

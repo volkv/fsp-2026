@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { candidateLabel } from '$lib/text/candidate-label';
 	import { resolve } from '$app/paths';
 	import InboxIcon from '@lucide/svelte/icons/inbox';
 	import PageHeader from '$lib/components/forms/page-header.svelte';
@@ -47,7 +48,7 @@
 								class="font-medium text-link underline-offset-4 hover:underline"
 								href={resolve('/(app)/company/(member)/invitations/[id]', { id: invitation.id })}
 							>
-								{invitation.candidatePseudonym}
+								{candidateLabel(invitation.candidatePseudonym)}
 							</a>
 						</Table.Cell>
 						<Table.Cell>
