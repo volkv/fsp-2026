@@ -7,12 +7,13 @@
 	import NeedDemandBlock from '$lib/components/candidate/need-demand-block.svelte';
 	import { OBJECTION_OUTCOMES, OBJECTION_STATUSES } from '$lib/components/candidate/model.js';
 	import SectionCard from '$lib/components/candidate/section-card.svelte';
+	import SignalsSummary from '$lib/components/assessments/signals-summary.svelte';
 	import CsrfInput from '$lib/components/forms/csrf-input.svelte';
 	import FormMessage from '$lib/components/forms/form-message.svelte';
 	import PageHeader from '$lib/components/forms/page-header.svelte';
 	import StatusPill from '$lib/components/forms/status-pill.svelte';
 	import { CategoryList, RecommendationNotice, ResponseDeadline } from '$lib/components/product/index.js';
-	import { formatDate, type CategoryBadgeView } from '$lib/components/product/model.js';
+	import { categoryName, formatDate, type CategoryBadgeView } from '$lib/components/product/model.js';
 	import { productDay } from '$lib/dates';
 	import { Button, buttonVariants } from '$lib/components/ui/button/index.js';
 	import type { PageProps } from './$types';
@@ -191,13 +192,24 @@
 
 <SectionCard title="Действующие категории" testId="categories">
 	<CategoryList categories={inForce} reader="candidate" />
+	{#if data.signals.length > 0}
+		<div class="grid gap-3" data-testid="category-signals">
+			<p class="text-sm text-muted-foreground">
+				Компания, которой видна ваша карточка, видит рядом с категорией сводку журнала сигналов попытки, назначившей её,
+				— ровно эти строки, без времени по заданиям. Журнал целиком — на странице попытки.
+			</p>
+			{#each data.signals as entry (entry.specialization)}
+				<SignalsSummary summary={entry.summary} title={`Сигналы теста: ${categoryName(entry, labels)}`} />
+			{/each}
+		</div>
+	{/if}
 	{#if ended.length > 0}
 		<details class="text-sm">
 			<summary class="cursor-pointer text-muted-foreground">История категорий</summary>
 			<ul class="mt-2 grid gap-2">
 				{#each ended as item (item.id)}
 					<li class="rounded-md border p-3">
-						{name(labels.specializations, item.specialization)} · {name(labels.grades, item.grade)} — назначена
+						{categoryName(item, labels)} — назначена
 						{formatDate(item.assignedAt)},
 						{name(ENDED, item.revokeReason ?? item.status)}{item.endedAt ? ` ${formatDate(item.endedAt)}` : ''}
 					</li>

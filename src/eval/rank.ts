@@ -86,6 +86,7 @@ import { GRADE_DECISION_RESULTS } from '$lib/server/matching/test-results';
 import type { ModelAdapter } from '$lib/server/ml/adapter';
 import { fail } from '$lib/server/ml/result';
 import { parseNeedText } from '$lib/server/needs/parse';
+import { memoryTextParseCache } from '$lib/server/vacancies/text-extract';
 import { compositeSpecializations } from '$lib/server/needs/recommend';
 import { defaultCategories } from '$lib/server/shortlists/service';
 import { openSpecializations } from '$lib/server/assessments/bank-store';
@@ -204,26 +205,52 @@ export const rankRequestSchema = z.strictObject({
 	as_of: isoDate,
 	candidates: z
 		.array(
-			z.strictObject({
-				id: z.string().min(1),
-				resume: z
-					.strictObject({
-						evidence: evidenceSchema,
-						mode: z.enum(['rules_only', 'model']),
-						/** Rules version or model id that produced the rows. */
-						producer: z.string().min(1)
-					})
-					.nullable(),
-				/** FSP achievements in the source's wire format. */
-				fsp: fspPageSchema.nullable(),
-				/** What the candidate answered in the survey (`candidates.preferences`); absent — nothing. */
-				preferences: candidatePreferencesSchema.optional(),
-				/**
-				 * The decisions of the candidate's tests on the grade, oldest first (contracts 10.1, `test_result`): a
-				 * confirmed one gives the category; none — no test, no category.
-				 */
-				test_results: z.array(testResultSchema)
-			})
+			z
+				.strictObject({
+					id: z.string().min(1),
+					resume: z
+						.strictObject({
+							evidence: evidenceSchema,
+							mode: z.enum(['rules_only', 'model']),
+							/** Rules version or model id that produced the rows. */
+							producer: z.string().min(1)
+						})
+						.nullable(),
+					/** FSP achievements in the source's wire format. */
+					fsp: fspPageSchema.nullable(),
+					/** What the candidate answered in the survey (`candidates.preferences`); absent — nothing. */
+					preferences: candidatePreferencesSchema.optional(),
+					/**
+					 * The decisions of the candidate's tests on the grade, oldest first (contracts 10.1, `test_result`): a
+					 * confirmed one gives the category; none — no test, no category.
+					 */
+					test_results: z.array(testResultSchema),
+					/**
+					 * Grades the candidate declared in the survey of a specialization without taking its test (domain 12.2):
+					 * no category, and the group «грейд не подтверждён» of a shortlist of the declared category, as in the
+					 * product. One per specialization; a specialization of `test_results` has the declaration its test was
+					 * taken on.
+					 */
+					declared: z
+						.array(z.strictObject({ specialization: z.enum(SPECIALIZATION_KEYS), grade: z.enum(GRADE_KEYS) }))
+						.default([])
+				})
+				.superRefine((candidate, context) => {
+					const tested = new Set(candidate.test_results.map((result) => result.specialization));
+					const seen = new Set<string>();
+					for (const [index, declaration] of candidate.declared.entries()) {
+						if (seen.has(declaration.specialization) || tested.has(declaration.specialization)) {
+							context.addIssue({
+								code: 'custom',
+								path: ['declared', index, 'specialization'],
+								message: seen.has(declaration.specialization)
+									? 'one declaration per specialization'
+									: 'a tested specialization has the declaration of its test'
+							});
+						}
+						seen.add(declaration.specialization);
+					}
+				})
 		)
 		.min(1),
 	/**
@@ -303,7 +330,8 @@ export interface RankAnswer {
 	/**
 	 * Ranking → need id → the group «грейд не подтверждён» of a ranking admitting by categories, in the order the shortlist
 	 * shows it after every candidate of `rankings` (domain 13.10): no category of the shortlist's specializations and a
-	 * declaration — the grade of the candidate's last test there — naming one of its categories. Not of the confirmed pool.
+	 * declaration — the grade of the candidate's last test there, or declared without a test (`declared`) — naming one of
+	 * its categories. Not of the confirmed pool.
 	 */
 	declared: Record<string, Record<string, string[]>>;
 	/**
@@ -345,10 +373,11 @@ export interface RankAnswer {
 }
 
 /** Models switched off: the FTS-only mode and the need parsed by the rules. */
-const MODELS_OFF: MatchingModels & Pick<ModelAdapter, 'extract'> = {
+const MODELS_OFF: MatchingModels & Pick<ModelAdapter, 'extract' | 'extractModelKey'> = {
 	embed: () => Promise.resolve(fail('disabled', 'embed: switched off', { reason: 'switched_off' })),
 	rerank: () => Promise.resolve(fail('disabled', 'rerank: switched off', { reason: 'switched_off' })),
-	extract: () => Promise.resolve(fail('disabled', 'extract: switched off', { reason: 'switched_off' }))
+	extract: () => Promise.resolve(fail('disabled', 'extract: switched off', { reason: 'switched_off' })),
+	extractModelKey: () => null
 };
 
 const SYSTEM = { kind: 'system' } as const;
@@ -603,20 +632,19 @@ interface Survey {
 }
 
 /**
- * The declaration a test was taken on (domain 12.2): the grade of the attempt, declared in the survey of its
- * specialization an hour before it — a new survey version when the specialization changes, as the product makes one.
- * The declared stack of the survey is the stack of the grade's defining blocks: the bridge has no answers of the
+ * A declaration of a grade in the survey of its specialization (domain 12.2) — the one a test was taken on, or one of
+ * a candidate who has not taken the test — a new survey version when the specialization changes, as the product makes
+ * one. The declared stack of the survey is the stack of the grade's defining blocks: the bridge has no answers of the
  * survey, and no score reads that stack.
  */
 async function recordDeclaration(
 	tx: Transaction,
 	candidateId: string,
-	result: TestResult,
-	decidedAt: Date,
+	result: { specialization: SpecializationKey; grade: GradeKey },
+	declaredAt: Date,
 	taxonomyVersionId: string,
 	surveys: Survey[]
 ): Promise<void> {
-	const declaredAt = new Date(decidedAt.getTime() - 60 * 60 * 1000);
 	let survey = surveys.at(-1);
 	if (survey?.specialization !== result.specialization) {
 		const direction = CATALOG.specializations.find((s) => s.key === result.specialization)?.direction;
@@ -985,7 +1013,8 @@ export async function rankCandidates(request: RankRequest, deps: RankDeps): Prom
 			db,
 			new Set([
 				...request.open_specializations,
-				...request.candidates.flatMap((c) => c.test_results.map((result) => result.specialization))
+				// A declaration is made in the survey of a specialization whose test is out, as a test is taken in one.
+				...request.candidates.flatMap((c) => [...c.test_results, ...c.declared].map((entry) => entry.specialization))
 			]),
 			now
 		);
@@ -1055,12 +1084,18 @@ export async function rankCandidates(request: RankRequest, deps: RankDeps): Prom
 						createdBy: SYSTEM
 					});
 				}
-				// Decisions a day apart, the last one a day before «now», each applied as the engine applies it.
+				// Declarations without a test first, then decisions a day apart, the last one a day before «now», each
+				// applied as the engine applies it and declared an hour before it.
 				const results = candidate.test_results;
 				const surveys: Survey[] = [];
+				for (const [index, declaration] of candidate.declared.entries()) {
+					const declaredAt = new Date(now.getTime() - (results.length + candidate.declared.length - index) * DAY_MS);
+					await recordDeclaration(tx, row.id, declaration, declaredAt, published.taxonomyVersionId, surveys);
+				}
 				for (const [index, result] of results.entries()) {
 					const decidedAt = new Date(now.getTime() - (results.length - index) * DAY_MS);
-					await recordDeclaration(tx, row.id, result, decidedAt, published.taxonomyVersionId, surveys);
+					const declaredAt = new Date(decidedAt.getTime() - 60 * 60 * 1000);
+					await recordDeclaration(tx, row.id, result, declaredAt, published.taxonomyVersionId, surveys);
 					await recordDecision(tx, row.id, decisionId(candidate.id, index), result, decidedAt);
 					await applyGradeDecisions(
 						tx,
@@ -1086,10 +1121,15 @@ export async function rankCandidates(request: RankRequest, deps: RankDeps): Prom
 			.where(eq(evidenceRuns.status, 'published'));
 
 		// Each need as the employer writes it, read by the rules, with the categories its shortlist takes.
+		const parseCache = memoryTextParseCache();
 		const needs: RankAnswer['needs'] = {};
 		const specs = new Map<string, { spec: NeedSpec; text: string }>();
 		for (const need of request.needs) {
-			const { form } = await parseNeedText({ db, models: MODELS_OFF }, { id: uuidv7(), companyId: 'eval' }, need.text);
+			const { form } = await parseNeedText(
+				{ db, models: MODELS_OFF, parseCache },
+				{ id: uuidv7(), companyId: 'eval' },
+				need.text
+			);
 			const categories = defaultCategories(form, await openSpecializations(db));
 			needs[need.id] = {
 				specialization: form.specialization ?? null,

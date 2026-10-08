@@ -59,6 +59,7 @@ import {
 	createUser,
 	randomSha256
 } from '../helpers/factories';
+import { noFiles } from '../helpers/storage';
 
 const TAXONOMY_DIR = fileURLToPath(new URL('../../taxonomy', import.meta.url));
 const DAY = 86_400_000;
@@ -125,11 +126,13 @@ beforeAll(async () => {
 		redis: () => Promise.resolve(redis),
 		crypto,
 		mailer: { send: () => Promise.resolve({ ok: true, value: { messageId: 'm' } }) },
+		store: noFiles,
 		registry: registryNotConfigured,
 		models: {
 			embed: () => Promise.resolve(fail('disabled', 'embed: switched off', { reason: 'switched_off' })),
 			rerank: () => Promise.resolve(fail('disabled', 'rerank: switched off', { reason: 'switched_off' })),
-			extract: () => Promise.resolve(fail('disabled', 'extract: switched off', { reason: 'switched_off' }))
+			extract: () => Promise.resolve(fail('disabled', 'extract: switched off', { reason: 'switched_off' })),
+			extractModelKey: () => null
 		},
 		receiptSigner: createReceiptSigner({ issuer: 'http://app.test', keyId: 'test-1', seed: Buffer.alloc(32, 5) }),
 		appOrigin: 'http://app.test',

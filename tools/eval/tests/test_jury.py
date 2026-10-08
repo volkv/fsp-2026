@@ -15,7 +15,7 @@ EXAMPLE = Path(__file__).resolve().parents[1] / "jury" / "example.jsonl"
 class JuryEcho:
     """A bridge that reads every resume as its own text and shortlists in each lane by a fixed order: `as_product` —
     the candidates with a confirmed test, the order of the input, then as the group «грейд не подтверждён» those whose
-    tests confirmed nothing; `resume_only` — everyone, reversed."""
+    tests confirmed nothing and those who declared a grade without a test; `resume_only` — everyone, reversed."""
 
     def __init__(self) -> None:
         self.requests: list[dict] = []
@@ -63,7 +63,11 @@ class JuryEcho:
             for need_id, people in ranking["per_need"].items():
                 order = [cid for cid in people if confirmed(cid)] if lane == "as_product" else people[::-1]
                 group = (
-                    [cid for cid in people if by_id[cid]["test_results"] and not confirmed(cid)]
+                    [
+                        cid
+                        for cid in people
+                        if (by_id[cid]["test_results"] and not confirmed(cid)) or by_id[cid]["declared"]
+                    ]
                     if lane == "as_product"
                     else []
                 )
@@ -105,25 +109,27 @@ def test_the_example_is_read_and_run_in_both_lanes(tmp_path):
     assert first["need_id"] == "python-middle"
     product = first["lanes"]["as_product"]
     assert [r["candidate_id"] for r in product["ranked"]] == ["a", "b", "d"]
-    # The group «грейд не подтверждён» follows the shortlist, its positions after it, with the grade it declared.
-    assert [(r["candidate_id"], r["position"]) for r in product["grade_not_confirmed"]["ranked"]] == [("f", 4)]
-    assert product["grade_not_confirmed"]["ranked"][0]["declared"] == {
-        "specialization": "backend",
-        "grade": "middle",
-        "outcome": "not_confirmed",
-    }
+    # The group «грейд не подтверждён» follows the shortlist, its positions after it, with the grade it declared: by
+    # the test that did not confirm it, or in the survey without a test.
+    group = product["grade_not_confirmed"]["ranked"]
+    assert [(r["candidate_id"], r["position"]) for r in group] == [("f", 4), ("h", 5)]
+    assert [r["declared"] for r in group] == [
+        {"specialization": "backend", "grade": "middle", "outcome": "not_confirmed"},
+        {"specialization": "backend", "grade": "middle", "outcome": "not_tested"},
+    ]
     assert product["not_shown"]["no_test"] == ["c"]
     assert first["inputs"] == {
-        "candidates": 5,
-        "parsed": 5,
+        "candidates": 6,
+        "parsed": 6,
         "with_test_results": 4,
+        "declared_without_test": 1,
         "with_category": 3,
-        "labelled": 5,
+        "labelled": 6,
         "shortlist": 3,
-        "grade_not_confirmed": 1,
+        "grade_not_confirmed": 2,
     }
     assert results["warnings"] == []
-    assert [r["candidate_id"] for r in first["lanes"]["resume_only"]["ranked"]] == ["f", "d", "c", "b", "a"]
+    assert [r["candidate_id"] for r in first["lanes"]["resume_only"]["ranked"]] == ["h", "f", "d", "c", "b", "a"]
     assert first["lanes"]["resume_only"]["title"].startswith("эксперимент без теста")
     # Nobody has a category in the lane without a test: it names who the grade hint left out — here nobody.
     assert first["lanes"]["resume_only"]["not_admitted_by_grade_hint"] == []
@@ -135,20 +141,26 @@ def test_the_example_is_read_and_run_in_both_lanes(tmp_path):
         "as_product": "categories",
         "resume_only": "grade_hint",
     }
-    assert all(not c["test_results"] for c in rank["candidates"] if c["id"].endswith("/resume_only"))
+    assert all(
+        not c["test_results"] and not c["declared"] for c in rank["candidates"] if c["id"].endswith("/resume_only")
+    )
+    assert [c["declared"] for c in rank["candidates"] if c["declared"]] == [
+        [{"specialization": "backend", "grade": "middle"}]
+    ]
     # The blind sheet: the union of the first tens of every system, no position, score or system.
     sheet = [json.loads(line) for line in (directory / "judging.jsonl").read_text(encoding="utf-8").splitlines()]
-    assert {(row["need_id"], row["candidate_id"]) for row in sheet} == {("python-middle", cid) for cid in "abcdf"} | {
+    assert {(row["need_id"], row["candidate_id"]) for row in sheet} == {("python-middle", cid) for cid in "abcdfh"} | {
         ("qa-junior", cid) for cid in "deg"
     }
     assert all(set(row) == {"need_id", "candidate_id", "label"} and row["label"] is None for row in sheet)
     # The example carries labels: the metrics come with the run.
     metrics = run["metrics"]
     assert metrics["rated_needs"] == 2
-    # a (3) of a, b, d and d (3) of d: one suitable of ten positions each; c (2) has no test, f (2) is in the group.
+    # a (3) of a, b, d and d (3) of d: one suitable of ten positions each; c (2) has no test, f and h (2) are in the
+    # group.
     assert metrics["systems"]["as_product"]["precision_at_10"] == 0.1
-    # What the employer sees counts the group too: f joins a in the first need.
-    assert metrics["systems"]["as_product_shown"]["precision_at_10"] == round((0.2 + 0.1) / 2, 4)
+    # What the employer sees counts the group too: f and h join a in the first need.
+    assert metrics["systems"]["as_product_shown"]["precision_at_10"] == round((0.3 + 0.1) / 2, 4)
     assert metrics["systems"]["resume_only"]["mrr"] == round((1 + 1 / 3) / 2, 4)
     assert metrics["systems"]["as_product"]["judged_at_10"] == 1.0
     assert set(metrics["deltas"]) == {
@@ -161,18 +173,35 @@ def test_the_example_is_read_and_run_in_both_lanes(tmp_path):
 
 def test_without_test_results_the_product_shows_nobody_and_says_why(tmp_path):
     needs = read_needs(EXAMPLE)
-    untested = [Need(n.need_id, n.text, tuple(replace(c, test_results=[]) for c in n.candidates)) for n in needs]
+    untested = [
+        Need(n.need_id, n.text, tuple(replace(c, test_results=[], declared=[]) for c in n.candidates)) for n in needs
+    ]
     run = jury_run(JuryEcho(), untested, tmp_path, mode="rules_only", concurrency=2, as_of=date(2026, 10, 5), seed=1)
     first = run["needs"][0]["lanes"]["as_product"]
     assert first["ranked"] == []
     assert first["grade_not_confirmed"]["ranked"] == []
-    assert first["not_shown"]["no_test"] == ["a", "b", "c", "d", "f"]
+    assert first["not_shown"]["no_test"] == ["a", "b", "c", "d", "f", "h"]
     assert run["inputs"]["with_test_results"] == 0
     assert run["inputs"]["shortlist"] == 0
     [warning] = run["warnings"]
     assert "нет ни одного решения теста" in warning
     assert run["metrics"]["warnings"] == run["warnings"]
     assert run["metrics"]["systems"]["as_product"]["precision_at_10"] == 0.0
+
+
+def test_a_grade_declared_without_a_test_is_the_group_without_a_shortlist(tmp_path):
+    needs = read_needs(EXAMPLE)
+    untested = [Need(n.need_id, n.text, tuple(replace(c, test_results=[]) for c in n.candidates)) for n in needs]
+    run = jury_run(JuryEcho(), untested, tmp_path, mode="rules_only", concurrency=2, as_of=date(2026, 10, 5), seed=1)
+    first = run["needs"][0]["lanes"]["as_product"]
+    assert first["ranked"] == []
+    assert [
+        (r["candidate_id"], r["position"], r["declared"]["outcome"]) for r in first["grade_not_confirmed"]["ranked"]
+    ] == [("h", 1, "not_tested")]
+    assert first["not_shown"]["no_test"] == ["a", "b", "c", "d", "f"]
+    assert run["inputs"]["declared_without_test"] == 1
+    [warning] = run["warnings"]
+    assert "только группа «грейд не подтверждён» из заявивших грейд без теста" in warning
 
 
 def test_labels_of_the_union_score_both_systems_out_of_ten(tmp_path):
@@ -191,12 +220,12 @@ def test_labels_of_the_union_score_both_systems_out_of_ten(tmp_path):
         encoding="utf-8",
     )
     metrics = jury_metrics(run, read_labels(labels), seed=1)
-    # Only c is suitable: the product shows it in neither group (no test), the reversed lane has it third; unlabelled
+    # Only c is suitable: the product shows it in neither group (no test), the reversed lane has it fourth; unlabelled
     # cards count as not suitable and are seen in judged@10.
     assert metrics["rated_needs"] == 1
     assert metrics["systems"]["as_product"]["precision_at_10"] == 0.0
     assert metrics["systems"]["as_product_shown"]["precision_at_10"] == 0.0
-    assert metrics["systems"]["resume_only"]["mrr"] == round(1 / 3, 4)
+    assert metrics["systems"]["resume_only"]["mrr"] == round(1 / 4, 4)
     assert metrics["systems"]["as_product"]["judged_at_10"] == round((0 + 0) / 2, 4)
     labels.write_text(json.dumps({"need_id": "other", "candidate_id": "x", "label": 1}), encoding="utf-8")
     with pytest.raises(JuryError, match="needs the run has not"):
@@ -249,6 +278,54 @@ def test_labels_of_the_union_score_both_systems_out_of_ten(tmp_path):
                 }
             ),
             "label must be 0–3",
+        ),
+        (
+            json.dumps(
+                {
+                    "need_id": "n",
+                    "need": {"text": "x"},
+                    "candidates": [
+                        {
+                            "candidate_id": "a",
+                            "resume_text": "cv",
+                            "declared": [
+                                {"specialization": "backend", "grade": "middle"},
+                                {"specialization": "backend", "grade": "senior"},
+                            ],
+                        }
+                    ],
+                }
+            ),
+            "declared names backend twice",
+        ),
+        (
+            json.dumps(
+                {
+                    "need_id": "n",
+                    "need": {"text": "x"},
+                    "candidates": [
+                        {
+                            "candidate_id": "a",
+                            "resume_text": "cv",
+                            "test_results": [{"specialization": "backend", "grade": "middle", "outcome": "confirmed"}],
+                            "declared": [{"specialization": "backend", "grade": "senior"}],
+                        }
+                    ],
+                }
+            ),
+            "declaration is the test's own",
+        ),
+        (
+            json.dumps(
+                {
+                    "need_id": "n",
+                    "need": {"text": "x"},
+                    "candidates": [
+                        {"candidate_id": "a", "resume_text": "cv", "declared": [{"specialization": "backend"}]}
+                    ],
+                }
+            ),
+            "declared must hold",
         ),
     ],
 )

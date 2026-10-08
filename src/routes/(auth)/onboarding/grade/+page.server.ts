@@ -1,5 +1,6 @@
 import { redirect } from '@sveltejs/kit';
 import { CATALOG } from '$lib/server/assessments/contract/catalog';
+import { CATEGORY_GRADE_NAMES } from '$lib/server/categories/labels';
 import { formText } from '$lib/server/http/form';
 import { db } from '$lib/server/db';
 import { computeGradeHint, declareGrade } from '$lib/server/grades/declarations';
@@ -40,7 +41,7 @@ export const load: PageServerLoad = async (event) => {
 				if (!definition) throw new Error(`catalog has no definition of ${survey.specialization} × ${grade.key}`);
 				return {
 					key: grade.key,
-					title: grade.title,
+					title: CATEGORY_GRADE_NAMES[grade.key],
 					borderline: definition.borderline,
 					blocks: definition.blocks.map((b) => blockTitle.get(b.block) ?? b.block)
 				};

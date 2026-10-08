@@ -2,7 +2,9 @@
 // of the offer write to each other on the platform instead of only trading contacts. It opens when the candidate
 // accepts the offer — an agreement to talk, not to the job — and closes for writing when the candidate revokes the
 // disclosure consent of the offer, leaves the platform, or the admission policy stops the company; what was written
-// stays readable to both sides until the purge of the candidate's account removes it with the terms of the offer.
+// stays readable to both sides until the purge of the candidate's account removes it with the terms of the offer. A
+// company on the candidate's block list does not see the candidate anywhere (`canShow`), so for it the conversation is
+// closed for writing and for reading alike; the candidate still reads it.
 // Nobody else reads it: another company, another candidate and the FSP staff get `404`. Across demo sessions the
 // candidate reaches the conversations of the companies within their reach only (domain 19.3).
 import { and, asc, eq, isNull, ne, type SQL } from 'drizzle-orm';
@@ -10,6 +12,7 @@ import { can, companyAdmission, type AccessSubject } from '$lib/server/access/pe
 import { recordAuditEvent } from '$lib/server/audit/record';
 import type { Executor, Transaction } from '$lib/server/db';
 import {
+	candidateCompanyBlocks,
 	candidates,
 	companies,
 	companyMembers,
@@ -30,10 +33,12 @@ export type MessageSide = 'candidate' | 'company';
 
 /**
  * Why nobody writes in the conversation now: the offer is not accepted (the conversation has not opened), the candidate
- * revoked the disclosure consent of the offer, the candidate's profile is being deleted or is gone, or the admission
- * policy stops the company (`suspended`, `rejected`).
+ * revoked the disclosure consent of the offer, the candidate's profile is being deleted or is gone, the candidate put the
+ * company on their block list (the company reads nothing either), or the admission policy stops the company
+ * (`suspended`, `rejected`).
  */
-export type ConversationClosure = 'not_accepted' | 'consent_revoked' | 'candidate_left' | 'company_closed';
+export type ConversationClosure =
+	'not_accepted' | 'consent_revoked' | 'candidate_left' | 'candidate_unavailable' | 'company_closed';
 
 export interface MessageView {
 	id: string;
@@ -86,6 +91,20 @@ async function readableInvitation(executor: Executor, invitationId: string): Pro
 	return invitation;
 }
 
+/** The candidate of the offer put its company on their block list. */
+async function blockedByCandidate(executor: Executor, invitation: InvitationRow): Promise<boolean> {
+	const [row] = await executor
+		.select({ companyId: candidateCompanyBlocks.companyId })
+		.from(candidateCompanyBlocks)
+		.where(
+			and(
+				eq(candidateCompanyBlocks.candidateId, invitation.candidateId),
+				eq(candidateCompanyBlocks.companyId, invitation.companyId)
+			)
+		);
+	return row !== undefined;
+}
+
 /** Why the conversation of the offer is closed for writing at `now`; `null` — it is open. */
 export async function conversationClosure(
 	executor: Executor,
@@ -98,6 +117,7 @@ export async function conversationClosure(
 		.from(candidates)
 		.where(eq(candidates.id, invitation.candidateId));
 	if (candidate?.status !== 'active') return 'candidate_left';
+	if (await blockedByCandidate(executor, invitation)) return 'candidate_unavailable';
 	const [company] = await executor
 		.select({ status: companies.status })
 		.from(companies)
@@ -147,7 +167,15 @@ async function messagesOf(
 	}));
 }
 
-/** The conversation of an offer for one of its sides; anyone else gets `404`. Reading marks nothing read. */
+/** The company of the offer reads nothing while the candidate blocks it, as it sees nothing else of them. */
+async function hiddenFrom(executor: Executor, invitation: InvitationRow, viewer: MessageSide): Promise<boolean> {
+	return viewer === 'company' && (await blockedByCandidate(executor, invitation));
+}
+
+/**
+ * The conversation of an offer for one of its sides; anyone else gets `404`. Reading marks nothing read. A company the
+ * candidate blocked gets the closure without a single message.
+ */
 export async function getConversation(
 	deps: InvitationDeps,
 	subject: AccessSubject,
@@ -155,7 +183,9 @@ export async function getConversation(
 ): Promise<ConversationView> {
 	const invitation = await readableInvitation(deps.db, invitationId);
 	const viewer = await sideOf(deps.db, subject, invitation);
-	const messages = await messagesOf(deps.db, invitation.id, viewer);
+	const messages = (await hiddenFrom(deps.db, invitation, viewer))
+		? []
+		: await messagesOf(deps.db, invitation.id, viewer);
 	return {
 		invitationId: invitation.id,
 		viewer,
@@ -167,7 +197,7 @@ export async function getConversation(
 
 /**
  * The side of the subject opened the conversation: the other side's messages it had not read are read now. Returns how
- * many were marked.
+ * many were marked; a company the candidate blocked reads nothing and marks nothing.
  */
 export async function markConversationRead(
 	deps: InvitationDeps,
@@ -176,6 +206,7 @@ export async function markConversationRead(
 ): Promise<number> {
 	const invitation = await readableInvitation(deps.db, invitationId);
 	const viewer = await sideOf(deps.db, subject, invitation);
+	if (await hiddenFrom(deps.db, invitation, viewer)) return 0;
 	const marked = await deps.db
 		.update(invitationMessages)
 		.set({ readAt: deps.now() })
@@ -206,6 +237,7 @@ const CLOSURE_MESSAGES: Record<ConversationClosure, string> = {
 	not_accepted: 'Переписка откроется, когда кандидат примет приглашение.',
 	consent_revoked: 'Кандидат отозвал согласие на раскрытие контактов: переписка закрыта.',
 	candidate_left: 'Профиль кандидата удаляется или удалён: переписка закрыта.',
+	candidate_unavailable: 'Кандидат недоступен компании: переписка закрыта.',
 	company_closed: 'Работа компании на платформе приостановлена: переписка закрыта.'
 };
 

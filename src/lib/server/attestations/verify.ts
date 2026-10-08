@@ -1,8 +1,9 @@
 // The public check of a confirmation of a category (docs/domain.md, section 12.9; contracts 9.3): its status is
 // computed at the moment of the request from the assignment it speaks of, read through the category module like every
 // other reader of categories — `valid` while the assignment is in force, `superseded` once another assignment of the
-// specialization replaced it (a past result, not the category in force, which is named), `annulled` once the decision
-// was annulled or the category revoked after an objection. Nothing about the person is returned; a confirmation of a
+// specialization replaced it (a past result, not the category in force, which is named) or a new confirmation of the
+// same assignment replaced it after the holder changed their name, `annulled` once the decision was annulled or the
+// category revoked after an objection. Nothing about the person is returned; a confirmation of a
 // removed account is gone with it.
 import { timingSafeEqual } from 'node:crypto';
 import { eq } from 'drizzle-orm';
@@ -30,6 +31,11 @@ export interface VerifiedAttestation {
 	annulReason: CategoryRecord['revokeReason'];
 	/** The grade in force now in the same specialization, when the assignment was superseded; `null` — none. */
 	currentGrade: { grade: GradeKey; assignedOn: string } | null;
+	/**
+	 * `superseded` with the assignment still in force: a new confirmation of it replaced this one after the holder
+	 * changed their name (domain 12.9).
+	 */
+	reissued: boolean;
 }
 
 function statusOf(record: CategoryRecord): AttestationStatus {
@@ -51,7 +57,8 @@ export async function verifyAttestation(executor: Executor, handle: string): Pro
 			categoryId: categoryAttestations.categoryId,
 			statement: categoryAttestations.statement,
 			signature: categoryAttestations.signature,
-			signingKeyId: categoryAttestations.signingKeyId
+			signingKeyId: categoryAttestations.signingKeyId,
+			supersededAt: categoryAttestations.supersededAt
 		})
 		.from(categoryAttestations)
 		.where(eq(categoryAttestations.handle, handle));
@@ -59,7 +66,10 @@ export async function verifyAttestation(executor: Executor, handle: string): Pro
 	const history = await categoryHistory(executor, row.candidateId);
 	const record = history.find((category) => category.id === row.categoryId);
 	if (!record) throw new Error(`confirmation ${handle} speaks of category ${row.categoryId}, which is missing`);
-	const status = statusOf(record);
+	// The assignment in force, its confirmation replaced by a new one for the changed name of the holder: `superseded`
+	// from that moment, the same grade named as the one in force.
+	const reissued = record.status === 'active' && row.supersededAt !== null;
+	const status = reissued ? 'superseded' : statusOf(record);
 	let currentGrade: VerifiedAttestation['currentGrade'] = null;
 	if (status === 'superseded') {
 		const inForce = (await activeCategories(executor, [row.candidateId])).get(row.candidateId) ?? [];
@@ -71,9 +81,10 @@ export async function verifyAttestation(executor: Executor, handle: string): Pro
 		statement: row.statement,
 		signature: row.signature,
 		signingKeyId: row.signingKeyId,
-		endedAt: record.endedAt,
+		endedAt: reissued ? row.supersededAt : record.endedAt,
 		annulReason: record.revokeReason,
-		currentGrade
+		currentGrade,
+		reissued
 	};
 }
 

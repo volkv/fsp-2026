@@ -35,6 +35,7 @@ function source(overrides: Partial<CandidateCardSource> = {}): CandidateCardSour
 		fspAchievements: [
 			{
 				factId: 'f-1',
+				preliminary: false,
 				generalized: {
 					discipline: 'algorithmic',
 					competitionLevel: 'russian_championship',
@@ -48,12 +49,14 @@ function source(overrides: Partial<CandidateCardSource> = {}): CandidateCardSour
 					competitionTitle: 'Чемпионат России',
 					stage: 'final',
 					place: 2,
+					placeOf: 30,
 					team: { name: 'Команда', role: 'captain' },
 					protocolUrl: 'https://example.org/protocol'
 				}
 			},
 			{
 				factId: 'f-2',
+				preliminary: false,
 				generalized: {
 					discipline: 'product',
 					competitionLevel: 'all_russian_ekp',
@@ -67,6 +70,7 @@ function source(overrides: Partial<CandidateCardSource> = {}): CandidateCardSour
 					competitionTitle: 'Кубок',
 					stage: 'final',
 					place: 7,
+					placeOf: null,
 					team: null,
 					protocolUrl: null
 				}
@@ -172,9 +176,14 @@ describe('catalog projection', () => {
 		expect(card.fspAchievements).toEqual([
 			{
 				generalized: { discipline: 'algorithmic', competitionLevel: 'russian_championship' },
+				preliminary: false,
 				receiptHandles: ['aaaaaaaaaaaaaaaaaaaaaaaaaa']
 			},
-			{ generalized: { discipline: 'product', competitionLevel: 'all_russian_ekp' }, receiptHandles: [] }
+			{
+				generalized: { discipline: 'product', competitionLevel: 'all_russian_ekp' },
+				preliminary: false,
+				receiptHandles: []
+			}
 		]);
 		expect(card.externalProfiles).toEqual([]);
 		expect(card.receipts?.every((receipt) => receipt.level === 'generalized')).toBe(true);

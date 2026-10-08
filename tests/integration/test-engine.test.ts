@@ -44,6 +44,7 @@ import {
 } from '$lib/server/categories/objections';
 import { runSeededAttempt } from '$lib/server/assessments/seed-attempt';
 import { attemptState, decisionView, testsOverview } from '$lib/server/assessments/views';
+import { setProductionGradePolicy } from '$lib/server/demo/grade-policy';
 import {
 	bankReleases,
 	candidateCategories,
@@ -522,15 +523,21 @@ describe('a whole attempt', () => {
 });
 
 describe('a demo session', () => {
-	/** A candidate of a live demo session: there the order and the intervals of the grade policy close nothing. */
-	async function sessionSubject(): Promise<AccessSubject> {
+	/** A live demo session; `production` — it turned the production grade policy on. */
+	async function demoSession(production: boolean): Promise<string> {
 		const [session] = await database.db
 			.insert(demoSessions)
 			.values({ joinTokenSha256: randomSha256(), seedBatchId: 'demo-1', expiresAt: new Date(Date.now() + 86_400_000) })
 			.returning({ id: demoSessions.id });
 		if (!session) throw new Error('demo session not inserted');
-		const user = await createUser(database.db, { demoSessionId: session.id });
-		const candidate = await createCandidate(database.db, { userId: user.id, demoSessionId: session.id });
+		if (production) expect(await setProductionGradePolicy(database.db, session.id, true, new Date())).toBe(true);
+		return session.id;
+	}
+
+	/** A candidate of a demo session. */
+	async function sessionSubject(sessionId: string): Promise<AccessSubject> {
+		const user = await createUser(database.db, { demoSessionId: sessionId });
+		const candidate = await createCandidate(database.db, { userId: user.id, demoSessionId: sessionId });
 		return {
 			userId: user.id,
 			via: 'session',
@@ -540,50 +547,35 @@ describe('a demo session', () => {
 		};
 	}
 
-	const start = (subject: AccessSubject, standing: GradeStanding, grade: 'junior' | 'senior') =>
+	const start = (subject: AccessSubject, standing: GradeStanding, grade: 'junior' | 'middle' | 'senior') =>
 		startAttempt(database.db, deps(standing, 'backend'), subject, { specialization: 'backend', grade }, options());
 
-	it('takes Junior, retakes it at once on the other form, then Senior — the same procedure decides each', async () => {
-		const standing = new MemoryStanding();
-		const subject = await sessionSubject();
+	/** Declares Junior and fails its test. */
+	async function failJunior(subject: AccessSubject, standing: GradeStanding) {
 		await declareGrade(database.db, candidateIdOf(subject), 'backend', 'junior');
 		const first = await start(subject, standing, 'junior');
-		expect(await takeAttempt(subject, first.attempt.id, standing, 'backend', { correct: true })).toMatchObject({
-			status: 'decided'
-		});
-		expect(await categoryOf(candidateIdOf(subject), 'backend')).toMatchObject({ grade: 'junior' });
-		// Outside a session the confirmed grade is closed and Senior is two steps above it; here both start at once.
-		const retake = await start(subject, standing, 'junior');
-		expect(retake.attempt.form).not.toBe(first.attempt.form);
-		await takeAttempt(subject, retake.attempt.id, standing, 'backend', { correct: true });
 		sandbox.verdict = () => 'wrong_answer';
 		try {
-			const senior = await start(subject, standing, 'senior');
-			await takeAttempt(subject, senior.attempt.id, standing, 'backend', { correct: false });
-			const decisions = await database.db
-				.select({ grade: gradeDecisions.grade, outcome: gradeDecisions.outcome })
-				.from(gradeDecisions)
-				.where(eq(gradeDecisions.candidateId, candidateIdOf(subject)))
-				.orderBy(asc(gradeDecisions.decidedAt));
-			expect(decisions).toEqual([
-				{ grade: 'junior', outcome: 'confirmed' },
-				{ grade: 'junior', outcome: 'confirmed' },
-				{ grade: 'senior', outcome: 'not_confirmed' }
-			]);
-			// A failure above does not lower the category; the failed Senior is retaken at once as well.
-			expect(await categoryOf(candidateIdOf(subject), 'backend')).toMatchObject({ grade: 'junior' });
-			expect((await start(subject, standing, 'senior')).attempt.status).toBe('in_progress');
+			await takeAttempt(subject, first.attempt.id, standing, 'backend', { correct: false });
 		} finally {
 			sandbox.verdict = () => 'accepted';
 		}
-	});
+		return first;
+	}
 
-	it('outside a session the same retake waits for its interval', async () => {
+	it('retakes a failed grade at once on the other form; the order of grades and the declared grade still close', async () => {
 		const standing = new MemoryStanding();
-		const subject = await candidateSubject();
-		await declareGrade(database.db, candidateIdOf(subject), 'backend', 'junior');
-		const first = await start(subject, standing, 'junior');
-		await takeAttempt(subject, first.attempt.id, standing, 'backend', { correct: true });
+		const subject = await sessionSubject(await demoSession(false));
+		const first = await failJunior(subject, standing);
+		// Above the declared grade stays closed: the session lifts the intervals only.
+		await expect(start(subject, standing, 'middle')).rejects.toMatchObject({
+			status: 409,
+			details: [{ code: 'above_declared' }]
+		});
+		const retake = await start(subject, standing, 'junior');
+		expect(retake.attempt.form).not.toBe(first.attempt.form);
+		await takeAttempt(subject, retake.attempt.id, standing, 'backend', { correct: true });
+		expect(await categoryOf(candidateIdOf(subject), 'backend')).toMatchObject({ grade: 'junior' });
 		await expect(start(subject, standing, 'junior')).rejects.toMatchObject({
 			status: 409,
 			details: [{ code: 'already_confirmed' }]
@@ -591,6 +583,45 @@ describe('a demo session', () => {
 		await expect(start(subject, standing, 'senior')).rejects.toMatchObject({
 			status: 409,
 			details: [{ code: 'above_next_grade' }]
+		});
+	});
+
+	it('with the production policy on refuses a change of the grade before the interval, and leaves other sessions alone', async () => {
+		const standing = new MemoryStanding();
+		const strict = await demoSession(true);
+		const lifted = await demoSession(false);
+		// Junior confirmed, Middle on the one step of the confident result, then Senior — before the 90 days.
+		const subject = await sessionSubject(strict);
+		await declareGrade(database.db, candidateIdOf(subject), 'backend', 'junior');
+		for (const grade of ['junior', 'middle'] as const) {
+			const { attempt } = await start(subject, standing, grade);
+			await takeAttempt(subject, attempt.id, standing, 'backend', { correct: true });
+		}
+		expect(await categoryOf(candidateIdOf(subject), 'backend')).toMatchObject({ grade: 'middle' });
+		const refusal = start(subject, standing, 'senior');
+		await expect(refusal).rejects.toMatchObject({
+			status: 409,
+			details: [{ code: 'grade_change_interval', message: expect.stringContaining('Откроется') as unknown }]
+		});
+		// The retake of a failed grade waits as well in the strict session, and is open at once in the other one.
+		const waiting = await sessionSubject(strict);
+		await failJunior(waiting, standing);
+		await expect(start(waiting, standing, 'junior')).rejects.toMatchObject({
+			status: 409,
+			details: [{ code: 'retake_interval' }]
+		});
+		const other = await sessionSubject(lifted);
+		await failJunior(other, standing);
+		expect((await start(other, standing, 'junior')).attempt.status).toBe('in_progress');
+	});
+
+	it('outside a session the same retake waits for its interval', async () => {
+		const standing = new MemoryStanding();
+		const subject = await candidateSubject();
+		await failJunior(subject, standing);
+		await expect(start(subject, standing, 'junior')).rejects.toMatchObject({
+			status: 409,
+			details: [{ code: 'retake_interval' }]
 		});
 	});
 });

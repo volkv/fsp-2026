@@ -1,21 +1,16 @@
 import { fail } from '@sveltejs/kit';
-import { eq } from 'drizzle-orm';
 import { authDeps } from '$lib/server/auth/context';
-import { currentDocument } from '$lib/server/auth/documents';
 import { requestMeta, requireSession } from '$lib/server/auth/http';
 import { formText } from '$lib/server/http/form';
-import { grantProfileConsent, ownProcessingConsent } from '$lib/server/auth/onboarding';
-import { fspImportConsentState, revokeFspImportConsent } from '$lib/server/candidates/consents';
+import { grantProfileConsent } from '$lib/server/auth/onboarding';
+import { fspImportConsentState, processingConsentState, revokeFspImportConsent } from '$lib/server/candidates/consents';
 import { candidateRequest } from '$lib/server/candidates/http';
-import { processingAllowed } from '$lib/server/consent/processing';
 import { representativeOverview, resendConsentLetter } from '$lib/server/consent/representative';
 import { db } from '$lib/server/db';
-import { candidates } from '$lib/server/db/schema';
 import { formFailure, pageError } from '$lib/server/http/page';
 import { invitationDeps } from '$lib/server/invitations/deps';
 import { resendDisclosureLetter } from '$lib/server/invitations/disclosure';
 import { candidateInvitationList } from '$lib/server/candidates/invitations';
-import { ageBand, isMinorBand } from '$lib/server/visibility/age';
 import type { Actions, PageServerLoad } from './$types';
 
 /**
@@ -30,31 +25,17 @@ export const load: PageServerLoad = async (event) => {
 	try {
 		const database = db();
 		const now = new Date();
-		const [row] = await database
-			.select({
-				birthDate: candidates.birthDate,
-				precision: candidates.birthDatePrecision,
-				status: candidates.birthDateStatus
-			})
-			.from(candidates)
-			.where(eq(candidates.id, candidateId));
-		if (!row) throw new Error(`candidate ${candidateId} disappeared`);
-		const band = ageBand(row, now);
-		const ownSigned = await ownProcessingConsent(database, candidateId, now);
-		const document = await currentDocument(database, 'pd_processing', now);
-		const minor = isMinorBand(band);
+		const processing = await processingConsentState(database, candidateId, now);
+		const minor = processing.regime === 'minor';
 		const waiting = minor
 			? (await candidateInvitationList(invitationDeps(), subject)).filter((item) => item.awaitingRepresentative)
 			: [];
 		return {
-			regime: band === 'adult' ? ('adult' as const) : minor ? ('minor' as const) : ('unknown' as const),
+			regime: processing.regime,
 			processing: {
-				ownSigned,
-				effective: await processingAllowed(database, candidateId, now),
-				document:
-					!ownSigned && document?.available === true
-						? { id: document.id, title: document.title, version: document.version, body: document.body }
-						: null
+				ownSigned: processing.ownSigned,
+				effective: processing.effective,
+				document: processing.document
 			},
 			fsp: await fspImportConsentState(database, candidateId, now),
 			representative: minor ? await representativeOverview(database, candidateId, now) : null,

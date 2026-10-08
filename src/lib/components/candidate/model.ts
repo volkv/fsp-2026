@@ -31,7 +31,6 @@ const nameOr = (map: Record<string, string>, key: string) => map[key] ?? key;
 export const skillName = (labels: Labels, key: string) => nameOr(labels.skills, key);
 export const roleName = (labels: Labels, key: string) => nameOr(labels.roles, key);
 export const gradeName = (labels: Labels, key: string) => nameOr(labels.grades, key);
-export const specializationName = (labels: Labels, key: string) => nameOr(labels.specializations, key);
 
 // --- Facts and their sources --------------------------------------------------------------------------------------
 

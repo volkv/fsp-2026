@@ -50,6 +50,7 @@ import { declareGrade, releaseFixtureBank } from '../helpers/bank';
 import { decide } from '../helpers/categories';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
 import { createCandidate, createCompany, createMember, createPublishedDocument } from '../helpers/factories';
+import { memoryTextParseCache } from '$lib/server/vacancies/text-extract';
 
 const TAXONOMY_DIR = fileURLToPath(new URL('../../taxonomy', import.meta.url));
 const DAY = 86_400_000;
@@ -63,7 +64,8 @@ let categorizationRulesetId: string;
 const modelsOff = {
 	embed: () => Promise.resolve(fail('disabled', 'embed: switched off', { reason: 'switched_off' })),
 	rerank: () => Promise.resolve(fail('disabled', 'rerank: switched off', { reason: 'switched_off' })),
-	extract: () => Promise.resolve(fail('disabled', 'extract: switched off', { reason: 'switched_off' }))
+	extract: () => Promise.resolve(fail('disabled', 'extract: switched off', { reason: 'switched_off' })),
+	extractModelKey: () => null
 };
 
 let clock = () => new Date();
@@ -75,7 +77,12 @@ const deps = (): ShortlistDeps & MatchingDeps => ({
 	now: () => clock(),
 	testResults: GRADE_DECISION_RESULTS
 });
-const needDeps = (): NeedDeps => ({ db: database.db, models: modelsOff, now: () => new Date() });
+const needDeps = (): NeedDeps => ({
+	db: database.db,
+	models: modelsOff,
+	parseCache: memoryTextParseCache(),
+	now: () => new Date()
+});
 
 beforeAll(async () => {
 	database = await createTestDatabase();
@@ -208,7 +215,13 @@ async function person(setup: Person = {}) {
 				sourceRecordRef: `ref:${randomBytes(6).toString('hex')}`,
 				trustLevel: setup.fsp ? 'fsp_verified' : 'claimed',
 				ownershipBasis: setup.fsp ? 'operator_confirmed' : 'self_upload',
-				payload: {},
+				// An FSP fact is an official result of the candidate's own: what «с ФСП» reads.
+				payload: setup.fsp
+					? {
+							result: { status: 'official', award: 'participant' },
+							competition: { id: randomBytes(6).toString('hex'), discipline: 'algorithmic' }
+						}
+					: {},
 				payloadSha256: randomBytes(32).toString('hex'),
 				observedAt: new Date(),
 				lastVerifiedAt: new Date(),

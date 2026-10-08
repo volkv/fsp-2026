@@ -3,8 +3,7 @@
 // there the candidate goes the whole way by the services of the product: the consent, the survey, the declared grade,
 // a test with its practice through the sandbox job, the category; an employer of the same session with a need of its
 // own finds the candidate in the shortlist, sends an offer, the candidate accepts it and the company receives the
-// contacts chosen. Inside the session the grade policy lets the same grade be retaken at once. A session that is over
-// takes no new candidate.
+// contacts chosen. A session that is over takes no new candidate.
 import { fileURLToPath } from 'node:url';
 import { createHash, randomUUID } from 'node:crypto';
 import { and, eq } from 'drizzle-orm';
@@ -56,6 +55,7 @@ import {
 	offerTerms,
 	randomSha256
 } from '../helpers/factories';
+import { memoryTextParseCache } from '$lib/server/vacancies/text-extract';
 
 const TAXONOMY_DIR = fileURLToPath(new URL('../../taxonomy', import.meta.url));
 const DAY = 86_400_000;
@@ -70,7 +70,8 @@ const crypto = createFieldCrypto({
 const modelsOff = {
 	embed: () => Promise.resolve(fail('disabled', 'embed: switched off', { reason: 'switched_off' })),
 	rerank: () => Promise.resolve(fail('disabled', 'rerank: switched off', { reason: 'switched_off' })),
-	extract: () => Promise.resolve(fail('disabled', 'extract: switched off', { reason: 'switched_off' }))
+	extract: () => Promise.resolve(fail('disabled', 'extract: switched off', { reason: 'switched_off' })),
+	extractModelKey: () => null
 };
 
 let database: TestDatabase;
@@ -264,28 +265,22 @@ describe('a new candidate of a demo session', () => {
 			.from(candidateCategories)
 			.where(and(eq(candidateCategories.candidateId, newcomer.candidateId), eq(candidateCategories.status, 'active')));
 		expect(category).toMatchObject({ specialization: 'backend', grade: 'junior' });
-		// Inside the session the same grade is retaken at once, on the other form.
-		const retake = await startAttempt(
-			database.db,
-			engineDeps(),
-			subject,
-			{ specialization: 'backend', grade: 'junior' },
-			{ now: new Date(), requestId: meta.requestId }
-		);
-		expect(retake.attempt.form).not.toBe(attempt.form);
-		await takeAttempt(subject, retake.attempt.id, OWNER_STANDING, 'backend', { correct: true });
-
 		// Shown in the catalog by its own consent, the candidate is in the shortlist of an employer of the session.
 		await grantCatalogVisibility(database.db, subject, meta, { documentId: documents.catalog, scopeFields: [] });
 		const employer = await sessionEmployer(sessionId);
-		const need = await createNeed({ db: database.db, models: modelsOff, now: () => new Date() }, employer, meta, {
-			form: {
-				specialization: 'backend',
-				grade: { min: 'junior', max: 'junior' },
-				skill_keys: ['sql'],
-				nice_skill_keys: []
+		const need = await createNeed(
+			{ db: database.db, models: modelsOff, parseCache: memoryTextParseCache(), now: () => new Date() },
+			employer,
+			meta,
+			{
+				form: {
+					specialization: 'backend',
+					grade: { min: 'junior', max: 'junior' },
+					skill_keys: ['sql'],
+					nice_skill_keys: []
+				}
 			}
-		});
+		);
 		const shortlist = await createShortlist(shortlistDeps(), employer, meta, need.id, {});
 		const view = await openShortlist(shortlistDeps(), employer, shortlist.id);
 		expect(view.items.map((item) => item.candidateId)).toContain(newcomer.candidateId);
@@ -300,14 +295,19 @@ describe('a new candidate of a demo session', () => {
 		);
 		// An employer outside the session does not see the candidate.
 		const outside = await sessionEmployer(await demoSession());
-		const foreignNeed = await createNeed({ db: database.db, models: modelsOff, now: () => new Date() }, outside, meta, {
-			form: {
-				specialization: 'backend',
-				grade: { min: 'junior', max: 'junior' },
-				skill_keys: ['sql'],
-				nice_skill_keys: []
+		const foreignNeed = await createNeed(
+			{ db: database.db, models: modelsOff, parseCache: memoryTextParseCache(), now: () => new Date() },
+			outside,
+			meta,
+			{
+				form: {
+					specialization: 'backend',
+					grade: { min: 'junior', max: 'junior' },
+					skill_keys: ['sql'],
+					nice_skill_keys: []
+				}
 			}
-		});
+		);
 		const foreign = await openShortlist(
 			shortlistDeps(),
 			outside,

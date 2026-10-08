@@ -5,8 +5,9 @@ same text of the need over the same candidates, a blind sheet of the union of th
 labels, Precision@10, nDCG@10, MRR and judged@10 with paired bootstrap intervals.
 
 The product shows two groups for a need (domain 13.10): the shortlist — the candidates holding a category of it from a
-confirmed test — and after it the group «грейд не подтверждён» — no category of its specializations, the grade of
-their last test there naming one of its categories. `as_product` is the shortlist; `as_product_shown` is what the
+confirmed test — and after it the group «грейд не подтверждён» — no category of its specializations, the grade they
+declared there — the one of their last test, or one declared in the survey without a test (`declared`) — naming one of
+its categories. `as_product` is the shortlist; `as_product_shown` is what the
 employer sees, the shortlist and then the group. Who the product shows in neither, and why, is listed apart. What the
 input confirms — how many candidates carry test results and hold a category — goes with every run: without test results
 the shortlist is empty by the terms of reference, and the numbers of `as_product` say so, not how it ranks.
@@ -46,11 +47,11 @@ LANE_TITLES = {
     "keywords_same_text": "поиск по тому же тексту потребности (BM25) среди тех же кандидатов",
 }
 GROUP_TITLE = (
-    "грейд не подтверждён: категории подборки нет, грейд последнего теста по её специальности называет её категорию;"
-    " продукт показывает группу после подборки"
+    "грейд не подтверждён: категории подборки нет, грейд последнего теста по её специальности или заявленный без теста"
+    " называет её категорию; продукт показывает группу после подборки"
 )
 NOT_SHOWN_TITLES = {
-    "no_test": "нет решений теста: без теста нет категории, продукт их не показывает",
+    "no_test": "нет решений теста и заявленной категории подборки: без теста нет категории, продукт их не показывает",
     "category_elsewhere": "категория из теста есть, но не из категорий подборки",
     "not_confirmed_elsewhere": "категории нет, последний тест — не на категорию подборки",
 }
@@ -74,6 +75,8 @@ class Candidate:
     file_name: str
     content: bytes
     test_results: list[dict[str, Any]]
+    # Grades declared in the survey of a specialization without its test: `{specialization, grade}`.
+    declared: list[dict[str, str]]
     fsp: dict[str, Any] | None
     preferences: dict[str, Any] | None
     label: int | None
@@ -94,7 +97,7 @@ def _require(condition: bool, line: int, message: str) -> None:
 def _candidate(line: int, raw: Any, index: int) -> Candidate:
     where = f"candidates[{index}]"
     _require(isinstance(raw, dict), line, f"{where} must be an object")
-    known = {"candidate_id", "resume_text", "resume_file", "test_results", "fsp", "preferences", "label"}
+    known = {"candidate_id", "resume_text", "resume_file", "test_results", "declared", "fsp", "preferences", "label"}
     extra = sorted(set(raw) - known)
     _require(not extra, line, f"{where} has unknown fields {', '.join(extra)}")
     candidate_id = raw.get("candidate_id")
@@ -124,12 +127,32 @@ def _candidate(line: int, raw: Any, index: int) -> Candidate:
     _require(isinstance(results, list), line, f"{where}.test_results must be a list")
     for result in results:
         _require(isinstance(result, dict), line, f"{where}.test_results must hold objects")
+    declared = raw.get("declared", [])
+    _require(isinstance(declared, list), line, f"{where}.declared must be a list")
+    tested = {result.get("specialization") for result in results}
+    seen: set[str] = set()
+    for declaration in declared:
+        _require(
+            isinstance(declaration, dict)
+            and set(declaration) == {"specialization", "grade"}
+            and all(isinstance(value, str) for value in declaration.values()),
+            line,
+            f"{where}.declared must hold {{specialization, grade}}",
+        )
+        specialization = declaration["specialization"]
+        _require(specialization not in seen, line, f"{where}.declared names {specialization} twice")
+        _require(
+            specialization not in tested,
+            line,
+            f"{where}.declared names {specialization} of a test: its declaration is the test's own",
+        )
+        seen.add(specialization)
     label = raw.get("label")
     _require(label is None or label in (0, 1, 2, 3), line, f"{where}.label must be 0–3")
     fsp, preferences = raw.get("fsp"), raw.get("preferences")
     _require(fsp is None or isinstance(fsp, dict), line, f"{where}.fsp must be a page of fsp-achievements/v1")
     _require(preferences is None or isinstance(preferences, dict), line, f"{where}.preferences must be an object")
-    return Candidate(candidate_id, name, content, results, fsp, preferences, label)
+    return Candidate(candidate_id, name, content, results, declared, fsp, preferences, label)
 
 
 def read_needs(path: Path) -> list[Need]:
@@ -215,6 +238,7 @@ def jury_run(
                 "resume": resume,
                 "fsp": candidate.fsp,
                 "test_results": candidate.test_results if lane == "as_product" else [],
+                "declared": candidate.declared if lane == "as_product" else [],
             }
             if candidate.preferences is not None:
                 entry["preferences"] = candidate.preferences
@@ -341,13 +365,21 @@ def _need_result(
 
 
 def _declared(candidate: Candidate, categories: Sequence[str]) -> dict[str, str] | None:
-    """The category the candidate's last test of a specialization of the shortlist was taken on: what the group
-    «грейд не подтверждён» shows of them."""
+    """The category the candidate declared in a specialization of the shortlist — the one their last test there was
+    taken on, or one declared without a test (`outcome` `not_tested`): what the group «грейд не подтверждён» shows of
+    them."""
     specializations = {category.split(":", 1)[0] for category in categories}
     last = [result for result in candidate.test_results if result.get("specialization") in specializations]
-    if not last:
+    if last:
+        return {
+            "specialization": last[-1]["specialization"],
+            "grade": last[-1]["grade"],
+            "outcome": last[-1]["outcome"],
+        }
+    untested = [d for d in candidate.declared if f"{d['specialization']}:{d['grade']}" in categories]
+    if not untested:
         return None
-    return {"specialization": last[-1]["specialization"], "grade": last[-1]["grade"], "outcome": last[-1]["outcome"]}
+    return {"specialization": untested[0]["specialization"], "grade": untested[0]["grade"], "outcome": "not_tested"}
 
 
 def _not_shown(
@@ -370,12 +402,13 @@ def _not_shown(
 
 
 def _inputs(need: Need, parsed: Sequence[bool], categorized: Sequence[bool]) -> dict[str, int]:
-    """What the input of a need confirms: candidates, resumes read, candidates with test results, with a category in
-    force after them, labelled by the jury."""
+    """What the input of a need confirms: candidates, resumes read, candidates with test results, with a grade declared
+    without a test, with a category in force after the tests, labelled by the jury."""
     return {
         "candidates": len(need.candidates),
         "parsed": sum(parsed),
         "with_test_results": sum(bool(c.test_results) for c in need.candidates),
+        "declared_without_test": sum(bool(c.declared) for c in need.candidates),
         "with_category": sum(categorized),
         "labelled": sum(c.label is not None for c in need.candidates),
     }
@@ -386,6 +419,7 @@ def _run_inputs(results: Sequence[Mapping[str, Any]]) -> dict[str, int]:
         "candidates",
         "parsed",
         "with_test_results",
+        "declared_without_test",
         "with_category",
         "labelled",
         "shortlist",
@@ -402,12 +436,19 @@ def _run_inputs(results: Sequence[Mapping[str, Any]]) -> dict[str, int]:
 def _warnings(results: Sequence[Mapping[str, Any]]) -> list[str]:
     """What the numbers of a run do not say, in words: the jury reads them next to the metrics."""
     warnings = []
-    if not any(need["inputs"]["with_test_results"] for need in results):
+    declared = any(need["inputs"]["declared_without_test"] for need in results)
+    if not any(need["inputs"]["with_test_results"] for need in results) and not declared:
         warnings.append(
-            "Во входе нет ни одного решения теста (test_results): категорию продукт даёт только подтверждённым тестом,"
-            " поэтому подборка «как в продукте» и группа «грейд не подтверждён» пусты у каждой потребности, и метрики"
-            " as_product и as_product_shown — нули входа, а не ранжирования. Чтение тех же резюме без теста показывает"
-            " только эксперимент resume_only."
+            "Во входе нет ни одного решения теста (test_results) и заявленного грейда (declared): категорию продукт"
+            " даёт только подтверждённым тестом, поэтому подборка «как в продукте» и группа «грейд не подтверждён»"
+            " пусты у каждой потребности, и метрики as_product и as_product_shown — нули входа, а не ранжирования."
+            " Чтение тех же резюме без теста показывает только эксперимент resume_only."
+        )
+    elif not any(need["inputs"]["with_test_results"] for need in results):
+        warnings.append(
+            "Во входе нет ни одного решения теста (test_results): подборка «как в продукте» пуста у каждой потребности,"
+            " метрики as_product — нули входа; as_product_shown — только группа «грейд не подтверждён» из заявивших"
+            " грейд без теста (declared), их грейд тестом не подтверждён."
         )
     elif not any(need["inputs"]["with_category"] for need in results):
         warnings.append(

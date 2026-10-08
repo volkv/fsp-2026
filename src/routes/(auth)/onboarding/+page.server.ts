@@ -1,6 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { demoActorOf } from '$lib/server/access/demo-actor';
 import { CATALOG } from '$lib/server/assessments/contract/catalog';
+import { CATEGORY_GRADE_NAMES } from '$lib/server/categories/labels';
 import { authDeps } from '$lib/server/auth/context';
 import { requireSession } from '$lib/server/auth/http';
 import { formText } from '$lib/server/http/form';
@@ -23,7 +24,7 @@ export const load: PageServerLoad = async (event) => {
 	return {
 		state,
 		specializationTitles: titles(CATALOG.specializations),
-		gradeTitles: titles(CATALOG.grades),
+		gradeTitles: CATEGORY_GRADE_NAMES,
 		today: deps.now().toISOString().slice(0, 10),
 		letterFailed: event.url.searchParams.get('letter') === 'failed',
 		// An account of a demo session reads its letters on the letters page of the session, not in a mailbox (domain 19.3).

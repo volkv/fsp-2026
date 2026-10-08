@@ -1,7 +1,7 @@
 // The object storage for integration tests: the image and the command of the `storage` service of compose.yaml, the
 // bucket created by the storage itself at start, as on the stand.
 import { GenericContainer, Wait, type StartedTestContainer } from 'testcontainers';
-import type { S3Settings } from '$lib/server/storage/object-store';
+import type { ObjectStore, S3Settings } from '$lib/server/storage/object-store';
 import { STORAGE_IMAGE } from './images';
 
 const S3_PORT = 8333;
@@ -48,6 +48,45 @@ export async function startStorage(): Promise<TestStorage> {
 			region: 'us-east-1',
 			bucket,
 			...credentials
+		}
+	};
+}
+
+/** The bucket of a test that stores no files: any call is a defect of the test. */
+export const noFiles: ObjectStore = {
+	put: () => Promise.reject(new Error('no files in this test')),
+	get: () => Promise.reject(new Error('no files in this test')),
+	delete: () => Promise.reject(new Error('no files in this test')),
+	exists: () => Promise.reject(new Error('no files in this test'))
+};
+
+/** A bucket in memory, for a test that stores files without the storage service. */
+export function memoryStore(): ObjectStore & { keys(): string[] } {
+	const objects = new Map<string, { bytes: Uint8Array; contentType: string }>();
+	return {
+		keys: () => [...objects.keys()],
+		put(key, bytes, contentType) {
+			objects.set(key, { bytes, contentType });
+			return Promise.resolve();
+		},
+		get(key) {
+			const object = objects.get(key);
+			return Promise.resolve(
+				object === undefined
+					? null
+					: {
+							body: new Blob([new Uint8Array(object.bytes)]).stream(),
+							sizeBytes: object.bytes.byteLength,
+							contentType: object.contentType
+						}
+			);
+		},
+		delete(key) {
+			objects.delete(key);
+			return Promise.resolve();
+		},
+		exists(key) {
+			return Promise.resolve(objects.has(key));
 		}
 	};
 }

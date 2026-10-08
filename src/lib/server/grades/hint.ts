@@ -16,6 +16,7 @@ import {
 	type SpecializationKey
 } from '$lib/server/assessments/contract/catalog';
 import { GRADE_POLICY } from '$lib/server/assessments/contract/policy';
+import { CATEGORY_GRADE_NAMES } from '$lib/server/categories/labels';
 import { aggregateStrength, collectEvidence } from '$lib/server/evidence/inferences';
 import { experienceMonths, hasValidPeriod } from '$lib/server/evidence/experience';
 import { fspLevels } from '$lib/server/evidence/fsp-level';
@@ -79,7 +80,7 @@ const MARKER_TEXT: Record<string, string> = {
 	architecture: 'архитектурные решения'
 };
 
-const GRADE_TITLE = Object.fromEntries(CATALOG.grades.map((g) => [g.key, g.title])) as Record<GradeKey, string>;
+const GRADE_TITLE = CATEGORY_GRADE_NAMES;
 
 const withDiscipline = z.looseObject({ discipline: z.string() });
 /** Where the FSP payloads (contracts 1.3) carry the discipline of a result, a rank and a team place. */

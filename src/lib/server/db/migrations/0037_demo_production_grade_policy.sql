@@ -1,0 +1,1 @@
+ALTER TABLE "demo_sessions" ADD COLUMN "production_grade_policy" boolean DEFAULT false NOT NULL;

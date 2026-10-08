@@ -9,7 +9,7 @@ import type { Executor } from '$lib/server/db';
 import { publishedRun, runInForce } from '$lib/server/db/conditions';
 import { activeCategories } from '$lib/server/categories/read';
 import { lastConfirmedActions } from '$lib/server/challenges/freshness';
-import { NOT_COMPETING } from '$lib/server/evidence/fsp-level';
+import { officialFspResult } from './fsp-results';
 import { DISCIPLINE_CODES, type DisciplineCode, type Known } from '$lib/server/fsp/types';
 import { currentDeclarations } from '$lib/server/grades/current';
 import {
@@ -79,9 +79,8 @@ function knownDiscipline(code: string): Known<DisciplineCode> {
 }
 
 /**
- * Official competition results in force of each candidate, the facts the FSP record counts: only a result the source
- * states `official` (a preliminary or annulled one is not a result yet), and a team's result is not the own result of
- * a reserve or a trainer, who did not compete. An official result always names its competition.
+ * Official competition results in force of each candidate, the facts the FSP record counts — the one definition of an
+ * FSP result (`officialFspResult`). An official result always names its competition.
  */
 async function fspResultsOf(executor: Executor, ids: readonly string[]): Promise<Map<string, FspResult[]>> {
 	const rows = await executor
@@ -92,24 +91,14 @@ async function fspResultsOf(executor: Executor, ids: readonly string[]): Promise
 			competitionFormat: sql<string | null>`${sourceFacts.payload}->'competition'->>'format'`,
 			discipline: sql<string | null>`${sourceFacts.payload}->'competition'->>'discipline'`,
 			award: sql<string | null>`${sourceFacts.payload}->'result'->>'award'`,
-			inTeam: sql<boolean>`jsonb_typeof(${sourceFacts.payload}->'result'->'team') = 'object'`,
-			teamRole: sql<string | null>`${sourceFacts.payload}->'result'->'team'->>'role'`
+			inTeam: sql<boolean>`jsonb_typeof(${sourceFacts.payload}->'result'->'team') = 'object'`
 		})
 		.from(sourceFacts)
-		.where(
-			and(
-				inArray(sourceFacts.candidateId, [...ids]),
-				eq(sourceFacts.source, 'fsp'),
-				eq(sourceFacts.factType, 'competition_result'),
-				eq(sourceFacts.status, 'active'),
-				sql`${sourceFacts.payload}->'result'->>'status' = 'official'`
-			)
-		);
+		.where(and(inArray(sourceFacts.candidateId, [...ids]), officialFspResult(sql`${sourceFacts}`)));
 	const result = new Map<string, FspResult[]>();
 	for (const row of rows) {
 		if (row.competitionId === null) throw new Error(`official FSP result ${row.id} names no competition`);
 		if (row.discipline === null) throw new Error(`official FSP result ${row.id} names no discipline`);
-		if (row.teamRole !== null && NOT_COMPETING.has(row.teamRole)) continue;
 		const list = result.get(row.candidateId) ?? [];
 		list.push({
 			factId: row.id,

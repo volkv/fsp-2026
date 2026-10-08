@@ -34,6 +34,11 @@ export interface CategoryView {
 
 export interface FspAchievement {
 	factId: string;
+	/**
+	 * The result is preliminary: published by FSP, not yet official (`matching/fsp-results.ts`). It is shown with that
+	 * mark and is not an achievement yet; an annulled result or a team's result of a reserve or a trainer is not shown.
+	 */
+	preliminary: boolean;
 	/** Always shown in the catalog: no competition, stage, place or team (domain 14). */
 	generalized: {
 		discipline: string;
@@ -48,6 +53,8 @@ export interface FspAchievement {
 		competitionTitle: string;
 		stage: string | null;
 		place: number | null;
+		/** Of how many places the protocol has. */
+		placeOf: number | null;
 		team: { name: string; role: string | null } | null;
 		protocolUrl: string | null;
 	};
@@ -145,8 +152,13 @@ export interface CandidateCardSource {
 
 /** An achievement of a card with the handles of its receipts shown in the same card. */
 export type CardAchievement =
-	| { generalized: Partial<FspAchievement['generalized']>; receiptHandles: string[] }
-	| { generalized: FspAchievement['generalized']; exact: FspAchievement['exact']; receiptHandles: string[] };
+	| { generalized: Partial<FspAchievement['generalized']>; preliminary: boolean; receiptHandles: string[] }
+	| {
+			generalized: FspAchievement['generalized'];
+			exact: FspAchievement['exact'];
+			preliminary: boolean;
+			receiptHandles: string[];
+	  };
 
 /** A card; blocks that the projection does not include are absent. */
 export interface CandidateCard {
@@ -205,7 +217,12 @@ function shownReceipts(receipts: readonly ReceiptView[]) {
 }
 
 function exactAchievement(achievement: FspAchievement, handles: string[]): CardAchievement {
-	return { generalized: achievement.generalized, exact: achievement.exact, receiptHandles: handles };
+	return {
+		generalized: achievement.generalized,
+		exact: achievement.exact,
+		preliminary: achievement.preliminary,
+		receiptHandles: handles
+	};
 }
 
 function catalogAchievement(achievement: FspAchievement, isMinor: boolean, handles: string[]): CardAchievement {
@@ -213,7 +230,7 @@ function catalogAchievement(achievement: FspAchievement, isMinor: boolean, handl
 	const generalized = isMinor
 		? { discipline: achievement.generalized.discipline, competitionLevel: achievement.generalized.competitionLevel }
 		: achievement.generalized;
-	return { generalized, receiptHandles: handles };
+	return { generalized, preliminary: achievement.preliminary, receiptHandles: handles };
 }
 
 /**

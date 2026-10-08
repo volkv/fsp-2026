@@ -10,9 +10,9 @@ import { eq } from 'drizzle-orm';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { AccessSubject } from '$lib/server/access/permissions';
-import { consentEvents, hiringNeeds, mlResults, productPolicies, sourceFacts } from '$lib/server/db/schema';
+import { companies, consentEvents, hiringNeeds, mlResults, productPolicies, sourceFacts } from '$lib/server/db/schema';
 import { ApiError } from '$lib/server/errors/api-error';
-import { fail } from '$lib/server/ml/result';
+import { fail, ok } from '$lib/server/ml/result';
 import { createNeed, getNeed, needCategories, updateNeed, type NeedDeps } from '$lib/server/needs/service';
 import { publishTaxonomy } from '$lib/server/taxonomy/publish';
 import { buildRelease, readTaxonomyDatasets } from '$lib/server/taxonomy/release';
@@ -20,6 +20,7 @@ import { releaseFixtureBank } from '../helpers/bank';
 import { decide, invalidate } from '../helpers/categories';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
 import { createCandidate, createCompany, createMember, createPublishedDocument } from '../helpers/factories';
+import { memoryTextParseCache } from '$lib/server/vacancies/text-extract';
 
 const TAXONOMY_DIR = fileURLToPath(new URL('../../taxonomy', import.meta.url));
 const DAY = 86_400_000;
@@ -29,7 +30,8 @@ let catalogDocumentId: string;
 const meta = { requestId: 'test-needs', ip: '127.0.0.1', userAgent: 'vitest' };
 
 const modelsOff: NeedDeps['models'] = {
-	extract: () => Promise.resolve(fail('disabled', 'extract: switched off', { reason: 'switched_off' }))
+	extract: () => Promise.resolve(fail('disabled', 'extract: switched off', { reason: 'switched_off' })),
+	extractModelKey: () => null
 };
 
 beforeAll(async () => {
@@ -58,7 +60,33 @@ afterAll(async () => {
 	await database.drop();
 });
 
-const deps = (): NeedDeps => ({ db: database.db, models: modelsOff, now: () => new Date() });
+/** A model that answers every text with nothing found, counting its calls. */
+function answeringModel(): NeedDeps['models'] & { calls: number } {
+	const model = {
+		calls: 0,
+		extract: () => {
+			model.calls++;
+			return Promise.resolve(
+				ok({
+					model: { modelId: 'extractor-test', modelRevision: null, runtime: 'vllm' as const, params: {} },
+					items: [],
+					rejected: [],
+					attempts: 1,
+					latencyMs: 5
+				})
+			);
+		},
+		extractModelKey: () => 'vllm:extractor-test'
+	};
+	return model;
+}
+
+const deps = (): NeedDeps => ({
+	db: database.db,
+	models: modelsOff,
+	parseCache: memoryTextParseCache(),
+	now: () => new Date()
+});
 
 async function employer(status: 'verified' | 'submitted' | 'suspended' = 'verified') {
 	const company = await createCompany(database.db, { status });
@@ -340,6 +368,32 @@ describe('a hiring need', () => {
 			createNeed(deps(), suspended.subject, meta, { form: { skill_keys: ['go'], nice_skill_keys: [] } })
 		);
 		expect([refused.code, refused.details?.[0]?.code]).toEqual(['forbidden', 'company_suspended']);
+		// The text of a company suspended after the request began — the subject still says admitted — never reaches the
+		// model: the admission is read before the parse, not only when the need is written.
+		const late = await employer();
+		await database.db.update(companies).set({ status: 'suspended' }).where(eq(companies.id, late.company.id));
+		const model = answeringModel();
+		const withText = await apiError(
+			createNeed({ ...deps(), models: model }, late.subject, meta, { text: 'Ищем Go-разработчика уровня middle' })
+		);
+		expect(withText.details?.[0]?.code).toBe('company_suspended');
+		expect(model.calls).toBe(0);
+	});
+
+	it('takes the same text again from the parse the model gave, without calling it', async () => {
+		const { subject } = await employer();
+		const model = answeringModel();
+		const shared = { ...deps(), models: model };
+		const text = 'Ищем Go-разработчика уровня middle в команду платежей';
+		const first = await createNeed(shared, subject, meta, { text });
+		const second = await createNeed(shared, subject, meta, { text });
+		expect(model.calls).toBe(1);
+		expect(second.parse).toMatchObject({ mode: 'model', model: { id: 'extractor-test', runtime: 'vllm' } });
+		expect(second.form).toEqual(first.form);
+		expect(second.parse?.ml_result_id).not.toBe(first.parse?.ml_result_id);
+		// A new text is a new call.
+		await createNeed(shared, subject, meta, { text: `${text}. Удалённо` });
+		expect(model.calls).toBe(2);
 	});
 });
 

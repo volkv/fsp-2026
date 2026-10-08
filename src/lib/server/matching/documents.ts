@@ -6,7 +6,8 @@
 // immediately (domain 17.3). Names come from one taxonomy version per document: the one of the evidence run, or the
 // version in force without a run — never several versions at once while a new release is being recalculated.
 import { sql, type SQL } from 'drizzle-orm';
-import { CATALOG } from '$lib/server/assessments/contract/catalog';
+import { CATALOG, GRADE_KEYS } from '$lib/server/assessments/contract/catalog';
+import { CATEGORY_GRADE_NAMES } from '$lib/server/categories/labels';
 import { activeCategoryRows } from '$lib/server/categories/read';
 import type { Executor } from '$lib/server/db';
 import { candidateAt, runAt, runInForce } from '$lib/server/db/conditions';
@@ -22,9 +23,15 @@ export interface SearchDocument {
 
 const RANK_NORMALIZATION = 32; // ts_rank_cd flag: rank / (rank + 1), a value in [0, 1).
 
-/** Titles of the specializations and grades of the catalog as a `values` list: they are words of the document. */
+/**
+ * Words of the specializations and grades of the catalog as a `values` list: the title of a specialization; the key of
+ * a grade (intern, junior, middle, senior — how vacancies and queries write it) with its name by the taxonomy.
+ */
 const catalogTitles = sql`(values ${sql.join(
-	[...CATALOG.specializations, ...CATALOG.grades].map((entry) => sql`(${entry.key}, ${entry.title})`),
+	[
+		...CATALOG.specializations.map((entry) => sql`(${entry.key}, ${entry.title})`),
+		...GRADE_KEYS.map((key) => sql`(${key}, ${`${key} ${CATEGORY_GRADE_NAMES[key]}`})`)
+	],
 	sql`, `
 )})`;
 

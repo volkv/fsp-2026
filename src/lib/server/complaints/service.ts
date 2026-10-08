@@ -3,7 +3,7 @@
 // no consequence, a warning to the company, or its suspension with the reason `complaint`. The candidate sees the
 // status and the operator's explanation; the company learns only of an upheld complaint, by its reason, never who
 // complained or in what words. Upheld complaints count in the facts of trust in the company (section 5.6).
-import { and, asc, count, desc, eq } from 'drizzle-orm';
+import { and, asc, count, desc, eq, isNull } from 'drizzle-orm';
 import { z } from 'zod';
 import { StaffReach } from '$lib/server/access/demo-actor';
 import { can, type AccessSubject } from '$lib/server/access/permissions';
@@ -56,11 +56,17 @@ export interface CandidateComplaint {
 	decidedAt: Date | null;
 }
 
+/** The candidate's account of a live complaint; a tombstone (domain 13.14, 19.2) has none and is read by nobody. */
+function liveText(row: ComplaintRow): string {
+	if (row.text === null) throw new Error(`complaint ${row.id} is a tombstone of a purged account`);
+	return row.text;
+}
+
 function candidateView(row: ComplaintRow): CandidateComplaint {
 	return {
 		id: row.id,
 		reasonCode: row.reasonCode,
-		text: row.text,
+		text: liveText(row),
 		status: row.status,
 		decision: row.decision,
 		resolution: row.resolution,
@@ -220,7 +226,7 @@ export async function complaintQueue(
 		.select(select)
 		.from(invitationComplaints)
 		.innerJoin(companies, eq(companies.id, invitationComplaints.companyId))
-		.where(and(eq(invitationComplaints.status, 'decided'), reach))
+		.where(and(eq(invitationComplaints.status, 'decided'), isNull(invitationComplaints.purgedAt), reach))
 		.orderBy(desc(invitationComplaints.decidedAt), desc(invitationComplaints.id))
 		.limit(RECENT_DECIDED);
 	return { open, decided };
@@ -272,9 +278,12 @@ export async function complaintCase(
 		.innerJoin(companies, eq(companies.id, invitationComplaints.companyId))
 		.innerJoin(invitations, eq(invitations.id, invitationComplaints.invitationId))
 		.where(eq(invitationComplaints.id, complaintId));
-	if (!row) throw new ApiError('not_found');
+	// A tombstone left by the purge of the candidate's account is counted for the company, never opened as a case.
+	if (!row || row.complaint.purgedAt !== null) throw new ApiError('not_found');
 	(await StaffReach.of(executor, subject)).require(row.company.demoSessionId);
 	const { complaint, company } = row;
+	if (complaint.termsId === null) throw new Error(`complaint ${complaint.id} lost its terms`);
+	const complainedTermsId = complaint.termsId;
 	const versions = await executor
 		.select()
 		.from(invitationTerms)
@@ -301,7 +310,7 @@ export async function complaintCase(
 	return {
 		id: complaint.id,
 		reasonCode: complaint.reasonCode,
-		text: complaint.text,
+		text: liveText(complaint),
 		status: complaint.status,
 		decision: complaint.decision,
 		resolution: complaint.resolution,
@@ -324,7 +333,7 @@ export async function complaintCase(
 				salary: termsSalary(terms),
 				createdAt: terms.createdAt
 			})),
-			complainedTermsId: complaint.termsId
+			complainedTermsId
 		},
 		companyComplaints: {
 			open: sum((o) => o.status === 'open'),

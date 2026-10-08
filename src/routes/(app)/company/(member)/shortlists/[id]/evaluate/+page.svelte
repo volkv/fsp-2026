@@ -4,6 +4,7 @@
 	import CsrfInput from '$lib/components/forms/csrf-input.svelte';
 	import FormMessage from '$lib/components/forms/form-message.svelte';
 	import PageHeader from '$lib/components/forms/page-header.svelte';
+	import { categoryName } from '$lib/components/product/model.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import type { PageProps } from './$types';
@@ -13,8 +14,7 @@
 	const problem = $derived(form && 'problem' in form ? form.problem : null);
 	const result = $derived(form && 'result' in form ? form.result : (data.evaluation?.judged ?? null));
 	const skill = (key: string) => data.names.skills[key] ?? key;
-	const category = (c: { specialization: string; grade: string }) =>
-		`${data.names.specializations[c.specialization] ?? c.specialization} · ${data.names.grades[c.grade] ?? c.grade}`;
+	const category = (c: { specialization: string; grade: string }) => categoryName(c, data.names);
 	const percent = new Intl.NumberFormat('ru-RU', { style: 'percent', maximumFractionDigits: 0 });
 	const WINNER = { product: 'подборка платформы', keywords: 'поиск по ключевым словам', tie: 'ничья' } as const;
 	const SCOPE = {

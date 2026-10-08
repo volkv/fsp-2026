@@ -40,6 +40,7 @@ import {
 	createPublishedDocument,
 	randomSha256
 } from '../helpers/factories';
+import { memoryTextParseCache } from '$lib/server/vacancies/text-extract';
 
 const TAXONOMY_DIR = fileURLToPath(new URL('../../taxonomy', import.meta.url));
 const DAY = 86_400_000;
@@ -214,10 +215,17 @@ const models: MatchingModels = {
 };
 
 /** The extraction model is switched off: the rules read the text, as the page does without the model. */
-const extractOff = { extract: () => Promise.resolve(fail('disabled', 'switched off', { reason: 'switched_off' })) };
+const extractOff = {
+	extract: () => Promise.resolve(fail('disabled', 'switched off', { reason: 'switched_off' })),
+	extractModelKey: () => null
+};
 
 async function draftOf(author: VacancyAuthor) {
-	return extractVacancyFromText({ db: database.db, models: extractOff }, author, TEXT);
+	return extractVacancyFromText(
+		{ db: database.db, models: extractOff, parseCache: memoryTextParseCache() },
+		author,
+		TEXT
+	);
 }
 
 const estimate = (author: VacancyAuthor, unsaved: UnsavedVacancy, now = new Date()) =>

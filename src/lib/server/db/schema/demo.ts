@@ -2,7 +2,7 @@
 // the scenario cast. Accounts, profiles and companies of a sandbox carry its id, and so do the letters it sent; everything
 // else of it is found from them through the owner references of the clone plan (src/lib/server/demo/clone-plan.ts).
 import { sql } from 'drizzle-orm';
-import { check, index, integer, pgTable, text, uuid } from 'drizzle-orm/pg-core';
+import { boolean, check, index, integer, pgTable, text, uuid } from 'drizzle-orm/pg-core';
 import { bytea, enumCheck, id, sha256Check, timestamps, ts } from './_columns';
 
 export const demoSessions = pgTable(
@@ -22,6 +22,12 @@ export const demoSessions = pgTable(
 		 * and the delivery of calls of the session's companies runs at `now + clock_offset_seconds`.
 		 */
 		clockOffsetSeconds: integer().notNull().default(0),
+		/**
+		 * «Политика как в эксплуатации» (domain 12.3): `true` — the grade policy of the session's candidates keeps its
+		 * intervals, as outside demo sessions; `false` — the intervals are lifted. A cloned session opens with `false`, the
+		 * switch on `/demo` changes this session only, the reset and the purge remove it with the row.
+		 */
+		productionGradePolicy: boolean().notNull().default(false),
 		...timestamps()
 	},
 	(t) => [

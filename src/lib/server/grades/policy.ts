@@ -5,9 +5,10 @@
 // `canStartAttempt` is the one answer to «may this candidate start a test of grade G now, and why not»: the test engine
 // asks it before it starts an attempt (in the transaction of the start), the cabinet and the API show it for every grade.
 //
-// Demo mode (domain 12.3, 19.3): for a candidate of a demo session the order of grades, the intervals and the attempt
-// limit close nothing — a visitor takes any grade and retakes it at once, to see the tests separate grades and repeat.
-// It lifts the answer of the automaton here, not in the contract: the automaton and the decision stay as they are.
+// Demo mode (domain 12.3, 19.3): for a candidate of a demo session the intervals of the policy — the change of a
+// confirmed grade and the retake after a failure — close nothing, unless the session turned the production policy on;
+// the order of grades, the declared grade and the attempt limit stay. The automaton is asked twice, with the policy and
+// with the policy without intervals: the contract stays as it is.
 import { and, desc, eq } from 'drizzle-orm';
 import { specializationOpen, type GradeKey, type SpecializationKey } from '$lib/server/assessments/contract/catalog';
 import {
@@ -24,29 +25,38 @@ import { ApiError, policyViolation } from '$lib/server/errors/api-error';
 import type { GradeSources, SourceAttempt, SourceCategory } from './sources';
 import { blockReasonText } from './texts';
 
-/** The automaton's input with the place of the candidate: inside a demo session or not. */
+/** The automaton's input with whether the intervals of the policy are lifted for the candidate (a demo session). */
 export interface GradeState extends PolicyInput {
-	demoSession: boolean;
+	intervalsLifted: boolean;
 }
 
-/** Why a test is open: a kind of the automaton, or `demo_session` — closed outside a demo session, open inside one. */
+/** Why a test is open: a kind of the automaton, or `demo_session` — closed by an interval, which the demo session lifts. */
 export type OfferKind = OptionKind | 'demo_session';
 
 /** A grade as the candidate is offered it: the option of the automaton, or a test the demo session opens. */
-export type GradeOffer = GradeOption | { grade: GradeKey; available: true; kind: 'demo_session'; failedRetake?: never };
-
-/** Reasons a demo session keeps: one attempt at a time and a declaration before the first test are not the policy's order. */
-const DEMO_KEEPS: readonly BlockReason[] = ['attempt_in_progress', 'not_declared'];
+export type GradeOffer =
+	| GradeOption
+	| {
+			grade: GradeKey;
+			available: true;
+			kind: 'demo_session';
+			failedRetake?: { grade: GradeKey; availableFrom: Date };
+	  };
 
 /** Every grade of the specialization with whether its test can start now, and why not. */
 export function gradeOffers(state: GradeState): GradeOffer[] {
 	const options = gradeOptions(state);
-	if (!state.demoSession) return options;
-	return options.map((option): GradeOffer =>
-		option.available || DEMO_KEEPS.includes(option.reason)
-			? option
-			: { grade: option.grade, available: true, kind: 'demo_session' }
-	);
+	if (!state.intervalsLifted) return options;
+	const lifted = gradeOptions({
+		...state,
+		policy: { ...state.policy, gradeChangeIntervalDays: 0, retakeIntervalDays: 0 }
+	});
+	return lifted.map((option, index): GradeOffer => {
+		// A test closed only by an interval is opened by the demo session; every other reason — the order, the declared
+		// grade, the attempt limit, an attempt in progress — closes it as in production.
+		if (!option.available || options[index]?.available) return option;
+		return { grade: option.grade, available: true, kind: 'demo_session', failedRetake: option.failedRetake };
+	});
 }
 
 export type StartVerdict =
@@ -73,7 +83,7 @@ export function policyInputOf(state: {
 	declaredGrade: GradeKey | null;
 	categories: readonly SourceCategory[];
 	attempts: readonly SourceAttempt[];
-	demoSession: boolean;
+	intervalsLifted: boolean;
 }): GradeState {
 	const category = state.categories.find((c) => c.specialization === state.specialization) ?? null;
 	return {
@@ -93,7 +103,7 @@ export function policyInputOf(state: {
 				endedAt,
 				state: attemptState
 			})),
-		demoSession: state.demoSession
+		intervalsLifted: state.intervalsLifted
 	};
 }
 
@@ -123,11 +133,11 @@ export async function loadPolicyInput(
 	sources: GradeSources,
 	query: { candidateId: string; specialization: SpecializationKey; now: Date }
 ): Promise<GradeState> {
-	const [declaration, categories, attempts, demoSession] = await Promise.all([
+	const [declaration, categories, attempts, intervalsLifted] = await Promise.all([
 		currentDeclaration(executor, query.candidateId, query.specialization),
 		sources.activeCategories(executor, query.candidateId),
 		sources.policyAttempts(executor, query.candidateId),
-		sources.inDemoSession(executor, query.candidateId)
+		sources.intervalsLifted(executor, query.candidateId)
 	]);
 	return policyInputOf({
 		now: query.now,
@@ -135,7 +145,7 @@ export async function loadPolicyInput(
 		declaredGrade: declaration?.grade ?? null,
 		categories,
 		attempts,
-		demoSession
+		intervalsLifted
 	});
 }
 

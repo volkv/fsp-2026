@@ -17,8 +17,9 @@
 </script>
 
 <script lang="ts">
+	import { categoryName } from '$lib/components/product/model.js';
 	import SectionCard from './section-card.svelte';
-	import { gradeName, skillName, type Labels } from './model.js';
+	import { skillName, type Labels } from './model.js';
 
 	/**
 	 * «Спрос»: the active needs of companies that match the candidate's category — a count, the median range and the
@@ -34,7 +35,7 @@
 {#if demand.status === 'available'}
 	<SectionCard
 		title="Спрос на вашу категорию"
-		description={`Потребности компаний, которые ищут ${labels.specializations[demand.category.specialization] ?? demand.category.specialization} ${gradeName(labels, demand.category.grade)}. Только агрегат: меньше ${demand.threshold} не показываем точно.`}
+		description={`Потребности компаний, которые ищут ${categoryName(demand.category, labels)}. Только агрегат: меньше ${demand.threshold} не показываем точно.`}
 		testId="need-demand"
 	>
 		<p class="text-sm">

@@ -10,6 +10,7 @@
 	} from '$lib/components/product/index.js';
 	import {
 		AWARDS,
+		categoryName,
 		COMPETITION_LEVELS,
 		DISCIPLINES,
 		pluralize,
@@ -22,6 +23,8 @@
 		type TrustMark
 	} from '$lib/components/product/model.js';
 	import { assertion } from '$lib/components/candidate/model.js';
+	import SignalsSummary from '$lib/components/assessments/signals-summary.svelte';
+	import type { SignalSummaryView } from '$lib/components/assessments/model.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { categoryBadges, disciplineName, fspLevelChips, labelOf, type CardCategory, type Labels } from './model.js';
 
@@ -29,6 +32,8 @@
 	interface Achievement {
 		/** Handles of this achievement's receipts among `receipts`. */
 		receiptHandles: string[];
+		/** FSP published the result, but it is not official yet: not an achievement, shown with its mark. */
+		preliminary: boolean;
 		generalized: {
 			discipline?: string;
 			competitionLevel?: string;
@@ -96,9 +101,11 @@
 		evidenceState: 'available' | 'recalculating' | 'none';
 		receipts: Receipt[];
 		labels: Labels & { terms: { work_format: Record<string, string>; employment_form: Record<string, string> } };
+		/** The signal totals of the attempt behind each category of the card. */
+		signals: { specialization: string; grade: string; summary: SignalSummaryView }[];
 	}
 
-	let { card, evidenceState, receipts, labels }: Props = $props();
+	let { card, evidenceState, receipts, labels, signals }: Props = $props();
 
 	const BANDS = { weak: 'слабое основание', moderate: 'среднее основание', strong: 'сильное основание' } as const;
 	const SEARCH = { active: 'Ищет работу', open_to_offers: 'Открыт к предложениям', not_looking: 'Не ищет' } as const;
@@ -190,6 +197,9 @@
 				categories={categoryBadges(card.categories ?? [], labels)}
 				fspLevels={fspLevelChips(card.fspLevels ?? [])}
 			/>
+			{#each signals as entry (entry.specialization)}
+				<SignalsSummary summary={entry.summary} title={`Сигналы теста: ${categoryName(entry, labels)}`} />
+			{/each}
 			{#if desiredRole}
 				<p class="text-sm text-muted-foreground">Желаемые роли: {desiredRole}</p>
 			{/if}
@@ -309,7 +319,12 @@
 				{#each card.fspAchievements ?? [] as item, index (index)}
 					{@const view = achievementView(item)}
 					{@const factReceipts = receipts.filter((receipt) => item.receiptHandles.includes(receipt.handle))}
-					<li class="grid gap-3">
+					<li class="grid gap-3" data-preliminary={item.preliminary}>
+						{#if item.preliminary}
+							<p class="text-xs font-medium text-warning" data-testid="preliminary-result">
+								Предварительный результат: ФСП ещё не объявила его официальным, это пока не достижение.
+							</p>
+						{/if}
 						{#if view}
 							<AchievementBadge achievement={view} />
 						{:else}
@@ -327,7 +342,9 @@
 						{:else}
 							<p class="flex items-start gap-2 text-xs text-muted-foreground">
 								<FileSearchIcon class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-								Факт получен из данных ФСП по ФСП ID кандидата. Квитанция проверки для вашей компании ещё не выпущена.
+								{item.preliminary
+									? 'Факт получен из данных ФСП по ФСП ID кандидата. Квитанцию проверки выпустим, когда результат станет официальным.'
+									: 'Факт получен из данных ФСП по ФСП ID кандидата. Квитанция проверки для вашей компании ещё не выпущена.'}
 							</p>
 						{/each}
 					</li>

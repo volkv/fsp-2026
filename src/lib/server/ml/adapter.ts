@@ -295,6 +295,15 @@ export class ModelAdapter {
 		return response;
 	}
 
+	/**
+	 * The model `extract` is configured with — the runtime and the model name — by which answers of the model are kept:
+	 * an answer of another model is not this one's. `null` — `extract` is not configured.
+	 */
+	extractModelKey(): string | null {
+		const configured = this.#deps.models.extract;
+		return configured ? `${configured.runtime}:${configured.model}` : null;
+	}
+
 	/** The configuration of the operation, or `disabled` when it is not configured or switched off. */
 	async #gate<T>(operation: ModelOperation, settings: T | null): Promise<ModelResult<T>> {
 		if (!settings) return fail('disabled', `${operation}: not configured`, { reason: 'not_configured' });

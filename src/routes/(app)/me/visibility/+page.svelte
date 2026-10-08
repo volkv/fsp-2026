@@ -65,7 +65,8 @@
 		<EyeIcon class="mt-0.5 size-5 shrink-0 text-success" aria-hidden="true" />
 		<p class="text-sm">
 			<span class="font-medium">Проверенные работодатели находят вас в каталоге.</span>
-			Они видят псевдоним, категорию, навыки с квитанциями и обобщённые достижения — без имени и контактов.
+			Они видят псевдоним, категорию со сводкой сигналов её теста, навыки с квитанциями и обобщённые достижения — без имени
+			и контактов.
 		</p>
 	{:else}
 		<EyeOffIcon class="mt-0.5 size-5 shrink-0 text-muted-foreground" aria-hidden="true" />

@@ -3,7 +3,7 @@
 // preferences the card shows — and the reading of the posted form into the input of the sending. The service checks
 // every source again: a point the form names is not trusted for being on the page.
 import { fspRecordText } from '$lib/components/employer/shortlist.js';
-import { AWARDS, DISCIPLINES } from '$lib/components/product/model.js';
+import { AWARDS, categoryName, COMPETITION_LEVELS, DISCIPLINES } from '$lib/components/product/model.js';
 import { CATALOG } from '$lib/server/assessments/contract/catalog';
 import { formText } from '$lib/server/http/form';
 import { loadCompanyProfile } from '$lib/server/companies/public-profile';
@@ -12,7 +12,7 @@ import { searchableVacancies } from '$lib/server/employer/vacancies';
 import type { CompanyNeedMatch } from '$lib/server/matching/search';
 import type { Vocabulary } from '$lib/server/employer/vocabulary';
 import type { NeedForm } from '$lib/server/needs/form';
-import type { CandidateCard } from '$lib/server/visibility/projections';
+import type { CandidateCard, CardAchievement } from '$lib/server/visibility/projections';
 import { currentPolicy } from './policies';
 import type { OfferInput } from './send';
 import { OFFER_WORK_FORMATS, type WhyYouPoint, type WhyYouSourceKind } from './terms';
@@ -39,6 +39,30 @@ export function optionsOfPoints(points: readonly WhyYouPoint[]): WhyYouOption[] 
 	return points.map((point) => pointOption(point.text, point.source));
 }
 
+const named = <K extends string>(names: Readonly<Record<K, string>>, key: string | undefined): string | null =>
+	key === undefined ? null : Object.hasOwn(names, key) ? names[key as K] : key;
+
+/**
+ * An FSP result as «why you» names it, the way the profile shows it: «1 место из 19 · <соревнование>» when the card
+ * shows the result exactly; otherwise what the card shows — the result group, the competition level, the discipline
+ * and the season. The point is kept in the terms as written: a sent offer keeps the wording it was sent with.
+ */
+function fspResultText(achievement: CardAchievement): string {
+	const { resultGroup, competitionLevel, discipline, season } = achievement.generalized;
+	const award = named(AWARDS, resultGroup);
+	if ('exact' in achievement) {
+		const { place, placeOf, competitionTitle } = achievement.exact;
+		const result = place === null ? award : `${place} место${placeOf === null ? '' : ` из ${placeOf}`}`;
+		return [result, competitionTitle].filter(Boolean).join(' · ');
+	}
+	const disciplineName =
+		discipline !== undefined && Object.hasOwn(DISCIPLINES, discipline)
+			? DISCIPLINES[discipline as keyof typeof DISCIPLINES].name
+			: (discipline ?? null);
+	const where = [disciplineName, season === undefined ? null : String(season)].filter(Boolean).join(', ');
+	return [award, named(COMPETITION_LEVELS, competitionLevel), where || null].filter(Boolean).join(' · ');
+}
+
 /**
  * Points the catalog card of the candidate supports: each FSP result the company holds a receipt for, each skill of the
  * profile, the work formats, the region and the readiness to relocate. Names come from the vocabularies of the page.
@@ -49,18 +73,10 @@ export function whyYouOptions(
 ): WhyYouOption[] {
 	const options: WhyYouOption[] = [];
 	for (const achievement of card.fspAchievements ?? []) {
+		// A preliminary result is not an achievement yet, and no receipt is issued for it.
 		const [handle] = achievement.receiptHandles;
-		if (handle === undefined) continue;
-		const { discipline, season, resultGroup } = achievement.generalized;
-		const disciplineName =
-			discipline === undefined
-				? 'ФСП'
-				: Object.hasOwn(DISCIPLINES, discipline)
-					? DISCIPLINES[discipline as keyof typeof DISCIPLINES].name
-					: discipline;
-		const award = resultGroup === undefined ? null : AWARDS[resultGroup];
-		const text = [`${disciplineName}${season === undefined ? '' : `, ${season}`}`, award].filter(Boolean).join(' — ');
-		options.push(pointOption(`Результат ФСП: ${text}`, { kind: 'fsp_fact', ref: handle, receipt_handle: handle }));
+		if (handle === undefined || achievement.preliminary) continue;
+		options.push(pointOption(fspResultText(achievement), { kind: 'fsp_fact', ref: handle, receipt_handle: handle }));
 	}
 	for (const skill of card.skills ?? []) {
 		const name = names.skills[skill.skillKey] ?? skill.skillKey;
@@ -95,13 +111,12 @@ export interface ShortlistNames {
  * reason with no source an offer accepts (a public profile) gives no point. The strongest reasons come first.
  */
 export function whyYouFromShortlist(
-	match: CompanyNeedMatch,
+	match: Pick<CompanyNeedMatch, 'reasons'>,
 	cardOptions: readonly WhyYouOption[],
 	names: ShortlistNames
 ): WhyYouOption[] {
 	const skill = (key: string) => names.skills[key] ?? key;
-	const category = (specialization: string, grade: string) =>
-		`${names.specializations[specialization] ?? specialization} ${names.grades[grade] ?? grade}`;
+	const category = (specialization: string, grade: string) => categoryName({ specialization, grade }, names);
 	const block = (code: string) => CATALOG.blocks.find((b) => b.code === code)?.title ?? code;
 	const points: WhyYouOption[] = [];
 	for (const reason of match.reasons) {

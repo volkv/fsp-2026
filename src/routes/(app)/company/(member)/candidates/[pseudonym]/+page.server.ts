@@ -91,7 +91,7 @@ export const load: PageServerLoad = async (event) => {
 		const contactOptions: WhyYouOption[] = [
 			...results.map((result) =>
 				pointOption(
-					`Подтвердил блок «${names.blocks[result.block] ?? result.block}» на грейде ${names.grades[result.grade] ?? result.grade}`,
+					`Подтвердил блок «${names.blocks[result.block] ?? result.block}» на грейде ${names.grades[result.grade]}`,
 					{
 						kind: 'confirmation',
 						ref: result.id

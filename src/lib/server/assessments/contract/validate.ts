@@ -69,7 +69,7 @@ const catalogSchema = z.strictObject({
 			practiceLanguages: z.array(practiceLanguage).min(1)
 		})
 	),
-	grades: z.array(z.strictObject({ key: grade, ordinal: z.int().min(0), title: text })),
+	grades: z.array(z.strictObject({ key: grade, ordinal: z.int().min(0) })),
 	blocks: z.array(
 		z.strictObject({
 			code: blockCode,

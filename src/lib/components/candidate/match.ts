@@ -5,7 +5,12 @@
  */
 import { trustNote, type TrustDetails } from '$lib/components/employer/model.js';
 import { inScore } from '$lib/matching/evidence-components.js';
-import type { MatchComponentKey, MatchComponentStatus, MatchView } from '$lib/components/product/model.js';
+import {
+	categoryName,
+	type MatchComponentKey,
+	type MatchComponentStatus,
+	type MatchView
+} from '$lib/components/product/model.js';
 import {
 	gradeName,
 	roleName,
@@ -191,7 +196,7 @@ export function candidateMatchView(result: MatchResultData, labels: Labels): Mat
 					return item.source === 'test'
 						? {
 								requirement: skillName(labels, item.skill_key),
-								evidence: `${requirement} · подтверждён вашим тестом на грейд ${labels.specializations[item.specialization] ?? item.specialization} ${gradeName(labels, item.grade)}`,
+								evidence: `${requirement} · подтверждён вашим тестом на грейд ${categoryName(item, labels)}`,
 								trust: 'platform_verified'
 							}
 						: {

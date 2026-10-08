@@ -311,6 +311,20 @@ export function modelReadingLabel(reading: ModelReadingView | null): {
 
 const plural = new Intl.PluralRules('ru-RU');
 
+/** Key → name maps a category is named by: specializations of the catalog and grades of the page's vocabulary. */
+export interface CategoryNames {
+	specializations: Readonly<Record<string, string>>;
+	grades: Readonly<Record<string, string>>;
+}
+
+/**
+ * A category (specialization × grade) as every page names it, «Backend · Средний»: the shortlist, the offer and its
+ * «why you», the card. A key the vocabulary does not name is shown as it is.
+ */
+export function categoryName(category: { specialization: string; grade: string }, names: CategoryNames): string {
+	return `${names.specializations[category.specialization] ?? category.specialization} · ${names.grades[category.grade] ?? category.grade}`;
+}
+
 /** Russian plural form: `pluralize(5, ['день', 'дня', 'дней'])`. */
 export function pluralize(count: number, forms: readonly [one: string, few: string, many: string]): string {
 	const rule = plural.select(count);

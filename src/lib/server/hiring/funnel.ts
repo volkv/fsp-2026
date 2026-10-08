@@ -27,6 +27,7 @@ import { activeCategoryRows } from '$lib/server/categories/read';
 import { runAt, runInForce } from '$lib/server/db/conditions';
 import { candidates, hiringProcesses, invitations, productPolicies } from '$lib/server/db/schema';
 import { candidateSession, companySession, outsideDemoSessions } from '$lib/server/demo/scope';
+import { hasFspResult, officialFspResult } from '$lib/server/matching/fsp-results';
 import type { InvitationDeps } from '$lib/server/invitations/deps';
 import { refuse } from '$lib/server/invitations/errors';
 import { requiredPolicy } from '$lib/server/invitations/policies';
@@ -127,7 +128,10 @@ interface CandidateFacets {
 	specialization: string | null;
 	grade: string | null;
 	levels: { discipline: string; level: string }[];
+	/** Competitions of the candidate's FSP results (`officialFspResult`). */
 	competitions: { id: string; title: string; discipline: string; startDate: string | null }[];
+	/** «Участник ФСП»: an FSP result of their own (`hasFspResult`), not a level or a qualification. */
+	fsp: boolean;
 }
 
 interface StoredReport {
@@ -260,9 +264,10 @@ async function loadCandidates(executor: Executor, filters: FunnelFilters): Promi
 					'startDate', s.payload->'competition'->>'startDate'
 				))
 				from source_facts s
-				where s.candidate_id = ${candidates.id} and s.status = 'active' and s.source = 'fsp'
-					and s.fact_type = 'competition_result' and s.payload->'competition'->>'id' is not null
-			), '[]'::json)`
+				where s.candidate_id = ${candidates.id} and ${officialFspResult(sql`s`)}
+					and s.payload->'competition'->>'id' is not null
+			), '[]'::json)`,
+			fsp: hasFspResult(sql`${candidates.id}`)
 		})
 		.from(candidates)
 		.leftJoin(
@@ -284,7 +289,8 @@ async function loadCandidates(executor: Executor, filters: FunnelFilters): Promi
 				specialization: row.specialization,
 				grade: row.grade,
 				levels: row.levels,
-				competitions: row.competitions
+				competitions: row.competitions,
+				fsp: row.fsp
 			}
 		])
 	);
@@ -308,7 +314,7 @@ function facetsOf(
 		region: candidate.region ?? NO_VALUE,
 		specialization: candidate.specialization ?? NO_VALUE,
 		grade: candidate.grade ?? NO_VALUE,
-		fsp_participant: candidate.levels.length > 0 ? 'fsp' : 'not_fsp'
+		fsp_participant: candidate.fsp ? 'fsp' : 'not_fsp'
 	};
 	const none = { competition: NO_VALUE, fsp_discipline: NO_VALUE, fsp_level: NO_VALUE };
 	if (uses.has('competition')) {

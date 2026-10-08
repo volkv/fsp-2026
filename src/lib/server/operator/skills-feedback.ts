@@ -1,6 +1,7 @@
 // Feedback «what the market asks for ↔ what FSP gives» (docs/domain.md 13.9) for disciplines and competition cases:
-// demand is how often a skill is required by vacancies seen in the window, supply is how many candidates have the
-// skill inferred from their FSP results in the evidence run in force. It is a correlation of two counts, not a
+// demand is how often a skill is required by vacancies seen in the window, supply is how many candidates with an FSP
+// result — the one definition of «с ФСП» (`matching/fsp-results.ts`) — have the skill inferred from their FSP results
+// in the evidence run in force. It is a correlation of two counts, not a
 // measured value of a skill, and the page says so. Counts below the threshold are «< N»; seeded demo records mark the
 // numbers they enter as synthetic. Nothing is stored: every call counts from live data. Clones of demo sessions and the
 // vacancies of their companies are left out: they repeat the cast, which is counted already (domain 19.3).
@@ -12,6 +13,7 @@ import type { Executor } from '$lib/server/db';
 import { runInForce } from '$lib/server/db/conditions';
 import { candidates, evidenceRuns, skillInferences, vacancies } from '$lib/server/db/schema';
 import { companySession, outsideDemoSessions } from '$lib/server/demo/scope';
+import { hasFspResult } from '$lib/server/matching/fsp-results';
 import { smallCell, type SmallCell } from './small-numbers';
 
 export const FEEDBACK_WINDOWS = [30, 90, 180, 365] as const;
@@ -65,22 +67,24 @@ export async function skillFeedback(
 	);
 	const demandCounts = await vacancySkillDemand(executor, windowVacancies);
 
-	// Inferences of the published run of a live candidate that rest on at least one FSP fact.
-	const fromFsp = sql`${skillInferences.contributions} @> '[{"source": "fsp"}]'::jsonb`;
+	// Participants of FSP: live candidates with an FSP result — the count «с ФСП» of the catalog and the shortlist — whose
+	// evidence run is in force: a run below the evidence floor stops counting. The supply of a skill is a share of them:
+	// inferences of that run that rest on an FSP fact.
 	const liveCandidate = and(
 		runInForce(evidenceRuns, candidates),
 		eq(candidates.status, 'active'),
-		outsideDemoSessions(candidates.demoSessionId)
+		outsideDemoSessions(candidates.demoSessionId),
+		hasFspResult(sql`${candidates.id}`)
 	);
+	const fromFsp = sql`${skillInferences.contributions} @> '[{"source": "fsp"}]'::jsonb`;
 	const [supplyTotals] = await executor
 		.select({
-			n: sql<number>`count(distinct ${skillInferences.candidateId})::int`,
+			n: sql<number>`count(distinct ${candidates.id})::int`,
 			seeded: sql<boolean>`coalesce(bool_or(${candidates.seedBatchId} is not null), false)`
 		})
-		.from(skillInferences)
-		.innerJoin(evidenceRuns, eq(evidenceRuns.id, skillInferences.runId))
-		.innerJoin(candidates, eq(candidates.id, skillInferences.candidateId))
-		.where(and(liveCandidate, fromFsp));
+		.from(evidenceRuns)
+		.innerJoin(candidates, eq(candidates.id, evidenceRuns.candidateId))
+		.where(liveCandidate);
 	const supplyRows = await executor
 		.select({
 			skillKey: skillInferences.skillKey,

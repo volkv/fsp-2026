@@ -19,6 +19,9 @@ import { selfCandidate } from './deps';
 import type { ResumeParseError } from './parse-errors';
 import type { ResumeParseStatus } from './parse-job';
 
+type Claim = typeof claims.$inferSelect;
+type ExperienceEntry = typeof experienceEntries.$inferSelect;
+
 export interface ResumeUpload {
 	resumeDocumentId: string;
 	fileId: string;
@@ -54,33 +57,25 @@ export interface CurrentResume {
 		flags: unknown;
 	} | null;
 	reading: ResumeReading | null;
-	claims: {
-		id: string;
-		claimType: string;
-		rawText: string;
-		polarity: string;
-		skillKey: string | null;
-		value: unknown;
-		quote: unknown;
-		extractor: string;
-		candidateReview: string;
-		experienceEntryId: string | null;
-	}[];
-	experience: {
-		id: string;
-		positionTitle: string | null;
-		roleKey: string | null;
-		organizationName: string | null;
-		periodFrom: string | null;
-		periodTo: string | null;
-		periodFromPrecision: string | null;
-		periodToPrecision: string | null;
-		isCurrent: boolean;
-		periodStatus: string;
-		appliedSkillKeys: string[];
-		quotes: unknown;
-		candidateReview: string;
-	}[];
+	claims: (Pick<
+		Claim,
+		'id' | 'claimType' | 'rawText' | 'polarity' | 'skillKey' | 'extractor' | 'candidateReview' | 'experienceEntryId'
+	> & { value: unknown; quote: unknown })[];
+	experience: (Pick<
+		ExperienceEntry,
+		| 'id'
+		| 'positionTitle'
+		| 'roleKey'
+		| 'organizationName'
+		| 'periodFrom'
+		| 'periodTo'
+		| 'periodFromPrecision'
+		| 'periodToPrecision'
+		| 'isCurrent'
+		| 'periodStatus'
+		| 'appliedSkillKeys'
+		| 'candidateReview'
+	> & { quotes: unknown })[];
 }
 
 export interface OwnResumes {
@@ -243,4 +238,38 @@ export async function readOwnResumes(db: Database, subject: AccessSubject): Prom
 			experience
 		}
 	};
+}
+
+const INCOMPLETE_REASONS: Record<string, string> = {
+	page_limit: 'прочитаны не все страницы — файл длиннее лимита',
+	ocr_low_confidence: 'часть скана распознана неуверенно',
+	unsupported_element: 'часть содержимого не удалось прочитать',
+	encrypted_part: 'часть файла защищена',
+	embedded_object_skipped: 'вложенные объекты пропущены'
+};
+
+/** What the parser tells about the reading that the candidate should know: a partial text, a recognized scan. */
+export function readingFlags(flags: unknown): { ocrUsed: boolean; incomplete: string[] } {
+	if (typeof flags !== 'object' || flags === null) throw new Error('document flags are not an object');
+	const { ocrUsed, incompleteReasons } = flags as { ocrUsed?: unknown; incompleteReasons?: unknown };
+	if (typeof ocrUsed !== 'boolean' || !Array.isArray(incompleteReasons)) {
+		throw new Error('document flags have an unexpected shape');
+	}
+	return {
+		ocrUsed,
+		incomplete: incompleteReasons.map((reason) => {
+			if (typeof reason !== 'string') throw new Error('an incomplete reason is not a string');
+			return INCOMPLETE_REASONS[reason] ?? reason;
+		})
+	};
+}
+
+/** The parse or the extraction of the current resume still runs in the background: its reading is not known yet. */
+export function resumeInProgress(current: CurrentResume | null): boolean {
+	const upload = current?.upload ?? null;
+	return (
+		upload !== null &&
+		(upload.parseStatus === 'pending' ||
+			((upload.parseStatus === 'parsed' || upload.parseStatus === 'partial') && current?.reading === null))
+	);
 }

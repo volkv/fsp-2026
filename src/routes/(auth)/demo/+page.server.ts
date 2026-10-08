@@ -1,5 +1,6 @@
 import { error, fail, redirect, type RequestEvent } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
+import { GRADE_POLICY } from '$lib/server/assessments/contract/policy';
 import { gradeTitle, specializationTitle } from '$lib/server/assessments/titles';
 import { clearSessionCookie, requestMeta, sessionOf, setSessionCookie } from '$lib/server/auth/http';
 import { destroySession } from '$lib/server/auth/sessions';
@@ -18,6 +19,7 @@ import {
 } from '$lib/server/demo/cast';
 import { MAX_LIVE_SESSIONS } from '$lib/server/demo/clone';
 import { readSeedData, seedsDirectory } from '$lib/server/demo/data';
+import { productionGradePolicyOf, setProductionGradePolicy } from '$lib/server/demo/grade-policy';
 import { createNewcomer, DemoSessionEnded } from '$lib/server/demo/newcomer';
 import { demoTerms } from '$lib/server/demo/terms';
 import {
@@ -125,6 +127,7 @@ export const load: PageServerLoad = async (event) => {
 					ownResumeAt: current.session.ownResumeAt,
 					token: current.token,
 					joinLink: `${config().appOrigin}/demo?join=${encodeURIComponent(current.token)}`,
+					productionGradePolicy: await productionGradePolicyOf(db(), current.session.id),
 					role: await currentRole(event, current.session.id, roles)
 				}
 			: null,
@@ -136,6 +139,12 @@ export const load: PageServerLoad = async (event) => {
 			evictableMinutes: terms.evictableMinutes
 		},
 		maxSessions: MAX_LIVE_SESSIONS,
+		// The numbers of the grade policy the switch of the session turns on or lifts.
+		gradePolicy: {
+			gradeChangeIntervalDays: GRADE_POLICY.gradeChangeIntervalDays,
+			retakeIntervalDays: GRADE_POLICY.retakeIntervalDays,
+			maxAttemptsPerGrade: GRADE_POLICY.maxAttemptsPerGrade
+		},
 		resetAt,
 		// A link that opens no live session says so instead of silently opening a new one.
 		joining: joining !== null && current?.token !== joining ? ('expired' as const) : null,
@@ -207,6 +216,25 @@ export const actions: Actions = {
 		setDemoCookie(event.cookies, current.token, current.session.expiresAt, now);
 		setSessionCookie(event.cookies, signInSessionId);
 		redirect(303, '/onboarding');
+	},
+
+	/**
+	 * «Политика как в эксплуатации»: the grade policy of the candidates of the browser's live session keeps its
+	 * intervals (`production=on`) or has them lifted; other sessions keep theirs.
+	 */
+	gradePolicy: async (event) => {
+		requireDemo(event);
+		const now = new Date();
+		const form = await event.request.formData();
+		const production = form.get('production');
+		if (production !== 'on' && production !== 'off') return fail(400, { message: 'Выберите режим политики грейда' });
+		const joining = form.get('join');
+		const current = await currentSession(event, typeof joining === 'string' && joining !== '' ? joining : null, now);
+		const ended = { message: 'Демо-сессия закончилась. Войдите в любую роль — откроется новая.' };
+		if (!current) return fail(409, ended);
+		if (!(await setProductionGradePolicy(db(), current.session.id, production === 'on', now))) return fail(409, ended);
+		await redisDemoActivity(await redis()).touch(current.session.id, now);
+		return { gradePolicy: production };
 	},
 
 	leave: async (event) => {

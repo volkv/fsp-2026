@@ -9,6 +9,7 @@ import { DOCS_CSP, DOCS_HTML, docsAsset } from '$lib/server/api/docs';
 import { openApiDocument, type OpenApiDocument } from '$lib/server/api/openapi';
 import type { Operation } from '$lib/server/api/operation';
 import * as v1 from '$lib/server/api/v1';
+import * as account from '$lib/server/api/v1/account';
 import * as applications from '$lib/server/api/v1/applications';
 import * as catalog from '$lib/server/api/v1/catalog';
 import * as categories from '$lib/server/api/v1/categories';
@@ -18,6 +19,7 @@ import * as companyProfile from '$lib/server/api/v1/company-profile';
 import * as complaints from '$lib/server/api/v1/complaints';
 import * as events from '$lib/server/api/v1/events';
 import * as confirmations from '$lib/server/api/v1/confirmations';
+import * as consents from '$lib/server/api/v1/consents';
 import * as demand from '$lib/server/api/v1/demand';
 import * as grades from '$lib/server/api/v1/grades';
 import * as hiring from '$lib/server/api/v1/hiring';
@@ -28,6 +30,7 @@ import * as needs from '$lib/server/api/v1/needs';
 import * as operator from '$lib/server/api/v1/operator';
 import * as partnerPools from '$lib/server/api/v1/partner-pools';
 import * as profile from '$lib/server/api/v1/profile';
+import * as resumes from '$lib/server/api/v1/resumes';
 import * as shortlists from '$lib/server/api/v1/shortlists';
 import * as taxonomy from '$lib/server/api/v1/taxonomy';
 import * as tests from '$lib/server/api/v1/tests';
@@ -58,6 +61,9 @@ const exported = new Map<string, Operation>(
 		...needs,
 		...operator,
 		...profile,
+		...resumes,
+		...consents,
+		...account,
 		...partnerPools,
 		...shortlists,
 		...taxonomy,

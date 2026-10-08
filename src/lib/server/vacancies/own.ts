@@ -18,7 +18,7 @@ import type { JobCreator } from '$lib/server/jobs/queue';
 import { notify } from '$lib/server/notifications/notify';
 import { companyAdmitted, enqueueMatchRefresh, enqueueRevisionDerivations } from './derivations';
 import { invalid, refuse, violation } from './errors';
-import { VACANCY_SCHEMA_VERSION } from './from-text';
+import { VACANCY_SCHEMA_VERSION } from './text-extract';
 import {
 	checkVacancyText,
 	sameBlockingFindings,

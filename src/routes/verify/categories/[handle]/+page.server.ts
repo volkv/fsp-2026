@@ -58,6 +58,7 @@ export const load: PageServerLoad = async (event) => {
 		},
 		endedOn: verified.endedAt === null ? null : verified.endedAt.toISOString().slice(0, 10),
 		annulReason: verified.annulReason,
+		reissued: verified.reissued,
 		current:
 			verified.currentGrade === null
 				? null

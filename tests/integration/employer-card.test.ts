@@ -6,12 +6,16 @@ import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { GRADE_DECISION_RESULTS } from '$lib/server/matching/test-results';
 import type { AccessSubject } from '$lib/server/access/permissions';
+import { cardSchema, cardView } from '$lib/server/api/read/catalog-card';
+import { categorySignals, type SignalLog } from '$lib/server/assessments/signals';
+import { categoryHistory } from '$lib/server/categories/read';
 import {
 	candidateCompanyBlocks,
 	candidates,
 	categorizationRulesets,
 	evidenceRuns,
 	consentEvents,
+	gradeDecisions,
 	documentAcceptances,
 	grades,
 	legalRepresentatives,
@@ -24,6 +28,7 @@ import {
 	skills,
 	sourceFacts,
 	taxonomyVersions,
+	testAttempts,
 	vacancies
 } from '$lib/server/db/schema';
 import { findInCatalog, loadCatalogCard } from '$lib/server/employer/card';
@@ -458,15 +463,24 @@ describe('catalog card: what the company reads on it', () => {
 			.where(eq(taxonomyVersions.id, version.id));
 	});
 
-	/** An adult with one FSP result and the region stated in the preferences, if any. */
-	async function withResult(regionCode?: string) {
+	/** An adult with FSP results of the given statuses and team roles and the region stated in the preferences, if any. */
+	async function withResult(
+		regionCode?: string,
+		results: { status: 'official' | 'preliminary' | 'annulled'; teamRole?: string }[] = [{ status: 'official' }]
+	) {
 		const { db } = database;
 		const row = await createCandidate(db, {
 			preferences: regionCode === undefined ? {} : { region_code: regionCode }
 		});
+		for (const { status, teamRole } of results) await resultOf(row.id, status, teamRole);
+		return row;
+	}
+
+	async function resultOf(candidateId: string, status: string, teamRole: string | undefined) {
 		const competitionId = randomSha256().slice(0, 8);
-		await db.insert(sourceFacts).values({
-			candidateId: row.id,
+		const team = teamRole === undefined ? null : { name: 'Команда', role: teamRole };
+		await database.db.insert(sourceFacts).values({
+			candidateId,
 			source: 'fsp',
 			factType: 'competition_result',
 			sourceRecordRef: `fsp:result:${randomSha256().slice(0, 12)}`,
@@ -474,7 +488,7 @@ describe('catalog card: what the company reads on it', () => {
 			trustLevel: 'fsp_verified',
 			ownershipBasis: 'operator_confirmed',
 			payload: {
-				result: { id: 'r-1', competitionId, place: 3, team: null, award: 'prize', status: 'official' },
+				result: { id: 'r-1', competitionId, place: 3, placeOf: 40, team, award: 'prize', status },
 				competition: {
 					id: competitionId,
 					ekpNumber: null,
@@ -494,7 +508,6 @@ describe('catalog card: what the company reads on it', () => {
 			occurredOn: '2025-10-01',
 			status: 'active'
 		});
-		return row;
 	}
 
 	const open = async (candidateId: string, signer: ReceiptSigner = federation) =>
@@ -516,11 +529,152 @@ describe('catalog card: what the company reads on it', () => {
 		await expect(open((await withResult('RU-XX')).id)).rejects.toThrow(/RU-XX .*reference of regions/u);
 	});
 
+	it('shows official results as achievements, a preliminary one with its mark, and no result that is not one', async () => {
+		const person = await withResult(undefined, [
+			{ status: 'official' },
+			{ status: 'preliminary' },
+			{ status: 'annulled' },
+			{ status: 'official', teamRole: 'reserve' }
+		]);
+		const { card, receipts } = await open(person.id);
+		expect(card.fspAchievements?.map((achievement) => achievement.preliminary).sort()).toEqual([false, true]);
+		// A receipt is issued for the official result only.
+		const official = card.fspAchievements?.find((achievement) => !achievement.preliminary);
+		expect(official?.receiptHandles).toHaveLength(1);
+		expect(card.fspAchievements?.find((achievement) => achievement.preliminary)?.receiptHandles).toEqual([]);
+		expect(receipts).toHaveLength(1);
+	});
+
 	it('tells the receipts of the simulator of FSP apart from those of the federation', async () => {
 		const person = await withResult();
 		const simulated = await open(person.id, simulator);
 		expect(simulated.receipts).toEqual([expect.objectContaining({ level: 'generalized', simulator: true })]);
 		const federal = await open(person.id, federation);
 		expect(federal.receipts).toEqual([expect.objectContaining({ level: 'generalized', simulator: false })]);
+	});
+});
+
+describe('catalog card: the signal totals of the test', () => {
+	const signer = createReceiptSigner({
+		issuer: 'http://localhost:57173',
+		keyId: 'test-1',
+		seed: Buffer.alloc(32, 5)
+	});
+	// Timings no total carries: the card must not hand them over.
+	const journal: SignalLog = {
+		entries: [
+			{
+				at: new Date().toISOString(),
+				stage: 'answer',
+				seq: 1,
+				responseMs: 918_273,
+				client: { elapsedMs: 817_263, pasteCount: 2, pastedChars: 140, blurCount: 1 }
+			},
+			{
+				at: new Date().toISOString(),
+				stage: 'submission',
+				seq: 2,
+				responseMs: 716_253,
+				client: { elapsedMs: 615_243, pasteCount: 1, pastedChars: 60, blurCount: 3 }
+			},
+			{ at: new Date().toISOString(), stage: 'answer', seq: 3, client: null }
+		]
+	};
+	const totals = { entries: 3, pastes: 3, pastedChars: 200, departures: 4, silent: 1 };
+
+	/** A candidate of the catalog whose category was assigned by an attempt with the journal above. */
+	async function signalled() {
+		const person = await candidate();
+		const [decision] = await database.db
+			.select({ attemptId: gradeDecisions.attemptId })
+			.from(gradeDecisions)
+			.where(eq(gradeDecisions.candidateId, person.id));
+		if (!decision) throw new Error('the candidate has no grade decision');
+		await database.db
+			.update(testAttempts)
+			.set({ integritySignals: journal })
+			.where(eq(testAttempts.id, decision.attemptId));
+		// The card reads the experience of the run and the FSP result; the fixture of the search leaves both empty.
+		await database.db
+			.update(evidenceRuns)
+			.set({ experienceSummary: { total: { min_months: 0, max_months: 0 }, by_role: {} } })
+			.where(eq(evidenceRuns.candidateId, person.id));
+		await database.db
+			.update(sourceFacts)
+			.set({
+				eventKey: 'fsp:competition:c-1',
+				sourceSnapshotSha256: randomSha256(),
+				occurredOn: '2025-10-01',
+				payload: {
+					result: { id: 'r-1', competitionId: 'c-1', place: 3, team: null, award: 'prize', status: 'official' },
+					competition: {
+						id: 'c-1',
+						ekpNumber: null,
+						title: 'Кубок России по спортивному программированию',
+						discipline: 'algorithmic',
+						level: 'russian_cup',
+						stage: 'final',
+						format: 'individual',
+						startDate: '2025-10-01',
+						online: false
+					}
+				}
+			})
+			.where(eq(sourceFacts.id, person.factId));
+		return person;
+	}
+
+	async function openAs(subject: AccessSubject, companyId: string, pseudonym: string) {
+		const found = await find(subject, pseudonym);
+		if (!found) return null;
+		return loadCatalogCard(database.db, {
+			candidateId: found.candidateId,
+			companyId,
+			pseudonym: found.pseudonym,
+			extras: found.extras,
+			now: new Date(),
+			signer
+		});
+	}
+
+	it('gives a company that sees the card the totals beside the category, and in the API, without timings', async () => {
+		const { company, subject } = await employer();
+		const person = await signalled();
+		const loaded = await openAs(subject, company.id, `${person.id}@${company.id}`);
+		if (!loaded) throw new Error('the company does not see the candidate');
+		expect(loaded.signals).toEqual([{ specialization: 'backend', grade: 'middle', summary: totals }]);
+		const api = cardView(loaded);
+		// The categories of the API answer as its schema describes them (the test pseudonym is not of the API form).
+		expect(cardSchema.shape.categories.parse(api.categories)).toEqual([
+			expect.objectContaining({
+				specialization: 'backend',
+				test_signals: { entries: 3, pastes: 3, pasted_chars: 200, departures: 4, silent: 1 }
+			})
+		]);
+		const shown = JSON.stringify([loaded, api]);
+		for (const timing of ['918273', '817263', '716253', '615243']) expect(shown).not.toContain(timing);
+	});
+
+	it('gives nothing to a company the candidate blocked or when the candidate is hidden', async () => {
+		const { company, subject } = await employer();
+		const blocking = await signalled();
+		await database.db.insert(candidateCompanyBlocks).values({ candidateId: blocking.id, companyId: company.id });
+		const hidden = await signalled();
+		await database.db.update(candidates).set({ visibility: 'hidden' }).where(eq(candidates.id, hidden.id));
+		for (const person of [blocking, hidden]) {
+			expect(await openAs(subject, company.id, `${person.id}@${company.id}`)).toBeNull();
+		}
+	});
+
+	it('shows the candidate the same totals on the screen of categories', async () => {
+		const { company, subject } = await employer();
+		const person = await signalled();
+		const loaded = await openAs(subject, company.id, `${person.id}@${company.id}`);
+		if (!loaded) throw new Error('the company does not see the candidate');
+		const own = await categorySignals(
+			database.db,
+			(await categoryHistory(database.db, person.id)).filter((category) => category.status === 'active')
+		);
+		expect(own).toEqual(loaded.signals);
 	});
 });

@@ -21,7 +21,7 @@ import { currentVocabulary } from '$lib/server/employer/vocabulary';
 import { ApiError } from '$lib/server/errors/api-error';
 import type { RequestMeta } from '$lib/server/invitations/deps';
 import { keywordSearch, visibleAmong } from '$lib/server/matching/search';
-import { candidatesWithFsp } from '$lib/server/needs/recommend';
+import { candidatesWithFsp } from '$lib/server/matching/fsp-results';
 import { uuidv7 } from '$lib/server/ids';
 import { searchOf } from './query';
 import { needMatchOf, rankStep, shortlistStep, type ShortlistDeps } from './service';

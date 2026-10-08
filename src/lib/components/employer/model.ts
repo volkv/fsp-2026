@@ -4,6 +4,7 @@
  */
 import { inScore } from '$lib/matching/evidence-components.js';
 import {
+	categoryName,
 	DISCIPLINES,
 	type CategoryBadgeView,
 	type DisciplineCode,
@@ -337,7 +338,7 @@ export function matchView(match: CompanyMatchData, labels: Labels): MatchView {
 					return item.source === 'test'
 						? {
 								requirement,
-								evidence: `подтверждён тестом на грейд ${label(labels.specializations, item.specialization)} ${label(labels.grades, item.grade)}`,
+								evidence: `подтверждён тестом на грейд ${categoryName(item, labels)}`,
 								trust: 'platform_verified'
 							}
 						: {
@@ -575,16 +576,11 @@ export function disciplineName(code: string | null | undefined, form: 'name' | '
 	return Object.hasOwn(entries, code) ? (entries[code]?.[form] ?? code) : code;
 }
 
-/** The categories in force in one line, «Backend · Middle, QA · Junior»; `null` — the category is not confirmed. */
+/** The categories in force in one line, «Backend · Средний, QA · Младший»; `null` — the category is not confirmed. */
 export function categoryLine(
 	categories: readonly { specialization: string; grade: string }[],
 	labels: Pick<Labels, 'specializations' | 'grades'>
 ): string | null {
 	if (categories.length === 0) return null;
-	return categories
-		.map(
-			(category) =>
-				`${label(labels.specializations, category.specialization)} · ${label(labels.grades, category.grade)}`
-		)
-		.join(', ');
+	return categories.map((category) => categoryName(category, labels)).join(', ');
 }

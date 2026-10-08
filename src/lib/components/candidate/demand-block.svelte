@@ -44,7 +44,7 @@
 	import { resolve } from '$app/paths';
 	import StatusPill from '$lib/components/forms/status-pill.svelte';
 	import { InsufficientData } from '$lib/components/product/index.js';
-	import { formatDate, pluralize } from '$lib/components/product/model.js';
+	import { categoryName, formatDate, pluralize } from '$lib/components/product/model.js';
 	import { disciplineShort, gradeName, skillName, type Labels } from './model.js';
 	import SectionCard from './section-card.svelte';
 
@@ -73,6 +73,10 @@
 
 	function cohortLabel(cohort: DemandCohortView): string {
 		const specialization = labels.specializations[cohort.specialization] ?? cohort.specialization;
+		const [only, ...more] = cohort.gradeKeys ?? [];
+		if (only !== undefined && more.length === 0) {
+			return categoryName({ specialization: cohort.specialization, grade: only }, labels);
+		}
 		return cohort.gradeKeys === null
 			? `${specialization} · все грейды`
 			: `${specialization} · ${grades(cohort.gradeKeys)}`;

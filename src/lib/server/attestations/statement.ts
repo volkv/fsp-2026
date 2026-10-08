@@ -9,11 +9,11 @@ import {
 	blockDefinition,
 	CATALOG,
 	gradeDefinition,
-	type GradeKey,
 	type SpecializationKey
 } from '$lib/server/assessments/contract/catalog';
 import type { JudgementProvenance } from '$lib/server/assessments/contract/bank';
 import { judgementNote } from '$lib/server/assessments/explain';
+import { categoryGradeName } from '$lib/server/categories/labels';
 import type { ActiveCategory } from '$lib/server/categories/read';
 import { normalizedFullName, type FullName } from '$lib/server/profile/contacts';
 
@@ -115,12 +115,15 @@ export const attestationStatementSchema = z
 
 export type AttestationStatement = z.output<typeof attestationStatementSchema>;
 
-/** The words of a specialization and a grade of the catalog; a key the current catalog lacks stays as it is. */
+/**
+ * The words of a specialization of the catalog and of its grade by the taxonomy; a key the current catalog lacks stays
+ * as it is.
+ */
 export function categoryTitle(specialization: string, grade: string): { specialization: string; grade: string } {
 	return {
 		specialization:
 			CATALOG.specializations.find((item) => item.key === (specialization as SpecializationKey))?.title ??
 			specialization,
-		grade: CATALOG.grades.find((item) => item.key === (grade as GradeKey))?.title ?? grade
+		grade: categoryGradeName(grade)
 	};
 }
