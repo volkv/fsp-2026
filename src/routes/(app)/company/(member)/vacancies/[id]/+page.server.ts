@@ -16,6 +16,7 @@ import {
 	updateOwnVacancy
 } from '$lib/server/vacancies/own';
 import { loadVacancyTaxonomy } from '$lib/server/vacancies/taxonomy';
+import { vacancyTestSpecOf } from '$lib/server/vacancies/test-spec';
 import type { Actions, PageServerLoad, RequestEvent } from './$types';
 
 const vacancyDeps = () => ({ db: db(), now: () => new Date() });
@@ -26,15 +27,17 @@ export const load: PageServerLoad = async (event) => {
 	const database = db();
 	try {
 		const vacancy = await getOwnVacancy(database, membership.companyId, event.params.id, new Date());
-		const [written, current, minorTerms] = await Promise.all([
+		const [written, current, minorTerms, taxonomy] = await Promise.all([
 			vocabularyOf(database, vacancy.taxonomyVersionId),
 			currentVocabulary(database),
-			minorTermsAcceptance(database, membership.companyId, new Date())
+			minorTermsAcceptance(database, membership.companyId, new Date()),
+			loadVacancyTaxonomy(database)
 		]);
 		const labels = labelsOf(written);
 		return {
 			vacancy,
 			labels,
+			testSpec: await vacancyTestSpecOf(database, vacancy, written, taxonomy),
 			form: vacancyFormOf(vacancy, labels),
 			vocabulary: formVocabulary(current),
 			minorTermsAccepted: minorTerms !== null,

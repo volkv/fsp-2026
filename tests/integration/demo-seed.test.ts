@@ -50,6 +50,10 @@ import type { ObjectStore, StoredObject } from '$lib/server/storage/object-store
 import { publishTaxonomy } from '$lib/server/taxonomy/publish';
 import { buildRelease, readTaxonomyDatasets } from '$lib/server/taxonomy/release';
 import { sliceByCodePoints } from '$lib/text/offsets';
+import { getOwnVacancy } from '$lib/server/employer/vacancies';
+import { vocabularyOf } from '$lib/server/employer/vocabulary';
+import { loadVacancyTaxonomy } from '$lib/server/vacancies/taxonomy';
+import { vacancyTestSpecOf } from '$lib/server/vacancies/test-spec';
 import { DEFAULT_SEED } from '../../services/fsp-mock/src/config.ts';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
 import { releaseBankAhead } from '../helpers/demo-bank';
@@ -610,6 +614,23 @@ describe('demo seed', () => {
 			.from(vacancies)
 			.where(eq(vacancies.title, 'Middle Python-разработчик (сервис выплат партнёрам)'));
 		expect(payouts).toEqual({ status: 'published', required: ['python', 'postgresql'] });
+		// The three written vacancies show their test: the block tests their texts add; Data Science is not released here.
+		const taxonomy = await loadVacancyTaxonomy(db);
+		const testOf = async (title: string) => {
+			const [row] = await db
+				.select({ id: vacancies.id, companyId: vacancies.companyId })
+				.from(vacancies)
+				.where(eq(vacancies.title, title));
+			if (!row) throw new Error(`vacancy ${title} is not seeded`);
+			const vacancy = await getOwnVacancy(db, row.companyId, row.id, new Date());
+			const spec = await vacancyTestSpecOf(db, vacancy, await vocabularyOf(db, vacancy.taxonomyVersionId), taxonomy);
+			return spec.plans.map((plan) =>
+				plan.status === 'open' ? plan.vacancyBlocks.map((block) => block.block) : plan.reason
+			);
+		};
+		expect(await testOf('Middle Java-разработчик (биллинг подписок)')).toEqual([['be.api']]);
+		expect(await testOf('Junior QA-инженер (автотесты API)')).toEqual([['qa.auto', 'qa.api']]);
+		expect(await testOf('Data Scientist (прогноз спроса)')).toEqual(['not_released', 'not_released']);
 		// К-2: an offer of the company under review, unanswered.
 		const dmitry = await candidateOf('dmitry.orlov@fsp-career.example');
 		const [unverified] = await db

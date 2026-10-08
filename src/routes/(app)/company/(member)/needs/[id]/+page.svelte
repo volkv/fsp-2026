@@ -6,6 +6,7 @@
 	import FormMessage from '$lib/components/forms/form-message.svelte';
 	import PageHeader from '$lib/components/forms/page-header.svelte';
 	import StatusPill from '$lib/components/forms/status-pill.svelte';
+	import VacancyTestSpec from '$lib/components/employer/vacancy-test-spec.svelte';
 	import { ModelModeLabel } from '$lib/components/product/index.js';
 	import * as Alert from '$lib/components/ui/alert/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -323,3 +324,5 @@
 		</Card.Root>
 	</div>
 </div>
+
+<VacancyTestSpec spec={data.testSpec} skillNames={data.options.skillNames} subject="потребности" />

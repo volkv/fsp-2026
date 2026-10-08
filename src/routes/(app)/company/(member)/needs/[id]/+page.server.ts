@@ -5,6 +5,8 @@ import { employerRequest, membershipOf } from '$lib/server/employer/http';
 import { formFailure, pageError } from '$lib/server/http/page';
 import { configuredNeedDeps, needFormFromPost, needFormOptions } from '$lib/server/needs/page';
 import { getNeed, needCategories, updateNeed } from '$lib/server/needs/service';
+import { needTestSpecOf } from '$lib/server/needs/test-spec';
+import { currentVocabulary } from '$lib/server/employer/vocabulary';
 import { configuredShortlistDeps } from '$lib/server/shortlists/page';
 import { createShortlist, listShortlists } from '$lib/server/shortlists/service';
 import type { Actions, PageServerLoad } from './$types';
@@ -23,6 +25,7 @@ export const load: PageServerLoad = async (event) => {
 		const { categories, basis, closed } = await needCategories(deps, subject, need.id);
 		return {
 			need,
+			testSpec: await needTestSpecOf(deps.db, need, await currentVocabulary(deps.db)),
 			categories,
 			basis,
 			closed,

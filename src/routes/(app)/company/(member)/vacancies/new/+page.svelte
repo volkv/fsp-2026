@@ -8,6 +8,7 @@
 	import { pluralize } from '$lib/components/product/model.js';
 	import TextCheckNotice from '$lib/components/employer/text-check-notice.svelte';
 	import VacancyForm from '$lib/components/employer/vacancy-form.svelte';
+	import VacancyTestSpec from '$lib/components/employer/vacancy-test-spec.svelte';
 	import CsrfInput from '$lib/components/forms/csrf-input.svelte';
 	import FormMessage from '$lib/components/forms/form-message.svelte';
 	import PageHeader from '$lib/components/forms/page-header.svelte';
@@ -212,3 +213,11 @@
 		</Card.Content>
 	</Card.Root>
 </div>
+
+{#if draft}
+	<VacancyTestSpec
+		spec={draft.testSpec}
+		skillNames={draft.skillNames}
+		note="По разобранному тексту, до правок формы; после сохранения страница вакансии покажет тест по её полям."
+	/>
+{/if}

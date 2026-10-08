@@ -27,6 +27,7 @@ import {
 import { createOwnVacancy, type OwnVacancyInput } from '$lib/server/vacancies/own';
 import { estimateVacancyPool, type UnsavedVacancy } from '$lib/server/vacancies/pool';
 import { loadVacancyTaxonomy } from '$lib/server/vacancies/taxonomy';
+import { draftTestSpecOf } from '$lib/server/vacancies/test-spec';
 import type { Actions, PageServerLoad } from './$types';
 
 function categoryLabel(key: CategoryKey): string {
@@ -118,9 +119,17 @@ export const actions: Actions = {
 				text,
 				event.request.signal
 			);
-			const labels = labelsOf(await currentVocabulary(db()));
+			const vocabulary = await currentVocabulary(db());
+			const labels = labelsOf(vocabulary);
 			const prefilled = vacancyFormOfDraft(draft, text.trim(), labels);
 			const pool = await poolEstimate(author.companyId, unsavedVacancyOf(draft), event.request.signal);
+			const testSpec = await draftTestSpecOf(
+				db(),
+				draft.fields,
+				text.trim(),
+				vocabulary,
+				await loadVacancyTaxonomy(db())
+			);
 			return {
 				draft: {
 					mlResultId: draft.mlResultId,
@@ -128,6 +137,8 @@ export const actions: Actions = {
 					modelFailure: draft.modelFailure,
 					missing: draft.missing,
 					textCheck: draft.textCheck,
+					testSpec,
+					skillNames: labels.skills,
 					...prefilled
 				},
 				marketPosition: marketPositionView(draft.marketPosition, positionInput(draft.fields).salary.taxBase),

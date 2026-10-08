@@ -739,8 +739,9 @@ function vacancyTerms(
 }
 
 /**
- * Vacancies of the scenario's main employer: the internship open from 16, the two of the invitations and the one of
- * Python payouts a Python Middle without offers applies to on stage.
+ * Vacancies of the scenario's main employer: the internship open from 16, the two of the invitations, the one of
+ * Python payouts a Python Middle without offers applies to on stage, and three written texts — Backend, QA, Data
+ * Science — whose pages show how the test of a vacancy is made of its text (domain 13.11).
  */
 function scenarioVacancies(companyKey: string, companyName: string): OwnVacancyPlan[] {
 	const fixed = (
@@ -752,10 +753,9 @@ function scenarioVacancies(companyKey: string, companyName: string): OwnVacancyP
 		minAge: number | null
 	): OwnVacancyPlan => {
 		const { niceNames, requiredNames, ...rest } = input;
-		return {
-			company: companyKey,
+		return written(
 			scenarioKey,
-			input: {
+			{
 				...rest,
 				description: description(
 					companyName,
@@ -764,13 +764,20 @@ function scenarioVacancies(companyKey: string, companyName: string): OwnVacancyP
 					niceNames,
 					rest.workFormat,
 					rest.employmentForm === 'internship'
-				),
-				cityId: null,
-				timezoneOverlapHours: null,
-				minAge
-			}
-		};
+				)
+			},
+			minAge
+		);
 	};
+	const written = (
+		scenarioKey: string,
+		input: Omit<OwnVacancyPlan['input'], 'cityId' | 'timezoneOverlapHours' | 'minAge'>,
+		minAge: number | null = null
+	): OwnVacancyPlan => ({
+		company: companyKey,
+		scenarioKey,
+		input: { ...input, cityId: null, timezoneOverlapHours: null, minAge }
+	});
 	return [
 		fixed(
 			'internship_frontend',
@@ -843,7 +850,64 @@ function scenarioVacancies(companyKey: string, companyName: string): OwnVacancyP
 				salary: { min: 230_000, max: 290_000, currency: 'RUB', period: 'month', taxBase: 'net' }
 			},
 			null
-		)
+		),
+		written('test_spec_backend', {
+			title: 'Middle Java-разработчик (биллинг подписок)',
+			description: [
+				`«${companyName}» развивает биллинг подписок: списания, возвраты и счета для 4 млн клиентов, сотни тысяч транзакций в сутки.`,
+				'Задачи: писать сервисы расчёта и списаний, проектировать REST API для партнёров, ускорять запросы к PostgreSQL, разбирать гонки при параллельной обработке платежей.',
+				'Требования: Java, SQL, PostgreSQL, REST API, многопоточность.',
+				'Будет плюсом: Apache Kafka, Spring Boot, Redis, Camunda.',
+				'Условия: гибрид, полная занятость, оформление по ТК РФ.'
+			].join('\n\n'),
+			roleKey: 'backend',
+			gradeMin: 'middle',
+			gradeMax: 'middle',
+			requiredSkillKeys: ['java', 'sql', 'postgresql', 'rest', 'multithreading'],
+			niceSkillKeys: ['kafka', 'spring_boot', 'redis'],
+			workFormat: 'hybrid',
+			employmentForm: 'full',
+			contractTypes: ['labor'],
+			salary: { min: 240_000, max: 300_000, currency: 'RUB', period: 'month', taxBase: 'net' }
+		}),
+		written('test_spec_qa', {
+			title: 'Junior QA-инженер (автотесты API)',
+			description: [
+				`«${companyName}» ищет QA-инженера в команду мобильного банка: релиз раз в две недели, 1 200 автотестов API в регрессе.`,
+				'Задачи: проектировать проверки по требованиям, заводить и разбирать дефекты, писать автотесты API на pytest, сверять данные в базе запросами.',
+				'Требования: тест-дизайн, автотесты, pytest, REST API, SQL.',
+				'Будет плюсом: Postman, нагрузочное тестирование, Allure TestOps.',
+				'Условия: удалённая работа, полная занятость, оформление по ТК РФ.'
+			].join('\n\n'),
+			roleKey: 'qa_automation',
+			gradeMin: 'junior',
+			gradeMax: 'junior',
+			requiredSkillKeys: ['manual_testing', 'test_automation', 'pytest', 'rest', 'sql'],
+			niceSkillKeys: ['postman', 'jmeter'],
+			workFormat: 'remote',
+			employmentForm: 'full',
+			contractTypes: ['labor'],
+			salary: { min: 110_000, max: 150_000, currency: 'RUB', period: 'month', taxBase: 'net' }
+		}),
+		written('test_spec_ml', {
+			title: 'Data Scientist (прогноз спроса)',
+			description: [
+				`«${companyName}» строит прогноз спроса для сети из 900 магазинов: 40 тыс. товаров, пересчёт каждую ночь.`,
+				'Задачи: готовить данные из хранилища, строить и проверять модели прогноза, выбирать метрики качества, оценивать эффект изменений.',
+				'Требования: Python, статистика, машинное обучение, SQL, pandas.',
+				'Будет плюсом: CatBoost, Apache Airflow, глубокое обучение, Prophet.',
+				'Условия: удалённая работа, полная занятость, оформление по ТК РФ.'
+			].join('\n\n'),
+			roleKey: 'data_scientist',
+			gradeMin: 'junior',
+			gradeMax: 'middle',
+			requiredSkillKeys: ['python', 'statistics', 'ml', 'sql', 'pandas'],
+			niceSkillKeys: ['catboost', 'airflow', 'dl'],
+			workFormat: 'remote',
+			employmentForm: 'full',
+			contractTypes: ['labor'],
+			salary: { min: 150_000, max: 260_000, currency: 'RUB', period: 'month', taxBase: 'net' }
+		})
 	];
 }
 

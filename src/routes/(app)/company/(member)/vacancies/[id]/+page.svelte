@@ -7,6 +7,7 @@
 	import TextCheckNotice from '$lib/components/employer/text-check-notice.svelte';
 	import VacancyForm from '$lib/components/employer/vacancy-form.svelte';
 	import VacancyStatus from '$lib/components/employer/vacancy-status.svelte';
+	import VacancyTestSpec from '$lib/components/employer/vacancy-test-spec.svelte';
 	import CsrfInput from '$lib/components/forms/csrf-input.svelte';
 	import FormMessage from '$lib/components/forms/form-message.svelte';
 	import PageHeader from '$lib/components/forms/page-header.svelte';
@@ -253,6 +254,8 @@
 		</Card.Root>
 	</div>
 </div>
+
+<VacancyTestSpec spec={data.testSpec} skillNames={labels.skills} />
 
 {#if vacancy.status !== 'closed'}
 	<details class="group rounded-xl border bg-card" open={Object.keys(editProblems).length > 0}>
