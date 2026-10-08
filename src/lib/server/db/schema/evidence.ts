@@ -94,7 +94,7 @@ export const sourceFacts = pgTable(
 	]
 );
 
-const CLAIM_TYPES = [
+export const CLAIM_TYPES = [
 	'skill_mention',
 	'experience_period',
 	'role_title',
@@ -105,9 +105,9 @@ const CLAIM_TYPES = [
 	'language_level',
 	'achievement_mention'
 ] as const;
-const CLAIM_POLARITIES = ['asserted', 'negated', 'uncertain'] as const;
-const CLAIM_EXTRACTORS = ['rules', 'model', 'source_mapping'] as const;
-const CLAIM_REVIEWS = ['pending', 'confirmed', 'rejected'] as const;
+export const CLAIM_POLARITIES = ['asserted', 'negated', 'uncertain'] as const;
+export const CLAIM_EXTRACTORS = ['rules', 'model', 'source_mapping'] as const;
+export const CLAIM_REVIEWS = ['pending', 'confirmed', 'rejected'] as const;
 const CLAIM_STATUSES = ['active', 'invalidated'] as const;
 
 export const claims = pgTable(
@@ -186,9 +186,9 @@ export const skillInferences = pgTable(
 	]
 );
 
-const DATE_PRECISIONS = ['month', 'year'] as const;
-const PERIOD_STATUSES = ['valid', 'missing', 'invalid'] as const;
-const EXPERIENCE_REVIEWS = ['pending', 'confirmed', 'rejected', 'edited'] as const;
+export const DATE_PRECISIONS = ['month', 'year'] as const;
+export const PERIOD_STATUSES = ['valid', 'missing', 'invalid'] as const;
+export const EXPERIENCE_REVIEWS = ['pending', 'confirmed', 'rejected', 'edited'] as const;
 
 export const experienceEntries = pgTable(
 	'experience_entries',

@@ -16,6 +16,8 @@ import type { ApiServices } from './services';
 
 export type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
 
+export type BodyEncoding = 'json' | 'multipart';
+
 /**
  * Who may call an operation. `public` — anyone, including anonymous callers; `session` — a signed-in browser only
  * (operations of candidates, staff and key management, contracts 5.2); `account` — a session or an API key of a
@@ -81,6 +83,11 @@ interface OperationBase<P extends AnyObject, Q extends AnyObject, B extends z.Zo
 	params?: P;
 	query?: Q;
 	body?: B;
+	/**
+	 * How the body is sent: JSON (the default), or `multipart/form-data` for an upload — each part is a member of the
+	 * object the body schema parses, a file part a `File` (`z.file()`).
+	 */
+	bodyEncoding?: BodyEncoding;
 	/** The operation creates a resource: a repeated `Idempotency-Key` gets the stored answer (contracts 5.4). */
 	idempotent?: boolean;
 	/** Error codes the operation answers with besides the common ones (validation, authentication, limits). */
@@ -123,6 +130,7 @@ export interface Operation {
 	params: AnyObject;
 	query: AnyObject;
 	body: z.ZodType | undefined;
+	bodyEncoding: BodyEncoding;
 	idempotent: boolean;
 	response: SuccessResponse;
 	errors: readonly ApiErrorCode[];
@@ -148,6 +156,13 @@ export function defineOperation(
 		throw new Error(`operation ${spec.id}: an operation open to API keys names its permission`);
 	}
 	if (spec.body !== undefined && spec.method === 'GET') throw new Error(`operation ${spec.id}: GET has no body`);
+	if (spec.bodyEncoding === 'multipart' && spec.body === undefined) {
+		throw new Error(`operation ${spec.id}: a multipart operation declares its body`);
+	}
+	// The fingerprint of an idempotent request is its canonical JSON; a file part has none.
+	if (spec.bodyEncoding === 'multipart' && spec.idempotent === true) {
+		throw new Error(`operation ${spec.id}: a multipart body is not deduplicated by Idempotency-Key`);
+	}
 	return {
 		id: spec.id,
 		method: spec.method,
@@ -160,6 +175,7 @@ export function defineOperation(
 		params: spec.params ?? EMPTY,
 		query: spec.query ?? EMPTY,
 		body: spec.body,
+		bodyEncoding: spec.bodyEncoding ?? 'json',
 		idempotent: spec.idempotent ?? false,
 		response: spec.response,
 		errors: spec.errors,
@@ -253,11 +269,42 @@ function queryObject(schema: AnyObject, search: URLSearchParams): Record<string,
 	return result;
 }
 
+const mediaType = (request: Request) => request.headers.get('content-type')?.split(';')[0]?.trim().toLowerCase();
+
+/** The parts of a `multipart/form-data` body as an object: a file part is a `File`, a field its text. */
+async function readMultipart(request: Request): Promise<Record<string, unknown>> {
+	if (mediaType(request) !== 'multipart/form-data') {
+		throw new ApiError('validation_failed', {
+			details: [{ code: 'unsupported_media_type', message: 'Тело запроса — multipart/form-data' }]
+		});
+	}
+	let form: FormData;
+	try {
+		form = await request.formData();
+	} catch (error) {
+		// The body does not parse as the form its header names.
+		if (!(error instanceof TypeError)) throw error;
+		throw new ApiError('validation_failed', {
+			details: [{ code: 'invalid_multipart', message: 'Тело запроса — не multipart/form-data' }]
+		});
+	}
+	const result: Record<string, unknown> = {};
+	for (const name of new Set(form.keys())) {
+		const values = form.getAll(name);
+		if (values.length > 1) {
+			throw new ApiError('validation_failed', {
+				details: [{ path: name, code: 'repeated', message: 'Часть указана несколько раз' }]
+			});
+		}
+		result[name] = values[0];
+	}
+	return result;
+}
+
 async function readBody(request: Request): Promise<unknown> {
 	const text = await request.text();
 	if (text.trim().length === 0) return {};
-	const type = request.headers.get('content-type')?.split(';')[0]?.trim().toLowerCase();
-	if (type !== 'application/json') {
+	if (mediaType(request) !== 'application/json') {
 		throw new ApiError('validation_failed', {
 			details: [{ code: 'unsupported_media_type', message: 'Тело запроса — JSON с Content-Type: application/json' }]
 		});
@@ -394,7 +441,12 @@ export async function runOperation(operation: Operation, services: ApiServices, 
 
 		const params = parseInput(operation.params, event.params);
 		const query = parseInput(operation.query, queryObject(operation.query, event.url.searchParams));
-		const rawBody = operation.body === undefined ? undefined : await readBody(event.request);
+		const rawBody =
+			operation.body === undefined
+				? undefined
+				: operation.bodyEncoding === 'multipart'
+					? await readMultipart(event.request)
+					: await readBody(event.request);
 		const body = operation.body === undefined ? undefined : parseInput(operation.body, rawBody);
 
 		const idempotencyKey = operation.idempotent ? event.request.headers.get('idempotency-key') : null;

@@ -8,7 +8,9 @@ import { and, asc, count, desc, eq, inArray, isNull } from 'drizzle-orm';
 import { can, type AccessSubject } from '$lib/server/access/permissions';
 import { recordAuditEvent } from '$lib/server/audit/record';
 import { currentDocument, stillCurrent, type CurrentDocument } from '$lib/server/auth/documents';
+import { ownProcessingConsent } from '$lib/server/auth/onboarding';
 import { effectiveConsentOf } from '$lib/server/consent/effective';
+import { processingAllowed } from '$lib/server/consent/processing';
 import { CATALOG_SCOPE_FIELDS, type CatalogScopeField, type DisclosureField } from '$lib/server/consent/kinds';
 import type { Database, Executor, Transaction } from '$lib/server/db';
 import {
@@ -434,10 +436,49 @@ export interface ConsentText {
 	body: string;
 }
 
-async function consentText(executor: Executor, kind: ConsentKind, now: Date): Promise<ConsentText | null> {
+async function consentText(
+	executor: Executor,
+	kind: ConsentKind | 'pd_processing',
+	now: Date
+): Promise<ConsentText | null> {
 	const document = await currentDocument(executor, kind, now);
 	if (!document?.available) return null;
 	return { id: document.id, title: document.title, version: document.version, body: document.body };
+}
+
+/** The ground of processing the profile (domain 6.3, 19.1) as the candidate sees it. */
+export interface ProcessingConsentState {
+	regime: 'adult' | 'minor' | 'unknown';
+	/** The candidate's own side is in force: not signed during minority, not replaced by a text that asks again. */
+	ownSigned: boolean;
+	/** Processing is allowed now (for 14–17 with the representative's side as well). */
+	effective: boolean;
+	/** The text to sign when the own side is not in force; `null` — nothing to sign. */
+	document: ConsentText | null;
+}
+
+export async function processingConsentState(
+	db: Database,
+	candidateId: string,
+	now: Date
+): Promise<ProcessingConsentState> {
+	const [row] = await db
+		.select({
+			birthDate: candidates.birthDate,
+			precision: candidates.birthDatePrecision,
+			status: candidates.birthDateStatus
+		})
+		.from(candidates)
+		.where(eq(candidates.id, candidateId));
+	if (!row) throw new Error(`candidate ${candidateId} disappeared`);
+	const band = ageBand(row, now);
+	const ownSigned = await ownProcessingConsent(db, candidateId, now);
+	return {
+		regime: band === 'adult' ? 'adult' : isMinorBand(band) ? 'minor' : 'unknown',
+		ownSigned,
+		effective: await processingAllowed(db, candidateId, now),
+		document: ownSigned ? null : await consentText(db, 'pd_processing', now)
+	};
 }
 
 /** Why the catalog does not show the candidate right now; `null` — verified companies find the profile. */

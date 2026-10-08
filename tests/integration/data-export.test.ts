@@ -63,6 +63,7 @@ import { releaseFixtureBank, type FixtureBank } from '../helpers/bank';
 import { decide } from '../helpers/categories';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
 import { testEnvironment } from '../helpers/environment';
+import { noFiles } from '../helpers/storage';
 import {
 	createCandidate,
 	createCompany,
@@ -164,6 +165,7 @@ async function exportThroughApi(userId: string): Promise<{ status: number; json:
 		redis: () => Promise.reject(new Error('the export reads no stored answers')),
 		crypto,
 		mailer: { send: () => Promise.resolve({ ok: true, value: { messageId: 'm' } }) },
+		store: noFiles,
 		registry: registryNotConfigured,
 		models: {
 			embed: () => Promise.resolve(fail('disabled', 'embed: switched off', { reason: 'switched_off' })),
