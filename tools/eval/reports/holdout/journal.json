@@ -307,6 +307,31 @@
 				"matching.ndcg_at_10.resume_only": 0.8758
 			},
 			"note": "до журнала: кто запускал, не записано. незакоммиченные правила соответствия 6 и таксономия 2026.09.8 поверх 0e91845; правила 6 сделаны после прогонов с правилами 4 и 5 на этом holdout"
+		},
+		{
+			"dataset_id": "synthetic-resumes-v3",
+			"mode": "rules_only",
+			"product_revision": "bfb640e5363f",
+			"date": "2026-10-08",
+			"run_at": "2026-10-08T15:10:33+00:00",
+			"by": "volkv",
+			"purpose": "итоговая мера подбора перед сдачей: единственное обращение к holdout v3, разбор правилами, без смысловой близости — как dev-отчёт; dev на этой ревизии воспроизводит отчёт правил 14 (nDCG@10 0,6567 против 0,3238)",
+			"taxonomy": "2026.09.11",
+			"match_ruleset": "16",
+			"report": "holdout/synthetic-resumes-v3-holdout-rules_only-20261008T151034Z.json",
+			"seen": {
+				"resume.skills_f1": 0.9774,
+				"skills.normalization_accuracy": 0.9444,
+				"shortlist.ndcg_at_10": 0.612,
+				"shortlist.ndcg_at_10.keywords_same_text": 0.4866,
+				"shortlist.precision_at_10": 0.2074,
+				"shortlist.precision_at_10.keywords_same_text": 0.1852,
+				"shortlist.mrr": 0.5825,
+				"shortlist.mrr.keywords_same_text": 0.5381,
+				"shortlist.ndcg_at_10.lift_over_keywords_same_text": -0.0368,
+				"shortlist.ndcg_at_10.without_fsp": 0.5886
+			},
+			"note": "порог подбора не пройден: нижняя граница 95 % интервала разности nDCG@10 с поиском по тому же тексту −0,0368 (средняя разность +0,1255, 27 потребностей); проверки ТЗ — ноль нарушений, пороги разбора пройдены. Строка eval_runs 01a11c12-f5ef-7627-87f0-cae7d5a1917c в базе разработки записана командой record моста из report.json этого прогона, без повторного прогона"
 		}
 	]
 }

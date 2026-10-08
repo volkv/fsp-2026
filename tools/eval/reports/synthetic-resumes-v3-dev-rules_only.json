@@ -1,14 +1,14 @@
 {
-	"created_at": "2026-10-07T22:34:34+00:00",
-	"product_revision": "8d81739a7109",
+	"created_at": "2026-10-08T15:05:39+00:00",
+	"product_revision": "bfb640e5363f",
 	"requested_mode": "rules_only",
 	"documents_by_mode": {
 		"rules_only": 1025
 	},
 	"holdout_access": null,
 	"timing": {
-		"extract_seconds": 235.3,
-		"seconds_per_document": 0.23,
+		"extract_seconds": 214.0,
+		"seconds_per_document": 0.209,
 		"concurrency": 2
 	},
 	"row": {
@@ -31,7 +31,7 @@
 			"fsp_layer_labels_sha256": "52f6dddbf49147168af32fe5c7ab6521dc644252be5e9031b9a32109fa35ccfd",
 			"matching_layer": "synthetic-matching-v3",
 			"matching_layer_labels_sha256": "4c29fbed417fafc3e4f05c3cc228c7f20aa9fc861c1470860c96c2ad04cf0d7d",
-			"match_ruleset": "14",
+			"match_ruleset": "16",
 			"embedding_space": "none",
 			"matching_methodology": "v3",
 			"harness": "fsp-eval/4",
@@ -366,7 +366,7 @@
 				"n": 29774
 			},
 			"performance.extract_ms.p50": {
-				"value": 4,
+				"value": 3,
 				"n": 1025
 			},
 			"performance.extract_ms.p95": {
@@ -1782,7 +1782,7 @@
 				}
 			},
 			"models": {
-				"match_ruleset": "14",
+				"match_ruleset": "16",
 				"embedding_space": "none"
 			},
 			"catalog": {
@@ -1795,9 +1795,9 @@
 				"embedded": null
 			},
 			"seconds": {
-				"catalog": 31.7,
+				"catalog": 23.2,
 				"embedding": 0,
-				"ranking": 3.7
+				"ranking": 2.8
 			},
 			"unconfirmed": {
 				"full": {
