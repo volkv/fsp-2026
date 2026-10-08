@@ -12,11 +12,13 @@ import { modelAdapter } from '$lib/server/ml';
 import { loadVacancyTaxonomy, resolveSkill } from '$lib/server/vacancies/taxonomy';
 import { currentVocabulary } from '$lib/server/employer/vocabulary';
 import { OFFER_WORK_FORMATS } from '$lib/server/invitations/terms';
+import { redis } from '$lib/server/redis';
 import { regionReference } from '$lib/server/regions';
+import { redisTextParseCache } from '$lib/server/vacancies/text-extract';
 import type { NeedDeps } from './service';
 
 export function configuredNeedDeps(): NeedDeps {
-	return { db: db(), models: modelAdapter(), now: () => new Date() };
+	return { db: db(), models: modelAdapter(), parseCache: redisTextParseCache(redis), now: () => new Date() };
 }
 
 const names = (value: string) =>

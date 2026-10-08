@@ -11,18 +11,13 @@ import { openSpecializations } from '$lib/server/assessments/bank-store';
 import { specializationsOfRole } from '$lib/server/categories/roles';
 import type { Database } from '$lib/server/db';
 import { mlResults } from '$lib/server/db/schema';
-import type { ModelAdapter } from '$lib/server/ml/adapter';
 import { extractModelEnvelope } from '$lib/server/ml/envelope';
 import type { LlmRuntime } from '$lib/server/ml/runtime';
 import type { Block, QuoteLocation } from '$lib/server/ml/quotes';
 import type { VacancyItem } from '$lib/server/ml/vacancy-extract';
 import { placeReference } from '$lib/server/places';
-import {
-	fieldsFromItems,
-	textBlocks,
-	VACANCY_SCHEMA_VERSION,
-	type VacancyTextFields
-} from '$lib/server/vacancies/from-text';
+import { fieldsFromItems, textBlocks, type VacancyTextFields } from '$lib/server/vacancies/from-text';
+import { extractPastedText, VACANCY_SCHEMA_VERSION, type TextExtractDeps } from '$lib/server/vacancies/text-extract';
 import { roleOfTitle, TITLE_WORD } from '$lib/server/taxonomy/roles';
 import { loadVacancyTaxonomy, resolveSkill, vacancyLexicon } from '$lib/server/vacancies/taxonomy';
 import { extractVacancyByRules, VACANCY_TEXT_RULES_VERSION } from '$lib/server/vacancies/text-rules';
@@ -52,9 +47,8 @@ export interface NeedParse {
 	fields: ParsedField[];
 }
 
-export interface NeedParseDeps {
+export interface NeedParseDeps extends TextExtractDeps {
 	db: Database;
-	models: Pick<ModelAdapter, 'extract'>;
 }
 
 const sha256 = (text: string) => createHash('sha256').update(text).digest('hex');
@@ -216,8 +210,9 @@ async function suggestion(
 }
 
 /**
- * Parses the text of a need of the company. The call is interactive: the employer waits. Any model failure gives the
- * rules mode with its reason; the envelope `ml_results` records what happened either way.
+ * Parses the text of a need of the company. The call is interactive: the employer waits; the same text parsed again
+ * gets the answer the model gave (`extractPastedText`). Any model failure gives the rules mode with its reason; the
+ * envelope `ml_results` records what happened either way.
  */
 export async function parseNeedText(
 	deps: NeedParseDeps,
@@ -228,15 +223,12 @@ export async function parseNeedText(
 	const blocks = textBlocks(text);
 	const taxonomy = await loadVacancyTaxonomy(deps.db);
 	const lexicon = vacancyLexicon(taxonomy);
-	const response = await deps.models.extract(
-		{
-			schemaVersion: VACANCY_SCHEMA_VERSION,
-			input: { type: 'vacancy', id: need.id, revision: 0 },
-			taxonomyVersionId: taxonomy.id,
-			blocks
-		},
+	const inputSha256 = sha256(text);
+	const response = await extractPastedText(
+		deps,
+		{ companyId: need.companyId, inputSha256, inputId: need.id, taxonomyVersionId: taxonomy.id, blocks },
 		lexicon,
-		{ priority: 'interactive', ...(signal ? { signal } : {}) }
+		signal ? { signal } : {}
 	);
 	const toFields = (items: readonly VacancyItem[]) =>
 		fieldsFromItems(
@@ -248,7 +240,7 @@ export async function parseNeedText(
 	const envelope = {
 		operation: 'extract' as const,
 		inputRef: { type: 'hiring_need', id: need.id, company_id: need.companyId },
-		inputSha256: sha256(text),
+		inputSha256,
 		inputVersion: '0',
 		schemaVersion: VACANCY_SCHEMA_VERSION,
 		taxonomyVersionId: taxonomy.id
@@ -261,7 +253,7 @@ export async function parseNeedText(
 			...envelope,
 			model: extractModelEnvelope(response.value.model),
 			processingMode: 'model',
-			rejectedItems: response.value.rejected.map((r) => ({ reason: r.reason })),
+			rejectedItems: response.value.rejectedReasons.map((reason) => ({ reason })),
 			latencyMs: response.value.latencyMs
 		};
 	} else {

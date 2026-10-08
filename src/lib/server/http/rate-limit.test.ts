@@ -10,6 +10,9 @@ import {
 	type RateLimitStore
 } from './rate-limit';
 
+/** A URL of the site with the path and the query. */
+const at = (path: string) => new URL(`http://localhost${path}`);
+
 function memoryStore(): RateLimitStore {
 	const counts = new Map<string, number>();
 	return {
@@ -86,11 +89,11 @@ describe('rate limit', () => {
 			'/api/v1/shortlists/0194',
 			'/api/v1/shortlists/0194/what-if'
 		]) {
-			expect(accountRuleFor('GET', path), path).toBe(RATE_LIMIT_RULES.catalog);
+			expect(accountRuleFor('GET', at(path)), path).toBe(RATE_LIMIT_RULES.catalog);
 		}
-		expect(accountRuleFor('HEAD', '/company/candidates')).toBe(RATE_LIMIT_RULES.catalog);
+		expect(accountRuleFor('HEAD', at('/company/candidates'))).toBe(RATE_LIMIT_RULES.catalog);
 		// Posts of the card (an invitation) count as form posts of the address; other pages are not catalog reads.
-		expect(accountRuleFor('POST', '/company/vacancies/0192/candidates/k-7f3a')).toBeNull();
+		expect(accountRuleFor('POST', at('/company/vacancies/0192/candidates/k-7f3a'))).toBeNull();
 		for (const path of [
 			'/company/vacancies',
 			'/company/vacancies/0192',
@@ -101,16 +104,42 @@ describe('rate limit', () => {
 			'/api/v1/partner-pools',
 			'/api/v1/me/matches'
 		]) {
-			expect(accountRuleFor('GET', path), path).toBeNull();
+			expect(accountRuleFor('GET', at(path)), path).toBeNull();
 		}
 	});
 
 	it('limits the export of own data per account, on the page and in the API', () => {
-		expect(accountRuleFor('GET', '/me/export/download')).toBe(RATE_LIMIT_RULES.dataExport);
-		expect(accountRuleFor('GET', '/api/v1/me/data')).toBe(RATE_LIMIT_RULES.dataExport);
+		expect(accountRuleFor('GET', at('/me/export/download'))).toBe(RATE_LIMIT_RULES.dataExport);
+		expect(accountRuleFor('GET', at('/api/v1/me/data'))).toBe(RATE_LIMIT_RULES.dataExport);
 		// The page that offers the file is not the export itself.
-		expect(accountRuleFor('GET', '/me/export')).toBeNull();
-		expect(accountRuleFor('GET', '/me/export/__data.json')).toBeNull();
+		expect(accountRuleFor('GET', at('/me/export'))).toBeNull();
+		expect(accountRuleFor('GET', at('/me/export/__data.json'))).toBeNull();
+	});
+
+	it('limits the parses of a pasted text per account, in the API and by the form actions that parse', () => {
+		for (const path of [
+			'/api/v1/needs',
+			'/api/v1/vacancies/drafts/from-text',
+			'/company/needs?/create',
+			'/company/vacancies/new?/parse'
+		]) {
+			expect(accountRuleFor('POST', at(path)), path).toBe(RATE_LIMIT_RULES.textParse);
+		}
+		// Other actions of the same pages and reads of the same paths parse nothing.
+		for (const [method, path] of [
+			['POST', '/company/vacancies/new?/create'],
+			['POST', '/company/vacancies/new?/position'],
+			['GET', '/company/needs'],
+			['GET', '/api/v1/needs'],
+			['POST', '/api/v1/needs/0195/shortlists']
+		] as const) {
+			expect(accountRuleFor(method, at(path)), `${method} ${path}`).toBeNull();
+		}
+		// The page refuses a parse over the limit in its form; the API answers the JSON error.
+		expect(refusedByPage('POST', at('/company/needs?/create'), RATE_LIMIT_RULES.textParse)).toBe(true);
+		expect(refusedByPage('POST', at('/api/v1/needs'), RATE_LIMIT_RULES.textParse)).toBe(false);
+		// Over the limit of the address, a form post is refused by the hook as before.
+		expect(refusedByPage('POST', at('/company/needs?/create'), RATE_LIMIT_RULES.form)).toBe(false);
 	});
 
 	it('counts an account rule per account, per API key, or per address without either', () => {
@@ -150,14 +179,18 @@ describe('rate limit', () => {
 			'/auth/fsp',
 			'/auth/fsp/callback'
 		]) {
-			expect(refusedByPage('GET', path), path).toBe(true);
+			expect(refusedByPage('GET', at(path), RATE_LIMIT_RULES.catalog), path).toBe(true);
 		}
-		expect(refusedByPage('HEAD', '/company/candidates')).toBe(true);
-		expect(refusedByPage('POST', '/company/candidates/k-7f3a')).toBe(false);
-		expect(refusedByPage('GET', '/api/v1/catalog/candidates')).toBe(false);
-		expect(refusedByPage('GET', '/api/v1/verify/abcdefghijklmnopqrstuvwxyz')).toBe(false);
-		expect(refusedByPage('GET', '/api/v1/verify/categories/abcdefghijklmnopqrstuvwxyz')).toBe(false);
-		expect(refusedByPage('POST', '/verify/categories/abcdefghijklmnopqrstuvwxyz')).toBe(false);
-		expect(refusedByPage('GET', '/company/vacancies')).toBe(false);
+		expect(refusedByPage('HEAD', at('/company/candidates'), RATE_LIMIT_RULES.catalog)).toBe(true);
+		expect(refusedByPage('POST', at('/company/candidates/k-7f3a'), RATE_LIMIT_RULES.catalog)).toBe(false);
+		expect(refusedByPage('GET', at('/api/v1/catalog/candidates'), RATE_LIMIT_RULES.catalog)).toBe(false);
+		expect(refusedByPage('GET', at('/api/v1/verify/abcdefghijklmnopqrstuvwxyz'), RATE_LIMIT_RULES.catalog)).toBe(false);
+		expect(
+			refusedByPage('GET', at('/api/v1/verify/categories/abcdefghijklmnopqrstuvwxyz'), RATE_LIMIT_RULES.catalog)
+		).toBe(false);
+		expect(refusedByPage('POST', at('/verify/categories/abcdefghijklmnopqrstuvwxyz'), RATE_LIMIT_RULES.catalog)).toBe(
+			false
+		);
+		expect(refusedByPage('GET', at('/company/vacancies'), RATE_LIMIT_RULES.catalog)).toBe(false);
 	});
 });

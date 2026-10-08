@@ -6,6 +6,7 @@ import { demoSessionOfUser } from '$lib/server/demo/scope';
 import { ApiError } from '$lib/server/errors/api-error';
 import { positionText, type IndicatorPosition, type VacancyMarketPosition } from '$lib/server/market/read';
 import { extractVacancyFromText, VACANCY_TEXT_MAX_LENGTH } from '$lib/server/vacancies/from-text';
+import { redisTextParseCache } from '$lib/server/vacancies/text-extract';
 import {
 	closeOwnVacancy,
 	createOwnVacancy,
@@ -679,7 +680,7 @@ export const draftVacancyFromText = defineOperation({
 	async handle(ctx) {
 		const author = await authorOf(ctx);
 		const draft = await extractVacancyFromText(
-			{ db: ctx.services.db, models: ctx.services.models },
+			{ db: ctx.services.db, models: ctx.services.models, parseCache: redisTextParseCache(ctx.services.redis) },
 			{ companyId: author.companyId },
 			ctx.body.text,
 			ctx.signal

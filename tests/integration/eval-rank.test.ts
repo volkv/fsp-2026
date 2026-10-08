@@ -104,7 +104,7 @@ const deps = () => ({
 
 describe('the evaluation ranking', () => {
 	it('shortlists a need read by the rules: its category only, stronger test first, the rest apart', async () => {
-		const all = ['strong', 'weak', 'other', 'failed', 'retaken', 'untested'];
+		const all = ['strong', 'weak', 'other', 'failed', 'retaken', 'untested', 'declared', 'declaredJunior'];
 		const request = rankRequestSchema.parse({
 			command: 'rank',
 			as_of: '2026-10-01',
@@ -120,7 +120,22 @@ describe('the evaluation ranking', () => {
 					preferences: { work_formats: ['remote'], region_code: 'RU-TA', relocation: false },
 					test_results: [decision('backend', 'senior', -5), decision('backend', 'middle', 5)]
 				},
-				{ id: 'untested', resume: null, fsp: null, test_results: [] }
+				{ id: 'untested', resume: null, fsp: null, test_results: [] },
+				// Declared a grade in the survey and never took the test: no category, the group of the declared one.
+				{
+					id: 'declared',
+					resume: null,
+					fsp: null,
+					test_results: [],
+					declared: [{ specialization: 'backend', grade: 'middle' }]
+				},
+				{
+					id: 'declaredJunior',
+					resume: null,
+					fsp: null,
+					test_results: [],
+					declared: [{ specialization: 'backend', grade: 'junior' }]
+				}
 			],
 			needs: [
 				{
@@ -153,19 +168,20 @@ describe('the evaluation ranking', () => {
 			grade: 'junior–senior',
 			categories: ['backend:junior', 'backend:middle', 'backend:senior']
 		});
-		expect(answer.unconfirmed.full?.n1?.sort()).toEqual(['failed', 'untested']);
-		// The candidate whose test of the need's category did not confirm it is of its group «грейд не подтверждён»; one
-		// who never declared a grade is not, and neither is one holding a category of the specialization.
-		expect(answer.declared.full?.n1).toEqual(['failed']);
-		expect(answer.declared.full?.n2).toEqual(['failed']);
+		expect(answer.unconfirmed.full?.n1?.sort()).toEqual(['declared', 'declaredJunior', 'failed', 'untested']);
+		// The candidate whose test of the need's category did not confirm it is of its group «грейд не подтверждён», and
+		// so is one who declared that category without a test; one who never declared a grade is not, nor one whose
+		// declaration names another grade, nor one holding a category of the specialization.
+		expect(answer.declared.full?.n1?.sort()).toEqual(['declared', 'failed']);
+		expect(answer.declared.full?.n2?.sort()).toEqual(['declared', 'declaredJunior', 'failed']);
 		expect(answer.declared.given).toEqual({ n1: [], n2: [] });
 		// The group is explained as the shortlist is: what the jury's run shows of it.
-		expect(answer.declared_top.full?.n1?.map((entry) => entry.id)).toEqual(['failed']);
+		expect(answer.declared_top.full?.n1?.map((entry) => entry.id).sort()).toEqual(['declared', 'failed']);
 		expect(answer.declared_top.full?.n1?.[0]?.score).toEqual(expect.any(Number));
 		const [first] = answer.top.full?.n1 ?? [];
 		expect(first?.components.test).toBeGreaterThan(answer.top.full?.n1?.[1]?.components.test ?? 1);
 		expect(first?.reasons.length).toBeGreaterThan(0);
-		expect(answer.catalog).toMatchObject({ candidates: 6, test_results: 6, categories: 4 });
+		expect(answer.catalog).toMatchObject({ candidates: 8, test_results: 6, categories: 4 });
 		expect(answer.semantic.full).toEqual({ used: 0, unavailable: { no_query: 2 } });
 		// The failed senior attempt does not take the middle confirmed after it; the practice language is what the
 		// confirmed stack reads: Go confirms Go, not the first language of the specialization.
@@ -179,6 +195,7 @@ describe('the evaluation ranking', () => {
 		expect(answer.categories.other?.[0]?.confirmed_skill_keys).not.toContain('python');
 		expect(answer.categories.other?.[0]?.confirmed_skill_keys.length).toBeGreaterThan(0);
 		expect(answer.categories.untested).toBeUndefined();
+		expect(answer.categories.declared).toBeUndefined();
 		// A given set is ranked as given, whatever the categories.
 		expect(answer.rankings.given?.n1?.sort()).toEqual(['failed', 'weak']);
 		expect(answer.rankings.given?.n2).toEqual([]);
@@ -199,6 +216,25 @@ describe('the evaluation ranking', () => {
 		const unnamed: Record<string, unknown> = { ...decision('backend', 'middle', 5) };
 		delete unnamed.practice_language;
 		expect(() => rankRequestSchema.parse(request(unnamed))).toThrow(/names its language/);
+	});
+
+	it('takes one declaration per specialization, and none of a tested one', () => {
+		const request = (declared: unknown[], results: unknown[] = []) => ({
+			command: 'rank',
+			as_of: '2026-10-01',
+			candidates: [{ id: 'x', resume: null, fsp: null, test_results: results, declared }],
+			needs: [{ id: 'n', text: 'Middle Python-разработчик' }],
+			rankings: [{ name: 'full', candidates: ['x'], semantic: false, admission: 'categories' }]
+		});
+		const backend = { specialization: 'backend', grade: 'middle' };
+		expect(() => rankRequestSchema.parse(request([backend, { specialization: 'qa', grade: 'junior' }]))).not.toThrow();
+		expect(() => rankRequestSchema.parse(request([backend, { ...backend, grade: 'senior' }]))).toThrow(
+			/one declaration per specialization/
+		);
+		expect(() => rankRequestSchema.parse(request([backend], [decision('backend', 'senior', 5)]))).toThrow(
+			/declaration of its test/
+		);
+		expect(() => rankRequestSchema.parse(request([{ specialization: 'backend', grade: 'chief' }]))).toThrow();
 	});
 
 	it('admits by the grade hint of the resume in the experiment without a test', async () => {

@@ -133,7 +133,9 @@ const filterQuery = {
 	has_fsp: z
 		.enum(['true', 'false'])
 		.optional()
-		.describe('Только кандидаты с подтверждёнными достижениями ФСП (действующий факт ФСП)')
+		.describe(
+			'Только кандидаты с результатом ФСП: официальный результат соревнования в силе, свой (не запасного и не тренера)'
+		)
 };
 
 type FilterInput = z.output<z.ZodObject<typeof filterQuery>>;

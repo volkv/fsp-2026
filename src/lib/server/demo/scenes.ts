@@ -55,6 +55,7 @@ import type { ModelAdapter } from '$lib/server/ml/adapter';
 import { fail } from '$lib/server/ml/result';
 import type { NeedForm } from '$lib/server/needs/form';
 import { createNeed, getNeed, updateNeed } from '$lib/server/needs/service';
+import { redisTextParseCache } from '$lib/server/vacancies/text-extract';
 import { decideAuthority } from '$lib/server/operator/representatives';
 import {
 	createShortlist,
@@ -230,7 +231,7 @@ async function ensureNeed(
 	const member = sender(company);
 	const subject = await subjectOf(ctx, member.userId);
 	const meta = metaOf(ctx, member.userId);
-	const deps = { db, models, now: ctx.now };
+	const deps = { db, models, parseCache: redisTextParseCache(() => Promise.resolve(ctx.services.redis)), now: ctx.now };
 	let need = existing[index];
 	if (!need) {
 		const created = await createNeed(deps, subject, meta, { text: input.text, form: input.form });

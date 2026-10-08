@@ -9,22 +9,19 @@ import { can, companyAdmission, type AccessSubject } from '$lib/server/access/pe
 import { recordAuditEvent } from '$lib/server/audit/record';
 import { auditActorOf } from '$lib/server/companies/context';
 import { admissionRefusal, requireAdmission } from '$lib/server/companies/gate';
-import type { Database, Executor } from '$lib/server/db';
+import type { Executor } from '$lib/server/db';
 import { hiringNeeds } from '$lib/server/db/schema';
 import { uuidv7 } from '$lib/server/ids';
 import { ApiError, policyViolation, type ErrorDetail } from '$lib/server/errors/api-error';
 import type { RequestMeta } from '$lib/server/invitations/deps';
-import type { ModelAdapter } from '$lib/server/ml/adapter';
 import { regionReference } from '$lib/server/regions';
 import { ROLE_SPECIALIZATIONS } from '$lib/server/categories/roles';
 import { checkVacancyText, textCheckSchema, type TextCheck } from '$lib/server/vacancies/text-check';
 import { needFormSchema, NEED_TEXT_MAX, parseNeedForm, type NeedForm } from './form';
-import { parseNeedText, type NeedParse } from './parse';
+import { parseNeedText, type NeedParse, type NeedParseDeps } from './parse';
 import { countCategories, needCategoriesOf, type CategoryBasis, type CountedCategory } from './recommend';
 
-export interface NeedDeps {
-	db: Database;
-	models: Pick<ModelAdapter, 'extract'>;
+export interface NeedDeps extends NeedParseDeps {
 	now: () => Date;
 }
 
@@ -144,6 +141,8 @@ export async function createNeed(
 		throw invalid([{ path: 'text', code: 'required', message: 'Опишите потребность текстом или заполните форму' }]);
 	}
 	checkText(text, given ?? { skill_keys: [], nice_skill_keys: [] });
+	// A company that may not keep the need does not spend the model on its text; the write checks again under a lock.
+	await requireAdmission(deps.db, member.companyId);
 	const id = uuidv7();
 	let parse: NeedParse | null = null;
 	let form: NeedForm = given ?? { skill_keys: [], nice_skill_keys: [] };

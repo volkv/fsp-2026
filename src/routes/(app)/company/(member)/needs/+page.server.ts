@@ -2,7 +2,9 @@ import { redirect } from '@sveltejs/kit';
 import { formText } from '$lib/server/http/form';
 import { config } from '$lib/server/config';
 import { employerRequest, membershipOf } from '$lib/server/employer/http';
+import { ApiError } from '$lib/server/errors/api-error';
 import { formFailure, pageError } from '$lib/server/http/page';
+import { RATE_LIMIT_RULES } from '$lib/server/http/rate-limit';
 import { modelModes } from '$lib/server/ml';
 import { extractRoute } from '$lib/server/ml/disclosure';
 import { configuredNeedDeps, needFormFromPost, needFormOptions } from '$lib/server/needs/page';
@@ -27,6 +29,10 @@ export const load: PageServerLoad = async (event) => {
 
 export const actions: Actions = {
 	create: async (event) => {
+		// Over the limit of parses the hook lets the post through, for the form to say so in its own words.
+		if (event.locals.rateLimited) {
+			return formFailure(new ApiError('rate_limited', { message: RATE_LIMIT_RULES.textParse.message }));
+		}
 		const { subject, meta } = await employerRequest(event);
 		membershipOf(event, subject);
 		const form = await event.request.formData();

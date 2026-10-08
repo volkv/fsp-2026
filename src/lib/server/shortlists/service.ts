@@ -31,9 +31,9 @@ import {
 	type SearchMode
 } from '$lib/server/matching/search';
 import { openSpecializations } from '$lib/server/assessments/bank-store';
+import { candidatesWithFsp } from '$lib/server/matching/fsp-results';
 import { parseNeedForm, type NeedForm } from '$lib/server/needs/form';
 import {
-	candidatesWithFsp,
 	countCategories,
 	needCategoriesOf,
 	recommendCategories,
