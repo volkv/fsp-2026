@@ -1,7 +1,7 @@
 <script lang="ts">
 	import FlaskConicalIcon from '@lucide/svelte/icons/flask-conical';
 
-	/** The grade policy is lifted in a demo session: said on every screen of tests there, with what it is outside. */
+	/** The grade policy of a demo session — the intervals lifted or the production policy: said on every screen of tests there. */
 	let { text }: { text: string } = $props();
 </script>
 

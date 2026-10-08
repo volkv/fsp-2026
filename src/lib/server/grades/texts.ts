@@ -28,14 +28,22 @@ const KINDS: Record<OfferKind, string> = {
 	upgrade_confident: 'Тест следующего грейда — открыт уверенным результатом',
 	upgrade_interval: `Тест следующего грейда — прошло ${days(gradeChangeIntervalDays)} с подтверждения`,
 	upgrade_retake: `Повтор теста следующего грейда — через ${days(retakeIntervalDays)} после неудачи, без ожидания ${days(gradeChangeIntervalDays)}`,
-	demo_session: `Открыт демо-режимом: порядок грейдов и интервалы политики отключены, в эксплуатации — повтор через ${days(retakeIntervalDays)}, смена грейда раз в ${days(gradeChangeIntervalDays)}`
+	demo_session: `Открыт демо-режимом: интервалы политики сняты, в эксплуатации — повтор через ${days(retakeIntervalDays)} после неудачи, смена подтверждённого грейда раз в ${days(gradeChangeIntervalDays)}`
 };
 
-/** The note of a demo session's screens of tests: the policy is lifted there, and what it is outside. */
-export const DEMO_POLICY_NOTE =
-	'Демо-режим: порядок грейдов и интервалы политики отключены — любой грейд можно пройти и сразу повторить, решение о ' +
-	`грейде то же. В эксплуатации повтор — через ${days(retakeIntervalDays)} после неудачи, на другой форме; смена ` +
-	`грейда — раз в ${days(gradeChangeIntervalDays)}; не больше ${maxAttemptsPerGrade} попыток на грейд за ${days(formWindowDays)}.`;
+/** The note of the screens of tests in a demo session with the intervals lifted: what is lifted and what is kept. */
+export const DEMO_INTERVALS_LIFTED_NOTE =
+	`Демо-режим: сняты только интервалы политики — повтор после неудачи (в эксплуатации через ${days(retakeIntervalDays)}, ` +
+	`на другой форме) и смена подтверждённого грейда (в эксплуатации раз в ${days(gradeChangeIntervalDays)}) доступны сразу. ` +
+	'Порядок грейдов, заявленный грейд и решение о грейде — как в эксплуатации; лимит тоже: не больше ' +
+	`${maxAttemptsPerGrade} попыток на грейд за ${days(formWindowDays)}. Интервалы включаются на странице демо-сессии: ` +
+	'«Политика как в эксплуатации».';
+
+/** The note of the screens of tests in a demo session that turned the production policy on. */
+export const DEMO_PRODUCTION_POLICY_NOTE =
+	'Демо-сессия с политикой как в эксплуатации: интервалы включены — повтор после неудачи через ' +
+	`${days(retakeIntervalDays)}, смена подтверждённого грейда раз в ${days(gradeChangeIntervalDays)} от подтверждения ` +
+	'(кроме одного шага после уверенного результата). Снять интервалы — на странице демо-сессии.';
 
 const gradeTitle = (key: string) => CATALOG.grades.find((g) => g.key === key)?.title ?? key;
 

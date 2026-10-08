@@ -48,7 +48,7 @@ export function nextStep(state: {
 		return { kind: 'declare', specialization: state.specialization };
 	}
 	// The highest test the policy opens: an upgrade above a category, the declared grade, or the next one down after a
-	// failure. A demo session opens every grade; the step there is still the one the policy leads to.
+	// failure. A test a demo session opens by lifting an interval is the step only when nothing else is open.
 	const open = [...state.options].reverse().find((o) => o.available && o.kind !== 'demo_session');
 	if (open?.available) return { kind: 'test', grade: open.grade, option: open.kind };
 	// What the candidate is aiming at: the next grade above a category, else the declared grade.
@@ -78,12 +78,12 @@ export async function loadGradeStanding(
 	candidateId: string,
 	now: Date
 ): Promise<GradeStanding> {
-	const [surveys, declarations, categories, attempts, demoSession] = await Promise.all([
+	const [surveys, declarations, categories, attempts, intervalsLifted] = await Promise.all([
 		surveyHistory(executor, candidateId),
 		declarationHistory(executor, candidateId),
 		sources.activeCategories(executor, candidateId),
 		sources.policyAttempts(executor, candidateId),
-		sources.inDemoSession(executor, candidateId)
+		sources.intervalsLifted(executor, candidateId)
 	]);
 	const survey = surveys.at(-1) ?? null;
 	const specialization = survey?.specialization ?? null;
@@ -100,7 +100,7 @@ export async function loadGradeStanding(
 						declaredGrade: declaration?.grade ?? null,
 						categories,
 						attempts,
-						demoSession
+						intervalsLifted
 					})
 				);
 	return {

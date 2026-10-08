@@ -50,7 +50,7 @@ function input(state: {
 	declared?: GradeKey | null;
 	categories?: SourceCategory[];
 	attempts?: SourceAttempt[];
-	demoSession?: boolean;
+	intervalsLifted?: boolean;
 }) {
 	return policyInputOf({
 		now: day(state.now),
@@ -58,7 +58,7 @@ function input(state: {
 		declaredGrade: state.declared ?? null,
 		categories: state.categories ?? [],
 		attempts: state.attempts ?? [],
-		demoSession: state.demoSession ?? false
+		intervalsLifted: state.intervalsLifted ?? false
 	});
 }
 
@@ -221,37 +221,51 @@ describe('may the candidate start a test of a grade now', () => {
 			reason: 'retake_interval',
 			availableFrom: day(GRADE_POLICY.retakeIntervalDays)
 		});
-		expect(canStartAttempt(input({ now: 1, declared: 'middle', attempts, demoSession: true }), 'middle')).toEqual({
+		expect(canStartAttempt(input({ now: 1, declared: 'middle', attempts, intervalsLifted: true }), 'middle')).toEqual({
 			allowed: true,
 			kind: 'demo_session'
 		});
 	});
 
-	it('in a demo session opens every grade past the order, the interval and the limit, never two attempts at once', () => {
+	it('in a demo session changes a confirmed grade at once; the order of grades stays closed', () => {
 		const categories = [category('junior', 0, null)];
-		const attempts = [
-			decided('junior', 0, 'confirmed'),
-			decided('senior', 0, 'not_confirmed'),
-			decided('senior', 0, 'not_confirmed')
-		];
-		const live = gradeOffers(input({ now: 0, declared: 'junior', categories, attempts }));
-		const demo = gradeOffers(input({ now: 0, declared: 'junior', categories, attempts, demoSession: true }));
-		expect(live.map((o) => o.available)).toEqual([false, false, false, false]);
-		expect(demo).toEqual(
-			(['intern', 'junior', 'middle', 'senior'] as const).map((grade) => ({
-				grade,
-				available: true,
-				kind: 'demo_session'
-			}))
-		);
-		const running: SourceAttempt = { ...decided('junior', 0, 'confirmed'), endedAt: null, state: 'in_progress' };
-		expect(
-			canStartAttempt(input({ now: 0, declared: 'junior', attempts: [running], demoSession: true }), 'junior')
-		).toMatchObject({ allowed: false, reason: 'attempt_in_progress' });
-		expect(canStartAttempt(input({ now: 0, demoSession: true }), 'junior')).toMatchObject({
-			allowed: false,
-			reason: 'not_declared'
+		const attempts = [decided('junior', 0, 'confirmed')];
+		const live = gradeOffers(input({ now: 1, declared: 'junior', categories, attempts }));
+		const demo = gradeOffers(input({ now: 1, declared: 'junior', categories, attempts, intervalsLifted: true }));
+		expect(live.find((o) => o.grade === 'middle')).toEqual({
+			grade: 'middle',
+			available: false,
+			reason: 'grade_change_interval',
+			availableFrom: day(GRADE_POLICY.gradeChangeIntervalDays)
 		});
+		expect(demo).toEqual([
+			{ grade: 'intern', available: false, reason: 'below_confirmed' },
+			{ grade: 'junior', available: false, reason: 'already_confirmed' },
+			{ grade: 'middle', available: true, kind: 'demo_session' },
+			{ grade: 'senior', available: false, reason: 'above_next_grade' }
+		]);
+	});
+
+	it('in a demo session keeps the declared grade, the attempt limit and one attempt at a time', () => {
+		const lifted = (state: Parameters<typeof input>[0], grade: GradeKey) =>
+			canStartAttempt(input({ ...state, intervalsLifted: true }), grade);
+		expect(lifted({ now: 0, declared: 'junior' }, 'middle')).toMatchObject({
+			allowed: false,
+			reason: 'above_declared'
+		});
+		// Two counted attempts at Middle: the retake interval is lifted, the limit of the window of forms is not.
+		const twice = [decided('middle', 0, 'not_confirmed'), decided('middle', 1, 'not_confirmed')];
+		expect(lifted({ now: 2, declared: 'middle', attempts: twice }, 'middle')).toEqual({
+			allowed: false,
+			reason: 'attempt_limit',
+			availableFrom: day(GRADE_POLICY.formWindowDays)
+		});
+		const running: SourceAttempt = { ...decided('junior', 0, 'confirmed'), endedAt: null, state: 'in_progress' };
+		expect(lifted({ now: 0, declared: 'junior', attempts: [running] }, 'junior')).toMatchObject({
+			allowed: false,
+			reason: 'attempt_in_progress'
+		});
+		expect(lifted({ now: 0 }, 'junior')).toMatchObject({ allowed: false, reason: 'not_declared' });
 	});
 
 	it('refuses a closed test with 409 and the code of the reason', () => {
@@ -301,7 +315,7 @@ describe('the step to a category', () => {
 				specialization: 'backend',
 				declaredGrade: 'junior',
 				category: null,
-				options: optionsOf({ now: 0, declared: 'junior', demoSession: true })
+				options: optionsOf({ now: 0, declared: 'junior', intervalsLifted: true })
 			})
 		).toEqual({ kind: 'test', grade: 'junior', option: 'declared' });
 		const categories = [category('junior', 0, null)];
@@ -310,7 +324,7 @@ describe('the step to a category', () => {
 				specialization: 'backend',
 				declaredGrade: 'junior',
 				category: categories[0] ?? null,
-				options: optionsOf({ now: 1, declared: 'junior', categories, demoSession: true })
+				options: optionsOf({ now: 1, declared: 'junior', categories, intervalsLifted: true })
 			})
 		).toEqual({ kind: 'test', grade: 'middle', option: 'demo_session' });
 	});

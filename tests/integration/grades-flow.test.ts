@@ -46,7 +46,7 @@ function sources(state: { released?: string[]; attempts?: SourceAttempt[] } = {}
 			Promise.resolve(new Set((state.released ?? ['backend', 'frontend']) as ('backend' | 'frontend')[])),
 		activeCategories: () => Promise.resolve([]),
 		policyAttempts: () => Promise.resolve(state.attempts ?? []),
-		inDemoSession: () => Promise.resolve(false)
+		intervalsLifted: () => Promise.resolve(false)
 	};
 }
 
