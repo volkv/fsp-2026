@@ -22,6 +22,8 @@
 		type TrustMark
 	} from '$lib/components/product/model.js';
 	import { assertion } from '$lib/components/candidate/model.js';
+	import SignalsSummary from '$lib/components/assessments/signals-summary.svelte';
+	import type { SignalSummaryView } from '$lib/components/assessments/model.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { categoryBadges, disciplineName, fspLevelChips, labelOf, type CardCategory, type Labels } from './model.js';
 
@@ -96,9 +98,11 @@
 		evidenceState: 'available' | 'recalculating' | 'none';
 		receipts: Receipt[];
 		labels: Labels & { terms: { work_format: Record<string, string>; employment_form: Record<string, string> } };
+		/** The signal totals of the attempt behind each category of the card. */
+		signals: { specialization: string; grade: string; summary: SignalSummaryView }[];
 	}
 
-	let { card, evidenceState, receipts, labels }: Props = $props();
+	let { card, evidenceState, receipts, labels, signals }: Props = $props();
 
 	const BANDS = { weak: 'слабое основание', moderate: 'среднее основание', strong: 'сильное основание' } as const;
 	const SEARCH = { active: 'Ищет работу', open_to_offers: 'Открыт к предложениям', not_looking: 'Не ищет' } as const;
@@ -190,6 +194,12 @@
 				categories={categoryBadges(card.categories ?? [], labels)}
 				fspLevels={fspLevelChips(card.fspLevels ?? [])}
 			/>
+			{#each signals as entry (entry.specialization)}
+				<SignalsSummary
+					summary={entry.summary}
+					title={`Сигналы теста: ${labelOf(labels.specializations, entry.specialization)}, ${labelOf(labels.grades, entry.grade)}`}
+				/>
+			{/each}
 			{#if desiredRole}
 				<p class="text-sm text-muted-foreground">Желаемые роли: {desiredRole}</p>
 			{/if}

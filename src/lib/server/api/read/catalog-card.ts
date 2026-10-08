@@ -2,9 +2,38 @@
 // the fields renamed, shared by the catalog and the pool of a competition partner. Fact ids are not part of it.
 import { z } from 'zod';
 import { GRADE_KEYS, SPECIALIZATION_KEYS } from '$lib/server/assessments/contract/catalog';
+import type { CategorySignals, SignalSummary } from '$lib/server/assessments/signals';
 import type { EmployerCard } from '$lib/server/employer/card';
 import type { CategoryView } from '$lib/server/visibility/projections';
 import { date, key, pseudonym, salaryRange } from '../schemas';
+
+const count = z.int().min(0);
+
+/** The totals of the signal journal of the attempt behind a category (domain 10.7); no entries, no item timings. */
+const testSignalsSchema = z
+	.object({
+		entries: count.describe('Записей журнала: ответы, отправки решений и шаги «измени своё решение»'),
+		pastes: count.describe('Вставок из буфера обмена за попытку'),
+		pasted_chars: count.describe('Вставлено символов за попытку'),
+		departures: count.describe('Уходов со страницы теста за попытку'),
+		silent: count.describe('Записей, к которым страница не передала сигналы (скрипты отключены)')
+	})
+	.meta({
+		id: 'TestSignals',
+		description:
+			'Сводка журнала сигналов попытки, назначившей категорию. Не приговор: повод уточнить на собеседовании; ' +
+			'тест сигналы не учитывает, категория назначена по баллам заданий. Это не обнаружение заимствованного кода'
+	});
+
+function testSignalsView(summary: SignalSummary) {
+	return {
+		entries: summary.entries,
+		pastes: summary.pastes,
+		pasted_chars: summary.pastedChars,
+		departures: summary.departures,
+		silent: summary.silent
+	};
+}
 
 /** A category in force as the API shows it (domain 12.4). */
 export const categorySchema = z
@@ -18,22 +47,26 @@ export const categorySchema = z
 				'Подтверждённый стек: навыки определяющих блоков грейда и язык практики; заявленный стек сюда не входит'
 			),
 		assigned_on: date,
-		bank_release_id: z.string().describe('Выпуск банка заданий решения — версия основания')
+		bank_release_id: z.string().describe('Выпуск банка заданий решения — версия основания'),
+		test_signals: testSignalsSchema
 	})
 	.meta({
 		id: 'Category',
 		description: 'Действующая категория: специализация и грейд, подтверждённые тестом'
 	});
 
-/** The API form of a category of a card. */
-export function categoryView(category: CategoryView) {
+/** The API form of a category of a card, with the signal totals of its attempt. */
+function categoryView(category: CategoryView, signals: readonly CategorySignals[]) {
+	const own = signals.find((entry) => entry.specialization === category.specialization);
+	if (!own) throw new Error(`card category ${category.specialization} has no signal totals`);
 	return {
 		specialization: category.specialization,
 		grade: category.grade,
 		confirmed_blocks: category.confirmedBlocks,
 		confirmed_skill_keys: category.confirmedSkillKeys,
 		assigned_on: category.assignedOn,
-		bank_release_id: category.bankReleaseId
+		bank_release_id: category.bankReleaseId,
+		test_signals: testSignalsView(own.summary)
 	};
 }
 
@@ -197,7 +230,7 @@ export function cardView(loaded: EmployerCard) {
 				tax_base: salary.taxBase
 			}
 		},
-		categories: card.categories.map(categoryView),
+		categories: card.categories.map((category) => categoryView(category, loaded.signals)),
 		desired_role_keys: card.desiredRoleKeys,
 		fsp_levels: card.fspLevels.map((level) => ({
 			discipline: level.discipline,
