@@ -2,8 +2,7 @@
 // the headline, the soft skills — with the suggestions of the resume for them, the experience stated by hand, and the
 // list of blocked companies. Browser session only. The PDF profile is a file of the cabinet (`/me/profile/pdf`).
 import { z } from 'zod';
-import { can, type AccessSubject } from '$lib/server/access/permissions';
-import { invitationMeta } from './context';
+import { invitationMeta, ownCandidate, type BaseContext } from './context';
 import {
 	blockCompany,
 	findCompaniesToBlock,
@@ -19,27 +18,10 @@ import {
 import { decideSuggestion, profileInputSchema, updateOwnProfile } from '$lib/server/profile/fields';
 import { PROFILE_SUGGESTION_FIELDS } from '$lib/server/db/schema';
 import { ownProfileView, type OwnProfileView } from '$lib/server/profile/view';
-import { ApiError } from '$lib/server/errors/api-error';
 import { defineOperation } from '../operation';
 import { dateTime, iso, key } from '../schemas';
-import type { BaseContext } from './context';
 
 const TAG = 'Профиль кандидата';
-
-async function candidateSubject(ctx: BaseContext) {
-	const subject = await ctx.subject();
-	if (subject.candidate === null) throw new ApiError('forbidden');
-	return subject;
-}
-
-/** The candidate of the subject allowed to read their own profile. */
-function candidateIdOf(subject: AccessSubject): string {
-	const candidateId = subject.candidate?.id;
-	if (candidateId === undefined || !can(subject, 'candidate.self.read', { candidateId }).allowed) {
-		throw new ApiError('forbidden');
-	}
-	return candidateId;
-}
 
 const deps = (ctx: BaseContext) => ({ db: ctx.services.db, crypto: ctx.services.crypto, now: ctx.services.now });
 
@@ -163,7 +145,8 @@ export const getMyProfile = defineOperation({
 	errors: ['forbidden'],
 	response: { status: 200, description: 'Профиль', schema: profileSchema },
 	async handle(ctx) {
-		return profileBody(await ownProfileView(deps(ctx), await candidateSubject(ctx)));
+		const { subject } = await ownCandidate(ctx, 'candidate.self.read');
+		return profileBody(await ownProfileView(deps(ctx), subject));
 	}
 });
 
@@ -183,7 +166,7 @@ export const updateMyProfile = defineOperation({
 	errors: ['forbidden', 'policy_violation'],
 	response: { status: 200, description: 'Профиль после сохранения', schema: profileSchema },
 	async handle(ctx) {
-		const subject = await candidateSubject(ctx);
+		const { subject } = await ownCandidate(ctx, 'candidate.self.write');
 		await updateOwnProfile(deps(ctx), subject, invitationMeta(ctx), ctx.body);
 		return profileBody(await ownProfileView(deps(ctx), subject));
 	}
@@ -206,7 +189,7 @@ export const decideProfileSuggestion = defineOperation({
 	errors: ['forbidden', 'not_found', 'conflict', 'policy_violation'],
 	response: { status: 204, description: 'Решение записано' },
 	async handle(ctx) {
-		const subject = await candidateSubject(ctx);
+		const { subject } = await ownCandidate(ctx, 'candidate.self.write');
 		await decideSuggestion(deps(ctx), subject, invitationMeta(ctx), ctx.params.suggestion_id, ctx.body.decision);
 	}
 });
@@ -229,7 +212,7 @@ export const addMyExperience = defineOperation({
 	errors: ['forbidden', 'conflict', 'policy_violation'],
 	response: { status: 201, description: 'Место работы добавлено', schema: experienceCreated },
 	async handle(ctx) {
-		const subject = await candidateSubject(ctx);
+		const { subject } = await ownCandidate(ctx, 'candidate.self.write');
 		return { id: await addManualExperience(deps(ctx), subject, invitationMeta(ctx), ctx.body) };
 	}
 });
@@ -247,7 +230,7 @@ export const updateMyExperience = defineOperation({
 	errors: ['forbidden', 'not_found', 'policy_violation'],
 	response: { status: 204, description: 'Сохранено' },
 	async handle(ctx) {
-		const subject = await candidateSubject(ctx);
+		const { subject } = await ownCandidate(ctx, 'candidate.self.write');
 		await updateManualExperience(deps(ctx), subject, invitationMeta(ctx), ctx.params.entry_id, ctx.body);
 	}
 });
@@ -264,7 +247,7 @@ export const removeMyExperience = defineOperation({
 	errors: ['forbidden', 'not_found'],
 	response: { status: 204, description: 'Удалено' },
 	async handle(ctx) {
-		const subject = await candidateSubject(ctx);
+		const { subject } = await ownCandidate(ctx, 'candidate.self.write');
 		await removeManualExperience(deps(ctx), subject, invitationMeta(ctx), ctx.params.entry_id);
 	}
 });
@@ -291,7 +274,7 @@ export const listMyCompanyBlocks = defineOperation({
 		schema: z.object({ items: z.array(blockedCompany) })
 	},
 	async handle(ctx) {
-		const candidateId = candidateIdOf(await candidateSubject(ctx));
+		const { candidateId } = await ownCandidate(ctx, 'candidate.self.read');
 		const blocked = await listBlockedCompanies(ctx.services.db, candidateId);
 		return {
 			items: blocked.map((item) => ({
@@ -320,7 +303,7 @@ export const searchCompaniesToBlock = defineOperation({
 		schema: z.object({ items: z.array(z.object({ company_id: z.uuid(), display_name: z.string() })) })
 	},
 	async handle(ctx) {
-		const candidateId = candidateIdOf(await candidateSubject(ctx));
+		const { candidateId } = await ownCandidate(ctx, 'candidate.self.read');
 		const found = await findCompaniesToBlock(ctx.services.db, candidateId, ctx.query.q);
 		return { items: found.map((item) => ({ company_id: item.companyId, display_name: item.displayName })) };
 	}
@@ -339,7 +322,8 @@ export const blockMyCompany = defineOperation({
 	errors: ['forbidden', 'not_found'],
 	response: { status: 204, description: 'Компания в блок-листе' },
 	async handle(ctx) {
-		await blockCompany(deps(ctx), await candidateSubject(ctx), invitationMeta(ctx), ctx.params.company_id);
+		const { subject } = await ownCandidate(ctx, 'candidate.self.write');
+		await blockCompany(deps(ctx), subject, invitationMeta(ctx), ctx.params.company_id);
 	}
 });
 
@@ -355,6 +339,7 @@ export const unblockMyCompany = defineOperation({
 	errors: ['forbidden', 'not_found'],
 	response: { status: 204, description: 'Компания убрана из блок-листа' },
 	async handle(ctx) {
-		await unblockCompany(deps(ctx), await candidateSubject(ctx), invitationMeta(ctx), ctx.params.company_id);
+		const { subject } = await ownCandidate(ctx, 'candidate.self.write');
+		await unblockCompany(deps(ctx), subject, invitationMeta(ctx), ctx.params.company_id);
 	}
 });

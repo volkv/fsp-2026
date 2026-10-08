@@ -127,14 +127,22 @@ export const categoryAttestations = pgTable(
 		signingKeyId: text().notNull(),
 		/** The salt of the holder commitment; never published. */
 		holderNonce: bytea().notNull(),
-		issuedAt: ts().notNull()
+		issuedAt: ts().notNull(),
+		/**
+		 * When a new confirmation of the same assignment replaced this one because the name of the holder changed: the
+		 * commitment speaks of the old name, the PDF made now prints the new one (domain 12.9).
+		 */
+		supersededAt: ts()
 	},
 	(t) => [
 		sha256Check('category_attestations', 'statement_sha256', t.statementSha256),
 		check('category_attestations_handle_format', sql`${t.handle} ~ '^[a-z2-7]{26}$'`),
 		check('category_attestations_nonce_length', sql`octet_length(${t.holderNonce}) = 32`),
-		// A repeated PDF of the same assignment does not issue a new confirmation (domain 12.9).
-		uniqueIndex('category_attestations_category').on(t.categoryId),
+		// A repeated PDF of the same assignment and the same name does not issue a new confirmation (domain 12.9).
+		uniqueIndex('category_attestations_category')
+			.on(t.categoryId)
+			.where(sql`${t.supersededAt} is null`),
+		check('category_attestations_superseded', sql`${t.supersededAt} is null or ${t.supersededAt} >= ${t.issuedAt}`),
 		index('category_attestations_candidate').on(t.candidateId)
 	]
 );

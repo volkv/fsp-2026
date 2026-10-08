@@ -81,9 +81,11 @@ export const ERASURE_PLAN: Readonly<Record<string, ErasureDecision>> = {
 	'confirmation_requests.candidate_id': erased,
 	'block_confirmations.candidate_id': erased,
 	'applications.candidate_id': kept('a tombstone of id, company, vacancy and status: a disclosure by it refers to it'),
-	// Complaints about offers (domain 13.14): the candidate's account of what happened goes; the operator's decision on
-	// the company stays in the journal.
-	'invitation_complaints.candidate_id': erased,
+	// Complaints about offers (domain 13.14): the candidate's account of what happened goes; a decided complaint stays as
+	// a tombstone for the trust facts of the company.
+	'invitation_complaints.candidate_id': kept(
+		'a decided complaint is a tombstone of company, reason, status and decision: the trust facts of the company count it'
+	),
 	'invitation_complaints.decided_by': actOfAnother
 };
 

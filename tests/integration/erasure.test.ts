@@ -43,6 +43,7 @@ import {
 	externalIdentities,
 	files,
 	hiringProcesses,
+	invitationComplaints,
 	invitationResponses,
 	invitations,
 	invitationTerms,
@@ -59,7 +60,7 @@ import {
 import type { Docparse, ParseRequest } from '$lib/server/documents/docparse';
 import { foreignKeyColumns } from '$lib/server/demo/graph';
 import { drainJobs } from '$lib/server/demo/queue';
-import { fileComplaint } from '$lib/server/complaints/service';
+import { decideComplaint, fileComplaint } from '$lib/server/complaints/service';
 import { compareWithErasurePlan, erasedColumns, ERASURE_PLAN } from '$lib/server/erasure/plan';
 import { createAccountPurgeHandler } from '$lib/server/erasure/purge';
 import { declareGrade } from '$lib/server/grades/declarations';
@@ -589,6 +590,27 @@ describe('deleting a candidate with the whole pipeline behind the profile', () =
 			reasonCode: 'terms_mismatch',
 			text: 'На собеседовании назвали вилку вдвое ниже'
 		});
+		// A complaint about the other offer the operator upheld: the company was warned (domain 13.14).
+		const upheld = await fileComplaint(invitationDeps(), hero.subject, meta, sentOpen.invitationId, {
+			reasonCode: 'contact_harvesting',
+			text: 'Попросили прислать паспорт до собеседования'
+		});
+		const operator = await account(`operator-${randomBytes(4).toString('hex')}@example.org`);
+		await decideComplaint(
+			invitationDeps(),
+			{
+				subject: {
+					userId: operator.id,
+					via: 'session',
+					candidate: null,
+					membership: null,
+					staff: { operator: true, admin: false, extraPermissions: [] }
+				},
+				meta
+			},
+			upheld.id,
+			{ decision: 'warning', resolution: 'Компании вынесено предупреждение' }
+		);
 		expect(await db.select().from(notifications).where(eq(notifications.userId, hero.userId))).not.toHaveLength(0);
 		// A category confirmed by a test and an objection to its decision: both are the candidate's (domain 23.2).
 		const { decision } = await decide(db, hero.candidateId, { specialization: 'backend', grade: 'middle' });
@@ -703,6 +725,18 @@ describe('deleting a candidate with the whole pipeline behind the profile', () =
 		expect(await count('candidate_categories', 'decision_id', [decision.id])).toBe(0);
 		expect(await count('assessment_objections', 'id', [objection.id])).toBe(0);
 		expect(await count('invitation_complaints', 'id', [complaint.id])).toBe(0);
+		// The upheld one stays a tombstone without the texts and the terms: the trust facts of the company count it, and
+		// the departure of the person it wronged does not improve them.
+		const [tombstone] = await db.select().from(invitationComplaints).where(eq(invitationComplaints.id, upheld.id));
+		expect(tombstone).toMatchObject({
+			companyId: second.company.id,
+			status: 'decided',
+			decision: 'warning',
+			text: null,
+			termsId: null,
+			resolution: null
+		});
+		expect(tombstone?.purgedAt).not.toBeNull();
 		expect(await count('invitation_terms', 'invitation_id', invitationIds)).toBe(0);
 		expect(await count('invitation_responses', 'invitation_id', invitationIds)).toBe(0);
 		expect(await count('invitation_messages', 'invitation_id', invitationIds)).toBe(0);

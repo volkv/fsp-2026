@@ -7,6 +7,7 @@
 	import NeedDemandBlock from '$lib/components/candidate/need-demand-block.svelte';
 	import { OBJECTION_OUTCOMES, OBJECTION_STATUSES } from '$lib/components/candidate/model.js';
 	import SectionCard from '$lib/components/candidate/section-card.svelte';
+	import SignalsSummary from '$lib/components/assessments/signals-summary.svelte';
 	import CsrfInput from '$lib/components/forms/csrf-input.svelte';
 	import FormMessage from '$lib/components/forms/form-message.svelte';
 	import PageHeader from '$lib/components/forms/page-header.svelte';
@@ -191,6 +192,20 @@
 
 <SectionCard title="Действующие категории" testId="categories">
 	<CategoryList categories={inForce} reader="candidate" />
+	{#if data.signals.length > 0}
+		<div class="grid gap-3" data-testid="category-signals">
+			<p class="text-sm text-muted-foreground">
+				Компания, которой видна ваша карточка, видит рядом с категорией сводку журнала сигналов попытки, назначившей её,
+				— ровно эти строки, без времени по заданиям. Журнал целиком — на странице попытки.
+			</p>
+			{#each data.signals as entry (entry.specialization)}
+				<SignalsSummary
+					summary={entry.summary}
+					title={`Сигналы теста: ${name(labels.specializations, entry.specialization)}, ${name(labels.grades, entry.grade)}`}
+				/>
+			{/each}
+		</div>
+	{/if}
 	{#if ended.length > 0}
 		<details class="text-sm">
 			<summary class="cursor-pointer text-muted-foreground">История категорий</summary>

@@ -74,6 +74,12 @@
 					)}.</span
 				>
 			</p>
+		{:else if data.status === 'superseded' && data.reissued}
+			<p class="text-sm">
+				<span class="font-medium">Подтверждение выпущено заново.</span>
+				Владелец сменил ФИО{data.endedOn ? ` ${day(data.endedOn)}` : ''}: категория действует, а это подтверждение —
+				прежнее, по прежнему ФИО. Действующее — в новом PDF-профиле владельца.
+			</p>
 		{:else if data.status === 'superseded'}
 			<p class="text-sm">
 				<span class="font-medium">Это прошлый результат, а не действующая категория.</span>

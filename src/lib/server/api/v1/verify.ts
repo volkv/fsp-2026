@@ -100,7 +100,8 @@ export const verifyCategoryAttestationOperation = defineOperation({
 	description:
 		'Подписанное платформой заявление о назначении категории (QR-код PDF-профиля) и его статус на момент запроса: ' +
 		'`valid` — категория действует; `superseded` — назначение заменено другим, это прошлый результат, а не ' +
-		'действующая категория (действующий грейд — в `current_grade`); `annulled` — решение теста аннулировано или ' +
+		'действующая категория (действующий грейд — в `current_grade`), или, при `reissued`, категория действует, но ' +
+		'владелец сменил ФИО и подтверждение выпущено заново; `annulled` — решение теста аннулировано или ' +
 		'категория отозвана по возражению. `statement.judgement` — как проверены задания попытки: рубрики только ' +
 		'моделями, предварительные пороги, рецензент того же поставщика, что автор, и подпись об этом. Подпись Ed25519 — над каноническим JSON заявления, ключи те же, что у ' +
 		'квитанций (`/.well-known/receipt-keys.json`). ФИО, контактов, псевдонима и идентификатора кандидата в ответе ' +
@@ -126,7 +127,13 @@ export const verifyCategoryAttestationOperation = defineOperation({
 				current_grade: z
 					.object({ grade: z.enum(GRADE_KEYS), assigned_on: z.iso.date() })
 					.nullable()
-					.describe('При `superseded` — грейд, действующий сейчас в той же специализации; `null` — его нет')
+					.describe('При `superseded` — грейд, действующий сейчас в той же специализации; `null` — его нет'),
+				reissued: z
+					.boolean()
+					.describe(
+						'`superseded` при действующей категории: владелец сменил ФИО, и новое подтверждение того же назначения ' +
+							'заменило это (`ended_on` — с какого дня); `false` во всех остальных случаях'
+					)
 			})
 			.meta({ id: 'CategoryAttestationVerification' })
 	},
@@ -152,7 +159,8 @@ export const verifyCategoryAttestationOperation = defineOperation({
 			current_grade:
 				verified.currentGrade === null
 					? null
-					: { grade: verified.currentGrade.grade, assigned_on: verified.currentGrade.assignedOn }
+					: { grade: verified.currentGrade.grade, assigned_on: verified.currentGrade.assignedOn },
+			reissued: verified.reissued
 		};
 	}
 });

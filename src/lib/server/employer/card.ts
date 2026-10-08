@@ -2,9 +2,12 @@
 // with the same checks and `canShow` as the list, read from the categories in force, the valid evidence run and the
 // active facts, and cut by `projectCandidate` to the catalog projection. Fact ids never leave this module: a company sees
 // categories, skills, achievements and the receipts issued for it, linked to the achievements by the receipt handles.
-// The card is the one DTO of the company's view: the pages serialize it as is, the API renames its fields.
+// The card is the one DTO of the company's view: the pages serialize it as is, the API renames its fields. Beside each
+// category it carries the totals of the signal journal of the attempt that assigned it — not a verdict and not read by
+// the test (domain 10.7); the entries and the timings of single items stay with the candidate and the operator.
 import { and, eq, inArray } from 'drizzle-orm';
 import { can, type AccessSubject } from '$lib/server/access/permissions';
+import { categorySignals, type CategorySignals } from '$lib/server/assessments/signals';
 import { recordAuditEvent } from '$lib/server/audit/record';
 import type { RequestMeta } from '$lib/server/auth/context';
 import { experienceMonths } from '$lib/server/evidence/experience';
@@ -154,6 +157,8 @@ export interface EmployerCard {
 	/** The evidence run is valid, below the evidence floor (being recalculated) or absent. */
 	evidenceState: 'available' | 'recalculating' | 'none';
 	receipts: CardReceipt[];
+	/** One per category of the card, in its order. */
+	signals: CategorySignals[];
 }
 
 function competitionAchievement(factId: string, payload: { result: Result; competition: Competition }): FspAchievement {
@@ -227,7 +232,8 @@ export async function loadCatalogCard(
 		.innerJoin(candidates, eq(candidates.id, evidenceRuns.candidateId))
 		.where(and(eq(evidenceRuns.candidateId, candidateId), publishedRun(evidenceRuns)));
 	const validRun = run?.inForce ? run : null;
-	const categories = categoryViews((await activeCategories(executor, [candidateId])).get(candidateId) ?? []);
+	const active = (await activeCategories(executor, [candidateId])).get(candidateId) ?? [];
+	const categories = categoryViews(active);
 
 	let skills: CandidateCardSource['skills'] = [];
 	let fspLevels: CandidateCardSource['fspLevels'] = [];
@@ -375,9 +381,16 @@ export async function loadCatalogCard(
 		{ pseudonym: input.pseudonym, ...pool }
 	);
 	const shownHandles = new Set((card.receipts ?? []).map((receipt) => receipt.handle));
+	// A category in force is one per specialization (domain 12.4): the card's categories find theirs by it.
+	const shownCategories = (card.categories ?? []).map((view) => {
+		const category = active.find((entry) => entry.specialization === view.specialization);
+		if (!category) throw new Error(`card category ${view.specialization} is not in force`);
+		return category;
+	});
 	return {
 		card,
 		evidenceState: validRun ? 'available' : run ? 'recalculating' : 'none',
+		signals: await categorySignals(executor, shownCategories),
 		receipts: receiptRows
 			.filter((row) => shownHandles.has(row.handle))
 			.map((row) => {

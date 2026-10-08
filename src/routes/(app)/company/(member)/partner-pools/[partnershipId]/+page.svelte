@@ -86,6 +86,7 @@
 					evidenceState={member.evidenceState}
 					receipts={member.receipts}
 					labels={data.labels}
+					signals={member.signals}
 				/>
 			</PartnerPoolMember>
 		{:else}

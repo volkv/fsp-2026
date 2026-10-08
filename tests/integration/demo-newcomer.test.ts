@@ -55,6 +55,7 @@ import {
 	offerTerms,
 	randomSha256
 } from '../helpers/factories';
+import { memoryTextParseCache } from '$lib/server/vacancies/text-extract';
 
 const TAXONOMY_DIR = fileURLToPath(new URL('../../taxonomy', import.meta.url));
 const DAY = 86_400_000;
@@ -266,14 +267,19 @@ describe('a new candidate of a demo session', () => {
 		// Shown in the catalog by its own consent, the candidate is in the shortlist of an employer of the session.
 		await grantCatalogVisibility(database.db, subject, meta, { documentId: documents.catalog, scopeFields: [] });
 		const employer = await sessionEmployer(sessionId);
-		const need = await createNeed({ db: database.db, models: modelsOff, now: () => new Date() }, employer, meta, {
-			form: {
-				specialization: 'backend',
-				grade: { min: 'junior', max: 'junior' },
-				skill_keys: ['sql'],
-				nice_skill_keys: []
+		const need = await createNeed(
+			{ db: database.db, models: modelsOff, parseCache: memoryTextParseCache(), now: () => new Date() },
+			employer,
+			meta,
+			{
+				form: {
+					specialization: 'backend',
+					grade: { min: 'junior', max: 'junior' },
+					skill_keys: ['sql'],
+					nice_skill_keys: []
+				}
 			}
-		});
+		);
 		const shortlist = await createShortlist(shortlistDeps(), employer, meta, need.id, {});
 		const view = await openShortlist(shortlistDeps(), employer, shortlist.id);
 		expect(view.items.map((item) => item.candidateId)).toContain(newcomer.candidateId);
@@ -288,14 +294,19 @@ describe('a new candidate of a demo session', () => {
 		);
 		// An employer outside the session does not see the candidate.
 		const outside = await sessionEmployer(await demoSession());
-		const foreignNeed = await createNeed({ db: database.db, models: modelsOff, now: () => new Date() }, outside, meta, {
-			form: {
-				specialization: 'backend',
-				grade: { min: 'junior', max: 'junior' },
-				skill_keys: ['sql'],
-				nice_skill_keys: []
+		const foreignNeed = await createNeed(
+			{ db: database.db, models: modelsOff, parseCache: memoryTextParseCache(), now: () => new Date() },
+			outside,
+			meta,
+			{
+				form: {
+					specialization: 'backend',
+					grade: { min: 'junior', max: 'junior' },
+					skill_keys: ['sql'],
+					nice_skill_keys: []
+				}
 			}
-		});
+		);
 		const foreign = await openShortlist(
 			shortlistDeps(),
 			outside,

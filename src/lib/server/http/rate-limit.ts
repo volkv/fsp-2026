@@ -9,6 +9,8 @@ export interface RateLimitRule {
 	name: string;
 	limit: number;
 	windowSeconds: number;
+	/** The words of the refusal, when the rule has its own; otherwise the message of `rate_limited`. */
+	message?: string;
 }
 
 /** Limits by request class; per-account login lockouts are a separate mechanism of sign-in. */
@@ -56,6 +58,18 @@ export const RATE_LIMIT_RULES = {
 	 */
 	dataExport: { name: 'data-export', limit: 10, windowSeconds: 600 },
 	/**
+	 * Parses of a pasted text — a new hiring need with its text, a vacancy from text — on a page or in the API, counted
+	 * per account: each may call the extraction model, whose gateway is paid by the request. An employer parses a few
+	 * texts an hour; a loop does not get to spend the budget of the gateway. The same text again is answered from the
+	 * kept parse without the model, but it is still counted: the budget is of requests, not of the model's calls.
+	 */
+	textParse: {
+		name: 'text-parse',
+		limit: 30,
+		windowSeconds: 3_600,
+		message: 'Лимит разборов текста — 30 в час на учётную запись. Повторите позже или заполните форму вручную'
+	},
+	/**
 	 * The start of the sign-in through FSP ID and its callback, per address: each start keeps a flow in Redis and each
 	 * callback calls the provider. A room of visitors behind one address signs in about thirty times in ten minutes.
 	 */
@@ -96,12 +110,31 @@ const CATALOG_API =
 /** The export of the candidate's own data: the file of the page and the same document in the API (contracts 5.5). */
 const DATA_EXPORT_PATHS = new Set(['/me/export/download', '/api/v1/me/data']);
 
+/** Posts that parse a pasted text in the API (contracts 3.2, 5.5): a new need, a vacancy draft from text. */
+const TEXT_PARSE_API = new Set(['/api/v1/needs', '/api/v1/vacancies/drafts/from-text']);
+
+/** Form actions of the cabinet that parse a pasted text: the page path and the action. */
+const TEXT_PARSE_ACTIONS: ReadonlyMap<string, string> = new Map([
+	['/company/needs', 'create'],
+	['/company/vacancies/new', 'parse']
+]);
+
+/** A form action of a page that parses a pasted text: it refuses over the limit itself, in the layout of the site. */
+function isTextParseAction(method: string, url: URL): boolean {
+	const action = TEXT_PARSE_ACTIONS.get(url.pathname);
+	return method === 'POST' && action !== undefined && url.searchParams.has(`/${action}`);
+}
+
 /**
  * Picks the rule counted per account for a request (`accountSubject`), or `null`. It applies after authentication,
  * besides the rule of the address.
  */
-export function accountRuleFor(method: string, pathname: string): RateLimitRule | null {
-	if (!isRead(method)) return null;
+export function accountRuleFor(method: string, url: URL): RateLimitRule | null {
+	const { pathname } = url;
+	if (!isRead(method)) {
+		const parses = (method === 'POST' && TEXT_PARSE_API.has(pathname)) || isTextParseAction(method, url);
+		return parses ? RATE_LIMIT_RULES.textParse : null;
+	}
 	if (DATA_EXPORT_PATHS.has(pathname)) return RATE_LIMIT_RULES.dataExport;
 	return CATALOG_PAGE.test(pathname) || CATALOG_API.test(pathname) ? RATE_LIMIT_RULES.catalog : null;
 }
@@ -125,13 +158,16 @@ export function accountSubject(actor: Actor, address: string): string {
 const RECEIPT_PAGE = /^\/verify\/(?:categories\/)?[^/]+(?:\/__data\.json)?$/u;
 
 /**
- * Reads a browser opens that refuse a request over the limit themselves, so the refusal comes in the layout of the site
- * with the headers of every response rather than as a bare error page or the JSON error of the API: the public pages
- * of a receipt and of a confirmation of a category, the catalog pages (with their `__data.json`) and the sign-in through
- * FSP ID. Such a route must refuse when `locals.rateLimited` is set — a page with `429`, the sign-in with a redirect to
- * the sign-in page: the hook has already let the request through.
+ * Requests a browser makes that refuse a request over the limit themselves, so the refusal comes in the layout of the
+ * site with the headers of every response rather than as a bare error page or the JSON error of the API: the public
+ * pages of a receipt and of a confirmation of a category, the catalog pages (with their `__data.json`), the sign-in
+ * through FSP ID, and — over the limit of parses only — the form actions that parse a pasted text. Such a route must
+ * refuse when `locals.rateLimited` is set — a page with `429`, the sign-in with a redirect to the sign-in page, a
+ * parse with the form failure `429` saying the limit: the hook has already let the request through.
  */
-export function refusedByPage(method: string, pathname: string): boolean {
+export function refusedByPage(method: string, url: URL, rule: RateLimitRule): boolean {
+	const { pathname } = url;
+	if (rule === RATE_LIMIT_RULES.textParse) return isTextParseAction(method, url);
 	return (
 		isRead(method) && (RECEIPT_PAGE.test(pathname) || CATALOG_PAGE.test(pathname) || FSP_SIGN_IN_PATHS.has(pathname))
 	);
@@ -232,7 +268,7 @@ export function rateLimitHandles(deps: { store: () => Promise<RateLimitStore>; w
 		if ('refused' in counted) return counted.refused;
 		const { decision } = counted;
 		if (decision.allowed) return withLimitHeaders(await resolve(event), decision);
-		if (!refusedByPage(event.request.method, event.url.pathname)) return refuseOverLimit(event, decision);
+		if (!refusedByPage(event.request.method, event.url, rule)) return refuseOverLimit(event, rule, decision);
 		event.locals.rateLimited = true;
 		const response = await resolve(event);
 		response.headers.set('cache-control', 'no-store');
@@ -249,7 +285,7 @@ export function rateLimitHandles(deps: { store: () => Promise<RateLimitStore>; w
 			return limit(event, resolve, rule, event.getClientAddress());
 		},
 		byAccount: async ({ event, resolve }) => {
-			const rule = accountRuleFor(event.request.method, event.url.pathname);
+			const rule = accountRuleFor(event.request.method, event.url);
 			if (!rule) return resolve(event);
 			return limit(event, resolve, rule, accountSubject(event.locals.actor, event.getClientAddress()));
 		}
@@ -266,10 +302,13 @@ function withLimitHeaders(response: Response, decision: RateLimitDecision): Resp
 	return response;
 }
 
-/** A request over the limit that no route refuses itself: the JSON error of the API. */
-function refuseOverLimit(event: RequestEvent, decision: RateLimitDecision): Response {
+/** A request over the limit that no route refuses itself: the JSON error of the API, in the words of the rule. */
+function refuseOverLimit(event: RequestEvent, rule: RateLimitRule, decision: RateLimitDecision): Response {
 	const response = errorResponse(
-		new ApiError('rate_limited', { retryAfterSeconds: decision.resetSeconds }),
+		new ApiError('rate_limited', {
+			retryAfterSeconds: decision.resetSeconds,
+			...(rule.message === undefined ? {} : { message: rule.message })
+		}),
 		event.locals.requestId
 	);
 	return withLimitHeaders(response, decision);

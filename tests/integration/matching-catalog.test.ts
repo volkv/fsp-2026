@@ -1,7 +1,7 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { GRADE_DECISION_RESULTS } from '$lib/server/matching/test-results';
-import type { GradeKey, SpecializationKey } from '$lib/server/assessments/contract/catalog';
+import { gradeDefinition } from '$lib/server/assessments/contract/catalog';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import type { AccessSubject } from '$lib/server/access/permissions';
 import {
@@ -34,6 +34,7 @@ import { createLogger } from '$lib/server/jobs/log';
 import { claimJob, completeJob, enqueueJob, type ClaimedJob } from '$lib/server/jobs/queue';
 import { findInCatalog } from '$lib/server/employer/card';
 import type { MatchingDeps } from '$lib/server/matching/deps';
+import { candidatesWithFsp } from '$lib/server/matching/fsp-results';
 import { recommendVacancies } from '$lib/server/matching/recommendations';
 import { createMatchRefreshHandler } from '$lib/server/matching/refresh';
 import { matchRulesetParamsSchema } from '$lib/server/matching/params';
@@ -52,7 +53,7 @@ import { fail, ok } from '$lib/server/ml/result';
 import { loadPoolCounter } from '$lib/server/vacancies/pool';
 import { matchView } from '$lib/components/employer/model';
 import shippedMatchRuleset from '../../taxonomy/match-ruleset.json';
-import { decide } from '../helpers/categories';
+import { decide, type TestDecisionInput } from '../helpers/categories';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
 import {
 	createCandidate,
@@ -243,7 +244,7 @@ interface CandidateSetup {
 	/** Skills of a published evidence run; absent — no evidence run at all. */
 	skills?: { key: string; band: 'weak' | 'moderate' | 'strong'; attestation: 'direct' | 'derived' | 'claimed' }[];
 	/** The category a confirmed test decision gave; absent — the category is not confirmed. */
-	category?: { specialization: SpecializationKey; grade: GradeKey };
+	category?: Pick<TestDecisionInput, 'specialization' | 'grade' | 'decidedAt' | 'blocks'>;
 	fspLevel?: { discipline: string; level: 'L1' | 'L2' | 'L3' | 'L4' | 'L5' };
 	vector?: number[];
 	visibility?: 'hidden' | 'catalog';
@@ -350,6 +351,34 @@ async function candidate(setup: CandidateSetup = {}) {
 	}
 	return { ...row, factId: fact.id, runId };
 }
+
+/** An FSP fact of the candidate as the synchronization stores it. */
+async function fspFact(
+	candidateId: string,
+	factType: 'competition_result' | 'qualification',
+	payload: Record<string, unknown>,
+	status: 'active' | 'withdrawn' = 'active'
+) {
+	await database.db.insert(sourceFacts).values({
+		candidateId,
+		source: 'fsp',
+		factType,
+		sourceRecordRef: `fsp:${factType}:${randomSha256().slice(0, 12)}`,
+		trustLevel: 'fsp_verified',
+		ownershipBasis: 'operator_confirmed',
+		payload,
+		payloadSha256: randomSha256(),
+		observedAt: new Date(),
+		lastVerifiedAt: new Date(),
+		status
+	});
+}
+
+/** A result of a competition of its own with the status and the award, and the team role when the result is a team's. */
+const competitionResult = (status: 'official' | 'preliminary', award: string, role?: 'captain' | 'reserve') => ({
+	result: { status, award, ...(role ? { team: { role } } : {}) },
+	competition: { id: randomSha256().slice(0, 12), discipline: 'algorithmic', format: role ? 'team' : 'individual' }
+});
 
 /** What the withdrawal of evidence does in its transaction (domain 17.3): the fact out, revision and floor up. */
 async function withdraw(candidateId: string, factId: string) {
@@ -512,6 +541,53 @@ describe('catalog search: filters and visibility', () => {
 		expect(all.items.find((i) => i.candidateId === middle.id)?.categoryConfirmed).toBe(true);
 		expect(order.indexOf(none.id)).toBeGreaterThan(order.indexOf(middle.id));
 		expect(order.indexOf(none.id)).toBeGreaterThan(order.indexOf(junior.id));
+	});
+
+	it('without a query, puts every candidate with a category before one without, whatever the FSP record', async () => {
+		const { subject } = await employer();
+		// A category decided long ago, its blocks far below the cuts: the weakest confirmed profile there is.
+		const [first, second] = gradeDefinition('backend', 'junior').defining;
+		if (!first || !second) throw new Error('a grade has two defining blocks');
+		const confirmed = await candidate({
+			category: {
+				specialization: 'backend',
+				grade: 'junior',
+				decidedAt: new Date(Date.now() - 3 * 365 * DAY),
+				blocks: [
+					{ block: first, items: 4, score: 0, cut: 50 },
+					{ block: second, items: 3, score: 0, cut: 40 }
+				]
+			}
+		});
+		const champion = await candidate({ skills: [{ key: 'go', band: 'strong', attestation: 'direct' }] });
+		for (let i = 0; i < 6; i++)
+			await fspFact(champion.id, 'competition_result', competitionResult('official', 'winner'));
+
+		const order = ids(await search(subject, {}));
+		expect(order).toContain(champion.id);
+		expect(order.indexOf(champion.id)).toBeGreaterThan(order.indexOf(confirmed.id));
+	});
+
+	it("keeps «с ФСП» to an official result of the candidate's own, the set the count of a category reads too", async () => {
+		const { subject } = await employer();
+		const official = await candidate();
+		const captain = await candidate();
+		const preliminary = await candidate();
+		const qualified = await candidate();
+		const reserve = await candidate();
+		const withdrawn = await candidate();
+		await fspFact(official.id, 'competition_result', competitionResult('official', 'participant'));
+		await fspFact(captain.id, 'competition_result', competitionResult('official', 'prize', 'captain'));
+		await fspFact(preliminary.id, 'competition_result', competitionResult('preliminary', 'winner'));
+		await fspFact(qualified.id, 'qualification', { qualification: { rank: 'KMS', discipline: 'algorithmic' } });
+		await fspFact(reserve.id, 'competition_result', competitionResult('official', 'winner', 'reserve'));
+		await fspFact(withdrawn.id, 'competition_result', competitionResult('official', 'winner'), 'withdrawn');
+		const people = [official, captain, preliminary, qualified, reserve, withdrawn].map((person) => person.id);
+		const expected = [official.id, captain.id].sort();
+
+		const filtered = ids(await search(subject, { filters: { fspConfirmed: true } }));
+		expect(filtered.filter((id) => people.includes(id)).sort()).toEqual(expected);
+		expect([...(await candidatesWithFsp(database.db, people))].sort()).toEqual(expected);
 	});
 
 	it('hides a candidate whose catalog consent was revoked', async () => {

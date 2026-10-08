@@ -22,6 +22,7 @@ import type { ModelAdapter } from '$lib/server/ml/adapter';
 import { redis, type Redis } from '$lib/server/redis';
 import type { ResumeDeps } from '$lib/server/resumes/deps';
 import { objectStore, type ObjectStore } from '$lib/server/storage/object-store';
+import { redisTextParseCache } from '$lib/server/vacancies/text-extract';
 
 export interface ApiServices {
 	db: Database;
@@ -79,6 +80,7 @@ export const invitationDeps = (s: ApiServices): InvitationDeps => ({
 export const needDeps = (s: ApiServices): NeedDeps => ({
 	db: s.db,
 	models: s.models,
+	parseCache: redisTextParseCache(s.redis),
 	now: s.now
 });
 

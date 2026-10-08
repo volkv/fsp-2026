@@ -468,13 +468,20 @@ async function eraseInvitations(tx: Transaction, candidateId: string, ids: Perso
 	if (ids.invitationIds.length === 0) return;
 	const invited = ids.invitationIds;
 	// The complaints name the versions of the terms, and the deliveries of events and the records of ATS adapters name
-	// the offers by the candidate's pseudonym for the company: they go before the terms (domain 13.13, 5.7).
+	// the offers by the candidate's pseudonym for the company: they go before the terms (domain 13.13, 5.7). A decided
+	// complaint becomes a tombstone of company, reason, status and decision — the trust facts of the company count it,
+	// and the departure of the person it wronged must not improve them (domain 13.14); its texts and terms go. An open
+	// one, decided by nobody yet, goes whole.
 	removal.add(
 		await tx
 			.delete(invitationComplaints)
-			.where(eq(invitationComplaints.candidateId, candidateId))
+			.where(and(eq(invitationComplaints.candidateId, candidateId), eq(invitationComplaints.status, 'open')))
 			.returning({ id: invitationComplaints.id })
 	);
+	await tx
+		.update(invitationComplaints)
+		.set({ text: null, termsId: null, resolution: null, purgedAt: at })
+		.where(eq(invitationComplaints.candidateId, candidateId));
 	removal.add(
 		await tx
 			.delete(eventDeliveries)

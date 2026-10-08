@@ -212,7 +212,7 @@ describe('a run below the evidence floor', () => {
 	it('stops counting in the funnel and the feedback, while the category stays', async () => {
 		await invitedDeveloper();
 		const withdrawn = await invitedDeveloper();
-		const invitedBy = async (dimension: 'fsp_participant' | 'specialization') =>
+		const invitedBy = async (dimension: 'fsp_level' | 'specialization') =>
 			Object.fromEntries(
 				(
 					await careerFunnel({ db: database.db, crypto, now: () => NOW }, operator, {
@@ -223,13 +223,13 @@ describe('a run below the evidence floor', () => {
 		const fspCandidates = async () =>
 			(await skillFeedback(database.db, operator, { windowDays: 90, now: NOW, threshold: 1 })).fspCandidates;
 
-		expect(await invitedBy('fsp_participant')).toEqual({ fsp: { value: 2 } });
+		expect(await invitedBy('fsp_level')).toEqual({ L2: { value: 2 } });
 		expect(await invitedBy('specialization')).toEqual({ backend: { value: 2 } });
 		expect(await fspCandidates()).toEqual({ value: 2 });
 
 		await raiseFloor(withdrawn.id);
 
-		expect(await invitedBy('fsp_participant')).toEqual({ fsp: { value: 1 }, not_fsp: { value: 1 } });
+		expect(await invitedBy('fsp_level')).toEqual({ L2: { value: 1 }, none: { value: 1 } });
 		expect(await invitedBy('specialization')).toEqual({ backend: { value: 2 } });
 		expect(await fspCandidates()).toEqual({ value: 1 });
 	});

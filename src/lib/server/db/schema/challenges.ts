@@ -90,7 +90,13 @@ export const challengeDeliveries = pgTable(
 		candidateId: uuid()
 			.notNull()
 			.references(() => candidates.id),
+		/** The real moment of the delivery: what the candidate sees. */
 		deliveredAt: ts().notNull(),
+		/**
+		 * The moment of the delivery on the clock of the call: `delivered_at` outside demo sessions, shifted by the clock
+		 * of the session for a call of its company. The interval between calls and the reminder count it (domain 13.12).
+		 */
+		clockAt: ts().notNull(),
 		openedAt: ts(),
 		remindedAt: ts(),
 		status: text({ enum: CHALLENGE_DELIVERY_STATUSES }).notNull(),
@@ -101,7 +107,7 @@ export const challengeDeliveries = pgTable(
 		unique('challenge_deliveries_pair').on(t.challengeId, t.candidateId),
 		check('challenge_deliveries_opened', sql`${t.status} in ('delivered', 'expired') or ${t.openedAt} is not null`),
 		check('challenge_deliveries_reminded', sql`${t.remindedAt} is null or ${t.remindedAt} >= ${t.deliveredAt}`),
-		index('challenge_deliveries_candidate').on(t.candidateId, t.deliveredAt)
+		index('challenge_deliveries_candidate').on(t.candidateId, t.clockAt)
 	]
 );
 

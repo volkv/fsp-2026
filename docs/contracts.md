@@ -1225,6 +1225,8 @@ interface ParseResponse {
   странице каталога выбор — по названию из того же справочника, в адресе — `?region=<код>`. `region_name` — название по тому же
   справочнику; оба `null`, если регион не указан. Название региона, которого справочник не знает, — ошибка засева, а не тихая потеря
   региона. `CardReceipt.source_simulator` — `true`, если факт получен от демонстрационного имитатора ФСП.
+  `Category.test_signals` — сводка журнала сигналов попытки, назначившей категорию (domain 10.7): `entries`, `pastes`, `pasted_chars`,
+  `departures`, `silent`; записей журнала и времени по заданиям в API нет. Не приговор: тест сигналы не учитывает.
 - **Режим поиска** в ответе каталога: `"search_mode": "hybrid" | "fts_only"` и `"embedding_space_id"` — чтобы клиент видел
   деградированный режим.
 - **Лимиты:** по ключу API и по адресу; заголовки `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset`. Вебхуки Telegram
@@ -1236,14 +1238,18 @@ interface ParseResponse {
   адрес. Выгрузка своих данных (`/me/export/download` и `GET /api/v1/me/data`) — 10 за 10 минут на аккаунт, общий бюджет; сверх —
   `429 rate_limited` (JSON). Сверх лимита каталога или входа — API `429 rate_limited` с `Retry-After` и `RateLimit-*` (узкое
   правило); страницы каталога и `/auth/fsp` при превышении отвечают в обёртке сайта: страница — `429` с `Retry-After`, вход через
-  ФСП ID — `303 /login?error=fsp_rate_limited`.
+  ФСП ID — `303 /login?error=fsp_rate_limited`. Разборы вставленного текста (`POST /api/v1/needs`,
+  `POST /api/v1/vacancies/drafts/from-text`, формы «Новая потребность» и «Вакансия из текста») — 30 в час на аккаунт, общий
+  бюджет, у ключа API свой; сверх — API `429 rate_limited` с `Retry-After` и сообщением о лимите разборов, форма — `429` с
+  той же подписью. Разбор той же компанией того же текста (тот же `input_sha256`, версия таксономии) в течение суток берётся
+  из сохранённого ответа модели без её вызова; компания без допуска (domain 5.1) получает `403` до разбора.
 
 ### 5.5. Основные маршруты `v1`
 
 | Метод и путь | Кто | Смысл |
 |---|---|---|
 | `GET /api/v1/taxonomy/roles`, `/skills`, `/grades` | все | справочники активной версии |
-| `GET /api/v1/catalog/candidates` | член допущенной компании (domain 5.1) | поиск по всей базе: специализация, грейд, категория (пара), стек, наличие подтверждённых достижений ФСП (`has_fsp`), уровень ФСП по дисциплине, формат, регион, текст; с фильтром категории — только кандидаты с действующей категорией, без него — и кандидаты без категории с меткой `category: null` (domain 12.7) |
+| `GET /api/v1/catalog/candidates` | член допущенной компании (domain 5.1) | поиск по всей базе: специализация, грейд, категория (пара), стек, наличие результата ФСП (`has_fsp`: официальный результат соревнования в силе, свой — domain 13.10, «С ФСП»), уровень ФСП по дисциплине, формат, регион, текст; с фильтром категории — только кандидаты с действующей категорией, без него — и кандидаты без категории с меткой `category: null` (domain 12.7) |
 | `GET /api/v1/catalog/market` | член допущенной компании; кандидат — своя категория | три показателя раздельно: `candidate_expectations`, `vacancy_ranges`, `external_reference`; у каждого `sample_size`, окно, география, налоговая база, `method`, `estimated`, `status` (`ok` / `insufficient_data`) (domain 12.8) |
 | `GET /api/v1/candidates/{pseudonym}` | член допущенной компании | карточка в проекции по `canShow` |
 | `GET /api/v1/vacancies/{id}/matches` | член компании-владельца | кандидаты под собственную вакансию с `score`, компонентами и объяснением (domain 13.4) |
@@ -1257,7 +1263,7 @@ interface ParseResponse {
 | `POST /api/v1/invitations/{id}/terms` | владелец, рекрутер | пересмотр или возобновление: новая версия условий; ответ содержит отличия от предыдущей |
 | `GET /api/v1/invitations`, `GET /api/v1/invitations/{id}` | компания; кандидат | свои приглашения с версиями условий и отличиями |
 | `POST /api/v1/invitations/{id}/response` | кандидат (сессия) | `{ terms_id, decision, reason_code?, reason_text?, disclose_fields? }` — ответ на конкретную версию |
-| `GET /api/v1/invitations/{id}/messages` | сторона предложения (`invitation.read`) | переписка принятого предложения (domain 13.15): `{ invitation_id, viewer, closure, unread, messages: [{id, from, own, author_name, text, sent_at, read_at}] }`, старые первыми; `closure` — `null` (открыта), `not_accepted`, `consent_revoked`, `candidate_left`, `company_closed`; чтение ничего не отмечает |
+| `GET /api/v1/invitations/{id}/messages` | сторона предложения (`invitation.read`) | переписка принятого предложения (domain 13.15): `{ invitation_id, viewer, closure, unread, messages: [{id, from, own, author_name, text, sent_at, read_at}] }`, старые первыми; `closure` — `null` (открыта), `not_accepted`, `consent_revoked`, `candidate_left`, `candidate_unavailable` (кандидат заблокировал компанию: компании — без сообщений), `company_closed`; чтение ничего не отмечает |
 | `POST /api/v1/invitations/{id}/messages` | сторона предложения (`invitation.message`; ключ — с этим правом) | `{ text }` 1–2000 символов, простой текст; `201` с сообщением; `Idempotency-Key` поддерживается. Переписка закрыта — `409 conflict` с деталью `conversation_closed`; чужое — `404`. Другой стороне — `invitation.message` без текста, одно на серию непрочитанных; журнал `invitation.message_sent` без текста |
 | `POST /api/v1/invitations/{id}/messages/read` | сторона предложения (`invitation.read`) | отмечает прочитанными непрочитанные сообщения другой стороны; `200 { marked }` |
 | `POST /api/v1/hiring/{process_id}/reports`, `GET /api/v1/hiring/{process_id}` | сторона процесса | сообщение об этапе или исходе; состояние с расхождениями (domain 13.7) |
@@ -1274,7 +1280,7 @@ interface ParseResponse {
 | `GET /api/v1/me/consents`; `POST /api/v1/me/consents/{kind}`, `POST …/{kind}/revocation` | кандидат (сессия) | свои согласия по видам с действующими текстами; дать по точной версии текста (`pd_processing` — повторно, `catalog_visibility`, `telegram_notifications`, `partner_pool`), отозвать (`catalog_visibility`, `telegram_notifications`, `fsp_import`, `partner_pool`) — те же функции, что страницы «Согласия» и «Видимость» (domain 6.3, 19.1) |
 | `GET`, `POST /api/v1/me/resumes`; `GET …/current`; `DELETE …/{resume_id}`; `POST …/claims/{claim_id}/review`, `…/experience/{entry_id}/review`; `PUT …/experience/{entry_id}` | кандидат (сессия) | загрузка `multipart/form-data` (часть `file`, формат по содержимому, до 10 МиБ), статус разбора, разбор с цитатами и решения по полям, удаление (domain 15, 17.3) |
 | `GET`, `POST /api/v1/me/account/deletion` | любой вошедший (сессия) | что удаляется и что мешает; удаление `{ confirm: true, cause?, reason? }` со свежим входом: `403 stale_auth`, `409 staff_role \| last_owner \| already_requested`, `202` (domain 3.1, 19) |
-| `GET /api/v1/me/data` | кандидат (сессия) | «Мои данные»: выгрузка всего, что платформа хранит о кандидате, тем же документом, что скачивается со страницы `/me/export` (`fsp-career-data-export/v7`, domain 19.2; v7 — с перепиской предложений); каждая выгрузка — событие `data.exported` с каналом `api` |
+| `GET /api/v1/me/data` | кандидат (сессия) | «Мои данные»: выгрузка всего, что платформа хранит о кандидате, тем же документом, что скачивается со страницы `/me/export` (`fsp-career-data-export/v8`, domain 19.2; v7 — с перепиской предложений; v8 — с жалобами на предложения: причина, текст, статус, решение, объяснение оператора, и `superseded_at` подтверждений категорий); каждая выгрузка — событие `data.exported` с каналом `api` |
 | `PUT /api/v1/me/catalog-scope` | кандидат 18+ | `{ scope_fields }` — точные достижения, профили и зарплатные ожидания (`salary_expectations`, domain 13.10) в каталоге; новое событие `catalog_visibility` |
 | `POST /api/v1/me/tests/decisions/{decision_id}/objections` | кандидат (сессия) | возражение против результата теста (domain 12.5) |
 | `POST /api/v1/me/notification-channels/telegram` | любой пользователь | ссылка привязки бота (раздел 7.2) |
@@ -1705,7 +1711,7 @@ interface NotificationChannel {
 
 | Метод и путь | Кто | Смысл |
 |---|---|---|
-| `GET /api/v1/verify/categories/{handle}` | все, без аутентификации; лимит частоты по адресу | подтверждение категории (domain 12.9): `{status: valid \| superseded \| annulled, statement, signature, signing_key_id, ended_on, annul_reason, current_grade}`; без ПДн. Страница `/verify/categories/{handle}` (QR PDF-профиля) показывает то же и проверяет подпись; `?code=` подставляет код владельца в форму сверки |
+| `GET /api/v1/verify/categories/{handle}` | все, без аутентификации; лимит частоты по адресу | подтверждение категории (domain 12.9): `{status: valid \| superseded \| annulled, statement, signature, signing_key_id, ended_on, annul_reason, current_grade, reissued}`; `reissued: true` — `superseded` при действующей категории: владелец сменил ФИО, и подтверждение того же назначения выпущено заново (`ended_on` — день замены); без ПДн. Страница `/verify/categories/{handle}` (QR PDF-профиля) показывает то же и проверяет подпись; `?code=` подставляет код владельца в форму сверки |
 | `POST /api/v1/verify/categories/{handle}/holder` | все; лимит частоты | `{full_name, nonce}` от предъявителя → `{matches: boolean}`; `nonce` — код владельца (соль в base32), его кандидат видит в кабинете; ФИО — в порядке «Фамилия Имя Отчество», регистр, «ё» и пробелы не важны; ни ФИО, ни соль не сохраняются и в журнал не пишутся (событие `attestation.holder_checked` — только идентификатор и исход) |
 | `GET /api/v1/operator/objections`, `POST …/{id}/assign`, `POST …/{id}/resolution` | оператор (`objection.manage`, сессия) | очередь возражений по сроку; `assign` — взять в работу (`204`, `409` уже взято другим или закрыто); исход `{outcome: upheld \| annulled \| rescored, resolution, rescored_items?: [{seq, score, reason}]}` — только ответственный оператор, `409` иначе; дело попытки — `/operator/assessments/{attempt_id}` |
 | `GET /api/v1/admin/bank-releases` | администратор | выпуски банка с отчётами ворот и вместимости, ревью и оценками (рецензент, вид, линейка, вердикт, хэш исходников) и сводкой предварительных порогов |
@@ -1745,6 +1751,10 @@ interface JuryNeed {
       practice_language?: PracticeLanguageKey;   // обязателен у confirmed
       blocks: { block: string; items: number; score: number; cut: number }[];
     }[];
+    declared?: {                                 // грейд, заявленный в опросе без теста (domain 12.2): по одному на
+      specialization: SpecializationKey;         // специализацию, не по специализации из test_results — там заявление
+      grade: GradeKey;                           // то, на которое сдан тест
+    }[];
     fsp?: FspAchievementsPage;                   // страница contracts/fsp-achievements/v1
     preferences?: CandidatePreferences;          // как `candidates.preferences`: форматы, регион, переезд, ожидание
     label?: 0 | 1 | 2 | 3;                       // метка жюри, если уже есть: метрики считаются вместе с прогоном
@@ -1758,11 +1768,12 @@ interface JuryNeed {
 - `as_product` — **как в продукте**, обе группы, которые продукт показывает (domain 13.10): подборка — категорию даёт
   только подтверждённое решение теста; фактический путь продукта: разбор потребности правилами → категории, которые
   подборка берёт по умолчанию → кандидаты с действующей категорией из них → ранжирование подборки; после неё — группа
-  «грейд не подтверждён» (категории подборки нет, грейд последнего теста по её специальности называет её категорию) в том
-  порядке и на тех позициях, где её показывает продукт, с заявленным грейдом. Кого продукт не показывает ни там, ни там,
-  выводится отдельно с причиной: нет теста, категория не из подборки, последний тест не на её категорию (domain 12.7).
-  Без `test_results` во входе обе группы пусты по ТЗ — прогон говорит это предупреждением рядом со сводкой входа
-  (сколько кандидатов с решениями тестов и с категорией).
+  «грейд не подтверждён» (категории подборки нет, грейд последнего теста по её специальности или заявленный без теста
+  (`declared`) называет её категорию — как `grades/current.ts` продукта) в том порядке и на тех позициях, где её
+  показывает продукт, с заявленным грейдом. Кого продукт не показывает ни там, ни там, выводится отдельно с причиной:
+  нет теста и заявленной категории подборки, категория не из подборки, последний тест не на её категорию (domain 12.7).
+  Без `test_results` во входе подборка пуста по ТЗ, а группа — только кандидаты с `declared`; прогон говорит это
+  предупреждением рядом со сводкой входа (сколько кандидатов с решениями тестов, с грейдом без теста и с категорией).
 - `resume_only` — **отдельный эксперимент, не качество продукта**: тестов нет, категория — из подсказки грейда (domain
   12.2) по резюме для специализации подборки, с пометкой «не подтверждено»; кого подсказка не допустила — отдельным
   списком «не допущены подсказкой грейда». Подписана «эксперимент без теста» и с
