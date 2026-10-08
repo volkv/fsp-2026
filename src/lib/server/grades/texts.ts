@@ -1,7 +1,7 @@
 // Wording of the grade policy for the candidate (docs/domain.md, section 12.3): why a test is closed and when it opens,
 // what kind of test an open one is. One source for the cabinet, the registration path and the error messages of the API;
 // the numbers come from the policy data, never restated here.
-import { CATALOG } from '$lib/server/assessments/contract/catalog';
+import { categoryGradeName } from '$lib/server/categories/labels';
 import { GRADE_POLICY, type BlockReason } from '$lib/server/assessments/contract/policy';
 import { formatDate, pluralize } from '$lib/components/product/model';
 import type { GradeOffer, OfferKind } from './policy';
@@ -45,8 +45,6 @@ export const DEMO_PRODUCTION_POLICY_NOTE =
 	`${days(retakeIntervalDays)}, смена подтверждённого грейда раз в ${days(gradeChangeIntervalDays)} от подтверждения ` +
 	'(кроме одного шага после уверенного результата). Снять интервалы — на странице демо-сессии.';
 
-const gradeTitle = (key: string) => CATALOG.grades.find((g) => g.key === key)?.title ?? key;
-
 /** Why a test is closed, with the day it opens when it opens by itself. */
 export function blockReasonText(reason: BlockReason, availableFrom: Date | string | null | undefined): string {
 	const text = REASONS[reason];
@@ -61,7 +59,7 @@ export function openOptionText(option: Extract<GradeOffer, { available: true }>)
 	const text = KINDS[option.kind];
 	if (!option.failedRetake) return text;
 	const { grade, availableFrom } = option.failedRetake;
-	return `${text}. Повтор ${gradeTitle(grade)} откроется ${formatDate(availableFrom)} при любом результате этого теста`;
+	return `${text}. Повтор грейда «${categoryGradeName(grade)}» откроется ${formatDate(availableFrom)} при любом результате этого теста`;
 }
 
 /** What an option says: why it is open, or why it is closed and when it opens. */

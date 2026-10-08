@@ -108,7 +108,7 @@ describe('test of a vacancy against the releases in force', () => {
 			vocabulary
 		);
 		expect(qa.plans).toEqual([
-			{ status: 'closed', specialization: 'qa', grade: 'junior', title: 'QA Junior', reason: 'not_released' }
+			{ status: 'closed', specialization: 'qa', grade: 'junior', title: 'QA · Младший', reason: 'not_released' }
 		]);
 		expect(qa.requirements.map((r) => [r.name, r.coverage])).toEqual([
 			['Ручное тестирование', { kind: 'not_tested', reason: 'no_block' }],

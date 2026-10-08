@@ -28,7 +28,7 @@ export function coverageText(coverage: RequirementCoverage): string {
 
 export const GAP_TEXT: Readonly<Record<SpecGap, string>> = {
 	no_specialization: 'Роль не проверяется ни одной специализацией теста: основы категории нет.',
-	no_grade: 'Грейд вне каталога теста (Intern — Senior) или не указан: основы категории нет.'
+	no_grade: 'Грейд вне каталога теста (Стажёр — Старший) или не указан: основы категории нет.'
 };
 
 export const CLOSED_TEXT = {

@@ -8,6 +8,7 @@ import {
 	SPECIALIZATION_KEYS,
 	specializationOpen
 } from '$lib/server/assessments/contract/catalog';
+import { CATEGORY_GRADE_NAMES } from '$lib/server/categories/labels';
 import { candidatePreferencesSchema } from '$lib/server/candidates/preferences';
 import { declareGrade, hintForSelf } from '$lib/server/grades/declarations';
 import type { GradeHint } from '$lib/server/grades/hint';
@@ -112,7 +113,7 @@ export const getCategoryCatalog = defineOperation({
 				open: specializationOpen(s.key, released),
 				practice_languages: [...s.practiceLanguages]
 			})),
-			grades: CATALOG.grades.map((g) => ({ key: g.key, ordinal: g.ordinal, title: g.title })),
+			grades: CATALOG.grades.map((g) => ({ key: g.key, ordinal: g.ordinal, title: CATEGORY_GRADE_NAMES[g.key] })),
 			blocks: CATALOG.blocks.map((b) => ({
 				code: b.code,
 				specialization: b.specialization,

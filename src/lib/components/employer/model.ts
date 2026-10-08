@@ -576,7 +576,7 @@ export function disciplineName(code: string | null | undefined, form: 'name' | '
 	return Object.hasOwn(entries, code) ? (entries[code]?.[form] ?? code) : code;
 }
 
-/** The categories in force in one line, «Backend · Middle, QA · Junior»; `null` — the category is not confirmed. */
+/** The categories in force in one line, «Backend · Средний, QA · Младший»; `null` — the category is not confirmed. */
 export function categoryLine(
 	categories: readonly { specialization: string; grade: string }[],
 	labels: Pick<Labels, 'specializations' | 'grades'>

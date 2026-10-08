@@ -159,7 +159,7 @@ describe('may the candidate start a test of a grade now', () => {
 		});
 		const lower = gradeOptions(input({ now: 1, declared: 'middle', attempts })).find((o) => o.grade === 'junior');
 		if (!lower) throw new Error('no junior option');
-		expect(optionText(lower)).toMatch(/Повтор Middle откроется .* при любом результате этого теста$/);
+		expect(optionText(lower)).toMatch(/Повтор грейда «Средний» откроется .* при любом результате этого теста$/);
 		// A failure on the test below does not move the retake of the failed grade.
 		const below = [...attempts, decided('junior', 1, 'not_confirmed')];
 		expect(

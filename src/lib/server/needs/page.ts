@@ -4,6 +4,7 @@
 // taxonomy have fields of their own and stay as written.
 import { openSpecializations } from '$lib/server/assessments/bank-store';
 import { CATALOG } from '$lib/server/assessments/contract/catalog';
+import { CATEGORY_OPTIONS } from '$lib/server/categories/labels';
 import { formText } from '$lib/server/http/form';
 import { specializationsOfRole } from '$lib/server/categories/roles';
 import { db } from '$lib/server/db';
@@ -101,7 +102,7 @@ export async function needFormOptions() {
 		specializations: CATALOG.specializations
 			.filter((item) => open.has(item.key))
 			.map(({ key, title }) => ({ key, title })),
-		grades: CATALOG.grades.map(({ key, title }) => ({ key, title })),
+		grades: CATEGORY_OPTIONS.grades.map(({ key, name }) => ({ key, title: name })),
 		workFormats: OFFER_WORK_FORMATS.map((key) => ({ key, name: formatNames.get(key) ?? key })),
 		regions: regions.regions.map(({ code, name }) => ({ code, name })),
 		skillNames: Object.fromEntries(vocabulary.skills.map(({ key, name }) => [key, name]))

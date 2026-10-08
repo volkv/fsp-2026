@@ -1,5 +1,6 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { CATALOG } from '$lib/server/assessments/contract/catalog';
+import { CATEGORY_GRADE_NAMES } from '$lib/server/categories/labels';
 import { formText } from '$lib/server/http/form';
 import { minorTermsAcceptance } from '$lib/server/companies/profile';
 import { db } from '$lib/server/db';
@@ -35,7 +36,7 @@ import type { Actions, PageServerLoad } from './$types';
 
 function categoryLabel(key: CategoryKey): string {
 	const specialization = CATALOG.specializations.find((s) => s.key === key.specialization)?.title ?? key.specialization;
-	const grade = key.grade === undefined ? null : (CATALOG.grades.find((g) => g.key === key.grade)?.title ?? key.grade);
+	const grade = key.grade === undefined ? null : CATEGORY_GRADE_NAMES[key.grade];
 	return grade === null ? `${specialization} · все грейды` : `${specialization} · ${grade}`;
 }
 

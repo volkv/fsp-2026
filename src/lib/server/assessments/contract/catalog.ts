@@ -92,10 +92,10 @@ export interface SpecializationDefinition {
 	practiceLanguages: readonly PracticeLanguageKey[];
 }
 
+/** A grade of the catalog; its name is the taxonomy's (`categories/labels.ts`), one for every page. */
 export interface GradeLevel {
 	key: GradeKey;
 	ordinal: number;
-	title: string;
 }
 
 export interface BlockDefinition {
@@ -225,10 +225,10 @@ export const CATALOG: Catalog = {
 		}
 	],
 	grades: [
-		{ key: 'intern', ordinal: 0, title: 'Intern' },
-		{ key: 'junior', ordinal: 1, title: 'Junior' },
-		{ key: 'middle', ordinal: 2, title: 'Middle' },
-		{ key: 'senior', ordinal: 3, title: 'Senior' }
+		{ key: 'intern', ordinal: 0 },
+		{ key: 'junior', ordinal: 1 },
+		{ key: 'middle', ordinal: 2 },
+		{ key: 'senior', ordinal: 3 }
 	],
 	blocks: [
 		// Backend.
