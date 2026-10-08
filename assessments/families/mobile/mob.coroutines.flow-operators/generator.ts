@@ -2,7 +2,8 @@
 // operators before the next one is produced. Junior: collecting twice, the order of prints from `onEach`, `map`,
 // `filter` and `collect`, `take` stopping the builder (its `finally` and `onCompletion` run), `transform` and
 // `flatMapConcat`. Middle: `catch` and `onCompletion` with an exception, `zip` and `combine` (with delays that keep the
-// order deterministic), `buffer` running the producer next to a slow collector, `take` inside `flatMapConcat`.
+// order deterministic), `buffer` running the producer next to a slow collector (a bounded buffer makes the send wait),
+// `take` inside `flatMapConcat`.
 // Sequential chains are run by a model of the operators below; the timed classes (`buffer`, `combine`) by a timeline
 // of their emissions whose moments differ by at least 100 ms.
 import {
@@ -78,8 +79,6 @@ interface Beliefs {
 	takeNoFinally?: boolean;
 	/** `take(n)` stops only when element n + 1 arrives. */
 	takeWaitsNext?: boolean;
-	/** A filter drops an element before the operators in front of it see it. */
-	filterFirst?: boolean;
 	/** `catch` also catches what the collector throws. */
 	catchDownstream?: boolean;
 	/** An exception only skips its element: `catch` handles it and the flow goes on. */
@@ -426,8 +425,13 @@ function renderFlowProgram(program: FlowProgram): string {
 
 // Timed flows.
 
-/** Distinct moments differ by at least this much (the bank's rule is 100 ms): the order survives a loaded machine. */
-const MIN_GAP = 200;
+/**
+ * Distinct moments of the producer and the collector of a `buffer` program differ by at least this much (the bank's
+ * rule); lines of one coroutine keep the order of its code whatever their moments.
+ */
+const MIN_GAP = 100;
+/** Moments of the two flows of `combine` keep a wider gap: the order survives a loaded machine. */
+const COMBINE_GAP = 200;
 
 /** One printed line at a moment of the model; `order` is the order of the code that prints it. */
 interface Event {
@@ -442,7 +446,7 @@ interface Event {
 
 /**
  * The lines in order of their moments. Two lines may share a moment only within one coroutine or as an element's
- * emission followed by its receipt; distinct moments closer than the minimal gap make the draw unusable.
+ * emission followed by its receipt; moments of different coroutines closer than the minimal gap make the draw unusable.
  */
 function timeline(events: readonly Event[]): string[] | null {
 	const sorted = [...events].sort((a, b) => a.at - b.at || a.order - b.order);
@@ -451,7 +455,7 @@ function timeline(events: readonly Event[]): string[] | null {
 			const a = sorted[i] as Event;
 			const b = sorted[j] as Event;
 			const gap = b.at - a.at;
-			if (gap > 0 && gap < MIN_GAP) return null;
+			if (a.actor !== b.actor && gap > 0 && gap < MIN_GAP) return null;
 			const causal = a.actor === b.actor || (a.actor === 'producer' && a.element === b.element);
 			if (gap === 0 && !causal) return null;
 		}
@@ -465,32 +469,45 @@ interface TimedProgram {
 	wrong: Record<string, string[] | null>;
 }
 
+const ENVIRONMENT =
+	'Что напечатает программа на Kotlin 2.4 (JVM 21, kotlinx.coroutines; `runBlocking` на одном потоке)?';
+const ENTER = 'Введите вывод построчно, как он появится на экране.';
+
 const HEAD = ['import kotlinx.coroutines.*', 'import kotlinx.coroutines.flow.*', '', 'fun main() = runBlocking {'];
 
+/** The longest `buffer` run (ms): the draw keeps the program short. */
+const BUFFER_RUN = 2400;
+
 /**
- * The moments of a `buffer` program: the producer never waits (the buffer holds every element), the collector takes an
- * element when it is emitted and it is free. `null` — the run is longer than a second or its moments are too close to
- * read (`timeline`). The timing depends only on the count and the two delays, not on the values and labels.
+ * The moments of a `buffer(capacity)` program: the producer prints `emit` after its delay and then sends; the send
+ * suspends while the buffer holds `capacity` elements the collector has not taken, and the next delay starts when the
+ * send returns. The collector takes an element when it is sent (or waiting to be sent) and the collector is free.
+ * `null` — the run is longer than `BUFFER_RUN` or its moments are too close to read (`timeline`). The timing depends
+ * only on the count, the two delays and the capacity, not on the values and labels.
  */
 function bufferTimeline(
 	values: readonly number[],
-	produce: number,
-	consume: number,
+	timing: { produce: number; consume: number; capacity: number },
 	text: { got: string; saved: string; done: string }
 ): string[] | null {
+	const { produce, consume, capacity } = timing;
 	const events: Event[] = [];
-	values.forEach((v, i) =>
-		events.push({ at: produce * (i + 1), order: 0, text: `emit ${v}`, actor: 'producer', element: i })
-	);
+	const taken: number[] = [];
+	let start = 0;
 	let free = 0;
 	values.forEach((v, i) => {
-		const taken = Math.max(produce * (i + 1), free);
-		events.push({ at: taken, order: 0, text: `${text.got} ${v}`, actor: 'collector', element: i });
-		free = taken + consume;
+		const emitted = start + produce;
+		events.push({ at: emitted, order: 0, text: `emit ${v}`, actor: 'producer', element: i });
+		const at = Math.max(emitted, free);
+		taken.push(at);
+		events.push({ at, order: 0, text: `${text.got} ${v}`, actor: 'collector', element: i });
+		free = at + consume;
 		events.push({ at: free, order: 0, text: `${text.saved} ${v}`, actor: 'collector', element: i });
+		// The send returns once the element `capacity` places back has been taken.
+		start = Math.max(emitted, i - capacity >= 0 ? (taken[i - capacity] as number) : 0);
 	});
 	events.push({ at: free, order: 0, text: text.done, actor: 'collector', element: values.length });
-	if (free > 1000) return null;
+	if (free > BUFFER_RUN) return null;
 	// Code order: element by element, the emission before its receipt.
 	let order = 0;
 	for (const e of [...events].sort((a, b) => a.element - b.element || (a.actor === 'producer' ? -1 : 1)))
@@ -498,20 +515,34 @@ function bufferTimeline(
 	return timeline(events);
 }
 
-/** The counts and delays (ms) of `buffer` programs whose timeline is readable: the draw picks among them only. */
-const BUFFER_TIMINGS: readonly { count: number; produce: number; consume: number }[] = [2, 3].flatMap((count) =>
-	[100, 200, 300].flatMap((produce) =>
-		[200, 300, 400, 500]
-			.map((consume) => ({ count, produce, consume }))
-			.filter(
-				(t) =>
-					bufferTimeline(
-						Array.from({ length: t.count }, (_, i) => i + 1),
-						t.produce,
-						t.consume,
-						{ got: 'got', saved: 'saved', done: 'done' }
-					) !== null
-			)
+/**
+ * `buffer()` holds every element of these programs; with `buffer(1)` and `buffer(0)` (a rendezvous) the send waits for
+ * the collector to take an element.
+ */
+const UNBOUNDED = 64;
+
+/**
+ * The counts, delays (ms) and capacities of `buffer` programs whose timeline is readable and differs from the run
+ * without a buffer; a bounded capacity only where it changes the timeline of `buffer()`.
+ */
+const BUFFER_TIMINGS: readonly { count: number; produce: number; consume: number; capacity: number }[] = [
+	2, 3, 4
+].flatMap((count) =>
+	[100, 200, 300, 400, 500, 600].flatMap((produce) =>
+		[100, 200, 300, 400, 500, 600, 700, 800].flatMap((consume) =>
+			[UNBOUNDED, 1, 0]
+				.map((capacity) => ({ count, produce, consume, capacity }))
+				.filter((t) => {
+					const values = Array.from({ length: t.count }, (_, i) => i + 1);
+					const labels = { got: 'got', saved: 'saved', done: 'done' };
+					const lines = bufferTimeline(values, t, labels);
+					if (lines === null) return false;
+					const sequential = [...values.flatMap((v) => [`emit ${v}`, `got ${v}`, `saved ${v}`]), 'done'];
+					if (lines.join('\n') === sequential.join('\n')) return false;
+					if (t.capacity === UNBOUNDED) return true;
+					return lines.join('\n') !== bufferTimeline(values, { ...t, capacity: UNBOUNDED }, labels)?.join('\n');
+				})
+		)
 	)
 );
 
@@ -523,10 +554,14 @@ function bufferProgram(rng: Rng): TimedProgram | null {
 		['show', 'shown'],
 		['take', 'stored']
 	]);
-	const { count, produce, consume } = rng.pick(BUFFER_TIMINGS);
-	const values = rng.sample([1, 2, 3, 4, 5, 6, 7, 8, 9], count);
+	// A third of the programs bound the buffer; the count is drawn before the delays, so long runs are not rare.
+	const bounded = rng.bool(1 / 3);
+	const pool = BUFFER_TIMINGS.filter((t) => (t.capacity !== UNBOUNDED) === bounded);
+	const count = rng.pick([...new Set(pool.map((t) => t.count))]);
+	const timing = rng.pick(pool.filter((t) => t.count === count));
+	const values = rng.sample([1, 2, 3, 4, 5, 6, 7, 8, 9], timing.count);
 	const done = rng.pick(MAIN);
-	const answer = bufferTimeline(values, produce, consume, { got, saved, done });
+	const answer = bufferTimeline(values, timing, { got, saved, done });
 	if (answer === null) return null;
 	const sequential = [...values.flatMap((v) => [`emit ${v}`, `${got} ${v}`, `${saved} ${v}`]), done];
 	const allFirst = [
@@ -538,14 +573,14 @@ function bufferProgram(rng: Rng): TimedProgram | null {
 		...HEAD,
 		`${IND}val ${name} = flow {`,
 		`${IND}${IND}for (v in listOf(${values.join(', ')})) {`,
-		`${IND}${IND}${IND}delay(${produce})`,
+		`${IND}${IND}${IND}delay(${timing.produce})`,
 		`${IND}${IND}${IND}println("emit $v")`,
 		`${IND}${IND}${IND}emit(v)`,
 		`${IND}${IND}}`,
 		`${IND}}`,
-		`${IND}${name}.buffer().collect {`,
+		`${IND}${name}.buffer(${timing.capacity === UNBOUNDED ? '' : timing.capacity}).collect {`,
 		`${IND}${IND}println("${got} $it")`,
-		`${IND}${IND}delay(${consume})`,
+		`${IND}${IND}delay(${timing.consume})`,
 		`${IND}${IND}println("${saved} $it")`,
 		`${IND}}`,
 		`${IND}println("${done}")`,
@@ -576,9 +611,9 @@ function zipCombineProgram(rng: Rng): TimedProgram | null {
 	const cl = rng.sample([1, 2, 3, 4, 5, 6, 7, 8, 9], rng.int(2, 3));
 	const cr = rng.sample(['a', 'b', 'c', 'd', 'e', 'x', 'y', 'z'], 2);
 	// Moments by construction: a random merge of the two flows, 100 ms between moments of one flow and at least
-	// the minimal gap between moments of different flows, the spare time of the second spread at random.
+	// the gap of combine between moments of different flows, the spare time of the second spread at random.
 	const sides = rng.shuffle([...cl.map(() => 'l' as const), ...cr.map(() => 'r' as const)]);
-	const steps = sides.map((side, i): number => (i > 0 && sides[i - 1] === side ? 100 : MIN_GAP));
+	const steps = sides.map((side, i): number => (i > 0 && sides[i - 1] === side ? 100 : COMBINE_GAP));
 	for (let spare = 1000 - steps.reduce((a, b) => a + b, 0); spare >= 100; spare -= 100)
 		if (rng.bool(0.6)) {
 			const k = rng.int(0, steps.length - 1);
@@ -690,9 +725,18 @@ const PRINTS = ['see', 'check', 'step', 'peek'];
 function operatorChain(rng: Rng): FlowProgram {
 	const src = source(rng, { count: rng.int(3, 4), emit: rng.bool(0.3) });
 	const [pa, pb] = rng.sample(PRINTS, 2) as [string, string];
-	const filter: FOp = { k: 'filter', p: predOf(rng), print: rng.bool() ? pb : null };
-	const map: FOp = { k: 'map', f: arithOf(rng), print: rng.bool() ? 'map' : null };
-	const ops: FOp[] = rng.bool() ? [{ k: 'onEach', print: pa }, filter, map] : [map, { k: 'onEach', print: pa }, filter];
+	const f = arithOf(rng);
+	const filterFirst = rng.bool();
+	// The filter passes some of the values it sees and drops others.
+	const seen = filterFirst ? src.values : src.values.map((v) => arith(f, v));
+	const preds = [predOf(rng), predOf(rng), predOf(rng), { kind: 'odd', k: 0 } as Pred, { kind: 'even', k: 0 } as Pred];
+	const p = preds.find((q) => seen.some((v) => test(q, v)) && seen.some((v) => !test(q, v))) ?? null;
+	if (p === null) return operatorChain(rng);
+	const filter: FOp = { k: 'filter', p, print: rng.bool() ? pb : null };
+	const map: FOp = { k: 'map', f, print: rng.bool() ? 'map' : null };
+	const ops: FOp[] = filterFirst
+		? [{ k: 'onEach', print: pa }, filter, map]
+		: [map, { k: 'onEach', print: pa }, filter];
 	const m0 = rng.pick(MAIN);
 	return { source: src, lines: [{ run: { ops, label: 'got', throwAt: null }, guarded: false }, { say: m0 }] };
 }
@@ -839,9 +883,8 @@ export function build(input: GenerateInput): Built {
 		const instance = makeInstance(descriptor, input, {
 			statement: {
 				markdown: timedClass
-					? 'Что напечатает программа на Kotlin (kotlinx.coroutines)? Задержки настоящие, всё остальное выполняется мгновенно. ' +
-						'Введите вывод построчно, как он появится на экране.'
-					: 'Что напечатает программа на Kotlin (kotlinx.coroutines)? Введите вывод построчно, как он появится на экране.',
+					? `${ENVIRONMENT} Считайте, что задержки выдерживаются точно, а всё остальное выполняется мгновенно. ${ENTER}`
+					: `${ENVIRONMENT} ${ENTER}`,
 				code: { language: 'kotlin', source: drawn.source }
 			},
 			answer: toAnswer(drawn.answer)

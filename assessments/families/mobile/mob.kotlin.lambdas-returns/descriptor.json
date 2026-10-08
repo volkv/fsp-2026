@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "middle",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "09902d225ba32bf7ee5e484549f0c90b5e3eb2371365101cdbef61d4d3a5e030"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "09902d225ba32bf7ee5e484549f0c90b5e3eb2371365101cdbef61d4d3a5e030"
+					}
+				],
+				"mean": 0.55
+			},
 			"constructive": {
 				"functions": "2–3",
 				"calls": "1–3",
@@ -42,7 +59,24 @@
 		},
 		{
 			"grade": "senior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.65,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "09902d225ba32bf7ee5e484549f0c90b5e3eb2371365101cdbef61d4d3a5e030"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.5,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "09902d225ba32bf7ee5e484549f0c90b5e3eb2371365101cdbef61d4d3a5e030"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": {
 				"functions": "2–3",
 				"calls": "2–4",
@@ -179,9 +213,31 @@
 		"reference": { "seeds": 200, "failures": 0 },
 		"wrongSolutions": { "mustBeCaught": 13, "caught": 13 },
 		"hiddenTestsMutationScore": null,
-		"answerCollision": 0.0005,
+		"answerCollision": 0,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Прежняя несопоставимость Senior-ответов уменьшена: nested-labels (A), экземпляр 1, теперь 6 строк, short-circuit (anchor) — 11 вместо 25; fold-early-exit — 12, let-chain — 13. Среда Kotlin 2.4, Kotlin/JVM, JVM 21 названа. Замечание о формате Senior снято решением ведущего № 1.",
+					"Проверка: все 8 программ независимо разобраны по коду и исполнены в Kotlin/JVM 2.4.20 на JVM 21; вывод совпал с каждым пакетным ответом. Проверены нелокальные и именованные return, анонимная функция, захват var и отдельной переменной цикла, порядок short-circuit и Elvis после null из let; все применимые ошибочные ответы отличаются. sourceSha256 проверен. 200 сидов каждого класса не запускал.",
+					"Angoff middle 0.55, senior 0.65: полный binary-вывод за 330/420 с. У Middle/anonymous-function остаётся 21 строка и несколько разных видов выхода; сокращённый Senior/anchor заметно уменьшает вероятность обнулить ответ из-за пропущенной побочной печати. Разбиение длинных независимых вызовов на parts было бы полезной отдельной правкой рубрики."
+				],
+				"sourceSha256": "09902d225ba32bf7ee5e484549f0c90b5e3eb2371365101cdbef61d4d3a5e030"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Повторный раунд: добавлена среда «Kotlin 2.4 (Kotlin/JVM, JVM 21)»; senior `short-circuit` укорочен до 11 строк, `nested-labels` — 6 строк (переписан код, метки outer). Все 8 экземпляров заново выполнены на Kotlin 2.4 (JVM 21), вывод совпал с ответом.",
+					"Middle `anonymous-function` остаётся самым длинным (21 строка) при бинарной рубрике; учтено в Angoff. Замечание про senior как трассировку снято решением ведущего."
+				],
+				"sourceSha256": "09902d225ba32bf7ee5e484549f0c90b5e3eb2371365101cdbef61d4d3a5e030"
+			}
+		]
 	}
 }

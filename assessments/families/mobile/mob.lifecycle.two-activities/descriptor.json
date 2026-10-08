@@ -8,15 +8,32 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
-			"constructive": { "screens": "2–3", "events": "4–7", "depth": 2, "mechanisms": 1 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.5,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "6c7395cf782a27ce11cb6a750eb97492a128e036e257a69f9ed0bf8c4c0b46d6"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.5,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "6c7395cf782a27ce11cb6a750eb97492a128e036e257a69f9ed0bf8c4c0b46d6"
+					}
+				],
+				"mean": 0.5
+			},
+			"constructive": { "screens": "2–3", "events": "3–6", "depth": "2–3", "mechanisms": 1 },
 			"constructiveRank": 3,
 			"timeNormSec": 240,
 			"classes": [
 				{
 					"id": "open-opaque",
 					"form": "A",
-					"description": "A открывает B: A.onPause, B.onCreate, B.onStart, B.onResume, затем A.onStop и A.onSaveInstanceState"
+					"description": "только вперёд, без «Назад»: A открывает B — A.onPause, B.onCreate, B.onStart, B.onResume, затем A.onStop и A.onSaveInstanceState; если B открывает C, экран A колбэков больше не получает"
 				},
 				{
 					"id": "translucent",
@@ -37,10 +54,27 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
-			"constructive": { "screens": "3–6", "events": "5–9", "depth": 3, "mechanisms": 2 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "6c7395cf782a27ce11cb6a750eb97492a128e036e257a69f9ed0bf8c4c0b46d6"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.4,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "6c7395cf782a27ce11cb6a750eb97492a128e036e257a69f9ed0bf8c4c0b46d6"
+					}
+				],
+				"mean": 0.5
+			},
+			"constructive": { "screens": 3, "events": "4–5", "depth": 3, "mechanisms": 2 },
 			"constructiveRank": 4,
-			"timeNormSec": 300,
+			"timeNormSec": 330,
 			"classes": [
 				{
 					"id": "finish-on-start",
@@ -115,7 +149,7 @@
 		},
 		{
 			"id": "save-before-stop",
-			"defect": "ставит onSaveInstanceState перед onStop, как было до API 28",
+			"defect": "ставит onSaveInstanceState перед onStop, как при targetSdkVersion ниже 28",
 			"mustBeCaught": true
 		},
 		{
@@ -137,6 +171,29 @@
 		"answerCollision": 0.0064,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Прежние существенные замечания устранены: targetSdkVersion 34 явно задан, поэтому порядок onStop перед onSaveInstanceState соответствует среде. Intern/open-opaque больше не содержит Back; отсутствие Back проверено на 200 сидах, класс отделён от anchor/back. Junior-журналы на проверенных сидах имеют 21–23 строки при увеличенной норме 330 с.",
+					"Рубрика binary остаётся чувствительной к одной ошибке порядка в длинном журнале: показанный Intern/home-on-top содержит 21 строку за 240 с, Junior/translucent-chain — 23 строки за 330 с. Для уменьшения влияния объёма записи можно оценивать parts по переходам; текущая длина учтена в Angoff.",
+					"Пересчёт: все 8 журналов независимо построены Python 3.12 по стеку экранов и переходам полноэкранной/диалоговой Activity, finish, Back и Home; ответы совпали. Дополнительно совпали расчёты на 200 сидах каждого класса; все применимые ответы 7 ошибочных решений отличаются. Контракт порядка сверён с https://developer.android.com/guide/components/activities/activity-lifecycle и https://developer.android.com/reference/android/app/Activity. sourceSha256 проверен. Реальный Android, межпроцессные переходы, Kotlin/JVM и штатные ворота не запускались.",
+					"Angoff: Intern 0.50 — за 240 с требуется точный полный журнал открытия, остановки и возврата двух экранов. Junior 0.60 — сокращение сценариев и 330 с позволяют пограничному кандидату проследить три экрана и finish, но binary сохраняет риск одной ошибки. Оценки поставлены заново."
+				],
+				"sourceSha256": "6c7395cf782a27ce11cb6a750eb97492a128e036e257a69f9ed0bf8c4c0b46d6"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Повторный раунд, полное ревью. Устранено: в условии указан targetSdkVersion 34 вместе с API 34, поэтому onSaveInstanceState после onStop однозначен; open-opaque (A) теперь без «Назад» (home, возврат, открытие второго экрана), что отделяет его от back (anchor). Пересчитал вручную все 8 журналов (15, 17, 15, 21, 21, 21, 23, 24 строки): совпали с эталоном.",
+					"Мелочь: junior-журналы 21-24 строки при норме 330 с и бинарной рубрике по-прежнему жёсткие (одна ошибка порядка обнуляет). Учтено в Angoff. Реальный Android не запускал."
+				],
+				"sourceSha256": "6c7395cf782a27ce11cb6a750eb97492a128e036e257a69f9ed0bf8c4c0b46d6"
+			}
+		]
 	}
 }

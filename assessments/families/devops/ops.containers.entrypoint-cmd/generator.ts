@@ -35,6 +35,7 @@ interface Rules {
 	shellAsExec: boolean;
 	shellDropsArgs: boolean;
 	epKeepsCmd: boolean;
+	epDropsArgs: boolean;
 	firstWins: boolean;
 	execExpands: boolean;
 	dropBaseEp: boolean;
@@ -50,6 +51,7 @@ const RIGHT: Rules = {
 	shellAsExec: false,
 	shellDropsArgs: false,
 	epKeepsCmd: false,
+	epDropsArgs: false,
 	firstWins: false,
 	execExpands: false,
 	dropBaseEp: false,
@@ -65,6 +67,7 @@ const WRONG: Record<string, Partial<Rules>> = {
 	'shell-as-exec': { shellAsExec: true },
 	'shell-drops-args': { shellDropsArgs: true },
 	'entrypoint-keeps-cmd': { epKeepsCmd: true },
+	'entrypoint-drops-args': { epDropsArgs: true },
 	'first-wins': { firstWins: true },
 	'exec-expands-vars': { execExpands: true },
 	'drop-base-entrypoint': { dropBaseEp: true },
@@ -192,7 +195,8 @@ function evaluate(s: Scenario, rules: Rules, junior: boolean): string[] {
 		entry = [runEp];
 		if (!rules.epKeepsCmd) command = [];
 	}
-	if (args.length > 0) command = rules.argsAppend ? [...command, ...args] : args;
+	if (args.length > 0 && !(runEp !== null && rules.epDropsArgs))
+		command = rules.argsAppend ? [...command, ...args] : args;
 	if (rules.shellDropsArgs && runEp === null && ep !== null && !ep.exec) command = [];
 	const head = junior
 		? [
@@ -312,17 +316,29 @@ function internScenario(rng: Rng, classId: string): Scenario {
 		if (rng.bool(0.7)) lines.push(`CMD ${json(rng.bool(0.35) ? app.cmdVar : app.cmd)}`);
 		args = withArgs ? app.alt : [];
 	} else if (classId === 'cmd-only') {
-		if (rng.bool(0.3)) lines.push(`CMD ${json(app.alt)}`);
+		// Without arguments the process is the last CMD of the file: an earlier CMD is always there to tell them apart.
+		args = rng.bool(0.5) ? app.alt : [];
+		if (args.length === 0 || rng.bool(0.3)) lines.push(`CMD ${json(app.alt)}`);
 		const execCmd = rng.bool(0.35) ? app.cmdVar : app.cmd;
 		lines.push(rng.bool(0.6) ? `CMD ${json([...app.entry, ...execCmd])}` : `CMD ${app.shellCmd}`);
-		args = rng.bool(0.75) ? app.alt : [];
 	} else {
-		lines.push(`ENTRYPOINT ${json(app.entry)}`, `CMD ${json(app.cmd)}`);
+		lines.push(
+			rng.bool(0.4) ? `ENTRYPOINT ${app.shellEntry}` : `ENTRYPOINT ${json(app.entry)}`,
+			`CMD ${json(app.cmd)}`
+		);
 		const ep = rng.bool(0.15)
 			? rng.pick(['/bin/sh', 'sh', '/bin/bash', '/usr/bin/env', 'printenv', 'id'])
 			: `${rng.pick(['/app/bin', '/usr/local/bin', '/opt/tools'])}/${rng.pick(['migrate', 'seed', 'console', 'healthcheck', 'reindex', 'warmup', 'backup', 'cron', 'export', 'report', 'cleanup'])}`;
 		flags = ['--entrypoint', ep];
-		args = rng.bool(0.3) ? rng.pick([['-c', 'env'], ['/etc/os-release'], ['--version']]) : [];
+		args = rng.bool(0.5)
+			? rng.pick([
+					['-c', rng.pick(['env | sort', 'id -u', 'ls -la /app'])],
+					['/etc/os-release'],
+					['--version'],
+					['--dry-run', `--limit=${rng.int(2, 50)}`],
+					['--target', rng.pick(['orders', 'users', 'billing']), '--verbose']
+				])
+			: [];
 	}
 	return {
 		lines,
@@ -497,11 +513,10 @@ print("\\n".join(out))
 
 // --- Build -------------------------------------------------------------------------------------------------------
 
+/** Wrong solutions every instance of a class must expose; cmd-only and entrypoint-flag depend on the arguments (`build`). */
 const REQUIRED: Record<string, string[]> = {
 	'intern/exec-pair': ['args-append'],
 	'intern/shell-entrypoint': ['shell-as-exec', 'shell-drops-args'],
-	'intern/cmd-only': ['args-append'],
-	'intern/entrypoint-flag': ['entrypoint-keeps-cmd'],
 	'junior/inherit-entrypoint': ['drop-base-entrypoint'],
 	'junior/reset-cmd': ['inherit-cmd-after-entrypoint'],
 	'junior/exec-ep-shell-cmd': ['shell-cmd-words'],
@@ -514,6 +529,7 @@ const LEVEL_WRONG: Record<string, string[]> = {
 		'shell-as-exec',
 		'shell-drops-args',
 		'entrypoint-keeps-cmd',
+		'entrypoint-drops-args',
 		'first-wins',
 		'exec-expands-vars'
 	],
@@ -544,7 +560,13 @@ export function build(input: GenerateInput): Built {
 				return [id, same(value) ? null : value];
 			})
 		);
-		const required = REQUIRED[`${input.grade}/${input.classId}`] ?? [];
+		const withArgs = shellWords(s.run.join(' ')).at(-1) !== s.tag;
+		const required =
+			input.grade === 'intern' && input.classId === 'cmd-only'
+				? [withArgs ? 'args-append' : 'first-wins']
+				: input.grade === 'intern' && input.classId === 'entrypoint-flag'
+					? [withArgs ? 'entrypoint-drops-args' : 'entrypoint-keeps-cmd']
+					: (REQUIRED[`${input.grade}/${input.classId}`] ?? []);
 		if (required.some((id) => wrong[id] === null)) continue;
 		const source = s.lines.join('\n');
 		const instance = makeInstance(descriptor, input, {

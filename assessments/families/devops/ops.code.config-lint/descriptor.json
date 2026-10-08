@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.8 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.8,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "4741ca9f85506fe2dda16927a450acfddc6a300eb9fff81449aa447a6806b65b"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.85,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "4741ca9f85506fe2dda16927a450acfddc6a300eb9fff81449aa447a6806b65b"
+					}
+				],
+				"mean": 0.85
+			},
 			"constructive": { "format": "KEY=VALUE", "sections": false, "types": 4, "groups": 5 },
 			"constructiveRank": 4,
 			"timeNormSec": 1800,
@@ -37,7 +54,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.8 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.8,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "4741ca9f85506fe2dda16927a450acfddc6a300eb9fff81449aa447a6806b65b"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.75,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "4741ca9f85506fe2dda16927a450acfddc6a300eb9fff81449aa447a6806b65b"
+					}
+				],
+				"mean": 0.8
+			},
 			"constructive": { "format": "INI", "sections": true, "types": 4, "groups": 5 },
 			"constructiveRank": 6,
 			"timeNormSec": 2400,
@@ -141,10 +175,35 @@
 	"gates": {
 		"reference": { "seeds": 200, "failures": 0 },
 		"wrongSolutions": { "mustBeCaught": 9, "caught": 9 },
-		"hiddenTestsMutationScore": 0.9918,
+		"hiddenTestsMutationScore": 0.9934,
 		"answerCollision": 0,
 		"transfer": 0,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Прежнее замечание Intern устранено: заготовка разбора схемы и ввода присутствует; basic и plain не смешивают пробелы, комментарии, пропуски обязательных ключей и границы диапазонов. На показанных экземплярах no-trim, range-exclusive, missing-first и comment-inline сохраняют обе группы; в substitution undefined-as-empty тоже проходит обе. Для прохода достаточно реализовать типы и существенное правило собственного класса, оставив часть остальных механизмов неполной.",
+					"Angoff: intern 0.80, junior 0.80 — вероятность набрать не ниже 0.40, то есть пройти две из пяти групп. За 1800 секунд Intern получает готовое чтение схемы и короткие простые группы; подстановка остаётся наиболее сложным классом. Junior за 2400 секунд должен добавить секции, но отдельные ошибки диапазонов, комментариев и неизвестных секций сохраняют две-три группы. Оценка не является вероятностью полного решения.",
+					"Независимым линтером на Python 3.12 пересчитал все 8 показанных экземпляров и все 156 восстановленных тестов пяти групп, включая большой объём; ответы и исполнения 8 эталонных программ совпали по tokens. Проверил 46 применимых ошибочных программ и баллы их групп, сверил показанные префиксы с полным вводом. Предельный домен, Go-решения, 200 сидов каждого класса и фактическое время решения людьми не проверял."
+				],
+				"sourceSha256": "4741ca9f85506fe2dda16927a450acfddc6a300eb9fff81449aa447a6806b65b"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Прежнее существенное замечание (intern ниже 0,75, нет простых групп) устранено: первые две группы intern (basic, plain) — короткие конфигурации без пробелов, комментариев, пропусков и границ диапазонов; в условии есть заготовка разбора схемы и конфигурации. Мутации моего решения (no-trim, comment-inline, range-exclusive, missing-first, undefined-as-empty) оставляют basic и plain 15/15 у всех intern-классов, то есть неполное решение стабильно набирает 2 группы из 5.",
+					"Пересчитано: собственный линтер по тексту условия для всех 8 классов совпал с ожидаемым выводом всех скрытых тестов 40 сидов на класс (intern 840 тестов на класс, junior 720): расхождений 0. Эталонные программы не запускал, Go и производительность на scale не проверял.",
+					"Junior без изменений по существу: простые группы отдельно нет, но ошибки границ диапазона и комментария в середине строки ломают 1–2 группы, остальные 3–4 проходят (проверено на 15 сидах); no-trim и порядок missing обнуляют большинство групп, это явные правила условия.",
+					"Мелочь. Условие говорит «цифры» для int и «пробелы и табуляции» для обрезки; в тестах только ASCII и LF, поэтому int() с подчёркиваниями или strip() по всем пробельным символам расходятся с условием лишь на отсутствующих входах. Ошибочные решения реальны; hidden test mutation score 0,99.",
+					"Angoff: intern 0,85 (две простые группы, заготовка, 1800 с), junior 0,75 (секции INI, 2400 с, нет отдельных простых групп, но неполное решение проходит 2–3 группы)."
+				],
+				"sourceSha256": "4741ca9f85506fe2dda16927a450acfddc6a300eb9fff81449aa447a6806b65b"
+			}
+		]
 	}
 }

@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "middle",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.8 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.85,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "33474c95934591b50b412817ed1c5a7f8e0e478cefdca5aa832bcb1a530653d7"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.8,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "33474c95934591b50b412817ed1c5a7f8e0e478cefdca5aa832bcb1a530653d7"
+					}
+				],
+				"mean": 0.85
+			},
 			"constructive": { "series": 1, "lookback": false, "globalTicks": false, "changeStep": "keep_firing_for" },
 			"constructiveRank": 4,
 			"timeNormSec": 2700,
@@ -37,7 +54,24 @@
 		},
 		{
 			"grade": "senior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.8 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.85,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "33474c95934591b50b412817ed1c5a7f8e0e478cefdca5aa832bcb1a530653d7"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.75,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "33474c95934591b50b412817ed1c5a7f8e0e478cefdca5aa832bcb1a530653d7"
+					}
+				],
+				"mean": 0.8
+			},
 			"constructive": { "series": "2–6", "lookback": true, "globalTicks": true, "changeStep": "keep_firing_for" },
 			"constructiveRank": 6,
 			"timeNormSec": 3000,
@@ -139,10 +173,35 @@
 	"gates": {
 		"reference": { "seeds": 200, "failures": 0 },
 		"wrongSolutions": { "mustBeCaught": 7, "caught": 7 },
-		"hiddenTestsMutationScore": 0.9968,
+		"hiddenTestsMutationScore": 0.9975,
 		"answerCollision": 0,
-		"transfer": 0.0013,
+		"transfer": 0.0029,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Прежняя проблема доступности практики устранена: basic и cycles проходят все 33 применимые ошибочные программы показанных экземпляров. Те же ошибки в независимой реализации шага keep_firing_for сохраняют обе простые группы; смешанный балл не ниже 0.40. Кандидату даны примеры и заготовка чтения ввода; ограничение E/S ≤ 10⁶ и порядок имён по кодам символов записаны явно.",
+					"Мелочь: senior/absent, экземпляр 1, описание basic и cycles обещает, что все ряды присылают отсчёты в одни моменты, но первый basic содержит auth в моменты 2, 14, 26 и web-1 в 21, 31 и далее с разными расписаниями. Уточнить описание для absent: общая сетка оценки, простые независимые расписания рядов. Правило вычисления и ожидаемый вывод от этого не меняются.",
+					"Angoff: middle 0.85, senior 0.85 — вероятность пройти ворота практики, а не решить всё. При весе шага 0.30 три основные группы дают 0.42 без шага; две основные и две изменённые дают 0.40. Один вид метрики на экземпляр, явный автомат, простые группы и заготовка ввода делают такой проход реалистичным за 2700/3000 секунд; на Senior дополнительная работа с рядами компенсируется опытом и временем.",
+					"Независимо реализовал окна, выбор отсчётов, счётчик со сбросами и автоматы состояний на Python 3.12; восстановил все 8 показанных экземпляров и пересчитал 156 основных и 156 изменённых тестов. Все 312 ожидаемых выводов и исполнения эталонов совпали по tokens; проверил 33 ошибочные программы и их ошибки в изменённом автомате. Предельные N, число рядов и E/S, Go-решения, 200 сидов каждого класса и фактическое время решения людьми не проверял."
+				],
+				"sourceSha256": "33474c95934591b50b412817ed1c5a7f8e0e478cefdca5aa832bcb1a530653d7"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Прежнее существенное замечание устранено: появились две простые группы (basic, cycles; у senior все ряды присылают отсчёты в одни и те же моменты) без граничных случаев, затем automaton, edge и scale (у senior series). Я заново внёс в своё решение по одной типичной ошибке из списка ворот (12 сидов на класс): for-strict, pending-silent, window-closed, counter-reset-ignored обнуляют automaton и edge, но basic и cycles проходят 12/12 в middle и senior; threshold-inclusive, no-staleness, own-ticks оставляют ещё и часть остальных групп. То есть неполное решение стабильно набирает 2 группы из 5.",
+					"Пересчитано: собственное решение по тексту условия для всех 8 классов и шага keep_firing_for совпало с ожидаемым выводом всех нешкальных тестов 12 сидов на класс (3 072 теста middle + senior 4 032): расхождений 0. Пример из условия вручную проверен (threshold: `10 pending, 30 firing, 40 resolved, 50 pending`). Эталонные программы не запускал; производительность на scale и Go не проверял.",
+					"Ворота 0,4 с весом шага 0,3: с двумя простыми группами основной задачи и двумя простыми группами шага (при ошибке for-strict basic и cycles шага проходят, при игнорировании K — нет) получается ровно 0,40; безошибочное ядро даёт 0,7 без шага. Это держит Angoff около контрактной границы; честная оценка: middle 0,80 (условие точное, есть пример и заготовка ввода, 2700 с), senior 0,75 (несколько рядов и общие моменты, 3000 с).",
+					"Мелочь. «По возрастанию кодов символов» и E/S ≤ 10⁶ добавлены в условие (ранее замечено). Ошибочные решения реальны и ловят свои группы. Идеальных простых групп в шаге keep_firing_for нет отдельно от основных, но они присутствуют (basic, cycles)."
+				],
+				"sourceSha256": "33474c95934591b50b412817ed1c5a7f8e0e478cefdca5aa832bcb1a530653d7"
+			}
+		]
 	}
 }

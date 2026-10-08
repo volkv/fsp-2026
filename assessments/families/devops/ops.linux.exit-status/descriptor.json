@@ -8,8 +8,25 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
-			"constructive": { "statements": "5–10", "rules": "1–2", "setE": "только в X" },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.5,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "0571343ba48c72d16f5005a9a5e07ce031369e5ed24c46bf3a19714b462df083"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.45,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "0571343ba48c72d16f5005a9a5e07ce031369e5ed24c46bf3a19714b462df083"
+					}
+				],
+				"mean": 0.5
+			},
+			"constructive": { "statements": "4–12", "rules": "1–3", "setE": "только в X" },
 			"constructiveRank": 2,
 			"timeNormSec": 240,
 			"classes": [
@@ -37,8 +54,25 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
-			"constructive": { "statements": "6–12", "rules": "2–3", "setE": "с исключениями" },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.45,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "0571343ba48c72d16f5005a9a5e07ce031369e5ed24c46bf3a19714b462df083"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.35,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "0571343ba48c72d16f5005a9a5e07ce031369e5ed24c46bf3a19714b462df083"
+					}
+				],
+				"mean": 0.4
+			},
+			"constructive": { "statements": "8–13", "rules": "2–3", "setE": "с исключениями" },
 			"constructiveRank": 4,
 			"timeNormSec": 300,
 			"classes": [
@@ -158,6 +192,28 @@
 		"answerCollision": 0.0001,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Прежние замечания учтены: названы GNU bash 5.2 и параметры по умолчанию, последняя строка явно имеет вид exit N с одним пробелом; характеристики сложности обновлены. По решению ведущего такой явный формат допустим для sequence.",
+					"Независимо исполнил GNU bash 5.2.21 все 8 показанных скриптов и ещё 152 (20 сидов класса) в отдельных временных каталогах с чистой средой. Полный stdout и exit status совпали; все 20 видов применимых ошибочных ответов отличаются. Другие версии/оболочки и полные ворота на 200 сидах класса не проверял.",
+					"Angoff: intern 0.50 — функции, списки и исключения errexit труднее обычного конвейера, а все строки и статус за 240 с оцениваются бинарно; junior 0.45 — условный вызов функции при set -e, PIPESTATUS и маскирующие local/export требуют специальных знаний Bash даже при 300 с."
+				],
+				"sourceSha256": "0571343ba48c72d16f5005a9a5e07ce031369e5ed24c46bf3a19714b462df083"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Правки учтены: в условии названы GNU bash 5.2 и параметры оболочки по умолчанию, формат последней строки (`exit`, один пробел, число) задан явно, anchor functions-subshell укорочен. Проверено исполнением настоящим bash 5.2.21: 8 показанных и 1600 сгенерированных экземпляров (200 сидов на класс) дали вывод и код, совпавшие с ожидаемым, 1600 из 1600.",
+					"Замечание по грейду сохраняется: исключения `set -e` и PIPESTATUS на intern/junior требуют уверенного знания bash; Angoff учтён. Другие версии bash не проверял."
+				],
+				"sourceSha256": "0571343ba48c72d16f5005a9a5e07ce031369e5ed24c46bf3a19714b462df083"
+			}
+		]
 	}
 }

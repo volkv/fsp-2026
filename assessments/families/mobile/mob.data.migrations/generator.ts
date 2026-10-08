@@ -8,6 +8,10 @@ import { insertRows } from '../../_lib/sql.ts';
 
 const descriptor = readDescriptor(import.meta.url);
 
+/** The answer lines are compared as text: the separator is fixed exactly. */
+const ROW_SPACING =
+	'Строки ответа сравниваются как текст: значения столбцов разделяются ровно так — пробел, черта, пробел, без лишних пробелов вокруг черты; пробелы внутри значений сохраняются как есть.';
+
 const REQUIRED: Required = {
 	'junior/add-column': ['add-column-null'],
 	'junior/column-order': ['select-by-name', 'int-division-real'],
@@ -540,7 +544,10 @@ const MAKERS: Record<string, (rng: Rng) => SqlItem> = {
 export function build(input: GenerateInput): Built {
 	const make = MAKERS[`${input.grade}/${input.classId}`];
 	if (!make) throw new Error(`${descriptor.key}: no class ${input.grade}/${input.classId}`);
-	return buildSql(descriptor, input, REQUIRED, make);
+	return buildSql(descriptor, input, REQUIRED, (rng) => {
+		const item = make(rng);
+		return { ...item, statement: `${item.statement} ${ROW_SPACING}` };
+	});
 }
 
 export function generate(input: GenerateInput): ItemInstance {

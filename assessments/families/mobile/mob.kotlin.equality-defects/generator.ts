@@ -130,8 +130,8 @@ const MIDDLE: KtUnit[] = [
 		kind: 'mutable-key',
 		lines: [
 			...kdoc(
-				'Выбранные фильтры. rename(f, v) заменяет фильтр f фильтром с тем же именем и значением v:',
-				'старый больше не выбран, новый выбран, число фильтров не меняется.'
+				'Выбранные фильтры. rename(f, v) заменяет выбранный фильтр f фильтром с тем же именем и значением v',
+				'(такой фильтр ещё не выбран): старый больше не выбран, новый выбран, число фильтров не меняется.'
 			),
 			'class FilterSet {',
 			'    private val selected = HashSet<Filter>()',
@@ -215,9 +215,12 @@ const MIDDLE: KtUnit[] = [
 		name: 'Tag',
 		kind: 'equals-hashcode',
 		lines: [
-			...kdoc('Тег поиска. Теги равны без учёта регистра; их хранят в HashSet и используют как ключи HashMap.'),
+			...kdoc(
+				'Тег поиска. Теги равны без учёта регистра: совпадают имена, приведённые lowercase();',
+				'их хранят в HashSet и используют как ключи HashMap.'
+			),
 			'class Tag(val name: String) {',
-			'    override fun equals(other: Any?): Boolean = other is Tag && other.name.equals(name, ignoreCase = true)',
+			'    override fun equals(other: Any?): Boolean = other is Tag && other.name.lowercase() == name.lowercase()',
 			'',
 			'    override fun hashCode(): Int = name.lowercase().hashCode()',
 			'}'
@@ -229,7 +232,7 @@ const MIDDLE: KtUnit[] = [
 		defect: ['override fun hashCode', '    override fun hashCode(): Int = name.hashCode()'],
 		neighbour: [
 			'override fun equals',
-			'    override fun equals(other: Any?): Boolean = other is Tag && other.name.lowercase() == name.lowercase()'
+			'    override fun equals(other: Any?): Boolean = other is Tag && other.name.equals(name, ignoreCase = true)'
 		],
 		decoy: ['override fun hashCode', '    override fun hashCode(): Int = name.uppercase().hashCode()']
 	}),
@@ -406,43 +409,31 @@ const SENIOR: KtUnit[] = [
 		decoy: ['fun items', '    fun items(): List<String> = lines.toMutableList()']
 	}),
 	unit({
-		name: 'EventBus',
+		name: 'dropMuted',
+		needs: ['Room'],
 		kind: 'exposed-state',
 		lines: [
 			...kdoc(
-				'Шина событий. post() вызывает подписчиков, подписанных на момент вызова, в порядке подписки;',
-				'подписчик может отписаться прямо из своего обработчика.'
+				'Убирает из списка чатов chats заглушённые (id из muted) прямо в переданном списке;',
+				'порядок остальных сохраняется.'
 			),
-			'class EventBus {',
-			'    private val listeners = mutableListOf<(String) -> Unit>()',
-			'',
-			'    fun subscribe(l: (String) -> Unit) {',
-			'        listeners.add(l)',
-			'    }',
-			'',
-			'    fun unsubscribe(l: (String) -> Unit) {',
-			'        listeners.remove(l)',
-			'    }',
-			'',
-			'    fun post(event: String) {',
-			'        for (l in listeners.toList()) l(event)',
+			'fun dropMuted(chats: MutableList<Room>, muted: Set<Int>) {',
+			'    for (room in chats.toList()) {',
+			'        if (room.id in muted) chats.remove(room)',
 			'    }',
 			'}'
 		],
 		checks: [
-			'val bus = EventBus()',
-			'val got = mutableListOf<String>()',
-			'lateinit var once: (String) -> Unit',
-			'once = { e -> got.add("once:$e"); bus.unsubscribe(once) }',
-			'bus.subscribe(once)',
-			'bus.subscribe { e -> got.add("all:$e") }',
-			'bus.post("a")',
-			'bus.post("b")',
-			'check(got == listOf("once:a", "all:a", "all:b"))'
+			'val chats = mutableListOf(Room(1, "a"), Room(2, "b"), Room(3, "c"), Room(4, "d"))',
+			'dropMuted(chats, setOf(1, 3))',
+			'check(chats.map { it.id } == listOf(2, 4))',
+			'val one = mutableListOf(Room(5, "e"))',
+			'dropMuted(one, setOf(5))',
+			'check(one.isEmpty())'
 		],
-		defect: ['for (l in listeners', '        for (l in listeners) l(event)'],
-		neighbour: ['listeners.add(l)', '        listeners += l'],
-		decoy: ['listeners.remove(l)', '        listeners -= l']
+		defect: ['for (room in chats', '    for (room in chats) {'],
+		neighbour: ['if (room.id in muted)', '        if (muted.contains(room.id)) chats.remove(room)'],
+		decoy: ['if (room.id in muted)', '        if (muted.contains(room.id)) chats.remove(room)']
 	}),
 	unit({
 		name: 'DraftBox',
@@ -482,8 +473,8 @@ const SENIOR: KtUnit[] = [
 		kind: 'mutated-key',
 		lines: [
 			...kdoc(
-				'Слой меток карты. move(pin, lat, lng) переносит метку: после переноса она находится по новым',
-				'координатам, remove(pin) её удаляет, меток не становится больше.'
+				'Слой меток карты. move(pin, lat, lng) переносит метку слоя: после переноса она находится по новым',
+				'координатам, remove(pin) её удаляет, меток не становится больше; метку не из слоя move не трогает.'
 			),
 			'class PinLayer {',
 			'    private val pins = HashSet<Pin>()',
@@ -491,7 +482,7 @@ const SENIOR: KtUnit[] = [
 			'    fun add(pin: Pin): Boolean = pins.add(pin)',
 			'',
 			'    fun move(pin: Pin, lat: Int, lng: Int) {',
-			'        pins.remove(pin)',
+			'        if (!pins.remove(pin)) return',
 			'        pin.lat = lat',
 			'        pin.lng = lng',
 			'        pins.add(pin)',
@@ -512,9 +503,12 @@ const SENIOR: KtUnit[] = [
 			'check(layer.has(Pin(5, 6)))',
 			'check(layer.size() == 1)',
 			'layer.remove(p)',
-			'check(layer.size() == 0)'
+			'check(layer.size() == 0)',
+			'val q = Pin(3, 4)',
+			'layer.move(q, 7, 8)',
+			'check(q == Pin(3, 4) && layer.size() == 0)'
 		],
-		defect: ['pins.remove(pin)', '        if (pin !in pins) return'],
+		defect: ['if (!pins.remove(pin)) return', '        if (pin !in pins) return'],
 		neighbour: ['pins.add(pin)', '        pins += pin'],
 		decoy: ['fun has', '    fun has(pin: Pin): Boolean = pins.contains(pin)']
 	}),
@@ -645,9 +639,12 @@ const SENIOR: KtUnit[] = [
 ];
 
 const MARKDOWN =
-	'Модуль моделей и хранилищ на Kotlin. У каждой функции и класса в KDoc-комментарии записана спецификация. Ровно ' +
-	'одна строка модуля нарушает спецификацию своей функции или класса: если заменить только её, всё будет работать ' +
-	'по спецификации. Введите номер этой строки (нумерация с 1).';
+	'Модуль моделей и хранилищ на Kotlin 2.4 (Kotlin/JVM, JVM 21 с настройками по умолчанию). У каждой функции и класса ' +
+	'в KDoc-комментарии записана спецификация. Ровно одна строка модуля нарушает спецификацию своей функции или класса. ' +
+	'Введите номер этой строки (нумерация с 1). Если исправить можно в нескольких строках — засчитывается любая из них, ' +
+	'где замена одной инструкцией восстанавливает спецификацию. Исправление — одна простая инструкция того же вида, что ' +
+	'исправляемая строка: не добавляйте конструкций, которых в ней нет (новые лямбды, `?.let`/`?:`-цепочки, ' +
+	'`if`-выражения, обёртки, новые функции), и не переносите в неё логику из другой строки.';
 
 export function build(input: GenerateInput): Built {
 	levelAndClass(descriptor, input);

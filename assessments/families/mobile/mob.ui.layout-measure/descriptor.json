@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "89f7a0308545dc8833465d8920e3c69b9ac61e17633b66c27aed231878cf9222"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.5,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "89f7a0308545dc8833465d8920e3c69b9ac61e17633b66c27aed231878cf9222"
+					}
+				],
+				"mean": 0.55
+			},
 			"constructive": { "children": "3–5", "rules": 2, "arithmetic": "одно деление остатка" },
 			"constructiveRank": 2,
 			"timeNormSec": 200,
@@ -37,7 +54,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "89f7a0308545dc8833465d8920e3c69b9ac61e17633b66c27aed231878cf9222"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.4,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "89f7a0308545dc8833465d8920e3c69b9ac61e17633b66c27aed231878cf9222"
+					}
+				],
+				"mean": 0.5
+			},
 			"constructive": { "children": "3–5", "rules": 3, "arithmetic": "остаток, доля и вложенный размер" },
 			"constructiveRank": 3,
 			"timeNormSec": 270,
@@ -156,6 +190,28 @@
 		"answerCollision": 0.0023,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчёт: все 8 экземпляров независимо вычислены программой Python 3.12 — бюджет ширины с padding/margin/весами, координаты GONE/INVISIBLE, ограничения цепочки size/padding/background и доля progress от title. Все ответы совпали; перестановка модификаторов, weightSum и видимость действительно меняют результат. На настоящем Android/Compose измерение и полный прогон ворот на 200 сидах не выполнялись; модель dp без преобразования в пиксели оценена в объявленных границах.",
+					"Angoff: Intern 0.55 — за 200 с нужны одновременно знания View-весов и ограничений Compose, не только арифметика; Junior 0.60 — за 270 с доступны вычисления остатка и вложенной ширины, но бинарная оценка требует всех 3–5 полей без ошибки."
+				],
+				"sourceSha256": "89f7a0308545dc8833465d8920e3c69b9ac61e17633b66c27aed231878cf9222"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчитал все 8 экземпляров вручную: LinearLayout (отступы, поля, фиксированные ширины, веса, weightSum, wrap_content с весом по реальному алгоритму measureHorizontal, GONE и INVISIBLE), Compose Row со spacedBy, weight и fillMaxWidth(fraction), цепочки модификаторов (внешний size побеждает внутренний, padding до и после size, background по месту в цепочке). Ответы: 93 92 93; - 16 112 176 260; 192 152 152; 64 72 108; 88 164 56; 52 204 51 68; 176 140 140; 96 88 66 66 -. Все совпали. Не запускал на устройстве.",
+					"Условие однозначно (деления нацело, ось и RTL оговорены, ограничения идут сверху вниз). Ошибочные решения настоящие и различаются на показанных экземплярах.",
+					"Мелочь: для GONE-ребёнка в вопросе о координате x (gone-invisible) условие говорит вводить «-»; реальный View.getLeft() у GONE-элемента 0, но условие это задаёт явно, расхождения с ответом нет."
+				],
+				"sourceSha256": "89f7a0308545dc8833465d8920e3c69b9ac61e17633b66c27aed231878cf9222"
+			}
+		]
 	}
 }

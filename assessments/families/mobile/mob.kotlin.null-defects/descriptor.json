@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.7,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "5bb6daa683273c507bc5f4681cf7b4df0b30e7e4c0dc346dfa3283542d2ce500"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.7,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "5bb6daa683273c507bc5f4681cf7b4df0b30e7e4c0dc346dfa3283542d2ce500"
+					}
+				],
+				"mean": 0.7
+			},
 			"constructive": {
 				"units": 5,
 				"lines": "25–45",
@@ -41,7 +58,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.7,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "5bb6daa683273c507bc5f4681cf7b4df0b30e7e4c0dc346dfa3283542d2ce500"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.65,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "5bb6daa683273c507bc5f4681cf7b4df0b30e7e4c0dc346dfa3283542d2ce500"
+					}
+				],
+				"mean": 0.7
+			},
 			"constructive": {
 				"units": 4,
 				"lines": "40–75",
@@ -53,7 +87,7 @@
 				{
 					"id": "lateinit",
 					"form": "A",
-					"description": "lateinit-свойство читается до инициализации, где спецификация разрешает вызов до неё (нет проверки ::x.isInitialized)"
+					"description": "свойство объявлено lateinit, хотя спецификация разрешает чтение до инициализации: чтение до неё бросает UninitializedPropertyAccessException, nullable-свойство — нет"
 				},
 				{
 					"id": "or-empty",
@@ -90,7 +124,7 @@
 			"приоритет элвиса",
 			"until и .. в диапазонах",
 			"isNullOrEmpty и isNullOrBlank, first и firstOrNull, get и getOrNull",
-			"lateinit и ::x.isInitialized",
+			"lateinit против nullable-свойства: чтение до инициализации",
 			"orEmpty и различие null и пустого значения",
 			"повторное чтение var-свойства после его изменения",
 			"обращение к экрану после onDestroyView/onStop"
@@ -114,9 +148,35 @@
 		"reference": { "seeds": 200, "failures": 0 },
 		"wrongSolutions": { "mustBeCaught": 2, "caught": 2 },
 		"hiddenTestsMutationScore": null,
-		"answerCollision": 0.0328,
+		"answerCollision": 0.032,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Прежняя альтернатива previewLines устранена: диапазон и minOf теперь находятся в одной возвращающей инструкции, поэтому правка верхней границы меняет ту же засчитываемую строку. ratingSum явно определяет 0 для from > to. Правило простых замен и среда Kotlin/JVM присутствуют в условии.",
+					"Junior/stale-property больше не выдаётся неиспользуемой переменной: name используется при возврате, а дефектная строка done.add(\"$pending\") требует проследить сброс pending. В lateinit эталон исправляет декларацию свойства в nullable со значением null; при чтении header используются уже имеющиеся let и Elvis, новое if не добавляется.",
+					"Мелочь: neighbour-line и other-unit остаются общими ошибками выбора строки; желательно дополнить их заблуждениями о конкретных null-операторах, границах диапазона и состоянии после уничтожения представления.",
+					"Проверка: построчно рассмотрел все 8 модулей и допустимые простые альтернативы. В Kotlin/JVM 2.4.20 на JVM 21 исполнил 8 исходных, 8 эталонных и 16 ошибочных программ с авторскими проверками: эталоны прошли, остальные провалились. Дополнительно проверил default-значения и пустые строки, 143 комбинации размера списка и n, from > to, чтение до bind, повторный onDestroyView и несколько вызовов finish/logout. Дополнительных засчитываемых строк вне эталона не нашёл; sourceSha256 проверен. Все 200 сидов и исчерпывающий перебор синтаксических замен не проверял.",
+					"Angoff intern 0.70, junior 0.70: вероятность назвать строку за 240/330 с. Intern читает пять небольших функций и различает стандартные null/Elvis/range ошибки; Junior читает четыре объекта с состоянием, а исправленный anchor больше не даёт подсказки неиспользуемой переменной."
+				],
+				"sourceSha256": "5bb6daa683273c507bc5f4681cf7b4df0b30e7e4c0dc346dfa3283542d2ce500"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Повторный раунд: прежние существенные замечания устранены. В условии названа среда и правило допустимой правки (замена `!!`, `as`, вызова на `?.`/`?:`). previewLines теперь одна строка (альтернативы `- 1` на другой строке нет; правка в той же строке 17). Junior `stale-property`: сохранённое значение `name` используется в `return name`, неиспользуемой переменной нет, дефект — `done.add(\"$pending\")` (строка 63). Junior `lateinit`: дефектная строка — само объявление `lateinit var` (13), исправление — смена типа на `User?`; строка 19 уже null-безопасна и не требует новых конструкций. Спецификация ratingSum дополнена случаем from > to.",
+					"Пересчёт: вручную разобрал все 8 модулей по KDoc и правилу правки, перебрал соседние строки; эталон верен во всех, альтернатив не нашёл. Все 8 компилируются на Kotlin 2.4. Поведение исправлений не исполнял.",
+					"Мелочь: в экземпляре 07 исправление строки 57 — `binding?.addAll(results) ?: return 0`; `return 0` вряд ли «значение по умолчанию» в буквальном смысле правила, но другой однострочной правки нет и в тех же классах такая строка присутствует в исправном коде. Лучше явно разрешить `?: return` в правиле.",
+					"Мелочь: в экземпляре 06 `\"$pending\"` — необычная запись шаблона и слегка выдаёт строку, но не так явно, как неиспользуемая переменная."
+				],
+				"sourceSha256": "5bb6daa683273c507bc5f4681cf7b4df0b30e7e4c0dc346dfa3283542d2ce500"
+			}
+		]
 	}
 }

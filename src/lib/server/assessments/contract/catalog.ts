@@ -195,7 +195,7 @@ export const CATALOG: Catalog = {
 			key: 'mobile',
 			title: 'Mobile',
 			direction: 'development',
-			availability: 'disabled',
+			availability: 'enabled',
 			summary: 'Приложения под Android на Kotlin: язык, корутины, жизненный цикл, интерфейс и данные.',
 			practiceLanguages: ['kotlin']
 		},
@@ -219,7 +219,7 @@ export const CATALOG: Catalog = {
 			key: 'devops',
 			title: 'DevOps / SRE',
 			direction: 'infrastructure',
-			availability: 'disabled',
+			availability: 'enabled',
 			summary: 'Linux и сети, контейнеры и оркестрация, конвейеры поставки, наблюдаемость и надёжность.',
 			practiceLanguages: ['python3', 'go']
 		}

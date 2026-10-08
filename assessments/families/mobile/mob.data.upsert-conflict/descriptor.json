@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.45,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "228a60c8da16b6d13943ee561897a62c9404ec1c455e47091474d98779ff0e73"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "228a60c8da16b6d13943ee561897a62c9404ec1c455e47091474d98779ff0e73"
+					}
+				],
+				"mean": 0.55
+			},
 			"constructive": {
 				"tables": 1,
 				"rows": "3–9",
@@ -42,7 +59,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "228a60c8da16b6d13943ee561897a62c9404ec1c455e47091474d98779ff0e73"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.45,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "228a60c8da16b6d13943ee561897a62c9404ec1c455e47091474d98779ff0e73"
+					}
+				],
+				"mean": 0.55
+			},
 			"constructive": { "tables": "1–2", "rows": "6–14", "mechanisms": 2, "statements": "2–9 записей, внешние ключи" },
 			"constructiveRank": 4,
 			"timeNormSec": 300,
@@ -151,6 +185,28 @@
 		"answerCollision": 0.0004,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Исполнил SQL из условий всех 8 экземпляров в SQLite 3.45.1 через Python 3.12, отдельно от программ эталона: все строки, NULL, значения DEFAULT, новые id, CASCADE и SET NULL совпали. ORDER BY задан во всех итоговых запросах. Дополнительные 200 сидов на класс и выполнение через Room на Android не проверял.",
+					"Angoff: intern 0.45, junior 0.60 — вероятность полного ответа по binary за 220/300 с. Для пограничного Intern семантика REPLACE, составной уникальный индекс и смена rowid требуют отдельного знания SQL; Junior должен удержать также внешние ключи, условия upsert и порядок строк. Длинный ответ из 3–7 строк не даёт частичного балла."
+				],
+				"sourceSha256": "228a60c8da16b6d13943ee561897a62c9404ec1c455e47091474d98779ff0e73"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчёт: выполнил все 8 показанных скриптов в SQLite 3.45.1 (Python sqlite3), результаты совпали с ожидаемым ответом, порядок задан ORDER BY. Другие сиды не проверял.",
+					"Intern: семантика REPLACE как удаления и вставки с новым rowid (`replace-new-rowid`, многострочный REPLACE) заметно тяжелее остальных intern-классов; для intern-границы это на верхнем краю, учтено в Angoff.",
+					"Junior `reactions-mix` (9 операций OR IGNORE/OR REPLACE по составному индексу, порядок id) и `replace-cascade` (каскад при REPLACE с foreign_keys=ON) — вероятность прохождения за 300 с невысокая; бинарная рубрика по 5 строкам."
+				],
+				"sourceSha256": "228a60c8da16b6d13943ee561897a62c9404ec1c455e47091474d98779ff0e73"
+			}
+		]
 	}
 }

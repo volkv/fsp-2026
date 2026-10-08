@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "middle",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "37d9f3ecd980e9655b3d4d0e35411ff0cbf374aa25ffb64e2810098e86538598"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.5,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "37d9f3ecd980e9655b3d4d0e35411ff0cbf374aa25ffb64e2810098e86538598"
+					}
+				],
+				"mean": 0.55
+			},
 			"constructive": {
 				"classes": "1–3",
 				"statements": "4–8",
@@ -42,7 +59,24 @@
 		},
 		{
 			"grade": "senior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "37d9f3ecd980e9655b3d4d0e35411ff0cbf374aa25ffb64e2810098e86538598"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.4,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "37d9f3ecd980e9655b3d4d0e35411ff0cbf374aa25ffb64e2810098e86538598"
+					}
+				],
+				"mean": 0.5
+			},
 			"constructive": {
 				"classes": "2–4",
 				"statements": "5–9",
@@ -197,6 +231,29 @@
 		"answerCollision": 0.0001,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Прежнее скрытое допущение о платформе устранено: все условия явно задают Kotlin 2.4, Kotlin/JVM и JVM 21. В этой среде показанные init-order и lazy-delegate-combo действительно читают null/0 до инициализации полей, и lazy сохраняет результат первого чтения.",
+					"Мелочь: Senior/nullable-receiver (anchor), экземпляр 1, даёт 7 строк, тогда как init-order (A) — 17; в anchor нет учёта меняющегося состояния создаваемого объекта. Остаточную разницу нагрузки между классами стоит учитывать при сборке форм. Само использование трассировки на Senior допустимо по решению ведущего № 1.",
+					"Проверка: все 8 программ независимо разобраны по коду и исполнены в Kotlin/JVM 2.4.20 на JVM 21; выводы совпали с пакетными ответами. Проверены различия всех применимых ошибочных ответов, момент lazy, observable/vetoable, статическое разрешение расширений и фиксация делегата. sourceSha256 проверен. Другие платформы и 200 сидов каждого класса не запускал.",
+					"Angoff middle 0.60, senior 0.55: полный binary-вывод за 330/420 с. На Senior чтение до инициализации и кэширование lazy повышают риск ошибки; точное воспроизведение 17 строк тоже снижает вероятность полного ответа."
+				],
+				"sourceSha256": "37d9f3ecd980e9655b3d4d0e35411ff0cbf374aa25ffb64e2810098e86538598"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Повторный раунд: в условие добавлено «Kotlin 2.4 (Kotlin/JVM, JVM 21)», что снимает платформенную неоднозначность (JS даёт undefined вместо null/0) и мою оговорку о версии. Остальное не менялось. Все 8 экземпляров заново скомпилированы и выполнены в Kotlin 2.4 на JVM 21, вывод совпал с ответом.",
+					"Senior `init-order` (17 строк) и `lazy-delegate-combo` остаются тяжёлыми при бинарной рубрике; учтено в Angoff. Замечание о соответствии senior-определению снято решением ведущего."
+				],
+				"sourceSha256": "37d9f3ecd980e9655b3d4d0e35411ff0cbf374aa25ffb64e2810098e86538598"
+			}
+		]
 	}
 }

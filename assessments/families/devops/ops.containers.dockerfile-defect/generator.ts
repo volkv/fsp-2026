@@ -23,6 +23,8 @@ interface Spec {
 	manifests: string[];
 	install: string;
 	secrets: string[];
+	/** Junior: secret files the build stage copies on purpose — dependencies cannot be installed without them. */
+	buildNeeds: string[];
 	perBuild: string[];
 }
 
@@ -55,9 +57,13 @@ const GLOBAL_ARGS = ['ARG APP_UID=10001', 'ARG REGISTRY=registry.example.com', '
 function header(rng: Rng): Line[] {
 	// The syntax directive is honoured only on the first line.
 	const directive = rng.bool() ? ['# syntax=docker/dockerfile:1'] : [];
-	return [...directive, ...rng.sample(COMMENTS, rng.int(0, 6)), ...rng.sample(GLOBAL_ARGS, rng.int(0, 3))].map(
-		(c): Line => [null, c]
-	);
+	// A uniform number of lines (not a sum of draws) spreads the line numbers of the defect.
+	const total = rng.int(0, COMMENTS.length + GLOBAL_ARGS.length);
+	const args = rng.int(Math.max(0, total - COMMENTS.length), Math.min(total, GLOBAL_ARGS.length));
+	return [...directive, ...rng.sample(COMMENTS, total - args), ...rng.sample(GLOBAL_ARGS, args)].map((c): Line => [
+		null,
+		c
+	]);
 }
 
 const FILLERS = [
@@ -133,11 +139,16 @@ const PACKAGES = [
 	'jq'
 ];
 
-/** A metadata block: 0–8 labels and one ENV of 0–7 variables, one variable per line. */
+/**
+ * A metadata block of 0–10 lines, uniform (it spreads the line numbers): labels and one ENV with one variable per
+ * line.
+ */
 function metadata(rng: Rng): Line[] {
-	const vars = rng.sample(ENV_POOL, rng.int(0, 7));
+	const total = rng.int(0, 10);
+	const labels = rng.int(Math.max(0, total - ENV_POOL.length), Math.min(total, LABEL_POOL.length));
+	const vars = rng.sample(ENV_POOL, total - labels);
 	const env = vars.map((v, i): Line => [null, `${i === 0 ? 'ENV ' : '    '}${v}${i < vars.length - 1 ? ' \\' : ''}`]);
-	return [...rng.sample(LABEL_POOL, rng.int(0, 8)).map((t): Line => [null, t]), ...env];
+	return [...rng.sample(LABEL_POOL, labels).map((t): Line => [null, t]), ...env];
 }
 
 /**
@@ -145,7 +156,7 @@ function metadata(rng: Rng): Line[] {
  * names the first package (the whole line in the one-line form).
  */
 function aptBlock(rng: Rng, tag: string, first: string): Line[] {
-	const packages = [first, ...rng.sample(PACKAGES, rng.int(0, 11))];
+	const packages = [first, ...rng.sample(PACKAGES, rng.int(0, 5))];
 	if (rng.bool(0.15))
 		return [
 			[
@@ -181,7 +192,7 @@ function internProgram(rng: Rng): Program {
 			['from-final', `FROM python:${v}-slim`],
 			...(lateMeta ? [] : meta),
 			...maybe(rng, 0.5, [[null, 'ENV PYTHONDONTWRITEBYTECODE=1']]),
-			...fill(3),
+			...fill(6),
 			['env-port', `ENV PORT=${port}`],
 			...aptBlock(rng, 'apt', 'libpq5'),
 			['useradd', 'RUN useradd --create-home --uid 10001 app'],
@@ -222,6 +233,7 @@ function internProgram(rng: Rng): Program {
 				manifests: ['requirements.txt'],
 				install: 'pip install',
 				secrets: ['pip.conf'],
+				buildNeeds: [],
 				perBuild: []
 			}
 		};
@@ -232,7 +244,7 @@ function internProgram(rng: Rng): Program {
 		['from-final', `FROM node:${v}-bookworm-slim`],
 		...(lateMeta ? [] : meta),
 		[null, 'ENV NODE_ENV=production'],
-		...fill(3),
+		...fill(6),
 		['env-port', `ENV PORT=${port}`],
 		...aptBlock(rng, 'apt', 'tini'),
 		[null, 'WORKDIR /app'],
@@ -263,6 +275,7 @@ function internProgram(rng: Rng): Program {
 			manifests: ['package.json', 'package-lock.json'],
 			install: 'npm ci',
 			secrets: ['.npmrc'],
+			buildNeeds: [],
 			perBuild: []
 		}
 	};
@@ -289,20 +302,17 @@ function internDefect(rng: Rng, p: Program, classId: string): Defect {
 		return { tag: 'env-port', text: `ENV PORT=${other}`, neighbour: 'expose' };
 	}
 	if (classId === 'cache') return { tag: 'manifests', text: rng.pick(['COPY . .', 'COPY . ./']), neighbour: 'install' };
+	// The secret is not in the build context (statement): it leaks only by a copy out of the secret mount.
 	const secret = p.spec.secrets[0] ?? '';
-	if (rng.bool()) {
-		return {
-			tag: 'manifests',
-			text: `COPY ${p.spec.manifests.join(' ')} ${secret} ./`,
-			neighbour: 'install'
-		};
-	}
 	const install = textOf(p, 'install');
 	const target = install.match(/target=(\S+)/)?.[1] ?? '';
 	const command = install.slice(install.indexOf(' ', install.indexOf('--mount')) + 1);
 	return {
 		tag: 'install',
-		text: install.replace(command, `cp ${target} /app/${secret} && ${command}`),
+		text: install.replace(
+			command,
+			rng.bool() ? `cp ${target} /app/${secret} && ${command}` : `${command} && cp ${target} ./${secret}`
+		),
 		neighbour: 'manifests'
 	};
 }
@@ -325,7 +335,7 @@ function juniorProgram(rng: Rng, kind: 'go' | 'python' | 'node'): Program {
 			['from-build', `FROM golang:${v}-bookworm AS build`],
 			...(lateMeta ? [] : meta),
 			...aptBlock(rng, 'apt-build', 'git'),
-			...fill(3),
+			...fill(6),
 			[null, 'WORKDIR /src'],
 			...setup(rng, ['RUN go env -w GOPRIVATE=git.example.com', 'RUN mkdir -p /out']),
 			...fill(2),
@@ -355,7 +365,14 @@ function juniorProgram(rng: Rng, kind: 'go' | 'python' | 'node'): Program {
 		];
 		return {
 			lines,
-			spec: { port, manifests: ['go.mod', 'go.sum'], install: 'go mod download', secrets: ['.netrc'], perBuild: [sha] }
+			spec: {
+				port,
+				manifests: ['go.mod', 'go.sum'],
+				install: 'go mod download',
+				secrets: ['.netrc'],
+				buildNeeds: [],
+				perBuild: [sha]
+			}
 		};
 	}
 	if (kind === 'python') {
@@ -365,7 +382,7 @@ function juniorProgram(rng: Rng, kind: 'go' | 'python' | 'node'): Program {
 			['from-build', `FROM python:${v} AS build`],
 			...(lateMeta ? [] : meta),
 			...aptBlock(rng, 'apt-build', 'libpq-dev'),
-			...fill(3),
+			...fill(6),
 			[null, 'WORKDIR /app'],
 			...setup(rng, ['RUN pip install --no-cache-dir --upgrade pip', 'RUN mkdir -p /install']),
 			...fill(2),
@@ -403,6 +420,7 @@ function juniorProgram(rng: Rng, kind: 'go' | 'python' | 'node'): Program {
 				manifests: ['requirements.txt', 'pip.conf'],
 				install: 'pip install',
 				secrets: ['pip.conf'],
+				buildNeeds: ['pip.conf'],
 				perBuild: [sha]
 			}
 		};
@@ -413,7 +431,7 @@ function juniorProgram(rng: Rng, kind: 'go' | 'python' | 'node'): Program {
 		['from-build', `FROM node:${v}-bookworm AS build`],
 		...(lateMeta ? [] : meta),
 		...aptBlock(rng, 'apt-build', 'python3'),
-		...fill(3),
+		...fill(6),
 		[null, 'WORKDIR /app'],
 		...setup(rng, ['RUN corepack enable', 'RUN npm config set update-notifier false']),
 		...fill(2),
@@ -451,6 +469,7 @@ function juniorProgram(rng: Rng, kind: 'go' | 'python' | 'node'): Program {
 			manifests: ['package.json', 'package-lock.json', '.npmrc'],
 			install: 'npm ci',
 			secrets: ['.npmrc'],
+			buildNeeds: ['.npmrc'],
 			perBuild: [sha]
 		}
 	};
@@ -499,16 +518,24 @@ function statement(spec: Spec, junior: boolean): string {
 		'`Dockerfile` сервиса должен выполнять спецификацию:',
 		'',
 		`1. **Не root.** Процесс в контейнере работает не от root: последняя инструкция \`USER\` итоговой стадии задаёт пользователя, отличного от \`root\` и \`0\` (часть до двоеточия). Без \`USER\` — root${junior ? ', если стадия не унаследовала пользователя от стадии-базы' : ''}.`,
-		`2. **Порт.** Сервис слушает порт ${spec.port} на всех интерфейсах: в команде запуска \`--host 0.0.0.0\` и \`--port ${spec.port}\`, а порт объявлен через \`EXPOSE ${spec.port}\`. В shell-форме \`CMD\` переменные вида \`$PORT\` подставляются из \`ENV\`; в exec-форме (\`["…"]\`) не подставляются и передаются как есть.`,
+		`2. **Порт.** Сервис слушает порт ${spec.port} на всех интерфейсах: в команде запуска \`--host 0.0.0.0\` и \`--port ${spec.port}\`, порт объявлен через \`EXPOSE ${spec.port}\`, а переменная окружения \`PORT\` итоговой стадии равна ${spec.port} (по ней сервис сообщает свой адрес в реестр). В shell-форме \`CMD\` переменные вида \`$PORT\` подставляются из \`ENV\`; в exec-форме (\`["…"]\`) не подставляются и передаются как есть.`,
 		`3. **Кэш зависимостей.** Правка исходников не сбрасывает кэш установки зависимостей: до \`RUN\` с \`${spec.install}\` в той же стадии копируются только файлы ${manifests}${junior ? `, и до неё в стадии не объявлены аргументы, меняющиеся при каждой сборке (${spec.perBuild.map((a) => `\`${a}\``).join(', ')}): \`RUN\` видит все объявленные выше \`ARG\` и пересобирается при новом значении` : ''}.`,
-		`4. **Секрет.** Файл ${spec.secrets.map((s) => `\`${s}\``).join(', ')} с токеном реестра пакетов не попадает ни в один слой ${junior ? 'итогового образа (слои других стадий в образ не идут)' : 'образа'}: \`RUN --mount=type=secret\` подключает его только на время команды, но \`COPY\` такого файла или его копирование командой внутри \`RUN\` оставляет его в слое${junior ? '; `COPY --from` переносит всё, что лежит по пути в стадии-источнике' : ''}.`,
+		`4. **Секрет.** Файл ${spec.secrets.map((s) => `\`${s}\``).join(', ')} с токеном реестра пакетов не попадает ни в один слой ${junior ? 'итогового образа (слои других стадий в образ не идут)' : 'образа'}: \`RUN --mount=type=secret\` подключает его только на время команды, но \`COPY\` такого файла или его копирование командой внутри \`RUN\` оставляет его в слое${junior ? '; `COPY --from` переносит всё, что лежит по пути в стадии-источнике' : ''}.${
+			spec.buildNeeds.length > 0
+				? ` Сборочной стадии ${spec.buildNeeds.map((s) => `\`${s}\``).join(', ')} нужен для установки зависимостей: он копируется в неё до \`RUN\` с \`${spec.install}\`, и убирать его оттуда нельзя.`
+				: junior
+					? ''
+					: ` Файла ${spec.secrets.map((s) => `\`${s}\``).join(', ')} в контексте сборки нет: он передаётся только через \`docker build --secret\`.`
+		}`,
 		...(junior
 			? [
 					'5. **Без компилятора.** В итоговом образе нет компилятора. Он есть в образах `golang:*` и в полных `python:<версия>` и `node:<версия>-bookworm` (без `-slim`, `alpine`), появляется после установки пакетов `gcc`, `g++`, `build-essential`, `build-base`, а стадия, построенная на другой стадии (`FROM build`), получает всё, что в ней было.'
 				]
 			: []),
 		'',
-		'Ровно одна строка нарушает спецификацию: если заменить только её, все требования будут выполнены. Введите номер этой строки (нумерация с 1, как в редакторе).'
+		'Ровно одна строка нарушает спецификацию: если заменить только её, все требования будут выполнены. Введите номер этой строки (нумерация с 1, как в редакторе).',
+		'',
+		'Если исправить можно в нескольких строках — засчитывается любая из них, где замена одной инструкцией восстанавливает спецификацию. Исправление — одна простая инструкция того же вида, что исправляемая строка (закомментированную инструкцию можно раскомментировать): не добавляйте новых инструкций, ключей и флагов, новых команд в `RUN` (через `&&`, `;`) и не переносите в неё логику из другой строки.'
 	].join('\n');
 }
 
@@ -572,6 +599,7 @@ def violations(source):
             s = {"files": set(), "compiler": compiler_image(st["base"]), "user": "root", "env": {}, "expose": set(), "cmd": None, "cwd": "/"}
         copied = []
         args = []
+        needs_ok = False
         for op, rest in st["items"]:
             if op == "WORKDIR":
                 s["cwd"] = rest if rest.startswith("/") else s["cwd"].rstrip("/") + "/" + rest
@@ -617,11 +645,14 @@ def violations(source):
                 if re.search(r"(apt-get install|apk add)", rest) and COMPILER_PACKAGES & set(rest.split()):
                     s["compiler"] = True
                 if spec["install"] in rest:
+                    needs_ok = needs_ok or all(n in copied for n in spec["buildNeeds"])
                     if any(c not in spec["manifests"] for c in copied):
                         found.append("cache: sources before install")
                     if junior and any(a in spec["perBuild"] for a in args):
                         found.append("cache: per-build argument before install")
         state[st["name"]] = s
+        if index < len(stages) - 1 and not needs_ok:
+            found.append("secret: the build stage installs dependencies without the file it needs")
         if index == len(stages) - 1:
             if s["user"].split(":")[0] in ("root", "0"):
                 found.append("root")
@@ -632,7 +663,7 @@ def violations(source):
                 argv = re.sub(r"\\$\\{?([A-Z_]+)\\}?", lambda m: s["env"].get(m.group(1), ""), cmd).split()
             host = argv[argv.index("--host") + 1] if "--host" in argv else None
             port = argv[argv.index("--port") + 1] if "--port" in argv else None
-            if host != "0.0.0.0" or port != str(spec["port"]) or str(spec["port"]) not in s["expose"]:
+            if host != "0.0.0.0" or port != str(spec["port"]) or str(spec["port"]) not in s["expose"] or s["env"].get("PORT") != str(spec["port"]):
                 found.append("port")
             if any(f.rsplit("/", 1)[-1] in spec["secrets"] for f in s["files"]):
                 found.append("secret")
@@ -676,14 +707,33 @@ const DECOYS = [
 	'expose'
 ];
 
-export function build(input: GenerateInput): Built {
-	levelAndClass(descriptor, input);
-	const rng = instanceRng(descriptor, input);
-	const junior = input.grade === 'junior';
-	const p = junior ? juniorProgram(rng, rng.pick(KIND_BY_CLASS[input.classId] ?? ['go'])) : internProgram(rng);
-	const defect = junior ? juniorDefect(rng, p, input.classId) : internDefect(rng, p, input.classId);
+/**
+ * The range of the defect line of each class: the instance first draws a line in it uniformly, then programs until the
+ * defect falls on that line. A sum of random noise piles the lines up in the middle, which makes a line number easy to
+ * guess.
+ */
+const DEFECT_LINES: Record<string, [number, number]> = {
+	'intern/root': [21, 50],
+	'intern/port': [24, 52],
+	'intern/cache': [10, 39],
+	'intern/secret': [11, 39],
+	'junior/compiler': [19, 52],
+	'junior/secret-stage': [31, 65],
+	'junior/cache-arg': [9, 36],
+	'junior/port-exec': [36, 70]
+};
+
+interface Draft {
+	p: Program;
+	defect: Defect;
+	index: number;
+}
+
+function draft(rng: Rng, junior: boolean, classId: string): Draft {
+	const p = junior ? juniorProgram(rng, rng.pick(KIND_BY_CLASS[classId] ?? ['go'])) : internProgram(rng);
+	const defect = junior ? juniorDefect(rng, p, classId) : internDefect(rng, p, classId);
 	let index = p.lines.findIndex(([tag]) => tag === defect.tag);
-	if (input.classId === 'cache-arg') {
+	if (classId === 'cache-arg') {
 		// Any ENV or LABEL line between WORKDIR and the dependencies may be the one turned into the argument.
 		const from = p.lines.findIndex(([, text]) => text.startsWith('WORKDIR '));
 		const spots = p.lines
@@ -692,7 +742,25 @@ export function build(input: GenerateInput): Built {
 			.map((l) => l.i);
 		index = rng.pick([index, ...spots]);
 	}
-	const fix = p.lines[index]?.[1] ?? '';
+	return { p, defect, index };
+}
+
+export function build(input: GenerateInput): Built {
+	levelAndClass(descriptor, input);
+	const rng = instanceRng(descriptor, input);
+	const junior = input.grade === 'junior';
+	const range = DEFECT_LINES[`${input.grade}/${input.classId}`];
+	if (!range) throw new Error(`${descriptor.key}: no defect lines for ${input.grade}/${input.classId}`);
+	const target = rng.int(...range);
+	let found: Draft | null = null;
+	for (let tries = 0; tries < 20_000 && found === null; tries += 1) {
+		const d = draft(rng, junior, input.classId);
+		if (d.index + 1 === target) found = d;
+	}
+	if (found === null) throw new Error(`${descriptor.key}: no program with the defect on line ${target}`);
+	const { p, defect, index } = found;
+	// A per-build ARG is repaired by an ARG of the same kind that does not change between builds.
+	const fix = input.classId === 'cache-arg' ? 'ARG TARGETARCH' : (p.lines[index]?.[1] ?? '');
 	const lines = p.lines.map(([, text], i) => (i === index ? defect.text : text));
 	const answer = index + 1;
 	const lineOf = (tag: string): number => p.lines.findIndex(([t]) => t === tag) + 1;

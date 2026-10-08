@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "middle",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.5,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "f1669fa6929015d5ecef9a3e5c7007e8f474c5062f57982ab6f1c89374b42ff5"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.65,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "f1669fa6929015d5ecef9a3e5c7007e8f474c5062f57982ab6f1c89374b42ff5"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": {
 				"coroutines": 4,
 				"scopes": 1,
@@ -43,7 +60,24 @@
 		},
 		{
 			"grade": "senior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.5,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "f1669fa6929015d5ecef9a3e5c7007e8f474c5062f57982ab6f1c89374b42ff5"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.65,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "f1669fa6929015d5ecef9a3e5c7007e8f474c5062f57982ab6f1c89374b42ff5"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": {
 				"coroutines": 4,
 				"scopes": "1–2 вложенных",
@@ -187,6 +221,30 @@
 		"answerCollision": 0.0006,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Исполнено в песочнице (kt.sh): сиды 0..1 каждого из восьми классов (middle: sibling-cancel, async-await, supervisor-handler, try-around-launch; senior: nested-scopes, supervisor-async, detached-job, cancellation-exception) — вывод JVM совпал с ответом в 16 из 16 случаев. Все восемь показанных экземпляров разобраны вручную: порядок finally отменённых соседей — порядок запуска, await бросает исходное исключение и код после catch идёт до первой приостановки, обработчик на ребёнке coroutineScope игнорируется, supervisorScope сообщает обработчику и ждёт остальных, launch(SupervisorJob() + handler) не ребёнок scope, CancellationException не валит scope — совпало.",
+					"Мелочь: порядок finally соседей, отменённых при сбое, — порядок их запуска; это следствие реализации (список детей и FIFO диспетчера), документацией напрямую не закреплено, но в классе названо в описании и устойчиво воспроизводится.",
+					"Мелочь: бинарная рубрика по 4–8 строкам; одна ошибка обнуляет ответ, учтено в Angoff.",
+					"Второй раунд Angoff, senior: было 0.45, стало 0.5 — прочитал обоснование второго рецензента (его оценка 0.7): полный бинарный ответ по длинной трассе остаётся рискованным для пограничного кандидата, но норма времени и данные в условии правил делают проход достижимее, чем я считал; остаюсь ниже его оценки из-за обнуления ответа одной ошибкой."
+				],
+				"sourceSha256": "f1669fa6929015d5ecef9a3e5c7007e8f474c5062f57982ab6f1c89374b42ff5"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Проверка: вручную проследил распространение исключений, отмену соседей, await, обработчики и отдельный Job всех восьми экземпляров; независимо скомпилировал и исполнил показанный Kotlin на Kotlin 2.4.20/JVM 21 с kotlinx.coroutines 1.8.0 и доступной 1.10.2-intellij-1. Все последовательности совпали. Полные ворота на 200 сидах и многопоточные сценарии не проверял.",
+					"Angoff middle 0.65: 330 с достаточно, но await/catch не спасает отменённый родительский scope и handler обычного ребёнка не перехватывает сбой — оба пункта требуют устойчивого понимания структурной конкурентности. Angoff senior 0.70: 420 с компенсируют вложенные scope и отдельный Job, а более сильный кандидат обычно различает эти границы распространения; оценка учитывает полный бинарный вывод.",
+					"Второй раунд Angoff, senior: было 0.7, стало 0.65 — Снижаю вероятность полного binary-ответа: nested-scopes, supervisor-async и detached-job требуют различать границу распространения сбоя, способ доставки исключения и разрыв родительской связи собственным Job. Умение проектировать модули само по себе не гарантирует безошибочного знания этих сочетаний. Вместе с тем показанные ответы содержат только 4–7 строк, сроки разделены, на решение дано 420 с, поэтому основной риск — семантика, а не объём набора журнала."
+				],
+				"sourceSha256": "f1669fa6929015d5ecef9a3e5c7007e8f474c5062f57982ab6f1c89374b42ff5"
+			}
+		]
 	}
 }

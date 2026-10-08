@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "middle",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.7,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "50189b1c676ce9da252565566dec77cde0f0a6c95b5a3d5b858a833aad2cb597"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "50189b1c676ce9da252565566dec77cde0f0a6c95b5a3d5b858a833aad2cb597"
+					}
+				],
+				"mean": 0.65
+			},
 			"constructive": {
 				"modules": "8–9",
 				"apiChain": "до 2 рёбер",
@@ -42,7 +59,24 @@
 		},
 		{
 			"grade": "senior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.7,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "50189b1c676ce9da252565566dec77cde0f0a6c95b5a3d5b858a833aad2cb597"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.5,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "50189b1c676ce9da252565566dec77cde0f0a6c95b5a3d5b858a833aad2cb597"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": {
 				"modules": "12–13",
 				"apiChain": "2–3 ребра",
@@ -155,6 +189,28 @@
 		"answerCollision": 0.0277,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Прежнее существенное замечание о вырожденных циклах устранено: во всех 200 сидах cycle каждого уровня цикл содержит не менее трёх модулей, петель нет. Восходящее ребро добавляется только к модулю, который достигает нижнего через промежуточный модуль.",
+					"Пересчитал своим Python 3.12-решателем непосредственно из показанных build.gradle.kts все восемь экземпляров и по 200 сидов каждого класса обоих уровней: видимость — обходом api, перекомпиляцию — по явно названной упрощённой модели, циклы — поиском возвратного пути. Все 1600 независимых наборов и Python-эталонов совпали; применимые ошибочные ответы отличаются. Правила api/implementation сверены с https://docs.gradle.org/current/userguide/java_library_plugin.html. Реальные сборки Gradle/Android и инкрементальную компиляцию не запускал.",
+					"Angoff middle 0.70 и senior 0.70: время 330/450 с соответствует размеру графов. Полный бинарный набор уязвим к пропуску транзитивного api-ребра или включению потребителя вне цикла; более длинные цепочки Senior компенсируются подготовкой кандидата. Исполнение заданной процедуры на Senior учитывается в сложности согласно решению ведущего."
+				],
+				"sourceSha256": "50189b1c676ce9da252565566dec77cde0f0a6c95b5a3d5b858a833aad2cb597"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Повторный раунд: прежнее замечание (петли и циклы из двух модулей в классе cycle) устранено — на 200 сидах каждого уровня размер ответа cycle не меньше 3 (middle 3–5, senior 3–7).",
+					"Независимый решатель (обход api-рёбер) совпал с генератором на 200 сидах всех восьми классов обоих уровней; показанные экземпляры пересчитаны вручную. Реальный Gradle не запускался."
+				],
+				"sourceSha256": "50189b1c676ce9da252565566dec77cde0f0a6c95b5a3d5b858a833aad2cb597"
+			}
+		]
 	}
 }

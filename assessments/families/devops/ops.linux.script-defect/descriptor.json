@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.65,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "0f1109c648d1cfaa8ab91bbf4d1b9e8c78cc9d29762c9c66cca7cd141baf8de5"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "0f1109c648d1cfaa8ab91bbf4d1b9e8c78cc9d29762c9c66cca7cd141baf8de5"
+					}
+				],
+				"mean": 0.65
+			},
 			"constructive": { "functions": "3–4", "lines": "20–35", "defectKinds": 1 },
 			"constructiveRank": 2,
 			"timeNormSec": 300,
@@ -29,7 +46,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "0f1109c648d1cfaa8ab91bbf4d1b9e8c78cc9d29762c9c66cca7cd141baf8de5"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "0f1109c648d1cfaa8ab91bbf4d1b9e8c78cc9d29762c9c66cca7cd141baf8de5"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": { "functions": "4–5", "lines": "28–45", "defectKinds": 1 },
 			"constructiveRank": 3,
 			"timeNormSec": 360,
@@ -47,7 +81,7 @@
 				{
 					"id": "rm-scope",
 					"form": "anchor",
-					"description": "команда работает не в том каталоге: cd без проверки, find без пути"
+					"description": "команда работает не в том каталоге: проверка cd перевёрнута, find без -maxdepth спускается в подкаталоги"
 				},
 				{
 					"id": "arith-octal",
@@ -97,6 +131,29 @@
 		"answerCollision": 0.0345,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Узкое повторное ревью: добавленное во все 8 условий ограничение «пути файлов и каталогов в аргументах не начинаются с «-»» устраняет прежний второй дефект first_rows (Intern/quoting, i=0, строка 11; Intern/args, i=0, строка 24): вызов с FILE=-q теперь вне допустимого домена. Допустимые ./-q, dir/-q, ./- и путь с пробелом исполнены и дают alpha для файла header/alpha/beta при N=1. Ограничение относится к путям, поэтому текстовый аргумент -n у each_arg остаётся допустимым. Новых противоречий с эталонами и alternatives не обнаружено.",
+					"Пересчёт: прочитал пакет целиком; сравнение с r5 подтвердило, что изменились только sourceSha256 и заявленное уточнение в 8 условиях. В Python 3.12.3 независимо вычислил ожидаемый вывод 55 авторских кейсов по спецификациям функций, определил дефектные строки всех 8 показанных скриптов и исполнил исходные и исправленные варианты в GNU bash 5.2.21 / coreutils 9.4 / findutils 4.9.0. Все эталонные правки проходят, каждый исходный скрипт отклоняется; номера строк совпадают, alternatives пусты и неизменны. Ещё 8 запусков проверили допустимые пути; прежний контрпример -q отдельно воспроизведён вне нового домена. Полные входы восстановлены временными копиями генератора вне репозитория; sourceSha256 проверен. Ворота на 200 сидах каждого класса и новый исчерпывающий поиск альтернативных инструкций не выполнял.",
+					"Angoff без изменения: окончательные оценки Codex из out-codex5 — Intern 0.65, Junior 0.60; уточнение домена путей не меняет путь решения, рубрику binary или норму времени."
+				],
+				"sourceSha256": "0f1109c648d1cfaa8ab91bbf4d1b9e8c78cc9d29762c9c66cca7cd141baf8de5"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Узкий раунд: изменилась только формулировка условия, добавлено «пути файлов и каталогов в аргументах не начинаются с «-»». Сравнением пакетов r5 и r7 расхождений вне этой фразы нет; код, кейсы, эталоны и alternatives прежние.",
+					"Формулировка согласована с кейсами: во всех проверочных запусках пути (plain.txt, data.csv, rows.csv, app.env, paths.txt, logs, work, missing) не начинаются с «-»; фраза закрывает first_rows -q. Единственный аргумент с «-» - данные each_arg (-n), это не путь файла или каталога. Нового противоречия и новой альтернативы не вижу. Исполнений в этом раунде не запускал.",
+					"Angoff - мои окончательные оценки прошлого раунда: intern 0.60, junior 0.55."
+				],
+				"sourceSha256": "0f1109c648d1cfaa8ab91bbf4d1b9e8c78cc9d29762c9c66cca7cd141baf8de5"
+			}
+		]
 	}
 }

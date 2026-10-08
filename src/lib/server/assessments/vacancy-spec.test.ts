@@ -152,13 +152,13 @@ describe('specification of the test of a vacancy', () => {
 		}
 	});
 
-	it('names a closed specialization and a vacancy without a pair of the catalog', () => {
+	it('names a specialization without a released bank closed and a vacancy without a pair of the catalog', () => {
 		const spec = vacancyTestSpec(
 			{ specializations: ['devops', 'frontend'], grades: ['junior'], requirements: [skill('docker')], seed: 's' },
 			banks
 		);
 		expect(spec.plans.map((p) => [p.specialization, p.status, p.status === 'closed' ? p.reason : null])).toEqual([
-			['devops', 'closed', 'disabled'],
+			['devops', 'closed', 'not_released'],
 			['frontend', 'closed', 'not_released']
 		]);
 		const lead = vacancyTestSpec(

@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "229542ea5e434f6eeb5bca15990adb3e9068b2862ccfca86ff104feaaca10eb3"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.65,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "229542ea5e434f6eeb5bca15990adb3e9068b2862ccfca86ff104feaaca10eb3"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": { "coroutines": "2–3", "delays": "3–7", "lines": "10–22", "mechanisms": 2 },
 			"constructiveRank": 2,
 			"timeNormSec": 240,
@@ -37,7 +54,24 @@
 		},
 		{
 			"grade": "middle",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "229542ea5e434f6eeb5bca15990adb3e9068b2862ccfca86ff104feaaca10eb3"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.7,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "229542ea5e434f6eeb5bca15990adb3e9068b2862ccfca86ff104feaaca10eb3"
+					}
+				],
+				"mean": 0.65
+			},
 			"constructive": { "coroutines": "2–4", "delays": "3–8", "lines": "15–30", "mechanisms": 3 },
 			"constructiveRank": 5,
 			"timeNormSec": 330,
@@ -140,6 +174,31 @@
 		"answerCollision": 0,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Исполнено в песочнице (kt.sh): сиды 0..1 каждого из восьми классов (junior: parallel-steps, async-parallel, loop-tickers, join-timing; middle: with-context, scope-vs-launch, thread-sleep, await-chain) — вывод JVM совпал с ответом в 16 из 16 случаев. Показанные экземпляры разобраны вручную по суммам задержек от момента вызова, включая ничьи (main раньше детей, потому что тела launch стартуют после приостановки main; inbox раньше news по порядку вызова delay), Thread.sleep в thread-sleep и withContext(Dispatchers.IO) — совпало.",
+					"Мелочь: ничьи сроков разрешаются порядком вызовов delay (в parallel-steps `screen open` раньше `promo request`), правило условием не названо; оно следует из семантики launch (тело стартует только когда родитель приостановился) и проверяется ошибочным решением `eager-launch`. Генератор допускает ничью только для вызовов из одного момента, на ответ не влияет.",
+					"Мелочь: бинарная рубрика по 7–11 строкам; одна ошибка обнуляет ответ, учтено в Angoff.",
+					"Второй раунд Angoff, middle: было 0.5, стало 0.55 — прочитал обоснование второго рецензента (его оценка 0.75): полный бинарный ответ по длинной трассе остаётся рискованным для пограничного кандидата, но норма времени и данные в условии правил делают проход достижимее, чем я считал; остаюсь ниже его оценки из-за обнуления ответа одной ошибкой."
+				],
+				"sourceSha256": "229542ea5e434f6eeb5bca15990adb3e9068b2862ccfca86ff104feaaca10eb3"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Проверка: вручную построил временные линии всех восьми экземпляров с ожиданиями await/join, блокировкой Thread.sleep и параллельным IO; затем скомпилировал и исполнил показанный Kotlin на Kotlin 2.4.20/JVM 21 с kotlinx.coroutines 1.8.0 и доступной 1.10.2-intellij-1. Все последовательности совпали. Полные ворота на 200 сидах и поведение других реализаций диспетчеров не проверял.",
+					"В описании поверхностного параметра delays сказано, что сроки отличаются не меньше чем на 100 мс, а у Junior parallel-steps показаны одинаковые 400+200 мс и у loop-tickers оба периода 100 мс. Описание loop-tickers также обещает разные периоды. Исправить эти описания, чтобы они соответствовали допустимым генерациям; показанный вывод подтверждён на обеих проверенных версиях.",
+					"Angoff junior 0.65: полный ответ за 240 с требует просуммировать несколько параллельных цепочек и учесть отложенный старт launch. Angoff middle 0.75: 330 с и заявленное понимание корутин позволяют разобрать IO, joinAll и блокировку потока; бинарность учитывает риск одной переставленной строки.",
+					"Второй раунд Angoff, middle: было 0.75, стало 0.7 — Уточняю риск полного binary-ответа за 330 с: четыре показанные трассы содержат 7, 11, 10 и 9 строк; основные шаги — суммы задержек и границы ожидания, что входит в заявленное понимание корутин Middle. Thread.sleep требует отдельно упорядочить просроченные возобновления, а joinAll — учитывать отложенный старт детей; одна переставленная строка обнуляет ответ. Это снижает прежнюю оценку, но короткие трассы и отсутствие исключений не дают оснований оценивать их как длинные журналы жизненного цикла."
+				],
+				"sourceSha256": "229542ea5e434f6eeb5bca15990adb3e9068b2862ccfca86ff104feaaca10eb3"
+			}
+		]
 	}
 }

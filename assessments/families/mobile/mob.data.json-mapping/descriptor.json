@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.85,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "ff368ec761111e21162a9fe49462020c998c6cf164294824e7a680a5953db942"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.7,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "ff368ec761111e21162a9fe49462020c998c6cf164294824e7a680a5953db942"
+					}
+				],
+				"mean": 0.8
+			},
 			"constructive": { "objects": 4, "properties": 4, "mechanisms": 1 },
 			"constructiveRank": 2,
 			"timeNormSec": 200,
@@ -85,6 +102,28 @@
 		"answerCollision": 0,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчитал все 4 экземпляра, 16 JSON-объектов, вручную и независимым скриптом Python 3.12 по правилам условия: ответы совпали. Проверены @SerialName, отсутствие ключа, явный null, обязательный id и лишние ключи. Нативную kotlinx.serialization и ворота на 200 сидах не запускал.",
+					"Прежнее замечание о пробелах устранено: условие всех классов явно требует разделитель «пробел, черта, пробел» и сохраняет пробелы внутри значений; такой контракт соответствует решению ведущего о текстовом sequence.",
+					"Angoff intern 0.85: правила полностью даны, четыре объекта и четыре поля укладываются в 200 с. Для binary учтён риск одной ошибки при различении null и отсутствующего ключа либо чтении title вместо note_title."
+				],
+				"sourceSha256": "ff368ec761111e21162a9fe49462020c998c6cf164294824e7a680a5953db942"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Изменилась только формулировка (формат строки ответа задан явно: разделитель и один пробел). Ответы и данные прежние, расхождений с моделью kotlinx.serialization нет; построчная сверка с условием выполнена вручную, библиотеку не запускал.",
+					"Прежнее замечание о формате строки снято решением ведущего: формат в условии теперь указан."
+				],
+				"sourceSha256": "ff368ec761111e21162a9fe49462020c998c6cf164294824e7a680a5953db942"
+			}
+		]
 	}
 }

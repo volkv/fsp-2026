@@ -43,6 +43,8 @@ interface Rule {
 	translucentAt: (depth: number, rng: Rng) => boolean;
 	/** Whether the caller at `depth` finishes itself right after `startActivity`. */
 	finishAt: (depth: number, rng: Rng) => boolean;
+	/** Which steps the class takes at a stack of `depth` screens; every step by default. */
+	allowed?: (step: Step, depth: number) => boolean;
 	/** What every scenario of the class must contain. */
 	must: (log: readonly StepRecord[]) => boolean;
 	required: readonly string[];
@@ -58,12 +60,14 @@ interface StepRecord {
 const never = (): boolean => false;
 
 const RULES: Record<string, Rule> = {
+	// Only forward: the caller stops after the new screen is up, and a screen two levels down gets no callbacks.
 	'intern/open-opaque': {
-		steps: [2, 3],
-		maxDepth: 2,
+		steps: [2, 2],
+		maxDepth: 3,
 		translucentAt: never,
 		finishAt: never,
-		must: (log) => log.filter((r) => r.step === 'open').length >= 2,
+		allowed: (step, depth) => step === 'open' || (step === 'home' && depth === 1),
+		must: (log) => log.some((r) => r.step === 'open'),
 		required: ['stop-before-start']
 	},
 	'intern/translucent': {
@@ -91,7 +95,7 @@ const RULES: Record<string, Rule> = {
 		required: ['save-before-stop']
 	},
 	'junior/finish-on-start': {
-		steps: [3, 4],
+		steps: [3, 3],
 		maxDepth: 3,
 		translucentAt: never,
 		finishAt: (depth, rng) => depth === 1 && rng.bool(0.8),
@@ -99,7 +103,7 @@ const RULES: Record<string, Rule> = {
 		required: ['finish-ignored', 'finishing-saves']
 	},
 	'junior/chain': {
-		steps: [3, 4],
+		steps: [3, 3],
 		maxDepth: 3,
 		translucentAt: never,
 		finishAt: never,
@@ -116,7 +120,7 @@ const RULES: Record<string, Rule> = {
 		required: ['translucent-stops']
 	},
 	'junior/finish-middle': {
-		steps: [3, 4],
+		steps: [3, 3],
 		maxDepth: 3,
 		translucentAt: never,
 		finishAt: (depth) => depth === 2,
@@ -155,8 +159,10 @@ function draft(rng: Rng, rule: Rule): Draft | null {
 		if (!top.translucent && stack.length < rule.maxDepth) options.push('open', 'open');
 		if (stack.length >= 2) options.push('back');
 		if (!top.translucent) options.push('home');
-		const step = rng.pick(options);
 		const depth = stack.length;
+		const allowed = options.filter((o) => rule.allowed?.(o, depth) ?? true);
+		if (allowed.length === 0) return null;
+		const step = rng.pick(allowed);
 		if (step === 'open') {
 			const isTranslucent = rule.translucentAt(depth, rng);
 			const finishCaller = !isTranslucent && rule.finishAt(depth, rng);
@@ -193,7 +199,7 @@ function describe(d: Draft): string {
 	);
 	kinds.push(`${kinds.pop()?.slice(0, -1) ?? ''}.`);
 	return [
-		'Ответ — по модели жизненного цикла Activity из документации Android для **API 34**, а не по поведению конкретного устройства.',
+		'Ответ — по модели жизненного цикла Activity из документации Android для **API 34** (приложение собрано с `targetSdkVersion 34`), а не по поведению конкретного устройства.',
 		'',
 		'Экраны приложения (все в одной задаче, режим запуска — `standard`, каждый `startActivity` создаёт новый экземпляр):',
 		'',

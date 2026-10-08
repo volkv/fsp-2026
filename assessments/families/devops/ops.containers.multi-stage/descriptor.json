@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.65,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "7b4d0381f18143418dd2fb4d8493724da87ed5cc7ff4eb870a576cb79538cf2e"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "7b4d0381f18143418dd2fb4d8493724da87ed5cc7ff4eb870a576cb79538cf2e"
+					}
+				],
+				"mean": 0.65
+			},
 			"constructive": {
 				"stages": "4–6",
 				"rules": "--target, зависимости через FROM и COPY --from, номера стадий, наследование файлов"
@@ -36,7 +53,24 @@
 		},
 		{
 			"grade": "middle",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.7,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "7b4d0381f18143418dd2fb4d8493724da87ed5cc7ff4eb870a576cb79538cf2e"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.5,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "7b4d0381f18143418dd2fb4d8493724da87ed5cc7ff4eb870a576cb79538cf2e"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": {
 				"stages": "5–6",
 				"rules": "глобальный ARG в FROM, область видимости ARG в стадии, приоритет --build-arg"
@@ -138,6 +172,29 @@
 		"answerCollision": 0.0069,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Junior, target-mid (A), экземпляр 1: цель web зависит только от самой себя, ответ состоит из имени web и одного пути. Формы copy-from-index и unused-before требуют обхода нескольких стадий и шести элементов ответа. Добавление одной нужной зависимости в target-mid сделает трудность форм ближе; anchor from-stage-chain не тривиальнее формы A.",
+					"Проверка: все восемь множеств стадий и файлов независимо рассчитаны Python 3.12 рекурсивно от указанной цели; ответы совпали. Проверены нумерация с нуля, наследование файлов, пустая APP без объявления, восстановление глобального ARG и приоритет --build-arg. Авторские программы исполнены; все 24 ненулевых ошибочных ответа отличаются. Реальный BuildKit, доступность shell/утилит в образах и 200 сидов ворот не проверялись; создание файлов через RUN оценивалось по явно заданной модели.",
+					"Angoff: junior 0.65 — бинарное множество одновременно включает стадии и пути, что повышает риск лишней стадии или потерянного файла за 360 с; middle 0.70 — 420 с достаточно, но область видимости APP и выбор runtime через FLAVOR добавляют независимые точки ошибки."
+				],
+				"sourceSha256": "7b4d0381f18143418dd2fb4d8493724da87ed5cc7ff4eb870a576cb79538cf2e"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчитал независимым решателем по правилам 1–5 условия на 150 сидах каждого из восьми классов (junior: target-mid, copy-from-index, from-stage-chain, unused-before; middle: global-arg-from, arg-not-redeclared, arg-redeclared, stage-default): расхождений с эталоном нет. Проверил, что ответ меняется при подмене каждой типичной ошибки (глобальный ARG виден в стадии, игнор `--build-arg`, файлы всех стадий и т. д.) на всех экземплярах, к которым они применимы; в middle arg-redeclared ответ зависит от `--build-arg` лишь на 22 из 150 сидов, что допустимо (класс проверяет повторное объявление). Реальный BuildKit не запускал.",
+					"Мелочь: в списке «файлы, о которых идёт речь» у части экземпляров есть пути каталогов (`/out/`, `/usr/local/bin/`) — они нужны для ошибочных ответов; в верный ответ не попадают. Это не мешает, но может сбивать кандидата.",
+					"Мелочь: определение пограничного кандидата middle в пакете говорит об оркестраторе и оповещениях, а задание проверяет область видимости ARG в Dockerfile; это свойство описания грейда, а не семейства."
+				],
+				"sourceSha256": "7b4d0381f18143418dd2fb4d8493724da87ed5cc7ff4eb870a576cb79538cf2e"
+			}
+		]
 	}
 }

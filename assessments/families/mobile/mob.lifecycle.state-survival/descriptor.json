@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "0bbfa63e152dfccbeb3a3e24baf14d4fd1a3c7150300377e73f323ee319a53f8"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "0bbfa63e152dfccbeb3a3e24baf14d4fd1a3c7150300377e73f323ee319a53f8"
+					}
+				],
+				"mean": 0.55
+			},
 			"constructive": { "values": "4–5", "events": 1, "storages": "4–5 из 6", "mechanisms": 1 },
 			"constructiveRank": 1,
 			"timeNormSec": 180,
@@ -37,20 +54,37 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
-			"constructive": { "values": "5–6", "events": "2–3", "storages": "5–6 из 8", "mechanisms": 2 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "0bbfa63e152dfccbeb3a3e24baf14d4fd1a3c7150300377e73f323ee319a53f8"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.5,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "0bbfa63e152dfccbeb3a3e24baf14d4fd1a3c7150300377e73f323ee319a53f8"
+					}
+				],
+				"mean": 0.55
+			},
+			"constructive": { "values": "5–6", "events": "2–3", "retypes": 1, "storages": "5–6 из 9", "mechanisms": 2 },
 			"constructiveRank": 2,
 			"timeNormSec": 240,
 			"classes": [
 				{
 					"id": "rotate-then-death",
 					"form": "A",
-					"description": "поворот и смерть процесса подряд: ViewModel переживает первое, но не второе"
+					"description": "смерть процесса, повторный ввод части значений, затем поворот: ViewModel теряет введённое до смерти, поле и remember — введённое после неё"
 				},
 				{
 					"id": "handled-config",
 					"form": "B",
-					"description": "поворот объявлен в android:configChanges — экран не пересоздаётся, а тема не объявлена — пересоздаётся"
+					"description": "тема не объявлена в android:configChanges — экран пересоздаётся; значение, введённое заново после этого, переживает объявленный поворот"
 				},
 				{
 					"id": "swipe-vs-death",
@@ -155,6 +189,28 @@
 		"answerCollision": 0.0229,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Прежние дефекты классов устранены. Junior/rotate-then-death: смерть процесса теряет city и selectedTab, повторный ввод pageIndex происходит после неё, поворот снова теряет pageIndex; удаление death или rotate меняет ответ. Junior/handled-config: необъявленная смена uiMode теряет note, повторный ввод query предшествует объявленному повороту, который сохраняет query; ошибочное пересоздание при этом повороте меняет ответ. Все три зависимости подтверждены на 200 сидах каждого затронутого класса.",
+					"Пересчёт: все 8 показанных итоговых множеств независимо вычислены Python 3.12 по описанным местам хранения и событиям, включая повторный ввод, явное завершение процесса при swipe и необъявленную смену темы; ответы совпали. Дополнительно проверены по 200 сидов каждого класса и отличия всех применимых ответов 9 ошибочных решений. Правила восстановления SavedStateHandle сверены с https://developer.android.com/topic/libraries/architecture/viewmodel/viewmodel-savedstate. sourceSha256 пересчитан и совпал. Реальный Android/Compose, произвольные сохраняемые типы, Kotlin/JVM и штатные ворота не запускались.",
+					"Angoff: Intern 0.55 — полное множество за 180 с требует различать Activity, ViewModel, процесс и сохранённое состояние, включая rememberSaveable. Junior 0.60 — за 240 с доступны 5–6 хранилищ, но теперь повторный ввод между событиями действительно требует двух последовательных проверок времени жизни. Оценки binary поставлены заново."
+				],
+				"sourceSha256": "0bbfa63e152dfccbeb3a3e24baf14d4fd1a3c7150300377e73f323ee319a53f8"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Повторный раунд, полное ревью. Оба существенных замечания прошлого раунда устранены: в rotate-then-death порядок «смерть, повторный ввод pageIndex, поворот, фон» делает значимыми и смерть (теряет city и selectedTab), и поворот (теряет повторно введённый pageIndex); в handled-config порядок «тема (пересоздание), повторный ввод query, объявленный поворот» отвергает ошибочное пересоздание при объявленном повороте (query пропал бы). Пересчитал вручную все 8 экземпляров: ответы совпали. Шаг повторного ввода без последующего поворота сам по себе ответ не меняет, но класс этим не обесценен. Реальный Android не запускал.",
+					"Формулировка «последний раз ввёл» однозначна для нового сценария."
+				],
+				"sourceSha256": "0bbfa63e152dfccbeb3a3e24baf14d4fd1a3c7150300377e73f323ee319a53f8"
+			}
+		]
 	}
 }

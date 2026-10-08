@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.7,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "02ca48e7689031cbf760b27da927242d3f3ee0e74c2850eea9af4d7cb19516d2"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.75,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "02ca48e7689031cbf760b27da927242d3f3ee0e74c2850eea9af4d7cb19516d2"
+					}
+				],
+				"mean": 0.75
+			},
 			"constructive": { "objects": "2–5", "mechanisms": 1, "mutableProperties": false, "hashedKeys": "map" },
 			"constructiveRank": 2,
 			"timeNormSec": 180,
@@ -37,7 +54,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "02ca48e7689031cbf760b27da927242d3f3ee0e74c2850eea9af4d7cb19516d2"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "02ca48e7689031cbf760b27da927242d3f3ee0e74c2850eea9af4d7cb19516d2"
+					}
+				],
+				"mean": 0.55
+			},
 			"constructive": { "objects": "3–6", "mechanisms": 2, "mutableProperties": true, "hashedKeys": "set, map" },
 			"constructiveRank": 4,
 			"timeNormSec": 240,
@@ -144,6 +178,28 @@
 		"answerCollision": 0.0072,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Все 8 экземпляров пересчитал вручную и исполнил в Kotlin/JVM 2.4.20 на OpenJDK 21: ответы совпали, включая повторное добавление изменённого ключа и сравнение IntArray по ссылке. Дополнительно hash-set-mutation исполнен в Kotlin/JS 2.4.20: показанный ответ также совпал. 200 дополнительных сидов, Kotlin/Native и другие версии компилятора не проверял.",
+					"Angoff: intern 0.70, junior 0.55 — полный ответ по binary за 180/240 с. На Junior существенно труднее изменение хэша после вставки, поверхностная копия и ссылочное равенство массива; положительный пример поиска через any не позволяет просто перенести результат contains. На Intern copy, свойства тела и позиционная деструктуризация укладываются в короткую трассировку."
+				],
+				"sourceSha256": "02ca48e7689031cbf760b27da927242d3f3ee0e74c2850eea9af4d7cb19516d2"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчёт: все 8 показанных программ скомпилированы и выполнены (Kotlin 2.4, JVM 21), вывод совпал с ответом; ответ следует только из условия. Другие сиды не проверял.",
+					"Junior `hash-set-mutation` (пять строк вывода, поведение HashSet после изменения ключа) и `array-property` требуют знания реализации equals/hashCode; один неверный пункт обнуляет задание (binary), учтено в Angoff.",
+					"Определения грейдов в пакете общие для блока и говорят о корутинах и жизненном цикле, а задания проверяют семантику Kotlin; это свойство блока, на вердикт не влияет."
+				],
+				"sourceSha256": "02ca48e7689031cbf760b27da927242d3f3ee0e74c2850eea9af4d7cb19516d2"
+			}
+		]
 	}
 }

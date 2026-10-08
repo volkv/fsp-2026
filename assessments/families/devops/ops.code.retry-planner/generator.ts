@@ -23,6 +23,7 @@ const RETRYABLE = new Set(['timeout', '408', '429', '500', '502', '503', '504'])
 const RETRY_CODES = ['500', '502', '503', '504', '429', '408', 'timeout'] as const;
 const FATAL_CODES = ['400', '401', '403', '404', '409', '422', '501'] as const;
 const OK_CODES = ['200', '201', '204'] as const;
+const OK = new Set<string>(OK_CODES);
 const NAMES = [
 	'backup',
 	'report',
@@ -139,8 +140,11 @@ function pause(cls: string, input: Input, state: State, k: number, hint: number 
 	}
 }
 
-/** The plan of every job; a variant other than `right` reproduces a wrong solution. */
-function simulate(cls: string, senior: boolean, input: Input, variant: Variant = 'right'): string {
+/**
+ * The plan of every job; a variant other than `right` reproduces a wrong solution. With `notes`, every attempt of job
+ * `i` adds a line of its walk-through to `notes[i]` (the worked example of the statement).
+ */
+function simulate(cls: string, senior: boolean, input: Input, variant: Variant = 'right', notes?: string[][]): string {
 	const limit = variant === 'retries-not-attempts' ? input.m + 1 : input.m;
 	const states: State[] = input.jobs.map(() => ({ times: [], status: '', prev: input.b }));
 	/** Makes attempt `k` of job `i` at `t`; the moment of the next attempt, or `null` when the job is over. */
@@ -153,25 +157,41 @@ function simulate(cls: string, senior: boolean, input: Input, variant: Variant =
 		let code = a.code;
 		let hint = a.hint;
 		let dur = senior ? a.dur : 0;
-		if (
+		const cut =
 			senior &&
 			variant !== 'timeout-not-cut' &&
-			(a.dur > input.t || (variant === 'cut-inclusive' && a.dur === input.t))
-		) {
+			(a.dur > input.t || (variant === 'cut-inclusive' && a.dur === input.t));
+		if (cut) {
 			code = 'timeout';
 			hint = null;
 			dur = input.t;
 		}
-		if (code.startsWith('2')) state.status = 'ok';
-		else if (!RETRYABLE.has(code) && variant !== 'all-retryable') state.status = 'failed';
-		else if (k >= limit) state.status = 'exhausted';
-		else {
-			const next = (variant === 'delay-from-start' ? t : t + dur) + pause(cls, input, state, k, hint, variant);
-			const late = variant === 'deadline-strict' ? next >= job.start + input.d : next > job.start + input.d;
-			if (!late) return next;
-			state.status = 'expired';
+		const note = [
+			`t${k} = ${t}: ${token(a, false)}`,
+			...(senior ? [cut ? `длится ${a.dur} > T — обрыв в ${t + dur}, \`timeout\`` : `конец в ${t + dur}`] : [])
+		];
+		let next: number | null = null;
+		if (OK.has(code)) {
+			state.status = 'ok';
+			note.push('успех');
+		} else if (!RETRYABLE.has(code) && variant !== 'all-retryable') {
+			state.status = 'failed';
+			note.push('неповторяемая ошибка');
+		} else if (k >= limit) {
+			state.status = 'exhausted';
+			note.push(`попытка ${k} = M`);
+		} else {
+			const delay = pause(cls, input, state, k, hint, variant);
+			const at = (variant === 'delay-from-start' ? t : t + dur) + delay;
+			const late = variant === 'deadline-strict' ? at >= job.start + input.d : at > job.start + input.d;
+			note.push(`пауза ${delay}`);
+			if (late) {
+				state.status = 'expired';
+				note.push(`${at} > ${job.start} + D = ${job.start + input.d}`);
+			} else next = at;
 		}
-		return null;
+		notes?.[i]?.push(note.join(', ') + (next === null ? ` → \`${state.status}\`` : ''));
+		return next;
 	};
 	try {
 		if (input.r === null) {
@@ -213,7 +233,16 @@ function simulate(cls: string, senior: boolean, input: Input, variant: Variant =
 
 type Story = 'ok' | 'failed' | 'exhaust';
 
-function results(rng: Rng, story: Story, input: Input, cls: string, senior: boolean, hard: boolean): Attempt[] {
+type GroupId = 'basic' | 'codes' | 'boundary' | 'growth' | 'durations' | 'scale';
+/**
+ * Plain groups: no deadline that binds, no job that reaches M, hints within C and, at Senior, no attempt cut by T
+ * (attempts of `basic` take no time at all). A solution wrong in one edge rule passes them.
+ */
+const PLAIN: readonly GroupId[] = ['basic', 'codes'];
+
+function results(rng: Rng, story: Story, input: Input, cls: string, senior: boolean, group: GroupId): Attempt[] {
+	const plain = PLAIN.includes(group);
+	const hard = group === 'durations' || group === 'scale';
 	const count = input.m + rng.int(0, 2);
 	const end = story === 'exhaust' ? input.m : rng.int(0, input.m - 1);
 	const out: Attempt[] = [];
@@ -228,15 +257,20 @@ function results(rng: Rng, story: Story, input: Input, cls: string, senior: bool
 						? rng.pick(FATAL_CODES)
 						: rng.pick([...RETRY_CODES, ...FATAL_CODES, ...OK_CODES]);
 		const hint =
-			cls === 'retry-after' && (code === '429' || code === '503') && rng.bool(0.7) ? rng.int(1, input.c * 2) : null;
+			cls === 'retry-after' && (code === '429' || code === '503') && rng.bool(0.7)
+				? rng.int(1, plain ? input.c : input.c * 2)
+				: null;
 		const t = input.t;
-		const dur = !senior ? 0 : hard && rng.bool(0.35) ? rng.pick([t, t, t + rng.int(1, t)]) : rng.int(0, t - 1);
+		const dur =
+			!senior || group === 'basic'
+				? 0
+				: hard && rng.bool(0.35)
+					? rng.pick([t, t, t + rng.int(1, t)])
+					: rng.int(0, t - 1);
 		out.push({ code, hint, dur });
 	}
 	return out;
 }
-
-type GroupId = 'basic' | 'codes' | 'boundary' | 'growth' | 'durations' | 'scale';
 
 function makeInput(rng: Rng, cls: string, group: GroupId, senior: boolean, withBudget: boolean): Input {
 	const m = group === 'growth' ? rng.int(6, 9) : rng.int(3, 7);
@@ -251,7 +285,7 @@ function makeInput(rng: Rng, cls: string, group: GroupId, senior: boolean, withB
 		jobs: []
 	};
 	const count: Record<GroupId, [number, number]> = {
-		basic: [3, 6],
+		basic: [2, 4],
 		codes: [5, 8],
 		boundary: [4, 7],
 		growth: [3, 5],
@@ -266,17 +300,19 @@ function makeInput(rng: Rng, cls: string, group: GroupId, senior: boolean, withB
 		while (used.has(id)) id = `${rng.pick(NAMES)}-${rng.int(1, group === 'scale' ? 99_999 : 99)}`;
 		used.add(id);
 		const story: Story =
-			group === 'growth'
-				? rng.pick<Story>(['exhaust', 'exhaust', 'ok'])
-				: group === 'codes'
-					? rng.pick<Story>(['ok', 'failed', 'failed'])
-					: rng.pick<Story>(['ok', 'failed', 'exhaust']);
+			group === 'basic'
+				? 'ok'
+				: group === 'growth'
+					? rng.pick<Story>(['exhaust', 'exhaust', 'ok'])
+					: group === 'codes'
+						? rng.pick<Story>(['ok', 'failed', 'failed'])
+						: rng.pick<Story>(['ok', 'failed', 'exhaust']);
 		// The budget needs crowds of retries in one minute; a large log spreads them so that the queue stays short.
 		const start = withBudget ? rng.int(0, group === 'scale' ? 6 * jobs : 90) : rng.int(0, 3600);
 		input.jobs.push({
 			id,
 			start,
-			attempts: results(rng, story, input, cls, senior, group === 'durations' || group === 'scale')
+			attempts: results(rng, story, input, cls, senior, group)
 		});
 	}
 	if (group === 'boundary') {
@@ -290,7 +326,7 @@ function makeInput(rng: Rng, cls: string, group: GroupId, senior: boolean, withB
 			const at = x.times[rng.int(1, x.times.length - 1)] ?? 0;
 			input.d = at - (input.jobs[x.i] as Job).start;
 		}
-	} else if (group !== 'growth') input.d = rng.bool(0.5) ? 1_000_000 : b * rng.int(m, 4 * m);
+	} else if (group !== 'growth' && !PLAIN.includes(group)) input.d = rng.bool(0.5) ? 1_000_000 : b * rng.int(m, 4 * m);
 	return input;
 }
 
@@ -334,9 +370,7 @@ function groups(
 	senior: boolean,
 	withBudget: boolean
 ): HiddenTestGroup[] {
-	const ids: GroupId[] = senior
-		? ['codes', 'boundary', 'growth', 'durations', 'scale']
-		: ['basic', 'codes', 'boundary', 'growth', 'scale'];
+	const ids: GroupId[] = ['basic', 'codes', 'boundary', 'growth', senior ? 'durations' : 'scale'];
 	return ids.map((id) => {
 		const count = id === 'scale' ? 2 : 4;
 		const tests: { stdin: string; expected: string }[] = [];
@@ -366,7 +400,53 @@ const POLICY: Record<string, string> = {
 		'если результат попытки несёт подсказку Retry-After (запись `код/секунды`, бывает только у 429 и 503), пауза = min(C, подсказка); иначе пауза = B.'
 };
 
+/** The worked example of the statement: a fixed small log for the policy of the class. */
+function exampleInput(cls: string, senior: boolean): Input {
+	const hints = cls === 'retry-after';
+	const at = (code: string, hint: number | null, dur: number): Attempt => ({
+		code,
+		hint: hints ? hint : null,
+		dur: senior ? dur : 0
+	});
+	return {
+		m: 3,
+		d: senior ? 120 : 40,
+		b: 10,
+		c: 25,
+		t: senior ? 60 : 0,
+		r: null,
+		jobs: [
+			{ id: 'backup-7', start: 100, attempts: [at('503', 5, 4), at('503', 30, 70), at('502', null, 3)] },
+			{ id: 'mail-2', start: 0, attempts: [at('500', null, 2), at('404', null, 1), at('200', null, 1)] },
+			{ id: 'sync-4', start: 50, attempts: [at('429', 40, 6), at('200', null, 2), at('200', null, 1)] }
+		]
+	};
+}
+
+/** How to read the input, in Python. */
+function parseTemplate(cls: string, senior: boolean): string {
+	return [
+		'```python',
+		'import sys',
+		'',
+		"lines = sys.stdin.read().split('\\n')",
+		`${senior ? 'j, m, d, b, c, t' : 'j, m, d, b, c'} = map(int, lines[0].split())`,
+		'for row in lines[1:j + 1]:',
+		'    name, start, *results = row.split()',
+		'    start = int(start)',
+		'    for result in results:',
+		...(senior ? ["        result, _, dur = result.partition(':')  # dur = int(dur)"] : []),
+		cls === 'retry-after'
+			? "        code, _, hint = result.partition('/')  # hint == '' — подсказки нет"
+			: '        code = result',
+		'```'
+	].join('\n');
+}
+
 function statement(cls: string, senior: boolean): string {
+	const example = exampleInput(cls, senior);
+	const notes: string[][] = example.jobs.map(() => []);
+	const output = simulate(cls, senior, example, 'right', notes);
 	return [
 		'Планировщик фоновых заданий повторяет неудачные попытки по политике. Результаты всех попыток известны заранее (прогон по записанным ответам). Напишите программу, которая для каждого задания находит моменты всех попыток и итог.',
 		'',
@@ -377,7 +457,7 @@ function statement(cls: string, senior: boolean): string {
 		'',
 		'## Правило',
 		'',
-		`Первая попытка начинается в момент старта. Попытка k (с 1) ${senior ? 'идёт с момента t_k; если её длительность больше T, она обрывается в момент t_k + T и считается повторяемой ошибкой `timeout` независимо от кода, иначе заканчивается в t_k + длительность. По результату' : 'по результату'}:`,
+		`Первая попытка начинается в момент старта. Попытка k (с 1) ${senior ? 'идёт с момента t_k; если её длительность больше T, она обрывается в момент t_k + T и считается повторяемой ошибкой `timeout` независимо от кода, иначе заканчивается в t_k + длительность' + (cls === 'retry-after' ? '; подсказка оборванной попытки не действует' : '') + '. По результату' : 'по результату'}:`,
 		'',
 		'- успех — задание завершено с итогом `ok`;',
 		'- неповторяемая ошибка — итог `failed`;',
@@ -388,9 +468,31 @@ function statement(cls: string, senior: boolean): string {
 		'',
 		'## Выход',
 		'',
-		'По строке на задание в порядке входа: `<задание> <итог> <t1> <t2> …` — итог и моменты начала всех сделанных попыток. Пример: `backup-7 exhausted 100 110 130`.',
+		'По строке на задание в порядке входа: `<задание> <итог> <t1> <t2> …` — итог и моменты начала всех сделанных попыток.',
 		'',
-		`Скрытые тесты — пять групп: ${senior ? 'коды ответов, срок и лимит попыток на границе, рост паузы и потолок, длительности и тайм-аут попыток, большой объём' : 'обычные данные, коды ответов, срок и лимит попыток на границе, рост паузы и потолок, большой объём'}. Группа засчитывается, если пройдены все её тесты.`
+		'## Пример',
+		'',
+		'Вход:',
+		'',
+		'```',
+		render(example, senior).trimEnd(),
+		'```',
+		'',
+		'Выход:',
+		'',
+		'```',
+		output.trimEnd(),
+		'```',
+		'',
+		'Разбор:',
+		'',
+		...example.jobs.map((job, i) => `- \`${job.id}\`: ${(notes[i] ?? []).join('; ')}.`),
+		'',
+		'Разбор входа на Python (на Go — так же построчно):',
+		'',
+		parseTemplate(cls, senior),
+		'',
+		`Скрытые тесты — пять групп: простые данные (только повторяемые ошибки и успех${senior ? ', попытки мгновенные' : ''}) и коды ответов (успех и неповторяемые ошибки${senior ? ', без тайм-аутов' : ''}) — в обеих срок и лимит попыток не достигаются${cls === 'retry-after' ? ', подсказки не больше C' : ''}; срок и лимит попыток на границе; рост паузы и потолок; ${senior ? 'длительности и тайм-аут попыток' : 'большой объём'}. Группа засчитывается, если пройдены все её тесты.`
 	].join('\n');
 }
 
@@ -439,6 +541,7 @@ function referenceSource(cls: string, senior: boolean, budget: boolean, variant:
 		...(budget ? ['import heapq'] : []),
 		'import sys',
 		'',
+		"OK = {'200', '201', '204'}",
 		"RETRY = {'timeout', '408', '429', '500', '502', '503', '504'}",
 		'',
 		"data = sys.stdin.read().split('\\n')",
@@ -455,7 +558,7 @@ function referenceSource(cls: string, senior: boolean, budget: boolean, variant:
 		...(senior ? ["    result, dur = job[k + 1].split(':')", '    dur = int(dur)'] : ['    result = job[k + 1]']),
 		"    code, _, hint = result.partition('/')",
 		...(senior ? cut : []),
-		"    if code.startswith('2'):",
+		'    if code in OK:',
 		"        status[i] = 'ok'",
 		'        return None',
 		...(retryable ? [retryable] : []),

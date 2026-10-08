@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.4,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "fe195665b6690cb8d189b47793c95b3289f1292577df0b0911f90084de7971a3"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.5,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "fe195665b6690cb8d189b47793c95b3289f1292577df0b0911f90084de7971a3"
+					}
+				],
+				"mean": 0.45
+			},
 			"constructive": { "statements": "5–11", "rules": "1–2", "traps": "1–3", "subshells": "0–2" },
 			"constructiveRank": 6,
 			"timeNormSec": 300,
@@ -37,7 +54,24 @@
 		},
 		{
 			"grade": "middle",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.3,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "fe195665b6690cb8d189b47793c95b3289f1292577df0b0911f90084de7971a3"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.4,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "fe195665b6690cb8d189b47793c95b3289f1292577df0b0911f90084de7971a3"
+					}
+				],
+				"mean": 0.35
+			},
 			"constructive": { "statements": "8–11", "rules": "3", "traps": "2–4", "subshells": "0–4" },
 			"constructiveRank": 4,
 			"timeNormSec": 420,
@@ -215,6 +249,30 @@
 		"answerCollision": 0.0001,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчитал вручную все 8 показанных экземпляров (trap с отложенным раскрытием, exit в обработчике и EXIT, сброс перехваченных и сохранение игнорируемых в подоболочке, wait и 128+N, ERR с set -e без -E, EXIT в функции и в $( ), порядок kill -HUP $$ из подоболочки); по 150 сидов классов wait-killed, subshell-reset и всех middle прогнал реальный bash 5.2.21: расхождений и нестабильности нет, сигналы синхронны. Не проверял другие версии bash.",
+					"Мелочь: в условии названо только «bash в Linux», версия не указана, а взаимодействие ERR, set -e и функций менялось между версиями; на bash 5.2 ответы стабильны.",
+					"Мелочь: junior/subshell-reset и middle/exit-in-subshell, ignore-reset, err-trap требуют знания редких правил bash (вывод EXIT из $( ) в переменную, сброс ловушек в подоболочке) при бинарной рубрике и 10–13 строках ответа; Angoff middle низкий.",
+					"Второй раунд Angoff, middle: было 0,25, стало 0,3 — требуются редкие правила bash (сброс ловушек в подоболочке, ERR без -E, EXIT в $( )) при бинарной оценке 10–13 строк; поднимаю на шаг, так как нормы 420 с хватает для трассировки."
+				],
+				"sourceSha256": "fe195665b6690cb8d189b47793c95b3289f1292577df0b0911f90084de7971a3"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Независимо исполнены все 8 экземпляров в bash на Linux; вручную сверены области trap, наследование игнорирования, ERR/set -e и статусы 128+N. Ответы совпали, применимые ошибочные ответы отличаются. Полный прогон ворот на 200 сидах, другие версии bash и внешние асинхронные сигналы не проверялись.",
+					"Angoff junior 0.50, middle 0.50: обычный trap доступнее, чем сброс ловушек в подоболочках, ERR без set -E и захват EXIT внутри подстановки. При binary одна ошибка в порядке вывода или коде выхода обнуляет весь ответ; нормы 300/420 с позволяют трассировку, но не компенсируют пробелы в этих специальных правилах.",
+					"Второй раунд Angoff, middle: было 0.50, стало 0.40 — Снизил оценку: условия не дают готовой процедуры для исключений ERR/set -e, глобальности trap в функции и различий наследования обработчика и игнорирования в subshell. В anchor дополнительно взаимодействуют EXIT внутри command substitution и $$ родителя. За 420 с пробел в любом из этих специальных правил даёт неверный полный вывод или exit status при binary; дополнительное время само по себе его не компенсирует. В этом раунде сопоставлены условия, норма времени, binary и обоснования обоих рецензентов; эталоны, генератор и ворота заново не запускались."
+				],
+				"sourceSha256": "fe195665b6690cb8d189b47793c95b3289f1292577df0b0911f90084de7971a3"
+			}
+		]
 	}
 }

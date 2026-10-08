@@ -139,17 +139,29 @@ interface Value {
 	kind: Kind;
 }
 
+/** What happens to the screen, or the user typing some of its values again. */
+type Step = { event: EventKind } | { enter: string[] };
+
 interface Scenario {
 	screen: string;
 	values: Value[];
-	events: EventKind[];
+	steps: Step[];
 	/** `android:configChanges` of the screen, when it declares one. */
 	declared: string | null;
 }
 
-function survivors(s: Scenario, belief?: Belief): string[] {
+/** The values the screen shows as the user last typed them: typing a value puts it back, an event may lose it. */
+function survivors(s: Scenario, belief?: Belief, steps: readonly Step[] = s.steps): string[] {
 	return s.values
-		.filter((v) => s.events.every((e) => belief?.(v.kind, e) ?? SURVIVES[v.kind][e]))
+		.filter((v) =>
+			steps.reduce(
+				(kept, step) =>
+					'enter' in step
+						? kept || step.enter.includes(v.name)
+						: kept && (belief?.(v.kind, step.event) ?? SURVIVES[v.kind][step.event]),
+				true
+			)
+		)
 		.map((v) => v.name)
 		.sort();
 }
@@ -177,13 +189,13 @@ interface Plan {
 	/** Kinds every instance has. */
 	mandatory: readonly Kind[];
 	count: [number, number];
-	events: (rng: Rng) => EventKind[];
+	steps: (rng: Rng, values: readonly Value[]) => Step[];
 	declared: string | null;
 	required: readonly string[];
+	/** Events whose removal from the scenario must change the answer. */
+	essential?: readonly EventKind[];
 	/** At least one of these misconceptions shows on every instance. */
 	requiredAny?: readonly string[];
-	/** Every value may survive (an `android:configChanges` that covers the change keeps the Activity). */
-	allMaySurvive?: boolean;
 }
 
 const CLASSIC: readonly Kind[] = ['field', 'bundle', 'viewModel', 'handle', 'singleton', 'prefs'];
@@ -195,7 +207,7 @@ const PLANS: Record<string, Plan> = {
 		kinds: CLASSIC,
 		mandatory: ['field', 'viewModel'],
 		count: [4, 5],
-		events: () => ['rotate'],
+		steps: () => [{ event: 'rotate' }],
 		declared: null,
 		required: ['field-survives-rotation', 'viewmodel-lost-on-rotation']
 	},
@@ -203,7 +215,7 @@ const PLANS: Record<string, Plan> = {
 		kinds: CLASSIC,
 		mandatory: ['viewModel', 'singleton'],
 		count: [4, 5],
-		events: () => ['death'],
+		steps: () => [{ event: 'death' }],
 		declared: null,
 		required: ['viewmodel-survives-death', 'singleton-survives-death']
 	},
@@ -211,7 +223,7 @@ const PLANS: Record<string, Plan> = {
 		kinds: CLASSIC,
 		mandatory: ['bundle'],
 		count: [4, 5],
-		events: (rng) => [rng.pick<EventKind>(['close', 'finish'])],
+		steps: (rng) => [{ event: rng.pick<EventKind>(['close', 'finish']) }],
 		declared: null,
 		required: ['bundle-survives-close']
 	},
@@ -219,7 +231,7 @@ const PLANS: Record<string, Plan> = {
 		kinds: ['remember', 'saveable', 'viewModel', 'handle', 'field', 'prefs'],
 		mandatory: ['remember', 'saveable'],
 		count: [4, 5],
-		events: () => ['rotate'],
+		steps: () => [{ event: 'rotate' }],
 		declared: null,
 		required: ['remember-survives-rotation']
 	},
@@ -227,26 +239,33 @@ const PLANS: Record<string, Plan> = {
 		kinds: ALL,
 		mandatory: ['viewModel'],
 		count: [5, 6],
-		events: (rng) => rng.shuffle<EventKind>(['rotate', 'death', ...(rng.bool() ? ['home' as const] : [])]),
+		// The process dies first, the user types some values again, then the phone turns: each event loses its own.
+		steps: (rng, values) => withHome(rng, [{ event: 'death' }, { enter: retyped(rng, values) }, { event: 'rotate' }]),
 		declared: null,
-		required: ['viewmodel-survives-death']
+		required: ['viewmodel-survives-death'],
+		requiredAny: ['field-survives-rotation', 'remember-survives-rotation'],
+		essential: ['death', 'rotate']
 	},
 	'junior/handled-config': {
 		kinds: ALL,
 		mandatory: [],
 		count: [5, 6],
-		events: (rng) => rng.shuffle<EventKind>(['rotateHandled', rng.pick<EventKind>(['home', 'theme', 'theme'])]),
+		// The undeclared theme change recreates the screen, the user types some values again, then the declared
+		// rotation keeps them.
+		steps: (rng, values) =>
+			withHome(rng, [{ event: 'theme' }, { enter: retyped(rng, values) }, { event: 'rotateHandled' }]),
 		declared: HANDLED,
-		required: [],
-		requiredAny: ['handled-recreates', 'all-changes-handled'],
-		allMaySurvive: true
+		required: ['handled-recreates', 'all-changes-handled'],
+		essential: ['theme']
 	},
 	'junior/swipe-vs-death': {
 		kinds: ALL,
 		mandatory: ['bundle', 'singleton', 'prefs'],
 		count: [5, 6],
-		events: (rng) =>
-			rng.shuffle<EventKind>([rng.bool(0.6) ? 'swipe' : 'death', rng.pick<EventKind>(['rotate', 'home'])]),
+		steps: (rng) =>
+			rng
+				.shuffle<EventKind>([rng.bool(0.6) ? 'swipe' : 'death', rng.pick<EventKind>(['rotate', 'home'])])
+				.map((event) => ({ event })),
 		declared: null,
 		required: [],
 		requiredAny: ['swipe-keeps-state', 'singleton-survives-death']
@@ -255,23 +274,35 @@ const PLANS: Record<string, Plan> = {
 		kinds: ALL,
 		mandatory: ['singleton', 'file'],
 		count: [5, 6],
-		events: (rng) => rng.shuffle<EventKind>([rng.pick<EventKind>(['close', 'finish']), 'death']),
+		steps: (rng) =>
+			rng.shuffle<EventKind>([rng.pick<EventKind>(['close', 'finish']), 'death']).map((event) => ({ event })),
 		declared: null,
 		required: ['singleton-survives-death', 'bundle-survives-close']
 	}
 };
+
+/** One or two values the user types again, among them a value kept in the Activity or in `remember`. */
+function retyped(rng: Rng, values: readonly Value[]): string[] {
+	const screenBound = values.filter((v) => v.kind === 'field' || v.kind === 'remember');
+	const first = rng.pick(screenBound.length ? screenBound : values);
+	const others = values.filter((v) => v !== first);
+	return [first, ...(rng.bool(0.4) ? rng.sample(others, 1) : [])].map((v) => v.name);
+}
+
+/** Inserts «Домой» with the way back at a random place, half of the time; it loses nothing. */
+function withHome(rng: Rng, steps: Step[]): Step[] {
+	if (!rng.bool()) return steps;
+	const at = rng.int(0, steps.length);
+	return [...steps.slice(0, at), { event: 'home' }, ...steps.slice(at)];
+}
 
 function scenario(rng: Rng, plan: Plan): Scenario {
 	const count = rng.int(plan.count[0], plan.count[1]);
 	const rest = rng.shuffle(plan.kinds.filter((k) => !plan.mandatory.includes(k)));
 	const kinds = rng.shuffle([...plan.mandatory, ...rest.slice(0, count - plan.mandatory.length)]);
 	const names = rng.sample(NAMES, kinds.length);
-	return {
-		screen: rng.pick(SCREENS),
-		values: kinds.map((kind, i) => ({ kind, name: names[i] ?? '' })),
-		events: plan.events(rng),
-		declared: plan.declared
-	};
+	const values = kinds.map((kind, i) => ({ kind, name: names[i] ?? '' }));
+	return { screen: rng.pick(SCREENS), values, steps: plan.steps(rng, values), declared: plan.declared };
 }
 
 function storage(v: Value, screen: string): string {
@@ -319,6 +350,11 @@ function eventText(e: EventKind, screen: string): string {
 	}
 }
 
+function enterText(names: readonly string[]): string {
+	const list = names.map((n) => `\`${n}\``).join(' и ');
+	return `Пользователь заново вводит на экране ${names.length > 1 ? 'значения' : 'значение'} ${list}; экран хранит ${names.length > 1 ? 'их' : 'его'} там же, где описано выше.`;
+}
+
 function describe(s: Scenario): string {
 	const manifest = s.declared
 		? `В манифесте у \`${s.screen}Activity\` объявлено \`android:configChanges="${s.declared}"\`.`
@@ -335,9 +371,11 @@ function describe(s: Scenario): string {
 		'',
 		'Затем по порядку:',
 		'',
-		...s.events.map((e, i) => `${i + 1}. ${eventText(e, s.screen)}`),
+		...s.steps.map(
+			(step, i) => `${i + 1}. ${'enter' in step ? enterText(step.enter) : eventText(step.event, s.screen)}`
+		),
 		'',
-		`Какие значения \`${s.screen}\` после этого показывает такими, какими их ввёл пользователь (а не начальными)? Введите их имена по одному в строке, порядок не важен; если таких нет — одну строку \`-\`.`
+		`Какие значения \`${s.screen}\` после этого показывает такими, какими их последний раз ввёл пользователь (а не начальными)? Введите их имена по одному в строке, порядок не важен; если таких нет — одну строку \`-\`.`
 	].join('\n');
 }
 
@@ -366,10 +404,14 @@ TEARS = {
     "finish": {"activity", "store", "saved"},
     "swipe": {"activity", "store", "saved", "process"},
 }
-lost = set()
-for e in d["events"]:
-    lost |= TEARS[e]
-alive = sorted(v["name"] for v in d["values"] if LAYER[v["kind"]] not in lost)
+alive = {v["name"] for v in d["values"]}
+for step in d["steps"]:
+    if "enter" in step:
+        alive |= set(step["enter"])
+    else:
+        torn = TEARS[step["event"]]
+        alive -= {v["name"] for v in d["values"] if LAYER[v["kind"]] in torn}
+alive = sorted(alive)
 print("\\n".join(alive) if alive else "-")
 `;
 
@@ -382,7 +424,7 @@ export function build(input: GenerateInput): Built {
 	for (let tries = 0; tries < 200; tries += 1) {
 		const s = scenario(rng, plan);
 		const answer = survivors(s);
-		if (answer.length === 0 || (answer.length === s.values.length && !plan.allMaySurvive)) continue;
+		if (answer.length === 0 || answer.length === s.values.length) continue;
 		const wrong = Object.fromEntries(
 			Object.entries(WRONG).map(([id, belief]) => {
 				const value = survivors(s, belief);
@@ -392,6 +434,15 @@ export function build(input: GenerateInput): Built {
 		);
 		if (plan.required.some((id) => wrong[id] === null)) continue;
 		if (plan.requiredAny && plan.requiredAny.every((id) => wrong[id] === null)) continue;
+		const matters = (event: EventKind): boolean => {
+			const without = survivors(
+				s,
+				undefined,
+				s.steps.filter((step) => !('event' in step) || step.event !== event)
+			);
+			return without.length !== answer.length || without.some((v, i) => v !== answer[i]);
+		};
+		if (plan.essential && !plan.essential.every(matters)) continue;
 		const instance = makeInstance(descriptor, input, {
 			statement: { markdown: describe(s), code: null },
 			answer: { kind: 'set', value: answer }
@@ -401,7 +452,7 @@ export function build(input: GenerateInput): Built {
 			reference: () => ({
 				kind: 'output',
 				source: PYTHON_REFERENCE,
-				stdin: JSON.stringify({ values: s.values, events: s.events })
+				stdin: JSON.stringify({ values: s.values, steps: s.steps })
 			}),
 			wrong: () =>
 				Object.fromEntries(

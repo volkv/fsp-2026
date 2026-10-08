@@ -200,10 +200,13 @@ function scenario(rng: Rng, classId: string): Scenario {
 	const every = rng.pick([25, 35, 45, 55, 70]);
 	const taskMs = rng.int(Math.max(3, Math.floor(period * 0.4)), Math.floor(period * 1.3));
 	const first = rng.int(5, 60);
+	const window = rng.int(14, 30);
+	// The timer runs on forever; a task arriving after vsync `window` cannot change any vsync up to `window`, so the
+	// tasks are listed up to that moment (with one period of margin).
 	const tasks: Task[] = [];
-	for (let at = first; at < 400; at += every)
+	for (let at = first; at <= ((window + 1) * 1000) / hz + every; at += every)
 		tasks.push({ at, ms: taskMs, label: 'periodic', background: null, result: false });
-	return { ...base, tasks, window: rng.int(14, 30) };
+	return { ...base, tasks, window };
 }
 
 // Rendering.
@@ -229,7 +232,7 @@ function describe(sc: Scenario): string {
 			`Пользователь прокручивает список. Каждый кадр на главном потоке стоит ${p.base} мс плюс ${p.perRow} мс на каждую строку, которую он привязывает (\`onBindViewHolder\`). Кадры идут подряд, первый начинается на vsync 0; по порядку они привязывают строк: ${p.rows.join(', ')}. Другой работы на главном потоке нет.`,
 			'',
 			'Медленный кадр — кадр, чья работа длится дольше T.',
-			'Введите два числа через пробел: сколько кадров медленные и на каком vsync (номер) появится последний из этих кадров. Например: `2 11`.'
+			'Введите два числа через пробел: сколько кадров медленные и номер vsync, на котором появится последний кадр прокрутки (тот, что привязывает последнее число строк из списка, — медленный он или нет). Например: `2 11`.'
 		].join('\n');
 	}
 	const animation = `На экране идёт анимация: она требует новый кадр на каждом vsync, работа такого кадра на главном потоке — ${sc.frameMs} мс.`;

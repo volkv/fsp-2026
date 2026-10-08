@@ -64,7 +64,10 @@ interface Event {
 	attempt: number;
 }
 
-/** `<commit> <status per run>`, or `null` when two events fall on one minute. */
+/**
+ * `<commit> <status per run>`, or `null` when two events fall on one minute. Every scheduled event counts, also one
+ * dropped later as stale (the end of a job cancelled at that very minute): the order of a tie would decide the answer.
+ */
 function simulate(p: Params, rules: Rules): string | null {
 	const events: Event[] = [];
 	let seq = 0;
@@ -115,8 +118,8 @@ function simulate(p: Params, rules: Rules): string | null {
 	while (events.length > 0) {
 		events.sort((a, b) => a.at - b.at || a.seq - b.seq);
 		const e = events.shift() as Event;
-		if (e.kind !== 'rerun' && (!current(e.run, e.attempt) || status[e.run] === 'cancelled')) continue;
 		times.push(e.at);
+		if (e.kind !== 'rerun' && (!current(e.run, e.attempt) || status[e.run] === 'cancelled')) continue;
 		const r = running;
 		const isRunning = r !== null && r.run === e.run && r.attempt === e.attempt;
 		switch (e.kind) {
@@ -209,7 +212,12 @@ function scenario(rng: Rng, spec: ClassSpec): Params {
 	if (spec.approval) {
 		const timeoutMin = rng.int(6, 15);
 		const delays: Record<string, number> = {};
-		for (let i = 0; i < n; i += 1) if (rng.bool(0.75)) delays[`${i}:1`] = rng.int(1, timeoutMin + 4);
+		// An approval never falls on the minute of the timeout: which of the two comes first would be a guess.
+		for (let i = 0; i < n; i += 1) {
+			if (!rng.bool(0.75)) continue;
+			const delay = rng.int(1, timeoutMin + 3);
+			delays[`${i}:1`] = delay >= timeoutMin ? delay + 1 : delay;
+		}
 		approval = { timeoutMin, delays };
 	}
 	const rerun = spec.rerun
@@ -284,7 +292,8 @@ function describe(p: Params): string {
 		'',
 		'- в группе одновременно не больше одного выполняющегося задания и одного ожидающего;',
 		'- готовое к старту задание при свободной группе сразу стартует; при занятой: если `cancel-in-progress: true` — выполняющееся задание отменяется (`cancelled`), а новое стартует; если `false` — новое становится ожидающим, а прежнее ожидающее, если было, отменяется (`cancelled`);',
-		'- когда выполняющееся задание завершается, ожидающее стартует в ту же минуту.',
+		'- когда выполняющееся задание завершается, ожидающее стартует в ту же минуту;',
+		'- никакие два события (готовность задания к старту, завершение задания, одобрение, истечение ожидания, перезапуск) в этой задаче не приходятся на одну минуту.',
 		...approval,
 		...rerun,
 		'',

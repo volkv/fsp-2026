@@ -47,6 +47,7 @@ interface Rules {
 	firstRecovery: boolean;
 	warnAsError: boolean;
 	skewIgnored: boolean;
+	rootByMessage: boolean;
 }
 
 const RIGHT: Rules = {
@@ -58,7 +59,8 @@ const RIGHT: Rules = {
 	mttrRootOnly: false,
 	firstRecovery: false,
 	warnAsError: false,
-	skewIgnored: false
+	skewIgnored: false,
+	rootByMessage: false
 };
 
 const WRONG: Record<string, Partial<Rules>> = {
@@ -70,7 +72,8 @@ const WRONG: Record<string, Partial<Rules>> = {
 	'mttr-root-only': { mttrRootOnly: true },
 	'first-recovery': { firstRecovery: true },
 	'warn-as-error': { warnAsError: true },
-	'skew-ignored': { skewIgnored: true }
+	'skew-ignored': { skewIgnored: true },
+	'root-by-message': { rootByMessage: true }
 };
 
 const shownAt = (p: Params, e: Entry): number => e.real + (p.skew[e.service] ?? 0);
@@ -87,6 +90,7 @@ function analyse(p: Params, rules: Rules): string {
 	let alert = Infinity;
 	let alertAbout = '';
 	let earliest: Entry | null = null;
+	let earliestOwn: Entry | null = null;
 	for (const e of sorted) {
 		const t = at(e);
 		if (e.level === 'ALERT') {
@@ -100,6 +104,7 @@ function analyse(p: Params, rules: Rules): string {
 		if (e.level === 'ERROR') {
 			if (!firstError.has(e.service)) firstError.set(e.service, t);
 			if (earliest === null || t < at(earliest)) earliest = e;
+			if (e.upstream === null && (earliestOwn === null || t < at(earliestOwn))) earliestOwn = e;
 			start = Math.min(start, t);
 			failing.set(e.service, true);
 		}
@@ -116,6 +121,7 @@ function analyse(p: Params, rules: Rules): string {
 	if (rules.earliestErrorRoot) root = [...failed].sort(byStart)[0] ?? '?';
 	if (rules.firstAlertRoot) root = alertAbout;
 	if (rules.namedUpstreamRoot && earliest) root = earliest.upstream ?? earliest.service;
+	if (rules.rootByMessage && earliestOwn) root = earliestOwn.service;
 	const recoveredAt = (s: string): number =>
 		(rules.firstRecovery ? firstRecovered.get(s) : finalRecovered.get(s)) ?? Infinity;
 	const end = rules.mttrRootOnly ? recoveredAt(root) : Math.max(...failed.map(recoveredAt));
@@ -130,13 +136,16 @@ function analyse(p: Params, rules: Rules): string {
 const TOP = ['web', 'gateway', 'mobile-bff', 'frontend', 'edge'];
 const MID = ['api', 'orders', 'cart', 'checkout', 'search', 'catalog', 'pricing', 'auth', 'stock', 'payments'];
 const LEAF = ['db', 'cache', 'ledger', 'queue', 'object-store', 'session-store'];
-const ROOT_TEXTS = [
+/** Errors that do not name a dependency: a root cause and a dependent waiting on a slow dependency write the same. */
+const OWN_TEXTS = [
 	'connection pool exhausted',
 	'disk full: /var/lib/data',
 	'worker killed: out of memory',
 	'TLS certificate expired',
 	'deadlock detected, transaction aborted',
-	'too many open files'
+	'too many open files',
+	'request deadline exceeded',
+	'thread pool saturated, request rejected'
 ];
 const WARN_TEXTS = ['slow query: 2.4s', 'gc pause 900ms', 'queue lag 1200 messages', 'retrying request (1/3)'];
 const NOISE = ['request served in 41ms', 'config reloaded', 'cache hit ratio 0.93', 'scheduled job done'];
@@ -201,13 +210,14 @@ function scenario(rng: Rng, grade: string, classId: string): Params {
 		);
 		if (other.length) roots.push(rng.pick(other));
 	}
-	const silent = classId === 'silent-root' || classId === 'clock-skew' || classId === 'deep-chain';
+	// The root hangs silently in its own classes and now and then in the others, so the earliest error is no shortcut.
+	const silent = classId === 'silent-root' || classId === 'clock-skew' || classId === 'deep-chain' || rng.bool(0.4);
 	const affected = new Map<string, { first: number; rec: number; via: string }>();
 	roots.forEach((root, ri) => {
 		const r0 = ri === 0 ? 0 : rng.int(20, 200);
 		const rootFirst = r0 + (silent && ri === 0 ? rng.int(90, 240) : rng.int(0, 15));
 		const rr = r0 + rng.int(600, 2400);
-		log(rootFirst, root, 'ERROR', rng.pick(ROOT_TEXTS));
+		log(rootFirst, root, 'ERROR', rng.pick(OWN_TEXTS));
 		log(rr, root, 'INFO', 'recovered: health check passing');
 		for (const u of ancestors(deps, root)) {
 			let first = r0 + u.depth * rng.int(5, 40);
@@ -225,8 +235,13 @@ function scenario(rng: Rng, grade: string, classId: string): Params {
 	const flapper = classId === 'flapping' || classId === 'skew-flap' ? rng.pick([...affected.keys()]) : null;
 	for (const [service, a] of affected) {
 		const why = (): string => rng.pick(['timeout after 5s', '503 Service Unavailable', 'connection refused']);
-		log(a.first, service, 'ERROR', `upstream ${a.via}: ${why()}`, a.via);
-		log(a.first + rng.int(20, 200), service, 'ERROR', `upstream ${a.via}: ${why()}`, a.via);
+		// A dependent names its dependency or reports only its own symptom.
+		const error = (real: number): void => {
+			if (rng.bool(0.5)) log(real, service, 'ERROR', `upstream ${a.via}: ${why()}`, a.via);
+			else log(real, service, 'ERROR', rng.pick(OWN_TEXTS));
+		};
+		error(a.first);
+		error(a.first + rng.int(20, 200));
 		log(a.rec, service, 'INFO', 'recovered: health check passing');
 		if (service === flapper) {
 			const again = a.rec + rng.int(30, 120);
@@ -344,14 +359,14 @@ print(root, alert - start, end - start)
 
 /** The misconceptions every instance of a class must expose. */
 const REQUIRED: Record<string, string[]> = {
-	'middle/silent-root': ['earliest-error-root', 'mttd-from-root'],
+	'middle/silent-root': ['earliest-error-root', 'mttd-from-root', 'root-by-message'],
 	'middle/noisy-warn': ['warn-as-error', 'mttr-from-alert'],
 	'middle/slow-recovery': ['mttr-root-only', 'first-alert-root'],
 	'middle/flapping': ['first-recovery', 'mttr-from-alert'],
-	'senior/clock-skew': ['skew-ignored', 'earliest-error-root'],
+	'senior/clock-skew': ['skew-ignored', 'earliest-error-root', 'root-by-message'],
 	'senior/two-candidates': ['first-alert-root', 'mttr-root-only'],
 	'senior/skew-flap': ['skew-ignored', 'first-recovery'],
-	'senior/deep-chain': ['named-upstream-root', 'earliest-error-root']
+	'senior/deep-chain': ['named-upstream-root', 'earliest-error-root', 'root-by-message']
 };
 
 export function build(input: GenerateInput): Built {
@@ -369,6 +384,8 @@ export function build(input: GenerateInput): Built {
 		const required = REQUIRED[`${input.grade}/${input.classId}`] ?? [];
 		if (required.some((id) => wrong[id] === null)) continue;
 		if (input.classId === 'two-candidates' && Object.keys(p.deps).length && !twoCandidates(p)) continue;
+		if (input.classId === 'deep-chain' && !firstErrorNamesUpstream(p)) continue;
+		if (!distinctCandidateStarts(p)) continue;
 		const instance = makeInstance(descriptor, input, {
 			statement: { markdown: describe(p), code: null },
 			answer: { kind: 'tokens', value: answer }
@@ -390,6 +407,24 @@ export function build(input: GenerateInput): Built {
 		};
 	}
 	throw new Error(`${descriptor.key}: no scenario for ${input.grade}/${input.classId} after 500 tries`);
+}
+
+/** The earliest error names the dependency it waits on: the chain points at an intermediate service. */
+function firstErrorNamesUpstream(p: Params): boolean {
+	const errors = p.entries.filter((e) => e.level === 'ERROR').sort((a, b) => a.real - b.real);
+	return (errors[0]?.upstream ?? null) !== null;
+}
+
+/** The services meeting the root's definition fail first at different real moments: «the earlier» is never a tie. */
+function distinctCandidateStarts(p: Params): boolean {
+	const first = new Map<string, number>();
+	for (const e of p.entries) {
+		if (e.level === 'ERROR') first.set(e.service, Math.min(e.real, first.get(e.service) ?? Infinity));
+	}
+	const starts = [...first.keys()]
+		.filter((s) => (p.deps[s] ?? []).every((d) => !first.has(d)))
+		.map((s) => first.get(s) ?? 0);
+	return new Set(starts).size === starts.length;
 }
 
 /** Two failed services both meet the root's definition. */

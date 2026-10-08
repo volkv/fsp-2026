@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "bea72c191d2cf132c62212d4ec969dde4369f7fcb68204fd60ae92d57f0d1e36"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.45,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "bea72c191d2cf132c62212d4ec969dde4369f7fcb68204fd60ae92d57f0d1e36"
+					}
+				],
+				"mean": 0.5
+			},
 			"constructive": { "coroutines": "1–4", "lines": "10–22", "mechanisms": 2, "cancellationPoints": "1–3" },
 			"constructiveRank": 4,
 			"timeNormSec": 270,
@@ -37,7 +54,24 @@
 		},
 		{
 			"grade": "middle",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.65,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "bea72c191d2cf132c62212d4ec969dde4369f7fcb68204fd60ae92d57f0d1e36"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.45,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "bea72c191d2cf132c62212d4ec969dde4369f7fcb68204fd60ae92d57f0d1e36"
+					}
+				],
+				"mean": 0.55
+			},
 			"constructive": { "coroutines": "1–3", "lines": "15–30", "mechanisms": 3, "cancellationPoints": "2–5" },
 			"constructiveRank": 6,
 			"timeNormSec": 360,
@@ -174,6 +208,28 @@
 		"answerCollision": 0.0081,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Проверка: вручную проследил отмену, точки приостановки, finally, состояния Job и completion handlers всех восьми экземпляров; отдельно скомпилировал и исполнил весь показанный Kotlin на Kotlin 2.4.20/JVM 21 с kotlinx.coroutines 1.8.0 и с доступной 1.10.2-intellij-1. Все последовательности совпали. Полные ворота на 200 сидах не повторял.",
+					"Angoff junior 0.55: определение пограничного кандидата прямо допускает ошибки отмены, а бинарный ответ требует одновременно правильно назвать состояния Job и порядок finally. Angoff middle 0.65: 360 с достаточны, но поглощение CancellationException и delay в отменённом finally заметно сложнее базовой отмены."
+				],
+				"sourceSha256": "bea72c191d2cf132c62212d4ec969dde4369f7fcb68204fd60ae92d57f0d1e36"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Исполнено в песочнице (kt.sh, Kotlin 2.4, JVM 21, kotlinx.coroutines): сиды 0..2 каждого из восьми классов (junior: cancel-finally, job-states, cancel-points, parent-children; middle: swallowed, non-cancellable, completion-handlers, cancel-before-start) — вывод JVM совпал с ответом в 24 из 24 случаев. Все восемь показанных экземпляров дополнительно разобраны вручную (в том числе порядок finally детей до finally родителя, catch (e: Exception) поглощает отмену и следующий delay бросает сразу, delay в finally без NonCancellable бросает, invokeOnCompletion раньше продолжения join, launch из отменённой корутины не выполняется) — совпало.",
+					"Мелочь: равные сроки в программах возникают только между вызовами delay из одного момента и разрешаются порядком вызовов; условие «задержки настоящие, всё остальное мгновенно» этого не называет, но генератор отбраковывает ничьи из разных моментов (зазор 100 мс между разными сроками), так что на ответ это не влияет.",
+					"Мелочь: рубрика бинарная по 5–11 строкам; одна ошибка обнуляет ответ, учтено в Angoff. Для junior тема отмены совпадает с названной слабой зоной пограничного кандидата, оценка понижена."
+				],
+				"sourceSha256": "bea72c191d2cf132c62212d4ec969dde4369f7fcb68204fd60ae92d57f0d1e36"
+			}
+		]
 	}
 }

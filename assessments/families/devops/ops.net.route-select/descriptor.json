@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.5,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "ed0cca1e95816415ff57f461dab5253dad663bddd1ac7656d1c1f9d1ddea7d51"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.5,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "ed0cca1e95816415ff57f461dab5253dad663bddd1ac7656d1c1f9d1ddea7d51"
+					}
+				],
+				"mean": 0.5
+			},
 			"constructive": {
 				"routes": "5–7",
 				"destinations": 5,
@@ -41,7 +58,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "ed0cca1e95816415ff57f461dab5253dad663bddd1ac7656d1c1f9d1ddea7d51"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.5,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "ed0cca1e95816415ff57f461dab5253dad663bddd1ac7656d1c1f9d1ddea7d51"
+					}
+				],
+				"mean": 0.55
+			},
 			"constructive": {
 				"tables": "2–3",
 				"rules": "3–4 правила выбора таблицы, переход к следующему правилу, особые маршруты",
@@ -141,6 +175,27 @@
 		"answerCollision": 0,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Узкое повторное ревью: прежнее существенное замечание касалось внутренних пробелов. Во всех восьми условиях явно заданы формы строки via <шлюз> dev <интерфейс>, dev <интерфейс>, blackhole/unreachable и пример. По решению ведущего 2 такое сравнение строк допустимо; иных прежних существенных замечаний нет. Хеш не изменился, окончательный Angoff сохранён: Intern 0.50, Junior 0.60.",
+					"Дополнительно независимо пересчитал все 8 показанных экземпляров по таблицам, правилам и пакетам из условий программой на Python 3.12 с целочисленной IPv4-арифметикой; ответы совпали. Исполнил 8 эталонов с восстановленными полными входами; показанные ответы 10 ошибочных моделей отвергаются. Полное ревью генератора на дополнительных сидах, настоящий Linux и официальный прогон ворот в этом узком раунде не выполнял."
+				],
+				"sourceSha256": "ed0cca1e95816415ff57f461dab5253dad663bddd1ac7656d1c1f9d1ddea7d51"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчитано независимым разбором текста условий всех 8 экземпляров (intern и junior, все классы) собственной программой на Python (ipaddress): ответы совпали с ожидаемыми, равных по длине и метрике маршрутов нет, неоднозначности порядка не найдено. Генератор и ошибочные решения вручную не прогонялись, опирался на отчёт ворот (10 из 10, answerCollision 0).",
+					"Модель согласуется с Linux: blackhole и unreachable в таблице правила окончательны, отсутствие маршрута ведёт к следующему правилу, это названо в условии. Intern, класс cross-octet (/13, /17, /18) труден для кандидата, который путается в масках; учтено в Angoff."
+				],
+				"sourceSha256": "ed0cca1e95816415ff57f461dab5253dad663bddd1ac7656d1c1f9d1ddea7d51"
+			}
+		]
 	}
 }

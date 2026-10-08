@@ -224,9 +224,11 @@ function scenario(rng: Rng, grade: string, classId: string): Scenario {
 		// A lower module starts to depend on a module above it that already reaches it: a cycle of 3+ modules.
 		const lower = rng.pick([...mid, ...low]);
 		const above = g.modules.filter((m) => m !== ':app' && reachable(g, m).has(lower));
+		// Only a module that reaches `lower` through another module: no self-dependency, no cycle of two. Without one the
+		// graph stays acyclic and the draw is rejected.
 		const candidates = above.filter((m) => !out(g, m).some((e) => e.to === lower));
-		const top = candidates.length > 0 ? rng.pick(candidates) : rng.pick([...data, ...mid]);
-		g.edges.push({ from: lower, to: top, config: rng.bool(0.5) ? 'api' : 'implementation' });
+		if (candidates.length > 0)
+			g.edges.push({ from: lower, to: rng.pick(candidates), config: rng.bool(0.5) ? 'api' : 'implementation' });
 		if (senior) {
 			// A second upward edge that closes no cycle: from a module nothing above it is reached from.
 			const from = rng.pick(features);

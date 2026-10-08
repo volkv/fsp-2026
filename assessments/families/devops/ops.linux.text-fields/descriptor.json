@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "75fac7fa047a259e83625d40bd2c2a7ca16e094c6cfc64caabc6712a67695bd1"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "75fac7fa047a259e83625d40bd2c2a7ca16e094c6cfc64caabc6712a67695bd1"
+					}
+				],
+				"mean": 0.55
+			},
 			"constructive": { "commands": "1–4", "files": 1, "rules": "1–2", "lines": "5–9" },
 			"constructiveRank": 2,
 			"timeNormSec": 240,
@@ -37,7 +54,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.65,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "75fac7fa047a259e83625d40bd2c2a7ca16e094c6cfc64caabc6712a67695bd1"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.45,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "75fac7fa047a259e83625d40bd2c2a7ca16e094c6cfc64caabc6712a67695bd1"
+					}
+				],
+				"mean": 0.55
+			},
 			"constructive": { "commands": "1–2", "files": "1–2", "rules": 2, "lines": "5–12" },
 			"constructiveRank": 3,
 			"timeNormSec": 300,
@@ -173,6 +207,28 @@
 		"answerCollision": 0.0003,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Независимо исполнены все 8 экземпляров на полном тексте файлов из условий; вручную проверены порядок cut, дополнение короткого набора tr, жадность sed и суммы awk. Все ответы совпали, применимые ошибочные ответы отличаются. Полный прогон ворот на 200 сидах, другие локали и многобайтовый текст не проверялись; последние два исключены пакетом.",
+					"Angoff intern 0.55, junior 0.65: для Intern необычны порядок полей cut и дополнение набора tr; для Junior paste/join и диапазон sed доступны за 300 с, но binary требует безошибочно переписать до 10 строк. Аргументы времени и эффект одной ошибки учтены."
+				],
+				"sourceSha256": "75fac7fa047a259e83625d40bd2c2a7ca16e094c6cfc64caabc6712a67695bd1"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчитал вручную все 8 показанных экземпляров (cut -f7,6, tr -s/-d/короткий второй набор, жадный sed, awk-сумма с заголовком, paste, join -a1, диапазон sed, $NF-1); по 100 сидов каждого класса сверил ответ с реальными инструментами песочницы (awk там mawk; расхождений 0). Не проверял gawk и BSD-варианты.",
+					"Мелочь: intern/tr: `tr 'a-z.-' 'A-Z_'` полагается на то, что второй набор дополняется последним символом; POSIX это не определяет, а прочтение «лишние символы не меняются» естественно (автор держит его как ошибочное решение). В условии GNU coreutils не назван; на песочнице расхождения нет.",
+					"Мелочь: intern/awk-sum и junior/awk-fields (регулярное -F, $NF-1, сортировка по сумме) для intern тяжелее остальных классов; сдвиг учтён в Angoff."
+				],
+				"sourceSha256": "75fac7fa047a259e83625d40bd2c2a7ca16e094c6cfc64caabc6712a67695bd1"
+			}
+		]
 	}
 }

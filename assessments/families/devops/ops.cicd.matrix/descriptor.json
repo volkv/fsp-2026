@@ -8,8 +8,25 @@
 	"levels": [
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
-			"constructive": { "keys": 2, "jobs": "4–9", "rules": "exclude, include, fail-fast по умолчанию, max-parallel" },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "2c12658b855bbdce6186498f1a0ae3812e6d1f3e176895eb91ca898a815bfe78"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.5,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "2c12658b855bbdce6186498f1a0ae3812e6d1f3e176895eb91ca898a815bfe78"
+					}
+				],
+				"mean": 0.55
+			},
+			"constructive": { "keys": 2, "jobs": "2–10", "rules": "exclude, include, fail-fast по умолчанию, max-parallel" },
 			"constructiveRank": 4,
 			"timeNormSec": 420,
 			"classes": [
@@ -31,16 +48,33 @@
 				{
 					"id": "include-extend",
 					"form": "X",
-					"description": "объекты include только добавляют ключ к подходящим сочетаниям: число заданий не растёт"
+					"description": "объекты include только добавляют ключ к подходящим сочетаниям: число заданий не растёт, а добавленный ключ удлиняет задания"
 				}
 			]
 		},
 		{
 			"grade": "middle",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "2c12658b855bbdce6186498f1a0ae3812e6d1f3e176895eb91ca898a815bfe78"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.35,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "2c12658b855bbdce6186498f1a0ae3812e6d1f3e176895eb91ca898a815bfe78"
+					}
+				],
+				"mean": 0.45
+			},
 			"constructive": {
 				"keys": "2–3",
-				"jobs": "5–13",
+				"jobs": "3–19",
 				"rules": "include с перезаписью добавленного, continue-on-error, таймлайн max-parallel и fail-fast"
 			},
 			"constructiveRank": 6,
@@ -49,7 +83,7 @@
 				{
 					"id": "include-overwrite",
 					"form": "A",
-					"description": "include не может менять исходные значения (новое задание), но перезаписывает добавленные раньше"
+					"description": "include не может менять исходные значения (новое задание), но перезаписывает experimental, добавленный раньше для той же ОС: от этого зависит, запустит ли падение fail-fast"
 				},
 				{
 					"id": "continue-on-error",
@@ -105,6 +139,21 @@
 			"mustBeCaught": true
 		},
 		{
+			"id": "added-not-overwritten",
+			"defect": "считает, что значения, добавленные предыдущими include, тоже нельзя менять: такой include не подходит к сочетанию и становится новым",
+			"mustBeCaught": true
+		},
+		{
+			"id": "added-kept",
+			"defect": "сохраняет значение, добавленное предыдущим include, и не перезаписывает его, не создавая нового задания",
+			"mustBeCaught": true
+		},
+		{
+			"id": "include-extension-ignored",
+			"defect": "не добавляет ключи include к подходящим сочетаниям: расширение не меняет их длительность",
+			"mustBeCaught": true
+		},
+		{
 			"id": "cancel-only-queued",
 			"defect": "считает, что fail-fast отменяет только не начатые задания, а выполняющиеся доходят до конца",
 			"mustBeCaught": true
@@ -128,11 +177,35 @@
 	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
 	"gates": {
 		"reference": { "seeds": 200, "failures": 0 },
-		"wrongSolutions": { "mustBeCaught": 7, "caught": 7 },
+		"wrongSolutions": { "mustBeCaught": 10, "caught": 10 },
 		"hiddenTestsMutationScore": null,
 		"answerCollision": 0.0077,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Прежние существенные замечания устранены: include-extend влияет на длительность, а include-overwrite реально меняет добавленный experimental и итоговый ответ. На всех 200 проверенных сидах include-overwrite независимые варианты «сохраняет прежнее добавленное значение», «создаёт новое сочетание вместо перезаписи» и «переписывает исходное значение» дают иной ответ; удаление include меняет ответ всех 200 сидов include-extend. Диапазоны числа заданий согласованы с фактическими 2–10 на Junior и 3–19 на Middle.",
+					"Angoff: junior 0.60, middle 0.55 — вероятность пяти полностью верных чисел при binary за 420/480 секунд. Расширение матрицы, очередь и отмены требуют аккуратного учёта; на Middle до 19 сочетаний, а одна ошибка обнуляет ответ.",
+					"Пересчитал все 8 показанных экземпляров и по 200 сидов каждого класса собственным построением матрицы и временным симулятором на Python 3.12; все 1600 ответов совпали. Исполнил 8 опубликованных эталонов, сверил 5128 применимых ошибочных ответов и проверил два порядка обработки одновременных окончаний: влияющих на ответ совпадений с запускающим отмену падением нет. Реальный GitHub Actions не запускал."
+				],
+				"sourceSha256": "2c12658b855bbdce6186498f1a0ae3812e6d1f3e176895eb91ca898a815bfe78"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Прежнее существенное замечание (middle/include-overwrite: перезапись добавленного значения не влияла на ответ у 119 из 200 сидов) устранено. Я проверил на 200 сидах класса: вариант «добавленные значения не перезаписываются, остальные ключи include добавляются» даёт другой ответ у 200 из 200 экземпляров; ошибочные решения `added-not-overwritten` и `added-kept` отличаются от верного на 200 из 200, `include-overwrites-original` — на 200 из 200. include-extend: удаление расширения меняет ответ (`include-extension-ignored` отличается на 197 из 200 в include-overwrite и на 200 из 200 в include-extend).",
+					"Пересчитано: независимая реализация (PyYAML, сочетания, exclude, include с оригинальными и добавленными значениями, очередь max-parallel, fail-fast, continue-on-error) совпала с ожидаемыми ответами на 200 сидах каждого из 8 классов (1600 экземпляров): расхождений 0. Совпадений минут «успех заканчивается в минуту падения» нет. Реальный GitHub Actions не запускал.",
+					"Параметры сложности согласованы с генератором (middle «3–19» заданий). Мелочь: до 19 заданий в middle-экземплярах (timeline до 17, include-overwrite до 19) с max-parallel и fail-fast за 480 с — тяжело, одна арифметическая ошибка обнуляет пять чисел; учтено в Angoff.",
+					"Ошибочные решения реальны и отличаются от верного ответа на большинстве (чаще на 100 %) экземпляров своего класса; различных ответов 120–170 из 200. Условие называет упрощение «continue-on-error при ошибке считается упавшим»."
+				],
+				"sourceSha256": "2c12658b855bbdce6186498f1a0ae3812e6d1f3e176895eb91ca898a815bfe78"
+			}
+		]
 	}
 }

@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.8 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.8,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "9d9045cd5f4b73fcd1fe4b67e4537b4eeb4c8d0e92318e9987d23263be350e8e"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.8,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "9d9045cd5f4b73fcd1fe4b67e4537b4eeb4c8d0e92318e9987d23263be350e8e"
+					}
+				],
+				"mean": 0.8
+			},
 			"constructive": { "rules": 2, "normalization": false, "brokenLines": true, "groups": 5 },
 			"constructiveRank": 3,
 			"timeNormSec": 1800,
@@ -37,7 +54,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.8 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.8,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "9d9045cd5f4b73fcd1fe4b67e4537b4eeb4c8d0e92318e9987d23263be350e8e"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.75,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "9d9045cd5f4b73fcd1fe4b67e4537b4eeb4c8d0e92318e9987d23263be350e8e"
+					}
+				],
+				"mean": 0.8
+			},
 			"constructive": { "rules": 4, "normalization": true, "brokenLines": true, "groups": 5 },
 			"constructiveRank": 5,
 			"timeNormSec": 2400,
@@ -143,6 +177,30 @@
 		"answerCollision": 0,
 		"transfer": 0,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Angoff: intern 0.80, junior 0.80 — вероятность полностью пройти хотя бы две группы из пяти, а не получить полный балл. Процедуры p95, округления, сортировки и нормализации даны в условии; обычные и граничные данные позволяют набрать 0.40 без безупречной обработки всех битых строк или большого объёма. На Junior дополнительные правила нормализации компенсированы 2400 секундами вместо 1800 и более уверенными навыками.",
+					"Независимо реализовал валидацию журнала, группировки и сводки на Python 3.12; восстановил полный ввод всех 8 показанных экземпляров и пересчитал все 144 теста. Все ответы и исполнения эталонов совпали при tokens; проверил 32 применимые ошибочные программы на всех тестах. Для error-rate дополнительно сравнил сортировку по точным дробям и округлённым долям: на восстановленных тестах порядок совпал. Ворота на 200 сидах, предельные нагрузки и время решения людьми не проверял; descriptor.json не открывал."
+				],
+				"sourceSha256": "9d9045cd5f4b73fcd1fe4b67e4537b4eeb4c8d0e92318e9987d23263be350e8e"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Что пересчитано: написал собственное решение по тексту условия для всех 8 классов (p95 ближайшего ранга, доля 5xx с округлением в целых, топ с тай-брейком, уникальные клиенты по минутам, нормализация путей, пик минуты) и сравнил с ожидаемым выводом всех скрытых тестов 40 сидов на класс (5760 тестов, включая scale): расхождений 0. Эталонные программы пакета не запускал; Go-вариант и производительность на scale не проверял.",
+					"Независимость групп проверил мутациями собственного решения на 15 сидах: range-unchecked, percentile-floor, no-tie-break и rate-truncated ломают только свои группы (broken/many, boundary), остальные 2–4 группы проходят; поэтому неполное решение набирает не меньше 2 групп из 5. Ошибки dash-skipped, requests-not-clients, query-kept и ids-kept ломают почти все группы, но это ключевые правила, прямо записанные в условии (`-` = 0 байт, разные клиенты, нормализация), так что для пограничного кандидата это справедливо.",
+					"Мелочь. Условие не оговаривает пустой сегмент пути (`//`) в нормализации и несколько пробелов подряд между полями («ровно семь полей через пробел»). В скрытых тестах таких строк нет (проверил около 890 тыс. строк junior-тестов), поэтому на ответ не влияет; для чистоты стоит дописать «разделитель — ровно один пробел» и «пустой сегмент не заменяется».",
+					"Ошибочные решения реальны (range-unchecked, dash-skipped, percentile-floor, rate-truncated, no-tie-break, requests-not-clients, peak-tie-latest, query-kept, ids-kept); hidden test mutation score 1, answerCollision 0, transfer 0.",
+					"Норма времени: intern 1800 с на разбор 7 полей с валидацией и одну сводку — реальна; junior 2400 с с нормализацией путей и отбором по статусу — реальна. Angoff: intern 0,80, junior 0,75."
+				],
+				"sourceSha256": "9d9045cd5f4b73fcd1fe4b67e4537b4eeb4c8d0e92318e9987d23263be350e8e"
+			}
+		]
 	}
 }

@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.5,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "e9944e70931b46beb6b01e3fed07cedbc26c051e7671ed8ed08312b7d6df1fdd"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "e9944e70931b46beb6b01e3fed07cedbc26c051e7671ed8ed08312b7d6df1fdd"
+					}
+				],
+				"mean": 0.55
+			},
 			"constructive": { "files": "8–14", "depth": 3, "rules": 2, "commands": 1 },
 			"constructiveRank": 3,
 			"timeNormSec": 240,
@@ -88,6 +105,28 @@
 		"answerCollision": 0.0001,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Прежнее существенное замечание устранено: условие явно называет GNU bash 5.2 с настройками по умолчанию и GNU findutils, поэтому альтернативное поведение BusyBox find не входит в контракт.",
+					"Независимо исполнил все 4 показанных экземпляра и ещё 76 (20 сидов класса) GNU bash 5.2.21/GNU findutils 4.9.0 на восстановленных файлах, размерах и mtime. Наборы путей совпали; все 8 видов применимых ошибочных ответов отличаются. Другие реализации find и полные ворота на 200 сидах класса не проверял.",
+					"Angoff intern 0.50: обычные glob и глубина доступны пограничному кандидату, но anchor требует округления -size и строгого -newer; за 240 с весь набор путей должен быть верен без единой ошибки."
+				],
+				"sourceSha256": "e9944e70931b46beb6b01e3fed07cedbc26c051e7671ed8ed08312b7d6df1fdd"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Повторный раунд, полное ревью. Прежняя мелочь (среда не названа) снята: в условии GNU bash 5.2 и GNU findutils. Пересчитал вручную 4 показанных экземпляра, по 80 сидов каждого класса сверил ответ генератора с реальными bash и find (расхождений 0). Не проверял другие версии findutils.",
+					"Мелочь: опорный класс find-size-newer тяжелее остальных (округление вверх и равные времена); учтено в Angoff."
+				],
+				"sourceSha256": "e9944e70931b46beb6b01e3fed07cedbc26c051e7671ed8ed08312b7d6df1fdd"
+			}
+		]
 	}
 }

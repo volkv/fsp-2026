@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "middle",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.65,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "1bd82fdb6f9d0858b1c38f50a1062bee643a250e6a73342f6981afa0cfa925a2"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "1bd82fdb6f9d0858b1c38f50a1062bee643a250e6a73342f6981afa0cfa925a2"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": {
 				"units": 4,
 				"lines": "35–65",
@@ -41,7 +58,24 @@
 		},
 		{
 			"grade": "senior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.65,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "1bd82fdb6f9d0858b1c38f50a1062bee643a250e6a73342f6981afa0cfa925a2"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.5,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "1bd82fdb6f9d0858b1c38f50a1062bee643a250e6a73342f6981afa0cfa925a2"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": {
 				"units": 4,
 				"lines": "40–75",
@@ -53,7 +87,7 @@
 				{
 					"id": "exposed-state",
 					"form": "A",
-					"description": "внутреннее изменяемое состояние уходит наружу или обходится напрямую: снимок, сохранённая ссылка, отписка во время обхода"
+					"description": "внутреннее изменяемое состояние уходит наружу или меняется во время обхода: снимок, сохранённая ссылка, удаление из списка внутри цикла по нему"
 				},
 				{
 					"id": "ordering-key",
@@ -118,9 +152,34 @@
 		"reference": { "seeds": 200, "failures": 0 },
 		"wrongSolutions": { "mustBeCaught": 2, "caught": 2 },
 		"hiddenTestsMutationScore": null,
-		"answerCollision": 0.0236,
+		"answerCollision": 0.0255,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Прежние проблемы Tag устранены: KDoc определяет равенство через lowercase(), и equals с hashCode используют одну нормализацию. Дополнительное исполнение на Unicode, включая I/ı/İ/i и греческие варианты, подтверждает одинаковый хэш у равных Tag. Среда Kotlin/JVM, JVM 21 с настройками по умолчанию задана явно.",
+					"Прежнее предусловие FilterSet.rename теперь включает выбранный исходный фильтр и отсутствие выбранного целевого. PinLayer.move оговаривает отсутствующую метку; эталон if (!pins.remove(pin)) return сохраняет вид инструкции и проходит этот случай. Замена EventBus на dropMuted устраняет прежнюю альтернативу CopyOnWriteArrayList.",
+					"Мелочь: два ошибочных решения neighbour-line и other-unit не называют конкретных заблуждений о равенстве, хэше и копировании; добавить варианты по механизмам классов.",
+					"Проверка: построчно рассмотрел все 8 модулей и возможные простые правки других строк. В Kotlin/JVM 2.4.20 на JVM 21 исполнил 8 исходных, 8 эталонных и 16 ошибочных программ с проверками спецификации: эталоны прошли, остальные провалились. Дополнительно проверил Unicode-контракт Tag, rename, 32 набора удаления dropMuted с сохранением порядка и повторными объектами, отсутствие и повторные перемещения Pin. Пустые alternatives согласованы с найденными правками; sourceSha256 проверен. Все 200 сидов и исчерпывающий перебор замен не проверял.",
+					"Angoff middle 0.65, senior 0.65: вероятность назвать строку за 360/420 с. Четыре коротких KDoc помогают отделить подозрительный, но исправный код; в Senior изменение хэш-ключа и необходимость удалить его до мутации остаются менее очевидными."
+				],
+				"sourceSha256": "1bd82fdb6f9d0858b1c38f50a1062bee643a250e6a73342f6981afa0cfa925a2"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Повторный раунд: прежние существенные замечания устранены. Tag теперь определён через lowercase() в equals и hashCode (Unicode-контрпример неприменим); в FilterSet.rename добавлено предусловие; в условии названа среда (JVM 21 по умолчанию) и приведено правило bug_locate; PinLayer.move: эталон `if (!pins.remove(pin)) return`, случай метки не из слоя описан в KDoc; EventBus заменён на dropMuted, где копия списка — единственная правка строки 15 (CopyOnWriteArrayList-альтернатива закрыта, поле в экземпляре отсутствует).",
+					"Пересчёт: вручную разобрал все 8 модулей по KDoc, перебрал соседние строки на альтернативы и второй дефект, не нашёл; все 8 компилируются на Kotlin 2.4. Поведение `!==` на Int? и PinLayer проверил выполнением в первом раунде. Остальное только читал.",
+					"Мелочь: в экземпляре 04 `for (room in chats)` падает с ConcurrentModificationException не при любом входе (удаление предпоследнего элемента не бросает), но спецификацию («убирает заглушённые») нарушает в общем случае; дефект остаётся единственным."
+				],
+				"sourceSha256": "1bd82fdb6f9d0858b1c38f50a1062bee643a250e6a73342f6981afa0cfa925a2"
+			}
+		]
 	}
 }

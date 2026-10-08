@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.5,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "b1bbd621bfda2a9711be2be7247dae1dbad08bec36cf4ffeb2af9219ca981ee3"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.4,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "b1bbd621bfda2a9711be2be7247dae1dbad08bec36cf4ffeb2af9219ca981ee3"
+					}
+				],
+				"mean": 0.45
+			},
 			"constructive": { "functions": "5–8", "mechanisms": 2, "trap": "пропуск при равных стабильных параметрах" },
 			"constructiveRank": 3,
 			"timeNormSec": 270,
@@ -37,7 +54,24 @@
 		},
 		{
 			"grade": "middle",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "b1bbd621bfda2a9711be2be7247dae1dbad08bec36cf4ffeb2af9219ca981ee3"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.35,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "b1bbd621bfda2a9711be2be7247dae1dbad08bec36cf4ffeb2af9219ca981ee3"
+					}
+				],
+				"mean": 0.45
+			},
 			"constructive": {
 				"functions": "6–10",
 				"mechanisms": 3,
@@ -155,6 +189,28 @@
 		"answerCollision": 0.0161,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчёт: все 8 множеств функций получены вручную по местам чтения состояния, границам restart scope и изменению стабильных аргументов; отдельно разобраны inline-контейнер, content lambda, derivedStateOf и offset lambda. Все ответы совпали, включая отсутствие OrdersScreen в deferred-read и SectionCard в donut-hole. Полные входы восстановлены и сопоставлены с условиями. Правила фаз сверены с Android: https://developer.android.com/develop/ui/compose/phases. Компиляция Compose с отключённым strong skipping, отчёты компилятора и полный прогон ворот на 200 сидах не выполнялись.",
+					"Angoff: Junior 0.50 — за 270 с требуется отличать изменение аргумента от подписки на State и учитывать нестабильные List/Promo; Middle 0.55 — за 360 с нужно различать scope content lambda, inline-контейнера и placement и полностью назвать множество функций."
+				],
+				"sourceSha256": "b1bbd621bfda2a9711be2be7247dae1dbad08bec36cf4ffeb2af9219ca981ee3"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчитал все 8 экземпляров вручную по модели условия (strong skipping выключен, @Stable-состояние, лямбды запоминаются): param-passing {ChatScreen, MembersLine}; provider {StoriesRow}; unstable-param {AwardsStrip, BioText, LevelBadge, ProfileScreen}; event-read {OrdersFooter, SummaryLine}; inline-container {CartHeader, CartScreen, ItemCounter}; donut-hole {ChatHeader, InputBar}; derived-state {OrdersFooter, OrdersScreen, RefreshButton, StatusBanner}; deferred-read {FilterChips}. Все совпали с эталоном. Реальный компилятор Compose не запускал.",
+					"Условие названо полностью: версия режима skipping, стабильность состояния, запоминание лямбд. Неописанным остаётся только то, что Row и Column inline, а контейнер с лямбдой содержимого не inline, но это и проверяется заданием (классы inline-container и donut-hole), оно относится к знанию кандидата.",
+					"Мелочь по грейду: на junior знание того, что List и класс с var нестабильны при выключенном strong skipping, и тонкости читающей области, выше типичного junior-определения (коллекции, жизненный цикл). Бинарная рубрика с множеством из 4 функций при 5-8 функциях в коде за 270 с. Учтено в Angoff."
+				],
+				"sourceSha256": "b1bbd621bfda2a9711be2be7247dae1dbad08bec36cf4ffeb2af9219ca981ee3"
+			}
+		]
 	}
 }

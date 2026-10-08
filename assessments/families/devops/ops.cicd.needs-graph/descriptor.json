@@ -8,10 +8,27 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.7,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "6786065c53109682b1e324b63a1d76e4f444f6c1f8d013d7f08ae8428fadc6b2"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "6786065c53109682b1e324b63a1d76e4f444f6c1f8d013d7f08ae8428fadc6b2"
+					}
+				],
+				"mean": 0.65
+			},
 			"constructive": {
 				"jobs": "4–6",
-				"failures": "0–1",
+				"failures": "0–2",
 				"rules": "needs, одна функция статуса или continue-on-error"
 			},
 			"constructiveRank": 2,
@@ -30,7 +47,7 @@
 				{
 					"id": "continue-step",
 					"form": "anchor",
-					"description": "команда падает в шаге с continue-on-error: задание успешно, зависимые выполняются"
+					"description": "команда падает в шаге с continue-on-error: задание успешно, зависимые выполняются; другая команда без него роняет своё задание"
 				},
 				{
 					"id": "failure-notify",
@@ -41,7 +58,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.65,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "6786065c53109682b1e324b63a1d76e4f444f6c1f8d013d7f08ae8428fadc6b2"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.5,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "6786065c53109682b1e324b63a1d76e4f444f6c1f8d013d7f08ae8428fadc6b2"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": {
 				"jobs": "6–8",
 				"failures": "1–2",
@@ -149,6 +183,31 @@
 		"answerCollision": 0,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Прежняя вырожденность intern/continue-step устранена: показанный ответ содержит success, failure и skipped; во всех 200 проверенных сидах есть реально упавшее задание без continue-on-error, поэтому шаблон «все success» отвергается. В 121 из 200 сидов skipped отсутствует, вопреки описанию исправления в notes.md, но контраст success/failure и влияние continue-on-error сохраняются.",
+					"Angoff: intern 0.70, junior 0.65 — вероятность всей верной последовательности при binary за 300/420 секунд. Правила даны в условии; на Junior добавляются транзитивные предки, неявный success() и совместное применение функций статуса. Одна ошибочная классификация обнуляет ответ.",
+					"Пересчитал все 8 показанных экземпляров независимым рекурсивным обходом DAG и вычислением условий на Python 3.12; исполнил 8 эталонов и проверил 16 применимых ошибочных ответов. Дополнительно пересчитал 200 сидов continue-step. Реальные запуски GitHub Actions и остальные классы на 200 сидах не проверял."
+				],
+				"sourceSha256": "6786065c53109682b1e324b63a1d76e4f444f6c1f8d013d7f08ae8428fadc6b2"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Прежнее существенное замечание устранено: в intern/continue-step теперь две падающие команды (одна с continue-on-error), в ответах всех 200 сидов есть `failure` (121 экземпляр — success+failure, 79 — ещё и skipped); шаблон «всё success» больше не проходит. Ошибочное решение continue-fails-job отличается от верного на 200 из 200.",
+					"Пересчитано: независимый вычислитель (PyYAML, рекурсивные предки, разбор if) совпал с ожидаемыми ответами на 200 сидах каждого из 8 классов (1600 экземпляров): расхождений 0. Правило «пропуск/падение предка на любой глубине даёт skipped при условии по умолчанию» согласовано с документацией GitHub Actions; реальный запуск не делал.",
+					"Мелочь. В intern/failure-notify в 151 из 200 экземпляров ни одна команда не падает, и ответ — success и skipped по правилу «failure() без падения = skipped»; угадать точный набор без чтения графа нельзя (имена и положение failure()-заданий меняются), но разнообразие стоит повысить.",
+					"Ошибочные решения реальны (always-ignored, continue-fails-job, direct-needs-success, explicit-if-no-implicit, failure-direct-only, failure-runs-always, skip-not-transitive); 200 различных ответов из 200 на класс.",
+					"Трудоёмкость: intern 300 с (4–6 заданий), junior 420 с (6–8 заданий, 1–2 падения), бинарная последовательность; одна неверная классификация обнуляет ответ. Angoff intern 0,55, junior 0,50."
+				],
+				"sourceSha256": "6786065c53109682b1e324b63a1d76e4f444f6c1f8d013d7f08ae8428fadc6b2"
+			}
+		]
 	}
 }

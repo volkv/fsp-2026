@@ -164,13 +164,14 @@ interface ClassSpec {
 	conds: CondKind[];
 	jobs: [number, number];
 	failures: [number, number];
+	/** The chance a failing step may fail; `1` — the first failing step may fail, the others fail their jobs. */
 	mayFail: number;
 }
 
 const SPECS: Record<string, ClassSpec> = {
 	'intern/skip-chain': { conds: [], jobs: [4, 6], failures: [1, 1], mayFail: 0 },
 	'intern/always': { conds: ['always'], jobs: [4, 6], failures: [1, 1], mayFail: 0 },
-	'intern/continue-step': { conds: [], jobs: [4, 6], failures: [1, 1], mayFail: 1 },
+	'intern/continue-step': { conds: [], jobs: [4, 6], failures: [2, 2], mayFail: 1 },
 	'intern/failure-notify': { conds: ['failure'], jobs: [4, 6], failures: [0, 1], mayFail: 0 },
 	'junior/failure-transitive': { conds: ['failure', 'always'], jobs: [6, 8], failures: [1, 2], mayFail: 0.3 },
 	'junior/implicit-success': { conds: ['ref', 'failure'], jobs: [6, 8], failures: [1, 2], mayFail: 0.3 },
@@ -221,10 +222,10 @@ function scenario(rng: Rng, spec: ClassSpec): Params {
 		Math.min(rng.int(spec.failures[0], spec.failures[1]), jobs.filter((j) => j.cond.kind === 'none').length)
 	);
 	const failing: string[] = [];
-	for (const job of failingJobs) {
+	for (const [i, job] of failingJobs.entries()) {
 		const step = rng.pick(job.steps);
 		failing.push(step.run);
-		if (rng.bool(spec.mayFail)) step.mayFail = true;
+		if (spec.mayFail === 1 ? i === 0 : rng.bool(spec.mayFail)) step.mayFail = true;
 	}
 	return { branch: rng.pick(BRANCHES), jobs, failing, wrapExpressions: rng.bool(0.4) };
 }

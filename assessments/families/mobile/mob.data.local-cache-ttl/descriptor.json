@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.8,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "1de040c11f253307ba270df316ea36e394ee8ff2c2cc47c806dd0dda75eee694"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.65,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "1de040c11f253307ba270df316ea36e394ee8ff2c2cc47c806dd0dda75eee694"
+					}
+				],
+				"mean": 0.75
+			},
 			"constructive": { "opens": "4–5", "rules": "TTL + сеть", "mechanisms": 1 },
 			"constructiveRank": 1,
 			"timeNormSec": 200,
@@ -85,6 +102,28 @@
 		"answerCollision": 0,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчитал все 4 экземпляра, 19 открытий, вручную и независимым скриптом Python 3.12: все ответы совпали. Проверены строгая граница TTL, отсутствие продления при чтении, версия сервера, устаревшая запись без сети и пустой начальный кэш. Ворота на 200 сидах не запускал; реальные кэш-библиотеки не проверял, условие явно задаёт самостоятельную модель.",
+					"Прежнее замечание о разделяющих пробелах закрыто: во всех экземплярах условие явно требует ровно один пробел между полями, что соответствует решению ведущего.",
+					"Angoff intern 0.80: за 200 с нужно провести 4–5 открытий через одно заданное правило. Binary требует безошибочно сохранять момент последней записи и учитывать границу TTL до конца последовательности."
+				],
+				"sourceSha256": "1de040c11f253307ba270df316ea36e394ee8ff2c2cc47c806dd0dda75eee694"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Изменилась только формулировка (добавлено правило сравнения строк как текста). Данные и ответы прежние; четыре экземпляра пересчитаны вручную ещё раз, ответы совпали, граница TTL (44 при сохранении в 4) работает.",
+					"Скрытых допущений о среде нет."
+				],
+				"sourceSha256": "1de040c11f253307ba270df316ea36e394ee8ff2c2cc47c806dd0dda75eee694"
+			}
+		]
 	}
 }

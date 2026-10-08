@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "middle",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "5762f068f71013614aa87a443a1c418b1d6d8df18bcb442c4b59374534ae8ac2"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.7,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "5762f068f71013614aa87a443a1c418b1d6d8df18bcb442c4b59374534ae8ac2"
+					}
+				],
+				"mean": 0.65
+			},
 			"constructive": {
 				"series": 1,
 				"evaluations": "до 24",
@@ -41,7 +58,24 @@
 		},
 		{
 			"grade": "senior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "5762f068f71013614aa87a443a1c418b1d6d8df18bcb442c4b59374534ae8ac2"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.7,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "5762f068f71013614aa87a443a1c418b1d6d8df18bcb442c4b59374534ae8ac2"
+					}
+				],
+				"mean": 0.65
+			},
 			"constructive": {
 				"series": "1–3",
 				"evaluations": "до 24",
@@ -58,7 +92,7 @@
 				{
 					"id": "missing-data",
 					"form": "B",
-					"description": "ряд пропадает: выражение пусто, pending сбрасывается, firing снимается"
+					"description": "ряд пропадает при keep_firing_for: выражение пусто — pending сбрасывается, а firing держится keep_firing_for, как при невыполненном сравнении"
 				},
 				{
 					"id": "multi-series",
@@ -141,6 +175,11 @@
 			"mustBeCaught": true
 		},
 		{
+			"id": "missing-ignores-keep",
+			"defect": "снимает firing сразу, когда ряд пропал, хотя keep_firing_for действует при любом пустом выражении",
+			"mustBeCaught": true
+		},
+		{
 			"id": "one-alert",
 			"defect": "считает одно оповещение на всё выражение, а не по оповещению на ряд",
 			"mustBeCaught": true
@@ -154,11 +193,35 @@
 	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
 	"gates": {
 		"reference": { "seeds": 200, "failures": 0 },
-		"wrongSolutions": { "mustBeCaught": 11, "caught": 11 },
+		"wrongSolutions": { "mustBeCaught": 12, "caught": 12 },
 		"hiddenTestsMutationScore": null,
 		"answerCollision": 0.0029,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Повторный раунд, полное ревью. Все 8 экземпляров пересчитаны собственной программой на Python по тексту условия (middle: reset, for-not-multiple, threshold-equal, for-zero; senior: keep-firing, missing-data, multi-series, keep-reset): события совпали. Senior/missing-data теперь с keep_firing_for: пропавший ряд при firing держит оповещение keep_firing_for (экземпляр: firing 360, resolved 600), добавлено ошибочное решение missing-ignores-keep (ворота 12 из 12); модель согласуется с rules/alerting.go. Прежнее замечание о дословном сравнении пробелов в строках снято решением ведущего: формат строки задан примером.",
+					"Замечание не блокирующее: в missing-data прочерк по-прежнему равносилен невыполненному сравнению (так сказано в модели), класс отличается от middle только взаимодействием с keep_firing_for; это сложность, а не дефект. Генератор и ошибочные решения вручную не прогонялись.",
+					"Второй раунд Angoff, senior: было 0,5, стало 0,55 — форма событий задана, процедура готовая; но B сочетает пропуски, for и keep_firing_for с несколькими рядами и более длинным ответом."
+				],
+				"sourceSha256": "5762f068f71013614aa87a443a1c418b1d6d8df18bcb442c4b59374534ae8ac2"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Прежнее замечание Senior/missing-data устранено: каждый экземпляр B содержит keep_firing_for, пропуск данных сохраняет firing на его время, а pending сбрасывается. На 200 review-сидах B наличие keep и отличие missing-ignores-keep подтверждены. Форма событий явно задана, замечание о пробелах снято решением ведущего 2.",
+					"Независимо пересчитал по YAML и таблицам условий все 8 показанных экземпляров и по 200 review-сидов каждого класса программой на Python 3.12: for, сброс pending, строгие границы, keep_firing_for, пропуски и отдельные состояния рядов. Ответы совпали; исполнил 8 эталонов и сравнил ответы 12 ошибочных моделей с независимым результатом. Переходы for/keep сверены с https://github.com/prometheus/prometheus/blob/main/rules/alerting.go; реальный Prometheus, его lookback и официальный прогон gate-сидов не запускал.",
+					"Angoff Middle 0.70: за 360 с нужен полный журнал переходов, включая точную границу for и reset. Senior 0.75: готовая процедура укладывается в 480 с, но теперь B сочетает пропуски, for и keep и даёт более длинный ответ; несколько рядов anchor требуют раздельного состояния. Механическая форма Senior учтена согласно решению ведущего 1.",
+					"Второй раунд Angoff, senior: было 0.75, стало 0.70 — Снизил оценку: при 480 с правила явно заданы, но нужно выдать весь журнал переходов; missing-data в показанном экземпляре даёт девять событий, а anchor требует раздельного состояния рядов. Взаимодействие for, сброса pending и таймера keep_firing_for увеличивает риск пропущенного reset или resolved при binary, даже когда основная логика понята. В этом раунде сопоставлены условия, норма времени, binary и обоснования обоих рецензентов; эталоны, генератор и ворота заново не запускались."
+				],
+				"sourceSha256": "5762f068f71013614aa87a443a1c418b1d6d8df18bcb442c4b59374534ae8ac2"
+			}
+		]
 	}
 }

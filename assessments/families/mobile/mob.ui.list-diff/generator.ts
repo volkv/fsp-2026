@@ -2,6 +2,7 @@
 // rows get a payload bind, and which rows of a `LazyColumn` compose again with and without `key`. Items are matched
 // by `areItemsTheSame`, compared by `areContentsTheSame` (moved items are matched too), a list built from the same
 // item objects hides in-place mutations from the diff, and a lazy list without keys matches rows by position.
+// In the moves class the new list is edited by index after the moves, so the moves decide which item an edit hits.
 // The answer is computed by the model below and proved by an independent Python program that applies the same edits.
 import {
 	instanceRng,
@@ -93,6 +94,8 @@ interface Scenario {
 	itemsByEquals: boolean;
 	comparator: Comparator;
 	inPlaceCode: boolean;
+	/** The new list is built by index operations on a copy of `currentList` (the moves class). */
+	indexCode: boolean;
 	old: Item[];
 	ops: Op[];
 }
@@ -137,6 +140,62 @@ function apply(old: readonly Item[], ops: readonly Op[]): { oldNow: Item[]; next
 		}
 	}
 	return { oldNow: objects, next };
+}
+
+/** The same edits as index operations on the list being edited, the way the shown code makes them. */
+type IndexOp =
+	| { op: 'removeAt'; at: number }
+	| { op: 'insert'; at: number; item: Item }
+	| { op: 'move'; from: number; to: number }
+	| { op: 'setAt'; at: number; field: Field; value: string | number };
+
+function toIndexOps(old: readonly Item[], ops: readonly Op[]): IndexOp[] {
+	const order = old.map((i) => i.id);
+	return ops.map((o): IndexOp => {
+		if (o.op === 'insert') {
+			order.splice(o.at, 0, o.item.id);
+			return { op: 'insert', at: o.at, item: o.item };
+		}
+		const at = order.indexOf(o.id);
+		if (o.op === 'remove') {
+			order.splice(at, 1);
+			return { op: 'removeAt', at };
+		}
+		if (o.op === 'move') {
+			order.splice(at, 1);
+			order.splice(o.to, 0, o.id);
+			return { op: 'move', from: at, to: o.to };
+		}
+		if (o.inPlace) throw new Error('index operations replace items, they do not mutate them');
+		return { op: 'setAt', at, field: o.field, value: o.value };
+	});
+}
+
+/** Index operations back to edits by id; null when an index falls outside the list. */
+function fromIndexOps(old: readonly Item[], ops: readonly IndexOp[]): Op[] | null {
+	const order = old.map((i) => i.id);
+	const out: Op[] = [];
+	for (const o of ops) {
+		if (o.op === 'insert') {
+			if (o.at > order.length) return null;
+			order.splice(o.at, 0, o.item.id);
+			out.push({ op: 'insert', at: o.at, item: o.item });
+			continue;
+		}
+		const at = o.op === 'move' ? o.from : o.at;
+		const id = order[at];
+		if (id === undefined) return null;
+		if (o.op === 'removeAt') {
+			order.splice(at, 1);
+			out.push({ op: 'remove', id });
+		} else if (o.op === 'move') {
+			if (o.to > order.length - 1) return null;
+			order.splice(at, 1);
+			order.splice(o.to, 0, id);
+			out.push({ op: 'move', id, to: o.to });
+		} else out.push({ op: 'set', id, field: o.field, value: o.value, inPlace: false });
+	}
+	return out;
 }
 
 const sameFields = (a: Item, b: Item, fields: readonly Field[]): boolean => fields.every((f) => a[f] === b[f]);
@@ -253,13 +312,18 @@ function scenario(rng: Rng, grade: string, classId: string): Scenario {
 		theme,
 		itemsByEquals: false,
 		comparator: 'equals',
-		inPlaceCode: false
+		inPlaceCode: false,
+		indexCode: false
 	};
 	const key = `${grade}/${classId}`;
 	let mechanism: Mechanism = 'rv';
 	let extra: Partial<Scenario> = {};
 	const insertSomewhere = (k: number, front = false): void => {
 		ops.push({ op: 'insert', at: front ? 0 : rng.int(0, n - 1), item: fresh(k) });
+	};
+	// Below the first row: the rows above the insertion keep their positions in a list without keys.
+	const insertBelowTop = (k: number): void => {
+		ops.push({ op: 'insert', at: rng.int(1, n - 1), item: fresh(k) });
 	};
 
 	if (key === 'junior/contents-equals') {
@@ -282,15 +346,15 @@ function scenario(rng: Rng, grade: string, classId: string): Scenario {
 		if (rng.bool()) insertSomewhere(0);
 	} else if (key === 'junior/lazy-nokey') {
 		mechanism = 'lazy-nokey';
-		insertSomewhere(0, rng.bool(0.6));
+		insertBelowTop(0);
 		if (rng.bool()) edit(rng.pick(['title', 'count', 'hidden']));
 		if (rng.bool()) ops.push({ op: 'remove', id: take() });
 	} else if (key === 'middle/lazy-moves') {
 		mechanism = 'lazy-both';
-		ops.push({ op: 'move', id: take(), to: rng.int(0, n - 1) });
+		ops.push({ op: 'move', id: take(), to: rng.int(1, n - 1) });
 		edit(rng.pick(['title', 'count', 'hidden']));
-		if (rng.bool()) ops.push({ op: 'move', id: take(), to: rng.int(0, n - 1) });
-		if (rng.bool()) insertSomewhere(0, rng.bool());
+		if (rng.bool()) ops.push({ op: 'move', id: take(), to: rng.int(1, n - 1) });
+		if (rng.bool()) insertBelowTop(0);
 		else ops.push({ op: 'remove', id: take() });
 	} else if (key === 'middle/payload') {
 		mechanism = 'rv-payload';
@@ -310,7 +374,8 @@ function scenario(rng: Rng, grade: string, classId: string): Scenario {
 		// The edits on the shown code run in this order; removal and insertion go last so indexes stay simple.
 		ops.sort((a, b) => order(a) - order(b));
 	} else {
-		// middle/moves
+		// middle/moves: the edits after the moves are made by index, so they hit the items the moves brought there.
+		extra = { indexCode: true };
 		ops.push({ op: 'move', id: take(), to: rng.int(0, n - 1) });
 		ops.push({ op: 'move', id: take(), to: rng.int(0, n - 1) });
 		edit(rng.pick(['title', 'count', 'hidden']));
@@ -374,6 +439,16 @@ function callbackCode(sc: Scenario): string[] {
 	return lines;
 }
 
+function indexOpCode(sc: Scenario, o: IndexOp): string {
+	const t = sc.theme;
+	if (o.op === 'removeAt') return `list.removeAt(${o.at})`;
+	if (o.op === 'insert') return `list.add(${o.at}, ${lit(t, o.item)})`;
+	if (o.op === 'move') return `list.add(${o.to}, list.removeAt(${o.from}))`;
+	const name = o.field === 'title' ? t.title : o.field === 'count' ? t.count : t.hidden;
+	const value = typeof o.value === 'string' ? JSON.stringify(o.value) : String(o.value);
+	return `list[${o.at}] = list[${o.at}].copy(${name} = ${value})`;
+}
+
 function opCode(sc: Scenario, o: Op): string {
 	const t = sc.theme;
 	if (o.op === 'remove') return `list.removeAll { it.id == ${o.id}L }`;
@@ -424,12 +499,12 @@ function render(sc: Scenario): string {
 		return lines.join('\n');
 	}
 	lines.push(...callbackCode(sc), '');
-	if (sc.inPlaceCode) {
+	if (sc.inPlaceCode || sc.indexCode) {
 		lines.push(
 			`adapter.submitList(${listLit(t, sc.old, '').join('\n')})`,
 			'// … список показан на экране, затем:',
 			'val list = adapter.currentList.toMutableList()',
-			...sc.ops.map((o) => opCode(sc, o)),
+			...(sc.indexCode ? toIndexOps(sc.old, sc.ops).map((o) => indexOpCode(sc, o)) : sc.ops.map((o) => opCode(sc, o))),
 			'adapter.submitList(list)'
 		);
 	} else {
@@ -457,7 +532,8 @@ function describe(sc: Scenario): string {
 				`\`RecyclerView\` с адаптером ниже показывает первый список; затем вызывается второй \`submitList\`.`,
 				'',
 				'Ответ — по модели RecyclerView и DiffUtil, а не по запуску на устройстве. Условия модели: все строки помещаются на экране;',
-				'аниматор по умолчанию (`DefaultItemAnimator`); `DiffUtil` ищет и перемещения (`detectMoves = true`, как в `ListAdapter`).',
+				'аниматор по умолчанию (`DefaultItemAnimator`); `DiffUtil` ищет и перемещения (`detectMoves = true`, как в `ListAdapter`):',
+				'элемент, который `areItemsTheSame` сопоставил с элементом на другой позиции, — перемещённый; перемещённые элементы не считаются удалёнными и вставленными.',
 				''
 			];
 	let ask: string[];
@@ -502,7 +578,15 @@ shown = [Row(d) for d in sc["old"]]
 current = list(shown)  # the same objects, as adapter.currentList.toMutableList()
 for o in sc["ops"]:
     pos = {r.id: k for k, r in enumerate(current)}
-    if o["op"] == "remove":
+    if o["op"] == "removeAt":
+        del current[o["at"]]
+    elif o["op"] == "setAt":
+        r = current[o["at"]]
+        current[o["at"]] = Row({"id": r.id, "title": r.title, "count": r.count, "hidden": r.hidden})
+        setattr(current[o["at"]], o["field"], o["value"])
+    elif o["op"] == "move" and "from" in o:
+        current.insert(o["to"], current.pop(o["from"]))
+    elif o["op"] == "remove":
         del current[pos[o["id"]]]
     elif o["op"] == "insert":
         current.insert(o["at"], Row(o["item"]))
@@ -573,12 +657,29 @@ const REQUIRED: Record<string, string[]> = {
 	'junior/contents-equals': ['visible-only', 'rebind-all'],
 	'junior/contents-by-field': ['any-field'],
 	'junior/items-by-equals': ['items-by-id-anyway'],
-	'junior/lazy-nokey': ['lazy-by-identity'],
+	'junior/lazy-nokey': ['lazy-by-identity', 'rebind-all'],
 	'middle/lazy-moves': ['lazy-by-identity', 'position-rebound'],
 	'middle/payload': ['payload-ignored'],
 	'middle/mutated-in-place': ['in-place-detected'],
 	'middle/moves': ['position-rebound']
 };
+
+/** Rows of a list without keys that compose again must leave the top rows alone: «every row» is not the answer. */
+function topRowsKept(sc: Scenario, answer: string): boolean {
+	if (sc.mechanism !== 'lazy-nokey' && sc.mechanism !== 'lazy-both') return true;
+	const all = ids(apply(sc.old, sc.ops).next.map((i) => i.id));
+	return answer.split(' | ')[0] !== all;
+}
+
+/** In the moves class the answer depends on the moves: the same index edits without them give another answer. */
+function movesMatter(sc: Scenario, answer: string): boolean {
+	if (!sc.indexCode) return true;
+	const withoutMoves = fromIndexOps(
+		sc.old,
+		toIndexOps(sc.old, sc.ops).filter((o) => o.op !== 'move')
+	);
+	return withoutMoves === null || simulate({ ...sc, ops: withoutMoves }, RIGHT) !== answer;
+}
 
 export function build(input: GenerateInput): Built {
 	levelAndClass(descriptor, input);
@@ -593,6 +694,7 @@ export function build(input: GenerateInput): Built {
 			})
 		);
 		if ((REQUIRED[`${input.grade}/${input.classId}`] ?? []).some((id) => wrong[id] === null)) continue;
+		if (!topRowsKept(sc, answer) || !movesMatter(sc, answer)) continue;
 		const instance = makeInstance(descriptor, input, {
 			statement: { markdown: describe(sc), code: { language: 'kotlin', source: render(sc) } },
 			answer: { kind: 'tokens', value: answer }
@@ -602,7 +704,7 @@ export function build(input: GenerateInput): Built {
 			comparator: sc.comparator,
 			itemsByEquals: sc.itemsByEquals,
 			old: sc.old,
-			ops: sc.ops
+			ops: sc.indexCode ? toIndexOps(sc.old, sc.ops) : sc.ops
 		});
 		return {
 			instance,

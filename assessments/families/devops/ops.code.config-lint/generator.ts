@@ -303,7 +303,13 @@ interface Knobs {
 	orphans: number;
 }
 
-type GroupId = 'basic' | 'format' | 'values' | 'sections' | 'rule' | 'scale';
+/**
+ * The kinds of tests. Intern `basic` and `plain` are short configurations without whitespace, comments, junk lines,
+ * missing keys or range edges, with one reference and (but for substitution) one repeat: a solution wrong in a rule
+ * other than the class one passes them. The other kinds pin the edges.
+ */
+type GroupId = 'basic' | 'plain' | 'format' | 'values' | 'sections' | 'rule' | 'scale';
+const PLAIN: readonly GroupId[] = ['basic', 'plain'];
 
 function knobs(rng: Rng, group: GroupId, cls: string, junior: boolean): Knobs {
 	const base: Knobs = {
@@ -324,9 +330,22 @@ function knobs(rng: Rng, group: GroupId, cls: string, junior: boolean): Knobs {
 		splits: 0,
 		orphans: 0
 	};
+	const plain: Knobs = {
+		...base,
+		missing: 0,
+		edges: 0,
+		dups: cls === 'substitution' ? 0 : 1,
+		refs: 1,
+		undefinedRefs: 0,
+		comments: 0,
+		blanks: 0,
+		spaced: 0
+	};
 	switch (group) {
 		case 'basic':
-			return base;
+			return { ...plain, keys: rng.int(3, 5), bad: rng.int(0, 1) };
+		case 'plain':
+			return { ...plain, keys: rng.int(5, 8), bad: rng.int(1, 3) };
 		case 'format':
 			return {
 				...base,
@@ -585,20 +604,42 @@ function traps(cls: string, group: GroupId): Variant[] {
 	}
 }
 
+/** The groups in their order with the kinds of their tests; Intern starts with two plain groups. */
+function plan(junior: boolean): { id: GroupId; kinds: GroupId[] }[] {
+	const four = (kind: GroupId): GroupId[] => [kind, kind, kind, kind];
+	return junior
+		? [
+				{ id: 'format', kinds: four('format') },
+				{ id: 'values', kinds: four('values') },
+				{ id: 'sections', kinds: four('sections') },
+				{ id: 'rule', kinds: four('rule') },
+				{ id: 'scale', kinds: ['scale', 'scale'] }
+			]
+		: [
+				{ id: 'basic', kinds: four('basic') },
+				{ id: 'plain', kinds: four('plain') },
+				{ id: 'format', kinds: four('format') },
+				{ id: 'values', kinds: four('values') },
+				{ id: 'rule', kinds: [...four('rule'), 'scale'] }
+			];
+}
+
 function groups(rng: Rng, cls: string, others: readonly string[], junior: boolean): HiddenTestGroup[] {
-	const ids: GroupId[] = junior
-		? ['format', 'values', 'sections', 'rule', 'scale']
-		: ['basic', 'format', 'values', 'rule', 'scale'];
-	return ids.map((id) => {
-		const count = id === 'scale' ? 2 : 4;
+	// A plain test gives the right output under every wrong solution that breaks a rule other than the class one.
+	const outside = [...WRONG_IDS].filter((v) => applies(v, cls, junior) && !traps(cls, 'rule').includes(v));
+	return plan(junior).map(({ id, kinds }) => {
 		const tests: { stdin: string; expected: string }[] = [];
-		for (let attempt = 0; tests.length < count; attempt += 1) {
-			if (attempt > 500) throw new Error(`${descriptor.key}: no distinguishing ${id} test for ${cls}`);
-			const input = makeInput(rng, cls, id, junior);
-			const expected = lint(cls, junior, input);
-			if (others.some((other) => lint(other, junior, input) === expected)) continue;
-			if (traps(cls, id).some((v) => lint(cls, junior, input, v) === expected)) continue;
-			tests.push({ stdin: renderInput(input), expected });
+		for (const kind of kinds) {
+			const at = tests.length;
+			for (let attempt = 0; tests.length === at; attempt += 1) {
+				if (attempt > 500) throw new Error(`${descriptor.key}: no distinguishing ${kind} test for ${cls}`);
+				const input = makeInput(rng, cls, kind, junior);
+				const expected = lint(cls, junior, input);
+				if (others.some((other) => lint(other, junior, input) === expected)) continue;
+				if (traps(cls, kind).some((v) => lint(cls, junior, input, v) === expected)) continue;
+				if (PLAIN.includes(kind) && outside.some((v) => lint(cls, junior, input, v) !== expected)) continue;
+				tests.push({ stdin: renderInput(input), expected });
+			}
 		}
 		return { id, tests };
 	});
@@ -658,7 +699,24 @@ function statement(cls: string, junior: boolean): string {
 		`-: missing ${junior ? 'db.host' : 'db_host'}`,
 		'```',
 		'',
-		`Скрытые тесты — пять групп: ${junior ? 'пробелы, комментарии и мусорные строки; типы и границы диапазонов; секции; правило повторов' : 'обычные данные; пробелы, комментарии и мусорные строки; типы и границы диапазонов; правило повторов'}${cls === 'substitution' ? ' и подстановок' : ''}; большой объём. Группа засчитывается, если пройдены все её тесты.`
+		'Разбор входа на Python (на Go — так же построчно):',
+		'',
+		'```python',
+		'import sys',
+		'',
+		"lines = sys.stdin.read().split('\\n')",
+		's = int(lines[0])',
+		'schema = {}',
+		'for row in lines[1:s + 1]:',
+		'    key, kind, need, *args = row.split()',
+		"    schema[key] = (kind, need == 'required', args)",
+		'c = int(lines[s + 1])',
+		'config = lines[s + 2:s + 2 + c]  # строка с номером i — config[i - 1]',
+		'```',
+		'',
+		junior
+			? `Скрытые тесты — пять групп: пробелы, комментарии и мусорные строки; типы и границы диапазонов; секции; правило повторов${cls === 'substitution' ? ' и подстановок' : ''}; большой объём. Группа засчитывается, если пройдены все её тесты.`
+			: `Скрытые тесты — пять групп: короткие конфигурации и конфигурации подлиннее — в обеих только строки \`ключ=значение\` без пробелов, все обязательные ключи заданы, целые не на границах диапазона, ${cls === 'substitution' ? 'есть подстановка' : 'есть повтор ключа'}; пробелы, комментарии и мусорные строки; типы и границы диапазонов; правило повторов${cls === 'substitution' ? ' и подстановок' : ''} и большой объём. Группа засчитывается, если пройдены все её тесты.`
 	].join('\n');
 }
 

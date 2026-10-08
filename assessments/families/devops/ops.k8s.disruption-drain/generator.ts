@@ -69,6 +69,17 @@ function desired(app: App, r: Rules): number {
 
 const ELSEWHERE = '(elsewhere)';
 
+/** Pods by application name, then by number as a number: `api-2` before `api-10`. */
+const podKey = (name: string): [string, number] => {
+	const cut = name.lastIndexOf('-');
+	return [name.slice(0, cut), Number(name.slice(cut + 1))];
+};
+const byName = (a: PodRow, b: PodRow): number => {
+	const [appA, nA] = podKey(a.name);
+	const [appB, nB] = podKey(b.name);
+	return appA === appB ? nA - nB : appA < appB ? -1 : 1;
+};
+
 function drain(p: Params, r: Rules): string[] {
 	const pods: PodRow[] = p.pods.map((x) => ({ ...x }));
 	const next = new Map(p.apps.map((a) => [a.name, a.replicas + 1]));
@@ -89,12 +100,12 @@ function drain(p: Params, r: Rules): string[] {
 	for (const node of p.drain) {
 		cordoned.add(node);
 		for (;;) {
-			const here = pods.filter((x) => x.node === node).sort((a, b) => (a.name < b.name ? -1 : 1));
+			const here = pods.filter((x) => x.node === node).sort(byName);
 			if (here.length === 0) break;
 			const created: PodRow[] = [];
 			for (const pod of here) {
 				if (!allowed(pod)) {
-					if (r.stopOnRefusal) return [...out, `stuck ${node}`];
+					if (r.stopOnRefusal) return [...out, node];
 					continue;
 				}
 				pods.splice(pods.indexOf(pod), 1);
@@ -112,7 +123,7 @@ function drain(p: Params, r: Rules): string[] {
 				created.push(replacement);
 			}
 			for (const c of created) if (c.node !== null) c.ready = true;
-			if (created.length === 0) return [...out, `stuck ${node}`];
+			if (created.length === 0) return [...out, node];
 		}
 	}
 	return [...out, 'done'];
@@ -184,14 +195,14 @@ function describe(p: Params): string {
 		'',
 		`Администратор сливает узлы по очереди: ${p.drain.map((n) => `\`${n}\``).join(', ')}. Модель слива:`,
 		'',
-		'- Слив узла: узел помечается недоступным для новых подов (cordon) и остаётся таким до конца. Затем идут проходы: в каждом проходе drain по очереди, по имени пода, запрашивает вытеснение каждого пода, оставшегося на узле. Запрос либо выполняется — под сразу удаляется, — либо отклоняется по PodDisruptionBudget, и под остаётся.',
+		'- Слив узла: узел помечается недоступным для новых подов (cordon) и остаётся таким до конца. Затем идут проходы: в каждом проходе drain по очереди запрашивает вытеснение каждого пода, оставшегося на узле, — по имени приложения, а внутри приложения по номеру пода как числу (`api-2` раньше `api-10`). Запрос либо выполняется — под сразу удаляется, — либо отклоняется по PodDisruptionBudget, и под остаётся.',
 		'- Вместо удалённого пода Deployment сразу создаёт новый под `<app>-<следующий номер>` (номера продолжают нумерацию приложения) и ставит его на узел без cordon с наименьшим числом подов, при равенстве — на первый по имени; если такого узла нет, под остаётся Pending. Новые поды становятся Ready в конце прохода, в котором созданы; Pending-поды не становятся Ready никогда.',
 		'- Если на узле не осталось подов, он слит, и начинается слив следующего. Если за проход не удалось вытеснить ни одного пода, слив застревает, и дальше ничего не происходит.',
 		'- Проценты в PodDisruptionBudget считаются от `replicas` Deployment и округляются вверх.',
 		'',
-		'Введите имена вытесненных подов в порядке вытеснения, по одному в строке, а последней строкой — `done`, если все узлы слиты, или `stuck <узел>`, если слив застрял на этом узле. Например:',
+		'Введите имена вытесненных подов в порядке вытеснения, по одному в строке, а последней строкой — `done`, если все узлы слиты, или имя узла, на котором слив застрял. Например:',
 		'',
-		'```\napi-2\ncart-1\nstuck node-3\n```'
+		'```\napi-2\ncart-1\nnode-3\n```'
 	].join('\n');
 }
 
@@ -230,7 +241,7 @@ def run():
     for node in data["drain"]:
         cordoned.add(node)
         while True:
-            here = sorted((x for x in pods if x["node"] == node), key=lambda x: x["name"])
+            here = sorted((x for x in pods if x["node"] == node), key=lambda x: (x["name"].rsplit("-", 1)[0], int(x["name"].rsplit("-", 1)[1])))
             if not here:
                 break
             fresh = []
@@ -250,7 +261,7 @@ def run():
                 if x["node"] is not None:
                     x["ready"] = True
             if not fresh:
-                return "stuck " + node
+                return node
     return "done"
 
 end = run()

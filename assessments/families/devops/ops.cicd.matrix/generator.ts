@@ -34,6 +34,9 @@ interface Rules {
 	excludeAfterInclude: boolean;
 	includeAlwaysNew: boolean;
 	includeOverwritesOriginal: boolean;
+	addedFrozen: boolean;
+	addedKept: boolean;
+	extensionIgnored: boolean;
 	cancelOnlyQueued: boolean;
 	coeCancels: boolean;
 	noMaxParallel: boolean;
@@ -44,6 +47,9 @@ const RIGHT: Rules = {
 	excludeAfterInclude: false,
 	includeAlwaysNew: false,
 	includeOverwritesOriginal: false,
+	addedFrozen: false,
+	addedKept: false,
+	extensionIgnored: false,
 	cancelOnlyQueued: false,
 	coeCancels: false,
 	noMaxParallel: false,
@@ -54,6 +60,9 @@ const WRONG: Record<string, Partial<Rules>> = {
 	'exclude-after-include': { excludeAfterInclude: true },
 	'include-always-new': { includeAlwaysNew: true },
 	'include-overwrites-original': { includeOverwritesOriginal: true },
+	'added-not-overwritten': { addedFrozen: true },
+	'added-kept': { addedKept: true },
+	'include-extension-ignored': { extensionIgnored: true },
 	'cancel-only-queued': { cancelOnlyQueued: true },
 	'coe-cancels': { coeCancels: true },
 	'no-max-parallel': { noMaxParallel: true },
@@ -79,9 +88,13 @@ function expand(p: Params, rules: Rules): { jobs: Combo[]; ambiguous: boolean } 
 		}
 		let added = false;
 		for (const c of combos) {
-			if (Object.entries(inc).some(([k, v]) => k in c.orig && c.orig[k] !== v)) continue;
+			const changes = ([k, v]: [string, string]): boolean =>
+				(k in c.orig && c.orig[k] !== v) || (rules.addedFrozen && k in c.added && c.added[k] !== v);
+			if (Object.entries(inc).some(changes)) continue;
 			added = true;
-			for (const [k, v] of Object.entries(inc)) if (!(k in c.orig)) c.added[k] = v;
+			if (rules.extensionIgnored) continue;
+			for (const [k, v] of Object.entries(inc))
+				if (!(k in c.orig) && !(rules.addedKept && k in c.added)) c.added[k] = v;
 		}
 		if (added) continue;
 		const [firstKey, firstValue] = Object.entries(inc)[0] ?? ['', ''];
@@ -215,7 +228,8 @@ const SPECS: Record<string, ClassSpec> = {
 		keys: 3,
 		exclude: [0, 1],
 		include: ['flag', 'new', 'extend'],
-		failFast: [false, true],
+		// The overwritten `experimental` decides whether a failure cancels the rest: fail-fast is on.
+		failFast: [true, null],
 		maxParallel: false,
 		continueOnError: true
 	},
@@ -250,8 +264,8 @@ const REQUIRED: Record<string, string[]> = {
 	'junior/exclude': ['fail-fast-default-off'],
 	'junior/max-parallel': ['no-max-parallel'],
 	'junior/include-new': ['include-always-new'],
-	'junior/include-extend': ['include-always-new'],
-	'middle/include-overwrite': ['include-overwrites-original'],
+	'junior/include-extend': ['include-always-new', 'include-extension-ignored'],
+	'middle/include-overwrite': ['include-overwrites-original', 'added-not-overwritten', 'added-kept'],
 	'middle/continue-on-error': ['coe-cancels'],
 	'middle/timeline': ['cancel-only-queued', 'no-max-parallel'],
 	'middle/exclude-include': ['exclude-after-include']
@@ -281,14 +295,20 @@ function scenario(rng: Rng, spec: ClassSpec): Params {
 	const include: Combo[] = [];
 	const os = keys[0]?.values ?? [];
 	const sv = keys[1]?.values ?? [];
+	// The key an extension adds lengthens the jobs it reaches: the extension shows in the answer.
+	const extensionMinutes: Params['extra'] = [];
 	for (const kind of spec.include) {
 		if (kind === 'extend') {
 			const extra = rng.pick(EXTRA_KEYS);
-			include.push({ [second.name]: rng.pick(sv), [extra.name]: rng.pick(extra.values) });
+			const value = rng.pick(extra.values);
+			include.push({ [second.name]: rng.pick(sv), [extra.name]: value });
+			if (!extensionMinutes.some((e) => e.key === extra.name && e.value === value))
+				extensionMinutes.push({ key: extra.name, value, minutes: rng.int(2, 6) });
 		} else if (kind === 'flag') {
-			// Adds `experimental` to some combinations; a later include may overwrite the added value.
-			include.push({ os: rng.pick(os), experimental: 'true' });
-			if (rng.bool(0.5)) include.push({ os: rng.pick(os), [second.name]: rng.pick(sv), experimental: 'false' });
+			// Adds `experimental` to the combinations of one OS; a later include overwrites the added value for some of them.
+			const flagged = rng.pick(os);
+			include.push({ os: flagged, experimental: 'true' });
+			if (rng.bool(0.5)) include.push({ os: flagged, [second.name]: rng.pick(sv), experimental: 'false' });
 		} else if (kind === 'new') {
 			const unused = second.values.filter((v) => !sv.includes(v));
 			const value = unused.length > 0 ? rng.pick(unused) : rng.pick(sv);
@@ -302,7 +322,10 @@ function scenario(rng: Rng, spec: ClassSpec): Params {
 		}
 	}
 	const baseMinutes = Object.fromEntries(OS.map((o) => [o, rng.int(3, 14)]));
-	const extra = rng.sample(sv, rng.int(1, 2)).map((value) => ({ key: second.name, value, minutes: rng.int(1, 5) }));
+	const extra = [
+		...rng.sample(sv, rng.int(1, 2)).map((value) => ({ key: second.name, value, minutes: rng.int(1, 5) })),
+		...extensionMinutes
+	];
 	const failKeys = rng.bool(0.5) ? ['os', second.name] : [rng.pick(['os', second.name])];
 	let failing: Combo = Object.fromEntries(
 		failKeys.map((k) => [k, rng.pick(keys.find((x) => x.name === k)?.values ?? [])])

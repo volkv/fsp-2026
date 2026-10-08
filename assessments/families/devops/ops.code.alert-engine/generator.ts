@@ -208,7 +208,13 @@ function read(cls: string, senior: boolean, withK: boolean, text: string): Input
 // ---------------------------------------------------------------------------------------------------------------
 // Inputs.
 
-type GroupId = 'basic' | 'for' | 'edge' | 'flap' | 'series' | 'scale';
+/**
+ * The kinds of tests. `basic` and `cycles` are plain data without any edge (no moment exactly F after `since`, no
+ * pending that drops, no value on the threshold, no counter reset, no stale sample; Senior series report at the same
+ * moments): a solution wrong in one rule passes them. The other kinds pin the edges.
+ */
+type ShapeId = 'basic' | 'cycles' | 'automaton' | 'edge' | 'series' | 'scale';
+const PLAIN: readonly ShapeId[] = ['basic', 'cycles'];
 
 interface Shape {
 	series: number;
@@ -221,21 +227,48 @@ interface Shape {
 	equal: boolean;
 	/** Senior: series pause for longer than the lookback. */
 	gaps: boolean;
+	/** Senior: all series report at the same moments. */
+	aligned: boolean;
 }
 
-function shape(rng: Rng, group: GroupId, senior: boolean): Shape {
+function shape(rng: Rng, group: ShapeId, senior: boolean): Shape {
 	const series = senior ? rng.int(2, 4) : 1;
+	const plain = { fixed: false, equal: false, gaps: false, aligned: true };
 	switch (group) {
 		case 'basic':
-			return { series, samples: rng.int(16, 30), fixed: false, run: [2, 6], equal: false, gaps: false };
-		case 'for':
-			return { series, samples: rng.int(18, 30), fixed: true, run: [2, 7], equal: false, gaps: false };
+			return { ...plain, series: senior ? 2 : 1, samples: rng.int(8, 14) * (senior ? 2 : 1), run: [4, 8] };
+		case 'cycles':
+			return { ...plain, series, samples: rng.int(16, 30), run: [3, 7] };
+		case 'automaton':
+			return {
+				series,
+				samples: rng.int(18, 30),
+				fixed: true,
+				run: [1, 7],
+				equal: false,
+				gaps: false,
+				aligned: false
+			};
 		case 'edge':
-			return { series, samples: rng.int(18, 30), fixed: true, run: [2, 6], equal: true, gaps: false };
-		case 'flap':
-			return { series, samples: rng.int(20, 34), fixed: false, run: [1, 3], equal: false, gaps: false };
+			return {
+				series,
+				samples: rng.int(18, 30),
+				fixed: true,
+				run: [2, 6],
+				equal: true,
+				gaps: false,
+				aligned: false
+			};
 		case 'series':
-			return { series: rng.int(3, 6), samples: rng.int(36, 60), fixed: false, run: [2, 6], equal: false, gaps: true };
+			return {
+				series: rng.int(3, 6),
+				samples: rng.int(36, 60),
+				fixed: false,
+				run: [2, 6],
+				equal: false,
+				gaps: true,
+				aligned: false
+			};
 		case 'scale':
 			return {
 				series: senior ? 6 : 1,
@@ -243,18 +276,21 @@ function shape(rng: Rng, group: GroupId, senior: boolean): Shape {
 				fixed: false,
 				run: [1, 8],
 				equal: true,
-				gaps: senior
+				gaps: senior,
+				aligned: false
 			};
 	}
 }
 
-function makeInput(rng: Rng, cls: string, group: GroupId, senior: boolean, withK: boolean): Input {
+function makeInput(rng: Rng, cls: string, group: ShapeId, senior: boolean, withK: boolean): Input {
 	const sh = shape(rng, group, senior);
+	const plain = PLAIN.includes(group);
 	const step = rng.int(5, 30);
 	const input: Input = {
 		x: cls === 'ratio' ? rng.pick([5, 10, 20, 25, 50]) : cls === 'rate' ? rng.int(20, 200) : rng.int(100, 900),
-		f:
-			group === 'for'
+		f: plain
+			? rng.int(1, 2 * step)
+			: group === 'automaton'
 				? rng.pick([0, step, 2 * step, 3 * step])
 				: rng.pick([0, step, 2 * step, 3 * step, rng.int(1, 4 * step)]),
 		w: cls === 'absent' ? rng.int(2, 4) * step : rng.int(3, 8) * step,
@@ -264,10 +300,16 @@ function makeInput(rng: Rng, cls: string, group: GroupId, senior: boolean, withK
 		k: withK ? rng.int(1, 4) * step : null,
 		samples: []
 	};
+	// Plain absent data: no evaluation exactly F after `since` (the grid is a multiple of S).
+	if (plain && cls === 'absent' && input.f % input.g === 0) input.f += 1;
 	const names = rng.sample(SERIES, sh.series);
 	const per = Math.max(4, Math.floor(sh.samples / sh.series));
+	// Aligned series take the moments of the first one (absence of data is a pause of its own series).
+	let shared: number[] | null = null;
 	for (const name of names) {
-		let t = rng.int(0, step);
+		const moments: number[] = [];
+		// Plain absent data starts reporting at 0: no pending before the first sample.
+		let t = plain && cls === 'absent' ? 0 : rng.int(0, step);
 		let counter = rng.int(0, 1000);
 		let cond = rng.bool();
 		let left = rng.int(...sh.run);
@@ -278,35 +320,42 @@ function makeInput(rng: Rng, cls: string, group: GroupId, senior: boolean, withK
 				left = rng.int(...sh.run);
 			}
 			left -= 1;
-			const d = sh.fixed ? step : rng.int(1, 2 * step);
-			// Absent: a false segment is a pause in reporting longer than the window.
+			const d = sh.fixed ? step : rng.int(1, plain && cls === 'absent' ? step : 2 * step);
+			// Absent: a false segment is a pause in reporting longer than the window; a plain pause outlasts `for`.
 			t +=
 				i === 0
 					? 0
 					: i === gap
 						? input.l + rng.int(0, 2 * step)
 						: cls === 'absent' && cond
-							? input.w + rng.int(0, step)
+							? input.w + (plain ? input.f + 2 * input.g + rng.int(1, step) : rng.int(0, step))
 							: d;
+			// Plain absent data: no sample exactly W before an evaluation.
+			if (plain && cls === 'absent' && i > 0 && (t + input.w) % input.g === 0) t += 1;
+			if (sh.aligned && cls !== 'absent' && shared !== null) t = shared[i] ?? t;
+			moments.push(t);
 			const equal = sh.equal && rng.bool(0.3);
 			let a = 0;
 			let b = 0;
 			if (cls === 'threshold') a = cond ? input.x + rng.int(1, 60) : equal ? input.x : input.x - rng.int(1, 60);
 			else if (cls === 'ratio') {
 				const unit = 100 / gcd(100, input.x);
-				b = equal ? unit * rng.int(1, 6) : rng.bool(0.08) ? 0 : rng.int(1, 300);
+				b = equal ? unit * rng.int(1, 6) : !plain && rng.bool(0.08) ? 0 : rng.int(1, 300);
 				const edge = (input.x * b) / 100;
-				a = equal ? edge : cond && b > 0 ? rng.int(Math.floor(edge) + 1, b) : rng.int(0, Math.floor(edge));
+				// Plain data keeps a false share strictly below the threshold.
+				const below = plain ? Math.ceil(edge) - 1 : Math.floor(edge);
+				a = equal ? edge : cond && b > 0 ? rng.int(Math.floor(edge) + 1, b) : rng.int(0, below);
 			} else if (cls === 'rate') {
 				// A run of fast or slow growth; now and then the counter restarts or stands still.
 				const pace = Math.max(1, Math.floor((input.x * d) / input.w));
-				if (rng.bool(0.06)) counter = rng.int(0, 10);
+				if (!plain && rng.bool(0.06)) counter = rng.int(0, 10);
 				else if (!(sh.equal && rng.bool(0.2)))
 					counter += cond ? rng.int(pace, 3 * pace) : rng.int(0, Math.floor(pace / 2));
 				a = counter;
 			}
 			input.samples.push({ t, s: name, a, b });
 		}
+		shared ??= moments;
 	}
 	input.samples.sort((p, q) => p.t - q.t || (p.s < q.s ? -1 : p.s > q.s ? 1 : 0));
 	if (!senior) {
@@ -342,56 +391,79 @@ function gcd(a: number, b: number): number {
 	return b === 0 ? a : gcd(b, a % b);
 }
 
-/** The wrong solutions (and edges) a group must expose on every test of the class. */
-function traps(cls: string, group: GroupId, senior: boolean): Variant[] {
+/** The wrong solutions (and edges) a test must expose. */
+function traps(cls: string, group: ShapeId): Variant[] {
 	switch (group) {
-		case 'for':
-			return ['for-strict'];
-		case 'flap':
-			return ['pending-silent'];
+		case 'automaton':
+			return ['for-strict', 'pending-silent'];
 		case 'edge':
 			return cls === 'absent'
-				? ['window-closed']
+				? ['window-closed', 'grid-short']
 				: cls === 'rate'
 					? ['threshold-inclusive', 'window-closed', 'counter-reset-ignored']
 					: ['threshold-inclusive'];
 		case 'series':
 			return cls === 'absent' ? [] : cls === 'rate' ? ['own-ticks'] : ['no-staleness', 'own-ticks', 'stale-closed'];
-		case 'basic':
-			return cls === 'absent' && !senior ? ['grid-short'] : [];
 		default:
 			return [];
 	}
 }
 
+/** Every edge a wrong solution or a slip trips on: a plain test gives the right output under all of them. */
+const EDGES: readonly Variant[] = [...WRONG_IDS, 'stale-closed', 'grid-short'];
+
+/** The groups in their order, with the kinds of their tests: two plain groups first. */
+function plan(senior: boolean): { id: string; shapes: ShapeId[] }[] {
+	const four = (shape: ShapeId): ShapeId[] => [shape, shape, shape, shape];
+	return [
+		{ id: 'basic', shapes: four('basic') },
+		{ id: 'cycles', shapes: four('cycles') },
+		{ id: 'automaton', shapes: four('automaton') },
+		{ id: 'edge', shapes: four('edge') },
+		senior ? { id: 'series', shapes: [...four('series'), 'scale'] } : { id: 'scale', shapes: ['scale', 'scale'] }
+	];
+}
+
 function groups(rng: Rng, cls: string, others: readonly string[], senior: boolean, withK: boolean): HiddenTestGroup[] {
-	const ids: GroupId[] = senior
-		? ['for', 'edge', 'flap', 'series', 'scale']
-		: ['basic', 'for', 'edge', 'flap', 'scale'];
-	return ids.map((id) => {
-		const count = id === 'scale' ? 2 : 4;
+	return plan(senior).map(({ id, shapes }) => {
 		const tests: { stdin: string; expected: string }[] = [];
-		for (let attempt = 0; tests.length < count; attempt += 1) {
-			if (attempt > 500) throw new Error(`${descriptor.key}: no distinguishing ${id} test for ${cls}`);
-			const input = makeInput(rng, cls, id, senior, withK);
-			const expected = evaluate(cls, senior, input);
-			// Below the output limit of the sandbox (64 KiB) with room to spare.
-			if (expected.split('\n').length < 4 || expected.length > 32_000) continue;
-			const stdin = render(cls, senior, input);
-			if (
-				others.some((other) => {
-					const seen = read(other, senior, withK, stdin);
-					return seen !== null && evaluate(other, senior, seen) === expected;
-				})
-			)
-				continue;
-			if (withK) {
-				if (evaluate(cls, senior, { ...input, k: null }) === expected) continue;
-			} else if (traps(cls, id, senior).some((v) => evaluate(cls, senior, input, v) === expected)) continue;
-			tests.push({ stdin, expected });
+		for (const kind of shapes) {
+			const at = tests.length;
+			for (let attempt = 0; tests.length === at; attempt += 1) {
+				if (attempt > 2000) throw new Error(`${descriptor.key}: no ${kind} test for ${cls}`);
+				const test = candidate(rng, cls, kind, others, senior, withK);
+				if (test !== null) tests.push(test);
+			}
 		}
 		return { id, tests };
 	});
+}
+
+function candidate(
+	rng: Rng,
+	cls: string,
+	kind: ShapeId,
+	others: readonly string[],
+	senior: boolean,
+	withK: boolean
+): { stdin: string; expected: string } | null {
+	const input = makeInput(rng, cls, kind, senior, withK);
+	const expected = evaluate(cls, senior, input);
+	// Below the output limit of the sandbox (64 KiB) with room to spare.
+	if (expected.split('\n').length < 4 || expected.length > 32_000) return null;
+	const stdin = render(cls, senior, input);
+	if (
+		others.some((other) => {
+			const seen = read(other, senior, withK, stdin);
+			return seen !== null && evaluate(other, senior, seen) === expected;
+		})
+	)
+		return null;
+	if (PLAIN.includes(kind)) {
+		if (EDGES.some((v) => evaluate(cls, senior, input, v) !== expected)) return null;
+	} else if (!withK && traps(cls, kind).some((v) => evaluate(cls, senior, input, v) === expected)) return null;
+	if (withK && evaluate(cls, senior, { ...input, k: null }) === expected) return null;
+	return { stdin, expected };
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -412,10 +484,61 @@ function conditionText(cls: string, senior: boolean): string {
 	}
 }
 
+/** A short fixed input of the class for the example of the statement; its output is computed by the model. */
+function exampleInput(cls: string, senior: boolean): Input {
+	const moments = [0, 10, 20, 30, 40, 50, 60];
+	const values: Record<string, [number, number][]> = {
+		threshold: [50, 150, 160, 170, 90, 120, 130].map((v) => [v, 0]),
+		ratio: [
+			[1, 100],
+			[20, 100],
+			[30, 100],
+			[40, 100],
+			[5, 100],
+			[15, 100],
+			[0, 0]
+		],
+		absent: moments.map(() => [0, 0]),
+		rate: [0, 10, 60, 130, 200, 5, 20].map((v) => [v, 0])
+	};
+	const at = cls === 'absent' ? [0, 10, 20, 50, 60, 70, 80] : moments;
+	const own = (values[cls] ?? []).map(([a, b], i) => ({ t: at[i] ?? 0, s: senior ? 'api' : '', a, b }));
+	const samples = senior
+		? [...own, ...own.slice(0, 3).map((x) => ({ ...x, s: 'db', t: x.t + 5 }))].sort(
+				(p, q) => p.t - q.t || (p.s < q.s ? -1 : 1)
+			)
+		: own;
+	return { x: cls === 'ratio' ? 10 : cls === 'rate' ? 50 : 100, f: 15, w: 30, l: 25, g: 10, e: 80, k: null, samples };
+}
+
+/** How a program in Python reads the input of the class. */
+function parseTemplate(cls: string, senior: boolean): string {
+	const head = cls === 'absent' ? 'n, f, w, s, e' : cls === 'rate' ? 'n, x, f, w' : senior ? 'n, x, f, l' : 'n, x, f';
+	const row =
+		cls === 'absent'
+			? senior
+				? 't, name = row.split()'
+				: 't = int(row)'
+			: senior
+				? `t, name, ${cls === 'ratio' ? 'a, b' : 'v'} = row.split()`
+				: `t, ${cls === 'ratio' ? 'a, b' : 'v'} = map(int, row.split())`;
+	return [
+		'```python',
+		'import sys',
+		'',
+		"lines = sys.stdin.read().split('\\n')",
+		`${head} = map(int, lines[0].split())`,
+		'for row in lines[1:n + 1]:',
+		`    ${row}`,
+		'```'
+	].join('\n');
+}
+
 function statement(cls: string, senior: boolean): string {
+	const example = exampleInput(cls, senior);
 	const params: Record<string, string> = {
 		absent:
-			'`N F W S E`: число отсчётов (1 ≤ N ≤ 10⁴), длительность for, окно, шаг сетки и её конец в секундах (1 ≤ W, S ≤ 10⁴; 0 ≤ F, E ≤ 10⁹)',
+			'`N F W S E`: число отсчётов (1 ≤ N ≤ 10⁴), длительность for, окно, шаг сетки и её конец в секундах (1 ≤ W, S ≤ 10⁴; 0 ≤ F, E ≤ 10⁹; E/S ≤ 10⁶)',
 		rate: '`N X F W`: число отсчётов (1 ≤ N ≤ 10⁴), порог прироста, длительность for и окно в секундах (0 ≤ X ≤ 10⁹; 0 ≤ F ≤ 10⁹; 1 ≤ W ≤ 10⁶)',
 		threshold: senior
 			? '`N X F L`: число отсчётов (1 ≤ N ≤ 10⁴), порог, длительность for и срок годности отсчёта в секундах (0 ≤ X ≤ 10⁹; 0 ≤ F ≤ 10⁹; 1 ≤ L ≤ 10⁶)'
@@ -462,9 +585,27 @@ function statement(cls: string, senior: boolean): string {
 		'',
 		'## Выход',
 		'',
-		`Каждый переход — строка события: \`${senior ? '<τ> <ряд> <событие>' : '<τ> <событие>'}\`, где событие — \`pending\` (inactive → pending), \`firing\` (в firing из любого состояния), \`inactive\` (pending → inactive), \`resolved\` (firing → inactive). События — по возрастанию τ${senior ? ', при равном τ — по имени ряда в лексикографическом порядке' : ''}. Если событий нет — одна строка \`none\`. Пример: \`${senior ? '120 web-1 pending' : '120 pending'}\`.`,
+		`Каждый переход — строка события: \`${senior ? '<τ> <ряд> <событие>' : '<τ> <событие>'}\`, где событие — \`pending\` (inactive → pending), \`firing\` (в firing из любого состояния), \`inactive\` (pending → inactive), \`resolved\` (firing → inactive). События — по возрастанию τ${senior ? ', при равном τ — по имени ряда (по возрастанию кодов символов)' : ''}. Если событий нет — одна строка \`none\`. Пример: \`${senior ? '120 web-1 pending' : '120 pending'}\`.`,
 		'',
-		`Скрытые тесты — пять групп: ${senior ? 'длительность for на границе, значения и окна на границе, дребезг условия, много рядов и устаревшие отсчёты, большой объём' : 'обычные данные, длительность for на границе, значения и окна на границе, дребезг условия, большой объём'}. Группа засчитывается, если пройдены все её тесты.`
+		'## Пример',
+		'',
+		'Вход:',
+		'',
+		'```',
+		render(cls, senior, example).trimEnd(),
+		'```',
+		'',
+		'Выход:',
+		'',
+		'```',
+		evaluate(cls, senior, example).trimEnd(),
+		'```',
+		'',
+		'Разбор входа на Python (на Go — так же построчно):',
+		'',
+		parseTemplate(cls, senior),
+		'',
+		`Скрытые тесты — пять групп: простые данные (короткий вход) и простые данные с несколькими срабатываниями — в обеих нет граничных случаев${senior ? ', и все ряды присылают отсчёты в одни и те же моменты' : ''}; автомат на границе for и сброс pending; значения и окна на границе; ${senior ? 'много рядов, устаревшие отсчёты и большой объём' : 'большой объём'}. Группа засчитывается, если пройдены все её тесты.`
 	].join('\n');
 }
 

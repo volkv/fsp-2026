@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.3,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "f351b5c8dc50531c2c1d5b5e7c57dacf08c5b02afe1a1278d1a89cd3cacc6b6c"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.5,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "f351b5c8dc50531c2c1d5b5e7c57dacf08c5b02afe1a1278d1a89cd3cacc6b6c"
+					}
+				],
+				"mean": 0.4
+			},
 			"constructive": { "screens": 1, "events": "5–10", "mechanisms": 1, "finishFromCode": false },
 			"constructiveRank": 1,
 			"timeNormSec": 240,
@@ -33,7 +50,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.4,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "f351b5c8dc50531c2c1d5b5e7c57dacf08c5b02afe1a1278d1a89cd3cacc6b6c"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.5,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "f351b5c8dc50531c2c1d5b5e7c57dacf08c5b02afe1a1278d1a89cd3cacc6b6c"
+					}
+				],
+				"mean": 0.45
+			},
 			"constructive": { "screens": 1, "events": "6–13", "mechanisms": 2, "finishFromCode": true },
 			"constructiveRank": 2,
 			"timeNormSec": 300,
@@ -151,6 +185,32 @@
 		"answerCollision": 0.0318,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Повторный раунд: прежнее существенное замечание (не задан targetSdkVersion, от него зависит место onSaveInstanceState) снято: в каждом экземпляре теперь указано `targetSdkVersion 34`. Другие изменения в пакете — только эта формулировка. Ответы 8 экземпляров заново сверены вручную с моделью Android (API 34), расхождений нет; устройство не использовалось.",
+					"Время и объём: журнал до 31 строки при бинарной рубрике, норма 240-300 с тяжёлая для пограничного intern/junior; учтено в Angoff.",
+					"Мелочь: intern-класс `back-reopen` сводится к повтору одного цикла, `lock` повторяет `background`; для anchor и резервного класса допустимо.",
+					"Второй раунд Angoff, junior: было 0.35, стало 0.4 — прочитал обоснование второго рецензента (его оценка 0.6): полный бинарный ответ по длинной трассе остаётся рискованным для пограничного кандидата, но норма времени и данные в условии правил делают проход достижимее, чем я считал; остаюсь ниже его оценки из-за обнуления ответа одной ошибкой."
+				],
+				"sourceSha256": "f351b5c8dc50531c2c1d5b5e7c57dacf08c5b02afe1a1278d1a89cd3cacc6b6c"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Прежнее существенное замечание устранено: каждый экземпляр явно задаёт API 34 и targetSdkVersion 34. Порядок onSaveInstanceState после onStop согласован с этим контрактом; альтернативное старое targetSdkVersion больше не допустимо. Закрытый список журналируемых методов и некорневая Activity также заданы. Документация: https://developer.android.com/reference/android/app/Activity#onSaveInstanceState(android.os.Bundle).",
+					"Мелочь: показанный Intern/back-reopen (anchor) состоит из четырёх одинаковых циклов открытия и закрытия. Он легче background/lock, хотя генератор допускает в этом классе также уход в фон, диалог и полупрозрачный экран; класс не ограничен единственным переносимым шаблоном.",
+					"Проверка: все 8 экземпляров пересчитал собственной моделью на Python 3.12 по событиям из полного текста, затем исполнил эталон; ответы совпали, в том числе finish из onCreate/onResume, смерть процесса без onDestroy и восстановление после onStart. Все применимые ошибочные ответы отличаются. Обрезанные входы восстановлены временным build, пакетные ответы и эталоны сверены; sourceSha256 проверен. Android на устройстве/эмуляторе и 200 сидов каждого класса не запускал.",
+					"Angoff intern 0.50, junior 0.60: полный binary-журнал за 240/300 с. В показанных Intern требуется до 26 строк, Junior — до 31; пограничный кандидат может знать механизм и всё же пропустить один callback, что обнулит ответ.",
+					"Второй раунд Angoff, junior: было 0.6, стало 0.5 — Снижаю вероятность полного binary-ответа: при норме 300 с показанные классы требуют 13, 30, 28 и 31 строку. Finish-in-create короток, но process-death/death-and-close требуют одновременно не добавить onDestroy при смерти процесса, поставить onRestoreInstanceState после onStart и не сохранить состояние при закрытии Назад. Повторяющиеся циклы облегчают расчёт, однако полного знания обычного жизненного цикла недостаточно для безошибочного журнала всех специальных случаев."
+				],
+				"sourceSha256": "f351b5c8dc50531c2c1d5b5e7c57dacf08c5b02afe1a1278d1a89cd3cacc6b6c"
+			}
+		]
 	}
 }

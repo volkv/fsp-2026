@@ -97,7 +97,7 @@ function replicas(p: Params, r: Rules): string[] {
 		});
 		const downLimits = p.down.policies.map((pol) => {
 			const base = r.baseCurrent ? c : c + moved(pol.period, -1);
-			return pol.type === 'Pods' ? base - pol.value : ceilDiv(base * (100 - pol.value), 100);
+			return pol.type === 'Pods' ? base - pol.value : Math.floor((base * (100 - pol.value)) / 100 + 1e-9);
 		});
 		const upMax = (p.up.select === 'Max') !== r.selectFlip;
 		const downMax = (p.down.select === 'Max') !== r.selectFlip;
@@ -269,7 +269,7 @@ function describe(p: Params): string {
 		'',
 		'1. Каждая метрика даёт отношение r = значение / цель (`averageUtilization` или `averageValue`). Если |r − 1| ≤ 0,1, метрика предлагает c, иначе — ⌈c · r⌉ (точно, без промежуточного округления r). Рекомендация такта — наибольшее из предложений метрик.',
 		'2. Стабилизация. up — наименьшая, down — наибольшая из рекомендаций: этого такта и прежних тактов с моментом строго больше t − `stabilizationWindowSeconds` (у up окно из `scaleUp`, у down — из `scaleDown`). Значение s = c; если s < up, то s = up; если s > down, то s = down.',
-		'3. Скорость. У политики роста база — c минус сумма увеличений числа реплик на тактах с моментом строго больше t − `periodSeconds` этой политики; предел политики `Pods` — база + value, `Percent` — ⌈база · (100 + value) / 100⌉. У политики уменьшения база — c плюс сумма уменьшений за такой же промежуток; предел `Pods` — база − value, `Percent` — ⌈база · (100 − value) / 100⌉. `selectPolicy: Max` берёт политику, допускающую наибольшее изменение, `Min` — наименьшее. Предел роста не меньше c, предел уменьшения не больше c.',
+		'3. Скорость. У политики роста база — c минус сумма увеличений числа реплик на тактах с моментом строго больше t − `periodSeconds` этой политики; предел политики `Pods` — база + value, `Percent` — ⌈база · (100 + value) / 100⌉. У политики уменьшения база — c плюс сумма уменьшений за такой же промежуток; предел `Pods` — база − value, `Percent` — ⌊база · (100 − value) / 100⌋ (удаляемых реплик — с округлением вверх). `selectPolicy: Max` берёт политику, допускающую наибольшее изменение, `Min` — наименьшее. Предел роста не меньше c, предел уменьшения не больше c.',
 		'4. Новое число реплик — s, поднятое до наибольшего из `minReplicas` и предела уменьшения, если s ниже его, и опущенное до наименьшего из `maxReplicas` и предела роста, если s выше его.',
 		'',
 		'Введите число реплик после каждого такта, по одному в строке, в порядке тактов. Например:',
@@ -326,7 +326,7 @@ for k, row in enumerate(table, start=1):
                 values.append(base + pol["value"] if pol["type"] == "Pods" else math.ceil(Fraction(base * (100 + pol["value"]), 100)))
             else:
                 base = c + sum(-d for (m, d) in moves if m > t - pol["periodSeconds"] and d < 0)
-                values.append(base - pol["value"] if pol["type"] == "Pods" else math.ceil(Fraction(base * (100 - pol["value"]), 100)))
+                values.append(base - pol["value"] if pol["type"] == "Pods" else math.floor(Fraction(base * (100 - pol["value"]), 100)))
         if direction == "scaleUp":
             return max(c, max(values) if rules["selectPolicy"] == "Max" else min(values))
         return min(c, min(values) if rules["selectPolicy"] == "Max" else max(values))

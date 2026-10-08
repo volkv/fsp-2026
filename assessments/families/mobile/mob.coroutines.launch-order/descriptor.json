@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.35,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "04a6262ad43e450db6e1ea3a3f48d2a3bf7c381eb20fa99c9afead764964b891"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "04a6262ad43e450db6e1ea3a3f48d2a3bf7c381eb20fa99c9afead764964b891"
+					}
+				],
+				"mean": 0.45
+			},
 			"constructive": { "coroutines": "2–4", "lines": "10–22", "mechanisms": 2, "timing": false },
 			"constructiveRank": 3,
 			"timeNormSec": 240,
@@ -37,7 +54,24 @@
 		},
 		{
 			"grade": "middle",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.35,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "04a6262ad43e450db6e1ea3a3f48d2a3bf7c381eb20fa99c9afead764964b891"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.5,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "04a6262ad43e450db6e1ea3a3f48d2a3bf7c381eb20fa99c9afead764964b891"
+					}
+				],
+				"mean": 0.45
+			},
 			"constructive": { "coroutines": "3–5", "lines": "15–30", "mechanisms": 3, "timing": false },
 			"constructiveRank": 5,
 			"timeNormSec": 330,
@@ -149,6 +183,31 @@
 		"answerCollision": 0,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчёт: все 8 показанных программ запущены в песочнице (kotlinc/JVM), вывод совпал с ответом построчно; трассу junior/launch-queue, async-await, scope-waits, join-chain и middle/nested-children, completed-join, undispatched, lazy-start дополнительно проследил вручную по правилам очереди runBlocking — совпало. Не проверял: другие версии kotlinx.coroutines.",
+					"Мелочь: условие не фиксирует среду (однопоточный runBlocking, FIFO-очередь, порядок возобновления ждущих join, место возобновления после yield). Ответ зависит от этих правил, но при естественном прочтении правила одни, и на проверенных экземплярах второе прочтение ответ не меняет. Лучше назвать среду в условии одной строкой.",
+					"Мелочь: сложность выше типичной для грейдов. Middle/undispatched (UNDISPATCHED с вложенным UNDISPATCHED и yield, возобновление после join позже остальных) и nested-children (join ждёт детей, дети встают в хвост очереди) — трассировка внутренней очереди диспетчера, ближе к senior; на junior join-chain и scope-waits требуют тех же знаний об очереди. Учтено в Angoff, в вердикт не вынесено: ответ однозначен и проверен JVM.",
+					"Разнообразие: по 200 сидам канонических форм ответа от 16 (undispatched) до 179, вырожденных классов нет.",
+					"Второй раунд Angoff, middle: было 0.25, стало 0.35 — прочитал обоснование второго рецензента (его оценка 0.65): полный бинарный ответ по длинной трассе остаётся рискованным для пограничного кандидата, но норма времени и данные в условии правил делают проход достижимее, чем я считал; остаюсь ниже его оценки из-за обнуления ответа одной ошибкой."
+				],
+				"sourceSha256": "04a6262ad43e450db6e1ea3a3f48d2a3bf7c381eb20fa99c9afead764964b891"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчитал все 8 показанных экземпляров вручную с очередью runBlocking и исполнением Kotlin/JVM: выводы совпали, включая порядок возобновления join, UNDISPATCHED и join завершённой задачи. Среда: kotlinc 2.4.20, kotlinx.coroutines 1.8.0, JRE 21. Прогоны ворот на 200 сидах и другие версии реализации очереди не проверял.",
+					"Angoff: junior 0.55, middle 0.65. Binary требует безошибочной трассы примерно из 8–11 строк. Для пограничного junior существенны очереди yield и ожидающих join; middle лучше владеет этой моделью, но должен дополнительно учесть LAZY, UNDISPATCHED и завершение детей.",
+					"Второй раунд Angoff, middle: было 0.65, стало 0.5 — Снижаю вероятность полного binary-ответа: все четыре показанные трассы требуют 10–11 строк за 330 с. В undispatched надо совместить немедленный запуск, вложенный UNDISPATCHED и очередь после yield; в nested-children — дождаться детей и сохранить порядок пробуждения двух ожидающих join; в completed-join — отличить ожидание от продолжения без приостановки. Эти детали очереди труднее общего понимания конкурентности, заявленного для пограничного Middle, и одна перестановка обнуляет ответ."
+				],
+				"sourceSha256": "04a6262ad43e450db6e1ea3a3f48d2a3bf7c381eb20fa99c9afead764964b891"
+			}
+		]
 	}
 }

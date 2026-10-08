@@ -4,6 +4,7 @@
 // that never notices the cancellation, a cleanup that suspends in a cancelled coroutine. The candidate names that line.
 // The kind of the defect is the essential class; the other functions, their order and the module header are surface.
 // The checks run in a single-threaded `runBlocking` and order the coroutines with `yield` and explicit joins only.
+// The statement makes that the contract of the module: one thread, and a suspending callback never cancels by itself.
 import {
 	instanceRng,
 	levelAndClass,
@@ -203,8 +204,8 @@ const REFRESH_FEEDS: Fn = {
 	name: 'refreshFeeds',
 	lines: [
 		...kdoc(
-			'Обновляет ленты параллельно. Сбой одной ленты не отменяет остальные;',
-			'возвращает ленты, обновлённые успешно, в порядке [feeds].'
+			'Обновляет ленты параллельно. Сбой одной ленты не отменяет остальные, отмена вызывающей',
+			'корутины отменяет все загрузки. Возвращает ленты, обновлённые успешно, в порядке [feeds].'
 		),
 		'suspend fun refreshFeeds(feeds: List<String>, load: suspend (String) -> Unit): List<String> =',
 		'    supervisorScope {',
@@ -214,7 +215,13 @@ const REFRESH_FEEDS: Fn = {
 	],
 	checks: [
 		'val refreshed = refreshFeeds(listOf("news", "sport", "music")) { feed -> yield(); if (feed == "sport") throw IOException("down") }',
-		'check(refreshed == listOf("news", "music")) { "refreshFeeds: $refreshed" }'
+		'check(refreshed == listOf("news", "music")) { "refreshFeeds: $refreshed" }',
+		'val loadedFeeds = mutableListOf<String>()',
+		'val feedsScreen = launch { refreshFeeds(listOf("news", "sport")) { feed -> yield(); yield(); loadedFeeds.add(feed) } }',
+		'yield()',
+		'feedsScreen.cancelAndJoin()',
+		'repeat(5) { yield() }',
+		'check(loadedFeeds.isEmpty()) { "refreshFeeds: loads outlived the cancellation $loadedFeeds" }'
 	],
 	defects: [
 		{
@@ -265,8 +272,8 @@ const LOAD_HEADER: Fn = {
 	name: 'loadHeader',
 	lines: [
 		...kdoc(
-			'Загружает аватар и баннер параллельно. Баннер необязателен: его сбой не отменяет',
-			'загрузку аватара, вместо баннера возвращается null. Сбой аватара выходит из функции.'
+			'Загружает аватар и баннер параллельно; отмена вызывающей корутины отменяет обе загрузки. Баннер',
+			'необязателен: его сбой с IOException не отменяет аватар, вместо баннера — null. Сбой аватара выходит из функции.'
 		),
 		'suspend fun loadHeader(avatar: suspend () -> String, banner: suspend () -> String): Pair<String, String?> =',
 		'    supervisorScope {',
@@ -280,7 +287,13 @@ const LOAD_HEADER: Fn = {
 		'val header = loadHeader({ yield(); yield(); "me.png" }, { yield(); throw IOException("no banner") })',
 		'check(header == ("me.png" to null)) { "loadHeader: $header" }',
 		'val avatarFailed = try { loadHeader({ yield(); throw IOException("no avatar") }, { "ad.png" }); false } catch (e: IOException) { true }',
-		'check(avatarFailed) { "loadHeader: the failure of the avatar was swallowed" }'
+		'check(avatarFailed) { "loadHeader: the failure of the avatar was swallowed" }',
+		'var bannerLoaded = false',
+		'val headerScreen = launch { loadHeader({ awaitCancellation() }, { yield(); yield(); bannerLoaded = true; "ad.png" }) }',
+		'yield()',
+		'headerScreen.cancelAndJoin()',
+		'repeat(5) { yield() }',
+		'check(!bannerLoaded) { "loadHeader: the banner outlived the cancellation" }'
 	],
 	defects: [
 		{
@@ -334,8 +347,8 @@ const START_POLLING: Fn = {
 	name: 'startPolling',
 	lines: [
 		...kdoc(
-			'Запускает опрос сервера в [scope] экрана: [ticks] раз вызывает [refresh].',
-			'После отмены scope новых вызовов refresh нет.'
+			'Запускает опрос сервера: [ticks] раз вызывает [refresh]. Опрос — дочерняя корутина',
+			'[scope] экрана: отмена scope отменяет и опрос.'
 		),
 		'fun startPolling(scope: CoroutineScope, ticks: Int, refresh: suspend (Int) -> Unit): Job =',
 		'    scope.launch {',
@@ -433,34 +446,36 @@ const INDEX_MESSAGES: Fn = {
 	name: 'indexMessages',
 	lines: [
 		...kdoc(
-			'Индексирует сообщения по одному в [index]. Если [stop] вернул true, индексация',
-			'отменяется: следующие сообщения не индексируются.'
+			'Индексирует сообщения по одному в [index] и сообщает о каждом в [onIndexed]; сама индексация',
+			'не приостанавливается. Если вызывающую корутину отменили, следующие сообщения не индексируются.'
 		),
-		'suspend fun indexMessages(messages: List<String>, index: MutableList<String>, stop: (String) -> Boolean) =',
-		'    coroutineScope {',
-		'        launch {',
-		'            var i = 0',
-		'            while (isActive && i < messages.size) {',
-		'                index.add(messages[i])',
-		'                if (stop(messages[i])) cancel()',
-		'                i += 1',
-		'            }',
-		'        }.join()',
-		'    }'
+		'suspend fun indexMessages(messages: List<String>, index: MutableList<String>, onIndexed: (String) -> Unit) {',
+		'    var i = 0',
+		'    while (currentCoroutineContext().isActive && i < messages.size) {',
+		'        index.add(messages[i])',
+		'        onIndexed(messages[i])',
+		'        i += 1',
+		'    }',
+		'}'
 	],
 	checks: [
 		'val index = mutableListOf<String>()',
-		'indexMessages(listOf("hi", "spam", "bye", "ok"), index) { it == "spam" }',
-		'check(index == listOf("hi", "spam")) { "indexMessages: $index" }'
+		'lateinit var indexer: Job',
+		'indexer = launch { indexMessages(listOf("hi", "spam", "bye", "ok"), index) { if (it == "spam") indexer.cancel() } }',
+		'indexer.join()',
+		'check(index == listOf("hi", "spam")) { "indexMessages: $index" }',
+		'val indexedAll = mutableListOf<String>()',
+		'indexMessages(listOf("a", "b"), indexedAll) { }',
+		'check(indexedAll == listOf("a", "b")) { "indexMessages: $indexedAll" }'
 	],
 	defects: [
 		{
 			kind: 'cooperative',
-			edit: { line: 8, text: '            while (i < messages.size) {' },
-			neighbour: { line: 11, text: '                i++' }
+			edit: { line: 6, text: '    while (i < messages.size) {' },
+			neighbour: { line: 9, text: '        i++' }
 		}
 	],
-	bait: { line: 10, text: '                if (stop(messages[i])) this.cancel()' }
+	bait: { line: 7, text: '        index += messages[i]' }
 };
 
 const COMPRESS_ALL: Fn = {
@@ -525,7 +540,7 @@ const EDIT_NOTE: Fn = {
 	defects: [
 		{
 			kind: 'cleanup',
-			edit: { line: 8, text: '        save(draft.toString())' },
+			edit: { line: 8, text: '        withContext(Dispatchers.IO) { save(draft.toString()) }' },
 			neighbour: { line: 6, text: '        while (currentCoroutineContext().isActive) edit(draft)' }
 		}
 	],
@@ -536,12 +551,12 @@ const HOLD_CHAT: Fn = {
 	name: 'holdChat',
 	lines: [
 		...kdoc(
-			'Держит соединение чата до отмены. При отмене отправляет серверу "bye" (send',
-			'приостанавливается) и только после этого записывает "closed" в [log].'
+			'Отправляет серверу "hello" и держит соединение чата до отмены. При отмене, в том числе во время',
+			'отправки "hello", отправляет "bye" (send приостанавливается) и только после этого записывает "closed" в [log].'
 		),
 		'suspend fun holdChat(log: MutableList<String>, send: suspend (String) -> Unit) {',
-		'    send("hello")',
 		'    try {',
+		'        send("hello")',
 		'        awaitCancellation()',
 		'    } finally {',
 		'        withContext(NonCancellable) { send("bye") }',
@@ -555,16 +570,22 @@ const HOLD_CHAT: Fn = {
 		'val chat = launch { holdChat(chatLog) { yield(); sent.add(it) } }',
 		'repeat(3) { yield() }',
 		'chat.cancelAndJoin()',
-		'check(sent == listOf("hello", "bye") && chatLog == listOf("closed")) { "holdChat: $sent $chatLog" }'
+		'check(sent == listOf("hello", "bye") && chatLog == listOf("closed")) { "holdChat: $sent $chatLog" }',
+		'sent.clear()',
+		'chatLog.clear()',
+		'val early = launch { holdChat(chatLog) { yield(); sent.add(it) } }',
+		'yield()',
+		'early.cancelAndJoin()',
+		'check(sent == listOf("bye") && chatLog == listOf("closed")) { "holdChat: cancelled during hello $sent $chatLog" }'
 	],
 	defects: [
 		{
 			kind: 'cleanup',
-			edit: { line: 9, text: '        send("bye")' },
+			edit: { line: 9, text: '        withContext(Dispatchers.IO) { send("bye") }' },
 			neighbour: { line: 10, text: '        log += "closed"' }
 		}
 	],
-	bait: { line: 5, text: '    send("hello".trim())' }
+	bait: { line: 6, text: '        send("hello".trim())' }
 };
 
 /** The functions a module of each level is made of; any of them may carry the defect of its kind. */
@@ -682,9 +703,15 @@ export function build(input: GenerateInput): Built {
 	const instance = makeInstance(descriptor, input, {
 		statement: {
 			markdown:
-				'Модуль Android-приложения на Kotlin (kotlinx.coroutines). У каждой функции в KDoc записана её спецификация. ' +
-				'Ровно одна строка модуля нарушает спецификацию своей функции: если заменить только её, все функции будут ' +
-				'работать по спецификации. Введите номер этой строки (нумерация с 1).',
+				'Модуль Android-приложения на Kotlin 2.4 (JVM 21, kotlinx.coroutines). У каждой функции в KDoc записана её ' +
+				'спецификация. Контракт всего модуля: функции и их колбэки выполняются в одном потоке (диспетчер ' +
+				'`runBlocking`); приостанавливающиеся колбэки (`suspend`-параметры) сами корутины не отменяют — отмена ' +
+				'приходит извне, пока колбэк приостановлен, или из обычного (не `suspend`) колбэка; приостановка колбэков ' +
+				'отменяема, как у `delay`: при отмене корутины во время приостановки колбэк бросает `CancellationException`. Ровно одна строка модуля нарушает спецификацию своей функции. Введите номер этой строки ' +
+				'(нумерация с 1). Если исправить можно в нескольких строках — засчитывается любая из них, где замена одной ' +
+				'инструкцией восстанавливает спецификацию. Исправление — одна простая инструкция того же вида, что исправляемая ' +
+				'строка: не добавляйте конструкций, которых в ней нет (новые лямбды, `?.let`/`?:`-цепочки, `if`-выражения, ' +
+				'обёртки, новые функции), и не переносите в неё логику из другой строки.',
 			code: { language: 'kotlin', source: m.source }
 		},
 		answer: { kind: 'line_no', value: m.answer }

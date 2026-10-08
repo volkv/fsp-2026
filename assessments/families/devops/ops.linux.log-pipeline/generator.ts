@@ -468,7 +468,7 @@ export function build(input: GenerateInput): Built {
 					...s.log.map(line),
 					'```',
 					'',
-					'Скрипт запущен в bash с локалью `LC_ALL=C` (строки сравниваются побайтно). Что он напечатает? Введите вывод построчно, как он появится на экране.'
+					'Скрипт запущен в GNU bash 5.2 с локалью `LC_ALL=C` (строки сравниваются побайтно); `sort`, `uniq`, `cut`, `head` и `tail` — из GNU coreutils 9, `grep` — GNU grep. Что он напечатает? Введите вывод построчно, как он появится на экране.'
 				].join('\n'),
 				code: { language: 'shell', source: script }
 			},

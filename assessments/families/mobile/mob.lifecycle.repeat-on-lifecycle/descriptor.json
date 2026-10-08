@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "middle",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "f2114e4bafd45ac86fc081d587dfcf30d3ebd495c4232829f1bdcf09517055a5"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.5,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "f2114e4bafd45ac86fc081d587dfcf30d3ebd495c4232829f1bdcf09517055a5"
+					}
+				],
+				"mean": 0.55
+			},
 			"constructive": {
 				"lifecycleEvents": "2–6",
 				"values": "3–14",
@@ -42,7 +59,24 @@
 		},
 		{
 			"grade": "senior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "f2114e4bafd45ac86fc081d587dfcf30d3ebd495c4232829f1bdcf09517055a5"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.4,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "f2114e4bafd45ac86fc081d587dfcf30d3ebd495c4232829f1bdcf09517055a5"
+					}
+				],
+				"mean": 0.5
+			},
 			"constructive": {
 				"lifecycleEvents": "2–9",
 				"values": "3–14",
@@ -192,6 +226,28 @@
 		"answerCollision": 0.0011,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Прежнее замечание while-subscribed устранено: показанные паузы 1900, 800 и 2700 мс при stopTimeoutMillis=2000 содержат оба отношения к таймауту. На всех 200 проверенных сидах одновременно есть короткая и длинная пауза. Замечание о Senior-трассировке снято решением ведущего 1.",
+					"Пересчёт: все 8 показанных последовательностей независимо вычислены событийным скриптом Python 3.12 по временам из условия: отмена и перезапуск холодного потока, приостановленная задержка launchWhenStarted, текущее значение StateFlow, таймаут upstream, сброс replay и конфляция медленного сборщика. Ответы совпали; дополнительно совпали независимые расчёты на 200 сидах каждого класса, все применимые ответы 15 ошибочных решений отличаются. Правила таймаута и replay сверены с https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/-sharing-started/-companion/-while-subscribed.html, конфляция — с https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/-state-flow/. sourceSha256 проверен. Android, Kotlin/JVM, фактическое исполнение lifecycle/kotlinx.coroutines и штатные ворота не запускались.",
+					"Angoff: Middle 0.60 — полный ответ за 360 с требует различать перезапуск и приостановку, а также повтор текущего значения при подписке. Senior 0.55 — за 480 с добавляются две длительности паузы, кэш и конфляция; в показанных классах до 13 строк, одна ошибка обнуляет ответ. Оценки относятся к binary и поставлены заново."
+				],
+				"sourceSha256": "f2114e4bafd45ac86fc081d587dfcf30d3ebd495c4232829f1bdcf09517055a5"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Повторный раунд, полное ревью. Замечание про пустую короткую паузу в while-subscribed снято: показанный экземпляр теперь содержит паузы 1900 мс (короче таймаута 2000) и 2700, 2600 мс (длиннее). Пересчитал новый экземпляр вручную (0, 5, 11, 14, 17, 20, 23, 26, 29, 35, 5, 8) и остальные семь без изменений: все совпали с эталоном. Реальные AndroidX и kotlinx.coroutines не запускал.",
+					"Замечание «Senior — трассировка» снято решением ведущего (п. 1); сложность учтена в Angoff. Бинарная рубрика при 12-13 значениях ответа остаётся жёсткой."
+				],
+				"sourceSha256": "f2114e4bafd45ac86fc081d587dfcf30d3ebd495c4232829f1bdcf09517055a5"
+			}
+		]
 	}
 }

@@ -8,6 +8,10 @@ import { insertRows, sqlText } from '../../_lib/sql.ts';
 
 const descriptor = readDescriptor(import.meta.url);
 
+/** The answer lines are compared as text: the separator is fixed exactly. */
+const ROW_SPACING =
+	'Строки ответа сравниваются как текст: значения столбцов разделяются ровно так — пробел, черта, пробел, без лишних пробелов вокруг черты; пробелы внутри значений сохраняются как есть.';
+
 const REQUIRED: Required = {
 	'intern/null-order': ['nulls-largest'],
 	'intern/limit-offset': ['limit-comma-swapped', 'offset-one-based'],
@@ -187,7 +191,8 @@ function likeCase(rng: Rng): SqlItem {
 	return {
 		setup,
 		query: `SELECT id, login FROM users WHERE login LIKE ${sqlText(pattern)} ORDER BY id;`,
-		statement: 'Поиск контакта по логину вызывает метод DAO с этим запросом. Что вернёт запрос?',
+		statement:
+			'Поиск контакта по логину вызывает метод DAO с этим запросом. Соединение открыто с настройками SQLite по умолчанию: кроме показанных в скрипте, PRAGMA не выполнялись. Что вернёт запрос?',
 		wrong: {
 			'like-case-sensitive': `SELECT id, login FROM users WHERE login GLOB ${sqlText(glob)} ORDER BY id;`
 		}
@@ -366,7 +371,10 @@ const MAKERS: Record<string, (rng: Rng) => SqlItem> = {
 export function build(input: GenerateInput): Built {
 	const make = MAKERS[`${input.grade}/${input.classId}`];
 	if (!make) throw new Error(`${descriptor.key}: no class ${input.grade}/${input.classId}`);
-	return buildSql(descriptor, input, REQUIRED, make);
+	return buildSql(descriptor, input, REQUIRED, (rng) => {
+		const item = make(rng);
+		return { ...item, statement: `${item.statement} ${ROW_SPACING}` };
+	});
 }
 
 export function generate(input: GenerateInput): ItemInstance {

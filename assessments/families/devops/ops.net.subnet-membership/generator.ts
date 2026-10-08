@@ -42,6 +42,7 @@ interface Rules {
 	dottedOnesOctets: boolean;
 	longestOnly: boolean;
 	p2pLikeOthers: boolean;
+	noHostIn32: boolean;
 }
 
 const RIGHT: Rules = {
@@ -50,7 +51,8 @@ const RIGHT: Rules = {
 	startFromGiven: false,
 	dottedOnesOctets: false,
 	longestOnly: false,
-	p2pLikeOthers: false
+	p2pLikeOthers: false,
+	noHostIn32: false
 };
 
 function effectivePrefix(s: Subnet, rules: Rules): number {
@@ -67,6 +69,7 @@ function contains(s: Subnet, address: number, question: Params['question'], rule
 	const hi = lo + blockSize(prefix) - 1;
 	if (address < lo || address > hi) return false;
 	if (question === 'member') return true;
+	if (prefix === 32 && rules.noHostIn32) return false;
 	if (prefix >= 31 && !rules.p2pLikeOthers) return true;
 	if (rules.hostsIncludeEndpoints) return true;
 	return address !== lo && address !== hi;
@@ -197,12 +200,21 @@ function scenario(rng: Rng, grade: string, classId: string): Params {
 		(a) => !subnets.some((s) => s.address === a && classId === 'interface-address')
 	);
 	const shown = rng.shuffle(subnets);
+	let addresses: number[];
+	if (classId === 'p2p-hosts') {
+		// The single address of the /32 and an address of the /31 are always asked about.
+		const single = subnets.find((s) => s.prefix === 32)?.address ?? 0;
+		const p2p = subnets.find((s) => s.prefix === 31)?.address ?? 0;
+		const must = [...new Set([single, p2p + rng.int(0, 1)])];
+		const rest = pool.filter((a) => !must.includes(a));
+		addresses = rng.shuffle([...must, ...rng.sample(rest, Math.min(rest.length, 3))]);
+	} else addresses = rng.sample(pool, Math.min(pool.length, 4));
 	return {
 		question: classId === 'p2p-hosts' ? 'host' : 'member',
 		multi: true,
 		iface: classId === 'interface-address',
 		subnets: shown,
-		addresses: rng.sample(pool, Math.min(pool.length, classId === 'p2p-hosts' ? 5 : 4))
+		addresses
 	};
 }
 
@@ -285,7 +297,8 @@ const WRONG: Record<string, Partial<Rules>> = {
 	'start-from-given': { startFromGiven: true },
 	'dotted-ones-octets': { dottedOnesOctets: true },
 	'longest-only': { longestOnly: true },
-	'p2p-like-others': { p2pLikeOthers: true }
+	'p2p-like-others': { p2pLikeOthers: true },
+	'no-host-in-32': { noHostIn32: true }
 };
 
 /** The misconceptions every instance of a class must expose. */
@@ -296,7 +309,7 @@ const REQUIRED: Record<string, string[]> = {
 	'intern/interface-address': ['start-from-given'],
 	'junior/dotted-masks': ['dotted-ones-octets'],
 	'junior/nested': ['longest-only'],
-	'junior/p2p-hosts': ['p2p-like-others', 'hosts-include-endpoints'],
+	'junior/p2p-hosts': ['p2p-like-others', 'no-host-in-32', 'hosts-include-endpoints'],
 	'junior/interface-address': ['start-from-given', 'octet-round-down']
 };
 

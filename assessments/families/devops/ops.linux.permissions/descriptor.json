@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "427ec7df2ae02afcf3a8e51c62a167be195037414c34f648f612ad7be64afb86"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "427ec7df2ae02afcf3a8e51c62a167be195037414c34f648f612ad7be64afb86"
+					}
+				],
+				"mean": 0.55
+			},
 			"constructive": { "commands": "4–6", "rules": "1–2", "files": "3–5" },
 			"constructiveRank": 2,
 			"timeNormSec": 240,
@@ -37,7 +54,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.5,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "427ec7df2ae02afcf3a8e51c62a167be195037414c34f648f612ad7be64afb86"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.4,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "427ec7df2ae02afcf3a8e51c62a167be195037414c34f648f612ad7be64afb86"
+					}
+				],
+				"mean": 0.45
+			},
 			"constructive": { "commands": "2–9", "rules": "2–3", "files": "3–7" },
 			"constructiveRank": 4,
 			"timeNormSec": 300,
@@ -127,7 +161,7 @@
 		{ "id": "X-as-x", "defect": "считает, что X даёт x всем файлам", "mustBeCaught": true },
 		{
 			"id": "X-original-mode",
-			"defect": "проверяет X по правам до chmod, не учитывая x, добавленный предыдущей частью режима",
+			"defect": "проверяет X по правам до chmod, не учитывая x, добавленный или снятый предыдущими частями режима",
 			"mustBeCaught": true
 		},
 		{ "id": "X-dirs-only", "defect": "считает, что X действует только на каталоги", "mustBeCaught": true },
@@ -162,6 +196,30 @@
 		"answerCollision": 0.0004,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Прежнее существенное замечание устранено: названы GNU coreutils 9, части символьного chmod явно применяются по очереди, а X смотрит на режим после предыдущих частей. Показанный chmod-recursive поэтому однозначно снимает x у обычных файлов до a+X.",
+					"Независимо исполнил все 8 показанных экземпляров и ещё 152 (20 сидов класса) GNU bash 5.2.21/coreutils 9.4 на исходных правах; проверил порядок stat, umask, chmod, cp, mkdir и install. Ответы совпали; все 18 видов применимых ошибочных ответов отличаются. ACL, доступ от обычного пользователя, другие реализации утилит и полные ворота на 200 сидах класса не проверял.",
+					"Angoff: intern 0.55 — cp поверх файла и mkdir -m сложнее обычного снятия битов umask; junior 0.50 — X между частями режима, область umask и chmod без who требуют специальных знаний. За 240/300 с нужно верно указать все 3–7 режимов при бинарной рубрике."
+				],
+				"sourceSha256": "427ec7df2ae02afcf3a8e51c62a167be195037414c34f648f612ad7be64afb86"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Повторный раунд, полное ревью. Существенное замечание снято: в условии chmod-recursive теперь сказано, что части режима применяются по очереди и `X` смотрит на права после предыдущих частей, названы GNU bash 5.2 и GNU coreutils 9. Второе прочтение (`X` по исходному режиму) условием закрыто.",
+					"Пересчитал вручную показанные экземпляры, по 80 сидов каждого класса прогнал реальные bash, chmod, cp, install, mkdir (расхождений 0). Не проверял от имени обычного пользователя.",
+					"Мелочь: все umask генератора имеют нулевой разряд владельца, поэтому правило `u+wx` для родителей mkdir -p не проверяется.",
+					"Мелочь: для junior остаются трудными chmod +x без «кому» под umask и install по умолчанию 755; отражено в Angoff."
+				],
+				"sourceSha256": "427ec7df2ae02afcf3a8e51c62a167be195037414c34f648f612ad7be64afb86"
+			}
+		]
 	}
 }

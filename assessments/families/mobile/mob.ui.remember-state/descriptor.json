@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.65,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "5bce692e0a09c098e1ab0722fa299adbaca0ec3d1e6e315c4bd401d2994378b2"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "5bce692e0a09c098e1ab0722fa299adbaca0ec3d1e6e315c4bd401d2994378b2"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": { "events": "5–7", "mechanisms": 1, "stateHolders": "1–2" },
 			"constructiveRank": 2,
 			"timeNormSec": 180,
@@ -37,7 +54,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "5bce692e0a09c098e1ab0722fa299adbaca0ec3d1e6e315c4bd401d2994378b2"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.5,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "5bce692e0a09c098e1ab0722fa299adbaca0ec3d1e6e315c4bd401d2994378b2"
+					}
+				],
+				"mean": 0.55
+			},
 			"constructive": { "events": "6–8", "mechanisms": 2, "stateHolders": "2–4" },
 			"constructiveRank": 3,
 			"timeNormSec": 260,
@@ -55,7 +89,7 @@
 				{
 					"id": "branch-saveable",
 					"form": "anchor",
-					"description": "rememberSaveable внутри if: поворот значение сохраняет, уход ветки из композиции — нет; флаг ветки на remember сбрасывается поворотом"
+					"description": "rememberSaveable внутри if: поворот значение сохраняет, уход ветки из композиции — нет; флаг ветки хранится на remember (поворот возвращает его начальное значение) или на rememberSaveable (поворот его сохраняет)"
 				},
 				{
 					"id": "list-key",
@@ -156,6 +190,28 @@
 		"answerCollision": 0.0014,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Прежнее замечание к метаданным branch-saveable устранено: описание допускает флаг и на remember, и на rememberSaveable, как генератор. Замечание к внутренним пробелам снято решением ведущего 2: условие задаёт формат каждой строки через Text или явное представление имя:число.",
+					"Пересчёт: все 8 показанных последовательностей независимо вычислены Python 3.12 по коду условия, жизни ветки, remember/rememberSaveable, смене ключа, повороту и позиционной/ключевой идентичности элементов; ответы совпали. Дополнительно совпали расчёты на 200 сидах каждого класса; все применимые ответы 10 ошибочных решений отличаются. Правила remember и пересоздания сверены с https://developer.android.com/develop/ui/compose/state. sourceSha256 проверен. Реальный Android/Compose, Kotlin/JVM, продуктовый чекер и штатные ворота не запускались.",
+					"Angoff: Intern 0.65 — 5–7 событий одного механизма за 180 с доступны пограничному кандидату, но нужна вся последовательность. Junior 0.55 — за 260 с добавляются перенос состояния между позициями, ключи и восстановление ветки; 6–8 безошибочных строк при binary существенно повышают риск ошибки. Оценки поставлены заново."
+				],
+				"sourceSha256": "5bce692e0a09c098e1ab0722fa299adbaca0ec3d1e6e315c4bd401d2994378b2"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Повторный раунд, полное ревью. Единственная содержательная правка — описание класса branch-saveable, теперь допускающее флаг на remember или на rememberSaveable, согласовано с генератором. Условия, коды и ответы 8 экземпляров не менялись; прежний ручной пересчёт (все 8 последовательностей) остаётся в силе. Замечание о пробелах снято решением ведущего (п. 2): формат строки в условии задан («два числа через пробел»). Реальный Compose не запускал.",
+					"Мелочь: в показанном branch-saveable кнопка taps не нажимается, поэтому сброс remember при повороте там не проверяется; это зависит от сида."
+				],
+				"sourceSha256": "5bce692e0a09c098e1ab0722fa299adbaca0ec3d1e6e315c4bd401d2994378b2"
+			}
+		]
 	}
 }

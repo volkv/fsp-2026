@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.65,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "d3b5b6917bf23a7710faf7bbfb37e967081d3af8b8a394c5e833ef577b3cb9f4"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.7,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "d3b5b6917bf23a7710faf7bbfb37e967081d3af8b8a394c5e833ef577b3cb9f4"
+					}
+				],
+				"mean": 0.7
+			},
 			"constructive": {
 				"instructions": "5–8",
 				"rules": "exec- и shell-форма, ENTRYPOINT + CMD, аргументы docker run, --entrypoint"
@@ -29,18 +46,35 @@
 				{
 					"id": "cmd-only",
 					"form": "anchor",
-					"description": "только CMD: аргументы `docker run` заменяют всю команду"
+					"description": "только CMD: аргументы `docker run` заменяют всю команду, без аргументов действует последняя CMD файла"
 				},
 				{
 					"id": "entrypoint-flag",
 					"form": "X",
-					"description": "`--entrypoint` заменяет ENTRYPOINT и отбрасывает CMD образа"
+					"description": "`--entrypoint` заменяет ENTRYPOINT (в любой форме) и отбрасывает CMD образа; аргументы `docker run` идут новой программе"
 				}
 			]
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.7,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "d3b5b6917bf23a7710faf7bbfb37e967081d3af8b8a394c5e833ef577b3cb9f4"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "d3b5b6917bf23a7710faf7bbfb37e967081d3af8b8a394c5e833ef577b3cb9f4"
+					}
+				],
+				"mean": 0.65
+			},
 			"constructive": {
 				"instructions": "5–8",
 				"rules": "наследование ENTRYPOINT/CMD/USER/WORKDIR от базы, сброс унаследованного CMD, -u и -w"
@@ -120,6 +154,11 @@
 			"defect": "считает, что `--entrypoint` сохраняет CMD образа",
 			"mustBeCaught": true
 		},
+		{
+			"id": "entrypoint-drops-args",
+			"defect": "считает, что при `--entrypoint` аргументы `docker run` программе не передаются",
+			"mustBeCaught": true
+		},
 		{ "id": "first-wins", "defect": "берёт первую инструкцию CMD, а не последнюю", "mustBeCaught": true },
 		{ "id": "exec-expands-vars", "defect": "подставляет переменные окружения в exec-форму", "mustBeCaught": true },
 		{
@@ -152,11 +191,35 @@
 	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
 	"gates": {
 		"reference": { "seeds": 200, "failures": 0 },
-		"wrongSolutions": { "mustBeCaught": 12, "caught": 12 },
+		"wrongSolutions": { "mustBeCaught": 13, "caught": 13 },
 		"hiddenTestsMutationScore": null,
-		"answerCollision": 0.027,
+		"answerCollision": 0.0138,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Прежние классы-пустышки исправлены. В 200 сидах Intern/cmd-only 108 запусков без аргументов требуют последнюю CMD файла, 92 — её замены аргументами запуска. В entrypoint-flag 83 запуска содержат аргументы после образа, а 86 используют shell-форму ENTRYPOINT образа; новый ошибочный вариант entrypoint-drops-args отвергается там, где аргументы есть.",
+					"Angoff: intern 0.65, junior 0.70 — вероятность полностью верных argv, а на Junior также USER и WORKDIR, при binary за 240/300 секунд. Shell-форма требует сохранить команду одним полем; наследование, сброс CMD и относительный WORKDIR добавляют риск пропуска строки.",
+					"Пересчитал все 8 показанных экземпляров и по 200 сидов каждого класса независимой интерпретацией инструкций и docker run на Python 3.12: все 1600 ответов совпали. Исполнил 8 эталонов и сверил 2902 применимых ошибочных ответа. Наследование и сброс CMD сопоставлены с Dockerfile reference: https://docs.docker.com/reference/dockerfile/#understand-how-cmd-and-entrypoint-interact. Реальный Docker и программы точек входа не запускал."
+				],
+				"sourceSha256": "d3b5b6917bf23a7710faf7bbfb37e967081d3af8b8a394c5e833ef577b3cb9f4"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Прежние существенные замечания в основном устранены. Intern/cmd-only: в 86 из 150 сидов аргументов `docker run` нет, ответ — последняя CMD файла при нескольких CMD; ответ больше не сводится к копированию аргументов. Intern/entrypoint-flag: аргументы после образа есть в 66 из 150, ENTRYPOINT образа в shell-форме в 65 из 150, добавлено ошибочное решение entrypoint-drops-args.",
+					"Пересчитано независимым решателем по правилам условия на 150 сидах каждого из восьми классов (intern: exec-pair, shell-entrypoint, cmd-only, entrypoint-flag; junior: inherit-entrypoint, reset-cmd, exec-ep-shell-cmd, user-workdir): расхождений с эталоном нет. Реальный docker не запускал.",
+					"Мелочь: в entrypoint-flag ответ по-прежнему равен значению флага плюс аргументам из самой команды `docker run` (на 84 из 150 сидов это один токен): верный ответ получается без чтения Dockerfile. Класс проверяет лишь знание того, что CMD отбрасывается; для X допустимо, но стоит иногда ставить аргументы так, чтобы они расходились с CMD по смыслу.",
+					"Мелочь: у junior-классов reset-cmd и exec-ep-shell-cmd аргументов `docker run` нет ни в одном сиде; правило про аргументы проверяют только user-workdir и inherit-entrypoint."
+				],
+				"sourceSha256": "d3b5b6917bf23a7710faf7bbfb37e967081d3af8b8a394c5e833ef577b3cb9f4"
+			}
+		]
 	}
 }

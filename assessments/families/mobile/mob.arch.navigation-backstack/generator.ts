@@ -255,7 +255,9 @@ function tabScenario(rng: Rng): Scenario {
 	for (let i = 0; i < count; i += 1) {
 		const stack = run({ start: 'home', graphs: [], tabs, ops }, RIGHT);
 		const roll = rng.next();
-		if (roll < 0.28) ops.push({ kind: 'tab', tab: rng.pick(tabs) });
+		// Back on the root of the start tab would close the app: the scenario never presses it there.
+		const startRoot = stack.length === 1 && stack[0] === tabs[0];
+		if (roll < 0.28 || (roll < 0.42 && startRoot)) ops.push({ kind: 'tab', tab: rng.pick(tabs) });
 		else if (roll < 0.42) ops.push({ kind: 'back' });
 		else {
 			// Inside a tab: a new or a stacked route, maybe popping up to an entry (the tab root is never popped itself).
@@ -347,7 +349,7 @@ function describe(s: Scenario): string {
 			'',
 			'- `selectTab(t)`: стек текущей вкладки сохраняется как есть, на экране — сохранённый стек вкладки `t` (при первом выборе — только её корень); выбор текущей вкладки ничего не меняет;',
 			'- `navigateInTab(route) { … }`: обычный `navigate` с теми же параметрами, но только в стеке текущей вкладки;',
-			'- `pressBack()`: снимает верхнюю запись стека текущей вкладки; на корне нестартовой вкладки — переход на стартовую вкладку с её сохранённым стеком.',
+			'- `pressBack()`: снимает верхнюю запись стека текущей вкладки; на корне нестартовой вкладки — переход на стартовую вкладку с её сохранённым стеком; на корне стартовой вкладки `pressBack()` закрыл бы приложение — в сценариях его там нет.',
 			'',
 			'Остальное — по документированному поведению Navigation (не на устройстве).',
 			'',

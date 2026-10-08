@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "senior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.7,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "0e0c3278b41c9e9206c567ff6e1c84a1aa4d19eb42d93821bcf573518f3aab3e"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.5,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "0e0c3278b41c9e9206c567ff6e1c84a1aa4d19eb42d93821bcf573518f3aab3e"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": {
 				"operations": "6–11",
 				"options": "popUpTo, inclusive, launchSingleTop",
@@ -115,6 +132,28 @@
 		"answerCollision": 0.0088,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Прежнее существенное замечание о Back на корне стартовой вкладки устранено: условие явно исключает такое событие и объясняет закрытие приложения; ни один из 200 проверенных сценариев tabs его не содержит.",
+					"Пересчитал вручную все четыре показанных экземпляра и своим Python 3.12-решателем по операциям из условия — по 200 сидов каждого класса. Показанные стеки: popup-singletop — onboarding/payment/reviews; tabs — home/cart/order/cart; deep-link — home/payment/reviews; popback-inclusive — search/checkout. Все 800 независимых ответов и Python-эталонов совпали; применимые ошибочные ответы отличаются. Синтетический стек явной ссылки сверил с https://developer.android.com/guide/navigation/design/deep-link. Реальный NavController и сценарии на устройстве не запускал.",
+					"Angoff senior 0.70: 420 с достаточно для 6–11 операций, но одна ошибка в inclusive, верхнем совпадении маршрута или восстановлении вкладки меняет весь binary-ответ."
+				],
+				"sourceSha256": "0e0c3278b41c9e9206c567ff6e1c84a1aa4d19eb42d93821bcf573518f3aab3e"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Повторный раунд: прежнее замечание (pressBack на корне стартовой вкладки) устранено — в правилах сказано, что в сценариях такого Back нет, и на 200 сидах класса tabs он не встречается.",
+					"Независимая модель совпала с ответами генератора на 200 сидах всех четырёх классов; четыре показанных экземпляра пересчитаны вручную. Сам NavController не запускался."
+				],
+				"sourceSha256": "0e0c3278b41c9e9206c567ff6e1c84a1aa4d19eb42d93821bcf573518f3aab3e"
+			}
+		]
 	}
 }

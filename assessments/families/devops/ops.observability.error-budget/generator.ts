@@ -321,7 +321,8 @@ function seniorScenario(rng: Rng, classId: string): Params {
 		p.latencyMs = rng.pick([200, 300, 500, 800]);
 		for (const inc of incidents) {
 			inc.share = 5 * rng.int(1, 8);
-			inc.slow = 5 * rng.int(2, 14);
+			// Failed and slow successful requests are disjoint shares of the same requests.
+			inc.slow = 5 * rng.int(2, Math.min(14, (100 - inc.share) / 5));
 		}
 	}
 	p.incidents = incidents.sort((x, y) => (x.start ?? 0) - (y.start ?? 0));
@@ -330,6 +331,11 @@ function seniorScenario(rng: Rng, classId: string): Params {
 
 /** Whether the drawn scenario has the shape its class promises. */
 function fits(p: Params): boolean {
+	// One stream of requests has one share of errors at a time: incidents with dates never overlap.
+	const dated = p.incidents.filter((i) => i.start !== null).sort((x, y) => (x.start ?? 0) - (y.start ?? 0));
+	if (dated.some((inc, i) => i > 0 && (inc.start ?? 0) < (dated[i - 1]?.start ?? 0) + (dated[i - 1]?.minutes ?? 0)))
+		return false;
+	if (p.incidents.some((i) => i.share + i.slow > 100)) return false;
 	const right = answerOf(p, RIGHT);
 	const [spent, remaining] = right.split(' ').map(Number);
 	if (p.classId === 'partial-share')
@@ -421,9 +427,9 @@ function describe(p: Params): string {
 			`У сервиса \`${p.service}\` два SLO за ${window}:`,
 			'',
 			`- **доступность**: не меньше ${s.slo} % запросов успешны;`,
-			`- **задержка**: не меньше ${s.latencySlo} % запросов — успешные и быстрее ${p.latencyMs} мс.`,
+			`- **задержка**: SLO ${s.latencySlo} % — успешных, но медленных запросов (${p.latencyMs} мс и дольше) не больше ${pct(10000 - p.latencySlo)} % от всех запросов окна.`,
 			'',
-			`Неуспешный запрос расходует только бюджет доступности; успешный, но медленный (${p.latencyMs} мс и дольше) — только бюджет задержки. Бюджет каждого SLO — (100 % − SLO) от всех запросов окна, округлённое вниз до целого числа запросов.`
+			`Неуспешный запрос расходует только бюджет доступности: к SLO задержки он не относится, сколько бы ни длился. Успешный, но медленный запрос расходует только бюджет задержки. Бюджет каждого SLO — (100 % − SLO) от всех запросов окна, округлённое вниз до целого числа запросов.`
 		);
 	} else {
 		lines.push(

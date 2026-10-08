@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.7,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "90f4de4c7b1b933fe3a91635b46a2338fd424e94149b1c0248c8fc528fd9e04c"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.8,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "90f4de4c7b1b933fe3a91635b46a2338fd424e94149b1c0248c8fc528fd9e04c"
+					}
+				],
+				"mean": 0.75
+			},
 			"constructive": { "calls": "3–4", "mechanisms": 1, "mutableReceiver": true, "nestedBlocks": false },
 			"constructiveRank": 2,
 			"timeNormSec": 180,
@@ -37,7 +54,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "90f4de4c7b1b933fe3a91635b46a2338fd424e94149b1c0248c8fc528fd9e04c"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.65,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "90f4de4c7b1b933fe3a91635b46a2338fd424e94149b1c0248c8fc528fd9e04c"
+					}
+				],
+				"mean": 0.65
+			},
 			"constructive": { "calls": "4–5", "mechanisms": 2, "mutableReceiver": true, "nestedBlocks": true },
 			"constructiveRank": 3,
 			"timeNormSec": 240,
@@ -154,6 +188,28 @@
 		"answerCollision": 0.0038,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Все 8 экземпляров пересчитал вручную и исполнил в Kotlin/JVM 2.4.20 на OpenJDK 21: вывод совпал. Отдельно проверены возврат получателя/результата блока, поздняя печать общей ссылки, локальное затенение, ближайший it, внешний this и отрицательное состояние FeedScreen; применимые ошибочные ответы отличаются. 200 дополнительных сидов на класс не проверял.",
+					"Angoff: intern 0.70, junior 0.60 — полный ответ по binary за 180/240 с. Intern отслеживает результат scope-функции и короткое изменение объекта; Junior должен удержать несколько областей видимости и общие ссылки, а одна ошибка разрешения имени меняет несколько полей вывода."
+				],
+				"sourceSha256": "90f4de4c7b1b933fe3a91635b46a2338fd424e94149b1c0248c8fc528fd9e04c"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчёт: все 8 показанных программ скомпилированы и выполнены (Kotlin 2.4, JVM 21), вывод совпал с ответом. Другие сиды не проверял.",
+					"Junior `nested-it` (anchor): порядок вывода в экземпляре обманчив (строка `println(it*3)` из also печатается раньше итоговых), это часть проверяемого знания, условие однозначно.",
+					"Ошибочные решения (let-this, it-outer, member-wins, outer-this-wins) соответствуют типичным заблуждениям."
+				],
+				"sourceSha256": "90f4de4c7b1b933fe3a91635b46a2338fd424e94149b1c0248c8fc528fd9e04c"
+			}
+		]
 	}
 }

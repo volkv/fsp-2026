@@ -151,7 +151,7 @@ describe('catalog', () => {
 	it('opens a specialization only when switched on and released', () => {
 		expect(specializationOpen('backend', new Set(['backend']))).toBe(true);
 		expect(specializationOpen('backend', new Set())).toBe(false);
-		expect(specializationOpen('mobile', new Set(['mobile']))).toBe(false);
+		expect(specializationOpen('mobile', new Set(['backend']))).toBe(false);
 	});
 });
 

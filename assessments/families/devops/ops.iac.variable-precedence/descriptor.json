@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "senior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.7,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "ecd15e4aafc0c98a0142fe380fb861c2083dc0d6c5378bc75d5f96c3eec41f68"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.9,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "ecd15e4aafc0c98a0142fe380fb861c2083dc0d6c5378bc75d5f96c3eec41f68"
+					}
+				],
+				"mean": 0.8
+			},
 			"constructive": {
 				"sources": "5–8",
 				"rules": "default, переменные окружения, terraform.tfvars, *.auto.tfvars, -var и -var-file",
@@ -91,6 +108,31 @@
 		"answerCollision": 0.0062,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчитано вручную по порядку источников из условия: все 4 показанных экземпляра (auto-order, cli-order, env-lowest, count-off) дают ответ, совпавший с ожидаемым; лексикографический порядок 25-scale < 8-zones < 9-override и порядок -var/-var-file проверены отдельно. Генератор и 200 сидов не запускал.",
+					"Мелочь: правило из условия совпадает с документацией Terraform (env, terraform.tfvars, *.auto.tfvars по алфавиту, -var/-var-file по порядку), упрощений нет; terraform.tfvars.json не упомянут, но в примерах не встречается.",
+					"Мелочь: в классе env-lowest ответ ('7 2 false s2.small 0') зависит от env только через enabled=false, которое больше никто не перекрывает; класс рабочий, но 'env-highest' ловится в основном по replicas/zones, а не по итогу count.",
+					"Второй раунд Angoff, senior: было 0,65, стало 0,7 — порядок источников и опций перечислен, пять полей ответа; самая короткая процедура из группы."
+				],
+				"sourceSha256": "ecd15e4aafc0c98a0142fe380fb861c2083dc0d6c5378bc75d5f96c3eec41f68"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Узкий повторный раунд: прежнее замечание о трассировке на Senior снято решением ведущего 1 в notes.md. Порядок пяти полей ответа, источников значений и опций командной строки указан явно; новых противоречий между условием и эталонами нет.",
+					"Angoff senior = 0.90 — окончательная оценка предыдущего раунда сохранена, как требуется для неизменённого семейства.",
+					"Вручную повторно пересчитал все 4 показанных экземпляра по порядку источников: default, TF_VAR, terraform.tfvars, лексикографические auto.tfvars, затем -var/-var-file. Итоги и count совпали; дополнительно исполнил 4 эталона на полных восстановленных входах Python 3.12. Настоящий Terraform и 200 сидов каждого класса заново не проверял.",
+					"Второй раунд Angoff, senior: было 0.90, стало 0.90 — Оценку сохраняю: порядок всех источников прямо перечислен, требуется вести четыре итоговых значения и выполнить одно умножение либо получить count=0. За 420 с 5–8 источников можно проверить повторно. Лексикографический порядок и порядок CLI остаются основными рисками binary, но длинной зависимой трассы здесь нет. В этом раунде сопоставлены условия, норма времени, binary и обоснования обоих рецензентов; эталоны, генератор и ворота заново не запускались."
+				],
+				"sourceSha256": "ecd15e4aafc0c98a0142fe380fb861c2083dc0d6c5378bc75d5f96c3eec41f68"
+			}
+		]
 	}
 }

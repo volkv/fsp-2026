@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.65,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "82ee45128392e4c73f74aae6c497768b71dc62be9203c283633b24efef7b7961"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.7,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "82ee45128392e4c73f74aae6c497768b71dc62be9203c283633b24efef7b7961"
+					}
+				],
+				"mean": 0.7
+			},
 			"constructive": { "deployments": 2, "rules": "maxSurge вверх, maxUnavailable вниз, умолчания, Recreate" },
 			"constructiveRank": 3,
 			"timeNormSec": 300,
@@ -29,7 +46,24 @@
 		},
 		{
 			"grade": "middle",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.35,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "82ee45128392e4c73f74aae6c497768b71dc62be9203c283633b24efef7b7961"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "82ee45128392e4c73f74aae6c497768b71dc62be9203c283633b24efef7b7961"
+					}
+				],
+				"mean": 0.45
+			},
 			"constructive": {
 				"replicas": "4–8",
 				"rules": "maxSurge, maxUnavailable, minReadySeconds, progressDeadlineSeconds",
@@ -115,6 +149,30 @@
 		"answerCollision": 0.0079,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Правки учтены: максимум подов в junior считается без Terminating, срыв по сроку в middle задан как 'последнее продвижение + progressDeadlineSeconds'; прежняя неточность формулировки устранена. Пересчитано собственными реализациями (округление maxSurge вверх и maxUnavailable вниз, умолчания 25 %, Recreate; пошаговая модель контроллера с minReadySeconds и сроком): 8 показанных и 1600 сгенерированных экземпляров совпали с ожидаемыми 1600 из 1600; случая 'оба нуля после округления' нет.",
+					"Мелочь: middle — событийная симуляция на 6-8 подов за 480 с, одна ошибка в любом из четырёх значений обнуляет ответ; учтено в Angoff. Реальный контроллер Deployment не запускался.",
+					"Второй раунд Angoff, middle: было 0,3, стало 0,35 — правила срыва и умолчаний теперь явные, но событийная симуляция 6–8 подов с четырьмя полями ответа остаётся трудоёмкой для 480 с."
+				],
+				"sourceSha256": "82ee45128392e4c73f74aae6c497768b71dc62be9203c283633b24efef7b7961"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Прежние замечания устранены: Junior явно исключает Terminating из максимума подов; Middle задаёт момент срыва формулой «последнее продвижение + progressDeadlineSeconds». Упрощение мгновенного создания/удаления и порядок действий контроллера названы в условии.",
+					"Независимо пересчитал Python 3.12/PyYAML все 8 показанных экземпляров и ещё 152 (20 сидов класса): целочисленные округления и умолчания, Recreate и отдельную событийную симуляцию создания, Ready, Available и deadline. Ответы совпали; все 7 видов применимых ошибочных ответов отличаются. Реальный Deployment-контроллер и полные ворота на 200 сидах класса не запускал.",
+					"Angoff: junior 0.70 — четыре числа за 300 с, основные риски в умолчаниях и разных округлениях; middle 0.60 — 480 с на 4–8 подов с разными Ready/Available, весь итог из четырёх полей оценивается бинарно.",
+					"Второй раунд Angoff, middle: было 0.60, стало 0.55 — Снизил оценку: за 480 с нужно вести события 4–8 подов, отдельно Ready и Available, повторять создание/удаление до устойчивого состояния и обновлять время последнего продвижения для deadline. Четыре поля ответа короткие, но момент завершения зависит от всей очереди событий; в mixed и stuck легко ошибиться одним шагом, что обнуляет binary. В этом раунде сопоставлены условия, норма времени, binary и обоснования обоих рецензентов; эталоны, генератор и ворота заново не запускались."
+				],
+				"sourceSha256": "82ee45128392e4c73f74aae6c497768b71dc62be9203c283633b24efef7b7961"
+			}
+		]
 	}
 }

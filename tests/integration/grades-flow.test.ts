@@ -118,11 +118,11 @@ describe('the survey', () => {
 		const closed = await refusal(submitSurvey(db, sources({ released: ['frontend'] }), subject, backend, meta));
 		expect(closed.status).toBe(422);
 		expect(closed.details).toEqual([expect.objectContaining({ code: 'specialization_closed' })]);
-		// Mobile is switched off in the catalog: a release would not open it.
+		// Mobile is switched on in the catalog, but without a released bank of its own it stays closed.
 		const mobile = await refusal(
 			submitSurvey(
 				db,
-				sources({ released: ['mobile'] }),
+				sources({ released: ['backend'] }),
 				subject,
 				{ ...backend, specialization: 'mobile', declaredSkillKeys: ['kotlin'] },
 				meta

@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.75,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "4a1a145bf27bf82bf59939821f8fc13394759fb07a636e7e10b3681bcd615218"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.75,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "4a1a145bf27bf82bf59939821f8fc13394759fb07a636e7e10b3681bcd615218"
+					}
+				],
+				"mean": 0.75
+			},
 			"constructive": {
 				"stages": 1,
 				"instructions": "8–13",
@@ -41,7 +58,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.7,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "4a1a145bf27bf82bf59939821f8fc13394759fb07a636e7e10b3681bcd615218"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "4a1a145bf27bf82bf59939821f8fc13394759fb07a636e7e10b3681bcd615218"
+					}
+				],
+				"mean": 0.65
+			},
 			"constructive": {
 				"stages": "3–4",
 				"instructions": "14–20",
@@ -153,6 +187,29 @@
 		"answerCollision": 0.0303,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Junior, deps-lock (anchor), экземпляр 1: описание класса обещает распространение через FROM и COPY --from, но единственная дочерняя FROM build принадлежит ненужной стадии lint и не влияет на итоговый ответ. Lock-файл и COPY --from действительно влияют; класс не пустой. Чтобы проверять также обещанный механизм FROM, сделайте такую дочернюю стадию необходимой цели либо сузьте описание класса.",
+					"Проверка: все восемь списков строк независимо рассчитаны Python 3.12 через граф необходимых стадий и первую точку инвалидации в каждой; ответы совпали. Отдельно проверены первый RUN после ARG, сохранение кэша ранних сетевых RUN, распространение по FROM/COPY --from и пропуск test/lint. Исполнены авторские программы; все 30 ненулевых ошибочных ответов отличаются. Реальные сборки Docker, наличие утилит в базовых образах и 200 сидов ворот не проверялись.",
+					"Angoff: intern 0.75 — правила полностью даны, требуется найти начало цепочки и выписать четыре-шесть строк за 300 с; junior 0.70 — за 420 с нужно одновременно отследить необходимую цель, несколько независимых стадий и межстадийные зависимости, сохранив весь бинарный список."
+				],
+				"sourceSha256": "4a1a145bf27bf82bf59939821f8fc13394759fb07a636e7e10b3681bcd615218"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчитал независимым решателем по правилам кэша на 150 сидах каждого из восьми классов (intern: copy-all-early, lock-file, run-text, build-arg; junior: builder-source, base-update, deps-lock, unused-stage); расхождений с эталоном нет. Проверил также, что в Dockerfile нет масок (`*`, `?`) в COPY, продолжений строк с `\\`, а упоминание ARG в LABEL как первое использование (50 из 150 сидов build-arg) даёт тот же ответ, что и поведение BuildKit (первый RUN после ARG). Реальный BuildKit не запускал.",
+					"Мелочь: правило 5 («COPY --from перезапускается, если в стадии-источнике что-то перезапускалось») — упрощение относительно BuildKit, но оно записано в условии как правило задачи, поэтому ответ определён.",
+					"Мелочь: на уровне intern ответ — всегда хвост инструкций RUN/COPY/ADD, начиная с первой недействительной; пространство ответов определяется выбором стартовой строки, но answerCollision 0,030 приемлем."
+				],
+				"sourceSha256": "4a1a145bf27bf82bf59939821f8fc13394759fb07a636e7e10b3681bcd615218"
+			}
+		]
 	}
 }

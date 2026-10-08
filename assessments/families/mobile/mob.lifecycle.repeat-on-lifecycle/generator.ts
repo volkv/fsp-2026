@@ -761,6 +761,12 @@ const REQUIRED: Record<string, string[]> = {
 	'senior/replay-expiration': ['keeps-cached-value']
 };
 
+/** Whether the collection pauses (from leaving to coming back) include one shorter and one longer than the timeout. */
+function shortAndLongPause(s: Scenario): boolean {
+	const pauses = s.events.flatMap((e, i) => (e.kind === 'home' ? [(s.events[i + 1] as LcEvent).t - e.t] : []));
+	return pauses.some((p) => p < s.timeout) && pauses.some((p) => p > s.timeout);
+}
+
 function withEnd(s: Scenario, rng: Rng): Scenario {
 	if (s.end > 0) return s;
 	return { ...s, end: lastT(s.events) + rng.int(10, 40) * 100 };
@@ -777,6 +783,7 @@ export function build(input: GenerateInput): Built {
 		if (clash || timers.some((t) => fixed.has(t) || setTimes.has(t)) || [...setTimes].some((t) => fixed.has(t)))
 			continue;
 		if (values.length < 3 || values.length > 14) continue;
+		if (input.classId === 'while-subscribed' && !shortAndLongPause(s)) continue;
 		const answer = values.map(String);
 		const wrong = Object.fromEntries(
 			Object.entries(WRONG).map(([id, change]) => {

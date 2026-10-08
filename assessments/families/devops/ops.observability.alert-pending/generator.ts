@@ -1,6 +1,7 @@
 // An alerting rule and the values its expression sees at every evaluation: the moments the alert becomes pending, fires,
 // drops back from pending and resolves. Middle: one series, `for` against the evaluation interval and the comparison at
-// the threshold. Senior: `keep_firing_for`, series that vanish, and one alert per series of the result.
+// the threshold. Senior: `keep_firing_for`, series that vanish (absent from the result exactly like a failed
+// comparison, so `keep_firing_for` holds a firing alert over the gap), and one alert per series of the result.
 import {
 	instanceRng,
 	levelAndClass,
@@ -40,6 +41,7 @@ interface Rules {
 	ignoreKeep: boolean;
 	keepFromLastTrue: boolean;
 	missingHolds: boolean;
+	missingIgnoresKeep: boolean;
 	oneAlert: boolean;
 	keepNoReset: boolean;
 }
@@ -54,6 +56,7 @@ const RIGHT: Rules = {
 	ignoreKeep: false,
 	keepFromLastTrue: false,
 	missingHolds: false,
+	missingIgnoresKeep: false,
 	oneAlert: false,
 	keepNoReset: false
 };
@@ -68,6 +71,7 @@ const WRONG: Record<string, Partial<Rules>> = {
 	'ignore-keep': { ignoreKeep: true },
 	'keep-from-last-true': { keepFromLastTrue: true },
 	'missing-holds-value': { missingHolds: true },
+	'missing-ignores-keep': { missingIgnoresKeep: true },
 	'one-alert': { oneAlert: true },
 	'keep-no-reset': { keepNoReset: true }
 };
@@ -89,7 +93,12 @@ function conditions(p: Params, values: readonly (number | null)[], rules: Rules)
 }
 
 /** The events of one alert over its conditions: `<moment> <event>`. */
-function alertEvents(p: Params, cond: readonly boolean[], rules: Rules): { t: number; event: string }[] {
+function alertEvents(
+	p: Params,
+	cond: readonly boolean[],
+	absent: readonly boolean[],
+	rules: Rules
+): { t: number; event: string }[] {
 	const events: { t: number; event: string }[] = [];
 	let state: 'inactive' | 'pending' | 'firing' = 'inactive';
 	let activeAt = 0;
@@ -121,7 +130,8 @@ function alertEvents(p: Params, cond: readonly boolean[], rules: Rules): { t: nu
 			state = 'inactive';
 			events.push({ t, event: 'reset' });
 		} else if (state === 'firing') {
-			const window = keep > 0 ? keep : rules.resolveAfterFor ? p.hold : 0;
+			const vanishedResolves = rules.missingIgnoresKeep && absent[i] === true;
+			const window = vanishedResolves ? 0 : keep > 0 ? keep : rules.resolveAfterFor ? p.hold : 0;
 			if (window === 0) {
 				state = 'inactive';
 				events.push({ t, event: 'resolved' });
@@ -142,10 +152,16 @@ function answerOf(p: Params, rules: Rules): string[] {
 	if (rules.oneAlert && p.series.length > 1) {
 		const per = p.series.map((s) => conditions(p, s.values, rules));
 		const any = (per[0] ?? []).map((_, i) => per.some((c) => c[i]));
-		return alertEvents(p, any, rules).map((e) => `${e.t} ${e.event}`);
+		const absent = any.map((_, i) => p.series.every((s) => s.values[i] === null));
+		return alertEvents(p, any, absent, rules).map((e) => `${e.t} ${e.event}`);
 	}
 	const all = p.series.flatMap((s) =>
-		alertEvents(p, conditions(p, s.values, rules), rules).map((e) => ({ ...e, instance: s.instance }))
+		alertEvents(
+			p,
+			conditions(p, s.values, rules),
+			s.values.map((v) => v === null),
+			rules
+		).map((e) => ({ ...e, instance: s.instance }))
 	);
 	all.sort((a, b) => a.t - b.t || (a.instance ?? '').localeCompare(b.instance ?? ''));
 	return all.map((e) => (e.instance === null ? `${e.t} ${e.event}` : `${e.t} ${e.instance} ${e.event}`));
@@ -197,7 +213,8 @@ function scenario(rng: Rng, grade: string, classId: string): Params {
 		hold = interval * rng.int(1, 3) + (interval === 60 ? rng.pick([15, 30, 45]) : rng.pick([10, 15, 20]));
 	}
 	if (classId === 'for-zero') hold = 0;
-	if (classId === 'keep-firing' || classId === 'keep-reset') keep = interval * rng.int(2, 4);
+	if (classId === 'keep-firing' || classId === 'keep-reset' || classId === 'missing-data')
+		keep = interval * rng.int(2, 4);
 	const holdSteps = Math.ceil(hold / interval);
 	const instances =
 		classId === 'multi-series' ? rng.sample(['api-1', 'api-2', 'api-3', 'api-4'], rng.int(2, 3)).sort() : [null];
@@ -395,7 +412,7 @@ const REQUIRED: Record<string, string[]> = {
 	'middle/threshold-equal': ['compare-flip', 'resolve-after-for'],
 	'middle/for-zero': ['pending-first'],
 	'senior/keep-firing': ['ignore-keep', 'keep-from-last-true'],
-	'senior/missing-data': ['missing-holds-value', 'no-reset'],
+	'senior/missing-data': ['missing-holds-value', 'missing-ignores-keep', 'no-reset'],
 	'senior/multi-series': ['one-alert', 'strict-for'],
 	'senior/keep-reset': ['keep-no-reset', 'keep-from-last-true']
 };

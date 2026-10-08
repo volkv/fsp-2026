@@ -754,11 +754,18 @@ const PROGRAMS: Readonly<Record<string, (rng: Rng) => TraceProgram>> = {
 	'delegate-reassign': delegateReassign
 };
 
+// The output depends on the platform (values of fields read before their initializers run differ on Kotlin/JS), so
+// the statement names the runtime the answer is computed for.
+const STATEMENT =
+	'Что напечатает программа на Kotlin 2.4 (Kotlin/JVM, JVM 21)? Введите вывод построчно, как он появится на экране.';
+
 export function build(input: GenerateInput): Built {
 	levelAndClass(descriptor, input);
 	const make = PROGRAMS[input.classId];
 	if (!make) throw new Error(`no program for ${input.classId}`);
-	return traceBuilt(descriptor, input, make(instanceRng(descriptor, input)));
+	const built = traceBuilt(descriptor, input, make(instanceRng(descriptor, input)));
+	const { instance } = built;
+	return { ...built, instance: { ...instance, statement: { ...instance.statement, markdown: STATEMENT } } };
 }
 
 export function generate(input: GenerateInput): ItemInstance {

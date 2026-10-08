@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.7,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "c5623b42050e05cfc9921b979d5530d3f236456ce1d20f91b88fe5556d93c2db"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "c5623b42050e05cfc9921b979d5530d3f236456ce1d20f91b88fe5556d93c2db"
+					}
+				],
+				"mean": 0.65
+			},
 			"constructive": { "events": "4–6", "mechanisms": 1, "stateHolders": "1–2" },
 			"constructiveRank": 2,
 			"timeNormSec": 180,
@@ -37,7 +54,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "c5623b42050e05cfc9921b979d5530d3f236456ce1d20f91b88fe5556d93c2db"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.45,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "c5623b42050e05cfc9921b979d5530d3f236456ce1d20f91b88fe5556d93c2db"
+					}
+				],
+				"mean": 0.55
+			},
 			"constructive": { "events": "5–7", "mechanisms": 2, "stateHolders": "2–3" },
 			"constructiveRank": 3,
 			"timeNormSec": 260,
@@ -150,6 +184,28 @@
 		"answerCollision": 0.0026,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Прежнее замечание к внутренним пробелам снято: условие теперь явно требует построчный вывод с одним пробелом между значениями, что соответствует решению ведущего 2 и показанным println.",
+					"Пересчёт: все 8 показанных Kotlin-программ прослежены вручную и независимо перенесены в Python 3.12: copy с присваиванием и без, проверка в callback, хранимый счётчик, локальное поле ребёнка, валидация pin, устаревший заголовок, общие MutableList у history и два callback от одного снимка value. Весь вывод совпал. Временным генератором восстановлены все показанные экземпляры, также проверены отличия всех применимых ответов 9 ошибочных решений на 200 сидах каждого класса; независимый пересчёт этих дополнительных Kotlin-программ не выполнялся. sourceSha256 проверен. kotlinc в окружении отсутствует; Kotlin/JVM, исполнение замороженного вывода эталона и штатные ворота не запускались.",
+					"Angoff: Intern 0.70 — короткий явный поток состояния за 180 с доступен пограничному кандидату; полностью верный вывод требует учитывать отброшенный copy и отклонённый ввод. Junior 0.60 — за 260 с добавляются aliasing списков, устаревшая копия и несколько callback одного события, одна ошибка при binary обнуляет вывод. Оценки поставлены заново."
+				],
+				"sourceSha256": "c5623b42050e05cfc9921b979d5530d3f236456ce1d20f91b88fe5556d93c2db"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Повторный раунд, полное ревью. Изменилась только формулировка вопроса (вывод «ровно как печатает println, значения через один пробел»); коды и ответы прежние. Все 8 Kotlin-программ исполнил в песочнице (Kotlin 2.4, JVM 21) в первом раунде, коды в пакете побайтно те же, вывод совпал с ответами. Новая формулировка согласуется с эталонами; замечание о пробелах снято.",
+					"Мелочь: junior shallow-copy выводит четыре поля в строке на шести строках; учтено в Angoff."
+				],
+				"sourceSha256": "c5623b42050e05cfc9921b979d5530d3f236456ce1d20f91b88fe5556d93c2db"
+			}
+		]
 	}
 }

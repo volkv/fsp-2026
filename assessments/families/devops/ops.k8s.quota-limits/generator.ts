@@ -235,8 +235,13 @@ function scenario(rng: Rng, classId: string): Params {
 	const pods: Pod[] = names.map((name, i) => {
 		const count = rng.bool(0.35) ? 2 : 1;
 		const containerNames = rng.sample(CONTAINER_NAMES, count);
-		const kinds = Array.from({ length: count }, (_, j) =>
-			i < 2 && j === 0 ? rng.pick(trap) : rng.pick(rng.bool(0.3) ? trap : plain)
+		// In the request-only class the first pod always has a request above the default limit: it is rejected invalid.
+		const kinds = Array.from({ length: count }, (_, j): Kind =>
+			classId === 'request-only' && i === 0 && j === 0
+				? 'request-over-default'
+				: i < 2 && j === 0
+					? rng.pick(trap)
+					: rng.pick(rng.bool(0.3) ? trap : plain)
 		);
 		return { name, containers: kinds.map((k, j) => container(rng, k, range, containerNames[j] ?? 'app')) };
 	});
@@ -346,7 +351,7 @@ function describe(p: Params): string {
 		'4. `ratio` — у какого-нибудь контейнера отношение limit / request больше `maxLimitRequestRatio`;',
 		'5. `quota` — с этим подом какое-нибудь значение `hard` ResourceQuota будет превышено.',
 		'',
-		'Введите для каждого пода в порядке манифеста одну строку: `rejected <причина>`, если под отклонён, или `ok` и четыре суммы по всем контейнерам пода через пробел — requests CPU и limits CPU в милликорах, requests памяти и limits памяти в Mi. Например:',
+		'Введите для каждого пода в порядке манифеста одну строку: `rejected <причина>`, если под отклонён, или `ok` и четыре суммы по всем контейнерам пода — requests CPU и limits CPU в милликорах, requests памяти и limits памяти в Mi. Поля строки разделяются ровно одним пробелом, без пробелов в начале и в конце: `ok 350 1500 384 1024`, `rejected ratio`. Например:',
 		'',
 		'```\nok 350 1500 384 1024\nrejected ratio\n```'
 	].join('\n');

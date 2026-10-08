@@ -371,8 +371,14 @@ function render(kind: Kind, input: Input): string {
 	return `${[head, ...input.events].join('\n')}\n`;
 }
 
-type GroupId = 'basic' | 'responses' | 'repeats' | 'failures' | 'scale';
-const GROUP_IDS: GroupId[] = ['basic', 'responses', 'repeats', 'failures', 'scale'];
+type GroupId = 'basic' | 'errors' | 'responses' | 'repeats' | 'failures';
+const GROUP_IDS: GroupId[] = ['basic', 'errors', 'responses', 'repeats', 'failures'];
+/**
+ * The shape of one test's log: a group's own, or a large log (the last test of `failures`). `basic` and `errors` are
+ * simple: every action waits for the answer to the request before it, so every wrong solution of the class passes.
+ */
+type Shape = GroupId | 'scale';
+const SIMPLE: readonly GroupId[] = ['basic', 'errors'];
 
 const QUERIES = [
 	'ko',
@@ -421,7 +427,7 @@ function nextEvent(
 	kind: Kind,
 	s: Screen,
 	param: number,
-	group: GroupId,
+	group: Exclude<Shape, 'basic' | 'errors'>,
 	senior: boolean,
 	step: boolean,
 	finishing: boolean
@@ -432,7 +438,6 @@ function nextEvent(
 	if (kind === 'search') {
 		const m = s as Search;
 		const w: Weights = {
-			basic: { type: 4, ok: 4, fail: 1, retry: 1 },
 			responses: { type: 4, ok: 5, fail: 2, retry: 1 },
 			repeats: { type: 2, ok: 2, fail: 3, retry: 4 },
 			failures: { type: 3, ok: 2, fail: 4, retry: 3 },
@@ -458,7 +463,6 @@ function nextEvent(
 	if (kind === 'paging') {
 		const size = param;
 		const w: Weights = {
-			basic: { scroll: 4, ok: 4, fail: 1, retry: 1, refresh: 1 },
 			responses: { scroll: 3, ok: 5, fail: 1, retry: 1, refresh: 2 },
 			repeats: { scroll: 6, ok: 2, fail: 2, retry: 3, refresh: 1 },
 			failures: { scroll: 2, ok: 2, fail: 4, retry: 3, refresh: 1 },
@@ -482,7 +486,6 @@ function nextEvent(
 		const m = s as Toggle;
 		const items = m.shown.length;
 		const w: Weights = {
-			basic: { tap: 4, ok: 3, fail: 1 },
 			responses: { tap: 4, ok: 3, fail: 2 },
 			repeats: { tap: 6, ok: 2, fail: 2 },
 			failures: { tap: 3, ok: 1, fail: 4 },
@@ -505,7 +508,6 @@ function nextEvent(
 		return `${e} ${r}`;
 	}
 	const w: Weights = {
-		basic: { name: 2, email: 2, submit: 3, ok: 0.6, fail: 2, cancel: 1 },
 		responses: { name: 1, email: 1, submit: 3, ok: 1.2, fail: 3, cancel: 3 },
 		repeats: { name: 1, email: 1, submit: 6, ok: 0.6, fail: 2, cancel: 1 },
 		failures: { name: 3, email: 3, submit: 3, ok: 0.3, fail: 3, cancel: 1 },
@@ -526,17 +528,76 @@ function nextEvent(
 	return e;
 }
 
-function makeInput(rng: Rng, kind: Kind, group: GroupId, senior: boolean, step: boolean): Input {
+/**
+ * The next event of a simple log: the open request with the highest number gets its answer before any action; an
+ * action never repeats a request in flight (`retry` only after an error, `scroll` only in `idle`, no `cancel`).
+ * `errors` adds failures; a search fails only with an empty list, a page ends only empty, an email is either valid or
+ * has no `@`. In the step `restore` may come at any moment.
+ */
+function sequentialEvent(
+	rng: Rng,
+	kind: Kind,
+	s: Screen,
+	param: number,
+	errors: boolean,
+	senior: boolean,
+	step: boolean,
+	finishing: boolean
+): string {
+	if (step && rng.bool(0.12)) return 'restore';
+	const open = [...s.open].sort((a, b) => a - b);
+	const r = open.at(-1);
+	const fail = errors && rng.bool(0.4);
+	if (kind === 'search') {
+		const m = s as Search;
+		if (r !== undefined) {
+			if (fail && m.items.length === 0) return `fail ${r}`;
+			return `ok ${r} ${rng.sample(LIBS, rng.int(0, 3)).join(',') || '-'}`;
+		}
+		if (m.status === 'error' && rng.bool(0.6)) return 'retry';
+		const q = rng.bool(errors ? 0.35 : 0.2)
+			? rng.pick(SHORT)
+			: senior && m.queries.length > 0 && rng.bool(0.35)
+				? rng.pick(m.queries)
+				: rng.pick(QUERIES);
+		return `type ${q}`;
+	}
+	if (kind === 'paging') {
+		const m = s as Paging;
+		if (r !== undefined) {
+			if (fail) return `fail ${r}`;
+			return `ok ${r} ${finishing && rng.bool(0.15) ? 0 : param}`;
+		}
+		if (senior && rng.bool(0.2)) return 'refresh';
+		return m.status === 'error' ? 'retry' : 'scroll';
+	}
+	if (kind === 'toggle') {
+		if (r !== undefined) return `${fail ? 'fail' : 'ok'} ${r}`;
+		return `tap ${rng.int(1, (s as Toggle).shown.length)}`;
+	}
+	if (r !== undefined)
+		return fail || (errors && !finishing) ? `fail ${r} ${rng.bool(0.6) ? 'network' : 'email_taken'}` : `ok ${r}`;
+	const e = choose(rng, { name: 2, email: 2, submit: 3 });
+	if (e === 'name') return `input name ${rng.pick(rng.bool(0.6) ? NAMES_OK : NAMES_BAD)}`;
+	if (e === 'email')
+		return `input email ${rng.pick(rng.bool(0.55) ? EMAILS_OK : EMAILS_BAD.filter((x) => !x.includes('@')))}`;
+	return e;
+}
+
+function makeInput(rng: Rng, kind: Kind, shape: Shape, senior: boolean, step: boolean): Input {
 	const param = kind === 'paging' ? rng.int(2, 10) : kind === 'toggle' ? rng.int(3, 6) : 0;
-	const length = group === 'scale' ? rng.int(900, 1100) : rng.int(12, 24);
+	const simple = shape === 'basic' || shape === 'errors';
+	const length = shape === 'scale' ? rng.int(900, 1100) : simple ? rng.int(10, 18) : rng.int(12, 24);
 	const s = screen(kind, { senior, variant: 'right', param });
 	const events: string[] = [];
 	let tail = -1;
 	while (events.length < length && tail !== 0) {
 		// The end of the list and a sent form finish the screen: not before the last events of a large log, not in the
 		// first events of a small one.
-		const finishing = group === 'scale' ? events.length >= length - 20 : events.length >= 6;
-		const ev = nextEvent(rng, kind, s, param, group, senior, step, finishing);
+		const finishing = shape === 'scale' ? events.length >= length - 20 : events.length >= 6;
+		const ev = simple
+			? sequentialEvent(rng, kind, s, param, shape === 'errors', senior, step, finishing)
+			: nextEvent(rng, kind, s, param, shape, senior, step, finishing);
 		events.push(ev);
 		s.apply(ev.split(' '));
 		// A finished screen (the list ended in Middle, the form is sent) gets a few more events, then the log ends.
@@ -554,8 +615,7 @@ function traps(kind: Kind, group: GroupId, senior: boolean): WrongId[] {
 	const list: Record<Kind, Partial<Record<GroupId, WrongId[]>>> = {
 		search: { responses: ['stale-applied'], repeats: ['retry-anytime'], failures: ['error-clears-data'] },
 		paging: {
-			basic: ['end-only-empty'],
-			responses: senior ? ['stale-applied'] : [],
+			responses: senior ? ['end-only-empty', 'stale-applied'] : ['end-only-empty'],
 			repeats: ['no-guard', 'retry-anytime']
 		},
 		toggle: {
@@ -572,20 +632,24 @@ function applies(id: WrongId, kind: Kind, senior: boolean): boolean {
 }
 
 function groups(rng: Rng, kind: Kind, senior: boolean, step: boolean): HiddenTestGroup[] {
+	const wrongs = WRONG_IDS.filter((id) => applies(id, kind, senior));
 	return GROUP_IDS.map((id) => {
-		const count = id === 'scale' ? 1 : 4;
+		const shapes: Shape[] = id === 'failures' ? ['failures', 'failures', 'failures', 'scale'] : [id, id, id, id];
+		const simple = SIMPLE.includes(id);
 		const tests: { stdin: string; expected: string }[] = [];
-		for (let attempt = 0; tests.length < count; attempt += 1) {
+		for (let attempt = 0; tests.length < shapes.length; attempt += 1) {
 			if (attempt > 2000) throw new Error(`${descriptor.key}: no ${id} test for ${kind}`);
-			const input = makeInput(rng, kind, id, senior, step);
+			const input = makeInput(rng, kind, shapes[tests.length] as Shape, senior, step);
 			const expected = simulate(kind, input, senior);
 			if (expected.length > OUTPUT_MAX) continue;
+			// A simple test is passed by every wrong solution of the class (in the step — with `restore` done right).
+			if (simple && wrongs.some((v) => simulate(kind, input, senior, v) !== expected)) continue;
 			if (step) {
-				// The step's tests expose a solution that ignores `restore`, one that applies any response and one that keeps
-				// the requests sent before `restore`.
+				// The step's tests expose a solution that ignores `restore`; the others also one that applies any response
+				// and one that keeps the requests sent before `restore`.
 				if (!input.events.includes('restore')) continue;
-				const naive: Variant[] = ['restore-noop', 'stale-applied'];
-				if (kind === 'toggle' || (kind === 'search' && senior)) naive.push('restore-keeps');
+				const naive: Variant[] = simple ? ['restore-noop'] : ['restore-noop', 'stale-applied'];
+				if (!simple && (kind === 'toggle' || (kind === 'search' && senior))) naive.push('restore-keeps');
 				if (naive.some((v) => simulate(kind, input, senior, v) === expected)) continue;
 			} else if (traps(kind, id, senior).some((v) => simulate(kind, input, senior, v) === expected)) continue;
 			tests.push({ stdin: render(kind, input), expected });
@@ -618,7 +682,7 @@ function rules(kind: Kind, senior: boolean): string[] {
 				'',
 				'## Правила',
 				'',
-				'Состояние — текст `q`, список результатов и статус `idle`, `loading` или `error`; в начале `q` пуст, список пуст, статус `idle`.',
+				`Состояние — текст \`q\`, список результатов и статус \`idle\`, \`loading\` или \`error\`; в начале \`q\` пуст, список пуст${senior ? ', кэш пуст' : ''}, статус \`idle\`.`,
 				'',
 				`- \`type\`: если в \`q\` меньше 2 символов — список очищается, статус \`idle\`, запрос не отправляется.${senior ? ' Иначе, если в кэше есть результат для `q`, — список становится им, статус `idle`, запрос не отправляется.' : ''} Иначе отправляется новый запрос с текстом \`q\`, статус \`loading\`; список не меняется до ответа.`,
 				'- **Актуальный** запрос — последний отправленный, если после его отправки не было события `type` и на него ещё не пришёл ответ. Ответ на неактуальный запрос экран не меняет.',
@@ -745,8 +809,68 @@ function statement(kind: Kind, senior: boolean): string {
 		'',
 		...rules(kind, senior),
 		'',
-		'Скрытые тесты — пять групп: обычный сценарий, опоздавшие и устаревшие ответы, повторные действия, ошибки и повтор, большой объём (около тысячи событий). Группа засчитывается, если пройдены все её тесты.'
+		'Заготовка разбора ввода и вывода (можно взять как есть):',
+		'',
+		'```kotlin',
+		...skeleton(kind, senior),
+		'```',
+		'',
+		'Скрытые тесты — пять групп. Первые две — последовательный сценарий: на каждый запрос ответ приходит раньше следующего действия пользователя, кнопки не нажимаются во время запроса; в первой без ошибок, во второй с ошибками и повтором. Остальные: опоздавшие и устаревшие ответы; повторные действия; ошибки и повтор, последний тест группы — большой журнал (около тысячи событий). Группа засчитывается, если пройдены все её тесты.'
 	].join('\n');
+}
+
+/** A Kotlin skeleton that reads the events of the screen and prints a line per event: the candidate fills in the logic. */
+function skeleton(kind: Kind, senior: boolean): string[] {
+	const head: Record<Kind, string> = {
+		search: '    val n = readln().trim().toInt()',
+		paging: '    val (n, s) = readln().trim().split(" ").map { it.toInt() }',
+		toggle: '    val (n, m) = readln().trim().split(" ").map { it.toInt() }',
+		form: '    val n = readln().trim().toInt()'
+	};
+	const branches: Record<Kind, string[]> = {
+		search: [
+			'            "type" -> { val q = if (ev[1] == "-") "" else ev[1] }',
+			'            "ok" -> {',
+			'                val r = ev[1].toInt()',
+			'                val items = if (ev[2] == "-") emptyList<String>() else ev[2].split(",")',
+			'            }',
+			'            "fail" -> { val r = ev[1].toInt() }',
+			'            "retry" -> {}'
+		],
+		paging: [
+			'            "scroll" -> {}',
+			'            "ok" -> { val r = ev[1].toInt(); val k = ev[2].toInt() }',
+			'            "fail" -> { val r = ev[1].toInt() }',
+			'            "retry" -> {}',
+			...(senior ? ['            "refresh" -> {}'] : [])
+		],
+		toggle: [
+			'            "tap" -> { val i = ev[1].toInt() }',
+			'            "ok" -> { val r = ev[1].toInt() }',
+			'            "fail" -> { val r = ev[1].toInt() }'
+		],
+		form: [
+			'            "input" -> { val field = ev[1]; val value = if (ev[2] == "-") "" else ev[2] }',
+			'            "submit" -> {}',
+			'            "ok" -> { val r = ev[1].toInt() }',
+			'            "fail" -> { val r = ev[1].toInt(); val reason = ev[2] }',
+			...(senior ? ['            "cancel" -> {}'] : [])
+		]
+	};
+	return [
+		'fun main() {',
+		head[kind],
+		'    val out = StringBuilder()',
+		'    repeat(n) {',
+		'        val ev = readln().trim().split(" ")',
+		'        when (ev[0]) {',
+		...branches[kind],
+		'        }',
+		'        out.append("состояние после события").append(\'\\n\')',
+		'    }',
+		'    print(out)',
+		'}'
+	];
 }
 
 const SAVED: Record<Kind, (senior: boolean) => string> = {

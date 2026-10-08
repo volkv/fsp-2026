@@ -382,6 +382,9 @@ const REQUIRED: Record<string, string[]> = {
 	'middle/tag-changes': ['changes-on-tag-false', 'manual-omitted']
 };
 
+/** Classes whose pipeline is created: the class shows the path by which it is, not a failure to create it. */
+const CREATED = new Set(['middle/optional-needs']);
+
 const ENVS = ['production', 'staging', 'review'];
 
 function randomRule(rng: Rng, spec: ClassSpec, workflowVar: boolean): Rule {
@@ -662,6 +665,7 @@ export function build(input: GenerateInput): Built {
 		const p = scenario(rng, spec);
 		const answer = simulate(p, RIGHT);
 		if (answer.length === 1 && answer[0] === '-' && rng.bool(0.8)) continue;
+		if (CREATED.has(key) && (answer[0] === '-' || answer.some((a) => a.startsWith('error ')))) continue;
 		const wrong = Object.fromEntries(
 			Object.entries(WRONG).map(([id, change]) => {
 				const value = simulate(p, { ...RIGHT, ...change });

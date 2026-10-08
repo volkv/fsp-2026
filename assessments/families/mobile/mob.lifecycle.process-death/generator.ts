@@ -65,6 +65,7 @@ interface Rules {
 	argsLostOnDeath: boolean;
 	saveAtDeath: boolean;
 	loadingResumes: boolean;
+	loadingNeverRestarts: boolean;
 }
 
 const RIGHT: Rules = {
@@ -77,7 +78,8 @@ const RIGHT: Rules = {
 	singletonLostOnFinish: false,
 	argsLostOnDeath: false,
 	saveAtDeath: false,
-	loadingResumes: false
+	loadingResumes: false,
+	loadingNeverRestarts: false
 };
 
 const SAVED: readonly Kind[] = ['bundle', 'saveable', 'ssh'];
@@ -128,7 +130,7 @@ function simulate(s: Scenario, rules: Rules): Map<string, number> | null {
 				loadingAt = null;
 				break;
 			case 'return':
-				if (dead && s.loading)
+				if (dead && s.loading && !rules.loadingNeverRestarts)
 					loadingAt = ev.t + (rules.loadingResumes && remaining !== null ? remaining : s.loading.seconds);
 				dead = false;
 				break;
@@ -277,7 +279,8 @@ function seniorScenario(rng: Rng, classId: string): Scenario {
 			.filter((e): e is Extract<Event, { kind: 'write' }> => e.kind === 'write' && e.item === item.name)
 			.map((e) => e.value);
 		events.push({
-			t: step(),
+			// A write in the background comes at least 2 s after the step before it, so after the state saved on Home.
+			t: background ? step(2, 3) : step(),
 			kind: 'write',
 			item: item.name,
 			value: freshValue(rng, [item.initial, ...previous]),
@@ -285,6 +288,7 @@ function seniorScenario(rng: Rng, classId: string): Scenario {
 		});
 	};
 	let loading: Loading | null = null;
+	let askAt: number | null = null;
 	let items: Item[];
 	if (classId === 'write-after-save') {
 		items = makeItems(rng, pickKinds(rng, ['ssh', rng.pick(['vmField', 'room', 'singleton'] as const)], MEMORY, count));
@@ -307,32 +311,55 @@ function seniorScenario(rng: Rng, classId: string): Scenario {
 		for (const item of rng.sample(items, rng.int(2, 3))) if (item !== loadItem) write(item);
 		at('home', 1, 2);
 		at('death', 1, 2);
+		const death = t;
 		at('return', 1, 3);
+		// While the loading of the new ViewModel runs, the user changes its value on screen: a loading started anew
+		// overwrites the change, a resumed one (or none) leaves it. The read comes after the new loading is done.
+		const back = t;
+		const remaining = Math.max(loading.seconds - death, 0);
+		const edit = rng.int(Math.min(back + remaining + 1, back + loading.seconds - 1), back + loading.seconds - 1);
+		if (loadItem)
+			events.push({
+				t: edit,
+				kind: 'write',
+				item: loadItem.name,
+				value: freshValue(rng, [loadItem.initial, loading.value]),
+				background: false
+			});
+		t = edit;
+		askAt = back + loading.seconds + rng.int(1, 4);
 	} else if (classId === 'rotate-chain') {
-		items = makeItems(
-			rng,
-			pickKinds(rng, ['vmField', 'ssh', rng.pick(['remember', 'activityField'] as const)], MEMORY, count)
-		);
-		for (const item of rng.sample(items, rng.int(2, 4))) write(item);
+		// The process dies first and the rotation comes after the restore, so both events decide the values read: one
+		// ViewModel field is written only before the death, the other only after the return, before the rotation.
+		const turned = rng.pick(['remember', 'activityField'] as const);
+		items = makeItems(rng, pickKinds(rng, ['vmField', 'vmField', 'ssh', turned], MEMORY, count));
+		const [early, late] = items.filter((i) => i.kind === 'vmField') as [Item, Item];
+		const ssh = items.find((i) => i.kind === 'ssh');
+		const rotated = items.find((i) => i.kind === turned);
+		const others = rng.shuffle(items.filter((i) => i !== early && i !== late && i !== ssh && i !== rotated));
+		const split = rng.int(0, others.length);
+		for (const item of rng.shuffle([early, ssh, ...others.slice(0, split)])) if (item) write(item);
+		at('home');
+		at('death', 2, 5);
+		at('return', 2, 5);
+		for (const item of rng.shuffle([late, rotated, ...others.slice(split)])) if (item) write(item);
 		at('rotate');
-		for (const item of rng.sample(items, rng.int(2, 4))) write(item);
-		at('home');
-		at('death', 2, 5);
-		at('return', 2, 5);
 	} else {
-		items = makeItems(rng, pickKinds(rng, ['singleton', rng.pick(SAVED)], MEMORY, count));
-		for (const item of rng.sample(items, rng.int(2, 4))) write(item);
+		// Two singletons: one written only before the death (the death drops it), one only after the return (it
+		// outlives the finish).
+		items = makeItems(rng, pickKinds(rng, ['singleton', 'singleton', rng.pick(SAVED)], MEMORY, count));
+		const [lost, kept] = items.filter((i) => i.kind === 'singleton') as [Item, Item];
+		const others = items.filter((i) => i.kind !== 'singleton');
+		for (const item of rng.shuffle([lost, ...rng.sample(others, rng.int(1, 3))])) write(item);
 		at('home');
 		at('death', 2, 5);
 		at('return', 2, 5);
-		const singleton = items.find((i) => i.kind === 'singleton');
-		const saved = items.find((i) => SAVED.includes(i.kind));
-		for (const item of rng.shuffle([singleton, saved, ...rng.sample(items, rng.int(0, 2))])) if (item) write(item);
+		const saved = others.find((i) => SAVED.includes(i.kind));
+		for (const item of rng.shuffle([kept, saved, ...rng.sample(others, rng.int(0, 2))])) if (item) write(item);
 		at('finish');
 		at('launch', 2, 4);
 	}
-	const askAt = t + rng.int(1, 8);
-	return { screen, items, events, loading, askAt };
+	return { screen, items, events, loading, askAt: askAt ?? t + rng.int(1, 8) };
 }
 
 // ---- statement ----
@@ -375,7 +402,7 @@ function renderCode(s: Scenario): string {
 			'',
 			'    init {',
 			'        viewModelScope.launch {',
-			`            val loaded = api.load${capitalize(s.loading.item)}()   // ответ сервера приходит через ${s.loading.seconds} с`,
+			`            val loaded = api.load${capitalize(s.loading.item)}()   // сервер отвечает ${s.loading.value} через ${s.loading.seconds} с после создания ViewModel`,
 			`            ${owner}${s.loading.item} = loaded`,
 			'        }',
 			'    }'
@@ -463,7 +490,7 @@ function describe(s: Scenario, grade: string): string {
 	const timed = grade === 'senior';
 	const opened = s.items.filter((i) => i.kind === 'fragmentArg' || i.kind === 'intentExtra');
 	const intro = [
-		`По модели жизненного цикла Android из документации (Saving UI states, Saved State module for ViewModel; API 34; не на устройстве). Приложение — одна активность \`${s.screen}Activity\`, показанный ниже код — иллюстрация: \`dao.read\`/\`dao.write\` — синхронный доступ к таблице Room, сеть и диск не сбоят. Процесс приложения жив, пока в сценарии явно не сказано, что система его завершила.`
+		`По модели жизненного цикла Android из документации (Saving UI states, Saved State module for ViewModel; API 34; не на устройстве). Приложение — одна активность \`${s.screen}Activity\`, показанный ниже код — иллюстрация: \`dao.read\`/\`dao.write\` — синхронный доступ к таблице Room, до первого открытия экрана таблица пуста, сеть и диск не сбоят. Процесс приложения жив, пока в сценарии явно не сказано, что система его завершила.`
 	];
 	if (opened.length) {
 		intro.push(
@@ -571,7 +598,8 @@ const WRONG: Record<string, Partial<Rules>> = {
 	'singleton-lost-on-finish': { singletonLostOnFinish: true },
 	'args-lost-on-death': { argsLostOnDeath: true },
 	'save-at-death': { saveAtDeath: true },
-	'loading-resumes': { loadingResumes: true }
+	'loading-resumes': { loadingResumes: true },
+	'loading-never-restarts': { loadingNeverRestarts: true }
 };
 
 /** The misconceptions every instance of a class must expose. */
@@ -581,9 +609,21 @@ const REQUIRED: Record<string, string[]> = {
 	'middle/rotate-and-back': ['remember-survives-rotation', 'vm-lost-on-rotation'],
 	'middle/death-args': ['args-lost-on-death'],
 	'senior/write-after-save': ['save-at-death'],
-	'senior/loading': ['loading-resumes'],
-	'senior/rotate-chain': ['vm-survives-death', 'ssh-like-vm'],
-	'senior/death-then-finish': ['singleton-lost-on-finish', 'saved-survives-finish']
+	'senior/loading': ['loading-resumes', 'loading-never-restarts'],
+	'senior/rotate-chain': ['vm-survives-death', 'ssh-like-vm', 'vm-lost-on-rotation'],
+	'senior/death-then-finish': ['singleton-lost-on-finish', 'saved-survives-finish', 'singleton-survives-death']
+};
+
+/** The events of a class the read must depend on: without any one of them the answer changes. */
+const ESSENTIAL: Record<string, readonly Event['kind'][]> = {
+	'middle/death': ['death'],
+	'middle/finish': ['finish'],
+	'middle/rotate-and-back': ['rotate'],
+	'middle/death-args': ['death'],
+	'senior/write-after-save': ['death'],
+	'senior/loading': ['death'],
+	'senior/rotate-chain': ['rotate', 'death'],
+	'senior/death-then-finish': ['death', 'finish']
 };
 
 const same = (a: readonly string[], b: readonly string[]): boolean =>
@@ -598,6 +638,11 @@ export function build(input: GenerateInput): Built {
 		if (!values) continue;
 		const answer = answerOf(s, values);
 		if (s.askAt === null && answer.length === s.items.length) continue;
+		const matters = (ESSENTIAL[`${input.grade}/${input.classId}`] ?? []).every((kind) => {
+			const without = simulate({ ...s, events: s.events.filter((e) => e.kind !== kind) }, RIGHT);
+			return without === null || !same(answerOf(s, without), answer);
+		});
+		if (!matters) continue;
 		const wrong = Object.fromEntries(
 			Object.entries(WRONG).map(([id, change]) => {
 				const v = simulate(s, { ...RIGHT, ...change });

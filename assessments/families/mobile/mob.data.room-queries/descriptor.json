@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "86296906133e14f80f3a4be19e3b821bf35adac68f58c5b3b957795a001477ce"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.45,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "86296906133e14f80f3a4be19e3b821bf35adac68f58c5b3b957795a001477ce"
+					}
+				],
+				"mean": 0.55
+			},
 			"constructive": { "tables": 1, "rows": "5–12", "mechanisms": 1, "clauses": "ORDER BY / LIMIT / GROUP BY / LIKE" },
 			"constructiveRank": 1,
 			"timeNormSec": 200,
@@ -37,7 +54,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "86296906133e14f80f3a4be19e3b821bf35adac68f58c5b3b957795a001477ce"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.45,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "86296906133e14f80f3a4be19e3b821bf35adac68f58c5b3b957795a001477ce"
+					}
+				],
+				"mean": 0.55
+			},
 			"constructive": {
 				"tables": "2–3",
 				"rows": "8–20",
@@ -145,6 +179,29 @@
 		"answerCollision": 0.0008,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Исполнил все 8 показанных SQL-скриптов и запросов из условий в SQLite 3.45.1 через Python 3.12: все ответы совпали. Проверены порядок NULL, LIMIT k,n, COUNT(read_at), ASCII LIKE, последний sent_at, LEFT JOIN, COALESCE, CASE ... WHEN NULL и NOT IN с NULL. Android Room и ворота на 200 сидах не запускал.",
+					"Прежние существенные замечания закрыты: Intern/like-case прямо задаёт соединение с настройками SQLite по умолчанию без дополнительных PRAGMA; все классы явно задают текстовый разделитель «пробел, черта, пробел».",
+					"Angoff intern 0.60, junior 0.60: Intern за 200 с должен знать специфические правила SQLite и точно отсортировать/отфильтровать до 11 строк; Junior за 280 с связывает несколько таблиц и обрабатывает NULL, коррелированный подзапрос и несколько полей. Binary не даёт частичного балла за единственную ошибку в длинном результате."
+				],
+				"sourceSha256": "86296906133e14f80f3a4be19e3b821bf35adac68f58c5b3b957795a001477ce"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Изменилась только формулировка (правило сравнения строк, в like-case — настройки SQLite по умолчанию без дополнительных PRAGMA). Все 8 экземпляров заново исполнены в SQLite 3.45.1, результат совпал построчно.",
+					"Грейд: на intern все четыре класса — особенности SQLite (NULL первым при ASC, LIMIT k, n, COUNT(col), регистр LIKE), а не чтение Kotlin; в вердикт не выношу, учтено в Angoff.",
+					"Мелочь: сортировка кириллицы полагается на побайтовое сравнение; на показанных экземплярах порядок алфавитный."
+				],
+				"sourceSha256": "86296906133e14f80f3a4be19e3b821bf35adac68f58c5b3b957795a001477ce"
+			}
+		]
 	}
 }

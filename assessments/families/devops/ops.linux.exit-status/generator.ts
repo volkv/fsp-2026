@@ -381,7 +381,7 @@ function functionsSubshell(rng: Rng): Scenario {
 				{ t: 'call', name: f2 },
 				{ t: 'rc', label: next() }
 			] as Node[],
-			[sub(rng), { t: 'rc', label: next() }] as Node[],
+			// `( exit N )` does not end the script, and the `echo` after it resets `$?`.
 			[sub(rng), { t: 'echo', text: next() }, { t: 'rc', label: next() }] as Node[]
 		])
 		.flat();
@@ -592,7 +592,7 @@ export function build(input: GenerateInput): Built {
 		const instance = makeInstance(descriptor, input, {
 			statement: {
 				markdown: [
-					'Скрипт запущен как `bash script.sh`. Что он напечатает? Введите вывод построчно, а последней строкой — код завершения скрипта в виде `exit N`.',
+					'Скрипт запущен как `bash script.sh` (GNU bash 5.2, параметры оболочки по умолчанию). Что он напечатает? Введите вывод построчно, а последней строкой — код завершения скрипта в виде `exit N` (слово `exit`, один пробел, число).',
 					'',
 					'Например:',
 					'',

@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "1917dff1dd346fb1e8efd065fb9ba9ad35dd51dcc3589964253f44068d2e3c47"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.45,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "1917dff1dd346fb1e8efd065fb9ba9ad35dd51dcc3589964253f44068d2e3c47"
+					}
+				],
+				"mean": 0.55
+			},
 			"constructive": { "elements": "2–5", "operators": "1–3", "lines": "10–22", "mechanisms": 2 },
 			"constructiveRank": 3,
 			"timeNormSec": 240,
@@ -21,7 +38,7 @@
 				{
 					"id": "operator-chain",
 					"form": "B",
-					"description": "каждый элемент проходит onEach, map и filter до сборщика, прежде чем появится следующий"
+					"description": "каждый элемент проходит onEach, map и filter до сборщика, прежде чем появится следующий; фильтр пропускает часть элементов"
 				},
 				{
 					"id": "take-completion",
@@ -37,7 +54,24 @@
 		},
 		{
 			"grade": "middle",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "1917dff1dd346fb1e8efd065fb9ba9ad35dd51dcc3589964253f44068d2e3c47"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.4,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "1917dff1dd346fb1e8efd065fb9ba9ad35dd51dcc3589964253f44068d2e3c47"
+					}
+				],
+				"mean": 0.5
+			},
 			"constructive": { "elements": "2–4", "operators": "2–4", "lines": "15–30", "mechanisms": 3 },
 			"constructiveRank": 5,
 			"timeNormSec": 330,
@@ -55,7 +89,7 @@
 				{
 					"id": "buffer",
 					"form": "anchor",
-					"description": "buffer запускает производителя рядом с медленным сборщиком: строки идут по моментам"
+					"description": "buffer запускает производителя рядом с медленным сборщиком: строки идут по моментам; 2–4 элемента, buffer() или ограниченный buffer(1), buffer(0), где отправка ждёт сборщика"
 				},
 				{
 					"id": "flat-take",
@@ -67,7 +101,10 @@
 	],
 	"surfaceParams": [
 		{ "name": "names", "description": "имена потоков, подписи строк, строки main" },
-		{ "name": "values", "description": "элементы, множители и слагаемые, условия фильтров, задержки (кратны 100 мс)" }
+		{
+			"name": "values",
+			"description": "элементы, множители и слагаемые, условия фильтров, задержки (кратны 100 мс), ёмкость буфера"
+		}
 	],
 	"essentialParams": [
 		{
@@ -175,9 +212,34 @@
 		"reference": { "seeds": 200, "failures": 0 },
 		"wrongSolutions": { "mustBeCaught": 14, "caught": 14 },
 		"hiddenTestsMutationScore": null,
-		"answerCollision": 0.0006,
+		"answerCollision": 0.0002,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчитал все 8 показанных программ вручную и скомпилировал/исполнил их вне репозитория: выводы совпали. Среда исполнения проверки — kotlinc 2.3.20, JVM 21, kotlinx.coroutines 1.8.0; точную Kotlin 2.4 из условия не запускал. Остальные 200-сидовые нативные ворота и стабильность на других версиях kotlinx.coroutines не проверял.",
+					"Прежние замечания о вырожденном буфере и фильтре устранены: на 200 review-сидов operator-chain всегда есть проходящие и отбрасываемые элементы; buffer использует 2–4 элемента, различные задержки и ёмкости, и каждый ответ отличается от последовательного исполнения без буфера. На этих 200 сидах найдены 62 сочетания числа элементов, задержек и ёмкости и 7 различных порядков ролей emit/collect/store после удаления имён и значений; прежнего единственного расписания нет. Условие задаёт однопоточный runBlocking и идеальные задержки для временных классов.",
+					"Мелочь: задержки и ёмкость буфера всё ещё перечислены как поверхностные параметры, хотя ограниченная ёмкость меняет ожидание отправки, а соотношение задержек — порядок вывода. Перенести эти параметры в существенные; имена и значения элементов оставить поверхностными.",
+					"Мелочь: в списке ошибочных решений отсутствует игнорирование filter. После исправления operator-chain такой вариант даёт другой ответ на всех проверенных 200 сидах; добавить его для защиты нового покрытия.",
+					"Angoff junior 0.60, middle 0.60: Junior за 240 с должен без ошибок выписать длинный поэлементный вывод, повторный collect и остановку take; Middle за 330 с добавляет границу catch/onCompletion, combine и теперь более разнообразный буфер. Одна ошибка в порядке или арифметике обнуляет binary-ответ."
+				],
+				"sourceSha256": "1917dff1dd346fb1e8efd065fb9ba9ad35dd51dcc3589964253f44068d2e3c47"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Прежнее существенное замечание устранено: у middle/buffer (anchor) на 200 сидах теперь 64 разных расписания (2–4 элемента, buffer(), buffer(1), buffer(0), разные задержки), канонических форм ответа 13 вместо 2 (самая частая 16,5 %). Просмотрены сиды 1–5 класса: ответы отличаются от прогона без буфера, совпадений моментов не видно.",
+					"Пересчёт: все 8 показанных программ запущены в песочнице (kotlinc/JVM), вывод совпал с ответом построчно; в условии теперь названа среда (Kotlin 2.4, JVM 21, runBlocking на одном потоке, задержки точные). Фильтр в operator-chain теперь отбрасывает часть элементов (проверено на сидах). Не проверял: 200-сидовые прогоны ворот (по отчёту) и поведение на медленной машине.",
+					"Грейд: take/finally, transform и flatMapConcat на junior — у верхней границы определения; учтено в Angoff."
+				],
+				"sourceSha256": "1917dff1dd346fb1e8efd065fb9ba9ad35dd51dcc3589964253f44068d2e3c47"
+			}
+		]
 	}
 }

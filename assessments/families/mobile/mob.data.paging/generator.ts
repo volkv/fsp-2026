@@ -10,7 +10,7 @@ const descriptor = readDescriptor(import.meta.url);
 
 const REQUIRED: Required = {
 	'middle/offset-shift': ['offset-snapshot'],
-	'middle/keyset-cursor': ['keyset-dups'],
+	'middle/keyset-cursor': ['offset-snapshot', 'keyset-dups'],
 	'middle/keyset-late': ['offset-snapshot', 'keyset-dups'],
 	'middle/offset-pages': ['offset-snapshot'],
 	'senior/and-cursor': ['and-equivalent'],
@@ -101,7 +101,7 @@ function item(feed: Feed, cursor: Cursor, statement: string): SqlItem {
 	return {
 		setup: script(feed, cursor, true),
 		query: QUERY,
-		statement: `${statement} Таблица \`screen\` — список на экране: каждая загруженная страница дописывается в его конец. Запрос в конце выводит id, показанные каждой страницей, через пробел в порядке списка.`,
+		statement: `${statement} Таблица \`screen\` — список на экране: каждая загруженная страница дописывается в его конец. Запрос в конце выводит id, показанные каждой страницей, через пробел в порядке списка (\`ORDER BY\` внутри \`group_concat\` — SQLite 3.44 и новее; здесь SQLite 3.46). Строки ответа сравниваются как текст: номер страницы и список id разделяются ровно так — пробел, черта, пробел, id в списке — ровно одним пробелом.`,
 		wrong
 	};
 }
@@ -165,13 +165,18 @@ function keysetCursor(rng: Rng): SqlItem {
 		gap1.push(insert('posts', 'created_at', nextId++, 500 + k * 10 + rng.int(1, 9)));
 	// The last shown post — the cursor — is deleted before the next page is loaded.
 	gap1.push(remove('posts', last1));
+	// A post not shown yet — one page 3 would show — is deleted too: the cursor skips it, the next post moves up.
+	const unseen = rows[rng.int(rows.length - 3 * size, rows.length - size - 1)]?.[0] ?? 1;
 	const gap2: string[] = [insert('posts', 'created_at', nextId, 600 + rng.int(1, 9))];
-	if (rng.bool()) gap2.push(remove('posts', rows[rows.length - size - 1]?.[0] ?? 1));
+	if (unseen >= (rows[rows.length - 2 * size]?.[0] ?? 0)) gap1.push(remove('posts', unseen));
+	else gap2.push(remove('posts', unseen));
+	const shown2 = rows[rows.length - size - 1]?.[0] ?? 1;
+	if (shown2 !== unseen && rng.bool()) gap2.push(remove('posts', shown2));
 	const feed: Feed = { table: 'posts', key: 'created_at', rows, size, pages: 3, gaps: [rng.shuffle(gap1), gap2] };
 	return item(
 		feed,
 		'row-value',
-		'Лента подгружает страницы постов по ключу последнего показанного поста (keyset); между загрузками в базу приходят новые посты, а последний показанный пост удаляется.'
+		'Лента подгружает страницы постов по ключу последнего показанного поста (keyset); между загрузками в базу приходят новые посты, а часть постов удаляется — в том числе последний показанный.'
 	);
 }
 

@@ -288,7 +288,7 @@ describe('a hiring need', () => {
 			text: 'Ищем Android-разработчика уровня middle на Kotlin.',
 			form: { skill_keys: ['kotlin'], nice_skill_keys: [], grade: { min: 'senior', max: 'senior' } }
 		});
-		// Mobile is switched off in the catalog: not suggested; the grade is the employer's.
+		// Mobile has no released bank: not suggested; the grade is the employer's.
 		expect(need.form.specialization).toBeUndefined();
 		expect(need.form.grade).toEqual({ min: 'senior', max: 'senior' });
 		expect(need.form.skill_keys).toEqual(['kotlin']);

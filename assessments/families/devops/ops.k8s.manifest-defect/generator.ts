@@ -47,10 +47,13 @@ interface Layout {
 	configFirst: boolean;
 	annotations: Labels;
 	podAnnotations: Labels;
+	serviceAnnotations: Labels;
 	env: { name: string; value: string }[];
 	image: string;
 	serviceLabels: Labels;
 	serviceType: boolean;
+	/** Defaulted Service fields written out: they only shift the lines below them. */
+	serviceDefaults: { sessionAffinity: boolean; internalTrafficPolicy: boolean };
 	revisionHistoryLimit: number | null;
 	strategy: boolean;
 	/** Objects around the service that only shift the lines: a ServiceAccount, a PodDisruptionBudget, an autoscaler. */
@@ -131,11 +134,15 @@ function documents(spec: Spec, layout: Layout, override: { id: string; v: Scalar
 	const service: Yaml = {
 		apiVersion: 'v1',
 		kind: 'Service',
-		metadata: Object.keys(layout.serviceLabels).length
-			? { name: spec.name, labels: layout.serviceLabels }
-			: { name: spec.name },
+		metadata: {
+			name: spec.name,
+			...(Object.keys(layout.serviceLabels).length ? { labels: layout.serviceLabels } : {}),
+			...(Object.keys(layout.serviceAnnotations).length ? { annotations: layout.serviceAnnotations } : {})
+		},
 		spec: {
 			...(layout.serviceType ? { type: 'ClusterIP' } : {}),
+			...(layout.serviceDefaults.sessionAffinity ? { sessionAffinity: 'None' } : {}),
+			...(layout.serviceDefaults.internalTrafficPolicy ? { internalTrafficPolicy: 'Cluster' } : {}),
 			selector: marked('svc-sel', spec.serviceSelector, layout.order.service),
 			ports: [{ port: val('svc-port', spec.servicePort), targetPort: val('target-port', spec.portName) }]
 		}
@@ -327,6 +334,12 @@ const ANNOTATIONS: Labels = {
 	'team.example.com/oncall': 'sre-duty',
 	'example.com/docs': 'wiki/services'
 };
+const SERVICE_ANNOTATIONS: Labels = {
+	'prometheus.io/scrape': 'true',
+	'prometheus.io/port': '"9102"',
+	'team.example.com/owner': 'platform',
+	'example.com/docs': 'wiki/services'
+};
 const ENV = [
 	{ name: 'TZ', value: 'UTC' },
 	{ name: 'GOMAXPROCS', value: '"2"' },
@@ -336,21 +349,23 @@ const ENV = [
 ];
 
 function drawLayout(rng: Rng, spec: Spec): Layout {
-	const pick = (count: number): Labels =>
-		Object.fromEntries(rng.sample(Object.entries(ANNOTATIONS), count).map(([k, v]) => [k, v.replaceAll('"', '')]));
+	const pick = (count: number, from: Labels = ANNOTATIONS): Labels =>
+		Object.fromEntries(rng.sample(Object.entries(from), count).map(([k, v]) => [k, v.replaceAll('"', '')]));
 	return {
 		serviceFirst: rng.bool(),
 		configFirst: rng.bool(),
 		annotations: pick(rng.int(0, 3)),
 		podAnnotations: rng.bool() ? { 'prometheus.io/scrape': 'true' } : {},
-		env: rng.sample(ENV, rng.int(0, 4)).map((e) => ({ name: e.name, value: e.value.replaceAll('"', '') })),
+		serviceAnnotations: pick(rng.int(0, 3), SERVICE_ANNOTATIONS),
+		env: rng.sample(ENV, rng.int(0, 3)).map((e) => ({ name: e.name, value: e.value.replaceAll('"', '') })),
 		image: `registry.local/${spec.name}:${rng.int(1, 9)}.${rng.int(0, 20)}`,
 		serviceLabels: rng.bool() ? Object.fromEntries(Object.entries(spec.labels).slice(0, rng.int(1, 2))) : {},
 		serviceType: rng.bool(),
+		serviceDefaults: { sessionAffinity: rng.bool(), internalTrafficPolicy: rng.bool() },
 		revisionHistoryLimit: rng.bool() ? rng.int(3, 10) : null,
 		strategy: rng.bool(),
 		extras: rng
-			.sample(['ServiceAccount', 'PodDisruptionBudget', 'HorizontalPodAutoscaler'] as const, rng.int(0, 2))
+			.sample(['ServiceAccount', 'PodDisruptionBudget', 'HorizontalPodAutoscaler'] as const, rng.int(0, 1))
 			.map((kind) => ({ kind, at: rng.int(0, 3) })),
 		order: {
 			template: rng.shuffle(Object.keys(spec.labels)),
@@ -370,7 +385,7 @@ const cpuHuman = (mc: number): string => (mc % 1000 === 0 ? `${mc / 1000} CPU` :
 
 function specification(spec: Spec): string[] {
 	const lines = [
-		`- Deployment \`${spec.name}\` держит подов: ${spec.replicas}; метки подов — ${labelText(spec.labels)}, других меток нет.`,
+		`- Deployment \`${spec.name}\` держит подов: ${spec.replicas}; метки в шаблоне пода (\`spec.template.metadata.labels\`) — ${labelText(spec.labels)}, других меток в шаблоне нет (служебные метки, которые контроллеры добавляют подам сами, например \`pod-template-hash\`, спецификация не касается).`,
 		`- Контейнер \`${spec.name}\` слушает порт ${spec.port} под именем \`${spec.portName}\`; проба готовности — \`GET ${spec.readyPath}\` на этот порт${spec.livePath ? `; проба живости — \`GET ${spec.livePath}\` на этот же порт` : ''}.`,
 		`- requests контейнера \`${spec.name}\` — ${cpuHuman(spec.requests.cpu)} и ${spec.requests.memory}Mi памяти; limits не меньше requests.`,
 		`- Service \`${spec.name}\` слушает порт ${spec.servicePort}, выбирает поды по метк${Object.keys(spec.serviceSelector).length > 1 ? 'ам' : 'е'} ${labelText(spec.serviceSelector)} и направляет трафик в порт контейнера по имени \`${spec.portName}\`.`
@@ -396,7 +411,9 @@ function describe(spec: Spec): string {
 		'',
 		...specification(spec),
 		'',
-		'Ровно одна строка манифеста нарушает спецификацию или ссылается на то, чего нет (порт, метку, ключ, том). Остальные строки правильные. Укажите номер этой строки (нумерация с 1, разделители `---` тоже считаются строками).'
+		'Ровно одна строка манифеста нарушает спецификацию или ссылается на то, чего нет (порт, метку, ключ, том). Остальные строки правильные. Укажите номер этой строки (нумерация с 1, разделители `---` тоже считаются строками).',
+		'',
+		'Если исправить можно в нескольких строках — засчитывается любая из них, где замена одной инструкцией восстанавливает спецификацию. Исправление — замена значения в одной строке: не добавляйте новых ключей, элементов списков или документов и не переносите в неё значения из другой строки.'
 	].join('\n');
 }
 

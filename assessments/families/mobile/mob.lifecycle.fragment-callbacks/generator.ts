@@ -2,7 +2,8 @@
 // leaving for the background, rotation with fragments on the back stack, a fragment re-added in onCreate without the
 // savedInstanceState check, and a LiveData observer bound to the fragment instead of its view. The callbacks of each
 // fragment follow the Android documentation (Fragment lifecycle, Fragment manager); the order between the host and
-// the fragments and between several fragments is the model's convention, stated in the item.
+// the fragments, and among the fragments of the back stack, is the model's convention; the order between fragments of
+// a transaction and of a recreated activity follows androidx.fragment 1.8. Both are stated in the item.
 import {
 	instanceRng,
 	levelAndClass,
@@ -205,21 +206,25 @@ function simulate(s: Scenario, rules: Rules): string[] {
 		switch (op.kind) {
 			case 'replace': {
 				const removed = w.container;
+				const to = op.backStack
+					? rules.backstackDestroys
+						? 0
+						: rules.backstackKeepsView
+							? 2
+							: 1
+					: rules.noBackstackKeeps
+						? 1
+						: 0;
+				// A transaction with reordering allowed: the removed fragments stop, the added one starts, then the
+				// removed ones lose their views (and more), and the added one resumes last.
+				for (const f of removed) w.move(f, Math.max(to, 2));
+				const added = w.fresh(op.fragment);
+				w.container = [added];
+				w.move(added, 3);
 				for (const f of removed) {
-					const to = op.backStack
-						? rules.backstackDestroys
-							? 0
-							: rules.backstackKeepsView
-								? 2
-								: 1
-						: rules.noBackstackKeeps
-							? 1
-							: 0;
 					w.move(f, to);
 					f.target = to;
 				}
-				const added = w.fresh(op.fragment);
-				w.container = [added];
 				w.move(added, 4);
 				if (op.backStack) {
 					w.held.push(...removed);
@@ -243,16 +248,20 @@ function simulate(s: Scenario, rules: Rules): string[] {
 			case 'back': {
 				const entry = w.entries.pop();
 				if (!entry) throw new Error('back with an empty back stack');
-				for (const f of entry.added) {
-					w.move(f, 0);
-					w.container = w.container.filter((c) => c !== f);
-				}
+				// The pop runs as a transaction: the popped fragments stop, the returning ones start, the popped ones
+				// are destroyed, the returning ones resume.
+				for (const f of entry.added) w.move(f, 2);
 				for (const f of entry.removed) {
 					w.held = w.held.filter((h) => h !== f);
 					f.target = 4;
 					w.container.push(f);
-					w.move(f, 4);
+					w.move(f, 3);
 				}
+				for (const f of entry.added) {
+					w.move(f, 0);
+					w.container = w.container.filter((c) => c !== f);
+				}
+				for (const f of entry.removed) w.move(f, 4);
 				if (rules.addStopsBelow && entry.removed.length === 0)
 					for (const f of w.container) {
 						f.target = 4;
@@ -286,13 +295,12 @@ function rotate(w: World, rules: Rules): void {
 	w.hostDown('onPause', 3);
 	w.hostDown('onStop', 2);
 	const held = rules.rotationSkipsBackstack ? [] : w.held;
-	const down = (callback: string | null, frags: Frag[], to: number): void => {
-		if (rules.hostFirstDown && callback) w.host(callback);
-		for (const f of frags) if (f.state > to) w.move(f, to);
-		if (!rules.hostFirstDown && callback) w.host(callback);
-	};
-	down(null, [...w.container, ...held], 1);
-	down('onDestroy', [...w.container, ...held], 0);
+	// The back stack's fragments have no view and are destroyed first; the container's fragments wait for the end of
+	// their removal and then go down one by one.
+	if (rules.hostFirstDown) w.host('onDestroy');
+	for (const f of held) w.move(f, 0);
+	for (const f of w.container) w.move(f, 0);
+	if (!rules.hostFirstDown) w.host('onDestroy');
 	// The new activity: FragmentManager restores the container and the back stack as new instances.
 	w.host('onCreate');
 	const renew = new Map<Frag, Frag>();
@@ -306,11 +314,16 @@ function rotate(w: World, rules: Rules): void {
 	w.container = w.container.filter((f) => renew.has(f)).map(map);
 	w.held = w.held.map(map);
 	w.entries = w.entries.map((e) => ({ removed: e.removed.map(map), added: e.added.map(map) }));
-	if (w.s.addsInOnCreate && !rules.noDuplicateOnRestore) w.container.push(w.fresh(w.s.first));
-	const created = [...w.container, ...held.map(map)].filter((f) => f.state === 0);
-	for (const f of created) w.move(f, 1);
+	// `dispatchCreate` in the new activity's onCreate: the container's fragments, then the back stack's; their views
+	// come in onStart, and only then the transaction committed in onCreate runs.
+	for (const f of [...w.container, ...held.map(map)]) w.move(f, 1);
 	for (const f of w.container) w.move(f, 2);
 	if (rules.rotationBackstackView) for (const f of held.map(map)) w.move(f, 2);
+	if (w.s.addsInOnCreate && !rules.noDuplicateOnRestore) {
+		const duplicate = w.fresh(w.s.first);
+		w.container.push(duplicate);
+		w.move(duplicate, 2);
+	}
 	w.hostUp('onStart', 3);
 	w.hostUp('onResume', 4);
 }
@@ -408,11 +421,19 @@ function scenario(rng: Rng, grade: string, classId: string): Scenario {
 		return { ...s, ops: fixSizes(ops) };
 	}
 	if (classId === 'rotation-backstack') {
-		for (let i = rng.int(1, 2); i > 0; i -= 1) ops.push({ kind: 'replace', fragment: another(), backStack: true });
+		// After the rotation the fragment of the back stack is either brought back at once or stays there while the
+		// screen changes on top of it: only the second shows that it has no view until it is brought back.
+		ops.push({ kind: 'replace', fragment: another(), backStack: true });
 		ops.push({ kind: 'rotate' });
-		ops.push({ kind: 'back' });
-		if (rng.bool(0.5)) ops.push({ kind: 'back' });
-		return { ...s, ops: ops.filter((op, i) => op.kind !== 'back' || backs(ops.slice(0, i))) };
+		const tail: Op[][] = [
+			[],
+			[{ kind: 'back' }],
+			[{ kind: 'add', fragment: another(), backStack: true }],
+			[{ kind: 'add', fragment: another(), backStack: true }, { kind: 'back' }],
+			[{ kind: 'replace', fragment: another(), backStack: true }]
+		];
+		ops.push(...rng.pick(tail));
+		return s;
 	}
 	if (classId === 'rotation-duplicate') {
 		s.addsInOnCreate = true;
@@ -427,16 +448,6 @@ function scenario(rng: Rng, grade: string, classId: string): Scenario {
 	ops.push({ kind: 'rotate' });
 	if (ops[1]?.kind === 'add' && rng.bool(0.6)) ops.push({ kind: 'back' });
 	return s;
-}
-
-/** Back presses the back stack still has an entry for. */
-function backs(before: readonly Op[]): boolean {
-	let depth = 0;
-	for (const op of before) {
-		if ((op.kind === 'replace' || op.kind === 'add') && op.backStack) depth += 1;
-		if (op.kind === 'back') depth -= 1;
-	}
-	return depth > 0;
 }
 
 /** A replace needs exactly one fragment in the container: an add before it is popped first, or the replace becomes an add. */
@@ -526,12 +537,13 @@ function renderCode(s: Scenario): string {
 
 function describe(s: Scenario): string {
 	const model = [
-		'По модели жизненного цикла из документации Android (Fragment lifecycle, Fragment manager; androidx.fragment 1.8; не на устройстве) с такими соглашениями о порядке:',
+		'По модели жизненного цикла из документации и исходников androidx.fragment 1.8 (Fragment lifecycle, Fragment manager; не на устройстве; анимаций и переходов нет):',
 		'',
 		'- фрагмент поднимается шагами: `onAttach`, `onCreate` → `onCreateView`, `onViewCreated`, `onViewStateRestored` → `onStart` → `onResume`; опускается: `onPause` → `onStop` → `onDestroyView` → `onDestroy`, `onDetach`;',
-		'- при подъёме сначала колбэк активности, затем фрагментов; при спуске — сначала фрагментов, затем активности (фрагмент не бывает в состоянии выше хозяина);',
-		'- в транзакции и при «Назад» сначала удаляемые фрагменты проходят все свои колбэки, затем добавляемые;',
-		'- при пересоздании активности каждый шаг проходят все фрагменты, прежде чем начнётся следующий, в таком порядке: фрагменты контейнера в порядке добавления (фрагмент, добавленный транзакцией в `onCreate` новой активности, — после восстановленных), затем фрагменты стека возврата в порядке попадания туда.'
+		'- соглашение модели о порядке с активностью: при подъёме сначала колбэк активности, затем фрагментов; при спуске — сначала фрагментов, затем активности (фрагмент не бывает в состоянии выше хозяина); у активности учитываются только `onCreate`, `onStart`, `onResume`, `onPause`, `onStop`, `onDestroy` — `onRestart`, `onSaveInstanceState` и другие колбэки активности и фрагментов в ответ не входят;',
+		'- транзакция с `setReorderingAllowed(true)` и «Назад»: удаляемые фрагменты получают `onPause` и `onStop`, затем добавляемые поднимаются до `onStart`, затем удаляемые продолжают с `onDestroyView` (без стека возврата — до `onDetach`), и последним добавляемые получают `onResume`;',
+		'- пересоздание активности: сначала фрагменты стека возврата (представления у них нет) получают `onDestroy`, `onDetach`, затем фрагменты контейнера по одному в порядке добавления — `onDestroyView`, `onDestroy`, `onDetach`; в новой активности фрагменты контейнера в порядке добавления, затем фрагменты стека возврата получают `onAttach`, `onCreate`; затем фрагменты контейнера по одному — `onCreateView`, `onViewCreated`, `onViewStateRestored`; транзакция, выполненная в `onCreate` новой активности, исполняется только в её `onStart`, поэтому добавленный ею фрагмент проходит `onAttach` … `onViewStateRestored` после восстановленных;',
+		'- порядок, в котором FragmentManager перебирает несколько фрагментов стека возврата, не определён; соглашение модели — в порядке попадания в стек.'
 	];
 	const start =
 		s.observer === null
@@ -654,10 +666,13 @@ for op in s["ops"]:
     if k == "replace":
         gone = list(order)
         for i in gone:
-            go(i, 1 if op["backStack"] else 0)
-            frags[i][2] = 1
+            go(i, 2)
         n = new(op["fragment"])
         order[:] = [n]
+        go(n, 3)
+        for i in gone:
+            go(i, 1 if op["backStack"] else 0)
+            frags[i][2] = 1
         go(n, 4)
         if op["backStack"]:
             held.extend(gone)
@@ -671,12 +686,16 @@ for op in s["ops"]:
     elif k == "back":
         gone, came = stack.pop()
         for i in came:
-            go(i, 0)
-            order.remove(i)
+            go(i, 2)
         for i in gone:
             held.remove(i)
             frags[i][2] = 4
             order.append(i)
+            go(i, 3)
+        for i in came:
+            go(i, 0)
+            order.remove(i)
+        for i in gone:
             go(i, 4)
     elif k == "home":
         host_down("onPause", 3)
@@ -694,9 +713,7 @@ for op in s["ops"]:
         host_down("onPause", 3)
         host_down("onStop", 2)
         every = order + held
-        for i in every:
-            go(i, 1)
-        for i in every:
+        for i in held + order:
             go(i, 0)
         log_act("onDestroy")
         log_act("onCreate")
@@ -707,12 +724,14 @@ for op in s["ops"]:
         order[:] = [again[i] for i in order]
         held[:] = [again[i] for i in held]
         stack[:] = [([again[i] for i in g], [again[i] for i in c]) for g, c in stack]
-        if s["addsInOnCreate"]:
-            order.append(new(s["first"]))
         for i in order + held:
             go(i, 1)
         for i in order:
             go(i, 2)
+        if s["addsInOnCreate"]:
+            n = new(s["first"])
+            order.append(n)
+            go(n, 2)
         host_up("onStart", 3)
         host_up("onResume", 4)
 print("\\n".join(out) if out else "-")
@@ -748,7 +767,10 @@ function required(grade: string, classId: string, s: Scenario): string[] {
 		case 'middle/replace-chain':
 			return ['backstack-destroys', 'backstack-keeps-view'];
 		case 'middle/rotation-backstack':
-			return ['rotation-skips-backstack', 'rotation-backstack-view'];
+			// A Back right after the rotation gives the fragment its view at the very place the misconception does.
+			return s.ops.length === 3 && s.ops[2]?.kind === 'back'
+				? ['rotation-skips-backstack']
+				: ['rotation-skips-backstack', 'rotation-backstack-view'];
 		case 'middle/rotation-duplicate':
 			return ['no-duplicate-on-restore'];
 		default:

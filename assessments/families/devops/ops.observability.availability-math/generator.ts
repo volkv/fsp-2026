@@ -1,5 +1,5 @@
 // Availability of a composed system as expected downtime over 30 days: chains, redundant groups, quorums and N+1 spares
-// (middle, with the inverse question of a component's allowed downtime); retries that mask only short failures, zone
+// that degrade one instance short of capacity (middle, with the inverse question of a component's allowed downtime); retries that mask only short failures, zone
 // outages that take all replicas of a zone at once and redundant paths sharing a database (senior).
 import {
 	instanceRng,
@@ -19,11 +19,15 @@ const EPS = 0.01;
 /** Probabilities are integers in units of 1e-5 (99.95 % is 99950). */
 const UNIT = 100000;
 
-/** A structure the reference enumerates: a component, all of the items, or at least k of the items. */
+/**
+ * A structure the reference enumerates: a component, all of the items, at least k of the items, or a capacity group
+ * that serves fully with `need` items up and loses `loss` % of requests with one item fewer.
+ */
 type Node =
 	| { kind: 'comp'; id: string; a: number }
 	| { kind: 'all'; items: Node[] }
-	| { kind: 'atLeast'; k: number; items: Node[] };
+	| { kind: 'atLeast'; k: number; items: Node[] }
+	| { kind: 'capacity'; need: number; loss: number; items: Node[] };
 
 interface Params {
 	classId: string;
@@ -41,6 +45,7 @@ interface Rules {
 	anyOfN: boolean;
 	allOfN: boolean;
 	ignoreSpare: boolean;
+	degradedIgnored: boolean;
 	ignoreRest: boolean;
 	noRetry: boolean;
 	retryMasksAll: boolean;
@@ -55,6 +60,7 @@ const RIGHT: Rules = {
 	anyOfN: false,
 	allOfN: false,
 	ignoreSpare: false,
+	degradedIgnored: false,
 	ignoreRest: false,
 	noRetry: false,
 	retryMasksAll: false,
@@ -69,6 +75,7 @@ const WRONG: Record<string, Partial<Rules>> = {
 	'any-of-n': { anyOfN: true },
 	'all-of-n': { allOfN: true },
 	'ignore-spare': { ignoreSpare: true },
+	'degraded-ignored': { degradedIgnored: true },
 	'ignore-rest': { ignoreRest: true },
 	'no-retry': { noRetry: true },
 	'retry-masks-all': { retryMasksAll: true },
@@ -87,6 +94,9 @@ function binom(n: number, k: number): number {
 	for (let i = 1; i <= k; i += 1) c = (c * (n - k + i)) / i;
 	return c;
 }
+
+/** Exactly j of n independent items with availability a are up. */
+const exactly = (a: number, n: number, j: number): number => binom(n, j) * a ** j * (1 - a) ** (n - j);
 
 /** At least k of n independent items with availability a. */
 function atLeast(a: number, n: number, k: number): number {
@@ -210,15 +220,26 @@ function scenario(rng: Rng, grade: string, classId: string): Params {
 		}
 		const need = rng.int(2, 4);
 		const spare = rng.int(1, 2);
-		const a = rng.pick([99000, 98000, 97000, 99500, 95000]);
-		const group = (rules: Rules): number =>
-			rules.anyOfN ? anyOf(p(a), need + spare) : rules.ignoreSpare ? p(a) ** need : atLeast(p(a), need + spare, need);
+		const n = need + spare;
+		const a = rng.pick([99000, 98000, 97000, 99500, 95000, 90000]);
+		const loss = rng.pick([20, 30, 40, 50, 60]);
+		const group = (rules: Rules): number => {
+			if (rules.anyOfN) return anyOf(p(a), n);
+			if (rules.ignoreSpare) return p(a) ** need;
+			const full = atLeast(p(a), n, need);
+			return rules.degradedIgnored ? full : full + (1 - loss / 100) * exactly(p(a), n, need - 1);
+		};
 		return {
 			classId,
 			text: chainText(
-				`- приложение: нагрузку выдерживают ${need} работающих экземпляра${need > 4 ? 'ов' : ''}, развёрнуто N+${spare} = ${need + spare}, у каждого ${percent(a)}; если работающих меньше ${need}, приложение недоступно;`
+				`- приложение: нагрузку полностью выдерживают ${need} работающих экземпляра${need > 4 ? 'ов' : ''}, развёрнуто N+${spare} = ${n}, у каждого ${percent(a)}; когда работающих ровно ${need - 1}, приложение перегружено и отвечает ошибкой на ${loss} % запросов — это время входит в простой с весом ${loss} %; ${need === 2 ? 'когда не работает ни один' : `когда работающих меньше ${need - 1}`}, приложение недоступно;`
 			),
-			tree: tail(replicas(need + spare, a, need)),
+			tree: tail({
+				kind: 'capacity',
+				need,
+				loss,
+				items: Array.from({ length: n }, (_, i) => comp(`node${i}`, a))
+			}),
 			target: null,
 			answer: (rules) => downtime(chain(group(rules), rules))
 		};
@@ -358,6 +379,12 @@ function describe(p: Params): string {
 							: 'Запрос последовательно проходит через все части системы; отказы компонентов независимы, доступность указана как доля времени:',
 					'',
 					...p.text,
+					...(p.classId === 'k-of-n' || p.classId === 'n-plus-one' || p.classId === 'quorum-zones'
+						? [
+								'',
+								'Вероятность, что из m независимых узлов с доступностью a работают ровно j: C(m, j) · a^j · (1 − a)^(m − j), где C(m, j) — число сочетаний.'
+							]
+						: []),
 					'',
 					'Сколько минут в среднем за 30 суток (43 200 минут) система недоступна? Введите число минут, округлённое до сотых, например `12.34`.'
 				];
@@ -381,20 +408,32 @@ def collect(node):
 collect(tree)
 ids = sorted(probs)
 
-def works(node, up):
+# The share of requests served in a state: 1 or 0, except a capacity group one item short of its need.
+def served(node, up):
     if node["kind"] == "comp":
-        return up[node["id"]]
-    count = sum(1 for item in node["items"] if works(item, up))
-    return count == len(node["items"]) if node["kind"] == "all" else count >= node["k"]
+        return 1.0 if up[node["id"]] else 0.0
+    values = [served(item, up) for item in node["items"]]
+    if node["kind"] == "all":
+        out = 1.0
+        for v in values:
+            out *= v
+        return out
+    count = sum(1 for v in values if v == 1.0)
+    if node["kind"] == "atLeast":
+        return 1.0 if count >= node["k"] else 0.0
+    if count >= node["need"]:
+        return 1.0
+    return 1 - node["loss"] / 100 if count == node["need"] - 1 else 0.0
 
 availability = 0.0
 for states in itertools.product((True, False), repeat=len(ids)):
     up = dict(zip(ids, states))
-    if works(tree, up):
+    share = served(tree, up)
+    if share:
         p = 1.0
         for i, s in zip(ids, states):
             p *= probs[i] if s else 1 - probs[i]
-        availability += p
+        availability += p * share
 if data["target"] is None:
     print(repr((1 - availability) * 43200))
 else:
@@ -406,7 +445,7 @@ else:
 const REQUIRED: Record<string, string[]> = {
 	'middle/series-parallel': ['parallel-ignored', 'min-of-chain'],
 	'middle/k-of-n': ['any-of-n', 'all-of-n'],
-	'middle/n-plus-one': ['ignore-spare', 'any-of-n'],
+	'middle/n-plus-one': ['ignore-spare', 'any-of-n', 'degraded-ignored'],
 	'middle/inverse': ['ignore-rest', 'parallel-ignored'],
 	'senior/retries': ['no-retry', 'retry-masks-all'],
 	'senior/zone-failure': ['ignore-zone', 'independent-replicas'],

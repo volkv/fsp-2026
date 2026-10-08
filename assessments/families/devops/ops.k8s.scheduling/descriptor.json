@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "9858680e27939d82123062fdcf30952e90c3aaab5a71d1b101136b15c434be50"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "9858680e27939d82123062fdcf30952e90c3aaab5a71d1b101136b15c434be50"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": {
 				"nodes": 3,
 				"pods": "4–5",
@@ -34,7 +51,24 @@
 		},
 		{
 			"grade": "middle",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "9858680e27939d82123062fdcf30952e90c3aaab5a71d1b101136b15c434be50"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.4,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "9858680e27939d82123062fdcf30952e90c3aaab5a71d1b101136b15c434be50"
+					}
+				],
+				"mean": 0.5
+			},
 			"constructive": {
 				"nodes": 4,
 				"pods": "4–5",
@@ -141,6 +175,28 @@
 		"answerCollision": 0.009,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Прежние существенные замечания устранены: Pending не задерживает очередь и больше не планируется; все существующие и новые поды в одном namespace; каждому узлу явно дана уникальная метка kubernetes.io/hostname. У существующих подов своих правил affinity нет.",
+					"Независимо пересчитал Python 3.12/PyYAML все 8 показанных экземпляров и ещё 152 (20 сидов класса): ресурсы с накоплением, все пары nodeSelector, taints/tolerations, OR термов и AND выражений nodeAffinity, веса и anti-affinity с только что размещёнными репликами. Ответы совпали; все 12 видов применимых ошибочных ответов отличаются. Реальный kube-scheduler и полные ворота на 200 сидах класса не запускал.",
+					"Angoff: junior 0.60 — полный ответ для 4–5 подов за 360 с требует аккуратно обновлять два ресурса; middle 0.55 — за 480 с добавляются несколько термов, веса и меняющиеся ограничения anti-affinity. Бинарная рубрика не допускает ошибки ни в одном размещении."
+				],
+				"sourceSha256": "9858680e27939d82123062fdcf30952e90c3aaab5a71d1b101136b15c434be50"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Правки учтены: под в Pending больше не планируется заново и очередь не задерживает, все поды в одном namespace, узел — свой домен топологии. Пересчитано собственным планировщиком (ресурсы с накоплением, nodeSelector, taints и tolerations, required nodeAffinity, required podAntiAffinity по hostname с только что размещёнными подами, оценка по весам preferred, тай-брейки): 8 показанных и 1600 сгенерированных экземпляров совпали с ожидаемыми 1600 из 1600.",
+					"Мелочь: симметрию anti-affinity реального планировщика модель не использует; асимметричных пар в экземплярах нет, на ответ не влияет. middle (4-5 подов на 4 узла со сложными термами) на 480 с трудоёмок; учтено в Angoff. Реальный kube-scheduler не запускался."
+				],
+				"sourceSha256": "9858680e27939d82123062fdcf30952e90c3aaab5a71d1b101136b15c434be50"
+			}
+		]
 	}
 }

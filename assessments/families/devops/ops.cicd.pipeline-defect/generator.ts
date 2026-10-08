@@ -1,6 +1,7 @@
 // A GitHub Actions workflow and its specification (deploy only from main by push and only after the tests, tests on
-// every pull request into main, the dependency cache keyed by the lock file, no secret in the log or in a command,
-// deploys never in parallel). Exactly one line breaks the specification; the candidate names it.
+// every pull request into main and every push, the dependency cache keyed by the lock file, the deploy secret through
+// env and never in the log or in a command, deploys never in parallel). Exactly one line breaks the specification;
+// the candidate names it.
 import {
 	instanceRng,
 	levelAndClass,
@@ -183,15 +184,26 @@ function workflow(rng: Rng, senior: boolean): Workflow & { stack: Stack; secretE
 			{ text: '          path: reports/' }
 		);
 	jobs.push(testJob);
+	// The deploy downloads the build output only from a build it needs, and the build uploads it.
+	const needsBuild = withBuild && rng.bool(0.5);
+	const downloadsDist = needsBuild && rng.bool(0.6);
 	if (withBuild)
 		jobs.push([
 			{ text: '  build:' },
 			{ text: '    runs-on: ubuntu-latest' },
 			{ text: '    steps:' },
 			{ text: '      - uses: actions/checkout@v4' },
-			{ text: `      - run: ${stack.build}` }
+			{ text: `      - run: ${stack.build}` },
+			...(downloadsDist
+				? [
+						{ text: '      - uses: actions/upload-artifact@v4' },
+						{ text: '        with:' },
+						{ text: '          name: dist' },
+						{ text: '          path: dist/' }
+					]
+				: [])
 		]);
-	const needs = withBuild && rng.bool(0.5) ? `[${test}, build]` : `[${test}]`;
+	const needs = needsBuild ? `[${test}, build]` : `[${test}]`;
 	const ifText = rng.bool()
 		? "github.ref == 'refs/heads/main' && github.event_name == 'push'"
 		: "github.event_name == 'push' && github.ref == 'refs/heads/main'";
@@ -214,7 +226,7 @@ function workflow(rng: Rng, senior: boolean): Workflow & { stack: Stack; secretE
 	);
 	if (rng.bool(0.4)) deployJob.push({ text: `      APP_ENV: ${rng.pick(['production', 'prod'])}` });
 	deployJob.push({ text: '    steps:' }, { text: '      - uses: actions/checkout@v4', tag: 'deploy-checkout' });
-	if (rng.bool(0.4))
+	if (downloadsDist)
 		deployJob.push(
 			{ text: '      - uses: actions/download-artifact@v4' },
 			{ text: '        with:' },
@@ -309,9 +321,9 @@ const SPEC = [
 	'Спецификация workflow:',
 	'',
 	'1. **Деплой только с `main` и только после тестов.** Задание деплоя выполняется при push в ветку `main`, если задание тестов завершилось успешно, и не выполняется ни при каком другом событии или ветке (pull request в `main`, push в другие ветки, в том числе `develop`, `maintenance`, `main-hotfix`, ручной запуск) и при упавших тестах. Задание без `if` или с `if` без функции статуса выполняется, только если все задания-предки по `needs` завершились успешно; `always()` снимает это требование.',
-	'2. **Тесты на каждом pull request в `main`.** Workflow запускается на открытие и обновление pull request в `main`, и задание тестов на нём выполняется.',
+	'2. **Тесты на каждом pull request в `main` и на каждом push.** Workflow запускается на открытие и обновление pull request в `main` и на push в любую ветку, и задание тестов на этих событиях выполняется.',
 	'3. **Кэш зависимостей — по lock-файлу.** Ключ `actions/cache` одинаков у двух запусков с одинаковым lock-файлом (даже на разных коммитах) и меняется, когда меняется lock-файл (даже если файл манифеста не менялся).',
-	'4. **Секрет не попадает в журнал.** Значение `secrets.*` передаётся командам только через `env:`; выражение `${{ secrets.… }}` не подставляется в текст `run`, и ни одна команда `echo`/`printf` не выводит переменную окружения с секретом (в том числе в преобразованном виде).',
+	'4. **Секрет не попадает в журнал.** Задание деплоя получает секрет из `secrets.*` через свой `env:`, и значение `secrets.*` передаётся командам только через `env:`; выражение `${{ secrets.… }}` не подставляется в текст `run`, и ни одна команда `echo`/`printf` не выводит переменную окружения с секретом (в том числе в преобразованном виде).',
 	'5. **Деплои не идут параллельно и не прерываются.** У задания деплоя `concurrency` с группой, одинаковой у всех запусков, и без `cancel-in-progress: true`.'
 ].join('\n');
 
@@ -506,6 +518,9 @@ def violations(source):
     # 2. Tests on every pull request into main.
     if not (triggers(doc, "pull_request", "main") and runs(doc, TEST, "pull_request", "refs/pull/7/merge", "main", set())):
         found.append("tests do not run on a pull request into main")
+    for branch in ("main", "develop", "feature/main-menu"):
+        if not (triggers(doc, "push", branch) and runs(doc, TEST, "push", "refs/heads/" + branch, "", set())):
+            found.append("tests do not run on push to " + branch)
     # 3. Cache keyed by the lock file.
     keys = [s["with"]["key"] for j in jobs.values() for s in j["steps"] if str(s.get("uses", "")).startswith("actions/cache@")]
     if not keys:
@@ -519,6 +534,8 @@ def violations(source):
         if template(key, base) == template(key, new_lock):
             found.append("cache key ignores the lock file")
     # 4. Secrets only through env and never printed.
+    if not any("secrets." in v for v in (jobs[DEPLOY].get("env") or {}).values()):
+        found.append("deploy gets no secret through env")
     for job in jobs.values():
         secret_vars = {k for k, v in (job.get("env") or {}).items() if "secrets." in v}
         for step in job["steps"]:
@@ -579,6 +596,8 @@ export function build(input: GenerateInput): Built {
 			statement: {
 				markdown: [
 					'Workflow GitHub Actions ниже должен выполнять спецификацию. Ровно одна строка её нарушает: если заменить только эту строку, все пункты спецификации будут выполнены. Введите номер этой строки (нумерация с 1).',
+					'',
+					'Если исправить можно в нескольких строках — засчитывается любая из них, где замена одной инструкцией восстанавливает спецификацию. Исправление — одна простая инструкция того же вида, что исправляемая строка: не добавляйте новых ключей или шагов и не переносите в неё логику из другой строки.',
 					'',
 					`Задание тестов — \`${w.test}\`, задание деплоя — \`${w.deploy}\`. Фильтр \`branches\` — шаблоны имён веток (\`*\` — любые символы, кроме \`/\`, \`**\` — любые); у события \`pull_request\` это целевая ветка, без \`types\` — запуск на открытие, обновление и переоткрытие.`,
 					'',

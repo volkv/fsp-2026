@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.75,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "d4d3b477f0b854f1ba8c455e1c2547ff7f87e60d5c60817348872635a3cb1f1e"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.85,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "d4d3b477f0b854f1ba8c455e1c2547ff7f87e60d5c60817348872635a3cb1f1e"
+					}
+				],
+				"mean": 0.8
+			},
 			"constructive": { "values": "4–5", "mechanisms": 1, "nullablePaths": 2, "exceptions": false },
 			"constructiveRank": 2,
 			"timeNormSec": 180,
@@ -37,7 +54,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.7,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "d4d3b477f0b854f1ba8c455e1c2547ff7f87e60d5c60817348872635a3cb1f1e"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.75,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "d4d3b477f0b854f1ba8c455e1c2547ff7f87e60d5c60817348872635a3cb1f1e"
+					}
+				],
+				"mean": 0.75
+			},
 			"constructive": { "values": "5–6", "mechanisms": 2, "nullablePaths": 3, "exceptions": false },
 			"constructiveRank": 3,
 			"timeNormSec": 240,
@@ -133,6 +167,27 @@
 		"answerCollision": 0.0013,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Все 8 экземпляров пересчитал вручную и исполнил в Kotlin/JVM 2.4.20 на OpenJDK 21: вывод совпал, включая пустую строку, приоритет Elvis, исключение !!, null из let, as? и отказ toIntOrNull на пробеле. Отрицательные числа в коде и ответе записаны обычным дефисом; хвостовые пробелы снимает sequence-чекер. Применимые ошибочные ответы отличаются от исполнения. 200 дополнительных сидов на класс не проверял.",
+					"Angoff: intern 0.75, junior 0.70 — полный ответ по binary за 180/240 с. На Intern четыре–пять независимых простых значений; на Junior null возникает внутри цепочки, а в to-int-or-null ошибка разбора влияет ещё и на последующие накопленные суммы."
+				],
+				"sourceSha256": "d4d3b477f0b854f1ba8c455e1c2547ff7f87e60d5c60817348872635a3cb1f1e"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчёт: все 8 показанных программ скомпилированы и выполнены (Kotlin 2.4, JVM 21), вывод совпал с ответом; приоритет элвиса, let/takeIf и as? проверены компилятором. Другие сиды не проверял.",
+					"Ответ из 3-5 коротких строк, `answerCollision` 0.0013 — приемлемо. Junior `to-int-or-null` (накопление суммы, пробел в строке) — самый тонкий экземпляр, но в пределах нормы."
+				],
+				"sourceSha256": "d4d3b477f0b854f1ba8c455e1c2547ff7f87e60d5c60817348872635a3cb1f1e"
+			}
+		]
 	}
 }

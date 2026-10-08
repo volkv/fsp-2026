@@ -2,8 +2,9 @@
 // `TimeoutCancellationException` (silently cancelling a `launch` that does not catch it), `withTimeoutOrNull` gives null
 // (even when the block catches the cancellation and returns a fallback), a timeout cancels the `async` started inside
 // its block but not the one started outside, a lazy `async` starts at `await`, and a failure under `awaitAll` escapes
-// `withTimeoutOrNull`. The mechanism is the essential class; names, values and moments are surface. Every program runs
-// in a single-threaded `runBlocking`; its timers differ by at least 100 ms.
+// `withTimeoutOrNull`. The mechanism is the essential class, and so is whether the timeout fires (class A: mostly; the
+// anchor: always, while a started `async` still runs); names, values and the moments within that outcome are surface.
+// Every program runs in a single-threaded `runBlocking`; its timers differ by at least 100 ms.
 import {
 	instanceRng,
 	levelAndClass,
@@ -40,23 +41,23 @@ const loaderLine = (l: Loader): string =>
 		? `launch { try { delay(${l.at}); println("${l.name} loaded") } finally { println("${l.name} closed") } }`
 		: `launch { delay(${l.at}); println("${l.name} loaded") }`;
 
+/** The outcomes of class A: most timeouts fire; the rest complete in time while a child outlives the body. */
+const fires = (rng: Rng): boolean => rng.bool(0.75);
+
 function timeoutCaught(rng: Rng): TraceProgram {
-	const two = rng.bool();
+	const timedOut = fires(rng);
 	let limit: number;
 	let bodyAt: number;
 	let loaderMoments: number[];
-	if (two) {
-		const m = rng.shuffle([100, 200, 300, 400]);
-		[limit, bodyAt] = m as [number, number];
-		loaderMoments = m.slice(2);
-	} else {
-		for (;;) {
-			const m = rng.sample([100, 200, 300, 400, 500], 3);
-			if (m.reduce((a, b) => a + b, 0) <= 1000) {
-				[limit, bodyAt] = m as [number, number];
-				loaderMoments = m.slice(2);
-				break;
-			}
+	for (;;) {
+		const m = rng.bool() ? rng.shuffle([100, 200, 300, 400]) : rng.sample([100, 200, 300, 400, 500], 3);
+		if (m.reduce((a, b) => a + b, 0) > 1000) continue;
+		const [l, b, ...rest] = m as [number, number, ...number[]];
+		const finish = Math.max(b, ...rest);
+		// In time, the block outlives its body: a child finishes after the body and before the limit.
+		if (timedOut ? finish > l : finish < l && rest.some((at) => at > b)) {
+			[limit, bodyAt, loaderMoments] = [l, b, rest];
+			break;
 		}
 	}
 	const names = rng.sample(SECTIONS, loaderMoments.length);
@@ -118,6 +119,7 @@ function timeoutCaught(rng: Rng): TraceProgram {
 }
 
 function timeoutInLaunch(rng: Rng): TraceProgram {
+	const timedOut = fires(rng);
 	let plan: { first: number; second: number; limit: number; sibling: number };
 	for (;;) {
 		const candidate = {
@@ -127,7 +129,8 @@ function timeoutInLaunch(rng: Rng): TraceProgram {
 			sibling: rng.pick([100, 200, 300, 400, 500])
 		};
 		const moments = [candidate.first, candidate.first + candidate.second, candidate.limit, candidate.sibling];
-		if (spread(moments) && Math.max(...moments) <= 1000) {
+		const late = candidate.limit < candidate.first + candidate.second;
+		if (spread(moments) && Math.max(...moments) <= 1000 && late === timedOut) {
 			plan = candidate;
 			break;
 		}
@@ -294,9 +297,18 @@ function asyncTimeout(rng: Rng): TraceProgram {
 		};
 		const t = timing(candidate, lazy);
 		const startedB = !lazy || t.startB < candidate.limit;
-		const moments = [t.doneA, ...(startedB ? [t.doneB] : []), ...(t.ok ? [] : [candidate.limit]), t.end];
-		const outsideDone = [t.doneA, ...(startedB ? [t.doneB] : [])].every((m) => m < t.end);
-		if (spread(moments) && t.end <= 1000 && outsideDone && (lazy || candidate.ta !== candidate.tb)) {
+		const started = [t.doneA, ...(startedB ? [t.doneB] : [])];
+		const moments = [...started, ...(t.ok ? [] : [candidate.limit]), t.end];
+		const outsideDone = started.every((m) => m < t.end);
+		// The timeout fires while a started async still runs: where it was started decides whether it prints.
+		const placementMatters = !t.ok && started.some((m) => m > candidate.limit);
+		if (
+			spread(moments) &&
+			t.end <= 1000 &&
+			outsideDone &&
+			placementMatters &&
+			(lazy || candidate.ta !== candidate.tb)
+		) {
 			plan = candidate;
 			break;
 		}
@@ -354,7 +366,9 @@ type Part = { name: string; at: number; kind: 'ready' | 'fail' | 'fin'; value: n
 
 function awaitAllTimeout(rng: Rng): TraceProgram {
 	const failing = rng.bool(0.75);
-	const moments = rng.shuffle([100, 200, 300, 400]);
+	let moments = rng.shuffle([100, 200, 300, 400]);
+	// Without a failure the timeout comes before the last part: the block never just sums its parts.
+	while (!failing && moments[3] === 400) moments = rng.shuffle([100, 200, 300, 400]);
 	const limit = moments[3] as number;
 	const names = rng.sample(SECTIONS, 3);
 	const kinds = rng.shuffle<Part['kind']>(
@@ -437,6 +451,12 @@ function awaitAllTimeout(rng: Rng): TraceProgram {
 	};
 }
 
+/** The time model of the answer: exact delays and timeouts on one thread (the timers differ by at least 100 ms). */
+const STATEMENT =
+	'Что напечатает программа на Kotlin 2.4 (JVM 21, kotlinx.coroutines; `runBlocking` на одном потоке)? ' +
+	'Считайте, что задержки и сроки таймаутов выдерживаются точно, а всё остальное выполняется мгновенно. ' +
+	'Введите вывод построчно, как он появится на экране.';
+
 const CLASSES: Readonly<Record<string, (rng: Rng) => TraceProgram>> = {
 	'timeout-finally': (rng) => (rng.bool(0.6) ? timeoutCaught(rng) : timeoutInLaunch(rng)),
 	'or-null-retry': orNullRetry,
@@ -448,7 +468,7 @@ export function build(input: GenerateInput): Built {
 	levelAndClass(descriptor, input);
 	const make = CLASSES[input.classId];
 	if (!make) throw new Error(`${descriptor.key}: no program for class ${input.classId}`);
-	return traceBuilt(descriptor, input, make(instanceRng(descriptor, input)));
+	return traceBuilt(descriptor, input, make(instanceRng(descriptor, input)), STATEMENT);
 }
 
 export function generate(input: GenerateInput): ItemInstance {

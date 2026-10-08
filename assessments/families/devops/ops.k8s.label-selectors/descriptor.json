@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.65,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "7f3249c2d987eb23738eb03b7e396351324256aafbee02929d5a2faadba3e49a"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "7f3249c2d987eb23738eb03b7e396351324256aafbee02929d5a2faadba3e49a"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": { "pods": "7–9", "selector": "matchLabels Service, 2–3 пары", "rules": 2 },
 			"constructiveRank": 2,
 			"timeNormSec": 300,
@@ -37,7 +54,24 @@
 		},
 		{
 			"grade": "middle",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.7,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "7f3249c2d987eb23738eb03b7e396351324256aafbee02929d5a2faadba3e49a"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.5,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "7f3249c2d987eb23738eb03b7e396351324256aafbee02929d5a2faadba3e49a"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": {
 				"pods": "8–10",
 				"selector": "matchLabels + 2–3 matchExpressions",
@@ -124,6 +158,29 @@
 		"answerCollision": 0.0153,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Независимо пересчитал все 8 показанных экземпляров собственной программой Python 3.12: селекторы, namespace, Ready, метки шаблонов, пустые значения, NotIn по отсутствующему ключу и конъюнкцию выражений. Все ответы совпали. Настоящие Service/PDB не разворачивал и 200 сидов каждого класса не повторял.",
+					"Angoff junior = 0.65: полный набор требует одновременно учесть все пары, namespace и готовность за 300 с. Angoff middle = 0.70: 420 с достаточны для таблицы из 8–10 подов, но NotIn и пустые значения дают реальные ошибки; бинарная рубрика не даёт частичного балла."
+				],
+				"sourceSha256": "7f3249c2d987eb23738eb03b7e396351324256aafbee02929d5a2faadba3e49a"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчитано собственной реализацией селекторов (Service по matchLabels, PodDisruptionBudget по matchLabels и matchExpressions, готовность и namespace, метки шаблона Deployment): 8 показанных экземпляров и 1600 экземпляров из генератора (200 сидов на каждый из 8 классов, junior и middle) совпали с ожидаемыми ответами 1600 из 1600. Реальный kube-apiserver не запускался.",
+					"Мелочь: условие junior не говорит, что в endpoints попадают только Ready-поды, это знание проверяется классом readiness. В реальном EndpointSlice не готовые поды присутствуют с ready=false, но формулировка 'направлять трафик' снимает двусмысленность; ответ не меняется.",
+					"Мелочь: ответ-множество из 2-7 имён, бинарная рубрика; угадать нельзя (answerCollision 0.0153), порядок и повторы оговорены ('в любом порядке', пустое множество — строка '-').",
+					"Ошибочные решения настоящие и типичные (любая пара, точное совпадение меток, игнор Ready и namespace, метки Deployment вместо шаблона, NotIn требует ключ, пустое значение как отсутствие, ИЛИ между секциями)."
+				],
+				"sourceSha256": "7f3249c2d987eb23738eb03b7e396351324256aafbee02929d5a2faadba3e49a"
+			}
+		]
 	}
 }

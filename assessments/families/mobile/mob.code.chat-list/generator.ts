@@ -217,7 +217,8 @@ interface Shape {
 	/** Share of messages edited and deleted (Junior), and whether one chat loses every message. */
 	edits: number;
 	wipe: boolean;
-	/** Flagged chats that have no messages. */
+	/** Flagged chats that have messages, and flagged chats that have none. */
+	flags: number;
 	ghosts: number;
 }
 
@@ -232,15 +233,18 @@ function shapeOf(rng: Rng, group: GroupId, junior: boolean): Shape {
 		shuffle: junior,
 		edits: junior ? 0.15 : 0,
 		wipe: false,
+		flags: rng.int(2, 3),
 		ghosts: 0
 	};
+	// The simple groups: no own messages, lines in time order, no edits, one pinned chat with messages.
+	const simple: Partial<Shape> = { own: 0, ties: false, shuffle: false, edits: 0, flags: 1 };
 	switch (group) {
-		case 'trim':
-			return { ...base, trim: true };
+		case 'basic':
+			return { ...base, ...simple };
 		case 'own':
 			return { ...base, own: 0.5, read: 0.4, trim: rng.bool() };
 		case 'quiet':
-			return { ...base, own: 0.4, read: 0.8, ghosts: rng.int(1, 2) };
+			return { ...base, ...simple, read: 0.8, ghosts: rng.int(1, 2) };
 		case 'ties':
 			return { ...base, ties: true, trim: true };
 		case 'edits':
@@ -256,6 +260,8 @@ function shapeOf(rng: Rng, group: GroupId, junior: boolean): Shape {
 				wipe: junior,
 				ghosts: 2
 			};
+		case 'trim':
+			return { ...base, trim: true };
 		default:
 			return base;
 	}
@@ -324,22 +330,19 @@ function makeInput(rng: Rng, shape: Shape): Input {
 			}
 		}
 	}
-	const flagged = rng.shuffle([...rng.sample(chats, Math.min(chats.length, rng.int(2, 3))), ...ghosts]);
+	const flagged = rng.shuffle([...rng.sample(chats, Math.min(chats.length, shape.flags)), ...ghosts]);
 	return { k, flagged, events };
 }
 
 /** The wrong solutions a group must expose on every test of the class. */
-function traps(classId: string, group: GroupId, junior: boolean): WrongId[] {
-	const pinned: WrongId[] = classId === 'pinned' ? ['pin-order'] : [];
+function traps(classId: string, group: GroupId): WrongId[] {
 	switch (group) {
-		case 'basic':
-			return junior ? ['last-line', ...pinned] : pinned;
 		case 'trim':
 			return ['ellipsis-at-k'];
 		case 'ties':
-			return ['equal-ts-first', 'ellipsis-at-k'];
+			return ['last-line', 'equal-ts-first', 'ellipsis-at-k'];
 		case 'own':
-			return ['counts-own', 'prefix-in-limit'];
+			return ['counts-own', 'prefix-in-limit', ...(classId === 'pinned' ? (['pin-order'] as const) : [])];
 		case 'edits':
 			return ['delete-no-rollback'];
 		default:
@@ -347,22 +350,29 @@ function traps(classId: string, group: GroupId, junior: boolean): WrongId[] {
 	}
 }
 
+/** The first two groups are simple: every wrong solution of the level passes them, a partial solution scores 0.4. */
+const SIMPLE: readonly GroupId[] = ['basic', 'quiet'];
+
 const GROUPS: Record<'intern' | 'junior', GroupId[]> = {
-	intern: ['basic', 'trim', 'own', 'quiet', 'scale'],
-	junior: ['basic', 'ties', 'own', 'edits', 'scale']
+	intern: ['basic', 'quiet', 'trim', 'own', 'scale'],
+	junior: ['basic', 'quiet', 'ties', 'own', 'edits']
 };
 
 /** Hidden tests of the class; every test tells the class from the others of the level. */
 function groups(rng: Rng, classId: string, others: readonly string[], junior: boolean): HiddenTestGroup[] {
+	const wrongs = WRONG_IDS.filter((id) => applies(id, classId, junior));
 	return GROUPS[junior ? 'junior' : 'intern'].map((id) => {
-		const count = id === 'scale' ? 1 : 4;
+		// Junior has no group of its own for a large log: the last one of the edits is large.
+		const shapes: GroupId[] =
+			id === 'scale' ? ['scale'] : id === 'edits' ? ['edits', 'edits', 'edits', 'scale'] : [id, id, id, id];
 		const tests: { stdin: string; expected: string }[] = [];
-		for (let attempt = 0; tests.length < count; attempt += 1) {
-			if (attempt > 500) throw new Error(`${descriptor.key}: no distinguishing ${id} test for ${classId}`);
-			const input = makeInput(rng, shapeOf(rng, id, junior));
+		for (let attempt = 0; tests.length < shapes.length; attempt += 1) {
+			if (attempt > 2000) throw new Error(`${descriptor.key}: no distinguishing ${id} test for ${classId}`);
+			const input = makeInput(rng, shapeOf(rng, shapes[tests.length] as GroupId, junior));
 			const expected = solve(classId, input);
 			if (expected === '' || others.some((other) => solve(other, input) === expected)) continue;
-			if (traps(classId, id, junior).some((v) => solve(classId, input, v) === expected)) continue;
+			if (traps(classId, id).some((v) => solve(classId, input, v) === expected)) continue;
+			if (SIMPLE.includes(id) && wrongs.some((v) => solve(classId, input, v) !== expected)) continue;
 			tests.push({ stdin: render(classId, input, junior), expected: `${expected}\n` });
 		}
 		return { id, tests };
@@ -427,8 +437,59 @@ function statement(classId: string, junior: boolean): string {
 		'',
 		ORDER[classId] ?? '',
 		'',
-		`Скрытые тесты — пять групп: обычные данные, ${junior ? 'равные моменты и границы обрезки превью' : 'границы обрезки превью'}, свои сообщения, ${junior ? 'правки и удаления' : 'чаты без непрочитанных и упомянутые чаты без сообщений'}, большой объём (тысячи строк). Группа засчитывается, если пройдены все её тесты.`
+		'Заготовка разбора ввода (можно взять как есть):',
+		'',
+		'```kotlin',
+		...skeleton(classId, junior),
+		'```',
+		'',
+		`Скрытые тесты — пять групп: обычные данные; чаты без непрочитанных и упомянутые чаты без сообщений; ${junior ? 'равные моменты, строки не по порядку и границы обрезки превью' : 'границы обрезки превью'}; свои сообщения; ${junior ? 'правки и удаления, последний тест группы — большой журнал (тысячи строк)' : 'большой объём (тысячи строк)'}. Первые две группы простые: в них нет своих сообщений${junior ? ', правок, удалений' : ''} и текстов ровно из \`K\` символов${junior ? ', строки идут по порядку времени без равных моментов' : ''}${classId === 'pinned' ? ', закреплён один чат с сообщениями' : ''}. Группа засчитывается, если пройдены все её тесты.`
 	].join('\n');
+}
+
+/** A Kotlin skeleton that reads the input of the class: the candidate fills in the logic. */
+function skeleton(classId: string, junior: boolean): string[] {
+	const flagged = classId === 'pinned' || classId === 'muted-alpha';
+	return [
+		'fun main() {',
+		'    val (n, k) = readln().trim().split(" ").map { it.toInt() }',
+		...(flagged ? [`    val ${classId === 'pinned' ? 'pinned' : 'muted'} = readln().trim().split(" ").drop(1)`] : []),
+		'    repeat(n) {',
+		...(junior
+			? [
+					'        val line = readln()',
+					'        val kind = line.substringBefore(" ")',
+					'        when (kind) {',
+					'            "msg" -> {',
+					'                val p = line.split(" ", limit = 7)',
+					'                val id = p[1].toLong()',
+					'                val t = p[2].toLong()',
+					'                val chat = p[3]',
+					'                val author = p[4]',
+					'                val read = p[5] == "1"',
+					'                val text = p[6]',
+					'            }',
+					'            "edit" -> {',
+					'                val p = line.split(" ", limit = 3)',
+					'                val id = p[1].toLong()',
+					'                val text = p[2]',
+					'            }',
+					'            "del" -> {',
+					'                val id = line.substringAfter(" ").toLong()',
+					'            }',
+					'        }'
+				]
+			: [
+					'        val p = readln().split(" ", limit = 5)',
+					'        val t = p[0].toLong()',
+					'        val chat = p[1]',
+					'        val author = p[2]',
+					'        val read = p[3] == "1"',
+					'        val text = p[4]'
+				]),
+		'    }',
+		'}'
+	];
 }
 
 /** The reference program of a class in Python; a variant other than `right` is a wrong solution. */

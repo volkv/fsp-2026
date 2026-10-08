@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.7,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "f1272d28d317181017ef24de377f14776faa84f7d635a5c0e0c2c27f0acc4e69"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "f1272d28d317181017ef24de377f14776faa84f7d635a5c0e0c2c27f0acc4e69"
+					}
+				],
+				"mean": 0.65
+			},
 			"constructive": {
 				"workflows": "4–5",
 				"filters": "один фильтр одного вида у события: branches, branches-ignore, tags, paths или paths-ignore",
@@ -41,7 +58,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.65,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "f1272d28d317181017ef24de377f14776faa84f7d635a5c0e0c2c27f0acc4e69"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.45,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "f1272d28d317181017ef24de377f14776faa84f7d635a5c0e0c2c27f0acc4e69"
+					}
+				],
+				"mean": 0.55
+			},
 			"constructive": {
 				"workflows": "5–6",
 				"filters": "фильтр веток и фильтр путей вместе, отрицания ! в branches и paths",
@@ -156,6 +190,30 @@
 		"answerCollision": 0.0214,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Angoff: intern 0.70, junior 0.65 — вероятность полностью верного множества при binary за 300/420 секунд. На Intern достаточно последовательно проверить тип события и один фильтр; на Junior добавляются пересечение фильтров и последний совпавший отрицательный шаблон. Правила приведены явно, но пропуск одного workflow обнуляет ответ.",
+					"Пересчитал все 8 показанных экземпляров отдельным сопоставлением событий и glob-фильтров на Python 3.12, включая целевую ветку PR, различие ветки/тега и отрицания по каждому файлу; множества совпали. Исполнил 8 эталонов с проверкой set и проверил 18 применимых ошибочных ответов. Реальные GitHub Actions и ворота на 200 сидах не запускал; descriptor.json не открывал."
+				],
+				"sourceSha256": "f1272d28d317181017ef24de377f14776faa84f7d635a5c0e0c2c27f0acc4e69"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Что пересчитано: вручную 4 показанных intern-экземпляра (branch-glob `api-tests.yml, security.yml, terraform.yml`; pr-target `docker.yml`; paths-ignore все 5 файлов; tag-push `helm.yml`) — совпали. Написал независимый вычислитель триггеров GitHub Actions (PyYAML, свои глоб-шаблоны, последнее совпавшее правило для `!`, push ветки/тега/PR) и сравнил с ожидаемыми ответами генератора на 200 сидах каждого из 8 классов (1600 экземпляров): расхождений 0. Junior-экземпляры отдельно вручную не считал, только через вычислитель. Реальный GitHub Actions не запускал.",
+					"Правила в условии согласованы с документацией GitHub: `*` не пересекает `/`; push тега не запускает workflow с одними фильтрами веток, push ветки — с одними tags; фильтры веток pull_request сверяются с целевой веткой; paths-ignore не запускает, только если все файлы проигнорированы; при `!` решает последний совпавший шаблон; branches и paths должны совпасть оба. Во всех 5822 сгенерированных списках branches/paths первый шаблон без `!`, branches вместе с branches-ignore и paths вместе с paths-ignore не встречаются (запреты настоящего GitHub соблюдены).",
+					"Ошибочные решения настоящие: целевое для класса решение (star-crosses-slash, pr-source-branch, paths-ignore-any, missing-filter-allows, first-match, negated-file-blocks, paths-or-branches) отличается от верного на 200 из 200 экземпляров своего класса (по wrong() генератора). Различных ответов 97–179 из 200, answerCollision 0,0214. Мелочь: в списке ошибочных решений `missing-filter-allows` указано дважды (текст пакета), на данные не влияет.",
+					"Мелочь. Intern, tag-push и branch-glob: различных ответов 97 и 106 из 200 при 4–5 workflow (множество из ≤32 подмножеств); ответ из 1–2 файлов угадать можно с вероятностью порядка нескольких процентов — это уровень answerCollision, приемлемо.",
+					"Трудоёмкость: intern 4–5 workflow за 300 с — достижимо; junior 5–6 workflow с отрицаниями `!`, последним совпавшим шаблоном и проверкой пути по каждому файлу за 420 с, бинарное множество: одна ошибка на любом workflow обнуляет ответ, учтено в Angoff."
+				],
+				"sourceSha256": "f1272d28d317181017ef24de377f14776faa84f7d635a5c0e0c2c27f0acc4e69"
+			}
+		]
 	}
 }

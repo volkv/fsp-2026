@@ -118,19 +118,21 @@ const INTERN: Fn[] = [
 			const args = rng.sample(WORDS, rng.int(3, 4));
 			return [{ args: ['arg_summary', ...args], expected: out(`${args.length} ${args[args.length - 1]}`) }];
 		},
-		defects: [
-			{ kind: 'args', line: 0, text: '\tlocal count=$1', neighbour: 1 },
-			{ kind: 'args', line: 1, text: '\techo "$count $#"', neighbour: 0 }
-		]
+		defects: [{ kind: 'args', line: 1, text: '\techo "$count $#"', neighbour: 0 }]
 	},
 	{
 		name: 'each_arg',
 		example: '"a b" c',
 		spec: 'each_arg ARG... — печатает каждый аргумент на отдельной строке.',
-		body: ['\tlocal a', '\tfor a in "$@"; do', '\t\techo "$a"', '\tdone'],
+		body: ['\tlocal a', '\tfor a in "$@"; do', '\t\tprintf \'%s\\n\' "$a"', '\tdone'],
 		cases: (rng) => {
 			const args = [`${rng.pick(WORDS)} ${rng.pick(WORDS)}`, rng.pick(WORDS)];
-			return [{ args: ['each_arg', ...args], expected: out(...args) }];
+			// An argument that looks like an option is printed as it is.
+			const flagged = ['-n', rng.pick(WORDS)];
+			return [
+				{ args: ['each_arg', ...args], expected: out(...args) },
+				{ args: ['each_arg', ...flagged], expected: out(...flagged) }
+			];
 		},
 		defects: [{ kind: 'args', line: 1, text: '\tfor a in "$*"; do', neighbour: 2 }]
 	},
@@ -187,7 +189,8 @@ const JUNIOR: Fn[] = [
 		name: 'print_raw',
 		example: 'paths.txt',
 		spec: 'print_raw FILE — печатает строки файла без изменений: обратные косые черты и начальные пробелы сохраняются.',
-		body: ['\tlocal line', '\twhile IFS= read -r line; do', '\t\tprintf \'%s\\n\' "$line"', '\tdone < "$1"'],
+		// No `local` line: `local line IFS=` would be a second repair of the missing `IFS=`.
+		body: ['\twhile IFS= read -r line; do', '\t\tprintf \'%s\\n\' "$line"', '\tdone < "$1"'],
 		cases: (rng) => {
 			const ls = [
 				`C:\\${rng.pick(['temp', 'logs'])}\\${rng.pick(['new', 'tmp'])}`,
@@ -199,19 +202,21 @@ const JUNIOR: Fn[] = [
 			];
 		},
 		defects: [
-			{ kind: 'read-raw', line: 1, text: '\twhile IFS= read line; do', neighbour: 2 },
-			{ kind: 'read-raw', line: 1, text: '\twhile read -r line; do', neighbour: 3 }
+			{ kind: 'read-raw', line: 0, text: '\twhile IFS= read line; do', neighbour: 1 },
+			{ kind: 'read-raw', line: 0, text: '\twhile read -r line; do', neighbour: 2 }
 		]
 	},
 	{
 		name: 'key_values',
 		example: 'app.env',
-		spec: 'key_values FILE — для строк вида «ключ=значение» печатает «ключ: значение»; значение печатается как есть, вместе с обратными косыми чертами.',
-		body: ['\tlocal key value', '\twhile IFS== read -r key value; do', '\t\techo "$key: $value"', '\tdone < "$1"'],
+		spec: 'key_values FILE — для строк вида «ключ=значение» печатает «ключ: значение»; ключ — до первого «=», значение — всё после него, как есть: с обратными косыми чертами и знаками «=», возможно пустое.',
+		body: ['\tlocal line', '\twhile IFS= read -r line; do', '\t\techo "${line%%=*}: ${line#*=}"', '\tdone < "$1"'],
 		cases: (rng) => {
 			const kv = [
 				['path', `D:\\${rng.pick(['data', 'cache'])}\\${rng.pick(['in', 'out'])}`],
-				['mode', rng.pick(['fast', 'safe'])]
+				['mode', rng.pick(['fast', 'safe'])],
+				['token', `${rng.pick(['YWI', 'eHk', 'cXc'])}=`],
+				['note', '']
 			];
 			return [
 				{
@@ -221,7 +226,7 @@ const JUNIOR: Fn[] = [
 				}
 			];
 		},
-		defects: [{ kind: 'read-raw', line: 1, text: '\twhile IFS== read key value; do', neighbour: 0 }]
+		defects: [{ kind: 'read-raw', line: 1, text: '\twhile IFS= read line; do', neighbour: 2 }]
 	},
 	{
 		name: 'deploy_mode',
@@ -264,23 +269,30 @@ const JUNIOR: Fn[] = [
 				{ args: ['cleanup_tmp', 'missing'], files, expected: out('no dir') }
 			];
 		},
-		defects: [{ kind: 'rm-scope', line: 0, text: '\tcd "$1"', neighbour: 1 }]
+		// The check of `cd` is inverted: without the directory `rm` runs in the current one.
+		defects: [{ kind: 'rm-scope', line: 0, text: '\tcd "$1" && { echo "no dir"; return 1; }', neighbour: 1 }]
 	},
 	{
 		name: 'count_logs',
 		example: '/var/log/app',
-		spec: 'count_logs DIR — печатает число файлов *.log в самом каталоге DIR (без подкаталогов).',
-		body: ['\tlocal dir=$1', '\tfind "$dir" -maxdepth 1 -name \'*.log\' | wc -l'],
+		spec: 'count_logs DIR — печатает число обычных файлов *.log в самом каталоге DIR (без подкаталогов).',
+		// One line per file whatever its name holds, a line feed included.
+		body: ['\tlocal dir=$1', "\tfind \"$dir\" -maxdepth 1 -type f -name '*.log' -printf '1\\n' | wc -l"],
 		cases: (rng) => {
 			const n = rng.int(1, 3);
 			const files = [
 				...Array.from({ length: n }, (_, i) => ({ path: `logs/s${i}.log`, content: 'x\n' })),
 				{ path: 'logs/old/x.log', content: 'x\n' },
+				// A directory named like a log is not counted.
+				{ path: 'logs/archive.log/part.txt', content: 'x\n' },
+				{ path: 'logs/day\nend.log', content: 'x\n' },
 				...Array.from({ length: n + 2 }, (_, i) => ({ path: `top${i}.log`, content: 'x\n' }))
 			];
-			return [{ args: ['count_logs', 'logs'], files, expected: out(n) }];
+			return [{ args: ['count_logs', 'logs'], files, expected: out(n + 1) }];
 		},
-		defects: [{ kind: 'rm-scope', line: 1, text: "\tfind -maxdepth 1 -name '*.log' | wc -l", neighbour: 0 }]
+		defects: [
+			{ kind: 'rm-scope', line: 1, text: "\tfind \"$dir\" -type f -name '*.log' -printf '1\\n' | wc -l", neighbour: 0 }
+		]
 	},
 	{
 		name: 'next_month',
@@ -300,16 +312,17 @@ const JUNIOR: Fn[] = [
 		name: 'to_minutes',
 		example: '08:30',
 		spec: 'to_minutes HH:MM — печатает число минут от полуночи; часы и минуты могут начинаться с нуля.',
-		body: ['\tlocal h=${1%%:*} m=${1##*:}', '\techo $((10#$h * 60 + 10#$m))'],
+		body: ['\tlocal h m', '\tIFS=: read -r h m <<< "$1"', '\techo $((10#$h * 60 + 10#$m))'],
 		cases: (rng) => {
 			const h = rng.pick([8, 9]);
-			const m = rng.pick([8, 9, 30]);
+			const m = rng.pick([8, 9]);
+			// Leading zeros in both parts: `10#` only before the whole argument does not repair the minutes.
 			return [
-				{ args: ['to_minutes', `0${h}:${String(m).padStart(2, '0')}`], expected: out(h * 60 + m) },
+				{ args: ['to_minutes', `0${h}:0${m}`], expected: out(h * 60 + m) },
 				{ args: ['to_minutes', '12:15'], expected: out(735) }
 			];
 		},
-		defects: [{ kind: 'arith-octal', line: 1, text: '\techo $((h * 60 + m))', neighbour: 0 }]
+		defects: [{ kind: 'arith-octal', line: 2, text: '\techo $((h * 60 + m))', neighbour: 1 }]
 	}
 ];
 
@@ -385,9 +398,14 @@ export function build(input: GenerateInput): Built {
 		statement: {
 			markdown:
 				'Скрипт `tool.sh` — набор функций; над каждой в комментарии записана её спецификация. Последняя строка вызывает функцию, ' +
-				'имя которой передано первым аргументом, с остальными аргументами: `bash tool.sh ФУНКЦИЯ АРГУМЕНТЫ...`. Ровно одна строка ' +
-				'скрипта нарушает спецификацию своей функции: если исправить только её, все функции будут работать по спецификации. ' +
-				'Введите номер этой строки (нумерация с 1).',
+				'имя которой передано первым аргументом, с остальными аргументами: `bash tool.sh ФУНКЦИЯ АРГУМЕНТЫ...`. Среда: GNU bash 5.2, ' +
+				'GNU coreutils 9 и GNU findutils; файлы, которые читают функции, — текстовые: каждая строка, включая последнюю, ' +
+				'оканчивается переводом строки; пути файлов и каталогов в аргументах не начинаются с «-». Ровно одна строка скрипта нарушает спецификацию своей функции: если исправить только её, ' +
+				'все функции будут работать по спецификации. Введите номер этой строки (нумерация с 1).\n\n' +
+				'Если исправить можно в нескольких строках — засчитывается любая из них, где замена одной инструкцией восстанавливает ' +
+				'спецификацию. Исправление — одна простая инструкция того же вида, что исправляемая строка: не добавляйте конструкций, ' +
+				'которых в ней нет (конвейеров, `&&` и `||`, условий, групп команд, подстановок команд, новых форм раскрытия ' +
+				'параметров, новых переменных в `local`, `readonly` и `export`), и не переносите в неё логику из другой строки.',
 			code: { language: 'shell', source: p.source }
 		},
 		answer: { kind: 'line_no', value: p.answer }

@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.5,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "5527be4e9c0461658ed8176fa7dd7e1c4efe63429efd219f304945dc93d984db"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "5527be4e9c0461658ed8176fa7dd7e1c4efe63429efd219f304945dc93d984db"
+					}
+				],
+				"mean": 0.55
+			},
 			"constructive": { "commands": "4–6", "descriptors": "1–2", "rules": "1–2", "files": "1–3" },
 			"constructiveRank": 4,
 			"timeNormSec": 300,
@@ -37,7 +54,24 @@
 		},
 		{
 			"grade": "middle",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.4,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "5527be4e9c0461658ed8176fa7dd7e1c4efe63429efd219f304945dc93d984db"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "5527be4e9c0461658ed8176fa7dd7e1c4efe63429efd219f304945dc93d984db"
+					}
+				],
+				"mean": 0.5
+			},
 			"constructive": { "commands": "6–10", "descriptors": "2–4", "rules": "2–3", "files": "1–4" },
 			"constructiveRank": 4,
 			"timeNormSec": 420,
@@ -157,6 +191,30 @@
 		"answerCollision": 0.0001,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчитал вручную все 8 показанных экземпляров (порядок >f 2>&1 и 2>&1 >f, >/>> и группы, |/|&/tee, here-doc и here-string, exec и fd 3/4/5/6, функции и циклы с перенаправлением); по 60 сидов каждого класса прогнал реальный bash с merged stderr (расхождений 0). В пайпах на экран пишет только один процесс на команду, гонок порядка нет. Не проверял другие версии bash (запускал 5.2.21).",
+					"Мелочь: middle/fd-juggling и shared-file при бинарной рубрике дают 10–12 строк вывода за 420 с, причём одна ошибка в обмене fd 3 обнуляет ответ; Angoff middle занижен.",
+					"Мелочь: shared-file полагается на отдельные смещения двух открытий O_TRUNC на один файл (длина out-/err- одинакова, перезапись полная); в условии это не оговорено, но для Linux однозначно.",
+					"Второй раунд Angoff, middle: было 0,35, стало 0,4 — 10–12 строк вывода с обменом fd при бинарной оценке; редкие случаи >f 2>f и сохранение дескрипторов пограничный кандидат знает не всегда, но реальный bash даёт однозначный ответ."
+				],
+				"sourceSha256": "5527be4e9c0461658ed8176fa7dd7e1c4efe63429efd219f304945dc93d984db"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Независимо исполнены все 8 экземпляров в пустых временных каталогах с объединёнными stdout/stderr; вручную сверены привязки дескрипторов и смещения отдельных открытий файла. Все ответы совпали, применимые ошибочные ответы отвергаются. Полный прогон ворот на 200 сидах и поведение других оболочек не проверялись.",
+					"Angoff junior 0.55, middle 0.60: нормы 300/420 с реалистичны, но binary требует полностью верной последовательности из 9–12 строк; для Middle особенно трудны независимые смещения >f 2>f и сохранение/восстановление дескрипторов.",
+					"Второй раунд Angoff, middle: было 0.60, стало 0.55 — Снизил оценку полного вывода за 420 с: fd-juggling и exec-persist требуют помнить текущую привязку нескольких дескрипторов, а shared-file — различать общий и независимые файловые offsets и перезапись части строки. Ответы содержат 10–12 строк и оцениваются binary. Function-loop проще и удерживает общую вероятность выше оценки для одного наиболее трудного класса. В этом раунде сопоставлены условия, норма времени, binary и обоснования обоих рецензентов; эталоны, генератор и ворота заново не запускались."
+				],
+				"sourceSha256": "5527be4e9c0461658ed8176fa7dd7e1c4efe63429efd219f304945dc93d984db"
+			}
+		]
 	}
 }

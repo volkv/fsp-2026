@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.65,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "470a4940544d500964fd4ef0cdd056f3c07e216308b7df62912323de2eb1c63b"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "470a4940544d500964fd4ef0cdd056f3c07e216308b7df62912323de2eb1c63b"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": {
 				"subnets": 1,
 				"addresses": "6–8",
@@ -41,7 +58,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "470a4940544d500964fd4ef0cdd056f3c07e216308b7df62912323de2eb1c63b"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.45,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "470a4940544d500964fd4ef0cdd056f3c07e216308b7df62912323de2eb1c63b"
+					}
+				],
+				"mean": 0.5
+			},
 			"constructive": {
 				"subnets": 4,
 				"addresses": 4,
@@ -133,16 +167,44 @@
 			"id": "p2p-like-others",
 			"defect": "исключает адрес сети и широковещательный и в /31 и /32, оставляя их без адресов узлов",
 			"mustBeCaught": true
+		},
+		{
+			"id": "no-host-in-32",
+			"defect": "считает /31 по RFC 3021, но у подсети /32 не находит адреса узла",
+			"mustBeCaught": true
 		}
 	],
 	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
 	"gates": {
 		"reference": { "seeds": 200, "failures": 0 },
-		"wrongSolutions": { "mustBeCaught": 7, "caught": 7 },
+		"wrongSolutions": { "mustBeCaught": 8, "caught": 8 },
 		"hiddenTestsMutationScore": null,
 		"answerCollision": 0,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Прежнее замечание Junior/p2p-hosts устранено: единственный адрес /32 и адрес /31 теперь обязательны в каждом экземпляре; отдельная модель no-host-in-32 отвергается. Проверил эти свойства на 200 review-сидах anchor. Формат пары явно задан примером; замечание о внутренних пробелах снято решением ведущего 2.",
+					"Мелочь: Junior/p2p-hosts показывает пять адресов, тогда как общие параметры сложности Junior указывают addresses: 4. Обновить параметр до 4–5, чтобы он соответствовал объёму anchor.",
+					"Независимо пересчитал по тексту условий все 8 показанных экземпляров и по 200 review-сидов каждого класса программой на Python 3.12 с целочисленными диапазонами, переводом масок и исключением endpoint для узлов, кроме /31 и /32. Ответы совпали; исполнил 8 эталонов и сравнил ответы 8 ошибочных моделей с независимым результатом. Настройку интерфейсов в ОС и официальный прогон gate-сидов не выполнял.",
+					"Angoff Intern 0.65: одна подсеть и 6–8 адресов за 240 с; ошибки в маске и границах всё ещё вероятны у пограничного кандидата. Junior 0.55: четыре подсети и до 11 пар требуют полной аккуратности за 360 с при binary. Для уменьшения веса одной арифметической ошибки можно рассмотреть parts по адресам."
+				],
+				"sourceSha256": "470a4940544d500964fd4ef0cdd056f3c07e216308b7df62912323de2eb1c63b"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Повторный раунд, полное ревью. Все 8 экземпляров (intern и junior, все классы) пересчитаны собственной программой на Python (ipaddress) по тексту условия: ответы совпали. Прежнее замечание о покрытии /32 снято: в p2p-hosts теперь есть адрес /32 (91.42.94.92) и адрес /31 (91.42.94.104), добавлено ошибочное решение no-host-in-32 (ворота 8 из 8). Замечание о дословном сравнении пар с произвольными пробелами снято решением ведущего: формат строки задан примером `192.0.2.10 lab`.",
+					"Бинарная рубрика на списке из 7 адресов (intern) и 4 подсетей x 4 адреса с переводом масок и до 11 парами в ответе (junior): одна ошибка обнуляет задание, учтено в Angoff. Генератор и ошибочные решения вручную не прогонялись, опирался на отчёт ворот."
+				],
+				"sourceSha256": "470a4940544d500964fd4ef0cdd056f3c07e216308b7df62912323de2eb1c63b"
+			}
+		]
 	}
 }

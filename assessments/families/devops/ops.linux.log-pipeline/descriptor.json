@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.65,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "cae8fd370e7ed7bd935bac6da9d4243ca99ac03ef7c52db0e21b424d976f51dd"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.65,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "cae8fd370e7ed7bd935bac6da9d4243ca99ac03ef7c52db0e21b424d976f51dd"
+					}
+				],
+				"mean": 0.65
+			},
 			"constructive": { "commands": "2–4", "sortKeys": 0, "rules": 1, "lines": "8–12" },
 			"constructiveRank": 2,
 			"timeNormSec": 240,
@@ -33,7 +50,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "cae8fd370e7ed7bd935bac6da9d4243ca99ac03ef7c52db0e21b424d976f51dd"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.5,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "cae8fd370e7ed7bd935bac6da9d4243ca99ac03ef7c52db0e21b424d976f51dd"
+					}
+				],
+				"mean": 0.55
+			},
 			"constructive": { "commands": "3–6", "sortKeys": "1–2", "rules": 2, "lines": "8–14" },
 			"constructiveRank": 3,
 			"timeNormSec": 300,
@@ -152,6 +186,28 @@
 		"answerCollision": 0.0001,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Прежнее существенное замечание устранено: названы GNU coreutils 9, GNU grep и LC_ALL=C, что фиксирует поведение sort -u с равными ключами; вариант BusyBox вне контракта.",
+					"Независимо исполнил все 8 показанных конвейеров и ещё 152 (20 сидов класса) GNU bash 5.2.21/coreutils 9.4/GNU grep на полных журналах из условия. Вывод совпал; все 15 видов применимых ошибочных ответов отличаются. Другие реализации утилит и полные ворота на 200 сидах класса не проверял.",
+					"Angoff: intern 0.65 — 240 с на 8–12 строк и обычные команды, с риском перепутать побайтный порядок и соседние повторы; junior 0.60 — 300 с на числовые/вторичные ключи и -s/-u. Вероятности относятся к полному бинарному выводу."
+				],
+				"sourceSha256": "cae8fd370e7ed7bd935bac6da9d4243ca99ac03ef7c52db0e21b424d976f51dd"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Повторный раунд, полное ревью. Прежняя мелочь про `sort -u` снята: в условии GNU bash 5.2, GNU coreutils 9 и GNU grep. Пересчитал вручную показанные экземпляры, по 80 сидов каждого класса сверил модель с реальными инструментами (расхождений 0).",
+					"Мелочь: junior/unique-key и stable опираются на документированное поведение GNU sort (первая строка из равных, устойчивость с -s); теперь это оговорено средой."
+				],
+				"sourceSha256": "cae8fd370e7ed7bd935bac6da9d4243ca99ac03ef7c52db0e21b424d976f51dd"
+			}
+		]
 	}
 }

@@ -245,11 +245,15 @@ function middleScenario(rng: Rng, classId: string): Middle {
 		return { kind: 'least-conn', servers: list, requests };
 	}
 	if (classId === 'ip-hash') {
-		const list = servers(rng, rng.int(3, 5));
+		const list = servers(rng, rng.int(4, 5));
 		const down = list[rng.int(0, list.length - 1)];
 		if (down) down.down = true;
-		const nets = Array.from({ length: 4 }, () => [rng.pick([10, 172, 192, 85, 31]), rng.int(0, 255), rng.int(0, 255)]);
-		const clients = Array.from({ length: rng.int(7, 9) }, () => [...rng.pick(nets), rng.int(1, 254)]);
+		// Five networks, at least four of them among the clients: as many sums to compute as there are state updates
+		// in the other classes.
+		const nets = Array.from({ length: 5 }, () => [rng.pick([10, 172, 192, 85, 31]), rng.int(0, 255), rng.int(0, 255)]);
+		let clients: number[][] = [];
+		while (new Set(clients.map((c) => c.slice(0, 3).join('.'))).size < 4)
+			clients = Array.from({ length: rng.int(8, 9) }, () => [...rng.pick(nets), rng.int(1, 254)]);
 		return { kind: 'ip-hash', servers: list, clients };
 	}
 	const list = servers(rng, 3);
@@ -364,7 +368,8 @@ function describeMiddle(m: Middle): string {
 			'',
 			'- запрос, пришедший в момент t с длительностью d, активен с t до t + d; в момент t + d он уже завершён и не считается;',
 			'- новый запрос получает сервер с наименьшим отношением «число активных запросов / вес»; при равенстве — тот, что выше в таблице;',
-			'- запросы, пришедшие в один момент, распределяются по одному в порядке списка.',
+			'- запросы, пришедшие в один момент, распределяются по одному в порядке списка;',
+			'- до первого запроса активных запросов нет ни на одном сервере; других запросов, кроме перечисленных, нет.',
 			'',
 			'Запросы (момент прихода, длительность — в секундах):',
 			'',
@@ -568,7 +573,7 @@ export function build(input: GenerateInput): Built {
 		const solve = (rules: Rules): string[] =>
 			middle ? solveMiddle(middle, rules) : solveSenior(senior as Senior, rules);
 		const answer = solve(RIGHT);
-		if (answer[0] === '-' || new Set(answer).size < 2) continue;
+		if (answer[0] === '-' || new Set(answer).size < (middle?.kind === 'ip-hash' ? 3 : 2)) continue;
 		const wrong = Object.fromEntries(
 			Object.entries(WRONG).map(([id, change]) => {
 				const value = solve({ ...RIGHT, ...change });

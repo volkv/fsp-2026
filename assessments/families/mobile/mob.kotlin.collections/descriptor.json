@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.7,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "32f7262db4a3f8737be0fb6b049a735ec3cab7228850480cda5cf4f9c3d456a5"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.8,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "32f7262db4a3f8737be0fb6b049a735ec3cab7228850480cda5cf4f9c3d456a5"
+					}
+				],
+				"mean": 0.75
+			},
 			"constructive": { "elements": "5–6", "operations": "1–2", "mechanisms": 1, "ownDataClass": false },
 			"constructiveRank": 2,
 			"timeNormSec": 180,
@@ -37,7 +54,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.65,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "32f7262db4a3f8737be0fb6b049a735ec3cab7228850480cda5cf4f9c3d456a5"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "32f7262db4a3f8737be0fb6b049a735ec3cab7228850480cda5cf4f9c3d456a5"
+					}
+				],
+				"mean": 0.65
+			},
 			"constructive": { "elements": "5–7", "operations": "3–4", "mechanisms": 2, "ownDataClass": true },
 			"constructiveRank": 3,
 			"timeNormSec": 240,
@@ -172,6 +206,28 @@
 		"answerCollision": 0.0002,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Все 8 экземпляров пересчитал вручную и исполнил код из условий в Kotlin/JVM 2.4.20 на OpenJDK 21: вывод полностью совпал. Проверены порядок ключей, первый/последний дубликат, устойчивость сортировки, fold/reduce, общие ссылки, полные окна и короткий chunk. Применимые ошибочные ответы отличаются от исполнения. 200 дополнительных сидов на класс не проверял.",
+					"Angoff: intern 0.70, junior 0.65 — полный ответ по binary за 180/240 с. Intern удерживает одну операцию или различие ссылки и копии; Junior должен без ошибки совместить несколько преобразований, порядок элементов и арифметику. Одно неверное поле обнуляет весь вывод."
+				],
+				"sourceSha256": "32f7262db4a3f8737be0fb6b049a735ec3cab7228850480cda5cf4f9c3d456a5"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчёт: все 8 показанных программ скомпилированы и выполнены (Kotlin 2.4, JVM 21), вывод совпал с ожидаемым ответом; условия и ответы однозначны. Не проверял другие сиды, кроме показанных.",
+					"Рубрика binary: одна ошибка в 3-4 строках вывода обнуляет задание; учтено в Angoff. У junior `windows` и `sort-then` (4 вывода, устойчивость сортировки, окна) заметно тяжелее intern-классов, но в пределах нормы 240 с.",
+					"Список ошибочных решений ловит типичные заблуждения (first-wins, reduce-from-zero, partition-swapped, windowed-partial); очевидных пропущенных нет."
+				],
+				"sourceSha256": "32f7262db4a3f8737be0fb6b049a735ec3cab7228850480cda5cf4f9c3d456a5"
+			}
+		]
 	}
 }

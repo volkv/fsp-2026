@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.35,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "e5574bb0ed3e70fb72f76fdacdb0daa4c717babc5040b00d023608710bdf158a"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "e5574bb0ed3e70fb72f76fdacdb0daa4c717babc5040b00d023608710bdf158a"
+					}
+				],
+				"mean": 0.45
+			},
 			"constructive": {
 				"operations": "2–5",
 				"fragments": "2–3",
@@ -42,7 +59,24 @@
 		},
 		{
 			"grade": "middle",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.4,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "e5574bb0ed3e70fb72f76fdacdb0daa4c717babc5040b00d023608710bdf158a"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "e5574bb0ed3e70fb72f76fdacdb0daa4c717babc5040b00d023608710bdf158a"
+					}
+				],
+				"mean": 0.5
+			},
 			"constructive": {
 				"operations": "2–5",
 				"fragments": "2–5",
@@ -99,7 +133,7 @@
 			"пересоздание фрагментов стека возврата при повороте и повторное добавление в onCreate"
 		],
 		"doesNotCheck": [
-			"порядок колбэков между фрагментами одной транзакции (задан в условии как соглашение модели)",
+			"порядок колбэков между фрагментами одной транзакции и пересоздаваемой активности как отдельный навык (выписан в условии по androidx.fragment 1.8)",
 			"onSaveInstanceState, setMaxLifecycle, анимации и переходы",
 			"вложенные фрагменты"
 		]
@@ -169,6 +203,32 @@
 		"answerCollision": 0.0211,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Повторный раунд: прежнее существенное замечание снято. Условие теперь называет порядок как соглашение по исходникам androidx.fragment 1.8: фрагмент, добавленный транзакцией в onCreate новой активности, проходит onAttach...onViewStateRestored после восстановленных; транзакция: удаляемые onPause/onStop, добавляемые до onStart, затем onDestroyView удаляемых, onResume добавляемых. Ответ rotation-duplicate (`Settings.onCreate, Orders.onCreate, Settings.onCreateView, Orders.onCreateView, Settings.onCreate, Settings.onCreateView`) совпадает с моим разбором FragmentActivity.onStart. Список колбэков активности закрыт (без onRestart и onSaveInstanceState).",
+					"Пересчёт: вручную по условию сверены все 8 показанных экземпляров (replace-back, replace-no-backstack, add-home, LiveData 58 58 61 61, replace-chain, rotation-backstack с новым хвостом, rotation-duplicate, no-backstack-rotation); ответы следуют из соглашений условия. Не проверено на устройстве: что при пересоздании активности фрагменты стека возврата получают onDestroy раньше фрагментов контейнера, и точный порядок в транзакции; здесь я опираюсь на заявленное чтение исходников. Порядок нескольких фрагментов стека возврата задан соглашением.",
+					"Время и объём: junior 12 строк с чередованием активности и фрагмента за 270 с, middle 390 с на 2-5 фрагментов с поворотом при бинарной рубрике; задание тяжёлое для пограничного кандидата, Angoff низкий.",
+					"Второй раунд Angoff, middle: было 0.3, стало 0.4 — прочитал обоснование второго рецензента (его оценка 0.65): полный бинарный ответ по длинной трассе остаётся рискованным для пограничного кандидата, но норма времени и данные в условии правил делают проход достижимее, чем я считал; остаюсь ниже его оценки из-за обнуления ответа одной ошибкой."
+				],
+				"sourceSha256": "e5574bb0ed3e70fb72f76fdacdb0daa4c717babc5040b00d023608710bdf158a"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Прежнее замечание об усечённом журнале устранено: в условии перечислены учитываемые callbacks Activity и явно исключены onRestart/onSaveInstanceState. В replace-no-backstack и add-home их отсутствие в ответе теперь следует из контракта.",
+					"Исправленный порядок согласован с ответами: добавляемые при replace/«Назад» создают представление до onDestroyView удаляемых; при повороте сначала уничтожаются экземпляры стека возврата; дубликат из onCreate новой активности создаётся после представлений восстановленных фрагментов. В Middle/rotation-duplicate, экземпляр 1, последовательность Settings.onCreateView, Orders.onCreateView, Settings.onCreate, Settings.onCreateView соблюдена. Порядок обхода нескольких фрагментов стека явно назван соглашением модели.",
+					"Проверка: все 8 экземпляров независимо пересчитал собственной моделью на Python 3.12 по транзакциям, коду и выписанным соглашениям, затем исполнил эталон; ответы совпали. Для observe(this) отдельно пересчитаны две сохраняющиеся подписки: 58, 58, 61, 61. Проверены различия всех применимых ошибочных ответов. Полные обрезанные входы восстановлены временным build, пакетные ответы и эталоны сверены; sourceSha256 проверен. Android/FragmentManager на устройстве/эмуляторе, точное воспроизведение всех внутренних порядков androidx.fragment 1.8 и 200 сидов каждого класса не запускал.",
+					"Angoff junior 0.55, middle 0.65: полный binary-ответ за 270/390 с. Junior должен отличать жизнь экземпляра от жизни представления и this от viewLifecycleOwner; Middle дополнительно ведёт стек и восстановленные экземпляры, но порядок, который иначе потребовал бы знания исходников, дан прямо в условии.",
+					"Второй раунд Angoff, middle: было 0.65, стало 0.6 — Немного снижаю вероятность полного binary-ответа: rotation-backstack и rotation-duplicate требуют вести отдельно экземпляры, представления и стек, а второй поворот может увеличить число одинаково названных экземпляров. При этом условие прямо даёт сложный порядок транзакций и пересоздания, и на Middle выводятся только четыре вида колбэков фрагментов: показанные ответы содержат 8–14 строк, колбэки Activity исключены. Это существенно ограничивает нагрузку за 390 с; оценка не должна исходить из необходимости выписать все колбэки всех участников."
+				],
+				"sourceSha256": "e5574bb0ed3e70fb72f76fdacdb0daa4c717babc5040b00d023608710bdf158a"
+			}
+		]
 	}
 }

@@ -216,7 +216,7 @@ function describe(s: LifecycleScenario, plan: ClassPlan): string {
 	if (plan.session)
 		code.push(`- В \`onResume\` экран \`${screen}\` проверяет сессию; если она истекла, он вызывает \`finish()\`.`);
 	return [
-		`Ответ — по модели жизненного цикла Activity из документации Android для **API 34**, а не по поведению конкретного устройства.`,
+		`Ответ — по модели жизненного цикла Activity из документации Android для **API 34** (приложение собрано с \`targetSdkVersion 34\`), а не по поведению конкретного устройства.`,
 		'',
 		`Экран \`${screen}\` — Activity, которую открывают с главного экрана приложения \`${MAIN}\` (обе в одной задаче). \`${screen}\` не корневая: «Назад» закрывает её и возвращает на \`${MAIN}\`. Каждый колбэк \`${screen}\` первой строкой пишет в журнал своё имя; колбэки \`${MAIN}\` в журнал не попадают. Журналируются: \`onCreate\`, \`onStart\`, \`onRestart\`, \`onResume\`, \`onPause\`, \`onStop\`, \`onSaveInstanceState\`, \`onRestoreInstanceState\`, \`onDestroy\`.`,
 		...(code.length ? ['', ...code] : []),

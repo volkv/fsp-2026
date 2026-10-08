@@ -290,6 +290,37 @@ function breakGraph(rng: Rng, s: Scenario): void {
 		(s.screens[0] as Screen).fields.push(wide.name);
 }
 
+/**
+ * Whether the whole graph, not only what the screens request, holds the single error of a `scope-error` scenario:
+ * every class is requested by some screen and no class has a second unavailable dependency of its own.
+ */
+function onlyReachableError(s: Scenario): boolean {
+	const byName = new Map(s.bindings.map((b) => [b.name, b]));
+	const reached = new Set<string>();
+	const errors = new Set<string>();
+	const visit = (name: string, kind: Scope, owner: string): void => {
+		const b = byName.get(name) as Binding;
+		reached.add(name);
+		if (b.scope === 'none') {
+			for (const d of b.deps) visit(d, kind, owner);
+			return;
+		}
+		if (!sees(kind, RIGHT).includes(b.scope)) {
+			errors.add(`${owner} ${b.name}`);
+			return;
+		}
+		for (const d of b.deps) visit(d, b.scope, b.name);
+	};
+	for (const screen of s.screens) {
+		for (const f of screen.fields) visit(f, 'activity', screen.activity);
+		for (const c of screen.ctor) visit(c, 'viewmodel', screen.viewModel);
+	}
+	const requested = new Set(reached);
+	// A scoped class is checked in its own component, whoever asks for it.
+	for (const b of s.bindings) if (b.scope !== 'none') for (const d of b.deps) visit(d, b.scope, b.name);
+	return errors.size === 1 && s.bindings.every((b) => requested.has(b.name));
+}
+
 function acyclic(list: Binding[]): boolean {
 	const byName = new Map(list.map((b) => [b.name, b]));
 	const state = new Map<string, number>();
@@ -461,6 +492,7 @@ export function build(input: GenerateInput): Built {
 		if (!acyclic(s.bindings)) continue;
 		const errors = graphErrors(s, RIGHT);
 		if (errors.length !== (isError ? 1 : 0)) continue;
+		if (isError && !onlyReachableError(s)) continue;
 		const answer = solve(s, RIGHT);
 		// Every class is created at least once in a counting scenario: a class nobody asks for is noise.
 		if (!isError && answer.split(' ').includes('0')) continue;

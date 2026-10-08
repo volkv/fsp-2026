@@ -1,9 +1,9 @@
 // A Kotlin module of screen and repository functions, each with its specification in KDoc; exactly one line breaks
 // its unit's specification. The candidate names that line. The kind of the defect is the essential class: a missing
 // default for null, the precedence of the elvis operator, a range boundary, the wrong lookup function (intern); a
-// `lateinit` read before initialization, `orEmpty` erasing the difference between null and empty, a property read
-// again after it changed, a view used after the screen was destroyed (junior). The other units, their order and the
-// header are surface.
+// `lateinit` property where reading it before initialization is allowed, `orEmpty` erasing the difference between
+// null and empty, a property read again after it changed, a view used after the screen was destroyed (junior). The
+// other units, their order and the header are surface.
 import {
 	instanceRng,
 	levelAndClass,
@@ -72,8 +72,8 @@ const INTERN: KtUnit[] = [
 		lines: [
 			...kdoc('Имя в списке: никнейм с «@»; без никнейма (null) — name; если нет и его — «Гость».'),
 			'fun displayName(user: User): String {',
-			'    val nick = user.nickname?.let { "@$it" }',
-			'    return nick ?: user.name ?: "Гость"',
+			'    val nick = user.nickname ?: return user.name ?: "Гость"',
+			'    return "@$nick"',
 			'}'
 		],
 		checks: [
@@ -84,12 +84,12 @@ const INTERN: KtUnit[] = [
 		defects: [
 			{
 				kind: 'missing-default',
-				line: 5,
-				text: '    return nick ?: user.name!!',
-				neighbour: { line: 4, text: '    val nick = user.nickname?.let { "@" + it }' }
+				line: 4,
+				text: '    val nick = user.nickname ?: return user.name!!',
+				neighbour: { line: 5, text: '    return "@" + nick' }
 			}
 		],
-		decoy: { line: 4, text: '    val nick = user.nickname?.let { "@$it" } ?: ""' }
+		decoy: { line: 4, text: '    val nick = user.nickname ?: return user.name.orEmpty()' }
 	},
 	{
 		name: 'couponLabel',
@@ -97,8 +97,8 @@ const INTERN: KtUnit[] = [
 		lines: [
 			...kdoc('Текст купона: «Купон CODE» или «Без купона», если купона нет (null).'),
 			'fun couponLabel(order: Order): String {',
-			'    val label = order.coupon?.let { "Купон $it" }',
-			'    return label ?: "Без купона"',
+			'    val code = order.coupon ?: return "Без купона"',
+			'    return "Купон $code"',
 			'}'
 		],
 		checks: [
@@ -108,12 +108,12 @@ const INTERN: KtUnit[] = [
 		defects: [
 			{
 				kind: 'missing-default',
-				line: 5,
-				text: '    return label.toString()',
-				neighbour: { line: 4, text: '    val label = order.coupon?.let { "Купон " + it }' }
+				line: 4,
+				text: '    val code = order.coupon.toString()',
+				neighbour: { line: 5, text: '    return "Купон " + code' }
 			}
 		],
-		decoy: { line: 5, text: '    return label.toString()' }
+		decoy: { line: 4, text: '    val code = order.coupon.toString()' }
 	},
 	{
 		name: 'authorName',
@@ -245,8 +245,7 @@ const INTERN: KtUnit[] = [
 		lines: [
 			...kdoc('Первые n строк сообщения (все, если строк меньше n).'),
 			'fun previewLines(lines: List<String>, n: Int): List<String> {',
-			'    val count = minOf(n, lines.size)',
-			'    return (0 until count).map { lines[it] }',
+			'    return (0 until minOf(n, lines.size)).map { lines[it] }',
 			'}'
 		],
 		checks: [
@@ -256,12 +255,12 @@ const INTERN: KtUnit[] = [
 		defects: [
 			{
 				kind: 'range-bound',
-				line: 5,
-				text: '    return (0..count).map { lines[it] }',
-				neighbour: { line: 4, text: '    val count = maxOf(0, minOf(n, lines.size))' }
+				line: 4,
+				text: '    return (0..minOf(n, lines.size)).map { lines[it] }',
+				neighbour: { line: 3, text: 'fun previewLines(lines: List<String>, n: Int = 1): List<String> {' }
 			}
 		],
-		decoy: { line: 4, text: '    val count = minOf(n, lines.size - 1)' }
+		decoy: { line: 4, text: '    return (0 until minOf(n, lines.size - 1)).map { lines[it] }' }
 	},
 	{
 		name: 'lastIndices',
@@ -285,14 +284,18 @@ const INTERN: KtUnit[] = [
 	{
 		name: 'ratingSum',
 		lines: [
-			...kdoc('Сумма оценок ratings с индекса from по индекс to включительно.'),
+			...kdoc('Сумма оценок ratings с индекса from по индекс to включительно; 0, если from > to.'),
 			'fun ratingSum(ratings: List<Int>, from: Int, to: Int): Int {',
 			'    var sum = 0',
 			'    for (i in from..to) sum += ratings[i]',
 			'    return sum',
 			'}'
 		],
-		checks: ['check(ratingSum(listOf(1, 2, 3, 4), 1, 2) == 5)', 'check(ratingSum(listOf(5), 0, 0) == 5)'],
+		checks: [
+			'check(ratingSum(listOf(1, 2, 3, 4), 1, 2) == 5)',
+			'check(ratingSum(listOf(5), 0, 0) == 5)',
+			'check(ratingSum(listOf(1, 2, 3), 2, 1) == 0)'
+		],
 		defects: [
 			{
 				kind: 'range-bound',
@@ -397,13 +400,13 @@ const JUNIOR: KtUnit[] = [
 		lines: [
 			...kdoc('Презентер профиля. До bind() заголовок — «Загрузка», после — имя пользователя', 'или «Без имени».'),
 			'class ProfilePresenter {',
-			'    private lateinit var user: User',
+			'    private var user: User? = null',
 			'',
 			'    fun bind(u: User) {',
 			'        user = u',
 			'    }',
 			'',
-			'    fun header(): String = if (::user.isInitialized) user.name ?: "Без имени" else "Загрузка"',
+			'    fun header(): String = user?.let { it.name ?: "Без имени" } ?: "Загрузка"',
 			'}'
 		],
 		checks: [
@@ -417,26 +420,26 @@ const JUNIOR: KtUnit[] = [
 		defects: [
 			{
 				kind: 'lateinit',
-				line: 11,
-				text: '    fun header(): String = user.name ?: "Без имени"',
+				line: 5,
+				text: '    private lateinit var user: User',
 				neighbour: { line: 8, text: '        user = u.copy()' }
 			}
 		],
-		decoy: { line: 11, text: '    fun header(): String = if (::user.isInitialized) user.name!! else "Загрузка"' }
+		decoy: { line: 11, text: '    fun header(): String = user?.let { it.name!! } ?: "Загрузка"' }
 	},
 	{
 		name: 'FeedAdapter',
 		lines: [
 			...kdoc('Адаптер ленты. itemCount — 0, пока данные не заданы через submit(), затем размер списка.'),
 			'class FeedAdapter {',
-			'    private lateinit var items: List<String>',
+			'    private var items: List<String>? = null',
 			'',
 			'    fun submit(list: List<String>) {',
 			'        items = list',
 			'    }',
 			'',
 			'    val itemCount: Int',
-			'        get() = if (::items.isInitialized) items.size else 0',
+			'        get() = items?.size ?: 0',
 			'}'
 		],
 		checks: [
@@ -448,12 +451,12 @@ const JUNIOR: KtUnit[] = [
 		defects: [
 			{
 				kind: 'lateinit',
-				line: 11,
-				text: '        get() = items.size',
+				line: 4,
+				text: '    private lateinit var items: List<String>',
 				neighbour: { line: 7, text: '        items = list.toList()' }
 			}
 		],
-		decoy: { line: 11, text: '        get() = items.size' }
+		decoy: { line: 11, text: '        get() = items!!.size' }
 	},
 	{
 		name: 'aboutStatus',
@@ -570,47 +573,54 @@ const JUNIOR: KtUnit[] = [
 	{
 		name: 'Session',
 		lines: [
-			...kdoc('Сессия. logout() сбрасывает токен и возвращает токен завершённой сессии (null, если входа не было).'),
+			...kdoc(
+				'Сессия. logout() завершает сессию: сбрасывает токен, пишет в log «выход: <токен>» и возвращает',
+				'токен завершённой сессии; если входа не было — null, log не меняется.'
+			),
 			'class Session {',
 			'    var token: String? = null',
+			'    val log = mutableListOf<String>()',
 			'',
 			'    fun logout(): String? {',
-			'        val current = token',
+			'        val current = token ?: return null',
 			'        token = null',
+			'        log.add("выход: $current")',
 			'        return current',
 			'    }',
 			'}'
 		],
 		checks: [
 			'val s = Session()',
-			'check(s.logout() == null)',
+			'check(s.logout() == null && s.log.isEmpty())',
 			's.token = "t1"',
 			'check(s.logout() == "t1")',
-			'check(s.token == null)'
+			'check(s.token == null && s.log == listOf("выход: t1"))'
 		],
 		defects: [
 			{
 				kind: 'stale-property',
-				line: 9,
+				line: 12,
 				text: '        return token',
-				neighbour: { line: 7, text: '        val current = token?.trim()' }
+				neighbour: { line: 11, text: '        log += "выход: $current"' }
 			}
 		],
-		decoy: { line: 8, text: '        token = token?.let { null }' }
+		decoy: { line: 10, text: '        token = token?.let { null }' }
 	},
 	{
 		name: 'Uploader',
 		lines: [
 			...kdoc(
-				'Загрузка вложения. finish() завершает текущую загрузку: убирает её из pending и возвращает',
-				'её имя; если загрузки нет — null.'
+				'Загрузка вложения. finish() завершает текущую загрузку: убирает её из pending, добавляет её имя',
+				'в done и возвращает его; если загрузки нет — null.'
 			),
 			'class Uploader {',
 			'    var pending: String? = null',
+			'    val done = mutableListOf<String>()',
 			'',
 			'    fun finish(): String? {',
 			'        val name = pending ?: return null',
 			'        pending = null',
+			'        done.add(name)',
 			'        return name',
 			'    }',
 			'}'
@@ -620,17 +630,17 @@ const JUNIOR: KtUnit[] = [
 			'check(u.finish() == null)',
 			'u.pending = "photo.jpg"',
 			'check(u.finish() == "photo.jpg")',
-			'check(u.pending == null)'
+			'check(u.pending == null && u.done == listOf("photo.jpg"))'
 		],
 		defects: [
 			{
 				kind: 'stale-property',
-				line: 10,
-				text: '        return pending',
-				neighbour: { line: 8, text: '        val name = pending?.toString() ?: return null' }
+				line: 11,
+				text: '        done.add("$pending")',
+				neighbour: { line: 9, text: '        val name = pending?.toString() ?: return null' }
 			}
 		],
-		decoy: { line: 9, text: '        pending = pending?.let { null }' }
+		decoy: { line: 10, text: '        pending = pending?.let { null }' }
 	},
 	{
 		name: 'ChatScreen',
@@ -735,9 +745,13 @@ const JUNIOR: KtUnit[] = [
 ];
 
 const MARKDOWN =
-	'Модуль экрана на Kotlin. У каждой функции и класса в KDoc-комментарии записана спецификация. Ровно одна строка ' +
-	'модуля нарушает спецификацию своей функции или класса: если заменить только её, всё будет работать по ' +
-	'спецификации. Введите номер этой строки (нумерация с 1).';
+	'Модуль экрана на Kotlin 2.4 (Kotlin/JVM, JVM 21). У каждой функции и класса в KDoc-комментарии записана ' +
+	'спецификация. Ровно одна строка модуля нарушает спецификацию своей функции или класса. Введите номер этой строки ' +
+	'(нумерация с 1). Если исправить можно в нескольких строках — засчитывается любая из них, где замена одной ' +
+	'инструкцией восстанавливает спецификацию. Исправление — одна простая инструкция того же вида, что исправляемая ' +
+	'строка: в ней можно менять операторы, вызовы, значения и типы (в том числе заменить `!!`, `as` или вызов на `?.` ' +
+	'или `?:` со значением по умолчанию), но не добавляйте конструкций, которых в ней нет (новые лямбды, `?.let`, ' +
+	'`if`-выражения, обёртки, новые функции), и не переносите в неё логику из другой строки.';
 
 export function build(input: GenerateInput): Built {
 	levelAndClass(descriptor, input);

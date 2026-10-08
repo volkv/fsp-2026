@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "23eb1565ffabcaf2aab9581b1016173008dcf9940102dfeccd0cc2966994d136"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "23eb1565ffabcaf2aab9581b1016173008dcf9940102dfeccd0cc2966994d136"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": {
 				"stages": 1,
 				"layers": "5–8",
@@ -41,7 +58,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.7,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "23eb1565ffabcaf2aab9581b1016173008dcf9940102dfeccd0cc2966994d136"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.5,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "23eb1565ffabcaf2aab9581b1016173008dcf9940102dfeccd0cc2966994d136"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": {
 				"stages": 2,
 				"layers": "6–10",
@@ -141,6 +175,29 @@
 		"answerCollision": 0.0038,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Явные правила размера слоя, обработки папки как целого и эффекты команд позволяют получить ответ без реального образа; объявленные упрощения не заменены молчаливыми предположениями о размере npm, пакетах или сжатии. Оба числа однозначны на всех показанных экземплярах.",
+					"Проверка: все восемь пар «размер / невидимые МБ» независимо пересчитаны Python 3.12 с журналом слоёв и видимых объектов, данные эффектов извлечены из формулировок. Получены intern: 661 74, 716 31, 873 275, 784 166; junior: 437 0, 213 104, 1861 516, 351 79 — все совпали. Авторские программы также исполнены; все 16 ненулевых ошибочных ответов отличаются. Реальные сборки Docker и 200 сидов ворот не проверялись.",
+					"Angoff: intern 0.60 — за 360 с нужно без арифметических ошибок учесть создание, удаление и перезапись, затем дать сразу два точных числа; junior 0.70 — 420 с и навыки работы со слоями помогают, хотя наследование всей истории build и отдельный chown остаются источниками ошибок."
+				],
+				"sourceSha256": "23eb1565ffabcaf2aab9581b1016173008dcf9940102dfeccd0cc2966994d136"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчитал независимым симулятором слоёв по правилам условия на 100 сидах каждого из восьми классов (intern: rm-later, rm-same, overwrite, chmod; junior: builder-discard, copy-from-dir, final-base, chown-copy) и вручную показанный экземпляр rm-later (661 74): расхождений с эталоном нет. Ограничения модели (целое каталога как единица, chown копирует весь затронутый путь) названы в правилах 2–4. Реальные размеры docker history не проверял.",
+					"Мелочь: классы A (rm-later) и anchor (overwrite) пересекаются: перезапись папки dist из контекста встречается и в rm-later (около 30 % экземпляров), поэтому «чистый» путь класса A не обязателен. Различие классов сохраняется (в overwrite перезапись обязательна на 100 из 100), вердикт не меняет.",
+					"Мелочь: норма 360 с для intern при двух чисел и 5–8 слоях достижима, но одна арифметическая ошибка обнуляет ответ (бинарная рубрика); учтено в Angoff."
+				],
+				"sourceSha256": "23eb1565ffabcaf2aab9581b1016173008dcf9940102dfeccd0cc2966994d136"
+			}
+		]
 	}
 }

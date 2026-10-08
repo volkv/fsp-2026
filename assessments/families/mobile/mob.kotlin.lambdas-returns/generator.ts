@@ -419,6 +419,8 @@ function nestedLabels(rng: Rng): TraceProgram {
 			return out;
 		};
 		const answer = run('kotlin');
+		// An overflow in the first cells ends both calls at once; such a log is too short for the class.
+		if (answer.length < 6) continue;
 		const flat = rows.flat();
 		// Every mechanism must be on the path: a negative, a zero and an overflow, and the overflow must matter.
 		if (!flat.some((x) => x < 0) || !flat.some((x) => x === 0) || !flat.some((x) => x > limit)) continue;
@@ -527,7 +529,7 @@ function shortCircuit(rng: Rng): TraceProgram {
 			{ word: 'all', expr: `${g}(it) || ${f}(it)`, left: 'g', join: '||', neg: false },
 			{ word: 'any', expr: `!${g}(it) && !${f}(it)`, left: 'g', join: '&&', neg: true }
 		];
-		const ops = rng.sample(pool, 4);
+		const ops = rng.sample(pool, 3);
 		const lines = [
 			`fun ${f}(id: Int): Boolean {`,
 			`    println("${f} $id")`,
@@ -580,6 +582,8 @@ function shortCircuit(rng: Rng): TraceProgram {
 			return out;
 		};
 		const answer = run(true, true);
+		// The log stays within the length of the other senior classes: the mechanism, not the volume, is the work.
+		if (answer.length > 16) continue;
 		const wrong = { 'no-short-circuit': run(false, true), 'operators-evaluate-both': run(true, false) };
 		if (wrong['no-short-circuit'].join() === answer.join() || wrong['operators-evaluate-both'].join() === answer.join())
 			continue;
@@ -666,11 +670,17 @@ const PROGRAMS: Readonly<Record<string, (rng: Rng) => TraceProgram>> = {
 	'let-chain': letChain
 };
 
+// The statement names the runtime the gate proves the output on.
+const STATEMENT =
+	'Что напечатает программа на Kotlin 2.4 (Kotlin/JVM, JVM 21)? Введите вывод построчно, как он появится на экране.';
+
 export function build(input: GenerateInput): Built {
 	levelAndClass(descriptor, input);
 	const make = PROGRAMS[input.classId];
 	if (!make) throw new Error(`no program for ${input.classId}`);
-	return traceBuilt(descriptor, input, make(instanceRng(descriptor, input)));
+	const built = traceBuilt(descriptor, input, make(instanceRng(descriptor, input)));
+	const { instance } = built;
+	return { ...built, instance: { ...instance, statement: { ...instance.statement, markdown: STATEMENT } } };
 }
 
 export function generate(input: GenerateInput): ItemInstance {

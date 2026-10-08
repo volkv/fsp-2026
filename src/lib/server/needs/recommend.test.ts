@@ -5,8 +5,9 @@ vi.mock('$env/dynamic/private', () => ({ env: {} }));
 const { compositeSpecializations, needCategoriesOf, recommendCategories } = await import('./recommend');
 const { SPECIALIZATION_KEYS, specializationOpen } = await import('$lib/server/assessments/contract/catalog');
 
-/** Every bank released: open is what the catalog switches on. */
-const open = new Set(SPECIALIZATION_KEYS.filter((s) => specializationOpen(s, new Set(SPECIALIZATION_KEYS))));
+/** Every bank released but DevOps: a specialization stays closed until its bank is released. */
+const released = new Set(SPECIALIZATION_KEYS.filter((s) => s !== 'devops'));
+const open = new Set(SPECIALIZATION_KEYS.filter((s) => specializationOpen(s, released)));
 const empty = { skill_keys: [], nice_skill_keys: [] };
 
 describe('recommendCategories', () => {

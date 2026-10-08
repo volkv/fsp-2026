@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "3375a019ff219b2c26d50d5b58d93eee0318b02ce52e745f2b88a3da9d692a81"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.5,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "3375a019ff219b2c26d50d5b58d93eee0318b02ce52e745f2b88a3da9d692a81"
+					}
+				],
+				"mean": 0.55
+			},
 			"constructive": {
 				"jobs": "5–6",
 				"rules": "1–4 правила у задания",
@@ -41,7 +58,24 @@
 		},
 		{
 			"grade": "middle",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "3375a019ff219b2c26d50d5b58d93eee0318b02ce52e745f2b88a3da9d692a81"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.4,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "3375a019ff219b2c26d50d5b58d93eee0318b02ce52e745f2b88a3da9d692a81"
+					}
+				],
+				"mean": 0.5
+			},
 			"constructive": {
 				"jobs": "6–7",
 				"rules": "workflow, needs, optional, changes, manual",
@@ -145,6 +179,31 @@
 		"answerCollision": 0.0141,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Прежнее замечание middle/optional-needs устранено: показанный конвейер создаёт compile, docker-image, e2e и publish; если optional считать обязательным, получается error publish production. На всех 200 проверенных сидах anchor создаётся конвейер, а игнорирование optional меняет ответ.",
+					"Angoff: junior 0.60, middle 0.55 — вероятность полного множества при binary за 420/480 секунд. Требуется отдельно найти первое совпадение правил каждого задания; на Middle добавляются workflow variables и проверка зависимостей уже отобранных заданий. Неверная строка manual или пропущенное задание обнуляют ответ.",
+					"Пересчитал все 8 показанных экземпляров независимым вычислением if, файловых шаблонов, workflow и needs на Python 3.12 с PyYAML; исполнил 8 эталонов и проверил 25 применимых ошибочных ответов. Дополнительно пересчитал 200 сидов optional-needs. Проверял явно заданную модель; реальные конвейеры GitLab и остальные классы на 200 сидах не запускал."
+				],
+				"sourceSha256": "3375a019ff219b2c26d50d5b58d93eee0318b02ce52e745f2b88a3da9d692a81"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Прежнее существенное замечание устранено: в опорном классе optional-needs конвейер теперь всегда создаётся (ответов с `error` 0 из 200), ошибочное решение optional-errors отличается от верного на 200 из 200.",
+					"Пересчитано: независимый вычислитель правил GitLab (rules/if/changes/workflow:variables/needs/optional) совпал с ожидаемыми ответами на 200 сидах каждого из 8 классов (1600 экземпляров): расхождений 0. Реальный GitLab не запускал. Модель согласована с документацией: первое совпавшее правило решает, в MR CI_COMMIT_BRANCH не задана, на теге changes истинно, `*` не пересекает `/`, needs к несозданному заданию — ошибка, optional снимает её.",
+					"Ошибочные решения реальны и ловятся (needs-ignored 200/200 в needs-missing, optional-errors 200/200, last-match, branch-in-mr, tag-has-branch, manual-omitted, changes-on-tag-false, star-crosses-slash, workflow-ignored); различных ответов 150–199 из 200 на класс.",
+					"Мелочь. Класс needs-missing: ответ чаще из одной строки `error …` (формат известен из класса), но имена заданий нужно вывести разбором правил; угадывание невозможно.",
+					"Трудоёмкость: junior 420 с (5–6 заданий, до 4 правил), middle 480 с (6–7 заданий с workflow, needs, optional, manual); бинарное множество, одна ошибка обнуляет ответ. Angoff junior 0,50, middle 0,40."
+				],
+				"sourceSha256": "3375a019ff219b2c26d50d5b58d93eee0318b02ce52e745f2b88a3da9d692a81"
+			}
+		]
 	}
 }

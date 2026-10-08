@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.45,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "049c124a90781912b3c8f0c2eb670f7b1366c6ecae022ed1513fc3b4ab331052"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.45,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "049c124a90781912b3c8f0c2eb670f7b1366c6ecae022ed1513fc3b4ab331052"
+					}
+				],
+				"mean": 0.45
+			},
 			"constructive": { "levels": 2, "moves": "1–4", "mechanisms": 1 },
 			"constructiveRank": 3,
 			"timeNormSec": 210,
@@ -37,7 +54,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "049c124a90781912b3c8f0c2eb670f7b1366c6ecae022ed1513fc3b4ab331052"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.4,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "049c124a90781912b3c8f0c2eb670f7b1366c6ecae022ed1513fc3b4ab331052"
+					}
+				],
+				"mean": 0.5
+			},
 			"constructive": { "levels": 3, "moves": "2–4", "mechanisms": 2 },
 			"constructiveRank": 4,
 			"timeNormSec": 280,
@@ -149,6 +183,28 @@
 		"answerCollision": 0.0097,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Прежнее замечание к внутренним пробелам снято: условие явно задаёт один пробел между именем и действием и пример feed.touch DOWN; это соответствует решению ведущего 2.",
+					"Пересчёт: все 8 показанных жестов независимо исполнены моделью Python 3.12 по коду и контракту View-системы: назначение цели на DOWN, прекращение onIntercept без дочерней цели, CANCEL при перехвате, listener перед onTouchEvent, запрет перехвата у всех предков и отсутствие всплытия MOVE=false. Ответы совпали; дополнительно совпали расчёты на 200 сидах каждого класса, все применимые ответы 8 ошибочных решений отличаются. Ключевые ветки dispatchTouchEvent сверены с исходником https://android.googlesource.com/platform/frameworks/base/+/f670d6cf46af94fb9991d422931174a246533e00/core/java/android/view/ViewGroup.java. sourceSha256 проверен. Android на устройстве, конкретная версия AndroidX/AppCompat, фактический планировщик performClick, Kotlin/JVM, продуктовый чекер и штатные ворота не запускались.",
+					"Angoff: Intern 0.45 — за 210 с нужно знать не только короткий Kotlin, но и правила touch target, listener и перехвата, которых нет в определении пограничного Intern. Junior 0.55 — за 280 с знание обработки касаний позволяет проследить три уровня, однако CANCEL и полный журнал до 13 строк остаются источниками ошибки. Оценки binary поставлены заново."
+				],
+				"sourceSha256": "049c124a90781912b3c8f0c2eb670f7b1366c6ecae022ed1513fc3b4ab331052"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Повторный раунд, полное ревью. Изменилась только формулировка (формат строки log: имя и действие через один пробел, пример `feed.touch DOWN`); коды и ответы прежние. Прежний ручной пересчёт всех 8 журналов по алгоритму ViewGroup.dispatchTouchEvent остаётся в силе; новая формулировка не противоречит эталонам. Замечание о пробелах снято. Реальный Android не запускал.",
+					"Мелочь: на intern перехват с ACTION_CANCEL и requestDisallowInterceptTouchEvent на верхней границе грейда; учтено в Angoff."
+				],
+				"sourceSha256": "049c124a90781912b3c8f0c2eb670f7b1366c6ecae022ed1513fc3b4ab331052"
+			}
+		]
 	}
 }

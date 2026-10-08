@@ -29,6 +29,7 @@ interface Rules {
 	noParentMatch: boolean;
 	negationIgnored: boolean;
 	ignoredCountsCache: boolean;
+	ownCopyOnly: boolean;
 }
 
 const RIGHT: Rules = {
@@ -37,7 +38,8 @@ const RIGHT: Rules = {
 	starCrossesSlash: false,
 	noParentMatch: false,
 	negationIgnored: false,
-	ignoredCountsCache: false
+	ignoredCountsCache: false,
+	ownCopyOnly: false
 };
 
 const WRONG: Record<string, Partial<Rules>> = {
@@ -46,7 +48,8 @@ const WRONG: Record<string, Partial<Rules>> = {
 	'star-crosses-slash': { starCrossesSlash: true },
 	'no-parent-match': { noParentMatch: true },
 	'negation-ignored': { negationIgnored: true },
-	'ignored-counts-cache': { ignoredCountsCache: true }
+	'ignored-counts-cache': { ignoredCountsCache: true },
+	'own-copy-only': { ownCopyOnly: true }
 };
 
 function segmentRegex(segment: string, rules: Rules): string {
@@ -124,7 +127,9 @@ function evaluate(s: Scenario, rules: Rules): string[] {
 	const sent = s.files.filter((f) => !excluded(s, f, rules));
 	let out: string[];
 	if (s.askLine !== null) {
-		const sources = copySources(s.dockerfile[s.askLine - 1] ?? '') ?? [];
+		// A COPY is rebuilt when its own sources change or when any earlier layer is rebuilt.
+		const lines = rules.ownCopyOnly ? [s.dockerfile[s.askLine - 1] ?? ''] : s.dockerfile.slice(0, s.askLine);
+		const sources = lines.flatMap((l) => copySources(l) ?? []);
 		const pool = rules.ignoredCountsCache ? s.files : sent;
 		out = pool.filter((f) => sources.some((src) => covers(src, f)));
 	} else {
@@ -288,6 +293,7 @@ function statement(s: Scenario): string {
 		'2. Шаблон подходит к файлу, если совпадает с его путём целиком или с путём одного из его родительских каталогов (так шаблон каталога исключает всё его содержимое).',
 		'3. Строка с `!` возвращает подходящие файлы в контекст. Решает последняя подходящая к файлу строка; если не подошла ни одна, файл остаётся в контексте.',
 		'4. В образ (и в расчёт кэша `COPY`) попадают только файлы, оставшиеся в контексте. `COPY` с источником `.` берёт весь контекст, с каталогом — всё в нём, с шаблоном (`*.md`, `package*.json`) — подходящие по тем же правилам `*`.',
+		'5. Кэш `COPY` сбрасывается, когда меняется содержимое хотя бы одного взятого ею файла; когда сбрасывается кэш инструкции, пересобираются и все инструкции после неё.',
 		'',
 		s.askLine === null
 			? 'Введите пути (как в списке) всех файлов контекста, которые окажутся в образе, по одному в строке, в любом порядке; если таких нет — одна строка `-`. Например:'
@@ -372,7 +378,7 @@ kept = [f for f in data["files"] if not ignored(f)]
 if data["askLine"] is None:
     srcs = [s for line in data["dockerfile"] for s in sources(line)]
 else:
-    srcs = sources(data["dockerfile"][data["askLine"] - 1])
+    srcs = [s for line in data["dockerfile"][: data["askLine"]] for s in sources(line)]
 result = sorted(f for f in kept if any(taken(s, f) for s in srcs))
 print("\\n".join(result) if result else "-")
 `;
@@ -382,7 +388,7 @@ print("\\n".join(result) if result else "-")
 const REQUIRED: Record<string, string[]> = {
 	'negation-order': ['first-match'],
 	'root-glob': ['glob-recursive'],
-	'cache-trigger': ['ignored-counts-cache'],
+	'cache-trigger': ['ignored-counts-cache', 'own-copy-only'],
 	'dir-reinclude': ['no-parent-match', 'negation-ignored']
 };
 
@@ -391,11 +397,15 @@ export function build(input: GenerateInput): Built {
 	const rng = instanceRng(descriptor, input);
 	for (let tries = 0; tries < 200; tries += 1) {
 		const s = scenario(rng, input.classId);
+		// Every COPY source must take at least one file of the context: a missing source fails a real build.
+		const kept = s.files.filter((f) => !excluded(s, f, RIGHT));
+		const sources = s.dockerfile.flatMap((l) => copySources(l) ?? []);
+		if (sources.some((src) => !kept.some((f) => covers(src, f)))) continue;
 		const answer = evaluate(s, RIGHT);
 		const key = answer.join('\n');
 		const wrong = Object.fromEntries(
 			Object.entries(WRONG).map(([id, change]) => {
-				if (id === 'ignored-counts-cache' && s.askLine === null) return [id, null];
+				if ((id === 'ignored-counts-cache' || id === 'own-copy-only') && s.askLine === null) return [id, null];
 				const value = evaluate(s, { ...RIGHT, ...change });
 				return [id, value.join('\n') === key ? null : value];
 			})

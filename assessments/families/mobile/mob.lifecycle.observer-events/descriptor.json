@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.3,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "b6b96f6c0797c775f03c00c3320df86c175191b5684741f2707938d4a02db278"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.5,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "b6b96f6c0797c775f03c00c3320df86c175191b5684741f2707938d4a02db278"
+					}
+				],
+				"mean": 0.4
+			},
 			"constructive": { "observers": "1–3", "events": "2–5", "lateAdd": "кнопкой", "mechanisms": 1 },
 			"constructiveRank": 4,
 			"timeNormSec": 240,
@@ -37,7 +54,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.3,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "b6b96f6c0797c775f03c00c3320df86c175191b5684741f2707938d4a02db278"
+					},
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.4,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "b6b96f6c0797c775f03c00c3320df86c175191b5684741f2707938d4a02db278"
+					}
+				],
+				"mean": 0.35
+			},
 			"constructive": { "observers": "2–4", "events": "3–8", "lateAdd": "из колбэка", "mechanisms": 2 },
 			"constructiveRank": 5,
 			"timeNormSec": 300,
@@ -138,6 +172,32 @@
 		"answerCollision": 0.0143,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчёт: вручную по исходникам androidx (ReportFragment.LifecycleCallbacks на API 29+: ON_CREATE/START/RESUME после соответствующего колбэка, ON_PAUSE/STOP/DESTROY перед ним; LifecycleRegistry: подъём в порядке добавления, спуск в обратном, addObserver догоняет до текущего состояния, removeObserver не доставляет событий; состояние в Activity.onPause равно STARTED, в onResume равно STARTED) сверены все 8 показанных экземпляров; ответы совпали, включая add-in-start (Chat.onCreate, Chat.onStart сразу после Activity.onResume, затем общий ON_RESUME) и add-in-stop. Реальное устройство и Kotlin-код не исполнялись.",
+					"Условие самодостаточно по доставке событий (до/после колбэка, onRestart без события); правила обратного порядка спуска и догоняющих событий в условии не названы: это проверяемое знание, а не скрытое допущение. Заметка: LifecycleRegistry.onSaveInstanceState на API 34 приходит после onStop и не добавляет событий; условие это закрывает фразой «onSaveInstanceState в журнал не пишется».",
+					"Время и объём: журнал на 60 сидах — медиана 18-24 строки (278-414 символов), максимум 41 строка и 670 символов (junior add-in-start) при норме 300 с и бинарной рубрике; один только набор такого текста занимает значительную часть времени, одна ошибка в порядке обнуляет ответ. Для intern (240 с) тема LifecycleObserver (обратный порядок спуска, догоняющие события) ближе к уровню junior; учтено в Angoff. Предлагаю ограничить число строк журнала (например, до 24) или поднять норму времени.",
+					"Мелочь: в классах intern нет различия между create-observers и overlay по сложности вывода, кроме дополнительной пары пауза/возобновление; класс-пустышкой не является (ловят same-order-down и activity-first-down).",
+					"Второй раунд Angoff, junior: было 0.2, стало 0.3 — прочитал обоснование второго рецензента (его оценка 0.55): полный бинарный ответ по длинной трассе остаётся рискованным для пограничного кандидата, но норма времени и данные в условии правил делают проход достижимее, чем я считал; остаюсь ниже его оценки из-за обнуления ответа одной ошибкой."
+				],
+				"sourceSha256": "b6b96f6c0797c775f03c00c3320df86c175191b5684741f2707938d4a02db278"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Мелкое замечание о рубрике: Junior/add-in-start, сид 1 требует 41 строку за 300 с, Intern — 15–24 строки за 240 с. Одна перестановка или пропущенная строка обнуляет понимание остальной трассы; сократите повторные Home/Back-переходы либо рассмотрите parts по фазам. Это учтено в Angoff.",
+					"Angoff: Intern 0.50 — правило положения событий относительно Activity дано, но обратный порядок нескольких наблюдателей и позднее подключение не являются простым называнием колбэков открытия; Junior 0.55 — catch-up из onPause/onResume и удаление доступны грейду, но длинный бинарный журнал за 300 с существенно снижает вероятность полного ответа.",
+					"Все восемь экземпляров независимо пересчитаны Python 3.12 по коду регистрации/удаления и правилам из условия; ответы совпали, все шесть типов ошибочных решений отвергаются на применимых экземплярах штатной answerMatches. Порядок подъёма/спуска и catch-up сверены с LifecycleRegistry: https://android.googlesource.com/platform/frameworks/support/+/f6d813af8decc35684868d69f7755ae9703accb5/lifecycle/lifecycle-runtime/src/commonMain/kotlin/androidx/lifecycle/LifecycleRegistry.kt. Полные входы восстановлены временной копией генератора с метаданными пакета. Исполнение AndroidX на устройстве и полный прогон ворот на 200 сидах каждого класса не запускались; descriptor.json не читался, sourceSha256 перенесён из шаблона без пересчёта по репозиторию.",
+					"Второй раунд Angoff, junior: было 0.55, стало 0.4 — Снижаю вероятность полного binary-ответа: показанные журналы требуют 21, 25, 26 или 41 строку за 300 с. Помимо обычных колбэков нужно знать обратный порядок спуска и догоняющие события, определить состояние внутри onPause/onResume, учесть подключение или удаление до следующей доставки и выписать все записи без пропуска. Эти правила регистрации не сводятся к данному в условии расположению событий до/после Activity; знание жизненного цикла Junior не гарантирует полный ответ такой длины."
+				],
+				"sourceSha256": "b6b96f6c0797c775f03c00c3320df86c175191b5684741f2707938d4a02db278"
+			}
+		]
 	}
 }

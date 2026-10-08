@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "senior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.75,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "79609ada1d87a5744df63a1bc7af2ec351765b7dfab666aeb843a3ac763dfcc0"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "79609ada1d87a5744df63a1bc7af2ec351765b7dfab666aeb843a3ac763dfcc0"
+					}
+				],
+				"mean": 0.7
+			},
 			"constructive": {
 				"intents": "6–9",
 				"lines": "25–35",
@@ -138,6 +155,28 @@
 		"answerCollision": 0.0006,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Проверка: вручную проследил состояния и эффекты всех четырёх экземпляров, затем независимо скомпилировал и исполнил показанный Kotlin на Kotlin 2.4.20/JVM 21 с kotlinx.coroutines 1.8.0; весь вывод совпал. Дополнительное исполнение с доступной kotlinx.coroutines 1.10.2-intellij-1 также совпало. Ворота на 200 сидах и Android-интеграцию не проверял.",
+					"Angoff senior 0.75: 420 с достаточно для 6–9 событий и данного редьюсера; основные риски полного ответа — сохранение полей copy, момент вычисления эффекта в also и слияние StateFlow. Самостоятельное проектирование MVI это семейство не измеряет, что согласуется с разделом «Не проверяет»."
+				],
+				"sourceSha256": "79609ada1d87a5744df63a1bc7af2ec351765b7dfab666aeb843a3ac763dfcc0"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчитаны вручную все четыре показанных экземпляра (stale-response, optimistic-rollback, effects-replay, stateflow-conflation) и совпали с ответом; дополнительно в песочнице (kt.sh, Kotlin 2.4/JVM 21) выполнены сиды 0..3 каждого класса — вывод программы совпал с ответом во всех 16 случаях. Эталон здесь — реальный вывод kotlinc, поэтому ошибки модели исключены. Остальные сиды и полные отчёты ворот не перепроверялись.",
+					"Мелочь: в stateflow-conflation ответ зависит от того, что runBlocking однопоточный и yield() отдаёт управление коллектору; условие этого не называет, но это свойство конструкции, второго естественного прочтения нет.",
+					"Мелочь: рубрика sequence бинарная по 5–7 строкам вывода; одна ошибка в строке обнуляет задание, учтено в Angoff."
+				],
+				"sourceSha256": "79609ada1d87a5744df63a1bc7af2ec351765b7dfab666aeb843a3ac763dfcc0"
+			}
+		]
 	}
 }

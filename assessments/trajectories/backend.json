@@ -3,7 +3,7 @@
 		"contentSha256": "3377965df5c51e358996f2cc3126174d5eaacb71f64108118a297fe7cf02dfdd",
 		"catalogVersion": "2026.10.3",
 		"procedureVersion": "sprt-3",
-		"simulationSha256": "ff31cd5db7e0cba100d7d68a94f788d51fb00bf7c4c370d79a540dee2db0851c"
+		"simulationSha256": "d4a111b90ce9a59e3105d969bee0dee21ca8a035f3de38c14bac7e40dc548715"
 	},
 	"report": {
 		"releaseId": "backend@2026.10.3-1",
