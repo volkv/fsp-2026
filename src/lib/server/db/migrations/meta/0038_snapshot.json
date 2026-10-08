@@ -1,6 +1,6 @@
 {
-  "id": "05fd1845-7c16-43e5-92f2-74a829b8e730",
-  "prevId": "0ad69275-c7e5-4765-b65c-1e992780dd9f",
+  "id": "c0215743-c7ca-420b-94d9-730a4f4856ab",
+  "prevId": "8260a7eb-7cac-4e2a-979f-2ff1beecaf59",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -6075,6 +6075,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": 0
+        },
+        "production_grade_policy": {
+          "name": "production_grade_policy",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
         },
         "created_at": {
           "name": "created_at",

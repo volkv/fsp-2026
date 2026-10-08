@@ -2,11 +2,12 @@
 	import FileUpIcon from '@lucide/svelte/icons/file-up';
 	import LogInIcon from '@lucide/svelte/icons/log-in';
 	import MailIcon from '@lucide/svelte/icons/mail';
+	import ScaleIcon from '@lucide/svelte/icons/scale';
 	import UserPlusIcon from '@lucide/svelte/icons/user-plus';
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
 	import CsrfField from '$lib/components/forms/csrf-input.svelte';
-	import { formatDateTime } from '$lib/components/product/model.js';
+	import { formatDateTime, pluralize } from '$lib/components/product/model.js';
 	import { termText, timeLeft } from '$lib/components/shell/viewer.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Button, buttonVariants } from '$lib/components/ui/button/index.js';
@@ -18,6 +19,8 @@
 	let { data, form }: PageProps = $props();
 
 	let pending = $state<string | null>(null);
+
+	const days = (count: number) => `${count} ${pluralize(count, ['день', 'дня', 'дней'])}`;
 
 	const GROUPS = [
 		{ key: 'employer', title: 'Работодатели', hint: 'Каталог кандидатов, вакансии, приглашения и найм.' },
@@ -97,8 +100,8 @@
 				<div class="grid gap-2 rounded-lg border border-dashed p-3" data-testid="demo-newcomer">
 					<p class="text-sm">
 						<strong>Новый кандидат в этой сессии</strong> — чистая учётка без профиля: согласие, опрос, заявленный грейд и
-						тест с первого задания. Работодатели этой сессии найдут его по категории, которую даст тест. В демо-сессии порядок
-						грейдов и интервалы политики отключены: можно сразу пройти Junior и Senior и повторить тот же грейд.
+						тест с первого задания. Работодатели этой сессии найдут его по категории, которую даст тест. Политика грейда —
+						ниже.
 					</p>
 					<form
 						method="POST"
@@ -121,6 +124,53 @@
 					<p class="text-xs text-muted-foreground">
 						Браузер войдёт под новым кандидатом. Работодателя этой же сессии держите в другом профиле браузера — по
 						ссылке выше. Нажимая, вы принимаете пользовательское соглашение стенда от имени вымышленного кандидата.
+					</p>
+				</div>
+				<div class="grid gap-2 rounded-lg border border-dashed p-3" data-testid="demo-grade-policy">
+					<p class="flex flex-wrap items-center gap-2 text-sm">
+						<strong>Политика грейда в этой сессии:</strong>
+						<Badge
+							variant={data.session.productionGradePolicy ? 'default' : 'outline'}
+							data-testid="demo-grade-policy-mode"
+						>
+							{data.session.productionGradePolicy ? 'как в эксплуатации' : 'интервалы сняты'}
+						</Badge>
+					</p>
+					<p class="text-sm">
+						{#if data.session.productionGradePolicy}
+							Интервалы включены, как вне демо: после подтверждения грейда тест следующего откроется через {days(
+								data.gradePolicy.gradeChangeIntervalDays
+							)} (сразу — только один шаг после уверенного результата), повтор после неудачи — через {days(
+								data.gradePolicy.retakeIntervalDays
+							)}. Попытка раньше получает отказ с причиной и датой.
+						{:else}
+							Сняты только интервалы: повтор после неудачи и тест следующего грейда после подтверждения доступны сразу.
+							Порядок грейдов, заявленный грейд и лимит попыток ({data.gradePolicy.maxAttemptsPerGrade} на грейд) — как в
+							эксплуатации. Чтобы увидеть отказ «смена грейда раньше интервала», включите политику как в эксплуатации.
+						{/if}
+					</p>
+					<form
+						method="POST"
+						action="?/gradePolicy"
+						use:enhance={() => {
+							pending = 'grade-policy';
+							return async ({ update }) => {
+								await update({ reset: false });
+								pending = null;
+							};
+						}}
+					>
+						<CsrfField viewer={data.viewer} />
+						<input type="hidden" name="join" value={data.session.token} />
+						<input type="hidden" name="production" value={data.session.productionGradePolicy ? 'off' : 'on'} />
+						<Button type="submit" variant="secondary" disabled={pending !== null}>
+							<ScaleIcon aria-hidden="true" />
+							{data.session.productionGradePolicy ? 'Снять интервалы (демо)' : 'Политика как в эксплуатации'}
+						</Button>
+					</form>
+					<p class="text-xs text-muted-foreground">
+						Меняет только эту сессию: у других посетителей стенда политика своя. Решения о грейде, уже принятые, не
+						меняются.
 					</p>
 				</div>
 				<div class="flex flex-wrap gap-3">
