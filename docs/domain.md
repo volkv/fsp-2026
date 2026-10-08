@@ -3452,13 +3452,14 @@ test:block:{block}`) с областью покрытия в `payload` (спец
 | `input_version` | `text` | да | версия входа (номер загрузки резюме, `profile_revision`) |
 | `schema_version` | `text` | да | версия схемы ответа `extract` |
 | `taxonomy_version_id` | `id` | нет | для извлечения навыков |
-| `model` | `jsonb` | усл. | `{endpoint_profile, model_id, model_revision, params}`; `NULL` при `processing_mode = rules_only` |
+| `model` | `jsonb` | усл. | `{endpoint_profile, model_id, model_revision, runtime, params, origin?}`; `NULL` при `processing_mode = rules_only`. `origin = stored` — ответ модели дан ранее и выдан снова без вызова (засев демо-стенда, `seeds/model-parses.json`); без `origin` — ответ этого вызова |
 | `rules_version` | `text` | нет | версия детерминированного извлекателя |
 | `embedding_space_id` | `text` | усл. | для `embed` |
 | `processing_mode` | `enum` | да | `model` · `rules_only` · `partial` · `failed` |
 | `failure` | `jsonb` | нет | код ошибки адаптера, число попыток, причины отклонения ответа |
 | `evidence_refs` | `jsonb` | нет | идентификаторы блоков и утверждений, созданных по результату |
 | `rejected_items` | `jsonb` | нет | отброшенные элементы ответа с причиной (`quote_not_found`, `quote_not_supporting`, `negated`, `forbidden_field`) |
+| `output` | `jsonb` | нет | только `extract` в режиме `model`: проверенный ответ модели в форме адаптера — элементы с цитатами (`items`); у резюме — и отклонённые адаптером элементы с причиной (`rejected`), у текста вакансии и потребности — причины отклонения (`rejectedReasons`). Удаляется вместе со строкой |
 | `latency_ms` | `integer` | нет | |
 | `created_at` | `ts` | да | |
 
