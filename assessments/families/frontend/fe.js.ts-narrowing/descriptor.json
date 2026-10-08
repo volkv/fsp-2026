@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "604253199cef93829d7fa17a48f26b30f85685f3f499f3efa6dd4693febbc34e"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.5,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "604253199cef93829d7fa17a48f26b30f85685f3f499f3efa6dd4693febbc34e"
+					}
+				],
+				"mean": 0.55
+			},
 			"constructive": { "lines": "12–25", "inputs": "5–8", "mechanisms": 2, "interaction": false },
 			"constructiveRank": 4,
 			"timeNormSec": 300,
@@ -16,7 +33,7 @@
 				{
 					"id": "typeof-truthy",
 					"form": "A",
-					"description": "typeof null — 'object', пустой массив истинен, 0, '' и NaN ложны: исход решает порядок проверок typeof и истинности"
+					"description": "typeof null — 'object', пустой массив истинен, 0, '' и NaN ложны: исход решает порядок проверок typeof и истинности; в экземпляре одна из двух последовательностей (typeof раньше истинности или наоборот), решение одно — пройти проверки в порядке записи"
 				},
 				{
 					"id": "switch-fallthrough",
@@ -37,7 +54,24 @@
 		},
 		{
 			"grade": "middle",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "604253199cef93829d7fa17a48f26b30f85685f3f499f3efa6dd4693febbc34e"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.4,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "604253199cef93829d7fa17a48f26b30f85685f3f499f3efa6dd4693febbc34e"
+					}
+				],
+				"mean": 0.5
+			},
 			"constructive": { "lines": "19–33", "inputs": "4–7", "mechanisms": 3, "interaction": true },
 			"constructiveRank": 5,
 			"timeNormSec": 420,
@@ -45,7 +79,7 @@
 				{
 					"id": "exhaustive",
 					"form": "A",
-					"description": "исчерпывающий switch с never бросает исключение на виде, который принесли данные из JSON, а отсутствующее поле проходит как NaN; try вокруг цикла или внутри"
+					"description": "исчерпывающий switch с never бросает исключение на виде, который принесли данные из JSON, а отсутствующее поле проходит как NaN; try вокруг цикла: исключение останавливает обход, фигуры после неизвестного вида не печатаются"
 				},
 				{
 					"id": "predicate-mutation",
@@ -68,7 +102,10 @@
 	"surfaceParams": [
 		{ "name": "names", "description": "имена типов, функций, полей и переменных" },
 		{ "name": "data", "description": "значения во входных массивах и JSON, их порядок" },
-		{ "name": "layout", "description": "порядок проверок, порядок case, место try относительно цикла" }
+		{
+			"name": "layout",
+			"description": "порядок case в switch: проваливание всегда идёт из одного и того же case в следующий"
+		}
 	],
 	"essentialParams": [
 		{
@@ -184,6 +221,29 @@
 		"answerCollision": 0.0001,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Прежнее существенное замечание устранено: Middle/exhaustive всегда использует try вокруг цикла, фигура с отсутствующим полем находится до неизвестного вида, а после него есть фигура, которую исключение не даёт обработать. Эти различия больше не маскируются поверхностным layout; описание layout относится к перестановке case при сохранении пути fallthrough.",
+					"Angoff: junior = 0.60, middle = 0.60. Учитываю 300/420 с и binary: строковая цена и лишнее строковое поле создают длинные конкатенации, одна ошибка обнуляет последовательность. Фиксированный порядок существенных событий в exhaustive делает нагрузку предсказуемее. Parts для отдельных строк могли бы уменьшить цену единственной арифметической или наборной ошибки.",
+					"Независимо пересчитал все 8 программ непосредственно из условий в Node.js 24.21.0: порядок, значения и строки вывода полностью совпали. Все 8 программ strict-компилируются TypeScript 6.0.3; все 8 Python-эталонов исполнены. Построчно проверены сужение, фактические типы, исключение, порядок полей и цепочка прототипов. Полные ворота на 200 сидах и все возможные варианты генератора не проверял."
+				],
+				"sourceSha256": "604253199cef93829d7fa17a48f26b30f85685f3f499f3efa6dd4693febbc34e"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Прежнее замечание устранено: у middle exhaustive try всегда вокруг цикла (исключение останавливает обход, фигуры после неизвестного вида не печатаются), параметр layout теперь про порядок case с проваливанием, а место try не варьируется; на 4 сидах класса проверил: структура одна, различаются данные, ответ зависит от места неизвестного вида и фигур без поля (NaN распространяется в total). В typeof-truthy добавлено пояснение, что решение одно — идти по проверкам в порядке записи.",
+					"Проверено: 8 показанных экземпляров запущены в Node 24 как TypeScript, вывод совпал; все 8 компилируются под tsc --strict без ошибок; остальные семь экземпляров совпадают с прежним пакетом (сравнено текстом). Условие однозначно. Не проверял непоказанные сиды.",
+					"Мелочь: junior predicate и middle structural выводят длинные склейки (`160516943null`, `19red57`), одна опечатка обнуляет задание; middle exhaustive теперь тянет NaN через несколько строк. Учтено в Angoff."
+				],
+				"sourceSha256": "604253199cef93829d7fa17a48f26b30f85685f3f499f3efa6dd4693febbc34e"
+			}
+		]
 	}
 }

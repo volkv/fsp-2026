@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.45,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "6d5ff1845b2eea2de60951cb1f950dd5e38df9941a172dd0fe8c49a3a3659408"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.5,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "6d5ff1845b2eea2de60951cb1f950dd5e38df9941a172dd0fe8c49a3a3659408"
+					}
+				],
+				"mean": 0.5
+			},
 			"constructive": { "expressions": "3–8", "operandTypes": "2–3", "mechanisms": 1 },
 			"constructiveRank": 2,
 			"timeNormSec": 210,
@@ -37,7 +54,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.5,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "6d5ff1845b2eea2de60951cb1f950dd5e38df9941a172dd0fe8c49a3a3659408"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.45,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "6d5ff1845b2eea2de60951cb1f950dd5e38df9941a172dd0fe8c49a3a3659408"
+					}
+				],
+				"mean": 0.5
+			},
 			"constructive": { "expressions": "3–8", "operandTypes": "3–5", "objects": true, "mechanisms": 2 },
 			"constructiveRank": 3,
 			"timeNormSec": 270,
@@ -221,6 +255,27 @@
 		"answerCollision": 0.0071,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Angoff: intern — 0.45: восемь сравнений, Number/parseInt и строковая сортировка дают несколько независимых возможностей ошибки; junior — 0.50: ToPrimitive и равенство объектов сложнее бытового знания операторов, хотя класс nullish-or проще. Учтены 210/270 с и обнуление всего ответа при одной ошибке.",
+					"Независимо исполнил все 8 показанных программ непосредственно из условий в Node.js 24.21.0: вывод полностью совпал. Разобрал применимость перечисленных заблуждений и различия классов; полный прогон генератора на 200 сидах каждого класса и чужие оценки не проверял."
+				],
+				"sourceSha256": "6d5ff1845b2eea2de60951cb1f950dd5e38df9941a172dd0fe8c49a3a3659408"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Проверено: 8 показанных экземпляров исполнены в Node 24, вывод совпал с ожидаемым; ответ единственный, версия среды названа, двусмысленных мест нет. Список ошибочных решений содержательный (35 из 35 ловятся), типичные заблуждения покрыты.",
+					"Мелочь: intern equality и junior object-equality дают по 8 строк true/false с «трюковыми» сравнениями (null == 0, ' ' == 0, [0] == false) при бинарной оценке; пространство ответов каждой строки из двух значений, но угадать все 8 нельзя. Учтено в Angoff."
+				],
+				"sourceSha256": "6d5ff1845b2eea2de60951cb1f950dd5e38df9941a172dd0fe8c49a3a3659408"
+			}
+		]
 	}
 }

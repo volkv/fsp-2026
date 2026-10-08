@@ -8,10 +8,27 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.65,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "fc8a74678d33a0cf84a67ff1c1de5b1beaa2298ba52985ebb2c0b58d7f315639"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.65,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "fc8a74678d33a0cf84a67ff1c1de5b1beaa2298ba52985ebb2c0b58d7f315639"
+					}
+				],
+				"mean": 0.65
+			},
 			"constructive": {
 				"functions": 3,
-				"lines": "30–55",
+				"lines": "35–75",
 				"defect": "одна строка: забытый return или await, var в цикле, обработчик ошибки не на той цепочке"
 			},
 			"constructiveRank": 3,
@@ -35,16 +52,33 @@
 				{
 					"id": "wrong-chain",
 					"form": "X",
-					"description": "catch повешен на промис в начале цепочки, а ошибки следующего шага остаются необработанными"
+					"description": "обработчик ошибки стоит не на том промисе: catch перед шагом, который может упасть, или вторым аргументом того же then — ошибки шага остаются необработанными"
 				}
 			]
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.65,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "fc8a74678d33a0cf84a67ff1c1de5b1beaa2298ba52985ebb2c0b58d7f315639"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "fc8a74678d33a0cf84a67ff1c1de5b1beaa2298ba52985ebb2c0b58d7f315639"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": {
-				"functions": "3–4",
-				"lines": "35–70",
+				"functions": 3,
+				"lines": "45–85",
 				"defect": "одна строка: forEach с async-колбэком, return без await в try, невозвращённый вложенный промис, проглоченная ошибка"
 			},
 			"constructiveRank": 4,
@@ -53,7 +87,7 @@
 				{
 					"id": "foreach-async",
 					"form": "A",
-					"description": "forEach с async-колбэком вместо Promise.all или for…of: функция завершается, не дождавшись операций"
+					"description": "forEach с async-колбэком: колбэк отдаёт промис операции только после её await, или результат forEach принят за массив промисов — функция не дожидается операций"
 				},
 				{
 					"id": "try-no-await",
@@ -120,9 +154,31 @@
 		"reference": { "seeds": 200, "failures": 0 },
 		"wrongSolutions": { "mustBeCaught": 2, "caught": 2 },
 		"hiddenTestsMutationScore": null,
-		"answerCollision": 0.0347,
+		"answerCollision": 0.0371,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Прежние замечания устранены в показанных экземплярах: missing-return содержит обычный вызов reduce вместо отдельного имени total; wrong-chain больше не выдаётся неиспользуемой промежуточной переменной; var есть и в исправных функциях. В Junior всегда три функции, диапазоны длины уточнены, foreach-async исправляется снятием async/await без нового цикла. В nested-no-return (anchor), экземпляр 1, обходная правка строки 50 с then на finally отвергается: возвращается число сохранений, а контракт требует результат publish.",
+					"Независимо разобрал все 8 модулей построчно и исполнил в Node.js 24.21.0 все 32 программы из пакета: исходные дефекты отвергаются, эталонные исправления проходят, обе отвлекающие правки каждого экземпляра отвергаются. Дополнительно исполнил прежнюю обходную правку then → finally. Объявленных alternatives нет; других строк, где допустимая одна простая инструкция восстанавливает все спецификации, не нашёл. Полный прогон ворот на 200 сидах каждого класса и статистику answerCollision заново не проверял. sourceSha256 совпал с текущими исходниками; оценки из descriptor.json не использовал."
+				],
+				"sourceSha256": "fc8a74678d33a0cf84a67ff1c1de5b1beaa2298ba52985ebb2c0b58d7f315639"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Повторное ревью: все 8 модулей разобраны построчно; эталонные правки (строки 39, 53, 40, 44, 53, 65, 51, 52) проверены исполнением - исправленная программа проходит проверки, дефектная падает. Прогнал также возможные одиночные правки в соседних строках (например, строки 54, 50, 43 и замены `return`/`await`/`finally` в других местах): не проходят, альтернатив вне эталона не нашёл.",
+					"Прежние замечания устранены: нет голого выражения-имени и неиспользуемых констант (missing-return теперь `flags.reduce(...);` без return, wrong-chain - `loaded.then(render, onErr)` без лишних констант), var встречается и в исправных функциях (`var log`, `var loaders`), диапазоны строк в параметрах совпадают с модулями, forEach(async) и try-no-await имеют похожие исправные двойники (`files.forEach(... jobs.push(upload(file)))`, `await persist` в соседних функциях).",
+					"Правило исправления в условии стандартное; эталоны не добавляют конструкций (`await`, `return`, `finally`, `let`, `.catch` вместо второго аргумента then - одна инструкция того же вида). Мелочь: wrong-chain требует заменить строку на `then(render).catch(report)` - в строке остаётся одна цепочка, это допустимо. Не проверял другие сиды."
+				],
+				"sourceSha256": "fc8a74678d33a0cf84a67ff1c1de5b1beaa2298ba52985ebb2c0b58d7f315639"
+			}
+		]
 	}
 }

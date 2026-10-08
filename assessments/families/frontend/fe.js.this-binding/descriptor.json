@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.45,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "4b850d70d439b2dff8fb1e78f7477025b558d785900a6d908305bdd2be7a2167"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.45,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "4b850d70d439b2dff8fb1e78f7477025b558d785900a6d908305bdd2be7a2167"
+					}
+				],
+				"mean": 0.45
+			},
 			"constructive": { "lines": "10–20", "calls": "3–4", "receivers": "1–2", "mechanisms": 1 },
 			"constructiveRank": 2,
 			"timeNormSec": 210,
@@ -37,7 +54,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "4b850d70d439b2dff8fb1e78f7477025b558d785900a6d908305bdd2be7a2167"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.45,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "4b850d70d439b2dff8fb1e78f7477025b558d785900a6d908305bdd2be7a2167"
+					}
+				],
+				"mean": 0.5
+			},
 			"constructive": { "lines": "18–27", "calls": "5–6", "receivers": "2–3", "mechanisms": 2 },
 			"constructiveRank": 4,
 			"timeNormSec": 330,
@@ -203,6 +237,27 @@
 		"answerCollision": 0.0007,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Angoff: intern — 0.45: определение пограничного кандидата прямо допускает путаницу в this, а anchor требует call/apply/bind и частичного применения; junior — 0.55: накопление состояния, thisArg, повторный bind и new повышают риск ошибки. Учтены 210/330 с и binary.",
+					"Независимо исполнил все 8 показанных программ непосредственно из условий в Node.js 24.21.0: вывод полностью совпал. Проверил получателя вызова, строгий режим и приоритеты bind/new/return; полный прогон генератора на 200 сидах каждого класса и чужие оценки не проверял."
+				],
+				"sourceSha256": "4b850d70d439b2dff8fb1e78f7477025b558d785900a6d908305bdd2be7a2167"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Проверено: 8 показанных экземпляров исполнены в Node 24, вывод совпал; дополнительно по 40 сидов каждого класса: вывод совпадает с ответом генератора, а добавление 'use strict' там, где его нет, ничего не меняет, то есть ответ от режима не зависит там, где режим не объявлен. Условие однозначно.",
+					"Мелочь: this — прямо названное слабое место пограничного intern, поэтому для него Angoff ниже обычного для темы с одним механизмом; junior-классы rebind и new-and-bind требуют знать приоритеты bind/call/new, что нормально для junior. Учтено в Angoff."
+				],
+				"sourceSha256": "4b850d70d439b2dff8fb1e78f7477025b558d785900a6d908305bdd2be7a2167"
+			}
+		]
 	}
 }

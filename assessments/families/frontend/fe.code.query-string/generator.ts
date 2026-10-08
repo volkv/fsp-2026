@@ -1,7 +1,8 @@
 // Practice: parse query strings of URLs and print each in a canonical form (sorted keys, percent-encoded by the
 // unreserved set). The class sets what a repeated key means (the last value, all values, lists by `[]` in the PHP way,
 // flags and removal by an empty value); Junior adds multibyte UTF-8, `%` without two hex digits, encoded keys and
-// `=` inside a value. Parametric hidden tests in five groups.
+// `=` inside a value. Parametric hidden tests in five groups; two of them are plain: keys and values of letters, digits
+// and `-._`, nothing to decode and nothing to encode but the brackets of a key.
 import {
 	instanceRng,
 	levelAndClass,
@@ -25,8 +26,21 @@ const WRONG_IDS = [
 	'encode-uri-component',
 	'no-sort',
 	'split-every-eq',
-	'keys-raw'
+	'keys-raw',
+	'first-wins',
+	'scalar-joins-list',
+	'empty-kept'
 ] as const;
+
+/** The wrong solutions of one rule of repeated keys: each applies to its class only. */
+const CLASS_OF: Partial<Record<Variant, string>> = {
+	'first-wins': 'last-wins',
+	'scalar-joins-list': 'php-brackets',
+	'empty-kept': 'flags'
+};
+
+/** Not a wrong solution: keys ordered by their encoded form (`[]` included), which the plain tests must not feel. */
+type Probe = Variant | 'sort-encoded';
 
 // ---------------------------------------------------------------------------------------------------------------
 // The model.
@@ -35,7 +49,7 @@ const UNRESERVED = /^[A-Za-z0-9\-._~]$/;
 const ENCODER = new TextEncoder();
 const DECODER = new TextDecoder();
 
-function encode(s: string, variant: Variant): string {
+function encode(s: string, variant: Probe): string {
 	let out = '';
 	for (const byte of ENCODER.encode(s)) {
 		const c = String.fromCharCode(byte);
@@ -46,7 +60,7 @@ function encode(s: string, variant: Variant): string {
 }
 
 /** `+` as a space, then `%XX` as bytes (a `%` without two hex digits stays), the bytes read as UTF-8. */
-function decode(s: string, variant: Variant): string {
+function decode(s: string, variant: Probe): string {
 	const text = variant === 'right' || !variant.startsWith('plus') ? s.replaceAll('+', ' ') : s;
 	const bytes: number[] = [];
 	for (let i = 0; i < text.length; i += 1) {
@@ -66,7 +80,7 @@ interface Part {
 	eq: boolean;
 }
 
-function parts(line: string, variant: Variant): Part[] {
+function parts(line: string, variant: Probe): Part[] {
 	return line
 		.slice(1)
 		.split('&')
@@ -84,7 +98,7 @@ function parts(line: string, variant: Variant): Part[] {
 }
 
 /** The canonical form of one query string; a variant other than `right` reproduces a wrong solution. */
-function canonical(classId: string, line: string, variant: Variant): string {
+function canonical(classId: string, line: string, variant: Probe): string {
 	// A parameter: one value, a list (all values or `[]`), or a flag (null).
 	const params = new Map<string, string | string[] | null>();
 	for (const { key, value, eq } of parts(line, variant)) {
@@ -92,6 +106,7 @@ function canonical(classId: string, line: string, variant: Variant): string {
 			const name = key.slice(0, -2);
 			const list = params.get(name);
 			if (Array.isArray(list)) list.push(value);
+			else if (variant === 'scalar-joins-list' && typeof list === 'string') params.set(name, [list, value]);
 			else params.set(name, [value]);
 		} else if (key === '') continue;
 		else if (classId === 'all-values') {
@@ -99,11 +114,15 @@ function canonical(classId: string, line: string, variant: Variant): string {
 			if (Array.isArray(list)) list.push(value);
 			else params.set(key, [value]);
 		} else if (classId === 'flags' && !eq) params.set(key, null);
-		else if (classId === 'flags' && value === '') params.delete(key);
-		else params.set(key, value);
+		else if (classId === 'flags' && value === '' && variant !== 'empty-kept') params.delete(key);
+		else if (variant !== 'first-wins' || !params.has(key)) params.set(key, value);
 	}
 	const names = [...params.keys()];
-	if (variant !== 'no-sort') names.sort();
+	if (variant === 'sort-encoded') {
+		const shown = (name: string): string =>
+			encode(classId === 'php-brackets' && Array.isArray(params.get(name)) ? `${name}[]` : name, 'right');
+		names.sort((a, b) => (shown(a) < shown(b) ? -1 : shown(a) > shown(b) ? 1 : 0));
+	} else if (variant !== 'no-sort') names.sort();
 	const pairs = names.flatMap((name) => {
 		const v = params.get(name);
 		if (v === null || v === undefined) return [encode(name, variant)];
@@ -114,7 +133,7 @@ function canonical(classId: string, line: string, variant: Variant): string {
 	return `?${pairs.join('&')}`;
 }
 
-function solve(classId: string, lines: readonly string[], variant: Variant = 'right'): string {
+function solve(classId: string, lines: readonly string[], variant: Probe = 'right'): string {
 	return `${lines.map((line) => canonical(classId, line, variant)).join('\n')}\n`;
 }
 
@@ -142,6 +161,8 @@ const KEYS = [
 const COMPOUND = ['utm_source', 'price-from', 'price.to', 'per_page', 'sort-by'];
 const WORDS = ['red', 'blue', 'sale', 'new', 'spb', 'msk', 'book', 'asc', 'desc', 'price', '2024', '10', '50', 'tv'];
 const CYRILLIC = ['город', 'книга', 'цена', 'синий', 'ёлка', 'мяч'];
+/** Keys beyond Cyrillic: above U+FFFF (two UTF-16 code units) and just below it, where code points and units disagree. */
+const WIDE = ['😀', '𝒙y', 'ｑ', '№'];
 /** Special characters written as they are and as `%XX`: every one is encoded on output. */
 const SPECIAL_RAW = ['!', '*', "'", '(', ')', ',', ':', '/', '@', '$', ';'];
 const SPECIAL_ENCODED = [
@@ -176,12 +197,25 @@ function percent(rng: Rng, s: string): string {
 
 type GroupId = 'basic' | 'encoding' | 'repeat' | 'edge' | 'scale';
 
+/**
+ * The groups a partly right solution passes: keys and values of Latin letters, digits and `-._` only, no empty parts
+ * and no parts without a key, and the order of keys is the same by their decoded and by their encoded form. The rule
+ * of repeated keys stays: it is the essential parameter of a class.
+ */
+const PLAIN: ReadonlySet<GroupId> = new Set(['basic', 'scale']);
+const PLAIN_PIECES = ['-', '.', '_'];
+
 interface Style {
 	junior: boolean;
 	group: GroupId;
 }
 
 function valuePiece(rng: Rng, s: Style): string {
+	if (PLAIN.has(s.group)) {
+		if (rng.bool(0.15)) return rng.pick(PLAIN_PIECES);
+		const word = rng.pick(WORDS);
+		return rng.bool(0.15) ? word.toUpperCase() : word;
+	}
 	const roll = rng.next();
 	const special = s.group === 'encoding' ? 0.55 : 0.25;
 	if (roll < 1 - special) {
@@ -205,11 +239,13 @@ function value(rng: Rng, s: Style): string {
 }
 
 function freshKey(rng: Rng, s: Style): string {
-	if (!s.junior || rng.bool(s.group === 'edge' ? 0.4 : 0.7)) return rng.bool(0.8) ? rng.pick(KEYS) : rng.pick(COMPOUND);
+	if (!s.junior || PLAIN.has(s.group) || rng.bool(s.group === 'edge' ? 0.4 : 0.7))
+		return rng.bool(0.8) ? rng.pick(KEYS) : rng.pick(COMPOUND);
 	return rng.pick([
 		() => `${rng.pick(KEYS)}+${rng.pick(KEYS)}`,
 		() => `${rng.pick(KEYS)}%20${rng.pick(KEYS)}`,
 		() => percent(rng, rng.pick(CYRILLIC)),
+		() => percent(rng, rng.pick(WIDE)),
 		() => `${rng.pick(KEYS)}${rng.pick(['[x]', '%5Bx%5D', '%5b0%5d'])}`,
 		() => `${rng.pick(KEYS)}%2B`,
 		() => `${rng.pick(KEYS)}%5B%5D`
@@ -229,8 +265,8 @@ function makeLine(rng: Rng, s: Style): string {
 		['bare', s.group === 'repeat' ? 12 : 8],
 		['empty', s.group === 'repeat' ? 12 : 8],
 		['bracket', s.group === 'repeat' ? 25 : 14],
-		['blank', 6],
-		...(s.junior ? ([['nokey', s.group === 'edge' ? 8 : 3]] as [string, number][]) : [])
+		...(PLAIN.has(s.group) ? [] : ([['blank', 6]] as [string, number][])),
+		...(s.junior && !PLAIN.has(s.group) ? ([['nokey', s.group === 'edge' ? 8 : 3]] as [string, number][]) : [])
 	];
 	const total = kinds.reduce((sum, [, w]) => sum + w, 0);
 	const count = rng.int(2, s.group === 'scale' ? 6 : 7);
@@ -244,7 +280,7 @@ function makeLine(rng: Rng, s: Style): string {
 		else if (kind === 'bracket') {
 			const name = used.length > 0 && rng.bool(0.5) ? rng.pick(used) : rng.pick(KEYS);
 			used.push(name);
-			const brackets = s.junior && rng.bool(0.3) ? rng.pick(['%5B%5D', '%5b%5d']) : '[]';
+			const brackets = s.junior && !PLAIN.has(s.group) && rng.bool(0.3) ? rng.pick(['%5B%5D', '%5b%5d']) : '[]';
 			out.push(`${name}${brackets}=${value(rng, s)}`);
 		} else if (kind === 'blank') out.push('');
 		else out.push(`=${value(rng, s)}`);
@@ -253,10 +289,10 @@ function makeLine(rng: Rng, s: Style): string {
 	return `?${out.join('&')}`;
 }
 
-const WRONG_BY_GROUP: Record<GroupId, (junior: boolean) => Variant[]> = {
+const WRONG_BY_GROUP: Record<GroupId, (junior: boolean, classId: string) => Probe[]> = {
 	basic: () => ['no-sort'],
 	encoding: () => ['plus-kept', 'plus-after-decode', 'encode-uri-component'],
-	repeat: () => [],
+	repeat: (_junior, classId) => WRONG_IDS.filter((v) => CLASS_OF[v] === classId),
 	edge: (junior) => (junior ? ['split-every-eq', 'keys-raw'] : []),
 	scale: () => []
 };
@@ -281,7 +317,8 @@ function groups(rng: Rng, classId: string, others: readonly string[], junior: bo
 			const lines = Array.from({ length: rng.int(lo, hi) }, () => makeLine(rng, { junior, group: id }));
 			const expected = solve(classId, lines);
 			if (others.some((other) => solve(other, lines) === expected)) continue;
-			if (WRONG_BY_GROUP[id](junior).some((v) => solve(classId, lines, v) === expected)) continue;
+			if (WRONG_BY_GROUP[id](junior, classId).some((v) => solve(classId, lines, v) === expected)) continue;
+			if (PLAIN.has(id) && solve(classId, lines, 'sort-encoded') !== expected) continue;
 			tests.push({ stdin: render(lines), expected });
 		}
 		return { id, tests };
@@ -314,6 +351,26 @@ const RULE: Record<string, string[]> = {
 	]
 };
 
+/** A ready reader of the input, so the candidate writes the rules, not the reading. */
+const READER = [
+	'```javascript',
+	"const lines = require('node:fs').readFileSync(0, 'utf8').split('\\n');",
+	'const n = Number(lines[0]);',
+	'for (const line of lines.slice(1, n + 1)) {',
+	"  const parts = line.trim().slice(1).split('&'); // части строки после «?»",
+	'  // …',
+	'}',
+	'```'
+];
+
+/** Where the order of keys by their decoded form differs from the order of what is printed. */
+const ORDER_EXAMPLE: Record<string, string> = {
+	'php-brackets':
+		'например, список `sort` (в выводе `sort%5B%5D=…`) идёт перед параметром `sort-by`: сравниваются имена `sort` и `sort-by`, а не `sort[]`',
+	other:
+		'например, ключ `sort[]` (в выводе `sort%5B%5D`) идёт после `sort-by`, потому что `[` больше `-`, хотя в выводе `%` меньше `-`'
+};
+
 function statement(classId: string, junior: boolean, example: readonly string[]): string {
 	return [
 		'Фронтенд хранит состояние фильтров каталога в строке запроса URL. Напишите программу, которая разбирает строки запроса и печатает каждую в каноническом виде.',
@@ -322,22 +379,26 @@ function statement(classId: string, junior: boolean, example: readonly string[])
 		'',
 		'В первой строке — `N` (1 ≤ N ≤ 500). Далее `N` строк; каждая начинается с `?`, за ним — строка запроса (возможно, пустая) из печатных символов ASCII без пробелов и `#`.',
 		'',
+		'Чтение входа можно взять готовым (JavaScript и TypeScript):',
+		'',
+		...READER,
+		'',
 		'## Разбор',
 		'',
 		'1. Строка после `?` делится по `&` на части.',
 		`2. Часть делится по **первому** \`=\` на ключ и значение (остальные \`=\` входят в значение); часть без \`=\` — ${classId === 'flags' ? 'ключ без значения' : 'ключ с пустым значением'}.`,
 		`3. В ключе и в значении сначала каждый \`+\` заменяется пробелом, затем каждая последовательность \`%XX\` (две шестнадцатеричные цифры в любом регистре) заменяется байтом с этим кодом; получившиеся байты читаются как UTF-8. ${
 			junior
-				? '`%`, за которым не идут две шестнадцатеричные цифры, остаётся символом `%`. Последовательности `%XX` во входе всегда дают корректный UTF-8.'
+				? '`%`, за которым не идут две шестнадцатеричные цифры, остаётся символом `%` (`decodeURIComponent` на такой строке бросает исключение). Последовательности `%XX` во входе всегда дают корректный UTF-8.'
 				: 'Во входе каждый `%` начинает правильную последовательность `%XX`, и она кодирует символ ASCII.'
 		} Часть, у которой ключ после декодирования пустой (в том числе пустая часть между \`&&\`), пропускается.`,
 		...(RULE[classId] ?? []),
 		'',
 		'## Сборка',
 		'',
-		'Ключи выводятся по возрастанию: строки сравниваются по кодам символов, как `sort()` массива строк в JavaScript. Пары соединяются через `&`, перед первой ставится `?`; если параметров не осталось, строка выхода — `?`.',
+		`${classId === 'php-brackets' ? 'Имена параметров' : 'Ключи'} выводятся по возрастанию в **декодированном** виде, до кодирования: строки сравниваются по кодам UTF-16, как \`sort()\` массива строк в JavaScript без функции сравнения; ${ORDER_EXAMPLE[classId] ?? ORDER_EXAMPLE.other ?? ''}${junior ? '; кириллический ключ идёт после всех латинских' : ''}. Пары соединяются через \`&\`, перед первой ставится \`?\`; если параметров не осталось, строка выхода — \`?\`.`,
 		'',
-		'Ключ и значение кодируются: символы `A`–`Z`, `a`–`z`, `0`–`9`, `-`, `.`, `_`, `~` остаются как есть, каждый байт UTF-8 любого другого символа (в том числе пробела) записывается как `%XX` заглавными шестнадцатеричными цифрами.',
+		"Ключ и значение кодируются: символы `A`–`Z`, `a`–`z`, `0`–`9`, `-`, `.`, `_`, `~` остаются как есть, каждый байт UTF-8 любого другого символа (в том числе пробела) записывается как `%XX` заглавными шестнадцатеричными цифрами. Обратите внимание: `encodeURIComponent` оставляет `!'()*` как есть, а здесь они кодируются.",
 		'',
 		'## Выход',
 		'',
@@ -357,35 +418,50 @@ function statement(classId: string, junior: boolean, example: readonly string[])
 		solve(classId, example).trimEnd(),
 		'```',
 		'',
-		'Скрытые тесты — пять групп: обычные строки, кодирование символов, повторные ключи, граничные случаи, большой объём. Группа засчитывается, если пройдены все её тесты.'
+		'Скрытые тесты — пять групп разной сложности. Две простые — обычные строки и большой объём: ключи и значения в них — только латинские буквы, цифры и `-`, `.`, `_` (декодировать нечего, кодировать — только скобки `[]` в ключе), пустых частей и частей без ключа нет, а порядок ключей одинаков в декодированном и в закодированном виде; повторные ключи есть. Три полные: кодирование символов, повторные ключи, граничные случаи. Группа засчитывается, если пройдены все её тесты.'
 	].join('\n');
 }
 
 // ---------------------------------------------------------------------------------------------------------------
 // The reference in Python and the wrong solutions.
 
-const BODY: Record<string, string[]> = {
-	'last-wins': ['        if key:', '            params[key] = value'],
-	'all-values': ['        if key:', '            params.setdefault(key, []).append(value)'],
-	'php-brackets': [
-		"        if key[-2:] == '[]':",
-		'            if not isinstance(params.get(key[:-2]), list):',
-		'                params[key[:-2]] = []',
-		'            params[key[:-2]].append(value)',
-		'        elif key:',
-		'            params[key] = value'
-	],
-	flags: [
-		'        if not key:',
-		'            continue',
-		'        if not eq:',
-		'            params[key] = None',
-		'        elif value:',
-		'            params[key] = value',
-		'        else:',
-		'            params.pop(key, None)'
-	]
-};
+function body(classId: string, variant: Variant): string[] {
+	switch (classId) {
+		case 'last-wins':
+			return [
+				variant === 'first-wins' ? '        if key and key not in params:' : '        if key:',
+				'            params[key] = value'
+			];
+		case 'all-values':
+			return ['        if key:', '            params.setdefault(key, []).append(value)'];
+		case 'php-brackets':
+			return [
+				"        if key[-2:] == '[]':",
+				'            if not isinstance(params.get(key[:-2]), list):',
+				variant === 'scalar-joins-list'
+					? '                params[key[:-2]] = [params[key[:-2]]] if key[:-2] in params else []'
+					: '                params[key[:-2]] = []',
+				'            params[key[:-2]].append(value)',
+				'        elif key:',
+				'            params[key] = value'
+			];
+		default:
+			return [
+				'        if not key:',
+				'            continue',
+				'        if not eq:',
+				'            params[key] = None',
+				...(variant === 'empty-kept'
+					? ['        else:', '            params[key] = value']
+					: [
+							'        elif value:',
+							'            params[key] = value',
+							'        else:',
+							'            params.pop(key, None)'
+						])
+			];
+	}
+}
 
 function referenceSource(classId: string, variant: Variant): string {
 	const decodeOf = (x: string): string =>
@@ -395,7 +471,8 @@ function referenceSource(classId: string, variant: Variant): string {
 				? `unquote(${x}).replace('+', ' ')`
 				: `unquote(${x}.replace('+', ' '))`;
 	const enc = (x: string): string => `quote(${x}, safe=${variant === 'encode-uri-component' ? '"!\'()*"' : "''"})`;
-	const order = variant === 'no-sort' ? 'params' : 'sorted(params)';
+	// The order of `sort()` in JavaScript: UTF-16 code units, not code points.
+	const order = variant === 'no-sort' ? 'params' : "sorted(params, key=lambda k: k.encode('utf-16-be'))";
 	const value = variant === 'split-every-eq' ? "value.split('=')[0]" : 'value';
 	const pairs: Record<string, string[]> = {
 		'last-wins': [`    print('?' + '&'.join(${enc('k')} + '=' + ${enc('params[k]')} for k in ${order}))`],
@@ -423,12 +500,14 @@ function referenceSource(classId: string, variant: Variant): string {
 		"    for part in line[1:].split('&'):",
 		"        key, eq, value = part.partition('=')",
 		`        key, value = ${variant === 'keys-raw' ? 'key' : decodeOf('key')}, ${decodeOf(value)}`,
-		...(BODY[classId] ?? []),
+		...body(classId, variant),
 		...(pairs[classId] ?? [])
 	].join('\n');
 }
 
-function applies(id: (typeof WRONG_IDS)[number], junior: boolean): boolean {
+function applies(id: (typeof WRONG_IDS)[number], junior: boolean, classId: string): boolean {
+	const owner = CLASS_OF[id];
+	if (owner !== undefined) return owner === classId;
 	return junior || (id !== 'split-every-eq' && id !== 'keys-raw');
 }
 
@@ -451,7 +530,9 @@ export function build(input: GenerateInput): Built {
 			Object.fromEntries(
 				WRONG_IDS.map((id) => [
 					id,
-					applies(id, junior) ? { kind: 'program' as const, source: referenceSource(input.classId, id) } : null
+					applies(id, junior, input.classId)
+						? { kind: 'program' as const, source: referenceSource(input.classId, id) }
+						: null
 				])
 			)
 	};

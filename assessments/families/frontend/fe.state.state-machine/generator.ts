@@ -795,7 +795,7 @@ const REQUIRED: Record<string, string[]> = {
 	'middle/entry-exit': ['self-internal', 'internal-reenters', 'entry-before-actions'],
 	'middle/ignored-events': ['global-events'],
 	'middle/eventless': ['no-always'],
-	'senior/nested': ['no-bubble', 'reenter-parent'],
+	'senior/nested': ['no-bubble', 'reenter-parent', 'parent-first'],
 	'senior/parallel': ['sequential-regions', 'first-region-only'],
 	'senior/delayed': ['timer-not-restarted', 'timer-not-cancelled'],
 	'senior/nested-delayed': ['reenter-parent', 'timer-not-cancelled']
@@ -846,6 +846,17 @@ function rules(key: string): string[] {
 			'затем действия при входе в новое. Переход «→ то же состояние» — внешний: выход и вход выполняются заново. ' +
 			'Переход «без смены состояния» выполняет только свои действия.'
 	];
+	const nested = key.includes('nested');
+	const timed = key.includes('delayed');
+	const always = key === 'middle/eventless';
+	const start =
+		'- При старте машина входит в начальное состояние' +
+		(key === 'senior/parallel' ? ' каждого региона' : '') +
+		(nested ? ' (в составное — сначала в него, затем в его начальное вложенное)' : '') +
+		': действия при входе выполняются' +
+		(timed ? ', таймеры запускаются в момент 0' : '') +
+		(always ? ', затем проверяются его переходы «сразу»' : '') +
+		'. «Контекст в начале» — значения до этого входа.';
 	const extra: Record<string, string[]> = {
 		'middle/eventless': [
 			'- Переходы «сразу» (без события) проверяются сразу после входа в состояние, сверху вниз; срабатывает первый ' +
@@ -875,7 +886,7 @@ function rules(key: string): string[] {
 			'- События приходят в указанные моменты (мс от старта); таймеры отсчитываются от момента входа.'
 		]
 	};
-	return [...common, ...(extra[key] ?? [])];
+	return [...common, start, ...(extra[key] ?? [])];
 }
 
 function describe(key: string, d: Drawn): string {

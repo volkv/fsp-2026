@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.75,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "af9354713f25954de16bd10b29f1c89e1fa04c6a5f32e8129aa5e16b0c16fd99"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.75,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "af9354713f25954de16bd10b29f1c89e1fa04c6a5f32e8129aa5e16b0c16fd99"
+					}
+				],
+				"mean": 0.75
+			},
 			"constructive": {
 				"rows": "3–6",
 				"steps": "3–5",
@@ -43,7 +60,24 @@
 		},
 		{
 			"grade": "middle",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "af9354713f25954de16bd10b29f1c89e1fa04c6a5f32e8129aa5e16b0c16fd99"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "af9354713f25954de16bd10b29f1c89e1fa04c6a5f32e8129aa5e16b0c16fd99"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": {
 				"rows": "4–6",
 				"steps": "5–7",
@@ -138,6 +172,28 @@
 		"answerCollision": 0,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчитаны все 8 экземпляров независимой реализацией сопоставления ключей и экземпляров на Python 3.12: состояние каждой строки, обновление props, создание и удаление компонентов. Все ответы совпали; исполнены эталоны и проверены ответы ошибочных решений. React в браузере и полный прогон ворот на 200 сидах каждого класса не запускались.",
+					"Angoff junior = 0.75: правило ключей дано явно, список небольшой, 300 с достаточно для вставки, удаления или перестановки. Middle = 0.60: в 420 с добавляются начальный draft из props, переименование ключа и несколько переходов; требуется вся итоговая последовательность и оба счётчика без ошибки при binary."
+				],
+				"sourceSha256": "af9354713f25954de16bd10b29f1c89e1fa04c6a5f32e8129aa5e16b0c16fd99"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчитал вручную по правилам условия все 8 экземпляров (4 junior, 4 middle), отслеживая ключи, состояние каждого экземпляра и число созданных и удалённых: ответы совпали с эталоном (junior: 'bread big / rice - / corn cheap / nuts urgent / 1 0'; 'oats - / lime soon / kiwi urgent / jam later / 1 1'; 'jam big / kiwi - / eggs - / figs - / 1 1'; 'rice small / jam later / figs cheap / 0 0'; middle: ... 1 1; ... 1 1; ... 2 1; ... 3 2). Особо проверил: удаление ключа и создание нового в одном списке (index-remove, title-key, title-key-draft), черновик useState(item.title) не обновляется при смене пропа. Код не запускал, остальные сиды не проверял.",
+					"Мелочь: в классах с ключом-названием условие опирается на фразу 'ключи в списке всегда различны'; переименование в уже существующее название генератор, судя по показанным экземплярам, не создаёт. Стоит убедиться, что на других сидах переименование не даёт дубль.",
+					"Мелочь: список ошибочных решений состоит из 4 общих пунктов (state-follows-item, state-stays-in-place, draft-syncs-props, remount-all); нет специфичного для счётчика созданных/удалённых экземпляров (например, 'заменяет вместо удаления+создания при смене ключа'), хотя счётчик входит в ответ. Это замечание не меняет вердикт: любая ошибка такого вида отражается в итоговой строке."
+				],
+				"sourceSha256": "af9354713f25954de16bd10b29f1c89e1fa04c6a5f32e8129aa5e16b0c16fd99"
+			}
+		]
 	}
 }

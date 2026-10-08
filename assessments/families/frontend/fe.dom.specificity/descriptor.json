@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "792ca50ce06776db1e3eab6db05cf03813ec85c78f76bd1b3a9e1a1d1346cd52"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.5,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "792ca50ce06776db1e3eab6db05cf03813ec85c78f76bd1b3a9e1a1d1346cd52"
+					}
+				],
+				"mean": 0.55
+			},
 			"constructive": { "selectors": "5–6", "compounds": "1–3", "mechanisms": 1, "functional": false },
 			"constructiveRank": 2,
 			"timeNormSec": 240,
@@ -37,7 +54,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.4,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "792ca50ce06776db1e3eab6db05cf03813ec85c78f76bd1b3a9e1a1d1346cd52"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.4,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "792ca50ce06776db1e3eab6db05cf03813ec85c78f76bd1b3a9e1a1d1346cd52"
+					}
+				],
+				"mean": 0.4
+			},
 			"constructive": { "selectors": 5, "compounds": "1–2 плюс аргументы", "mechanisms": 2, "functional": true },
 			"constructiveRank": 4,
 			"timeNormSec": 300,
@@ -152,6 +186,30 @@
 		"answerCollision": 0.0018,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Проверка: вручную пересчитал все 8 экземпляров, по компонентам (a,b,c) и по порядку при равенстве. Ответы совпали; отдельно проверены максимальный аргумент is/not/has, нулевая специфичность where и добавление псевдокласса к максимуму селекторов nth-child(of). Нормативная сверка: https://www.w3.org/TR/selectors-4/#specificity-rules . Исполнил Python-эталоны на Python 3.12 и сверил применимые ошибочные ответы. 200 сидов ворот не пересчитывались, descriptor.json не открывался; браузерные проверки селекторов не выполнялись.",
+					"Angoff Intern 0.60, Junior 0.55 — вероятность полного бинарного ответа за 240/300 с. Обычно требуется 15 чисел, и одна ошибка обнуляет результат; в Junior дополнительно различаются псевдокласс и вклад его аргументов. Parts по селекторам был бы более диагностичным вариантом рубрики с новой калибровкой.",
+					"Второй раунд Angoff, junior: было 0.55, стало 0.40 — Учёл замечание другого рецензента о Selectors 4: кандидат должен самостоятельно различать максимум аргументов is/not/has, нулевой вклад where и собственный вклад nth-child вместе с максимумом of S. В условии правила расчёта не изложены. Пять селекторов, 15 чисел и 300 с при binary усиливают цену единичной ошибки; сохранённая общая схема подсчёта и отсутствие зависимости между селекторами удерживают оценку выше 0.30."
+				],
+				"sourceSha256": "792ca50ce06776db1e3eab6db05cf03813ec85c78f76bd1b3a9e1a1d1346cd52"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчёт: независимый калькулятор специфичности (свой разбор селекторов по Selectors Level 4, :is/:not/:has — наибольший аргумент, :where — ноль, :nth-child(An+B of S) — класс плюс наибольший S) сравнён с ответом генератора на 480 сгенерированных экземплярах (60 сидов x 8 классов, класс order — сортировка по тройке и номеру): расхождений нет; восемь экземпляров пакета проверены этим же калькулятором. Не проверял в браузере (у DevTools нет программного вывода тройки).",
+					"Замечание: для Junior классы where, has и nth-of требуют знания Selectors 4 (:has, :nth-child(of S)), которое выше типичного Junior; 300 с на 5 селекторов (15 чисел) при бинарной рубрике — учтено в Angoff 0,3.",
+					"Мелочь: класс order в Intern просит упорядочить 6 правил, включая равенство по специфичности; число перестановок 720, угадывание невозможно, поэтому замечаний нет.",
+					"Второй раунд Angoff, junior: было 0.30, стало 0.40 — вычисление тройки по правилам Selectors 4 механическое и полностью описано в спецификации, 15 чисел за 300 с достижимы; :has и nth-child(of S) сужают долю справляющихся"
+				],
+				"sourceSha256": "792ca50ce06776db1e3eab6db05cf03813ec85c78f76bd1b3a9e1a1d1346cd52"
+			}
+		]
 	}
 }

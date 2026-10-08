@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.75,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "4c932d1ef20f458adaa802095e5613e3de6b836d20445eae7bc7952bff2cb83c"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "4c932d1ef20f458adaa802095e5613e3de6b836d20445eae7bc7952bff2cb83c"
+					}
+				],
+				"mean": 0.7
+			},
 			"constructive": {
 				"statements": "5–8",
 				"nesting": 0,
@@ -42,7 +59,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.65,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "4c932d1ef20f458adaa802095e5613e3de6b836d20445eae7bc7952bff2cb83c"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.5,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "4c932d1ef20f458adaa802095e5613e3de6b836d20445eae7bc7952bff2cb83c"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": {
 				"statements": "6–10",
 				"nesting": 2,
@@ -165,6 +199,26 @@
 		"answerCollision": 0,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Независимо исполнил все 8 программ из условий в Node.js 24.21.0: все последовательности совпали. Вручную проверил FIFO микрозадач, продолжение цепочек then, постановку вложенных таймеров и микрозадачи между таймерами. Binary и норму времени учёл в Angoff. Отчёт ворот на 200 сидах каждого класса заново не запускал; descriptor.json и чужие оценки не открывал."
+				],
+				"sourceSha256": "4c932d1ef20f458adaa802095e5613e3de6b836d20445eae7bc7952bff2cb83c"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчёт: все 8 экземпляров исполнены в Node 24, вывод совпал с ожидаемым ответом. Условие не говорит прямо, что таймеры с одинаковой задержкой срабатывают в порядке постановки (junior same-delay-order, нулевые задержки), но это стандартное поведение и ответа не меняет; можно назвать в условии. Не проверял другие сиды.",
+					"Ошибочные решения специфичны для классов, answerCollision 0; классы сопоставимы, junior-класс chains-and-tasks чуть тяжелее (две цепочки плюс queueMicrotask из звена)."
+				],
+				"sourceSha256": "4c932d1ef20f458adaa802095e5613e3de6b836d20445eae7bc7952bff2cb83c"
+			}
+		]
 	}
 }

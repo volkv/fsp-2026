@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.65,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "25925baff4da2fd9b75da610c7fb9044d46306f00c99a9ee05d3becc924fa37d"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.5,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "25925baff4da2fd9b75da610c7fb9044d46306f00c99a9ee05d3becc924fa37d"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": {
 				"depth": 3,
 				"listeners": "6–8",
@@ -42,7 +59,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.5,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "25925baff4da2fd9b75da610c7fb9044d46306f00c99a9ee05d3becc924fa37d"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.45,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "25925baff4da2fd9b75da610c7fb9044d46306f00c99a9ee05d3becc924fa37d"
+					}
+				],
+				"mean": 0.5
+			},
 			"constructive": {
 				"depth": 4,
 				"listeners": "7–11",
@@ -178,6 +212,30 @@
 		"answerCollision": 0.0002,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Проверка: вручную выписал последовательности всех 8 экземпляров; ответы совпали. Проверены capture до target, оба вида обработчиков на target, сохранение соседних обработчиков при stopPropagation, stopImmediatePropagation, once между событиями, non-bubbling и дедупликация по callback/type/capture. Нормативная сверка: https://dom.spec.whatwg.org/ . Исполнил Python-эталоны на Python 3.12 и сверил применимые ошибочные ответы. Браузерный запуск заблокирован ограничениями песочницы; 200 сидов ворот не пересчитывались, descriptor.json не открывался.",
+					"Angoff Intern 0.65, Junior 0.60 — вероятность всей верной последовательности за 270/330 с. В Junior dedupe требуется 13 строк ответа; binary заметно повышает цену единичного пропуска. Возможно оценивание parts по событиям с последующей новой калибровкой.",
+					"Второй раунд Angoff, junior: было 0.60, стало 0.50 — Усилил поправку на binary: в показанных классах нужно сохранить порядок 7–13 строк за 330 с при двух событиях, разных целях и взаимодействии фаз с остановкой, once или дедупликацией. Доводы другого рецензента о capture на цели и цене единичного пропуска обоснованы. При этом разметка неглубокая, код короткий и основные фазы и обработчики доступны пограничному Junior; оценка 0.35 недооценивает эту основу."
+				],
+				"sourceSha256": "25925baff4da2fd9b75da610c7fb9044d46306f00c99a9ee05d3becc924fa37d"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчёт: восемь экземпляров пакета разобраны вручную и совпали; дополнительно 320 сгенерированных экземпляров (40 сидов x 8 классов) выполнены в Chromium 153 (скрипт страницы, клики через el.click(), сбор console.log): расхождений нет, в том числе порядок слушателей на цели (перехват перед обычными), stopImmediatePropagation, once, дедупликация addEventListener и невсплывающий dispatchEvent. Не проверял Firefox и Safari.",
+					"Замечание: класс target-phase опирается на порядок на цели «слушатели перехвата раньше обычных» (поведение стандарта и браузеров с 2021 года; в старых материалах — порядок регистрации). В условии сказано «браузер современный и следует стандарту DOM», этого достаточно; кандидат с устаревшим знанием ошибётся, что учтено низкой оценкой Junior.",
+					"Мелочь: бинарная рубрика на последовательности из 11-13 строк (junior, два клика); одна ошибка обнуляет ответ — учтено в Angoff.",
+					"Второй раунд Angoff, junior: было 0.35, стало 0.45 — условие прямо требует поведения по стандарту DOM, порядок capture-перед-обычными на цели — часть этого стандарта; длина ответа 11-13 строк и бинарная рубрика всё же удерживают оценку ниже 0,5"
+				],
+				"sourceSha256": "25925baff4da2fd9b75da610c7fb9044d46306f00c99a9ee05d3becc924fa37d"
+			}
+		]
 	}
 }

@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "0b7817ece945e224b4a50ba829979cf15295db00580c9573310a73b1cfe27f44"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.45,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "0b7817ece945e224b4a50ba829979cf15295db00580c9573310a73b1cfe27f44"
+					}
+				],
+				"mean": 0.5
+			},
 			"constructive": {
 				"boxes": "2–4",
 				"quantities": "3–6",
@@ -120,6 +137,28 @@
 		"answerCollision": 0.0002,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Проверка: вручную пересчитал все 4 экземпляра. box-sizing: 270 240 198 140 426 360; auto-width: 660 622 214; sibling-collapse: 68 176 314; parent-child-collapse: 120 160 84. Сверены процентные размеры и правила схлопывания по https://www.w3.org/TR/CSS22/box.html . Исполнил Python-эталоны на Python 3.12 и сверил применимые ошибочные ответы. Браузерный запуск заблокирован ограничениями песочницы; 200 сидов ворот не пересчитывались, descriptor.json не открывался.",
+					"Angoff Intern 0.55 — вероятность полного ответа за 270 с. Прямой box-sizing доступен пограничному кандидату, но проценты padding от ширины контейнера, flow-root и разделение margin родителя и ребёнка существенно сложнее; binary обнуляет весь набор при одной ошибке."
+				],
+				"sourceSha256": "0b7817ece945e224b4a50ba829979cf15295db00580c9573310a73b1cfe27f44"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчёт: четыре экземпляра пакета разобраны вручную и совпали; дополнительно 160 сгенерированных экземпляров (40 сидов x 4 класса) прогнаны в Chromium 153 (getBoundingClientRect, computed padding/border): расхождений нет, в том числе схлопывание родитель-первый ребёнок с padding, border, flow-root и flex и отрицательный margin у соседей. Не проверял Firefox.",
+					"Замечание: классы Intern неравны по трудности (criterion 5). box-sizing и auto-width — арифметика на 3-6 числах, а sibling-collapse (с отрицательным margin, flow-root) и parent-child-collapse (пять вариантов разделителя, flex) — тема CSS 2.2 о схлопывании margin, обычно Middle; для Intern 270 с на 3 числа с таким механизмом тесно. Это отражено в Angoff, вердикт не меняю: ответ единственный, условие полное.",
+					"Мелочь: в списке ошибочных решений нет типичного «схлопывание считается и между родителем и последним ребёнком» — генератор такие деревья не строит (заявлено в «не проверяет»), так что на ответ не влияет."
+				],
+				"sourceSha256": "0b7817ece945e224b4a50ba829979cf15295db00580c9573310a73b1cfe27f44"
+			}
+		]
 	}
 }

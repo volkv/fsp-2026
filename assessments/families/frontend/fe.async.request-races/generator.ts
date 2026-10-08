@@ -42,7 +42,7 @@ const MIDDLE: Unit[] = [
 			'/**',
 			' * Подсказки поиска. search(q) запрашивает подсказки для q. В items всегда ответ',
 			' * на последний вызов search, даже если ответы приходят не в том порядке, в каком',
-			' * ушли запросы.',
+			' * ушли запросы. seq — число вызовов search.',
 			' */',
 			'class Suggest {',
 			'  constructor(api) {',
@@ -65,7 +65,7 @@ const MIDDLE: Unit[] = [
 			"  for (const q of ['a', 'ab', 'abc']) __quiet(s.search(q));",
 			"  __expectAt(35, 'Suggest: старый ответ раньше последнего', () => s.items === null);",
 			"  __expectAt(70, 'Suggest: ответ на последний запрос', () => s.items === 'data:abc');",
-			"  __expectAt(130, 'Suggest: поздний устаревший ответ', () => s.items === 'data:abc');",
+			"  __expectAt(130, 'Suggest: поздний устаревший ответ', () => s.items === 'data:abc' && s.seq === 3);",
 			'}'
 		],
 		defects: [
@@ -145,7 +145,7 @@ const MIDDLE: Unit[] = [
 			'/**',
 			' * Карточка товара. load(id) загружает данные в data. loading === true с вызова',
 			' * load до ответа на последний вызов, после него — false. В data — ответ на последний',
-			' * вызов load.',
+			' * вызов load. seq — число вызовов load.',
 			' */',
 			'class Loader {',
 			'  constructor(api) {',
@@ -173,7 +173,7 @@ const MIDDLE: Unit[] = [
 			"  __quiet(l.load('p1'));",
 			"  __quiet(l.load('p2'));",
 			"  __expectAt(50, 'Loader: индикатор, пока идёт последний запрос', () => l.loading === true);",
-			"  __expectAt(120, 'Loader: итог', () => l.loading === false && l.data === 'data:p2');",
+			"  __expectAt(120, 'Loader: итог', () => l.loading === false && l.data === 'data:p2' && l.seq === 2);",
 			'}'
 		],
 		defects: [
@@ -305,8 +305,9 @@ const MIDDLE: Unit[] = [
 		lines: [
 			'/**',
 			' * Автосохранение. save(text) отправляет черновик. Одновременно идёт не больше одного',
-			' * запроса: вызов во время отправки только запоминает текст, а после ответа уходит',
-			' * последний запомненный текст. savedText — текст последнего сохранённого запроса.',
+			' * запроса: вызов во время отправки только запоминает текст, а после ответа — успешного',
+			' * или с ошибкой — уходит последний запомненный текст. savedText — текст последнего',
+			' * сохранённого запроса, error — сообщение последней ошибки запроса.',
 			' */',
 			'class Autosave {',
 			'  constructor(api) {',
@@ -314,6 +315,7 @@ const MIDDLE: Unit[] = [
 			'    this.inflight = false;',
 			'    this.queued = null;',
 			'    this.savedText = null;',
+			'    this.error = null;',
 			'  }',
 			'',
 			'  async save(text) {',
@@ -325,6 +327,8 @@ const MIDDLE: Unit[] = [
 			'    try {',
 			'      await this.api(text);',
 			'      this.savedText = text;',
+			'    } catch (e) {',
+			'      this.error = e.message;',
 			'    } finally {',
 			'      this.inflight = false;',
 			'    }',
@@ -344,6 +348,9 @@ const MIDDLE: Unit[] = [
 			"  __expectAt(20, 'Autosave: один запрос за раз', () => api.calls.join() === 'v1');",
 			"  __expectAt(120, 'Autosave: уходит последний текст', () => api.calls.join() === 'v1,v3');",
 			"  __expectAt(120, 'Autosave: сохранено', () => a.savedText === 'v3' && api.maxActive === 1);",
+			'  const b = new Autosave(__fakeApi({ d1: { ms: 40, fail: true }, d2: { ms: 30 }, d3: { ms: 30 } }));',
+			"  for (const text of ['d1', 'd2', 'd3']) __quiet(b.save(text));",
+			"  __expectAt(120, 'Autosave: после ошибки уходит последний текст', () => b.savedText === 'd3' && b.error === 'failed d1');",
 			'}'
 		],
 		defects: [
@@ -444,7 +451,8 @@ const SENIOR: Unit[] = [
 			'/**',
 			' * Кнопка «нравится». toggle() сразу меняет liked и count, затем сохраняет состояние',
 			' * на сервере. Если запрос упал, состояние откатывается к тому, что было перед этим',
-			' * toggle, — но только если после него не было других toggle.',
+			' * toggle, — но только если после него не было других toggle. version — число вызовов',
+			' * toggle.',
 			' */',
 			'class LikeButton {',
 			'  constructor(api) {',
@@ -473,7 +481,7 @@ const SENIOR: Unit[] = [
 			'{',
 			'  const b = new LikeButton(__fakeApi({ like: [{ ms: 90, fail: true }, { ms: 50 }], unlike: { ms: 20 } }));',
 			'  for (let i = 0; i < 3; i += 1) __quiet(b.toggle());',
-			"  __expectAt(130, 'LikeButton: поздний откат', () => b.liked === true && b.count === 11);",
+			"  __expectAt(130, 'LikeButton: поздний откат', () => b.liked === true && b.count === 11 && b.version === 3);",
 			'  const c = new LikeButton(__fakeApi({ like: { ms: 30, fail: true } }));',
 			'  __quiet(c.toggle());',
 			"  __expectAt(70, 'LikeButton: откат', () => c.liked === false && c.count === 10);",
@@ -562,7 +570,7 @@ const SENIOR: Unit[] = [
 			{
 				kind: 'inflight-cache',
 				at: '      throw error;',
-				text: '      return null;',
+				text: '      return error;',
 				neighbour: { at: '      this.cache.delete(id);', text: '      if (this.cache.has(id)) this.cache.delete(id);' }
 			},
 			{
@@ -576,9 +584,10 @@ const SENIOR: Unit[] = [
 	{
 		lines: [
 			'/**',
-			' * Лента. more() догружает следующую страницу и дописывает её в items. Пока страница',
-			' * грузится, повторный more() ничего не делает. reset() очищает ленту: ответ на',
-			' * запрос, отправленный до reset, в неё не попадает и loading не трогает.',
+			' * Лента. more() догружает следующую страницу и добавляет ответ api на неё одним',
+			' * элементом в конец items. Пока страница грузится, повторный more() ничего не делает.',
+			' * reset() очищает ленту: ответ на запрос, отправленный до reset, в неё не попадает и',
+			' * loading не трогает. epoch — число вызовов reset.',
 			' */',
 			'class Feed {',
 			'  constructor(api) {',
@@ -594,9 +603,9 @@ const SENIOR: Unit[] = [
 			'    this.loading = true;',
 			'    const epoch = this.epoch;',
 			'    try {',
-			'      const items = await this.api(this.page + 1);',
+			'      const data = await this.api(this.page + 1);',
 			'      if (epoch !== this.epoch) return;',
-			'      this.items = [...this.items, items];',
+			'      this.items = [...this.items, data];',
 			'      this.page += 1;',
 			'    } finally {',
 			'      if (epoch === this.epoch) this.loading = false;',
@@ -624,7 +633,7 @@ const SENIOR: Unit[] = [
 			'  g.reset();',
 			'  __quiet(g.more());',
 			"  __expectAt(80, 'Feed: старый ответ после reset', () => g.loading === true && g.items.length === 0);",
-			"  __expectAt(130, 'Feed: итог после reset', () => g.items.join() === 'data:1' && g.page === 1 && !g.loading);",
+			"  __expectAt(130, 'Feed: итог после reset', () => g.items.join() === 'data:1' && g.page === 1 && !g.loading && g.epoch === 1);",
 			'}'
 		],
 		defects: [
@@ -814,9 +823,12 @@ const API_NOTE = [
 	'переданный `signal` отменён (сам по себе или до ответа), промис отклоняется с `DOMException` по имени',
 	'`AbortError`. Ответы на разные запросы приходят в любом порядке.',
 	'',
-	'Контракт каждого класса записан в комментарии над ним. Ровно одна строка модуля нарушает контракт своего',
-	'класса: если заменить только её, все классы будут работать по контракту. Введите номер этой строки',
-	'(нумерация с 1).'
+	'Контракт каждого класса записан в комментарии над ним. В модуле один дефект: один класс нарушает свой',
+	'контракт. Введите номер строки, замена которой одной инструкцией восстанавливает контракт всех классов',
+	'(нумерация с 1). Если исправить можно в нескольких строках — засчитывается любая из них, где замена одной',
+	'инструкцией восстанавливает контракт. Исправление — одна простая инструкция того же вида, что исправляемая',
+	'строка: не добавляйте конструкций, которых в ней нет (новые стрелочные функции, циклы, обёртки, новые',
+	'функции), и не переносите в неё логику из другой строки.'
 ].join('\n');
 
 export function build(input: GenerateInput): Built {

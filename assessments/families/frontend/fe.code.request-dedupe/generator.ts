@@ -2,6 +2,8 @@
 // flight are deduplicated, a cached entry is fresh for S ms after the response. The class sets the policy
 // (stale-while-revalidate, TTL, retries with an exponential delay, invalidation); Senior has a latency per key and the
 // window focus refetching stale keys. The step «измени своё решение» aborts the request of a key its last subscriber left.
+// Two groups of hidden tests are plain: no answer rests on the order of one moment or on the exact edge of freshness,
+// and Senior has no focus there.
 import {
 	instanceRng,
 	levelAndClass,
@@ -37,7 +39,14 @@ interface Input {
 
 /** The wrong solutions and, for the boundary tests, the order of one moment reversed. */
 type Variant = 'right' | (typeof WRONG_IDS)[number] | 'events-first';
-const WRONG_IDS = ['no-dedupe', 'fresh-from-send', 'stale-edge', 'no-cleanup', 'retry-no-backoff'] as const;
+const WRONG_IDS = [
+	'no-dedupe',
+	'fresh-from-send',
+	'stale-edge',
+	'no-cleanup',
+	'retry-no-backoff',
+	'focus-refetch-fresh'
+] as const;
 
 /** A response due (kind 0) or a retry to send (kind 1), with the number of its request and its attempt. */
 interface Item {
@@ -121,7 +130,8 @@ class Client {
 	}
 
 	refetch(t: number, key: string): void {
-		if (!this.fresh(key, t) && !this.busy.has(key)) this.send(t, key, 1);
+		const stale = this.variant === 'focus-refetch-fresh' || !this.fresh(key, t);
+		if (stale && !this.busy.has(key)) this.send(t, key, 1);
 	}
 
 	apply(e: Ev): void {
@@ -190,17 +200,26 @@ const KEYS = ['user', 'cart', 'feed', 'posts', 'todos', 'profile', 'prices', 'st
 
 type GroupId = 'basic' | 'dedupe' | 'stale' | 'policy' | 'scale';
 
+/**
+ * The groups a partly right solution passes: moments are not drawn to responses and edges of freshness, and no answer
+ * rests on the order of one moment or on the exact edge `S`; no focus on Senior. Failures stay: they tell the class of
+ * retries from the others.
+ */
+const PLAIN: ReadonlySet<GroupId> = new Set(['basic', 'scale']);
+
 function makeInput(rng: Rng, classId: string, senior: boolean, group: GroupId, size: number | null = null): Input {
+	const plain = PLAIN.has(group);
 	const keys = rng.sample(KEYS, group === 'scale' ? 6 : rng.int(2, 3));
 	const common = rng.int(10, 120);
-	const count = size ?? (group === 'scale' ? rng.int(600, 700) : rng.int(18, 28));
+	const count = size ?? (group === 'scale' ? rng.int(600, 700) : plain ? rng.int(12, 20) : rng.int(18, 28));
 	const failShare = classId === 'retry' && group === 'policy' ? 0.35 : 0.12;
 	const fails = new Set<number>();
 	for (let n = 1; n <= count * 2; n += 1) if (rng.bool(failShare)) fails.add(n);
 	const input: Input = {
 		stale: rng.pick([50, 100, 200, 300, 500]),
-		latency: new Map(keys.map((k) => [k, senior ? rng.int(10, 150) : common])),
-		retries: rng.int(1, 3),
+		latency: new Map(keys.map((k) => [k, senior && !plain ? rng.int(10, 150) : common])),
+		// One retry at most: its delay is D whether or not it doubles.
+		retries: plain ? 1 : rng.int(1, 3),
 		delay: rng.pick([10, 20, 50]),
 		fails,
 		events: []
@@ -216,17 +235,27 @@ function makeInput(rng: Rng, classId: string, senior: boolean, group: GroupId, s
 		const due = client.next()?.time;
 		const turns = [...client.cache.values()].map((c) => c.time + client.stale).filter((x) => x >= t && x < Infinity);
 		const roll = rng.next();
-		const edge = group === 'stale' ? 0.6 : 0.25;
+		const edge = group === 'stale' ? 0.6 : plain ? 0 : 0.25;
 		if (roll < edge / 2 && due !== undefined && due >= t) t = due;
 		else if (roll < edge && turns.length > 0) t = rng.pick(turns) + rng.pick([0, 0, -1, 1]);
 		else if (group === 'dedupe' && rng.bool(0.6)) t += rng.int(0, 5);
 		else t += rng.int(0, Math.max(input.stale, 40));
 		t = Math.max(t, input.events[input.events.length - 1]?.t ?? 0);
+		// A plain moment is neither a moment of the queue nor near an edge of freshness: between the edge counted from the
+		// send of the response and the edge counted from the response itself, both inclusive.
+		for (; plain; t += 1) {
+			client.settle(t - 1);
+			const nearEdge = [...client.cache].some(([key, c]) => {
+				const edge = c.time + client.stale;
+				return edge - (input.latency.get(key) ?? 1) <= t && t <= edge;
+			});
+			if (!nearEdge && !client.queue.some((item) => item.time === t)) break;
+		}
 		const r = rng.next();
 		let e: Ev;
 		if (classId === 'invalidate' && r < (group === 'policy' ? 0.25 : 0.1))
 			e = { t, op: 'invalidate', key: rng.pick(keys) };
-		else if (senior && r < (group === 'policy' ? 0.35 : 0.18) && r >= 0.1) e = { t, op: 'focus' };
+		else if (senior && !plain && r < (group === 'policy' ? 0.35 : 0.18) && r >= 0.1) e = { t, op: 'focus' };
 		else if (active.length > 0 && rng.bool(active.length > 6 ? 0.6 : 0.3)) {
 			const id = rng.pick(active);
 			active.splice(active.indexOf(id), 1);
@@ -243,12 +272,30 @@ function makeInput(rng: Rng, classId: string, senior: boolean, group: GroupId, s
 }
 
 /** The mistakes a group must expose on every test of the main task, by class. */
-function traps(classId: string, group: GroupId): Variant[] {
+function traps(classId: string, senior: boolean, group: GroupId): Variant[] {
 	if (group === 'dedupe') return ['no-dedupe', 'no-cleanup'];
 	if (group === 'stale')
 		return classId === 'invalidate' ? ['events-first'] : ['fresh-from-send', 'stale-edge', 'events-first'];
-	if (group === 'policy' && classId === 'retry') return ['retry-no-backoff'];
+	if (group === 'policy')
+		return [
+			...(classId === 'retry' ? (['retry-no-backoff'] as const) : []),
+			...(senior ? (['focus-refetch-fresh'] as const) : [])
+		];
 	return [];
+}
+
+/**
+ * The subtleties a plain test must not feel: the order of one moment; freshness counted from the send and its exact
+ * edge (none in the class of invalidation, where an entry has no time of freshness); the doubling of the retry delay.
+ */
+function subtle(classId: string): readonly Variant[] {
+	if (classId === 'invalidate') return ['events-first'];
+	return [
+		'events-first',
+		'stale-edge',
+		'fresh-from-send',
+		...(classId === 'retry' ? (['retry-no-backoff'] as const) : [])
+	];
 }
 
 /** Hidden tests of the class; every test tells the class from the others, and the step's tests feel the abort. */
@@ -267,11 +314,12 @@ function groups(
 			if (attempt > 500) throw new Error(`${descriptor.key}: no distinguishing ${id} test for ${classId}`);
 			const input = makeInput(rng, classId, senior, id);
 			const expected = simulate(classId, input, abort);
+			if (PLAIN.has(id) && subtle(classId).some((v) => simulate(classId, input, abort, v) !== expected)) continue;
 			if (abort) {
 				if (simulate(classId, input, false) === expected) continue;
 			} else if (
 				others.some((other) => simulate(other, input, false) === expected) ||
-				traps(classId, id).some((v) => simulate(classId, input, false, v) === expected)
+				traps(classId, senior, id).some((v) => simulate(classId, input, false, v) === expected)
 			)
 				continue;
 			tests.push({ stdin: render(classId, senior, input), expected });
@@ -291,6 +339,64 @@ const POLICY: Record<string, string> = {
 	invalidate:
 		'`sub` — подписка: если в кэше есть запись ключа (свежая или устаревшая), подписчик сразу получает её значение; если записи нет или она устарела и запрос ключа не в работе, отправляется запрос.'
 };
+
+/** A ready reader of the input, so the candidate writes the cache, not the parsing. */
+function reader(classId: string, senior: boolean): string[] {
+	const retry = classId === 'retry';
+	const head = ['e', ...(classId === 'invalidate' ? [] : ['s']), senior ? 'p' : 'l', ...(retry ? ['k', 'd'] : [])];
+	return [
+		'```javascript',
+		"const lines = require('node:fs').readFileSync(0, 'utf8').trim().split('\\n');",
+		`const [${head.join(', ')}] = lines[0].split(' ').map(Number);`,
+		...(senior
+			? [
+					'const latency = new Map(); // ключ -> задержка, мс',
+					'for (const line of lines.slice(1, p + 1)) {',
+					"  const [key, ms] = line.split(' ');",
+					'  latency.set(key, Number(ms));',
+					'}',
+					'const pos = p + 1;'
+				]
+			: ['const pos = 1;']),
+		"const fails = new Set(lines[pos].split(' ').slice(1).map(Number)); // номера запросов с ошибкой",
+		`// события по порядку: { t, op, args }, args — [id, ключ] у sub, [id] у unsub${classId === 'invalidate' ? ', [ключ] у invalidate' : ''}${senior ? ', [] у focus' : ''}`,
+		'const events = lines.slice(pos + 1, pos + 1 + e).map((line) => {',
+		"  const [t, op, ...args] = line.split(' ');",
+		'  return { t: Number(t), op, args };',
+		'});',
+		'',
+		`// Очередь сети: хранит запланированные ответы${retry ? ' и повторы' : ''} и выдаёт их в порядке условия — по моменту,`,
+		`// в один момент ответы по номеру запроса${retry ? ', затем повторы по номеру неудачного запроса' : ''}.`,
+		`// kind — 'response' (ответ запроса n)${retry ? " или 'retry' (повтор после неудачи запроса n)" : ''}; data — что угодно ещё.`,
+		'class Network {',
+		'  items = [];',
+		'  add(time, kind, n, data) {',
+		'    this.items.push({ time, kind, n, data });',
+		'  }',
+		'  // ближайшее событие с моментом ≤ until (оно удаляется из очереди) или null',
+		'  next(until) {',
+		"    const rank = (x) => [x.time, x.kind === 'response' ? 0 : 1, x.n];",
+		'    const before = (x, y) => {',
+		'      const [a, b] = [rank(x), rank(y)];',
+		'      return a[0] !== b[0] ? a[0] < b[0] : a[1] !== b[1] ? a[1] < b[1] : a[2] < b[2];',
+		'    };',
+		'    let best = -1;',
+		'    this.items.forEach((x, i) => {',
+		'      if (x.time <= until && (best < 0 || before(x, this.items[best]))) best = i;',
+		'    });',
+		'    return best < 0 ? null : this.items.splice(best, 1)[0];',
+		'  }',
+		'  // убрать события, для которых drop(item) истинно',
+		'  remove(drop) {',
+		'    this.items = this.items.filter((x) => !drop(x));',
+		'  }',
+		'}',
+		'// Перед событиями журнала момента t: for (let x = net.next(t); x; x = net.next(t)) { … }',
+		'// после журнала — то же с until = Infinity.',
+		'const net = new Network();',
+		'```'
+	];
+}
 
 function statement(classId: string, senior: boolean, example: Input): string {
 	const retry = classId === 'retry';
@@ -316,6 +422,10 @@ function statement(classId: string, senior: boolean, example: Input): string {
 		'',
 		'Ключи и `id` — латинские буквы и цифры.',
 		'',
+		'Чтение входа и очередь сети можно взять готовыми (JavaScript и TypeScript):',
+		'',
+		...reader(classId, senior),
+		'',
 		'## Сеть',
 		'',
 		`Запросы нумеруются с 1 в порядке отправки. Запрос номер \`n\` ключа, отправленный в момент \`s\`, завершается в момент \`s + ${senior ? 'задержка ключа' : 'L'}\`: ошибкой, если \`n\` есть в списке, иначе успехом со значением \`v<n>\` (например, \`v7\`).`,
@@ -326,9 +436,9 @@ function statement(classId: string, senior: boolean, example: Input): string {
 			timed
 				? 'Запись ключа в кэше — значение и момент **ответа**, который её записал; запись свежая в момент `t`, если `t − момент ответа < S`, иначе устаревшая.'
 				: 'Запись ключа в кэше — значение последнего успешного ответа. Время свежести не ограничено (как `staleTime: Infinity`): запись свежая, пока её не инвалидировали; после `invalidate` она устаревшая, пока следующий успешный ответ не запишет новую.'
-		} Запрос ключа «в работе» с отправки до ${retry ? 'окончательного итога (с учётом повторов)' : 'его завершения'}; пока он в работе, второй запрос того же ключа не отправляется.`,
+		} Запрос ключа «в работе» с отправки до ${retry ? 'окончательного итога (с учётом повторов)' : 'его завершения'}; пока он в работе, второй запрос того же ключа не отправляется. Перед первым событием кэш пуст, подписок нет, запросов в работе нет.`,
 		'',
-		`- ${POLICY[classId] ?? ''} Если запрос ключа в работе, подписчик просто ждёт его ответа.`,
+		`- ${POLICY[classId] ?? ''} Если запрос ключа уже в работе, новый не отправляется: подписчик ${classId === 'ttl' ? 'ничего не получает сразу (запись в этот момент устаревшая или её нет)' : 'сразу получает запись кэша, если она есть,'} и вместе с остальными подписчиками ключа получит итог запроса в работе, когда тот завершится.`,
 		'- `unsub` — подписка удаляется; ответы ей больше не доставляются.',
 		`- Успешный ответ записывает в кэш значение и момент ответа и доставляется **всем текущим** подписчикам ключа в порядке их подписки. ${
 			retry
@@ -369,7 +479,7 @@ function statement(classId: string, senior: boolean, example: Input): string {
 		simulate(classId, example, false).trimEnd(),
 		'```',
 		'',
-		'Скрытые тесты — пять групп: обычные журналы, одновременные подписки на ключ, граница свежести и совпадение моментов, правило кэша, большой объём. Группа засчитывается, если пройдены все её тесты.'
+		`Скрытые тесты основной задачи и шага «измени своё решение» — по пять групп разной сложности. Две простые — обычные журналы и большой объём: в них ни один ответ не зависит от порядка событий одного момента${timed ? ', от того, свежа ли запись ровно через `S` мс, и от того, считать ли свежесть от ответа или от отправки запроса' : ''}${retry ? '; `K = 1`, так что повтор всегда ждёт `D` мс' : ''}${senior ? '; `focus` нет, задержки всех ключей одинаковы' : ''}. Три полные: одновременные подписки на ключ, граница свежести и совпадение моментов, правило кэша${senior ? ' и фокус окна' : ''}. Группа засчитывается, если пройдены все её тесты.`
 	].join('\n');
 }
 
@@ -477,7 +587,9 @@ function referenceSource(classId: string, senior: boolean, abort: boolean, varia
 		lines.push(
 			"    elif op == 'focus':",
 			'        for key in sorted(set(subs.values())):',
-			'            if not fresh(key, t) and key not in busy:',
+			variant === 'focus-refetch-fresh'
+				? '            if key not in busy:'
+				: '            if not fresh(key, t) and key not in busy:',
 			'                send(t, key, 1)'
 		);
 	}
@@ -485,8 +597,9 @@ function referenceSource(classId: string, senior: boolean, abort: boolean, varia
 	return lines.join('\n');
 }
 
-function applies(id: (typeof WRONG_IDS)[number], classId: string): boolean {
+function applies(id: (typeof WRONG_IDS)[number], classId: string, senior: boolean): boolean {
 	if (id === 'retry-no-backoff') return classId === 'retry';
+	if (id === 'focus-refetch-fresh') return senior;
 	return classId !== 'invalidate' || (id !== 'fresh-from-send' && id !== 'stale-edge');
 }
 
@@ -516,7 +629,7 @@ export function build(input: GenerateInput): Built {
 			Object.fromEntries(
 				WRONG_IDS.map((id) => [
 					id,
-					applies(id, classId)
+					applies(id, classId, senior)
 						? { kind: 'program' as const, source: referenceSource(classId, senior, false, id) }
 						: null
 				])

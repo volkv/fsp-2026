@@ -7,8 +7,8 @@
 // The generator models the shown program job by job: a small interpreter of the program's syntax tree runs async
 // functions and async generators as the specification writes them (`yield` awaits its operand, the request queue of
 // an async generator, AsyncIteratorClose, the async-from-sync iterator), on the same promise machinery as the
-// combinators family. The gate runs every shown program with Node and compares the output. Every timer is set while
-// the script itself runs, with delays at least 20 ms apart.
+// combinators family. The gate runs every shown program with Node and compares the output. Timers fire at moments at
+// least 20 ms apart; most are set while the script itself runs, the pauses of a loop body when the iteration reaches them.
 import {
 	instanceRng,
 	levelAndClass,
@@ -1481,10 +1481,20 @@ function requestQueue(rng: Rng): Program {
 	};
 }
 
+/** How far after a pause of a loop body a timer set at the start may be due: the pauses lag behind on a loaded machine. */
+const PAUSE_LAG_MARGIN_MS = 80;
+
 function breakAsyncFinally(rng: Rng): Program {
-	const delays = rng.sample(DELAYS, 3);
-	const chunks = rng.sample(WORDS, rng.int(3, 5));
-	const stopAt = chunks[rng.int(0, chunks.length - 2)] ?? 'red';
+	// Every iteration before the break waits for a fresh timer, so the break comes at k * step; `flush` and `other` are
+	// set at the start and fire at their own moments, apart from every pause, so `await flush` in `finally` either still
+	// waits or finds the promise settled. A pause is set only when the previous one has fired, so on a real machine it
+	// fires a little later than the model says: a timer set at the start is never due shortly after a pause.
+	const chunks = rng.sample(WORDS, rng.int(4, 5));
+	const stop = rng.int(2, chunks.length - 2);
+	const step = rng.pick([40, 60, 80]);
+	const pauses = Array.from({ length: stop }, (_, i) => step * (i + 1));
+	const clear = (d: number): boolean => pauses.every((p) => d < p || d - p >= PAUSE_LAG_MARGIN_MS);
+	const [flushAt, otherAt] = rng.sample(DELAYS.filter(clear), 2) as [number, number];
 	const reader: Fn = {
 		name: 'reader',
 		kind: 'asyncGen',
@@ -1514,8 +1524,8 @@ function breakAsyncFinally(rng: Rng): Program {
 				iter: { k: 'call', fn: 'reader' },
 				body: [
 					say('use', ref('chunk')),
-					{ k: 'ifEq', name: 'chunk', v: stopAt, then: { k: 'break' } },
-					{ k: 'await', e: ref('pause'), into: null }
+					{ k: 'ifEq', name: 'chunk', v: chunks[stop] ?? 'red', then: { k: 'break' } },
+					{ k: 'await', e: timer(step, 'pause'), into: null }
 				]
 			},
 			say('after loop')
@@ -1524,9 +1534,8 @@ function breakAsyncFinally(rng: Rng): Program {
 	return {
 		helpers: { delay: true, fail: false },
 		consts: [
-			{ name: 'flush', e: timer(delays[0] ?? 20, 'flush') },
-			{ name: 'pause', e: timer(delays[1] ?? 40, 'pause') },
-			{ name: 'other', e: timer(delays[2] ?? 60, 'other') }
+			{ name: 'flush', e: timer(flushAt, 'flush') },
+			{ name: 'other', e: timer(otherAt, 'other') }
 		],
 		listeners: [],
 		fns: [reader, main],
@@ -1650,8 +1659,9 @@ function replaceIter(stmts: readonly Stmt[], order: readonly number[]): Stmt[] {
 
 const STATEMENT = [
 	'Что напечатает программа? Её запускают в Node.js 24; промисы, `setTimeout`, асинхронные генераторы и `EventTarget`',
-	'ведут себя так же, как в браузере. Задержки таймеров отличаются не меньше чем на 20 мс, а сама программа выполняется',
-	'мгновенно, поэтому таймеры срабатывают строго в порядке своих задержек.',
+	'ведут себя так же, как в браузере. Код между срабатываниями таймеров выполняется мгновенно: таймер, поставленный в',
+	'момент t на ms мс, срабатывает в момент t + ms. Моменты срабатывания разных таймеров отличаются не меньше чем на',
+	'20 мс, поэтому таймеры срабатывают строго в порядке этих моментов.',
 	'',
 	'Введите вывод построчно, как он появится на экране.'
 ].join('\n');

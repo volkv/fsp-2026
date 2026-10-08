@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "middle",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "0475e64359d019132f98cccf8523c5dddae51f6c95f43e606fafe8e17775cb7c"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.4,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "0475e64359d019132f98cccf8523c5dddae51f6c95f43e606fafe8e17775cb7c"
+					}
+				],
+				"mean": 0.5
+			},
 			"constructive": {
 				"operations": "10–12",
 				"mechanisms": "2–3",
@@ -42,7 +59,24 @@
 		},
 		{
 			"grade": "senior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "0475e64359d019132f98cccf8523c5dddae51f6c95f43e606fafe8e17775cb7c"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.35,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "0475e64359d019132f98cccf8523c5dddae51f6c95f43e606fafe8e17775cb7c"
+					}
+				],
+				"mean": 0.45
+			},
 			"constructive": {
 				"operations": "10–16",
 				"mechanisms": "3–4",
@@ -172,6 +206,29 @@
 		"answerCollision": 0.018,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Исправление проверено: все элементы теперь создают блочные боксы display:block/flex. Прежнее альтернативное прочтение с inline toolbar в senior/rare-reads исключено; чтение getComputedStyle(toolbar).height на операции 9 даёт L. Классификация чтений сверена с исходниками Chromium: https://raw.githubusercontent.com/chromium/chromium/main/third_party/blink/renderer/core/css/css_computed_style_declaration.cc .",
+					"Angoff: middle = 0.60, senior = 0.55. Учтены binary, 360/420 с, необходимость различать style/layout, бесплатные чтения и порядок микрозадач/requestAnimationFrame; один пропущенный пересчёт обнуляет ответ.",
+					"Независимо пересчитал все 8 экземпляров, исполнив показанный JavaScript в Node.js с отдельной моделью DOM, двух признаков устаревания и очередей микрозадач/requestAnimationFrame; все ответы совпали. Дополнительно пересчитаны 200 сидов каждого уровня и класса, всего 1600, без расхождений. Все 8 Python-эталонов исполнены на Python 3.12, условия и ответы сверены с пакетами, применимые ошибочные ответы отличаются от независимых. Реальный Chromium и штатные ворота целиком не запускал."
+				],
+				"sourceSha256": "0475e64359d019132f98cccf8523c5dddae51f6c95f43e606fafe8e17775cb7c"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Повторное ревью: прежнее замечание второго рецензента (inline-элемент делает getComputedStyle(height) чтением только стилей) устранено: условие теперь требует блочные боксы (display: block или flex, без none и inline), и тогда ширина и высота в getComputedStyle требуют раскладки, как в классификации задания. Код всех 8 экземпляров и ответы не изменились.",
+					"Проверено: код и ответы 8 экземпляров совпадают с прежним пакетом (сравнено текстом), которые я пересчитал вручную в первом раунде по правилам условия: `6L 11L`, `3L 6L 8S 10S`, `3S 4L 9L`, `4.1L 4.2L 4.3L 4.4L 7L`, `4L 8L 10L`, `5L 7L 17L`, `5S 9L 13S`, `4L 13L`. Новая формулировка с ними согласована, новых противоречий нет. Реальный Chromium и не показанные сиды не проверял.",
+					"Мелочь: для пограничного middle стоимость рендера — названное слабое место, для senior 14–17 операций с кадрами при бинарной оценке; учтено в Angoff."
+				],
+				"sourceSha256": "0475e64359d019132f98cccf8523c5dddae51f6c95f43e606fafe8e17775cb7c"
+			}
+		]
 	}
 }

@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.8 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.8,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "fe3adc160e1dcfc13bea516e637edb6029b7368f72fcb3cf37c6b7861b5d05bb"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.8,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "fe3adc160e1dcfc13bea516e637edb6029b7368f72fcb3cf37c6b7861b5d05bb"
+					}
+				],
+				"mean": 0.8
+			},
 			"constructive": { "decoding": "ASCII", "malformed": false, "encodedKeys": false, "groups": 5 },
 			"constructiveRank": 3,
 			"timeNormSec": 1800,
@@ -33,7 +50,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.8 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.85,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "fe3adc160e1dcfc13bea516e637edb6029b7368f72fcb3cf37c6b7861b5d05bb"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.75,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "fe3adc160e1dcfc13bea516e637edb6029b7368f72fcb3cf37c6b7861b5d05bb"
+					}
+				],
+				"mean": 0.8
+			},
 			"constructive": { "decoding": "UTF-8", "malformed": true, "encodedKeys": true, "groups": 5 },
 			"constructiveRank": 4,
 			"timeNormSec": 2400,
@@ -110,16 +144,56 @@
 			"defect": "Junior: делит часть по каждому `=`, значение обрывается на втором `=`",
 			"mustBeCaught": true
 		},
-		{ "id": "keys-raw", "defect": "Junior: не декодирует ключи", "mustBeCaught": true }
+		{ "id": "keys-raw", "defect": "Junior: не декодирует ключи", "mustBeCaught": true },
+		{
+			"id": "first-wins",
+			"defect": "класс последнего значения: повторный ключ сохраняет первое значение, а не последнее",
+			"mustBeCaught": true
+		},
+		{
+			"id": "scalar-joins-list",
+			"defect": "класс списков `[]`: ключ со скобками после одиночного значения продолжает список с этого значения, а не начинает его заново",
+			"mustBeCaught": true
+		},
+		{
+			"id": "empty-kept",
+			"defect": "класс флагов: `ключ=` с пустым значением оставляет параметр с пустым значением вместо удаления",
+			"mustBeCaught": true
+		}
 	],
 	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
 	"gates": {
 		"reference": { "seeds": 200, "failures": 0 },
-		"wrongSolutions": { "mustBeCaught": 6, "caught": 6 },
+		"wrongSolutions": { "mustBeCaught": 9, "caught": 9 },
 		"hiddenTestsMutationScore": 1,
 		"answerCollision": 0,
 		"transfer": 0,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Прежние существенные замечания устранены: явно сортируются декодированные ключи по UTF-16 до кодирования, у php-brackets — имена без []; Python-эталоны используют ключ сортировки utf-16-be. Повторно проверен контрпример ?%EE%80%80=a&%F0%90%80%80=b: сначала выводится ключ U+10000. Независимая неполная реализация без декодирования и общего процентного кодирования проходит basic и scale во всех восьми сочетаниях уровня и класса на десяти сидах; повторные ключи и политика класса сохраняются.",
+					"Мелочь, Intern и Junior, класс all-values: в перечне ошибочных решений нет потери повторов с сохранением одного значения. Независимый перенос политики last-wins отвергается каждым проверенным скрытым тестом all-values. Добавить отдельное ошибочное решение для этого класса; новые first-wins, scalar-joins-list и empty-kept закрывают остальные политики.",
+					"Проверка: независимая реализация на JavaScript вручную декодирует байты по условию, использует TextDecoder для UTF-8, сортирует ключи стандартным sort и кодирует только заданное множество незарезервированных символов. Все 8 примеров и 1680 полных скрытых тестов сидов review|fe.code.query-string|0–9 совпали; все 40 показанных скрытых входов и ответов сверены с восстановленными данными. Python-эталоны исполнены на Python 3.12 на этих 1680 тестах; все 46 применимых ошибочных программ показанных экземпляров отвергаются. Каждый скрытый тест независимо различает остальные классы; дополнительно проверены 12 регрессий UTF-16, сортировки до кодирования, BOM, управляющих символов и битого %. Исходный прогон ворот на 200 сидах, автоматические мутации эталона и продуктовая песочница не воспроизводились.",
+					"Angoff — вероятность получить не менее 0.4: Intern 0.80, Junior 0.85. Для двух простых групп достаточно разобрать части и первый знак равенства, реализовать одну политику повторов, отсортировать ключи и кодировать скобки списков. Заготовка чтения и 1800/2400 с делают этот путь доступным; Junior не обязан реализовать UTF-8 и битый % для прохождения порога."
+				],
+				"sourceSha256": "fe3adc160e1dcfc13bea516e637edb6029b7368f72fcb3cf37c6b7861b5d05bb"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Проверка: независимая реализация на JavaScript (ручное декодирование, TextDecoder, ручное кодирование, sort() по UTF-16) прогнана на 2520 скрытых тестах (15 сидов x 8 классов): расхождений нет, включая ключи вне BMP у Junior. Неоднозначность порядка сортировки из прошлого раунда устранена явным текстом и примерами (декодированные имена, имя без [] у php-brackets).",
+					"Проверка ворот неполными решениями (по 60 экземпляров на уровень): без собственной обработки !'()*, с decodeURIComponent и try/catch, с сортировкой по закодированной строке и с сортировкой по имени со скобками проходят не менее двух групп в 60 из 60 экземпляров (Junior с сортировкой по имени со скобками — 56 из 60); полное решение Intern проходит все пять. Порог 0,4 достижим решением на encodeURIComponent и decodeURIComponent.",
+					"Angoff: Intern 0,80; Junior 0,75 (политики класса, битый %, UTF-8 и =; две простые группы без кодирования и декодирования, но с повторными ключами, заготовкой чтения и 40 минутами).",
+					"Мелочь: список ошибочных решений расширен (first-wins, scalar-joins-list, empty-kept); сортировка через localeCompare по-прежнему не названа."
+				],
+				"sourceSha256": "fe3adc160e1dcfc13bea516e637edb6029b7368f72fcb3cf37c6b7861b5d05bb"
+			}
+		]
 	}
 }

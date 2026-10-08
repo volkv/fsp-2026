@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.45,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "03176ace5d58083574be115abbab0e634d422d23c5e6c2058fd2838927fb4e0a"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.45,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "03176ace5d58083574be115abbab0e634d422d23c5e6c2058fd2838927fb4e0a"
+					}
+				],
+				"mean": 0.45
+			},
 			"constructive": {
 				"elements": "3–4",
 				"questions": "4–7",
@@ -41,7 +58,24 @@
 		},
 		{
 			"grade": "middle",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.4,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "03176ace5d58083574be115abbab0e634d422d23c5e6c2058fd2838927fb4e0a"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.4,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "03176ace5d58083574be115abbab0e634d422d23c5e6c2058fd2838927fb4e0a"
+					}
+				],
+				"mean": 0.4
+			},
 			"constructive": {
 				"elements": "3–4",
 				"questions": "4–8",
@@ -167,6 +201,32 @@
 		"answerCollision": 0.0143,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Проверка: вручную пересчитал имена, описания и роли во всех 8 экземплярах; ответы совпали. Отдельно проверены порядок IDREF, самоссылка и запрет повторного обхода labelledby, скрытые источники и исключение aria-hidden из содержимого. Сверено с https://www.w3.org/TR/accname-1.2/ и https://www.w3.org/TR/html-aam-1.0/ . Исполнил Python-эталоны на Python 3.12 и сверил применимые ошибочные ответы с независимым пересчётом. Браузерный запуск не выполнен: Chromium и headless shell завершаются из-за ограничений песочницы; 200 сидов ворот не пересчитывались, descriptor.json не открывался.",
+					"Angoff Junior 0.60, Middle 0.60 — вероятность полного ответа при binary. Учтены 4–7 отдельных ответов за 330/420 с и обнуление за одну ошибку. Middle требует знания контекстного обхода labelledby и скрытых источников, хотя отдельные классы содержат меньше вопросов.",
+					"Второй раунд Angoff, junior: было 0.60, стало 0.45 — Первоначально переоценил перенос обычного знания label, alt и aria-label на все классы. Кандидату названы AccName и HTML-AAM, но алгоритм не изложен: прямую ссылку на скрытый источник, приоритет labelledby и роль именованного section надо знать самостоятельно. За 330 с требуются все 4–6 строк показанных ответов без ошибки; аргумент другого рецензента о специальном знании снижает мою оценку, хотя простые классы label-sources и content удерживают её выше 0.35.",
+					"Второй раунд Angoff, middle: было 0.60, стало 0.40 — Учёл обоснование другого рецензента о неравномерности классов и пересмотрел вероятность полного ответа, а не отдельных имён. Непродолжение цепочки labelledby, самоссылка, различие имени и описания и отсутствие имени из содержимого у отдельных ролей не следуют из общих навыков пограничного Middle и не раскрыты алгоритмом в условии. 420 с и короткий класс labelledby-recursion помогают, но в остальных показанных классах нужны 5–7 правильных строк, поэтому 0.60 было завышено."
+				],
+				"sourceSha256": "03176ace5d58083574be115abbab0e634d422d23c5e6c2058fd2838927fb4e0a"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчёт: 320 сгенерированных экземпляров (40 сидов x 8 классов; в пакете их 8) прогнаны в настоящем Chromium 153 (CDP Accessibility.getPartialAXTree для имени, описания и роли по id элемента): расхождений с ожидаемым ответом нет, включая region/generic у section, скрытые узлы по прямой ссылке aria-labelledby/aria-describedby, title как описание, самоссылку и цепочку aria-labelledby. Не проверял: Firefox и Safari, чьи деревья доступности могут отличаться; ошибочные решения вручную не прогонял.",
+					"Замечание: блок fe.dom описан как «специфичность, каскад, всплытие, раскладка», доступное имя (accname 1.2, HTML-AAM) в описании блока не названо; для Junior классы labelledby и title-fallback требуют точного знания шагов вычисления имени (скрытый узел по ссылке всё же даёт текст, section с именем — region); в Angoff это учтено низкой оценкой, на вердикт не влияет.",
+					"Замечание: бинарная рубрика на 4-7 строк за 330-420 с, любая ошибка в одном ответе обнуляет задание; для Middle author-only (7 ответов) это самый тяжёлый класс, hidden-mix и labelledby-recursion заметно легче, классы Middle по трудности неровные.",
+					"Второй раунд Angoff, junior: было 0.35, стало 0.45 — классы label-sources и content опираются на широко известные правила приоритета, вопросов 4-6; завышенной оценкой Junior я считал только labelledby и title-fallback",
+					"Второй раунд Angoff, middle: было 0.30, стало 0.40 — классы с 3 и 5 вопросами (labelledby-recursion, hidden-mix) заметно легче author-only на 7; усредняю по классам, а не по самому тяжёлому"
+				],
+				"sourceSha256": "03176ace5d58083574be115abbab0e634d422d23c5e6c2058fd2838927fb4e0a"
+			}
+		]
 	}
 }

@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "senior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.3,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "779a85b81b36805c3b23330c54f03adda6e248ed2c68f924d170641ebc1f6f37"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.3,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "779a85b81b36805c3b23330c54f03adda6e248ed2c68f924d170641ebc1f6f37"
+					}
+				],
+				"mean": 0.3
+			},
 			"constructive": {
 				"calls": "6–8",
 				"hosts": "1–2",
@@ -64,7 +81,7 @@
 			"кука только для хоста против Domain",
 			"Set-Cookie в cross-origin ответе: credentials, SameSite, ответ, не прошедший CORS",
 			"Access-Control-Allow-Credentials и `*`",
-			"кэш preflight по Max-Age: списки целиком, флаг credentials, новый заголовок, истечение"
+			"кэш preflight по Max-Age: ключ — полный URL, списки целиком, флаг credentials, новый заголовок, истечение"
 		],
 		"doesNotCheck": [
 			"блокировка и разбиение сторонних кук (CHIPS)",
@@ -117,6 +134,11 @@
 			"mustBeCaught": true
 		},
 		{
+			"id": "cache-per-host",
+			"defect": "считает, что запись кэша preflight покрывает любой путь того же хоста API, а не только свой URL",
+			"mustBeCaught": true
+		},
+		{
 			"id": "host-only-to-siblings",
 			"defect": "отправляет куку без Domain на другие поддомены того же сайта",
 			"mustBeCaught": true
@@ -130,11 +152,37 @@
 	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
 	"gates": {
 		"reference": { "seeds": 200, "failures": 0 },
-		"wrongSolutions": { "mustBeCaught": 12, "caught": 12 },
+		"wrongSolutions": { "mustBeCaught": 13, "caught": 13 },
 		"hiddenTestsMutationScore": null,
 		"answerCollision": 0.0001,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Прежние существенные замечания устранены: кэш preflight изначально пуст, ключ содержит источник страницы и полный URL с путём, TTL/отсутствие досрочного вытеснения названы. Код call перехватывает отклонение fetch и продолжает последовательность. Новый cache-per-host меняет ответ senior/cross-site-api, включая вызов 5 после preflight к другому пути. Асимметрия credentials проверена по Fetch Standard: https://fetch.spec.whatwg.org/?authuser=0#cors-preflight-cache .",
+					"Angoff senior = 0.50: за 480 с требуется полный binary-ответ на 7 вызовов по четыре поля, одновременно учитывая origin/site, Domain/host-only, SameSite, credentials, Set-Cookie после CORS-ошибки и кэш preflight. Даже при полном контракте редкие сочетания и длина ответа заметно снижают вероятность полного решения.",
+					"Независимо пересчитал все 4 экземпляра в Node.js отдельной моделью cookie jar и preflight-cache; параметры восстановлены из текста, запросы — исполнением показанного JavaScript. Все ответы совпали. Дополнительно пересчитаны 200 сидов каждого класса, всего 800, без расхождений; каждый заявленный мутант, включая cache-ignores-credentials и cache-per-host, проявился в выборке и его применимые ответы отличаются от независимых. Все показанные Python-эталоны исполнены. Реальный браузер, политика third-party cookies и штатные ворота целиком не проверялись.",
+					"Второй раунд Angoff, senior: было 0.50, стало 0.30 — после чтения обоих обоснований и условий всех классов пересматриваю прежнее допущение о полном наборе правил в тексте. Условие задаёт данные и привязку preflight-cache к Fetch Standard, но кандидату требуется знать сохранение Set-Cookie после CORS-ошибки, ограничения сохранения SameSite=Lax/Strict при cross-site fetch и одностороннюю совместимость credentials в preflight-cache. Эти редкие правила взаимодействуют с изменением cookie jar и TTL; одна ошибка среди 28 полей обнуляет ответ, времени 480 с. Базовые вызовы и отказы preflight упрощают часть трассы, поэтому не снижаю до 0.20, но 0.50 для минимально достаточного Senior считаю завышенным. Во втором раунде эталоны и другие сиды повторно не пересчитывались."
+				],
+				"sourceSha256": "779a85b81b36805c3b23330c54f03adda6e248ed2c68f924d170641ebc1f6f37"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Повторное ревью. Мои прежние существенные замечания устранены: ключ кэша preflight теперь назван в условии (источник страницы, полный URL с путём, режим credentials; запись живёт Max-Age секунд и не вытесняется раньше) и добавлено ошибочное решение cache-per-host. Замечания второго рецензента устранены: кэш в начале пуст, а `call` показан кодом с try/catch, после отклонения следующий вызов выполняется.",
+					"Пересчитано вручную заново все 4 экземпляра (cross-origin при same-site, SameSite для fetch, Domain и host-only, Set-Cookie при omit/same-origin/include, кука из ответа без прохождения CORS, `*` с credentials, Allow-Methods/Headers, кэш preflight с учётом URL, credentials и Max-Age): ответы совпали с ожидаемыми и не изменились относительно первого раунда. Реальный браузер, генератор и другие сиды не проверял.",
+					"Мелочь: в классе preflight-cache (вызов 6, PATCH с omit при живой записи, созданной с include) ответ `nopre` следует из односторонней совместимости записей Fetch Standard (запись с credentials покрывает запрос без них, обратное неверно). Условие говорит лишь «привязана к режиму credentials»; при буквальном чтении «ключ по точному режиму» ответ был бы `pre`. Предлагаю дописать: «запись, созданная с include, подходит и для запросов без include; запись без include не подходит для include».",
+					"Нагрузка: 7 вызовов по четыре значения за 480 с, бинарная рубрика; Angoff прежний.",
+					"Второй раунд Angoff, senior: было 0.20, стало 0.30 — после уточнения условия (кэш, ключ, код call) задача стала определённой, но 7 вызовов по четыре поля с куками, CORS, Set-Cookie после ошибки и кэшем preflight за 480 с при бинарной рубрике остаются очень длинной цепочкой правил; 0.5 завышено."
+				],
+				"sourceSha256": "779a85b81b36805c3b23330c54f03adda6e248ed2c68f924d170641ebc1f6f37"
+			}
+		]
 	}
 }

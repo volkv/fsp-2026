@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "middle",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "48e6f02715cc7cfb24f42aa71f793bc8158bcb6eed3b3bbd4ce7b7f8e145c636"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.4,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "48e6f02715cc7cfb24f42aa71f793bc8158bcb6eed3b3bbd4ce7b7f8e145c636"
+					}
+				],
+				"mean": 0.5
+			},
 			"constructive": {
 				"generators": 1,
 				"lines": "30–45",
@@ -42,7 +59,24 @@
 		},
 		{
 			"grade": "senior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.45,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "48e6f02715cc7cfb24f42aa71f793bc8158bcb6eed3b3bbd4ce7b7f8e145c636"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.25,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "48e6f02715cc7cfb24f42aa71f793bc8158bcb6eed3b3bbd4ce7b7f8e145c636"
+					}
+				],
+				"mean": 0.35
+			},
 			"constructive": {
 				"generators": 1,
 				"lines": "30–50",
@@ -65,7 +99,7 @@
 				{
 					"id": "break-async-finally",
 					"form": "anchor",
-					"description": "break, а в finally генератора await таймера: код после цикла ждёт, пока finally не закончится"
+					"description": "break после нескольких итераций, каждая из которых ждёт свой таймер, а в finally генератора await таймера, заведённого в начале: код после цикла ждёт finally, а таймер к моменту break может уже сработать"
 				},
 				{
 					"id": "throw-in-loop",
@@ -194,6 +228,29 @@
 		"answerCollision": 0.0098,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Прежнее замечание к Senior, break-async-finally (anchor), устранено: в экземпляре 1 break происходит на четвёртом значении lime после трёх пауз по 40 мс; await flush в finally действительно задерживает выход до 280 мс. В генераторе выход не раньше третьей итерации, а моменты независимых таймеров разнесены с паузами. Условие теперь явно задаёт мгновенное исполнение между таймерами и точные моменты их срабатывания.",
+					"Senior, tick-interleave (A) и request-queue (B), экземпляры 1: полный ответ требует точного счёта микрозадач yield и очереди next/return; Middle, lazy-pull (A), содержит 21 строку вывода, event-target (X) — 16. При binary одна перестановка обнуляет ответ; эта нагрузка учтена в Angoff. Решение ведущего о соответствии Senior на уровне всего теста принято, механическая трассировка сама по себе не служит основанием для changes_requested.",
+					"Независимо исполнил все 8 программ условий в Node.js 24.21.0, вывод построчно совпал с ожидаемым; вручную проверил моменты таймеров, ленивое потребление, закрытие генератора и порядок слушателей. Полный прогон ворот на 200 сидах каждого класса и статистику answerCollision заново не проверял. sourceSha256 совпал с текущими исходниками; оценки из descriptor.json не использовал."
+				],
+				"sourceSha256": "48e6f02715cc7cfb24f42aa71f793bc8158bcb6eed3b3bbd4ce7b7f8e145c636"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Повторное ревью: все 8 экземпляров нового пакета исполнены в Node 24 (node --jitless), вывод совпал с ожидаемым ответом построчно. Правило таймеров в условии (срабатывание в t + ms, моменты разных таймеров отличаются не менее 20 мс) однозначно; опорный senior-класс break-async-finally теперь уходит в break не раньше третьей итерации, каждая итерация ждёт свою паузу, flush и other разнесены - замечание прежних раундов о лёгком опорном классе устранено. Не проверял другие сиды.",
+					"Мелочь, по решению ведущего не основание для отказа: senior-классы tick-interleave и request-queue остаются точным счётом тактов очереди асинхронного генератора, а не темой производительности и архитектуры. Учтено в Angoff.",
+					"Middle, класс event-target: три механизма в одном экземпляре, трудность выше lazy-pull и early-break; классы не вполне сопоставимы, на вердикт не влияет."
+				],
+				"sourceSha256": "48e6f02715cc7cfb24f42aa71f793bc8158bcb6eed3b3bbd4ce7b7f8e145c636"
+			}
+		]
 	}
 }

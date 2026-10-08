@@ -8,10 +8,27 @@
 	"levels": [
 		{
 			"grade": "middle",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.7,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "cf9bdf28042d063e5406851c113eeb7d896a1f060f1668097ca8c8828d1ea47c"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "cf9bdf28042d063e5406851c113eeb7d896a1f060f1668097ca8c8828d1ea47c"
+					}
+				],
+				"mean": 0.65
+			},
 			"constructive": {
 				"classes": 3,
-				"lines": "60–80",
+				"lines": "65–100",
 				"defect": "одна строка: устаревший ответ, флаг загрузки чужого запроса, отмена, повторная отправка"
 			},
 			"constructiveRank": 5,
@@ -41,10 +58,27 @@
 		},
 		{
 			"grade": "senior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.65,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "cf9bdf28042d063e5406851c113eeb7d896a1f060f1668097ca8c8828d1ea47c"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.5,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "cf9bdf28042d063e5406851c113eeb7d896a1f060f1668097ca8c8828d1ea47c"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": {
 				"classes": 3,
-				"lines": "80–100",
+				"lines": "85–110",
 				"defect": "одна строка: debounce с отменой, оптимистичный откат, кэш запросов в полёте, пагинация со сбросом"
 			},
 			"constructiveRank": 7,
@@ -118,9 +152,31 @@
 		"reference": { "seeds": 200, "failures": 0 },
 		"wrongSolutions": { "mustBeCaught": 2, "caught": 2 },
 		"hiddenTestsMutationScore": null,
-		"answerCollision": 0.0274,
+		"answerCollision": 0.0256,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Прежние существенные замечания устранены: seq/version/epoch теперь обозначают число вызовов, и прежние альтернативы с уменьшением счётчиков отвергаются проверками; Feed прямо добавляет ответ api одним элементом; Autosave после отказа первого запроса отправляет последний queued-текст и сохраняет сообщение ошибки, что покрыто новым сценарием. В Middle, loading-flag (B), экземпляр 1, строка 49 также чинится присваиванием «this.loading = req === this.seq ? false : this.loading;»; оно проходит проверки и сохраняет вид инструкции без добавления if, номер засчитываемой строки остаётся эталонным.",
+					"Независимо разобрал все 8 модулей построчно и исполнил в Node.js 24.21.0 все 32 программы из пакета: исходные дефекты отвергаются, эталонные исправления проходят, обе отвлекающие правки каждого экземпляра отвергаются. Дополнительно исполнил три прежние альтернативы с --/−= и исправление loading через присваивание. Объявленных alternatives нет; дополнительных допустимых строк вне эталонов не нашёл. Полный прогон ворот на 200 сидах каждого класса и статистику answerCollision заново не проверял. sourceSha256 совпал с текущими исходниками; оценки из descriptor.json не использовал."
+				],
+				"sourceSha256": "cf9bdf28042d063e5406851c113eeb7d896a1f060f1668097ca8c8828d1ea47c"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Повторное ревью: все 8 модулей исполнены с проверками; эталонные правки (строки 49, 49, 61, 18, 76, 92, 51, 56) проходят, дефектные падают. Проверил найденные вторым рецензентом альтернативы: `--this.seq`, `--this.version`, `this.epoch -= 1` теперь не проходят проверки, потому что в контракте записано, что seq/version/epoch - число вызовов (прежние существенные замечания устранены; в первом раунде я их пропустил).",
+					"Прежние замечания о форме items и о сбое Autosave устранены: Feed добавляет ответ api одним элементом (`[...this.items, data]` соответствует контракту), Autosave по контракту отправляет запомненный текст после ответа, успешного или с ошибкой, и пишет ошибку в error (проверки включают сценарий отказа).",
+					"Других строк, чинящихся одной простой инструкцией, не нашёл (пробовал замены в соседних строках: `if (this.inflight)`, смена условий, счётчиков, `return`/`throw`). Мелочь: в Autosave поле error не очищается после успеха, контракт говорит «последней ошибки» - допустимо. Не проверял другие сиды."
+				],
+				"sourceSha256": "cf9bdf28042d063e5406851c113eeb7d896a1f060f1668097ca8c8828d1ea47c"
+			}
+		]
 	}
 }

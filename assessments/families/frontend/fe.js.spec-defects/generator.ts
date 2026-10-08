@@ -1,8 +1,9 @@
 // A module of frontend utilities in JavaScript, each function with its specification in JSDoc; exactly one line breaks
-// its function's specification. The candidate names that line. The kind of the defect is the essential class; the
-// other functions, their order and the module header are surface. On the junior level functions come in groups that
-// call each other, and the defect shows up in a caller. The gate runs the module with the checks of every function
-// appended: it fails, passes with the defect line fixed, and still fails when a trap line is changed instead.
+// its function's specification. The candidate names that line. The kind of the defect is the essential class, and the
+// function carrying it is one of the class's fixed manifestations; the other functions, their order and the module
+// header are surface. On the junior level functions come in groups that call each other, and the defect shows up in a
+// caller. The gate runs the module with the checks of every function appended: it fails, passes with the defect line
+// fixed, and still fails when a trap line is changed instead.
 import {
 	instanceRng,
 	levelAndClass,
@@ -29,6 +30,8 @@ interface Defect extends Change {
 	neighbour: Change;
 	/** Junior: a line of another function of the group where the defect shows up. */
 	symptom?: Change;
+	/** Other lines whose one-instruction change also restores the specification: accepted answers. */
+	alternatives?: Change[];
 }
 
 /** A function, or on the junior level a group of functions calling each other, with the checks of its specification. */
@@ -46,6 +49,7 @@ const INTERN: Unit[] = [
 		lines: [
 			'/**',
 			' * Цена в рублях: целая часть с пробелом между тысячами и знак ₽, копейки отбрасываются.',
+			' * value — конечное число от 0 до 10^15.',
 			" * formatPrice(1234567.8) → '1 234 567 ₽', formatPrice(950) → '950 ₽'.",
 			' */',
 			'function formatPrice(value) {',
@@ -79,6 +83,7 @@ const INTERN: Unit[] = [
 		lines: [
 			'/**',
 			' * Обрезает текст до max символов вместе с многоточием «…»; текст не длиннее max не меняется.',
+			' * max — целое число от 1; длина текста — text.length.',
 			" * truncate('Привет, мир', 7) → 'Привет…'.",
 			' */',
 			'function truncate(text, max) {',
@@ -110,7 +115,7 @@ const INTERN: Unit[] = [
 	{
 		lines: [
 			'/**',
-			' * Элементы страницы page (нумерация с 1) по size штук.',
+			' * Элементы страницы page (нумерация с 1) по size штук; page и size — целые числа от 1.',
 			' * pageItems([1, 2, 3, 4, 5], 2, 2) → [3, 4].',
 			' */',
 			'function pageItems(items, page, size) {',
@@ -129,9 +134,12 @@ const INTERN: Unit[] = [
 				from: '  const start = (page - 1) * size;',
 				to: '  const start = page * size;',
 				neighbour: {
-					from: '  return items.slice(start, start + size);',
-					to: '  return items.slice(start, start + size - 1);'
-				}
+					from: 'function pageItems(items, page, size) {',
+					to: 'function pageItems(items, page, size = 10) {'
+				},
+				alternatives: [
+					{ from: '  return items.slice(start, start + size);', to: '  return items.slice(start - size, start);' }
+				]
 			},
 			{
 				kind: 'boundary',
@@ -146,6 +154,7 @@ const INTERN: Unit[] = [
 		lines: [
 			'/**',
 			' * Сколько страниц по size элементов нужно для total элементов; при total = 0 — 0.',
+			' * total — целое число от 0, size — целое число от 1.',
 			' */',
 			'function pageCount(total, size) {',
 			'  return Math.ceil(total / size);',
@@ -197,7 +206,7 @@ const INTERN: Unit[] = [
 	{
 		lines: [
 			'/**',
-			" * Общее количество товаров; quantity приходит из поля ввода строкой: '2'.",
+			" * Общее количество товаров; quantity приходит из поля ввода строкой с целым числом от 0: '2'.",
 			' */',
 			'function sumQuantities(lines) {',
 			'  let total = 0;',
@@ -221,8 +230,9 @@ const INTERN: Unit[] = [
 	{
 		lines: [
 			'/**',
-			' * Номер страницы из строки запроса: целое число от 1; пустое или нечисловое значение — 1.',
-			" * parsePage('3') → 3, parsePage('') → 1, parsePage('abc') → 1.",
+			' * Номер страницы из строки запроса: целое число от 1. Число читается по ведущим цифрам, как parseInt;',
+			' * пустая строка, строка без ведущих цифр и число меньше 1 — 1.',
+			" * parsePage('3') → 3, parsePage('3abc') → 3, parsePage('') → 1, parsePage('abc') → 1.",
 			' */',
 			'function parsePage(raw) {',
 			'  const page = Number.parseInt(raw, 10);',
@@ -231,6 +241,7 @@ const INTERN: Unit[] = [
 		],
 		checks: [
 			"__eq(parsePage('3'), 3);",
+			"__eq(parsePage('3abc'), 3);",
 			"__eq(parsePage(''), 1);",
 			"__eq(parsePage('abc'), 1);",
 			"__eq(parsePage('-2'), 1);"
@@ -240,7 +251,10 @@ const INTERN: Unit[] = [
 				kind: 'coercion',
 				from: '  return Number.isNaN(page) || page < 1 ? 1 : page;',
 				to: '  return page == NaN || page < 1 ? 1 : page;',
-				neighbour: { from: '  const page = Number.parseInt(raw, 10);', to: '  const page = Number(raw);' }
+				neighbour: { from: 'function parsePage(raw) {', to: "function parsePage(raw = '') {" },
+				alternatives: [
+					{ from: '  const page = Number.parseInt(raw, 10);', to: '  const page = Number.parseInt(raw, 10) || 1;' }
+				]
 			}
 		],
 		decoy: { from: '  const page = Number.parseInt(raw, 10);', to: '  const page = Number.parseInt(raw);' }
@@ -283,6 +297,7 @@ const INTERN: Unit[] = [
 		lines: [
 			'/**',
 			" * Подпись скидки: null — 'без скидки', иначе процент: 0 → '0%', 15 → '15%'.",
+			' * percent — null или целое число от 0 до 100.',
 			' */',
 			'function discountLabel(percent) {',
 			"  if (percent === null) return 'без скидки';",
@@ -345,7 +360,8 @@ const INTERN: Unit[] = [
 				kind: 'mutation',
 				from: '  const copy = [...products];',
 				to: '  const copy = products;',
-				neighbour: { from: '  return copy;', to: '  return [...copy];' }
+				neighbour: { from: '  return copy;', to: '  return [...copy];' },
+				alternatives: [{ from: 'function sortedByPrice(products) {', to: 'function sortedByPrice([...products]) {' }]
 			}
 		],
 		decoy: { from: '  copy.sort((a, b) => a.price - b.price);', to: '  copy.sort((a, b) => b.price - a.price);' }
@@ -353,7 +369,8 @@ const INTERN: Unit[] = [
 	{
 		lines: [
 			'/**',
-			' * Новый список тегов с tag в конце, без повторов; исходный список не меняется.',
+			' * Новый список тегов; tags — список без повторов. Если tag в нём нет — tag добавляется в конец,',
+			' * если есть — возвращается копия tags без изменений. Исходный список не меняется.',
 			' */',
 			'function addTag(tags, tag) {',
 			'  if (tags.includes(tag)) return [...tags];',
@@ -366,14 +383,19 @@ const INTERN: Unit[] = [
 			"const tags = ['a'];",
 			"__eq(addTag(tags, 'b'), ['a', 'b']);",
 			"__eq(tags, ['a']);",
-			"__eq(addTag(tags, 'a'), ['a']);"
+			"__eq(addTag(tags, 'a'), ['a']);",
+			"__eq(addTag(['a', 'b'], 'a'), ['a', 'b']);"
 		],
 		defects: [
 			{
 				kind: 'mutation',
 				from: '  const next = tags.slice();',
 				to: '  const next = tags;',
-				neighbour: { from: '  if (tags.includes(tag)) return [...tags];', to: '  if (tags.includes(tag)) return tags;' }
+				neighbour: {
+					from: '  if (tags.includes(tag)) return [...tags];',
+					to: '  if (tags.includes(tag)) return tags;'
+				},
+				alternatives: [{ from: 'function addTag(tags, tag) {', to: 'function addTag([...tags], tag) {' }]
 			}
 		],
 		decoy: { from: '  next.push(tag);', to: '  next.unshift(tag);' }
@@ -384,7 +406,8 @@ const INTERN: Unit[] = [
 			' * Настройки пользователя поверх настроек по умолчанию; объект defaults не меняется.',
 			' */',
 			'function mergeSettings(defaults, user) {',
-			'  return Object.assign({}, defaults, user);',
+			'  const merged = Object.assign({}, defaults, user);',
+			'  return merged;',
 			'}'
 		],
 		checks: [
@@ -395,15 +418,18 @@ const INTERN: Unit[] = [
 		defects: [
 			{
 				kind: 'mutation',
-				from: '  return Object.assign({}, defaults, user);',
-				to: '  return Object.assign(defaults, user);',
-				neighbour: {
-					from: 'function mergeSettings(defaults, user) {',
-					to: 'function mergeSettings(defaults, user = {}) {'
-				}
+				from: '  const merged = Object.assign({}, defaults, user);',
+				to: '  const merged = Object.assign(defaults, user);',
+				neighbour: { from: '  return merged;', to: '  return { ...merged };' },
+				alternatives: [
+					{ from: 'function mergeSettings(defaults, user) {', to: 'function mergeSettings({ ...defaults }, user) {' }
+				]
 			}
 		],
-		decoy: { from: '  return Object.assign({}, defaults, user);', to: '  return Object.assign({}, user, defaults);' }
+		decoy: {
+			from: '  const merged = Object.assign({}, defaults, user);',
+			to: '  const merged = Object.assign({}, user, defaults);'
+		}
 	}
 ];
 
@@ -412,6 +438,7 @@ const JUNIOR: Unit[] = [
 		lines: [
 			'/**',
 			' * Число страниц по size элементов; для пустого списка — 1 (пустая первая страница).',
+			' * count — целое число от 0, size — целое число от 1.',
 			' */',
 			'function totalPages(count, size) {',
 			'  return Math.max(1, Math.ceil(count / size));',
@@ -426,7 +453,7 @@ const JUNIOR: Unit[] = [
 			'}',
 			'',
 			'/**',
-			' * Страница списка: её элементы, номер после приведения и есть ли следующая страница.',
+			' * Страница списка: её элементы, номер после приведения и есть ли следующая страница; page — любое целое.',
 			' * paginate([1, 2, 3, 4, 5], 9, 2) → { items: [5], page: 3, hasNext: false }.',
 			' */',
 			'function paginate(items, page, size) {',
@@ -465,9 +492,12 @@ const JUNIOR: Unit[] = [
 				from: '  return Math.min(Math.max(page, 1), last);',
 				to: '  return Math.min(Math.max(page, 1), last - 1);',
 				neighbour: {
-					from: '  const last = totalPages(count, size);',
-					to: '  const last = totalPages(count, size) - 1;'
+					from: 'function clampPage(page, count, size) {',
+					to: 'function clampPage(page, count, size = 1) {'
 				},
+				alternatives: [
+					{ from: '  const last = totalPages(count, size);', to: '  const last = totalPages(count, size) + 1;' }
+				],
 				symptom: {
 					from: '  const current = clampPage(page, items.length, size);',
 					to: '  const current = clampPage(page, items.length, size) || 1;'
@@ -494,6 +524,7 @@ const JUNIOR: Unit[] = [
 			'/**',
 			' * Видимые строки виртуального списка: строки высотой rowHeight, окно высотой height прокручено на scrollTop.',
 			' * Видна строка, хотя бы частично попавшая в окно; индексы — в пределах [0, count).',
+			' * count — целое число от 1; height и rowHeight — положительные; 0 <= scrollTop < count * rowHeight.',
 			' */',
 			'function visibleRange(scrollTop, height, rowHeight, count) {',
 			'  const first = Math.floor(scrollTop / rowHeight);',
@@ -561,7 +592,8 @@ const JUNIOR: Unit[] = [
 	{
 		lines: [
 			'/**',
-			' * Количество из поля ввода: целое число от 0; пустая строка или не число — 0.',
+			' * Количество из поля ввода: целое число от 0. Число читается по ведущим цифрам, как parseInt:',
+			" * '12abc' → 12; пустая строка, строка без ведущих цифр и отрицательное число — 0.",
 			' */',
 			'function parseQuantity(raw) {',
 			'  const n = Number.parseInt(raw, 10);',
@@ -580,6 +612,7 @@ const JUNIOR: Unit[] = [
 			'',
 			'/**',
 			' * Сумма корзины по каталогу prices — Map, где ключ — числовой id товара, значение — цена.',
+			' * id в форме — запись числа без ведущих нулей, каждый такой товар есть в prices.',
 			' */',
 			'function cartTotal(form, prices) {',
 			'  let total = 0;',
@@ -594,6 +627,7 @@ const JUNIOR: Unit[] = [
 			"__eq(parseQuantity('3'), 3);",
 			"__eq(parseQuantity(''), 0);",
 			"__eq(parseQuantity('abc'), 0);",
+			"__eq(parseQuantity('12abc'), 12);",
 			"__eq(cartLines([{ id: '2', quantity: '0' }, { id: '1', quantity: '3' }]), [{ id: '1', quantity: 3 }]);",
 			"__eq(cartTotal([{ id: '1', quantity: '2' }, { id: '2', quantity: 'x' }, { id: '2', quantity: '1' }], prices), 450);"
 		],
@@ -612,23 +646,13 @@ const JUNIOR: Unit[] = [
 				kind: 'coercion',
 				from: '  return Number.isNaN(n) || n < 0 ? 0 : n;',
 				to: '  return n == NaN || n < 0 ? 0 : n;',
-				neighbour: { from: '  const n = Number.parseInt(raw, 10);', to: '  const n = Number(raw);' },
+				neighbour: { from: 'function parseQuantity(raw) {', to: "function parseQuantity(raw = '') {" },
+				alternatives: [
+					{ from: '  const n = Number.parseInt(raw, 10);', to: '  const n = Number.parseInt(raw, 10) || 0;' }
+				],
 				symptom: {
 					from: '    .filter((line) => line.quantity > 0);',
 					to: '    .filter((line) => line.quantity > 0 && !Number.isNaN(line.quantity));'
-				}
-			},
-			{
-				kind: 'coercion',
-				from: '    .map((row) => ({ id: row.id, quantity: parseQuantity(row.quantity) }))',
-				to: '    .map((row) => ({ id: row.id, quantity: row.quantity }))',
-				neighbour: {
-					from: '    .filter((line) => line.quantity > 0);',
-					to: "    .filter((line) => line.quantity !== '0');"
-				},
-				symptom: {
-					from: '    total += prices.get(Number(line.id)) * line.quantity;',
-					to: '    total += prices.get(Number(line.id)) * Number(line.quantity);'
 				}
 			}
 		],
@@ -688,7 +712,8 @@ const JUNIOR: Unit[] = [
 			' * исходный массив не меняется.',
 			' */',
 			'function byPriority(tasks) {',
-			'  return [...tasks].sort((a, b) => b.priority - a.priority);',
+			'  const sorted = [...tasks].sort((a, b) => b.priority - a.priority);',
+			'  return sorted;',
 			'}',
 			'',
 			'/**',
@@ -700,7 +725,7 @@ const JUNIOR: Unit[] = [
 			'',
 			'/**',
 			' * Сводка для шапки: id первых n задач по приоритету и id самой ранней задачи',
-			' * (первой в списке). Список tasks не меняется.',
+			' * (первой в списке). Список tasks не пуст и не меняется; n — целое число от 0.',
 			' */',
 			'function summary(tasks, n) {',
 			'  const top = topIds(tasks, n);',
@@ -717,9 +742,10 @@ const JUNIOR: Unit[] = [
 		defects: [
 			{
 				kind: 'mutation',
-				from: '  return [...tasks].sort((a, b) => b.priority - a.priority);',
-				to: '  return tasks.sort((a, b) => b.priority - a.priority);',
-				neighbour: { from: 'function byPriority(tasks) {', to: 'function byPriority(tasks = []) {' },
+				from: '  const sorted = [...tasks].sort((a, b) => b.priority - a.priority);',
+				to: '  const sorted = tasks.sort((a, b) => b.priority - a.priority);',
+				neighbour: { from: '  return sorted;', to: '  return [...sorted];' },
+				alternatives: [{ from: 'function byPriority(tasks) {', to: 'function byPriority([...tasks]) {' }],
 				symptom: {
 					from: '  return byPriority(tasks).slice(0, n).map((t) => t.id);',
 					to: '  return byPriority([...tasks]).slice(0, n).map((t) => t.id);'
@@ -731,9 +757,10 @@ const JUNIOR: Unit[] = [
 				to: '  return { top, earliest: tasks.shift().id };',
 				neighbour: { from: '  const top = topIds(tasks, n);', to: '  const top = topIds([...tasks], n);' },
 				symptom: {
-					from: '  return [...tasks].sort((a, b) => b.priority - a.priority);',
-					to: '  return [...tasks].sort((a, b) => b.priority - a.priority || 0);'
-				}
+					from: '  const sorted = [...tasks].sort((a, b) => b.priority - a.priority);',
+					to: '  const sorted = [...tasks].sort((a, b) => b.priority - a.priority || 0);'
+				},
+				alternatives: [{ from: 'function summary(tasks, n) {', to: 'function summary([...tasks], n) {' }]
 			}
 		],
 		decoy: {
@@ -744,7 +771,7 @@ const JUNIOR: Unit[] = [
 	{
 		lines: [
 			'/**',
-			' * Обычный объект: не массив и не null.',
+			' * true, если value — обычный объект (не массив и не null), иначе false.',
 			' */',
 			'function isPlainObject(value) {',
 			"  return typeof value === 'object' && value !== null && !Array.isArray(value);",
@@ -780,6 +807,7 @@ const JUNIOR: Unit[] = [
 				kind: 'mutation',
 				from: '  const result = { ...base };',
 				to: '  const result = base;',
+				alternatives: [{ from: 'function deepMerge(base, patch) {', to: 'function deepMerge({ ...base }, patch) {' }],
 				neighbour: {
 					from: '      result[key] = deepMerge(result[key], value);',
 					to: '      result[key] = deepMerge({ ...result[key] }, value);'
@@ -881,8 +909,13 @@ for (const unit of [...INTERN, ...JUNIOR]) {
 	lineIndex(unit, unit.decoy.from);
 	for (const d of unit.defects) {
 		const at = lineIndex(unit, d.from);
-		if (lineIndex(unit, d.neighbour.from) === at || (d.symptom && lineIndex(unit, d.symptom.from) === at))
-			throw new Error(`${descriptor.key}: a trap on the defect line ${d.from}`);
+		const traps = [d.neighbour, ...(d.symptom ? [d.symptom] : [])].map((c) => lineIndex(unit, c.from));
+		if (traps.includes(at)) throw new Error(`${descriptor.key}: a trap on the defect line ${d.from}`);
+		for (const a of d.alternatives ?? []) {
+			const alt = lineIndex(unit, a.from);
+			if (alt === at || traps.includes(alt))
+				throw new Error(`${descriptor.key}: an accepted line ${a.from} is the defect or a trap`);
+		}
 	}
 }
 
@@ -902,9 +935,15 @@ const HEADER_CONSTANTS = [
 ];
 
 const CHECK_PRELUDE = [
+	// Objects are compared regardless of the order of their keys; arrays keep their order.
+	'function __norm(value) {',
+	'  if (Array.isArray(value)) return value.map(__norm);',
+	"  if (value === null || typeof value !== 'object' || value instanceof Date) return value;",
+	'  return Object.fromEntries(Object.keys(value).sort().map((key) => [key, __norm(value[key])]));',
+	'}',
 	'function __eq(actual, expected) {',
-	'  const a = JSON.stringify(actual);',
-	'  const e = JSON.stringify(expected);',
+	'  const a = JSON.stringify(__norm(actual));',
+	'  const e = JSON.stringify(__norm(expected));',
 	"  if (a !== e) throw new Error(a + ' !== ' + e);",
 	'}'
 ];
@@ -917,6 +956,7 @@ interface Composed {
 	neighbour: { line: number; replacement: string };
 	other: { line: number; replacement: string };
 	symptom: { line: number; replacement: string } | null;
+	alternatives: { line: number; fix: string }[];
 }
 
 function compose(rng: Rng, library: readonly Unit[], kind: string, contextCount: number): Composed {
@@ -960,7 +1000,8 @@ function compose(rng: Rng, library: readonly Unit[], kind: string, contextCount:
 		fix: defect.from,
 		neighbour: { line: at(buggy, defect.neighbour.from), replacement: defect.neighbour.to },
 		other: { line: at(firstContext, firstContext.decoy.from), replacement: firstContext.decoy.to },
-		symptom: defect.symptom ? { line: at(buggy, defect.symptom.from), replacement: defect.symptom.to } : null
+		symptom: defect.symptom ? { line: at(buggy, defect.symptom.from), replacement: defect.symptom.to } : null,
+		alternatives: (defect.alternatives ?? []).map((c) => ({ line: at(buggy, c.from), fix: c.to }))
 	};
 }
 
@@ -971,26 +1012,54 @@ export function build(input: GenerateInput): Built {
 	const instance = makeInstance(descriptor, input, {
 		statement: {
 			markdown:
-				'Модуль утилит фронтенда на JavaScript. У каждой функции в комментарии JSDoc записана её спецификация. ' +
-				'Ровно одна строка модуля нарушает спецификацию своей функции: если заменить только её, все функции будут ' +
-				'работать по спецификации. Введите номер этой строки (нумерация с 1).',
+				'Модуль утилит фронтенда на JavaScript. У каждой функции в комментарии JSDoc записана её спецификация, ' +
+				'включая допустимые значения аргументов. Строковые ключи и id в данных — обычные имена: не совпадают с именами ' +
+				'свойств `Object.prototype` (`__proto__`, `constructor`, `toString` и т. п.). В модуле один дефект: одна строка ' +
+				'нарушает спецификацию своей функции. ' +
+				'Введите номер строки, замена которой одной инструкцией восстанавливает спецификацию всех функций ' +
+				'(нумерация с 1). Если исправить можно в нескольких строках — засчитывается любая из них, где замена одной ' +
+				'инструкцией восстанавливает спецификацию. Исправление — одна простая инструкция того же вида, что ' +
+				'исправляемая строка: не добавляйте конструкций, которых в ней нет (стрелочные функции, циклы, обёртки, ' +
+				'новые функции), и не переносите в неё логику из другой строки.',
 			code: { language: 'javascript', source: p.source }
 		},
-		answer: { kind: 'line_no', value: p.line }
+		answer: {
+			kind: 'line_no',
+			value: p.line,
+			...(p.alternatives.length ? { alternatives: p.alternatives.map((a) => a.line) } : {})
+		}
 	});
 	const traps = [p.neighbour, p.other, ...(p.symptom ? [p.symptom] : [])];
 	const lineAnswer = (line: number) => ({ kind: 'answer' as const, answer: { kind: 'line_no' as const, value: line } });
 	return {
 		instance,
-		reference: () =>
-			nodeDefectProbe({
+		reference: () => {
+			const main = nodeDefectProbe({
 				source: p.source,
 				language: 'javascript',
 				check: p.check,
 				line: p.line,
 				fix: p.fix,
 				distractors: traps
-			}),
+			});
+			// Each accepted alternative is proven by its own probe (the defect fails, the alternative fix passes); the
+			// probes run one after another and the last one prints the defect line.
+			const proofs = p.alternatives.map((a) => {
+				const probe = nodeDefectProbe({
+					source: p.source,
+					language: 'javascript',
+					check: p.check,
+					line: a.line,
+					fix: a.fix,
+					distractors: []
+				});
+				if (probe.kind !== 'output') throw new Error(`${descriptor.key}: a defect probe prints its line`);
+				const body = probe.source.split('\n');
+				if (body.at(-1) !== `print(${a.line})`) throw new Error(`${descriptor.key}: unexpected defect probe`);
+				return body.slice(0, -1).join('\n');
+			});
+			return main.kind === 'output' && proofs.length ? { ...main, source: [...proofs, main.source].join('\n') } : main;
+		},
 		wrong: () => ({
 			'neighbour-line': lineAnswer(p.neighbour.line),
 			'other-function': lineAnswer(p.other.line),

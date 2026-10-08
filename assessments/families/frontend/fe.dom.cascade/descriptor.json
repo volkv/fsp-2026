@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.65,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "75f7aa7c0c8a9764ec806a5716b9b1bb669beac5ad71f85308a63b3569ef238b"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.5,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "75f7aa7c0c8a9764ec806a5716b9b1bb669beac5ad71f85308a63b3569ef238b"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": {
 				"elements": 3,
 				"rules": "5–7",
@@ -42,7 +59,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.4,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "75f7aa7c0c8a9764ec806a5716b9b1bb669beac5ad71f85308a63b3569ef238b"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.4,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "75f7aa7c0c8a9764ec806a5716b9b1bb669beac5ad71f85308a63b3569ef238b"
+					}
+				],
+				"mean": 0.4
+			},
 			"constructive": {
 				"elements": "3–4",
 				"rules": "6–8",
@@ -162,6 +196,30 @@
 		"answerCollision": 0.0003,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Проверка: вручную пересчитал все 8 экземпляров по важности, слоям, специфичности, порядку и наследованию; ожидаемые ответы совпали. Отдельно проверены обратный приоритет слоёв для important, inline important и различие initial/unset/inherit. Нормативная сверка: https://www.w3.org/TR/css-cascade-5/ . Исполнил Python-эталоны на Python 3.12 и сверил применимые ошибочные ответы. Браузерный запуск заблокирован ограничениями песочницы; 200 сидов ворот не пересчитывались, descriptor.json не открывался.",
+					"Angoff Intern 0.65, Junior 0.60 — вероятность полного бинарного ответа за 300/360 с. Intern решает небольшой набор приоритетов и наследование; Junior должен совместить слои, important и ключевые слова без единой ошибки.",
+					"Второй раунд Angoff, junior: было 0.60, стало 0.40 — При повторном сопоставлении с пограничным Junior согласен с доводом о специальном знании @layer: надо помнить порядок по первому упоминанию, место неслоёных правил и инверсию для important, затем совместить это с наследованием и unset. Эти правила не изложены в кандидатском условии. Четыре значения за 360 с дают умеренную вычислительную нагрузку, поэтому оценку 0.30 целиком не принимаю, но вероятность всех четырёх правильных значений ниже прежних 0.60."
+				],
+				"sourceSha256": "75f7aa7c0c8a9764ec806a5716b9b1bb669beac5ad71f85308a63b3569ef238b"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчёт: восемь экземпляров пакета разобраны вручную и совпали; дополнительно 320 сгенерированных экземпляров (40 сидов x 8 классов) прогнаны в Chromium 153 (getComputedStyle, цвета приведены к rgb): расхождений нет, включая @layer с порядком по первому упоминанию, неслоёные поверх слоёных, инверсию слоёв для !important, unset/inherit/initial и !important предка. Не проверял Firefox и Safari.",
+					"Замечание: для Junior классы layers, layers-important и layers-keywords требуют знания каскадных слоёв и инверсии порядка для !important (CSS Cascade 5), что заметно выше определения Junior в пакете; 360 с на 4 ответа при бинарной рубрике — на пределе. Учтено в Angoff (0,3), вердикт не меняет, так как ответ верен и единственный.",
+					"Мелочь: Intern-класс important-inherits (!important предка не наследуется как важное) — тонкий пункт, но ответ в браузере именно такой (проверено); для Intern это, скорее, граница.",
+					"Второй раунд Angoff, junior: было 0.30, стало 0.40 — ответ проверен в браузере, условие даёт начальные значения и порядок слоёв явно (оператор @layer); слои известны части Junior, но совмещение слоёв, important и ключевых слов в 360 с остаётся рискованным"
+				],
+				"sourceSha256": "75f7aa7c0c8a9764ec806a5716b9b1bb669beac5ad71f85308a63b3569ef238b"
+			}
+		]
 	}
 }

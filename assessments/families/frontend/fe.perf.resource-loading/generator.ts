@@ -154,6 +154,9 @@ function simulate(p: Params, rules: Rules): Outcome {
 
 	let idx = 0;
 	let parserTime = 0;
+	// When the parser reached each tag: a script may run only after its tag is parsed, whatever the preload scanner
+	// has fetched before.
+	const reached = new Map<number, number>();
 	// Moments the walk reaches; assigned inside the closures below.
 	const at: { h1: number | null; parseEnd: number | null; paint: number | null; dcl: number | null } = {
 		h1: null,
@@ -165,6 +168,7 @@ function simulate(p: Params, rules: Rules): Outcome {
 		while (idx < nodes.length) {
 			const node = nodes[idx];
 			if (!node || blocks(node)) return;
+			reached.set(idx, parserTime);
 			if (node.kind === 'h1') at.h1 = parserTime;
 			idx += 1;
 		}
@@ -203,7 +207,9 @@ function simulate(p: Params, rules: Rules): Outcome {
 		}
 		const waitingAsync = asyncs.filter((a) => !done.has(a.name));
 		for (const a of rules.asyncDocumentOrder ? waitingAsync.slice(0, 1) : waitingAsync) {
-			const ready = dl.script.get(a.name) ?? 0;
+			const parsedAt = reached.get(nodes.indexOf(a));
+			if (parsedAt === undefined) continue;
+			const ready = Math.max(dl.script.get(a.name) ?? 0, parsedAt);
 			readyOf.set(a.name, ready);
 			cands.push({ ready, instant: null, act: run(a) });
 		}
@@ -419,6 +425,7 @@ function describe(p: Params): string {
 		'',
 		`- HTML получен целиком в момент 0, его разбор времени не занимает; RTT — ${p.rtt} мс, пропускная способность — ${p.bw} КБ/мс; загрузка ресурса длится RTT + размер / пропускная способность; загрузки идут параллельно и друг другу не мешают;`,
 		'- все ресурсы, указанные в HTML тегами `<link>` и `<script src>`, браузер находит сканером предзагрузки и запрашивает в момент 0; шрифт из `@font-face` без предзагрузки запрашивается в момент, когда загружен CSS, где он объявлен;',
+		'- сканер предзагрузки только скачивает: любой скрипт, в том числе `async`, может выполниться не раньше, чем основной разбор дойдёт до его тега;',
 		'- скрипты выполняются в главном потоке по одному, время выполнения скрипта (для модуля — всего его графа) — в таблице; стили, отрисовка и события времени не занимают;',
 		'- порядок выполнения скриптов, блокировки разбора и отрисовки и момент DOMContentLoaded — по спецификациям HTML и CSS; отрисовка происходит сразу, как только ей ничего не мешает и главный поток свободен;',
 		fontCss
@@ -506,7 +513,7 @@ while t < 100000 and (len(ran) < len(scripts) or shown is None or dcl is None):
                 job = n
         if job is None:
             for n in eager:
-                if n["name"] not in ran and arrive[n["name"]] <= t:
+                if n["name"] not in ran and nodes.index(n) < pos and arrive[n["name"]] <= t:
                     job = n
                     break
         if job is None and parsed_at is not None:

@@ -533,6 +533,10 @@ function code(program: Program): string {
 	return lines.join('\n');
 }
 
+/** Every element is a rendered block box: a computed width or height of it depends on layout. */
+const BOXES =
+	'- все элементы отображаются и создают блочные боксы (`display: block` или `flex`; нет `display: none` и строчных `display: inline`)';
+
 function describe(program: Program, grade: string): string {
 	const senior = grade === 'senior';
 	const parts = [
@@ -552,10 +556,11 @@ function describe(program: Program, grade: string): string {
 	];
 	if (senior) {
 		parts.push(
-			'- раскладка одна на весь документ: границ раскладки (`contain: layout`, `contain: strict`) в документе нет; все элементы отображаются (нет `display: none`);',
+			'- раскладка одна на весь документ: границ раскладки (`contain: layout`, `contain: strict`) в документе нет;',
+			BOXES + ';',
 			'- сам, без принудительной работы, браузер пересчитывает стили и раскладку только при отрисовке кадра — в том месте обработки кадра, где это предусматривает спецификация HTML; между задачами раскладка сама не выполняется.'
 		);
-	} else parts.push('- все элементы отображаются (нет `display: none`).');
+	} else parts.push(BOXES + '.');
 	if (program.variants.length > 1) {
 		parts.push(
 			'',

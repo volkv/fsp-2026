@@ -491,6 +491,7 @@ function describe(p: Params): string {
 		);
 		if (s.methods.length) serverLines.push(`- \`Access-Control-Allow-Methods: ${s.methods.join(', ')}\`;`);
 		if (s.headers.length) serverLines.push(`- \`Access-Control-Allow-Headers: ${s.headers.join(', ')}\`;`);
+		serverLines.push('- `Access-Control-Max-Age: 0`;');
 		serverLines.push(
 			s.expose.length
 				? `- \`Access-Control-Expose-Headers: ${s.expose.map((h) => (h === '*' ? '*' : display(h))).join(', ')}\`.`
@@ -498,7 +499,7 @@ function describe(p: Params): string {
 		);
 	}
 	const head = [
-		'| путь | статус ответа | другие заголовки ответа',
+		'| путь | статус ответа на сам запрос | другие заголовки ответа',
 		withOptions ? ' | ответ на OPTIONS' : '',
 		withCors ? ' | заголовки CORS в ответе' : '',
 		' |\n|---|---|---',
@@ -524,7 +525,16 @@ function describe(p: Params): string {
 		'',
 		...serverLines,
 		'',
-		...(withOptions ? ['Статус ответа на `OPTIONS` для каждого пути указан в таблице.', ''] : []),
+		withOptions
+			? 'Статус ответа на preflight `OPTIONS` для каждого пути указан в таблице.'
+			: 'На preflight `OPTIONS` по любому пути сервер отвечает статусом `204`; статус в таблице — у ответа на сам запрос.',
+		'',
+		...(s.acao === null
+			? []
+			: [
+					'Кэш preflight браузера в начале пуст, а `Access-Control-Max-Age: 0` не даёт сохранить в нём результат: каждый вызов, которому нужен preflight, отправляет свой `OPTIONS`.',
+					''
+				]),
 		head,
 		...rows,
 		'',

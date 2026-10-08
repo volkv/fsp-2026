@@ -393,9 +393,12 @@ type ShapeRow =
 	| { kind: 'square-broken'; size: number }
 	| { kind: 'unknown'; name: string; a: number };
 
-/** An exhaustive switch with `never` throws for a kind the cast data smuggled in; a missing field slips through as NaN. */
+/**
+ * An exhaustive switch with `never` throws for a kind the cast data smuggled in; a missing field slips through as NaN.
+ * The try is around the loop: the shape with the missing field comes before the unknown kind, which stops the loop
+ * with shapes left unread.
+ */
 function exhaustive(rng: Rng): Program {
-	const tryInside = rng.bool();
 	const unknownName = rng.pick(['triangle', 'oval', 'star', 'hexagon'] as const);
 	const valid: ShapeRow[] = Array.from({ length: rng.int(2, 3) }, (): ShapeRow => {
 		const kind = rng.pick(['circle', 'square', 'rect'] as const);
@@ -407,10 +410,11 @@ function exhaustive(rng: Rng): Program {
 		? { kind: 'rect', w: rng.int(2, 9) }
 		: { kind: 'square-broken', size: rng.int(2, 9) };
 	const unknown: ShapeRow = { kind: 'unknown', name: unknownName, a: rng.int(2, 9) };
-	// The first shape is valid; the unknown one is never last, so a loop stopped by it leaves shapes unread.
-	const middle = rng.shuffle([...valid.slice(1), broken]);
-	const at = rng.int(0, middle.length - 1);
-	const rows: ShapeRow[] = [valid[0] as ShapeRow, ...middle.slice(0, at), unknown, ...middle.slice(at)];
+	// The first shape is valid, the broken one comes before the unknown one, and a valid one is left after it.
+	const rest = valid.slice(1);
+	const at = rng.int(0, rest.length - 1);
+	const before = rng.shuffle([broken, ...rest.slice(0, at)]);
+	const rows: ShapeRow[] = [valid[0] as ShapeRow, ...before, unknown, ...rest.slice(at)];
 	const toJson = (s: ShapeRow): Record<string, unknown> =>
 		s.kind === 'unknown'
 			? { kind: s.name, a: s.a }
@@ -420,20 +424,6 @@ function exhaustive(rng: Rng): Program {
 					? { kind: 'rect', w: s.w }
 					: s;
 	const json = JSON.stringify(rows.map(toJson));
-	const loop = (indent: string) => [
-		`${indent}for (const s of shapes) {`,
-		...(tryInside
-			? [
-					`${indent}  try {`,
-					`${indent}    total += area(s);`,
-					`${indent}    console.log(s.kind, total);`,
-					`${indent}  } catch (e) {`,
-					`${indent}    console.log('error', (e as Error).message);`,
-					`${indent}  }`
-				]
-			: [`${indent}  total += area(s);`, `${indent}  console.log(s.kind, total);`]),
-		`${indent}}`
-	];
 	const lines = [
 		'type Shape =',
 		"  | { kind: 'circle'; r: number }",
@@ -459,9 +449,14 @@ function exhaustive(rng: Rng): Program {
 		'',
 		`const shapes = JSON.parse('${json}') as Shape[];`,
 		'let total = 0;',
-		...(tryInside
-			? loop('')
-			: ['try {', ...loop('  '), '} catch (e) {', "  console.log('error', (e as Error).message);", '}']),
+		'try {',
+		'  for (const s of shapes) {',
+		'    total += area(s);',
+		'    console.log(s.kind, total);',
+		'  }',
+		'} catch (e) {',
+		"  console.log('error', (e as Error).message);",
+		'}',
 		"console.log('total', total);"
 	];
 	const run = (o: { neverRuns: boolean; missingIsZero: boolean; continueAfterCatch: boolean }) => {
@@ -471,7 +466,7 @@ function exhaustive(rng: Rng): Program {
 			if (s.kind === 'unknown') {
 				if (!o.neverRuns) continue;
 				out.push(`error unexpected ${JSON.stringify(toJson(s))}`);
-				if (!tryInside && !o.continueAfterCatch) break;
+				if (!o.continueAfterCatch) break;
 				continue;
 			}
 			const area =

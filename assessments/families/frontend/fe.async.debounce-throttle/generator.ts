@@ -398,7 +398,7 @@ function scenario(rng: Rng, classId: string): Scenario {
 		case 'throttle-basic':
 			return {
 				cfg: config('throttle', wait, {}),
-				events: withArgs(streamTimeline(rng, wait, rng.int(1, 2), [4, 7], false))
+				events: withArgs(streamTimeline(rng, wait, rng.int(1, 2), [4, 6], false))
 			};
 		case 'throttle-trailing-only':
 			return {
@@ -409,7 +409,7 @@ function scenario(rng: Rng, classId: string): Scenario {
 			const maxWait = wait * rng.pick([2, 3]) + rng.pick([0, 50]);
 			return {
 				cfg: config('debounce', wait, { maxWait }),
-				events: withArgs(streamTimeline(rng, wait, rng.int(1, 2), [6, 9], false))
+				events: withArgs(streamTimeline(rng, wait, rng.int(1, 2), [6, 8], false))
 			};
 		}
 		case 'throttle-boundary':
@@ -455,7 +455,8 @@ function machineRules(cfg: Config): string[] {
 		'**Срабатывание таймера** в момент T: если «пора» — таймер снимается, и при `trailing: true` и наличии отложенного ' +
 			`аргумента — вызов с ним; иначе таймер переставляется на min(E + \`wait\`, I + ${limit}).`,
 		'',
-		'**Каждый вызов**: I := момент вызова, отложенный аргумент сбрасывается; срабатывание таймера сбрасывает отложенный аргумент в любом случае.'
+		'**Каждый вызов**: I := момент вызова, отложенный аргумент сбрасывается. Если таймер снят без вызова (`trailing: false` ' +
+			'или отложенного аргумента нет), отложенный аргумент тоже сбрасывается; перестановка таймера отложенный аргумент сохраняет.'
 	];
 }
 
@@ -482,7 +483,7 @@ function describe(rng: Rng, s: Scenario): string {
 		'',
 		'Таймеры срабатывают точно в назначенный момент; если событие и срабатывание таймера приходятся на один момент, сначала срабатывает таймер. После последнего события обёртка доводит дело до конца.',
 		'',
-		`Введите все вызовы \`${plot.handler}\` по порядку, по одному в строке: момент в миллисекундах и аргумент через пробел, например \`350 c\`.`
+		`Введите все вызовы \`${plot.handler}\` по порядку: для каждого вызова — момент в миллисекундах и аргумент, все пары подряд через пробел, например \`350 c 900 f\`.`
 	].join('\n');
 }
 
@@ -560,7 +561,7 @@ export function build(input: GenerateInput): Built {
 	const { scenario: s, answer, wrong } = drawn;
 	const instance = makeInstance(descriptor, input, {
 		statement: { markdown: describe(rng, s), code: null },
-		answer: { kind: 'sequence', value: answer }
+		answer: { kind: 'tokens', value: answer.join(' ') }
 	});
 	const stdin = JSON.stringify({
 		wait: s.cfg.wait,
@@ -576,7 +577,9 @@ export function build(input: GenerateInput): Built {
 			Object.fromEntries(
 				Object.entries(wrong).map(([id, value]) => [
 					id,
-					value === null ? null : { kind: 'answer' as const, answer: { kind: 'sequence' as const, value } }
+					value === null
+						? null
+						: { kind: 'answer' as const, answer: { kind: 'tokens' as const, value: value.join(' ') } }
 				])
 			)
 	};

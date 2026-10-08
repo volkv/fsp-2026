@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "03b37a3e47c6854550dacdfe792920f44185e22a53072ce7adb1341308747771"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.45,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "03b37a3e47c6854550dacdfe792920f44185e22a53072ce7adb1341308747771"
+					}
+				],
+				"mean": 0.5
+			},
 			"constructive": { "lines": "18–30", "classes": "1–2", "mechanisms": 2, "initOrder": false },
 			"constructiveRank": 3,
 			"timeNormSec": 300,
@@ -37,7 +54,24 @@
 		},
 		{
 			"grade": "middle",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.5,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "03b37a3e47c6854550dacdfe792920f44185e22a53072ce7adb1341308747771"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.35,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "03b37a3e47c6854550dacdfe792920f44185e22a53072ce7adb1341308747771"
+					}
+				],
+				"mean": 0.45
+			},
 			"constructive": { "lines": "20–36", "classes": "2–3", "mechanisms": 3, "initOrder": true },
 			"constructiveRank": 5,
 			"timeNormSec": 420,
@@ -223,6 +257,27 @@
 		"answerCollision": 0.002,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Angoff: junior — 0.55: затенение и геттеры доступны, но new this и наследование статических полей требуют уверенного знания классов; middle — 0.50: порядок инициализации, приватный бренд и [[HomeObject]] у super редко встречаются вместе в повседневном коде. Учтены 300/420 с и binary.",
+					"Независимо исполнил все 8 показанных программ непосредственно из условий в Node.js 24.21.0: вывод полностью совпал. Дополнительно проверил вариант field-init-order с инициализированным полем вместо голого объявления: обе трассы следуют одному правилу перезаписи поля после super. Полный прогон генератора на 200 сидах каждого класса и чужие оценки не проверял."
+				],
+				"sourceSha256": "03b37a3e47c6854550dacdfe792920f44185e22a53072ce7adb1341308747771"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Проверено: 8 показанных экземпляров исполнены в Node, вывод совпал с ожидаемым (в том числе NaN в field-init-order и TypeError при чтении #balance у Object.create). Ответ следует из семантики классов ES2022 без скрытых допущений; версия Node в условии не названа, но поля классов, #x in o и Object.hasOwn есть в любой актуальной версии.",
+					"Мелочь: middle field-init-order, private-fields и super-home тяжелы для пограничного middle (его слабое место по определению — стоимость рендера и гонки, а не классы), при норме 420 с и бинарной оценке; учтено в Angoff."
+				],
+				"sourceSha256": "03b37a3e47c6854550dacdfe792920f44185e22a53072ce7adb1341308747771"
+			}
+		]
 	}
 }

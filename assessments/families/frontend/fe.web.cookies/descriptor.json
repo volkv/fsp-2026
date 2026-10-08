@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.65,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "86d7b509fe86ed67408e625cb8733f2d90f3d86d3b3345a8c60d1afe2ee3c672"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.5,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "86d7b509fe86ed67408e625cb8733f2d90f3d86d3b3345a8c60d1afe2ee3c672"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": {
 				"cookies": "4–6",
 				"requests": "4–6",
@@ -153,6 +170,27 @@
 		"answerCollision": 0,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Независимо пересчитал все 4 экземпляра вручную и собственной моделью cookie jar на Python 3.12: все ответы совпали. Проверены host-only/Domain, граница сегмента Path и путь по умолчанию, SameSite для fetch/ссылки/POST, HttpOnly/Secure, приоритет Max-Age и замена/удаление; HTTP в anchor оговорён явно. Формат задаёт сортировку и разделитель, исключает несущественный порядок Cookie. Полные входы build и эталоны сверены. Не запускал реальный браузер и не повторял ворота на 200 сидах класса."
+				],
+				"sourceSha256": "86d7b509fe86ed67408e625cb8733f2d90f3d86d3b3345a8c60d1afe2ee3c672"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчитано вручную по условию все 4 экземпляра (Domain и host-only, путь по умолчанию как каталог и сопоставление Path по сегментам, SameSite для ссылки, формы POST и fetch между сайтами, HttpOnly и Secure на HTTP/HTTPS, Max-Age против Expires, удаление Max-Age=0, замена куки по имени/домену/пути и истечение сроков): все ответы совпали с ожидаемыми. Остальные сиды и генератор не запускал.",
+					"Мелочь: в экземпляре httponly-secure ответ зависит от того, что браузер не принимает Secure-куку из ответа по HTTP (sid=71 не попадает ни в одну строку). Это поведение RFC 6265bis, в исходном RFC 6265 запрета нет; в условии сказано только, что браузер не блокирует сторонние куки. Предлагаю добавить в «Считаем, что» фразу о соответствии браузера современному RFC 6265bis (Secure-куки по HTTP не ставятся), чтобы ответ следовал из условия.",
+					"Мелочь: SameSite-классы опираются на знание, что Lax уходит при межсайтовом переходе по ссылке GET и не уходит с POST-формой и fetch; это тема блока, но в условии стоит одной фразой назвать, что куки без SameSite в задании не встречаются (в пакете так и есть)."
+				],
+				"sourceSha256": "86d7b509fe86ed67408e625cb8733f2d90f3d86d3b3345a8c60d1afe2ee3c672"
+			}
+		]
 	}
 }

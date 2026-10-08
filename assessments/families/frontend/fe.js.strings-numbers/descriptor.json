@@ -8,8 +8,25 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
-			"constructive": { "expressions": "5–7", "negativeArguments": true, "mechanisms": 1 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "357450dc9dbc5718d577fc27a77347648da880253a9ee4c87a1633a821d0fd7b"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.45,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "357450dc9dbc5718d577fc27a77347648da880253a9ee4c87a1633a821d0fd7b"
+					}
+				],
+				"mean": 0.55
+			},
+			"constructive": { "expressions": "5–6", "negativeArguments": true, "mechanisms": 1 },
 			"constructiveRank": 2,
 			"timeNormSec": 240,
 			"classes": [
@@ -21,12 +38,12 @@
 				{
 					"id": "float-rounding",
 					"form": "B",
-					"description": "двоичная плавающая точка: сумма десятых неточна, toFixed на десятичной половине округляет по двоичному значению; Math.round на отрицательной половине — к большему; toFixed возвращает строку"
+					"description": "двоичная плавающая точка: сумма десятых не равна (===) точной десятичной сумме, а после toFixed — равна её записи; Math.round на отрицательной половине — к большему; toFixed возвращает строку"
 				},
 				{
 					"id": "parse-radix",
 					"form": "anchor",
-					"description": "parseInt с основанием останавливается на недопустимой цифре, map передаёт индекс как основание, префикс 0x — только при основании 16 или без основания"
+					"description": "parseInt с основанием останавливается на недопустимой цифре; префикс 0x понимается только без основания или при основании 16"
 				},
 				{
 					"id": "string-methods",
@@ -56,7 +73,7 @@
 			"slice против substring с отрицательными и переставленными аргументами",
 			"неточность двоичной плавающей точки, toFixed",
 			"Math.round на половинах",
-			"parseInt с основанием, map(parseInt)",
+			"parseInt с основанием",
 			"at, padStart, split с пределом"
 		],
 		"doesNotCheck": ["Intl.NumberFormat и локали", "BigInt", "регулярные выражения"]
@@ -80,7 +97,7 @@
 		},
 		{
 			"id": "exact-decimal",
-			"defect": "считает десятичные дроби точными: 0.1 + 0.2 === 0.3, toFixed округляет половину вверх",
+			"defect": "считает десятичные дроби точными: сумма десятых равна (===) точной десятичной сумме, как будто 0.1 + 0.2 === 0.3",
 			"mustBeCaught": true
 		},
 		{
@@ -92,11 +109,6 @@
 		{
 			"id": "invalid-digit-nan",
 			"defect": "считает, что parseInt даёт NaN, если в строке есть недопустимая для основания цифра",
-			"mustBeCaught": true
-		},
-		{
-			"id": "map-parseint",
-			"defect": "не учитывает, что map передаёт в parseInt индекс вторым аргументом",
 			"mustBeCaught": true
 		},
 		{
@@ -128,11 +140,34 @@
 	"authorship": { "draftedBy": "model", "authors": ["claude-opus (anthropic)"] },
 	"gates": {
 		"reference": { "seeds": 200, "failures": 0 },
-		"wrongSolutions": { "mustBeCaught": 14, "caught": 14 },
+		"wrongSolutions": { "mustBeCaught": 13, "caught": 13 },
 		"hiddenTestsMutationScore": null,
 		"answerCollision": 0.0001,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Прежние существенные замечания устранены: float-rounding больше не требует точного хвоста двоичной дроби или toFixed на десятичной половине; из parse-radix убраны map(parseInt) и перевод результата в двоичную строку. В показанных экземплярах 5–6 выражений, ответ однозначен для названной среды Node.js 24.",
+					"Angoff intern = 0.60: вероятность полного ответа за 240 с при binary. Отрицательные аргументы slice/substring, остановка parseInt на недопустимой цифре, отрицательная половина Math.round и строковый результат toFixed остаются отдельными местами возможной ошибки, но произвольные 17-значные хвосты больше не нужны.",
+					"Независимо пересчитал все 4 показанные программы исполнением исходного кода условий в Node.js 24.21.0; вывод полностью совпал. Прочитал пакет и генератор целиком, сверил конструкции всех 13 ошибочных решений с соответствующими выражениями, исполнил все 4 Python-эталона. Полные ворота и дополнительные 200 сидов каждого класса не запускал."
+				],
+				"sourceSha256": "357450dc9dbc5718d577fc27a77347648da880253a9ee4c87a1633a821d0fd7b"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Прежние замечания устранены: float-rounding больше не требует точных хвостов двоичных дробей и toFixed на половинах (теперь `a + b === exact`, `(a + b).toFixed(1) === '…'`, Math.round на половинах, toFixed(1) + z); из parse-radix убраны map(parseInt) и toString(2); выражений 5–6 вместо 5–7; список ошибочных решений обновлён (13 из 13).",
+					"Проверено: 4 показанных экземпляра исполнены в Node 24, вывод совпал; по 5 сидам float-rounding и parse-radix выписал и просмотрел вручную: ответы выводятся из правил (сумма десятых не равна точной десятичной, но после toFixed(1) совпадает; Math.round к большему на отрицательной половине; parseInt останавливается на недопустимой цифре, префикс 0x только без основания или при основании 16). Не проверял остальные сиды slice-substring и string-methods.",
+					"Мелочь: в float-rounding строка `a + b === exact` всегда false, а `(a + b).toFixed(1) === '…'` всегда true (генератор берёт только неточные суммы), так что кандидат с правилом «десятичные суммы в double неточны» отвечает без вычисления; это и есть проверяемое понимание, но пространство ответов для двух из пяти строк фиксировано. Учтено в Angoff."
+				],
+				"sourceSha256": "357450dc9dbc5718d577fc27a77347648da880253a9ee4c87a1633a821d0fd7b"
+			}
+		]
 	}
 }

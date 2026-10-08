@@ -86,7 +86,10 @@ interface Worker {
 
 interface Outcome {
 	answer: string;
-	/** A pending write meets an event at the same moment or outlives the cache it targets: such a scenario is redrawn. */
+	/**
+	 * A late write or a network-first timeout meets an event or each other at the same moment, or outlives the cache it
+	 * targets: the order would be a matter of the event loop, such a scenario is redrawn.
+	 */
 	ambiguous: boolean;
 }
 
@@ -100,8 +103,32 @@ function simulate(p: Params, rules: Rules): Outcome {
 	// Held in an object: closures assign it, and flow analysis does not follow them.
 	const pendingWorker: { waiting: Worker | null } = { waiting: null };
 	const tabs = new Map<number, Worker>();
-	const pending: { at: number; worker: Worker; path: string; version: number }[] = [];
+	/**
+	 * What happens between the events, in time order: a late response lands in the cache, or a network-first timeout
+	 * reads the cache at that moment and answers request `slot` with it — or, with nothing cached, waits for the network.
+	 */
+	const pending: (
+		| { kind: 'write'; at: number; worker: Worker; path: string; version: number }
+		| { kind: 'timeout'; at: number; worker: Worker; path: string; version: number; slot: number }
+	)[] = [];
 	const out: string[] = [];
+	/** Runs everything pending up to `limit`; `event` — an event comes at `limit` itself. */
+	const settle = (limit: number, event: boolean): void => {
+		// After the last event only the timeouts matter: a later write changes no answer.
+		while (event || pending.some((x) => x.kind === 'timeout')) {
+			pending.sort((a, b) => a.at - b.at);
+			const next = pending[0];
+			if (next === undefined || next.at > limit) return;
+			pending.shift();
+			if ((event && next.at === limit) || !next.worker.alive) ambiguous = true;
+			if (pending.some((x) => x.at === next.at && x.kind !== next.kind)) ambiguous = true;
+			if (next.kind === 'write') next.worker.cache.set(next.path, next.version);
+			else {
+				const cached = next.worker.cache.get(next.path);
+				out[next.slot] = `v${cached ?? next.version}`;
+			}
+		}
+	};
 
 	const activate = (next: Worker, viaSkipWaiting: boolean): void => {
 		const old = active;
@@ -129,7 +156,7 @@ function simulate(p: Params, rules: Rules): Outcome {
 	};
 	const put = (worker: Worker, path: string, version: number, at: number, t: number): void => {
 		if (at === t) worker.cache.set(path, version);
-		else pending.push({ at, worker, path, version });
+		else pending.push({ kind: 'write', at, worker, path, version });
 	};
 
 	const handle = (worker: Worker, path: string, t: number): string => {
@@ -151,9 +178,11 @@ function simulate(p: Params, rules: Rules): Outcome {
 		}
 		if (path === p.networkFirst) {
 			if (!online) return cached !== undefined && !rules.offlineNfError ? `v${cached}` : 'err';
-			if (slow && rules.nfTimeout && p.latencySec > p.timeoutSec && cached !== undefined) {
+			if (slow && rules.nfTimeout && p.latencySec > p.timeoutSec) {
 				if (rules.lateCached) put(worker, path, fresh, arrives, t);
-				return `v${cached}`;
+				// The cache is read when the timeout fires, not when the request is sent.
+				pending.push({ kind: 'timeout', at: t + p.timeoutSec, worker, path, version: fresh, slot: out.length });
+				return 'pending';
 			}
 			put(worker, path, fresh, arrives, t);
 			return `v${fresh}`;
@@ -176,13 +205,7 @@ function simulate(p: Params, rules: Rules): Outcome {
 
 	const events = [...p.events].sort((a, b) => a.t - b.t);
 	for (const e of events) {
-		pending.sort((a, b) => a.at - b.at);
-		while (pending.length > 0 && (pending[0]?.at ?? Infinity) <= e.t) {
-			const w = pending.shift();
-			if (!w) break;
-			if (w.at === e.t || !w.worker.alive) ambiguous = true;
-			w.worker.cache.set(w.path, w.version);
-		}
+		settle(e.t, true);
 		if (e.type === 'deploy') {
 			deployed += 1;
 			if (rules.updateAtDeploy) install(e.t);
@@ -204,6 +227,7 @@ function simulate(p: Params, rules: Rules): Outcome {
 			out.push(handle(worker, e.path, e.t));
 		}
 	}
+	settle(Infinity, false);
 	return { answer: out.join(' '), ambiguous };
 }
 
@@ -401,7 +425,7 @@ function workerSource(p: Params): string {
 		"self.addEventListener('fetch', (event) => {",
 		'  const { pathname } = new URL(event.request.url);',
 		"  if (PRECACHE.includes(pathname) || pathname.startsWith('/img/')) event.respondWith(cacheFirst(event.request));",
-		`  else if (pathname === '${p.networkFirst}') event.respondWith(networkFirst(event.request, ${p.timeoutSec * 1000}));`,
+		`  else if (pathname === '${p.networkFirst}') event.respondWith(networkFirst(event, ${p.timeoutSec * 1000}));`,
 		`  else if (pathname === '${p.swr}') event.respondWith(staleWhileRevalidate(event));`,
 		'  // остальные запросы SW не перехватывает: они идут в сеть',
 		'});',
@@ -415,16 +439,17 @@ function workerSource(p: Params): string {
 		'  return response;',
 		'}',
 		'',
-		'async function networkFirst(request, timeoutMs) {',
+		'async function networkFirst(event, timeoutMs) {',
 		'  const cache = await caches.open(CACHE);',
-		'  const network = fetch(request).then(async (response) => {',
-		'    await cache.put(request, response.clone());',
+		'  const network = fetch(event.request).then(async (response) => {',
+		'    await cache.put(event.request, response.clone());',
 		'    return response;',
 		'  });',
+		'  event.waitUntil(network.catch(() => undefined));',
 		'  const timeout = new Promise((resolve) => setTimeout(resolve, timeoutMs));',
 		'  const first = await Promise.race([network.catch(() => null), timeout]);',
 		'  if (first) return first;',
-		'  return (await cache.match(request)) ?? network;',
+		'  return (await cache.match(event.request)) ?? network;',
 		'}',
 		'',
 		'async function staleWhileRevalidate(event) {',
@@ -491,7 +516,8 @@ function describe(p: Params): string {
 		'',
 		'- сеть отвечает мгновенно, кроме оговорённого ниже; HTTP-кэш браузера не участвует (сервер отдаёт `Cache-Control: no-store`);',
 		'- браузер проверяет `sw.js` на обновление при каждой навигации (открытие или перезагрузка вкладки), а установка нового SW вместе с предкэшем завершается в тот же момент;',
-		'- все операции SW внутри одного момента завершаются до следующего события;',
+		'- операции SW, не ждущие сети, завершаются в тот же момент; браузер не останавливает SW, пока не завершены работы, переданные в `event.respondWith` и `event.waitUntil`, поэтому запоздавший ответ сети попадает в кэш в момент своего прихода;',
+		'- содержимое ответа определяется состоянием сервера в момент отправки запроса: медленная сеть только задерживает его доставку;',
 		...(network.length ? network : ['- сеть есть всё время;']),
 		'',
 		'События (момент — в секундах; запросы пронумерованы):',
@@ -528,7 +554,8 @@ cur = SW(1, 0)
 nxt = None
 server_sw = 1
 clients = {}
-later = []
+later = []  # (moment, sw, path, version): a late response lands in the cache
+timers = []  # (moment, sw, path, version, answer index): a network-first timeout reads the cache
 answers = []
 
 
@@ -574,10 +601,10 @@ def serve(sw, path, t):
         store(sw, path, now, t)
         return "v%d" % now
     if path == p["networkFirst"]:
-        late = inside(p["slow"], t) and p["latencySec"] > p["timeoutSec"]
         store(sw, path, now, t)
-        if late and held is not None:
-            return "v%d" % held
+        if inside(p["slow"], t) and p["latencySec"] > p["timeoutSec"]:
+            timers.append((t + p["timeoutSec"], sw, path, now, len(answers)))
+            return "?"
         return "v%d" % now
     if path == p["swr"]:
         store(sw, path, now, t)
@@ -585,11 +612,24 @@ def serve(sw, path, t):
     return "v%d" % now
 
 
+def run_until(t):
+    while True:
+        due = [x for x in later + timers if x[0] <= t]
+        if not due:
+            return
+        item = min(due, key=lambda x: x[0])
+        if item in later:
+            later.remove(item)
+            item[1].store[item[2]] = item[3]
+        else:
+            timers.remove(item)
+            held = item[1].store.get(item[2])
+            answers[item[4]] = "v%d" % (item[3] if held is None else held)
+
+
 for e in sorted(p["events"], key=lambda x: x["t"]):
     t = e["t"]
-    for item in sorted([x for x in later if x[0] <= t], key=lambda x: x[0]):
-        later.remove(item)
-        item[1].store[item[2]] = item[3]
+    run_until(t)
     kind = e["type"]
     if kind == "deploy":
         server_sw += 1
@@ -602,6 +642,7 @@ for e in sorted(p["events"], key=lambda x: x["t"]):
             take_over(nxt)
     else:
         answers.append(serve(clients[e["tab"]], e["path"], t))
+run_until(float("inf"))
 print(" ".join(answers))
 `;
 

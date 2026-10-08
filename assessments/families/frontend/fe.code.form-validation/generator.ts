@@ -1,7 +1,8 @@
 // Practice: client-side validation of forms by a schema of rules (required, lengths, a pattern, an integer range; from
 // Junior up a dependent requirement and equality with another field). The class sets what the form reports (the
 // first error of a field, all of them, only the first field) and whether values are trimmed before the checks.
-// Parametric hidden tests in five groups, every test a schema of its own and many forms.
+// Parametric hidden tests in five groups, every test a schema of its own and many forms; two of them are plain: no blank
+// values, and no answer rests on the exact edge of a length or a range.
 import {
 	instanceRng,
 	levelAndClass,
@@ -366,7 +367,7 @@ interface Schema {
 	making: Field[];
 }
 
-function schema(rng: Rng, junior: boolean): Schema {
+function schema(rng: Rng, junior: boolean, plain: boolean): Schema {
 	const used = new Set<string>();
 	const named = (t: Template): Field => {
 		const name = t.names.find((n) => !used.has(n)) ?? `${t.names[0] ?? 'f'}${used.size}`;
@@ -378,11 +379,15 @@ function schema(rng: Rng, junior: boolean): Schema {
 		const first = juniorFields(rng);
 		for (const f of first) used.add(f.name);
 		fields.push(...first);
-		const pool = INTERN_POOL.filter((t) => t !== phone);
+		const pool = INTERN_POOL.filter((t) => t !== phone && (!plain || t !== zip));
 		const extra = rng.sample(pool, rng.int(1, 2)).map(named);
 		fields.push(named(rng.pick([age, qty])), ...extra);
 	} else {
-		const chosen = rng.sample(INTERN_POOL, rng.int(2, 4));
+		// A zip code has minlen = maxlen: its valid value always stands on the edge of the length.
+		const chosen = rng.sample(
+			INTERN_POOL.filter((t) => !plain || t !== zip),
+			rng.int(2, 4)
+		);
 		fields.push(named(rng.pick([age, qty])), ...chosen.map(named));
 	}
 	// Requiredness: at least one required and one optional field whose blank value would break a check.
@@ -400,15 +405,21 @@ function schema(rng: Rng, junior: boolean): Schema {
 
 type GroupId = 'basic' | 'blank' | 'bounds' | 'multi' | 'scale';
 
+/**
+ * The groups a partly right solution passes: every field is filled (no blank value), and no form's errors depend on a
+ * subtle rule — inclusive edges of lengths and ranges, numbers compared as numbers, the blank value. Padded values stay:
+ * the trimming is the essential parameter of a class.
+ */
+const PLAIN: ReadonlySet<GroupId> = new Set(['basic', 'scale']);
+const PLAIN_MODES: [Mode, number][] = [
+	['valid', 55],
+	['pad', 10],
+	['bad1', 20],
+	['bad2', 15]
+];
+
 const WEIGHTS: Record<GroupId, [Mode, number][]> = {
-	basic: [
-		['valid', 45],
-		['pad', 10],
-		['blank', 10],
-		['edge', 10],
-		['bad1', 15],
-		['bad2', 10]
-	],
+	basic: PLAIN_MODES,
 	blank: [
 		['valid', 30],
 		['pad', 25],
@@ -427,14 +438,7 @@ const WEIGHTS: Record<GroupId, [Mode, number][]> = {
 		['bad2', 40],
 		['pad', 10]
 	],
-	scale: [
-		['valid', 45],
-		['pad', 10],
-		['blank', 10],
-		['edge', 10],
-		['bad1', 15],
-		['bad2', 10]
-	]
+	scale: PLAIN_MODES
 };
 
 function mode(rng: Rng, group: GroupId): Mode {
@@ -489,9 +493,19 @@ interface Test {
 	forms: Form[];
 }
 
-function makeTest(rng: Rng, group: GroupId, junior: boolean, count: number): Test {
-	const s = schema(rng, junior);
-	const forms = Array.from({ length: count }, () => makeForm(rng, s, group));
+function makeTest(rng: Rng, classId: string, group: GroupId, junior: boolean, count: number): Test {
+	const plain = PLAIN.has(group);
+	const s = schema(rng, junior, plain);
+	const forms = Array.from({ length: count }, () => {
+		for (let attempt = 0; attempt < 200; attempt += 1) {
+			const form = makeForm(rng, s, group);
+			// A plain form: every wrong solution of the level reports it as the right one does.
+			if (!plain) return form;
+			const expected = solve(classId, s.fields, [form]);
+			if (WRONG_IDS.every((v) => solve(classId, s.fields, [form], v) === expected)) return form;
+		}
+		throw new Error(`${descriptor.key}: no plain ${group} form for ${classId}`);
+	});
 	return { fields: s.fields, forms };
 }
 
@@ -512,7 +526,7 @@ function groups(rng: Rng, classId: string, others: readonly string[], junior: bo
 		for (let attempt = 0; tests.length < count; attempt += 1) {
 			if (attempt > 500) throw new Error(`${descriptor.key}: no distinguishing ${id} test for ${classId}`);
 			const [lo, hi] = COUNTS[id];
-			const t = makeTest(rng, id, junior, rng.int(lo, hi));
+			const t = makeTest(rng, classId, id, junior, rng.int(lo, hi));
 			const expected = solve(classId, t.fields, t.forms);
 			if (others.some((other) => solve(other, t.fields, t.forms) === expected)) continue;
 			if (traps(id, junior).some((v) => solve(classId, t.fields, t.forms, v) === expected)) continue;
@@ -536,6 +550,22 @@ const OUTPUT: Record<string, string> = {
 		'Форма показывает пользователю только одну ошибку. Для каждой формы — одна строка: `ok`, если ошибок нет, иначе `<поле>:<ошибка>` — первое в порядке схемы поле с ошибками и первая ошибка этого поля в порядке его правил.'
 };
 
+/** A ready reader of the input, so the candidate writes the rules, not the parsing. */
+const READER = [
+	'```javascript',
+	"const lines = require('node:fs').readFileSync(0, 'utf8').split('\\n');",
+	'const k = Number(lines[0]);',
+	"// схема: [{ name: 'login', rules: ['required', 'minlen:3', …] }, …] в порядке входа",
+	'const schema = lines.slice(1, k + 1).map((line) => {',
+	'  const [name, ...rules] = line.trim().split(/\\s+/);',
+	'  return { name, rules };',
+	'});',
+	'const n = Number(lines[k + 1]);',
+	'// формы: объекты { поле: значение }',
+	'const forms = lines.slice(k + 2, k + 2 + n).map((line) => JSON.parse(line));',
+	'```'
+];
+
 function statement(classId: string, junior: boolean, example: Test): string {
 	const trimmed = classId === 'trimmed';
 	return [
@@ -546,6 +576,10 @@ function statement(classId: string, junior: boolean, example: Test): string {
 		'В первой строке — `K`, число полей (1 ≤ K ≤ 10). Далее `K` строк схемы: `<поле> <правило> <правило> …` — имя поля (латинские строчные буквы) и его правила через пробел. Порядок полей и порядок правил поля важны.',
 		'',
 		'Затем строка с `N` (1 ≤ N ≤ 1000) и `N` строк — формы, каждая — JSON-объект в одну строку: `{"<поле>": "<значение>", …}`. Значения — строки из печатных символов ASCII без `"` и `\\`. Поле, которого нет в объекте, имеет значение `""`.',
+		'',
+		'Чтение входа можно взять готовым (JavaScript и TypeScript):',
+		'',
+		...READER,
 		'',
 		'## Правила',
 		'',
@@ -588,7 +622,7 @@ function statement(classId: string, junior: boolean, example: Test): string {
 		solve(classId, example.fields, example.forms).trimEnd(),
 		'```',
 		'',
-		'Скрытые тесты — пять групп: обычные формы, пустые и пробельные значения, значения на границах длин и диапазонов, несколько нарушений в поле и форме, большой объём. Группа засчитывается, если пройдены все её тесты.'
+		'Скрытые тесты — пять групп разной сложности. Две простые — обычные формы и большой объём: в них все поля заполнены (пустых значений и значений из одних пробелов нет), правил `minlen` и `maxlen` с одинаковым числом нет, и ни одна ошибка не зависит от того, включительны ли границы длин и диапазонов и сравниваются ли числа как числа или как строки. Три полные: пустые и пробельные значения, значения на границах длин и диапазонов, несколько нарушений в поле и форме. Группа засчитывается, если пройдены все её тесты.'
 	].join('\n');
 }
 
@@ -660,7 +694,7 @@ export function build(input: GenerateInput): Built {
 	const junior = input.grade === 'junior';
 	const others = level.classes.map((c) => c.id).filter((id) => id !== input.classId);
 	const hidden = groups(rng, input.classId, others, junior);
-	const example = makeTest(rng, 'basic', junior, 5);
+	const example = makeTest(rng, input.classId, 'basic', junior, 5);
 	const instance = makeInstance(descriptor, input, {
 		statement: { markdown: statement(input.classId, junior, example), code: null },
 		answer: null,

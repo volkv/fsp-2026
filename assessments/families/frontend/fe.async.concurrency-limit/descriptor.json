@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "middle",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.75,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "2e0515607afbb7d5d3c58fdad12f8b0d237aad12a28aba1f4c94ce219017416a"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "2e0515607afbb7d5d3c58fdad12f8b0d237aad12a28aba1f4c94ce219017416a"
+					}
+				],
+				"mean": 0.65
+			},
 			"constructive": {
 				"loads": "6–9",
 				"limit": "2–3",
@@ -38,7 +55,24 @@
 		},
 		{
 			"grade": "senior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.65,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "2e0515607afbb7d5d3c58fdad12f8b0d237aad12a28aba1f4c94ce219017416a"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.45,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "2e0515607afbb7d5d3c58fdad12f8b0d237aad12a28aba1f4c94ce219017416a"
+					}
+				],
+				"mean": 0.55
+			},
 			"constructive": {
 				"loads": "5–7",
 				"limit": "2–3",
@@ -187,6 +221,28 @@
 		"answerCollision": 0.0011,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Независимо вручную пересчитал все 8 экземпляров по коду и таблицам условия, без использования алгоритма эталона. Получены: middle — 650 a b c d e f h t8 g; 460 a c b d e f g; 470 a b d c e f g; 470 660; senior — 670 a c d e - b f; 550 a b d c f e g; 90 a c d e f 470; 470 b c f a d e. Все ответы совпали. Проверил удержание слота при backoff, приоритет доступных задач, продолжение воркеров после отказа и обход занятого хоста. Отчёт ворот на 200 сидах каждого класса заново не запускал; descriptor.json и чужие оценки не открывал.",
+					"Второй раунд Angoff, senior: было 0.65, стало 0.65 — Сопоставил оба обоснования с определением пограничного Senior, кодом и нагрузкой классов. Сохраняю оценку: для 5–7 задач и 2–3 слотов правила планировщика даны кодом, совпадения моментов исключены, 480 с позволяют вести отдельные шкалы воркеров. Повторы с удержанием слота, приоритет доступных задач и продолжение после отказа требуют внимания; вероятность относится ко всему бинарному ответу, а не к отдельному событию. Механический характер трассировки сам по себе не делает её малодоступной Senior."
+				],
+				"sourceSha256": "2e0515607afbb7d5d3c58fdad12f8b0d237aad12a28aba1f4c94ce219017416a"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчёт вручную по условиям (виртуальная шкала времени) всех 8 экземпляров: loop-forms 650 a b c d e f h t8 g; pool 460 a c b d e f g; batches 470 a b d c e f g; pool-vs-batches 470 660; retry 670 a c d e - b f (попытки сверх maxAttempts в таблице учтены как невыполняемые, это сказано в условии); priority 550 a b d c f e g (ничьи по приоритету решает порядок очереди в коде); fail-fast 90 a c d e f 470; per-host 470 b c f a d e. Все совпали с эталоном. Код в Node не запускал, симуляция вручную.",
+					"Senior-экземпляры (retry, priority) — 12-14 событий на шкале времени за 480 с при бинарном ответе из 7 токенов; это ближе к механической трассировке, чем к архитектурным решениям из определения грейда. Одна ошибка обнуляет ответ, учтено в Angoff.",
+					"Второй раунд Angoff, senior: было 0.35, стало 0.45 — код целиком дан в условии, события на шкале времени детерминированы и без скрытых правил; ошибка обнуляет ответ, но пограничный senior при 480 с и 6 задачах справляется чаще, чем я оценил сначала"
+				],
+				"sourceSha256": "2e0515607afbb7d5d3c58fdad12f8b0d237aad12a28aba1f4c94ce219017416a"
+			}
+		]
 	}
 }

@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "78e99d8082740c0aa957f2b953e4abdda8b1b30db6a8b60b554d551102f0eb51"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "78e99d8082740c0aa957f2b953e4abdda8b1b30db6a8b60b554d551102f0eb51"
+					}
+				],
+				"mean": 0.55
+			},
 			"constructive": { "lines": "11–19", "objects": "1–3", "nesting": "0–1", "mechanisms": 1 },
 			"constructiveRank": 2,
 			"timeNormSec": 210,
@@ -37,7 +54,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "78e99d8082740c0aa957f2b953e4abdda8b1b30db6a8b60b554d551102f0eb51"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.45,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "78e99d8082740c0aa957f2b953e4abdda8b1b30db6a8b60b554d551102f0eb51"
+					}
+				],
+				"mean": 0.5
+			},
 			"constructive": { "lines": "13–27", "objects": "2–4", "nesting": "1–2", "mechanisms": 2 },
 			"constructiveRank": 4,
 			"timeNormSec": 330,
@@ -203,6 +237,27 @@
 		"answerCollision": 0.0002,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Angoff: intern — 0.55: общие ссылки и spread доступны пограничному кандидату, но reverse/splice/toSorted и поверхностный freeze повышают риск ошибки; junior — 0.55: порядок ключей и различия JSON/structuredClone добавляют специальные знания. Учтены 210/330 с и binary, включая девять строк вывода deep-copy и freeze-spread.",
+					"Независимо исполнил все 8 показанных программ непосредственно из условий в Node.js 24.21.0: вывод полностью совпал. Проверил мутации, глубину копий и строгий режим; полный прогон генератора на 200 сидах каждого класса и чужие оценки не проверял."
+				],
+				"sourceSha256": "78e99d8082740c0aa957f2b953e4abdda8b1b30db6a8b60b554d551102f0eb51"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Проверено: 8 показанных экземпляров исполнены в Node 24, вывод совпал с ожидаемым; строгий режим там, где от него зависит ответ (freeze), объявлен в самом коде. 40 сидов каждого класса прогнаны на расхождение строгий/нестрогий режим: расхождений нет.",
+					"Мелочь: junior deep-copy даёт 9 строк вывода и опирается на DataCloneError как e.name в Node 24; ответ зависит от среды (structuredClone в Node 24), это названо в условии. Учтено в Angoff."
+				],
+				"sourceSha256": "78e99d8082740c0aa957f2b953e4abdda8b1b30db6a8b60b554d551102f0eb51"
+			}
+		]
 	}
 }

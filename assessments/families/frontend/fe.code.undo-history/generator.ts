@@ -1,7 +1,8 @@
 // Practice: the undo/redo history of a form editor over a log of commands. The class sets how edits become records
 // (runs of edits of one field merged, a depth limit, transactions, runs merged within a time window); Senior has
 // transactions with rollback in every class and nested ones in the anchor. The step «измени своё решение» adds a
-// limit on the total size of the history.
+// limit on the total size of the history. Two groups of hidden tests are plain: only edits that change a value, undo
+// and redo and the rule of the class, without its edge cases.
 import {
 	instanceRng,
 	levelAndClass,
@@ -200,10 +201,29 @@ const token = (rng: Rng): string =>
 type GroupId = 'basic' | 'branch' | 'mechanism' | 'edge' | 'scale';
 type Move = 'set' | 'noop' | 'revert' | 'burst' | 'undo' | 'redo' | 'fork' | 'unwind' | 'tx' | 'emptyTx' | 'txUndo';
 
+/**
+ * The groups a partly right solution passes: edits that change a value, undo and redo, and the rule of the class alone
+ * — no edit with the same value, no gap of exactly W, no empty transaction, no rollback and no undo inside one; Senior
+ * has transactions there only in the class of transactions, whose rule they are.
+ */
+const PLAIN: ReadonlySet<GroupId> = new Set(['basic', 'scale']);
+
 function moves(classId: string, senior: boolean, group: GroupId): [Move, number][] {
 	const merge = isMerge(classId);
-	const tx = senior || classId === 'transactions';
 	const depth = classId === 'depth-limit';
+	if (PLAIN.has(group)) {
+		const list: [Move, number][] = [
+			['set', 30],
+			['revert', 6],
+			['burst', merge ? 12 : 0],
+			['undo', 14],
+			['redo', 8],
+			['unwind', depth ? 12 : 3]
+		];
+		if (classId === 'transactions') list.push(['tx', 10]);
+		return list.filter(([, w]) => w > 0);
+	}
+	const tx = senior || classId === 'transactions';
 	const list: [Move, number][] = [
 		['set', 26],
 		['revert', 6],
@@ -239,6 +259,7 @@ function makeInput(
 		memory: withMemory ? rng.int(6, 20) : null,
 		events: []
 	};
+	const plain = PLAIN.has(group);
 	const editor = new Editor(classId, senior, input, 'right');
 	const target = size ?? (group === 'scale' ? rng.int(1200, 1500) : rng.int(20, 32));
 	const list = moves(classId, senior, group);
@@ -248,6 +269,7 @@ function makeInput(
 	const gap = (): number => {
 		if (classId !== 'time-merge') return rng.int(0, 40);
 		const w = input.param;
+		if (plain) return rng.pick([0, rng.int(1, w - 1), rng.int(w + 1, 3 * w)]);
 		return rng.pick([0, rng.int(1, w - 1), w, w, w + 1, rng.int(w + 2, 3 * w)]);
 	};
 	const push = (e: Ev): void => {
@@ -256,7 +278,10 @@ function makeInput(
 		input.events.push(e);
 	};
 	const set = (field: number, value: string): void => {
-		push({ t: (t += gap()), op: 'set', field, value });
+		// A plain edit always changes the value.
+		let v = value;
+		while (plain && v === editor.state[field]) v = token(rng);
+		push({ t: (t += gap()), op: 'set', field, value: v });
 	};
 	const cmd = (op: 'undo' | 'redo' | 'begin' | 'commit' | 'rollback'): void => {
 		push({ t: (t += rng.int(0, 2)), op });
@@ -321,10 +346,10 @@ function makeInput(
 			if (editor.nested && rng.bool(0.6)) {
 				cmd('begin');
 				for (let k = rng.int(1, 2); k > 0; k -= 1) set(field(), token(rng));
-				cmd(rng.bool() ? 'commit' : 'rollback');
+				cmd(plain || rng.bool() ? 'commit' : 'rollback');
 				if (rng.bool(0.5)) set(field(), token(rng));
 			}
-			cmd(senior && rng.bool(0.3) ? 'rollback' : 'commit');
+			cmd(senior && !plain && rng.bool(0.3) ? 'rollback' : 'commit');
 			reveal(0.5);
 		}
 	}
@@ -350,6 +375,9 @@ function traps(classId: string, senior: boolean, group: GroupId): Variant[] {
 	return list;
 }
 
+/** The subtleties a plain test must not feel: an edit with the same value, a gap of exactly W, an empty transaction. */
+const SUBTLE: readonly Variant[] = ['noop-recorded', 'window-strict', 'empty-transaction-recorded'];
+
 /** Hidden tests of the class; every test tells the class from the others, and the step's tests feel the limit. */
 function groups(
 	rng: Rng,
@@ -366,6 +394,7 @@ function groups(
 			if (attempt > 500) throw new Error(`${descriptor.key}: no distinguishing ${id} test for ${classId}`);
 			const input = makeInput(rng, classId, senior, id, withMemory);
 			const expected = simulate(classId, senior, input);
+			if (PLAIN.has(id) && SUBTLE.some((v) => simulate(classId, senior, input, v) !== expected)) continue;
 			if (withMemory) {
 				// The step's tests feel the limit; the main tests tell the class from the others and expose the mistakes.
 				if (simulate(classId, senior, { ...input, memory: null }) === expected) continue;
@@ -384,9 +413,10 @@ function groups(
 // The statement.
 
 function classRule(classId: string, senior: boolean): string[] {
-	const runEnd = senior
-		? 'Серию прерывает любая другая команда: `set` другого поля, `undo` и `redo` (даже `skip`), `begin`, `commit`, `rollback`; правки внутри транзакции в серии не участвуют.'
-		: 'Серию прерывает любая другая команда: `set` другого поля, `undo` и `redo` (даже `skip`).';
+	const runEnd = [
+		`Серию прерывает любая другая команда: \`set\` другого поля, меняющий его значение, \`undo\` и \`redo\` (даже \`skip\`)${senior ? ', `begin`, `commit`, `rollback`; правки внутри транзакции в серии не участвуют' : ''}. \`set\` без изменения значения (любого поля) ничего не делает и серию не прерывает: в журнале \`set a 1\`, \`set b <текущее значение b>\`, \`set a 2\` обе правки \`a\` — одна серия.`,
+		'Запись серии остаётся в истории, даже если последняя правка вернула полю значение «было» (запись `a: x → x`): её `undo` и `redo` печатают значения полей как обычно.'
+	].join(' ');
 	switch (classId) {
 		case 'merge-runs':
 			return [
@@ -427,6 +457,29 @@ function headerText(classId: string, withMemory: boolean): string {
 	return `\`F E${param}${withMemory ? ' M' : ''}\``;
 }
 
+/** A ready reader of the input, so the candidate writes the history, not the parsing. */
+function reader(classId: string): string[] {
+	const param = classId === 'depth-limit' ? ', d' : classId === 'time-merge' ? ', w' : '';
+	return [
+		'```javascript',
+		"const lines = require('node:fs').readFileSync(0, 'utf8').trim().split('\\n');",
+		`const [f, e${param}] = lines[0].split(' ').map(Number);`,
+		'const names = []; // поля в порядке входа',
+		'const values = new Map(); // поле -> текущее значение',
+		'for (const line of lines.slice(1, f + 1)) {',
+		"  const [name, value] = line.split(' ');",
+		'  names.push(name);',
+		'  values.set(name, value);',
+		'}',
+		'// команды по порядку: { t, op, args }, args — [поле, значение] у set, [] у остальных',
+		'const commands = lines.slice(f + 1, f + 1 + e).map((line) => {',
+		"  const [t, op, ...args] = line.split(' ');",
+		'  return { t: Number(t), op, args };',
+		'});',
+		'```'
+	];
+}
+
 function statement(classId: string, senior: boolean, example: Input): string {
 	const tx = senior || classId === 'transactions';
 	const param =
@@ -448,9 +501,13 @@ function statement(classId: string, senior: boolean, example: Input): string {
 		'',
 		'Имена полей и значения — непустые строки из латинских строчных букв и цифр.',
 		'',
+		'Чтение входа можно взять готовым (JavaScript и TypeScript):',
+		'',
+		...reader(classId),
+		'',
 		'## Правила',
 		'',
-		'История — список записей и указатель в нём. Запись хранит для одного или нескольких полей значения «было» и «стало». Записи левее указателя применены и их можно отменить, правее — отменены и их можно повторить.',
+		`История — список записей и указатель в нём. Запись хранит для одного или нескольких полей значения «было» и «стало». Записи левее указателя применены и их можно отменить, правее — отменены и их можно повторить. Перед первой командой история пуста, указатель в её начале${tx ? ', открытых транзакций нет' : ''}${isMerge(classId) ? ', серии правок нет' : ''}.`,
 		'',
 		'- `set` со значением, равным текущему значению поля, ничего не делает.',
 		'- `set`, меняющий значение, меняет поле и добавляет запись «поле: было → стало». Добавление записи удаляет все отменённые записи (правее указателя); запись встаёт в конец, указатель — за ней.',
@@ -477,7 +534,7 @@ function statement(classId: string, senior: boolean, example: Input): string {
 		simulate(classId, senior, example).trimEnd(),
 		'```',
 		'',
-		'Скрытые тесты — пять групп: обычные журналы, отмена с новой правкой после неё, правило истории, граничные случаи, большой объём. Группа засчитывается, если пройдены все её тесты.'
+		`Скрытые тесты основной задачи и шага «измени своё решение» — по пять групп разной сложности. Две простые — обычные журналы и большой объём: в них каждый \`set\` меняет значение поля${classId === 'time-merge' ? ', между соседними правками не бывает ровно `W` мс' : ''}${classId === 'transactions' ? `, ни один ответ не зависит от транзакции без итоговых изменений${senior ? ', `rollback` и `undo`/`redo` внутри транзакции нет' : ''}` : senior ? ', транзакций нет' : ''}. Три полные: отмена с новой правкой после неё, правило истории, граничные случаи. Группа засчитывается, если пройдены все её тесты.`
 	].join('\n');
 }
 

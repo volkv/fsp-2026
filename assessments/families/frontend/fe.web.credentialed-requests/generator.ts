@@ -75,6 +75,7 @@ interface Rules {
 	cacheIgnoresCredentials: boolean;
 	cacheAnyRequest: boolean;
 	cacheRequestedOnly: boolean;
+	cachePerHost: boolean;
 	hostOnlyToSiblings: boolean;
 	noAcacNeeded: boolean;
 }
@@ -90,6 +91,7 @@ const RIGHT: Rules = {
 	cacheIgnoresCredentials: false,
 	cacheAnyRequest: false,
 	cacheRequestedOnly: false,
+	cachePerHost: false,
 	hostOnlyToSiblings: false,
 	noAcacNeeded: false
 };
@@ -105,6 +107,7 @@ const WRONG: Record<string, Partial<Rules>> = {
 	'cache-ignores-credentials': { cacheIgnoresCredentials: true },
 	'cache-any-request': { cacheAnyRequest: true },
 	'cache-requested-only': { cacheRequestedOnly: true },
+	'cache-per-host': { cachePerHost: true },
 	'host-only-to-siblings': { hostOnlyToSiblings: true },
 	'no-acac-needed': { noAcacNeeded: true }
 };
@@ -155,7 +158,7 @@ function simulate(p: Params, rules: Rules): string {
 			const alive = cache.filter(
 				(e) =>
 					!rules.noPreflightCache &&
-					e.url === url &&
+					(rules.cachePerHost ? e.url.split('/')[0] === call.host : e.url === url) &&
 					call.t < e.until &&
 					(e.credentials || !include || rules.cacheIgnoresCredentials)
 			);
@@ -391,11 +394,22 @@ function describe(p: Params): string {
 		'',
 		...hostLines,
 		'',
-		'Условия: сайт — регистрируемый домен (имя под публичным суффиксом `.ru`, `.com`, `.io`, `.net`); браузер не блокирует и не разбивает сторонние куки; предел браузера на `Max-Age` больше любого значения из условия; ответы и preflight приходят мгновенно, все — с кодом 200 или 204.',
+		'Условия: сайт — регистрируемый домен (имя под публичным суффиксом `.ru`, `.com`, `.io`, `.net`); браузер не блокирует и не разбивает сторонние куки; ответы и preflight приходят мгновенно, все — с кодом 200 или 204.',
 		'',
-		'`call(t, url, init)` в момент `t` (секунды от начала) делает `fetch(url, init)`; вызовы идут по очереди:',
+		'Кэш preflight браузера в начале пуст и устроен по Fetch Standard: запись привязана к источнику страницы, полному URL запроса (с путём — другой путь того же API запись не находит) и режиму credentials; она живёт `Access-Control-Max-Age` секунд и раньше не вытесняется; предел браузера на `Max-Age` больше любого значения из условия.',
+		'',
+		'`call(t, url, init)` ждёт момента `t` (секунды от начала) и делает `fetch(url, init)`; если `fetch` отклонён, `call` перехватывает ошибку, и следующий вызов выполняется как обычно. Вызовы идут по очереди:',
 		'',
 		'```js',
+		'async function call(t, url, init) {',
+		'  await waitUntil(t);',
+		'  try {',
+		'    await fetch(url, init);',
+		'  } catch (e) {',
+		'    console.log(e.name); // TypeError',
+		'  }',
+		'}',
+		'',
 		...code,
 		'```',
 		'',

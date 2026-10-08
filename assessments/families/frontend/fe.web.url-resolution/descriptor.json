@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.7,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "aa6cca024aea69a00ba0b048b9bc75b869491a8c05ca05148fe6e66ff27b5801"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.65,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "aa6cca024aea69a00ba0b048b9bc75b869491a8c05ca05148fe6e66ff27b5801"
+					}
+				],
+				"mean": 0.7
+			},
 			"constructive": {
 				"links": "6–7",
 				"forms": "3–5 видов ссылок",
@@ -117,6 +134,27 @@
 		"answerCollision": 0,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Независимо разрешил все 24 ссылки четырёх экземпляров стандартным new URL в Node.js 24.21.0, а не эталонным urllib.parse.urljoin: все последовательности совпали. Проверены каталог базы-файла, точки и выход выше корня, запрос/фрагмент, сетевые/корневые ссылки и base href; существенные параметры действительно меняют результат. Полные входы build и эталоны сверены. Binary для шести полных URL учтена в Angoff. Не проверял исключённые из покрытия схемы, кодирование и особенности DOM реального браузера; не повторял 200 сидов класса."
+				],
+				"sourceSha256": "aa6cca024aea69a00ba0b048b9bc75b869491a8c05ca05148fe6e66ff27b5801"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчитано исполнением: все 4 экземпляра прогнаны через `new URL(href, base).href` в Node 24 (для base-href база — разрешённый `<base href>`); все 24 адреса совпали с ожидаемыми, включая выход `../` выше корня, `.` и `./`, `?q` с потерей фрагмента, `#f` с сохранением запроса, `//host/…`, `/docs/../faq.html`. Другие сиды и генератор не проверял.",
+					"Мелочь: в экземпляре base-href адрес документа заканчивается на `/media/?view=grid`, и ссылка `#specs` ведёт на базу, а не на документ; это целевое знание класса и отдельно проверяется ошибочными решениями fragment-to-document и base-ignored. Замечаний к условию нет.",
+					"Нагрузка: 6 ссылок за 300 с, уровень junior подходит; ошибка в одной строке обнуляет ответ, учтено в Angoff."
+				],
+				"sourceSha256": "aa6cca024aea69a00ba0b048b9bc75b869491a8c05ca05148fe6e66ff27b5801"
+			}
+		]
 	}
 }

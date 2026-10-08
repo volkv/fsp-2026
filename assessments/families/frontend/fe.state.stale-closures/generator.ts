@@ -224,11 +224,13 @@ function intervalStale(rng: Rng): Component {
 	if (rng.bool()) {
 		const name = rng.pick(COMPONENT_NAMES.ticker);
 		const step = rng.int(2, 7);
+		// The cap lands on the last tick: the bounded branch of the update runs in the scenario.
+		const max = step * ticks - rng.int(1, step - 1);
 		const label = rng.pick(['count', 'beats', 'ticks', 'total']);
 		const l = new Lines()
-			.add(`function ${name}({ step }) {`, '  const [count, setCount] = useState(0);', '  useEffect(() => {')
+			.add(`function ${name}({ step, max }) {`, '  const [count, setCount] = useState(0);', '  useEffect(() => {')
 			.add('    const id = setInterval(() => {')
-			.mark('defect', '      setCount(count + step);')
+			.mark('defect', '      setCount((c) => (c + step > max ? max : count + step));')
 			.add(`    }, ${period});`)
 			.mark('cleanup', '    return () => clearInterval(id);')
 			.mark('deps', '  }, []);')
@@ -237,33 +239,36 @@ function intervalStale(rng: Rng): Component {
 			helpers: [],
 			lines: l.lines,
 			defect: l.at('defect'),
-			fix: '      setCount((c) => c + step);',
+			fix: '      setCount((c) => (c + step > max ? max : c + step));',
 			distractors: [
-				{ index: l.at('deps'), replacement: '  }, [step]);', wrong: 'deps-array' },
+				{ index: l.at('deps'), replacement: '  }, [step, max]);', wrong: 'deps-array' },
 				{ index: l.at('cleanup'), replacement: '    return () => void clearInterval(id);', wrong: 'cleanup-line' }
 			],
 			spec:
-				`Компонент \`${name}\` каждые ${period} мс увеличивает счётчик на \`step\` (проп \`step\` за время жизни ` +
-				'компонента не меняется). Интервал создаётся один раз за время жизни компонента и очищается при размонтировании.',
+				`Компонент \`${name}\` каждые ${period} мс увеличивает счётчик на \`step\`, но не выше \`max\`: если ` +
+				'следующее значение больше `max`, счётчик становится равен `max` (пропы `step` и `max` за время жизни ' +
+				'компонента не меняются). Интервал создаётся один раз за время жизни компонента и очищается при ' +
+				'размонтировании.',
 			check: [
-				`mount(${name}, { step: ${step} });`,
+				`mount(${name}, { step: ${step}, max: ${max} });`,
 				`advance(${elapsed});`,
 				'const text = root.output.text;',
 				'const created = timerId;',
 				'unmount();',
 				verdict(
-					`text === '${label}: ${step * ticks}' && created === 1 && timers.length === 0`,
+					`text === '${label}: ${max}' && created === 1 && timers.length === 0`,
 					'${text} ${created} ${timers.length}'
 				)
 			]
 		};
 	}
 	const name = rng.pick(COMPONENT_NAMES.progress);
-	const chunk = rng.int(3, 9);
+	// 100 is reached on the last tick: the bounded branch of the update runs in the scenario.
+	const chunk = rng.int(Math.ceil(101 / ticks), Math.floor(99 / (ticks - 1)));
 	const l = new Lines()
 		.add(`function ${name}({ chunk }) {`, '  const [progress, setProgress] = useState(0);', '  useEffect(() => {')
 		.add('    const id = setInterval(() => {')
-		.mark('defect', '      setProgress(Math.min(progress + chunk, 100));')
+		.mark('defect', '      setProgress((p) => (p + chunk > 100 ? 100 : progress + chunk));')
 		.add(`    }, ${period});`)
 		.mark('cleanup', '    return () => clearInterval(id);')
 		.mark('deps', '  }, []);')
@@ -272,25 +277,22 @@ function intervalStale(rng: Rng): Component {
 		helpers: [],
 		lines: l.lines,
 		defect: l.at('defect'),
-		fix: '      setProgress((p) => Math.min(p + chunk, 100));',
+		fix: '      setProgress((p) => (p + chunk > 100 ? 100 : p + chunk));',
 		distractors: [
 			{ index: l.at('deps'), replacement: '  }, [chunk]);', wrong: 'deps-array' },
 			{ index: l.at('cleanup'), replacement: '    return () => void clearInterval(id);', wrong: 'cleanup-line' }
 		],
 		spec:
-			`Компонент \`${name}\` каждые ${period} мс прибавляет к прогрессу \`chunk\` процентов, но не больше 100 ` +
-			'(проп `chunk` за время жизни компонента не меняется). Интервал создаётся один раз за время жизни компонента и ' +
-			'очищается при размонтировании.',
+			`Компонент \`${name}\` каждые ${period} мс прибавляет к прогрессу \`chunk\` процентов, но не больше 100: если ` +
+			'следующее значение больше 100, прогресс становится равен 100 (проп `chunk` за время жизни компонента не ' +
+			'меняется). Интервал создаётся один раз за время жизни компонента и очищается при размонтировании.',
 		check: [
 			`mount(${name}, { chunk: ${chunk} });`,
 			`advance(${elapsed});`,
 			'const text = root.output.text;',
 			'const created = timerId;',
 			'unmount();',
-			verdict(
-				`text === '${chunk * ticks}%' && created === 1 && timers.length === 0`,
-				'${text} ${created} ${timers.length}'
-			)
+			verdict(`text === '100%' && created === 1 && timers.length === 0`, '${text} ${created} ${timers.length}')
 		]
 	};
 }
@@ -417,11 +419,13 @@ function functionalUpdate(rng: Rng): Component {
 		const name = rng.pick(COMPONENT_NAMES.cart);
 		const price = rng.int(3, 40);
 		const [n1, n2] = [rng.int(2, 4), rng.int(2, 5)];
+		// The limit stops the last unit of the second call: the bounded branch of the update runs in the scenario.
+		const limit = price * (n1 + n2) - rng.int(1, price - 1);
 		const l = new Lines()
-			.add(`function ${name}({ price }) {`, '  const [total, setTotal] = useState(0);')
+			.add(`function ${name}({ price, limit }) {`, '  const [total, setTotal] = useState(0);')
 			.add('  const [entries, setEntries] = useState([]);', '  const addMany = (qty) => {')
 			.mark('loop', '    for (let i = 0; i < qty; i++) {')
-			.mark('defect', '      setTotal(total + price);')
+			.mark('defect', '      setTotal((t) => (t + price > limit ? t : total + price));')
 			.add('    }')
 			.mark('setter', '    setEntries((list) => [...list, qty]);')
 			.add('  };', '  return { total, lines: entries.length, addMany };', '}');
@@ -429,20 +433,22 @@ function functionalUpdate(rng: Rng): Component {
 			helpers: [],
 			lines: l.lines,
 			defect: l.at('defect'),
-			fix: '      setTotal((t) => t + price);',
+			fix: '      setTotal((t) => (t + price > limit ? t : t + price));',
 			distractors: [
 				{ index: l.at('loop'), replacement: '    for (let i = 1; i <= qty; i++) {', wrong: 'neighbour-line' },
 				{ index: l.at('setter'), replacement: '    setEntries([...entries, qty]);', wrong: 'state-setter' }
 			],
 			spec:
-				`Компонент \`${name}\`: \`addMany(qty)\` добавляет в корзину \`qty\` единиц товара по цене \`price\` — сумма ` +
-				'растёт на `qty · price`, а число строк заказа — на одну.',
+				`Компонент \`${name}\`: \`addMany(qty)\` добавляет в корзину \`qty\` единиц товара по цене \`price\` — ` +
+				'каждая единица увеличивает сумму на `price`, но сумма не превышает `limit`: единица, с которой сумма ' +
+				'стала бы больше `limit`, не добавляется. Число строк заказа растёт на одну за вызов. `qty` — целое число ' +
+				'от 1, `price` и `limit` — целые положительные (за время жизни компонента не меняются).',
 			check: [
-				`mount(${name}, { price: ${price} });`,
+				`mount(${name}, { price: ${price}, limit: ${limit} });`,
 				`root.output.addMany(${n1});`,
 				`root.output.addMany(${n2});`,
 				verdict(
-					`root.output.total === ${price * (n1 + n2)} && root.output.lines === 2`,
+					`root.output.total === ${price * (n1 + n2 - 1)} && root.output.lines === 2`,
 					'${root.output.total} ${root.output.lines}'
 				)
 			]
@@ -450,37 +456,47 @@ function functionalUpdate(rng: Rng): Component {
 	}
 	const name = rng.pick(COMPONENT_NAMES.wallet);
 	const start = rng.int(50, 200);
-	const deltas = Array.from({ length: rng.int(3, 4) }, () => rng.pick([-1, 1]) * rng.int(5, 40));
-	const more = [rng.int(5, 40), -rng.int(5, 40)] as [number, number];
-	// With the defect only the last delta of a batch lands; keep that from matching the specification by chance.
-	if (deltas.slice(0, -1).reduce((a, b) => a + b, 0) + more[0] === 0) more[0] += 1;
+	// The balance never goes below zero: a delta that would take it there is skipped. `stale` — every update starts
+	// from the balance the batch began with, as the defect does.
+	const apply = (from: number, batch: readonly number[], stale: boolean): number =>
+		batch.reduce((b, d) => (b + d < 0 ? b : (stale ? from : b) + d), from);
+	// With the defect a batch keeps only its last applied delta; the first batch must tell that from the specification.
+	let deltas: number[] = [];
+	for (let attempt = 0; attempt < 50 && apply(start, deltas, true) === apply(start, deltas, false); attempt += 1)
+		deltas = Array.from({ length: rng.int(3, 4) }, () => rng.pick([-1, 1]) * rng.int(5, 40));
+	if (apply(start, deltas, true) === apply(start, deltas, false)) throw new Error('no telling batch of deltas');
+	const afterFirst = apply(start, deltas, false);
+	const up = rng.int(5, 40);
+	// The second batch ends with a withdrawal larger than the balance: the bounded branch runs in the scenario.
+	const more = [up, -(afterFirst + up + rng.int(1, 30))];
+	const expected = apply(afterFirst, more, false);
 	const l = new Lines()
 		.add(`function ${name}({ start }) {`, '  const [balance, setBalance] = useState(start);')
 		.add('  const [batches, setBatches] = useState(0);', '  const applyAll = (deltas) => {')
 		.mark('loop', '    for (const delta of deltas) {')
-		.mark('defect', '      setBalance(balance + delta);')
+		.mark('defect', '      setBalance((b) => (b + delta < 0 ? b : balance + delta));')
 		.add('    }')
 		.mark('setter', '    setBatches((n) => n + 1);')
 		.add('  };', '  return { balance, batches, applyAll };', '}');
-	const sum = [...deltas, ...more].reduce((a, b) => a + b, start);
 	return {
 		helpers: [],
 		lines: l.lines,
 		defect: l.at('defect'),
-		fix: '      setBalance((b) => b + delta);',
+		fix: '      setBalance((b) => (b + delta < 0 ? b : b + delta));',
 		distractors: [
 			{ index: l.at('loop'), replacement: '    for (const delta of [...deltas]) {', wrong: 'neighbour-line' },
 			{ index: l.at('setter'), replacement: '    setBatches(batches + 1);', wrong: 'state-setter' }
 		],
 		spec:
-			`Компонент \`${name}\`: \`applyAll(deltas)\` применяет к балансу все изменения из списка по порядку и ` +
-			'увеличивает число применённых пакетов на один.',
+			`Компонент \`${name}\`: \`applyAll(deltas)\` применяет к балансу изменения из списка по порядку и увеличивает ` +
+			'число применённых пакетов на один. Баланс не бывает отрицательным: изменение, после которого он стал бы ' +
+			'меньше нуля, пропускается, следующие применяются. Изменения — целые числа, список не пуст.',
 		check: [
 			`mount(${name}, { start: ${start} });`,
 			`root.output.applyAll(${JSON.stringify(deltas)});`,
 			`root.output.applyAll(${JSON.stringify(more)});`,
 			verdict(
-				`root.output.balance === ${sum} && root.output.batches === 2`,
+				`root.output.balance === ${expected} && root.output.batches === 2`,
 				'${root.output.balance} ${root.output.batches}'
 			)
 		]
@@ -528,18 +544,23 @@ function missingCleanup(rng: Rng): Component {
 	const name = rng.pick(COMPONENT_NAMES.poller);
 	const [p1, p2] = rng.sample([200, 300, 400, 500], 2) as [number, number];
 	const n2 = rng.int(2, 4);
+	const every = [
+		'function every(ms, fn) {',
+		'  const id = setInterval(fn, ms);',
+		'  return () => clearInterval(id);',
+		'}'
+	];
 	const l = new Lines()
 		.add(`function ${name}({ period }) {`, '  const [ticks, setTicks] = useState(0);', '  useEffect(() => {')
 		.mark('setter', '    setTicks(0);')
-		.add('    const id = setInterval(() => setTicks((t) => t + 1), period);')
-		.mark('defect', '    return () => clearInterval(period);')
+		.mark('defect', '    every(period, () => setTicks((t) => t + 1));')
 		.mark('deps', '  }, [period]);')
 		.add('  return { ticks };', '}');
 	return {
-		helpers: [],
+		helpers: [every],
 		lines: l.lines,
 		defect: l.at('defect'),
-		fix: '    return () => clearInterval(id);',
+		fix: '    return every(period, () => setTicks((t) => t + 1));',
 		distractors: [
 			{ index: l.at('setter'), replacement: '    setTicks(() => 0);', wrong: 'state-setter' },
 			{ index: l.at('deps'), replacement: '  }, [period, ticks]);', wrong: 'deps-array' }
@@ -624,7 +645,7 @@ function latestRef(rng: Rng): Component {
 		.mark('defect', '      if (!muted) setShown((list) => [...list, message]);')
 		.add('    });')
 		.mark('deps', '  }, [channel]);')
-		.mark('setter', '  const toggle = useCallback(() => setMuted((m) => !m), []);')
+		.mark('setter', '  const toggle = useCallback(() => setMuted(!mutedRef.current), []);')
 		.add('  return { shown: shown.join(), toggle };', '}');
 	const phase = (from: number, to: number): string[] =>
 		messages.slice(from, to).map((m) => `publish('${channel}', '${m}');`);
@@ -835,12 +856,17 @@ export function build(input: GenerateInput): Built {
 		statement: {
 			markdown: [
 				'Ниже — минимальная модель хуков (как в React: состояние, эффекты с зависимостями, мемоизация, ref), ' +
-					'поддельные таймеры, шина сообщений и компонент. Время в программе идёт только при вызове `advance`.',
+					'поддельные таймеры, шина сообщений и компонент. Время в программе идёт только при вызове `advance`. ' +
+					'Модель хуков, таймеров и шины работает как задумано и в ответ не входит: дефект — в компоненте или ' +
+					'его вспомогательных функциях.',
 				'',
 				`**Спецификация.** ${p.spec}`,
 				'',
-				'Ровно одна строка программы нарушает спецификацию: если заменить только её, компонент будет работать по ' +
-					'спецификации. Введите номер этой строки (нумерация с 1).'
+				'В программе один дефект: одна строка нарушает спецификацию. Введите номер строки, замена которой одной ' +
+					'инструкцией восстанавливает спецификацию (нумерация с 1). Если исправить можно в нескольких строках — ' +
+					'засчитывается любая из них, где замена одной инструкцией восстанавливает спецификацию. Исправление — одна ' +
+					'простая инструкция того же вида, что исправляемая строка: не добавляйте конструкций, которых в ней нет ' +
+					'(стрелочные функции, циклы, обёртки, новые функции), и не переносите в неё логику из другой строки.'
 			].join('\n'),
 			code: { language: 'javascript', source: p.source }
 		},

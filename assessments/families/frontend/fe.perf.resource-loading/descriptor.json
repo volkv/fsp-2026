@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "senior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "5d6973d74a28c6509114de554890c02a70a03de5fe55e931b9a3a7592b49585d"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.45,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "5d6973d74a28c6509114de554890c02a70a03de5fe55e931b9a3a7592b49585d"
+					}
+				],
+				"mean": 0.55
+			},
 			"constructive": {
 				"resources": "4–7",
 				"rules": "5–6",
@@ -121,6 +138,29 @@
 		"answerCollision": 0,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Исправление проверено: сканер предзагрузки скачивает ресурсы, а выполнение любого скрипта разрешено только после достижения его тега основным парсером. Senior/classic-css, экземпляр 1: CSS готов в 245 мс, analytics.js выполняется 245–310, legacy.js 310–364, ads.js 364–451; первый показ h1 и DOMContentLoaded — 451 мс. Новый ожидаемый ответ верен. Правило подготовки script сверено с HTML Standard: https://html.spec.whatwg.org/multipage/parsing.html#speculative-html-parsing .",
+					"Angoff senior = 0.60: binary требует целиком верного порядка файлов и двух времён за 480 с. Основные правила загрузки типичны для грейда; модульный каскад, CSS и возможность отрисовки между скриптами увеличивают нагрузку.",
+					"Независимо пересчитал все 4 экземпляра отдельным Python-симулятором сети, основного парсера, выполнения скриптов и отрисовки, разбирающим HTML и таблицу условия: все ответы совпали. Дополнительно пересчитаны 200 сидов каждого класса, всего 800, без расхождений и одновременно готовых скриптов; все показанные Python-эталоны исполнены. В дополнительной выборке каждое заявленное ошибочное решение проявилось и его применимые ответы отличаются от независимых. Реальный Chromium и штатные ворота целиком не запускал."
+				],
+				"sourceSha256": "5d6973d74a28c6509114de554890c02a70a03de5fe55e931b9a3a7592b49585d"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Повторное ревью. Пересчитал вручную все 4 экземпляра с новой моделью (сканер только скачивает, скрипт готов не раньше, чем основной разбор дойдёт до его тега). classic-css теперь без async: analytics.js 245-310 (ждёт CSS 245), legacy.js 310-364, defer ads.js 364-451, h1 и DCL 451: 'analytics.js legacy.js ads.js 451 451' совпало с эталоном. defer-async, modules и web-font не изменились и совпали (consent.js ads.js vendor.js widget.js 177 369; consent.js chat.js main.mjs 193 303; chat.js analytics.js consent.js 127 366): async-теги там стоят в head или до блокирующего скрипта, разбор достигает их в момент 0.",
+					"Замечание codex об async ads.js после блокирующего legacy.js устранено: условие отделяет скачивание от выполнения. Прочитал генератор: время готовности async = max(загрузка, момент, когда разбор дошёл до тега), совпадения старта двух скриптов или скрипта и DCL помечаются неоднозначными и отбрасываются.",
+					"Мелочь: бинарная оценка 4-5 имён и двух моментов при 480 с; ошибка в любом поле обнуляет ответ. Остальные сиды не проверял."
+				],
+				"sourceSha256": "5d6973d74a28c6509114de554890c02a70a03de5fe55e931b9a3a7592b49585d"
+			}
+		]
 	}
 }

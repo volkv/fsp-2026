@@ -858,18 +858,16 @@ const thenLog = (target: Expr, label: string): Stmt => ({
 	e: { k: 'then', target, handler: { param: 'v', body: [log(label, { k: 'var', name: 'v' })] } }
 });
 
-/** Intern X: `return promise` against `return await promise`, measured by a chain of ticks. */
-function returnAwait(rng: Rng): Program {
+/**
+ * Intern X: `.then` on the call of an async function: the callback gets the returned value one turn after the
+ * function's last step, not after its synchronous part.
+ */
+function resultThen(rng: Rng): Program {
 	const [f, g] = rng.sample(FN_NAMES, 2) as [string, string];
-	const [a, b] = rng.sample(VALUES, 2) as [string, string];
-	const fBody: Stmt[] = [...(rng.bool() ? [log(`${f} 1`)] : []), { k: 'return', e: { k: 'resolve', arg: str(a) } }];
-	const gBody: Stmt[] = [
-		...(rng.bool() ? [log(`${g} 1`)] : []),
-		{ k: 'return', e: { k: 'await', arg: { k: 'resolve', arg: str(b) } } }
-	];
-	const fns = [asyncFn(f, fBody), asyncFn(g, gBody)];
-	const calls = rng.shuffle([thenLog(callExpr(f), f), thenLog(callExpr(g), g), ticks(rng.int(3, 4), 'tick')]);
-	return { fns, main: mainWith(rng, calls, rng.int(0, 1)) };
+	const fBody: Stmt[] = [...stepsBody(rng, f, rng.int(1, 3)), { k: 'return', e: str(rng.pick(VALUES)) }];
+	const fns = [asyncFn(f, fBody), asyncFn(g, stepsBody(rng, g, rng.int(1, 3)))];
+	const calls = rng.shuffle([thenLog(callExpr(f), `${f} result`), callStmt(g)]);
+	return { fns, main: mainWith(rng, calls, rng.int(1, 2)) };
 }
 
 /** Junior A: `await` inside `for…of` runs the iterations one after another while another function goes on. */
@@ -957,7 +955,7 @@ const GENERATORS: Record<string, (rng: Rng) => Program> = {
 	'sync-prefix': syncPrefix,
 	'await-timer': awaitTimer,
 	interleave,
-	'return-await': returnAwait,
+	'result-then': resultThen,
 	'loop-await': loopAwait,
 	'nested-no-await': nestedNoAwait,
 	'try-reject': tryReject,
@@ -969,7 +967,7 @@ const REQUIRED: Record<string, string[]> = {
 	'intern/sync-prefix': ['body-deferred', 'await-blocks'],
 	'intern/await-timer': ['timer-as-micro', 'await-blocks'],
 	'intern/interleave': ['await-blocks', 'resume-runs-through'],
-	'intern/return-await': ['return-promise-free'],
+	'intern/result-then': ['await-blocks', 'resume-runs-through'],
 	'junior/loop-await': ['loop-parallel', 'await-blocks'],
 	'junior/nested-no-await': ['missing-await-waits', 'body-deferred'],
 	'junior/try-reject': ['catch-misses-await', 'await-blocks'],
@@ -1092,8 +1090,13 @@ function fallback(classId: string): Program {
 					log('end')
 				]
 			};
+		case 'result-then':
+			return {
+				fns: [asyncFn('load', [...twoSteps('load'), { k: 'return', e: str('ok') }]), asyncFn('save', twoSteps('save'))],
+				main: [thenLog(callExpr('load'), 'load result'), callStmt('save'), log('end')]
+			};
 		default:
-			// return-await and return-chain.
+			// return-chain.
 			return {
 				fns: [
 					asyncFn('load', [{ k: 'return', e: { k: 'resolve', arg: str('a') } }]),

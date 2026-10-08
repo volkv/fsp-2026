@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "ebee51f005ca780ecb471b77dbde0eb1b9b9d4098cf3896f31d362e760c058b4"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.65,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "ebee51f005ca780ecb471b77dbde0eb1b9b9d4098cf3896f31d362e760c058b4"
+					}
+				],
+				"mean": 0.65
+			},
 			"constructive": { "components": "6–8", "events": "3–5", "mechanisms": 2, "context": false, "batching": false },
 			"constructiveRank": 4,
 			"timeNormSec": 360,
@@ -37,7 +54,24 @@
 		},
 		{
 			"grade": "middle",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "ebee51f005ca780ecb471b77dbde0eb1b9b9d4098cf3896f31d362e760c058b4"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "ebee51f005ca780ecb471b77dbde0eb1b9b9d4098cf3896f31d362e760c058b4"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": {
 				"components": "7–9",
 				"events": "4",
@@ -174,6 +208,28 @@
 		"answerCollision": 0,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчитаны все 8 экземпляров независимой реализацией дерева на Python 3.12 со сравнением прежних и новых props, идентичностью JSX-элементов, кешами hooks, локальным state, context и batching по правилам условия. Все ответы совпали; исполнены эталоны и проверены ответы ошибочных решений. React в браузере и полный прогон ворот на 200 сидах каждого класса не запускались.",
+					"Angoff junior = 0.60: в 360 с нужно различать неизменные примитивные props, свежие объекты и локальные обновления для всей последовательности. Middle = 0.60: 420 с и более сильный кандидат компенсируют context, children и batching, но порядок нескольких списков компонентов должен совпасть целиком при binary."
+				],
+				"sourceSha256": "ebee51f005ca780ecb471b77dbde0eb1b9b9d4098cf3896f31d362e760c058b4"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчитал вручную по правилам модели из условия все 8 экземпляров (4 junior, 4 middle): ответы построчно совпали с эталоном, порядок компонентов - обход дерева. Особо проверил: новые функции и объекты в разметке ломают memo; useCallback с изменившейся зависимостью (App/Notice в unstable-callback); потребитель контекста Header/Tile рендерится при пропущенном рендере memo-родителя, а сам родитель нет (context-bypass); children, созданные в нерендерившемся компоненте, не рендерятся, а в рендерившемся владельце ломают memo Toolbar (children-prop); батчинг двух обновлений, одно из которых с тем же значением (batched). Код не запускал, остальные сиды не пересчитывал.",
+					"Мелочь: условие явно оговаривает отличия от настоящего React (немедленное отбрасывание того же значения, без StrictMode); эталон следует этим правилам, так что расхождения с реальным поведением названы и ответ не меняют.",
+					"Мелочь: в middle context-bypass порядок 'Header Tile' в строке события 3 следует из обхода дерева (Header под Details, Tile под Card); правило порядка в условии есть, но при пропущенных memo-родителях кандидат может усомниться, считать ли потребителя в порядке дерева. Это разъяснено фразой про обход дерева и ответ не меняет."
+				],
+				"sourceSha256": "ebee51f005ca780ecb471b77dbde0eb1b9b9d4098cf3896f31d362e760c058b4"
+			}
+		]
 	}
 }

@@ -1,9 +1,9 @@
 {
 	"key": {
-		"contentSha256": "38506182a69b108bbabc2ecfcb0a21dc2c1ea5b7603d325ec63c9dacecba7f90",
+		"contentSha256": "3c5507ea69a2a3931959e0c29d55e2848f0eaea24bfe68386589acb2ddf8f3dc",
 		"catalogVersion": "2026.10.3",
 		"procedureVersion": "sprt-3",
-		"simulationSha256": "73712f31796918c55c33d4e28c41f5105f54996f965586fe97b5c6ff91c919c9"
+		"simulationSha256": "d4a111b90ce9a59e3105d969bee0dee21ca8a035f3de38c14bac7e40dc548715"
 	},
 	"report": {
 		"releaseId": "frontend@2026.10.3-1",
@@ -19,33 +19,33 @@
 					{
 						"shift": -0.15,
 						"runs": 4000,
-						"confirmed": 0.0635,
-						"undetermined": 0.02025,
-						"notConfirmed": 0.91625
+						"confirmed": 0.077,
+						"undetermined": 0,
+						"notConfirmed": 0.923
 					},
 					{
 						"shift": 0,
 						"runs": 4000,
-						"confirmed": 0.356,
-						"undetermined": 0.06625,
-						"notConfirmed": 0.57775
+						"confirmed": 0.389,
+						"undetermined": 0,
+						"notConfirmed": 0.611
 					},
 					{
 						"shift": 0.15,
 						"runs": 4000,
-						"confirmed": 0.80475,
-						"undetermined": 0.03825,
-						"notConfirmed": 0.157
+						"confirmed": 0.862,
+						"undetermined": 0,
+						"notConfirmed": 0.138
 					}
 				],
 				"consistency": [
 					{
 						"shift": -0.15,
-						"value": 0.8399676249999999
+						"value": 0.8688560000000002
 					},
 					{
 						"shift": 0.15,
-						"value": 0.6836586874999999
+						"value": 0.762269
 					}
 				]
 			},
@@ -54,34 +54,34 @@
 				"points": [
 					{
 						"shift": -0.15,
-						"runs": 4000,
-						"confirmed": 0.08125,
-						"undetermined": 0.0235,
-						"notConfirmed": 0.89525
+						"runs": 1000,
+						"confirmed": 0.055,
+						"undetermined": 0.013,
+						"notConfirmed": 0.932
 					},
 					{
 						"shift": 0,
-						"runs": 4000,
-						"confirmed": 0.414,
-						"undetermined": 0.05875,
-						"notConfirmed": 0.52725
+						"runs": 1000,
+						"confirmed": 0.385,
+						"undetermined": 0.034,
+						"notConfirmed": 0.581
 					},
 					{
 						"shift": 0.15,
-						"runs": 4000,
-						"confirmed": 0.83975,
-						"undetermined": 0.03525,
-						"notConfirmed": 0.125
+						"runs": 1000,
+						"confirmed": 0.851,
+						"undetermined": 0.019,
+						"notConfirmed": 0.13
 					}
 				],
 				"consistency": [
 					{
 						"shift": -0.15,
-						"value": 0.8151961249999999
+						"value": 0.8684360000000001
 					},
 					{
 						"shift": 0.15,
-						"value": 0.7211774375
+						"value": 0.734807
 					}
 				]
 			},
@@ -91,33 +91,33 @@
 					{
 						"shift": -0.15,
 						"runs": 1000,
-						"confirmed": 0.069,
-						"undetermined": 0.02,
-						"notConfirmed": 0.911
+						"confirmed": 0.063,
+						"undetermined": 0.002,
+						"notConfirmed": 0.935
 					},
 					{
 						"shift": 0,
 						"runs": 1000,
-						"confirmed": 0.364,
-						"undetermined": 0.055,
-						"notConfirmed": 0.581
+						"confirmed": 0.344,
+						"undetermined": 0.013,
+						"notConfirmed": 0.643
 					},
 					{
 						"shift": 0.15,
 						"runs": 1000,
-						"confirmed": 0.852,
-						"undetermined": 0.044,
-						"notConfirmed": 0.104
+						"confirmed": 0.818,
+						"undetermined": 0.009,
+						"notConfirmed": 0.173
 					}
 				],
 				"consistency": [
 					{
 						"shift": -0.15,
-						"value": 0.8374120000000002
+						"value": 0.86824
 					},
 					{
 						"shift": 0.15,
-						"value": 0.73408
+						"value": 0.7144609999999999
 					}
 				]
 			},
@@ -127,33 +127,33 @@
 					{
 						"shift": -0.15,
 						"runs": 1000,
-						"confirmed": 0.053,
-						"undetermined": 0,
-						"notConfirmed": 0.947
+						"confirmed": 0.052,
+						"undetermined": 0.01,
+						"notConfirmed": 0.938
 					},
 					{
 						"shift": 0,
 						"runs": 1000,
-						"confirmed": 0.396,
-						"undetermined": 0,
-						"notConfirmed": 0.604
+						"confirmed": 0.361,
+						"undetermined": 0.034,
+						"notConfirmed": 0.605
 					},
 					{
 						"shift": 0.15,
 						"runs": 1000,
-						"confirmed": 0.835,
-						"undetermined": 0,
-						"notConfirmed": 0.165
+						"confirmed": 0.846,
+						"undetermined": 0.018,
+						"notConfirmed": 0.136
 					}
 				],
 				"consistency": [
 					{
 						"shift": -0.15,
-						"value": 0.885314
+						"value": 0.863958
 					},
 					{
 						"shift": 0.15,
-						"value": 0.72177
+						"value": 0.7217579999999999
 					}
 				]
 			}

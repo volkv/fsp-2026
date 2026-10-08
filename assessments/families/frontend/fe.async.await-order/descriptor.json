@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "1752e227450077a6f77d7067218f8d37ef788e5992548551f662bfb7668529c4"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "1752e227450077a6f77d7067218f8d37ef788e5992548551f662bfb7668529c4"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": {
 				"functions": "2–3",
 				"lines": "10–20",
@@ -34,15 +51,32 @@
 					"description": "несколько функций с несколькими await готовых значений: продолжения чередуются по одному такту"
 				},
 				{
-					"id": "return-await",
+					"id": "result-then",
 					"form": "X",
-					"description": "return промиса против return await: возврат промиса из async-функции стоит лишних тактов, что видно по цепочке then"
+					"description": "then на вызове async-функции: колбэк получает возвращённое значение через такт после последнего шага функции, а не после её синхронной части"
 				}
 			]
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "1752e227450077a6f77d7067218f8d37ef788e5992548551f662bfb7668529c4"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.4,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "1752e227450077a6f77d7067218f8d37ef788e5992548551f662bfb7668529c4"
+					}
+				],
+				"mean": 0.5
+			},
 			"constructive": {
 				"functions": "2–3",
 				"lines": "15–25",
@@ -96,6 +130,7 @@
 			"тело async-функции выполняется синхронно до первого await",
 			"await готового значения уступает управление на один такт микрозадач",
 			"промис, который разрешит таймер, ждёт конца всех микрозадач",
+			"then на вызове async-функции получает возвращённое значение после всех её await",
 			"return промиса из async-функции стоит лишних тактов против return await",
 			"await в for…of выполняет итерации последовательно",
 			"вызов async-функции без await не ждёт её завершения",
@@ -162,6 +197,27 @@
 		"answerCollision": 0,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Прежнее замечание к Intern X устранено: result-then проверяет передачу результата завершённой async-функции в then без счёта дополнительных тактов принятия возвращённого промиса. Junior, return-chain (X), экземпляр 1, по-прежнему требует различать такты return validate() и return await validate() относительно tick 1–3; трудность резервного класса и полный binary-ответ учтены в Angoff.",
+					"Независимо исполнил все 8 программ условий в Node.js 24.21.0: ожидаемые последовательности совпали. Вручную проверил синхронные префиксы, очередь продолжений await, цикл, вложенный вызов без await, отклонение и возврат результата; новых неоднозначностей не обнаружил. Полный прогон ворот на 200 сидах каждого класса и статистику answerCollision заново не проверял. sourceSha256 совпал с текущими исходниками; оценки из descriptor.json не использовал."
+				],
+				"sourceSha256": "1752e227450077a6f77d7067218f8d37ef788e5992548551f662bfb7668529c4"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Повторное ревью: все 8 экземпляров исполнены в Node 24, вывод совпал с ожидаемым ответом. Intern-класс return-await заменён на result-then (poll().then рядом с async-функцией с await готовых значений): точный счёт лишних тактов возврата промиса убран, прежнее замечание об Intern устранено; класс по трудности сопоставим с interleave.",
+					"Junior, класс return-chain (X): остаётся счёт тактов при return validate() против return await validate() на фоне цепочки tick 1..3; для пограничного junior это на грани доступного, учтено в Angoff, вердикт не меняет. Не проверял другие сиды."
+				],
+				"sourceSha256": "1752e227450077a6f77d7067218f8d37ef788e5992548551f662bfb7668529c4"
+			}
+		]
 	}
 }

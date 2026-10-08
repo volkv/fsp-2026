@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.5,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "76e7105fe6e058a29b11b1d52c379d7fcead82da9a2e5e0891fdc4b7f62331df"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.65,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "76e7105fe6e058a29b11b1d52c379d7fcead82da9a2e5e0891fdc4b7f62331df"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": { "lines": "8–14", "functions": "3–4", "scopes": 1, "mechanisms": 1 },
 			"constructiveRank": 2,
 			"timeNormSec": 180,
@@ -37,7 +54,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.65,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "76e7105fe6e058a29b11b1d52c379d7fcead82da9a2e5e0891fdc4b7f62331df"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.5,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "76e7105fe6e058a29b11b1d52c379d7fcead82da9a2e5e0891fdc4b7f62331df"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": { "lines": "12–20", "functions": "3–6", "scopes": "2–3", "mechanisms": 2 },
 			"constructiveRank": 4,
 			"timeNormSec": 300,
@@ -189,6 +223,27 @@
 		"answerCollision": 0.0124,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Angoff: intern — 0.50: пограничный кандидат может путать общую переменную var и состояние фабрики; junior — 0.65: пять–семь строк вывода требуют различать TDZ, всплытие и общие ссылки. Оценена вероятность полного ответа за 180/300 с при binary.",
+					"Независимо исполнил все 8 показанных программ непосредственно из условий в Node.js 24.21.0: вывод полностью совпал. Проверил область видимости и состояние замыканий по коду; полный прогон генератора на 200 сидах каждого класса и чужие оценки не проверял."
+				],
+				"sourceSha256": "76e7105fe6e058a29b11b1d52c379d7fcead82da9a2e5e0891fdc4b7f62331df"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Проверено: все 8 показанных экземпляров исполнены в Node 24 как обычный скрипт, вывод совпал с ожидаемым; дополнительно прогнано по 40 сидов каждого класса (вывод совпал с ответом генератора, расхождений нестрогий/строгий режим нет). Условие однозначно, версия среды названа.",
+					"Мелочь: junior tdz-shadow даёт 7 строк вывода при бинарной оценке и норме 300 с, одна ошибка обнуляет задание; учтено в Angoff. Определение грейда в пакете (промисы, CORS) общее для блока и с темой замыканий не совпадает, но это не дефект задания."
+				],
+				"sourceSha256": "76e7105fe6e058a29b11b1d52c379d7fcead82da9a2e5e0891fdc4b7f62331df"
+			}
+		]
 	}
 }

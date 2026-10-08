@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.6 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.75,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "c9b49193bc163a3c58b6a779ba73772d0372e9e0ac888465217595d680db0039"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.75,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "c9b49193bc163a3c58b6a779ba73772d0372e9e0ac888465217595d680db0039"
+					}
+				],
+				"mean": 0.75
+			},
 			"constructive": { "lines": "25–32", "actions": 5, "state": "плоское, три числа", "mechanisms": 1 },
 			"constructiveRank": 2,
 			"timeNormSec": 240,
@@ -37,7 +54,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "c9b49193bc163a3c58b6a779ba73772d0372e9e0ac888465217595d680db0039"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "c9b49193bc163a3c58b6a779ba73772d0372e9e0ac888465217595d680db0039"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": {
 				"lines": "40–55",
 				"actions": "5–6",
@@ -178,6 +212,28 @@
 		"answerCollision": 0.0004,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчитаны все 8 экземпляров исполнением полного JavaScript в Node.js 24.21.0 и ручной трассировкой действий, ссылок и подписок. Все ответы совпали, включая отрицательный итог intern payload и счётчики junior store; исполнены эталоны и проверены ответы ошибочных решений. Полный прогон ворот на 200 сидах каждого класса не запускался.",
+					"Angoff intern = 0.75: пять простых переходов и арифметика укладываются в 240 с. Junior = 0.60: за 360 с нужно различать новые и прежние ссылки нескольких частей состояния, no-op и уведомления store; binary за всю последовательность снижает вероятность полного ответа."
+				],
+				"sourceSha256": "c9b49193bc163a3c58b6a779ba73772d0372e9e0ac888465217595d680db0039"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Исполнил в Node 24 код всех 8 экземпляров (4 intern, 4 junior): вывод построчно совпал с ожидаемым ответом. Для intern дополнительно проверил арифметику вручную (например 'guard': 8*250+30=2030, 'payload': 1*40-60=-20). Для junior проверил тождество ссылок после map/filter/spread вручную (после remove с filter сдвигаются позиции: tasks[0] и tasks[1] становятся другими объектами). Нового кода не писал, остальные сиды не запускал.",
+					"Мелочь: в junior по параметру 'actions 5-6' экземпляр store содержит 6 действий, но печатает только 4 строки (filter с тем же значением и неизвестный reset не вызывают слушателя); это и есть проверяемое поведение, но в условии нет указания, сколько строк ждать, - число строк кандидат определяет сам. Стоит учесть при бинарной оценке (ошибка в числе строк обнуляет ответ).",
+					"Мелочь: junior item-identity и slice-refs требуют 20 булевых/числовых значений за 360 с при бинарной рубрике; нагрузка выше, чем на других junior-семействах блока, учтено в Angoff."
+				],
+				"sourceSha256": "c9b49193bc163a3c58b6a779ba73772d0372e9e0ac888465217595d680db0039"
+			}
+		]
 	}
 }

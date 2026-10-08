@@ -135,7 +135,12 @@ const STUBS: Stub[] = [
 	},
 	{
 		name: 'publish',
-		lines: ['async function publish(text) {', '  await delay(1);', '  return storage.indexOf(text) + 1;', '}'],
+		lines: [
+			'async function publish(text) {',
+			'  await delay(1);',
+			"  return 'post-' + (storage.indexOf(text) + 1);",
+			'}'
+		],
 		needs: ['delay', 'store']
 	},
 	{
@@ -204,8 +209,7 @@ const INTERN: Fn[] = [
 			'function countExisting(ids) {',
 			'  const checks = ids.map((id) => fetchUser(id).then(() => 1, () => 0));',
 			'  return Promise.all(checks).then((flags) => {',
-			'    const total = flags.reduce((a, b) => a + b, 0);',
-			'    return total;',
+			'    return flags.reduce((a, b) => a + b, 0);',
 			'  });',
 			'}'
 		],
@@ -213,12 +217,12 @@ const INTERN: Fn[] = [
 		defects: [
 			{
 				kind: 'missing-return',
-				line: 5,
-				text: '    total;',
-				neighbour: { line: 4, text: '    const total = flags.reduce((a, b) => a + b);' }
+				line: 4,
+				text: '    flags.reduce((a, b) => a + b, 0);',
+				neighbour: { line: 2, text: '  const checks = ids.map((id) => fetchUser(id).then(() => 1).catch(() => 0));' }
 			}
 		],
-		sibling: { line: 4, text: '    const total = flags.reduce((a, b) => a + b);' }
+		sibling: { line: 2, text: '  const checks = ids.map((id) => fetchUser(id).then(() => 1).catch(() => 0));' }
 	},
 	{
 		name: 'greeting',
@@ -276,7 +280,7 @@ const INTERN: Fn[] = [
 		lines: [
 			'// Через 1 мс кладёт в список числа 0, 1, …, n − 1 по порядку; промис даёт список, когда всё записано.',
 			'function collectLater(n) {',
-			'  const log = [];',
+			'  var log = [];',
 			'  for (let i = 0; i < n; i += 1) {',
 			'    setTimeout(() => log.push(i), 1);',
 			'  }',
@@ -300,7 +304,7 @@ const INTERN: Fn[] = [
 		lines: [
 			'// Массив из n функций; i-я возвращает промис с числом i * 10.',
 			'function makeLoaders(n) {',
-			'  const loaders = [];',
+			'  var loaders = [];',
 			'  for (let i = 0; i < n; i += 1) {',
 			'    loaders.push(() => delay(1).then(() => i * 10));',
 			'  }',
@@ -330,8 +334,7 @@ const INTERN: Fn[] = [
 			'// тогда промис даёт null.',
 			'function submitForm(form) {',
 			'  const sent = send(form);',
-			'  const parsed = sent.then((text) => JSON.parse(text));',
-			'  return parsed.catch((err) => report(err));',
+			'  return sent.then((text) => JSON.parse(text)).catch((err) => report(err));',
 			'}'
 		],
 		check: [
@@ -344,12 +347,12 @@ const INTERN: Fn[] = [
 		defects: [
 			{
 				kind: 'wrong-chain',
-				line: 5,
-				text: '  return sent.catch((err) => report(err));',
-				neighbour: { line: 4, text: '  const parsed = sent.then(JSON.parse);' }
+				line: 4,
+				text: '  return sent.catch((err) => report(err)).then((text) => JSON.parse(text));',
+				neighbour: { line: 3, text: '  const sent = Promise.resolve(send(form));' }
 			}
 		],
-		sibling: { line: 4, text: '  const parsed = sent.then(JSON.parse);' }
+		sibling: { line: 3, text: '  const sent = Promise.resolve(send(form));' }
 	},
 	{
 		name: 'refreshCard',
@@ -359,8 +362,7 @@ const INTERN: Fn[] = [
 			'// падают — передаёт ошибку в report. Промис выполняется после этого в любом случае.',
 			'function refreshCard(id) {',
 			'  const loaded = fetchUser(id);',
-			'  const drawn = loaded.then((user) => render(user));',
-			'  return drawn.catch((err) => report(err));',
+			'  return loaded.then((user) => render(user)).catch((err) => report(err));',
 			'}'
 		],
 		check: [
@@ -374,12 +376,12 @@ const INTERN: Fn[] = [
 		defects: [
 			{
 				kind: 'wrong-chain',
-				line: 5,
-				text: '  return loaded.catch((err) => report(err));',
-				neighbour: { line: 4, text: '  const drawn = loaded.then(render);' }
+				line: 4,
+				text: '  return loaded.then((user) => render(user), (err) => report(err));',
+				neighbour: { line: 3, text: '  const loaded = Promise.resolve(fetchUser(id));' }
 			}
 		],
-		sibling: { line: 4, text: '  const drawn = loaded.then(render);' }
+		sibling: { line: 3, text: '  const loaded = Promise.resolve(fetchUser(id));' }
 	}
 ];
 
@@ -390,7 +392,9 @@ const JUNIOR: Fn[] = [
 		lines: [
 			'// Загружает все файлы параллельно; промис выполняется, когда загружены все.',
 			'async function uploadAll(files) {',
-			'  await Promise.all(files.map((file) => upload(file)));',
+			'  const jobs = [];',
+			'  files.forEach((file) => jobs.push(upload(file)));',
+			'  await Promise.all(jobs);',
 			'}'
 		],
 		check: [
@@ -401,20 +405,21 @@ const JUNIOR: Fn[] = [
 		defects: [
 			{
 				kind: 'foreach-async',
-				line: 2,
-				text: '  files.forEach(async (file) => await upload(file));',
-				neighbour: { line: 1, text: 'async function uploadAll(files = []) {' }
+				line: 3,
+				text: '  files.forEach(async (file) => jobs.push(await upload(file)));',
+				neighbour: { line: 4, text: '  await Promise.allSettled(jobs);' }
 			}
 		],
-		sibling: { line: 2, text: '  await Promise.all(files.map(upload));' }
+		sibling: { line: 4, text: '  await Promise.allSettled(jobs);' }
 	},
 	{
 		name: 'purge',
 		needs: ['remove'],
 		lines: [
-			'// Удаляет из ящика письма ids одно за другим; промис даёт число оставшихся писем.',
+			'// Удаляет из ящика письма ids параллельно; промис даёт число оставшихся писем, когда удалены все.',
 			'async function purge(ids) {',
-			'  for (const id of ids) await remove(id);',
+			'  const removals = ids.map(async (id) => await remove(id));',
+			'  await Promise.all(removals);',
 			'  return inbox.size;',
 			'}'
 		],
@@ -423,11 +428,11 @@ const JUNIOR: Fn[] = [
 			{
 				kind: 'foreach-async',
 				line: 2,
-				text: '  ids.forEach(async (id) => await remove(id));',
-				neighbour: { line: 3, text: '  return await inbox.size;' }
+				text: '  const removals = ids.forEach(async (id) => await remove(id));',
+				neighbour: { line: 4, text: '  return await inbox.size;' }
 			}
 		],
-		sibling: { line: 3, text: '  return await inbox.size;' }
+		sibling: { line: 4, text: '  return await inbox.size;' }
 	},
 	{
 		name: 'safeName',
@@ -512,14 +517,17 @@ const JUNIOR: Fn[] = [
 		name: 'saveAndPublish',
 		needs: ['store', 'publish'],
 		lines: [
-			'// Сохраняет текст, затем публикует его; промис выполняется после публикации и даёт её номер.',
+			'// Сохраняет текст, затем публикует его; промис выполняется после публикации и даёт результат publish.',
 			'function saveAndPublish(text) {',
 			'  return store(text).then(() => {',
 			'    return publish(text);',
 			'  });',
 			'}'
 		],
-		check: ['storage.length = 0;', "if ((await saveAndPublish('post')) !== 1) throw new Error('saveAndPublish');"],
+		check: [
+			'storage.length = 0;',
+			"if ((await saveAndPublish('post')) !== 'post-1') throw new Error('saveAndPublish');"
+		],
 		defects: [
 			{
 				kind: 'nested-no-return',
@@ -638,7 +646,7 @@ function compose(rng: Rng, library: readonly Fn[], kind: string, contextCount: n
 		contextCount
 	);
 	const order = rng.shuffle([buggy, ...context]);
-	const constants = rng.sample(HEADER_CONSTANTS, rng.int(0, 5));
+	const constants = rng.sample(HEADER_CONSTANTS, rng.int(0, 3));
 	// Blocks of the module, separated by one blank line: a header of random length, the stubs, the functions.
 	const blocks: string[][] = [[`// ${rng.pick(MODULE_TITLES)}. Заглушки API в начале модуля исправны.`]];
 	if (constants.length) blocks.push(constants);
@@ -678,13 +686,17 @@ export function build(input: GenerateInput): Built {
 	levelAndClass(descriptor, input);
 	const rng = instanceRng(descriptor, input);
 	const intern = input.grade === 'intern';
-	const p = compose(rng, intern ? INTERN : JUNIOR, input.classId, intern ? 2 : rng.int(2, 3));
+	const p = compose(rng, intern ? INTERN : JUNIOR, input.classId, 2);
 	const instance = makeInstance(descriptor, input, {
 		statement: {
 			markdown:
 				'Модуль интерфейса на JavaScript (Node.js 24). Над каждой функцией в комментарии записано, что она должна делать; ' +
-				'заглушки API в начале модуля исправны. Ровно одна строка модуля нарушает спецификацию своей функции: если заменить ' +
-				'только её, все функции будут работать по спецификации. Введите номер этой строки (нумерация с 1).',
+				'заглушки API в начале модуля исправны. В модуле один дефект: одна функция нарушает свою спецификацию. Введите ' +
+				'номер строки, замена которой одной инструкцией восстанавливает спецификацию всех функций (нумерация с 1). ' +
+				'Если исправить можно в нескольких строках — засчитывается любая из них, где замена одной инструкцией ' +
+				'восстанавливает спецификацию. Исправление — одна простая инструкция того же вида, что исправляемая строка: ' +
+				'не добавляйте конструкций, которых в ней нет (новые стрелочные функции, циклы, обёртки, новые функции), ' +
+				'и не переносите в неё логику из другой строки.',
 			code: { language: 'javascript', source: p.source }
 		},
 		answer: { kind: 'line_no', value: p.line }

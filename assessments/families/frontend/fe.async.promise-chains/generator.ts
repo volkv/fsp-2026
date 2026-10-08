@@ -561,12 +561,11 @@ function catchRecovers(rng: Rng): Stmt[] {
 	const s = new Steps(rng);
 	const head: Expr = rng.bool() ? { k: 'reject', message: rng.pick(ERRORS) } : start(rng);
 	const steps: Step[] = [];
+	// A rejected head leaves room for a skipped link before the first catch; a throwing link takes that room otherwise.
 	if (head.k !== 'reject') steps.push(s.throwing());
-	if (rng.bool()) steps.push(s.transform());
-	steps.push(s.catching('first', true), s.transform());
-	if (rng.bool(0.5)) {
-		steps.push(s.throwing(), s.transform(), s.catching('second', true));
-	}
+	else if (rng.bool()) steps.push(s.transform());
+	// The recovery is always followed by a second error: it skips a link and meets the second catch.
+	steps.push(s.catching('first', true), s.transform(), s.throwing(), s.transform(), s.catching('second', true));
 	steps.push(...s.end('result'));
 	return [{ k: 'expr', e: chainExpr(head, steps) }];
 }
@@ -751,6 +750,9 @@ function fallback(classId: string): Stmt[] {
 				expr(
 					{ k: 'reject', message: 'timeout' },
 					catchDo(log('first', message), { k: 'return', e: str('user') }),
+					thenDo(log('step', v()), { k: 'throw', message: v() }),
+					thenDo(log('skipped', v())),
+					catchDo(log('second', message), { k: 'return', e: str('page') }),
 					...tail
 				)
 			];

@@ -30,6 +30,8 @@ interface Defect extends Change {
 	neighbour: Change;
 	/** A line of another function of the unit where the defect shows up, with the change that treats the symptom. */
 	symptom?: Change;
+	/** Other lines whose one-instruction change also restores the specification: accepted answers. */
+	alternatives?: Change[];
 }
 
 /** A group of declarations and functions with the checks of their specifications. */
@@ -107,13 +109,14 @@ const MIDDLE: Unit[] = [
 			'const pager = restorePager(\'{"page":"2","size":"20"}\');',
 			'__eq(pager, { page: 2, size: 20 });',
 			'__eq(nextPage(pager), 3);',
-			'__eq(offsetOf(pager), 20);'
+			'__eq(offsetOf(pager), 20);',
+			'__eq(pager.size + 1, 21);'
 		],
 		defects: [
 			{
 				kind: 'cast',
 				from: "  return JSON.parse(raw, (key, value) => (key === '' ? value : Number(value))) as Pager;",
-				to: '  return JSON.parse(raw) as Pager;',
+				to: "  return JSON.parse(raw, (key, value) => (key === 'page' ? Number(value) : value)) as Pager;",
 				neighbour: {
 					from: 'function restorePager(raw: string): Pager {',
 					to: "function restorePager(raw: string = '{}'): Pager {"
@@ -153,9 +156,15 @@ const MIDDLE: Unit[] = [
 				from: "  return { id: data.id ?? 0, name: data.name ?? '', roles: data.roles ?? [] };",
 				to: '  return { id: data.id!, name: data.name!, roles: data.roles! };',
 				neighbour: {
-					from: '  const data = JSON.parse(body) as Partial<User>;',
-					to: '  const data = JSON.parse(body) as User;'
+					from: 'function parseUser(body: string): User {',
+					to: "function parseUser(body: string = '{}'): User {"
 				},
+				alternatives: [
+					{
+						from: '  const data = JSON.parse(body) as Partial<User>;',
+						to: "  const data = { id: 0, name: '', roles: [], ...JSON.parse(body) } as Partial<User>;"
+					}
+				],
 				symptom: {
 					from: "  return user.roles.includes('admin');",
 					to: "  return user.roles?.includes('admin') ?? false;"
@@ -196,9 +205,15 @@ const MIDDLE: Unit[] = [
 				from: '  return paid.length > 0 ? paid[paid.length - 1] : null;',
 				to: '  return paid[paid.length - 1];',
 				neighbour: {
-					from: "  const paid = orders.filter((o) => o.status === 'paid');",
-					to: "  const paid = orders.filter((o) => o.status !== 'new');"
-				}
+					from: 'function lastPaid(orders: Order[]): Order | null {',
+					to: 'function lastPaid(orders: readonly Order[]): Order | null {'
+				},
+				alternatives: [
+					{
+						from: "  const paid = orders.filter((o) => o.status === 'paid');",
+						to: "  const paid = [null, ...orders.filter((o) => o.status === 'paid')];"
+					}
+				]
 			},
 			{
 				kind: 'non-null',
@@ -246,26 +261,30 @@ const MIDDLE: Unit[] = [
 			'const draft = toDraft(saved);',
 			"__eq(draft, { title: 'A', tags: ['x'] });",
 			"draft.tags.push('y');",
-			"__eq(saved.tags, ['x']);"
+			"__eq(saved.tags, ['x']);",
+			"__eq(save(saved, 'n2', '2026-02-02'), { id: 'n2', title: 'A', tags: ['x'], createdAt: '2026-02-02' });",
+			"const extended = { id: 'o', title: 'B', tags: [], createdAt: 'd', pinned: true };",
+			"__eq(toDraft(extended), { title: 'B', tags: [] });"
 		],
 		defects: [
 			{
 				kind: 'spread',
 				from: '  return { ...draft, id, createdAt: now };',
 				to: '  return { id, createdAt: now, ...draft };',
-				neighbour: {
-					from: 'function save(draft: Draft, id: string, now: string): Saved {',
-					to: 'function save(draft: Readonly<Draft>, id: string, now: string): Saved {'
-				}
+				neighbour: { from: '  id?: string;', to: '  readonly id?: string;' },
+				// Taking the stale id and date out of the draft in the parameter leaves only its own fields to spread.
+				alternatives: [
+					{
+						from: 'function save(draft: Draft, id: string, now: string): Saved {',
+						to: 'function save({ id: oldId, createdAt: oldDate, ...draft }: Draft & { createdAt?: string }, id: string, now: string): Saved {'
+					}
+				]
 			},
 			{
 				kind: 'spread',
 				from: '  return { title: saved.title, tags: [...saved.tags] };',
 				to: '  return { ...saved, tags: [...saved.tags] };',
-				neighbour: {
-					from: 'function toDraft(saved: Saved): Draft {',
-					to: 'function toDraft(saved: Readonly<Saved>): Draft {'
-				}
+				neighbour: { from: '  createdAt: string;', to: '  readonly createdAt: string;' }
 			}
 		],
 		decoy: {
@@ -283,7 +302,10 @@ const MIDDLE: Unit[] = [
 			'',
 			"const DEFAULT_LIST: ListOptions = { pageSize: 20, sort: 'date', dense: false };",
 			'',
-			'/** Настройки списка: сохранённые пользователем значения поверх значений по умолчанию. */',
+			'/**',
+			' * Настройки списка: сохранённые пользователем значения поверх значений по умолчанию.',
+			' * Несохранённой настройки в saved нет; полей со значением undefined в saved не бывает.',
+			' */',
 			'function listOptions(saved: Partial<ListOptions>): ListOptions {',
 			'  return { ...DEFAULT_LIST, ...saved };',
 			'}',
@@ -448,7 +470,7 @@ const SENIOR: Unit[] = [
 			{
 				kind: 'module-boundary',
 				from: "  return JSON.parse(raw, (key, value) => (key === 'expiresAt' ? new Date(value) : value)) as Session;",
-				to: '  return JSON.parse(raw) as Session;',
+				to: "  return JSON.parse(raw, (key, value) => (key === 'expiresAt' ? Date.parse(value) : value)) as Session;",
 				neighbour: {
 					from: 'function loadSession(raw: string): Session {',
 					to: "function loadSession(raw: string = '{}'): Session {"
@@ -524,10 +546,13 @@ const SENIOR: Unit[] = [
 			'}',
 			'',
 			'// --- url.ts ---',
-			'/** Id выбранных товаров из строки запроса ?ids=3,12,7 — числами, в том же порядке. */',
+			'/**',
+			' * Id выбранных товаров из строки запроса ?ids=3,12,7 — числами, в том же порядке;',
+			' * id в адресе — десятичные целые без ведущих нулей и пробелов.',
+			' */',
 			'function selectedIds(search: string): number[] {',
 			"  const raw = new URLSearchParams(search).get('ids') ?? '';",
-			"  return raw === '' ? [] : raw.split(',').map((s) => Number.parseInt(s, 10));",
+			"  return raw === '' ? [] : raw.split(',').map(Number);",
 			'}',
 			'',
 			'// --- view.ts ---',
@@ -548,7 +573,7 @@ const SENIOR: Unit[] = [
 		defects: [
 			{
 				kind: 'rare-data',
-				from: "  return raw === '' ? [] : raw.split(',').map((s) => Number.parseInt(s, 10));",
+				from: "  return raw === '' ? [] : raw.split(',').map(Number);",
 				to: "  return raw === '' ? [] : raw.split(',').map(Number.parseInt);",
 				neighbour: {
 					from: "  const raw = new URLSearchParams(search).get('ids') ?? '';",
@@ -607,7 +632,7 @@ const SENIOR: Unit[] = [
 	},
 	{
 		lines: [
-			"/** День в виде 'YYYY-MM-DD' по UTC: месяц и день — двумя цифрами. */",
+			"/** День в виде 'YYYY-MM-DD' по UTC: месяц и день — двумя цифрами; год даты — от 1900 до 2100. */",
 			'function dayKey(d: Date): string {',
 			"  const month = String(d.getUTCMonth() + 1).padStart(2, '0');",
 			"  const day = String(d.getUTCDate()).padStart(2, '0');",
@@ -631,6 +656,12 @@ const SENIOR: Unit[] = [
 				kind: 'rare-data',
 				from: "  const month = String(d.getUTCMonth() + 1).padStart(2, '0');",
 				to: '  const month = String(d.getUTCMonth() + 1);',
+				alternatives: [
+					{
+						from: "  return d.getUTCFullYear() + '-' + month + '-' + day;",
+						to: "  return d.getUTCFullYear() + '-' + month.padStart(2, '0') + '-' + day;"
+					}
+				],
 				neighbour: {
 					from: "  const day = String(d.getUTCDate()).padStart(2, '0');",
 					to: '  const day = String(d.getUTCDate()).padStart(2);'
@@ -644,6 +675,12 @@ const SENIOR: Unit[] = [
 				kind: 'rare-data',
 				from: "  const day = String(d.getUTCDate()).padStart(2, '0');",
 				to: '  const day = String(d.getUTCDate());',
+				alternatives: [
+					{
+						from: "  return d.getUTCFullYear() + '-' + month + '-' + day;",
+						to: "  return d.getUTCFullYear() + '-' + month + '-' + day.padStart(2, '0');"
+					}
+				],
 				neighbour: {
 					from: "  const month = String(d.getUTCMonth() + 1).padStart(2, '0');",
 					to: "  const month = String(d.getUTCMonth()).padStart(2, '0');"
@@ -672,12 +709,18 @@ const SENIOR: Unit[] = [
 			'/** Правка профиля из формы: поле, которое форма не трогала, приходит как undefined и профиль не меняет. */',
 			'function applyPatch(profile: Profile, patch: Partial<Profile>): Profile {',
 			'  return { ...profile, ...definedOnly(patch) };',
+			'}',
+			'',
+			'/** Сколько полей профиля меняет правка из формы. */',
+			'function changedCount(patch: Partial<Profile>): number {',
+			'  return Object.keys(definedOnly(patch)).length;',
 			'}'
 		],
 		checks: [
 			"const profile = { name: 'Ann', city: 'Omsk', bio: 'hi' };",
 			"__eq(applyPatch(profile, { city: 'Tver', bio: undefined }), { name: 'Ann', city: 'Tver', bio: 'hi' });",
 			"__eq(applyPatch(profile, { bio: '' }), { name: 'Ann', city: 'Omsk', bio: '' });",
+			"__eq(changedCount({ city: 'Tver', bio: '', name: undefined }), 2);",
 			'__eq(definedOnly({ a: 1, b: undefined, c: null }), { a: 1, c: null });'
 		],
 		defects: [
@@ -742,12 +785,19 @@ const SENIOR: Unit[] = [
 			'/** Итоговые параметры: заданные в адресе поверх значений по умолчанию. */',
 			'function resolveQuery(search: string): Query {',
 			'  return { ...DEFAULT_QUERY, ...given(fromSearch(search)) };',
+			'}',
+			'',
+			'/** Задан ли в адресе хотя бы один параметр запроса. */',
+			'function hasFilters(search: string): boolean {',
+			'  return Object.keys(given(fromSearch(search))).length > 0;',
 			'}'
 		],
 		checks: [
 			"__eq(resolveQuery('?sort=price'), { page: 1, sort: 'price', q: '' });",
 			"__eq(resolveQuery('?page=3&q=tea'), { page: 3, sort: 'date', q: 'tea' });",
-			"__eq(fromSearch('?q=x').page, undefined);"
+			"__eq(fromSearch('?q=x').page, undefined);",
+			"__eq(hasFilters('?utm=1'), false);",
+			"__eq(hasFilters('?q=x'), true);"
 		],
 		defects: [
 			{
@@ -783,7 +833,7 @@ const SENIOR: Unit[] = [
 		lines: [
 			'/**',
 			' * Изменение цены за n дней: последняя цена минус цена n дней назад;',
-			' * если история короче — минус первая цена. Пустая история — 0.',
+			' * если история короче — минус первая цена. Пустая история — 0; n — целое от 0.',
 			' */',
 			'function priceChange(history: number[], n: number): number {',
 			'  if (history.length === 0) return 0;',
@@ -801,6 +851,7 @@ const SENIOR: Unit[] = [
 		checks: [
 			'__eq(priceChange([10, 12, 15, 11], 2), -1);',
 			'__eq(priceChange([10, 12], 7), 2);',
+			'__eq(priceChange([10, 12], 0), 0);',
 			'__eq(priceChange([], 3), 0);',
 			"__eq(trendLabel([5, 9], 1), '+4');"
 		],
@@ -813,20 +864,8 @@ const SENIOR: Unit[] = [
 				symptom: {
 					from: '  const change = priceChange(history, n);',
 					to: '  const change = priceChange(history, n) || 0;'
-				}
-			},
-			{
-				kind: 'short-data',
-				from: '  if (history.length === 0) return 0;',
-				to: '  if (history.length === 1) return 0;',
-				neighbour: {
-					from: '  const base = history[Math.max(0, history.length - 1 - n)];',
-					to: '  const base = history[Math.max(1, history.length - 1 - n)];'
 				},
-				symptom: {
-					from: '  const change = priceChange(history, n);',
-					to: '  const change = priceChange(history, n) || 0;'
-				}
+				alternatives: [{ from: '  return last - base;', to: '  return last - (base ?? history[0]);' }]
 			}
 		],
 		decoy: {
@@ -836,6 +875,7 @@ const SENIOR: Unit[] = [
 	},
 	{
 		lines: [
+			'/** Отсчёт ряда; value — конечное число от 0. */',
 			'interface Sample {',
 			'  t: number;',
 			'  value: number;',
@@ -874,7 +914,12 @@ const SENIOR: Unit[] = [
 				kind: 'short-data',
 				from: '  return samples.map((s) => (top === 0 ? 0 : Math.round((s.value / top) * 100) / 100));',
 				to: '  return samples.map((s) => Math.round((s.value / top) * 100) / 100);',
-				neighbour: { from: '  const top = peak(samples);', to: '  const top = Math.abs(peak(samples));' },
+				// Values are not negative, so a zero peak means zero values and dividing them by 1 gives the zeros.
+				alternatives: [{ from: '  const top = peak(samples);', to: '  const top = peak(samples) || 1;' }],
+				neighbour: {
+					from: 'function normalized(samples: Sample[]): number[] {',
+					to: 'function normalized(samples: readonly Sample[]): number[] {'
+				},
 				symptom: {
 					from: '  return samples.length > 0 ? Math.max(...samples.map((s) => s.value)) : 0;',
 					to: '  return samples.length > 0 ? Math.max(1, ...samples.map((s) => s.value)) : 0;'
@@ -897,8 +942,13 @@ for (const unit of [...MIDDLE, ...SENIOR]) {
 	lineIndex(unit, unit.decoy.from);
 	for (const d of unit.defects) {
 		const at = lineIndex(unit, d.from);
-		if (lineIndex(unit, d.neighbour.from) === at || (d.symptom && lineIndex(unit, d.symptom.from) === at))
-			throw new Error(`${descriptor.key}: a trap on the defect line ${d.from}`);
+		const traps = [d.neighbour, ...(d.symptom ? [d.symptom] : [])].map((c) => lineIndex(unit, c.from));
+		if (traps.includes(at)) throw new Error(`${descriptor.key}: a trap on the defect line ${d.from}`);
+		for (const a of d.alternatives ?? []) {
+			const alt = lineIndex(unit, a.from);
+			if (alt === at || traps.includes(alt))
+				throw new Error(`${descriptor.key}: an accepted line ${a.from} is the defect or a trap`);
+		}
 	}
 }
 
@@ -918,9 +968,15 @@ const HEADER_CONSTANTS = [
 ];
 
 const CHECK_PRELUDE = [
+	// Objects are compared regardless of the order of their keys; arrays keep their order.
+	'function __norm(value) {',
+	'  if (Array.isArray(value)) return value.map(__norm);',
+	"  if (value === null || typeof value !== 'object' || value instanceof Date) return value;",
+	'  return Object.fromEntries(Object.keys(value).sort().map((key) => [key, __norm(value[key])]));',
+	'}',
 	'function __eq(actual, expected) {',
-	'  const a = JSON.stringify(actual);',
-	'  const e = JSON.stringify(expected);',
+	'  const a = JSON.stringify(__norm(actual));',
+	'  const e = JSON.stringify(__norm(expected));',
 	"  if (a !== e) throw new Error(a + ' !== ' + e);",
 	'}'
 ];
@@ -933,6 +989,7 @@ interface Composed {
 	neighbour: { line: number; replacement: string };
 	other: { line: number; replacement: string };
 	symptom: { line: number; replacement: string } | null;
+	alternatives: { line: number; fix: string }[];
 }
 
 function compose(rng: Rng, library: readonly Unit[], kind: string, contextCount: number): Composed {
@@ -976,7 +1033,8 @@ function compose(rng: Rng, library: readonly Unit[], kind: string, contextCount:
 		fix: defect.from,
 		neighbour: { line: at(buggy, defect.neighbour.from), replacement: defect.neighbour.to },
 		other: { line: at(firstContext, firstContext.decoy.from), replacement: firstContext.decoy.to },
-		symptom: defect.symptom ? { line: at(buggy, defect.symptom.from), replacement: defect.symptom.to } : null
+		symptom: defect.symptom ? { line: at(buggy, defect.symptom.from), replacement: defect.symptom.to } : null,
+		alternatives: (defect.alternatives ?? []).map((c) => ({ line: at(buggy, c.from), fix: c.to }))
 	};
 }
 
@@ -988,26 +1046,54 @@ export function build(input: GenerateInput): Built {
 		statement: {
 			markdown:
 				'Модуль клиентской части на TypeScript; он компилируется без ошибок (`strict`, без ' +
-				'`noUncheckedIndexedAccess`). У каждой функции в комментарии записана её спецификация. Ровно одна строка ' +
-				'нарушает спецификацию своей функции: если заменить только её, все функции будут работать по ' +
-				'спецификации. Введите номер этой строки (нумерация с 1).',
+				'`noUncheckedIndexedAccess`). У каждой функции в комментарии записана её спецификация. Строковые ключи и id в ' +
+				'данных — обычные имена: не совпадают с именами свойств `Object.prototype` (`__proto__`, `constructor`, ' +
+				'`toString` и т. п.). В модуле один ' +
+				'дефект: одна строка нарушает спецификацию своей функции. Введите номер строки, замена которой одной ' +
+				'инструкцией восстанавливает спецификацию всех функций (нумерация с 1). Если исправить можно в нескольких ' +
+				'строках — засчитывается любая из них, где замена одной инструкцией восстанавливает спецификацию. ' +
+				'Исправление — одна простая инструкция того же вида, что исправляемая строка: не добавляйте конструкций, ' +
+				'которых в ней нет (стрелочные функции, циклы, обёртки, новые функции), и не переносите в неё логику из ' +
+				'другой строки.',
 			code: { language: 'typescript', source: p.source }
 		},
-		answer: { kind: 'line_no', value: p.line }
+		answer: {
+			kind: 'line_no',
+			value: p.line,
+			...(p.alternatives.length ? { alternatives: p.alternatives.map((a) => a.line) } : {})
+		}
 	});
 	const traps = [p.neighbour, p.other, ...(p.symptom ? [p.symptom] : [])];
 	const lineAnswer = (line: number) => ({ kind: 'answer' as const, answer: { kind: 'line_no' as const, value: line } });
 	return {
 		instance,
-		reference: () =>
-			nodeDefectProbe({
+		reference: () => {
+			const main = nodeDefectProbe({
 				source: p.source,
 				language: 'typescript',
 				check: p.check,
 				line: p.line,
 				fix: p.fix,
 				distractors: traps
-			}),
+			});
+			// Each accepted alternative is proven by its own probe (the defect fails, the alternative fix passes); the
+			// probes run one after another and the last one prints the defect line.
+			const proofs = p.alternatives.map((a) => {
+				const probe = nodeDefectProbe({
+					source: p.source,
+					language: 'typescript',
+					check: p.check,
+					line: a.line,
+					fix: a.fix,
+					distractors: []
+				});
+				if (probe.kind !== 'output') throw new Error(`${descriptor.key}: a defect probe prints its line`);
+				const body = probe.source.split('\n');
+				if (body.at(-1) !== `print(${a.line})`) throw new Error(`${descriptor.key}: unexpected defect probe`);
+				return body.slice(0, -1).join('\n');
+			});
+			return main.kind === 'output' && proofs.length ? { ...main, source: [...proofs, main.source].join('\n') } : main;
+		},
 		wrong: () => ({
 			'neighbour-line': lineAnswer(p.neighbour.line),
 			'other-function': lineAnswer(p.other.line),

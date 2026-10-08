@@ -1,6 +1,6 @@
 // Strings and numbers in JavaScript: slice against substring with negative and swapped arguments, binary floating
-// point (0.1 + 0.2, toFixed on a decimal half), Math.round on negative halves, parseInt with a radix, String#at,
-// padStart and split with a limit.
+// point (a sum of tenths compared with ===, toFixed as the way to compare and as a string), Math.round on negative
+// halves, parseInt with a radix, String#at, padStart and split with a limit.
 import {
 	instanceRng,
 	levelAndClass,
@@ -95,31 +95,6 @@ function sliceSubstring(rng: Rng): Program {
 	]);
 }
 
-/**
- * toFixed(2) of the double nearest to `cents5 / 1000` (a value with a decimal half in the third place): the exact
- * binary value lies below the half, above it, or on it (then toFixed takes the larger), and toFixed picks the nearer
- * side.
- */
-function toFixedHalf(cents5: number): string {
-	const view = new DataView(new ArrayBuffer(8));
-	view.setFloat64(0, cents5 / 1000);
-	const bits = view.getBigUint64(0);
-	const exponent = Number((bits >> 52n) & 0x7ffn) - 1075;
-	const mantissa = (bits & ((1n << 52n) - 1n)) | (1n << 52n);
-	// value = mantissa * 2^exponent against cents5 / 1000, both sides scaled to integers.
-	const left = exponent >= 0 ? mantissa * 1000n * (1n << BigInt(exponent)) : mantissa * 1000n;
-	const right = exponent >= 0 ? BigInt(cents5) : BigInt(cents5) * (1n << BigInt(-exponent));
-	return formatCents((cents5 - 5) / 10 + (left >= right ? 1 : 0));
-}
-
-/** A whole number of cents as a decimal with two places. */
-const formatCents = (cents: number): string => `${Math.floor(cents / 100)}.${String(cents % 100).padStart(2, '0')}`;
-
-/** Values with a decimal half that toFixed(2) rounds down, as thousandths ending in 5. */
-const DOWN_HALVES = Array.from({ length: 900 }, (_, i) => (i + 100) * 10 + 5).filter(
-	(c) => toFixedHalf(c) === formatCents((c - 5) / 10)
-);
-
 function floatRounding(rng: Rng): Program {
 	// A sum of tenths that binary floating point does not hit exactly.
 	let [i, j] = [1, 2];
@@ -131,16 +106,14 @@ function floatRounding(rng: Rng): Program {
 		}
 	}
 	const exact = (i + j) / 10;
-	const half = rng.pick(DOWN_HALVES);
-	const halfUp = formatCents((half + 5) / 10);
 	const n = rng.int(1, 9);
 	const m = rng.int(1, 9);
 	const [y, z] = [rng.int(11, 99) / 10, rng.int(1, 9)];
 	const tenth = (x: number): string => (x / 10).toString();
+	const sum = `${tenth(i)} + ${tenth(j)}`;
 	const lines: Line[] = [
-		line(`${tenth(i)} + ${tenth(j)}`, String(i / 10 + j / 10), { 'exact-decimal': String(exact) }),
-		line(`${tenth(i)} + ${tenth(j)} === ${exact}`, false, { 'exact-decimal': true }),
-		line(`(${half / 1000}).toFixed(2)`, toFixedHalf(half), { 'exact-decimal': halfUp }),
+		line(`${sum} === ${exact}`, false, { 'exact-decimal': true }),
+		line(`(${sum}).toFixed(1) === '${exact.toFixed(1)}'`, true),
 		line(`Math.round(-${n}.5)`, -n, { 'round-half-away': -(n + 1) }),
 		line(`Math.round(${m}.5)`, m + 1),
 		line(`(${y}).toFixed(1) + ${z}`, `${y.toFixed(1)}${z}`, { 'tofixed-number': Math.round((y + z) * 10) / 10 })
@@ -153,23 +126,15 @@ function parseRadix(rng: Rng): Program {
 	const hex = hexValue.toString(16);
 	const okOctal = rng.int(1, 7);
 	const badDigit = rng.int(8, 9);
-	const [a, c1] = [rng.int(10, 99), rng.int(0, 1)];
-	const bValue = rng.int(2, 9);
-	const c = `1${c1}`;
-	const n = rng.int(5, 60);
 	const binary = rng.int(4, 15).toString(2);
 	const lines: Line[] = [
 		line(`parseInt('${hex}', 16)`, hexValue),
 		line(`parseInt('${okOctal}${badDigit}', 8)`, okOctal, { 'invalid-digit-nan': 'NaN' }),
-		line(`['${a}', '${bValue}', '${c}'].map(parseInt).join(' ')`, `${a} NaN ${Number.parseInt(c, 2)}`, {
-			'map-parseint': `${a} ${bValue} ${c}`
-		}),
 		line(`parseInt('0x${hex}')`, hexValue),
 		line(`parseInt('0x${hex}', 10)`, 0, { 'hex-prefix-any-radix': hexValue }),
-		line(`(${n}).toString(2)`, n.toString(2)),
 		line(`parseInt('${binary}2', 2)`, Number.parseInt(binary, 2), { 'invalid-digit-nan': 'NaN' })
 	];
-	return printed([], rng.shuffle(lines), ['invalid-digit-nan', 'map-parseint', 'hex-prefix-any-radix']);
+	return printed([], rng.shuffle(lines), ['invalid-digit-nan', 'hex-prefix-any-radix']);
 }
 
 function stringMethods(rng: Rng): Program {

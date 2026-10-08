@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "397c7980ea980c962b415710d204e5eb910ec5b0488d3b8ab484c413160d2e58"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.45,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "397c7980ea980c962b415710d204e5eb910ec5b0488d3b8ab484c413160d2e58"
+					}
+				],
+				"mean": 0.55
+			},
 			"constructive": {
 				"calls": "5–6",
 				"rules": 5,
@@ -41,7 +58,24 @@
 		},
 		{
 			"grade": "middle",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "397c7980ea980c962b415710d204e5eb910ec5b0488d3b8ab484c413160d2e58"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.4,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "397c7980ea980c962b415710d204e5eb910ec5b0488d3b8ab484c413160d2e58"
+					}
+				],
+				"mean": 0.5
+			},
 			"constructive": {
 				"calls": "6–7",
 				"rules": 7,
@@ -108,7 +142,7 @@
 			"ответ без заголовков CORS"
 		],
 		"doesNotCheck": [
-			"кэш preflight по Max-Age и Vary: Origin (это блок be.api)",
+			"кэш preflight по Max-Age и Vary: Origin (это блок be.api; в условии кэш пуст и сервер отдаёт Access-Control-Max-Age: 0)",
 			"перенаправления CORS-запросов",
 			"Private Network Access",
 			"Content-Length среди безопасных заголовков ответа"
@@ -206,6 +240,29 @@
 		"answerCollision": 0.008,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Оба прежних существенных замечания устранены: условия всех классов задают пустой кэш preflight и Access-Control-Max-Age:0; вне preflight-status явно задан OPTIONS=204, а статус таблицы относится к самому запросу. В middle/error-handler вызовы 4 и 6 снова отправляют OPTIONS и дают pre 404 \"v9\" и pre 404 application/json. Правила wildcard, Authorization и credentials сверены с Fetch Standard: https://fetch.spec.whatwg.org/?authuser=0#cors-preflight-fetch .",
+					"Angoff: junior = 0.60, middle = 0.55. Учтены 360/420 с и binary на 15–21 поле ответа: junior должен различать тип тела, preflight и видимость заголовков, middle дополнительно — wildcard при include, исключение Authorization и ошибочный статус OPTIONS. Один неверный тройной результат обнуляет задание.",
+					"Все 8 экземпляров независимо пересчитаны моделью CORS в Node.js: запросы извлечены исполнением показанного JavaScript, политика сервера и ответы — из текста/таблиц условия. Все ответы совпали. Дополнительно пересчитаны 200 сидов каждого уровня и класса, всего 1600, без расхождений; все показанные Python-эталоны исполнены. Каждое заявленное ошибочное решение проявилось в дополнительной выборке, применимые ответы отличаются от независимых. Сетевые запросы настоящего браузера и штатные ворота целиком не запускал."
+				],
+				"sourceSha256": "397c7980ea980c962b415710d204e5eb910ec5b0488d3b8ab484c413160d2e58"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Повторное ревью. Моё прежнее замечание (статус preflight не задан) устранено: во всех условиях без колонки OPTIONS сказано «на preflight по любому пути сервер отвечает 204; статус в таблице — у ответа на сам запрос», колонка переименована в «статус ответа на сам запрос». Замечание второго рецензента (кэш preflight, Fetch Standard по умолчанию Max-Age 5 с) устранено: сервер ставит Access-Control-Max-Age: 0, кэш в начале пуст, каждый вызов с preflight отправляет свой OPTIONS.",
+					"Правка не сломала остальное: тексты таблиц и вызовы те же, ответы всех 8 экземпляров не изменились и по моему прежнему ручному пересчёту (preflight-триггеры, Allow-Methods/Headers с `*` и Authorization, credentials, безопасные заголовки ответа и Expose-Headers, no-cors, ответ об ошибке без CORS, статус OPTIONS) совпадают с условием. Реальный браузер и другие сиды не проверял.",
+					"Нагрузка: 6-7 вызовов по три значения, бинарная рубрика; Angoff прежний."
+				],
+				"sourceSha256": "397c7980ea980c962b415710d204e5eb910ec5b0488d3b8ab484c413160d2e58"
+			}
+		]
 	}
 }

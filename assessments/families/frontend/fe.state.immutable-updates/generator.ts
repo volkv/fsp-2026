@@ -131,7 +131,7 @@ const INTERN: Handler[] = [
 					'  return { ...state, removed: state.removed + 1 };',
 					'}'
 				],
-				fix: { at: 3, text: '  state = { ...state, tasks: state.tasks.filter((t) => t.id !== id) };' },
+				fix: { at: 3, text: '  state = { ...state, tasks: state.tasks.toSpliced(index, 1) };' },
 				neighbour: { at: 2, text: '  if (index < 0) return state;' },
 				copy: null,
 				safe: []
@@ -361,9 +361,10 @@ const INTERN: Handler[] = [
 	{
 		name: 'increment',
 		prelude: [],
-		doc: 'Увеличивает счётчик на by. Подписчики сравнивают состояния по ссылке. Прежнее состояние не меняет.',
+		doc: 'Увеличивает счётчик на by; при by = 0 — то же состояние. Подписчики сравнивают состояния по ссылке. Прежнее состояние не меняет.',
 		lines: [
 			'function increment(state, by) {',
+			'  if (by === 0) return state;',
 			'  const count = state.count + by;',
 			'  return { ...state, count };',
 			'}'
@@ -374,14 +375,21 @@ const INTERN: Handler[] = [
 			'const before = json(s);',
 			'const r = increment(s, 3);',
 			"assert(r !== s && r.count === 5 && r.step === 1, 'increment: result');",
+			"assert(increment(s, 0) === s, 'increment: by = 0 must return the same state');",
 			"assert(json(s) === before, 'increment: the previous state changed');"
 		],
 		defects: [
 			{
 				kind: 'same-object',
-				lines: ['function increment(state, by) {', '  state.count = state.count + by;', '  return state;', '}'],
-				fix: { at: 1, text: '  state = { ...state, count: state.count + by };' },
-				neighbour: { at: 2, text: '  return { ...state };' },
+				lines: [
+					'function increment(state, by) {',
+					'  if (by === 0) return state;',
+					'  state.count = state.count + by;',
+					'  return state;',
+					'}'
+				],
+				fix: { at: 2, text: '  state = { ...state, count: state.count + by };' },
+				neighbour: { at: 3, text: '  return { ...state };' },
 				copy: null,
 				safe: []
 			}
@@ -424,29 +432,36 @@ const INTERN: Handler[] = [
 		]
 	},
 	{
-		name: 'toggleSidebar',
+		name: 'setSidebar',
 		prelude: [],
-		doc: 'Открывает или закрывает панель. Подписчики сравнивают состояния по ссылке. Прежнее не меняет.',
+		doc: 'Открывает или закрывает панель; панель уже в нужном положении — то же состояние. Подписчики сравнивают состояния по ссылке. Прежнее не меняет.',
 		lines: [
-			'function toggleSidebar(state) {',
-			'  const sidebarOpen = !state.sidebarOpen;',
-			'  return { ...state, sidebarOpen };',
+			'function setSidebar(state, open) {',
+			'  if (state.sidebarOpen === open) return state;',
+			'  return { ...state, sidebarOpen: open };',
 			'}'
 		],
 		safe: [],
 		checks: [
 			"const s = { sidebarOpen: false, theme: 'dark' };",
 			'const before = json(s);',
-			'const r = toggleSidebar(s);',
-			"assert(r !== s && r.sidebarOpen === true && r.theme === 'dark', 'toggleSidebar: result');",
-			"assert(json(s) === before, 'toggleSidebar: the previous state changed');"
+			'const r = setSidebar(s, true);',
+			"assert(r !== s && r.sidebarOpen === true && r.theme === 'dark', 'setSidebar: result');",
+			"assert(setSidebar(s, false) === s, 'setSidebar: the same position must return the same state');",
+			"assert(json(s) === before, 'setSidebar: the previous state changed');"
 		],
 		defects: [
 			{
 				kind: 'same-object',
-				lines: ['function toggleSidebar(state) {', '  state.sidebarOpen = !state.sidebarOpen;', '  return state;', '}'],
-				fix: { at: 1, text: '  state = { ...state, sidebarOpen: !state.sidebarOpen };' },
-				neighbour: { at: 2, text: '  return Object.assign({}, state);' },
+				lines: [
+					'function setSidebar(state, open) {',
+					'  if (state.sidebarOpen === open) return state;',
+					'  state.sidebarOpen = open;',
+					'  return state;',
+					'}'
+				],
+				fix: { at: 2, text: '  state = { ...state, sidebarOpen: open };' },
+				neighbour: { at: 3, text: '  return Object.assign({}, state);' },
 				copy: null,
 				safe: []
 			}
@@ -482,7 +497,7 @@ const INTERN: Handler[] = [
 				],
 				fix: {
 					at: 1,
-					text: '  state = { ...state, tasks: state.tasks.map((t, i) => (i === index ? { ...t, done: true } : t)) };'
+					text: '  state = { ...state, tasks: state.tasks.with(index, { ...state.tasks[index], done: true }) };'
 				},
 				neighbour: { at: 2, text: '  return { ...state, tasks: state.tasks.slice() };' },
 				copy: null,
@@ -493,20 +508,20 @@ const INTERN: Handler[] = [
 	{
 		name: 'clearError',
 		prelude: [],
-		doc: 'Убирает ошибку поля field. Прежнее состояние не меняет.',
+		doc: 'Сбрасывает ошибку поля field в null. Прежнее состояние не меняет.',
 		lines: [
 			'function clearError(state, field) {',
 			'  const errors = { ...state.errors };',
-			'  delete errors[field];',
+			'  errors[field] = null;',
 			'  return { ...state, errors };',
 			'}'
 		],
-		safe: [{ at: 2, text: '  Reflect.deleteProperty(errors, field);', topLevel: false }],
+		safe: [{ at: 2, text: '  Object.assign(errors, { [field]: null });', topLevel: false }],
 		checks: [
 			"const s = { errors: { email: 'required', name: 'short' } };",
 			'const before = json(s);',
 			"const r = clearError(s, 'email');",
-			"assert(json(r) === json({ errors: { name: 'short' } }), 'clearError: result');",
+			"assert(json(r) === json({ errors: { email: null, name: 'short' } }), 'clearError: result');",
 			"assert(json(s) === before, 'clearError: the previous state changed');"
 		],
 		defects: [
@@ -514,13 +529,13 @@ const INTERN: Handler[] = [
 				kind: 'index-or-delete',
 				lines: [
 					'function clearError(state, field) {',
-					'  delete state.errors[field];',
+					'  state.errors[field] = null;',
 					'  return { ...state, errors: { ...state.errors } };',
 					'}'
 				],
 				fix: {
 					at: 1,
-					text: '  state = { ...state, errors: Object.fromEntries(Object.entries(state.errors).filter(([key]) => key !== field)) };'
+					text: '  state = { ...state, errors: { ...state.errors, [field]: null } };'
 				},
 				neighbour: { at: 2, text: '  return { ...state, errors: Object.assign({}, state.errors) };' },
 				copy: null,
@@ -557,7 +572,7 @@ const INTERN: Handler[] = [
 				],
 				fix: {
 					at: 1,
-					text: '  state = { ...state, tasks: state.tasks.map((t, i) => (i === index ? { ...t, priority } : t)) };'
+					text: '  state = { ...state, tasks: state.tasks.with(index, { ...state.tasks[index], priority }) };'
 				},
 				neighbour: { at: 2, text: '  return { ...state, tasks: state.tasks.map((t) => ({ ...t })) };' },
 				copy: null,
@@ -573,7 +588,7 @@ INTERN.push({
 	doc: 'Удаляет черновик id и уменьшает счётчик; нет такого черновика — то же состояние. Прежнее состояние не меняет.',
 	lines: [
 		'function dropDraft(state, id) {',
-		'  if (!(id in state.drafts)) return state;',
+		'  if (!Object.hasOwn(state.drafts, id)) return state;',
 		'  const count = state.count - 1;',
 		'  const { [id]: dropped, ...drafts } = state.drafts;',
 		'  return { ...state, drafts, count };',
@@ -586,28 +601,10 @@ INTERN.push({
 		"const r = dropDraft(s, 'a');",
 		"assert(json(r) === json({ drafts: { b: 'y' }, count: 1 }), 'dropDraft: result');",
 		"assert(dropDraft(s, 'z') === s, 'dropDraft: a missing draft must return the same state');",
+		"assert(dropDraft(s, 'toString') === s, 'dropDraft: a missing draft must return the same state');",
 		"assert(json(s) === before, 'dropDraft: the previous state changed');"
 	],
-	defects: [
-		{
-			kind: 'index-or-delete',
-			lines: [
-				'function dropDraft(state, id) {',
-				'  if (!(id in state.drafts)) return state;',
-				'  const count = state.count - 1;',
-				'  delete state.drafts[id];',
-				'  return { ...state, drafts: { ...state.drafts }, count };',
-				'}'
-			],
-			fix: {
-				at: 3,
-				text: '  state = { ...state, drafts: Object.fromEntries(Object.entries(state.drafts).filter(([key]) => key !== id)) };'
-			},
-			neighbour: { at: 4, text: '  return { ...state, drafts: Object.assign({}, state.drafts), count };' },
-			copy: null,
-			safe: []
-		}
-	]
+	defects: []
 });
 
 const JUNIOR: Handler[] = [
@@ -905,7 +902,7 @@ const JUNIOR: Handler[] = [
 	{
 		name: 'toggleById',
 		prelude: [],
-		doc: 'Переключает отметку задачи id. Прежнее состояние и его задачи не меняет.',
+		doc: 'Переключает отметку задачи id; остальные задачи — те же объекты. Прежнее состояние и его задачи не меняет.',
 		lines: [
 			'function toggleById(state, id) {',
 			'  const tasks = state.tasks.map((t) => (t.id === id ? { ...t, done: !t.done } : t));',
@@ -1183,10 +1180,15 @@ export function build(input: GenerateInput): Built {
 				'Модуль обработчиков состояния интерфейса на JavaScript. Над каждой функцией в комментарии записана её ' +
 				'спецификация. Подписчики сравнивают состояния по ссылке, поэтому каждый обработчик обязан не менять на ' +
 				'месте прежнее состояние, свои аргументы и общие объекты модуля — ни сами объекты, ни вложенные в них ' +
-				'массивы и объекты. Менять на месте свежую копию можно.\n\n' +
-				'Ровно одна строка модуля нарушает это требование: меняет на месте объект или массив, который принадлежит ' +
-				'прежнему состоянию, аргументу или общему объекту. Если исправить только её, все функции будут работать по ' +
-				'спецификации. Введите номер этой строки (нумерация с 1).',
+				'массивы и объекты. Менять на месте свежую копию можно. Строковые ключи и id в данных — обычные имена: не ' +
+				'совпадают с именами свойств `Object.prototype` (`__proto__`, `constructor`, `toString` и т. п.).\n\n' +
+				'В модуле один дефект: одна строка меняет на месте объект или массив, который принадлежит прежнему ' +
+				'состоянию, аргументу или общему объекту. Введите номер строки, замена которой одной инструкцией ' +
+				'восстанавливает спецификацию всех функций (нумерация с 1). Если исправить можно в нескольких строках — ' +
+				'засчитывается любая из них, где замена одной инструкцией восстанавливает спецификацию. Исправление — одна ' +
+				'простая инструкция того же вида, что исправляемая строка (изменение на месте можно заменить присваиванием ' +
+				'новой копии): не добавляйте конструкций, которых в ней нет (стрелочные функции, циклы, обёртки, новые ' +
+				'функции), и не переносите в неё логику из другой строки.',
 			code: { language: 'javascript', source: p.source }
 		},
 		answer: { kind: 'line_no', value: p.line }

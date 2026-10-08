@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "bb9496e364d4d7dcbdad807538e64d360981dda1d39119904c843f2a84eb3cc9"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.55,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "bb9496e364d4d7dcbdad807538e64d360981dda1d39119904c843f2a84eb3cc9"
+					}
+				],
+				"mean": 0.6
+			},
 			"constructive": {
 				"resources": 4,
 				"visits": "3–4",
@@ -42,7 +59,24 @@
 		},
 		{
 			"grade": "middle",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.5 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "bb9496e364d4d7dcbdad807538e64d360981dda1d39119904c843f2a84eb3cc9"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.45,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "bb9496e364d4d7dcbdad807538e64d360981dda1d39119904c843f2a84eb3cc9"
+					}
+				],
+				"mean": 0.55
+			},
 			"constructive": {
 				"resources": "3–6",
 				"visits": "4–5",
@@ -182,6 +216,28 @@
 		"answerCollision": 0.0164,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Независимо пересчитал все 8 экземпляров собственной моделью HTTP-кэша на Python 3.12: все исходы hit/200/304 и версии совпали. Проверены обновление свежести после 304, ETag/Last-Modified, no-cache/no-store, F5 и hard reload, immutable только пока свежо, документ с новой сборкой и Vary. Поведение F5, отсутствие эвристики и одна запись на URL для Vary явно оговорены. Binary для 12–16 полей учтена в Angoff. Сверил полные входы build и отдельно исполнил эталоны. Не проверял поведение конкретной версии Firefox в браузере и не повторял ворота на 200 сидах класса."
+				],
+				"sourceSha256": "bb9496e364d4d7dcbdad807538e64d360981dda1d39119904c843f2a84eb3cc9"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Пересчитано вручную по условию все 8 экземпляров (junior: validators, no-cache-no-store, reload, hard-reload; middle: hashed-urls, single-url, immutable-reload, vary): свежесть max-age от момента ответа, условные запросы ETag/Last-Modified и 304, ресурс без валидатора, no-cache/no-store, F5 в духе Firefox, immutable, жёсткая перезагрузка, одна запись на URL при Vary. Все ответы совпали с ожидаемыми. Границы (визит ровно в момент истечения свежести или смены версии) генератор перебрасывает (clearOfBoundaries). Остальные сиды не запускал.",
+					"Мелочь: ответ в middle/immutable-reload (визит 4: fonts.css `hit`) и в junior/validators (визит 3) зависит от того, что ответ 304 продлевает свежесть сохранённой копии (RFC 9111, 4.3.4). В «Условиях» этого не сказано, есть только «сервер отвечает 304». Для надёжности добавить фразу «ответ 304 обновляет сохранённую копию, срок свежести отсчитывается заново»; ошибочное решение no-refresh-304 уже её проверяет.",
+					"Мелочь: в классе hard-reload ответ без условных запросов описан в условии, а для F5 ресурса без валидатора («загружается целиком») требуется вывод из общего правила; для надёжности можно назвать его явно.",
+					"Нагрузка: 12-16 токенов исхода, 4-6 правил, 360-420 с, бинарная рубрика; учтено в Angoff."
+				],
+				"sourceSha256": "bb9496e364d4d7dcbdad807538e64d360981dda1d39119904c843f2a84eb3cc9"
+			}
+		]
 	}
 }

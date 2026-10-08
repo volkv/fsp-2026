@@ -8,7 +8,24 @@
 	"levels": [
 		{
 			"grade": "intern",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.55 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.65,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "02845793b901574aa6962f0ddc445de5c849e80c2911a4e091389fb4a1af2375"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.6,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "02845793b901574aa6962f0ddc445de5c849e80c2911a4e091389fb4a1af2375"
+					}
+				],
+				"mean": 0.65
+			},
 			"constructive": {
 				"chains": 1,
 				"links": "4–8",
@@ -42,7 +59,24 @@
 		},
 		{
 			"grade": "junior",
-			"angoff": { "round": 1, "ratings": [], "mean": 0.45 },
+			"angoff": {
+				"round": 1,
+				"ratings": [
+					{
+						"rater": { "kind": "model", "model": "codex", "lineage": "openai" },
+						"p": 0.4,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "02845793b901574aa6962f0ddc445de5c849e80c2911a4e091389fb4a1af2375"
+					},
+					{
+						"rater": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+						"p": 0.3,
+						"ratedAt": "2026-10-08",
+						"sourceSha256": "02845793b901574aa6962f0ddc445de5c849e80c2911a4e091389fb4a1af2375"
+					}
+				],
+				"mean": 0.35
+			},
 			"constructive": {
 				"chains": 2,
 				"links": "3–6 + цепочка тактов",
@@ -161,6 +195,28 @@
 		"answerCollision": 0.0059,
 		"transfer": null,
 		"bruteForceInputs": null,
-		"rubricReviews": []
+		"rubricReviews": [
+			{
+				"reviewer": { "kind": "model", "model": "codex", "lineage": "openai" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Прежнее замечание к различимости Intern A и anchor устранено: в catch-recovers после восстановления обязательны новая ошибка и второй catch; это подтверждено экземпляром 1 и функцией catchRecovers генератора. Ответ опорного класса проходит две ветки восстановления, поэтому не переносится из skip-to-catch.",
+					"Junior, return-promise-ticks (A), finally-ticks (B) и two-args-ticks (X), экземпляры 1: нужно точно учитывать внутренние такты принятия промиса и finally относительно независимой цепочки. Для пограничного Junior это заметно труднее простого отслеживания значения и ошибки; при 300 с и binary оценено p = 0.40. Для калибровки полезно отдельно проверить трудность этих классов.",
+					"Независимо исполнил все 8 программ условий в Node.js 24.21.0: вывод совпал построчно. Вручную проверил передачу значения и ошибки, оба восстановления anchor, finally и порядок двух цепочек; неверных эталонов или новых неоднозначностей не обнаружил. Полный прогон ворот на 200 сидах каждого класса и статистику answerCollision заново не проверял. sourceSha256 совпал с текущими исходниками; оценки из descriptor.json не использовал."
+				],
+				"sourceSha256": "02845793b901574aa6962f0ddc445de5c849e80c2911a4e091389fb4a1af2375"
+			},
+			{
+				"reviewer": { "kind": "model", "model": "claude-sonnet-5-5", "lineage": "anthropic" },
+				"reviewedAt": "2026-10-08",
+				"verdict": "approved",
+				"remarks": [
+					"Повторное ревью: все 8 экземпляров исполнены в Node 24, вывод совпал с ожидаемым ответом. Прежнее замечание об опорном классе устранено: catch-recovers теперь содержит повторный отказ после восстановления и второй catch (second cart/ok, result order), путь решения отличается от skip-to-catch.",
+					"Junior, классы return-promise-ticks, finally-ticks, two-args-ticks: ответ требует точных затрат тактов (возврат промиса +2, finally +3), что для пограничного junior знание уровня middle; решение ведущего не считать это основанием для отказа, учтено сниженным Angoff. Не проверял другие сиды."
+				],
+				"sourceSha256": "02845793b901574aa6962f0ddc445de5c849e80c2911a4e091389fb4a1af2375"
+			}
+		]
 	}
 }
