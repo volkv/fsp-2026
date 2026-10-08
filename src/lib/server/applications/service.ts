@@ -77,11 +77,12 @@ function matchSnapshot(result: MatchResult, rulesetVersion: number): Application
 			])
 		),
 		matches: result.explanation.matches.map((match) =>
-			match.kind === 'skill'
+			match.kind === 'skill' && match.source === 'evidence'
 				? {
 						kind: match.kind,
 						requirement: match.requirement,
 						skill_key: match.skill_key,
+						source: match.source,
 						band: match.band,
 						attestation: match.attestation,
 						badge_trust: match.badge_trust

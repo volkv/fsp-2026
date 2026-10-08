@@ -45,8 +45,8 @@ export const load: PageServerLoad = async (event) => {
 					return {
 						position: card.position,
 						available: snapshot !== undefined,
-						categories: snapshot?.confirmed.map(({ specialization, grade }) => ({ specialization, grade })) ?? [],
-						confirmedSkills: snapshot?.confirmed.flatMap((c) => c.confirmedSkillKeys) ?? [],
+						categories: snapshot?.categories.map(({ specialization, grade }) => ({ specialization, grade })) ?? [],
+						confirmedSkills: snapshot?.categories.flatMap((c) => c.confirmedSkillKeys) ?? [],
 						skills:
 							snapshot?.evidence.status === 'available'
 								? snapshot.evidence.skills.map((skill) => ({

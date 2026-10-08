@@ -97,7 +97,8 @@ export interface SearchMode {
 
 /** An explanation as a company sees it: fact ids are internal and are replaced by receipts in the card. */
 export type CompanyExplanationMatch =
-	Exclude<ExplanationMatch, { kind: 'skill' }> | Omit<Extract<ExplanationMatch, { kind: 'skill' }>, 'fact_ids'>;
+	| Exclude<ExplanationMatch, { source: 'evidence' }>
+	| Omit<Extract<ExplanationMatch, { source: 'evidence' }>, 'fact_ids'>;
 
 export interface CompanyMatch {
 	score: number;
@@ -200,11 +201,12 @@ export function companyExplanation(explanation: MatchExplanation): CompanyMatch[
 	return {
 		...explanation,
 		matches: explanation.matches.map((match) => {
-			if (match.kind !== 'skill') return match;
+			if (match.kind !== 'skill' || match.source !== 'evidence') return match;
 			return {
 				kind: match.kind,
 				requirement: match.requirement,
 				skill_key: match.skill_key,
+				source: match.source,
 				band: match.band,
 				attestation: match.attestation,
 				badge_trust: match.badge_trust
@@ -1005,7 +1007,9 @@ function cellsOf(requirements: CandidateComparison['requirements'], match: Compa
 		const component = match.components[requirement.requirement];
 		if (component.status === 'unavailable') return { kind: 'skill', status: 'unavailable', band: null };
 		const coverage = component.details.skills?.find((skill) => skill.skill_key === requirement.skillKey);
-		if (!coverage?.attestation) return { kind: 'skill', status: 'missing', band: null };
+		if (!coverage || coverage.source === 'missing') return { kind: 'skill', status: 'missing', band: null };
+		if (coverage.source === 'unknown') return { kind: 'skill', status: 'unavailable', band: null };
+		if (coverage.source === 'test') return { kind: 'skill', status: 'confirmed', band: null };
 		return {
 			kind: 'skill',
 			status: coverage.attestation === 'direct' ? 'confirmed' : coverage.attestation,

@@ -817,7 +817,7 @@ export async function whatIf(
 			const wanted = joined ? changed.categories : current.query.categories;
 			const matches = (c: { specialization: SpecializationKey; grade: GradeKey }) =>
 				wanted.some((w) => w.specialization === c.specialization && w.grade === c.grade);
-			const held = snapshot.confirmed.find(matches);
+			const held = snapshot.categories.find(matches);
 			if (held) return { code: 'category', specialization: held.specialization, grade: held.grade };
 			// The group «грейд не подтверждён»: the candidate's own declaration, never a confirmed grade.
 			const declared = snapshot.declared.find(matches);
@@ -827,7 +827,7 @@ export async function whatIf(
 		}
 		if ('confirmed_skill' in change) {
 			const key = change.confirmed_skill.skill_key;
-			const confirmed = snapshot.confirmed.some((c) => c.confirmedSkillKeys.includes(key));
+			const confirmed = snapshot.categories.some((c) => c.confirmedSkillKeys.includes(key));
 			return { code: confirmed ? 'skill_confirmed' : 'skill_not_confirmed', skill_key: key };
 		}
 		return { code: fsp.has(candidateId) ? 'fsp_present' : 'fsp_absent' };

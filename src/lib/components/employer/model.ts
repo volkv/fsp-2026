@@ -140,6 +140,16 @@ export interface CompanyMatchData {
 					kind: 'skill';
 					requirement: 'required' | 'nice';
 					skill_key: string;
+					source: 'test';
+					specialization: string;
+					grade: string;
+					block: string;
+			  }
+			| {
+					kind: 'skill';
+					requirement: 'required' | 'nice';
+					skill_key: string;
+					source: 'evidence';
 					band: 'weak' | 'moderate' | 'strong';
 					attestation: 'direct' | 'derived' | 'claimed';
 					badge_trust: 'fsp_verified' | 'platform_verified' | 'public_verifiable' | 'claimed' | null;
@@ -219,7 +229,7 @@ function verifyText(item: { code: string; skill_key?: string }, labels: Labels):
 		case 'profile_recalculating':
 			return 'Профиль пересчитывается — объяснение может измениться';
 		case 'profile_insufficient_data':
-			return 'Недостаточно данных: доказательства профиля ещё не рассчитаны — навыки в счёт идут как неподтверждённые, проверьте их на собеседовании';
+			return 'Недостаточно данных: доказательства профиля ещё не рассчитаны — навыки вне подтверждённого тестом стека идут в счёт как неподтверждённые, проверьте их на собеседовании';
 		default:
 			return item.code;
 	}
@@ -312,12 +322,16 @@ export function matchView(match: CompanyMatchData, labels: Labels): MatchView {
 		}),
 		matches: match.explanation.matches.map((item) => {
 			switch (item.kind) {
-				case 'skill':
-					return {
-						requirement: `${label(labels.skills, item.skill_key)} · ${item.requirement === 'required' ? 'обязательный' : 'желательный'}`,
-						evidence: BANDS[item.band],
-						trust: trustOf(item.attestation, item.badge_trust)
-					};
+				case 'skill': {
+					const requirement = `${label(labels.skills, item.skill_key)} · ${item.requirement === 'required' ? 'обязательный' : 'желательный'}`;
+					return item.source === 'test'
+						? {
+								requirement,
+								evidence: `подтверждён тестом на грейд ${label(labels.specializations, item.specialization)} ${label(labels.grades, item.grade)}`,
+								trust: 'platform_verified'
+							}
+						: { requirement, evidence: BANDS[item.band], trust: trustOf(item.attestation, item.badge_trust) };
+				}
 				case 'role':
 					return {
 						requirement: 'Роль',

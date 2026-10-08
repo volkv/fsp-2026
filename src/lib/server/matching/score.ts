@@ -65,8 +65,12 @@ export type CandidateEvidence =
 
 export interface MatchCandidate {
 	evidence: CandidateEvidence;
-	/** Categories in force (`activeCategories`): the specialization and the grade a test confirmed. */
-	categories: readonly CandidateCategory[];
+	/**
+	 * Categories in force (`activeCategories`): the specialization and the grade a test confirmed, with the confirmed
+	 * stack — the skills of the blocks the candidate passed. The test is apart from the evidence run: its stack counts
+	 * whether or not the run can be read.
+	 */
+	categories: readonly ConfirmedCategory[];
 	salaryExpectation: SalaryTerms | null;
 }
 
@@ -86,13 +90,31 @@ export interface MatchInput {
 	reranker: RerankerSignal;
 }
 
-export interface SkillCoverage {
-	skill_key: string;
-	band: StrengthBand | null;
-	attestation: Attestation | null;
-	badge_trust: TrustLevel | null;
-	value: number;
-}
+/**
+ * What covers a skill of the vacancy, by its best basis: `test` — the confirmed stack of a category in force (the block
+ * of the test that confirmed it); `evidence` — an inference of the valid evidence run; `missing` — the read profile has
+ * nothing of the skill; `unknown` — the evidence run cannot be read and no test confirmed the skill, so its absence is
+ * not known (worth the rule set's `unavailableEvidenceValue`).
+ */
+export type SkillCoverage =
+	| {
+			skill_key: string;
+			source: 'test';
+			specialization: SpecializationKey;
+			grade: GradeKey;
+			block: string;
+			value: number;
+	  }
+	| {
+			skill_key: string;
+			source: 'evidence';
+			band: StrengthBand;
+			attestation: Attestation;
+			badge_trust: TrustLevel | null;
+			value: number;
+	  }
+	| { skill_key: string; source: 'missing'; value: number }
+	| { skill_key: string; source: 'unknown'; value: number };
 
 export interface SalaryUnit {
 	currency: string | null;
@@ -130,12 +152,12 @@ export interface ComponentDetails {
 export type RoleBasis = 'same_specialization' | 'other_specialization';
 
 interface TrustBasis {
-	/** Required skills confirmed by an FSP result or a platform test, of all required ones. */
+	/** Required skills confirmed by the test of a category, an FSP result or a platform test, of all required ones. */
 	direct: number;
 	total: number;
 	/** Required skills that only a verified public profile attests: shown with its badge, not counted as confirmed. */
 	public_profile: number;
-	/** Share of the required skills covered by confirmed inferences, by their band. */
+	/** Share of the required skills covered by confirmations: the test's value or the band of the inference. */
 	confirmed_coverage: number;
 	/** Share of the candidate's grade range inside the vacancy's; `null` — see `grade_agreement_reason`. */
 	grade_agreement: number | null;
@@ -157,6 +179,17 @@ export type ExplanationMatch =
 			kind: 'skill';
 			requirement: 'required' | 'nice';
 			skill_key: string;
+			/** The confirmed stack of the category of `specialization` and `grade`: `block` of its test confirmed the skill. */
+			source: 'test';
+			specialization: SpecializationKey;
+			grade: GradeKey;
+			block: string;
+	  }
+	| {
+			kind: 'skill';
+			requirement: 'required' | 'nice';
+			skill_key: string;
+			source: 'evidence';
 			band: StrengthBand;
 			attestation: Attestation;
 			badge_trust: TrustLevel | null;
@@ -218,23 +251,35 @@ function ordinalOf(ordinals: ReadonlyMap<string, number>, key: string): number {
 	return ordinal;
 }
 
-function skillCoverage(
-	keys: readonly string[],
+/**
+ * The coverage of a skill of the vacancy by its best basis: the confirmed stack of a category in force (`testedSkill`,
+ * the rule the ranking for a need reads too, worth `testedSkillValue`) or the inference of the valid run by its band,
+ * whichever is worth more — the test at an equal value.
+ */
+function coverSkill(
+	key: string,
+	candidate: MatchCandidate,
 	skills: ReadonlyMap<string, SkillEvidence>,
 	params: MatchRulesetParams
-): SkillCoverage[] {
-	return keys.map((key) => {
-		const skill = skills.get(key);
-		return skill
-			? {
-					skill_key: key,
-					band: skill.band,
-					attestation: skill.attestation,
-					badge_trust: skill.badgeTrust,
-					value: params.skillBandValue[skill.band]
-				}
-			: { skill_key: key, band: null, attestation: null, badge_trust: null, value: 0 };
-	});
+): SkillCoverage {
+	const tested = testedSkill(candidate.categories, key);
+	const inference = skills.get(key);
+	if (tested && (!inference || params.testedSkillValue >= params.skillBandValue[inference.band])) {
+		return { skill_key: key, source: 'test', ...tested, value: params.testedSkillValue };
+	}
+	if (inference) {
+		return {
+			skill_key: key,
+			source: 'evidence',
+			band: inference.band,
+			attestation: inference.attestation,
+			badge_trust: inference.badgeTrust,
+			value: params.skillBandValue[inference.band]
+		};
+	}
+	return candidate.evidence.status === 'available'
+		? { skill_key: key, source: 'missing', value: 0 }
+		: { skill_key: key, source: 'unknown', value: params.unavailableEvidenceValue };
 }
 
 /**
@@ -248,6 +293,23 @@ const CONFIRMING_TRUST: ReadonlySet<TrustLevel> = new Set(['fsp_verified', 'plat
 /** The inference confirms the skill: attested directly by a fact of a confirming trust level. */
 function confirmsSkill(skill: Pick<SkillEvidence, 'attestation' | 'badgeTrust'>): boolean {
 	return skill.attestation === 'direct' && skill.badgeTrust !== null && CONFIRMING_TRUST.has(skill.badgeTrust);
+}
+
+/**
+ * What a confirmation of the skill is worth: the test's confirmed stack (`testedSkillValue`) or an inference that
+ * confirms it (`confirmsSkill`, by its band), the higher; `null` — nothing confirms it.
+ */
+function confirmedValue(
+	key: string,
+	candidate: MatchCandidate,
+	skills: ReadonlyMap<string, SkillEvidence>,
+	params: MatchRulesetParams
+): number | null {
+	const values: number[] = [];
+	if (testedSkill(candidate.categories, key)) values.push(params.testedSkillValue);
+	const inference = skills.get(key);
+	if (inference && confirmsSkill(inference)) values.push(params.skillBandValue[inference.band]);
+	return values.length === 0 ? null : Math.max(...values);
 }
 
 const mean = (values: readonly number[]) => values.reduce((sum, value) => sum + value, 0) / values.length;
@@ -308,12 +370,17 @@ export function matchScore(input: MatchInput): MatchResult {
 		details: ComponentDetails[K]
 	): MatchComponent<K> => ({ value: status === 'computed' ? value : null, weight: weights[key], status, details });
 
-	// Skills: coverage of required and nice-to-have skills by bands of the valid run.
+	// Skills: coverage of required and nice-to-have skills by the test's confirmed stack and the bands of the valid run.
+	// Without a readable run the component is still computed when the test confirmed one of its skills: the test does not
+	// depend on the run, and the skills it did not confirm count with `unavailableEvidenceValue`, as the whole would.
 	const skills = new Map(evidence.status === 'available' ? evidence.skills.map((s) => [s.skillKey, s]) : []);
+	const tested = (keys: readonly string[]) => keys.some((key) => testedSkill(candidate.categories, key) !== null);
 	const skillComponent = <K extends 'required' | 'nice'>(key: K, keys: readonly string[]): MatchComponent<K> => {
 		if (keys.length === 0) return component(key, 'unknown', null, { reason: `no_${key}_skills` });
-		if (evidence.status === 'unavailable') return component(key, 'unavailable', null, { reason: evidence.reason });
-		const coverage = skillCoverage(keys, skills, params);
+		if (evidence.status === 'unavailable' && !tested(keys)) {
+			return component(key, 'unavailable', null, { reason: evidence.reason });
+		}
+		const coverage = keys.map((skill) => coverSkill(skill, candidate, skills, params));
 		return component(key, 'computed', mean(coverage.map((c) => c.value)), { skills: coverage });
 	};
 	const required = skillComponent('required', vacancy.requiredSkillKeys);
@@ -323,22 +390,28 @@ export function matchScore(input: MatchInput): MatchResult {
 	const compared = comparedCategory(candidate.categories, specializations, gradeOrdinals);
 	const candidateRange: GradeRange | null = compared && { min: compared.grade, max: compared.grade };
 
-	// Trust in the score: how much of the required skills rests on confirmations (an FSP result, a platform test), by
-	// their band, and how well the candidate's grade range agrees with the vacancy's. A claim or a public profile covers a
-	// requirement but does not confirm it; an unknown grade lowers the trust instead of being taken for a match.
+	// Trust in the score: how much of the required skills rests on confirmations (the test of a category, an FSP result,
+	// a platform test) by their value, and how well the candidate's grade range agrees with the vacancy's. A claim or a
+	// public profile covers a requirement but does not confirm it; an unknown grade lowers the trust instead of being
+	// taken for a match.
 	let trust: MatchComponent<'trust'>;
 	if (vacancy.requiredSkillKeys.length === 0)
 		trust = component('trust', 'unknown', null, { reason: 'no_required_skills' });
-	else if (evidence.status === 'unavailable')
+	else if (evidence.status === 'unavailable' && !tested(vacancy.requiredSkillKeys))
 		trust = component('trust', 'unavailable', null, { reason: evidence.reason });
 	else {
-		const requiredSkills = vacancy.requiredSkillKeys.map((key) => skills.get(key));
-		const confirmed = requiredSkills.flatMap((skill) =>
-			skill !== undefined && confirmsSkill(skill) ? [params.skillBandValue[skill.band]] : []
-		);
-		const publicProfile = requiredSkills.filter(
-			(skill) => skill?.attestation === 'direct' && skill.badgeTrust === 'public_verifiable'
-		).length;
+		const confirmed = vacancy.requiredSkillKeys.flatMap((key) => {
+			const value = confirmedValue(key, candidate, skills, params);
+			return value === null ? [] : [value];
+		});
+		const publicProfile = vacancy.requiredSkillKeys.filter((key) => {
+			const skill = skills.get(key);
+			return (
+				confirmedValue(key, candidate, skills, params) === null &&
+				skill?.attestation === 'direct' &&
+				skill.badgeTrust === 'public_verifiable'
+			);
+		}).length;
 		const total = vacancy.requiredSkillKeys.length;
 		const confirmedCoverage = confirmed.reduce((sum, value) => sum + value, 0) / total;
 		// A vacancy without a grade asks for no agreement; a candidate without a compared category gets the rule set's.
@@ -515,39 +588,45 @@ function explain(
 	const toVerify: VerifyItem[] = [];
 	const gaps: GapItem[] = [];
 
-	if (evidence.status === 'available') {
-		const skills = new Map(evidence.skills.map((s) => [s.skillKey, s]));
-		const requirements = [
-			...vacancy.requiredSkillKeys.map((key) => ['required', key] as const),
-			...vacancy.niceSkillKeys.map((key) => ['nice', key] as const)
-		];
-		for (const [requirement, key] of requirements) {
-			const skill = skills.get(key);
-			if (!skill) {
-				gaps.push({
-					code: requirement === 'required' ? 'required_skill_missing' : 'nice_skill_missing',
-					skill_key: key
-				});
-				continue;
-			}
-			matches.push({
-				kind: 'skill',
-				requirement,
-				skill_key: key,
-				band: skill.band,
-				attestation: skill.attestation,
-				badge_trust: skill.badgeTrust,
-				fact_ids: [...skill.factIds]
-			});
-			if (skill.attestation === 'claimed') toVerify.push({ code: 'skill_claimed', skill_key: key });
-			else if (skill.attestation === 'derived') toVerify.push({ code: 'skill_derived', skill_key: key });
-			if (skill.band === 'weak') toVerify.push({ code: 'skill_weak_evidence', skill_key: key });
+	// Each skill of the vacancy by the coverage its component read; a component that is not computed has none.
+	const skills = new Map(evidence.status === 'available' ? evidence.skills.map((s) => [s.skillKey, s]) : []);
+	const requirements = [
+		...(components.required.details.skills ?? []).map((coverage) => ['required', coverage] as const),
+		...(components.nice.details.skills ?? []).map((coverage) => ['nice', coverage] as const)
+	];
+	for (const [requirement, coverage] of requirements) {
+		const key = coverage.skill_key;
+		if (coverage.source === 'unknown') continue;
+		if (coverage.source === 'missing') {
+			gaps.push({ code: requirement === 'required' ? 'required_skill_missing' : 'nice_skill_missing', skill_key: key });
+			continue;
 		}
-	} else if (evidence.reason === 'run_below_evidence_floor') {
-		toVerify.push({ code: 'profile_recalculating' });
-	} else {
-		// No published category: never computed yet, or blocked until the recomputation after a withdrawal.
-		toVerify.push({ code: 'profile_insufficient_data' });
+		if (coverage.source === 'test') {
+			const { specialization, grade, block } = coverage;
+			matches.push({ kind: 'skill', requirement, skill_key: key, source: 'test', specialization, grade, block });
+			continue;
+		}
+		const skill = skills.get(key);
+		if (!skill) throw new Error(`coverage of ${key} names an inference the run does not have`);
+		matches.push({
+			kind: 'skill',
+			requirement,
+			skill_key: key,
+			source: 'evidence',
+			band: skill.band,
+			attestation: skill.attestation,
+			badge_trust: skill.badgeTrust,
+			fact_ids: [...skill.factIds]
+		});
+		if (skill.attestation === 'claimed') toVerify.push({ code: 'skill_claimed', skill_key: key });
+		else if (skill.attestation === 'derived') toVerify.push({ code: 'skill_derived', skill_key: key });
+		if (skill.band === 'weak') toVerify.push({ code: 'skill_weak_evidence', skill_key: key });
+	}
+	if (evidence.status === 'unavailable') {
+		// No published run: never computed yet, or blocked until the recomputation after a withdrawal.
+		toVerify.push({
+			code: evidence.reason === 'run_below_evidence_floor' ? 'profile_recalculating' : 'profile_insufficient_data'
+		});
 	}
 
 	const role = components.role;
@@ -701,6 +780,7 @@ export interface NeedScoreInput {
 	candidate: NeedCandidate;
 	params: MatchRulesetParams['need'];
 	skillBandValue: MatchRulesetParams['skillBandValue'];
+	testedSkillValue: MatchRulesetParams['testedSkillValue'];
 	now: Date;
 	/** Score the candidate as if they had no FSP results: «без ФСП — позиция N». */
 	withoutFsp?: boolean;
@@ -915,6 +995,28 @@ function blockOfSkill(category: ConfirmedCategory, skillKey: string): string {
 	return block ?? gradeDefinition(category.specialization, category.grade).practice.block;
 }
 
+/** The test's confirmation of a skill: the category in force whose confirmed stack holds it and the block that did. */
+interface TestedSkill {
+	specialization: SpecializationKey;
+	grade: GradeKey;
+	block: string;
+}
+
+/**
+ * The one rule of the test as evidence of a skill (domain 12.4, decision «подтверждённый стек — по пройденным
+ * блокам»): a skill of the confirmed stack of a category in force is confirmed by the test, worth `testedSkillValue`,
+ * in the match with a vacancy (13.4) and in the ranking for a need (13.10) alike. `null` — no category confirms it.
+ */
+function testedSkill(categories: readonly ConfirmedCategory[], skillKey: string): TestedSkill | null {
+	const category = categories.find((c) => c.confirmedSkillKeys.includes(skillKey));
+	if (!category) return null;
+	return {
+		specialization: category.specialization,
+		grade: category.grade,
+		block: blockOfSkill(category, skillKey)
+	};
+}
+
 /**
  * Skills the candidate's own tests check: the skills of the blocks of the grades of their categories in force and the
  * practice languages of those specializations — and, of the group «грейд не подтверждён», of the category they declared:
@@ -946,18 +1048,18 @@ function readSkill(
 	candidate: NeedCandidate,
 	skills: ReadonlyMap<string, SkillEvidence>,
 	checked: ReadonlySet<string>,
-	input: Pick<NeedScoreInput, 'params' | 'skillBandValue' | 'withoutFsp'>
+	input: Pick<NeedScoreInput, 'params' | 'skillBandValue' | 'testedSkillValue' | 'withoutFsp'>
 ): SkillReading {
 	const options: SkillReading[] = [];
-	const tested = candidate.categories.find((category) => category.confirmedSkillKeys.includes(skillKey));
+	const tested = testedSkill(candidate.categories, skillKey);
 	if (tested) {
 		options.push({
 			skill_key: skillKey,
 			requirement,
 			basis: 'test',
-			value: input.params.skill.test,
+			value: input.testedSkillValue,
 			band: null,
-			block: blockOfSkill(tested, skillKey),
+			block: tested.block,
 			fact_ids: []
 		});
 	}
@@ -1217,9 +1319,9 @@ export function needScore(input: NeedScoreInput): NeedResult {
 		const contribution = group.reduce((sum, s) => sum + skillShare(s), 0);
 		let source: NeedReasonSource;
 		if (basis === 'test') {
-			const holder = candidate.categories.find((c) => c.confirmedSkillKeys.includes(first.skill_key));
-			if (!holder || first.block === null) throw new Error('a skill confirmed by the test has no category');
-			source = { kind: 'test_block', ref: first.block, specialization: holder.specialization, grade: holder.grade };
+			const tested = testedSkill(candidate.categories, first.skill_key);
+			if (!tested) throw new Error('a skill confirmed by the test has no category');
+			source = { kind: 'test_block', ref: tested.block, specialization: tested.specialization, grade: tested.grade };
 		} else if (basis === 'fsp') source = { kind: 'fsp_fact', fact_ids: group.flatMap((s) => s.fact_ids) };
 		else if (basis === 'claimed' || basis === 'claimed_untestable') {
 			source = { kind: 'declared_skill', ref: first.skill_key };

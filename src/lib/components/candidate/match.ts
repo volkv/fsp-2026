@@ -44,6 +44,16 @@ export interface MatchResultData {
 					kind: 'skill';
 					requirement: 'required' | 'nice';
 					skill_key: string;
+					source: 'test';
+					specialization: string;
+					grade: string;
+					block: string;
+			  }
+			| {
+					kind: 'skill';
+					requirement: 'required' | 'nice';
+					skill_key: string;
+					source: 'evidence';
 					band: 'weak' | 'moderate' | 'strong';
 					attestation: Attestation;
 					badge_trust: TrustLevel | null;
@@ -97,7 +107,7 @@ const VERIFY: Record<string, string> = {
 	salary_expectation_missing: 'Ожидания по зарплате не указаны.',
 	profile_recalculating: 'Профиль пересчитывается — соответствие уточнится.',
 	profile_insufficient_data:
-		'Недостаточно данных: основания профиля не рассчитаны — навыки пока не подтверждены, соответствие уточнится после расчёта.'
+		'Недостаточно данных: основания профиля (резюме, ФСП, публичные профили) не рассчитаны — учтены только навыки, подтверждённые тестом; соответствие уточнится после расчёта.'
 };
 
 function verifyText(item: { code: string; skill_key?: string }, labels: Labels): string {
@@ -166,12 +176,20 @@ export function candidateMatchView(result: MatchResultData, labels: Labels): Mat
 		}),
 		matches: result.explanation.matches.map((item) => {
 			switch (item.kind) {
-				case 'skill':
-					return {
-						requirement: skillName(labels, item.skill_key),
-						evidence: `${item.requirement === 'required' ? 'обязательный' : 'желательный'} · ${STRENGTH_BANDS[item.band]}`,
-						trust: skillMark({ attestation: item.attestation, badgeTrust: item.badge_trust })
-					};
+				case 'skill': {
+					const requirement = item.requirement === 'required' ? 'обязательный' : 'желательный';
+					return item.source === 'test'
+						? {
+								requirement: skillName(labels, item.skill_key),
+								evidence: `${requirement} · подтверждён вашим тестом на грейд ${labels.specializations[item.specialization] ?? item.specialization} ${gradeName(labels, item.grade)}`,
+								trust: 'platform_verified'
+							}
+						: {
+								requirement: skillName(labels, item.skill_key),
+								evidence: `${requirement} · ${STRENGTH_BANDS[item.band]}`,
+								trust: skillMark({ attestation: item.attestation, badgeTrust: item.badge_trust })
+							};
+				}
 				case 'role':
 					return {
 						requirement: roleName(labels, item.role_key),

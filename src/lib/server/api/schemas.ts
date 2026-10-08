@@ -134,12 +134,25 @@ function matchSchema(withFacts: boolean) {
 	const skillMatch = z.object({
 		kind: z.literal('skill'),
 		requirement: z.enum(['required', 'nice']),
-		skill_key: key,
-		band,
-		attestation,
-		badge_trust: trust.nullable(),
-		...(withFacts ? { fact_ids: z.array(z.uuid()) } : {})
+		skill_key: key
 	});
+	const testedSkillMatch = skillMatch
+		.extend({
+			source: z.literal('test'),
+			specialization: key,
+			grade: key,
+			block: z.string().min(1).describe('Блок теста на грейд, подтвердивший навык')
+		})
+		.describe('Навык из подтверждённого стека действующей категории: подтверждён тестом на грейд');
+	const evidenceSkillMatch = skillMatch
+		.extend({
+			source: z.literal('evidence'),
+			band,
+			attestation,
+			badge_trust: trust.nullable(),
+			...(withFacts ? { fact_ids: z.array(z.uuid()) } : {})
+		})
+		.describe('Навык из расчёта доказательств профиля: резюме, ФСП, задания платформы, публичные профили');
 	const component = z.object({
 		value: z.number().nullable(),
 		weight: z.number(),
@@ -161,7 +174,8 @@ function matchSchema(withFacts: boolean) {
 				matches: z
 					.array(
 						z.union([
-							skillMatch,
+							testedSkillMatch,
+							evidenceSkillMatch,
 							z.object({ kind: z.literal('role'), role_key: key }),
 							z.object({ kind: z.literal('grade'), vacancy: gradeRange, candidate: gradeRange }),
 							z.object({ kind: z.literal('salary'), comparison: z.enum(['lower', 'equal', 'overlap']) })

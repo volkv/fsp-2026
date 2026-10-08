@@ -30,9 +30,13 @@
 	const percent = new Intl.NumberFormat('ru-RU', { style: 'percent', maximumFractionDigits: 0 });
 	const line = $derived(categoryLine(summary.categories, labels));
 	const view = $derived(match ? matchView(match, labels) : null);
-	/** Without an evidence run the score rests on no evidence: the row says so instead of a percent. */
+	/**
+	 * Without an evidence run and without a skill of the vacancy the test confirmed, the score rests on no evidence: the
+	 * row says so instead of a percent.
+	 */
 	const insufficientData = $derived(
-		match?.explanation.to_verify.some((item) => item.code === 'profile_insufficient_data') ?? false
+		(match?.explanation.to_verify.some((item) => item.code === 'profile_insufficient_data') ?? false) &&
+			!(match?.explanation.matches.some((item) => item.kind === 'skill') ?? false)
 	);
 </script>
 

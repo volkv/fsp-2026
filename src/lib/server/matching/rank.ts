@@ -166,7 +166,7 @@ export function needCandidateOf(snapshot: CandidateSnapshot, results: TestResult
 	const preferences = snapshot.preferences;
 	return {
 		evidence: snapshot.evidence,
-		categories: snapshot.confirmed,
+		categories: snapshot.categories,
 		declared: snapshot.declared,
 		fspResults: snapshot.fspResults,
 		preferences: {
@@ -175,7 +175,7 @@ export function needCandidateOf(snapshot: CandidateSnapshot, results: TestResult
 			relocation: preferences.relocation ?? null
 		},
 		tests: new Map(
-			snapshot.confirmed.flatMap((c) => {
+			snapshot.categories.flatMap((c) => {
 				const blocks = results.get(c.decisionId);
 				return blocks ? [[c.decisionId, blocks] as const] : [];
 			})
@@ -205,12 +205,19 @@ export async function rankForNeed(
 	const snapshots = [...(await loadCandidateSnapshots(executor, candidateIds)).values()];
 	const answer = await options.testResults.resultsOf(
 		executor,
-		snapshots.flatMap((s) => s.confirmed.map((c) => c.decisionId))
+		snapshots.flatMap((s) => s.categories.map((c) => c.decisionId))
 	);
 	const params = ruleset.params.need;
 	const scored = snapshots.map((snapshot) => {
 		const candidate = needCandidateOf(snapshot, answer);
-		const input = { need, candidate, params, skillBandValue: ruleset.params.skillBandValue, now };
+		const input = {
+			need,
+			candidate,
+			params,
+			skillBandValue: ruleset.params.skillBandValue,
+			testedSkillValue: ruleset.params.testedSkillValue,
+			now
+		};
 		const result = needScore(input);
 		return { snapshot, result, withoutFsp: needScore({ ...input, withoutFsp: true }) };
 	});

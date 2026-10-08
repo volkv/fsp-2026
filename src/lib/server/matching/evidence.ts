@@ -39,8 +39,6 @@ export interface CandidateSnapshot extends MatchCandidate {
 	revision: number;
 	evidenceFloorRevision: number;
 	preferences: CandidatePreferences;
-	/** The categories in force with what their tests confirmed: the ranking for a need reads them (domain 13.10). */
-	confirmed: ConfirmedCategory[];
 	/** The latest valid block result or submitted solution of a call: the freshness of the ranking (domain 13.12). */
 	lastConfirmedAction: Date | null;
 	/** The declaration in force of each specialization: a filter and a label of a shortlist, never evidence (12.2). */
@@ -228,8 +226,7 @@ export async function loadCandidateSnapshots(
 			revision: row.revision,
 			evidenceFloorRevision: row.floor,
 			evidence,
-			categories: held.map((c) => ({ specialization: c.specialization, grade: c.grade })),
-			confirmed: held.map((c) => ({
+			categories: held.map((c): ConfirmedCategory => ({
 				specialization: c.specialization,
 				grade: c.grade,
 				decisionId: c.decisionId,

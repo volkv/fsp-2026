@@ -187,7 +187,7 @@ export async function candidateDemand(executor: Executor, subject: AccessSubject
 	}
 
 	const skills = new Map(evidence.skills.map((skill) => [skill.skillKey, skill]));
-	const tested = new Set(snapshot.confirmed.flatMap((held) => held.confirmedSkillKeys));
+	const tested = new Set(snapshot.categories.flatMap((held) => held.confirmedSkillKeys));
 	const declared = new Set((await latestSurvey(executor, candidateId))?.declaredSkillKeys ?? []);
 	const statusOf = (skillKey: string): DemandSkillStatus | 'confirmed' => {
 		if (tested.has(skillKey)) return 'confirmed';

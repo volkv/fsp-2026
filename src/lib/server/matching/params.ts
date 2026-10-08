@@ -50,7 +50,14 @@ export const matchRulesetParamsSchema = z.strictObject({
 	 */
 	skillBandValue: z.strictObject({ weak: positiveUnit, moderate: positiveUnit, strong: positiveUnit }),
 	/**
-	 * Trust in the score: the share of the required skills covered by directly confirmed inferences (by their band),
+	 * Value of a skill of the confirmed stack of a category in force — a skill of a block the candidate passed in the test
+	 * of the grade (domain 12.4) — wherever a skill is read: its coverage and its confirmation in the match with a
+	 * vacancy (a skill the run also has counts by the higher of the two) and its value in the ranking for a need.
+	 */
+	testedSkillValue: positiveUnit,
+	/**
+	 * Trust in the score: the share of the required skills covered by confirmations — the test's confirmed stack
+	 * (`testedSkillValue`) or directly confirmed inferences (by their band), the higher —
 	 * scaled by the agreement of the confirmed grade of the candidate's category with the vacancy's range. `gradeWeight` is
 	 * how much of the trust rests on that agreement (below 1, so that a confirmed skill always keeps some trust);
 	 * `unknownGradeAgreement` stands for the agreement of a candidate without a category of the vacancy's specialization.
@@ -61,7 +68,9 @@ export const matchRulesetParamsSchema = z.strictObject({
 	 * run (none published, or evidence withdrawn after it). They stay `unavailable` without a value, but their weight
 	 * stays in the score: a candidate whose evidence was read always has them computed, so dropping them would let a
 	 * profile with nothing read outrank one whose skills were checked. 0 scores such a candidate as one without
-	 * confirmed skills; role and grade come from the category, which does not depend on the evidence run.
+	 * confirmed skills; role and grade come from the category, which does not depend on the evidence run. Neither does
+	 * the test's confirmed stack: a component one of whose skills the test confirmed is computed, and only its other
+	 * skills count with this value.
 	 */
 	unavailableEvidenceValue: unit,
 	/** Grade ranges that do not intersect lose this much per grade step between them. */
@@ -98,14 +107,13 @@ export const matchRulesetParamsSchema = z.strictObject({
 			.refine((w) => w.fsp < w.test && w.fsp < w.required, 'FSP weighs less than the test and the required skills'),
 		/**
 		 * Value of a skill of the need by its best basis: a skill of the confirmed stack of a category in force (the test)
-		 * is worth `test`; a direct FSP or platform confirmation — the band value; a verified public profile — the band
+		 * is worth `testedSkillValue`; a direct FSP or platform confirmation — the band value; a verified public profile — the band
 		 * value times `publicProfileFactor`; a claim or a derivation from the resume — the band value, but never more than
 		 * `claimedCeiling`, so what the candidate says of themselves cannot outweigh a check. A skill no block of the
 		 * need's specializations can confirm (ClickHouse, Kafka) has no check to outweigh: its claim is capped by
 		 * `untestableClaimedCeiling`, still below a verified public profile.
 		 */
 		skill: z.strictObject({
-			test: positiveUnit,
 			publicProfileFactor: unit,
 			claimedCeiling: unit,
 			untestableClaimedCeiling: unit

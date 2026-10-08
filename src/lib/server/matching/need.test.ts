@@ -65,7 +65,14 @@ const candidate = (overrides: Partial<NeedCandidate> = {}): NeedCandidate => ({
 });
 
 const score = (input: Partial<NeedScoreInput> & Pick<NeedScoreInput, 'candidate'>) =>
-	needScore({ need: need(), params: params.need, skillBandValue: params.skillBandValue, now: NOW, ...input });
+	needScore({
+		need: need(),
+		params: params.need,
+		skillBandValue: params.skillBandValue,
+		testedSkillValue: params.testedSkillValue,
+		now: NOW,
+		...input
+	});
 
 const sum = (values: number[]) => values.reduce((a, b) => a + b, 0);
 

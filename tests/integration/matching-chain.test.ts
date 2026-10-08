@@ -226,7 +226,7 @@ async function currentMatch(vacancyId: string, candidateId: string) {
 	return {
 		row: row ?? null,
 		result: read.result,
-		factIds: new Set(matches.flatMap((m) => (m.kind === 'skill' ? m.fact_ids : [])))
+		factIds: new Set(matches.flatMap((m) => (m.kind === 'skill' && m.source === 'evidence' ? m.fact_ids : [])))
 	};
 }
 

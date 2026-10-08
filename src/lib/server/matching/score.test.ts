@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import matchRuleset from '../../../../taxonomy/match-ruleset.json';
 import { matchRulesetParamsSchema } from './params';
-import { matchScore, qualifiesForPool, type CandidateCategory, type MatchInput, type SkillEvidence } from './score';
+import {
+	matchScore,
+	qualifiesForPool,
+	type CandidateCategory,
+	type ConfirmedCategory,
+	type MatchInput,
+	type SkillEvidence
+} from './score';
 
 /** The rule set the product ships. */
 const params = matchRulesetParamsSchema.parse(matchRuleset.params);
@@ -37,6 +44,17 @@ const goFromResume: SkillEvidence = {
 	factIds: ['fact-resume']
 };
 
+/** A category in force whose test confirmed `confirmedSkillKeys` (none — a category without a confirmed stack). */
+function held(category: CandidateCategory, confirmedSkillKeys: string[] = []): ConfirmedCategory {
+	return {
+		...category,
+		decisionId: `decision-${category.specialization}-${category.grade}`,
+		confirmedBlocks: confirmedSkillKeys.length > 0 ? ['be.code'] : [],
+		confirmedSkillKeys,
+		assignedAt: new Date('2026-10-01T00:00:00Z')
+	};
+}
+
 function input(overrides: Partial<MatchInput> = {}): MatchInput {
 	return {
 		vacancy: {
@@ -61,7 +79,7 @@ function input(overrides: Partial<MatchInput> = {}): MatchInput {
 					}
 				]
 			},
-			categories: [{ specialization: 'backend', grade: 'middle' }],
+			categories: [held({ specialization: 'backend', grade: 'middle' })],
 			salaryExpectation: { min: 300_000, max: null, currency: 'RUB', period: 'month', taxBase: 'gross' }
 		},
 		params,
@@ -78,9 +96,9 @@ function withSkills(skills: SkillEvidence[]): MatchInput {
 	return { ...base, candidate: { ...base.candidate, evidence: { ...base.candidate.evidence, skills } } };
 }
 
-/** The fixture candidate with other categories in force. */
+/** The fixture candidate with other categories in force, none with a confirmed stack. */
 function withCategories(categories: CandidateCategory[], base = input()): MatchInput {
-	return { ...base, candidate: { ...base.candidate, categories } };
+	return { ...base, candidate: { ...base.candidate, categories: categories.map((c) => held(c)) } };
 }
 
 describe('matchScore', () => {
@@ -93,6 +111,7 @@ describe('matchScore', () => {
 			kind: 'skill',
 			requirement: 'required',
 			skill_key: 'go',
+			source: 'evidence',
 			band: 'strong',
 			attestation: 'direct',
 			badge_trust: 'fsp_verified',
@@ -107,9 +126,7 @@ describe('matchScore', () => {
 		const result = matchScore(withSkills([goFromFsp]));
 		expect(result.components.required.details.skills).toContainEqual({
 			skill_key: 'postgresql',
-			band: null,
-			attestation: null,
-			badge_trust: null,
+			source: 'missing',
 			value: 0
 		});
 		expect(result.components.required.value).toBe(0.5);
@@ -155,6 +172,7 @@ describe('matchScore', () => {
 			kind: 'skill',
 			requirement: 'required',
 			skill_key: 'go',
+			source: 'evidence',
 			band: 'strong',
 			attestation: 'direct',
 			badge_trust: 'public_verifiable',
@@ -502,6 +520,85 @@ describe('match rule set parameters', () => {
 	});
 });
 
+describe('the confirmed stack of a category in force', () => {
+	const modelsOff = {
+		semantic: { status: 'unavailable', reason: 'disabled' },
+		reranker: { status: 'unavailable', reason: 'disabled' }
+	} as const;
+	/** Only the test: no resume, no FSP, no published evidence run; the category of Backend Middle. */
+	const onlyTest = (confirmedSkillKeys: string[], ruleset = params): MatchInput => {
+		const base = input(modelsOff);
+		return {
+			...base,
+			params: ruleset,
+			candidate: {
+				evidence: { status: 'unavailable', reason: 'no_published_run' },
+				categories: [held({ specialization: 'backend', grade: 'middle' }, confirmedSkillKeys)],
+				salaryExpectation: null
+			}
+		};
+	};
+
+	it('scores a candidate with only a test above the same candidate whose test confirmed no skill of the vacancy', () => {
+		const tested = matchScore(onlyTest(['go', 'postgresql']));
+		const untested = matchScore(onlyTest([]));
+		expect(tested.score).toBeGreaterThan(untested.score);
+		expect(tested.components.required).toMatchObject({ status: 'computed', value: params.testedSkillValue });
+		expect(tested.components.trust).toMatchObject({
+			status: 'computed',
+			details: { direct: 2, total: 2, confirmed_coverage: params.testedSkillValue, grade_agreement: 1 }
+		});
+		expect(tested.explanation.matches).toContainEqual({
+			kind: 'skill',
+			requirement: 'required',
+			skill_key: 'go',
+			source: 'test',
+			specialization: 'backend',
+			grade: 'middle',
+			block: 'be.code'
+		});
+		expect(qualifiesForPool(tested.score, tested.components.trust, params)).toBe(true);
+		expect(untested.components.required).toMatchObject({ status: 'unavailable' });
+		expect(qualifiesForPool(untested.score, untested.components.trust, params)).toBe(false);
+	});
+
+	it('counts the skills the test did not confirm as unknown, not missing, while the run cannot be read', () => {
+		const result = matchScore(onlyTest(['postgresql']));
+		expect(result.components.required.details.skills).toEqual([
+			{ skill_key: 'go', source: 'unknown', value: params.unavailableEvidenceValue },
+			expect.objectContaining({ skill_key: 'postgresql', source: 'test', value: params.testedSkillValue })
+		]);
+		expect(result.explanation.gaps).not.toContainEqual({ code: 'required_skill_missing', skill_key: 'go' });
+		expect(result.explanation.to_verify).toContainEqual({ code: 'profile_insufficient_data' });
+		// The nice-to-have skill the test did not confirm keeps the component unavailable, as without a test.
+		expect(result.components.nice).toMatchObject({ status: 'unavailable', details: { reason: 'no_published_run' } });
+	});
+
+	it('values a tested skill by the rule set, the same value the ranking for a need gives it', () => {
+		const ruleset = { ...params, testedSkillValue: 0.8 };
+		const result = matchScore(onlyTest(['go', 'postgresql'], ruleset));
+		expect(result.components.required.value).toBe(0.8);
+	});
+
+	it('puts the test above a claim of the same skill in the resume and changes nothing it did not confirm', () => {
+		const resume = input(modelsOff);
+		const stack = (keys: string[]): MatchInput => ({
+			...resume,
+			candidate: { ...resume.candidate, categories: [held({ specialization: 'backend', grade: 'middle' }, keys)] }
+		});
+		const before = matchScore(resume);
+		// A stack of skills the vacancy does not ask for leaves the match of a candidate with a resume as it was.
+		expect(matchScore(stack(['python']))).toEqual(before);
+		const tested = matchScore(stack(['postgresql']));
+		expect(tested.components.required.details.skills).toContainEqual(
+			expect.objectContaining({ skill_key: 'postgresql', source: 'test' })
+		);
+		expect(tested.explanation.to_verify).not.toContainEqual({ code: 'skill_claimed', skill_key: 'postgresql' });
+		expect(tested.components.trust.value ?? 0).toBeGreaterThan(before.components.trust.value ?? 0);
+		expect(tested.score).toBeGreaterThan(before.score);
+	});
+});
+
 describe('qualifiesForPool', () => {
 	it('needs the threshold and a required skill confirmed by FSP or a platform test', () => {
 		const postgresql = { ...goFromResume, skillKey: 'postgresql' };
@@ -524,6 +621,7 @@ describe('qualifiesForPool', () => {
 				(m) =>
 					m.kind === 'skill' &&
 					m.requirement === 'required' &&
+					m.source === 'evidence' &&
 					m.attestation === 'direct' &&
 					(m.badge_trust === 'fsp_verified' || m.badge_trust === 'platform_verified')
 			);
