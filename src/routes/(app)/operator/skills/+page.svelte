@@ -50,9 +50,11 @@
 		<dd class="text-xs text-muted-foreground">собственные опубликованные и внешние из источников</dd>
 	</div>
 	<div class="rounded-lg border p-4">
-		<dt class="text-sm text-muted-foreground">Предложение: кандидатов с навыками из результатов ФСП</dt>
+		<dt class="text-sm text-muted-foreground">Предложение: участников ФСП на платформе</dt>
 		<dd class="font-heading text-h1"><CountCell cell={f.fspCandidates} /></dd>
-		<dd class="text-xs text-muted-foreground">по опубликованной категоризации</dd>
+		<dd class="text-xs text-muted-foreground">
+			с официальным результатом соревнования, своим, — по опубликованной категоризации
+		</dd>
 	</div>
 </dl>
 

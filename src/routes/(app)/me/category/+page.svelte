@@ -13,7 +13,7 @@
 	import PageHeader from '$lib/components/forms/page-header.svelte';
 	import StatusPill from '$lib/components/forms/status-pill.svelte';
 	import { CategoryList, RecommendationNotice, ResponseDeadline } from '$lib/components/product/index.js';
-	import { formatDate, type CategoryBadgeView } from '$lib/components/product/model.js';
+	import { categoryName, formatDate, type CategoryBadgeView } from '$lib/components/product/model.js';
 	import { productDay } from '$lib/dates';
 	import { Button, buttonVariants } from '$lib/components/ui/button/index.js';
 	import type { PageProps } from './$types';
@@ -199,10 +199,7 @@
 				— ровно эти строки, без времени по заданиям. Журнал целиком — на странице попытки.
 			</p>
 			{#each data.signals as entry (entry.specialization)}
-				<SignalsSummary
-					summary={entry.summary}
-					title={`Сигналы теста: ${name(labels.specializations, entry.specialization)}, ${name(labels.grades, entry.grade)}`}
-				/>
+				<SignalsSummary summary={entry.summary} title={`Сигналы теста: ${categoryName(entry, labels)}`} />
 			{/each}
 		</div>
 	{/if}
@@ -212,7 +209,7 @@
 			<ul class="mt-2 grid gap-2">
 				{#each ended as item (item.id)}
 					<li class="rounded-md border p-3">
-						{name(labels.specializations, item.specialization)} · {name(labels.grades, item.grade)} — назначена
+						{categoryName(item, labels)} — назначена
 						{formatDate(item.assignedAt)},
 						{name(ENDED, item.revokeReason ?? item.status)}{item.endedAt ? ` ${formatDate(item.endedAt)}` : ''}
 					</li>

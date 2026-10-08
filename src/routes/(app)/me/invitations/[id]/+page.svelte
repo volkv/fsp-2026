@@ -15,7 +15,6 @@
 		REQUIRED_DISCLOSURE,
 		roleName,
 		skillName,
-		specializationName,
 		type DisclosureField
 	} from '$lib/components/candidate/model.js';
 	import SectionCard from '$lib/components/candidate/section-card.svelte';
@@ -24,7 +23,7 @@
 	import FormMessage from '$lib/components/forms/form-message.svelte';
 	import PageHeader from '$lib/components/forms/page-header.svelte';
 	import { InvitationStatus, ResponseDeadline, SalaryRange, TrustFacts } from '$lib/components/product/index.js';
-	import { formatDate, formatDateTime } from '$lib/components/product/model.js';
+	import { categoryName, formatDate, formatDateTime } from '$lib/components/product/model.js';
 	import { CSRF_FIELD, viewerFrom } from '$lib/components/shell/viewer.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
@@ -162,9 +161,7 @@
 			<div class="flex gap-1.5 sm:col-span-2">
 				<dt class="text-muted-foreground">Ваша категория в предложении:</dt>
 				<dd>
-					{shown.category
-						? `${specializationName(labels, shown.category.specialization)} · ${gradeName(labels, shown.category.grade)}`
-						: 'категория не подтверждена'}
+					{shown.category ? categoryName(shown.category, labels) : 'категория не подтверждена'}
 				</dd>
 			</div>
 			{#if shown.vacancy}

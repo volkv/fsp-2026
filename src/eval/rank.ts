@@ -373,10 +373,11 @@ export interface RankAnswer {
 }
 
 /** Models switched off: the FTS-only mode and the need parsed by the rules. */
-const MODELS_OFF: MatchingModels & Pick<ModelAdapter, 'extract'> = {
+const MODELS_OFF: MatchingModels & Pick<ModelAdapter, 'extract' | 'extractModelKey'> = {
 	embed: () => Promise.resolve(fail('disabled', 'embed: switched off', { reason: 'switched_off' })),
 	rerank: () => Promise.resolve(fail('disabled', 'rerank: switched off', { reason: 'switched_off' })),
-	extract: () => Promise.resolve(fail('disabled', 'extract: switched off', { reason: 'switched_off' }))
+	extract: () => Promise.resolve(fail('disabled', 'extract: switched off', { reason: 'switched_off' })),
+	extractModelKey: () => null
 };
 
 const SYSTEM = { kind: 'system' } as const;

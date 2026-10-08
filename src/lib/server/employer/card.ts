@@ -5,7 +5,7 @@
 // The card is the one DTO of the company's view: the pages serialize it as is, the API renames its fields. Beside each
 // category it carries the totals of the signal journal of the attempt that assigned it — not a verdict and not read by
 // the test (domain 10.7); the entries and the timings of single items stay with the candidate and the operator.
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, or, sql } from 'drizzle-orm';
 import { can, type AccessSubject } from '$lib/server/access/permissions';
 import { categorySignals, type CategorySignals } from '$lib/server/assessments/signals';
 import { recordAuditEvent } from '$lib/server/audit/record';
@@ -40,6 +40,7 @@ import {
 import type { Competition, Result } from '$lib/server/fsp/types';
 import type { MatchingDeps } from '$lib/server/matching/deps';
 import { scoreCandidatesForVacancy } from '$lib/server/matching/rank';
+import { officialFspResult, preliminaryFspResult } from '$lib/server/matching/fsp-results';
 import { loadActiveMatchRuleset } from '$lib/server/matching/ruleset';
 import { companyExplanation, companyVacancy, type CompanyMatch } from '$lib/server/matching/search';
 import { loadCatalogViewer, loadVisibilityFacts, loadVisibilityPolicy } from '$lib/server/matching/visibility';
@@ -161,10 +162,15 @@ export interface EmployerCard {
 	signals: CategorySignals[];
 }
 
-function competitionAchievement(factId: string, payload: { result: Result; competition: Competition }): FspAchievement {
+function competitionAchievement(
+	factId: string,
+	payload: { result: Result; competition: Competition },
+	preliminary: boolean
+): FspAchievement {
 	const { result, competition } = payload;
 	return {
 		factId,
+		preliminary,
 		generalized: {
 			discipline: competition.discipline,
 			competitionLevel: competition.level,
@@ -178,6 +184,7 @@ function competitionAchievement(factId: string, payload: { result: Result; compe
 			competitionTitle: competition.title,
 			stage: competition.stage ?? null,
 			place: result.place,
+			placeOf: result.placeOf ?? null,
 			team: result.team ? { name: result.team.name, role: result.team.role ?? null } : null,
 			protocolUrl: competition.protocolUrl ?? null
 		}
@@ -272,19 +279,22 @@ export async function loadCatalogCard(
 		};
 	}
 
+	// The achievements are the official results of the candidate's own (the one definition of «с ФСП»); a preliminary one
+	// is shown with its mark. An annulled result, or a team's result of a reserve or a trainer, is not an achievement.
+	const preliminary = preliminaryFspResult(sql`${sourceFacts}`);
 	const facts = await executor
-		.select({ id: sourceFacts.id, payload: sourceFacts.payload, payloadSha256: sourceFacts.payloadSha256 })
+		.select({
+			id: sourceFacts.id,
+			payload: sourceFacts.payload,
+			payloadSha256: sourceFacts.payloadSha256,
+			preliminary
+		})
 		.from(sourceFacts)
-		.where(
-			and(
-				eq(sourceFacts.candidateId, candidateId),
-				eq(sourceFacts.source, 'fsp'),
-				eq(sourceFacts.factType, 'competition_result'),
-				eq(sourceFacts.status, 'active')
-			)
-		);
+		.where(and(eq(sourceFacts.candidateId, candidateId), or(officialFspResult(sql`${sourceFacts}`), preliminary)));
 	const fspAchievements = facts
-		.map((fact) => competitionAchievement(fact.id, fact.payload as { result: Result; competition: Competition }))
+		.map((fact) =>
+			competitionAchievement(fact.id, fact.payload as { result: Result; competition: Competition }, fact.preliminary)
+		)
 		.sort((a, b) => b.generalized.season - a.generalized.season);
 
 	const entries = await executor

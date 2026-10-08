@@ -1,8 +1,9 @@
 // The model's reading of a pasted text — a vacancy (`from-text.ts`) or a hiring need (`needs/parse.ts`), both of the
 // schema `vacancy-extract/v2` — kept by the hash of the text (`ml_results.input_sha256`). An employer who pastes the
 // same text again, or asks for the parse again, gets the answer the model gave, and the model is not called: the
-// spending of the gateway does not grow with repeats. An answer is kept per company, taxonomy version and schema for a
-// day; only an answer of the model is kept — a failed call is not, so the next parse asks the model again.
+// spending of the gateway does not grow with repeats. An answer is kept per company, taxonomy version, schema and the
+// configured model for a day: after the model is changed, the answers of the previous one are not given out. Only an
+// answer of the model is kept — a failed call is not, so the next parse asks the model again.
 import { z } from 'zod';
 import type { CallOptions, ExtractResponse, ModelAdapter, ModelInfo } from '$lib/server/ml/adapter';
 import { POLARITIES, type Block } from '$lib/server/ml/quotes';
@@ -97,7 +98,7 @@ const keptSchema = z.object({
 }) satisfies z.ZodType<KeptExtract>;
 
 export interface TextExtractDeps {
-	models: Pick<ModelAdapter, 'extract'>;
+	models: Pick<ModelAdapter, 'extract' | 'extractModelKey'>;
 	parseCache: TextParseCache;
 }
 
@@ -111,8 +112,8 @@ export interface TextExtractInput {
 	blocks: readonly Block[];
 }
 
-const cacheKey = (input: TextExtractInput) =>
-	`text-parse:${VACANCY_SCHEMA_VERSION}:${input.taxonomyVersionId}:${input.companyId}:${input.inputSha256}`;
+const cacheKey = (model: string, input: TextExtractInput) =>
+	`text-parse:${VACANCY_SCHEMA_VERSION}:${encodeURIComponent(model)}:${input.taxonomyVersionId}:${input.companyId}:${input.inputSha256}`;
 
 /**
  * The model's reading of the blocks of a pasted text: the kept answer to the same text, or a call of the model, whose
@@ -125,8 +126,10 @@ export async function extractPastedText(
 	options: Pick<CallOptions, 'signal'> = {}
 ): Promise<ModelResult<TextExtract>> {
 	const started = Date.now();
-	const key = cacheKey(input);
-	const stored = await deps.parseCache.read(key);
+	// Without a configured model the call below fails as it is; nothing is read or kept for no model.
+	const model = deps.models.extractModelKey();
+	const key = model === null ? null : cacheKey(model, input);
+	const stored = key === null ? null : await deps.parseCache.read(key);
 	if (stored !== null) {
 		const kept = keptSchema.parse(JSON.parse(stored));
 		return ok({ ...kept, latencyMs: Date.now() - started, cached: true });
@@ -143,7 +146,7 @@ export async function extractPastedText(
 	);
 	if (!response.ok) return response;
 	const kept = keptOf(response.value);
-	await deps.parseCache.write(key, JSON.stringify(kept), TEXT_PARSE_CACHE_SECONDS);
+	if (key !== null) await deps.parseCache.write(key, JSON.stringify(kept), TEXT_PARSE_CACHE_SECONDS);
 	return ok({ ...kept, latencyMs: response.value.latencyMs, cached: false });
 }
 

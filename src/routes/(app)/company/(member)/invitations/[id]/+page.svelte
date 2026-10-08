@@ -18,7 +18,7 @@
 	import FormMessage from '$lib/components/forms/form-message.svelte';
 	import PageHeader from '$lib/components/forms/page-header.svelte';
 	import { HiringStages, InvitationStatus, ResponseDeadline, SalaryRange } from '$lib/components/product/index.js';
-	import { HIRING_OUTCOMES, HIRING_STAGES, formatDateTime } from '$lib/components/product/model.js';
+	import { HIRING_OUTCOMES, HIRING_STAGES, categoryName, formatDateTime } from '$lib/components/product/model.js';
 	import * as Alert from '$lib/components/ui/alert/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
@@ -125,7 +125,7 @@
 							<dt class="text-muted-foreground">Грейд кандидата:</dt>
 							<dd data-testid="offer-category">
 								{current.category
-									? `${data.labels.specializations[current.category.specialization] ?? current.category.specialization} · ${data.labels.grades[current.category.grade] ?? current.category.grade} — подтверждён тестом`
+									? `${categoryName(current.category, data.labels)} — подтверждён тестом`
 									: 'не подтверждён тестом — оцените уровень на собеседовании'}
 							</dd>
 						</div>

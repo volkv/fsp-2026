@@ -5,11 +5,11 @@
 	import BookmarkCheckIcon from '@lucide/svelte/icons/bookmark-check';
 	import SendIcon from '@lucide/svelte/icons/send';
 	import CsrfInput from '$lib/components/forms/csrf-input.svelte';
+	import { categoryName } from '$lib/components/product/model.js';
 	import { Button, buttonVariants } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import {
 		basisOf,
-		categoryName,
 		COMPONENT_NAMES,
 		COMPONENT_REASONS,
 		contribution,

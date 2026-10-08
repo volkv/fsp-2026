@@ -4,7 +4,6 @@
 	import ShortlistRow from '$lib/components/employer/shortlist-row.svelte';
 	import NativeSelect from '$lib/components/employer/native-select.svelte';
 	import {
-		categoryName,
 		CHANGE_NAMES,
 		cohortCount,
 		groupTitle,
@@ -15,6 +14,7 @@
 	import FormMessage from '$lib/components/forms/form-message.svelte';
 	import PageHeader from '$lib/components/forms/page-header.svelte';
 	import { RecommendationNotice } from '$lib/components/product/index.js';
+	import { categoryName } from '$lib/components/product/model.js';
 	import { Button, buttonVariants } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Empty from '$lib/components/ui/empty/index.js';

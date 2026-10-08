@@ -215,7 +215,10 @@ const models: MatchingModels = {
 };
 
 /** The extraction model is switched off: the rules read the text, as the page does without the model. */
-const extractOff = { extract: () => Promise.resolve(fail('disabled', 'switched off', { reason: 'switched_off' })) };
+const extractOff = {
+	extract: () => Promise.resolve(fail('disabled', 'switched off', { reason: 'switched_off' })),
+	extractModelKey: () => null
+};
 
 async function draftOf(author: VacancyAuthor) {
 	return extractVacancyFromText(

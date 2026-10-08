@@ -28,7 +28,7 @@ export interface ApiServices {
 	crypto: FieldCrypto;
 	mailer: Mailer;
 	registry: CompanyRegistry;
-	models: MatchingModels & Pick<ModelAdapter, 'extract'>;
+	models: MatchingModels & Pick<ModelAdapter, 'extract' | 'extractModelKey'>;
 	/** Signs the receipts of facts a catalog card issues. */
 	receiptSigner: ReceiptSigner;
 	/** Origin of links in letters. */

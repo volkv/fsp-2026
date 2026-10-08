@@ -109,7 +109,7 @@ afterAll(async () => {
  * A backend developer confirmed by a test, with a published run resting on an FSP result, invited by the company of
  * the world.
  */
-async function invitedDeveloper() {
+async function invitedDeveloper(resultStatus: 'official' | 'preliminary' = 'official') {
 	const { db } = database;
 	const person = await createCandidate(db, { profileRevision: 1 });
 	const [fact] = await db
@@ -121,7 +121,7 @@ async function invitedDeveloper() {
 			sourceRecordRef: `fsp:result:${randomSha256().slice(0, 12)}`,
 			trustLevel: 'fsp_verified',
 			ownershipBasis: 'operator_confirmed',
-			payload: {},
+			payload: { result: { status: resultStatus } },
 			payloadSha256: randomSha256(),
 			observedAt: NOW,
 			lastVerifiedAt: NOW,
@@ -231,6 +231,10 @@ describe('a run below the evidence floor', () => {
 
 		expect(await invitedBy('fsp_level')).toEqual({ L2: { value: 1 }, none: { value: 1 } });
 		expect(await invitedBy('specialization')).toEqual({ backend: { value: 2 } });
+		expect(await fspCandidates()).toEqual({ value: 1 });
+
+		// A preliminary result is not a result yet: the feedback counts «с ФСП» by the catalog's definition.
+		await invitedDeveloper('preliminary');
 		expect(await fspCandidates()).toEqual({ value: 1 });
 	});
 });

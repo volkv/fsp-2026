@@ -10,6 +10,7 @@
 	import StatusPill from '$lib/components/forms/status-pill.svelte';
 	import PageHeader from '$lib/components/forms/page-header.svelte';
 	import { InvitationStatus, RecommendationNotice } from '$lib/components/product/index.js';
+	import { categoryName } from '$lib/components/product/model.js';
 	import { Button, buttonVariants } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import type { PageProps } from './$types';
@@ -80,7 +81,7 @@
 				{#if data.fromShortlist && !data.fromShortlist.gradeConfirmed}
 					<p class="rounded-lg border border-dashed p-3 text-sm" data-testid="offer-grade-not-confirmed">
 						Грейд кандидата не подтверждён тестом{data.fromShortlist.declared
-							? ` — указано кандидатом: ${data.labels.specializations[data.fromShortlist.declared.specialization] ?? data.fromShortlist.declared.specialization} · ${data.labels.grades[data.fromShortlist.declared.grade] ?? data.fromShortlist.declared.grade}`
+							? ` — указано кандидатом: ${categoryName(data.fromShortlist.declared, data.labels)}`
 							: ''}. Предложение это покажет: категория в нём — «не подтверждена». Уровень оцените на собеседовании или
 						запросите подтверждение блока.
 					</p>

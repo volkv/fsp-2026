@@ -554,13 +554,13 @@ describe('vacancy from pasted text', () => {
 		'Зарплата 300 000 – 400 000 руб. в месяц на руки, удалённо'
 	].join('\n');
 
-	function adapter(modes: ModelAdapterDeps['modes']): ModelAdapter {
+	function adapter(modes: ModelAdapterDeps['modes'], modelName = 'extractor-7b'): ModelAdapter {
 		return new ModelAdapter({
 			models: {
 				extract: {
 					baseUrl: `${runtime.url}/v1`,
 					runtime: 'vllm',
-					model: 'extractor-7b',
+					model: modelName,
 					apiKey: null,
 					timeoutMs: 5_000,
 					interactiveTimeoutMs: 5_000,
@@ -608,13 +608,14 @@ describe('vacancy from pasted text', () => {
 		});
 		const author = await employer();
 		let calls = 0;
-		const model = adapter(on);
-		const counted: Pick<ModelAdapter, 'extract'> = {
+		const counting = (model: ModelAdapter): Pick<ModelAdapter, 'extract' | 'extractModelKey'> => ({
 			extract: (request, lexicon, options) => {
 				calls++;
 				return model.extract(request, lexicon, options);
-			}
-		};
+			},
+			extractModelKey: () => model.extractModelKey()
+		});
+		const counted = counting(adapter(on));
 		const textDeps = { db: database.db, models: counted, parseCache: memoryTextParseCache() };
 		const draft = await extractVacancyFromText(textDeps, author, TEXT);
 		expect(draft.mode).toBe('model');
@@ -675,12 +676,15 @@ describe('vacancy from pasted text', () => {
 		// Another company's parse of the same text is its own call.
 		await extractVacancyFromText(textDeps, await employer(), TEXT);
 		expect(calls).toBe(2);
+		// Another configured model does not get the answers of the previous one: the same text is read again.
+		await extractVacancyFromText({ ...textDeps, models: counting(adapter(on, 'extractor-8b')) }, author, TEXT);
+		expect(calls).toBe(3);
 		// A company that may not save a vacancy does not spend the model on a draft.
 		await expect(extractVacancyFromText(textDeps, await employer('suspended'), TEXT)).rejects.toMatchObject({
 			code: 'forbidden',
 			details: [{ code: 'company_suspended' }]
 		});
-		expect(calls).toBe(2);
+		expect(calls).toBe(3);
 		// The parse belongs to its company and serves one vacancy.
 		expect(
 			await refusalOf(createOwnVacancy(deps, author, input(), { fromText: { mlResultId: draft.mlResultId } }))

@@ -30,7 +30,8 @@ let catalogDocumentId: string;
 const meta = { requestId: 'test-needs', ip: '127.0.0.1', userAgent: 'vitest' };
 
 const modelsOff: NeedDeps['models'] = {
-	extract: () => Promise.resolve(fail('disabled', 'extract: switched off', { reason: 'switched_off' }))
+	extract: () => Promise.resolve(fail('disabled', 'extract: switched off', { reason: 'switched_off' })),
+	extractModelKey: () => null
 };
 
 beforeAll(async () => {
@@ -74,7 +75,8 @@ function answeringModel(): NeedDeps['models'] & { calls: number } {
 					latencyMs: 5
 				})
 			);
-		}
+		},
+		extractModelKey: () => 'vllm:extractor-test'
 	};
 	return model;
 }

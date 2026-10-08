@@ -9,7 +9,7 @@
 	import PageHeader from '$lib/components/forms/page-header.svelte';
 	import StatusPill from '$lib/components/forms/status-pill.svelte';
 	import { SalaryRange } from '$lib/components/product/index.js';
-	import { formatDate, formatDateTime } from '$lib/components/product/model.js';
+	import { categoryName, formatDate, formatDateTime } from '$lib/components/product/model.js';
 	import { Button, buttonVariants } from '$lib/components/ui/button/index.js';
 	import type { PageProps } from './$types';
 
@@ -118,7 +118,7 @@
 					<div class="flex flex-wrap items-center justify-between gap-2">
 						<span class="font-medium">
 							Кандидат {solution.pseudonym}{solution.category
-								? ` · ${data.names.specializations[solution.category.specialization]} ${data.names.grades[solution.category.grade]}`
+								? ` · ${categoryName(solution.category, data.names)}`
 								: ''}
 						</span>
 						<span class="text-xs text-muted-foreground">{formatDateTime(solution.submittedAt)}</span>

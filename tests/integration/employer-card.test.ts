@@ -463,15 +463,24 @@ describe('catalog card: what the company reads on it', () => {
 			.where(eq(taxonomyVersions.id, version.id));
 	});
 
-	/** An adult with one FSP result and the region stated in the preferences, if any. */
-	async function withResult(regionCode?: string) {
+	/** An adult with FSP results of the given statuses and team roles and the region stated in the preferences, if any. */
+	async function withResult(
+		regionCode?: string,
+		results: { status: 'official' | 'preliminary' | 'annulled'; teamRole?: string }[] = [{ status: 'official' }]
+	) {
 		const { db } = database;
 		const row = await createCandidate(db, {
 			preferences: regionCode === undefined ? {} : { region_code: regionCode }
 		});
+		for (const { status, teamRole } of results) await resultOf(row.id, status, teamRole);
+		return row;
+	}
+
+	async function resultOf(candidateId: string, status: string, teamRole: string | undefined) {
 		const competitionId = randomSha256().slice(0, 8);
-		await db.insert(sourceFacts).values({
-			candidateId: row.id,
+		const team = teamRole === undefined ? null : { name: 'Команда', role: teamRole };
+		await database.db.insert(sourceFacts).values({
+			candidateId,
 			source: 'fsp',
 			factType: 'competition_result',
 			sourceRecordRef: `fsp:result:${randomSha256().slice(0, 12)}`,
@@ -479,7 +488,7 @@ describe('catalog card: what the company reads on it', () => {
 			trustLevel: 'fsp_verified',
 			ownershipBasis: 'operator_confirmed',
 			payload: {
-				result: { id: 'r-1', competitionId, place: 3, team: null, award: 'prize', status: 'official' },
+				result: { id: 'r-1', competitionId, place: 3, placeOf: 40, team, award: 'prize', status },
 				competition: {
 					id: competitionId,
 					ekpNumber: null,
@@ -499,7 +508,6 @@ describe('catalog card: what the company reads on it', () => {
 			occurredOn: '2025-10-01',
 			status: 'active'
 		});
-		return row;
 	}
 
 	const open = async (candidateId: string, signer: ReceiptSigner = federation) =>
@@ -519,6 +527,22 @@ describe('catalog card: what the company reads on it', () => {
 		expect(unstated.card).toMatchObject({ region: null, regionName: null });
 		// Stored codes come from the same reference: a code outside it is a broken invariant, not a card without a name.
 		await expect(open((await withResult('RU-XX')).id)).rejects.toThrow(/RU-XX .*reference of regions/u);
+	});
+
+	it('shows official results as achievements, a preliminary one with its mark, and no result that is not one', async () => {
+		const person = await withResult(undefined, [
+			{ status: 'official' },
+			{ status: 'preliminary' },
+			{ status: 'annulled' },
+			{ status: 'official', teamRole: 'reserve' }
+		]);
+		const { card, receipts } = await open(person.id);
+		expect(card.fspAchievements?.map((achievement) => achievement.preliminary).sort()).toEqual([false, true]);
+		// A receipt is issued for the official result only.
+		const official = card.fspAchievements?.find((achievement) => !achievement.preliminary);
+		expect(official?.receiptHandles).toHaveLength(1);
+		expect(card.fspAchievements?.find((achievement) => achievement.preliminary)?.receiptHandles).toEqual([]);
+		expect(receipts).toHaveLength(1);
 	});
 
 	it('tells the receipts of the simulator of FSP apart from those of the federation', async () => {

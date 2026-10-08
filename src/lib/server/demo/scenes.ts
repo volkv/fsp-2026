@@ -197,13 +197,14 @@ function shortlistDeps(ctx: SeedContext): ShortlistDeps {
 }
 
 /** Needs of a scenario company go to the product's model adapter, like the heroes' resumes; others are read by rules. */
-const RULES_ONLY: Pick<ModelAdapter, 'extract'> = {
+const RULES_ONLY: Pick<ModelAdapter, 'extract' | 'extractModelKey'> = {
 	extract: () =>
 		Promise.resolve(
 			fail('disabled', 'extract: background needs of the demo seed are read by the rules', {
 				reason: 'demo_seed_background'
 			})
-		)
+		),
+	extractModelKey: () => null
 };
 
 export interface NeedInput {
@@ -220,7 +221,7 @@ async function ensureNeed(
 	company: SeededCompany,
 	index: number,
 	input: NeedInput,
-	models: Pick<ModelAdapter, 'extract'>
+	models: Pick<ModelAdapter, 'extract' | 'extractModelKey'>
 ): Promise<string> {
 	const { db } = ctx.services;
 	const existing = await db

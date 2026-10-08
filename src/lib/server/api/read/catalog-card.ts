@@ -149,6 +149,9 @@ export const cardSchema = z
 					})
 					.optional()
 					.describe('Точно — только если кандидат 18+ открыл точные достижения'),
+				preliminary: z
+					.boolean()
+					.describe('Предварительный результат: ФСП опубликовала его, но он ещё не официальный — пока не достижение'),
 				receipt_handles: z.array(z.string()).describe('Квитанции этого достижения из `receipts`')
 			})
 		),
@@ -269,6 +272,7 @@ export function cardView(loaded: EmployerCard) {
 							}
 						}
 					: {}),
+				preliminary: achievement.preliminary,
 				receipt_handles: achievement.receiptHandles
 			};
 		}),

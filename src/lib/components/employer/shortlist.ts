@@ -3,7 +3,7 @@
  * contributions, the basis of each skill of the need, the second axis «подходит ли предложение кандидату», the changes
  * of the steps and the answers of «что если». The page receives plain data; nothing here reaches the server.
  */
-import { pluralize } from '$lib/components/product/model.js';
+import { categoryName, pluralize } from '$lib/components/product/model.js';
 
 export interface ShortlistNames {
 	skills: Readonly<Record<string, string>>;
@@ -87,10 +87,6 @@ export function contribution(value: number): string {
 
 const list = (keys: readonly string[] | undefined, names: Readonly<Record<string, string>>) =>
 	(keys ?? []).map((key) => names[key] ?? key).join(', ');
-
-export function categoryName(category: { specialization: string; grade: string }, names: ShortlistNames): string {
-	return `${names.specializations[category.specialization] ?? category.specialization} · ${names.grades[category.grade] ?? category.grade}`;
-}
 
 /**
  * «5 соревнований ФСП, из них 2 призовых (в составе команды — 1), по профилю специализации — 3»: a competition of a
