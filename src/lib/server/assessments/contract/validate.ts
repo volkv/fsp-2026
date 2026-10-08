@@ -235,7 +235,9 @@ const familySchema = z.strictObject({
 		})
 	]),
 	coverage: z.strictObject({ checks: z.array(text).min(1), doesNotCheck: z.array(text).min(1) }),
-	wrongSolutions: z.array(z.strictObject({ id: text, defect: text, mustBeCaught: z.boolean() })),
+	wrongSolutions: z.array(
+		z.strictObject({ id: text, defect: text, mustBeCaught: z.boolean(), part: z.literal('change_step').optional() })
+	),
 	authorship: z.strictObject({ draftedBy: z.enum(['team', 'model']), authors: z.array(text).min(1) }),
 	gates: z.strictObject({
 		reference: z.strictObject({ seeds: z.int().min(0), failures: z.int().min(0) }),
@@ -635,6 +637,8 @@ export function familyProblems(
 	if (family.wrongSolutions.length < minimum) problems.push(`${where}: fewer than ${minimum} wrong solutions`);
 	for (const id of duplicates(family.wrongSolutions.map((w) => w.id)))
 		problems.push(`${where}: wrong solution ${id} twice`);
+	for (const w of family.wrongSolutions.filter((x) => x.part === 'change_step' && family.changeStep === null))
+		problems.push(`${where}: wrong solution ${w.id} revises a change step the family does not have`);
 	const gate = gateProblems(family, sourceSha256, gates);
 	return [...defects([...problems, ...gate.defects]), ...awaiting, ...gate.awaiting];
 }

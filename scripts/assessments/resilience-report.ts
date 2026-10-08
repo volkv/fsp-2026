@@ -10,11 +10,15 @@
 // `--assistant` asks the model for the clusters the kept replies lack (OpenAI-compatible API: `LLM_BASE_URL`,
 // `LLM_API_KEY`, `LLM_MODEL`), at most `--call-budget` requests over the kept ones. Programs run in the Python of the
 // sandbox image (`--local-python` — of this machine). Writes `assessments/trajectories/b3-report.json` and `.md`.
+// `--keep-assistant` measures everything but the assistant and carries its section over from the report on disk, marked
+// with the content it was measured on: the kept replies belong to the instances of that content, and new replies cost
+// requests to the model.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { format, resolveConfig } from 'prettier';
+import { z } from 'zod';
 import type { ItemInstance } from '../../src/lib/server/assessments/contract/bank.ts';
 import {
 	blockDefinition,
@@ -101,6 +105,7 @@ const { values: args } = parseArgs({
 		'practice-runs': { type: 'string', default: '1000' },
 		'local-python': { type: 'boolean', default: false },
 		assistant: { type: 'boolean', default: false },
+		'keep-assistant': { type: 'boolean', default: false },
 		'assistant-attempts': { type: 'string', default: '8' },
 		'call-budget': { type: 'string', default: '290' }
 	}
@@ -114,6 +119,7 @@ const RUNS = positive('runs', args.runs);
 const PRACTICE_RUNS = positive('practice-runs', args['practice-runs']);
 const ASSISTANT_ATTEMPTS = positive('assistant-attempts', args['assistant-attempts']);
 const CALL_BUDGET = positive('call-budget', args['call-budget']);
+if (args.assistant && args['keep-assistant']) throw new Error('--assistant and --keep-assistant exclude each other');
 
 const round = (x: number, digits = 4): number => Math.round(x * 10 ** digits) / 10 ** digits;
 const roundTally = (t: Tally) => ({
@@ -554,7 +560,7 @@ const assistantScorer =
 /** Attempts asked at once: each is a chain of requests, the attempts are independent. */
 const ASSISTANT_CONCURRENCY = 4;
 
-const assistantRows: {
+type AssistantRow = {
 	grade: GradeKey;
 	attempts: number;
 	outcome: ReturnType<typeof roundTally>;
@@ -564,114 +570,155 @@ const assistantRows: {
 	unparsed: number;
 	extrapolated: ReturnType<typeof roundTally>;
 	attemptsDetail: { outcome: DecisionOutcome; reason: string; items: number; scoreSum: number; cutSum: number }[];
-}[] = [];
-for (const grade of ASSISTANT_GRADES) {
-	const log: AssistantCluster[] = [];
-	const played: PlayedAttempt[] = [];
-	const perAttempt = maxLength(PROCEDURE, grade) + 1;
-	for (let start = 0; start < ASSISTANT_ATTEMPTS;) {
-		let size = Math.min(ASSISTANT_CONCURRENCY, ASSISTANT_ATTEMPTS - start);
-		if (args.assistant) size = Math.min(size, Math.floor((CALL_BUDGET - newCalls) / perAttempt));
-		if (size === 0) {
-			console.log(`assistant ${grade}: the budget left covers no further attempt; ${played.length} made`);
-			break;
-		}
-		const batch = await Promise.all(
-			Array.from({ length: size }, (_, k) =>
-				playAttempt(attempt(grade, 'A', `${SEED}:assistant:${grade}:${start + k}`), assistantScorer(start + k, log))
-			)
-		);
-		played.push(...batch);
-		for (const [k, p] of batch.entries())
-			console.log(`assistant ${grade} attempt ${start + k + 1}: ${p.decision.outcome} (${p.decision.reason})`);
-		start += size;
-	}
-	if (played.length === 0) throw new Error(`no assistant attempt at ${grade}`);
-	// The sample: attempts that confirm early never reach some blocks, so every computed family-level of the grade
-	// is asked once more in its classes A and B, on seeds of the sample.
-	const sample = families.flatMap((family) => {
-		const level = family.descriptor.levels.find((l) => l.grade === grade);
-		if (!level || family.descriptor.practice) return [];
-		return level.classes
-			.filter((c) => c.form === 'A' || c.form === 'B')
-			.map((c) =>
-				family.module.generate({
-					seed: sha256Hex(`${SEED}:assistant-sample:${family.descriptor.key}:${grade}:${c.id}`),
-					grade,
-					classId: c.id
-				})
-			);
-	});
-	if (args.assistant && sample.length > CALL_BUDGET - newCalls)
-		throw new Error(`the sample of ${grade} needs ${sample.length} requests, the budget has ${CALL_BUDGET - newCalls}`);
-	for (let start = 0; start < sample.length; start += ASSISTANT_CONCURRENCY)
-		await Promise.all(
-			sample
-				.slice(start, start + ASSISTANT_CONCURRENCY)
-				.map(
-					async (instance, k) =>
-						await assistantScorer(
-							-1,
-							log
-						)({ seq: start + k + 1, instance, family: familyOf(instance.family).descriptor, angoff: 0 })
-				)
-		);
-	log.sort((a, b) => a.attempt - b.attempt || a.seq - b.seq);
-	const computed = log.filter((c) => !c.practice);
-	const blocks = [...new Set(computed.map((c) => c.block))].sort();
-	const byBlock = blocks.map((block) => {
-		const of = computed.filter((c) => c.block === block);
-		const right = of.filter((c) => c.score === 1).length;
-		return { block, title: blockDefinition(block).title, clusters: of.length, right, share: round(right / of.length) };
-	});
-	const practice = log.filter((c) => c.practice);
-	const fromAttempts = computed.filter((c) => c.attempt >= 0);
-	// The extrapolation: attempts of the same engine with the measured share of every block as the chance of a
-	// computed cluster, and a practice score drawn from the measured ones.
-	const shareOf = new Map(byBlock.map((b) => [b.block, b.right / b.clusters]));
-	const extrapolated: DecisionOutcome[] = [];
-	for (let run = 0; run < RUNS; run += 1) {
-		const label = `${SEED}:assistant-model:${grade}:${run}`;
-		const p = await playAttempt(attempt(grade, 'A', `${label}:attempt`), ({ instance, family, seq }) => {
-			const random = labelRandom(`${label}:${seq}`);
-			if (instance.practice) {
-				const pick = practice[Math.floor(random() * practice.length)];
-				if (!pick) throw new Error(`no measured practice at ${grade}`);
-				return pick.score;
+};
+/** The assistant's section of the report on disk, when it is carried over: its rows and the content they were measured on. */
+interface CarriedAssistant {
+	contentSha256: string;
+	assistant: { models: string[]; requestedModel: string; callsKept: number; callsMade: number; grades: AssistantRow[] };
+}
+const previousReport = z.object({
+	contentSha256: z.string(),
+	assistant: z.object({
+		models: z.array(z.string()),
+		requestedModel: z.string(),
+		callsKept: z.number(),
+		callsMade: z.number(),
+		carriedFrom: z.string().optional(),
+		// The rows are written back as they are; their shape is this script's own.
+		grades: z.array(z.unknown()).min(1)
+	})
+});
+function carriedAssistant(): CarriedAssistant {
+	if (!existsSync(REPORT_JSON)) throw new Error(`--keep-assistant needs ${REPORT_JSON} with an assistant section`);
+	const previous = previousReport.parse(JSON.parse(readFileSync(REPORT_JSON, 'utf8')));
+	const { carriedFrom, grades, ...rest } = previous.assistant;
+	// A section carried once is carried with the content it was measured on, not the report it came from.
+	return {
+		contentSha256: carriedFrom ?? previous.contentSha256,
+		assistant: { ...rest, grades: grades as AssistantRow[] }
+	};
+}
+const carried = args['keep-assistant'] ? carriedAssistant() : null;
+const assistantRows: AssistantRow[] = carried ? carried.assistant.grades : [];
+if (!carried) {
+	for (const grade of ASSISTANT_GRADES) {
+		const log: AssistantCluster[] = [];
+		const played: PlayedAttempt[] = [];
+		const perAttempt = maxLength(PROCEDURE, grade) + 1;
+		for (let start = 0; start < ASSISTANT_ATTEMPTS;) {
+			let size = Math.min(ASSISTANT_CONCURRENCY, ASSISTANT_ATTEMPTS - start);
+			if (args.assistant) size = Math.min(size, Math.floor((CALL_BUDGET - newCalls) / perAttempt));
+			if (size === 0) {
+				console.log(`assistant ${grade}: the budget left covers no further attempt; ${played.length} made`);
+				break;
 			}
-			const share = shareOf.get(family.block);
-			if (share === undefined) throw new Error(`no measured cluster of ${family.block} at ${grade}`);
-			return random() < share ? 1 : 0;
+			const batch = await Promise.all(
+				Array.from({ length: size }, (_, k) =>
+					playAttempt(attempt(grade, 'A', `${SEED}:assistant:${grade}:${start + k}`), assistantScorer(start + k, log))
+				)
+			);
+			played.push(...batch);
+			for (const [k, p] of batch.entries())
+				console.log(`assistant ${grade} attempt ${start + k + 1}: ${p.decision.outcome} (${p.decision.reason})`);
+			start += size;
+		}
+		if (played.length === 0) throw new Error(`no assistant attempt at ${grade}`);
+		// The sample: attempts that confirm early never reach some blocks, so every computed family-level of the grade
+		// is asked once more in its classes A and B, on seeds of the sample.
+		const sample = families.flatMap((family) => {
+			const level = family.descriptor.levels.find((l) => l.grade === grade);
+			if (!level || family.descriptor.practice) return [];
+			return level.classes
+				.filter((c) => c.form === 'A' || c.form === 'B')
+				.map((c) =>
+					family.module.generate({
+						seed: sha256Hex(`${SEED}:assistant-sample:${family.descriptor.key}:${grade}:${c.id}`),
+						grade,
+						classId: c.id
+					})
+				);
 		});
-		extrapolated.push(p.decision.outcome);
+		if (args.assistant && sample.length > CALL_BUDGET - newCalls)
+			throw new Error(
+				`the sample of ${grade} needs ${sample.length} requests, the budget has ${CALL_BUDGET - newCalls}`
+			);
+		for (let start = 0; start < sample.length; start += ASSISTANT_CONCURRENCY)
+			await Promise.all(
+				sample
+					.slice(start, start + ASSISTANT_CONCURRENCY)
+					.map(
+						async (instance, k) =>
+							await assistantScorer(
+								-1,
+								log
+							)({ seq: start + k + 1, instance, family: familyOf(instance.family).descriptor, angoff: 0 })
+					)
+			);
+		log.sort((a, b) => a.attempt - b.attempt || a.seq - b.seq);
+		const computed = log.filter((c) => !c.practice);
+		const blocks = [...new Set(computed.map((c) => c.block))].sort();
+		const byBlock = blocks.map((block) => {
+			const of = computed.filter((c) => c.block === block);
+			const right = of.filter((c) => c.score === 1).length;
+			return {
+				block,
+				title: blockDefinition(block).title,
+				clusters: of.length,
+				right,
+				share: round(right / of.length)
+			};
+		});
+		const practice = log.filter((c) => c.practice);
+		const fromAttempts = computed.filter((c) => c.attempt >= 0);
+		// The extrapolation: attempts of the same engine with the measured share of every block as the chance of a
+		// computed cluster, and a practice score drawn from the measured ones.
+		const shareOf = new Map(byBlock.map((b) => [b.block, b.right / b.clusters]));
+		const extrapolated: DecisionOutcome[] = [];
+		for (let run = 0; run < RUNS; run += 1) {
+			const label = `${SEED}:assistant-model:${grade}:${run}`;
+			const p = await playAttempt(attempt(grade, 'A', `${label}:attempt`), ({ instance, family, seq }) => {
+				const random = labelRandom(`${label}:${seq}`);
+				if (instance.practice) {
+					const pick = practice[Math.floor(random() * practice.length)];
+					if (!pick) throw new Error(`no measured practice at ${grade}`);
+					return pick.score;
+				}
+				const share = shareOf.get(family.block);
+				if (share === undefined) throw new Error(`no measured cluster of ${family.block} at ${grade}`);
+				return random() < share ? 1 : 0;
+			});
+			extrapolated.push(p.decision.outcome);
+		}
+		assistantRows.push({
+			grade,
+			attempts: played.length,
+			outcome: roundTally(tally(played.map((p) => p.decision.outcome))),
+			byBlock,
+			clusters: {
+				inAttempts: fromAttempts.length,
+				rightInAttempts: fromAttempts.filter((c) => c.score === 1).length,
+				inSample: computed.length - fromAttempts.length
+			},
+			practice: {
+				clusters: practice.length,
+				meanScore: round(mean(practice.map((c) => c.score))),
+				gatePassed:
+					practice.length === 0
+						? null
+						: round(practice.filter((c) => c.score >= gateOf(grade)).length / practice.length),
+				groups: practice.map((c) => c.groups)
+			},
+			unparsed: log.filter((c) => c.unparsed).length,
+			extrapolated: roundTally(tally(extrapolated)),
+			attemptsDetail: played.map((p) => ({
+				outcome: p.decision.outcome,
+				reason: p.decision.reason,
+				items: p.decision.items,
+				scoreSum: p.decision.scoreSum / 20,
+				cutSum: p.decision.cutSum / 20
+			}))
+		});
 	}
-	assistantRows.push({
-		grade,
-		attempts: played.length,
-		outcome: roundTally(tally(played.map((p) => p.decision.outcome))),
-		byBlock,
-		clusters: {
-			inAttempts: fromAttempts.length,
-			rightInAttempts: fromAttempts.filter((c) => c.score === 1).length,
-			inSample: computed.length - fromAttempts.length
-		},
-		practice: {
-			clusters: practice.length,
-			meanScore: round(mean(practice.map((c) => c.score))),
-			gatePassed:
-				practice.length === 0 ? null : round(practice.filter((c) => c.score >= gateOf(grade)).length / practice.length),
-			groups: practice.map((c) => c.groups)
-		},
-		unparsed: log.filter((c) => c.unparsed).length,
-		extrapolated: roundTally(tally(extrapolated)),
-		attemptsDetail: played.map((p) => ({
-			outcome: p.decision.outcome,
-			reason: p.decision.reason,
-			items: p.decision.items,
-			scoreSum: p.decision.scoreSum / 20,
-			cutSum: p.decision.cutSum / 20
-		}))
-	});
 }
 runner.close();
 
@@ -683,7 +730,7 @@ const baselineOfReport = Object.fromEntries(
 		.filter((g) => (GRADES as readonly string[]).includes(g.grade))
 		.map((g) => [g.grade, g.points.find((p) => p.shift === -0.15)?.confirmed ?? null])
 );
-const assistantModels = [...new Set(kept.replies.map((r) => r.model))];
+const assistantModels = carried ? carried.assistant.models : [...new Set(kept.replies.map((r) => r.model))];
 const report = {
 	releaseId,
 	contentSha256,
@@ -705,10 +752,11 @@ const report = {
 	ladder,
 	assistant: {
 		models: assistantModels,
-		requestedModel: kept.model,
-		callsKept: kept.replies.length,
-		callsMade: kept.calls,
-		grades: assistantRows
+		requestedModel: carried ? carried.assistant.requestedModel : kept.model,
+		callsKept: carried ? carried.assistant.callsKept : kept.replies.length,
+		callsMade: carried ? carried.assistant.callsMade : kept.calls,
+		grades: assistantRows,
+		...(carried ? { carriedFrom: carried.contentSha256 } : {})
 	}
 };
 await writeFormatted(REPORT_JSON, JSON.stringify(report));
@@ -773,7 +821,13 @@ function markdown(): string {
 		'',
 		'## 4. Ассистент',
 		'',
-		`Модель \`${kept.model}\` (ответила как ${assistantModels.map((m) => `\`${m}\``).join(', ')}) получает условие, как его видит кандидат (текст, код, подпись поля ответа; практика — на Python 3, шаг «измени своё решение» — вторым запросом), ответ проверяет движок, программа исполняется на скрытых тестах. Запросов — ${kept.replies.length}; ответы сохранены в \`b3-assistant.json\`, повторный прогон перепроверяет их без запросов. Попытки, подтвердившиеся рано, не доходят до части блоков, поэтому сверх попыток каждое вычисляемое семейство-уровень грейда спрошено ещё раз в классах A и B (выборка); доли по блокам — по попыткам и выборке вместе. Это измерение одной модели на ${assistantRows.map((r) => `${r.attempts} попытках ${r.grade}`).join(' и ')}, а не защита от ассистентов.`,
+		...(carried
+			? [
+					`**Раздел измерен на прежнем выпуске банка (содержимое \`${carried.contentSha256.slice(0, 12)}…\`) и на этом выпуске не перемерялся**: сохранённые ответы относятся к экземплярам того содержимого, новые стоят запросов к модели. Числа ниже — прежние.`,
+					''
+				]
+			: []),
+		`Модель \`${carried ? carried.assistant.requestedModel : kept.model}\` (ответила как ${assistantModels.map((m) => `\`${m}\``).join(', ')}) получает условие, как его видит кандидат (текст, код, подпись поля ответа; практика — на Python 3, шаг «измени своё решение» — вторым запросом), ответ проверяет движок, программа исполняется на скрытых тестах. Запросов — ${carried ? carried.assistant.callsKept : kept.replies.length}; ответы сохранены в \`b3-assistant.json\`, повторный прогон перепроверяет их без запросов. Попытки, подтвердившиеся рано, не доходят до части блоков, поэтому сверх попыток каждое вычисляемое семейство-уровень грейда спрошено ещё раз в классах A и B (выборка); доли по блокам — по попыткам и выборке вместе. Это измерение одной модели на ${assistantRows.map((r) => `${r.attempts} попытках ${r.grade}`).join(' и ')}, а не защита от ассистентов.`,
 		''
 	);
 	for (const r of assistantRows) {

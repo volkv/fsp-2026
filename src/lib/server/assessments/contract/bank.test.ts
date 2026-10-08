@@ -459,6 +459,23 @@ describe('family descriptor', () => {
 			'family be.db.null-aggregate: block be.db does not take config_eval'
 		);
 	});
+
+	it('takes a wrong revision of the change step only from a family that has the step', () => {
+		const practice = practiceFamily('be.code', 'handler', 'senior');
+		const revision = {
+			id: 'step-rule',
+			defect: 'новое условие не учтено',
+			mustBeCaught: true,
+			part: 'change_step' as const
+		};
+		const withStep = { ...practice, changeStep: { description: 'новое условие', weight: 0.3 } };
+		expect(check({ ...withStep, wrongSolutions: [...withStep.wrongSolutions, revision] })).not.toContain(
+			'family be.code.handler: wrong solution step-rule revises a change step the family does not have'
+		);
+		expect(check({ ...practice, changeStep: null, wrongSolutions: [...practice.wrongSolutions, revision] })).toContain(
+			'family be.code.handler: wrong solution step-rule revises a change step the family does not have'
+		);
+	});
 });
 
 describe('independent reviews', () => {

@@ -1,9 +1,9 @@
 {
 	"releaseId": "backend@2026.10.3-1",
-	"contentSha256": "3377965df5c51e358996f2cc3126174d5eaacb71f64108118a297fe7cf02dfdd",
+	"contentSha256": "51f9df441981b631b48408a2367cc98bb30ede5ffe957a56222704f5bbadafb5",
 	"catalogVersion": "2026.10.3",
 	"procedureVersion": "sprt-3",
-	"seed": "b3:3377965df5c51e358996f2cc3126174d5eaacb71f64108118a297fe7cf02dfdd",
+	"seed": "b3:51f9df441981b631b48408a2367cc98bb30ede5ffe957a56222704f5bbadafb5",
 	"runtime": "образ песочницы `fsp-sandbox:test`",
 	"model": {
 		"honest": "доля верного на вычисляемом задании — оценка Angoff + сдвиг (обрезка 0,02–0,98); практика — общая латентная доля Beta, ρ = 0.5",
@@ -31,7 +31,7 @@
 			}
 		]
 	},
-	"baselineOfTrajectoryReport": { "junior": 0.05775, "middle": 0.0735, "senior": 0.055 },
+	"baselineOfTrajectoryReport": { "junior": 0.05925, "middle": 0.0725, "senior": 0.061 },
 	"transfer": [
 		{
 			"grade": "junior",
@@ -40,10 +40,10 @@
 			"source": null,
 			"outcome": {
 				"runs": 2000,
-				"confirmed": 0.0505,
-				"confirmedCi95": [0.0417, 0.061],
-				"undetermined": 0.0015,
-				"notConfirmed": 0.948
+				"confirmed": 0.064,
+				"confirmedCi95": [0.0541, 0.0756],
+				"undetermined": 0.0025,
+				"notConfirmed": 0.9335
 			},
 			"computedLeakedShare": null,
 			"pastedRightShare": null,
@@ -56,18 +56,12 @@
 			"attackerShift": -0.15,
 			"leak": "answers",
 			"source": "donor",
-			"outcome": {
-				"runs": 2000,
-				"confirmed": 0.0005,
-				"confirmedCi95": [0.0001, 0.0028],
-				"undetermined": 0,
-				"notConfirmed": 0.9995
-			},
-			"computedLeakedShare": 0.623,
-			"pastedRightShare": 0.0007,
+			"outcome": { "runs": 2000, "confirmed": 0, "confirmedCi95": [0, 0.0019], "undetermined": 0, "notConfirmed": 1 },
+			"computedLeakedShare": 0.6271,
+			"pastedRightShare": 0.0011,
 			"practiceLeakedShare": null,
-			"practiceGatePassed": 0.714,
-			"practiceMeanScore": 0.6072
+			"practiceGatePassed": 0.7475,
+			"practiceMeanScore": 0.6391
 		},
 		{
 			"grade": "junior",
@@ -76,305 +70,83 @@
 			"source": "class",
 			"outcome": { "runs": 2000, "confirmed": 0, "confirmedCi95": [0, 0.0019], "undetermined": 0, "notConfirmed": 1 },
 			"computedLeakedShare": 1,
-			"pastedRightShare": 0.001,
-			"practiceLeakedShare": null,
-			"practiceGatePassed": 0.714,
-			"practiceMeanScore": 0.6072
-		},
-		{
-			"grade": "junior",
-			"attackerShift": -0.15,
-			"leak": "practice",
-			"source": "donor",
-			"outcome": {
-				"runs": 1000,
-				"confirmed": 0.057,
-				"confirmedCi95": [0.0443, 0.0731],
-				"undetermined": 0.003,
-				"notConfirmed": 0.94
-			},
-			"computedLeakedShare": null,
-			"pastedRightShare": null,
-			"practiceLeakedShare": 0.515,
-			"practiceGatePassed": 0.851,
-			"practiceMeanScore": 0.7966
-		},
-		{
-			"grade": "junior",
-			"attackerShift": -0.15,
-			"leak": "practice",
-			"source": "class",
-			"outcome": {
-				"runs": 1000,
-				"confirmed": 0.068,
-				"confirmedCi95": [0.054, 0.0853],
-				"undetermined": 0.003,
-				"notConfirmed": 0.929
-			},
-			"computedLeakedShare": null,
-			"pastedRightShare": null,
-			"practiceLeakedShare": 1,
-			"practiceGatePassed": 1,
-			"practiceMeanScore": 1
-		},
-		{
-			"grade": "junior",
-			"attackerShift": -0.15,
-			"leak": "both",
-			"source": "donor",
-			"outcome": {
-				"runs": 1000,
-				"confirmed": 0.001,
-				"confirmedCi95": [0.0002, 0.0056],
-				"undetermined": 0,
-				"notConfirmed": 0.999
-			},
-			"computedLeakedShare": 0.6144,
-			"pastedRightShare": 0.0008,
-			"practiceLeakedShare": 0.515,
-			"practiceGatePassed": 0.851,
-			"practiceMeanScore": 0.7966
-		},
-		{
-			"grade": "junior",
-			"attackerShift": -0.15,
-			"leak": "both",
-			"source": "class",
-			"outcome": { "runs": 1000, "confirmed": 0, "confirmedCi95": [0, 0.0038], "undetermined": 0, "notConfirmed": 1 },
-			"computedLeakedShare": 1,
-			"pastedRightShare": 0.0008,
-			"practiceLeakedShare": 1,
-			"practiceGatePassed": 1,
-			"practiceMeanScore": 1
-		},
-		{
-			"grade": "junior",
-			"attackerShift": -0.3,
-			"leak": "none",
-			"source": null,
-			"outcome": {
-				"runs": 2000,
-				"confirmed": 0.0045,
-				"confirmedCi95": [0.0024, 0.0085],
-				"undetermined": 0,
-				"notConfirmed": 0.9955
-			},
-			"computedLeakedShare": null,
-			"pastedRightShare": null,
-			"practiceLeakedShare": null,
-			"practiceGatePassed": null,
-			"practiceMeanScore": null
-		},
-		{
-			"grade": "junior",
-			"attackerShift": -0.3,
-			"leak": "answers",
-			"source": "donor",
-			"outcome": { "runs": 2000, "confirmed": 0, "confirmedCi95": [0, 0.0019], "undetermined": 0, "notConfirmed": 1 },
-			"computedLeakedShare": 0.6445,
 			"pastedRightShare": 0.0006,
 			"practiceLeakedShare": null,
-			"practiceGatePassed": 0.5955,
-			"practiceMeanScore": 0.4769
+			"practiceGatePassed": 0.7475,
+			"practiceMeanScore": 0.6391
 		},
 		{
 			"grade": "junior",
-			"attackerShift": -0.3,
-			"leak": "answers",
-			"source": "class",
-			"outcome": { "runs": 2000, "confirmed": 0, "confirmedCi95": [0, 0.0019], "undetermined": 0, "notConfirmed": 1 },
-			"computedLeakedShare": 1,
-			"pastedRightShare": 0.0009,
-			"practiceLeakedShare": null,
-			"practiceGatePassed": 0.5955,
-			"practiceMeanScore": 0.4769
-		},
-		{
-			"grade": "junior",
-			"attackerShift": -0.3,
-			"leak": "practice",
-			"source": "donor",
-			"outcome": {
-				"runs": 1000,
-				"confirmed": 0.008,
-				"confirmedCi95": [0.0041, 0.0157],
-				"undetermined": 0,
-				"notConfirmed": 0.992
-			},
-			"computedLeakedShare": null,
-			"pastedRightShare": null,
-			"practiceLeakedShare": 0.515,
-			"practiceGatePassed": 0.793,
-			"practiceMeanScore": 0.7342
-		},
-		{
-			"grade": "junior",
-			"attackerShift": -0.3,
-			"leak": "practice",
-			"source": "class",
-			"outcome": {
-				"runs": 1000,
-				"confirmed": 0.009,
-				"confirmedCi95": [0.0047, 0.017],
-				"undetermined": 0,
-				"notConfirmed": 0.991
-			},
-			"computedLeakedShare": null,
-			"pastedRightShare": null,
-			"practiceLeakedShare": 1,
-			"practiceGatePassed": 1,
-			"practiceMeanScore": 1
-		},
-		{
-			"grade": "junior",
-			"attackerShift": -0.3,
-			"leak": "both",
-			"source": "donor",
-			"outcome": { "runs": 1000, "confirmed": 0, "confirmedCi95": [0, 0.0038], "undetermined": 0, "notConfirmed": 1 },
-			"computedLeakedShare": 0.6385,
-			"pastedRightShare": 0.0008,
-			"practiceLeakedShare": 0.515,
-			"practiceGatePassed": 0.793,
-			"practiceMeanScore": 0.7342
-		},
-		{
-			"grade": "junior",
-			"attackerShift": -0.3,
-			"leak": "both",
-			"source": "class",
-			"outcome": { "runs": 1000, "confirmed": 0, "confirmedCi95": [0, 0.0038], "undetermined": 0, "notConfirmed": 1 },
-			"computedLeakedShare": 1,
-			"pastedRightShare": 0.0008,
-			"practiceLeakedShare": 1,
-			"practiceGatePassed": 1,
-			"practiceMeanScore": 1
-		},
-		{
-			"grade": "middle",
 			"attackerShift": -0.15,
+			"leak": "practice",
+			"source": "donor",
+			"outcome": {
+				"runs": 1000,
+				"confirmed": 0.028,
+				"confirmedCi95": [0.0194, 0.0402],
+				"undetermined": 0,
+				"notConfirmed": 0.972
+			},
+			"computedLeakedShare": null,
+			"pastedRightShare": null,
+			"practiceLeakedShare": 0.509,
+			"practiceGatePassed": 0.357,
+			"practiceMeanScore": 0.3156
+		},
+		{
+			"grade": "junior",
+			"attackerShift": -0.15,
+			"leak": "practice",
+			"source": "class",
+			"outcome": {
+				"runs": 1000,
+				"confirmed": 0.003,
+				"confirmedCi95": [0.001, 0.0088],
+				"undetermined": 0,
+				"notConfirmed": 0.997
+			},
+			"computedLeakedShare": null,
+			"pastedRightShare": null,
+			"practiceLeakedShare": 1,
+			"practiceGatePassed": 0.029,
+			"practiceMeanScore": 0.029
+		},
+		{
+			"grade": "junior",
+			"attackerShift": -0.15,
+			"leak": "both",
+			"source": "donor",
+			"outcome": { "runs": 1000, "confirmed": 0, "confirmedCi95": [0, 0.0038], "undetermined": 0, "notConfirmed": 1 },
+			"computedLeakedShare": 0.6482,
+			"pastedRightShare": 0.0018,
+			"practiceLeakedShare": 0.509,
+			"practiceGatePassed": 0.357,
+			"practiceMeanScore": 0.3156
+		},
+		{
+			"grade": "junior",
+			"attackerShift": -0.15,
+			"leak": "both",
+			"source": "class",
+			"outcome": { "runs": 1000, "confirmed": 0, "confirmedCi95": [0, 0.0038], "undetermined": 0, "notConfirmed": 1 },
+			"computedLeakedShare": 1,
+			"pastedRightShare": 0.0003,
+			"practiceLeakedShare": 1,
+			"practiceGatePassed": 0.029,
+			"practiceMeanScore": 0.029
+		},
+		{
+			"grade": "junior",
+			"attackerShift": -0.3,
 			"leak": "none",
 			"source": null,
 			"outcome": {
 				"runs": 2000,
-				"confirmed": 0.0755,
-				"confirmedCi95": [0.0647, 0.0879],
-				"undetermined": 0.0145,
-				"notConfirmed": 0.91
-			},
-			"computedLeakedShare": null,
-			"pastedRightShare": null,
-			"practiceLeakedShare": null,
-			"practiceGatePassed": null,
-			"practiceMeanScore": null
-		},
-		{
-			"grade": "middle",
-			"attackerShift": -0.15,
-			"leak": "answers",
-			"source": "donor",
-			"outcome": {
-				"runs": 2000,
-				"confirmed": 0.0005,
-				"confirmedCi95": [0.0001, 0.0028],
-				"undetermined": 0,
-				"notConfirmed": 0.9995
-			},
-			"computedLeakedShare": 0.617,
-			"pastedRightShare": 0.0004,
-			"practiceLeakedShare": null,
-			"practiceGatePassed": 0.7505,
-			"practiceMeanScore": 0.6608
-		},
-		{
-			"grade": "middle",
-			"attackerShift": -0.15,
-			"leak": "answers",
-			"source": "class",
-			"outcome": { "runs": 2000, "confirmed": 0, "confirmedCi95": [0, 0.0019], "undetermined": 0, "notConfirmed": 1 },
-			"computedLeakedShare": 1,
-			"pastedRightShare": 0.0002,
-			"practiceLeakedShare": null,
-			"practiceGatePassed": 0.7505,
-			"practiceMeanScore": 0.6608
-		},
-		{
-			"grade": "middle",
-			"attackerShift": -0.15,
-			"leak": "practice",
-			"source": "donor",
-			"outcome": {
-				"runs": 1000,
-				"confirmed": 0.094,
-				"confirmedCi95": [0.0774, 0.1137],
-				"undetermined": 0.013,
-				"notConfirmed": 0.893
-			},
-			"computedLeakedShare": null,
-			"pastedRightShare": null,
-			"practiceLeakedShare": 0.494,
-			"practiceGatePassed": 0.885,
-			"practiceMeanScore": 0.8349
-		},
-		{
-			"grade": "middle",
-			"attackerShift": -0.15,
-			"leak": "practice",
-			"source": "class",
-			"outcome": {
-				"runs": 1000,
-				"confirmed": 0.11,
-				"confirmedCi95": [0.0921, 0.1309],
-				"undetermined": 0.014,
-				"notConfirmed": 0.876
-			},
-			"computedLeakedShare": null,
-			"pastedRightShare": null,
-			"practiceLeakedShare": 1,
-			"practiceGatePassed": 1,
-			"practiceMeanScore": 1
-		},
-		{
-			"grade": "middle",
-			"attackerShift": -0.15,
-			"leak": "both",
-			"source": "donor",
-			"outcome": {
-				"runs": 1000,
 				"confirmed": 0.001,
-				"confirmedCi95": [0.0002, 0.0056],
+				"confirmedCi95": [0.0003, 0.0036],
 				"undetermined": 0,
 				"notConfirmed": 0.999
 			},
-			"computedLeakedShare": 0.6158,
-			"pastedRightShare": 0.0007,
-			"practiceLeakedShare": 0.494,
-			"practiceGatePassed": 0.885,
-			"practiceMeanScore": 0.8349
-		},
-		{
-			"grade": "middle",
-			"attackerShift": -0.15,
-			"leak": "both",
-			"source": "class",
-			"outcome": { "runs": 1000, "confirmed": 0, "confirmedCi95": [0, 0.0038], "undetermined": 0, "notConfirmed": 1 },
-			"computedLeakedShare": 1,
-			"pastedRightShare": 0.0003,
-			"practiceLeakedShare": 1,
-			"practiceGatePassed": 1,
-			"practiceMeanScore": 1
-		},
-		{
-			"grade": "middle",
-			"attackerShift": -0.3,
-			"leak": "none",
-			"source": null,
-			"outcome": {
-				"runs": 2000,
-				"confirmed": 0.0015,
-				"confirmedCi95": [0.0005, 0.0044],
-				"undetermined": 0.0005,
-				"notConfirmed": 0.998
-			},
 			"computedLeakedShare": null,
 			"pastedRightShare": null,
 			"practiceLeakedShare": null,
@@ -382,79 +154,67 @@
 			"practiceMeanScore": null
 		},
 		{
-			"grade": "middle",
+			"grade": "junior",
 			"attackerShift": -0.3,
 			"leak": "answers",
 			"source": "donor",
 			"outcome": { "runs": 2000, "confirmed": 0, "confirmedCi95": [0, 0.0019], "undetermined": 0, "notConfirmed": 1 },
-			"computedLeakedShare": 0.6439,
-			"pastedRightShare": 0.0005,
+			"computedLeakedShare": 0.6432,
+			"pastedRightShare": 0.0009,
 			"practiceLeakedShare": null,
-			"practiceGatePassed": 0.595,
-			"practiceMeanScore": 0.5082
+			"practiceGatePassed": 0.6025,
+			"practiceMeanScore": 0.4905
 		},
 		{
-			"grade": "middle",
+			"grade": "junior",
 			"attackerShift": -0.3,
 			"leak": "answers",
 			"source": "class",
 			"outcome": { "runs": 2000, "confirmed": 0, "confirmedCi95": [0, 0.0019], "undetermined": 0, "notConfirmed": 1 },
 			"computedLeakedShare": 1,
-			"pastedRightShare": 0,
+			"pastedRightShare": 0.0005,
 			"practiceLeakedShare": null,
-			"practiceGatePassed": 0.595,
-			"practiceMeanScore": 0.5082
+			"practiceGatePassed": 0.6025,
+			"practiceMeanScore": 0.4905
 		},
 		{
-			"grade": "middle",
+			"grade": "junior",
 			"attackerShift": -0.3,
 			"leak": "practice",
 			"source": "donor",
-			"outcome": {
-				"runs": 1000,
-				"confirmed": 0.002,
-				"confirmedCi95": [0.0005, 0.0073],
-				"undetermined": 0,
-				"notConfirmed": 0.998
-			},
+			"outcome": { "runs": 1000, "confirmed": 0, "confirmedCi95": [0, 0.0038], "undetermined": 0, "notConfirmed": 1 },
 			"computedLeakedShare": null,
 			"pastedRightShare": null,
-			"practiceLeakedShare": 0.494,
-			"practiceGatePassed": 0.806,
-			"practiceMeanScore": 0.76
+			"practiceLeakedShare": 0.509,
+			"practiceGatePassed": 0.299,
+			"practiceMeanScore": 0.2414
 		},
 		{
-			"grade": "middle",
+			"grade": "junior",
 			"attackerShift": -0.3,
 			"leak": "practice",
 			"source": "class",
-			"outcome": {
-				"runs": 1000,
-				"confirmed": 0.004,
-				"confirmedCi95": [0.0016, 0.0102],
-				"undetermined": 0,
-				"notConfirmed": 0.996
-			},
+			"outcome": { "runs": 1000, "confirmed": 0, "confirmedCi95": [0, 0.0038], "undetermined": 0, "notConfirmed": 1 },
 			"computedLeakedShare": null,
 			"pastedRightShare": null,
 			"practiceLeakedShare": 1,
-			"practiceGatePassed": 1,
-			"practiceMeanScore": 1
+			"practiceGatePassed": 0.029,
+			"practiceMeanScore": 0.029
 		},
 		{
-			"grade": "middle",
+			"grade": "junior",
 			"attackerShift": -0.3,
 			"leak": "both",
 			"source": "donor",
 			"outcome": { "runs": 1000, "confirmed": 0, "confirmedCi95": [0, 0.0038], "undetermined": 0, "notConfirmed": 1 },
-			"computedLeakedShare": 0.6472,
-			"pastedRightShare": 0.0008,
-			"practiceLeakedShare": 0.494,
-			"practiceGatePassed": 0.806,
-			"practiceMeanScore": 0.76
+			"computedLeakedShare": 0.6569,
+			"pastedRightShare": 0.0015,
+			"practiceLeakedShare": 0.509,
+			"practiceGatePassed": 0.299,
+			"practiceMeanScore": 0.2414
 		},
 		{
-			"grade": "middle",
+			"grade": "junior",
 			"attackerShift": -0.3,
 			"leak": "both",
 			"source": "class",
@@ -462,19 +222,19 @@
 			"computedLeakedShare": 1,
 			"pastedRightShare": 0.0003,
 			"practiceLeakedShare": 1,
-			"practiceGatePassed": 1,
-			"practiceMeanScore": 1
+			"practiceGatePassed": 0.029,
+			"practiceMeanScore": 0.029
 		},
 		{
-			"grade": "senior",
+			"grade": "middle",
 			"attackerShift": -0.15,
 			"leak": "none",
 			"source": null,
 			"outcome": {
 				"runs": 2000,
-				"confirmed": 0.0625,
-				"confirmedCi95": [0.0527, 0.074],
-				"undetermined": 0.0225,
+				"confirmed": 0.07,
+				"confirmedCi95": [0.0596, 0.082],
+				"undetermined": 0.015,
 				"notConfirmed": 0.915
 			},
 			"computedLeakedShare": null,
@@ -484,22 +244,238 @@
 			"practiceMeanScore": null
 		},
 		{
+			"grade": "middle",
+			"attackerShift": -0.15,
+			"leak": "answers",
+			"source": "donor",
+			"outcome": {
+				"runs": 2000,
+				"confirmed": 0.0015,
+				"confirmedCi95": [0.0005, 0.0044],
+				"undetermined": 0.0005,
+				"notConfirmed": 0.998
+			},
+			"computedLeakedShare": 0.62,
+			"pastedRightShare": 0,
+			"practiceLeakedShare": null,
+			"practiceGatePassed": 0.755,
+			"practiceMeanScore": 0.6506
+		},
+		{
+			"grade": "middle",
+			"attackerShift": -0.15,
+			"leak": "answers",
+			"source": "class",
+			"outcome": { "runs": 2000, "confirmed": 0, "confirmedCi95": [0, 0.0019], "undetermined": 0, "notConfirmed": 1 },
+			"computedLeakedShare": 1,
+			"pastedRightShare": 0.0001,
+			"practiceLeakedShare": null,
+			"practiceGatePassed": 0.755,
+			"practiceMeanScore": 0.6506
+		},
+		{
+			"grade": "middle",
+			"attackerShift": -0.15,
+			"leak": "practice",
+			"source": "donor",
+			"outcome": {
+				"runs": 1000,
+				"confirmed": 0.027,
+				"confirmedCi95": [0.0186, 0.039],
+				"undetermined": 0.006,
+				"notConfirmed": 0.967
+			},
+			"computedLeakedShare": null,
+			"pastedRightShare": null,
+			"practiceLeakedShare": 0.506,
+			"practiceGatePassed": 0.381,
+			"practiceMeanScore": 0.3262
+		},
+		{
+			"grade": "middle",
+			"attackerShift": -0.15,
+			"leak": "practice",
+			"source": "class",
+			"outcome": {
+				"runs": 1000,
+				"confirmed": 0,
+				"confirmedCi95": [0, 0.0038],
+				"undetermined": 0.001,
+				"notConfirmed": 0.999
+			},
+			"computedLeakedShare": null,
+			"pastedRightShare": null,
+			"practiceLeakedShare": 1,
+			"practiceGatePassed": 0.014,
+			"practiceMeanScore": 0.012
+		},
+		{
+			"grade": "middle",
+			"attackerShift": -0.15,
+			"leak": "both",
+			"source": "donor",
+			"outcome": {
+				"runs": 1000,
+				"confirmed": 0.001,
+				"confirmedCi95": [0.0002, 0.0056],
+				"undetermined": 0,
+				"notConfirmed": 0.999
+			},
+			"computedLeakedShare": 0.6425,
+			"pastedRightShare": 0,
+			"practiceLeakedShare": 0.506,
+			"practiceGatePassed": 0.381,
+			"practiceMeanScore": 0.3262
+		},
+		{
+			"grade": "middle",
+			"attackerShift": -0.15,
+			"leak": "both",
+			"source": "class",
+			"outcome": { "runs": 1000, "confirmed": 0, "confirmedCi95": [0, 0.0038], "undetermined": 0, "notConfirmed": 1 },
+			"computedLeakedShare": 1,
+			"pastedRightShare": 0,
+			"practiceLeakedShare": 1,
+			"practiceGatePassed": 0.014,
+			"practiceMeanScore": 0.012
+		},
+		{
+			"grade": "middle",
+			"attackerShift": -0.3,
+			"leak": "none",
+			"source": null,
+			"outcome": {
+				"runs": 2000,
+				"confirmed": 0.002,
+				"confirmedCi95": [0.0008, 0.0051],
+				"undetermined": 0.0005,
+				"notConfirmed": 0.9975
+			},
+			"computedLeakedShare": null,
+			"pastedRightShare": null,
+			"practiceLeakedShare": null,
+			"practiceGatePassed": null,
+			"practiceMeanScore": null
+		},
+		{
+			"grade": "middle",
+			"attackerShift": -0.3,
+			"leak": "answers",
+			"source": "donor",
+			"outcome": { "runs": 2000, "confirmed": 0, "confirmedCi95": [0, 0.0019], "undetermined": 0, "notConfirmed": 1 },
+			"computedLeakedShare": 0.6506,
+			"pastedRightShare": 0,
+			"practiceLeakedShare": null,
+			"practiceGatePassed": 0.579,
+			"practiceMeanScore": 0.4923
+		},
+		{
+			"grade": "middle",
+			"attackerShift": -0.3,
+			"leak": "answers",
+			"source": "class",
+			"outcome": { "runs": 2000, "confirmed": 0, "confirmedCi95": [0, 0.0019], "undetermined": 0, "notConfirmed": 1 },
+			"computedLeakedShare": 1,
+			"pastedRightShare": 0.0001,
+			"practiceLeakedShare": null,
+			"practiceGatePassed": 0.579,
+			"practiceMeanScore": 0.4923
+		},
+		{
+			"grade": "middle",
+			"attackerShift": -0.3,
+			"leak": "practice",
+			"source": "donor",
+			"outcome": {
+				"runs": 1000,
+				"confirmed": 0.001,
+				"confirmedCi95": [0.0002, 0.0056],
+				"undetermined": 0,
+				"notConfirmed": 0.999
+			},
+			"computedLeakedShare": null,
+			"pastedRightShare": null,
+			"practiceLeakedShare": 0.506,
+			"practiceGatePassed": 0.295,
+			"practiceMeanScore": 0.2514
+		},
+		{
+			"grade": "middle",
+			"attackerShift": -0.3,
+			"leak": "practice",
+			"source": "class",
+			"outcome": {
+				"runs": 1000,
+				"confirmed": 0.001,
+				"confirmedCi95": [0.0002, 0.0056],
+				"undetermined": 0,
+				"notConfirmed": 0.999
+			},
+			"computedLeakedShare": null,
+			"pastedRightShare": null,
+			"practiceLeakedShare": 1,
+			"practiceGatePassed": 0.014,
+			"practiceMeanScore": 0.012
+		},
+		{
+			"grade": "middle",
+			"attackerShift": -0.3,
+			"leak": "both",
+			"source": "donor",
+			"outcome": { "runs": 1000, "confirmed": 0, "confirmedCi95": [0, 0.0038], "undetermined": 0, "notConfirmed": 1 },
+			"computedLeakedShare": 0.6633,
+			"pastedRightShare": 0,
+			"practiceLeakedShare": 0.506,
+			"practiceGatePassed": 0.295,
+			"practiceMeanScore": 0.2514
+		},
+		{
+			"grade": "middle",
+			"attackerShift": -0.3,
+			"leak": "both",
+			"source": "class",
+			"outcome": { "runs": 1000, "confirmed": 0, "confirmedCi95": [0, 0.0038], "undetermined": 0, "notConfirmed": 1 },
+			"computedLeakedShare": 1,
+			"pastedRightShare": 0,
+			"practiceLeakedShare": 1,
+			"practiceGatePassed": 0.014,
+			"practiceMeanScore": 0.012
+		},
+		{
+			"grade": "senior",
+			"attackerShift": -0.15,
+			"leak": "none",
+			"source": null,
+			"outcome": {
+				"runs": 2000,
+				"confirmed": 0.0705,
+				"confirmedCi95": [0.0601, 0.0826],
+				"undetermined": 0.019,
+				"notConfirmed": 0.9105
+			},
+			"computedLeakedShare": null,
+			"pastedRightShare": null,
+			"practiceLeakedShare": null,
+			"practiceGatePassed": null,
+			"practiceMeanScore": null
+		},
+		{
 			"grade": "senior",
 			"attackerShift": -0.15,
 			"leak": "answers",
 			"source": "donor",
 			"outcome": {
 				"runs": 2000,
-				"confirmed": 0.001,
-				"confirmedCi95": [0.0003, 0.0036],
+				"confirmed": 0.0005,
+				"confirmedCi95": [0.0001, 0.0028],
 				"undetermined": 0,
-				"notConfirmed": 0.999
+				"notConfirmed": 0.9995
 			},
-			"computedLeakedShare": 0.7002,
+			"computedLeakedShare": 0.6979,
 			"pastedRightShare": 0.0001,
 			"practiceLeakedShare": null,
-			"practiceGatePassed": 0.761,
-			"practiceMeanScore": 0.6693
+			"practiceGatePassed": 0.764,
+			"practiceMeanScore": 0.6669
 		},
 		{
 			"grade": "senior",
@@ -508,10 +484,10 @@
 			"source": "class",
 			"outcome": { "runs": 2000, "confirmed": 0, "confirmedCi95": [0, 0.0019], "undetermined": 0, "notConfirmed": 1 },
 			"computedLeakedShare": 1,
-			"pastedRightShare": 0.0004,
+			"pastedRightShare": 0.0006,
 			"practiceLeakedShare": null,
-			"practiceGatePassed": 0.761,
-			"practiceMeanScore": 0.6693
+			"practiceGatePassed": 0.764,
+			"practiceMeanScore": 0.6669
 		},
 		{
 			"grade": "senior",
@@ -520,16 +496,16 @@
 			"source": "donor",
 			"outcome": {
 				"runs": 1000,
-				"confirmed": 0.069,
-				"confirmedCi95": [0.0549, 0.0864],
-				"undetermined": 0.028,
-				"notConfirmed": 0.903
+				"confirmed": 0.034,
+				"confirmedCi95": [0.0244, 0.0471],
+				"undetermined": 0.009,
+				"notConfirmed": 0.957
 			},
 			"computedLeakedShare": null,
 			"pastedRightShare": null,
-			"practiceLeakedShare": 0.498,
-			"practiceGatePassed": 0.866,
-			"practiceMeanScore": 0.8292
+			"practiceLeakedShare": 0.514,
+			"practiceGatePassed": 0.388,
+			"practiceMeanScore": 0.3386
 		},
 		{
 			"grade": "senior",
@@ -538,34 +514,28 @@
 			"source": "class",
 			"outcome": {
 				"runs": 1000,
-				"confirmed": 0.077,
-				"confirmedCi95": [0.062, 0.0952],
-				"undetermined": 0.033,
-				"notConfirmed": 0.89
+				"confirmed": 0.001,
+				"confirmedCi95": [0.0002, 0.0056],
+				"undetermined": 0.001,
+				"notConfirmed": 0.998
 			},
 			"computedLeakedShare": null,
 			"pastedRightShare": null,
 			"practiceLeakedShare": 1,
-			"practiceGatePassed": 1,
-			"practiceMeanScore": 1
+			"practiceGatePassed": 0.014,
+			"practiceMeanScore": 0.0108
 		},
 		{
 			"grade": "senior",
 			"attackerShift": -0.15,
 			"leak": "both",
 			"source": "donor",
-			"outcome": {
-				"runs": 1000,
-				"confirmed": 0.002,
-				"confirmedCi95": [0.0005, 0.0073],
-				"undetermined": 0,
-				"notConfirmed": 0.998
-			},
-			"computedLeakedShare": 0.693,
-			"pastedRightShare": 0.0002,
-			"practiceLeakedShare": 0.498,
-			"practiceGatePassed": 0.866,
-			"practiceMeanScore": 0.8292
+			"outcome": { "runs": 1000, "confirmed": 0, "confirmedCi95": [0, 0.0038], "undetermined": 0, "notConfirmed": 1 },
+			"computedLeakedShare": 0.7124,
+			"pastedRightShare": 0,
+			"practiceLeakedShare": 0.514,
+			"practiceGatePassed": 0.388,
+			"practiceMeanScore": 0.3386
 		},
 		{
 			"grade": "senior",
@@ -574,10 +544,10 @@
 			"source": "class",
 			"outcome": { "runs": 1000, "confirmed": 0, "confirmedCi95": [0, 0.0038], "undetermined": 0, "notConfirmed": 1 },
 			"computedLeakedShare": 1,
-			"pastedRightShare": 0.0002,
+			"pastedRightShare": 0.0003,
 			"practiceLeakedShare": 1,
-			"practiceGatePassed": 1,
-			"practiceMeanScore": 1
+			"practiceGatePassed": 0.014,
+			"practiceMeanScore": 0.0108
 		},
 		{
 			"grade": "senior",
@@ -586,10 +556,10 @@
 			"source": null,
 			"outcome": {
 				"runs": 2000,
-				"confirmed": 0.0005,
-				"confirmedCi95": [0.0001, 0.0028],
+				"confirmed": 0.001,
+				"confirmedCi95": [0.0003, 0.0036],
 				"undetermined": 0,
-				"notConfirmed": 0.9995
+				"notConfirmed": 0.999
 			},
 			"computedLeakedShare": null,
 			"pastedRightShare": null,
@@ -603,11 +573,11 @@
 			"leak": "answers",
 			"source": "donor",
 			"outcome": { "runs": 2000, "confirmed": 0, "confirmedCi95": [0, 0.0019], "undetermined": 0, "notConfirmed": 1 },
-			"computedLeakedShare": 0.7263,
+			"computedLeakedShare": 0.7221,
 			"pastedRightShare": 0.0001,
 			"practiceLeakedShare": null,
-			"practiceGatePassed": 0.608,
-			"practiceMeanScore": 0.5183
+			"practiceGatePassed": 0.5935,
+			"practiceMeanScore": 0.5045
 		},
 		{
 			"grade": "senior",
@@ -616,10 +586,10 @@
 			"source": "class",
 			"outcome": { "runs": 2000, "confirmed": 0, "confirmedCi95": [0, 0.0019], "undetermined": 0, "notConfirmed": 1 },
 			"computedLeakedShare": 1,
-			"pastedRightShare": 0.0003,
+			"pastedRightShare": 0.0005,
 			"practiceLeakedShare": null,
-			"practiceGatePassed": 0.608,
-			"practiceMeanScore": 0.5183
+			"practiceGatePassed": 0.5935,
+			"practiceMeanScore": 0.5045
 		},
 		{
 			"grade": "senior",
@@ -629,27 +599,21 @@
 			"outcome": { "runs": 1000, "confirmed": 0, "confirmedCi95": [0, 0.0038], "undetermined": 0, "notConfirmed": 1 },
 			"computedLeakedShare": null,
 			"pastedRightShare": null,
-			"practiceLeakedShare": 0.498,
-			"practiceGatePassed": 0.804,
-			"practiceMeanScore": 0.7551
+			"practiceLeakedShare": 0.514,
+			"practiceGatePassed": 0.291,
+			"practiceMeanScore": 0.2451
 		},
 		{
 			"grade": "senior",
 			"attackerShift": -0.3,
 			"leak": "practice",
 			"source": "class",
-			"outcome": {
-				"runs": 1000,
-				"confirmed": 0.001,
-				"confirmedCi95": [0.0002, 0.0056],
-				"undetermined": 0.001,
-				"notConfirmed": 0.998
-			},
+			"outcome": { "runs": 1000, "confirmed": 0, "confirmedCi95": [0, 0.0038], "undetermined": 0, "notConfirmed": 1 },
 			"computedLeakedShare": null,
 			"pastedRightShare": null,
 			"practiceLeakedShare": 1,
-			"practiceGatePassed": 1,
-			"practiceMeanScore": 1
+			"practiceGatePassed": 0.014,
+			"practiceMeanScore": 0.0108
 		},
 		{
 			"grade": "senior",
@@ -657,11 +621,11 @@
 			"leak": "both",
 			"source": "donor",
 			"outcome": { "runs": 1000, "confirmed": 0, "confirmedCi95": [0, 0.0038], "undetermined": 0, "notConfirmed": 1 },
-			"computedLeakedShare": 0.7269,
-			"pastedRightShare": 0.0002,
-			"practiceLeakedShare": 0.498,
-			"practiceGatePassed": 0.804,
-			"practiceMeanScore": 0.7551
+			"computedLeakedShare": 0.7317,
+			"pastedRightShare": 0,
+			"practiceLeakedShare": 0.514,
+			"practiceGatePassed": 0.291,
+			"practiceMeanScore": 0.2451
 		},
 		{
 			"grade": "senior",
@@ -670,10 +634,10 @@
 			"source": "class",
 			"outcome": { "runs": 1000, "confirmed": 0, "confirmedCi95": [0, 0.0038], "undetermined": 0, "notConfirmed": 1 },
 			"computedLeakedShare": 1,
-			"pastedRightShare": 0.0002,
+			"pastedRightShare": 0.0003,
 			"practiceLeakedShare": 1,
-			"practiceGatePassed": 1,
-			"practiceMeanScore": 1
+			"practiceGatePassed": 0.014,
+			"practiceMeanScore": 0.0108
 		}
 	],
 	"strategy": [
@@ -683,10 +647,10 @@
 			"gain": 0,
 			"outcome": {
 				"runs": 2000,
-				"confirmed": 0.06,
-				"confirmedCi95": [0.0504, 0.0713],
+				"confirmed": 0.067,
+				"confirmedCi95": [0.0569, 0.0788],
 				"undetermined": 0.002,
-				"notConfirmed": 0.938
+				"notConfirmed": 0.931
 			}
 		},
 		{
@@ -695,10 +659,10 @@
 			"gain": 0.05,
 			"outcome": {
 				"runs": 2000,
-				"confirmed": 0.1315,
-				"confirmedCi95": [0.1174, 0.147],
-				"undetermined": 0.0035,
-				"notConfirmed": 0.865
+				"confirmed": 0.1295,
+				"confirmedCi95": [0.1155, 0.1449],
+				"undetermined": 0.0045,
+				"notConfirmed": 0.866
 			}
 		},
 		{
@@ -707,410 +671,242 @@
 			"gain": 0.1,
 			"outcome": {
 				"runs": 2000,
-				"confirmed": 0.222,
-				"confirmedCi95": [0.2043, 0.2407],
-				"undetermined": 0.0035,
-				"notConfirmed": 0.7745
+				"confirmed": 0.2335,
+				"confirmedCi95": [0.2155, 0.2525],
+				"undetermined": 0.006,
+				"notConfirmed": 0.7605
 			}
 		},
 		{
 			"grade": "junior",
 			"attackerShift": -0.15,
 			"gain": 0.15,
-			"outcome": {
-				"runs": 2000,
-				"confirmed": 0.3425,
-				"confirmedCi95": [0.322, 0.3636],
-				"undetermined": 0.004,
-				"notConfirmed": 0.6535
-			}
-		},
-		{
-			"grade": "junior",
-			"attackerShift": -0.15,
-			"gain": 0.2,
-			"outcome": {
-				"runs": 2000,
-				"confirmed": 0.494,
-				"confirmedCi95": [0.4721, 0.5159],
-				"undetermined": 0.005,
-				"notConfirmed": 0.501
-			}
-		},
-		{
-			"grade": "junior",
-			"attackerShift": -0.15,
-			"gain": 0.25,
-			"outcome": {
-				"runs": 2000,
-				"confirmed": 0.6465,
-				"confirmedCi95": [0.6253, 0.6672],
-				"undetermined": 0.004,
-				"notConfirmed": 0.3495
-			}
-		},
-		{
-			"grade": "junior",
-			"attackerShift": -0.15,
-			"gain": 0.3,
-			"outcome": {
-				"runs": 2000,
-				"confirmed": 0.788,
-				"confirmedCi95": [0.7695, 0.8054],
-				"undetermined": 0.001,
-				"notConfirmed": 0.211
-			}
-		},
-		{
-			"grade": "junior",
-			"attackerShift": -0.3,
-			"gain": 0,
-			"outcome": {
-				"runs": 2000,
-				"confirmed": 0.005,
-				"confirmedCi95": [0.0027, 0.0092],
-				"undetermined": 0,
-				"notConfirmed": 0.995
-			}
-		},
-		{
-			"grade": "junior",
-			"attackerShift": -0.3,
-			"gain": 0.05,
-			"outcome": {
-				"runs": 2000,
-				"confirmed": 0.008,
-				"confirmedCi95": [0.0049, 0.013],
-				"undetermined": 0.0005,
-				"notConfirmed": 0.9915
-			}
-		},
-		{
-			"grade": "junior",
-			"attackerShift": -0.3,
-			"gain": 0.1,
-			"outcome": {
-				"runs": 2000,
-				"confirmed": 0.025,
-				"confirmedCi95": [0.019, 0.0328],
-				"undetermined": 0,
-				"notConfirmed": 0.975
-			}
-		},
-		{
-			"grade": "junior",
-			"attackerShift": -0.3,
-			"gain": 0.15,
-			"outcome": {
-				"runs": 2000,
-				"confirmed": 0.0655,
-				"confirmedCi95": [0.0555, 0.0772],
-				"undetermined": 0.0015,
-				"notConfirmed": 0.933
-			}
-		},
-		{
-			"grade": "junior",
-			"attackerShift": -0.3,
-			"gain": 0.2,
-			"outcome": {
-				"runs": 2000,
-				"confirmed": 0.125,
-				"confirmedCi95": [0.1112, 0.1402],
-				"undetermined": 0.003,
-				"notConfirmed": 0.872
-			}
-		},
-		{
-			"grade": "junior",
-			"attackerShift": -0.3,
-			"gain": 0.25,
-			"outcome": {
-				"runs": 2000,
-				"confirmed": 0.22,
-				"confirmedCi95": [0.2024, 0.2387],
-				"undetermined": 0.005,
-				"notConfirmed": 0.775
-			}
-		},
-		{
-			"grade": "junior",
-			"attackerShift": -0.3,
-			"gain": 0.3,
 			"outcome": {
 				"runs": 2000,
 				"confirmed": 0.3505,
 				"confirmedCi95": [0.3299, 0.3717],
-				"undetermined": 0.004,
-				"notConfirmed": 0.6455
+				"undetermined": 0.0045,
+				"notConfirmed": 0.645
 			}
 		},
 		{
-			"grade": "middle",
-			"attackerShift": -0.15,
-			"gain": 0,
-			"outcome": {
-				"runs": 2000,
-				"confirmed": 0.066,
-				"confirmedCi95": [0.0559, 0.0777],
-				"undetermined": 0.0135,
-				"notConfirmed": 0.9205
-			}
-		},
-		{
-			"grade": "middle",
-			"attackerShift": -0.15,
-			"gain": 0.05,
-			"outcome": {
-				"runs": 2000,
-				"confirmed": 0.135,
-				"confirmedCi95": [0.1207, 0.1507],
-				"undetermined": 0.026,
-				"notConfirmed": 0.839
-			}
-		},
-		{
-			"grade": "middle",
-			"attackerShift": -0.15,
-			"gain": 0.1,
-			"outcome": {
-				"runs": 2000,
-				"confirmed": 0.243,
-				"confirmedCi95": [0.2247, 0.2623],
-				"undetermined": 0.03,
-				"notConfirmed": 0.727
-			}
-		},
-		{
-			"grade": "middle",
-			"attackerShift": -0.15,
-			"gain": 0.15,
-			"outcome": {
-				"runs": 2000,
-				"confirmed": 0.3965,
-				"confirmedCi95": [0.3753, 0.4181],
-				"undetermined": 0.0355,
-				"notConfirmed": 0.568
-			}
-		},
-		{
-			"grade": "middle",
+			"grade": "junior",
 			"attackerShift": -0.15,
 			"gain": 0.2,
 			"outcome": {
 				"runs": 2000,
-				"confirmed": 0.5585,
-				"confirmedCi95": [0.5366, 0.5801],
-				"undetermined": 0.0395,
-				"notConfirmed": 0.402
+				"confirmed": 0.5195,
+				"confirmedCi95": [0.4976, 0.5413],
+				"undetermined": 0.003,
+				"notConfirmed": 0.4775
 			}
 		},
 		{
-			"grade": "middle",
+			"grade": "junior",
 			"attackerShift": -0.15,
 			"gain": 0.25,
 			"outcome": {
 				"runs": 2000,
-				"confirmed": 0.7115,
-				"confirmedCi95": [0.6913, 0.7309],
-				"undetermined": 0.0355,
-				"notConfirmed": 0.253
+				"confirmed": 0.6775,
+				"confirmedCi95": [0.6567, 0.6976],
+				"undetermined": 0.0035,
+				"notConfirmed": 0.319
 			}
 		},
 		{
-			"grade": "middle",
+			"grade": "junior",
 			"attackerShift": -0.15,
 			"gain": 0.3,
 			"outcome": {
 				"runs": 2000,
-				"confirmed": 0.8505,
-				"confirmedCi95": [0.8342, 0.8655],
-				"undetermined": 0.017,
-				"notConfirmed": 0.1325
+				"confirmed": 0.809,
+				"confirmedCi95": [0.7912, 0.8256],
+				"undetermined": 0.002,
+				"notConfirmed": 0.189
 			}
 		},
 		{
-			"grade": "middle",
+			"grade": "junior",
 			"attackerShift": -0.3,
 			"gain": 0,
 			"outcome": {
 				"runs": 2000,
 				"confirmed": 0.0015,
 				"confirmedCi95": [0.0005, 0.0044],
-				"undetermined": 0.001,
-				"notConfirmed": 0.9975
+				"undetermined": 0,
+				"notConfirmed": 0.9985
 			}
 		},
 		{
-			"grade": "middle",
+			"grade": "junior",
 			"attackerShift": -0.3,
 			"gain": 0.05,
 			"outcome": {
 				"runs": 2000,
-				"confirmed": 0.0105,
-				"confirmedCi95": [0.0069, 0.016],
+				"confirmed": 0.007,
+				"confirmedCi95": [0.0042, 0.0117],
 				"undetermined": 0.0005,
-				"notConfirmed": 0.989
+				"notConfirmed": 0.9925
 			}
 		},
 		{
-			"grade": "middle",
+			"grade": "junior",
 			"attackerShift": -0.3,
 			"gain": 0.1,
 			"outcome": {
 				"runs": 2000,
-				"confirmed": 0.033,
-				"confirmedCi95": [0.026, 0.0418],
-				"undetermined": 0.004,
-				"notConfirmed": 0.963
+				"confirmed": 0.0225,
+				"confirmedCi95": [0.0169, 0.03],
+				"undetermined": 0.001,
+				"notConfirmed": 0.9765
 			}
 		},
 		{
-			"grade": "middle",
+			"grade": "junior",
 			"attackerShift": -0.3,
 			"gain": 0.15,
 			"outcome": {
 				"runs": 2000,
-				"confirmed": 0.0755,
-				"confirmedCi95": [0.0647, 0.0879],
-				"undetermined": 0.0125,
-				"notConfirmed": 0.912
+				"confirmed": 0.064,
+				"confirmedCi95": [0.0541, 0.0756],
+				"undetermined": 0.0025,
+				"notConfirmed": 0.9335
 			}
 		},
 		{
-			"grade": "middle",
+			"grade": "junior",
 			"attackerShift": -0.3,
 			"gain": 0.2,
 			"outcome": {
 				"runs": 2000,
-				"confirmed": 0.147,
-				"confirmedCi95": [0.1322, 0.1632],
-				"undetermined": 0.024,
-				"notConfirmed": 0.829
+				"confirmed": 0.123,
+				"confirmedCi95": [0.1093, 0.1381],
+				"undetermined": 0.003,
+				"notConfirmed": 0.874
 			}
 		},
 		{
-			"grade": "middle",
+			"grade": "junior",
 			"attackerShift": -0.3,
 			"gain": 0.25,
 			"outcome": {
 				"runs": 2000,
-				"confirmed": 0.2535,
-				"confirmedCi95": [0.2349, 0.273],
-				"undetermined": 0.037,
-				"notConfirmed": 0.7095
+				"confirmed": 0.2255,
+				"confirmedCi95": [0.2077, 0.2443],
+				"undetermined": 0.0055,
+				"notConfirmed": 0.769
 			}
 		},
 		{
-			"grade": "middle",
+			"grade": "junior",
 			"attackerShift": -0.3,
 			"gain": 0.3,
 			"outcome": {
 				"runs": 2000,
-				"confirmed": 0.3935,
-				"confirmedCi95": [0.3723, 0.4151],
-				"undetermined": 0.0445,
-				"notConfirmed": 0.562
+				"confirmed": 0.3725,
+				"confirmedCi95": [0.3516, 0.3939],
+				"undetermined": 0.0055,
+				"notConfirmed": 0.622
 			}
 		},
 		{
-			"grade": "senior",
+			"grade": "middle",
 			"attackerShift": -0.15,
 			"gain": 0,
 			"outcome": {
 				"runs": 2000,
-				"confirmed": 0.0635,
-				"confirmedCi95": [0.0536, 0.075],
-				"undetermined": 0.017,
-				"notConfirmed": 0.9195
+				"confirmed": 0.0675,
+				"confirmedCi95": [0.0573, 0.0793],
+				"undetermined": 0.0155,
+				"notConfirmed": 0.917
 			}
 		},
 		{
-			"grade": "senior",
+			"grade": "middle",
 			"attackerShift": -0.15,
 			"gain": 0.05,
 			"outcome": {
 				"runs": 2000,
-				"confirmed": 0.1405,
-				"confirmedCi95": [0.126, 0.1564],
-				"undetermined": 0.024,
+				"confirmed": 0.1385,
+				"confirmedCi95": [0.1241, 0.1543],
+				"undetermined": 0.026,
 				"notConfirmed": 0.8355
 			}
 		},
 		{
-			"grade": "senior",
+			"grade": "middle",
 			"attackerShift": -0.15,
 			"gain": 0.1,
 			"outcome": {
 				"runs": 2000,
-				"confirmed": 0.245,
-				"confirmedCi95": [0.2267, 0.2643],
-				"undetermined": 0.0355,
-				"notConfirmed": 0.7195
+				"confirmed": 0.246,
+				"confirmedCi95": [0.2276, 0.2654],
+				"undetermined": 0.032,
+				"notConfirmed": 0.722
 			}
 		},
 		{
-			"grade": "senior",
+			"grade": "middle",
 			"attackerShift": -0.15,
 			"gain": 0.15,
 			"outcome": {
 				"runs": 2000,
-				"confirmed": 0.386,
-				"confirmedCi95": [0.3649, 0.4075],
-				"undetermined": 0.0535,
-				"notConfirmed": 0.5605
+				"confirmed": 0.3825,
+				"confirmedCi95": [0.3614, 0.404],
+				"undetermined": 0.036,
+				"notConfirmed": 0.5815
 			}
 		},
 		{
-			"grade": "senior",
+			"grade": "middle",
 			"attackerShift": -0.15,
 			"gain": 0.2,
 			"outcome": {
 				"runs": 2000,
-				"confirmed": 0.528,
-				"confirmedCi95": [0.5061, 0.5498],
-				"undetermined": 0.063,
-				"notConfirmed": 0.409
+				"confirmed": 0.544,
+				"confirmedCi95": [0.5221, 0.5657],
+				"undetermined": 0.0415,
+				"notConfirmed": 0.4145
 			}
 		},
 		{
-			"grade": "senior",
+			"grade": "middle",
 			"attackerShift": -0.15,
 			"gain": 0.25,
 			"outcome": {
 				"runs": 2000,
-				"confirmed": 0.692,
-				"confirmedCi95": [0.6714, 0.7118],
-				"undetermined": 0.053,
-				"notConfirmed": 0.255
+				"confirmed": 0.717,
+				"confirmedCi95": [0.6969, 0.7363],
+				"undetermined": 0.027,
+				"notConfirmed": 0.256
 			}
 		},
 		{
-			"grade": "senior",
+			"grade": "middle",
 			"attackerShift": -0.15,
 			"gain": 0.3,
 			"outcome": {
 				"runs": 2000,
-				"confirmed": 0.834,
-				"confirmedCi95": [0.8171, 0.8497],
-				"undetermined": 0.037,
-				"notConfirmed": 0.129
+				"confirmed": 0.859,
+				"confirmedCi95": [0.8431, 0.8736],
+				"undetermined": 0.0165,
+				"notConfirmed": 0.1245
 			}
 		},
 		{
-			"grade": "senior",
+			"grade": "middle",
 			"attackerShift": -0.3,
 			"gain": 0,
 			"outcome": {
 				"runs": 2000,
-				"confirmed": 0.001,
-				"confirmedCi95": [0.0003, 0.0036],
-				"undetermined": 0,
-				"notConfirmed": 0.999
+				"confirmed": 0.003,
+				"confirmedCi95": [0.0014, 0.0065],
+				"undetermined": 0.0005,
+				"notConfirmed": 0.9965
 			}
 		},
 		{
-			"grade": "senior",
+			"grade": "middle",
 			"attackerShift": -0.3,
 			"gain": 0.05,
 			"outcome": {
@@ -1122,15 +918,183 @@
 			}
 		},
 		{
+			"grade": "middle",
+			"attackerShift": -0.3,
+			"gain": 0.1,
+			"outcome": {
+				"runs": 2000,
+				"confirmed": 0.0225,
+				"confirmedCi95": [0.0169, 0.03],
+				"undetermined": 0.006,
+				"notConfirmed": 0.9715
+			}
+		},
+		{
+			"grade": "middle",
+			"attackerShift": -0.3,
+			"gain": 0.15,
+			"outcome": {
+				"runs": 2000,
+				"confirmed": 0.0695,
+				"confirmedCi95": [0.0592, 0.0815],
+				"undetermined": 0.0125,
+				"notConfirmed": 0.918
+			}
+		},
+		{
+			"grade": "middle",
+			"attackerShift": -0.3,
+			"gain": 0.2,
+			"outcome": {
+				"runs": 2000,
+				"confirmed": 0.1375,
+				"confirmedCi95": [0.1231, 0.1533],
+				"undetermined": 0.02,
+				"notConfirmed": 0.8425
+			}
+		},
+		{
+			"grade": "middle",
+			"attackerShift": -0.3,
+			"gain": 0.25,
+			"outcome": {
+				"runs": 2000,
+				"confirmed": 0.24,
+				"confirmedCi95": [0.2218, 0.2592],
+				"undetermined": 0.037,
+				"notConfirmed": 0.723
+			}
+		},
+		{
+			"grade": "middle",
+			"attackerShift": -0.3,
+			"gain": 0.3,
+			"outcome": {
+				"runs": 2000,
+				"confirmed": 0.386,
+				"confirmedCi95": [0.3649, 0.4075],
+				"undetermined": 0.036,
+				"notConfirmed": 0.578
+			}
+		},
+		{
+			"grade": "senior",
+			"attackerShift": -0.15,
+			"gain": 0,
+			"outcome": {
+				"runs": 2000,
+				"confirmed": 0.063,
+				"confirmedCi95": [0.0532, 0.0745],
+				"undetermined": 0.019,
+				"notConfirmed": 0.918
+			}
+		},
+		{
+			"grade": "senior",
+			"attackerShift": -0.15,
+			"gain": 0.05,
+			"outcome": {
+				"runs": 2000,
+				"confirmed": 0.1295,
+				"confirmedCi95": [0.1155, 0.1449],
+				"undetermined": 0.0345,
+				"notConfirmed": 0.836
+			}
+		},
+		{
+			"grade": "senior",
+			"attackerShift": -0.15,
+			"gain": 0.1,
+			"outcome": {
+				"runs": 2000,
+				"confirmed": 0.2355,
+				"confirmedCi95": [0.2174, 0.2546],
+				"undetermined": 0.0475,
+				"notConfirmed": 0.717
+			}
+		},
+		{
+			"grade": "senior",
+			"attackerShift": -0.15,
+			"gain": 0.15,
+			"outcome": {
+				"runs": 2000,
+				"confirmed": 0.366,
+				"confirmedCi95": [0.3452, 0.3873],
+				"undetermined": 0.0645,
+				"notConfirmed": 0.5695
+			}
+		},
+		{
+			"grade": "senior",
+			"attackerShift": -0.15,
+			"gain": 0.2,
+			"outcome": {
+				"runs": 2000,
+				"confirmed": 0.53,
+				"confirmedCi95": [0.5081, 0.5518],
+				"undetermined": 0.0645,
+				"notConfirmed": 0.4055
+			}
+		},
+		{
+			"grade": "senior",
+			"attackerShift": -0.15,
+			"gain": 0.25,
+			"outcome": {
+				"runs": 2000,
+				"confirmed": 0.6955,
+				"confirmedCi95": [0.675, 0.7153],
+				"undetermined": 0.058,
+				"notConfirmed": 0.2465
+			}
+		},
+		{
+			"grade": "senior",
+			"attackerShift": -0.15,
+			"gain": 0.3,
+			"outcome": {
+				"runs": 2000,
+				"confirmed": 0.8435,
+				"confirmedCi95": [0.8269, 0.8588],
+				"undetermined": 0.0315,
+				"notConfirmed": 0.125
+			}
+		},
+		{
+			"grade": "senior",
+			"attackerShift": -0.3,
+			"gain": 0,
+			"outcome": {
+				"runs": 2000,
+				"confirmed": 0,
+				"confirmedCi95": [0, 0.0019],
+				"undetermined": 0.0005,
+				"notConfirmed": 0.9995
+			}
+		},
+		{
+			"grade": "senior",
+			"attackerShift": -0.3,
+			"gain": 0.05,
+			"outcome": {
+				"runs": 2000,
+				"confirmed": 0.0075,
+				"confirmedCi95": [0.0046, 0.0123],
+				"undetermined": 0.002,
+				"notConfirmed": 0.9905
+			}
+		},
+		{
 			"grade": "senior",
 			"attackerShift": -0.3,
 			"gain": 0.1,
 			"outcome": {
 				"runs": 2000,
-				"confirmed": 0.0215,
-				"confirmedCi95": [0.016, 0.0288],
-				"undetermined": 0.008,
-				"notConfirmed": 0.9705
+				"confirmed": 0.024,
+				"confirmedCi95": [0.0181, 0.0317],
+				"undetermined": 0.0065,
+				"notConfirmed": 0.9695
 			}
 		},
 		{
@@ -1139,10 +1103,10 @@
 			"gain": 0.15,
 			"outcome": {
 				"runs": 2000,
-				"confirmed": 0.0505,
-				"confirmedCi95": [0.0417, 0.061],
+				"confirmed": 0.0525,
+				"confirmedCi95": [0.0436, 0.0632],
 				"undetermined": 0.02,
-				"notConfirmed": 0.9295
+				"notConfirmed": 0.9275
 			}
 		},
 		{
@@ -1151,10 +1115,10 @@
 			"gain": 0.2,
 			"outcome": {
 				"runs": 2000,
-				"confirmed": 0.1305,
-				"confirmedCi95": [0.1164, 0.146],
-				"undetermined": 0.037,
-				"notConfirmed": 0.8325
+				"confirmed": 0.118,
+				"confirmedCi95": [0.1046, 0.1329],
+				"undetermined": 0.0395,
+				"notConfirmed": 0.8425
 			}
 		},
 		{
@@ -1163,10 +1127,10 @@
 			"gain": 0.25,
 			"outcome": {
 				"runs": 2000,
-				"confirmed": 0.235,
-				"confirmedCi95": [0.2169, 0.2541],
-				"undetermined": 0.053,
-				"notConfirmed": 0.712
+				"confirmed": 0.2265,
+				"confirmedCi95": [0.2087, 0.2454],
+				"undetermined": 0.0575,
+				"notConfirmed": 0.716
 			}
 		},
 		{
@@ -1175,10 +1139,10 @@
 			"gain": 0.3,
 			"outcome": {
 				"runs": 2000,
-				"confirmed": 0.378,
-				"confirmedCi95": [0.357, 0.3995],
-				"undetermined": 0.066,
-				"notConfirmed": 0.556
+				"confirmed": 0.3695,
+				"confirmedCi95": [0.3486, 0.3909],
+				"undetermined": 0.0695,
+				"notConfirmed": 0.561
 			}
 		}
 	],
@@ -1188,38 +1152,38 @@
 			"grade": "junior",
 			"formA": {
 				"runs": 2000,
-				"confirmed": 0.789,
-				"confirmedCi95": [0.7706, 0.8063],
-				"undetermined": 0.0015,
-				"notConfirmed": 0.2095
+				"confirmed": 0.8225,
+				"confirmedCi95": [0.8051, 0.8386],
+				"undetermined": 0.0025,
+				"notConfirmed": 0.175
 			},
 			"formB": {
 				"runs": 2000,
-				"confirmed": 0.7915,
-				"confirmedCi95": [0.7731, 0.8087],
-				"undetermined": 0.003,
-				"notConfirmed": 0.2055
+				"confirmed": 0.804,
+				"confirmedCi95": [0.786, 0.8208],
+				"undetermined": 0.002,
+				"notConfirmed": 0.194
 			},
-			"retakeAgreement": 0.6795
+			"retakeAgreement": 0.7005
 		},
 		{
 			"profile": "junior",
 			"grade": "middle",
 			"formA": {
 				"runs": 2000,
-				"confirmed": 0.044,
-				"confirmedCi95": [0.0359, 0.0539],
-				"undetermined": 0.0135,
-				"notConfirmed": 0.9425
+				"confirmed": 0.046,
+				"confirmedCi95": [0.0377, 0.0561],
+				"undetermined": 0.009,
+				"notConfirmed": 0.945
 			},
 			"formB": {
 				"runs": 2000,
-				"confirmed": 0.051,
-				"confirmedCi95": [0.0422, 0.0615],
-				"undetermined": 0.0115,
+				"confirmed": 0.0515,
+				"confirmedCi95": [0.0426, 0.0621],
+				"undetermined": 0.011,
 				"notConfirmed": 0.9375
 			},
-			"retakeAgreement": 0.887
+			"retakeAgreement": 0.8945
 		},
 		{
 			"profile": "junior",
@@ -1233,134 +1197,134 @@
 			"grade": "junior",
 			"formA": {
 				"runs": 2000,
-				"confirmed": 0.964,
-				"confirmedCi95": [0.9549, 0.9713],
+				"confirmed": 0.962,
+				"confirmedCi95": [0.9527, 0.9695],
 				"undetermined": 0,
-				"notConfirmed": 0.036
+				"notConfirmed": 0.038
 			},
 			"formB": {
 				"runs": 2000,
-				"confirmed": 0.957,
-				"confirmedCi95": [0.9472, 0.965],
+				"confirmed": 0.961,
+				"confirmedCi95": [0.9516, 0.9686],
 				"undetermined": 0,
-				"notConfirmed": 0.043
+				"notConfirmed": 0.039
 			},
-			"retakeAgreement": 0.9355
+			"retakeAgreement": 0.922
 		},
 		{
 			"profile": "middle",
 			"grade": "middle",
 			"formA": {
 				"runs": 2000,
-				"confirmed": 0.86,
-				"confirmedCi95": [0.8441, 0.8745],
+				"confirmed": 0.8615,
+				"confirmedCi95": [0.8457, 0.8759],
 				"undetermined": 0.019,
-				"notConfirmed": 0.121
+				"notConfirmed": 0.1195
 			},
 			"formB": {
 				"runs": 2000,
-				"confirmed": 0.8645,
-				"confirmedCi95": [0.8488, 0.8788],
-				"undetermined": 0.0205,
-				"notConfirmed": 0.115
+				"confirmed": 0.858,
+				"confirmedCi95": [0.842, 0.8726],
+				"undetermined": 0.021,
+				"notConfirmed": 0.121
 			},
-			"retakeAgreement": 0.763
+			"retakeAgreement": 0.758
 		},
 		{
 			"profile": "middle",
 			"grade": "senior",
 			"formA": {
 				"runs": 2000,
-				"confirmed": 0.048,
-				"confirmedCi95": [0.0395, 0.0583],
-				"undetermined": 0.015,
-				"notConfirmed": 0.937
+				"confirmed": 0.043,
+				"confirmedCi95": [0.035, 0.0528],
+				"undetermined": 0.0215,
+				"notConfirmed": 0.9355
 			},
 			"formB": {
 				"runs": 2000,
-				"confirmed": 0.0455,
-				"confirmedCi95": [0.0372, 0.0555],
-				"undetermined": 0.018,
-				"notConfirmed": 0.9365
+				"confirmed": 0.0415,
+				"confirmedCi95": [0.0336, 0.0512],
+				"undetermined": 0.014,
+				"notConfirmed": 0.9445
 			},
-			"retakeAgreement": 0.8795
+			"retakeAgreement": 0.8895
 		},
 		{
 			"profile": "senior",
 			"grade": "junior",
 			"formA": {
 				"runs": 2000,
-				"confirmed": 0.9845,
-				"confirmedCi95": [0.9781, 0.9891],
+				"confirmed": 0.983,
+				"confirmedCi95": [0.9763, 0.9878],
 				"undetermined": 0,
-				"notConfirmed": 0.0155
+				"notConfirmed": 0.017
 			},
 			"formB": {
 				"runs": 2000,
-				"confirmed": 0.9825,
-				"confirmedCi95": [0.9758, 0.9874],
+				"confirmed": 0.981,
+				"confirmedCi95": [0.974, 0.9861],
 				"undetermined": 0,
-				"notConfirmed": 0.0175
+				"notConfirmed": 0.019
 			},
-			"retakeAgreement": 0.967
+			"retakeAgreement": 0.9685
 		},
 		{
 			"profile": "senior",
 			"grade": "middle",
 			"formA": {
 				"runs": 2000,
-				"confirmed": 0.979,
-				"confirmedCi95": [0.9717, 0.9844],
-				"undetermined": 0.002,
-				"notConfirmed": 0.019
+				"confirmed": 0.973,
+				"confirmedCi95": [0.9649, 0.9792],
+				"undetermined": 0.004,
+				"notConfirmed": 0.023
 			},
 			"formB": {
 				"runs": 2000,
-				"confirmed": 0.973,
-				"confirmedCi95": [0.9649, 0.9792],
-				"undetermined": 0.0045,
-				"notConfirmed": 0.0225
+				"confirmed": 0.9765,
+				"confirmedCi95": [0.9689, 0.9823],
+				"undetermined": 0.0025,
+				"notConfirmed": 0.021
 			},
-			"retakeAgreement": 0.9505
+			"retakeAgreement": 0.951
 		},
 		{
 			"profile": "senior",
 			"grade": "senior",
 			"formA": {
 				"runs": 2000,
-				"confirmed": 0.8565,
-				"confirmedCi95": [0.8405, 0.8712],
-				"undetermined": 0.031,
-				"notConfirmed": 0.1125
+				"confirmed": 0.846,
+				"confirmedCi95": [0.8295, 0.8612],
+				"undetermined": 0.0305,
+				"notConfirmed": 0.1235
 			},
 			"formB": {
 				"runs": 2000,
-				"confirmed": 0.83,
-				"confirmedCi95": [0.8129, 0.8458],
-				"undetermined": 0.0405,
-				"notConfirmed": 0.1295
+				"confirmed": 0.844,
+				"confirmedCi95": [0.8274, 0.8592],
+				"undetermined": 0.0345,
+				"notConfirmed": 0.1215
 			},
-			"retakeAgreement": 0.737
+			"retakeAgreement": 0.727
 		}
 	],
 	"ladder": [
 		{
 			"profile": "junior",
-			"assignedA": { "none": 0.203, "junior": 0.753, "middle": 0.044, "senior": 0 },
-			"assignedRetakeB": { "none": 0.1995, "junior": 0.75, "middle": 0.0505, "senior": 0 },
-			"agreement": 0.6165
+			"assignedA": { "none": 0.169, "junior": 0.785, "middle": 0.046, "senior": 0 },
+			"assignedRetakeB": { "none": 0.1745, "junior": 0.7825, "middle": 0.043, "senior": 0 },
+			"agreement": 0.644
 		},
 		{
 			"profile": "middle",
-			"assignedA": { "none": 0.005, "junior": 0.1305, "middle": 0.8165, "senior": 0.048 },
-			"assignedRetakeB": { "none": 0.005, "junior": 0.125, "middle": 0.816, "senior": 0.054 },
-			"agreement": 0.702
+			"assignedA": { "none": 0.004, "junior": 0.13, "middle": 0.823, "senior": 0.043 },
+			"assignedRetakeB": { "none": 0.0085, "junior": 0.121, "middle": 0.831, "senior": 0.0395 },
+			"agreement": 0.703
 		},
 		{
 			"profile": "senior",
-			"assignedA": { "none": 0, "junior": 0.0055, "middle": 0.138, "senior": 0.8565 },
-			"assignedRetakeB": { "none": 0, "junior": 0.002, "middle": 0.1605, "senior": 0.8375 },
-			"agreement": 0.743
+			"assignedA": { "none": 0, "junior": 0.0035, "middle": 0.1505, "senior": 0.846 },
+			"assignedRetakeB": { "none": 0, "junior": 0.004, "middle": 0.148, "senior": 0.848 },
+			"agreement": 0.733
 		}
 	],
 	"assistant": {
@@ -1468,6 +1432,7 @@
 					{ "outcome": "confirmed", "reason": "sprt_upper", "items": 6, "scoreSum": 6, "cutSum": 3.45 }
 				]
 			}
-		]
+		],
+		"carriedFrom": "3377965df5c51e358996f2cc3126174d5eaacb71f64108118a297fe7cf02dfdd"
 	}
 }

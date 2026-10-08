@@ -186,6 +186,25 @@ describe('category', () => {
 		});
 	});
 
+	it('gives no token to the retake of a failed upgrade sooner than 90 days: Junior to Senior takes the interval', () => {
+		// Junior confident, the Middle attempt on the token fails, the Middle retake 14 days later is confident too.
+		const junior = decision('j', 'junior', 0, { confident: true });
+		const failedUpgrade = decision('f', 'middle', 1, { outcome: 'not_confirmed', viaConfidentUpgrade: true });
+		const retake = decision('m', 'middle', 15, { confident: true });
+		const category = resolveCategory([junior, failedUpgrade, retake], GRADE_POLICY);
+		expect(category).toEqual({ decisionId: 'm', grade: 'middle', assignedAt: day(15), confidentUpgradeUntil: null });
+		const o = options({ now: day(16), category });
+		expect(o.senior).toEqual({
+			grade: 'senior',
+			available: false,
+			reason: 'grade_change_interval',
+			availableFrom: day(105)
+		});
+		// The same step after the interval is a regular one: its confident result gives the token.
+		const late = decision('m', 'middle', 95, { confident: true });
+		expect(resolveCategory([junior, late], GRADE_POLICY)?.confidentUpgradeUntil).toEqual(day(125));
+	});
+
 	it('spends the token once an attempt on it was made, whatever its result', () => {
 		const junior = decision('j', 'junior', 0, { confident: true });
 		const failedUpgrade = decision('m', 'middle', 1, { outcome: 'not_confirmed', viaConfidentUpgrade: true });

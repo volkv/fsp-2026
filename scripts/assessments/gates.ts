@@ -198,6 +198,8 @@ interface Sample {
 interface WrongStat {
 	id: string;
 	mustBeCaught: boolean;
+	/** A wrong revision of the change step: it meets the step's tests. */
+	step: boolean;
 	applied: number;
 	rejected: number;
 }
@@ -356,6 +358,32 @@ function qaScore(
 	const ratio = counted.length === 0 ? 0 : (counted.length - alive.length) / counted.length;
 	const score = Math.max(0, ...levels.filter((l) => l.minKillRatio <= ratio + 1e-9).map((l) => l.score));
 	return { valid: true, ratio, score, detail: alive.length ? `alive ${alive.join(', ')}` : 'all killed' };
+}
+
+/**
+ * The first `EQUIVALENCE_POOL_SEEDS` instances of the same task as a reference: those its program passes in full. For
+ * most families that is every instance of the class; a family that states its own constants per instance (Backend
+ * practice) gives the program of one instance no right answer on another, so only the instances with its constants.
+ */
+async function sameTask(harness: Harness, source: string, candidates: readonly Sample[]): Promise<Sample[]> {
+	const found: Sample[] = [];
+	for (
+		let from = 0;
+		from < candidates.length && found.length < EQUIVALENCE_POOL_SEEDS;
+		from += EQUIVALENCE_POOL_SEEDS
+	) {
+		const chunk = candidates
+			.slice(from, from + EQUIVALENCE_POOL_SEEDS)
+			.map((c) => ({ c, runs: groupRuns(source, c.built.instance.practice?.groups ?? []) }));
+		const outputs = await harness.run(chunk.flatMap((x) => x.runs.runs));
+		let offset = 0;
+		for (const x of chunk) {
+			const slice = outputs.slice(offset, offset + x.runs.runs.length);
+			offset += x.runs.runs.length;
+			if (x.runs.passedGroups(x.c.built.instance, slice).every(Boolean)) found.push(x.c);
+		}
+	}
+	return found.slice(0, EQUIVALENCE_POOL_SEEDS);
 }
 
 async function checkFamily(harness: Harness, family: TreeFamily): Promise<FamilyCheck> {
@@ -552,6 +580,7 @@ async function checkFamily(harness: Harness, family: TreeFamily): Promise<Family
 	const wrong: WrongStat[] = d.wrongSolutions.map((w) => ({
 		id: w.id,
 		mustBeCaught: w.mustBeCaught,
+		step: w.part === 'change_step',
 		applied: 0,
 		rejected: 0
 	}));
@@ -609,7 +638,10 @@ async function checkFamily(harness: Harness, family: TreeFamily): Promise<Family
 						rubric.kind !== 'mutants' || qaScore(instance, rubric.levels, probe.cases, onReference, onMutants).score < 1
 				});
 			} else {
-				const runs = groupRuns(probe.source, instance.practice?.groups ?? []);
+				const runs = groupRuns(
+					probe.source,
+					(stat.step ? instance.changeStep?.groups : instance.practice?.groups) ?? []
+				);
 				const from = wrongRuns.length;
 				wrongRuns.push(...runs.runs);
 				pendingRuns.push({
@@ -707,7 +739,6 @@ async function checkFamily(harness: Harness, family: TreeFamily): Promise<Family
 		for (const level of d.levels) {
 			for (const cls of level.classes) {
 				const ofClass = samples.filter((x) => x.grade === level.grade && x.classId === cls.id);
-				const pool = ofClass.slice(MUTATION_SEEDS, MUTATION_SEEDS + EQUIVALENCE_POOL_SEEDS);
 				for (const sample of ofClass.slice(0, MUTATION_SEEDS)) {
 					const probe = sample.built.reference();
 					if (probe.kind !== 'practice') continue;
@@ -724,8 +755,10 @@ async function checkFamily(harness: Harness, family: TreeFamily): Promise<Family
 					);
 					total += list.length;
 					killed += list.length - alive.length;
-					// A survivor of the instance's tests meets the tests of many other seeds of its class; one that
-					// survives them all is treated as equivalent to the reference and leaves the denominator.
+					// A survivor of the instance's tests meets the tests of many other seeds of the same task; one that
+					// survives them all is treated as equivalent to the reference and leaves the denominator. Without such
+					// seeds nothing proves it equivalent, and it stays a survivor.
+					const pool = alive.length === 0 ? [] : await sameTask(harness, probe.source, ofClass.slice(MUTATION_SEEDS));
 					for (const m of alive) {
 						const poolRuns = pool.map((p) => ({
 							p,
@@ -742,7 +775,8 @@ async function checkFamily(harness: Harness, family: TreeFamily): Promise<Family
 							offset += x.runs.runs.length;
 							if (x.runs.passedGroups(x.p.built.instance, slice).some((ok) => !ok)) dies = true;
 						}
-						if (dies) survivors.push(`${level.grade}/${cls.id}#${sample.seedIndex}: ${m.description}`);
+						if (dies || pool.length === 0)
+							survivors.push(`${level.grade}/${cls.id}#${sample.seedIndex}: ${m.description}`);
 						else equivalent += 1;
 					}
 				}

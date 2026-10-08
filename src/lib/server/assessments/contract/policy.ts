@@ -59,7 +59,10 @@ export interface PolicyCategory {
 	grade: GradeKey;
 	/** When this grade was assigned: the start of the interval of the next change. */
 	assignedAt: Date;
-	/** The one-step right to take the next grade at once; `null` — none (not confident, used, or itself a token step). */
+	/**
+	 * The one-step right to take the next grade at once; `null` — none (not confident, used, or itself a step sooner than
+	 * the interval: on a token or as the retake of a failed upgrade).
+	 */
 	confidentUpgradeUntil: Date | null;
 }
 
@@ -232,8 +235,20 @@ export function resolveCategory(decisions: readonly CategoryDecision[], policy: 
 		.sort((a, b) => gradeOrdinal(b.grade) - gradeOrdinal(a.grade) || b.decidedAt.getTime() - a.decidedAt.getTime())[0];
 	if (!best) return null;
 	const isTop = gradeOrdinal(best.grade) === GRADE_KEYS.length - 1;
+	// A step that came sooner than the interval after the grade it replaced — on a token or as the retake of a failed
+	// upgrade — was itself the exception: it gives no token, so fast steps never chain.
+	const replaced = decisions
+		.filter(
+			(d) =>
+				d.valid &&
+				d.outcome === 'confirmed' &&
+				gradeOrdinal(d.grade) < gradeOrdinal(best.grade) &&
+				d.decidedAt < best.decidedAt
+		)
+		.sort((a, b) => gradeOrdinal(b.grade) - gradeOrdinal(a.grade) || b.decidedAt.getTime() - a.decidedAt.getTime())[0];
+	const fast = replaced !== undefined && best.decidedAt < addDays(replaced.decidedAt, policy.gradeChangeIntervalDays);
 	const token =
-		best.confident && !best.viaConfidentUpgrade && !isTop
+		best.confident && !best.viaConfidentUpgrade && !fast && !isTop
 			? addDays(best.decidedAt, policy.confidentUpgradeValidDays)
 			: null;
 	const used = token !== null && decisions.some((d) => d.viaConfidentUpgrade && d.decidedAt > best.decidedAt);

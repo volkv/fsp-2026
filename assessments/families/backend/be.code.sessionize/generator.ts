@@ -1,6 +1,9 @@
 // Practice: a log of user events is split into sessions of each user by the rule the class sets (a pause, an aligned
 // window, a pause with a cap on the length, a pause with a day boundary); from Junior up a logout closes the session
 // and the answer is the top K by the total length. Parametric hidden tests in five groups.
+// The constants of the rule and the order of the printed numbers are the instance's own (`Spec`): they are given only
+// in the statement, never in the input, and every hidden test tells them from the other values the family draws, so a
+// program written for another instance of the class fails here.
 import {
 	instanceRng,
 	levelAndClass,
@@ -23,13 +26,62 @@ interface Event {
 	user: string;
 	action: string;
 }
-/** `p` is G for the pause classes and W for the window; `q` is L of the capped class and the day of the daily one; `k`
- * is 0 on Intern. */
+/**
+ * `p` is G for the pause classes and W for the window; `q` is L of the capped class and the day of the daily one (both
+ * the instance's constants, not read from the input); `swap` — the two numbers of a row in the other order; `k` is 0
+ * on Intern.
+ */
 interface Input {
 	p: number;
 	q: number;
+	swap: boolean;
 	k: number;
 	events: Event[];
+}
+
+/** The constants of the instance's specification, stated in the text only. */
+interface Spec {
+	p: number;
+	q: number;
+	swap: boolean;
+}
+
+/** The menus of the constants, seconds: about a quarter apart; no window is a multiple of another. */
+/** Draws of a test that must fail every program of another class before one only has to fail it in its group. */
+const STRICT_ATTEMPTS = 1000;
+
+const GAPS = [30, 40, 50, 64, 80, 100, 125, 160, 200, 250, 320, 400, 500, 640, 800] as const;
+const WINDOWS = [90, 117, 150, 196, 250, 330, 430, 560, 730, 950] as const;
+/** L = ⌊G·m/3⌋ — between G and 3G, never a multiple of G; D = G·m, no day a multiple of another. */
+const CAP_THIRDS = [4, 5, 7, 8] as const;
+const DAY_TIMES = [4, 5, 6, 7, 9] as const;
+
+const capOf = (gap: number, thirds: number): number => Math.floor((gap * thirds) / 3);
+
+function drawSpec(rng: Rng, kind: string): Spec {
+	const p = kind === 'window' ? rng.pick(WINDOWS) : rng.pick(GAPS);
+	const q = kind === 'gap-capped' ? capOf(p, rng.pick(CAP_THIRDS)) : kind === 'gap-daily' ? p * rng.pick(DAY_TIMES) : 0;
+	return { p, q, swap: rng.bool() };
+}
+
+/** Every pair of constants of a class the family draws (in the instance's order of the row). */
+function allSpecs(kind: string): Spec[] {
+	const gaps = kind === 'window' ? WINDOWS : GAPS;
+	return gaps.flatMap((p): Spec[] => {
+		if (kind === 'gap-capped') return CAP_THIRDS.map((m) => ({ p, q: capOf(p, m), swap: false }));
+		if (kind === 'gap-daily') return DAY_TIMES.map((m) => ({ p, q: p * m, swap: false }));
+		return [{ p, q: 0, swap: false }];
+	});
+}
+
+/** The specifications one constant or the order away from the instance's: a test must tell each of them apart. */
+function neighbours(kind: string, spec: Spec): Spec[] {
+	const list: Spec[] = [{ ...spec, swap: !spec.swap }];
+	for (const p of kind === 'window' ? WINDOWS : GAPS) if (p !== spec.p) list.push({ ...spec, p });
+	if (kind === 'gap-capped')
+		for (const m of CAP_THIRDS) if (capOf(spec.p, m) !== spec.q) list.push({ ...spec, q: capOf(spec.p, m) });
+	if (kind === 'gap-daily') for (const m of DAY_TIMES) if (spec.p * m !== spec.q) list.push({ ...spec, q: spec.p * m });
+	return list;
 }
 
 /** The wrong solutions and, for the boundary tests, each edge of the rule shifted alone. */
@@ -89,24 +141,27 @@ function solve(kind: string, input: Input, variant: Variant = 'right'): string {
 	}
 	const rows = [...users.entries()];
 	if (!junior) {
+		const row = (user: string, s: UserState): string => {
+			const best = unclosed ? s.closedBest : s.best;
+			return input.swap ? `${user} ${best} ${s.sessions}` : `${user} ${s.sessions} ${best}`;
+		};
 		return `${rows
 			.sort(([a], [b]) => byName(a, b))
-			.map(([user, s]) => `${user} ${s.sessions} ${unclosed ? s.closedBest : s.best}`)
+			.map(([user, s]) => row(user, s))
 			.join('\n')}\n`;
 	}
 	const total = (s: UserState): number => (unclosed ? s.closedTotal : s.total);
 	rows.sort(([a, x], [b, y]) => total(y) - total(x) || (variant === 'no-tie-break' ? 0 : byName(a, b)));
 	return `${rows
 		.slice(0, input.k)
-		.map(([user, s]) => `${user} ${total(s)} ${s.sessions}`)
+		.map(([user, s]) => (input.swap ? `${user} ${s.sessions} ${total(s)}` : `${user} ${total(s)} ${s.sessions}`))
 		.join('\n')}\n`;
 }
 
 const byName = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 
-function render(kind: string, input: Input): string {
-	const head = [input.events.length, ...(input.k > 0 ? [input.k] : []), input.p];
-	if (kind === 'gap-capped' || kind === 'gap-daily') head.push(input.q);
+function render(input: Input): string {
+	const head = [input.events.length, ...(input.k > 0 ? [input.k] : [])];
 	return `${[head.join(' '), ...input.events.map((e) => `${e.t} ${e.user} ${e.action}`)].join('\n')}\n`;
 }
 
@@ -135,6 +190,9 @@ function step(rng: Rng, kind: string, group: GroupId, input: Input, last: number
 		if (kind === 'gap-capped' && cap >= 0 && cap <= p) options.push(cap, cap, cap + 1);
 		return last + rng.pick(options);
 	}
+	// A pause classes' pause now and then near G, within a quarter of it: one just under G splits the log for any
+	// smaller G and one just over for none of the larger, so a program with another G answers otherwise.
+	if (kind !== 'window' && rng.bool(0.15)) return last + rng.int(Math.ceil(0.8 * p), Math.floor(1.25 * p));
 	if (group === 'burst') return last + (rng.bool(0.6) ? 0 : rng.int(1, rng.bool(0.8) ? p : 3 * p));
 	return last + (rng.bool(0.75) ? rng.int(0, p) : rng.int(p + 1, 4 * p));
 }
@@ -146,12 +204,9 @@ function step(rng: Rng, kind: string, group: GroupId, input: Input, last: number
  */
 const PLAIN: ReadonlySet<GroupId> = new Set(['basic', 'burst']);
 
-function makeInput(rng: Rng, kind: string, group: GroupId, junior: boolean): Input {
+function makeInput(rng: Rng, kind: string, group: GroupId, junior: boolean, spec: Spec): Input {
 	const plain = !junior && PLAIN.has(group);
-	const p =
-		kind === 'window' ? rng.pick([60, 100, 120, 300, 600, 900, 3600]) : rng.pick([30, 45, 60, 90, 120, 300, 600, 900]);
-	const q =
-		kind === 'gap-capped' ? p * rng.int(2, 4) + rng.int(0, p - 1) : kind === 'gap-daily' ? p * rng.int(4, 10) : 0;
+	const { p, q } = spec;
 	const userCount = plain
 		? 1
 		: group === 'scale'
@@ -160,13 +215,15 @@ function makeInput(rng: Rng, kind: string, group: GroupId, junior: boolean): Inp
 				? rng.int(6, 10)
 				: rng.int(3, 6);
 	const perUser = group === 'scale' ? rng.int(14, 20) : plain ? rng.int(5, 10) : rng.int(3, 7);
-	const input: Input = { p, q, k: 0, events: [] };
+	const input: Input = { p, q, swap: spec.swap, k: 0, events: [] };
 	const logout = (): string => (junior && rng.bool(0.2) ? 'logout' : rng.pick(ACTIONS));
 	const timelines = people(rng, userCount).map((user) => {
-		// One user of the daily class starts just before a day boundary, so the session meets it.
+		// One user of the daily class starts just before a day boundary, so the session meets it; now and then the
+		// boundary of another length of the day the family draws, so a program with that length meets a boundary it
+		// should not.
 		const offset =
 			plain && kind === 'gap-daily'
-				? q * rng.int(1, 3) - rng.int(1, p)
+				? (rng.bool() ? q : p * rng.pick(DAY_TIMES)) * rng.int(1, 2) - rng.int(1, p)
 				: group === 'burst'
 					? rng.int(0, 3) * p
 					: rng.int(0, 5 * p);
@@ -243,22 +300,51 @@ function traps(kind: string, group: GroupId, junior: boolean): Variant[] {
 	}
 }
 
-/** Hidden tests of the class; every test tells the class from the other rules of the level. */
-function groups(rng: Rng, kind: string, others: readonly string[], junior: boolean): HiddenTestGroup[] {
+/**
+ * Hidden tests of the class; every test tells the class from the other rules of the level, and every group fails a
+ * program with a neighbouring constant or the other order: each neighbour is told apart by some test of the group,
+ * every test tells apart one not told yet. The capped class meets no cap in the plain groups, so there L is not felt.
+ */
+function groups(rng: Rng, kind: string, others: readonly string[], junior: boolean, spec: Spec): HiddenTestGroup[] {
 	const ids: GroupId[] = ['basic', 'boundary', 'burst', 'interleave', 'scale'];
+	// Every class reads the same input, so a program of another class, with any constants it may have, must fail every
+	// test; the order of the row is the instance's — another order already fails. A rare instance whose short logs keep
+	// meeting some of them after many draws settles for failing them in every group, as a neighbour. The pause classes nest: with the same
+	// G, each answers as another wherever the second constant of either is not met, which a test cannot always avoid
+	// (the plain groups of Intern are built so), so a pause class with the same G is not compared.
+	const pauses = new Set(['gap', 'gap-capped', 'gap-daily']);
+	const nested = (other: string): boolean => pauses.has(kind) && pauses.has(other);
+	const rivals = others.flatMap((other) =>
+		allSpecs(other)
+			.filter((s) => !(nested(other) && s.p === spec.p))
+			.map((s) => ({ kind: other, spec: { ...s, swap: spec.swap } }))
+	);
 	return ids.map((id) => {
 		const count = id === 'scale' ? 2 : 4;
+		const capless = !junior && PLAIN.has(id) && kind === 'gap-capped';
+		const open = neighbours(kind, spec)
+			.filter((n) => !capless || n.q === spec.q)
+			.map((n) => ({ kind, spec: n }));
+		let rivalsOpen = [...rivals];
 		const tests: { stdin: string; expected: string }[] = [];
 		for (let attempt = 0; tests.length < count; attempt += 1) {
-			if (attempt > 500) throw new Error(`${descriptor.key}: no distinguishing ${id} test for ${kind}`);
-			const input = makeInput(rng, kind, id, junior);
+			if (attempt > 2000)
+				throw new Error(
+					`${descriptor.key}: no distinguishing ${id} test for ${kind}${open.length > 0 ? ` (${JSON.stringify(spec)} not told from ${JSON.stringify(open.slice(0, 5))})` : ''}`
+				);
+			const input = makeInput(rng, kind, id, junior, spec);
 			const expected = solve(kind, input);
-			// Classes with two numbers of the rule read a longer header: their tests already break the others' programs.
-			const comparable = others.filter((other) => PARAMS[other]?.length === PARAMS[kind]?.length);
-			if (comparable.some((other) => solve(other, input) === expected)) continue;
+			const strict = attempt < STRICT_ATTEMPTS;
+			if (strict && rivals.some((r) => solve(r.kind, { ...input, ...r.spec }) === expected)) continue;
 			if (traps(kind, id, junior).some((v) => solve(kind, input, v) === expected)) continue;
-			if (!junior && PLAIN.has(id) && kind === 'gap-capped' && solve('gap', input) !== expected) continue;
-			tests.push({ stdin: render(kind, input), expected });
+			if (capless && solve('gap', input) !== expected) continue;
+			const pending = strict ? open : [...open, ...rivalsOpen];
+			const told = pending.filter((n) => solve(n.kind, { ...input, ...n.spec }) !== expected);
+			if (pending.length > 0 && told.length === 0) continue;
+			if (tests.length === count - 1 && told.length < pending.length) continue;
+			for (const n of told) if (open.includes(n)) open.splice(open.indexOf(n), 1);
+			rivalsOpen = strict ? [] : rivalsOpen.filter((r) => !told.includes(r));
+			tests.push({ stdin: render(input), expected });
 		}
 		return { id, tests };
 	});
@@ -274,24 +360,33 @@ const RULE: Record<string, string> = {
 		'Время делится на сутки `[k·D, (k+1)·D)`, k = 0, 1, 2, … Событие начинает новую сессию пользователя, если это его первое событие, или пауза от предыдущего события **этого же пользователя** больше `G` (пауза ровно `G` сессию не прерывает), или оно попало в другие сутки, чем первое событие текущей сессии: сессия не переходит через границу суток.'
 };
 
-const HEAD: Record<string, (junior: boolean) => string> = {
-	gap: (junior) =>
-		`\`N${junior ? ' K' : ''} G\`: число событий (1 ≤ N ≤ 10 000)${junior ? ', K (1 ≤ K ≤ 1000)' : ''} и предельная пауза в секундах (1 ≤ G ≤ 10⁶).`,
-	window: (junior) =>
-		`\`N${junior ? ' K' : ''} W\`: число событий (1 ≤ N ≤ 10 000)${junior ? ', K (1 ≤ K ≤ 1000)' : ''} и длина окна в секундах (1 ≤ W ≤ 10⁶).`,
-	'gap-capped': (junior) =>
-		`\`N${junior ? ' K' : ''} G L\`: число событий (1 ≤ N ≤ 10 000)${junior ? ', K (1 ≤ K ≤ 1000)' : ''}, предельная пауза и предельная длительность сессии в секундах (1 ≤ G ≤ L ≤ 10⁶).`,
-	'gap-daily': (junior) =>
-		`\`N${junior ? ' K' : ''} G D\`: число событий (1 ≤ N ≤ 10 000)${junior ? ', K (1 ≤ K ≤ 1000)' : ''}, предельная пауза и длина суток в секундах (1 ≤ G ≤ D ≤ 10⁶).`
-};
+/** The constants of the rule of the instance, as the statement gives them. */
+function constants(kind: string, spec: Spec): string {
+	const gap = `предельная пауза **G = ${spec.p} с**`;
+	if (kind === 'window') return `длина окна **W = ${spec.p} с**`;
+	if (kind === 'gap-capped') return `${gap}, предельная длительность сессии **L = ${spec.q} с**`;
+	if (kind === 'gap-daily') return `${gap}, длина суток **D = ${spec.q} с**`;
+	return gap;
+}
 
-function statement(kind: string, junior: boolean): string {
+function statement(kind: string, junior: boolean, spec: Spec): string {
+	const row = junior
+		? spec.swap
+			? '`<пользователь> <число сессий> <суммарная длительность>`'
+			: '`<пользователь> <суммарная длительность> <число сессий>`'
+		: spec.swap
+			? '`<пользователь> <наибольшая длительность сессии> <число сессий>`'
+			: '`<пользователь> <число сессий> <наибольшая длительность сессии>`';
 	return [
 		'Сервис аналитики получает журнал действий пользователей и делит его на сессии. Напишите программу, которая читает журнал со стандартного ввода и печатает сводку по сессиям.',
 		'',
+		`Параметры правила этого сервиса: ${constants(kind, spec)}; во входе их нет.`,
+		'',
 		'## Вход',
 		'',
-		`В первой строке — ${HEAD[kind]?.(junior) ?? ''}`,
+		junior
+			? 'В первой строке — `N K`: число событий (1 ≤ N ≤ 10 000) и K (1 ≤ K ≤ 1000).'
+			: 'В первой строке — `N`: число событий (1 ≤ N ≤ 10 000).',
 		'Далее `N` строк `t пользователь действие`: момент в секундах (0 ≤ t ≤ 10⁹), имя пользователя и действие (латинские буквы и цифры без пробелов). Моменты не убывают; события с одинаковым моментом идут в порядке строк.',
 		'',
 		'## Правило',
@@ -307,8 +402,8 @@ function statement(kind: string, junior: boolean): string {
 		'## Выход',
 		'',
 		junior
-			? 'Для каждого пользователя посчитайте суммарную длительность его сессий и число сессий. Выведите K пользователей с наибольшей суммарной длительностью строками `<пользователь> <суммарная длительность> <число сессий>`: по убыванию суммарной длительности, при равенстве — по имени в лексикографическом порядке. Если пользователей меньше K — выведите всех.'
-			: 'Для каждого пользователя из журнала выведите строку `<пользователь> <число сессий> <наибольшая длительность сессии>`. Строки — по имени пользователя в лексикографическом порядке.',
+			? `Для каждого пользователя посчитайте суммарную длительность его сессий и число сессий. Выведите K пользователей с наибольшей суммарной длительностью строками ${row}: по убыванию суммарной длительности, при равенстве — по имени в лексикографическом порядке. Если пользователей меньше K — выведите всех.`
+			: `Для каждого пользователя из журнала выведите строку ${row}. Строки — по имени пользователя в лексикографическом порядке.`,
 		'',
 		junior
 			? 'Скрытые тесты — пять групп: обычные данные, паузы и моменты точно на границах правила, пачки событий в один момент, много пользователей вперемешку, большой объём. Группа засчитывается, если пройдены все её тесты.'
@@ -317,7 +412,7 @@ function statement(kind: string, junior: boolean): string {
 }
 
 /** The reference program of a class in Python; a variant other than `right` is a wrong solution. */
-function referenceSource(kind: string, junior: boolean, variant: Variant): string {
+function referenceSource(kind: string, junior: boolean, spec: Spec, variant: Variant): string {
 	// The state of a user: Intern — sessions, last moment, start, longest; Junior — total, sessions, last moment
 	// (None when a logout closed the session), start.
 	const [sessions, last, start] = junior ? ['s[1]', 's[2]', 's[3]'] : ['s[0]', 's[1]', 's[2]'];
@@ -333,7 +428,8 @@ function referenceSource(kind: string, junior: boolean, variant: Variant): strin
 				? `${pause} > gap`
 				: `${pause} ${gapOp} gap or ${edge('t')} // day != ${edge(start)} // day`
 	};
-	const head = [...(junior ? ['n', 'k'] : ['n']), ...(PARAMS[kind] ?? [])];
+	const head = junior ? ['n', 'k'] : ['n'];
+	const names = PARAMS[kind] ?? [];
 	const unclosed = variant === 'unclosed-last';
 	// The longest (Intern) or the total (Junior) counted when the session ends: by the next event, or at the end.
 	const account = junior
@@ -351,6 +447,7 @@ function referenceSource(kind: string, junior: boolean, variant: Variant): strin
 		'',
 		'data = sys.stdin.read().split()',
 		`${head.join(', ')} = ${head.map((_, i) => `int(data[${i}])`).join(', ')}`,
+		`${names.join(', ')} = ${[spec.p, spec.q].slice(0, names.length).join(', ')}`,
 		'users = {}',
 		...(variant === 'global-gap' ? ['prev = 0'] : []),
 		'for i in range(n):',
@@ -369,9 +466,14 @@ function referenceSource(kind: string, junior: boolean, variant: Variant): strin
 			? [
 					`rows = sorted(users.items(), key=lambda r: ${sort})`,
 					'for user, s in rows[:k]:',
-					'    print(user, s[0], s[1])'
+					spec.swap ? '    print(user, s[1], s[0])' : '    print(user, s[0], s[1])'
 				]
-			: ['for user in sorted(users):', '    print(user, users[user][0], users[user][3])'])
+			: [
+					'for user in sorted(users):',
+					spec.swap
+						? '    print(user, users[user][3], users[user][0])'
+						: '    print(user, users[user][0], users[user][3])'
+				])
 	].join('\n');
 }
 
@@ -415,21 +517,24 @@ export function build(input: GenerateInput): Built {
 	const rng = instanceRng(descriptor, input);
 	const junior = input.grade === 'junior';
 	const kind = input.classId;
+	const spec = drawSpec(rng, kind);
 	const others = level.classes.map((c) => c.id).filter((id) => id !== kind);
-	const hidden = groups(rng, kind, others, junior);
+	const hidden = groups(rng, kind, others, junior, spec);
 	const instance = makeInstance(descriptor, input, {
-		statement: { markdown: statement(kind, junior), code: null },
+		statement: { markdown: statement(kind, junior, spec), code: null },
 		answer: null,
 		practice: { languages: [...LANGUAGES], groups: hidden, checker: { kind: 'tokens' } }
 	});
 	return {
 		instance,
-		reference: () => ({ kind: 'practice', source: referenceSource(kind, junior, 'right'), changeSource: null }),
+		reference: () => ({ kind: 'practice', source: referenceSource(kind, junior, spec, 'right'), changeSource: null }),
 		wrong: () =>
 			Object.fromEntries(
 				WRONG_IDS.map((id) => [
 					id,
-					applies(id, kind, junior) ? { kind: 'program' as const, source: referenceSource(kind, junior, id) } : null
+					applies(id, kind, junior)
+						? { kind: 'program' as const, source: referenceSource(kind, junior, spec, id) }
+						: null
 				])
 			)
 	};
