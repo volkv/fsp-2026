@@ -52,6 +52,7 @@ import {
 	gradeDeclarations,
 	hiringProcesses,
 	hiringReports,
+	invitationComplaints,
 	invitationMessages,
 	invitationResponses,
 	invitations,
@@ -94,8 +95,10 @@ import { storedComponent } from '$lib/server/matching/storage';
  * candidate's solutions and the candidate's own applications (domain 23.2); a disclosure names its invitation or
  * application. v6: a match names the vacancy and its company only — every vacancy is a company's of the platform.
  * v7: an invitation carries its conversation — every message of both sides with who wrote it and when it was read.
+ * v8: the candidate's complaints about offers — reason, text, status, decision and the operator's explanation; a
+ * confirmation of a category tells when a new one replaced it after the name changed.
  */
-export const DATA_EXPORT_FORMAT = 'fsp-career-data-export/v7';
+export const DATA_EXPORT_FORMAT = 'fsp-career-data-export/v8';
 
 const iso = (value: Date | null) => (value === null ? null : value.toISOString());
 
@@ -125,6 +128,7 @@ export interface DataExport {
 	document_acceptances: Record<string, unknown>[];
 	representatives: Record<string, unknown>[];
 	invitations: Record<string, unknown>[];
+	complaints: Record<string, unknown>[];
 	disclosures: Record<string, unknown>[];
 	hiring: Record<string, unknown>[];
 	tests: Record<string, unknown>[];
@@ -436,6 +440,11 @@ async function buildDataExport(
 					.from(invitationMessages)
 					.where(inArray(invitationMessages.invitationId, invitationIds))
 					.orderBy(asc(invitationMessages.createdAt), asc(invitationMessages.id));
+	const complained = await executor
+		.select()
+		.from(invitationComplaints)
+		.where(eq(invitationComplaints.candidateId, candidateId))
+		.orderBy(asc(invitationComplaints.createdAt), asc(invitationComplaints.id));
 	const handedOver = await executor
 		.select()
 		.from(disclosures)
@@ -586,6 +595,7 @@ async function buildDataExport(
 		...consents.flatMap((row) => present(row.scopeCompanyId)),
 		...acceptances.flatMap((row) => present(row.companyId)),
 		...invited.map((row) => row.companyId),
+		...complained.map((row) => row.companyId),
 		...handedOver.map((row) => row.companyId),
 		...processes.map((row) => row.companyId),
 		...requests.map((row) => row.companyId),
@@ -843,7 +853,8 @@ async function buildDataExport(
 			signature: attestation.signature,
 			signing_key_id: attestation.signingKeyId,
 			holder_code: base32(attestation.holderNonce),
-			issued_at: iso(attestation.issuedAt)
+			issued_at: iso(attestation.issuedAt),
+			superseded_at: iso(attestation.supersededAt)
 		})),
 		matches: matches.map((row) => ({
 			vacancy: {
@@ -946,6 +957,19 @@ async function buildDataExport(
 					sent_at: iso(row.createdAt),
 					read_at: iso(row.readAt)
 				}))
+		})),
+		// The operator who decided is named by role, as everywhere in the export.
+		complaints: complained.map((row) => ({
+			invitation_id: row.invitationId,
+			company: companyOf(row.companyId),
+			reason_code: row.reasonCode,
+			text: row.text,
+			status: row.status,
+			decision: row.decision,
+			resolution: row.resolution,
+			decided_by: row.decidedBy === null ? null : 'platform_staff',
+			created_at: iso(row.createdAt),
+			decided_at: iso(row.decidedAt)
 		})),
 		disclosures: handedOver.map((row) => ({
 			company: companyOf(row.companyId),

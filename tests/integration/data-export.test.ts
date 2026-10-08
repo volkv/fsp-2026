@@ -14,6 +14,7 @@ import { getMyData } from '$lib/server/api/v1/me';
 import { recordAuditEvent } from '$lib/server/audit/record';
 import { DATA_EXPORT_FORMAT, exportOwnData, type DataExport } from '$lib/server/candidates/data-export';
 import { assignObjection } from '$lib/server/categories/objections';
+import { decideComplaint, fileComplaint } from '$lib/server/complaints/service';
 import { registryNotConfigured } from '$lib/server/companies/registry';
 import { createFieldCrypto } from '$lib/server/crypto/fields';
 import {
@@ -647,6 +648,27 @@ describe('the export of own data', () => {
 		});
 		await sendMessage(deps(), companySubject, meta, sent.invitationId, 'Когда удобно созвониться?');
 		await sendMessage(deps(), anna.subject, meta, sent.invitationId, 'Завтра после 15:00.');
+		// A complaint about the offer, decided by an operator: the candidate's own words and the explanation to them.
+		const complaint = await fileComplaint(deps(), anna.subject, meta, sent.invitationId, {
+			reasonCode: 'terms_mismatch',
+			text: 'На собеседовании назвали другую вилку'
+		});
+		const operator = await createUser(db);
+		await decideComplaint(
+			deps(),
+			{
+				subject: {
+					userId: operator.id,
+					via: 'session',
+					candidate: null,
+					membership: null,
+					staff: { operator: true, admin: false, extraPermissions: [] }
+				},
+				meta
+			},
+			complaint.id,
+			{ decision: 'warning', resolution: 'Компании вынесено предупреждение' }
+		);
 		await recordAuditEvent(db, {
 			action: 'card.viewed',
 			outcome: 'success',
@@ -695,6 +717,18 @@ describe('the export of own data', () => {
 				{ from: 'candidate', text: 'Завтра после 15:00.', read_at: null }
 			]
 		});
+		expect(document.complaints).toEqual([
+			expect.objectContaining({
+				invitation_id: sent.invitationId,
+				company: { id: company.id, name: 'Северный код' },
+				reason_code: 'terms_mismatch',
+				text: 'На собеседовании назвали другую вилку',
+				status: 'decided',
+				decision: 'warning',
+				resolution: 'Компании вынесено предупреждение',
+				decided_by: 'platform_staff'
+			})
+		]);
 		expect(document.disclosures).toEqual([
 			expect.objectContaining({ company: { id: company.id, name: 'Северный код' }, fields: ['full_name', 'email'] })
 		]);
@@ -710,6 +744,7 @@ describe('the export of own data', () => {
 		expect(text).not.toContain(boris.userId);
 		expect(text).not.toContain('Борис');
 		expect(text).not.toContain(member.userId);
+		expect(text).not.toContain(operator.id);
 
 		const [journaled] = await db
 			.select({ actor: auditEvents.actorUserId, details: auditEvents.details })
@@ -883,7 +918,7 @@ describe('the export of own data', () => {
 		// The API gives the same document: its response schema keeps every section.
 		const api = await exportThroughApi(anna.userId);
 		expect(api.status, JSON.stringify(api.json)).toBe(200);
-		expect(api.json.format).toBe('fsp-career-data-export/v7');
+		expect(api.json.format).toBe('fsp-career-data-export/v8');
 		expect(document.surveys.map((survey) => [survey.version, survey.specialization])).toEqual([
 			[1, 'frontend'],
 			[2, 'backend']
