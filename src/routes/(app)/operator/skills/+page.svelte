@@ -47,7 +47,7 @@
 	<div class="rounded-lg border p-4">
 		<dt class="text-sm text-muted-foreground">Спрос: вакансий с {formatDate(f.since)}</dt>
 		<dd class="font-heading text-h1"><CountCell cell={f.vacancies} /></dd>
-		<dd class="text-xs text-muted-foreground">собственные опубликованные и внешние из источников</dd>
+		<dd class="text-xs text-muted-foreground">вакансии компаний платформы, открытые кандидатам в окне</dd>
 	</div>
 	<div class="rounded-lg border p-4">
 		<dt class="text-sm text-muted-foreground">Предложение: кандидатов с навыками из результатов ФСП</dt>

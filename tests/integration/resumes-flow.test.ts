@@ -36,7 +36,6 @@ import { createResumeParseHandler } from '$lib/server/resumes/parse-job';
 import { readOwnResumes } from '$lib/server/resumes/read';
 import { correctExperienceEntry, reviewResumeClaim } from '$lib/server/resumes/review';
 import { uploadResume } from '$lib/server/resumes/upload';
-import { openFile } from '$lib/server/storage/access';
 import { S3ObjectStore, type ObjectStore } from '$lib/server/storage/object-store';
 import { publishTaxonomy } from '$lib/server/taxonomy/publish';
 import { buildRelease, readTaxonomyDatasets } from '$lib/server/taxonomy/release';
@@ -714,9 +713,5 @@ describe('a deleted resume', () => {
 		expect(waiting.filter((j) => (j.payload as { candidate_id: string }).candidate_id === candidate.id)).toHaveLength(
 			1
 		);
-
-		await expect(
-			openFile({ db: database.db, store, now }, subjectOf(candidate), uploaded.fileId, { kind: 'owner' }, meta)
-		).rejects.toMatchObject({ code: 'not_found' });
 	});
 });

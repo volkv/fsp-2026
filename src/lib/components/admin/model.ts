@@ -66,25 +66,6 @@ export const PROBES: Record<'up' | 'down', { label: string; tone: Tone }> = {
 	down: { label: 'Не отвечает', tone: 'danger' }
 };
 
-export const SOURCE_TERMS: Record<string, { label: string; tone: Tone }> = {
-	unchecked: { label: 'условия не проверены', tone: 'neutral' },
-	allowed: { label: 'разрешено', tone: 'success' },
-	restricted: { label: 'с ограничениями', tone: 'warning' },
-	forbidden: { label: 'запрещено', tone: 'danger' }
-};
-
-export const IMPORT_STATUSES: Record<string, string> = {
-	running: 'идёт',
-	succeeded: 'успешно',
-	failed: 'ошибка'
-};
-
-export const IMPORT_MODES: Record<string, string> = {
-	full: 'полный',
-	incremental: 'инкрементальный',
-	check: 'проверка актуальности'
-};
-
 // --- Quality panel ---
 
 export const METRIC_GROUPS: Record<string, string> = {
@@ -92,7 +73,7 @@ export const METRIC_GROUPS: Record<string, string> = {
 	skills: 'Нормализация навыков',
 	categorization: 'Категоризация',
 	shortlist: 'Подборка по потребности — методика v3',
-	matching: 'Соответствие вакансия ↔ кандидат — выведенная механика (категория из резюме)',
+	matching: 'Соответствие вакансия ↔ кандидат — методика v2, выведена (архивные прогоны)',
 	performance: 'Скорость'
 };
 

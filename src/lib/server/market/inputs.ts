@@ -102,6 +102,8 @@ export async function loadVacancyRecords(executor: Executor): Promise<VacancyRec
 	return rows.flatMap((row) => {
 		const specializations = specializationsOfRole(row.role_key);
 		if (specializations.length === 0) return [];
+		const gradeOrdinals = ordinals.get(row.taxonomy_version_id);
+		if (!gradeOrdinals) throw new Error('grade ordinals were not loaded');
 		return [
 			{
 				vacancyId: row.id,
@@ -115,7 +117,7 @@ export async function loadVacancyRecords(executor: Executor): Promise<VacancyRec
 				},
 				keys: categoryKeysOf({
 					specializations,
-					grades: catalogGradesBetween(ordinals.get(row.taxonomy_version_id) ?? new Map(), row.grade_min, row.grade_max)
+					grades: catalogGradesBetween(gradeOrdinals, row.grade_min, row.grade_max)
 				})
 			}
 		];
