@@ -1,0 +1,2166 @@
+{
+	"model": "gemini-flash:latest",
+	"calls": 216,
+	"replies": [
+		{
+			"key": "be.algo.binary-search|junior|answer-search|bb2e2f1d30ca2df258c2179ca0d992a691137e187df268e08adc9ef1df3f03ad|answer",
+			"family": "be.algo.binary-search",
+			"grade": "junior",
+			"classId": "answer-search",
+			"seed": "bb2e2f1d30ca2df258c2179ca0d992a691137e187df268e08adc9ef1df3f03ad",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\n21 2\n16 2\n14 3\n13 3\n12 3\n12\n</answer>"
+		},
+		{
+			"key": "be.algo.binary-search|junior|bisect|11d5eefe6f15bdb77e8dc923601bc262403b5f66c399fc776553b627156b41e6|answer",
+			"family": "be.algo.binary-search",
+			"grade": "junior",
+			"classId": "bisect",
+			"seed": "11d5eefe6f15bdb77e8dc923601bc262403b5f66c399fc776553b627156b41e6",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\n9 3\n1 4\n3\n6 6\n</answer>"
+		},
+		{
+			"key": "be.algo.cache-eviction|middle|lfu|a9932b52401e9112d4f060645ca05847a5fb01383ad766ec5688a50a1f7ebd0a|answer",
+			"family": "be.algo.cache-eviction",
+			"grade": "middle",
+			"classId": "lfu",
+			"seed": "a9932b52401e9112d4f060645ca05847a5fb01383ad766ec5688a50a1f7ebd0a",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>6 B H M</answer>"
+		},
+		{
+			"key": "be.algo.cache-eviction|middle|lru|3584a2c9fb3efb3084875cc5925669de2d9cbdc6b66ea6b45ed5f42dab29456b|answer",
+			"family": "be.algo.cache-eviction",
+			"grade": "middle",
+			"classId": "lru",
+			"seed": "3584a2c9fb3efb3084875cc5925669de2d9cbdc6b66ea6b45ed5f42dab29456b",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>10 A K M</answer>"
+		},
+		{
+			"key": "be.algo.graph-traversal|junior|kahn-cycle|00ef059a2311ee400efdf577ae3277a66581d8e63c6612296feb4202e8af69a5|answer",
+			"family": "be.algo.graph-traversal",
+			"grade": "junior",
+			"classId": "kahn-cycle",
+			"seed": "00ef059a2311ee400efdf577ae3277a66581d8e63c6612296feb4202e8af69a5",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\nA E F H\nFalse\nB C D G\n</answer>"
+		},
+		{
+			"key": "be.algo.graph-traversal|junior|kahn-min|7498604670cdf65c9001e77de7a34cd655d59afd6b9542b832cfbd1c0832ad31|answer",
+			"family": "be.algo.graph-traversal",
+			"grade": "junior",
+			"classId": "kahn-min",
+			"seed": "7498604670cdf65c9001e77de7a34cd655d59afd6b9542b832cfbd1c0832ad31",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\nC\nF\nA\nG\nD\nB\nE\n</answer>"
+		},
+		{
+			"key": "be.algo.heap-dijkstra|middle|stale|871a2683279b6804028d460314f1f91e9c7e571a908193144897458fc551ee18|answer",
+			"family": "be.algo.heap-dijkstra",
+			"grade": "middle",
+			"classId": "stale",
+			"seed": "871a2683279b6804028d460314f1f91e9c7e571a908193144897458fc551ee18",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>1 3 5 6 7 2 4 1</answer>"
+		},
+		{
+			"key": "be.algo.heap-dijkstra|middle|ties|1957a1a3ab5d6e1fd2c261b55099360832184fb29bcbf94354b186fd6dd7cfc0|answer",
+			"family": "be.algo.heap-dijkstra",
+			"grade": "middle",
+			"classId": "ties",
+			"seed": "1957a1a3ab5d6e1fd2c261b55099360832184fb29bcbf94354b186fd6dd7cfc0",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>1 4 2 6 5 3 1</answer>"
+		},
+		{
+			"key": "be.algo.sorting-stability|junior|multi-pass|8930113a4f712bede9d4f6238dc84d05be69962da6d1389a3874ef9866b11563|answer",
+			"family": "be.algo.sorting-stability",
+			"grade": "junior",
+			"classId": "multi-pass",
+			"seed": "8930113a4f712bede9d4f6238dc84d05be69962da6d1389a3874ef9866b11563",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>lev mila egor vera boris dina</answer>"
+		},
+		{
+			"key": "be.algo.sorting-stability|junior|reverse-pass|2acabf79d4be76904b231a319edfaaa47d840d41207006a452d0e6196d572a28|answer",
+			"family": "be.algo.sorting-stability",
+			"grade": "junior",
+			"classId": "reverse-pass",
+			"seed": "2acabf79d4be76904b231a319edfaaa47d840d41207006a452d0e6196d572a28",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>oleg vera mila zoya sasha ilya dina</answer>"
+		},
+		{
+			"key": "be.algo.two-pointers|junior|longest-unique|7b49ca8a89bde418c8c8852889f491bf72e10bfd57b15c60a0cc7da95b0e703f|answer",
+			"family": "be.algo.two-pointers",
+			"grade": "junior",
+			"classId": "longest-unique",
+			"seed": "7b49ca8a89bde418c8c8852889f491bf72e10bfd57b15c60a0cc7da95b0e703f",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\n3 bme\n4 befm\n1 e\n</answer>"
+		},
+		{
+			"key": "be.algo.two-pointers|junior|min-window|5607de4d06b0e3e3a88ab1fab11e6082680b1a40b82c9d1bf941d91f5ccbb9b8|answer",
+			"family": "be.algo.two-pointers",
+			"grade": "junior",
+			"classId": "min-window",
+			"seed": "5607de4d06b0e3e3a88ab1fab11e6082680b1a40b82c9d1bf941d91f5ccbb9b8",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\n8 1\n52 0\n21 3\n44 8\n</answer>"
+		},
+		{
+			"key": "be.api.cors-preflight|junior|allow-lists|381703be2e545c96b91edbec537984fa8ccbd23e68d7a78c9ca598944a59c019|answer",
+			"family": "be.api.cors-preflight",
+			"grade": "junior",
+			"classId": "allow-lists",
+			"seed": "381703be2e545c96b91edbec537984fa8ccbd23e68d7a78c9ca598944a59c019",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>pre+fail pre+fail pre+ok pre+ok pre+ok blocked pre+fail | 4</answer>"
+		},
+		{
+			"key": "be.api.cors-preflight|junior|allow-lists|684721510ef2c690a74cf8167eb90d81330c72322b5d58db69b140308eed6486|answer",
+			"family": "be.api.cors-preflight",
+			"grade": "junior",
+			"classId": "allow-lists",
+			"seed": "684721510ef2c690a74cf8167eb90d81330c72322b5d58db69b140308eed6486",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>pre+fail pre+ok pre+fail pre+ok pre+fail pre+ok | 3</answer>"
+		},
+		{
+			"key": "be.api.cors-preflight|junior|allow-lists|96519c3f9f3ed3adb77481bc70e5179a80644ed742cf40f880bde3be56efd52c|answer",
+			"family": "be.api.cors-preflight",
+			"grade": "junior",
+			"classId": "allow-lists",
+			"seed": "96519c3f9f3ed3adb77481bc70e5179a80644ed742cf40f880bde3be56efd52c",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>pre+ok pre+fail pre+fail pre+ok pre+fail pre+ok | 3</answer>"
+		},
+		{
+			"key": "be.api.cors-preflight|junior|allow-lists|c14c3e886353113a6bf503c714249094637745891bdba3420c4ccb1b5f12ebae|answer",
+			"family": "be.api.cors-preflight",
+			"grade": "junior",
+			"classId": "allow-lists",
+			"seed": "c14c3e886353113a6bf503c714249094637745891bdba3420c4ccb1b5f12ebae",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>pre+fail pre+fail pre+ok pre+fail pre+fail pre+fail pre+ok | 2</answer>"
+		},
+		{
+			"key": "be.api.cors-preflight|junior|credentials|2faab908f3c3f834d21a9ef81e7a740e9c0ccddbbe300c177dd56778b107c114|answer",
+			"family": "be.api.cors-preflight",
+			"grade": "junior",
+			"classId": "credentials",
+			"seed": "2faab908f3c3f834d21a9ef81e7a740e9c0ccddbbe300c177dd56778b107c114",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>pre+fail pre+fail ok pre+fail pre+fail blocked ok | 3</answer>"
+		},
+		{
+			"key": "be.api.cors-preflight|junior|simple-vs-preflight|0907df6ca641188dc36db9387f2b020d9c060f4a72af1a102b4351912120bc4c|answer",
+			"family": "be.api.cors-preflight",
+			"grade": "junior",
+			"classId": "simple-vs-preflight",
+			"seed": "0907df6ca641188dc36db9387f2b020d9c060f4a72af1a102b4351912120bc4c",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>pre+fail pre+fail blocked pre+fail ok | 2</answer>"
+		},
+		{
+			"key": "be.api.cors-preflight|middle|preflight-cache|1726c64dbb11862a67e2f50dcc7c42565e8135cb0639167503e570a715438900|answer",
+			"family": "be.api.cors-preflight",
+			"grade": "middle",
+			"classId": "preflight-cache",
+			"seed": "1726c64dbb11862a67e2f50dcc7c42565e8135cb0639167503e570a715438900",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>pre+ok ok pre+fail pre+ok ok pre+fail pre+fail pre+ok pre+fail | 5</answer>"
+		},
+		{
+			"key": "be.api.cors-preflight|middle|vary-origin|9fe80d9b06161580d2dbc708fc56f45e3a14e926555c777633f81089d0c42d12|answer",
+			"family": "be.api.cors-preflight",
+			"grade": "middle",
+			"classId": "vary-origin",
+			"seed": "9fe80d9b06161580d2dbc708fc56f45e3a14e926555c777633f81089d0c42d12",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>blocked ok blocked ok ok ok ok blocked ok | 4</answer>"
+		},
+		{
+			"key": "be.api.http-caching|junior|max-age-etag|a91d8790d8ebf9fd5217263cc93a197e0c3ae15605d06a41b0327dc4a2980f81|answer",
+			"family": "be.api.http-caching",
+			"grade": "junior",
+			"classId": "max-age-etag",
+			"seed": "a91d8790d8ebf9fd5217263cc93a197e0c3ae15605d06a41b0327dc4a2980f81",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>200 304 hit 304 304 hit hit</answer>"
+		},
+		{
+			"key": "be.api.http-caching|junior|no-cache-no-store|cf99373fd06e90bd18800239010090b7a06719b8d020dbe4a7b18e29ad60697f|answer",
+			"family": "be.api.http-caching",
+			"grade": "junior",
+			"classId": "no-cache-no-store",
+			"seed": "cf99373fd06e90bd18800239010090b7a06719b8d020dbe4a7b18e29ad60697f",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>200 200 200 200 304 304 304 304 304</answer>"
+		},
+		{
+			"key": "be.api.http-caching|junior|without-etag|57de1c8d5d28a411646b733a7c0f2ef6ec1443a828e678f4e72174649123bc73|answer",
+			"family": "be.api.http-caching",
+			"grade": "junior",
+			"classId": "without-etag",
+			"seed": "57de1c8d5d28a411646b733a7c0f2ef6ec1443a828e678f4e72174649123bc73",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>200 hit hit 304 hit 200 200 200</answer>"
+		},
+		{
+			"key": "be.api.http-caching|junior|without-etag|8a5a844d00ffd7d70d95632ee88e54ad9042c70bde4adfc14a37983eb5161ebd|answer",
+			"family": "be.api.http-caching",
+			"grade": "junior",
+			"classId": "without-etag",
+			"seed": "8a5a844d00ffd7d70d95632ee88e54ad9042c70bde4adfc14a37983eb5161ebd",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>200 hit 200 hit 200 200 hit 304</answer>"
+		},
+		{
+			"key": "be.api.http-caching|junior|without-etag|b5f1fc4d3dc3fe4b9d2b286424f497cefc0e302eace1b15d2dc5e199eb7ae3ee|answer",
+			"family": "be.api.http-caching",
+			"grade": "junior",
+			"classId": "without-etag",
+			"seed": "b5f1fc4d3dc3fe4b9d2b286424f497cefc0e302eace1b15d2dc5e199eb7ae3ee",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>200 200 304 hit hit 200 304 200</answer>"
+		},
+		{
+			"key": "be.api.http-caching|junior|without-etag|bbfcc42e2619d1ed9596502f4b742f6ad084de613dcc86dab9711e976980cdef|answer",
+			"family": "be.api.http-caching",
+			"grade": "junior",
+			"classId": "without-etag",
+			"seed": "bbfcc42e2619d1ed9596502f4b742f6ad084de613dcc86dab9711e976980cdef",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>200 200 hit 200 hit 304 200 200</answer>"
+		},
+		{
+			"key": "be.api.http-caching|junior|without-etag|eb8bb93eb6c0b25397de1a0b50a06ff732f875ff0232bede49dd73a2c025288b|answer",
+			"family": "be.api.http-caching",
+			"grade": "junior",
+			"classId": "without-etag",
+			"seed": "eb8bb93eb6c0b25397de1a0b50a06ff732f875ff0232bede49dd73a2c025288b",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>200 200 304 hit hit 200 200</answer>"
+		},
+		{
+			"key": "be.api.http-caching|junior|without-etag|fe0763ced2a2646b7f97b0c7ae57e7a5bedfcbb09c188a37a7f46462fe8f3cc8|answer",
+			"family": "be.api.http-caching",
+			"grade": "junior",
+			"classId": "without-etag",
+			"seed": "fe0763ced2a2646b7f97b0c7ae57e7a5bedfcbb09c188a37a7f46462fe8f3cc8",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>200 200 hit 200 200 304 hit 200</answer>"
+		},
+		{
+			"key": "be.api.http-caching|middle|s-maxage-private|03120232f67461fdac61b6b3d8163d65e940bc18ab4295574cacbeb3b42da659|answer",
+			"family": "be.api.http-caching",
+			"grade": "middle",
+			"classId": "s-maxage-private",
+			"seed": "03120232f67461fdac61b6b3d8163d65e940bc18ab4295574cacbeb3b42da659",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>200 200 hit hit 304 200 200 200 6</answer>"
+		},
+		{
+			"key": "be.api.http-caching|middle|vary|ad731bff1019199458f628d4908c1ddee924ede86378b058c34e9e019bed0014|answer",
+			"family": "be.api.http-caching",
+			"grade": "middle",
+			"classId": "vary",
+			"seed": "ad731bff1019199458f628d4908c1ddee924ede86378b058c34e9e019bed0014",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>200 200 hit hit hit 200 200 hit hit 304 5</answer>"
+		},
+		{
+			"key": "be.api.idempotency-keys|junior|body-mismatch|5cdaca647645ef81ff4f96a6c0654dc6c0dfb1573a310ba27b672c44ee132874|answer",
+			"family": "be.api.idempotency-keys",
+			"grade": "junior",
+			"classId": "body-mismatch",
+			"seed": "5cdaca647645ef81ff4f96a6c0654dc6c0dfb1573a310ba27b672c44ee132874",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>201:8031 201:8032 201:8033 422 201:8032 3</answer>"
+		},
+		{
+			"key": "be.api.idempotency-keys|junior|in-flight|3394c1312fcf42baace376039cad54c9fe2a7b1dc31cbab37d76db9cdfa64e37|answer",
+			"family": "be.api.idempotency-keys",
+			"grade": "junior",
+			"classId": "in-flight",
+			"seed": "3394c1312fcf42baace376039cad54c9fe2a7b1dc31cbab37d76db9cdfa64e37",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>201:7531 409 201:7532 201:7533 201:7531 201:7534 4</answer>"
+		},
+		{
+			"key": "be.api.idempotency-keys|junior|in-flight|355005eca6faad2701a0793b968680ca7485fe05ed32bdd31ad944180fd3fef4|answer",
+			"family": "be.api.idempotency-keys",
+			"grade": "junior",
+			"classId": "in-flight",
+			"seed": "355005eca6faad2701a0793b968680ca7485fe05ed32bdd31ad944180fd3fef4",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>201:3771 201:3772 201:3771 201:3773 409 201:3773 3</answer>"
+		},
+		{
+			"key": "be.api.idempotency-keys|junior|in-flight|9b7bb801ea4c077b225605c96f235b69d11923adc343203b57a789293866066a|answer",
+			"family": "be.api.idempotency-keys",
+			"grade": "junior",
+			"classId": "in-flight",
+			"seed": "9b7bb801ea4c077b225605c96f235b69d11923adc343203b57a789293866066a",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>201:4471 201:4472 409 201:4471 201:4472 201:4473 201:4474 4</answer>"
+		},
+		{
+			"key": "be.api.idempotency-keys|junior|in-flight|9def5ac74c65a2c7045539b12c4f21b223b09f9cb61b3ef1a8cb440fab66e46a|answer",
+			"family": "be.api.idempotency-keys",
+			"grade": "junior",
+			"classId": "in-flight",
+			"seed": "9def5ac74c65a2c7045539b12c4f21b223b09f9cb61b3ef1a8cb440fab66e46a",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>201:7951 201:7952 409 201:7951 201:7952 201:7953 3</answer>"
+		},
+		{
+			"key": "be.api.idempotency-keys|junior|replay|874116509ec56e30ad8c133a7a4b8020562dc7aa34957b63b2a163ae7e72bffb|answer",
+			"family": "be.api.idempotency-keys",
+			"grade": "junior",
+			"classId": "replay",
+			"seed": "874116509ec56e30ad8c133a7a4b8020562dc7aa34957b63b2a163ae7e72bffb",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>201:7851 201:7852 201:7851 201:7851 201:7853 201:7852 3</answer>"
+		},
+		{
+			"key": "be.api.idempotency-keys|middle|expiry|000f2ed773f045a9bfcbcfb03d65cbc5fb468723b6361082acbe91e4880501b9|answer",
+			"family": "be.api.idempotency-keys",
+			"grade": "middle",
+			"classId": "expiry",
+			"seed": "000f2ed773f045a9bfcbcfb03d65cbc5fb468723b6361082acbe91e4880501b9",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>201:6791 201:6792 201:6793 201:6794 201:6792 201:6795 201:6796 6</answer>"
+		},
+		{
+			"key": "be.api.idempotency-keys|middle|failed-first|5e2fc65d81eabc21607836aa314f4fa0144a6d3adc9b9c5b7db294f1d10dcdb5|answer",
+			"family": "be.api.idempotency-keys",
+			"grade": "middle",
+			"classId": "failed-first",
+			"seed": "5e2fc65d81eabc21607836aa314f4fa0144a6d3adc9b9c5b7db294f1d10dcdb5",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>201:6891 400 500 201:6892 400 201:6893 422 201:6893 3</answer>"
+		},
+		{
+			"key": "be.api.pagination-consistency|junior|keyset-changes|8341450123906a6b8a0f9eca2a60f4d38552f373d42b1d3f7cd4f8e389d77c54|answer",
+			"family": "be.api.pagination-consistency",
+			"grade": "junior",
+			"classId": "keyset-changes",
+			"seed": "8341450123906a6b8a0f9eca2a60f4d38552f373d42b1d3f7cd4f8e389d77c54",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>601 600 599 | 598 604 597 | 596 595 594</answer>"
+		},
+		{
+			"key": "be.api.pagination-consistency|junior|keyset-ties|4fb2e404bb6bdfacbe6cb4bc3c2640201da7a3a74d4f20cd70822f2cdc79a4f0|answer",
+			"family": "be.api.pagination-consistency",
+			"grade": "junior",
+			"classId": "keyset-ties",
+			"seed": "4fb2e404bb6bdfacbe6cb4bc3c2640201da7a3a74d4f20cd70822f2cdc79a4f0",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>481 480 479 478 | 476 475 474 473 | 471 470</answer>"
+		},
+		{
+			"key": "be.api.pagination-consistency|junior|keyset-ties|6e638aee72b1c9df806beb112b052c17ab975aa7dd8d096b122e9441b3240bb4|answer",
+			"family": "be.api.pagination-consistency",
+			"grade": "junior",
+			"classId": "keyset-ties",
+			"seed": "6e638aee72b1c9df806beb112b052c17ab975aa7dd8d096b122e9441b3240bb4",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>809 808 807 806 | 805 803 802 801 |</answer>"
+		},
+		{
+			"key": "be.api.pagination-consistency|junior|keyset-ties|98b1fd412287ba64ca0703db3a335ebad6953ec559d03834dc97b392c6291fce|answer",
+			"family": "be.api.pagination-consistency",
+			"grade": "junior",
+			"classId": "keyset-ties",
+			"seed": "98b1fd412287ba64ca0703db3a335ebad6953ec559d03834dc97b392c6291fce",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>571 570 569 | 568 566 565 | 563 562 561</answer>"
+		},
+		{
+			"key": "be.api.pagination-consistency|junior|keyset-ties|e1b962db647c76a67f0282bb4f93e032f1e2b44d7fbacf53d537a9daf5cf6f70|answer",
+			"family": "be.api.pagination-consistency",
+			"grade": "junior",
+			"classId": "keyset-ties",
+			"seed": "e1b962db647c76a67f0282bb4f93e032f1e2b44d7fbacf53d537a9daf5cf6f70",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>620 619 618 | 617 615 614 | 612 611 610</answer>"
+		},
+		{
+			"key": "be.api.pagination-consistency|junior|keyset-ties|f1ff0be2a461f29b6313ff87eb85fe6beb6fc3a24b620f06323b94f6f8834199|answer",
+			"family": "be.api.pagination-consistency",
+			"grade": "junior",
+			"classId": "keyset-ties",
+			"seed": "f1ff0be2a461f29b6313ff87eb85fe6beb6fc3a24b620f06323b94f6f8834199",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>701 700 699 698 | 696 695 694 693 | 691 690</answer>"
+		},
+		{
+			"key": "be.api.pagination-consistency|junior|offset-shift|322caa43320a131b97c6941760a82e641807891bcc549e14bd2e14d9be963de7|answer",
+			"family": "be.api.pagination-consistency",
+			"grade": "junior",
+			"classId": "offset-shift",
+			"seed": "322caa43320a131b97c6941760a82e641807891bcc549e14bd2e14d9be963de7",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>389 388 387 | 388 387 386 | 384 383 382</answer>"
+		},
+		{
+			"key": "be.api.rest-semantics|junior|delete-repeat|451ab7bd8d0b534115e8cfd512f52abfbaabddc3376ef2f0dc2d57a51afa33ee|answer",
+			"family": "be.api.rest-semantics",
+			"grade": "junior",
+			"classId": "delete-repeat",
+			"seed": "451ab7bd8d0b534115e8cfd512f52abfbaabddc3376ef2f0dc2d57a51afa33ee",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>201:28 204 404 404 404 404 201:29 | 16:G64:24 28:H12:29 29:B42:10</answer>"
+		},
+		{
+			"key": "be.api.rest-semantics|junior|put-upsert|b1751e47efd79243dda3a9fad0d74f3e0206c96f083c673f84cc9a3fdefa4552|answer",
+			"family": "be.api.rest-semantics",
+			"grade": "junior",
+			"classId": "put-upsert",
+			"seed": "b1751e47efd79243dda3a9fad0d74f3e0206c96f083c673f84cc9a3fdefa4552",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>200 200 200 200 201:59 200 | 20:F25:26 27:A17:0 59:G64:12</answer>"
+		},
+		{
+			"key": "be.api.rest-semantics|junior|validation-order|3078ad4d7331c85d24a8a739d3949f1c026f0e0dccd44661057f16adff3c2765|answer",
+			"family": "be.api.rest-semantics",
+			"grade": "junior",
+			"classId": "validation-order",
+			"seed": "3078ad4d7331c85d24a8a739d3949f1c026f0e0dccd44661057f16adff3c2765",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>422 409 409 422 200 404 | 14:C08:10 18:H12:16 24:D33:8</answer>"
+		},
+		{
+			"key": "be.api.rest-semantics|junior|validation-order|37ec67d9cbc2217787663f3f4f349d6c81dc13d075015fbdd8d395e7582c59f0|answer",
+			"family": "be.api.rest-semantics",
+			"grade": "junior",
+			"classId": "validation-order",
+			"seed": "37ec67d9cbc2217787663f3f4f349d6c81dc13d075015fbdd8d395e7582c59f0",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>200 422 409 422 409 200 | 11:H12:38 24:F25:2</answer>"
+		},
+		{
+			"key": "be.api.rest-semantics|junior|validation-order|5bbb0c0808188fd7649a0296b9947e74d121610fccc43902f0b528ed78b93fb6|answer",
+			"family": "be.api.rest-semantics",
+			"grade": "junior",
+			"classId": "validation-order",
+			"seed": "5bbb0c0808188fd7649a0296b9947e74d121610fccc43902f0b528ed78b93fb6",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>422 201:29 404 422 200 409 409 | 16:H12:37 22:A17:26 27:E91:24 29:D33:14</answer>"
+		},
+		{
+			"key": "be.api.rest-semantics|junior|validation-order|8ee187b9cdaf52793d5e4ee9c86afa797e9c7949e8155239326d2a5fdc8868f0|answer",
+			"family": "be.api.rest-semantics",
+			"grade": "junior",
+			"classId": "validation-order",
+			"seed": "8ee187b9cdaf52793d5e4ee9c86afa797e9c7949e8155239326d2a5fdc8868f0",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>201:27 422 200 409 409 422 | 10:G64:6 23:E91:18 25:D33:34 27:F25:26</answer>"
+		},
+		{
+			"key": "be.api.rest-semantics|junior|validation-order|f85fac8333e4158beb19eab083f5d552816ae55f251058e057efdedf8bb5c7d4|answer",
+			"family": "be.api.rest-semantics",
+			"grade": "junior",
+			"classId": "validation-order",
+			"seed": "f85fac8333e4158beb19eab083f5d552816ae55f251058e057efdedf8bb5c7d4",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>200 404 409 200 422 422 | 15:B42:10 19:E91:3 21:F25:18</answer>"
+		},
+		{
+			"key": "be.api.retry-backoff|middle|cap|c67b66ba077feeef325c5051997baf26888caa3a3ee8d8e928da24cb50f0af12|answer",
+			"family": "be.api.retry-backoff",
+			"grade": "middle",
+			"classId": "cap",
+			"seed": "c67b66ba077feeef325c5051997baf26888caa3a3ee8d8e928da24cb50f0af12",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>6 ok 7343</answer>"
+		},
+		{
+			"key": "be.api.retry-backoff|middle|deadline|98d472bc7cab3558a4afc16605eb916f8586cbcdca7d228a6356a2317fac0920|answer",
+			"family": "be.api.retry-backoff",
+			"grade": "middle",
+			"classId": "deadline",
+			"seed": "98d472bc7cab3558a4afc16605eb916f8586cbcdca7d228a6356a2317fac0920",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>4 deadline 2388</answer>"
+		},
+		{
+			"key": "be.api.retry-backoff|middle|retry-after|bcf57c1b1c36a5ffacbe6b42ee0d2401fefca4e83b686cef5f9558fcf3e135c3|answer",
+			"family": "be.api.retry-backoff",
+			"grade": "middle",
+			"classId": "retry-after",
+			"seed": "bcf57c1b1c36a5ffacbe6b42ee0d2401fefca4e83b686cef5f9558fcf3e135c3",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>4 ok 5271</answer>"
+		},
+		{
+			"key": "be.code.order-summary|junior|top-average|131143f4cb914595fb2c8d45820d7500fa32464727f48d04f5fe633c64f4db9f|program",
+			"family": "be.code.order-summary",
+			"grade": "junior",
+			"classId": "top-average",
+			"seed": "131143f4cb914595fb2c8d45820d7500fa32464727f48d04f5fe633c64f4db9f",
+			"stage": "program",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "Вот решение задачи на Python 3:\n\n```python\nimport sys\nfrom collections import defaultdict\n\n\ndef main():\n    input_data = sys.stdin.read().split()\n    if not input_data:\n        return\n\n    n = int(input_data[0])\n    k = int(input_data[1])\n\n    orders = {}\n    idx = 2\n    for _ in range(n):\n        order_id = input_data[idx]\n        client = input_data[idx + 1]\n        amount = int(input_data[idx + 2])\n        status = input_data[idx + 3]\n        orders[order_id] = (client, amount, status)\n        idx += 4\n\n    client_totals = defaultdict(int)\n    client_counts = defaultdict(int)\n\n    for client, amount, status in orders.values():\n        if status == \"paid\":\n            client_totals[client] += amount\n            client_counts[client] += 1\n\n    results = []\n    for client, count in client_counts.items():\n        avg = client_totals[client] // count\n        results.append((client, avg))\n\n    # Сортировка: сначала по убыванию среднего, затем по имени клиента лексикографически\n    results.sort(key=lambda x: (-x[1], x[0]))\n\n    for client, avg in results[:k]:\n        print(f\"{client} {avg}\")\n\n\nif __name__ == \"__main__\":\n    main()\n```"
+		},
+		{
+			"key": "be.code.order-summary|junior|top-average|59e11a10c4e809de3e22bad8217a9986ad6654ff02d7be4d1d59f0661e078703|program",
+			"family": "be.code.order-summary",
+			"grade": "junior",
+			"classId": "top-average",
+			"seed": "59e11a10c4e809de3e22bad8217a9986ad6654ff02d7be4d1d59f0661e078703",
+			"stage": "program",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "Вот решение задачи на Python 3:\n\n```python\nimport sys\n\n\ndef main():\n    input_data = sys.stdin.read().split()\n    if not input_data:\n        return\n\n    n = int(input_data[0])\n    k = int(input_data[1])\n\n    orders = {}\n    idx = 2\n    for _ in range(n):\n        order_id = input_data[idx]\n        client = input_data[idx + 1]\n        amount = int(input_data[idx + 2])\n        status = input_data[idx + 3]\n        idx += 4\n        # Перезаписываем заказ, сохраняя последнее состояние\n        orders[order_id] = (client, amount, status)\n\n    client_totals = {}\n    client_counts = {}\n\n    for client, amount, status in orders.values():\n        if status == \"paid\":\n            client_totals[client] = client_totals.get(client, 0) + amount\n            client_counts[client] = client_counts.get(client, 0) + 1\n\n    stats = []\n    for client, count in client_counts.items():\n        avg = client_totals[client] // count\n        stats.append((avg, client))\n\n    # Сортировка: сначала по убыванию среднего, затем по имени клиента лексикографически\n    stats.sort(key=lambda x: (-x[0], x[1]))\n\n    for avg, client in stats[:k]:\n        print(f\"{client} {avg}\")\n\n\nif __name__ == \"__main__\":\n    main()\n```"
+		},
+		{
+			"key": "be.code.order-summary|junior|top-average|71659c173047f618ef2e909721142cb3134242e369a2811910d2e3d3a10f5d05|program",
+			"family": "be.code.order-summary",
+			"grade": "junior",
+			"classId": "top-average",
+			"seed": "71659c173047f618ef2e909721142cb3134242e369a2811910d2e3d3a10f5d05",
+			"stage": "program",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "```python\nimport sys\n\n\ndef main():\n    input_data = sys.stdin.read().split()\n    if not input_data:\n        return\n\n    n = int(input_data[0])\n    k = int(input_data[1])\n\n    # Храним последнее состояние каждого заказа по его номеру\n    orders = {}\n    idx = 2\n    for _ in range(n):\n        order_id = int(input_data[idx])\n        client = input_data[idx + 1]\n        amount = int(input_data[idx + 2])\n        status = input_data[idx + 3]\n        idx += 4\n        orders[order_id] = (client, amount, status)\n\n    # Агрегируем суммы и количество только для оплаченных (paid) заказов\n    client_totals = {}\n    client_counts = {}\n\n    for client, amount, status in orders.values():\n        if status == \"paid\":\n            client_totals[client] = client_totals.get(client, 0) + amount\n            client_counts[client] = client_counts.get(client, 0) + 1\n\n    # Вычисляем среднее с округлением вниз\n    results = []\n    for client, total in client_totals.items():\n        avg = total // client_counts[client]\n        results.append((client, avg))\n\n    # Сортируем: сначала по убыванию среднего, затем по имени в лексикографическом порядке\n    results.sort(key=lambda x: (-x[1], x[0]))\n\n    # Выводим не более K клиентов\n    for client, avg in results[:k]:\n        print(f\"{client} {avg}\")\n\n\nif __name__ == \"__main__\":\n    main()\n```"
+		},
+		{
+			"key": "be.code.order-summary|junior|top-average|7c3babcceaab0d71bc3dde422afde9cccc1ca8f41616fdeb12c0eee74961375e|program",
+			"family": "be.code.order-summary",
+			"grade": "junior",
+			"classId": "top-average",
+			"seed": "7c3babcceaab0d71bc3dde422afde9cccc1ca8f41616fdeb12c0eee74961375e",
+			"stage": "program",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "Вот решение на Python 3:\n\n```python\nimport sys\n\n\ndef main():\n    input_data = sys.stdin.read().split()\n    if not input_data:\n        return\n\n    n = int(input_data[0])\n    k = int(input_data[1])\n\n    # Храним последнее состояние каждого заказа:\n    # order_id -> (client, amount, status)\n    orders = {}\n\n    idx = 2\n    for _ in range(n):\n        order_id = int(input_data[idx])\n        client = input_data[idx + 1]\n        amount = int(input_data[idx + 2])\n        status = input_data[idx + 3]\n        idx += 4\n\n        orders[order_id] = (client, amount, status)\n\n    # Агрегируем оплаченные заказы по клиентам\n    client_totals = {}\n    client_counts = {}\n\n    for client, amount, status in orders.values():\n        if status == \"paid\":\n            client_totals[client] = client_totals.get(client, 0) + amount\n            client_counts[client] = client_counts.get(client, 0) + 1\n\n    # Вычисляем средние значения\n    stats = []\n    for client, total in client_totals.items():\n        avg = total // client_counts[client]\n        stats.append((avg, client))\n\n    # Сортируем: сначала по убыванию среднего (-avg),\n    # при равенстве — по возрастанию имени клиента\n    stats.sort(key=lambda x: (-x[0], x[1]))\n\n    # Выводим до K лучших\n    limit = min(k, len(stats))\n    for i in range(limit):\n        avg, client = stats[i]\n        print(f\"{client} {avg}\")\n\n\nif __name__ == \"__main__\":\n    main()\n```"
+		},
+		{
+			"key": "be.code.order-summary|junior|top-average|eb9d1159914ff74d6425e98154f5f330418951c34ee2bfcdd81e6a61dfc60b36|program",
+			"family": "be.code.order-summary",
+			"grade": "junior",
+			"classId": "top-average",
+			"seed": "eb9d1159914ff74d6425e98154f5f330418951c34ee2bfcdd81e6a61dfc60b36",
+			"stage": "program",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "Ниже представлено решение задачи на Python 3.\n\n```python\nimport sys\n\n\ndef main():\n    input_data = sys.stdin.read().split()\n    if not input_data:\n        return\n\n    n = int(input_data[0])\n    k = int(input_data[1])\n\n    # Считываем и сохраняем актуальное состояние каждого заказа\n    # Ключ: order_id, Значение: (client, amount, status)\n    orders = {}\n    idx = 2\n    for _ in range(n):\n        order_id = input_data[idx]\n        client = input_data[idx + 1]\n        amount = int(input_data[idx + 2])\n        status = input_data[idx + 3]\n        orders[order_id] = (client, amount, status)\n        idx += 4\n\n    # Агрегируем оплаченные заказы по клиентам\n    # client -> [total_paid_amount, paid_count]\n    client_paid = {}\n    for client, amount, status in orders.values():\n        if status == \"paid\":\n            if client not in client_paid:\n                client_paid[client] = [0, 0]\n            client_paid[client][0] += amount\n            client_paid[client][1] += 1\n\n    # Вычисляем среднее и формируем список для сортировки\n    stats = []\n    for client, (total, count) in client_paid.items():\n        avg = total // count\n        stats.append((client, avg))\n\n    # Сортировка: по убыванию среднего, затем по имени лексикографически\n    stats.sort(key=lambda x: (-x[1], x[0]))\n\n    # Выводим до K клиентов\n    for client, avg in stats[:k]:\n        print(f\"{client} {avg}\")\n\n\nif __name__ == \"__main__\":\n    main()\n```"
+		},
+		{
+			"key": "be.code.rate-limiter|middle|token-bucket|29b5fee734f732141f1f49695812a86c77d0059229ef2d1c2e5eb0e3594e9f4a|program",
+			"family": "be.code.rate-limiter",
+			"grade": "middle",
+			"classId": "token-bucket",
+			"seed": "29b5fee734f732141f1f49695812a86c77d0059229ef2d1c2e5eb0e3594e9f4a",
+			"stage": "program",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "Для решения задачи воспользуемся алгоритмом маркерной корзины (Token Bucket) индивидуально для каждого клиента.\n\n### Алгоритм:\n1. Для каждого клиента храним состояние:\n   - $t_0$ — момент времени самого первого запроса клиента;\n   - $last\\_k$ — количество уже учтённых периодов пополнения с момента $t_0$;\n   - $tokens$ — текущее число токенов в ведре.\n2. При первом запросе клиента в момент $t_0$:\n   - Ведро полностью заполнено ($tokens = L$).\n   - Так как $L \\ge 1$, первый запрос всегда разрешается (`allow`) и уменьшает число токенов на 1.\n   - Фиксируем $last\\_k = 0$.\n3. При последующих запросах в момент $t$:\n   - Количество прошедших полных периодов с $t_0$: $k = (t - t_0) // P$.\n   - Количество новых токенов, которые должны быть добавлены: $\\Delta k = k - last\\_k$.\n   - Поскольку между обращениями токены не тратились, пополнение можно применить сразу: $tokens = \\min(L, tokens + \\Delta k)$, и обновить $last\\_k = k$.\n   - Если $tokens > 0$, то списываем один токен и выводим `allow`, иначе выводим `deny`.\n\n```python\nimport sys\n\n\ndef main():\n    input_data = sys.stdin.read().split()\n    if not input_data:\n        return\n\n    n = int(input_data[0])\n    limit = int(input_data[1])\n    p = int(input_data[2])\n\n    # client -> [t0, last_k, tokens]\n    clients = {}\n    out = []\n\n    idx = 3\n    for _ in range(n):\n        t = int(input_data[idx])\n        client = input_data[idx + 1]\n        idx += 2\n\n        if client not in clients:\n            clients[client] = [t, 0, limit - 1]\n            out.append(\"allow\")\n        else:\n            t0, last_k, tokens = clients[client]\n            k = (t - t0) // p\n            tokens = min(limit, tokens + (k - last_k))\n            last_k = k\n\n            if tokens > 0:\n                tokens -= 1\n                out.append(\"allow\")\n            else:\n                out.append(\"deny\")\n\n            clients[client] = [t0, last_k, tokens]\n\n    sys.stdout.write(\"\\n\".join(out) + \"\\n\")\n\n\nif __name__ == \"__main__\":\n    main()\n```"
+		},
+		{
+			"key": "be.code.rate-limiter|middle|token-bucket|29b5fee734f732141f1f49695812a86c77d0059229ef2d1c2e5eb0e3594e9f4a|step",
+			"family": "be.code.rate-limiter",
+			"grade": "middle",
+			"classId": "token-bucket",
+			"seed": "29b5fee734f732141f1f49695812a86c77d0059229ef2d1c2e5eb0e3594e9f4a",
+			"stage": "step",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "Вот обновлённая программа, учитывающая общий лимит $G$:\n\n```python\nimport sys\n\n\ndef main():\n    input_data = sys.stdin.read().split()\n    if not input_data:\n        return\n\n    n = int(input_data[0])\n    limit = int(input_data[1])\n    p = int(input_data[2])\n    g_limit = int(input_data[3])\n\n    clients = {}  # client -> [t0, last_k, tokens]\n    out = []\n\n    t_global0 = None\n    last_g_k = 0\n    g_tokens = g_limit\n\n    idx = 4\n    for _ in range(n):\n        t = int(input_data[idx])\n        client = input_data[idx + 1]\n        idx += 2\n\n        # Обновление глобального ведра\n        if t_global0 is None:\n            t_global0 = t\n            last_g_k = 0\n            g_tokens = g_limit\n        else:\n            k_g = (t - t_global0) // p\n            g_tokens = min(g_limit, g_tokens + (k_g - last_g_k))\n            last_g_k = k_g\n\n        # Обновление ведра клиента\n        if client not in clients:\n            c_t0 = t\n            c_last_k = 0\n            c_tokens = limit\n        else:\n            c_t0, c_last_k, c_tokens = clients[client]\n            k_c = (t - c_t0) // p\n            c_tokens = min(limit, c_tokens + (k_c - c_last_k))\n            c_last_k = k_c\n\n        # Проверка лимитов\n        if c_tokens > 0 and g_tokens > 0:\n            c_tokens -= 1\n            g_tokens -= 1\n            out.append(\"allow\")\n        else:\n            out.append(\"deny\")\n\n        # Сохранение обновленного состояния клиента\n        clients[client] = [c_t0, c_last_k, c_tokens]\n\n    sys.stdout.write(\"\\n\".join(out) + \"\\n\")\n\n\nif __name__ == \"__main__\":\n    main()\n```"
+		},
+		{
+			"key": "be.code.rate-limiter|middle|token-bucket|5f88dbbd4e3251fe5bd821ce9b4ce31a0eabe27e20348812e031b136bad26d5e|program",
+			"family": "be.code.rate-limiter",
+			"grade": "middle",
+			"classId": "token-bucket",
+			"seed": "5f88dbbd4e3251fe5bd821ce9b4ce31a0eabe27e20348812e031b136bad26d5e",
+			"stage": "program",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "Решение на Python 3:\n\n```python\nimport sys\n\n\ndef main():\n    input_data = sys.stdin.read().split()\n    if not input_data:\n        return\n\n    N = int(input_data[0])\n    L = int(input_data[1])\n    P = int(input_data[2])\n\n    clients = {}\n    out = []\n    idx = 3\n\n    for _ in range(N):\n        t = int(input_data[idx])\n        client = input_data[idx + 1]\n        idx += 2\n\n        if client not in clients:\n            # Первый запрос клиента: ведро инициализируется с L токенами,\n            # запрос сразу забирает 1 токен.\n            clients[client] = {\"t0\": t, \"last_k\": 0, \"tokens\": L - 1}\n            out.append(\"allow\")\n        else:\n            state = clients[client]\n            # Номер периода пополнения с момента t0\n            k = (t - state[\"t0\"]) // P\n            new_tokens = k - state[\"last_k\"]\n            if new_tokens > 0:\n                state[\"tokens\"] = min(L, state[\"tokens\"] + new_tokens)\n                state[\"last_k\"] = k\n\n            if state[\"tokens\"] > 0:\n                state[\"tokens\"] -= 1\n                out.append(\"allow\")\n            else:\n                out.append(\"deny\")\n\n    print(\"\\n\".join(out))\n\n\nif __name__ == \"__main__\":\n    main()\n```"
+		},
+		{
+			"key": "be.code.rate-limiter|middle|token-bucket|5f88dbbd4e3251fe5bd821ce9b4ce31a0eabe27e20348812e031b136bad26d5e|step",
+			"family": "be.code.rate-limiter",
+			"grade": "middle",
+			"classId": "token-bucket",
+			"seed": "5f88dbbd4e3251fe5bd821ce9b4ce31a0eabe27e20348812e031b136bad26d5e",
+			"stage": "step",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "Вот итоговая программа на Python 3, обновленная под новое условие с учетом общего лимита `G`:\n\n```python\nimport sys\n\n\ndef main():\n    input_data = sys.stdin.read().split()\n    if not input_data:\n        return\n\n    N = int(input_data[0])\n    L = int(input_data[1])\n    P = int(input_data[2])\n    G = int(input_data[3])\n\n    clients = {}\n    out = []\n    idx = 4\n\n    # Инициализация глобального лимита\n    global_t0 = None\n    global_last_k = 0\n    global_tokens = G\n\n    for i in range(N):\n        t = int(input_data[idx])\n        client = input_data[idx + 1]\n        idx += 2\n\n        # Инициализация глобального ведра при самом первом запросе\n        if global_t0 is None:\n            global_t0 = t\n        else:\n            # Пополнение глобального ведра\n            k_g = (t - global_t0) // P\n            if k_g > global_last_k:\n                global_tokens = min(G, global_tokens + (k_g - global_last_k))\n                global_last_k = k_g\n\n        # Инициализация или пополнение ведра клиента\n        if client not in clients:\n            clients[client] = {\"t0\": t, \"last_k\": 0, \"tokens\": L}\n            client_state = clients[client]\n        else:\n            client_state = clients[client]\n            k_c = (t - client_state[\"t0\"]) // P\n            if k_c > client_state[\"last_k\"]:\n                client_state[\"tokens\"] = min(\n                    L, client_state[\"tokens\"] + (k_c - client_state[\"last_k\"])\n                )\n                client_state[\"last_k\"] = k_c\n\n        # Запрос разрешается, только если есть токены в обоих ведрах\n        if global_tokens > 0 and client_state[\"tokens\"] > 0:\n            global_tokens -= 1\n            client_state[\"tokens\"] -= 1\n            out.append(\"allow\")\n        else:\n            out.append(\"deny\")\n\n    print(\"\\n\".join(out))\n\n\nif __name__ == \"__main__\":\n    main()\n```"
+		},
+		{
+			"key": "be.code.rate-limiter|middle|token-bucket|6d6a6b1250658cdd7a739ec9aaba808a279e87ca05140218f1a7184478239200|program",
+			"family": "be.code.rate-limiter",
+			"grade": "middle",
+			"classId": "token-bucket",
+			"seed": "6d6a6b1250658cdd7a739ec9aaba808a279e87ca05140218f1a7184478239200",
+			"stage": "program",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "Вот решение на Python 3, реализующее алгоритм Token Bucket в точном соответствии с условиями задачи.\n\n```python\nimport sys\n\n\ndef main():\n    input_data = sys.stdin.read().split()\n    if not input_data:\n        return\n\n    n = int(input_data[0])\n    l = int(input_data[1])\n    p = int(input_data[2])\n\n    clients = {}\n    out = []\n\n    idx = 3\n    for _ in range(n):\n        t = int(input_data[idx])\n        client = input_data[idx + 1]\n        idx += 2\n\n        if client not in clients:\n            # Первый запрос клиента:\n            # Ведро полное (L токенов), сетка пополнений привязана к t0 = t.\n            # Запрос сразу забирает 1 токен.\n            clients[client] = {\n                't0': t,\n                'tokens': l - 1,\n                'last_k': 0\n            }\n            out.append(\"allow\")\n        else:\n            state = clients[client]\n            # Номер последнего наступившего момента пополнения (t0 + k * P <= t)\n            current_k = (t - state['t0']) // p\n\n            # Количество пополнений, прошедших с последнего обновления\n            refills = current_k - state['last_k']\n            if refills > 0:\n                state['tokens'] = min(l, state['tokens'] + refills)\n                state['last_k'] = current_k\n\n            if state['tokens'] >= 1:\n                state['tokens'] -= 1\n                out.append(\"allow\")\n            else:\n                out.append(\"deny\")\n\n    sys.stdout.write('\\n'.join(out) + '\\n')\n\n\nif __name__ == '__main__':\n    main()\n```"
+		},
+		{
+			"key": "be.code.rate-limiter|middle|token-bucket|6d6a6b1250658cdd7a739ec9aaba808a279e87ca05140218f1a7184478239200|step",
+			"family": "be.code.rate-limiter",
+			"grade": "middle",
+			"classId": "token-bucket",
+			"seed": "6d6a6b1250658cdd7a739ec9aaba808a279e87ca05140218f1a7184478239200",
+			"stage": "step",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "Вот обновлённый код программы с учётом общего лимита `G`:\n\n```python\nimport sys\n\n\ndef main():\n    input_data = sys.stdin.read().split()\n    if not input_data:\n        return\n\n    n = int(input_data[0])\n    l = int(input_data[1])\n    p = int(input_data[2])\n    g = int(input_data[3])\n\n    clients = {}\n    out = []\n\n    t_global0 = None\n    g_tokens = g\n    g_last_k = 0\n\n    idx = 4\n    for i in range(n):\n        t = int(input_data[idx])\n        client = input_data[idx + 1]\n        idx += 2\n\n        # Инициализация и обновление общего ведра\n        if t_global0 is None:\n            t_global0 = t\n            g_tokens = g\n            g_last_k = 0\n        else:\n            current_k_g = (t - t_global0) // p\n            refills_g = current_k_g - g_last_k\n            if refills_g > 0:\n                g_tokens = min(g, g_tokens + refills_g)\n                g_last_k = current_k_g\n\n        # Инициализация и обновление ведра клиента\n        if client not in clients:\n            clients[client] = {\n                't0': t,\n                'tokens': l,\n                'last_k': 0\n            }\n        else:\n            state = clients[client]\n            current_k_c = (t - state['t0']) // p\n            refills_c = current_k_c - state['last_k']\n            if refills_c > 0:\n                state['tokens'] = min(l, state['tokens'] + refills_c)\n                state['last_k'] = current_k_c\n\n        c_state = clients[client]\n\n        # Запрос разрешается только при наличии токенов в обоих вёдрах\n        if g_tokens >= 1 and c_state['tokens'] >= 1:\n            g_tokens -= 1\n            c_state['tokens'] -= 1\n            out.append(\"allow\")\n        else:\n            out.append(\"deny\")\n\n    sys.stdout.write('\\n'.join(out) + '\\n')\n\n\nif __name__ == '__main__':\n    main()\n```"
+		},
+		{
+			"key": "be.code.rate-limiter|middle|token-bucket|8ba33cd9c12551282e93a11890ae2a7005533bab9f98e8cc9b8909a27c5e6b4a|program",
+			"family": "be.code.rate-limiter",
+			"grade": "middle",
+			"classId": "token-bucket",
+			"seed": "8ba33cd9c12551282e93a11890ae2a7005533bab9f98e8cc9b8909a27c5e6b4a",
+			"stage": "program",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "Вот решение задачи на Python 3.\n\n### Метод решения\n\nДля каждого клиента отслеживаем:\n- $t_0$ — момент первого запроса клиента;\n- `tokens` — текущее количество токенов в ведре (изначально $L$);\n- `last_k` — количество периодов пополнения $P$, которые уже были учтены к предыдущему шагу.\n\nПо условию пополнение на 1 токен происходит строго в моменты времени $t_0 + k \\cdot P$ ($k = 1, 2, \\dots$). При обработке запроса в момент $t$:\n1. Число всех наступивших к моменту $t$ пополнений равно $k = \\lfloor (t - t_0) / P \\rfloor$.\n2. За прошедшее с предыдущей проверки время произошло $k - \\text{last\\_k}$ пополнений. Так как между запросами токены не расходовались, новое число токенов равно $\\min(L, \\text{tokens} + (k - \\text{last\\_k}))$.\n3. Обновляем $\\text{last\\_k} = k$.\n4. Если $\\text{tokens} > 0$, уменьшаем их количество на 1 и выводим `allow`, иначе выводим `deny`.\n\n```python\nimport sys\n\n\ndef main():\n    input_data = sys.stdin.read().split()\n    if not input_data:\n        return\n\n    n = int(input_data[0])\n    l = int(input_data[1])\n    p = int(input_data[2])\n\n    clients = {}\n    idx = 3\n\n    out = []\n    for _ in range(n):\n        t = int(input_data[idx])\n        client = input_data[idx + 1]\n        idx += 2\n\n        if client not in clients:\n            # Первый запрос клиента: ведро полное (l токенов)\n            # Запрос сразу забирает 1 токен\n            clients[client] = {\n                't0': t,\n                'tokens': l - 1,\n                'last_k': 0\n            }\n            out.append('allow')\n        else:\n            state = clients[client]\n            t0 = state['t0']\n            current_k = (t - t0) // p\n            new_replenishments = current_k - state['last_k']\n\n            state['tokens'] = min(l, state['tokens'] + new_replenishments)\n            state['last_k'] = current_k\n\n            if state['tokens'] > 0:\n                state['tokens'] -= 1\n                out.append('allow')\n            else:\n                out.append('deny')\n\n    sys.stdout.write('\\n'.join(out) + '\\n')\n\n\nif __name__ == '__main__':\n    main()\n```"
+		},
+		{
+			"key": "be.code.rate-limiter|middle|token-bucket|8ba33cd9c12551282e93a11890ae2a7005533bab9f98e8cc9b8909a27c5e6b4a|step",
+			"family": "be.code.rate-limiter",
+			"grade": "middle",
+			"classId": "token-bucket",
+			"seed": "8ba33cd9c12551282e93a11890ae2a7005533bab9f98e8cc9b8909a27c5e6b4a",
+			"stage": "step",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "Вот обновлённый вариант программы с учётом общего лимита $G$:\n\n```python\nimport sys\n\n\ndef main():\n    input_data = sys.stdin.read().split()\n    if not input_data:\n        return\n\n    n = int(input_data[0])\n    l = int(input_data[1])\n    p = int(input_data[2])\n    g = int(input_data[3])\n\n    clients = {}\n    idx = 4\n\n    global_t0 = None\n    global_tokens = g\n    global_last_k = 0\n\n    out = []\n    for _ in range(n):\n        t = int(input_data[idx])\n        client = input_data[idx + 1]\n        idx += 2\n\n        # Инициализация и пополнение общего ведра\n        if global_t0 is None:\n            global_t0 = t\n        else:\n            current_gk = (t - global_t0) // p\n            new_g_tokens = current_gk - global_last_k\n            global_tokens = min(g, global_tokens + new_g_tokens)\n            global_last_k = current_gk\n\n        # Инициализация и пополнение ведра клиента\n        if client not in clients:\n            clients[client] = {\n                't0': t,\n                'tokens': l,\n                'last_k': 0\n            }\n\n        state = clients[client]\n        current_k = (t - state['t0']) // p\n        new_replenishments = current_k - state['last_k']\n        state['tokens'] = min(l, state['tokens'] + new_replenishments)\n        state['last_k'] = current_k\n\n        # Проверка обоих лимитов\n        if state['tokens'] > 0 and global_tokens > 0:\n            state['tokens'] -= 1\n            global_tokens -= 1\n            out.append('allow')\n        else:\n            out.append('deny')\n\n    sys.stdout.write('\\n'.join(out) + '\\n')\n\n\nif __name__ == '__main__':\n    main()\n```"
+		},
+		{
+			"key": "be.code.rate-limiter|middle|token-bucket|b799f278978e2dd17666abb5dad52763c7bb55a68861b466d6e64d33f14df0ba|program",
+			"family": "be.code.rate-limiter",
+			"grade": "middle",
+			"classId": "token-bucket",
+			"seed": "b799f278978e2dd17666abb5dad52763c7bb55a68861b466d6e64d33f14df0ba",
+			"stage": "program",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "Вот решение задачи на Python 3.\n\n### Метод решения\nДля каждого клиента запоминается:\n- время первого запроса $t_0$;\n- текущее количество токенов в ведре;\n- количество уже учтённых периодов пополнения $k_{last}$.\n\nПоскольку пополнения происходят строго в моменты $t_0 + k \\cdot P$, к моменту времени $t$ суммарно должно было произойти $k = \\lfloor (t - t_0) / P \\rfloor$ пополнений. Так как между запросами токены только накапливаются (до максимума $L$), при поступлении очередного запроса ведро пополняется на $\\min(L, \\text{tokens} + (k - k_{last}))$, после чего фиксируется $k_{last} = k$. Затем, если есть хотя бы 1 токен, запрос разрешается (`allow`) и расходует 1 токен, иначе отклоняется (`deny`).\n\n### Код программы\n\n```python\nimport sys\n\n\ndef main():\n    input_data = sys.stdin.read().split()\n    if not input_data:\n        return\n\n    n = int(input_data[0])\n    l = int(input_data[1])\n    p = int(input_data[2])\n\n    clients = {}\n    idx = 3\n\n    output = []\n    for _ in range(n):\n        t = int(input_data[idx])\n        client = input_data[idx + 1]\n        idx += 2\n\n        if client not in clients:\n            # Инициализация нового клиента:\n            # t0, tokens, k_last\n            t0 = t\n            tokens = l - 1  # сразу тратим токен на текущий (первый) запрос\n            k_last = 0\n            clients[client] = (t0, tokens, k_last)\n            output.append(\"allow\")\n        else:\n            t0, tokens, k_last = clients[client]\n            k_current = (t - t0) // p\n            tokens = min(l, tokens + (k_current - k_last))\n            k_last = k_current\n\n            if tokens >= 1:\n                tokens -= 1\n                output.append(\"allow\")\n            else:\n                output.append(\"deny\")\n\n            clients[client] = (t0, tokens, k_last)\n\n    sys.stdout.write(\"\\n\".join(output) + \"\\n\")\n\n\nif __name__ == \"__main__\":\n    main()\n```"
+		},
+		{
+			"key": "be.code.rate-limiter|middle|token-bucket|b799f278978e2dd17666abb5dad52763c7bb55a68861b466d6e64d33f14df0ba|step",
+			"family": "be.code.rate-limiter",
+			"grade": "middle",
+			"classId": "token-bucket",
+			"seed": "b799f278978e2dd17666abb5dad52763c7bb55a68861b466d6e64d33f14df0ba",
+			"stage": "step",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "Вот обновлённая программа, учитывающая общий лимит $G$:\n\n```python\nimport sys\n\n\ndef main():\n    input_data = sys.stdin.read().split()\n    if not input_data:\n        return\n\n    n = int(input_data[0])\n    l = int(input_data[1])\n    p = int(input_data[2])\n    g = int(input_data[3])\n\n    idx = 4\n\n    # Глобальное ведро (инициализируется при первом запросе)\n    t_global_0 = None\n    tokens_g = g\n    k_last_g = 0\n\n    clients = {}\n    output = []\n\n    for _ in range(n):\n        t = int(input_data[idx])\n        client = input_data[idx + 1]\n        idx += 2\n\n        # Инициализация и обновление глобального ведра\n        if t_global_0 is None:\n            t_global_0 = t\n            tokens_g = g\n            k_last_g = 0\n        else:\n            k_current_g = (t - t_global_0) // p\n            tokens_g = min(g, tokens_g + (k_current_g - k_last_g))\n            k_last_g = k_current_g\n\n        # Инициализация и обновление ведра клиента\n        if client not in clients:\n            t_client_0 = t\n            tokens_c = l\n            k_last_c = 0\n        else:\n            t_client_0, tokens_c, k_last_c = clients[client]\n            k_current_c = (t - t_client_0) // p\n            tokens_c = min(l, tokens_c + (k_current_c - k_last_c))\n            k_last_c = k_current_c\n\n        # Проверка обоих лимитов\n        if tokens_c >= 1 and tokens_g >= 1:\n            tokens_c -= 1\n            tokens_g -= 1\n            output.append(\"allow\")\n        else:\n            output.append(\"deny\")\n\n        # Сохранение состояния клиента\n        clients[client] = (t_client_0, tokens_c, k_last_c)\n\n    sys.stdout.write(\"\\n\".join(output) + \"\\n\")\n\n\nif __name__ == \"__main__\":\n    main()\n```"
+		},
+		{
+			"key": "be.code.sessionize|junior|gap-capped|27bee0031e27df4a2075b0db7915ebb7d95cece8f3e05cf1c249edbf7ed96cc7|program",
+			"family": "be.code.sessionize",
+			"grade": "junior",
+			"classId": "gap-capped",
+			"seed": "27bee0031e27df4a2075b0db7915ebb7d95cece8f3e05cf1c249edbf7ed96cc7",
+			"stage": "program",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "Вот решение задачи на Python 3.\n\n### Метод решения\nДля каждого пользователя мы отслеживаем текущую сессию:\n1. Если у пользователя нет открытой сессии (это первое событие или предыдущая сессия завершилась действием `logout`), текущее событие начинает новую сессию.\n2. Если сессия уже открыта, проверяются условия разрыва:\n   - пауза от предыдущего события $> G$;\n   - либо с учётом текущего события длительность сессии превысила бы $L$ ($t - t_{start} > L$).\n   Если хотя бы одно условие выполнено, предыдущая сессия закрывается на предыдущем событии, а текущее событие начинает новую сессию.\n   Иначе текущее событие продолжает существующую сессию.\n3. Событие с действием `logout` закрывает сессию, к которой оно принадлежит (соответственно, следующее событие пользователя гарантированно начнёт новую).\n4. После обработки всех строк незакрытые сессии закрываются на их последнем событии.\n5. Результаты сортируются по убыванию суммарной длительности и затем по имени пользователя в лексикографическом порядке, после чего выводятся первые $K$ записей.\n\n### Код программы\n\n```python\nimport sys\n\n\ndef main():\n    input_data = sys.stdin.read().split()\n    if not input_data:\n        return\n\n    N = int(input_data[0])\n    K = int(input_data[1])\n    G = int(input_data[2])\n    L = int(input_data[3])\n\n    # Структура состояния для каждого пользователя:\n    # [total_duration, session_count, in_session, start_t, last_t]\n    users = {}\n\n    idx = 4\n    for _ in range(N):\n        t = int(input_data[idx])\n        user = input_data[idx + 1]\n        action = input_data[idx + 2]\n        idx += 3\n\n        if user not in users:\n            users[user] = [0, 0, False, 0, 0]\n\n        state = users[user]\n        total_duration, session_count, in_session, start_t, last_t = state\n\n        if not in_session:\n            # Начинаем новую сессию\n            session_count += 1\n            start_t = t\n            last_t = t\n            if action == 'logout':\n                total_duration += (last_t - start_t)\n                in_session = False\n            else:\n                in_session = True\n        else:\n            # Сессия уже идет, проверяем условия разрыва\n            if (t - last_t > G) or (t - start_t > L):\n                # Закрываем предыдущую сессию\n                total_duration += (last_t - start_t)\n                # Начинаем новую сессию\n                session_count += 1\n                start_t = t\n                last_t = t\n                if action == 'logout':\n                    total_duration += (last_t - start_t)\n                    in_session = False\n                else:\n                    in_session = True\n            else:\n                # Продолжаем текущую сессию\n                last_t = t\n                if action == 'logout':\n                    total_duration += (last_t - start_t)\n                    in_session = False\n\n        state[0] = total_duration\n        state[1] = session_count\n        state[2] = in_session\n        state[3] = start_t\n        state[4] = last_t\n\n    # Закрываем оставшиеся открытые сессии\n    user_results = []\n    for user, state in users.items():\n        total_duration, session_count, in_session, start_t, last_t = state\n        if in_session:\n            total_duration += (last_t - start_t)\n        user_results.append((user, total_duration, session_count))\n\n    # Сортировка: по убыванию длительности, при равенстве — по имени\n    user_results.sort(key=lambda item: (-item[1], item[0]))\n\n    # Вывод первых K (или всех, если их меньше K)\n    limit = min(K, len(user_results))\n    for i in range(limit):\n        user, total_duration, session_count = user_results[i]\n        sys.stdout.write(f\"{user} {total_duration} {session_count}\\n\")\n\n\nif __name__ == '__main__':\n    main()\n```"
+		},
+		{
+			"key": "be.code.sessionize|junior|gap-capped|30644b8dd0b11635932088cf4f112d948a0721e3c335f03ed5d59123768cc6a3|program",
+			"family": "be.code.sessionize",
+			"grade": "junior",
+			"classId": "gap-capped",
+			"seed": "30644b8dd0b11635932088cf4f112d948a0721e3c335f03ed5d59123768cc6a3",
+			"stage": "program",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "Вот решение на Python 3, реализующее описанные правила разделения на сессии и формирование сводки.\n\n```python\nimport sys\n\n\ndef main():\n    input_data = sys.stdin.read().split()\n    if not input_data:\n        return\n\n    n = int(input_data[0])\n    k = int(input_data[1])\n    g = int(input_data[2])\n    l = int(input_data[3])\n\n    # Структура для каждого пользователя:\n    # [total_duration, session_count, has_active, start_t, last_t]\n    users = {}\n\n    idx = 4\n    for _ in range(n):\n        t = int(input_data[idx])\n        user = input_data[idx + 1]\n        action = input_data[idx + 2]\n        idx += 3\n\n        if user not in users:\n            users[user] = [0, 0, False, 0, 0]\n\n        st = users[user]\n        total_dur, sess_cnt, has_active, start_t, last_t = st\n\n        needs_new = False\n        if not has_active:\n            needs_new = True\n        elif (t - last_t > g) or (t - start_t > l):\n            needs_new = True\n\n        if needs_new:\n            if has_active:\n                total_dur += last_t - start_t\n                sess_cnt += 1\n            has_active = True\n            start_t = t\n            last_t = t\n        else:\n            last_t = t\n\n        if action == \"logout\":\n            total_dur += last_t - start_t\n            sess_cnt += 1\n            has_active = False\n\n        st[0] = total_dur\n        st[1] = sess_cnt\n        st[2] = has_active\n        st[3] = start_t\n        st[4] = last_t\n\n    # Закрываем незавершенные сессии в конце журнала\n    results = []\n    for user, (total_dur, sess_cnt, has_active, start_t, last_t) in users.items():\n        if has_active:\n            total_dur += last_t - start_t\n            sess_cnt += 1\n        results.append((user, total_dur, sess_cnt))\n\n    # Сортировка: по убыванию суммарной длительности, затем по имени лексикографически\n    results.sort(key=lambda x: (-x[1], x[0]))\n\n    limit = min(k, len(results))\n    out = []\n    for i in range(limit):\n        user, total_dur, sess_cnt = results[i]\n        out.append(f\"{user} {total_dur} {sess_cnt}\")\n\n    print(\"\\n\".join(out))\n\n\nif __name__ == \"__main__\":\n    main()\n```"
+		},
+		{
+			"key": "be.code.sessionize|junior|gap-capped|4908f70926c166dda108b6937d35f74543194e9113794a59b0668366d3ef9288|program",
+			"family": "be.code.sessionize",
+			"grade": "junior",
+			"classId": "gap-capped",
+			"seed": "4908f70926c166dda108b6937d35f74543194e9113794a59b0668366d3ef9288",
+			"stage": "program",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "Вот решение на Python 3.\n\n```python\nimport sys\n\n\ndef main():\n    input_data = sys.stdin.read().split()\n    if not input_data:\n        return\n\n    n = int(input_data[0])\n    k = int(input_data[1])\n    g = int(input_data[2])\n    l = int(input_data[3])\n\n    # Хранилище для каждого пользователя:\n    # total_duration: суммарная длительность завершённых сессий\n    # session_count: количество завершённых сессий\n    # in_session: флаг активности текущей сессии\n    # session_start: время начала текущей сессии\n    # last_t: время последнего события в текущей сессии\n    users = {}\n\n    idx = 4\n    for _ in range(n):\n        t = int(input_data[idx])\n        user = input_data[idx + 1]\n        action = input_data[idx + 2]\n        idx += 3\n\n        if user not in users:\n            users[user] = {\n                \"total_duration\": 0,\n                \"session_count\": 0,\n                \"in_session\": False,\n                \"session_start\": 0,\n                \"last_t\": 0,\n            }\n\n        st = users[user]\n\n        if not st[\"in_session\"]:\n            # Начинаем новую сессию\n            st[\"in_session\"] = True\n            st[\"session_start\"] = t\n            st[\"last_t\"] = t\n        else:\n            # Проверяем условия продолжения текущей сессии\n            if (t - st[\"last_t\"] <= g) and (t - st[\"session_start\"] <= l):\n                st[\"last_t\"] = t\n            else:\n                # Закрываем предыдущую сессию\n                st[\"total_duration\"] += st[\"last_t\"] - st[\"session_start\"]\n                st[\"session_count\"] += 1\n                # Начинаем новую сессию текущим событием\n                st[\"session_start\"] = t\n                st[\"last_t\"] = t\n\n        # Событие logout закрывает сессию, которой принадлежит\n        if action == \"logout\":\n            st[\"total_duration\"] += st[\"last_t\"] - st[\"session_start\"]\n            st[\"session_count\"] += 1\n            st[\"in_session\"] = False\n\n    # Закрываем не закрытые к концу журнала сессии\n    user_stats = []\n    for user, st in users.items():\n        total_duration = st[\"total_duration\"]\n        session_count = st[\"session_count\"]\n        if st[\"in_session\"]:\n            total_duration += st[\"last_t\"] - st[\"session_start\"]\n            session_count += 1\n        user_stats.append((user, total_duration, session_count))\n\n    # Сортировка: по убыванию суммарной длительности,\n    # при равенстве — по имени в лексикографическом порядке\n    user_stats.sort(key=lambda item: (-item[1], item[0]))\n\n    limit = min(k, len(user_stats))\n    for i in range(limit):\n        u, dur, cnt = user_stats[i]\n        print(f\"{u} {dur} {cnt}\")\n\n\nif __name__ == \"__main__\":\n    main()\n```"
+		},
+		{
+			"key": "be.code.stock-reservations|middle|expiring|0a7901c3192f623f357552e187a6142f3adc199d7a4cc70cd87249d9fea1fd9d|program",
+			"family": "be.code.stock-reservations",
+			"grade": "middle",
+			"classId": "expiring",
+			"seed": "0a7901c3192f623f357552e187a6142f3adc199d7a4cc70cd87249d9fea1fd9d",
+			"stage": "program",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "Вот решение задачи на Python 3:\n\n```python\nimport sys\nimport heapq\n\ndef main():\n    input_data = sys.stdin.read().split()\n    if not input_data:\n        return\n\n    p, e, ttl = map(int, input_data[:3])\n    products = []\n    stock = {}\n    reserved = {}\n    \n    pos = 3\n    for _ in range(p):\n        prod = input_data[pos]\n        qty = int(input_data[pos + 1])\n        products.append(prod)\n        stock[prod] = qty\n        reserved[prod] = 0\n        pos += 2\n\n    active_res = {}  # id -> (товар, q)\n    heap = []        # (expire_time, id)\n    out = []\n\n    for _ in range(e):\n        t = int(input_data[pos])\n        op = input_data[pos + 1]\n\n        # Обрабатываем все резервы, истёкшие к моменту t включительно\n        while heap and heap[0][0] <= t:\n            exp_t, res_id = heapq.heappop(heap)\n            if res_id in active_res:\n                prod, q = active_res.pop(res_id)\n                stock[prod] += q\n                reserved[prod] -= q\n\n        if op == 'reserve':\n            res_id = input_data[pos + 2]\n            # client = input_data[pos + 3]\n            prod = input_data[pos + 4]\n            q = int(input_data[pos + 5])\n            pos += 6\n\n            if stock[prod] >= q:\n                stock[prod] -= q\n                reserved[prod] += q\n                active_res[res_id] = (prod, q)\n                heapq.heappush(heap, (t + ttl, res_id))\n                out.append('ok')\n            else:\n                out.append('reject')\n\n        elif op == 'release':\n            res_id = input_data[pos + 2]\n            pos += 3\n\n            if res_id in active_res:\n                prod, q = active_res.pop(res_id)\n                stock[prod] += q\n                reserved[prod] -= q\n                out.append('ok')\n            else:\n                out.append('ignore')\n\n        elif op == 'confirm':\n            res_id = input_data[pos + 2]\n            pos += 3\n\n            if res_id in active_res:\n                prod, q = active_res.pop(res_id)\n                reserved[prod] -= q\n                out.append('ok')\n            else:\n                out.append('ignore')\n\n        elif op == 'restock':\n            prod = input_data[pos + 2]\n            q = int(input_data[pos + 3])\n            pos += 4\n\n            stock[prod] += q\n            out.append(str(stock[prod]))\n\n    for prod in products:\n        out.append(f\"{prod} {stock[prod]} {reserved[prod]}\")\n\n    sys.stdout.write('\\n'.join(out) + '\\n')\n\nif __name__ == '__main__':\n    main()\n```"
+		},
+		{
+			"key": "be.code.stock-reservations|middle|expiring|0a7901c3192f623f357552e187a6142f3adc199d7a4cc70cd87249d9fea1fd9d|step",
+			"family": "be.code.stock-reservations",
+			"grade": "middle",
+			"classId": "expiring",
+			"seed": "0a7901c3192f623f357552e187a6142f3adc199d7a4cc70cd87249d9fea1fd9d",
+			"stage": "step",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "Ниже приведена обновлённая программа с учётом лимита `C` на суммарное количество единиц в активных резервах для каждого клиента.\n\n```python\nimport sys\nimport heapq\nfrom collections import defaultdict\n\ndef main():\n    input_data = sys.stdin.read().split()\n    if not input_data:\n        return\n\n    p, e, ttl, c = map(int, input_data[:4])\n    products = []\n    stock = {}\n    reserved = {}\n    \n    pos = 4\n    for _ in range(p):\n        prod = input_data[pos]\n        qty = int(input_data[pos + 1])\n        products.append(prod)\n        stock[prod] = qty\n        reserved[prod] = 0\n        pos += 2\n\n    active_res = {}          # id -> (товар, q, клиент)\n    client_reserved = defaultdict(int)  # клиент -> суммарное количество в активных резервах\n    heap = []                # (expire_time, id)\n    out = []\n\n    for _ in range(e):\n        t = int(input_data[pos])\n        op = input_data[pos + 1]\n\n        # Обрабатываем все резервы, истёкшие к моменту t включительно\n        while heap and heap[0][0] <= t:\n            exp_t, res_id = heapq.heappop(heap)\n            if res_id in active_res:\n                prod, q, client = active_res.pop(res_id)\n                stock[prod] += q\n                reserved[prod] -= q\n                client_reserved[client] -= q\n\n        if op == 'reserve':\n            res_id = input_data[pos + 2]\n            client = input_data[pos + 3]\n            prod = input_data[pos + 4]\n            q = int(input_data[pos + 5])\n            pos += 6\n\n            if stock[prod] >= q and client_reserved[client] + q <= c:\n                stock[prod] -= q\n                reserved[prod] += q\n                client_reserved[client] += q\n                active_res[res_id] = (prod, q, client)\n                heapq.heappush(heap, (t + ttl, res_id))\n                out.append('ok')\n            else:\n                out.append('reject')\n\n        elif op == 'release':\n            res_id = input_data[pos + 2]\n            pos += 3\n\n            if res_id in active_res:\n                prod, q, client = active_res.pop(res_id)\n                stock[prod] += q\n                reserved[prod] -= q\n                client_reserved[client] -= q\n                out.append('ok')\n            else:\n                out.append('ignore')\n\n        elif op == 'confirm':\n            res_id = input_data[pos + 2]\n            pos += 3\n\n            if res_id in active_res:\n                prod, q, client = active_res.pop(res_id)\n                reserved[prod] -= q\n                client_reserved[client] -= q\n                out.append('ok')\n            else:\n                out.append('ignore')\n\n        elif op == 'restock':\n            prod = input_data[pos + 2]\n            q = int(input_data[pos + 3])\n            pos += 4\n\n            stock[prod] += q\n            out.append(str(stock[prod]))\n\n    for prod in products:\n        out.append(f\"{prod} {stock[prod]} {reserved[prod]}\")\n\n    sys.stdout.write('\\n'.join(out) + '\\n')\n\nif __name__ == '__main__':\n    main()\n```"
+		},
+		{
+			"key": "be.code.stock-reservations|middle|expiring|24672ee5de4a37e94c1940eaf3f340f147e543e779ede17c139dd98fcdd1d587|program",
+			"family": "be.code.stock-reservations",
+			"grade": "middle",
+			"classId": "expiring",
+			"seed": "24672ee5de4a37e94c1940eaf3f340f147e543e779ede17c139dd98fcdd1d587",
+			"stage": "program",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "Вот решение на Python 3, реализующее моделирование склада в соответствии с условиями задачи.\n\n```python\nimport heapq\nimport sys\n\n\ndef main():\n    data = sys.stdin.read().split()\n    if not data:\n        return\n\n    p, e, ttl = map(int, data[:3])\n\n    items = []\n    stock = {}\n    reserved = {}\n    pos = 3\n\n    for _ in range(p):\n        item = data[pos]\n        cnt = int(data[pos + 1])\n        items.append(item)\n        stock[item] = cnt\n        reserved[item] = 0\n        pos += 2\n\n    # Куча для отслеживания истечения резервов: (expire_time, res_id)\n    expire_heap = []\n    # Хранилище информации о резервах: res_id -> {'item': item, 'q': q, 'status': str}\n    reserves = {}\n\n    out = []\n\n    for _ in range(e):\n        t = int(data[pos])\n        op = data[pos + 1]\n        pos += 2\n\n        # Все резервы, истекающие в момент <= t, истекают до событий момента t\n        while expire_heap and expire_heap[0][0] <= t:\n            exp_t, res_id = heapq.heappop(expire_heap)\n            res = reserves.get(res_id)\n            if res and res['status'] == 'active':\n                res['status'] = 'expired'\n                item = res['item']\n                q = res['q']\n                stock[item] += q\n                reserved[item] -= q\n\n        if op == 'reserve':\n            res_id, _client, item, q_str = data[pos : pos + 4]\n            pos += 4\n            q = int(q_str)\n            if stock.get(item, 0) >= q:\n                stock[item] -= q\n                reserved[item] += q\n                reserves[res_id] = {'item': item, 'q': q, 'status': 'active'}\n                heapq.heappush(expire_heap, (t + ttl, res_id))\n                out.append('ok')\n            else:\n                out.append('reject')\n\n        elif op == 'release':\n            res_id = data[pos]\n            pos += 1\n            res = reserves.get(res_id)\n            if res and res['status'] == 'active':\n                res['status'] = 'released'\n                item = res['item']\n                q = res['q']\n                stock[item] += q\n                reserved[item] -= q\n                out.append('ok')\n            else:\n                out.append('ignore')\n\n        elif op == 'confirm':\n            res_id = data[pos]\n            pos += 1\n            res = reserves.get(res_id)\n            if res and res['status'] == 'active':\n                res['status'] = 'confirmed'\n                item = res['item']\n                q = res['q']\n                reserved[item] -= q\n                out.append('ok')\n            else:\n                out.append('ignore')\n\n        elif op == 'restock':\n            item, q_str = data[pos : pos + 2]\n            pos += 2\n            q = int(q_str)\n            stock[item] = stock.get(item, 0) + q\n            out.append(str(stock[item]))\n\n    # Итоговые остатки по товарам в исходном порядке\n    for item in items:\n        out.append(f'{item} {stock[item]} {reserved[item]}')\n\n    sys.stdout.write('\\n'.join(out) + '\\n')\n\n\nif __name__ == '__main__':\n    main()\n```"
+		},
+		{
+			"key": "be.code.stock-reservations|middle|expiring|24672ee5de4a37e94c1940eaf3f340f147e543e779ede17c139dd98fcdd1d587|step",
+			"family": "be.code.stock-reservations",
+			"grade": "middle",
+			"classId": "expiring",
+			"seed": "24672ee5de4a37e94c1940eaf3f340f147e543e779ede17c139dd98fcdd1d587",
+			"stage": "step",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "Вот обновлённое решение с учётом ограничения лимита `C` на суммарное количество активных резервов каждого клиента:\n\n```python\nimport heapq\nimport sys\n\n\ndef main():\n    data = sys.stdin.read().split()\n    if not data:\n        return\n\n    p, e, ttl, c = map(int, data[:4])\n\n    items = []\n    stock = {}\n    reserved = {}\n    pos = 4\n\n    for _ in range(p):\n        item = data[pos]\n        cnt = int(data[pos + 1])\n        items.append(item)\n        stock[item] = cnt\n        reserved[item] = 0\n        pos += 2\n\n    # Куча для отслеживания истечения резервов: (expire_time, res_id)\n    expire_heap = []\n    # Хранилище информации о резервах: res_id -> {'item': item, 'q': q, 'client': client, 'status': str}\n    reserves = {}\n    # Суммарное количество единиц в активных резервах по клиентам: client -> int\n    client_reserved = {}\n\n    out = []\n\n    for _ in range(e):\n        t = int(data[pos])\n        op = data[pos + 1]\n        pos += 2\n\n        # Все резервы, истекающие в момент <= t, истекают до событий момента t\n        while expire_heap and expire_heap[0][0] <= t:\n            exp_t, res_id = heapq.heappop(expire_heap)\n            res = reserves.get(res_id)\n            if res and res['status'] == 'active':\n                res['status'] = 'expired'\n                item = res['item']\n                q = res['q']\n                client = res['client']\n                stock[item] += q\n                reserved[item] -= q\n                client_reserved[client] -= q\n\n        if op == 'reserve':\n            res_id, client, item, q_str = data[pos : pos + 4]\n            pos += 4\n            q = int(q_str)\n            cur_client_q = client_reserved.get(client, 0)\n\n            if stock.get(item, 0) >= q and cur_client_q + q <= c:\n                stock[item] -= q\n                reserved[item] += q\n                client_reserved[client] = cur_client_q + q\n                reserves[res_id] = {\n                    'item': item,\n                    'q': q,\n                    'client': client,\n                    'status': 'active',\n                }\n                heapq.heappush(expire_heap, (t + ttl, res_id))\n                out.append('ok')\n            else:\n                out.append('reject')\n\n        elif op == 'release':\n            res_id = data[pos]\n            pos += 1\n            res = reserves.get(res_id)\n            if res and res['status'] == 'active':\n                res['status'] = 'released'\n                item = res['item']\n                q = res['q']\n                client = res['client']\n                stock[item] += q\n                reserved[item] -= q\n                client_reserved[client] -= q\n                out.append('ok')\n            else:\n                out.append('ignore')\n\n        elif op == 'confirm':\n            res_id = data[pos]\n            pos += 1\n            res = reserves.get(res_id)\n            if res and res['status'] == 'active':\n                res['status'] = 'confirmed'\n                item = res['item']\n                q = res['q']\n                client = res['client']\n                reserved[item] -= q\n                client_reserved[client] -= q\n                out.append('ok')\n            else:\n                out.append('ignore')\n\n        elif op == 'restock':\n            item, q_str = data[pos : pos + 2]\n            pos += 2\n            q = int(q_str)\n            stock[item] = stock.get(item, 0) + q\n            out.append(str(stock[item]))\n\n    # Итоговые остатки по товарам в исходном порядке\n    for item in items:\n        out.append(f'{item} {stock[item]} {reserved[item]}')\n\n    sys.stdout.write('\\n'.join(out) + '\\n')\n\n\nif __name__ == '__main__':\n    main()\n```"
+		},
+		{
+			"key": "be.code.stock-reservations|middle|expiring|af88cf1323756346603842004e0812d802d25d7d770469e118baccf58a8ab741|program",
+			"family": "be.code.stock-reservations",
+			"grade": "middle",
+			"classId": "expiring",
+			"seed": "af88cf1323756346603842004e0812d802d25d7d770469e118baccf58a8ab741",
+			"stage": "program",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "Вот решение на Python 3, реализующее описанную логику.\n\n```python\nimport heapq\nimport sys\n\n\ndef main():\n    input_data = sys.stdin.read().split()\n    if not input_data:\n        return\n\n    p = int(input_data[0])\n    e = int(input_data[1])\n    ttl = int(input_data[2])\n\n    products = []\n    stock = {}\n    pos = 3\n    for _ in range(p):\n        item = input_data[pos]\n        qty = int(input_data[pos + 1])\n        products.append(item)\n        stock[item] = qty\n        pos += 2\n\n    # active_reserves: id -> (item, q)\n    active_reserves = {}\n    # expire_heap: куча кортежей (expire_time, res_id)\n    expire_heap = []\n\n    def process_expirations(current_t):\n        while expire_heap and expire_heap[0][0] <= current_t:\n            exp_time, res_id = heapq.heappop(expire_heap)\n            if res_id in active_reserves:\n                item, q = active_reserves.pop(res_id)\n                stock[item] += q\n\n    output = []\n\n    for _ in range(e):\n        t = int(input_data[pos])\n        op = input_data[pos + 1]\n\n        # Истечения обрабатываются строго до событий момента t\n        process_expirations(t)\n\n        if op == 'reserve':\n            res_id = input_data[pos + 2]\n            # client = input_data[pos + 3]\n            item = input_data[pos + 4]\n            q = int(input_data[pos + 5])\n            pos += 6\n\n            if stock.get(item, 0) >= q:\n                stock[item] -= q\n                active_reserves[res_id] = (item, q)\n                heapq.heappush(expire_heap, (t + ttl, res_id))\n                output.append('ok')\n            else:\n                output.append('reject')\n\n        elif op == 'release':\n            res_id = input_data[pos + 2]\n            pos += 3\n\n            if res_id in active_reserves:\n                item, q = active_reserves.pop(res_id)\n                stock[item] += q\n                output.append('ok')\n            else:\n                output.append('ignore')\n\n        elif op == 'confirm':\n            res_id = input_data[pos + 2]\n            pos += 3\n\n            if res_id in active_reserves:\n                active_reserves.pop(res_id)\n                output.append('ok')\n            else:\n                output.append('ignore')\n\n        elif op == 'restock':\n            item = input_data[pos + 2]\n            q = int(input_data[pos + 3])\n            pos += 4\n\n            stock[item] = stock.get(item, 0) + q\n            output.append(str(stock[item]))\n\n    # Подсчет активных резервов по каждому товару\n    reserved_qty = {item: 0 for item in products}\n    for item, q in active_reserves.values():\n        if item in reserved_qty:\n            reserved_qty[item] += q\n\n    # Формирование итоговых строк\n    for item in products:\n        output.append(f'{item} {stock[item]} {reserved_qty[item]}')\n\n    sys.stdout.write('\\n'.join(output) + '\\n')\n\n\nif __name__ == '__main__':\n    main()\n```"
+		},
+		{
+			"key": "be.code.stock-reservations|middle|expiring|af88cf1323756346603842004e0812d802d25d7d770469e118baccf58a8ab741|step",
+			"family": "be.code.stock-reservations",
+			"grade": "middle",
+			"classId": "expiring",
+			"seed": "af88cf1323756346603842004e0812d802d25d7d770469e118baccf58a8ab741",
+			"stage": "step",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "Вот обновлённая программа, учитывающая ограничение на суммарный объём активных резервов клиента `C`:\n\n```python\nimport heapq\nimport sys\n\n\ndef main():\n    input_data = sys.stdin.read().split()\n    if not input_data:\n        return\n\n    p = int(input_data[0])\n    e = int(input_data[1])\n    ttl = int(input_data[2])\n    c_limit = int(input_data[3])\n\n    products = []\n    stock = {}\n    pos = 4\n    for _ in range(p):\n        item = input_data[pos]\n        qty = int(input_data[pos + 1])\n        products.append(item)\n        stock[item] = qty\n        pos += 2\n\n    # active_reserves: id -> (client, item, q)\n    active_reserves = {}\n    # client_reserved: client -> суммарное количество в активных резервах\n    client_reserved = {}\n    # expire_heap: куча кортежей (expire_time, res_id)\n    expire_heap = []\n\n    def process_expirations(current_t):\n        while expire_heap and expire_heap[0][0] <= current_t:\n            exp_time, res_id = heapq.heappop(expire_heap)\n            if res_id in active_reserves:\n                client, item, q = active_reserves.pop(res_id)\n                stock[item] += q\n                client_reserved[client] -= q\n\n    output = []\n\n    for _ in range(e):\n        t = int(input_data[pos])\n        op = input_data[pos + 1]\n\n        # Истечения обрабатываются строго до событий момента t\n        process_expirations(t)\n\n        if op == 'reserve':\n            res_id = input_data[pos + 2]\n            client = input_data[pos + 3]\n            item = input_data[pos + 4]\n            q = int(input_data[pos + 5])\n            pos += 6\n\n            current_client_q = client_reserved.get(client, 0)\n            if stock.get(item, 0) >= q and current_client_q + q <= c_limit:\n                stock[item] -= q\n                client_reserved[client] = current_client_q + q\n                active_reserves[res_id] = (client, item, q)\n                heapq.heappush(expire_heap, (t + ttl, res_id))\n                output.append('ok')\n            else:\n                output.append('reject')\n\n        elif op == 'release':\n            res_id = input_data[pos + 2]\n            pos += 3\n\n            if res_id in active_reserves:\n                client, item, q = active_reserves.pop(res_id)\n                stock[item] += q\n                client_reserved[client] -= q\n                output.append('ok')\n            else:\n                output.append('ignore')\n\n        elif op == 'confirm':\n            res_id = input_data[pos + 2]\n            pos += 3\n\n            if res_id in active_reserves:\n                client, item, q = active_reserves.pop(res_id)\n                client_reserved[client] -= q\n                output.append('ok')\n            else:\n                output.append('ignore')\n\n        elif op == 'restock':\n            item = input_data[pos + 2]\n            q = int(input_data[pos + 3])\n            pos += 4\n\n            stock[item] = stock.get(item, 0) + q\n            output.append(str(stock[item]))\n\n    # Подсчет активных резервов по каждому товару\n    reserved_qty = {item: 0 for item in products}\n    for client, item, q in active_reserves.values():\n        if item in reserved_qty:\n            reserved_qty[item] += q\n\n    # Формирование итоговых строк\n    for item in products:\n        output.append(f'{item} {stock[item]} {reserved_qty[item]}')\n\n    sys.stdout.write('\\n'.join(output) + '\\n')\n\n\nif __name__ == '__main__':\n    main()\n```"
+		},
+		{
+			"key": "be.concurrency.asyncio-order|middle|create-task|8ee4251847c679e35ed1858714e4de8fee2a4e2e4f8c3b0f1ed93563c57c4019|answer",
+			"family": "be.concurrency.asyncio-order",
+			"grade": "middle",
+			"classId": "create-task",
+			"seed": "8ee4251847c679e35ed1858714e4de8fee2a4e2e4f8c3b0f1ed93563c57c4019",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\nmain 1\nteal start\nred start\nlime start\nmain got teal0\nred step 0\nlime step 0\nmain got lime1\nred step 1\nred step 2\nmain got red3\n</answer>"
+		},
+		{
+			"key": "be.concurrency.asyncio-order|middle|gather-results|57111ecaaa9e6f28873e402536bedd1082350edbc4737e7a8384bcd3a6ea5cfb|answer",
+			"family": "be.concurrency.asyncio-order",
+			"grade": "middle",
+			"classId": "gather-results",
+			"seed": "57111ecaaa9e6f28873e402536bedd1082350edbc4737e7a8384bcd3a6ea5cfb",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\nmain 1\nlime start\nblue start\nred start\ngray start\nlime step 0\nblue step 0\nred step 0\ngray step 0\nblue step 1\ngray step 1\nblue step 2\ngray step 2\n['blue3', 'red1', 'gray3']\nmain got lime1\n</answer>"
+		},
+		{
+			"key": "be.concurrency.asyncio-order|middle|queue-event|1020a602707d3f9e9d694d4ca8eb8037005f168c1d767ae75501035f54d0d5ac|answer",
+			"family": "be.concurrency.asyncio-order",
+			"grade": "middle",
+			"classId": "queue-event",
+			"seed": "1020a602707d3f9e9d694d4ca8eb8037005f168c1d767ae75501035f54d0d5ac",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "consumer waits\nput 40\nput 57\nput 11\nready set\nconsumer ready\ngot 40\ngot 57\ngot 11\nput 98\ngot 98\nproducer done\nmain done\n\n<answer>\nconsumer waits\nput 40\nput 57\nput 11\nready set\nconsumer ready\ngot 40\ngot 57\ngot 11\nput 98\ngot 98\nproducer done\nmain done\n</answer>"
+		},
+		{
+			"key": "be.concurrency.asyncio-order|middle|queue-event|3b2f550721d29fd432d0778e829d0f39f86ebcc0c57d4eb343215aec98656f09|answer",
+			"family": "be.concurrency.asyncio-order",
+			"grade": "middle",
+			"classId": "queue-event",
+			"seed": "3b2f550721d29fd432d0778e829d0f39f86ebcc0c57d4eb343215aec98656f09",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\nmain 1\nput 18\nconsumer waits\nput 13\nready set\nconsumer ready\ngot 18\ngot 13\nput 91\nput 73\ngot 91\ngot 73\nproducer done\nmain done\n</answer>"
+		},
+		{
+			"key": "be.concurrency.asyncio-order|middle|queue-event|b2b08485be8df6b3114d632d585a9fe45e65854faf3f00a3aaecfe3c728e7f5e|answer",
+			"family": "be.concurrency.asyncio-order",
+			"grade": "middle",
+			"classId": "queue-event",
+			"seed": "b2b08485be8df6b3114d632d585a9fe45e65854faf3f00a3aaecfe3c728e7f5e",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\nconsumer waits\nput 37\nput 95\nready set\nconsumer ready\ngot 37\ngot 95\nput 39\ngot 39\nproducer done\nmain done\n</answer>"
+		},
+		{
+			"key": "be.concurrency.asyncio-order|middle|queue-event|e383f7369d6129c615dfa8bc55c879ce2d36562e025f81c5ece617ddd0e965f6|answer",
+			"family": "be.concurrency.asyncio-order",
+			"grade": "middle",
+			"classId": "queue-event",
+			"seed": "e383f7369d6129c615dfa8bc55c879ce2d36562e025f81c5ece617ddd0e965f6",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\nmain 1\nconsumer waits\nput 32\nready set\nconsumer ready\ngot 32\nput 97\nput 89\ngot 97\ngot 89\nput 61\ngot 61\nproducer done\nmain done\n</answer>"
+		},
+		{
+			"key": "be.concurrency.deadlock-detect|middle|older-closes|49b1a8a9377fe0a58d2c72fbd10c009cc27c5d39d52357424f20528a1f8e46b4|answer",
+			"family": "be.concurrency.deadlock-detect",
+			"grade": "middle",
+			"classId": "older-closes",
+			"seed": "49b1a8a9377fe0a58d2c72fbd10c009cc27c5d39d52357424f20528a1f8e46b4",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>promo c6 pay a4</answer>"
+		},
+		{
+			"key": "be.concurrency.deadlock-detect|middle|wait-only|1bae215270f719db9a8a11df46b827ce07e19b34eec2b18606d88391fd99e4f9|answer",
+			"family": "be.concurrency.deadlock-detect",
+			"grade": "middle",
+			"classId": "wait-only",
+			"seed": "1bae215270f719db9a8a11df46b827ce07e19b34eec2b18606d88391fd99e4f9",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>promo c12 refund c8</answer>"
+		},
+		{
+			"key": "be.concurrency.deadlock-detect|middle|wait-only|3b565672fee6bdaeeaeeabdc20406c0a60abec5c66ab78ada7fe164f352e2f0f|answer",
+			"family": "be.concurrency.deadlock-detect",
+			"grade": "middle",
+			"classId": "wait-only",
+			"seed": "3b565672fee6bdaeeaeeabdc20406c0a60abec5c66ab78ada7fe164f352e2f0f",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>promo c5 report c8</answer>"
+		},
+		{
+			"key": "be.concurrency.deadlock-detect|middle|wait-only|cd4716bc9125320b1cae802fd5ee581409147ce45a05e3bf4a5e1f26c58f96a0|answer",
+			"family": "be.concurrency.deadlock-detect",
+			"grade": "middle",
+			"classId": "wait-only",
+			"seed": "cd4716bc9125320b1cae802fd5ee581409147ce45a05e3bf4a5e1f26c58f96a0",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>report c7 promo c11</answer>"
+		},
+		{
+			"key": "be.concurrency.deadlock-detect|middle|wait-only|e337cd3575d8034c3b9f3a458e72745ad28a33665cf5b9730b811545f717e632|answer",
+			"family": "be.concurrency.deadlock-detect",
+			"grade": "middle",
+			"classId": "wait-only",
+			"seed": "e337cd3575d8034c3b9f3a458e72745ad28a33665cf5b9730b811545f717e632",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>pay c5 stock c8</answer>"
+		},
+		{
+			"key": "be.concurrency.deadlock-detect|middle|younger-closes|db4657390d828628d9c9f15be44e126790e24a16cac88968331c64706af87f30|answer",
+			"family": "be.concurrency.deadlock-detect",
+			"grade": "middle",
+			"classId": "younger-closes",
+			"seed": "db4657390d828628d9c9f15be44e126790e24a16cac88968331c64706af87f30",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>ship a5 report c7</answer>"
+		},
+		{
+			"key": "be.concurrency.lost-update|middle|no-lock|593cd69e5fc5005bf7f490c13f29aa39e3c32f82ae286be622824225858b9d65|answer",
+			"family": "be.concurrency.lost-update",
+			"grade": "middle",
+			"classId": "no-lock",
+			"seed": "593cd69e5fc5005bf7f490c13f29aa39e3c32f82ae286be622824225858b9d65",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>70 299</answer>"
+		},
+		{
+			"key": "be.concurrency.lost-update|middle|partial-lock|b54449f9189d17d9319acd02383484ba8ab69e958a52df2c033feb1cbff0de8c|answer",
+			"family": "be.concurrency.lost-update",
+			"grade": "middle",
+			"classId": "partial-lock",
+			"seed": "b54449f9189d17d9319acd02383484ba8ab69e958a52df2c033feb1cbff0de8c",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>66</answer>"
+		},
+		{
+			"key": "be.concurrency.lost-update|middle|transfer|2ae119b9cbbe54af5bbe2bfb2da642aa60582c372898c2c0c953bce9c88eccea|answer",
+			"family": "be.concurrency.lost-update",
+			"grade": "middle",
+			"classId": "transfer",
+			"seed": "2ae119b9cbbe54af5bbe2bfb2da642aa60582c372898c2c0c953bce9c88eccea",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>730 250</answer>"
+		},
+		{
+			"key": "be.concurrency.lost-update|middle|transfer|369db718c14d0899b1ff3080eb4c2c8daaf767677498b6cb69c8526a05cc5e19|answer",
+			"family": "be.concurrency.lost-update",
+			"grade": "middle",
+			"classId": "transfer",
+			"seed": "369db718c14d0899b1ff3080eb4c2c8daaf767677498b6cb69c8526a05cc5e19",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>720 560</answer>"
+		},
+		{
+			"key": "be.concurrency.lost-update|middle|transfer|7494af91ba8b058cb18f28087d49a13a61d510ad7618547ff1bcaab5d6db4338|answer",
+			"family": "be.concurrency.lost-update",
+			"grade": "middle",
+			"classId": "transfer",
+			"seed": "7494af91ba8b058cb18f28087d49a13a61d510ad7618547ff1bcaab5d6db4338",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>680 1010</answer>"
+		},
+		{
+			"key": "be.concurrency.lost-update|middle|transfer|a77a0b721a6dc4e6ea9adcfcc61af7fd4098ee29c56ff1d7d0401a190f28d11b|answer",
+			"family": "be.concurrency.lost-update",
+			"grade": "middle",
+			"classId": "transfer",
+			"seed": "a77a0b721a6dc4e6ea9adcfcc61af7fd4098ee29c56ff1d7d0401a190f28d11b",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>420 470</answer>"
+		},
+		{
+			"key": "be.concurrency.lost-update|middle|transfer|c058064d6efd52ce994e51e03b3a1f286bd28c51504834f71a12404edba9f584|answer",
+			"family": "be.concurrency.lost-update",
+			"grade": "middle",
+			"classId": "transfer",
+			"seed": "c058064d6efd52ce994e51e03b3a1f286bd28c51504834f71a12404edba9f584",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>390 940</answer>"
+		},
+		{
+			"key": "be.concurrency.lost-update|middle|transfer|e13d3f0eb9583c010ea98c7d122da9c61aeccc71ef35640a28bf89c9c2406e27|answer",
+			"family": "be.concurrency.lost-update",
+			"grade": "middle",
+			"classId": "transfer",
+			"seed": "e13d3f0eb9583c010ea98c7d122da9c61aeccc71ef35640a28bf89c9c2406e27",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>850 180</answer>"
+		},
+		{
+			"key": "be.concurrency.queue-redelivery|middle|crash-idempotent|fb191b661756449a4c5903dcac7229121841a061cb284942ef66c3fc27652b04|answer",
+			"family": "be.concurrency.queue-redelivery",
+			"grade": "middle",
+			"classId": "crash-idempotent",
+			"seed": "fb191b661756449a4c5903dcac7229121841a061cb284942ef66c3fc27652b04",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>m33 m76 m33 m22 - | 1700</answer>"
+		},
+		{
+			"key": "be.concurrency.queue-redelivery|middle|late-ack|0a4656efb4b558289a9ed47cb7bd8265f7d0c51e327d0f3949639bbe3659cf37|answer",
+			"family": "be.concurrency.queue-redelivery",
+			"grade": "middle",
+			"classId": "late-ack",
+			"seed": "0a4656efb4b558289a9ed47cb7bd8265f7d0c51e327d0f3949639bbe3659cf37",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>m32 m32 m78 m49 m73 | 2800</answer>"
+		},
+		{
+			"key": "be.concurrency.queue-redelivery|middle|mixed|42adea13f196833b5d348f4a8ce0a3f2b8d7eb803db3a88efff53cb457067002|answer",
+			"family": "be.concurrency.queue-redelivery",
+			"grade": "middle",
+			"classId": "mixed",
+			"seed": "42adea13f196833b5d348f4a8ce0a3f2b8d7eb803db3a88efff53cb457067002",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>m69 m63 m69 m63 m13 m29 | 4000</answer>"
+		},
+		{
+			"key": "be.concurrency.queue-redelivery|middle|mixed|5925675aa989731ef3736282b06e75f36bcb87e5bfea14974c5aff7431495e45|answer",
+			"family": "be.concurrency.queue-redelivery",
+			"grade": "middle",
+			"classId": "mixed",
+			"seed": "5925675aa989731ef3736282b06e75f36bcb87e5bfea14974c5aff7431495e45",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>m56 m40 m56 m40 m39 - | 625</answer>"
+		},
+		{
+			"key": "be.concurrency.queue-redelivery|middle|mixed|787851f780b7b18ab7ab252f1f010a0c1b0491b6353bdfb839eb505eefd1e22e|answer",
+			"family": "be.concurrency.queue-redelivery",
+			"grade": "middle",
+			"classId": "mixed",
+			"seed": "787851f780b7b18ab7ab252f1f010a0c1b0491b6353bdfb839eb505eefd1e22e",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>m24 m76 m24 m76 m95 m26 | 2775</answer>"
+		},
+		{
+			"key": "be.concurrency.queue-redelivery|middle|mixed|79bc8ac630a41c63a5067225040e03bfec7fbedf1bcc3e2f496712f260ddbe07|answer",
+			"family": "be.concurrency.queue-redelivery",
+			"grade": "middle",
+			"classId": "mixed",
+			"seed": "79bc8ac630a41c63a5067225040e03bfec7fbedf1bcc3e2f496712f260ddbe07",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>m22 m96 m22 m96 m43 m81 m11 - | 3375</answer>"
+		},
+		{
+			"key": "be.concurrency.queue-redelivery|middle|mixed|8f2b7229813e3a8ca1c85828955390c5000d927c5f40a2d146319ffe2916106c|answer",
+			"family": "be.concurrency.queue-redelivery",
+			"grade": "middle",
+			"classId": "mixed",
+			"seed": "8f2b7229813e3a8ca1c85828955390c5000d927c5f40a2d146319ffe2916106c",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>m34 m40 m34 m40 m54 - | 2525</answer>"
+		},
+		{
+			"key": "be.concurrency.sync-primitives|middle|bounded-queue|f48d636da6a4c856469f2bf5b81394341f22f9f1053010c85bb23459b2d6857b|answer",
+			"family": "be.concurrency.sync-primitives",
+			"grade": "middle",
+			"classId": "bounded-queue",
+			"seed": "f48d636da6a4c856469f2bf5b81394341f22f9f1053010c85bb23459b2d6857b",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\np3 put 38\np3 put 15\ngot 38\ngot 15\np3 put 96\ngot 96\np3 put 76\np3 done\ngot 76\nmain done\n</answer>"
+		},
+		{
+			"key": "be.concurrency.sync-primitives|middle|event-clear|18de008f896764f9568853807ee83d6e2b3a108bf937a7f8401a206c1d2831a7|answer",
+			"family": "be.concurrency.sync-primitives",
+			"grade": "middle",
+			"classId": "event-clear",
+			"seed": "18de008f896764f9568853807ee83d6e2b3a108bf937a7f8401a206c1d2831a7",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\ngold waits\nblue waits\ngray waits\nset\nclear\ngold woke\nblue woke\ngray woke\npink waits\nset again\npink woke\nmain done\n</answer>"
+		},
+		{
+			"key": "be.concurrency.sync-primitives|middle|event-clear|1d211e36ec665b53044377ce816224e27eff96146235c10d98cc120a5952110c|answer",
+			"family": "be.concurrency.sync-primitives",
+			"grade": "middle",
+			"classId": "event-clear",
+			"seed": "1d211e36ec665b53044377ce816224e27eff96146235c10d98cc120a5952110c",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\nnavy waits\npink waits\ngold waits\nset\nclear\nnavy woke\npink woke\ngold woke\nteal waits\nset again\nteal woke\nmain done\n</answer>"
+		},
+		{
+			"key": "be.concurrency.sync-primitives|middle|event-clear|4f3391055990b7e01f462d15baa5ab62f16e8d45157b0749a774b05c7fd4c622|answer",
+			"family": "be.concurrency.sync-primitives",
+			"grade": "middle",
+			"classId": "event-clear",
+			"seed": "4f3391055990b7e01f462d15baa5ab62f16e8d45157b0749a774b05c7fd4c622",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\npink waits\nnavy waits\nset\nclear\npink woke\nnavy woke\ngray waits\nred waits\nset again\ngray woke\nred woke\nmain done\n</answer>"
+		},
+		{
+			"key": "be.concurrency.sync-primitives|middle|event-clear|a7b18352462e74588511ce449b205d40d60210aa3b8e113cf43703f79874b2cc|answer",
+			"family": "be.concurrency.sync-primitives",
+			"grade": "middle",
+			"classId": "event-clear",
+			"seed": "a7b18352462e74588511ce449b205d40d60210aa3b8e113cf43703f79874b2cc",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "Программа напечатает следующий вывод:\n\n<answer>\nteal waits\nblue waits\ngold waits\nset\nclear\nteal woke\nblue woke\ngold woke\npink waits\nset again\npink woke\nmain done\n</answer>"
+		},
+		{
+			"key": "be.concurrency.sync-primitives|middle|event-clear|ca5b5c74476750acd8a751aa4feb436bd401bee5f89aa544c62be256f2930804|answer",
+			"family": "be.concurrency.sync-primitives",
+			"grade": "middle",
+			"classId": "event-clear",
+			"seed": "ca5b5c74476750acd8a751aa4feb436bd401bee5f89aa544c62be256f2930804",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\npink waits\nlime waits\nset\nclear\npink woke\nlime woke\ngray waits\nset again\ngray woke\nmain done\n</answer>"
+		},
+		{
+			"key": "be.concurrency.sync-primitives|middle|semaphore|d201ba03acd7e730cd7d1cff9d489b7150e78e06521cc2f128a336ab407d7fd9|answer",
+			"family": "be.concurrency.sync-primitives",
+			"grade": "middle",
+			"classId": "semaphore",
+			"seed": "d201ba03acd7e730cd7d1cff9d489b7150e78e06521cc2f128a336ab407d7fd9",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\ngold waits\ngold in\ngold out\nred waits\nred in\nlime waits\nlime in\nblue waits\nnavy waits\nlime out\nred out\nblue in\nblue out\nteal waits\nteal in\nnavy in\nnavy out\nteal out\nmain done\n</answer>"
+		},
+		{
+			"key": "be.db.group-having|junior|having-aggregate|02cf32c25ea0b17c7dd5cff4bb81fb43ab1397cbcc0742c4bd9d5fb59299b4a0|answer",
+			"family": "be.db.group-having",
+			"grade": "junior",
+			"classId": "having-aggregate",
+			"seed": "02cf32c25ea0b17c7dd5cff4bb81fb43ab1397cbcc0742c4bd9d5fb59299b4a0",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\ndev | 1 | 2200\nops | 3 | 700\nsales | 2 | 1200\n</answer>"
+		},
+		{
+			"key": "be.db.group-having|junior|having-aggregate|57e6a4e3160da2a1f960bff7acc409494a6e36614e2c1d755443bb543709754d|answer",
+			"family": "be.db.group-having",
+			"grade": "junior",
+			"classId": "having-aggregate",
+			"seed": "57e6a4e3160da2a1f960bff7acc409494a6e36614e2c1d755443bb543709754d",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\ndev | 1 | 2800\nsales | 3 | 1700\n</answer>"
+		},
+		{
+			"key": "be.db.group-having|junior|having-aggregate|8fc65f8a063cd20bd92b868242d9427ff573b188ab24e869a19b841562848aca|answer",
+			"family": "be.db.group-having",
+			"grade": "junior",
+			"classId": "having-aggregate",
+			"seed": "8fc65f8a063cd20bd92b868242d9427ff573b188ab24e869a19b841562848aca",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\nhr | 2 | 2100\nsupport | 3 | 1300\n</answer>"
+		},
+		{
+			"key": "be.db.group-having|junior|having-aggregate|baf524d84a25d2e6fe0529e1dc512d2c9705aaad108f919bd1205274403609cd|answer",
+			"family": "be.db.group-having",
+			"grade": "junior",
+			"classId": "having-aggregate",
+			"seed": "baf524d84a25d2e6fe0529e1dc512d2c9705aaad108f919bd1205274403609cd",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\ndev | 2 | 900\nlegal | 1 | 2500\nops | 3 | 1500\n</answer>"
+		},
+		{
+			"key": "be.db.group-having|junior|having-aggregate|da3a6f4509cae5f8e37f97e0f98b9e8d09548f1bc6095ff1e716705ca57cc572|answer",
+			"family": "be.db.group-having",
+			"grade": "junior",
+			"classId": "having-aggregate",
+			"seed": "da3a6f4509cae5f8e37f97e0f98b9e8d09548f1bc6095ff1e716705ca57cc572",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\nhr | 3 | 500\nqa | 3 | 1500\n</answer>"
+		},
+		{
+			"key": "be.db.group-having|junior|having-aggregate|dcfc85800fbc0acf064a20e8ef1216fedd33587b2bf3d9fd9e07098f7c780e2d|answer",
+			"family": "be.db.group-having",
+			"grade": "junior",
+			"classId": "having-aggregate",
+			"seed": "dcfc85800fbc0acf064a20e8ef1216fedd33587b2bf3d9fd9e07098f7c780e2d",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\nsales | 3 | 600\nsupport | 1 | 2600\n</answer>"
+		},
+		{
+			"key": "be.db.group-having|junior|having-aggregate|e6c2f2d5b97e2e05467c2e39bd34adb710f13ba1431382da209351dd8c90a2b5|answer",
+			"family": "be.db.group-having",
+			"grade": "junior",
+			"classId": "having-aggregate",
+			"seed": "e6c2f2d5b97e2e05467c2e39bd34adb710f13ba1431382da209351dd8c90a2b5",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\nops | 2 | 1600\nsupport | 3 | 800\n</answer>"
+		},
+		{
+			"key": "be.db.group-having|junior|having-join|347e0bbc7b9405f196051a8c0fd0dcdeea8bdabf304f044c57cd28b24f435372|answer",
+			"family": "be.db.group-having",
+			"grade": "junior",
+			"classId": "having-join",
+			"seed": "347e0bbc7b9405f196051a8c0fd0dcdeea8bdabf304f044c57cd28b24f435372",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\nkira | 1 | 1700\nmila | 2 | 1700\n</answer>"
+		},
+		{
+			"key": "be.db.group-having|junior|where-then-having|8f725311bf3aade4a0905b44553067e6a83f79931180493906a28ca82cf68328|answer",
+			"family": "be.db.group-having",
+			"grade": "junior",
+			"classId": "where-then-having",
+			"seed": "8f725311bf3aade4a0905b44553067e6a83f79931180493906a28ca82cf68328",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\nfinance | 3 | 1450\nhr | 3 | 1900\n</answer>"
+		},
+		{
+			"key": "be.db.group-having|middle|case-aggregates|2cfed1ed2d62868f352a20ae228f73c5bbe94d483e17aee96ce56ce4765ea054|answer",
+			"family": "be.db.group-having",
+			"grade": "middle",
+			"classId": "case-aggregates",
+			"seed": "2cfed1ed2d62868f352a20ae228f73c5bbe94d483e17aee96ce56ce4765ea054",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\nКазань | 2 | 0 | 775\nПермь | 5 | 450 | 175\nТула | 2 | 575 | NULL\nУфа | 3 | 675 | 775\n</answer>"
+		},
+		{
+			"key": "be.db.group-having|middle|filter-clause|af55c592b94f098b2373d6e9aee0bafba234d3b00d0f8741e33f29740b9d0fee|answer",
+			"family": "be.db.group-having",
+			"grade": "middle",
+			"classId": "filter-clause",
+			"seed": "af55c592b94f098b2373d6e9aee0bafba234d3b00d0f8741e33f29740b9d0fee",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\nКурск | 4 | 2 | 205\nОмск | 2 | 0 | NULL\nПермь | 3 | 0 | NULL\nУфа | 3 | 2 | 280\n</answer>"
+		},
+		{
+			"key": "be.db.group-having|middle|group-expression|0e9f1542170a797d0d99c8c17d0e94e88920608327fe4bfbe2943b962945c957|answer",
+			"family": "be.db.group-having",
+			"grade": "middle",
+			"classId": "group-expression",
+			"seed": "0e9f1542170a797d0d99c8c17d0e94e88920608327fe4bfbe2943b962945c957",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\nbulk | 2 | 2100\nlarge | 2 | 2600\n</answer>"
+		},
+		{
+			"key": "be.db.group-having|middle|group-expression|12f63f5d71c40fa22259f48a0f21711536a090b924aac5926d52979c9a2f8996|answer",
+			"family": "be.db.group-having",
+			"grade": "middle",
+			"classId": "group-expression",
+			"seed": "12f63f5d71c40fa22259f48a0f21711536a090b924aac5926d52979c9a2f8996",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\nbulk | 3 | 3700\nlarge | 3 | 6000\n</answer>"
+		},
+		{
+			"key": "be.db.group-having|middle|group-expression|347cb29f3e9a46e07a8aadfd5940a46e2d144ce5306cb0200d74f4cb8f991f44|answer",
+			"family": "be.db.group-having",
+			"grade": "middle",
+			"classId": "group-expression",
+			"seed": "347cb29f3e9a46e07a8aadfd5940a46e2d144ce5306cb0200d74f4cb8f991f44",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\nbulk | 5 | 7400\nlarge | 1 | 1700\nregular | 4 | 2900\n</answer>"
+		},
+		{
+			"key": "be.db.group-having|middle|group-expression|673acc71d6faa73604dd84f462cb7d749780acd4bc17d40e41856f0fa77cb324|answer",
+			"family": "be.db.group-having",
+			"grade": "middle",
+			"classId": "group-expression",
+			"seed": "673acc71d6faa73604dd84f462cb7d749780acd4bc17d40e41856f0fa77cb324",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\nbulk | 6 | 8000\nlarge | 3 | 5200\n</answer>"
+		},
+		{
+			"key": "be.db.join-multiplicity|junior|rows-product|4397ac5d16a3b915aef008f4d41a16d0eb7c35f1b604a48027324cccf6a9b07b|answer",
+			"family": "be.db.join-multiplicity",
+			"grade": "junior",
+			"classId": "rows-product",
+			"seed": "4397ac5d16a3b915aef008f4d41a16d0eb7c35f1b604a48027324cccf6a9b07b",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\nanna | 9\nboris | 9\nlev | 1\nsasha | 3\n</answer>"
+		},
+		{
+			"key": "be.db.join-multiplicity|junior|rows-product|464e414d0141dc083b36c545aec0aa7cdca8ad445c48f28b6f87c430a96d34c8|answer",
+			"family": "be.db.join-multiplicity",
+			"grade": "junior",
+			"classId": "rows-product",
+			"seed": "464e414d0141dc083b36c545aec0aa7cdca8ad445c48f28b6f87c430a96d34c8",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\nlev | 12\nmila | 3\noleg | 1\nrita | 2\n</answer>"
+		},
+		{
+			"key": "be.db.join-multiplicity|junior|rows-product|9007aa9eb4dd6d9a98d3c2366f5a9be7b3bb230c0535ba150ec39e758a8d6079|answer",
+			"family": "be.db.join-multiplicity",
+			"grade": "junior",
+			"classId": "rows-product",
+			"seed": "9007aa9eb4dd6d9a98d3c2366f5a9be7b3bb230c0535ba150ec39e758a8d6079",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\negor | 1\nilya | 1\nmila | 3\npavel | 12\n</answer>"
+		},
+		{
+			"key": "be.db.join-multiplicity|junior|rows-product|d9714e45b2cf446c4ae795f9e105af0c34725d356896bc1f7100c438bba157df|answer",
+			"family": "be.db.join-multiplicity",
+			"grade": "junior",
+			"classId": "rows-product",
+			"seed": "d9714e45b2cf446c4ae795f9e105af0c34725d356896bc1f7100c438bba157df",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\ngleb | 3\nrita | 8\ntimur | 1\nzoya | 4\n</answer>"
+		},
+		{
+			"key": "be.db.join-multiplicity|junior|rows-product|dbc9a16366c24014e4f61256edc3fd6190ece0a48737d9740f30720a2bde868e|answer",
+			"family": "be.db.join-multiplicity",
+			"grade": "junior",
+			"classId": "rows-product",
+			"seed": "dbc9a16366c24014e4f61256edc3fd6190ece0a48737d9740f30720a2bde868e",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\nboris | 12\negor | 6\nilya | 1\nkira | 2\n</answer>"
+		},
+		{
+			"key": "be.db.join-multiplicity|junior|rows-product|ecf95c4c3a07e2887bf39dd83fe4768053611dae02db84653fa4c6eb75405a74|answer",
+			"family": "be.db.join-multiplicity",
+			"grade": "junior",
+			"classId": "rows-product",
+			"seed": "ecf95c4c3a07e2887bf39dd83fe4768053611dae02db84653fa4c6eb75405a74",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\nanna | 3\ndina | 2\nrita | 2\nzoya | 8\n</answer>"
+		},
+		{
+			"key": "be.db.join-multiplicity|junior|rows-product|fb018d8fd9e6a54c33b56c79fdd08eff886adeda5fa4427bed1183552ed8e62d|answer",
+			"family": "be.db.join-multiplicity",
+			"grade": "junior",
+			"classId": "rows-product",
+			"seed": "fb018d8fd9e6a54c33b56c79fdd08eff886adeda5fa4427bed1183552ed8e62d",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\ndina | 3\nilya | 6\ntimur | 2\nzoya | 1\n</answer>"
+		},
+		{
+			"key": "be.db.join-multiplicity|junior|sum-distinct|5d51b837d59da6a678a36e5209c5475ec44539ce67cb7ffe578bd971b2b0ae84|answer",
+			"family": "be.db.join-multiplicity",
+			"grade": "junior",
+			"classId": "sum-distinct",
+			"seed": "5d51b837d59da6a678a36e5209c5475ec44539ce67cb7ffe578bd971b2b0ae84",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\nanna | 3 | 2600\nilya | 3 | 1400\nsasha | 1 | 1250\n</answer>"
+		},
+		{
+			"key": "be.db.join-multiplicity|junior|sum-fanout|09163e017f2eba0f3ac6973bb603e3733a13957d5ed167de108904fa5451cee6|answer",
+			"family": "be.db.join-multiplicity",
+			"grade": "junior",
+			"classId": "sum-fanout",
+			"seed": "09163e017f2eba0f3ac6973bb603e3733a13957d5ed167de108904fa5451cee6",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\negor | 9 | 8250\noleg | 2 | 900\npavel | 0 | 3100\nzoya | 2 | 1500\n</answer>"
+		},
+		{
+			"key": "be.db.null-aggregates|junior|having-null-sum|3294fb035d69a75c05fcb8a7d76c6c265af5b92256542eb0a36db99ba2bd79a0|answer",
+			"family": "be.db.null-aggregates",
+			"grade": "junior",
+			"classId": "having-null-sum",
+			"seed": "3294fb035d69a75c05fcb8a7d76c6c265af5b92256542eb0a36db99ba2bd79a0",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\ndev | 15\nops | 120\n</answer>"
+		},
+		{
+			"key": "be.db.null-aggregates|junior|having-null-sum|503713eaf0ebdf0f9dce43f3d5a1f41a2ca60b6d8acce29e0ddd5834b981c02d|answer",
+			"family": "be.db.null-aggregates",
+			"grade": "junior",
+			"classId": "having-null-sum",
+			"seed": "503713eaf0ebdf0f9dce43f3d5a1f41a2ca60b6d8acce29e0ddd5834b981c02d",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>dev | 15\nlegal | 175</answer>"
+		},
+		{
+			"key": "be.db.null-aggregates|junior|left-join-on|81dc18aba1f26f8902e4923e9c81eea5e3e4acd7edae7f411a1f8b1bf4fc8f14|answer",
+			"family": "be.db.null-aggregates",
+			"grade": "junior",
+			"classId": "left-join-on",
+			"seed": "81dc18aba1f26f8902e4923e9c81eea5e3e4acd7edae7f411a1f8b1bf4fc8f14",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\nanna | 3 | 1000\negor | 0 | NULL\nlev | 2 | 1300\nsasha | 1 | 600\nvera | 0 | NULL\n</answer>"
+		},
+		{
+			"key": "be.db.null-aggregates|junior|null-group|c2c74e5902e90293dadecc25750bd76f5894c2f848677b7ce855881156ab0cee|answer",
+			"family": "be.db.null-aggregates",
+			"grade": "junior",
+			"classId": "null-group",
+			"seed": "c2c74e5902e90293dadecc25750bd76f5894c2f848677b7ce855881156ab0cee",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\nNULL | 2 | 1\ndev | 2 | 1\nhr | 2 | 1\nqa | 4 | 2\n</answer>"
+		},
+		{
+			"key": "be.db.recursive-cte|middle|calendar-fill|2b6832d99e76a157c3655f6da17fcff61b97d9ebae4e3d6739c69868dac04dd6|answer",
+			"family": "be.db.recursive-cte",
+			"grade": "middle",
+			"classId": "calendar-fill",
+			"seed": "2b6832d99e76a157c3655f6da17fcff61b97d9ebae4e3d6739c69868dac04dd6",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\n19 | 2 | 210\n20 | 0 | 0\n21 | 0 | 0\n22 | 1 | 120\n23 | 3 | 630\n</answer>"
+		},
+		{
+			"key": "be.db.recursive-cte|middle|calendar-fill|3937b2a09f5f669b34871dd1cf181837d02bf11a916068b42f110f5277d3aeb2|answer",
+			"family": "be.db.recursive-cte",
+			"grade": "middle",
+			"classId": "calendar-fill",
+			"seed": "3937b2a09f5f669b34871dd1cf181837d02bf11a916068b42f110f5277d3aeb2",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\n16 | 0 | 0\n17 | 0 | 0\n18 | 0 | 0\n19 | 0 | 0\n20 | 0 | 0\n21 | 2 | 300\n22 | 1 | 300\n</answer>"
+		},
+		{
+			"key": "be.db.recursive-cte|middle|calendar-fill|8174e3156bedc6b597323a8e72722a47beabac766834b69936d76138ff377c3e|answer",
+			"family": "be.db.recursive-cte",
+			"grade": "middle",
+			"classId": "calendar-fill",
+			"seed": "8174e3156bedc6b597323a8e72722a47beabac766834b69936d76138ff377c3e",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\n13 | 0 | 0\n14 | 1 | 20\n15 | 0 | 0\n16 | 1 | 300\n17 | 0 | 0\n18 | 0 | 0\n19 | 1 | 110\n</answer>"
+		},
+		{
+			"key": "be.db.recursive-cte|middle|calendar-fill|9b38627f798f65128138c320659933b16d5e64664a32ea8939e6ca82fa16c9bc|answer",
+			"family": "be.db.recursive-cte",
+			"grade": "middle",
+			"classId": "calendar-fill",
+			"seed": "9b38627f798f65128138c320659933b16d5e64664a32ea8939e6ca82fa16c9bc",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\n20 | 2 | 280\n21 | 2 | 400\n22 | 0 | 0\n23 | 2 | 420\n24 | 0 | 0\n25 | 1 | 80\n26 | 2 | 100\n</answer>"
+		},
+		{
+			"key": "be.db.recursive-cte|middle|calendar-fill|d03faa6484a59b6ff72f4a3acbddc27b593bfde180cc98b1c4fb1f6a3d2cbe13|answer",
+			"family": "be.db.recursive-cte",
+			"grade": "middle",
+			"classId": "calendar-fill",
+			"seed": "d03faa6484a59b6ff72f4a3acbddc27b593bfde180cc98b1c4fb1f6a3d2cbe13",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\n17 | 0 | 0\n18 | 0 | 0\n19 | 2 | 460\n20 | 0 | 0\n21 | 2 | 330\n22 | 3 | 440\n</answer>"
+		},
+		{
+			"key": "be.db.recursive-cte|middle|calendar-fill|d471a717ee401d6dd1531de0405f266ea7c817e5e7688a2fcee1319f9cef4822|answer",
+			"family": "be.db.recursive-cte",
+			"grade": "middle",
+			"classId": "calendar-fill",
+			"seed": "d471a717ee401d6dd1531de0405f266ea7c817e5e7688a2fcee1319f9cef4822",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\n20 | 2 | 410\n21 | 2 | 340\n22 | 0 | 0\n23 | 0 | 0\n24 | 0 | 0\n25 | 2 | 100\n26 | 2 | 400\n</answer>"
+		},
+		{
+			"key": "be.db.recursive-cte|middle|path-up|7af9592ae335cb9a65a343d3ffed47d5dc15aa707498f67a8b3ad4bf55518478|answer",
+			"family": "be.db.recursive-cte",
+			"grade": "middle",
+			"classId": "path-up",
+			"seed": "7af9592ae335cb9a65a343d3ffed47d5dc15aa707498f67a8b3ad4bf55518478",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\n0 | sasha\n1 | timur > sasha\n2 | egor > timur > sasha\n3 | lev > egor > timur > sasha\n</answer>"
+		},
+		{
+			"key": "be.db.recursive-cte|middle|subordinates-depth|fffa7a6cc92e80e3e25f2e40e17d4b08c0e234198ce07449aca8f295a6328a99|answer",
+			"family": "be.db.recursive-cte",
+			"grade": "middle",
+			"classId": "subordinates-depth",
+			"seed": "fffa7a6cc92e80e3e25f2e40e17d4b08c0e234198ce07449aca8f295a6328a99",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\nanna | 0\ngleb | 1\nkira | 1\nzoya | 2\noleg | 3\nsasha | 3\ndina | 4\negor | 4\n</answer>"
+		},
+		{
+			"key": "be.db.subquery-exists|junior|correlated-avg|a5b812b20873ac0f78ba4184b4d3f394701614322bec435c00cfe22aa8cf3eaf|answer",
+			"family": "be.db.subquery-exists",
+			"grade": "junior",
+			"classId": "correlated-avg",
+			"seed": "a5b812b20873ac0f78ba4184b4d3f394701614322bec435c00cfe22aa8cf3eaf",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\n103 | dina | 300\n106 | lev | 1650\n107 | dina | 500\n</answer>"
+		},
+		{
+			"key": "be.db.subquery-exists|junior|in-group-count|cdfac16fe1f432de042758a738ec65f2c6bf21057ef5a56ca81d9404a558a31a|answer",
+			"family": "be.db.subquery-exists",
+			"grade": "junior",
+			"classId": "in-group-count",
+			"seed": "cdfac16fe1f432de042758a738ec65f2c6bf21057ef5a56ca81d9404a558a31a",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\nКурск | 2\nТверь | 2\nТомск | 1\n</answer>"
+		},
+		{
+			"key": "be.db.subquery-exists|junior|in-group-count|d56f258cc9493dd9548f70fa8599aec53e6beca0a38d8dcdcd0e1514bf5b11d7|answer",
+			"family": "be.db.subquery-exists",
+			"grade": "junior",
+			"classId": "in-group-count",
+			"seed": "d56f258cc9493dd9548f70fa8599aec53e6beca0a38d8dcdcd0e1514bf5b11d7",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\nКазань | 1\nКурск | 2\n</answer>"
+		},
+		{
+			"key": "be.db.subquery-exists|junior|in-group-count|d9c7425c8e9d0d2b35af9c02861631a13414acab19a40b1b5e8d47fb65e6ed21|answer",
+			"family": "be.db.subquery-exists",
+			"grade": "junior",
+			"classId": "in-group-count",
+			"seed": "d9c7425c8e9d0d2b35af9c02861631a13414acab19a40b1b5e8d47fb65e6ed21",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\nКазань | 1\nОмск | 1\nПермь | 3\n</answer>"
+		},
+		{
+			"key": "be.db.subquery-exists|junior|scalar-subquery|e9215db397680f752d5c26d555b0f4817e66a8a8415b663526803277f9227e7c|answer",
+			"family": "be.db.subquery-exists",
+			"grade": "junior",
+			"classId": "scalar-subquery",
+			"seed": "e9215db397680f752d5c26d555b0f4817e66a8a8415b663526803277f9227e7c",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\ngleb | 0 | NULL\nlev | 0 | NULL\noleg | 3 | 1700\npavel | 3 | 1950\nsasha | 3 | 1800\nzoya | 0 | NULL\n</answer>"
+		},
+		{
+			"key": "be.db.transactions-savepoint|middle|release-then-rollback|aecfbe27ed7d963747246a000171d6859d4efd52856117e38d311566b1f495af|answer",
+			"family": "be.db.transactions-savepoint",
+			"grade": "middle",
+			"classId": "release-then-rollback",
+			"seed": "aecfbe27ed7d963747246a000171d6859d4efd52856117e38d311566b1f495af",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\n1 | mila | 330\n2 | lev | 380\n3 | egor | -30\n4 | zoya | 90\n</answer>"
+		},
+		{
+			"key": "be.db.transactions-savepoint|middle|rollback-to-keeps-open|925cae0965fcbd72482adfbee819a0685e19b0073310de1f0d21ad14f8f9de86|answer",
+			"family": "be.db.transactions-savepoint",
+			"grade": "middle",
+			"classId": "rollback-to-keeps-open",
+			"seed": "925cae0965fcbd72482adfbee819a0685e19b0073310de1f0d21ad14f8f9de86",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\n1 | sasha | 280\n2 | vera | 230\n3 | mila | 270\n4 | timur | 260\n5 | ilya | 300\n</answer>"
+		},
+		{
+			"key": "be.db.transactions-savepoint|middle|two-transactions|1f1dff3bf81915a7fce7fdd69d2599264db9264dfb11d67e6c6109df3e5cb550|answer",
+			"family": "be.db.transactions-savepoint",
+			"grade": "middle",
+			"classId": "two-transactions",
+			"seed": "1f1dff3bf81915a7fce7fdd69d2599264db9264dfb11d67e6c6109df3e5cb550",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\n1 | timur | 370\n2 | oleg | 340\n3 | gleb | 390\n4 | kira | 90\n</answer>"
+		},
+		{
+			"key": "be.db.transactions-savepoint|middle|two-transactions|266ceba6d94ac710b27eae07c6d006b7b075ad6d14e1e9b5b7bae7bcc57795c7|answer",
+			"family": "be.db.transactions-savepoint",
+			"grade": "middle",
+			"classId": "two-transactions",
+			"seed": "266ceba6d94ac710b27eae07c6d006b7b075ad6d14e1e9b5b7bae7bcc57795c7",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\n1 | egor | 260\n2 | dina | 160\n3 | zoya | 120\n4 | sasha | 120\n</answer>"
+		},
+		{
+			"key": "be.db.transactions-savepoint|middle|two-transactions|32e4ada03ddc2d59b9a68e8e7287d27966b3fea460c995900ace01e4911a89e6|answer",
+			"family": "be.db.transactions-savepoint",
+			"grade": "middle",
+			"classId": "two-transactions",
+			"seed": "32e4ada03ddc2d59b9a68e8e7287d27966b3fea460c995900ace01e4911a89e6",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\n1 | ilya | 250\n2 | mila | 80\n3 | vera | 140\n</answer>"
+		},
+		{
+			"key": "be.db.transactions-savepoint|middle|two-transactions|82781abfdf7910e4657bfa082fa87e8726ba1b5d2549ce8bc4c7cf478990eb23|answer",
+			"family": "be.db.transactions-savepoint",
+			"grade": "middle",
+			"classId": "two-transactions",
+			"seed": "82781abfdf7910e4657bfa082fa87e8726ba1b5d2549ce8bc4c7cf478990eb23",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\n1 | vera | 220\n2 | kira | 220\n3 | oleg | 290\n4 | anna | 90\n</answer>"
+		},
+		{
+			"key": "be.db.transactions-savepoint|middle|two-transactions|a1d521e14bc965e8ae71ba6261332784b882d7e4e989f354388eb4f98e644395|answer",
+			"family": "be.db.transactions-savepoint",
+			"grade": "middle",
+			"classId": "two-transactions",
+			"seed": "a1d521e14bc965e8ae71ba6261332784b882d7e4e989f354388eb4f98e644395",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\n1 | kira | 230\n2 | oleg | 210\n3 | anna | 490\n</answer>"
+		},
+		{
+			"key": "be.db.transactions-savepoint|middle|two-transactions|f57370c2fb3288d1e7cb980488c0ec0e71fd187247ee2da795baa913b7962496|answer",
+			"family": "be.db.transactions-savepoint",
+			"grade": "middle",
+			"classId": "two-transactions",
+			"seed": "f57370c2fb3288d1e7cb980488c0ec0e71fd187247ee2da795baa913b7962496",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\n1 | mila | 120\n2 | oleg | 110\n3 | anna | 190\n</answer>"
+		},
+		{
+			"key": "be.db.upsert-conflict|junior|do-update|55fa8bb772c1e91549d5c88a13afd6b6b7b8fd5b80bb24c9fa42b743d6325296|answer",
+			"family": "be.db.upsert-conflict",
+			"grade": "junior",
+			"classId": "do-update",
+			"seed": "55fa8bb772c1e91549d5c88a13afd6b6b7b8fd5b80bb24c9fa42b743d6325296",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\nab-752 | 15 | 260\nkl-751 | 15 | 320\nrs-749 | 85 | 600\n</answer>"
+		},
+		{
+			"key": "be.db.upsert-conflict|junior|ignore-first-wins|4396db69e58b39aa3e63738c797c3c38af1f907a29dd6f9197db5fc075eb7014|answer",
+			"family": "be.db.upsert-conflict",
+			"grade": "junior",
+			"classId": "ignore-first-wins",
+			"seed": "4396db69e58b39aa3e63738c797c3c38af1f907a29dd6f9197db5fc075eb7014",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\n1 | egor@mail.ru | egor | 5\n2 | ilya@mail.ru | ilya | 7\n3 | anna@mail.ru | anna | 9\n4 | sasha@mail.ru | sasha | 8\n5 | timur@mail.ru | timur | 2\n</answer>"
+		},
+		{
+			"key": "be.db.upsert-conflict|junior|ignore-first-wins|4f7089d0d6cc5175c259b3732cf559a5de4571f2e05ba7ac618043edba3b43f5|answer",
+			"family": "be.db.upsert-conflict",
+			"grade": "junior",
+			"classId": "ignore-first-wins",
+			"seed": "4f7089d0d6cc5175c259b3732cf559a5de4571f2e05ba7ac618043edba3b43f5",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\n1 | dina@ya.ru | dina | 3\n2 | anna@ya.ru | anna | 5\n3 | ilya@ya.ru | ilya | 1\n4 | rita@ya.ru | rita | 9\n5 | lev@ya.ru | lev | 6\n</answer>"
+		},
+		{
+			"key": "be.db.upsert-conflict|junior|ignore-first-wins|8fb2555dc933061b04847acc45a66eb87c72a9c7d5303f09e3e384ec1dddad67|answer",
+			"family": "be.db.upsert-conflict",
+			"grade": "junior",
+			"classId": "ignore-first-wins",
+			"seed": "8fb2555dc933061b04847acc45a66eb87c72a9c7d5303f09e3e384ec1dddad67",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\n1 | sasha@mail.ru | sasha | 8\n2 | boris@mail.ru | boris | 9\n3 | vera@mail.ru | vera | 2\n</answer>"
+		},
+		{
+			"key": "be.db.upsert-conflict|junior|ignore-first-wins|904bee4031a90f181e30288e01fb30ad68762a0ae38db73d87c8eab8c052e8fb|answer",
+			"family": "be.db.upsert-conflict",
+			"grade": "junior",
+			"classId": "ignore-first-wins",
+			"seed": "904bee4031a90f181e30288e01fb30ad68762a0ae38db73d87c8eab8c052e8fb",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\n1 | gleb@corp.io | gleb | 7\n2 | rita@corp.io | rita | 7\n3 | oleg@corp.io | oleg | 7\n</answer>"
+		},
+		{
+			"key": "be.db.upsert-conflict|junior|ignore-first-wins|ed89b68ee572377f48245af05cdd3608c5c4efcbd7d4515280d66a7426973448|answer",
+			"family": "be.db.upsert-conflict",
+			"grade": "junior",
+			"classId": "ignore-first-wins",
+			"seed": "ed89b68ee572377f48245af05cdd3608c5c4efcbd7d4515280d66a7426973448",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\n1 | zoya@ya.ru | zoya | 8\n2 | gleb@ya.ru | gleb | 6\n</answer>"
+		},
+		{
+			"key": "be.db.upsert-conflict|junior|replace-row|eb470e3cff6311814033c3e1e5e6901dfdedfddb5c80c673f5ce098fa33999fb|answer",
+			"family": "be.db.upsert-conflict",
+			"grade": "junior",
+			"classId": "replace-row",
+			"seed": "eb470e3cff6311814033c3e1e5e6901dfdedfddb5c80c673f5ce098fa33999fb",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\n1 | timur@inbox.dev | timur | 2\n4 | lev@inbox.dev | lev | 7\n5 | oleg@inbox.dev | oleg_v2 | 0\n6 | zoya@inbox.dev | zoya_pro | 0\n7 | kira@inbox.dev | kira | 0\n</answer>"
+		},
+		{
+			"key": "be.db.upsert-conflict|middle|composite-null|37c3b96c9005c3578a684c09e578a136f3209a16ffebfef2de0b9b44a20357d2|answer",
+			"family": "be.db.upsert-conflict",
+			"grade": "middle",
+			"classId": "composite-null",
+			"seed": "37c3b96c9005c3578a684c09e578a136f3209a16ffebfef2de0b9b44a20357d2",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\n11 | NULL | 4 | web\n11 | 2026-10-03 | 10 | android\n15 | NULL | 1 | web\n15 | NULL | 6 | ios\n15 | 2026-10-03 | 10 | api\n</answer>"
+		},
+		{
+			"key": "be.db.upsert-conflict|middle|mixed-series|6e1742bfe65b8f35fb30a695ecaffb5f16dfaa41f880dd4ca6a3e104360c4d7c|answer",
+			"family": "be.db.upsert-conflict",
+			"grade": "middle",
+			"classId": "mixed-series",
+			"seed": "6e1742bfe65b8f35fb30a695ecaffb5f16dfaa41f880dd4ca6a3e104360c4d7c",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\n1 | pavel@inbox.dev | pavel | 6\n3 | boris@inbox.dev | boris_x | 2\n4 | rita@inbox.dev | rita | 4\n5 | sasha@inbox.dev | sasha_pro | 1\n6 | timur@inbox.dev | timur | 0\n</answer>"
+		},
+		{
+			"key": "be.db.upsert-conflict|middle|mixed-series|876235a4bf688c41b5b1140da0a5322e7323e70f5646b5227680b1006eb3d745|answer",
+			"family": "be.db.upsert-conflict",
+			"grade": "middle",
+			"classId": "mixed-series",
+			"seed": "876235a4bf688c41b5b1140da0a5322e7323e70f5646b5227680b1006eb3d745",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\n2 | gleb@corp.io | gleb | 9\n3 | mila@corp.io | mila_pro | 3\n4 | egor@corp.io | egor | 6\n5 | kira@corp.io | kira_pro | 0\n6 | ilya@corp.io | ilya | 0\n</answer>"
+		},
+		{
+			"key": "be.db.upsert-conflict|middle|mixed-series|ece6a0b2eb428977fd3b437acc1f8dd2747b33e1fd43595b4e2e6f45db1c9fb6|answer",
+			"family": "be.db.upsert-conflict",
+			"grade": "middle",
+			"classId": "mixed-series",
+			"seed": "ece6a0b2eb428977fd3b437acc1f8dd2747b33e1fd43595b4e2e6f45db1c9fb6",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\n1 | dina@mail.ru | dina_pro | 10\n3 | anna@mail.ru | anna | 8\n4 | kira@mail.ru | kira | 8\n5 | sasha@mail.ru | sasha | 0\n6 | pavel@mail.ru | pavel_x | 0\n</answer>"
+		},
+		{
+			"key": "be.db.upsert-conflict|middle|mixed-series|fae4adafdeed868ea53957ba79d60c61ee56cd0797f9f83ed613317c51d3a9fb|answer",
+			"family": "be.db.upsert-conflict",
+			"grade": "middle",
+			"classId": "mixed-series",
+			"seed": "fae4adafdeed868ea53957ba79d60c61ee56cd0797f9f83ed613317c51d3a9fb",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\n1 | pavel@ya.ru | pavel | 3\n2 | mila@ya.ru | mila_pro | 3\n4 | timur@ya.ru | timur | 9\n5 | gleb@ya.ru | gleb | 0\n6 | vera@ya.ru | vera_v2 | 0\n</answer>"
+		},
+		{
+			"key": "be.db.upsert-conflict|middle|update-where|142cd0bb7f3b1a75b09458691af4156cc432008dedd4c66597c879fae1be5911|answer",
+			"family": "be.db.upsert-conflict",
+			"grade": "middle",
+			"classId": "update-where",
+			"seed": "142cd0bb7f3b1a75b09458691af4156cc432008dedd4c66597c879fae1be5911",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\nab-768 | 880 | 4\ncd-772 | 770 | 5\nmn-772 | 520 | 4\n</answer>"
+		},
+		{
+			"key": "be.db.window-functions|middle|lag-lead|53ee816e1af44205920a8eb34a1811a1eaa6302431a92c0b7472e95c1bfe0cb8|answer",
+			"family": "be.db.window-functions",
+			"grade": "middle",
+			"classId": "lag-lead",
+			"seed": "53ee816e1af44205920a8eb34a1811a1eaa6302431a92c0b7472e95c1bfe0cb8",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\nacc-78 | 22 | 200 | NULL | 200 | 26\nacc-78 | 26 | 170 | 200 | -30 | 28\nacc-78 | 28 | 60 | 170 | -110 | NULL\nacc-80 | 8 | 240 | NULL | 240 | 12\nacc-80 | 12 | 130 | 240 | -110 | 13\nacc-80 | 13 | 130 | 130 | 0 | 26\nacc-80 | 26 | 190 | 130 | 60 | NULL\n</answer>"
+		},
+		{
+			"key": "be.db.window-functions|middle|lag-lead|9ee72845c91e6ea4e555e6c039f65fd36af898da537e9efa6895d7f2c93b201a|answer",
+			"family": "be.db.window-functions",
+			"grade": "middle",
+			"classId": "lag-lead",
+			"seed": "9ee72845c91e6ea4e555e6c039f65fd36af898da537e9efa6895d7f2c93b201a",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\nacc-59 | 9 | 90 | NULL | 90 | 14\nacc-59 | 14 | 150 | 90 | 60 | 15\nacc-59 | 15 | 70 | 150 | -80 | 23\nacc-59 | 23 | 170 | 70 | 100 | NULL\nacc-61 | 4 | 140 | NULL | 140 | 15\nacc-61 | 15 | 160 | 140 | 20 | 19\nacc-61 | 19 | 170 | 160 | 10 | 28\nacc-61 | 28 | 120 | 170 | -50 | NULL\nacc-69 | 17 | 40 | NULL | 40 | 21\nacc-69 | 21 | 240 | 40 | 200 | 25\nacc-69 | 25 | 210 | 240 | -30 | NULL\n</answer>"
+		},
+		{
+			"key": "be.db.window-functions|middle|lag-lead|b4d0eb2a48122993739fea3060a301ab477c541728f468e6df7a77ba1ab0e0e0|answer",
+			"family": "be.db.window-functions",
+			"grade": "middle",
+			"classId": "lag-lead",
+			"seed": "b4d0eb2a48122993739fea3060a301ab477c541728f468e6df7a77ba1ab0e0e0",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\nacc-26 | 1 | 210 | NULL | 210 | 4\nacc-26 | 4 | 70 | 210 | -140 | 11\nacc-26 | 11 | 300 | 70 | 230 | 28\nacc-26 | 28 | 60 | 300 | -240 | NULL\nacc-28 | 15 | 70 | NULL | 70 | 17\nacc-28 | 17 | 190 | 70 | 120 | 19\nacc-28 | 19 | 280 | 190 | 90 | NULL\n</answer>"
+		},
+		{
+			"key": "be.db.window-functions|middle|lag-lead|e3fa7e90bd14f6c1eb5e27ccfa7324ad2dec8fcc1982043739f31e08f82f5b93|answer",
+			"family": "be.db.window-functions",
+			"grade": "middle",
+			"classId": "lag-lead",
+			"seed": "e3fa7e90bd14f6c1eb5e27ccfa7324ad2dec8fcc1982043739f31e08f82f5b93",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\nacc-29 | 5 | 20 | NULL | 20 | 11\nacc-29 | 11 | 270 | 20 | 250 | 19\nacc-29 | 19 | 90 | 270 | -180 | 23\nacc-29 | 23 | 50 | 90 | -40 | NULL\nacc-32 | 13 | 110 | NULL | 110 | 23\nacc-32 | 23 | 100 | 110 | -10 | 25\nacc-32 | 25 | 20 | 100 | -80 | 26\nacc-32 | 26 | 300 | 20 | 280 | NULL\nacc-39 | 10 | 40 | NULL | 40 | 20\nacc-39 | 20 | 250 | 40 | 210 | 23\nacc-39 | 23 | 210 | 250 | -40 | NULL\n</answer>"
+		},
+		{
+			"key": "be.db.window-functions|middle|rank-ties|b3cdde078c2a2a02d8a9ef3db997e7dbcb2280f89e057bb312265079e2e4f530|answer",
+			"family": "be.db.window-functions",
+			"grade": "middle",
+			"classId": "rank-ties",
+			"seed": "b3cdde078c2a2a02d8a9ef3db997e7dbcb2280f89e057bb312265079e2e4f530",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\ndev | mila | 93 | 1 | 1\ndev | boris | 92 | 2 | 2\nqa | anna | 88 | 1 | 1\nqa | kira | 88 | 1 | 1\nqa | egor | 84 | 3 | 2\n</answer>"
+		},
+		{
+			"key": "be.db.window-functions|middle|running-total|695944599846c7af253d8e4237c34314f70b9b6075b6686924eff20725f042a4|answer",
+			"family": "be.db.window-functions",
+			"grade": "middle",
+			"classId": "running-total",
+			"seed": "695944599846c7af253d8e4237c34314f70b9b6075b6686924eff20725f042a4",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\nacc-63 | 9 | 60 | 60 | 490\nacc-63 | 16 | 300 | 360 | 490\nacc-63 | 19 | 130 | 490 | 490\nacc-68 | 3 | 220 | 220 | 980\nacc-68 | 7 | 240 | 460 | 980\nacc-68 | 9 | 220 | 680 | 980\nacc-68 | 24 | 300 | 980 | 980\n</answer>"
+		},
+		{
+			"key": "be.debug.api-handlers|junior|status-code|f3753af7a070404e64f6cf03c130ca3c19ee383b5f6bb90fdf826742d0d043b4|answer",
+			"family": "be.debug.api-handlers",
+			"grade": "junior",
+			"classId": "status-code",
+			"seed": "f3753af7a070404e64f6cf03c130ca3c19ee383b5f6bb90fdf826742d0d043b4",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>53</answer>"
+		},
+		{
+			"key": "be.debug.api-handlers|junior|validate-after-write|b9c0dc6e21c6419d57df1f49dd321ad9a962b11af2da09e83c94affe0fb02823|answer",
+			"family": "be.debug.api-handlers",
+			"grade": "junior",
+			"classId": "validate-after-write",
+			"seed": "b9c0dc6e21c6419d57df1f49dd321ad9a962b11af2da09e83c94affe0fb02823",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>37</answer>"
+		},
+		{
+			"key": "be.debug.api-handlers|middle|idempotency|ad5d72208e628a0dfb526b1715bfbdf575a05ab58d5e47aba1391ef325dcf38a|answer",
+			"family": "be.debug.api-handlers",
+			"grade": "middle",
+			"classId": "idempotency",
+			"seed": "ad5d72208e628a0dfb526b1715bfbdf575a05ab58d5e47aba1391ef325dcf38a",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>36</answer>"
+		},
+		{
+			"key": "be.debug.api-handlers|middle|transaction|b642aa97d1cc7bef4376ec413e311846ba62d5163e70bbbd93b4bcde2e134227|answer",
+			"family": "be.debug.api-handlers",
+			"grade": "middle",
+			"classId": "transaction",
+			"seed": "b642aa97d1cc7bef4376ec413e311846ba62d5163e70bbbd93b4bcde2e134227",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>54</answer>"
+		},
+		{
+			"key": "be.debug.async-races|middle|check-then-act|9c7b3b60ac448719587c3ba5171bf88b7b1b863dd79642677f10e6e5d8025dbd|answer",
+			"family": "be.debug.async-races",
+			"grade": "middle",
+			"classId": "check-then-act",
+			"seed": "9c7b3b60ac448719587c3ba5171bf88b7b1b863dd79642677f10e6e5d8025dbd",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>18</answer>"
+		},
+		{
+			"key": "be.debug.async-races|middle|missing-await|3e65254b26dcb46ea2e7091fcf853073db022281b3c8f371b2c46a8a5ca267b2|answer",
+			"family": "be.debug.async-races",
+			"grade": "middle",
+			"classId": "missing-await",
+			"seed": "3e65254b26dcb46ea2e7091fcf853073db022281b3c8f371b2c46a8a5ca267b2",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>63</answer>"
+		},
+		{
+			"key": "be.debug.cache-invalidation|middle|key|c92f1a5cc0be4a62e67eb64ad411ab0c74eea76d29804bfd6b3d7f7cfaf7c98a|answer",
+			"family": "be.debug.cache-invalidation",
+			"grade": "middle",
+			"classId": "key",
+			"seed": "c92f1a5cc0be4a62e67eb64ad411ab0c74eea76d29804bfd6b3d7f7cfaf7c98a",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>14</answer>"
+		},
+		{
+			"key": "be.debug.cache-invalidation|middle|ttl|c45d969fcb2680ea52f6d78667f20affa47973c5774e5d9ba66d8e6205b1056a|answer",
+			"family": "be.debug.cache-invalidation",
+			"grade": "middle",
+			"classId": "ttl",
+			"seed": "c45d969fcb2680ea52f6d78667f20affa47973c5774e5d9ba66d8e6205b1056a",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>26</answer>"
+		},
+		{
+			"key": "be.debug.data-pipeline|junior|empty-fields|3e2942a02bd661177a548332ee8fde543e9969cfe27880408673ed0fe52b3f5f|answer",
+			"family": "be.debug.data-pipeline",
+			"grade": "junior",
+			"classId": "empty-fields",
+			"seed": "3e2942a02bd661177a548332ee8fde543e9969cfe27880408673ed0fe52b3f5f",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>28</answer>"
+		},
+		{
+			"key": "be.debug.data-pipeline|junior|types|353d8a9592a6e5381800eba360211a2d693c1f1bc5a5a558966f101d3ce589a9|answer",
+			"family": "be.debug.data-pipeline",
+			"grade": "junior",
+			"classId": "types",
+			"seed": "353d8a9592a6e5381800eba360211a2d693c1f1bc5a5a558966f101d3ce589a9",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>40</answer>"
+		},
+		{
+			"key": "be.debug.input-validation|junior|blank-after-strip|b5661da29f05d9bb51c7c3e6cb911fc4b08e2ba72156f96fbf07f33fb5691a63|answer",
+			"family": "be.debug.input-validation",
+			"grade": "junior",
+			"classId": "blank-after-strip",
+			"seed": "b5661da29f05d9bb51c7c3e6cb911fc4b08e2ba72156f96fbf07f33fb5691a63",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>31</answer>"
+		},
+		{
+			"key": "be.debug.input-validation|junior|dangerous-amount|2556ec05d88c5fd713b6982f74782c3b08d06f2b219cf52ae61c45d2ac7f62b3|answer",
+			"family": "be.debug.input-validation",
+			"grade": "junior",
+			"classId": "dangerous-amount",
+			"seed": "2556ec05d88c5fd713b6982f74782c3b08d06f2b219cf52ae61c45d2ac7f62b3",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>59</answer>"
+		},
+		{
+			"key": "be.debug.resource-timeouts|middle|cleanup|2090db295d6ee31279a317e0ab12433cb2b418017d35def5bcb59504a3bba967|answer",
+			"family": "be.debug.resource-timeouts",
+			"grade": "middle",
+			"classId": "cleanup",
+			"seed": "2090db295d6ee31279a317e0ab12433cb2b418017d35def5bcb59504a3bba967",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>43</answer>"
+		},
+		{
+			"key": "be.debug.resource-timeouts|middle|units|1b24469b9ae34d2ef98d13baa04b062c7e1c8deced325562ce48e43ffa83e7f3|answer",
+			"family": "be.debug.resource-timeouts",
+			"grade": "middle",
+			"classId": "units",
+			"seed": "1b24469b9ae34d2ef98d13baa04b062c7e1c8deced325562ce48e43ffa83e7f3",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>34</answer>"
+		},
+		{
+			"key": "be.debug.spec-violation|junior|aliasing|9a9808e3eed24abd077806f0897186d4e597345f40e90d4ea4f0ec9790a59708|answer",
+			"family": "be.debug.spec-violation",
+			"grade": "junior",
+			"classId": "aliasing",
+			"seed": "9a9808e3eed24abd077806f0897186d4e597345f40e90d4ea4f0ec9790a59708",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>10</answer>"
+		},
+		{
+			"key": "be.debug.spec-violation|junior|iteration|b0d93a2fd6844ed967ec0e96bd06c94c7308b08500144b332595d4a5b1ed5e38|answer",
+			"family": "be.debug.spec-violation",
+			"grade": "junior",
+			"classId": "iteration",
+			"seed": "b0d93a2fd6844ed967ec0e96bd06c94c7308b08500144b332595d4a5b1ed5e38",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>19</answer>"
+		},
+		{
+			"key": "be.lang.classes-mro|middle|class-attrs|1953260d51fbed963ea486a78087f1f07507b96283facfeb907c8ddaba2f00e0|answer",
+			"family": "be.lang.classes-mro",
+			"grade": "middle",
+			"classId": "class-attrs",
+			"seed": "1953260d51fbed963ea486a78087f1f07507b96283facfeb907c8ddaba2f00e0",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\n[82, 56, 87] 2 50\n[32, 29] 2 30\n[82, 56, 87] 0 50\n</answer>"
+		},
+		{
+			"key": "be.lang.classes-mro|middle|mro-super|919e3a8bbd5e8d629ba5296c3cffef2411c3a03992f44e46847d34c836a77dd2|answer",
+			"family": "be.lang.classes-mro",
+			"grade": "middle",
+			"classId": "mro-super",
+			"seed": "919e3a8bbd5e8d629ba5296c3cffef2411c3a03992f44e46847d34c836a77dd2",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\nChild Right Extra Base\nOther Extra Base\n</answer>"
+		},
+		{
+			"key": "be.lang.closure-capture|junior|default-mixed|e42ccf849ecfde5c41e4af38c4d18d72f3f0fa5b4cbdc5a82f83fd3ac83345b8|answer",
+			"family": "be.lang.closure-capture",
+			"grade": "junior",
+			"classId": "default-mixed",
+			"seed": "e42ccf849ecfde5c41e4af38c4d18d72f3f0fa5b4cbdc5a82f83fd3ac83345b8",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\n5\n4\n3\n75\n75\n</answer>"
+		},
+		{
+			"key": "be.lang.closure-capture|junior|nonlocal|1253860265694ce601de819fd39103950a425e30802438cbd6b03696443334fc|answer",
+			"family": "be.lang.closure-capture",
+			"grade": "junior",
+			"classId": "nonlocal",
+			"seed": "1253860265694ce601de819fd39103950a425e30802438cbd6b03696443334fc",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\n9\n17\n11\n13\n23\n</answer>"
+		},
+		{
+			"key": "be.lang.closure-capture|junior|scopes-late|6b4bb7d54bf986b35dca5544f777886c699d3d3a134d4b9b87efd372586a34d0|answer",
+			"family": "be.lang.closure-capture",
+			"grade": "junior",
+			"classId": "scopes-late",
+			"seed": "6b4bb7d54bf986b35dca5544f777886c699d3d3a134d4b9b87efd372586a34d0",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\n-2\n-2\n-57\n-57\n-57\n</answer>"
+		},
+		{
+			"key": "be.lang.exceptions-flow|junior|chain|3da8939d115c91219b56ebf525fa243d11db02fa5548a163abdaac58445dceee|answer",
+			"family": "be.lang.exceptions-flow",
+			"grade": "junior",
+			"classId": "chain",
+			"seed": "3da8939d115c91219b56ebf525fa243d11db02fa5548a163abdaac58445dceee",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\nok 45\nRuntimeError KeyError KeyError\nRuntimeError None ValueError\nOverflowError None None\n</answer>"
+		},
+		{
+			"key": "be.lang.exceptions-flow|junior|chain|42a0254ac8db6f2ee430ac227c454b07d612fd82630485938fb45ee953012680|answer",
+			"family": "be.lang.exceptions-flow",
+			"grade": "junior",
+			"classId": "chain",
+			"seed": "42a0254ac8db6f2ee430ac227c454b07d612fd82630485938fb45ee953012680",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\nOverflowError None None\nok 95\nTypeError None ValueError\nLookupError KeyError KeyError\n</answer>"
+		},
+		{
+			"key": "be.lang.exceptions-flow|junior|chain|87e8c4221aa9bcc8325493ff68503b46ff87a338f72cd32a86ef190af1b535ee|answer",
+			"family": "be.lang.exceptions-flow",
+			"grade": "junior",
+			"classId": "chain",
+			"seed": "87e8c4221aa9bcc8325493ff68503b46ff87a338f72cd32a86ef190af1b535ee",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\nOverflowError None None\nok 9\nTypeError None ValueError\nLookupError KeyError KeyError\n</answer>"
+		},
+		{
+			"key": "be.lang.exceptions-flow|junior|chain|b34109937d63acd88cb6ddd7a0cafe0cb04ae4e9e26f5a645f0fbcb4224b129a|answer",
+			"family": "be.lang.exceptions-flow",
+			"grade": "junior",
+			"classId": "chain",
+			"seed": "b34109937d63acd88cb6ddd7a0cafe0cb04ae4e9e26f5a645f0fbcb4224b129a",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\nLookupError KeyError KeyError\nOverflowError None None\nTypeError None ValueError\nok 1\n</answer>"
+		},
+		{
+			"key": "be.lang.exceptions-flow|junior|finally-return|24b4d0ede51a32783e64ad9d52d45f2b5dcae93c4d1e9c4f126418fa1aac4428|answer",
+			"family": "be.lang.exceptions-flow",
+			"grade": "junior",
+			"classId": "finally-return",
+			"seed": "24b4d0ede51a32783e64ad9d52d45f2b5dcae93c4d1e9c4f126418fa1aac4428",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\n45 error\n17 try\n37 try\n40 finally\n12 finally\n</answer>"
+		},
+		{
+			"key": "be.lang.exceptions-flow|junior|raise-in-except|3b95141e4718522b7cc37b4f2a8ff69d3b97c81ed43d4c71733e5c4e521d11d5|answer",
+			"family": "be.lang.exceptions-flow",
+			"grade": "junior",
+			"classId": "raise-in-except",
+			"seed": "3b95141e4718522b7cc37b4f2a8ff69d3b97c81ed43d4c71733e5c4e521d11d5",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\nbad x7\ndone x7\nerror x7\nmissing 10\ndone 10\ngot 2\nbad oops\ndone oops\nerror oops\ndone 27\ngot 376\n</answer>"
+		},
+		{
+			"key": "be.lang.generators-iterators|junior|exhausted|dfd4553103d3bc8c0f6d084017e2c8baf2508addbb2d2ff2e9208d6fe5aa071a|answer",
+			"family": "be.lang.generators-iterators",
+			"grade": "junior",
+			"classId": "exhausted",
+			"seed": "dfd4553103d3bc8c0f6d084017e2c8baf2508addbb2d2ff2e9208d6fe5aa071a",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\n30\nTrue\n[21, 32, 8, 10, 17]\n0\n</answer>"
+		},
+		{
+			"key": "be.lang.generators-iterators|junior|interleaving|4dc2d6d41066a5b3c0e84ebd9df47bd85790f22772d5a44b8347a01a4e8a3325|answer",
+			"family": "be.lang.generators-iterators",
+			"grade": "junior",
+			"classId": "interleaving",
+			"seed": "4dc2d6d41066a5b3c0e84ebd9df47bd85790f22772d5a44b8347a01a4e8a3325",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\ncreated\nouter start\ngot 8\ninner start\ninner 0\ngot 10\ninner 1\ngot 13\ninner 2\ngot 16\ninner 3\ngot 19\nafter\n</answer>"
+		},
+		{
+			"key": "be.lang.generators-iterators|junior|late-lookup|5b606b814d8b89e903c57813d5063a6384d6a5d56d2905226af82b46b9526d90|answer",
+			"family": "be.lang.generators-iterators",
+			"grade": "junior",
+			"classId": "late-lookup",
+			"seed": "5b606b814d8b89e903c57813d5063a6384d6a5d56d2905226af82b46b9526d90",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\n[7, 5, 13]\n[10, 8, 16, 17]\n</answer>"
+		},
+		{
+			"key": "be.lang.generators-iterators|middle|send-return|16e43e83c6e0be303f57ebcde20defe2f45f2c94c06d88e277a2c9632e79676e|answer",
+			"family": "be.lang.generators-iterators",
+			"grade": "middle",
+			"classId": "send-return",
+			"seed": "16e43e83c6e0be303f57ebcde20defe2f45f2c94c06d88e277a2c9632e79676e",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\n0\n5\n9\n12\ninner returned 12\nlimit\nstop (12, 9)\n</answer>"
+		},
+		{
+			"key": "be.lang.generators-iterators|middle|zip-pull|19dd7204ee8a94fb616da506d5cc144611f6e56af9597c9b4945caa53deba93e|answer",
+			"family": "be.lang.generators-iterators",
+			"grade": "middle",
+			"classId": "zip-pull",
+			"seed": "19dd7204ee8a94fb616da506d5cc144611f6e56af9597c9b4945caa53deba93e",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\n[40]\n[(60, 41, 70), (61, 42, 71), (62, 43, 72)]\n[]\n[64]\n[73, 74]\n</answer>"
+		},
+		{
+			"key": "be.lang.mutable-aliasing|junior|call-mutation|8ac40fcb7bc5aa2d4f5e32066b5d7803841c69811490591ea1f80ae44b285ed8|answer",
+			"family": "be.lang.mutable-aliasing",
+			"grade": "junior",
+			"classId": "call-mutation",
+			"seed": "8ac40fcb7bc5aa2d4f5e32066b5d7803841c69811490591ea1f80ae44b285ed8",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\n[4, 8, 42, 12]\n[4, 8, 42, 60]\n</answer>"
+		},
+		{
+			"key": "be.lang.mutable-aliasing|junior|default-arg|d23a1d654502b02664ef614b25cfd760836e4c47991b86ab1c5314d2278bf22d|answer",
+			"family": "be.lang.mutable-aliasing",
+			"grade": "junior",
+			"classId": "default-arg",
+			"seed": "d23a1d654502b02664ef614b25cfd760836e4c47991b86ab1c5314d2278bf22d",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\n[57, 83, 78, 92]\n[13]\n[57, 83, 78, 92]\n[57, 83, 78, 92]\n</answer>"
+		},
+		{
+			"key": "be.lang.mutable-aliasing|junior|shallow-deep|44d514e00192bea05923a8aaf95b9b0c09cbe33eaf7c1e20189fd09f27bd20fe|answer",
+			"family": "be.lang.mutable-aliasing",
+			"grade": "junior",
+			"classId": "shallow-deep",
+			"seed": "44d514e00192bea05923a8aaf95b9b0c09cbe33eaf7c1e20189fd09f27bd20fe",
+			"stage": "answer",
+			"model": "gemini/gemini-3.8-flash",
+			"reply": "<answer>\n[[2, 1], [55], [3, 88]]\n[[2, 1], [6, 3], [3, 88]]\n[[2, 1, 70], [6, 3], [3]]\n</answer>"
+		}
+	]
+}
