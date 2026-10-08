@@ -528,6 +528,8 @@ describe('deleting a candidate with the whole pipeline behind the profile', () =
 			documentId: await documentId('catalog_visibility'),
 			scopeFields: []
 		});
+		// The category confirmed by a test comes first: only a confirmed required skill lifts a pair over the storage threshold.
+		const { decision } = await decide(db, hero.candidateId, { specialization: 'backend', grade: 'middle' });
 		// Offers of two companies: one accepted with contacts, one left open (a company has one line per candidate).
 		const company = await employer('hero');
 		const second = await employer('second');
@@ -612,8 +614,7 @@ describe('deleting a candidate with the whole pipeline behind the profile', () =
 			{ decision: 'warning', resolution: 'Компании вынесено предупреждение' }
 		);
 		expect(await db.select().from(notifications).where(eq(notifications.userId, hero.userId))).not.toHaveLength(0);
-		// A category confirmed by a test and an objection to its decision: both are the candidate's (domain 23.2).
-		const { decision } = await decide(db, hero.candidateId, { specialization: 'backend', grade: 'middle' });
+		// An objection to the decision of the test: it is the candidate's too (domain 23.2).
 		const [objection] = await db
 			.insert(assessmentObjections)
 			.values({
