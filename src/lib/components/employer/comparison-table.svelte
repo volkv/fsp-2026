@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { candidateLabel } from '$lib/text/candidate-label';
 	import { TrustChip } from '$lib/components/product/index.js';
 	import { labelOf, trustNote, type Labels, type RoleDetails, type TrustDetails } from './model.js';
 
@@ -162,7 +163,7 @@
 				<th scope="col" class="px-3 py-2 text-left font-medium">Требование</th>
 				{#each comparison.candidates as candidate (candidate.pseudonym)}
 					<th scope="col" class="px-3 py-2 text-left font-medium">
-						{candidate.pseudonym}
+						{candidateLabel(candidate.pseudonym)}
 						<span class="block text-xs font-normal text-muted-foreground">
 							{percent.format(candidate.score)} · покрытие {percent.format(candidate.coverage)}
 						</span>

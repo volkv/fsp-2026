@@ -39,12 +39,16 @@ export interface FspAchievement {
 	 * mark and is not an achievement yet; an annulled result or a team's result of a reserve or a trainer is not shown.
 	 */
 	preliminary: boolean;
-	/** Always shown in the catalog: no competition, stage, place or team (domain 14). */
+	/**
+	 * Always shown in the catalog: no competition, stage, place or team name (domain 14). Whether the result is a team's
+	 * is shown: a team's podium does not confirm a personal one, and the FSP record of a shortlist counts it apart.
+	 */
 	generalized: {
 		discipline: string;
 		competitionLevel: string;
 		season: number;
 		resultGroup: Award | 'unknown';
+		teamResult: boolean;
 		format: 'onsite' | 'online' | 'unknown';
 		computedIndicator: string | null;
 	};

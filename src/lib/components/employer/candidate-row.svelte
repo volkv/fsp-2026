@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { candidateLabel } from '$lib/text/candidate-label';
 	import type { ResolvedPathname } from '$app/types';
 	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
 	import { MatchBreakdown, TrustChip } from '$lib/components/product/index.js';
@@ -44,7 +45,7 @@
 	<div class="flex flex-wrap items-start justify-between gap-3">
 		<div class="grid gap-1">
 			<h3 class="font-heading text-h3">
-				<a class="hover:underline" {href} data-sveltekit-preload-data="tap">Кандидат {pseudonym}</a>
+				<a class="hover:underline" {href} data-sveltekit-preload-data="tap">{candidateLabel(pseudonym)}</a>
 			</h3>
 			<p class="text-sm text-muted-foreground">
 				{line ?? 'Категория не подтверждена: тест на грейд не пройден'}

@@ -41,6 +41,7 @@ function source(overrides: Partial<CandidateCardSource> = {}): CandidateCardSour
 					competitionLevel: 'russian_championship',
 					season: 2026,
 					resultGroup: 'prize',
+					teamResult: true,
 					format: 'onsite',
 					computedIndicator: 'KMS'
 				},
@@ -62,6 +63,7 @@ function source(overrides: Partial<CandidateCardSource> = {}): CandidateCardSour
 					competitionLevel: 'all_russian_ekp',
 					season: 2025,
 					resultGroup: 'finalist',
+					teamResult: false,
 					format: 'online',
 					computedIndicator: null
 				},

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { candidateCode } from '$lib/text/candidate-label';
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
 	import { DISCLOSURE_FIELDS } from '$lib/components/candidate/model.js';
@@ -33,7 +34,7 @@
 </script>
 
 <PageHeader
-	title={`Отклик кандидата ${application.candidatePseudonym ?? ''}`}
+	title={`Отклик кандидата ${candidateCode(application.candidatePseudonym)}`}
 	description={`${application.vacancy.title} · ${formatDateTime(application.submittedAt)}`}
 >
 	{#snippet eyebrow()}<a class="underline underline-offset-4" href={resolve('/company/applications')}>Отклики</a

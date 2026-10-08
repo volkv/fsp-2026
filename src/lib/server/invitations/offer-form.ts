@@ -2,8 +2,8 @@
 // the candidate suggests — results of FSP by the receipts issued to the company, skills in the profile, the
 // preferences the card shows — and the reading of the posted form into the input of the sending. The service checks
 // every source again: a point the form names is not trusted for being on the page.
-import { fspRecordText } from '$lib/components/employer/shortlist.js';
-import { AWARDS, categoryName, COMPETITION_LEVELS, DISCIPLINES } from '$lib/components/product/model.js';
+import { fspRecordText, fspResultText } from '$lib/components/employer/shortlist.js';
+import { categoryName } from '$lib/components/product/model.js';
 import { CATALOG } from '$lib/server/assessments/contract/catalog';
 import { formText } from '$lib/server/http/form';
 import { loadCompanyProfile } from '$lib/server/companies/public-profile';
@@ -12,7 +12,7 @@ import { searchableVacancies } from '$lib/server/employer/vacancies';
 import type { CompanyNeedMatch } from '$lib/server/matching/search';
 import type { Vocabulary } from '$lib/server/employer/vocabulary';
 import type { NeedForm } from '$lib/server/needs/form';
-import type { CandidateCard, CardAchievement } from '$lib/server/visibility/projections';
+import type { CandidateCard } from '$lib/server/visibility/projections';
 import { currentPolicy } from './policies';
 import type { OfferInput } from './send';
 import { OFFER_WORK_FORMATS, type WhyYouPoint, type WhyYouSourceKind } from './terms';
@@ -37,30 +37,6 @@ export const pointOption = (text: string, source: WhyYouPoint['source']): WhyYou
 /** Points of an already sent version, offered again in its revision. */
 export function optionsOfPoints(points: readonly WhyYouPoint[]): WhyYouOption[] {
 	return points.map((point) => pointOption(point.text, point.source));
-}
-
-const named = <K extends string>(names: Readonly<Record<K, string>>, key: string | undefined): string | null =>
-	key === undefined ? null : Object.hasOwn(names, key) ? names[key as K] : key;
-
-/**
- * An FSP result as «why you» names it, the way the profile shows it: «1 место из 19 · <соревнование>» when the card
- * shows the result exactly; otherwise what the card shows — the result group, the competition level, the discipline
- * and the season. The point is kept in the terms as written: a sent offer keeps the wording it was sent with.
- */
-function fspResultText(achievement: CardAchievement): string {
-	const { resultGroup, competitionLevel, discipline, season } = achievement.generalized;
-	const award = named(AWARDS, resultGroup);
-	if ('exact' in achievement) {
-		const { place, placeOf, competitionTitle } = achievement.exact;
-		const result = place === null ? award : `${place} место${placeOf === null ? '' : ` из ${placeOf}`}`;
-		return [result, competitionTitle].filter(Boolean).join(' · ');
-	}
-	const disciplineName =
-		discipline !== undefined && Object.hasOwn(DISCIPLINES, discipline)
-			? DISCIPLINES[discipline as keyof typeof DISCIPLINES].name
-			: (discipline ?? null);
-	const where = [disciplineName, season === undefined ? null : String(season)].filter(Boolean).join(', ');
-	return [award, named(COMPETITION_LEVELS, competitionLevel), where || null].filter(Boolean).join(' · ');
 }
 
 /**

@@ -6,7 +6,7 @@
 export const LLM_RUNTIMES = ['api', 'vllm'] as const;
 
 /**
- * - `api` — an external model behind an OpenAI-compatible API (the demonstration stand: Claude Sonnet through a
+ * - `api` — an external model behind an OpenAI-compatible API (the demonstration stand: Claude Haiku through a
  *   gateway). The text leaves the platform's perimeter; the provider requires a key.
  * - `vllm` — the platform's own vLLM server with an open model on one GPU (docs/models.md). The text stays inside the
  *   perimeter; a key is needed only when the server was started with `--api-key`.

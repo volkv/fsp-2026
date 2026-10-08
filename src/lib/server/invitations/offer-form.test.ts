@@ -1,9 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { NeedReason } from '$lib/server/matching/score';
 import type { CandidateCard } from '$lib/server/visibility/projections';
 
 vi.mock('$env/dynamic/private', () => ({ env: {} }));
 
 const { offerTermsOfNeed, whyYouFromShortlist, whyYouOptions } = await import('./offer-form');
+const { reasonText } = await import('$lib/components/employer/shortlist');
 
 describe('offerTermsOfNeed', () => {
 	it('starts an offer from a shortlist with the format and the range of its need', () => {
@@ -27,6 +29,7 @@ const generalized = {
 	competitionLevel: 'russian_championship',
 	season: 2025,
 	resultGroup: 'winner' as const,
+	teamResult: false,
 	format: 'onsite' as const,
 	computedIndicator: null
 };
@@ -69,6 +72,71 @@ describe('«why you» of an FSP result', () => {
 		expect(whyYouOptions(card, NO_NAMES).map((option) => option.text)).toEqual([
 			'Победитель · Чемпионат России · Программирование продуктовое, 2025'
 		]);
+	});
+});
+
+describe('«why you» of a team result', () => {
+	const championship = {
+		competitionRef: 'c-1',
+		competitionTitle: 'Чемпионат России по продуктовому программированию',
+		stage: null,
+		place: 1,
+		placeOf: 19,
+		team: { name: 'Северный код', role: 'captain' },
+		protocolUrl: null
+	};
+	const teamWin = { ...generalized, teamResult: true };
+
+	it('marks a team result as the team’s, exactly and generalized, never as a personal one', () => {
+		const card: CandidateCard = {
+			projection: 'catalog',
+			fspAchievements: [
+				{ generalized: teamWin, exact: championship, preliminary: false, receiptHandles: ['r-1'] },
+				{ generalized: teamWin, preliminary: false, receiptHandles: ['r-2'] }
+			]
+		};
+		expect(whyYouOptions(card, NO_NAMES).map((option) => option.text)).toEqual([
+			'1 место из 19 в составе команды «Северный код» · Чемпионат России по продуктовому программированию',
+			'Победитель в составе команды · Чемпионат России · Программирование продуктовое, 2025'
+		]);
+	});
+
+	it('words the FSP record of the offer as the shortlist does, and its team podium the same way', () => {
+		const reason: NeedReason = {
+			code: 'fsp_record',
+			competitions: 2,
+			podiums: 1,
+			team_podiums: 1,
+			relevant: null,
+			contribution: 0.05,
+			source: { kind: 'fsp_fact', fact_ids: ['f-0', 'f-1'] }
+		};
+		const names = { skills: {}, workFormats: {}, specializations: {}, grades: {} };
+		const card: CandidateCard = {
+			projection: 'catalog',
+			fspAchievements: [
+				{
+					generalized: { ...generalized, resultGroup: 'participant', season: 2026 },
+					exact: {
+						...championship,
+						competitionTitle: 'Кубок России',
+						place: 5,
+						placeOf: null,
+						team: championship.team
+					},
+					preliminary: false,
+					receiptHandles: ['r-0']
+				},
+				{ generalized: teamWin, exact: championship, preliminary: false, receiptHandles: ['r-1'] }
+			]
+		};
+		const points = whyYouFromShortlist({ reasons: [reason] }, whyYouOptions(card, NO_NAMES), names);
+		const shortlist = reasonText(reason, { ...names, roles: {}, blocks: {} }, { fspSimulator: false }).text;
+		expect(points.map((point) => point.text)).toEqual([
+			`Результаты ФСП: ${shortlist}`,
+			'1 место из 19 в составе команды «Северный код» · Чемпионат России по продуктовому программированию'
+		]);
+		expect(shortlist).toBe('2 соревнования ФСП, из них 1 призовое — в составе команды');
 	});
 });
 

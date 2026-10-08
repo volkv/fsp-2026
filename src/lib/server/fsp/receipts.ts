@@ -62,9 +62,17 @@ export function createReceiptSigner(input: {
 }
 
 /**
- * The signer of the active key of the configured key ring, issuing in the name of the application origin. The FSP
- * source is the simulator when the achievements source is configured as the simulator (`FSP_ACHIEVEMENTS_ADAPTER=mock`,
- * which a demonstration stand requires): the athletes and results of such a platform are synthetic.
+ * The FSP of this platform is the simulator: the achievements source is configured as the simulator
+ * (`FSP_ACHIEVEMENTS_ADAPTER=mock`, which a demonstration stand requires), and its athletes and results are synthetic.
+ * Receipts say so under the signature; pages that name the source of FSP results say so in words.
+ */
+export function fspSourceIsSimulator(): boolean {
+	return config().fspAchievements?.adapter === 'mock';
+}
+
+/**
+ * The signer of the active key of the configured key ring, issuing in the name of the application origin; the FSP
+ * source of its statements is the simulator by `fspSourceIsSimulator`.
  */
 export function configuredReceiptSigner(): ReceiptSigner {
 	const settings = config();
@@ -75,7 +83,7 @@ export function configuredReceiptSigner(): ReceiptSigner {
 		issuer: settings.appOrigin,
 		keyId,
 		seed,
-		fspSimulator: settings.fspAchievements?.adapter === 'mock'
+		fspSimulator: fspSourceIsSimulator()
 	});
 }
 

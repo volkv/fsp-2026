@@ -1,16 +1,18 @@
 // Texts of notifications by type (docs/domain.md, section 3.7; contracts 7.1): a letter may name the recipient's own
 // data — the company and the title of the candidate's offer, the vacancy of the company's one — but the other
-// side only by pseudonym. A Telegram message carries the kind of the event and the link, nothing else. A letter about
-// an operator's decision names the decision only; its reasons are read in the product. A candidate aged 14–17 learns
-// whether the representative's authority is confirmed, never the operator's notes or the details of the document; the
-// candidate whose birth date the operator checked learns the regime of age, never the date or the document; the
-// annulment of an attempt names the test and whether the attempt still counts by the grade policy, never the operator's
-// grounds. The staff learn that an objection's answer is due, never who objected or why.
+// side only by the short code of its pseudonym («Кандидат CRYUVD»). A Telegram message carries the kind of the event
+// and the link, nothing else. A letter about an operator's decision names the decision only; its reasons are read in
+// the product. A candidate aged 14–17 learns whether the representative's authority is confirmed, never the
+// operator's notes or the details of the document; the candidate whose birth date the operator checked learns the
+// regime of age, never the date or the document; the annulment of an attempt names the test and whether the attempt
+// still counts by the grade policy, never the operator's grounds. The staff learn that an objection's answer is due,
+// never who objected or why.
 import { z } from 'zod';
 import { GRADE_POLICY } from '$lib/server/assessments/contract/policy';
 import { ANNUL_REASONS, COMPLAINT_DECISIONS, COMPLAINT_REASONS } from '$lib/server/db/schema';
 import type { MailMessage } from '$lib/server/mail/mailer';
 import { render, type Letter } from '$lib/server/mail/templates';
+import { candidateCode } from '$lib/text/candidate-label';
 import type { InvitationFacts, NotificationFacts } from './content';
 import { NOTIFICATION_TYPES, type NotificationType } from './types';
 
@@ -352,8 +354,8 @@ function bodyOf(type: NotificationType, facts: NotificationFacts, payload: Paylo
 				subject: confirmed ? 'Кандидат подтвердил блок' : 'Блок-тест не подтвердил блок',
 				paragraphs: [
 					confirmed
-						? `Кандидат ${facts.candidatePseudonym} подтвердил блок «${facts.blockTitle}»: результат можно назвать в «почему вы» нового предложения.`
-						: `Блок-тест кандидата ${facts.candidatePseudonym} по блоку «${facts.blockTitle}» завершён без подтверждения.`
+						? `Кандидат ${candidateCode(facts.candidatePseudonym)} подтвердил блок «${facts.blockTitle}»: результат можно назвать в «почему вы» нового предложения.`
+						: `Блок-тест кандидата ${candidateCode(facts.candidatePseudonym)} по блоку «${facts.blockTitle}» завершён без подтверждения.`
 				],
 				action: 'Открыть запросы подтверждения'
 			};
@@ -374,7 +376,7 @@ function bodyOf(type: NotificationType, facts: NotificationFacts, payload: Paylo
 			return {
 				subject: 'Новый отклик на вакансию',
 				paragraphs: [
-					`Кандидат ${facts.candidatePseudonym} откликнулся на вакансию «${facts.vacancyTitle}».`,
+					`Кандидат ${candidateCode(facts.candidatePseudonym)} откликнулся на вакансию «${facts.vacancyTitle}».`,
 					'Соответствие и контакты, которые кандидат раскрыл с откликом, — в карточке отклика.'
 				],
 				action: 'Открыть отклик'
@@ -471,7 +473,7 @@ function invitationBody(type: InvitationType, facts: InvitationFacts, payload: P
 				return {
 					subject: 'Законный представитель не дал согласия',
 					paragraphs: [
-						`Законный представитель кандидата ${facts.candidatePseudonym} не дал согласия на раскрытие контактов по приглашению ${offer}. Приглашение отклонено.`
+						`Законный представитель кандидата ${candidateCode(facts.candidatePseudonym)} не дал согласия на раскрытие контактов по приглашению ${offer}. Приглашение отклонено.`
 					],
 					action: 'Открыть приглашение'
 				};
@@ -480,8 +482,8 @@ function invitationBody(type: InvitationType, facts: InvitationFacts, payload: P
 				subject: accepted ? 'Кандидат принял приглашение' : 'Кандидат отклонил приглашение',
 				paragraphs: [
 					accepted
-						? `Кандидат ${facts.candidatePseudonym} принял приглашение ${offer}${byRepresentative ? ' с согласия законного представителя' : ''}. Контакты, которые он раскрыл, доступны в карточке приглашения.`
-						: `Кандидат ${facts.candidatePseudonym} отклонил приглашение ${offer}. Причина — в карточке приглашения.`
+						? `Кандидат ${candidateCode(facts.candidatePseudonym)} принял приглашение ${offer}${byRepresentative ? ' с согласия законного представителя' : ''}. Контакты, которые он раскрыл, доступны в карточке приглашения.`
+						: `Кандидат ${candidateCode(facts.candidatePseudonym)} отклонил приглашение ${offer}. Причина — в карточке приглашения.`
 				],
 				action: 'Открыть приглашение'
 			};
@@ -514,7 +516,9 @@ function invitationBody(type: InvitationType, facts: InvitationFacts, payload: P
 					}
 				: {
 						subject: 'Кандидат не ответил в срок',
-						paragraphs: [`Кандидат ${facts.candidatePseudonym} не ответил на приглашение ${offer}, срок истёк.`],
+						paragraphs: [
+							`Кандидат ${candidateCode(facts.candidatePseudonym)} не ответил на приглашение ${offer}, срок истёк.`
+						],
 						action: 'Открыть приглашение'
 					};
 		case 'invitation.withdrawn':
@@ -538,7 +542,7 @@ function invitationBody(type: InvitationType, facts: InvitationFacts, payload: P
 				: {
 						subject: 'Новое сообщение от кандидата',
 						paragraphs: [
-							`Кандидат ${facts.candidatePseudonym} написал в переписке по приглашению ${offer}.`,
+							`Кандидат ${candidateCode(facts.candidatePseudonym)} написал в переписке по приглашению ${offer}.`,
 							'Прочитать и ответить можно на платформе.'
 						],
 						action: 'Открыть переписку'
@@ -562,7 +566,7 @@ function invitationBody(type: InvitationType, facts: InvitationFacts, payload: P
 				paragraphs: [
 					candidateSide
 						? `Расскажите, чем закончился найм по приглашению компании ${company} ${offer}.`
-						: `Сообщите, чем закончился найм кандидата ${facts.candidatePseudonym} ${offer}.`,
+						: `Сообщите, чем закончился найм кандидата ${candidateCode(facts.candidatePseudonym)} ${offer}.`,
 					'Исход найма нужен, чтобы платформа честно показывала, как работают приглашения. Это займёт минуту.'
 				],
 				action: 'Сообщить исход'
@@ -573,7 +577,7 @@ function invitationBody(type: InvitationType, facts: InvitationFacts, payload: P
 				paragraphs: [
 					candidateSide
 						? `Компания ${company} сообщила об исходе найма по приглашению ${offer} иначе, чем вы.`
-						: `Кандидат ${facts.candidatePseudonym} сообщил об исходе найма по приглашению ${offer} иначе, чем ваша компания.`,
+						: `Кандидат ${candidateCode(facts.candidatePseudonym)} сообщил об исходе найма по приглашению ${offer} иначе, чем ваша компания.`,
 					'Проверьте своё сообщение и при необходимости уточните его.'
 				],
 				action: 'Открыть процесс найма'

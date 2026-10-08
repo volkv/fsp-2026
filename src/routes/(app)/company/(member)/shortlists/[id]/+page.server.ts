@@ -3,6 +3,7 @@ import { db } from '$lib/server/db';
 import { createdInSession } from '$lib/server/demo/newcomer';
 import { employerRequest, membershipOf } from '$lib/server/employer/http';
 import { currentVocabulary, labelsOf } from '$lib/server/employer/vocabulary';
+import { fspSourceIsSimulator } from '$lib/server/fsp/receipts';
 import { formFailure, pageError } from '$lib/server/http/page';
 import { openSpecializations } from '$lib/server/assessments/bank-store';
 import { configuredNeedDeps } from '$lib/server/needs/page';
@@ -99,6 +100,7 @@ export const load: PageServerLoad = async (event) => {
 			},
 			categories,
 			evaluations: await evaluationSummary(deps, subject, event.params.id),
+			fspSimulator: fspSourceIsSimulator(),
 			names: {
 				skills: labels.skills,
 				specializations: labels.specializations,

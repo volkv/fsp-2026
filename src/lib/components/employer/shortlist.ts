@@ -3,7 +3,7 @@
  * contributions, the basis of each skill of the need, the second axis «подходит ли предложение кандидату», the changes
  * of the steps and the answers of «что если». The page receives plain data; nothing here reaches the server.
  */
-import { categoryName, pluralize } from '$lib/components/product/model.js';
+import { AWARDS, categoryName, COMPETITION_LEVELS, DISCIPLINES, pluralize } from '$lib/components/product/model.js';
 
 export interface ShortlistNames {
 	skills: Readonly<Record<string, string>>;
@@ -89,6 +89,13 @@ const list = (keys: readonly string[] | undefined, names: Readonly<Record<string
 	(keys ?? []).map((key) => names[key] ?? key).join(', ');
 
 /**
+ * How a team's result is named wherever an FSP result is worded — the FSP record of a shortlist and a result of «why
+ * you» — by one rule: a team's podium is marked as the team's, never worded as a personal one; a personal result has
+ * no mark.
+ */
+const IN_TEAM = 'в составе команды';
+
+/**
  * «5 соревнований ФСП, из них 2 призовых (в составе команды — 1), по профилю специализации — 3»: a competition of a
  * relevant discipline weighs more than one of another.
  */
@@ -101,14 +108,70 @@ export function fspRecordText(record: FspRecordData): string {
 			? ''
 			: record.team_podiums === record.podiums
 				? record.podiums === 1
-					? ' — в составе команды'
-					: ' — все в составе команды'
-				: ` (в составе команды — ${record.team_podiums})`;
+					? ` — ${IN_TEAM}`
+					: ` — все ${IN_TEAM}`
+				: ` (${IN_TEAM} — ${record.team_podiums})`;
 	return `${competitions}, из них ${record.podiums} ${pluralize(record.podiums, ['призовое', 'призовых', 'призовых'])}${team}${relevant}`;
 }
 
+/** One FSP result as the card shows it to the company: generalized, and exact when the candidate disclosed it. */
+export interface FspResultData {
+	/** Absent fields are not shown: an achievement of 14–17 shows the discipline and the competition level only. */
+	generalized: {
+		discipline?: string;
+		competitionLevel?: string;
+		season?: number;
+		resultGroup?: string;
+		teamResult?: boolean;
+	};
+	exact?: {
+		competitionTitle: string;
+		place: number | null;
+		placeOf: number | null;
+		team: { name: string } | null;
+	};
+}
+
+const named = <K extends string>(names: Readonly<Record<K, string>>, key: string | undefined): string | null =>
+	key === undefined ? null : Object.hasOwn(names, key) ? names[key as K] : key;
+
+/**
+ * One FSP result: «1 место из 19 в составе команды «Северный код» · Чемпионат России …» when the card shows it
+ * exactly; otherwise what the card shows — «Победитель в составе команды · Чемпионат России · Программирование
+ * продуктовое, 2025».
+ */
+export function fspResultText(result: FspResultData): string {
+	const { resultGroup, teamResult, competitionLevel, discipline, season } = result.generalized;
+	const award = named(AWARDS, resultGroup);
+	if (result.exact) {
+		const { place, placeOf, competitionTitle, team } = result.exact;
+		const placed = place === null ? award : `${place} место${placeOf === null ? '' : ` из ${placeOf}`}`;
+		const outcome = [placed, team === null ? null : `${IN_TEAM} «${team.name}»`].filter(Boolean).join(' ');
+		return [outcome || null, competitionTitle].filter(Boolean).join(' · ');
+	}
+	const outcome = award === null ? null : teamResult ? `${award} ${IN_TEAM}` : award;
+	const disciplineName =
+		discipline !== undefined && Object.hasOwn(DISCIPLINES, discipline)
+			? DISCIPLINES[discipline as keyof typeof DISCIPLINES].name
+			: (discipline ?? null);
+	const where = [disciplineName, season === undefined ? null : String(season)].filter(Boolean).join(', ');
+	return [outcome, named(COMPETITION_LEVELS, competitionLevel), where || null].filter(Boolean).join(' · ');
+}
+
+/**
+ * Where the FSP results of the platform come from: the federation's official protocols, or — on a demonstration
+ * stand — the simulator of FSP, whose athletes and results are synthetic (the receipts say so too, `source_simulator`).
+ */
+export interface FspSource {
+	fspSimulator: boolean;
+}
+
 /** The text of a reason and where it comes from. */
-export function reasonText(reason: ReasonData, names: ShortlistNames): { text: string; source: string } {
+export function reasonText(
+	reason: ReasonData,
+	names: ShortlistNames,
+	{ fspSimulator }: FspSource
+): { text: string; source: string } {
 	const block = reason.source.ref ? (names.blocks[reason.source.ref] ?? reason.source.ref) : '';
 	const of =
 		reason.source.specialization && reason.source.grade
@@ -149,7 +212,9 @@ export function reasonText(reason: ReasonData, names: ShortlistNames): { text: s
 					team_podiums: reason.team_podiums ?? 0,
 					relevant: reason.relevant ?? null
 				}),
-				source: 'официальные протоколы ФСП — квитанции в карточке'
+				source: fspSimulator
+					? 'протоколы ФСП (в прототипе — из имитатора) — квитанции в карточке'
+					: 'официальные протоколы ФСП — квитанции в карточке'
 			};
 		case 'format_fits':
 			return {

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { candidateLabel } from '$lib/text/candidate-label';
 	import BadgeCheckIcon from '@lucide/svelte/icons/badge-check';
 	import { resolve } from '$app/paths';
 	import PageHeader from '$lib/components/forms/page-header.svelte';
@@ -44,7 +45,7 @@
 							class="font-medium underline-offset-4 hover:underline"
 							href={resolve('/(app)/company/(member)/candidates/[pseudonym]', {
 								pseudonym: request.candidatePseudonym ?? ''
-							})}>Кандидат {request.candidatePseudonym}</a
+							})}>{candidateLabel(request.candidatePseudonym)}</a
 						>
 						<span class="text-sm text-muted-foreground">
 							{request.blockTitle} · {data.names.grades[request.grade]} · {formatDate(request.createdAt)}

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { candidateLabel } from '$lib/text/candidate-label';
 	import { resolve } from '$app/paths';
 	import ListChecksIcon from '@lucide/svelte/icons/list-checks';
 	import { hiringView } from '$lib/components/employer/model.js';
@@ -37,7 +38,7 @@
 									class="hover:underline"
 									href={resolve('/(app)/company/(member)/invitations/[id]', { id: item.invitationId })}
 								>
-									{item.pseudonym} · {item.title}
+									{candidateLabel(item.pseudonym)} · {item.title}
 								</a>
 							</h2>
 						</Card.Title>

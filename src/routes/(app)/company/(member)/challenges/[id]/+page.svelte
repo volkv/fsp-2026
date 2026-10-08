@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { candidateLabel } from '$lib/text/candidate-label';
 	import FastForwardIcon from '@lucide/svelte/icons/fast-forward';
 	import SendIcon from '@lucide/svelte/icons/send';
 	import { enhance } from '$app/forms';
@@ -117,7 +118,7 @@
 				<li class="grid gap-2 rounded-lg border p-3" data-solution={solution.id}>
 					<div class="flex flex-wrap items-center justify-between gap-2">
 						<span class="font-medium">
-							Кандидат {solution.pseudonym}{solution.category
+							{candidateLabel(solution.pseudonym)}{solution.category
 								? ` · ${categoryName(solution.category, data.names)}`
 								: ''}
 						</span>
