@@ -239,33 +239,38 @@
 					</Alert.Root>
 				{/if}
 				{#if data.categories.length > 0}
-					<div class="overflow-x-auto">
-						<Table.Root label="Рекомендованные категории">
-							<Table.Header>
-								<Table.Row>
-									<Table.Head>Категория</Table.Head>
-									<Table.Head>Кандидатов</Table.Head>
-									<Table.Head>С ФСП</Table.Head>
+					<!-- The basis of a category wraps within its column; the counts keep to their width, so the table fits
+					     the narrow column of the page and a phone without scrolling. -->
+					<Table.Root label="Рекомендованные категории" class="table-fixed">
+						<colgroup>
+							<col />
+							<col class="w-24" />
+							<col class="w-16" />
+						</colgroup>
+						<Table.Header>
+							<Table.Row>
+								<Table.Head>Категория</Table.Head>
+								<Table.Head class="text-right">Кандидатов</Table.Head>
+								<Table.Head class="text-right">С ФСП</Table.Head>
+							</Table.Row>
+						</Table.Header>
+						<Table.Body>
+							{#each data.categories as category (`${category.specialization}:${category.grade}`)}
+								<Table.Row data-category={`${category.specialization}:${category.grade}`}>
+									<Table.Cell class="whitespace-normal">
+										<span class="font-medium"
+											>{specializationTitle(category.specialization)} · {gradeTitle(category.grade)}</span
+										>
+										<span class="block text-xs break-words text-muted-foreground">
+											{BASIS[category.basis]}{category.basis === 'skills' ? `: ${coveredText(category)}` : ''}
+										</span>
+									</Table.Cell>
+									<Table.Cell class="text-right tabular-nums">{count(category.candidates)}</Table.Cell>
+									<Table.Cell class="text-right tabular-nums">{count(category.withFsp)}</Table.Cell>
 								</Table.Row>
-							</Table.Header>
-							<Table.Body>
-								{#each data.categories as category (`${category.specialization}:${category.grade}`)}
-									<Table.Row data-category={`${category.specialization}:${category.grade}`}>
-										<Table.Cell>
-											<span class="font-medium"
-												>{specializationTitle(category.specialization)} · {gradeTitle(category.grade)}</span
-											>
-											<span class="block text-xs text-muted-foreground">
-												{BASIS[category.basis]}{category.basis === 'skills' ? `: ${coveredText(category)}` : ''}
-											</span>
-										</Table.Cell>
-										<Table.Cell>{count(category.candidates)}</Table.Cell>
-										<Table.Cell>{count(category.withFsp)}</Table.Cell>
-									</Table.Row>
-								{/each}
-							</Table.Body>
-						</Table.Root>
-					</div>
+							{/each}
+						</Table.Body>
+					</Table.Root>
 				{/if}
 			</Card.Content>
 		</Card.Root>
