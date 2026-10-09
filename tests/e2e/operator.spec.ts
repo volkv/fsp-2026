@@ -14,7 +14,10 @@ import AxeBuilder from '@axe-core/playwright';
 import type { Browser, Page } from '@playwright/test';
 import { expect, test } from './helpers/test';
 import { APP_ORIGIN } from './helpers/ports';
-import { releaseFixtureBank } from '../helpers/bank';
+import { familyModule, releaseInForce } from '$lib/server/assessments/bank-store';
+import { CATALOG } from '$lib/server/assessments/contract/catalog';
+import { GRADE_POLICY } from '$lib/server/assessments/contract/policy';
+import { PROCEDURE } from '$lib/server/assessments/contract/procedure';
 import { recordDecisionIn } from '../helpers/categories';
 import { and, eq } from 'drizzle-orm';
 import {
@@ -489,12 +492,18 @@ test('the operator resolves a conflict of the birth date by a document', async (
 
 /**
  * An attempt whose practice the sandbox has not scored for an hour: the list asks a person to look at it. The bank of
- * the attempt is a fixture release of QA (the e2e stand releases no bank of its own).
+ * the attempt is the QA release the e2e stand publishes on start (`playwright.config.ts`, `scripts/release-bank.ts`),
+ * and its item is an instance of a mutant family of that release, made by the family's own generator.
  */
 async function seedStuckAttempt(): Promise<string> {
-	const { releaseId, families } = await releaseFixtureBank(db(), 'qa', { n: 900 });
-	const family = families.find((f) => f.descriptor.format === 'qa_mutation');
-	if (!family) throw new Error('no QA family in the fixture bank');
+	const release = await releaseInForce(db(), 'qa');
+	if (!release) throw new Error('the e2e stand has no QA release in force');
+	const family = release.families.find(
+		(f) => f.descriptor.format === 'qa_mutation' && f.descriptor.levels.some((l) => l.grade === 'intern')
+	);
+	const classId = family?.descriptor.levels.find((l) => l.grade === 'intern')?.classes[0]?.id;
+	if (!family || !classId) throw new Error(`no QA mutant family of Intern in the release ${release.id}`);
+	const instance = (await familyModule(family, release)).generate({ seed: 's', grade: 'intern', classId });
 	return db().transaction(async (tx) => {
 		const [user] = await tx
 			.insert(users)
@@ -524,10 +533,10 @@ async function seedStuckAttempt(): Promise<string> {
 				purpose: 'grade',
 				specialization: 'qa',
 				grade: 'intern',
-				catalogVersion: '2026.10.1',
-				bankReleaseId: releaseId,
-				procedureVersion: 'sprt-1',
-				policyVersion: 1,
+				catalogVersion: CATALOG.version,
+				bankReleaseId: release.id,
+				procedureVersion: PROCEDURE.version,
+				policyVersion: GRADE_POLICY.version,
 				form: 'A',
 				seed: randomBytes(16).toString('hex'),
 				status: 'in_progress',
@@ -555,10 +564,10 @@ async function seedStuckAttempt(): Promise<string> {
 				format: family.descriptor.format,
 				practice: true,
 				familyKey: family.descriptor.key,
-				familyVersion: 1,
-				classId: 'a',
+				familyVersion: family.descriptor.version,
+				classId,
 				instanceSeed: 's',
-				instance: family.module.generate({ seed: 's', grade: 'intern', classId: 'a' }),
+				instance,
 				angoff: 0.8,
 				servedAt: new Date(answeredAt.getTime() - 300_000),
 				answeredAt,

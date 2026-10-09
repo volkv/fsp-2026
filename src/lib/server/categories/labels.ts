@@ -2,7 +2,7 @@
 // grades a category is made of, as the pages offer and name them. A grade of a category is named by the taxonomy — the
 // scale of grades every page reads (`taxonomy/grades.json`, the dataset each start publishes) — the same name in the
 // shortlist, the offer, the catalog, the screens of the tests and the letters; the catalog of tests has keys, not words.
-import taxonomyGrades from '../../../../taxonomy/grades.json';
+import taxonomyGrades from '../../../../taxonomy/grades.json' with { type: 'json' };
 import {
 	CATALOG,
 	GRADE_KEYS,
