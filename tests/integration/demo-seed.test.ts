@@ -5,7 +5,7 @@
 // completion was lost, adds nothing; a reset followed by a seed gives the same stand again.
 import { writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import { eq, isNotNull, isNull, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm';
 import postgres from 'postgres';
 import { createClient } from 'redis';
 import { afterAll, beforeAll, describe, expect, inject, it, vi } from 'vitest';
@@ -26,6 +26,7 @@ import {
 	hiringReports,
 	invitations,
 	invitationTerms,
+	jobs,
 	marketSnapshots,
 	passwordCredentials,
 	representations,
@@ -40,7 +41,10 @@ import type { DemoServices } from '$lib/server/demo/services';
 import { HttpAchievementsSource } from '$lib/server/fsp/adapter';
 import { ServiceGrantIssuer } from '$lib/server/fsp/grant';
 import { createReceiptSigner } from '$lib/server/fsp/receipts';
+import { handlerRegistry, type AnyJobHandler } from '$lib/server/jobs/handler';
 import { createLogger } from '$lib/server/jobs/log';
+import type { JobType } from '$lib/server/jobs/registry';
+import { startWorker } from '$lib/server/jobs/worker';
 import type { MatchingModels } from '$lib/server/matching/semantic';
 import type { ExtractResponse, ModelAdapter } from '$lib/server/ml/adapter';
 import { fail, ok } from '$lib/server/ml/result';
@@ -755,10 +759,49 @@ describe('demo seed', () => {
 		expect(store.objects.size).toBe(0);
 		expect((await census()).users).toBe(0);
 
-		const again = await seedDemo(services);
+		// A worker of the stand runs the same types all through the seed: the seed's jobs are not its to take.
+		const chain: JobType[] = [
+			'fsp.sync',
+			'resume.parse',
+			'resume.extract',
+			'evidence.compute',
+			'match.refresh',
+			'company.registry_lookup',
+			'market.refresh'
+		];
+		const taken: string[] = [];
+		const trap = (type: JobType): AnyJobHandler => ({
+			type,
+			concurrency: 4,
+			run: ({ job }) => {
+				taken.push(`${job.type} ${job.id}`);
+				return Promise.resolve({ isCurrent: () => Promise.resolve(true), write: () => Promise.resolve() });
+			}
+		});
+		const stand = startWorker({
+			db: database.db,
+			handlers: handlerRegistry(chain.map(trap)),
+			types: chain,
+			pollIntervalMs: 50,
+			log: createLogger({}, () => {})
+		});
+		let again: SeedSummary;
+		try {
+			again = await seedDemo(services);
+		} finally {
+			await stand.stop();
+		}
+		expect(taken).toEqual([]);
 		expect(again.status).toBe('seeded');
 		expect(again.batch).toBe(first.batch);
 		expect(await census()).toEqual(before);
+		// Nothing of the seed's line is left waiting for a worker that will never come.
+		expect(
+			await database.db
+				.select({ id: jobs.id })
+				.from(jobs)
+				.where(and(eq(jobs.owner, 'demo_seed'), inArray(jobs.status, ['queued', 'running'])))
+		).toEqual([]);
 	});
 });
 

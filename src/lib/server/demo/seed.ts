@@ -44,6 +44,7 @@ import {
 } from '$lib/server/db/schema';
 import { createFspSyncHandler } from '$lib/server/fsp/sync';
 import { handlerRegistry } from '$lib/server/jobs/handler';
+import { withJobOwner } from '$lib/server/jobs/insert';
 import { enqueueJob } from '$lib/server/jobs/queue';
 import type { JobType } from '$lib/server/jobs/registry';
 import { marketRefresh } from '$lib/server/market/refresh';
@@ -73,7 +74,7 @@ import {
 	resumePlan,
 	type CandidatePlan
 } from './generate';
-import { drainJobs } from './queue';
+import { drainJobs, SEED_JOBS } from './queue';
 import {
 	ensureRepresentative,
 	grantPartnerPool,
@@ -461,7 +462,16 @@ async function ensureStaff(ctx: SeedContext, data: SeedData): Promise<{ operator
 	return { operatorUserId };
 }
 
-export async function seedDemo(services: DemoServices): Promise<SeedSummary> {
+/**
+ * Seeds the current batch. The jobs of the chain it causes — directly, through the product code, through the handlers of
+ * its worker — belong to the seed's line of the queue: the stand's workers do not take them, so every one runs with the
+ * seed's handlers (stored model parses, matching without the models) whatever else runs on the stand.
+ */
+export function seedDemo(services: DemoServices): Promise<SeedSummary> {
+	return withJobOwner(SEED_JOBS, CHAIN, () => seedBatch(services));
+}
+
+async function seedBatch(services: DemoServices): Promise<SeedSummary> {
 	const started = Date.now();
 	const { db, settings, log } = services;
 	const now = () => new Date();

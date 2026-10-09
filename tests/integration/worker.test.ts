@@ -6,6 +6,7 @@ import { jobs } from '$lib/server/db/schema';
 import { handlerRegistry, JobFailure, type AnyJobHandler, type JobResult } from '$lib/server/jobs/handler';
 import { JOB_HANDLERS } from '$lib/server/jobs/handlers';
 import { createLogger, type LogLevel } from '$lib/server/jobs/log';
+import { withJobOwner } from '$lib/server/jobs/insert';
 import { claimJob, enqueueJob } from '$lib/server/jobs/queue';
 import type { JobPayload, JobType } from '$lib/server/jobs/registry';
 import { LOCK_NAMESPACE, PERIODIC_JOBS, schedulePeriodicJob } from '$lib/server/jobs/scheduler';
@@ -316,6 +317,85 @@ describe('worker', () => {
 		expect(attempt([])).toThrow(/no job types enabled/);
 		expect(attempt(['retention.sweep', 'retention.sweep'])).toThrow(/listed twice/);
 		expect(attempt(['retention.sweep'], { 'resume.parse': 2 })).toThrow(/not enabled/);
+	});
+});
+
+describe('owned line of the queue', () => {
+	const ownerOf = async (id: string) =>
+		(await database.db.select({ owner: jobs.owner }).from(jobs).where(eq(jobs.id, id)))[0]?.owner;
+
+	it("keeps the owner's jobs, their follow-ups included, away from a worker of the stand", async () => {
+		const { db } = database;
+		const standRuns: string[] = [];
+		const seedRuns: string[] = [];
+		const followUps: string[] = [];
+		const standJob = await enqueue(db, 'evidence.compute', { candidate_id: randomUUID() });
+		const ownedJob = await withJobOwner('demo_seed', ['evidence.compute', 'match.refresh'], async () => {
+			const id = await enqueue(db, 'evidence.compute', { candidate_id: randomUUID() });
+			// The worker of the owner, started inside its line: the follow-up its handler enqueues stays in the line.
+			launch({
+				owner: 'demo_seed',
+				handlers: handlerRegistry([
+					{
+						type: 'evidence.compute',
+						concurrency: 1,
+						run: ({ job }) => {
+							seedRuns.push(job.id);
+							return Promise.resolve({
+								isCurrent: () => Promise.resolve(true),
+								write: async (tx) => {
+									const next = await enqueueJob(
+										tx,
+										'match.refresh',
+										{ scope: 'candidate', candidate_id: randomUUID() },
+										{ inputVersion: '1', createdBy: system }
+									);
+									followUps.push(next.jobId);
+								}
+							});
+						}
+					},
+					recordingHandler('match.refresh', seedRuns)
+				]),
+				types: ['evidence.compute', 'match.refresh']
+			});
+			return id;
+		});
+		launch({
+			handlers: handlerRegistry([
+				recordingHandler('evidence.compute', standRuns),
+				recordingHandler('match.refresh', standRuns)
+			]),
+			types: ['evidence.compute', 'match.refresh']
+		});
+		await waitFor('the follow-up of the owned job', async () => {
+			const [followUp] = followUps;
+			return followUp !== undefined && (await jobRow(followUp)).status === 'succeeded';
+		});
+		await waitFor('the job of the stand', async () => (await jobRow(standJob)).status === 'succeeded');
+		expect(standRuns).toEqual([standJob]);
+		expect(seedRuns).toEqual([ownedJob, ...followUps]);
+		expect(await ownerOf(standJob)).toBeNull();
+		expect(await ownerOf(ownedJob)).toBe('demo_seed');
+		expect(await ownerOf(followUps[0] ?? '')).toBe('demo_seed');
+	});
+
+	it('takes over the waiting job it joins and leaves types outside the line to the stand', async () => {
+		const { db } = database;
+		const candidate = randomUUID();
+		const waiting = await enqueue(db, 'evidence.compute', { candidate_id: candidate });
+		const [joined, other] = await withJobOwner('demo_seed', ['evidence.compute'], async () => [
+			await enqueue(db, 'evidence.compute', { candidate_id: candidate }),
+			await enqueue(db, 'profile.embed', { candidate_id: candidate })
+		]);
+		expect(joined).toBe(waiting);
+		expect(await ownerOf(waiting)).toBe('demo_seed');
+		expect(await ownerOf(other)).toBeNull();
+		// A later change of the stand joins it and leaves it with the owner.
+		expect(await enqueue(db, 'evidence.compute', { candidate_id: candidate })).toBe(waiting);
+		expect(await ownerOf(waiting)).toBe('demo_seed');
+		expect(await claimJob(db, 'stand', ['evidence.compute'])).toBeNull();
+		expect((await claimJob(db, 'seed', ['evidence.compute'], 'demo_seed'))?.id).toBe(waiting);
 	});
 });
 
