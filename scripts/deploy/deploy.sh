@@ -172,24 +172,34 @@ build_image() { # <name> <context> [build options]; fsp-career-<name>:<release> 
 
 # The same image under another id: the server keeps images in the containerd store, where the id is the digest of the
 # manifest `docker load` writes, while a classic local store names an image by its configuration. Both stores report the
-# same layer digests and the same configuration, so an image is recognised by them.
-FINGERPRINT='{{json .RootFS.Layers}}{{json .Config}}'
-fingerprint() { # <image>; the sha256 of what the template prints for it
-	local inspected
-	inspected=$(docker image inspect --format "$FINGERPRINT" "$1")
-	printf '%s' "$inspected" | sha256sum | cut -d' ' -f1
-}
-# A tagged image of the repository on the server with the fingerprint, or nothing; any docker failure fails the call.
-same_on_server() { # <repository> <fingerprint>
-	ssh "$HOST" sh -s -- "$1" "$2" "'$FINGERPRINT'" <<'SH'
-repository=$1 wanted=$2 template=$3
+# same layer digests and the same configuration, so an image is recognised by them. How docker prints the configuration
+# depends on its version: up to 28 with every field, the empty ones too ("Hostname": "", "Cmd": null), from 29 only
+# with the fields the image sets; empty fields are dropped before the comparison, so an image built by docker 28 (the CI
+# runner) is recognised in the server's docker 29.
+INSPECT='{"layers":{{json .RootFS.Layers}},"config":{{json .Config}}}'
+SAME_IMAGE='
+import json, sys
+
+def canonical(inspected):
+    image = json.loads(inspected)
+    config = image["config"] or {}
+    return image["layers"], {key: value for key, value in config.items() if value not in (None, "", False, 0, [], {})}
+
+wanted = canonical(sys.argv[1])
+refs = [ref for ref, inspected in (line.split(" ", 1) for line in sys.stdin) if canonical(inspected) == wanted]
+print(refs[0] if refs else "")
+'
+# A tagged image of the repository on the server with the layers and configuration of the local image, or nothing; any
+# docker failure fails the call.
+same_on_server() { # <repository> <local image>
+	local wanted
+	wanted=$(docker image inspect --format "$INSPECT" "$2")
+	ssh "$HOST" sh -s -- "$1" "'$INSPECT'" <<'SH' | python3 -c "$SAME_IMAGE" "$wanted"
+repository=$1 template=$2
 refs=$(docker images --filter dangling=false --format '{{.Repository}}:{{.Tag}}' "$repository") || exit 1
 for ref in $refs; do
-	inspected=$(docker image inspect --format "$template" "$ref") || exit 1
-	if [ "$(printf '%s' "$inspected" | sha256sum | cut -d' ' -f1)" = "$wanted" ]; then
-		echo "$ref"
-		exit 0
-	fi
+	printf '%s ' "$ref"
+	docker image inspect --format "$template" "$ref" || exit 1
 done
 SH
 }
@@ -201,7 +211,7 @@ deliver() {
 	local name image same
 	for name in "${IMAGES[@]}"; do
 		image="fsp-career-$name:$RELEASE"
-		same=$(same_on_server "fsp-career-$name" "$(fingerprint "$image")")
+		same=$(same_on_server "fsp-career-$name" "$image")
 		if [[ -n $same ]]; then
 			ssh "$HOST" "docker tag $same $image"
 			log "$image: already on the server as $same, tagged"
