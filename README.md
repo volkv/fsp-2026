@@ -1,3 +1,24 @@
+<p align="center">
+  <img src="docs/media/banner.svg" alt="ФСП | Карьера — платформа ИТ-найма, где навыки подтверждены" width="100%">
+</p>
+
+<p align="center">
+  <a href="https://fsp-career.volkv.com/demo"><img src="docs/media/cta-stand.svg" alt="Стенд — fsp-career.volkv.com" height="84"></a>
+  <a href="https://fsp-career.volkv.com/presentation.pdf"><img src="docs/media/cta-pdf.svg" alt="Презентация PDF" height="84"></a>
+</p>
+
+<p align="center">
+  <a href="https://fsp-career.volkv.com/api/docs">API (Swagger)</a> ·
+  <a href="https://fsp-career.volkv.com/api/v1/openapi.json">OpenAPI</a> ·
+  <a href="docs/submission/10-user-guide.md#как-жюри-проверить-за-15-минут">Как жюри проверить за 15 минут</a> ·
+  <a href="docs/submission">Документация</a> ·
+  <a href="https://fsp-career.volkv.com/presentation.mp4">Видео (mp4)</a>
+</p>
+
+<p align="center">
+  <a href="https://fsp-career.volkv.com/presentation.mp4"><img src="docs/media/video-poster.png" alt="▶ Смотреть видеопрезентацию" width="100%"></a>
+</p>
+
 # ФСП | Карьера
 
 ФСП Карьера — платформа ИТ-найма, где навыки подтверждены.
