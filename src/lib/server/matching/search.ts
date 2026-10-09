@@ -22,7 +22,7 @@ import { candidateDocuments } from './documents';
 import { vacancySnapshot, type VacancySnapshot } from './evidence';
 import { hasFspResult } from './fsp-results';
 import { paginate, queryFingerprint, type Page, type PageRequest } from './page';
-import { rankForNeed, scoreCandidatesForVacancy, type RankedForNeed } from './rank';
+import { rankForNeed, scoreCandidatesForVacancy, type NearTieOrder, type RankedForNeed } from './rank';
 import { loadActiveMatchRuleset } from './ruleset';
 import type {
 	CandidateCategory,
@@ -155,7 +155,7 @@ export interface CompanyNeedMatch {
 	toVerify: string[];
 	category: CandidateCategory | null;
 	semantic: number | null;
-	tieBrokenBySemantic: boolean;
+	nearTieOrder: NearTieOrder | null;
 	position: number;
 	positionWithoutFsp: number;
 }
@@ -188,7 +188,7 @@ export function companyNeedMatch(entry: RankedForNeed): CompanyNeedMatch {
 		toVerify: result.toVerify,
 		category: result.category && { specialization: result.category.specialization, grade: result.category.grade },
 		semantic: entry.semantic,
-		tieBrokenBySemantic: entry.tieBrokenBySemantic,
+		nearTieOrder: entry.nearTieOrder,
 		position: entry.position,
 		positionWithoutFsp: entry.positionWithoutFsp
 	};

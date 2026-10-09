@@ -73,7 +73,8 @@ export interface NeedMatchData {
 	toVerify: string[];
 	category: { specialization: string; grade: string } | null;
 	semantic: number | null;
-	tieBrokenBySemantic: boolean;
+	/** Ordered among almost equal scores by another key than the score (`nearTieText`); `null` — by the score. */
+	nearTieOrder: 'semantic' | 'strength' | null;
 	position: number;
 	positionWithoutFsp: number;
 }
@@ -332,6 +333,15 @@ export const COMPONENT_REASONS: Record<string, string> = {
 	relocation: 'готов к переезду',
 	no_category: 'грейд не подтверждён тестом',
 	no_confirmed_action: 'нет подтверждённых действий: ни категории, ни блок-теста, ни решения вызова'
+};
+
+/**
+ * Why the place of a candidate among almost equal scores is not the order of the scores: shown at the score, since a
+ * lower score may stand above a higher one there.
+ */
+export const NEAR_TIE_ORDER: Record<NonNullable<NeedMatchData['nearTieOrder']>, string> = {
+	semantic: 'почти равен соседям по счёту — их порядок решила смысловая близость к тексту потребности, затем сила профиля',
+	strength: 'почти равен соседям по счёту — их порядок решила сила подтверждённого профиля'
 };
 
 export const OFFER_FIT: Record<string, string> = {
