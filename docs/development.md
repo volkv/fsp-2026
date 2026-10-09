@@ -73,7 +73,7 @@ http://localhost:57300/api/health. Контейнер приложения пр�
 | — | `pnpm test:unit` | unit-тесты (`src/**/*.test.ts`, `scripts/**/*.test.ts`) |
 | — | `pnpm test:integration` | integration-тесты (`tests/integration`) в контейнерах Testcontainers; нужен Docker |
 | — | `pnpm test:e2e` | Playwright против собранного `build/`; нужны `pnpm build`, `.env` и поднятые PostgreSQL, Valkey, Mailpit и `fsp-mock` (`make infra`). База — своя (раздел «Своя база e2e»): сервер e2e пересоздаёт её пустой, мигрирует и публикует таксономию, правовые документы, политики и банк заданий. Порты — из `tests/e2e/helpers/ports.ts` (слот `E2E_PORT`, ниже); формы и вход через ФСП ID тесты открывают на `http://localhost:<порт слота>` — этот `redirect_uri` знает имитатор |
-| `make check-fast` | `pnpm check:fast` | lint, svelte-check, unit |
+| `make check-fast` | `pnpm check:fast` | lint, svelte-check, сверка чисел о банках в документации, unit |
 | `make check-docparse` | `pnpm check:docparse` | `docparse`: ruff (lint и формат) и pytest в тестовом образе сервиса, без сети |
 | `make check-sandbox` | `pnpm check:sandbox` | песочница: собирает образ и гоняет `tests/integration/sandbox.test.ts` — вердикты, лимиты, изоляция (входит и в `pnpm test:integration`) |
 | `make check-fsp-mock` | `pnpm check:fsp-mock` | `fsp-mock`: установка по lock-файлу, tsc, тесты Vitest на хосте, сборка образа |
@@ -86,6 +86,7 @@ http://localhost:57300/api/health. Контейнер приложения пр�
 | — | `pnpm check:image` | собирает образ приложения (`pnpm docker:build`) и запускает его стартовой командой, как стенд (`scripts/check-image.sh`): своя пустая PostgreSQL и Valkey во временной внутренней сети, миграции, публикации, пространство эмбеддингов, начальный администратор, демо-режим — красное, если сервер не стал healthy за 180 с; с `.env` и стендом разработки не пересекается |
 | — | `pnpm docs:build` | сопроводительная документация: `build/docs/fsp-career-documentation.{pdf,docx}` и `openapi.json` из разделов `docs/submission/NN-*.md` (порядок — `SECTIONS` в `scripts/docs/build.ts`, диаграммы — блоки ` ```mermaid `); нужны Docker (`pandoc/core` и `minlag/mermaid-cli`, закреплены в `scripts/docs/images.ts`) и Chromium Playwright |
 | — | `pnpm docs:licenses` | таблица технологий с версиями и лицензиями в `docs/submission/generated/technologies.md` (делает и `docs:build`); красное на лицензии вне разрешённого списка. Новая лицензия вне списка — исключение с причиной в `LICENSE_EXCEPTIONS`, новый Python-пакет, образ или пакет ОС — запись в таблицу там же (`scripts/docs/license-data.ts`) |
+| — | `pnpm docs:bank-facts` | сверка чисел о банках заданий в разделах 04 и 06 (`docs/submission`) с дескрипторами семейств, отчётами траекторий и `b3-report.json`: каждое такое число стоит во фрагменте `<!-- bank-facts:<имя> -->…<!-- /bank-facts:<имя> -->`; красное на расхождении, `--write` переписывает фрагменты из файлов (после прогона ворот, траекторий или `resilience-report.ts`) |
 | `make check-all` | `pnpm check:all` | полный гейт: check-fast, integration (вместе с песочницей), build, e2e (сам поднимает PostgreSQL и Valkey из compose), check-image, check-docparse, check-eval, check-fsp-mock |
 
 **Полный гейт** перед коммитом в `main` — `make check-all` (`pnpm check:all`). Нужны Docker, `.env` и свободные порты
