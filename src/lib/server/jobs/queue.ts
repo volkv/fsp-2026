@@ -10,7 +10,7 @@ export type { JobCreator } from './insert';
 
 /**
  * Enqueues a job in the caller's transaction (`jobs/insert.ts`): `INSERT … ON CONFLICT (dedup_key) WHERE status =
- * 'queued' DO NOTHING`. A change without its job, or a job without its change, cannot be committed.
+ * 'queued' DO UPDATE`. A change without its job, or a job without its change, cannot be committed.
  */
 export function enqueueJob<T extends JobType>(
 	tx: Transaction,

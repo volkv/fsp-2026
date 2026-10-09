@@ -1,5 +1,5 @@
 // The one statement that puts a job into the queue (docs/domain.md, section 17.1): the row as the registry describes it,
-// `ON CONFLICT (dedup_key) WHERE status = 'queued' DO NOTHING` joining a job already waiting under the same key, and the
+// `ON CONFLICT (dedup_key) WHERE status = 'queued' DO UPDATE` joining a job already waiting under the same key, and the
 // owner of the line of the queue it goes to (`withJobOwner`).
 // Imported by plain Node (scripts/seed-taxonomy.ts through taxonomy/publish.ts): relative imports with extensions,
 // erasable syntax only, no application aliases.
@@ -65,7 +65,12 @@ export function postgresStatements(client: postgres.Sql | postgres.TransactionSq
 	};
 }
 
-/** Inserts the job or joins the one waiting under its key; atomic with the caller's change only inside its transaction. */
+/**
+ * Inserts the job or joins the one waiting under its key; atomic with the caller's change only inside its transaction.
+ * One statement: the join locks the waiting job until the caller commits, so no worker captures it before the change;
+ * a job a worker is capturing at that moment leaves `queued`, and the statement inserts a new one instead of joining.
+ * An owner takes over the waiting job it joins; an enqueue of the stand leaves the job with its owner.
+ */
 export async function insertJob<T extends JobType>(
 	run: RunStatement,
 	type: T,
@@ -77,25 +82,20 @@ export async function insertJob<T extends JobType>(
 	const dedupKey = spec.dedupKey(parsed);
 	const runAfter = options.runAfter ? sql`${options.runAfter.toISOString()}::timestamptz` : sql`now()`;
 	const owner = jobOwnerFor(type);
-	const [created] = await run(sql`
+	const id = uuidv7();
+	const [row] = await run(sql`
 		insert into jobs (id, type, type_version, payload, input_version, dedup_key, status, priority, run_after, max_attempts, created_by, owner)
 		values (
-			${uuidv7()}, ${type}, ${spec.typeVersion}, ${JSON.stringify(parsed)}::text::jsonb, ${options.inputVersion},
+			${id}, ${type}, ${spec.typeVersion}, ${JSON.stringify(parsed)}::text::jsonb, ${options.inputVersion},
 			${dedupKey}, 'queued', ${spec.priority}, ${runAfter}, ${spec.maxAttempts},
 			${JSON.stringify(options.createdBy)}::text::jsonb, ${owner}
 		)
-		on conflict (dedup_key) where status = 'queued' do nothing
+		on conflict (dedup_key) where status = 'queued' do update set owner = coalesce(excluded.owner, jobs.owner)
 		returning id
 	`);
-	if (created) return { jobId: idOf(created), joined: false };
-	// An owner takes over the waiting job it joins; an enqueue of the stand leaves the job with its owner.
-	const [waiting] = await run(
-		owner === null
-			? sql`select id from jobs where dedup_key = ${dedupKey} and status = 'queued'`
-			: sql`update jobs set owner = ${owner} where dedup_key = ${dedupKey} and status = 'queued' returning id`
-	);
-	if (!waiting) throw new Error(`job ${type} with key ${dedupKey} conflicted but no waiting job was found`);
-	return { jobId: idOf(waiting), joined: true };
+	if (!row) throw new Error(`job ${type} with key ${dedupKey} was neither inserted nor joined`);
+	const jobId = idOf(row);
+	return { jobId, joined: jobId !== id };
 }
 
 function idOf(row: Record<string, unknown>): string {
