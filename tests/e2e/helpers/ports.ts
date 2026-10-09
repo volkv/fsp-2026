@@ -29,10 +29,12 @@ export const APP_PORT = slot();
  */
 export const APP_ORIGIN = `http://localhost:${APP_PORT}`;
 export const LOOPBACK_ORIGIN = `http://127.0.0.1:${APP_PORT}`;
+/** Offset taking the port of the slot out of the range of outgoing connections: 57175 becomes 27175. */
+const BELOW_OUTGOING_RANGE = 30_000;
 /** The stand-in of the public APIs of Codeforces and GitHub, served by external-profiles.spec.ts while it runs. */
-export const PUBLIC_PROFILES_STUB_PORT = APP_PORT + 1;
+export const PUBLIC_PROFILES_STUB_PORT = APP_PORT - BELOW_OUTGOING_RANGE + 1;
 /** The demonstration stand of demo.spec.ts, with a database and a simulator of its own. */
-export const DEMO_STAND_PORT = APP_PORT + 2;
+export const DEMO_STAND_PORT = APP_PORT - BELOW_OUTGOING_RANGE + 2;
 /**
  * The Redis database of the run on the server of `.env`: one per slot and never 0, the development one. Sessions, rate
  * limits and the switches of the models live there, and two runs switching a model at once would see each other's.
