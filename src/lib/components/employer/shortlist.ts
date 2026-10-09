@@ -73,7 +73,7 @@ export interface NeedMatchData {
 	toVerify: string[];
 	category: { specialization: string; grade: string } | null;
 	semantic: number | null;
-	/** Ordered among almost equal scores by another key than the score (`nearTieText`); `null` — by the score. */
+	/** Among almost equal scores the place contradicts the shown percents, and which key ordered them; `null` — it agrees. */
 	nearTieOrder: 'semantic' | 'strength' | null;
 	position: number;
 	positionWithoutFsp: number;
@@ -338,8 +338,8 @@ export const COMPONENT_REASONS: Record<string, string> = {
 };
 
 /**
- * Why the place of a candidate among almost equal scores is not the order of the scores: shown at the score, since a
- * lower score may stand above a higher one there.
+ * Why the place of a candidate among almost equal scores contradicts the shown percents: shown at the score of each
+ * place where a lower percent stands above a higher one.
  */
 export const NEAR_TIE_ORDER: Record<NonNullable<NeedMatchData['nearTieOrder']>, string> = {
 	semantic:

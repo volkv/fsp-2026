@@ -140,7 +140,7 @@ export interface RankedForNeed {
 	result: NeedResult;
 	/** Cosine similarity of the candidate to the text of the need; `null` — not measured. */
 	semantic: number | null;
-	/** The candidate stood among almost equal scores ordered by another key than the score: which one (`NearTieOrder`). */
+	/** Among almost equal scores the place contradicts the shown percents: which key ordered them (`OrderedPlace`). */
 	nearTieOrder: NearTieOrder | null;
 	/** 1-based position. */
 	position: number;
@@ -279,9 +279,9 @@ export interface ScoredPlace {
 }
 
 /**
- * What ordered a group of almost equal scores whose order is not the order of the scores: the semantic similarity to the
- * text of the need, or — without one — the strength of the confirmed profile. A lower score may then stand above a
- * higher one by less than `nearTie`, and the page says why next to the score.
+ * What ordered a group of almost equal scores: the semantic similarity to the text of the need, or — without one — the
+ * strength of the confirmed profile. A lower shown percent may then stand above a higher one by less than `nearTie`, and
+ * the page says why next to the score of each place in such a contradiction.
  */
 export type NearTieOrder = 'semantic' | 'strength';
 
@@ -289,8 +289,21 @@ export interface OrderedPlace {
 	id: string;
 	position: number;
 	positionWithoutFsp: number;
-	/** `null` — the place is where its score puts it. */
+	/**
+	 * Set where the place contradicts the shown (whole) percents inside its group of almost equal: a lower percent stands
+	 * above a higher one, or a higher one below a lower one. `null` — the shown percents agree with the place, even when
+	 * the group was reordered among scores the page shows as the same percent.
+	 */
 	nearTieOrder: NearTieOrder | null;
+}
+
+const percentFormat = new Intl.NumberFormat('ru-RU', { style: 'percent', maximumFractionDigits: 0 });
+
+/** The whole percent the pages show for a score: rounded as they format it. */
+function shownPercent(score: number): number {
+	const integer = percentFormat.formatToParts(score).find((part) => part.type === 'integer');
+	if (!integer) throw new Error(`a score without a whole percent: ${score}`);
+	return Number(integer.value);
 }
 
 /** The tier of the group «грейд не подтверждён»: above any tier of coverage, as no need names a million skills. */
@@ -303,7 +316,8 @@ const GRADE_TIER = 1_000_000;
  * scores within `nearTie` of the first of a group are almost equal; inside the group the
  * semantic similarity decides (a candidate without one goes after those with one), then the strength, then the score,
  * then the id. A group is cut from the top and never spans two numbers, so the similarity never lifts a candidate above
- * one that covers more or scores `nearTie` or more higher. «Без ФСП — позиция N» is the place the coverage and the score
+ * one that covers more or scores `nearTie` or more higher. Only a place whose shown percent disagrees with a neighbour's
+ * in its group carries `nearTieOrder`. «Без ФСП — позиция N» is the place the coverage and the score
  * without FSP would take among the others' as they are.
  */
 export function orderForNeed(
@@ -330,12 +344,19 @@ export function orderForNeed(
 		const settled = [...group].sort(
 			(a, b) => similarity(b) - similarity(a) || b.strength - a.strength || b.score - a.score || byId(a, b)
 		);
-		const measured = group.some((place) => similarities.has(place.id));
-		const moved = settled.some((place, index) => place !== group[index]);
-		const nearTieOrder: NearTieOrder | null = moved ? (measured ? 'semantic' : 'strength') : null;
-		for (const place of settled) {
-			result.push({ id: place.id, position: result.length + 1, positionWithoutFsp: 0, nearTieOrder });
-		}
+		const kind: NearTieOrder = group.some((place) => similarities.has(place.id)) ? 'semantic' : 'strength';
+		const shown = settled.map((place) => ({ place, percent: shownPercent(place.score) }));
+		shown.forEach(({ place, percent }, index) => {
+			const contradicted = shown.some((other, at) =>
+				at < index ? other.percent < percent : at > index && other.percent > percent
+			);
+			result.push({
+				id: place.id,
+				position: result.length + 1,
+				positionWithoutFsp: 0,
+				nearTieOrder: contradicted ? kind : null
+			});
+		});
 		start = end;
 	}
 	// One sortable key per place: the group, then the score (in [0, 1]) descending.
