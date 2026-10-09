@@ -18,9 +18,9 @@ import { consume, RATE_LIMIT_RULES, redisRateLimitStore } from '$lib/server/http
 import type { Redis } from '$lib/server/redis';
 import type { ObjectStore } from '$lib/server/storage/object-store';
 import { redisDemoActivity } from './activity';
-import { DemoCastMissing, cloneEmail, type CastRole } from './cast';
+import { DemoCastMissing, castRoles, cloneEmail, type CastRole } from './cast';
 import { DemoSessionsExhausted, openDemoSession } from './clone';
-import { seedRemainingSeconds } from './readiness';
+import { seededCast, seedRemainingSeconds } from './readiness';
 import { readSeedData, seedsDirectory, type SeedData } from './data';
 import { demoTerms, type DemoTerms } from './terms';
 
@@ -235,9 +235,14 @@ async function visitorSession(deps: EnterDeps, input: VisitorInput): Promise<Vis
 	}
 	let opened = false;
 	if (!current) {
-		const budget = await consume(redisRateLimitStore(deps.redis), RATE_LIMIT_RULES.demoSession, input.address);
-		if (!budget.allowed) return { kind: 'refused', reason: 'address_budget', retryAfterSeconds: budget.resetSeconds };
 		try {
+			// Before the budget is counted: a visitor who reloads the page while the stand is being seeded must not spend
+			// the sessions of the address on refusals. The opening checks the seed again under its lock.
+			await seededCast(deps.db, deps.crypto, castRoles(input.data));
+			const budget = await consume(redisRateLimitStore(deps.redis), RATE_LIMIT_RULES.demoSession, input.address);
+			if (!budget.allowed) {
+				return { kind: 'refused', reason: 'address_budget', retryAfterSeconds: budget.resetSeconds };
+			}
 			const created = await openDemoSession(
 				{
 					db: deps.db,
