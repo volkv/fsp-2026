@@ -449,7 +449,8 @@ describe('a PDF resume read by the model', () => {
 		const view = await readOwnResumes(database.db, subjectOf(candidate));
 		expect(view.current?.reading).toEqual({
 			processingMode: 'model',
-			model: { modelId: 'extractor-7b', runtime: 'vllm' },
+			// The model answered this call: its envelope names no origin, so the reading is not a kept answer.
+			model: { modelId: 'extractor-7b', runtime: 'vllm', cached: false },
 			notice: null,
 			failureCode: null
 		});

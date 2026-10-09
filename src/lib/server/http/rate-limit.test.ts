@@ -3,9 +3,12 @@ import {
 	accountRuleFor,
 	accountSubject,
 	consume,
+	paidParseOf,
+	paidParseRule,
 	RATE_LIMIT_RULES,
 	rateLimitHeaders,
 	refusedByPage,
+	routedPath,
 	ruleFor,
 	type RateLimitStore
 } from './rate-limit';
@@ -171,6 +174,58 @@ describe('rate limit', () => {
 		expect(refusedByPage('POST', at('/api/v1/needs'), RATE_LIMIT_RULES.textParse)).toBe(false);
 		// Over the limit of the address, a form post is refused by the hook as before.
 		expect(refusedByPage('POST', at('/company/needs?/create'), RATE_LIMIT_RULES.form)).toBe(false);
+	});
+
+	it('picks rules by the path the router decodes, so escapes do not step around them', async () => {
+		expect(routedPath('/api/v1/n%65eds')).toBe('/api/v1/needs');
+		expect(routedPath('/v%65rify/abc')).toBe('/verify/abc');
+		// An escaped `%` stays escaped, as in the router: a path escaped twice reaches no route.
+		expect(routedPath('/api/v1/n%2565eds')).toBe('/api/v1/n%2565eds');
+		// Reserved characters stay escaped too: `%2F` is not a separator of segments.
+		expect(routedPath('/api/v1%2Fneeds')).toBe('/api/v1%2Fneeds');
+		expect(routedPath('/api/v1/n%E0%A4%A')).toBeNull();
+		expect(ruleFor('GET', routedPath('/v%65rify/abc') ?? '')).toBe(RATE_LIMIT_RULES.receiptVerify);
+		const text = { json: { text: 'Ищем Go-разработчика' } };
+		expect(await accountRuleOf('POST', '/api/v1/n%65eds', text)).toBe(RATE_LIMIT_RULES.textParse);
+		expect(await accountRuleOf('POST', '/company/n%65eds?/create', { form: { text: 'Go' } })).toBe(
+			RATE_LIMIT_RULES.textParse
+		);
+		expect(await accountRuleOf('GET', '/api/v1/c%61talog/candidates')).toBe(RATE_LIMIT_RULES.catalog);
+		expect(await accountRuleOf('GET', '/me/export/d%6Fwnload')).toBe(RATE_LIMIT_RULES.dataExport);
+		expect(refusedByPage('GET', at('/v%65rify/abcdefghijklmnopqrstuvwxyz'), RATE_LIMIT_RULES.receiptVerify)).toBe(true);
+	});
+
+	it('names the paid parses: texts with a text and uploads of a resume, on the pages and in the API', async () => {
+		const paid = (method: string, path: string, init: RequestInit = {}) =>
+			paidParseOf(new Request(at(path), { method, ...init }), at(path));
+		const json = (body: unknown): RequestInit => ({
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify(body)
+		});
+		expect(await paid('POST', '/api/v1/needs', json({ text: 'Go' }))).toBe('text');
+		expect(await paid('POST', '/api/v1/needs', json({ form: { skill_keys: ['go'] } }))).toBeNull();
+		expect(await paid('POST', '/api/v1/vacancies/drafts/from-text')).toBe('text');
+		expect(await paid('POST', '/api/v1/me/resumes')).toBe('resume');
+		expect(await paid('POST', '/api/v1/me/r%65sumes')).toBe('resume');
+		expect(await paid('POST', '/me/resume?/upload')).toBe('resume');
+		expect(await paid('POST', '/demo/resume')).toBe('resume');
+		expect(await paid('POST', '/me/resume?/delete')).toBeNull();
+		expect(await paid('GET', '/api/v1/me/resumes')).toBeNull();
+		// A resume has no budget of an account: only the paid parses of the address count it.
+		expect(await accountRuleOf('POST', '/api/v1/me/resumes')).toBeNull();
+		const rule = paidParseRule(60);
+		expect(rule).toMatchObject({ name: 'paid-parse', limit: 60, windowSeconds: 3_600 });
+		// The pages refuse over the budget in their forms; the API answers the JSON error.
+		for (const path of [
+			'/me/resume?/upload',
+			'/demo/resume',
+			'/company/needs?/create',
+			'/company/vacancies/new?/parse'
+		]) {
+			expect(refusedByPage('POST', at(path), rule), path).toBe(true);
+		}
+		expect(refusedByPage('POST', at('/api/v1/me/resumes'), rule)).toBe(false);
+		expect(refusedByPage('POST', at('/api/v1/needs'), rule)).toBe(false);
 	});
 
 	it('counts an account rule per account, per API key, or per address without either', () => {

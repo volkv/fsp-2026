@@ -12,13 +12,13 @@ import { mailer, type Mailer } from '$lib/server/mail/mailer';
 import type { MatchingDeps } from '$lib/server/matching/deps';
 import type { MatchingModels } from '$lib/server/matching/semantic';
 import { GRADE_DECISION_RESULTS, type TestResultReader } from '$lib/server/matching/test-results';
-import { modelAdapter } from '$lib/server/ml';
 import type { NeedDeps } from '$lib/server/needs/service';
 import type { ApplicationDeps } from '$lib/server/applications/service';
 import type { ChallengeDeps } from '$lib/server/challenges/company';
 import type { ConfirmationDeps } from '$lib/server/confirmations/requests';
 import type { ShortlistDeps } from '$lib/server/shortlists/service';
 import type { ModelAdapter } from '$lib/server/ml/adapter';
+import { paidModels } from '$lib/server/parse-budget';
 import { redis, type Redis } from '$lib/server/redis';
 import type { ResumeDeps } from '$lib/server/resumes/deps';
 import { objectStore, type ObjectStore } from '$lib/server/storage/object-store';
@@ -53,7 +53,7 @@ export function apiServices(): ApiServices {
 		mailer: mailer(),
 		store: objectStore(),
 		registry: configuredRegistry(config().companyRegistry),
-		models: modelAdapter(),
+		models: paidModels(),
 		receiptSigner: configuredReceiptSigner(),
 		appOrigin: config().appOrigin,
 		testResults: GRADE_DECISION_RESULTS,

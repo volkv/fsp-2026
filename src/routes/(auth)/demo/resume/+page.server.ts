@@ -10,6 +10,7 @@ import { demoTerms } from '$lib/server/demo/terms';
 import { sessionOfAccount } from '$lib/server/demo/visit';
 import { assertResumeSize } from '$lib/server/documents/limits';
 import { formFailure } from '$lib/server/http/page';
+import { rateLimitedError } from '$lib/server/http/rate-limit';
 import { resumeDeps } from '$lib/server/resumes/deps';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -59,6 +60,8 @@ export const load: PageServerLoad = async (event) => {
 
 export const actions: Actions = {
 	default: async (event) => {
+		// Over the limit of paid parses the hook lets the post through, for the form to say so in its own words.
+		if (event.locals.rateLimited) return formFailure(rateLimitedError(event.locals.rateLimited));
 		const current = await demoCandidate(event);
 		if (!current) redirect(303, '/demo');
 		const form = await event.request.formData();

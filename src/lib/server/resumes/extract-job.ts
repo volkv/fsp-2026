@@ -26,7 +26,6 @@ import { defineHandler, JobFailure, type JobHandler, type JobResult } from '$lib
 import { canonicalJson } from '$lib/server/json/canonical';
 import { LLM_DEFAULT_MAX_CONCURRENCY } from '$lib/server/config';
 import { fieldCrypto, type FieldCrypto } from '$lib/server/crypto/fields';
-import { modelAdapter } from '$lib/server/ml';
 import type { ModelAdapter } from '$lib/server/ml/adapter';
 import { extractModelEnvelope, type ExtractModelEnvelope } from '$lib/server/ml/envelope';
 import type { ResumeOutput } from '$lib/server/ml/extract-output';
@@ -38,6 +37,7 @@ import { planEvidence, type EvidencePlan } from './evidence';
 import { lockCandidate, recordEvidenceChange, resumeRecordRef } from './revision';
 import { extractByRules, RULES_VERSION, type RuleBlock } from './rules';
 import { loadResumeTaxonomy, resumeLexicon, type ResumeTaxonomy } from './taxonomy';
+import { paidModels } from '$lib/server/parse-budget';
 
 export const RESUME_SCHEMA_VERSION = 'resume-extract/v3';
 
@@ -351,7 +351,7 @@ export function createResumeExtractHandler(deps: ResumeExtractDeps): JobHandler<
 
 /** Handler of `resume.extract` for the job registry. */
 export const resumeExtract = createResumeExtractHandler({
-	adapter: modelAdapter,
+	adapter: paidModels,
 	crypto: fieldCrypto,
 	now: () => new Date()
 });

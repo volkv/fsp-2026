@@ -52,7 +52,8 @@ export const MODEL_ERROR_CODES: Record<string, string> = {
 export const MODEL_ERROR_REASONS: Record<string, string> = {
 	switched_off: 'выключена администратором',
 	not_configured: 'не настроена',
-	no_api_key: 'нет ключа API'
+	no_api_key: 'нет ключа API',
+	stand_budget: 'исчерпан часовой бюджет разборов стенда'
 };
 
 export const INPUT_TYPES: Record<string, string> = {

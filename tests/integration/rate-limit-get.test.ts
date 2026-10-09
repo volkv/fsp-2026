@@ -1,6 +1,7 @@
 // Limits of the reads that cost the most (src/lib/server/http/rate-limit.ts), through the request hooks against Redis:
 // the catalog per account — its pages and its API share one budget, a key of the API has its own —, the export of own
-// data per account and the sign-in through FSP ID per address. A page over the limit is let through to refuse by itself in the layout of the site — the
+// data per account, the parses the model is paid for per account and per address, and the sign-in through FSP ID per
+// address. A path spelled with percent-escapes is counted as the route it reaches. A page over the limit is let through to refuse by itself in the layout of the site — the
 // catalog pages with `429`, the sign-in with a redirect to the sign-in page — and the API gets its JSON error.
 import { randomInt, randomUUID } from 'node:crypto';
 import { isHttpError, isRedirect, type Handle, type RequestEvent } from '@sveltejs/kit';
@@ -8,6 +9,7 @@ import { createClient } from 'redis';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import type { Actor } from '$lib/server/access/actor';
 import {
+	paidParseRule,
 	RATE_LIMIT_RULES,
 	rateLimitHandles,
 	redisRateLimitStore,
@@ -18,6 +20,8 @@ import { employerRequest } from '$lib/server/employer/http';
 import { GET as startFspSignIn } from '../../src/routes/auth/fsp/+server';
 import { GET as fspCallback } from '../../src/routes/auth/fsp/callback/+server';
 import { actions as needsActions } from '../../src/routes/(app)/company/(member)/needs/+page.server';
+import { actions as resumeActions } from '../../src/routes/(app)/me/resume/+page.server';
+import { actions as demoResumeActions } from '../../src/routes/(auth)/demo/resume/+page.server';
 
 /** The action «Новая потребность» of the page, as SvelteKit calls it. */
 function createNeedAction(event: RequestEvent) {
@@ -28,13 +32,21 @@ function createNeedAction(event: RequestEvent) {
 
 const REDIS_DATABASE = 6;
 
+/** The budget of paid parses of an address in the tests of other limits: out of their way. */
+const WIDE_PAID_BUDGET = 1_000;
+/** The budget of paid parses of an address in its own tests. */
+const PAID_BUDGET = 6;
+
 let redis: Redis;
 let hooks: RateLimitHandles;
+let paidHooks: RateLimitHandles;
 
 beforeAll(async () => {
 	redis = createClient({ url: `${inject('redisUrl')}/${String(REDIS_DATABASE)}` });
 	await redis.connect();
-	hooks = rateLimitHandles({ store: () => Promise.resolve(redisRateLimitStore(redis)), waitMs: 1_000 });
+	const store = () => Promise.resolve(redisRateLimitStore(redis));
+	hooks = rateLimitHandles({ store, waitMs: 1_000, paidParsesPerAddress: () => WIDE_PAID_BUDGET });
+	paidHooks = rateLimitHandles({ store, waitMs: 1_000, paidParsesPerAddress: () => PAID_BUDGET });
 });
 
 afterAll(async () => {
@@ -78,7 +90,7 @@ function requestEvent(path: string, from: string, actor: Actor, method = 'GET', 
 	return {
 		url,
 		request: new Request(url, requestInit(method, body)),
-		locals: { requestId: `req-${randomUUID()}`, actor, rateLimited: false },
+		locals: { requestId: `req-${randomUUID()}`, actor, rateLimited: null },
 		isDataRequest: url.pathname.endsWith('/__data.json'),
 		getClientAddress: () => from
 	} as unknown as RequestEvent;
@@ -100,8 +112,9 @@ const resolve = (event: RequestEvent) => {
 /** The request through both hooks, in the order of the chain: the address, then the account. */
 function send(
 	path: string,
-	options: { from?: string; actor?: Actor; method?: string; body?: Body } = {}
+	options: { from?: string; actor?: Actor; method?: string; body?: Body; through?: RateLimitHandles } = {}
 ): Promise<Response> {
+	const chain = options.through ?? hooks;
 	const event = requestEvent(
 		path,
 		options.from ?? address(),
@@ -109,8 +122,8 @@ function send(
 		options.method,
 		options.body
 	);
-	const accountStep: Handle = ({ event }) => hooks.byAccount({ event, resolve });
-	return Promise.resolve(hooks.byAddress({ event, resolve: (next) => accountStep({ event: next, resolve }) }));
+	const accountStep: Handle = ({ event }) => chain.byAccount({ event, resolve });
+	return Promise.resolve(chain.byAddress({ event, resolve: (next) => accountStep({ event: next, resolve }) }));
 }
 
 /** A response the route gave over the limit: the headers of the refusal are the hook's. */
@@ -293,6 +306,132 @@ describe('the parses of a pasted text', () => {
 		const refused = await send('/api/v1/needs', { actor, method: 'POST', body: { json: { text, form } } });
 		expect(refused.status).toBe(429);
 		expect(await refused.json()).toMatchObject({ error: { code: 'rate_limited', message } });
+	});
+});
+
+describe('the paid parses of an address', () => {
+	const rule = paidParseRule(PAID_BUDGET);
+	const text = 'Ищем бэкенд-разработчика на Go в команду платежей';
+	/** Posts that start a paid parse: texts of the API and of the forms, uploads of a resume. */
+	const posts: { path: string; body?: Body }[] = [
+		{ path: '/api/v1/needs', body: { json: { text } } },
+		{ path: '/company/needs?/create', body: { form: { text } } },
+		{ path: '/api/v1/vacancies/drafts/from-text', body: { json: { text } } },
+		{ path: '/company/vacancies/new?/parse', body: { form: { text } } },
+		{ path: '/api/v1/me/resumes' },
+		{ path: '/me/resume?/upload' },
+		{ path: '/demo/resume' }
+	];
+
+	it('share one budget across accounts, API keys, texts and resumes, refused past it in words', async () => {
+		const from = address();
+		const before = resolved;
+		for (let hit = 1; hit <= PAID_BUDGET; hit++) {
+			const post = posts[hit % posts.length] ?? { path: '/api/v1/needs' };
+			// A fresh account or key on every post: the budget of an account never runs out.
+			const actor = hit % 2 === 0 ? apiKey(randomUUID()) : person();
+			const response = await send(post.path, { from, actor, method: 'POST', body: post.body, through: paidHooks });
+			expect(response.status, `hit ${String(hit)} ${post.path}`).toBe(200);
+			expect(response.headers.get('ratelimit-remaining'), `hit ${String(hit)}`).toBe(String(PAID_BUDGET - hit));
+		}
+		expect(resolved - before).toBe(PAID_BUDGET);
+
+		// The API refuses with the JSON error, a text and a resume alike.
+		for (const post of [posts[0], posts[4]]) {
+			if (!post) throw new Error('no post');
+			const api = await send(post.path, { from, actor: person(), method: 'POST', body: post.body, through: paidHooks });
+			expect(api.status, post.path).toBe(429);
+			expect(api.headers.get('retry-after')).toMatch(/^\d+$/u);
+			expect(api.headers.get('ratelimit-limit')).toBe(String(PAID_BUDGET));
+			expect(await api.json()).toMatchObject({ error: { code: 'rate_limited', message: rule.message } });
+		}
+
+		// The forms are let through, marked, and answer in their own words before reading the session or the file.
+		const refusedBefore = refusedByRoute.length;
+		for (const path of ['/company/needs?/create', '/me/resume?/upload', '/demo/resume']) {
+			const post = posts.find((candidate) => candidate.path === path);
+			expectRefusedByRoute(
+				await send(path, { from, actor: person(), method: 'POST', body: post?.body, through: paidHooks }),
+				PAID_BUDGET
+			);
+		}
+		const [need, upload, demo] = refusedByRoute.slice(refusedBefore);
+		if (!need || !upload || !demo) throw new Error('the forms were not marked');
+		const problem = { code: 'rate_limited', message: rule.message };
+		expect(await createNeedAction(need)).toMatchObject({ status: 429, data: { problem } });
+		const uploadAction = resumeActions.upload;
+		const demoAction = demoResumeActions.default;
+		if (!uploadAction || !demoAction) throw new Error('the resume pages have no upload action');
+		expect(await uploadAction(upload as Parameters<typeof uploadAction>[0])).toMatchObject({
+			status: 429,
+			data: { problem, target: 'upload' }
+		});
+		expect(await demoAction(demo as Parameters<typeof demoAction>[0])).toMatchObject({
+			status: 429,
+			data: { problem }
+		});
+		expect(resolved - before).toBe(PAID_BUDGET);
+
+		// Another address keeps its own budget; posts of this address that parse nothing are not counted.
+		const elsewhere = await send('/api/v1/needs', {
+			actor: person(),
+			method: 'POST',
+			body: { json: { text } },
+			through: paidHooks
+		});
+		expect(elsewhere.status).toBe(200);
+		const formOnly = await send('/api/v1/needs', {
+			from,
+			actor: person(),
+			method: 'POST',
+			body: { json: { form: { skill_keys: ['go'], nice_skill_keys: [] } } },
+			through: paidHooks
+		});
+		expect(formOnly.status).toBe(200);
+		expect(
+			(await send('/me/resume?/delete', { from, actor: person(), method: 'POST', through: paidHooks })).status
+		).toBe(200);
+	});
+});
+
+describe('a path spelled with percent-escapes', () => {
+	it('is counted by the rules of the route it reaches', async () => {
+		const actor = person();
+		const { limit } = RATE_LIMIT_RULES.textParse;
+		for (let hit = 1; hit <= limit; hit++) {
+			const path = hit % 2 === 0 ? '/api/v1/n%65eds' : '/api/v1/vacancies/drafts/fr%6Fm-text';
+			const response = await send(path, { actor, method: 'POST', body: { json: { text: 'Ищем Go-разработчика' } } });
+			expect(response.status, `hit ${String(hit)} ${path}`).toBe(200);
+			expect(response.headers.get('ratelimit-remaining'), `hit ${String(hit)}`).toBe(String(limit - hit));
+		}
+		const refused = await send('/api/v1/%6Eeeds', { actor, method: 'POST', body: { json: { text: 'Ищем QA' } } });
+		expect(refused.status).toBe(429);
+		expect(await refused.json()).toMatchObject({
+			error: { code: 'rate_limited', message: RATE_LIMIT_RULES.textParse.message }
+		});
+
+		// A receipt: the page and the API spelled with escapes share the budget of verification, not the wider ones.
+		const from = address();
+		for (const path of ['/v%65rify/abcdefghijklmnopqrstuvwxyz', '/api/v1/v%65rify/abcdefghijklmnopqrstuvwxyz']) {
+			const response = await send(path, { from });
+			expect(response.headers.get('ratelimit-limit'), path).toBe(String(RATE_LIMIT_RULES.receiptVerify.limit));
+		}
+		// The catalog of the API per account.
+		const reader = person();
+		const catalog = await send('/api/v1/c%61talog/candidates', { actor: reader });
+		expect(catalog.headers.get('ratelimit-limit')).toBe(String(RATE_LIMIT_RULES.catalog.limit));
+	});
+
+	it('is refused with 400 when its escapes do not decode, before any route', async () => {
+		const before = resolved;
+		const response = await send('/api/v1/n%E0%A4%A', {
+			actor: person(),
+			method: 'POST',
+			body: { json: { text: 'x' } }
+		});
+		expect(response.status).toBe(400);
+		expect(await response.json()).toMatchObject({ error: { code: 'validation_failed' } });
+		expect(resolved).toBe(before);
 	});
 });
 

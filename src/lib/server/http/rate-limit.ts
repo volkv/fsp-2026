@@ -87,8 +87,32 @@ const FSP_SIGN_IN_PATHS = new Set(['/auth/fsp', '/auth/fsp/callback']);
 const isRead = (method: string) => method === 'GET' || method === 'HEAD';
 
 /**
- * Picks the rule of the client address for a request, or `null` for requests that are not limited by the address
- * (other pages, static files, health).
+ * The path SvelteKit routes a request by: `url.pathname` decoded as its router decodes it — `decodeURI` of each part
+ * between `%25`, so an escaped `%` stays escaped. The limits pick their rules by this path: a path that spells a route
+ * with escapes (`/api/v1/n%65eds`) reaches the route and is counted as the route. A path escaped twice
+ * (`/api/v1/n%2565eds`) stays escaped here as in the router, which finds no route for it. `null` — escapes that do
+ * not decode: no route answers such a path, and the hook refuses it with `400`.
+ */
+export function routedPath(pathname: string): string | null {
+	try {
+		return pathname.split('%25').map(decodeURI).join('%25');
+	} catch (error) {
+		if (error instanceof URIError) return null;
+		throw error;
+	}
+}
+
+/** The routed path of a request the hook of the address has let through, which refuses one that does not decode. */
+function pathOf(url: URL): string {
+	const path = routedPath(url.pathname);
+	if (path === null)
+		throw new Error(`the path ${url.pathname} does not decode, yet it passed the limit of the address`);
+	return path;
+}
+
+/**
+ * Picks the rule of the client address for a request by its routed path (`routedPath`), or `null` for requests that
+ * are not limited by the address (other pages, static files, health).
  */
 export function ruleFor(method: string, pathname: string): RateLimitRule | null {
 	if (pathname === '/api/health') return null;
@@ -112,29 +136,45 @@ const CATALOG_API =
 /** The export of the candidate's own data: the file of the page and the same document in the API (contracts 5.5). */
 const DATA_EXPORT_PATHS = new Set(['/me/export/download', '/api/v1/me/data']);
 
+/** What a paid parse reads: a pasted text (a need, a vacancy) or an uploaded resume. */
+export type PaidParse = 'text' | 'resume';
+
 /**
- * Posts that parse a pasted text (contracts 3.2, 5.5): in the API and by the form actions of the cabinet (`action`, the
- * named action of the page). A vacancy draft always has its text; a new need is a text, the form, or both (domain
- * 13.10), and only its text goes to the parse — `optionalText` names the body that carries it, so a need from the form
- * alone is not counted.
+ * Posts that start a parse the extraction model may be called for (contracts 3.2, 5.5), in the API and by the form
+ * actions of the pages (`action`, the named action of the page; none — the default action, `page` — a page of the
+ * site, which refuses over the limit in its own form):
+ * - a pasted text: a vacancy draft always has its text; a new need is a text, the form, or both (domain 13.10), and
+ *   only its text goes to the parse — `optionalText` names the body that carries it, so a need from the form alone is
+ *   not counted;
+ * - an uploaded resume: each upload queues its own reading (`resume.extract`).
  */
-const TEXT_PARSE_POSTS: readonly { path: string; action?: string; optionalText?: 'json' | 'form' }[] = [
-	{ path: '/api/v1/needs', optionalText: 'json' },
-	{ path: '/api/v1/vacancies/drafts/from-text' },
-	{ path: '/company/needs', action: 'create', optionalText: 'form' },
-	{ path: '/company/vacancies/new', action: 'parse' }
+const PAID_PARSE_POSTS: readonly {
+	kind: PaidParse;
+	path: string;
+	action?: string;
+	page: boolean;
+	optionalText?: 'json' | 'form';
+}[] = [
+	{ kind: 'text', path: '/api/v1/needs', page: false, optionalText: 'json' },
+	{ kind: 'text', path: '/api/v1/vacancies/drafts/from-text', page: false },
+	{ kind: 'text', path: '/company/needs', action: 'create', page: true, optionalText: 'form' },
+	{ kind: 'text', path: '/company/vacancies/new', action: 'parse', page: true },
+	{ kind: 'resume', path: '/api/v1/me/resumes', page: false },
+	{ kind: 'resume', path: '/me/resume', action: 'upload', page: true },
+	{ kind: 'resume', path: '/demo/resume', page: true }
 ];
 
-function textParsePost(method: string, url: URL) {
+function paidParsePost(method: string, url: URL) {
 	if (method !== 'POST') return undefined;
-	return TEXT_PARSE_POSTS.find(
-		(post) => post.path === url.pathname && (post.action === undefined || url.searchParams.has(`/${post.action}`))
+	const path = pathOf(url);
+	return PAID_PARSE_POSTS.find(
+		(post) => post.path === path && (post.action === undefined || url.searchParams.has(`/${post.action}`))
 	);
 }
 
-/** A form action of a page that parses a pasted text: it refuses over the limit itself, in the layout of the site. */
-function isTextParseAction(method: string, url: URL): boolean {
-	return textParsePost(method, url)?.action !== undefined;
+/** A form action of a page that starts a paid parse: it refuses over the limit itself, in the layout of the site. */
+function isParsePage(method: string, url: URL): boolean {
+	return paidParsePost(method, url)?.page === true;
 }
 
 /**
@@ -166,20 +206,48 @@ async function carriesText(request: Request, body: 'json' | 'form'): Promise<boo
 }
 
 /**
+ * The paid parse a request starts, or `null`. A post that may parse a text starts one only when it carries the text.
+ * Reads a copy of the body of such a post.
+ */
+export async function paidParseOf(request: Request, url: URL): Promise<PaidParse | null> {
+	const post = paidParsePost(request.method, url);
+	if (post === undefined) return null;
+	if (post.optionalText !== undefined && !(await carriesText(request, post.optionalText))) return null;
+	return post.kind;
+}
+
+/** The rule counted per account for a request that starts the paid parse `parse` (or none). */
+function accountRule(method: string, path: string, parse: PaidParse | null): RateLimitRule | null {
+	if (!isRead(method)) return parse === 'text' ? RATE_LIMIT_RULES.textParse : null;
+	if (DATA_EXPORT_PATHS.has(path)) return RATE_LIMIT_RULES.dataExport;
+	return CATALOG_PAGE.test(path) || CATALOG_API.test(path) ? RATE_LIMIT_RULES.catalog : null;
+}
+
+/**
  * Picks the rule counted per account for a request (`accountSubject`), or `null`. It applies after authentication,
  * besides the rule of the address. A post that may parse a text is counted only when it carries one.
  */
 export async function accountRuleFor(request: Request, url: URL): Promise<RateLimitRule | null> {
-	const { method } = request;
-	const { pathname } = url;
-	if (!isRead(method)) {
-		const post = textParsePost(method, url);
-		if (post === undefined) return null;
-		const parses = post.optionalText === undefined || (await carriesText(request, post.optionalText));
-		return parses ? RATE_LIMIT_RULES.textParse : null;
-	}
-	if (DATA_EXPORT_PATHS.has(pathname)) return RATE_LIMIT_RULES.dataExport;
-	return CATALOG_PAGE.test(pathname) || CATALOG_API.test(pathname) ? RATE_LIMIT_RULES.catalog : null;
+	return accountRule(request.method, pathOf(url), await paidParseOf(request, url));
+}
+
+/** The name of the rule of paid parses per address (`paidParseRule`). */
+const PAID_PARSE = 'paid-parse';
+
+/**
+ * Paid parses from one client address (`paidParseOf`), whatever the account or the API key: the texts of needs and
+ * vacancies and the uploaded resumes share one budget an hour. Accounts are cheap on the stand — every demo session
+ * gives four employers, a company may issue keys — so the budget of an account alone does not bound what a script
+ * behind one address spends of the gateway. A jury behind one office address parses a few texts and resumes each and
+ * stays below it. Counted besides the rule of the account.
+ */
+export function paidParseRule(limit: number): RateLimitRule {
+	return {
+		name: PAID_PARSE,
+		limit,
+		windowSeconds: 3_600,
+		message: `Лимит разборов текста и резюме — ${String(limit)} в час с одного адреса. Повторите позже`
+	};
 }
 
 /**
@@ -204,16 +272,23 @@ const RECEIPT_PAGE = /^\/verify\/(?:categories\/)?[^/]+(?:\/__data\.json)?$/u;
  * Requests a browser makes that refuse a request over the limit themselves, so the refusal comes in the layout of the
  * site with the headers of every response rather than as a bare error page or the JSON error of the API: the public
  * pages of a receipt and of a confirmation of a category, the catalog pages (with their `__data.json`), the sign-in
- * through FSP ID, and — over the limit of parses only — the form actions that parse a pasted text. Such a route must
+ * through FSP ID, and — over the limits of parses only — the form actions that start a paid parse. Such a route must
  * refuse when `locals.rateLimited` is set — a page with `429`, the sign-in with a redirect to the sign-in page, a
- * parse with the form failure `429` saying the limit: the hook has already let the request through.
+ * parse with the form failure `429` in the words of the rule (`rateLimitedError`): the hook has already let the
+ * request through.
  */
 export function refusedByPage(method: string, url: URL, rule: RateLimitRule): boolean {
-	const { pathname } = url;
-	if (rule === RATE_LIMIT_RULES.textParse) return isTextParseAction(method, url);
-	return (
-		isRead(method) && (RECEIPT_PAGE.test(pathname) || CATALOG_PAGE.test(pathname) || FSP_SIGN_IN_PATHS.has(pathname))
-	);
+	if (rule === RATE_LIMIT_RULES.textParse || rule.name === PAID_PARSE) return isParsePage(method, url);
+	const path = pathOf(url);
+	return isRead(method) && (RECEIPT_PAGE.test(path) || CATALOG_PAGE.test(path) || FSP_SIGN_IN_PATHS.has(path));
+}
+
+/** The refusal of a request over the limit of `rule`, in the words of the rule when it has its own. */
+export function rateLimitedError(rule: RateLimitRule, retryAfterSeconds?: number): ApiError {
+	return new ApiError('rate_limited', {
+		...(retryAfterSeconds === undefined ? {} : { retryAfterSeconds }),
+		...(rule.message === undefined ? {} : { message: rule.message })
+	});
 }
 
 export interface RateLimitStore {
@@ -269,25 +344,35 @@ export interface RateLimitHandles {
 	/**
 	 * Limits of the client address (`ruleFor`), first in the chain. A request over the limit is refused here, except on
 	 * a route that refuses it itself (`refusedByPage`): there the route gets `locals.rateLimited` and renders the refusal
-	 * in the layout of the site.
+	 * in the layout of the site. A path that does not decode (`routedPath`) is refused with `400`.
 	 */
 	byAddress: Handle;
 	/**
-	 * Limits of the account (`accountRuleFor`), after authentication: counted besides the limit of the address, refused
-	 * the same way.
+	 * Limits of the account (`accountRuleFor`), after authentication, and of the paid parses of the address
+	 * (`paidParseRule`): counted besides the limit of the address, refused the same way.
 	 */
 	byAccount: Handle;
 }
 
+/** One counter a request is counted against: the rule and whom it counts. */
+interface Count {
+	rule: RateLimitRule;
+	subject: string;
+}
+
 /**
  * The hooks of the limits over a counter store. Without the store the limit cannot be enforced, so the request is
- * refused with `503 degraded`; `waitMs` bounds the wait for one counter.
+ * refused with `503 degraded`; `waitMs` bounds the wait for one counter. `paidParsesPerAddress` — the budget of paid
+ * parses of one address an hour (`paidParseRule`), read on each request.
  */
-export function rateLimitHandles(deps: { store: () => Promise<RateLimitStore>; waitMs: number }): RateLimitHandles {
+export function rateLimitHandles(deps: {
+	store: () => Promise<RateLimitStore>;
+	waitMs: number;
+	paidParsesPerAddress: () => number;
+}): RateLimitHandles {
 	async function count(
 		event: RequestEvent,
-		rule: RateLimitRule,
-		subject: string
+		{ rule, subject }: Count
 	): Promise<{ decision: RateLimitDecision } | { refused: Response }> {
 		try {
 			const store = await deps.store();
@@ -300,39 +385,71 @@ export function rateLimitHandles(deps: { store: () => Promise<RateLimitStore>; w
 		}
 	}
 
-	/** The request counted against `rule` for `subject`: let through, refused by its route, or refused here. */
+	/**
+	 * The request counted against each of `counts` in turn: let through, or — at the first counter over its limit, the
+	 * later ones not counted — refused by its route or here. A request let through gets the headers of the counter
+	 * with the fewest requests left.
+	 */
 	async function limit(
 		event: RequestEvent,
 		resolve: Parameters<Handle>[0]['resolve'],
-		rule: RateLimitRule,
-		subject: string
+		counts: readonly Count[]
 	): Promise<Response> {
-		const counted = await count(event, rule, subject);
-		if ('refused' in counted) return counted.refused;
-		const { decision } = counted;
-		if (decision.allowed) return withLimitHeaders(await resolve(event), decision);
-		if (!refusedByPage(event.request.method, event.url, rule)) return refuseOverLimit(event, rule, decision);
-		event.locals.rateLimited = true;
+		let tightest: RateLimitDecision | null = null;
+		for (const next of counts) {
+			const counted = await count(event, next);
+			if ('refused' in counted) return counted.refused;
+			const { decision } = counted;
+			if (!decision.allowed) return overLimit(event, resolve, next.rule, decision);
+			if (tightest === null || decision.remaining < tightest.remaining) tightest = decision;
+		}
 		const response = await resolve(event);
-		response.headers.set('cache-control', 'no-store');
-		response.headers.set('retry-after', String(decision.resetSeconds));
-		for (const [name, value] of Object.entries(rateLimitHeaders(decision))) response.headers.set(name, value);
-		return response;
+		return tightest === null ? response : withLimitHeaders(response, tightest);
 	}
 
 	return {
 		byAddress: async ({ event, resolve }) => {
-			event.locals.rateLimited = false;
-			const rule = ruleFor(event.request.method, event.url.pathname);
+			event.locals.rateLimited = null;
+			const path = routedPath(event.url.pathname);
+			if (path === null) {
+				return errorResponse(
+					new ApiError('validation_failed', { message: 'Адрес запроса не читается' }),
+					event.locals.requestId
+				);
+			}
+			const rule = ruleFor(event.request.method, path);
 			if (!rule) return resolve(event);
-			return limit(event, resolve, rule, event.getClientAddress());
+			return limit(event, resolve, [{ rule, subject: event.getClientAddress() }]);
 		},
 		byAccount: async ({ event, resolve }) => {
-			const rule = await accountRuleFor(event.request, event.url);
-			if (!rule) return resolve(event);
-			return limit(event, resolve, rule, accountSubject(event.locals.actor, event.getClientAddress()));
+			const address = event.getClientAddress();
+			const parse = await paidParseOf(event.request, event.url);
+			const rule = accountRule(event.request.method, pathOf(event.url), parse);
+			const counts: Count[] = [];
+			if (rule) counts.push({ rule, subject: accountSubject(event.locals.actor, address) });
+			if (parse !== null) counts.push({ rule: paidParseRule(deps.paidParsesPerAddress()), subject: address });
+			return limit(event, resolve, counts);
 		}
 	};
+}
+
+/** Over the limit of `rule`: the route refuses the request in the layout of the site, or the hook refuses it here. */
+async function overLimit(
+	event: RequestEvent,
+	resolve: Parameters<Handle>[0]['resolve'],
+	rule: RateLimitRule,
+	decision: RateLimitDecision
+): Promise<Response> {
+	if (!refusedByPage(event.request.method, event.url, rule)) {
+		const response = errorResponse(rateLimitedError(rule, decision.resetSeconds), event.locals.requestId);
+		return withLimitHeaders(response, decision);
+	}
+	event.locals.rateLimited = rule;
+	const response = await resolve(event);
+	response.headers.set('cache-control', 'no-store');
+	response.headers.set('retry-after', String(decision.resetSeconds));
+	for (const [name, value] of Object.entries(rateLimitHeaders(decision))) response.headers.set(name, value);
+	return response;
 }
 
 /**
@@ -343,16 +460,4 @@ function withLimitHeaders(response: Response, decision: RateLimitDecision): Resp
 	if (response.headers.has('ratelimit-limit')) return response;
 	for (const [name, value] of Object.entries(rateLimitHeaders(decision))) response.headers.set(name, value);
 	return response;
-}
-
-/** A request over the limit that no route refuses itself: the JSON error of the API, in the words of the rule. */
-function refuseOverLimit(event: RequestEvent, rule: RateLimitRule, decision: RateLimitDecision): Response {
-	const response = errorResponse(
-		new ApiError('rate_limited', {
-			retryAfterSeconds: decision.resetSeconds,
-			...(rule.message === undefined ? {} : { message: rule.message })
-		}),
-		event.locals.requestId
-	);
-	return withLimitHeaders(response, decision);
 }

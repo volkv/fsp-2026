@@ -6,7 +6,7 @@ import { minorTermsAcceptance } from '$lib/server/companies/profile';
 import { db } from '$lib/server/db';
 import { employerRequest, vacancyAuthor } from '$lib/server/employer/http';
 import { formFailure, pageError } from '$lib/server/http/page';
-import { RATE_LIMIT_RULES } from '$lib/server/http/rate-limit';
+import { rateLimitedError } from '$lib/server/http/rate-limit';
 import {
 	EMPTY_VACANCY_FORM,
 	readVacancyForm,
@@ -19,6 +19,7 @@ import { ApiError } from '$lib/server/errors/api-error';
 import type { CategoryKey } from '$lib/server/market/aggregate';
 import { positionText, vacancyMarketPosition, type VacancyMarketPosition } from '$lib/server/market/read';
 import { modelAdapter } from '$lib/server/ml';
+import { paidModels } from '$lib/server/parse-budget';
 import { redis } from '$lib/server/redis';
 import type { SalaryTerms } from '$lib/server/salary/compare';
 import {
@@ -115,7 +116,7 @@ export const actions: Actions = {
 		// Over the limit of parses the hook lets the post through, for the form to say so in its own words.
 		if (event.locals.rateLimited) {
 			const text = formText(await event.request.formData(), 'text');
-			const failure = formFailure(new ApiError('rate_limited', { message: RATE_LIMIT_RULES.textParse.message }));
+			const failure = formFailure(rateLimitedError(event.locals.rateLimited));
 			return fail(failure.status, { ...failure.data, text });
 		}
 		const { subject, meta } = await employerRequest(event);
@@ -124,7 +125,7 @@ export const actions: Actions = {
 		try {
 			const author = vacancyAuthor(subject, meta);
 			const draft = await extractVacancyFromText(
-				{ db: db(), models: modelAdapter(), parseCache: redisTextParseCache(redis) },
+				{ db: db(), models: paidModels(), parseCache: redisTextParseCache(redis) },
 				{ companyId: author.companyId },
 				text,
 				event.request.signal
