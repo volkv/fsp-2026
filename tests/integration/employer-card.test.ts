@@ -31,6 +31,7 @@ import {
 	testAttempts,
 	vacancies
 } from '$lib/server/db/schema';
+import { fspResultText } from '$lib/components/employer/shortlist';
 import { findInCatalog, loadCatalogCard } from '$lib/server/employer/card';
 import { listOwnVacancies } from '$lib/server/employer/vacancies';
 import { createReceiptSigner, type ReceiptSigner } from '$lib/server/fsp/receipts';
@@ -463,20 +464,32 @@ describe('catalog card: what the company reads on it', () => {
 			.where(eq(taxonomyVersions.id, version.id));
 	});
 
-	/** An adult with FSP results of the given statuses and team roles and the region stated in the preferences, if any. */
+	/**
+	 * An adult with FSP results of the given statuses, team roles and competition formats and the region stated in the
+	 * preferences, if any.
+	 */
 	async function withResult(
 		regionCode?: string,
-		results: { status: 'official' | 'preliminary' | 'annulled'; teamRole?: string }[] = [{ status: 'official' }]
+		results: {
+			status: 'official' | 'preliminary' | 'annulled';
+			teamRole?: string;
+			format?: 'individual' | 'team';
+		}[] = [{ status: 'official' }]
 	) {
 		const { db } = database;
 		const row = await createCandidate(db, {
 			preferences: regionCode === undefined ? {} : { region_code: regionCode }
 		});
-		for (const { status, teamRole } of results) await resultOf(row.id, status, teamRole);
+		for (const { status, teamRole, format } of results) await resultOf(row.id, status, teamRole, format);
 		return row;
 	}
 
-	async function resultOf(candidateId: string, status: string, teamRole: string | undefined) {
+	async function resultOf(
+		candidateId: string,
+		status: string,
+		teamRole: string | undefined,
+		format: 'individual' | 'team' = 'individual'
+	) {
 		const competitionId = randomSha256().slice(0, 8);
 		const team = teamRole === undefined ? null : { name: 'Команда', role: teamRole };
 		await database.db.insert(sourceFacts).values({
@@ -496,7 +509,7 @@ describe('catalog card: what the company reads on it', () => {
 					discipline: 'algorithmic',
 					level: 'russian_cup',
 					stage: 'final',
-					format: 'individual',
+					format,
 					startDate: '2025-10-01',
 					online: false
 				}
@@ -543,6 +556,15 @@ describe('catalog card: what the company reads on it', () => {
 		expect(official?.receiptHandles).toHaveLength(1);
 		expect(card.fspAchievements?.find((achievement) => achievement.preliminary)?.receiptHandles).toEqual([]);
 		expect(receipts).toHaveLength(1);
+	});
+
+	it("words a result of a team competition that names no team as the team's, as the ranking counts it", async () => {
+		const person = await withResult(undefined, [{ status: 'official', format: 'team' }]);
+		const [achievement] = (await open(person.id)).card.fspAchievements ?? [];
+		expect(achievement?.generalized.teamResult).toBe(true);
+		expect(achievement && fspResultText(achievement)).toBe(
+			'Призёр в составе команды · Кубок России · Программирование алгоритмическое, 2025'
+		);
 	});
 
 	it('tells the receipts of the simulator of FSP apart from those of the federation', async () => {

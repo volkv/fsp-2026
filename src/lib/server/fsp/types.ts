@@ -83,6 +83,15 @@ export interface Competition {
 	rawValues?: Record<string, string>;
 }
 
+/**
+ * Whether a result is a team's — the one rule for ranking, projection and every wording of it: the source names the team
+ * or the competition is held in teams. A result of a team competition may come without the team (contracts 1.3); it is
+ * still a team's, only unnamed.
+ */
+export function isTeamResult(namesTeam: boolean, format: Competition['format'] | null): boolean {
+	return namesTeam || format === 'team';
+}
+
 export interface ResultTeam {
 	id: string;
 	name: string;

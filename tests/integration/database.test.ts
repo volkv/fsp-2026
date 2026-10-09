@@ -12,6 +12,7 @@ vi.mock('$env/dynamic/private', async () => {
 const { db, closeDb } = await import('$lib/server/db');
 const { closeRedis } = await import('$lib/server/redis');
 const { checkHealth } = await import('$lib/server/health');
+const { loggedError } = await import('$lib/server/db/errors');
 
 /** Lowest pgvector release the project supports. */
 const MIN_PGVECTOR_VERSION = '0.8.4';
@@ -65,6 +66,21 @@ describe('database', () => {
 				{ id: 3, distance: expect.any(Number) as number }
 			]);
 		});
+	});
+});
+
+describe('a failed statement in the log', () => {
+	it('keeps out the value a data exception of PostgreSQL quotes', async () => {
+		const email = 'ivan.petrov@example.org';
+		const failure = await db()
+			.execute(sql`select ${email}::uuid`)
+			.then(
+				() => null,
+				(error: unknown) => error
+			);
+		const logged = loggedError(failure);
+		expect(logged.database).toMatchObject({ code: '22P02', message: 'SQLSTATE 22P02' });
+		expect(JSON.stringify(logged)).not.toContain(email);
 	});
 });
 
