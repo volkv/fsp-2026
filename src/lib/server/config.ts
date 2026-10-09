@@ -155,6 +155,8 @@ const envSchema = z
 		LLM_BREAKER_COOLDOWN_MS: optional(positiveInt),
 		PARSE_BUDGET_PER_ADDRESS: optional(positiveInt),
 		PARSE_BUDGET_STAND: optional(positiveInt),
+		// adapter-node reads it itself; the limits read it to tell a request without it (`clientAddressOf`).
+		ADDRESS_HEADER: optional(z.string().min(1)),
 
 		EMBED_BASE_URL: optional(httpUrl),
 		EMBED_MODEL: optional(z.string().min(1)),
@@ -418,6 +420,11 @@ export interface Config {
 	 * stand, the app and the worker together, read by the rules over it (`parse-budget.ts`).
 	 */
 	parseBudget: { perAddress: number; stand: number };
+	/**
+	 * The header the server takes the client address from (`ADDRESS_HEADER` of adapter-node), lower case; `null` — the
+	 * address of the connection. A request without the header has no address the limits could count it by.
+	 */
+	addressHeader: string | null;
 	/** Public registry of the company verification hint; `null` — not configured, the hint says so (domain 5.2). */
 	companyRegistry: 'egrul' | null;
 	/** The Huntflow adapter of outgoing events; `null` — off: no connection is made and its deliveries are skipped. */
@@ -553,6 +560,7 @@ function build(e: Env): Config {
 			perAddress: e.PARSE_BUDGET_PER_ADDRESS ?? PARSE_BUDGET_DEFAULTS.perAddress,
 			stand: e.PARSE_BUDGET_STAND ?? PARSE_BUDGET_DEFAULTS.stand
 		},
+		addressHeader: e.ADDRESS_HEADER?.toLowerCase() ?? null,
 		telegram: e.TELEGRAM_BOT_TOKEN
 			? {
 					botToken: e.TELEGRAM_BOT_TOKEN,

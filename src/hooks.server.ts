@@ -73,7 +73,8 @@ const identifyRequest: Handle = async ({ event, resolve }) => {
 const rateLimits = rateLimitHandles({
 	store: async () => redisRateLimitStore(await withTimeout(redis(), REDIS_WAIT_MS, 'redis')),
 	waitMs: REDIS_WAIT_MS,
-	paidParsesPerAddress: () => config().parseBudget.perAddress
+	paidParsesPerAddress: () => config().parseBudget.perAddress,
+	addressHeader: () => config().addressHeader
 });
 
 /** State-changing requests come from the application origin (docs/contracts.md, section 5.2). */

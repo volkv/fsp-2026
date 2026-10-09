@@ -32,6 +32,9 @@ function createNeedAction(event: RequestEvent) {
 
 const REDIS_DATABASE = 6;
 
+/** The header of the client address on the stand (`ADDRESS_HEADER`, docker-compose.prod.yml). */
+const FORWARDED_FOR = 'x-forwarded-for';
+
 /** The budget of paid parses of an address in the tests of other limits: out of their way. */
 const WIDE_PAID_BUDGET = 1_000;
 /** The budget of paid parses of an address in its own tests. */
@@ -40,13 +43,32 @@ const PAID_BUDGET = 6;
 let redis: Redis;
 let hooks: RateLimitHandles;
 let paidHooks: RateLimitHandles;
+/** The hooks of the stand, whose server takes the client address from the header the proxy sets. */
+let proxiedHooks: RateLimitHandles;
 
 beforeAll(async () => {
 	redis = createClient({ url: `${inject('redisUrl')}/${String(REDIS_DATABASE)}` });
 	await redis.connect();
 	const store = () => Promise.resolve(redisRateLimitStore(redis));
-	hooks = rateLimitHandles({ store, waitMs: 1_000, paidParsesPerAddress: () => WIDE_PAID_BUDGET });
-	paidHooks = rateLimitHandles({ store, waitMs: 1_000, paidParsesPerAddress: () => PAID_BUDGET });
+	const direct = () => null;
+	hooks = rateLimitHandles({
+		store,
+		waitMs: 1_000,
+		paidParsesPerAddress: () => WIDE_PAID_BUDGET,
+		addressHeader: direct
+	});
+	paidHooks = rateLimitHandles({
+		store,
+		waitMs: 1_000,
+		paidParsesPerAddress: () => PAID_BUDGET,
+		addressHeader: direct
+	});
+	proxiedHooks = rateLimitHandles({
+		store,
+		waitMs: 1_000,
+		paidParsesPerAddress: () => WIDE_PAID_BUDGET,
+		addressHeader: () => FORWARDED_FOR
+	});
 });
 
 afterAll(async () => {
@@ -471,5 +493,57 @@ describe('the counter of a window', () => {
 		await redis.set(key, '3', { PX: 400 });
 		const hit = await redisRateLimitStore(redis).hit(key, 60);
 		expect(hit).toEqual({ count: 4, resetSeconds: 1 });
+	});
+});
+
+describe('a request without the header of the client address', () => {
+	/**
+	 * A request straight to the server of the stand, past the proxy — the health check of the container among them: its
+	 * server throws when asked for the address of a request without the header, as adapter-node does.
+	 */
+	function direct(path: string, headers: Record<string, string> = {}): Promise<Response> {
+		const url = new URL(`http://127.0.0.1:3000${path}`);
+		const request = new Request(url, { headers });
+		const event = {
+			url,
+			request,
+			locals: { requestId: `req-${randomUUID()}`, actor: { kind: 'anonymous' }, rateLimited: null },
+			isDataRequest: false,
+			getClientAddress: () => {
+				const forwarded = request.headers.get(FORWARDED_FOR);
+				if (forwarded === null) {
+					throw new Error(
+						`Address header was specified with ADDRESS_HEADER=${FORWARDED_FOR} but is absent from request`
+					);
+				}
+				return forwarded.split(',').at(-1)?.trim() ?? '';
+			}
+		} as unknown as RequestEvent;
+		const accountStep: Handle = ({ event: next }) => proxiedHooks.byAccount({ event: next, resolve });
+		return Promise.resolve(proxiedHooks.byAddress({ event, resolve: (next) => accountStep({ event: next, resolve }) }));
+	}
+
+	it('passes to the route when no limit applies: the health check and a page are not refused', async () => {
+		const before = resolved;
+		for (const path of ['/api/health', '/', '/company/vacancies']) {
+			expect((await direct(path)).status, path).toBe(200);
+		}
+		expect(resolved - before).toBe(3);
+	});
+
+	it('is refused with 400 when a limit applies, uncounted and before the route', async () => {
+		const before = resolved;
+		for (const path of ['/api/v1/vacancies', '/company/candidates']) {
+			const response = await direct(path);
+			expect(response.status, path).toBe(400);
+			expect(((await response.json()) as { error: { code: string } }).error.code).toBe('validation_failed');
+		}
+		expect(resolved).toBe(before);
+	});
+
+	it('is counted by the address of the header when the proxy sets it', async () => {
+		const response = await direct('/api/v1/vacancies', { [FORWARDED_FOR]: address() });
+		expect(response.status).toBe(200);
+		expect(response.headers.get('ratelimit-limit')).toBe(String(RATE_LIMIT_RULES.api.limit));
 	});
 });
