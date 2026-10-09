@@ -3,7 +3,7 @@
 // cast keeps its number. Two unique indexes hold it, one for each place of the company.
 import { sql } from 'drizzle-orm';
 import { companies } from '$lib/server/db/schema';
-import { isUniqueViolation } from './context';
+import { isUniqueViolation } from '$lib/server/db/errors';
 
 /** The conflict target of an insert of a live company into its place: `null` — outside sessions. */
 export function innConflict(demoSessionId: string | null) {

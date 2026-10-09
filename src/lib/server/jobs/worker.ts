@@ -4,6 +4,7 @@
 import { hostname } from 'node:os';
 import { randomBytes } from 'node:crypto';
 import type { Database } from '$lib/server/db';
+import { databaseError } from '$lib/server/db/errors';
 import type { JobOwner } from '$lib/server/db/schema';
 import { JobFailure, type AnyJobHandler, type HandlerRegistry } from './handler';
 import { createLogger, type JobLogger } from './log';
@@ -189,7 +190,13 @@ function toJobError(error: unknown): { error: JobError; retryAfterSeconds?: numb
 			retryAfterSeconds: error.retryAfterSeconds
 		};
 	}
-	// The message of an unexpected error may quote data; `last_error` keeps only its class, the log keeps the rest.
+	// The message of an unexpected error may quote data; `last_error` keeps only its class — for a failed statement its
+	// SQLSTATE and constraint — and the log keeps the rest.
+	const database = databaseError(error);
+	if (database) {
+		const message = `SQLSTATE ${database.code}${database.constraint ? ` (${database.constraint})` : ''}`;
+		return { error: { code: 'database_error', retryable: true, message } };
+	}
 	const name = error instanceof Error ? error.name : 'NonErrorThrown';
 	return { error: { code: 'unexpected_error', retryable: true, message: name } };
 }

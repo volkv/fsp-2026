@@ -15,6 +15,7 @@
 		COMPONENT_REASONS,
 		contribution,
 		compositeText,
+		NEAR_TIE_ORDER,
 		coverageText,
 		OFFER_FIT,
 		reasonText,
@@ -94,6 +95,11 @@
 			<span class="block text-xs text-muted-foreground">
 				потребность {percent.format(match.levels.need)} · сила профиля {percent.format(match.levels.strength)}
 			</span>
+			{#if match.nearTieOrder}
+				<span class="block max-w-64 text-xs text-muted-foreground" data-testid="shortlist-near-tie">
+					{NEAR_TIE_ORDER[match.nearTieOrder]}
+				</span>
+			{/if}
 		</div>
 	</div>
 
@@ -153,9 +159,6 @@
 				без ФСП — позиция {match.positionWithoutFsp}
 			{/if}
 		</span>
-		{#if match.tieBrokenBySemantic}
-			<span>почти равны с соседями: порядок по смысловой близости к тексту потребности</span>
-		{/if}
 		{#if offerFit.format !== null}
 			<span>формат подходит: {OFFER_FIT[offerFit.format]}</span>
 		{/if}

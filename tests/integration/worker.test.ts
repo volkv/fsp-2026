@@ -204,6 +204,39 @@ describe('worker', () => {
 		});
 	});
 
+	it('keeps the SQLSTATE of a failed statement in the job and its log line', async () => {
+		const { db } = database;
+		const id = await enqueue(db, 'profile.embed', { candidate_id: randomUUID() });
+		launch({
+			handlers: handlerRegistry([
+				{
+					type: 'profile.embed',
+					concurrency: 1,
+					run: async ({ db: executor }) => {
+						await executor.execute(
+							sql`do $$ begin raise exception 'deadlock detected' using errcode = '40P01'; end $$`
+						);
+						throw new Error('the statement did not fail');
+					}
+				}
+			]),
+			types: ['profile.embed']
+		});
+		await waitFor(
+			'failure recorded',
+			async () => (await jobRow(id)).status === 'queued' && (await jobRow(id)).attempts === 1
+		);
+		expect((await jobRow(id)).lastError).toEqual({
+			code: 'database_error',
+			retryable: true,
+			message: 'SQLSTATE 40P01'
+		});
+		const line = logLines
+			.map((entry) => JSON.parse(entry.line) as Record<string, unknown>)
+			.find((entry) => entry.job_id === id && entry.msg === 'job attempt failed');
+		expect(line).toMatchObject({ code: 'database_error', db_code: '40P01', db_message: 'deadlock detected' });
+	});
+
 	it('returns a job whose lease expired in a crashed worker and runs it', async () => {
 		const { db } = database;
 		const id = await enqueue(db, 'profile.embed', { candidate_id: randomUUID() });

@@ -175,7 +175,14 @@ const needMatchSchema = z
 		to_verify: z.array(key).describe('Навыки потребности, которые кандидат только заявил'),
 		category: category.nullable(),
 		semantic: z.number().nullable(),
-		tie_broken_by_semantic: z.boolean().describe('Порядок среди почти равных решила смысловая близость'),
+		near_tie_order: z
+			.enum(['semantic', 'strength'])
+			.nullable()
+			.describe(
+				'Кандидат среди почти равных по счёту (разница меньше `nearTie` правил), упорядоченных не по счёту: ' +
+					'`semantic` — по смысловой близости к тексту потребности, `strength` — по силе подтверждённого профиля; ' +
+					'тогда счёт выше может стоять ниже. `null` — место по счёту'
+			),
 		position: z.int(),
 		position_without_fsp: z.int().describe('Позиция кандидата, если бы его результатов ФСП не было')
 	})
@@ -197,7 +204,7 @@ function needMatchView(match: CompanyNeedMatch) {
 		to_verify: match.toVerify,
 		category: match.category,
 		semantic: match.semantic,
-		tie_broken_by_semantic: match.tieBrokenBySemantic,
+		near_tie_order: match.nearTieOrder,
 		position: match.position,
 		position_without_fsp: match.positionWithoutFsp
 	};

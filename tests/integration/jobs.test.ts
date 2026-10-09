@@ -196,6 +196,54 @@ describe('job queue', () => {
 		expect(rows.map((row) => row.status)).toEqual(['running', 'queued']);
 	});
 
+	it('finishes a failed job as superseded when a job of its key is enqueued while it returns to the queue', async () => {
+		const { db, sql: client } = database;
+		// Waiting jobs of the tests before would be captured first.
+		await db.delete(jobs).where(eq(jobs.status, 'queued'));
+		const candidate = await createCandidate(db);
+		await changeProfile(db, candidate.id);
+		const claimed = await claimJob(db, 'worker-a', ['evidence.compute']);
+		if (!claimed) throw new Error('not captured');
+		// A change enqueues the next job of the key and has not committed yet: the failing one does not see it waiting.
+		let commit!: () => void;
+		const committed = new Promise<void>((resolve) => (commit = resolve));
+		let enqueued!: () => void;
+		const enqueuedInTx = new Promise<void>((resolve) => (enqueued = resolve));
+		const change = db.transaction(async (tx) => {
+			const result = await enqueueJob(
+				tx,
+				'evidence.compute',
+				{ candidate_id: candidate.id },
+				{ inputVersion: '2', createdBy: system }
+			);
+			enqueued();
+			await committed;
+			return result;
+		});
+		await enqueuedInTx;
+		const failing = failJob(db, claimed, { code: 'source_busy', retryable: true, message: 'come back later' });
+		// The return to the queue waits on the unique index of waiting jobs for the change.
+		for (let attempt = 0; ; attempt++) {
+			const [waiting] = await client`select count(*)::int as n from pg_locks where not granted`;
+			if (waiting?.n) break;
+			if (attempt >= 200) throw new Error('the return to the queue never waited on the change');
+			await new Promise((resolve) => setTimeout(resolve, 10));
+		}
+		commit();
+		const next = await change;
+		expect(next.joined).toBe(false);
+		expect(await failing).toBe('discarded_stale');
+		const rows = await db
+			.select({ id: jobs.id, status: jobs.status, lastError: jobs.lastError })
+			.from(jobs)
+			.where(eq(jobs.dedupKey, `evidence:${candidate.id}`));
+		expect(rows.find((row) => row.id === claimed.id)).toMatchObject({
+			status: 'discarded_stale',
+			lastError: { code: 'source_busy' }
+		});
+		expect(rows.find((row) => row.id === next.jobId)?.status).toBe('queued');
+	});
+
 	it('returns a job of a crashed worker to the queue and retries it', async () => {
 		const { db } = database;
 		const candidate = await createCandidate(db);

@@ -140,8 +140,8 @@ export interface RankedForNeed {
 	result: NeedResult;
 	/** Cosine similarity of the candidate to the text of the need; `null` — not measured. */
 	semantic: number | null;
-	/** The candidate stood among almost equal scores whose order the semantic similarity decided. */
-	tieBrokenBySemantic: boolean;
+	/** The candidate stood among almost equal scores ordered by another key than the score: which one (`NearTieOrder`). */
+	nearTieOrder: NearTieOrder | null;
 	/** 1-based position. */
 	position: number;
 	/** The position the candidate would have without their FSP results, everybody else unchanged. */
@@ -255,7 +255,7 @@ export async function rankForNeed(
 			snapshot: entry.snapshot,
 			result: entry.result,
 			semantic: similarities.get(place.id) ?? null,
-			tieBrokenBySemantic: place.tieBrokenBySemantic,
+			nearTieOrder: place.nearTieOrder,
 			position: place.position,
 			positionWithoutFsp: place.positionWithoutFsp
 		};
@@ -278,11 +278,19 @@ export interface ScoredPlace {
 	withoutFsp: { unconfirmed: number; score: number };
 }
 
+/**
+ * What ordered a group of almost equal scores whose order is not the order of the scores: the semantic similarity to the
+ * text of the need, or — without one — the strength of the confirmed profile. A lower score may then stand above a
+ * higher one by less than `nearTie`, and the page says why next to the score.
+ */
+export type NearTieOrder = 'semantic' | 'strength';
+
 export interface OrderedPlace {
 	id: string;
 	position: number;
 	positionWithoutFsp: number;
-	tieBrokenBySemantic: boolean;
+	/** `null` — the place is where its score puts it. */
+	nearTieOrder: NearTieOrder | null;
 }
 
 /** The tier of the group «грейд не подтверждён»: above any tier of coverage, as no need names a million skills. */
@@ -324,13 +332,9 @@ export function orderForNeed(
 		);
 		const measured = group.some((place) => similarities.has(place.id));
 		const moved = settled.some((place, index) => place !== group[index]);
+		const nearTieOrder: NearTieOrder | null = moved ? (measured ? 'semantic' : 'strength') : null;
 		for (const place of settled) {
-			result.push({
-				id: place.id,
-				position: result.length + 1,
-				positionWithoutFsp: 0,
-				tieBrokenBySemantic: group.length > 1 && measured && moved
-			});
+			result.push({ id: place.id, position: result.length + 1, positionWithoutFsp: 0, nearTieOrder });
 		}
 		start = end;
 	}

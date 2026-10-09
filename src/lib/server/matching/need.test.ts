@@ -554,9 +554,9 @@ describe('the order of a ranking for a need', () => {
 			]),
 			0.01
 		);
-		expect(order.map((p) => [p.id, p.tieBrokenBySemantic])).toEqual([
-			['a', false],
-			['b', false]
+		expect(order.map((p) => [p.id, p.nearTieOrder])).toEqual([
+			['a', null],
+			['b', null]
 		]);
 	});
 
@@ -583,14 +583,26 @@ describe('the order of a ranking for a need', () => {
 		);
 		// `a` has no similarity: it goes after the measured ones of its group; `d` is clearly lower and stays last.
 		expect(order.map((p) => p.id)).toEqual(['b', 'c', 'a', 'd']);
-		expect(order.slice(0, 3).every((p) => p.tieBrokenBySemantic)).toBe(true);
-		expect(order[3]).toMatchObject({ id: 'd', position: 4, tieBrokenBySemantic: false });
+		expect(order.slice(0, 3).every((p) => p.nearTieOrder === 'semantic')).toBe(true);
+		expect(order[3]).toMatchObject({ id: 'd', position: 4, nearTieOrder: null });
 	});
 
-	it('without similarities orders almost equal by the strength, then the id', () => {
-		const order = orderForNeed([place('a', 0.8, 0.1), place('b', 0.795, 0.3), place('c', 0.5)], new Map(), 0.01);
-		expect(order.map((p) => p.id)).toEqual(['b', 'a', 'c']);
-		expect(order.every((p) => !p.tieBrokenBySemantic)).toBe(true);
+	it('without similarities orders almost equal by the strength and says so where a lower score stands higher', () => {
+		// 0.815 is shown as 82 %, 0.806 as 81 %: the 81 % goes first by the strength, and both places say why.
+		const order = orderForNeed([place('a', 0.815, 0.1), place('b', 0.806, 0.3), place('c', 0.5)], new Map(), 0.01);
+		expect(order.map((p) => [p.id, p.nearTieOrder])).toEqual([
+			['b', 'strength'],
+			['a', 'strength'],
+			['c', null]
+		]);
+	});
+
+	it('says nothing of almost equal scores whose order is the order of the scores', () => {
+		const order = orderForNeed([place('a', 0.815, 0.3), place('b', 0.806, 0.1)], new Map(), 0.01);
+		expect(order.map((p) => [p.id, p.nearTieOrder])).toEqual([
+			['a', null],
+			['b', null]
+		]);
 	});
 
 	it('places a candidate without their FSP results among the others as they are', () => {
