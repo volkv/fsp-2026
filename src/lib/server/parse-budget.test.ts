@@ -53,8 +53,8 @@ const budget = (limit: number, store = memoryStore()): StandParseBudget => ({
 
 describe('the budget of the stand', () => {
 	it('calls the model up to the budget, then answers rate_limited without a call, not to be retried', async () => {
-		const inner = model();
-		const extractor = budgetedExtractor(inner, budget(2));
+		const answering = model();
+		const extractor = budgetedExtractor(answering, budget(2));
 		expect((await extractor.extract(request, lexicon)).ok).toBe(true);
 		expect((await extractor.extract(request, lexicon)).ok).toBe(true);
 		const over = await extractor.extract(request, lexicon);
@@ -62,7 +62,7 @@ describe('the budget of the stand', () => {
 			ok: false,
 			error: { code: 'rate_limited', retryable: false, details: { reason: STAND_BUDGET_SPENT } }
 		});
-		expect(inner.calls).toBe(2);
+		expect(answering.calls).toBe(2);
 	});
 
 	it('is shared by every extractor over the same counter: the app and the worker together', async () => {
@@ -80,7 +80,7 @@ describe('the budget of the stand', () => {
 		await budgetedExtractor(off, offBudget).extract(request, lexicon);
 		expect(off.calls).toBe(1);
 
-		const inner = model();
+		const answering = model();
 		const broken: StandParseBudget = {
 			limit: () => 10,
 			store: () => Promise.reject(new Error('redis is down')),
@@ -88,12 +88,12 @@ describe('the budget of the stand', () => {
 		};
 		const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
 		try {
-			const answer = await budgetedExtractor(inner, broken).extract(request, lexicon);
+			const answer = await budgetedExtractor(answering, broken).extract(request, lexicon);
 			expect(answer).toMatchObject({ ok: false, error: { code: 'unavailable', details: { cause: 'budget_store' } } });
 			expect(logged).toHaveBeenCalledOnce();
 		} finally {
 			logged.mockRestore();
 		}
-		expect(inner.calls).toBe(0);
+		expect(answering.calls).toBe(0);
 	});
 });
