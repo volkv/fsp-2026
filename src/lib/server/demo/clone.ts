@@ -22,7 +22,8 @@ import { uuidv7 } from '$lib/server/ids';
 import type { ObjectStore } from '$lib/server/storage/object-store';
 import { enqueueMatchRefresh } from '$lib/server/vacancies/derivations';
 import { lastUseOf, type DemoActivity } from './activity';
-import { castOriginals, castRoles, cloneEmail } from './cast';
+import { castRoles, cloneEmail } from './cast';
+import { seededCast } from './readiness';
 import { ownedDecision } from './clone-plan';
 import type { SeedData } from './data';
 import type { DemoTerms } from './terms';
@@ -309,7 +310,8 @@ export async function openDemoSession(
 			await tx.execute(sql`select pg_advisory_xact_lock(hashtext('demo.open_session'))`);
 			const evicted = await makeRoom(tx, deps.activity, terms.evictableMinutes, now);
 			const graph = await loadSchemaGraph(tx);
-			const originals = await castOriginals(tx, deps.crypto, roles);
+			// Only a finished seed is cloned: the heroes are originals from the start of the seed, their data come after.
+			const originals = await seededCast(tx, deps.crypto, roles);
 			await tx.insert(demoSessions).values({
 				id: sessionId,
 				joinTokenSha256: sha256Hex(joinToken),

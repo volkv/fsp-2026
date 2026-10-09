@@ -22,6 +22,7 @@ import { loadSelfEvidence } from '$lib/server/candidates/profile';
 import { currentDocument } from '$lib/server/auth/documents';
 import { createEvidenceHandler } from '$lib/server/evidence/job';
 import { loadAccessSubject } from '$lib/server/companies/subject';
+import { recordAuditEvent } from '$lib/server/audit/record';
 import { createFieldCrypto } from '$lib/server/crypto/fields';
 import {
 	athleteLinks,
@@ -43,7 +44,7 @@ import {
 	users,
 	vacancies
 } from '$lib/server/db/schema';
-import { castOriginals, castRoles, heroCategories } from '$lib/server/demo/cast';
+import { castOriginals, castRoles, DemoCastMissing, heroCategories } from '$lib/server/demo/cast';
 import { companyPartnerships, readPartnerPool } from '$lib/server/partner-pool/pool';
 import { MAX_LIVE_SESSIONS, openDemoSession, type OpenedSession } from '$lib/server/demo/clone';
 import { compareWithClonePlan, isPlanComplete } from '$lib/server/demo/clone-plan';
@@ -57,7 +58,7 @@ import { seedDemo } from '$lib/server/demo/seed';
 import type { DemoServices } from '$lib/server/demo/services';
 import { idleEndOf, lastEndOf, redisDemoActivity } from '$lib/server/demo/activity';
 import { demoTerms } from '$lib/server/demo/terms';
-import { cloneOfRole } from '$lib/server/demo/visit';
+import { cloneOfRole, enterDemoRole, refusalText } from '$lib/server/demo/visit';
 import { HttpAchievementsSource } from '$lib/server/fsp/adapter';
 import { RATE_LIMIT_RULES } from '$lib/server/http/rate-limit';
 import { ServiceGrantIssuer } from '$lib/server/fsp/grant';
@@ -449,6 +450,61 @@ describe('demo sessions', () => {
 			.where(eq(users.demoSessionId, a.sessionId));
 		expect(copiedFiles.length).toBe(a.filesCopied);
 		for (const file of copiedFiles) expect(store.objects.has(file.key)).toBe(true);
+	});
+
+	it('opens no session while the seed of the batch runs, and tells when to come back', async () => {
+		// The heroes are originals from the start of a seed, their categories, needs and offers come after; only the
+		// event of the finished seed lets a session clone them (the opening after it — the test above).
+		const [finished] = await database.db.select().from(auditEvents).where(eq(auditEvents.action, 'demo.seeded'));
+		if (!finished) throw new Error('the stand is not seeded');
+		await database.sql.begin(async (tx) => {
+			await tx`set local role fsp_retention`;
+			await tx`delete from audit_events where action = 'demo.seeded'`;
+		});
+		const now = new Date();
+		// The reset that started the running seed, five minutes ago; the previous seed took twenty.
+		await recordAuditEvent(database.db, {
+			action: 'demo.reset',
+			outcome: 'success',
+			actor: { kind: 'system' },
+			requestId: 'demo-sessions-test',
+			occurredAt: new Date(now.getTime() - 5 * 60_000),
+			details: { trigger: 'nightly', tables_cleared: 1, rows_kept: 0, files_removed: 0, previous_seed_ms: 20 * 60_000 }
+		});
+		try {
+			const sessionsBefore = await database.db.select({ id: demoSessions.id }).from(demoSessions);
+			await expect(openDemoSession(deps(), data, await demoTerms(database.db), meta)).rejects.toThrow(DemoCastMissing);
+			const address = '203.0.113.71';
+			const budgetKey = `ratelimit:${RATE_LIMIT_RULES.demoSession.name}:${address}`;
+			await redis.del(budgetKey);
+			const enter = () =>
+				enterDemoRole(
+					{ db: database.db, redis, crypto, store, now: () => now },
+					{ data, role: role('k1'), tokens: [], address, previous: null, meta }
+				);
+			// Reloads during the seed spend nothing of the daily budget of the address.
+			for (let attempt = 0; attempt < 3; attempt++) {
+				const entry = await enter();
+				expect(entry).toEqual({ kind: 'refused', reason: 'not_seeded', retryAfterSeconds: 15 * 60 });
+				if (entry.kind !== 'refused') throw new Error('the session was opened');
+				expect(refusalText(entry)).toBe('Демо-данные стенда обновляются. Попробуйте через 15 мин.');
+			}
+			expect(await redis.get(budgetKey)).toBeNull();
+			expect(await database.db.select({ id: demoSessions.id }).from(demoSessions)).toEqual(sessionsBefore);
+			// The seed has finished: the session opens and costs one hit.
+			await database.db.insert(auditEvents).values(finished);
+			const opened = await enter();
+			expect(opened.kind).toBe('entered');
+			expect(await redis.get(budgetKey)).toBe('1');
+			if (opened.kind !== 'entered') throw new Error('the session was not opened');
+			await purgeDemoSession({ db: database.db, redis, store }, opened.session.id, new Date(), meta.requestId);
+			await database.sql.begin(async (tx) => {
+				await tx`set local role fsp_retention`;
+				await tx`delete from audit_events where id = ${finished.id}`;
+			});
+		} finally {
+			await database.db.insert(auditEvents).values(finished);
+		}
 	});
 
 	it('tells on the card of a hero the categories the stand gives, not the ones the scenario plans', async () => {

@@ -180,6 +180,33 @@ describe('demo reset', () => {
 			actor: { kind: 'user', userId: candidate.userId },
 			requestId: 'test'
 		});
+		// The previous reset and the end of the seed after it: the new reset's event keeps how long that seed took.
+		const seedStarted = new Date(Date.now() - 3_600_000);
+		await recordAuditEvent(db, {
+			action: 'demo.reset',
+			outcome: 'success',
+			actor: { kind: 'system' },
+			requestId: 'test',
+			occurredAt: seedStarted,
+			details: { trigger: 'nightly', tables_cleared: 1, rows_kept: 0, files_removed: 0, previous_seed_ms: null }
+		});
+		await recordAuditEvent(db, {
+			action: 'demo.seeded',
+			outcome: 'success',
+			actor: { kind: 'system' },
+			requestId: 'test',
+			occurredAt: new Date(seedStarted.getTime() + 754_321),
+			details: {
+				batch: 'demo-test',
+				candidates: 1,
+				vacancies: 0,
+				tests_open: [],
+				tests_closed: {},
+				tests_untested: 0,
+				tests_closed_needs: 0,
+				tests_closed_scenes: []
+			}
+		});
 		await db.transaction(async (tx) => {
 			await enqueueJob(
 				tx,
@@ -230,7 +257,8 @@ describe('demo reset', () => {
 					trigger: 'manual',
 					tables_cleared: summary.tablesCleared,
 					rows_kept: summary.rowsKept,
-					files_removed: 1
+					files_removed: 1,
+					previous_seed_ms: 754_321
 				}
 			}
 		]);

@@ -35,7 +35,7 @@
 	width="wide"
 >
 	{#if !data.seeded}
-		<FormMessage tone="error" text="Демо-данные стенда ещё засеваются. Обновите страницу через несколько минут." />
+		<FormMessage tone="error" text={data.wait} />
 	{:else}
 		{#if form?.message}
 			<FormMessage tone="error" text={form.message} />
