@@ -9,7 +9,7 @@
 //
 // The answers are the candidate's data: an attempt starts and takes answers only with `pd_processing` in effect.
 import { randomBytes } from 'node:crypto';
-import { and, asc, eq, gt, inArray, lte, max, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, inArray, lte, max, sql } from 'drizzle-orm';
 import { can, type AccessSubject } from '$lib/server/access/permissions';
 import { requireProcessingConsent } from '$lib/server/consent/processing';
 import type { Database, Executor, Transaction } from '$lib/server/db';
@@ -178,6 +178,38 @@ export async function seenClasses(executor: Executor, candidateId: string, now: 
 			.filter((r) => !(r.status === 'annulled' && r.reason !== null && free.includes(r.reason)))
 			.map((r) => seenKey(r.family, gradeOf(r), r.classId))
 	);
+}
+
+/**
+ * The form of the candidate's latest grade attempt at the specialization and grade within the window of forms, free
+ * annulments aside — the form a retake does not take again (domain 10.4); `null` — no such attempt.
+ */
+export async function previousForm(
+	executor: Executor,
+	candidateId: string,
+	specialization: SpecializationKey,
+	grade: GradeKey,
+	now: Date
+): Promise<AttemptForm | null> {
+	const since = new Date(now.getTime() - GRADE_POLICY.formWindowDays * 86_400_000);
+	const rows = await executor
+		.select({ form: testAttempts.form, status: testAttempts.status, reason: testAttempts.annulReason })
+		.from(testAttempts)
+		.where(
+			and(
+				eq(testAttempts.candidateId, candidateId),
+				eq(testAttempts.purpose, 'grade'),
+				eq(testAttempts.specialization, specialization),
+				eq(testAttempts.grade, grade),
+				gt(testAttempts.startedAt, since)
+			)
+		)
+		.orderBy(desc(testAttempts.startedAt));
+	const free = GRADE_POLICY.freeRetakeAnnulReasons;
+	const latest = rows.find((r) => !(r.status === 'annulled' && r.reason !== null && free.includes(r.reason)));
+	if (latest === undefined) return null;
+	if (latest.form === null) throw new Error(`a grade attempt of candidate ${candidateId} has no form`);
+	return latest.form;
 }
 
 const clusterOf = (item: ItemRow): ClusterResult => {
@@ -456,7 +488,7 @@ export interface StartOptions {
 /**
  * Starts a `grade` attempt in a transaction the caller owns (the candidate row is locked, so two clicks cannot open two
  * attempts): the specialization must be open, the grade policy must let the grade start, the form follows the previous
- * attempt at the grade, the first slot is served.
+ * attempt at the grade (`attemptForm`), the first slot is served.
  */
 export async function startAttemptIn(
 	tx: Transaction,
@@ -486,6 +518,7 @@ export async function startAttemptIn(
 		release.families.map((f) => f.descriptor),
 		input.grade,
 		await seenClasses(tx, candidateId, now),
+		await previousForm(tx, candidateId, input.specialization, input.grade, now),
 		seed
 	);
 	const [attempt] = await tx

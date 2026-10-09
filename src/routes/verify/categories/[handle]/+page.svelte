@@ -20,7 +20,16 @@
 	} as const;
 
 	const dateFormat = new Intl.DateTimeFormat('ru', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
-	const day = (value: string) => dateFormat.format(new Date(`${value}T00:00:00Z`));
+	// «9 октября 2026» without the «г.» of the locale: the date often ends a sentence, whose full stop follows it.
+	const day = (value: string) => {
+		const parts = dateFormat.formatToParts(new Date(`${value}T00:00:00Z`));
+		const part = (type: Intl.DateTimeFormatPartTypes) => {
+			const found = parts.find((p) => p.type === type);
+			if (!found) throw new Error(`the date ${value} has no ${type}`);
+			return found.value;
+		};
+		return `${part('day')} ${part('month')} ${part('year')}`;
+	};
 	const holder = $derived(form?.holder ?? null);
 </script>
 

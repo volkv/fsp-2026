@@ -68,15 +68,32 @@ describe('plan and slot choice', () => {
 		expect(choose({ kind: 'reserve' }, seen(['x']))).toBeNull();
 	});
 
-	it('takes the form with fewer seen classes, a tie by the seed', () => {
+	it('takes the form with fewer seen classes, a first attempt by the seed', () => {
 		const forms = new Set(
-			['s1', 's2', 's3', 's4', 's5', 's6'].map((s) => attemptForm(families, 'junior', new Set(), s))
+			['s1', 's2', 's3', 's4', 's5', 's6'].map((s) => attemptForm(families, 'junior', new Set(), null, s))
 		);
 		expect(forms).toEqual(new Set(['A', 'B']));
 		const seenA = new Set(junior.slice(0, 3).map((f) => seenKey(f.key, 'junior', 'a')));
-		expect(attemptForm(families, 'junior', seenA, 's1')).toBe('B');
+		expect(attemptForm(families, 'junior', seenA, null, 's1')).toBe('B');
 		const seenB = new Set(junior.slice(0, 3).map((f) => seenKey(f.key, 'junior', 'b')));
-		expect(attemptForm(families, 'junior', seenB, 's1')).toBe('A');
+		expect(attemptForm(families, 'junior', seenB, null, 's1')).toBe('A');
+	});
+
+	it('retakes on the other form after a first attempt that served only anchors', () => {
+		// A released bank gives every family-level an anchor, and a first attempt takes the unseen anchor first: it
+		// leaves no class of a form seen, and the counts of its retake tie.
+		const anchors = new Set(
+			families.flatMap((f) =>
+				(f.levels.find((l) => l.grade === 'junior')?.classes ?? [])
+					.filter((c) => c.form === 'anchor')
+					.map((c) => seenKey(f.key, 'junior', c.id))
+			)
+		);
+		expect(anchors.size).toBeGreaterThan(0);
+		for (const seed of ['s1', 's2', 's3', 's4', 's5', 's6']) {
+			expect(attemptForm(families, 'junior', anchors, 'B', seed)).toBe('A');
+			expect(attemptForm(families, 'junior', anchors, 'A', seed)).toBe('B');
+		}
 	});
 
 	it('gives the attempt one and a half of the time norms of the longest trajectory', () => {

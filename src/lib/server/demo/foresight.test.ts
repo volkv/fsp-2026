@@ -25,12 +25,12 @@ describe('the foresight of a seeded attempt', () => {
 			const found = await findDraw(
 				backend,
 				'middle',
-				new Set(),
+				{ seen: new Set(), previous: null },
 				outcome,
 				(trial) => `foresight-test:${outcome}:${trial}`
 			);
 			expect(found, outcome).not.toBeNull();
-			if (found) expect(foresee(backend, 'middle', new Set(), found.draw)).toBe(outcome);
+			if (found) expect(foresee(backend, 'middle', { seen: new Set(), previous: null }, found.draw)).toBe(outcome);
 		}
 		// The draw of a label is fixed: the seed of a batch makes the same attempts every time.
 		expect(drawOf('a:b:test:0:3', 'undetermined')).toEqual(drawOf('a:b:test:0:3', 'undetermined'));
