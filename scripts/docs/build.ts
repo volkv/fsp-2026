@@ -2,7 +2,9 @@
 // docs/submission. Steps: the technologies table (licenses.ts, fails on a forbidden licence) and the API overview
 // (api.ts) are generated into docs/submission/generated; the sections are joined in SECTIONS order; Mermaid blocks are
 // rendered by mermaid-cli (SVG for the PDF, PNG for the DOCX — older Word does not show SVG); pandoc turns the result
-// into HTML and DOCX; Chromium from Playwright prints the HTML to PDF with page numbers and bookmarks. pandoc and
+// into HTML and DOCX (styles, A4 page and footer from a reference document built by docx-reference.lua, the table of
+// contents and page breaks from docx.lua); Chromium from Playwright prints the HTML to PDF with page numbers and
+// bookmarks. pandoc and
 // mermaid-cli run in pinned containers (images.ts), so the build needs only Docker and the installed dependencies.
 // Runs with plain Node: `pnpm docs:build`.
 import { execFileSync } from 'node:child_process';
@@ -17,6 +19,8 @@ const SUBMISSION = join(ROOT, 'docs/submission');
 const OUT = join(ROOT, 'build/docs');
 const WORK = join(OUT, 'work');
 const NAME = 'fsp-career-documentation';
+/** PNG diagrams for the DOCX are rendered at this multiple of their size, so they stay sharp when printed. */
+const PNG_SCALE = 2;
 
 /** Sections in document order; a section may be followed by generated parts it introduces. */
 const SECTIONS: readonly (readonly string[])[] = [
@@ -58,11 +62,11 @@ function revision(): string {
 	return git('status', '--porcelain') === '' ? head : `${head}-dirty`;
 }
 
-/** Runs a container with the work directory mounted at /data, as the current user, without network. */
-function docker(image: string, args: readonly string[], entrypoint?: string): void {
+/** Runs a container with the work directory mounted at /data, as the current user, without network; returns stdout. */
+function docker(image: string, args: readonly string[], entrypoint?: string): Buffer {
 	const uid = process.getuid?.();
 	const gid = process.getgid?.();
-	execFileSync(
+	return execFileSync(
 		'docker',
 		[
 			'run',
@@ -78,7 +82,7 @@ function docker(image: string, args: readonly string[], entrypoint?: string): vo
 			image,
 			...args
 		],
-		{ stdio: ['ignore', 'inherit', 'inherit'] }
+		{ stdio: ['ignore', 'pipe', 'inherit'], maxBuffer: 64 * 1024 * 1024 }
 	);
 }
 
@@ -91,7 +95,7 @@ function renderDiagrams(markdown: string): { html: string; docx: string } {
 	mkdirSync(join(WORK, 'diagrams-png'));
 	const common = ['-i', 'document.md', '-c', 'mermaid.json', '-b', 'white', '-q'];
 	docker(MERMAID_IMAGE, [...common, '-o', 'document-svg.md', '-e', 'svg', '-a', 'diagrams-svg']);
-	docker(MERMAID_IMAGE, [...common, '-o', 'document-png.md', '-e', 'png', '-s', '2', '-a', 'diagrams-png']);
+	docker(MERMAID_IMAGE, [...common, '-o', 'document-png.md', '-e', 'png', '-s', String(PNG_SCALE), '-a', 'diagrams-png']);
 	console.log(`Diagrams: ${count}`);
 	return { html: 'document-svg.md', docx: 'document-png.md' };
 }
@@ -101,9 +105,9 @@ function pandoc(input: string, output: string, extra: readonly string[], metadat
 		input,
 		'--from',
 		// No implicit figures: mermaid-cli gives every diagram the alt text "diagram", which would become its caption.
-		'markdown-implicit_figures',
-		'--toc',
-		'--toc-depth=2',
+		// ASCII identifiers: Cyrillic headings otherwise become percent-encoded anchors longer than the 127 bytes a PDF
+		// name may have, and Word bookmarks are limited to 40 characters.
+		'markdown-implicit_figures+ascii_identifiers',
 		'--number-sections',
 		...Object.entries(metadata).flatMap(([key, value]) => ['--metadata', `${key}=${value}`]),
 		...extra,
@@ -154,7 +158,9 @@ async function main(): Promise<void> {
 	writeFileSync(join(WORK, 'document.md'), `${markdown}\n`);
 	cpSync(join(ROOT, 'static/fonts'), join(WORK, 'fonts'), { recursive: true });
 	copyFileSync(join(ROOT, 'scripts/docs/document.css'), join(WORK, 'document.css'));
-	copyFileSync(join(ROOT, 'scripts/docs/docx-page-breaks.lua'), join(WORK, 'docx-page-breaks.lua'));
+	for (const script of ['docx.lua', 'docx-reference.lua']) {
+		copyFileSync(join(ROOT, 'scripts/docs', script), join(WORK, script));
+	}
 
 	const sources = renderDiagrams(markdown);
 	const date = new Date().toISOString().slice(0, 10);
@@ -166,8 +172,16 @@ async function main(): Promise<void> {
 		lang: 'ru',
 		'toc-title': 'Содержание'
 	};
-	pandoc(sources.html, 'document.html', ['--standalone', '--css', 'document.css'], metadata);
-	pandoc(sources.docx, 'document.docx', ['--lua-filter', 'docx-page-breaks.lua'], metadata);
+	pandoc(sources.html, 'document.html', ['--standalone', '--css', 'document.css', '--toc', '--toc-depth=2'], metadata);
+	writeFileSync(join(WORK, 'default-reference.docx'), docker(PANDOC_IMAGE, ['--print-default-data-file', 'reference.docx']));
+	docker(PANDOC_IMAGE, ['lua', 'docx-reference.lua', 'default-reference.docx', 'reference.docx']);
+	pandoc(
+		sources.docx,
+		'document.docx',
+		// The PNG diagrams carry no resolution: --dpi gives their intended size, PNG_SCALE times the CSS pixel.
+		['--reference-doc', 'reference.docx', '--lua-filter', 'docx.lua', `--dpi=${96 * PNG_SCALE}`],
+		metadata
+	);
 
 	const pdf = join(OUT, `${NAME}.pdf`);
 	const docx = join(OUT, `${NAME}.docx`);
