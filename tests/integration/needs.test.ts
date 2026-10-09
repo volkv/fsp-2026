@@ -21,6 +21,8 @@ import { decide, invalidate } from '../helpers/categories';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
 import { createCandidate, createCompany, createMember, createPublishedDocument } from '../helpers/factories';
 import { memoryTextParseCache } from '$lib/server/vacancies/text-extract';
+import type { RateLimitStore } from '$lib/server/http/rate-limit';
+import { budgetedExtractor } from '$lib/server/parse-budget';
 
 const TAXONOMY_DIR = fileURLToPath(new URL('../../taxonomy', import.meta.url));
 const DAY = 86_400_000;
@@ -394,6 +396,32 @@ describe('a hiring need', () => {
 		// A new text is a new call.
 		await createNeed(shared, subject, meta, { text: `${text}. Удалённо` });
 		expect(model.calls).toBe(2);
+	});
+	it('reads a text by the rules over the hourly budget of the stand, saying why; a kept parse still answers', async () => {
+		const { subject } = await employer();
+		const model = answeringModel();
+		const counts = new Map<string, number>();
+		const store: RateLimitStore = {
+			hit: (key, windowSeconds) => {
+				const count = (counts.get(key) ?? 0) + 1;
+				counts.set(key, count);
+				return Promise.resolve({ count, resetSeconds: windowSeconds });
+			}
+		};
+		const shared = {
+			...deps(),
+			models: budgetedExtractor(model, { limit: () => 1, store: () => Promise.resolve(store), waitMs: 1_000 })
+		};
+		const text = 'Ищем Go-разработчика уровня middle в команду расчётов';
+		const first = await createNeed(shared, subject, meta, { text });
+		expect(first.parse).toMatchObject({ mode: 'model', model_failure: null });
+		const over = await createNeed(shared, subject, meta, { text: `${text}. Удалённо` });
+		expect(over.parse).toMatchObject({ mode: 'rules', model_failure: 'rate_limited', model: null });
+		expect(over.form.skill_keys).toContain('go');
+		// The same text again is the kept answer of the model: no call, nothing counted.
+		const again = await createNeed(shared, subject, meta, { text });
+		expect(again.parse).toMatchObject({ mode: 'model' });
+		expect(model.calls).toBe(1);
 	});
 });
 

@@ -1,6 +1,7 @@
 import { fail } from '@sveltejs/kit';
 import { resumeFields } from '$lib/components/candidate/quotes';
 import { formText } from '$lib/server/http/form';
+import { rateLimitedError } from '$lib/server/http/rate-limit';
 import { currentCandidateVocabulary, vocabularyLabels } from '$lib/server/candidates/vocabulary';
 import { candidateRequest } from '$lib/server/candidates/http';
 import { processingRefusal } from '$lib/server/consent/processing';
@@ -129,6 +130,8 @@ function correctionProblem(cause: unknown): FormProblem | null {
 
 export const actions: Actions = {
 	upload: async (event) => {
+		// Over the limit of paid parses the hook lets the post through, for the form to say so in its own words.
+		if (event.locals.rateLimited) return targetFailure(rateLimitedError(event.locals.rateLimited), 'upload');
 		const { subject, meta } = await candidateRequest(event);
 		const form = await event.request.formData();
 		const file = form.get('file');

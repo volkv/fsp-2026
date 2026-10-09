@@ -3,6 +3,13 @@ import { z } from 'zod';
 import { LLM_RUNTIMES, type LlmRuntime } from '$lib/server/ml/runtime';
 
 /** How the demo seed reads the heroes' resumes and the scenario needs (`DEMO_SEED_MODEL`, `demo/model-parses.ts`). */
+/**
+ * Default budgets of paid parses an hour (docs/deploy.md, «Бюджет шлюза модели»). Per address: a jury behind one
+ * office address, a few people with a few texts and a resume each. The stand: 300 calls at the dearest one, a resume
+ * at ≈ 0,003 USD, is ≈ 0,9 USD an hour.
+ */
+export const PARSE_BUDGET_DEFAULTS = { perAddress: 60, stand: 300 } as const;
+
 export const SEED_MODEL_MODES = ['stored', 'live'] as const;
 export type SeedModelMode = (typeof SEED_MODEL_MODES)[number];
 
@@ -146,6 +153,8 @@ const envSchema = z
 		LLM_MAX_CONCURRENCY: optional(positiveInt),
 		LLM_BREAKER_FAILURES: optional(positiveInt),
 		LLM_BREAKER_COOLDOWN_MS: optional(positiveInt),
+		PARSE_BUDGET_PER_ADDRESS: optional(positiveInt),
+		PARSE_BUDGET_STAND: optional(positiveInt),
 
 		EMBED_BASE_URL: optional(httpUrl),
 		EMBED_MODEL: optional(z.string().min(1)),
@@ -402,6 +411,13 @@ export interface Config {
 	} | null;
 	/** Each model operation is configured separately; `null` — the operation is disabled (contracts 3.1). */
 	models: { extract: ExtractConfig | null; embed: EmbedConfig | null; rerank: RerankConfig | null };
+	/**
+	 * Budgets of the parses the extraction model is paid for (docs/deploy.md, «Бюджет шлюза модели»), an hour each:
+	 * `perAddress` (`PARSE_BUDGET_PER_ADDRESS`) — posts of texts and uploads of resumes from one client address,
+	 * refused over it (`paidParseRule`); `stand` (`PARSE_BUDGET_STAND`) — calls of the model by the parses of the whole
+	 * stand, the app and the worker together, read by the rules over it (`parse-budget.ts`).
+	 */
+	parseBudget: { perAddress: number; stand: number };
 	/** Public registry of the company verification hint; `null` — not configured, the hint says so (domain 5.2). */
 	companyRegistry: 'egrul' | null;
 	/** The Huntflow adapter of outgoing events; `null` — off: no connection is made and its deliveries are skipped. */
@@ -532,6 +548,10 @@ function build(e: Env): Config {
 						breaker: breaker(e.RERANK_BREAKER_FAILURES, e.RERANK_BREAKER_COOLDOWN_MS)
 					}
 				: null
+		},
+		parseBudget: {
+			perAddress: e.PARSE_BUDGET_PER_ADDRESS ?? PARSE_BUDGET_DEFAULTS.perAddress,
+			stand: e.PARSE_BUDGET_STAND ?? PARSE_BUDGET_DEFAULTS.stand
 		},
 		telegram: e.TELEGRAM_BOT_TOKEN
 			? {

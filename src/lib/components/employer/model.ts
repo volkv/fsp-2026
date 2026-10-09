@@ -57,6 +57,7 @@ const MODEL_REASONS: Record<string, string> = {
 	switched_off: 'модель выключена настройкой',
 	timeout: 'модель не ответила вовремя',
 	unavailable: 'модель недоступна',
+	rate_limited: 'исчерпан лимит вызовов модели',
 	no_active_space: 'векторный поиск не настроен',
 	no_vector: 'векторы профилей ещё не посчитаны',
 	no_query: 'нет текста запроса',

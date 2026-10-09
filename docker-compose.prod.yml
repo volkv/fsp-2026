@@ -75,6 +75,9 @@ x-app-environment: &app-environment
   # Per process, and both the app and the worker call the runtime: 4 each keeps the own GPU within the 8 requests
   # docs/models.md allows; the external API answered 8 at once without slowing down, 4 is enough for the stand.
   LLM_MAX_CONCURRENCY: ${LLM_MAX_CONCURRENCY:-4}
+  # Budgets of paid parses an hour (docs/deploy.md, «Бюджет шлюза модели»); empty — the defaults of the application.
+  PARSE_BUDGET_PER_ADDRESS: ${PARSE_BUDGET_PER_ADDRESS:-}
+  PARSE_BUDGET_STAND: ${PARSE_BUDGET_STAND:-}
   # The stand's own embedder (the embedder service below) unless .env.prod names another runtime together with its
   # model and space; batches of 8 keep a search query waiting behind background work for about a second.
   EMBED_BASE_URL: ${EMBED_BASE_URL:-http://fsp-career-embedder:8080/v1}

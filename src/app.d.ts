@@ -1,5 +1,6 @@
 // See https://svelte.dev/docs/kit/types#app.d.ts
 import type { Actor } from '$lib/server/access/actor';
+import type { RateLimitRule } from '$lib/server/http/rate-limit';
 
 declare global {
 	/** Application version from package.json, injected at build time. */
@@ -16,8 +17,11 @@ declare global {
 		interface Locals {
 			requestId: string;
 			actor: Actor;
-			/** The request is over its rate limit and the page renders the refusal itself (`refusedByPage`). */
-			rateLimited: boolean;
+			/**
+			 * The rule whose limit the request is over, when the page renders the refusal itself (`refusedByPage`);
+			 * `null` — within its limits.
+			 */
+			rateLimited: RateLimitRule | null;
 		}
 		// interface PageData {}
 		// interface PageState {}

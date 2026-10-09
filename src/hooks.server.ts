@@ -68,11 +68,12 @@ const identifyRequest: Handle = async ({ event, resolve }) => {
 
 /**
  * Limits of the request rate (src/lib/server/http/rate-limit.ts), counted in Redis: per address before anything else,
- * per account once the actor is known.
+ * per account and paid parses per address once the actor is known.
  */
 const rateLimits = rateLimitHandles({
 	store: async () => redisRateLimitStore(await withTimeout(redis(), REDIS_WAIT_MS, 'redis')),
-	waitMs: REDIS_WAIT_MS
+	waitMs: REDIS_WAIT_MS,
+	paidParsesPerAddress: () => config().parseBudget.perAddress
 });
 
 /** State-changing requests come from the application origin (docs/contracts.md, section 5.2). */
