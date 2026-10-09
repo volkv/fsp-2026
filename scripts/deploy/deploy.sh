@@ -2,12 +2,17 @@
 # Release of the committed HEAD to the demo stand (docs/deploy.md).
 #
 #   scripts/deploy/deploy.sh             build HEAD, deliver, start, check; roll back to the previous release on failure
+#   scripts/deploy/deploy.sh deliver     only the first half: build HEAD and deliver its images and release files;
+#                                        nothing on the server changes what runs
+#   scripts/deploy/deploy.sh start       only the second half: start HEAD, delivered before, check, roll back on failure
 #   scripts/deploy/deploy.sh rollback    start the previous release again, with its own compose file
 #   scripts/deploy/deploy.sh models      ask each configured model a real question through the stand's own path
 #
 # Images are built here from `git archive HEAD` (uncommitted changes never reach the stand) and delivered with
 # `docker save | ssh docker load`; an image the server already has with the same layers and configuration is only
-# re-tagged, so the sandbox and docparse images travel only when they change. Every release keeps the files its compose
+# re-tagged, so the sandbox and docparse images travel only when they change. DEPLOY_CACHE, a buildx cache backend
+# (`type=gha` in CI, docs/deploy.md «Автодеплой»), builds through buildx with the layer cache of each image read from and
+# written to it: a builder without local cache then reproduces the very layers the server already has. Every release keeps the files its compose
 # file runs with in releases/<release> on the server; starting a release puts them in place first, so a rollback runs
 # the previous release exactly as it was released. Nothing here removes volumes or data.
 set -euo pipefail
@@ -139,13 +144,149 @@ rollback() {
 	public_health "$previous"
 }
 
+# The images of HEAD, built from `git archive HEAD`.
+build_images() {
+	BUILD=$(mktemp -d)
+	trap 'rm -rf "$BUILD"' EXIT
+	git archive HEAD | tar -x -C "$BUILD"
+	log "building images of $RELEASE${DEPLOY_CACHE:+ (layer cache: $DEPLOY_CACHE)}"
+	build_image app "$BUILD" --build-arg "APP_COMMIT=$RELEASE"
+	build_image docparse "$BUILD/services/docparse" --target runtime
+	build_image sandbox "$BUILD/services/sandbox"
+	build_image fsp-mock "$BUILD/services/fsp-mock"
+	build_image gpu-tunnel "$BUILD/infra/gpu-tunnel"
+}
+
+build_image() { # <name> <context> [build options]; fsp-career-<name>:<release> in the local docker
+	local name=$1 context=$2
+	shift 2
+	if [[ -n ${DEPLOY_CACHE:-} ]]; then
+		# mode=max keeps the layers of every stage, not only of the image: a cached build stage is not rebuilt either.
+		docker buildx build --quiet --load -t "fsp-career-$name:$RELEASE" \
+			--cache-from "$DEPLOY_CACHE,scope=fsp-career-$name" \
+			--cache-to "$DEPLOY_CACHE,scope=fsp-career-$name,mode=max" "$@" "$context" >/dev/null
+	else
+		docker build -q -t "fsp-career-$name:$RELEASE" "$@" "$context" >/dev/null
+	fi
+}
+
+# The same image under another id: the server keeps images in the containerd store, where the id is the digest of the
+# manifest `docker load` writes, while a classic local store names an image by its configuration. Both stores report the
+# same layer digests and the same configuration, so an image is recognised by them. How docker prints the configuration
+# depends on its version: up to 28 with every field, the empty ones too ("Hostname": "", "Cmd": null), from 29 only
+# with the fields the image sets; empty fields are dropped before the comparison, so an image built by docker 28 (the CI
+# runner) is recognised in the server's docker 29.
+INSPECT='{"layers":{{json .RootFS.Layers}},"config":{{json .Config}}}'
+SAME_IMAGE='
+import json, sys
+
+def canonical(inspected):
+    image = json.loads(inspected)
+    config = image["config"] or {}
+    return image["layers"], {key: value for key, value in config.items() if value not in (None, "", False, 0, [], {})}
+
+wanted = canonical(sys.argv[1])
+refs = [ref for ref, inspected in (line.split(" ", 1) for line in sys.stdin) if canonical(inspected) == wanted]
+print(refs[0] if refs else "")
+'
+# A tagged image of the repository on the server with the layers and configuration of the local image, or nothing; any
+# docker failure fails the call.
+same_on_server() { # <repository> <local image>
+	local wanted
+	wanted=$(docker image inspect --format "$INSPECT" "$2")
+	ssh "$HOST" sh -s -- "$1" "'$INSPECT'" <<'SH' | python3 -c "$SAME_IMAGE" "$wanted"
+repository=$1 template=$2
+refs=$(docker images --filter dangling=false --format '{{.Repository}}:{{.Tag}}' "$repository") || exit 1
+for ref in $refs; do
+	printf '%s ' "$ref"
+	docker image inspect --format "$template" "$ref" || exit 1
+done
+SH
+}
+
+# The images and the release files of HEAD onto the server. Nothing that runs there changes: a release delivered and
+# never started is removed by the next successful release (its images and files are neither current nor previous).
+deliver() {
+	build_images
+	local name image same
+	for name in "${IMAGES[@]}"; do
+		image="fsp-career-$name:$RELEASE"
+		same=$(same_on_server "fsp-career-$name" "$image")
+		if [[ -n $same ]]; then
+			ssh "$HOST" "docker tag $same $image"
+			log "$image: already on the server as $same, tagged"
+		else
+			log "$image: sending"
+			docker save "$image" | gzip -1 | ssh "$HOST" 'gunzip | docker load -q'
+		fi
+	done
+	log "delivering release files of $RELEASE to $HOST:$DIR/releases/$RELEASE"
+	deliver_release_files "$RELEASE"
+	log "delivered $RELEASE"
+}
+
+# HEAD, delivered before, started; the previous release comes back if it fails.
+start() {
+	local missing
+	missing=$(ssh "$HOST" sh -s -- "$RELEASE" "${IMAGES[@]}" <<'SH'
+release=$1
+shift
+for name in "$@"; do
+	docker image inspect "fsp-career-$name:$release" >/dev/null 2>&1 || printf ' %s' "fsp-career-$name:$release"
+done
+SH
+)
+	[[ -z $missing ]] || { log "not on the server:$missing; deliver the release first (deploy.sh deliver)"; return 1; }
+	ensure_release_files "$RELEASE"
+
+	log "delivering stand files to $HOST:$DIR"
+	git archive HEAD "${TOOL_FILES[@]}" | ssh "$HOST" "tar -x -C $DIR"
+	remote "scripts/deploy/init-env.sh"
+
+	local previous
+	previous=$(release_in release.env)
+	if [[ -n $previous && $previous != "$RELEASE" ]]; then
+		# The rollback's files are made sure of before anything restarts.
+		ensure_release_files "$previous"
+		remote "cp release.env release.env.prev"
+	fi
+
+	log "starting $RELEASE (previous: ${previous:-none})"
+	if start_release "$RELEASE" && public_health "$RELEASE"; then
+		# Keep the images of this release and of the one a rollback starts (release.env.prev: after a second release of the
+		# same commit it is not the release this one replaced); older releases of the stand are removed. Only the stand's
+		# own repositories are touched, never other projects' images. The server has no build cache of the stand to prune:
+		# images are built here and loaded there.
+		local rollback_to repositories
+		rollback_to=$(release_in release.env.prev)
+		repositories=$(IFS='|'; echo "${IMAGES[*]}")
+		remote "docker images --format '{{.Repository}}:{{.Tag}}' | grep -E '^fsp-career-($repositories):' \
+			| grep -vE ':(${RELEASE}${rollback_to:+|$rollback_to})\$' | xargs -r docker rmi" || log "old images were not removed"
+		# The files of the releases whose images are gone go with them; the logs of failed releases stay.
+		remote "for d in releases/*/; do [ -d \"\$d\" ] || continue; case \$(basename \"\$d\") in \
+			$RELEASE${rollback_to:+|$rollback_to}) ;; *) rm -rf \"\$d\" ;; esac; done" || log "old release files were not removed"
+		log "released $RELEASE"
+		# The stand works without the models, so their state does not decide the release; it is reported.
+		log "models through the tunnel:"
+		probe_models || log "some models do not answer: the stand works without them (docs/models.md, «Без модели»)"
+		return 0
+	fi
+
+	log "release $RELEASE failed"
+	save_failure "$RELEASE"
+	if [[ -n $previous && $previous != "$RELEASE" ]]; then
+		rollback
+	fi
+	return 1
+}
+
 cd "$(git rev-parse --show-toplevel)"
 
 case ${1:-} in
 	rollback) rollback; exit ;;
 	models) probe_models; exit ;;
-	'') ;;
-	*) echo "usage: $0 [rollback | models]" >&2; exit 2 ;;
+	'' | deliver | start) ;;
+	*) echo "usage: $0 [deliver | start | rollback | models]" >&2; exit 2 ;;
 esac
 
 RELEASE=$(git rev-parse --short=12 HEAD)
@@ -153,88 +294,11 @@ if [[ -n $(git status --porcelain) ]]; then
 	log "working tree has uncommitted changes; they are not deployed, only HEAD $RELEASE is"
 fi
 
-BUILD=$(mktemp -d)
-trap 'rm -rf "$BUILD"' EXIT
-git archive HEAD | tar -x -C "$BUILD"
-
-log "building images of $RELEASE"
-docker build -q -t "fsp-career-app:$RELEASE" --build-arg "APP_COMMIT=$RELEASE" "$BUILD" >/dev/null
-docker build -q -t "fsp-career-docparse:$RELEASE" --target runtime "$BUILD/services/docparse" >/dev/null
-docker build -q -t "fsp-career-sandbox:$RELEASE" "$BUILD/services/sandbox" >/dev/null
-docker build -q -t "fsp-career-fsp-mock:$RELEASE" "$BUILD/services/fsp-mock" >/dev/null
-docker build -q -t "fsp-career-gpu-tunnel:$RELEASE" "$BUILD/infra/gpu-tunnel" >/dev/null
-
-# The same image under another id: the server keeps images in the containerd store, where the id is the digest of the
-# manifest `docker load` writes, while a classic local store names an image by its configuration. Both stores report the
-# same layer digests and the same configuration, so an image is recognised by them.
-FINGERPRINT='{{json .RootFS.Layers}}{{json .Config}}'
-fingerprint() { # <image>; the sha256 of what the template prints for it
-	local inspected
-	inspected=$(docker image inspect --format "$FINGERPRINT" "$1")
-	printf '%s' "$inspected" | sha256sum | cut -d' ' -f1
-}
-# A tagged image of the repository on the server with the fingerprint, or nothing; any docker failure fails the call.
-same_on_server() { # <repository> <fingerprint>
-	ssh "$HOST" sh -s -- "$1" "$2" "'$FINGERPRINT'" <<'SH'
-repository=$1 wanted=$2 template=$3
-refs=$(docker images --filter dangling=false --format '{{.Repository}}:{{.Tag}}' "$repository") || exit 1
-for ref in $refs; do
-	inspected=$(docker image inspect --format "$template" "$ref") || exit 1
-	if [ "$(printf '%s' "$inspected" | sha256sum | cut -d' ' -f1)" = "$wanted" ]; then
-		echo "$ref"
-		exit 0
-	fi
-done
-SH
-}
-for name in "${IMAGES[@]}"; do
-	image="fsp-career-$name:$RELEASE"
-	same=$(same_on_server "fsp-career-$name" "$(fingerprint "$image")")
-	if [[ -n $same ]]; then
-		ssh "$HOST" "docker tag $same $image"
-		log "$image: already on the server as $same, tagged"
-	else
-		log "$image: sending"
-		docker save "$image" | gzip -1 | ssh "$HOST" 'gunzip | docker load -q'
-	fi
-done
-
-log "delivering stand files to $HOST:$DIR"
-ssh "$HOST" "mkdir -p $DIR"
-git archive HEAD "${TOOL_FILES[@]}" | ssh "$HOST" "tar -x -C $DIR"
-deliver_release_files "$RELEASE"
-remote "scripts/deploy/init-env.sh"
-
-previous=$(release_in release.env)
-if [[ -n $previous && $previous != "$RELEASE" ]]; then
-	# The rollback's files are made sure of before anything restarts.
-	ensure_release_files "$previous"
-	remote "cp release.env release.env.prev"
-fi
-
-log "starting $RELEASE (previous: ${previous:-none})"
-if start_release "$RELEASE" && public_health "$RELEASE"; then
-	# Keep the images of this release and of the one a rollback starts (release.env.prev: after a second release of the
-	# same commit it is not the release this one replaced); older releases of the stand are removed. Only the stand's
-	# own repositories are touched, never other projects' images. The server has no build cache of the stand to prune:
-	# images are built here and loaded there.
-	rollback_to=$(release_in release.env.prev)
-	repositories=$(IFS='|'; echo "${IMAGES[*]}")
-	remote "docker images --format '{{.Repository}}:{{.Tag}}' | grep -E '^fsp-career-($repositories):' \
-		| grep -vE ':(${RELEASE}${rollback_to:+|$rollback_to})\$' | xargs -r docker rmi" || log "old images were not removed"
-	# The files of the releases whose images are gone go with them; the logs of failed releases stay.
-	remote "for d in releases/*/; do [ -d \"\$d\" ] || continue; case \$(basename \"\$d\") in \
-		$RELEASE${rollback_to:+|$rollback_to}) ;; *) rm -rf \"\$d\" ;; esac; done" || log "old release files were not removed"
-	log "released $RELEASE"
-	# The stand works without the models, so their state does not decide the release; it is reported.
-	log "models through the tunnel:"
-	probe_models || log "some models do not answer: the stand works without them (docs/models.md, «Без модели»)"
-	exit 0
-fi
-
-log "release $RELEASE failed"
-save_failure "$RELEASE"
-if [[ -n $previous && $previous != "$RELEASE" ]]; then
-	rollback
-fi
-exit 1
+case ${1:-} in
+	deliver) deliver ;;
+	start) start ;;
+	'')
+		deliver
+		start
+		;;
+esac

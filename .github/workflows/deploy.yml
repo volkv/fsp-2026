@@ -1,4 +1,8 @@
-# A push to main releases it to the demo stand (docs/deploy.md, «Автодеплой»).
+# A push to main releases it to the demo stand (docs/deploy.md, «Автодеплой»). A manual run releases the branch it is
+# started on: `gh workflow run deploy --ref <branch>`.
+#
+# The gate (check:fast, split into parallel legs) and the delivery of the images run side by side; the release starts
+# only after both succeed. A red gate leaves the delivered images unstarted on the server, where they change nothing.
 name: deploy
 
 on:
@@ -14,14 +18,25 @@ permissions:
   contents: read
 
 jobs:
-  deploy:
+  # pnpm check:fast = pnpm lint && pnpm check && pnpm docs:bank-facts && pnpm test:unit, with lint = prettier + eslint.
+  # Each leg runs one part on its own runner; the leg `check` fails when these scripts no longer match the legs.
+  gate:
+    strategy:
+      matrix:
+        include:
+          - leg: prettier
+            run: pnpm exec prettier --check .
+          - leg: eslint
+            run: pnpm exec eslint .
+          - leg: check
+            run: pnpm check && pnpm docs:bank-facts
+          - leg: unit
+            run: pnpm test:unit
+    name: gate (${{ matrix.leg }})
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 30
     steps:
-      # The whole history: a rollback delivers the files of the previous release from its commit.
       - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
 
       # The version comes from packageManager in package.json.
       - uses: pnpm/action-setup@v6
@@ -36,10 +51,63 @@ jobs:
       - run: pnpm fsp-mock:install
       - run: pnpm exec svelte-kit sync
 
+      - name: The legs cover check:fast
+        if: matrix.leg == 'check'
+        run: |
+          node -e '
+            const scripts = require("./package.json").scripts;
+            const legs = {
+              "check:fast": "pnpm lint && pnpm check && pnpm docs:bank-facts && pnpm test:unit",
+              lint: "prettier --check . && eslint ."
+            };
+            for (const [name, expected] of Object.entries(legs)) {
+              if (scripts[name] !== expected) {
+                console.error(`scripts["${name}"] is "${scripts[name]}", the gate legs run "${expected}": update the legs of .github/workflows/deploy.yml`);
+                process.exit(1);
+              }
+            }'
+
       # eslint over the repository needs ≈ 4 GB of heap; Node's default on the 16 GB runner is ≈ 2 GB.
-      - run: pnpm check:fast
+      - run: ${{ matrix.run }}
         env:
           NODE_OPTIONS: --max-old-space-size=8192
+
+  # Builds the images through buildx with the layer cache of the repository's GitHub Actions cache, so that an image
+  # that did not change is built into the layers the server already has and is only re-tagged there.
+  deliver:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/setup-buildx-action@v4
+
+      # The cache service's URL and token for `type=gha` in a `run` step.
+      - uses: crazy-max/ghaction-github-runtime@v4
+
+      - name: Deliver
+        env:
+          DEPLOY_HOST: root@109.172.6.211
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          DEPLOY_CACHE: type=gha
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          eval "$(ssh-agent -s)"
+          trap 'ssh-agent -k >/dev/null' EXIT
+          printf '%s\n' "$DEPLOY_SSH_KEY" | ssh-add -
+          scripts/deploy/deploy.sh deliver
+
+  release:
+    needs: [gate, deliver]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      # The whole history: a rollback delivers the files of the previous release from its commit.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Release
         env:
@@ -52,4 +120,4 @@ jobs:
           eval "$(ssh-agent -s)"
           trap 'ssh-agent -k >/dev/null' EXIT
           printf '%s\n' "$DEPLOY_SSH_KEY" | ssh-add -
-          scripts/deploy/deploy.sh
+          scripts/deploy/deploy.sh start
