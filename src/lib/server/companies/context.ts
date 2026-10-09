@@ -72,25 +72,3 @@ export function conflict(code: string, message: string, path?: string): ApiError
 export function invalid(details: ErrorDetail[]): ApiError {
 	return new ApiError('validation_failed', { details });
 }
-
-/** SQLSTATE of a database error, looking through the query wrapper. */
-function sqlState(error: unknown): { code: string | undefined; constraint: string | undefined } {
-	let current: unknown = error;
-	for (let depth = 0; depth < 3 && current instanceof Error; depth++) {
-		const fields = current as Error & { code?: unknown; constraint_name?: unknown };
-		if (typeof fields.code === 'string') {
-			return {
-				code: fields.code,
-				constraint: typeof fields.constraint_name === 'string' ? fields.constraint_name : undefined
-			};
-		}
-		current = current.cause;
-	}
-	return { code: undefined, constraint: undefined };
-}
-
-/** Whether the error is a violation of the named unique constraint. */
-export function isUniqueViolation(error: unknown, constraint: string): boolean {
-	const state = sqlState(error);
-	return state.code === '23505' && state.constraint === constraint;
-}

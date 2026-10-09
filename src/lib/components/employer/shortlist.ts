@@ -340,7 +340,8 @@ export const COMPONENT_REASONS: Record<string, string> = {
  * lower score may stand above a higher one there.
  */
 export const NEAR_TIE_ORDER: Record<NonNullable<NeedMatchData['nearTieOrder']>, string> = {
-	semantic: 'почти равен соседям по счёту — их порядок решила смысловая близость к тексту потребности, затем сила профиля',
+	semantic:
+		'почти равен соседям по счёту — их порядок решила смысловая близость к тексту потребности, затем сила профиля',
 	strength: 'почти равен соседям по счёту — их порядок решила сила подтверждённого профиля'
 };
 

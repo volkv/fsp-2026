@@ -1,7 +1,9 @@
 // Job queue over the `jobs` table (docs/domain.md, section 17.1): enqueue in the transaction of the change,
 // deduplication among waiting jobs, capture with a lease, conditional result write, retries and lease recovery.
 import { and, eq, inArray, isNull, lte, not, or, sql, type SQL } from 'drizzle-orm';
+import type { PgUpdateSetSource } from 'drizzle-orm/pg-core';
 import type { Executor, Transaction } from '$lib/server/db';
+import { isUniqueViolation } from '$lib/server/db/errors';
 import { jobs, type JobOwner } from '$lib/server/db/schema';
 import { insertJob, type EnqueueOptions, type EnqueueResult } from './insert';
 import { JOB_TYPES, isJobType, jobSpec, type JobPayload, type JobType } from './registry';
@@ -195,6 +197,37 @@ async function finishIfSuperseded(
 	return true;
 }
 
+/**
+ * Puts a job leaving `running` back to the queue, or finishes it as `discarded_stale` when another job of its key is
+ * waiting (`finishIfSuperseded`). A job of the key enqueued at the same moment is not seen by that check until it
+ * commits, but the unique index of waiting jobs waits for it and refuses the second waiting one: the update is undone to
+ * its savepoint and the job is superseded after all. The waiting one may be captured in between; then the update goes on.
+ */
+async function backToQueue(
+	tx: Transaction,
+	id: string,
+	dedupKey: string | null,
+	/** The columns of the queued job besides its status and lease. */
+	queued: PgUpdateSetSource<typeof jobs>,
+	/** Stored as `last_error` of a superseded job; `undefined` keeps the previous one. */
+	lastError: Record<string, unknown> | undefined
+): Promise<'queued' | 'discarded_stale'> {
+	for (let attempt = 1; ; attempt++) {
+		if (await finishIfSuperseded(tx, id, dedupKey, lastError)) return 'discarded_stale';
+		try {
+			await tx.transaction(async (savepoint) => {
+				await savepoint
+					.update(jobs)
+					.set({ status: 'queued', leaseOwner: null, leaseExpiresAt: null, ...queued })
+					.where(eq(jobs.id, id));
+			});
+			return 'queued';
+		} catch (error) {
+			if (!isUniqueViolation(error, 'jobs_dedup_queued') || attempt >= 3) throw error;
+		}
+	}
+}
+
 /** Whether a failed attempt goes back to the queue: the error is retryable and the attempts are not exhausted. */
 export function returnsToQueue(error: JobError, attempt: number, maxAttempts: number): boolean {
 	return error.retryable && attempt < maxAttempts;
@@ -222,18 +255,13 @@ async function releaseWithError(
 			.where(eq(jobs.id, id));
 		return 'failed';
 	}
-	if (await finishIfSuperseded(tx, id, dedupKey, lastError)) return 'discarded_stale';
-	await tx
-		.update(jobs)
-		.set({
-			status: 'queued',
-			leaseOwner: null,
-			leaseExpiresAt: null,
-			lastError,
-			runAfter: sql`now() + make_interval(secs => ${delaySeconds ?? backoffSeconds(attempt)})`
-		})
-		.where(eq(jobs.id, id));
-	return 'queued';
+	return backToQueue(
+		tx,
+		id,
+		dedupKey,
+		{ lastError, runAfter: sql`now() + make_interval(secs => ${delaySeconds ?? backoffSeconds(attempt)})` },
+		lastError
+	);
 }
 
 /** Reports a failed attempt; `retryAfterSeconds` honours `Retry-After` of a source. */
@@ -262,18 +290,13 @@ export async function releaseJob(
 	return executor.transaction(async (tx) => {
 		if (!(await lockOwnedLease(tx, job))) return 'lease_lost';
 		const [row] = await tx.select({ dedupKey: jobs.dedupKey }).from(jobs).where(eq(jobs.id, job.id));
-		if (await finishIfSuperseded(tx, job.id, row?.dedupKey ?? null, undefined)) return 'discarded_stale';
-		await tx
-			.update(jobs)
-			.set({
-				status: 'queued',
-				leaseOwner: null,
-				leaseExpiresAt: null,
-				attempts: sql`${jobs.attempts} - 1`,
-				runAfter: sql`now()`
-			})
-			.where(eq(jobs.id, job.id));
-		return 'queued';
+		return backToQueue(
+			tx,
+			job.id,
+			row?.dedupKey ?? null,
+			{ attempts: sql`${jobs.attempts} - 1`, runAfter: sql`now()` },
+			undefined
+		);
 	});
 }
 
