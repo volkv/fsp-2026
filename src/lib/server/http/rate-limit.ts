@@ -361,14 +361,43 @@ interface Count {
 }
 
 /**
+ * The client address of a request, or `null` when the server takes it from the header `addressHeader`
+ * (`ADDRESS_HEADER` of the server, lower case) and the request has none: it came past the proxy that sets it.
+ */
+function clientAddressOf(event: RequestEvent, addressHeader: string | null): string | null {
+	if (addressHeader !== null && !event.request.headers.has(addressHeader)) return null;
+	return event.getClientAddress();
+}
+
+/**
+ * The refusal of a request a limit applies to whose client address is unknown (`clientAddressOf`). Every request from
+ * outside comes through the proxy, which sets the address; one without it came from inside past the proxy. It is not
+ * counted under a shared key — one counter for every such caller would hide the misrouting behind refusals of the
+ * limit — nor let through uncounted, which would be a way around the limit.
+ */
+function unknownAddress(event: RequestEvent): Response {
+	console.warn(
+		`[rate-limit] request ${event.locals.requestId}: no header of the client address, ` +
+			`${event.request.method} ${event.url.pathname} refused`
+	);
+	return errorResponse(
+		new ApiError('validation_failed', { message: 'Адрес клиента не определён: запрос пришёл в обход прокси' }),
+		event.locals.requestId
+	);
+}
+
+/**
  * The hooks of the limits over a counter store. Without the store the limit cannot be enforced, so the request is
  * refused with `503 degraded`; `waitMs` bounds the wait for one counter. `paidParsesPerAddress` — the budget of paid
- * parses of one address an hour (`paidParseRule`), read on each request.
+ * parses of one address an hour (`paidParseRule`), read on each request. `addressHeader` — the header the server
+ * takes the client address from (`clientAddressOf`); the address is read only for a request a limit counts by it, so
+ * a request no limit applies to (health, static files, other pages) needs none.
  */
 export function rateLimitHandles(deps: {
 	store: () => Promise<RateLimitStore>;
 	waitMs: number;
 	paidParsesPerAddress: () => number;
+	addressHeader: () => string | null;
 }): RateLimitHandles {
 	async function count(
 		event: RequestEvent,
@@ -419,12 +448,16 @@ export function rateLimitHandles(deps: {
 			}
 			const rule = ruleFor(event.request.method, path);
 			if (!rule) return resolve(event);
-			return limit(event, resolve, [{ rule, subject: event.getClientAddress() }]);
+			const address = clientAddressOf(event, deps.addressHeader());
+			if (address === null) return unknownAddress(event);
+			return limit(event, resolve, [{ rule, subject: address }]);
 		},
 		byAccount: async ({ event, resolve }) => {
-			const address = event.getClientAddress();
 			const parse = await paidParseOf(event.request, event.url);
 			const rule = accountRule(event.request.method, pathOf(event.url), parse);
+			if (rule === null && parse === null) return resolve(event);
+			const address = clientAddressOf(event, deps.addressHeader());
+			if (address === null) return unknownAddress(event);
 			const counts: Count[] = [];
 			if (rule) counts.push({ rule, subject: accountSubject(event.locals.actor, address) });
 			if (parse !== null) counts.push({ rule: paidParseRule(deps.paidParsesPerAddress()), subject: address });
