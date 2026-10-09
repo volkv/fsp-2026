@@ -583,8 +583,35 @@ describe('the order of a ranking for a need', () => {
 		);
 		// `a` has no similarity: it goes after the measured ones of its group; `d` is clearly lower and stays last.
 		expect(order.map((p) => p.id)).toEqual(['b', 'c', 'a', 'd']);
-		expect(order.slice(0, 3).every((p) => p.nearTieOrder === 'semantic')).toBe(true);
-		expect(order[3]).toMatchObject({ id: 'd', position: 4, nearTieOrder: null });
+		// Shown as 80 %, 79 %, 80 %: `b` agrees with its neighbours, `c` (79 %) stands above `a` (80 %).
+		expect(order.map((p) => [p.id, p.nearTieOrder])).toEqual([
+			['b', null],
+			['c', 'semantic'],
+			['a', 'semantic'],
+			['d', null]
+		]);
+	});
+
+	it('labels only the places of a reordered group that contradict the shown percents', () => {
+		const order = orderForNeed(
+			[place('a', 0.868), place('b', 0.866), place('c', 0.86), place('d', 0.861), place('e', 0.859)],
+			new Map([
+				['a', 0.5],
+				['b', 0.9],
+				['c', 0.4],
+				['d', 0.3],
+				['e', 0.95]
+			]),
+			0.01
+		);
+		// Shown as 86 %, 87 %, 87 %, 86 %, 86 %: `e` stands above both 87 %; `c` above `d` is reordered too, but both are 86 %.
+		expect(order.map((p) => [p.id, p.nearTieOrder])).toEqual([
+			['e', 'semantic'],
+			['b', 'semantic'],
+			['a', 'semantic'],
+			['c', null],
+			['d', null]
+		]);
 	});
 
 	it('without similarities orders almost equal by the strength and says so where a lower score stands higher', () => {
