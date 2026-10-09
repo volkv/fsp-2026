@@ -147,7 +147,9 @@ export function fspResultText(result: FspResultData): string {
 	if (result.exact) {
 		const { place, placeOf, competitionTitle, team } = result.exact;
 		const placed = place === null ? award : `${place} место${placeOf === null ? '' : ` из ${placeOf}`}`;
-		const outcome = [placed, team === null ? null : `${IN_TEAM} «${team.name}»`].filter(Boolean).join(' ');
+		// A team's result without the team named (the source may omit it) is still worded as the team's.
+		const inTeam = team !== null ? `${IN_TEAM} «${team.name}»` : teamResult ? IN_TEAM : null;
+		const outcome = [placed, inTeam].filter(Boolean).join(' ');
 		return [outcome || null, competitionTitle].filter(Boolean).join(' · ');
 	}
 	const outcome = award === null ? null : teamResult ? `${award} ${IN_TEAM}` : award;

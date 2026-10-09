@@ -10,7 +10,13 @@ import { publishedRun, runInForce } from '$lib/server/db/conditions';
 import { activeCategories } from '$lib/server/categories/read';
 import { lastConfirmedActions } from '$lib/server/challenges/freshness';
 import { officialFspResult } from './fsp-results';
-import { DISCIPLINE_CODES, type DisciplineCode, type Known } from '$lib/server/fsp/types';
+import {
+	DISCIPLINE_CODES,
+	isTeamResult,
+	type Competition,
+	type DisciplineCode,
+	type Known
+} from '$lib/server/fsp/types';
 import { currentDeclarations } from '$lib/server/grades/current';
 import {
 	candidates,
@@ -88,7 +94,7 @@ async function fspResultsOf(executor: Executor, ids: readonly string[]): Promise
 			id: sourceFacts.id,
 			candidateId: sourceFacts.candidateId,
 			competitionId: sql<string | null>`${sourceFacts.payload}->'competition'->>'id'`,
-			competitionFormat: sql<string | null>`${sourceFacts.payload}->'competition'->>'format'`,
+			competitionFormat: sql<Competition['format'] | null>`${sourceFacts.payload}->'competition'->>'format'`,
 			discipline: sql<string | null>`${sourceFacts.payload}->'competition'->>'discipline'`,
 			award: sql<string | null>`${sourceFacts.payload}->'result'->>'award'`,
 			inTeam: sql<boolean>`jsonb_typeof(${sourceFacts.payload}->'result'->'team') = 'object'`
@@ -105,7 +111,7 @@ async function fspResultsOf(executor: Executor, ids: readonly string[]): Promise
 			competitionId: row.competitionId,
 			discipline: knownDiscipline(row.discipline),
 			podium: row.award !== null && PODIUM_AWARDS.has(row.award),
-			team: row.inTeam || row.competitionFormat === 'team'
+			team: isTeamResult(row.inTeam, row.competitionFormat)
 		});
 		result.set(row.candidateId, list);
 	}

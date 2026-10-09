@@ -422,6 +422,8 @@ export type FactDetailView =
 			award: string;
 			place: number | null;
 			placeOf: number | null;
+			/** A team's result (`isTeamResult`), named or not: a team competition may come without its team. */
+			teamResult: boolean;
 			team: { name: string; role: string | null; specialization: string | null } | null;
 			evskIndicator: string | null;
 			resultStatus: string;
