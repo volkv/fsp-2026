@@ -1,0 +1,52 @@
+# A push to main releases it to the demo stand (docs/deploy.md, «Автодеплой»).
+name: deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      # The whole history: a rollback delivers the files of the previous release from its commit.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      # The version comes from packageManager in package.json.
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          check-latest: true
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm fsp-mock:install
+      - run: pnpm exec svelte-kit sync
+
+      - run: pnpm check:fast
+
+      - name: Release
+        env:
+          DEPLOY_HOST: root@109.172.6.211
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          eval "$(ssh-agent -s)"
+          trap 'ssh-agent -k >/dev/null' EXIT
+          printf '%s\n' "$DEPLOY_SSH_KEY" | ssh-add -
+          scripts/deploy/deploy.sh
