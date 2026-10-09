@@ -2,7 +2,7 @@
 // the matching ones are read from its stored matches — at the pool threshold by the score, no required skill confirmed
 // directly, visible to some verified company when read — with the required skills a published platform test confirms.
 import { randomUUID } from 'node:crypto';
-import { eq } from 'drizzle-orm';
+import { and, count, eq } from 'drizzle-orm';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import type { SpecializationKey } from '$lib/server/assessments/contract/catalog';
 import {
@@ -13,6 +13,7 @@ import {
 	grades,
 	jobs,
 	matchRulesets,
+	matchScores,
 	productPolicies,
 	roles,
 	skillInferences,
@@ -22,7 +23,7 @@ import {
 } from '$lib/server/db/schema';
 import { createLogger } from '$lib/server/jobs/log';
 import { claimJob, completeJob, enqueueJob, type ClaimedJob } from '$lib/server/jobs/queue';
-import { JOB_TYPES } from '$lib/server/jobs/registry';
+import { JOB_TYPES, type JobPayload } from '$lib/server/jobs/registry';
 import { matchRulesetParamsSchema } from '$lib/server/matching/params';
 import { createMatchRefreshHandler } from '$lib/server/matching/refresh';
 import type { MatchingModels } from '$lib/server/matching/semantic';
@@ -224,17 +225,11 @@ const models: MatchingModels = {
 		)
 };
 
-/** `match.refresh` of the vacancy as the worker runs it, on a queue without other jobs. */
-async function refresh(vacancyId: string) {
+/** A captured `match.refresh` of the scope, run by the handler up to its write, as the worker runs it. */
+async function computed(payload: JobPayload<'match.refresh'>) {
 	const { db } = database;
-	await db.delete(jobs).where(eq(jobs.status, 'queued'));
 	await db.transaction((tx) =>
-		enqueueJob(
-			tx,
-			'match.refresh',
-			{ scope: 'vacancy', vacancy_id: vacancyId },
-			{ inputVersion: '1', createdBy: { kind: 'system' } }
-		)
+		enqueueJob(tx, 'match.refresh', payload, { inputVersion: '1', createdBy: { kind: 'system' } })
 	);
 	const claimed = await claimJob(db, 'test-worker', ['match.refresh']);
 	if (claimed?.type !== 'match.refresh') throw new Error('no match.refresh job to run');
@@ -250,10 +245,52 @@ async function refresh(vacancyId: string) {
 		requestId: `job:${job.id}`,
 		log: createLogger({}, () => undefined)
 	});
-	expect(await completeJob(db, job, result)).toBe('succeeded');
+	return { job, result };
+}
+
+/** `match.refresh` of the vacancy as the worker runs it, on a queue without other jobs. */
+async function refresh(vacancyId: string) {
+	await database.db.delete(jobs).where(eq(jobs.status, 'queued'));
+	const { job, result } = await computed({ scope: 'vacancy', vacancy_id: vacancyId });
+	expect(await completeJob(database.db, job, result)).toBe('succeeded');
 }
 
 // --- Tests ----------------------------------------------------------------------------------------------------------
+
+describe('writes of match.refresh', () => {
+	it('writes the vacancy side and the candidate side of one pair at once without a deadlock', async () => {
+		const vacancy = await ownVacancy(['go']);
+		const row = await candidate([{ key: 'go', band: 'strong', attestation: 'direct' }]);
+		await database.db.delete(jobs).where(eq(jobs.status, 'queued'));
+		const sides = [
+			await computed({ scope: 'vacancy', vacancy_id: vacancy.id }),
+			await computed({ scope: 'candidate', candidate_id: row.id })
+		];
+		// Each side checks its input — the vacancy row, the candidate row — and only then do both write the pair.
+		let checked = 0;
+		let bothChecked!: () => void;
+		const together = new Promise<void>((resolve) => (bothChecked = resolve));
+		const outcomes = await Promise.all(
+			sides.map(({ job, result }) =>
+				completeJob(database.db, job, {
+					isCurrent: async (tx) => {
+						const current = await result.isCurrent(tx);
+						if (++checked === sides.length) bothChecked();
+						await together;
+						return current;
+					},
+					write: result.write
+				})
+			)
+		);
+		expect(outcomes).toEqual(['succeeded', 'succeeded']);
+		const [stored] = await database.db
+			.select({ n: count() })
+			.from(matchScores)
+			.where(and(eq(matchScores.vacancyId, vacancy.id), eq(matchScores.candidateId, row.id)));
+		expect(stored?.n).toBe(1);
+	});
+});
 
 describe('pool of a vacancy and the matching candidates without confirmation', () => {
 	it('counts next to the pool the candidates that match without a directly confirmed required skill', async () => {

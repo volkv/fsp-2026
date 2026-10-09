@@ -34,6 +34,14 @@ import {
 	type MatchStoragePolicy
 } from './storage';
 
+/**
+ * The lock the write check holds on its input row until the write commits: no change of the row (every one is an
+ * `UPDATE` that takes at least this lock) slips in between. Not `FOR UPDATE`: a row of `match_scores` takes `FOR KEY
+ * SHARE` on its vacancy and its candidate, which `FOR UPDATE` blocks — the vacancy side holding its vacancy and writing
+ * the pair, the candidate side holding its candidate and writing the same pair, would wait on each other (deadlock).
+ */
+const INPUT_LOCK = 'no key update';
+
 const stale: JobResult = { isCurrent: () => Promise.resolve(false), write: () => Promise.resolve() };
 
 async function activeRuleset(executor: Executor): Promise<MatchRuleset> {
@@ -95,7 +103,7 @@ async function refreshVacancy(
 			.select({ revision: vacancies.revision })
 			.from(vacancies)
 			.where(eq(vacancies.id, vacancyId))
-			.for('update');
+			.for(INPUT_LOCK);
 		return row?.revision === vacancy.revision;
 	};
 	if (!refreshable(vacancy)) {
@@ -212,7 +220,7 @@ async function refreshCandidate(executor: Executor, candidateId: string, jobId: 
 				.select({ revision: candidates.profileRevision, floor: candidates.evidenceFloorRevision })
 				.from(candidates)
 				.where(eq(candidates.id, candidateId))
-				.for('update');
+				.for(INPUT_LOCK);
 			return row?.revision === snapshot.revision && row.floor <= snapshot.revision;
 		},
 		write: async (tx) => {

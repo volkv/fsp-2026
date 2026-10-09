@@ -106,6 +106,8 @@ const RESULT_COLUMNS = [
 /** The database name of a column (the schema is mapped with the snake_case casing). */
 const snake = (field: string) => field.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
 
+const compareIds = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+
 /** One computed pair with the snapshot it was computed from. */
 export interface ComputedPair {
 	vacancyId: string;
@@ -152,7 +154,12 @@ export async function writePairs(
 	);
 	const kept = pairs.filter((pair) => pair.candidateRevision >= (floors.get(pair.candidateId) ?? Infinity));
 	const now = new Date();
-	const rows = kept.map((pair) => ({
+	// One order of the pairs for every writer — by vacancy, then by candidate: a vacancy side and a candidate side that
+	// share pairs take their rows in the same order and never wait on each other in a circle.
+	const ordered = [...kept].sort(
+		(a, b) => compareIds(a.vacancyId, b.vacancyId) || compareIds(a.candidateId, b.candidateId)
+	);
+	const rows = ordered.map((pair) => ({
 		vacancyId: pair.vacancyId,
 		vacancyRevision: pair.vacancyRevision,
 		candidateId: pair.candidateId,
