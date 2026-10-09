@@ -14,6 +14,7 @@ import {
 	getApplication,
 	myApplications,
 	rejectApplication,
+	showcaseVacancyFor,
 	withdrawApplication,
 	type ApplicationDeps
 } from '$lib/server/applications/service';
@@ -24,8 +25,12 @@ import {
 	consentEvents,
 	demoSessions,
 	disclosures,
+	embeddings,
+	embeddingSpaces,
 	notifications,
-	users
+	searchSettings,
+	users,
+	vacancies
 } from '$lib/server/db/schema';
 import { createInvitation } from '$lib/server/invitations/send';
 import { recommendVacancies } from '$lib/server/matching/recommendations';
@@ -277,5 +282,69 @@ describe('an application', () => {
 		const late = await refusal(apply(adult, closed.id));
 		expect([late.code, detailCode(late)]).toEqual(['conflict', 'vacancy_closed']);
 		expect(await database.db.select().from(applications).where(eq(applications.candidateId, minor.id))).toEqual([]);
+	});
+});
+
+describe('the match of a pair', () => {
+	it('is one number in the list, on the page of the vacancy and in the application: the semantic component included', async () => {
+		const space = 'test-space/3';
+		await database.db.insert(embeddingSpaces).values({
+			id: space,
+			modelName: 'test-embedder',
+			modelRevision: 'r1',
+			dimension: 3,
+			queryPrefix: '',
+			documentPrefix: '',
+			pooling: 'mean',
+			normalization: 'l2',
+			maxInputTokens: 512,
+			chunkingVersion: 'v1',
+			status: 'active',
+			activatedAt: new Date()
+		});
+		await database.db.update(searchSettings).set({ activeEmbeddingSpaceId: space });
+		const company = await employer(database.db);
+		const vacancy = await vacancyOf(company);
+		const candidate = await person(database.db, world, { category: { specialization: 'backend', grade: 'middle' } });
+		const [revision] = await database.db
+			.select({ value: vacancies.revision })
+			.from(vacancies)
+			.where(eq(vacancies.id, vacancy.id));
+		const [floor] = await database.db
+			.select({ value: candidates.evidenceFloorRevision })
+			.from(candidates)
+			.where(eq(candidates.id, candidate.id));
+		if (!revision || !floor) throw new Error('no vacancy or candidate');
+		await database.db.insert(embeddings).values([
+			{
+				ownerType: 'vacancy',
+				ownerId: vacancy.id,
+				inputSha256: randomBytes(32).toString('hex'),
+				inputVersion: String(revision.value),
+				spaceId: space,
+				vector: [1, 0, 0]
+			},
+			{
+				ownerType: 'candidate_section',
+				ownerId: candidate.id,
+				section: 'skills',
+				inputSha256: randomBytes(32).toString('hex'),
+				inputVersion: String(floor.value),
+				spaceId: space,
+				vector: [0.6, 0.8, 0]
+			}
+		]);
+
+		const listed = (await recommendVacancies({ db: database.db }, candidate.subject, { limit: 100 })).items.find(
+			(item) => item.vacancyId === vacancy.id
+		);
+		if (!listed) throw new Error('the vacancy is not in the list');
+		expect(listed.match.components.semantic.status).toBe('computed');
+		const page = await showcaseVacancyFor(deps(), candidate.subject, vacancy.id);
+		expect(page.match.components.semantic.status).toBe('computed');
+		expect(page.match.score).toBe(listed.match.score);
+		const sent = await apply(candidate, vacancy.id);
+		expect(sent.match.components.semantic?.status).toBe('computed');
+		expect(sent.match.score).toBe(listed.match.score);
 	});
 });

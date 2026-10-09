@@ -740,8 +740,9 @@ function vacancyTerms(
 
 /**
  * Vacancies of the scenario's main employer: the internship open from 16, the two of the invitations, the one of
- * Python payouts a Python Middle without offers applies to on stage, and three written texts — Backend, QA, Data
- * Science — whose pages show how the test of a vacancy is made of its text (domain 13.11).
+ * Python payouts a Python Middle without offers applies to on stage (it requires what the Backend Middle test confirms
+ * with a Python practice — Python and SQL — so the match itself lifts it in her list), and three written texts —
+ * Backend, QA, Data Science — whose pages show how the test of a vacancy is made of its text (domain 13.11).
  */
 function scenarioVacancies(companyKey: string, companyName: string): OwnVacancyPlan[] {
 	const fixed = (
@@ -822,10 +823,10 @@ function scenarioVacancies(companyKey: string, companyName: string): OwnVacancyP
 				roleKey: 'backend',
 				gradeMin: 'middle',
 				gradeMax: 'middle',
-				requiredSkillKeys: ['python', 'postgresql'],
-				requiredNames: ['Python', 'PostgreSQL'],
-				niceSkillKeys: ['fastapi', 'docker'],
-				niceNames: ['FastAPI', 'Docker'],
+				requiredSkillKeys: ['python', 'sql'],
+				requiredNames: ['Python', 'SQL'],
+				niceSkillKeys: ['postgresql', 'fastapi', 'docker'],
+				niceNames: ['PostgreSQL', 'FastAPI', 'Docker'],
 				workFormat: 'hybrid',
 				employmentForm: 'full',
 				contractTypes: ['labor'],

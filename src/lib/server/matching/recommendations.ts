@@ -8,12 +8,12 @@ import { vacancies } from '$lib/server/db/schema';
 import { demoSessionOfUser } from '$lib/server/demo/scope';
 import { ApiError } from '$lib/server/errors/api-error';
 import { vacancyDocuments } from './documents';
-import { loadCandidateSnapshots, loadGradeOrdinals, matchableVacancyFor, vacancySnapshot } from './evidence';
+import { candidateSideMatches } from './candidate-side';
+import { loadCandidateSnapshots, matchableVacancyFor, vacancySnapshot } from './evidence';
 import { paginate, queryFingerprint, type Page, type PageRequest } from './page';
 import { loadActiveMatchRuleset } from './ruleset';
-import { matchScore, type MatchResult } from './score';
+import type { MatchResult } from './score';
 import type { MatchingDeps } from './deps';
-import { loadActiveSpace, pairKey, pairSimilarities, semanticSignal } from './semantic';
 
 export interface VacancyRecommendationQuery extends PageRequest {
 	text?: string;
@@ -33,12 +33,6 @@ export interface VacancyRecommendation {
 export interface VacancyRecommendations extends Page<VacancyRecommendation> {
 	mode: { searchMode: 'hybrid' | 'fts_only'; embeddingSpaceId: string | null; semanticReason: string | null };
 }
-
-/**
- * The reranker scores a vacancy against a batch of candidates; for one candidate against many vacancies it would take
- * a call per vacancy, so the candidate side ranks without it and says so.
- */
-const NOT_RERANKED = 'pair_not_reranked';
 
 export async function recommendVacancies(
 	deps: Pick<MatchingDeps, 'db'>,
@@ -73,38 +67,18 @@ export async function recommendVacancies(
 	const snapshot = (await loadCandidateSnapshots(executor, [candidateId])).get(candidateId);
 	if (!snapshot) throw new ApiError('not_found');
 	const ruleset = await loadActiveMatchRuleset(executor);
-	const ordinals = await loadGradeOrdinals(
-		executor,
-		selected.map((row) => row.taxonomyVersionId)
-	);
-	const space = await loadActiveSpace(executor);
-	const similarities =
-		space === null
-			? new Map<string, number>()
-			: await pairSimilarities(
-					executor,
-					space,
-					selected.map((row) => row.id),
-					[candidateId]
-				);
+	const vacancyList = selected.map(vacancySnapshot);
+	const { results, space, vectorPairs } = await candidateSideMatches(executor, snapshot, ruleset.params, vacancyList);
 
-	const ranked = selected.map((row): VacancyRecommendation => {
-		const vacancy = vacancySnapshot(row);
-		const gradeOrdinals = ordinals.get(vacancy.taxonomyVersionId);
-		if (!gradeOrdinals) throw new Error('grade ordinals were not loaded');
+	const ranked = vacancyList.map((vacancy): VacancyRecommendation => {
+		const match = results.get(vacancy.id);
+		if (!match) throw new Error(`vacancy ${vacancy.id} was not scored`);
 		return {
 			vacancyId: vacancy.id,
 			title: vacancy.title,
 			companyId: vacancy.companyId,
 			status: vacancy.status,
-			match: matchScore({
-				vacancy,
-				candidate: snapshot,
-				params: ruleset.params,
-				gradeOrdinals,
-				semantic: semanticSignal(space, similarities.get(pairKey(vacancy.id, candidateId)), 'pair_vector_missing'),
-				reranker: { status: 'unavailable', reason: NOT_RERANKED }
-			}),
+			match,
 			relevance: { fts: documents.get(vacancy.id)?.rank ?? null }
 		};
 	});
@@ -118,9 +92,9 @@ export async function recommendVacancies(
 	return {
 		...page,
 		mode: {
-			searchMode: space !== null && similarities.size > 0 ? 'hybrid' : 'fts_only',
+			searchMode: space !== null && vectorPairs > 0 ? 'hybrid' : 'fts_only',
 			embeddingSpaceId: space?.id ?? null,
-			semanticReason: space === null ? 'no_active_space' : similarities.size > 0 ? null : 'pair_vector_missing'
+			semanticReason: space === null ? 'no_active_space' : vectorPairs > 0 ? null : 'pair_vector_missing'
 		}
 	};
 }
