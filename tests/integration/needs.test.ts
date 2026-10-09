@@ -31,7 +31,7 @@ const meta = { requestId: 'test-needs', ip: '127.0.0.1', userAgent: 'vitest' };
 
 const modelsOff: NeedDeps['models'] = {
 	extract: () => Promise.resolve(fail('disabled', 'extract: switched off', { reason: 'switched_off' })),
-	extractModelKey: () => null
+	extractModelKey: () => Promise.resolve(null)
 };
 
 beforeAll(async () => {
@@ -76,7 +76,7 @@ function answeringModel(): NeedDeps['models'] & { calls: number } {
 				})
 			);
 		},
-		extractModelKey: () => 'vllm:extractor-test'
+		extractModelKey: () => Promise.resolve('vllm:extractor-test')
 	};
 	return model;
 }
@@ -388,7 +388,11 @@ describe('a hiring need', () => {
 		const first = await createNeed(shared, subject, meta, { text });
 		const second = await createNeed(shared, subject, meta, { text });
 		expect(model.calls).toBe(1);
-		expect(second.parse).toMatchObject({ mode: 'model', model: { id: 'extractor-test', runtime: 'vllm' } });
+		expect(second.parse).toMatchObject({
+			mode: 'model',
+			model: { id: 'extractor-test', runtime: 'vllm', cached: true }
+		});
+		expect(first.parse?.model).not.toHaveProperty('cached');
 		expect(second.form).toEqual(first.form);
 		expect(second.parse?.ml_result_id).not.toBe(first.parse?.ml_result_id);
 		// A new text is a new call.

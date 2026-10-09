@@ -339,7 +339,7 @@ export async function extractVacancyFromText(
 		fields = toFields(response.value.items);
 		values = {
 			...envelope,
-			model: extractModelEnvelope(response.value.model, response.value.stored),
+			model: extractModelEnvelope(response.value.model, response.value.origin),
 			processingMode: 'model',
 			rejectedItems: response.value.rejectedReasons.map((reason) => ({ reason })),
 			output: {

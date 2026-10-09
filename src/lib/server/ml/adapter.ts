@@ -309,12 +309,24 @@ export class ModelAdapter {
 	}
 
 	/**
-	 * The model `extract` is configured with — the runtime and the model name — by which answers of the model are kept:
-	 * an answer of another model is not this one's. `null` — `extract` is not configured.
+	 * The model `extract` would be called with now — the runtime and the model name — by which answers of the model are
+	 * kept: an answer of another model is not this one's. `null` — `extract` would not call a model now (not configured,
+	 * no API key, switched off, or its mode unreadable), so no kept answer is given either: what the model said while it
+	 * was on is not given out once it is off.
 	 */
-	extractModelKey(): string | null {
+	async extractModelKey(): Promise<string | null> {
+		const settings = await this.#extractSettings();
+		return settings.ok ? `${settings.value.runtime}:${settings.value.model}` : null;
+	}
+
+	/** The configuration `extract` calls with, or why it does not call. */
+	async #extractSettings(): Promise<ModelResult<ExtractConfig>> {
 		const configured = this.#deps.models.extract;
-		return configured ? `${configured.runtime}:${configured.model}` : null;
+		// An external runtime without its key would refuse every call: the operation is off, and says why.
+		if (configured && lacksApiKey(configured)) {
+			return fail('disabled', 'extract: the external runtime has no API key', { reason: 'no_api_key' });
+		}
+		return this.#gate('extract', configured);
 	}
 
 	/** The configuration of the operation, or `disabled` when it is not configured or switched off. */
@@ -348,12 +360,7 @@ export class ModelAdapter {
 	): Promise<ModelResult<ExtractResponse<ExtractSchemas[V]['item']>>> {
 		extractRequestSchema.parse(request);
 		const prepared = prepareExtract(request.schemaVersion, lexicon);
-		const configured = this.#deps.models.extract;
-		// An external runtime without its key would refuse every call: the operation is off, and says why.
-		if (configured && lacksApiKey(configured)) {
-			return fail('disabled', 'extract: the external runtime has no API key', { reason: 'no_api_key' });
-		}
-		const gate = await this.#gate('extract', configured);
+		const gate = await this.#extractSettings();
 		if (!gate.ok) return gate;
 		const settings = gate.value;
 		const { params, answerFormat } = RUNTIME_PROFILES[settings.runtime];

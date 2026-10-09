@@ -269,10 +269,14 @@ export type ModelOperation = 'extract' | 'embed' | 'rerank';
 /** Profile of the runtime of `extract` (contracts §3.1): `api` — an external model, `vllm` — the platform's own. */
 export type ModelRuntime = 'api' | 'vllm';
 
-/** The model that read a text; `runtime: null` — read before the runtime was recorded, where the text went is unknown. */
+/**
+ * The model that read a text; `runtime: null` — read before the runtime was recorded, where the text went is unknown;
+ * `cached` — the model's answer to the same text was kept from an earlier parse and given again without a call.
+ */
 export interface ModelReadingView {
 	modelId: string;
 	runtime: ModelRuntime | null;
+	cached: boolean;
 }
 
 /** Where a text goes when it is sent now: the configured runtime and its switch. */
@@ -291,6 +295,16 @@ export function modelReadingLabel(reading: ModelReadingView | null): {
 			hint: 'Текст разобран правилами: языковая модель в разборе не участвовала.'
 		};
 	}
+	const mode = modelMode(reading);
+	if (!reading.cached) return mode;
+	return {
+		label: `${mode.label}, из сохранённого разбора`,
+		tone: mode.tone,
+		hint: `${mode.hint} Этот результат — сохранённый ответ модели на тот же текст из прошлого разбора: сейчас модель не вызывалась.`
+	};
+}
+
+function modelMode(reading: ModelReadingView): { label: string; tone: 'neutral' | 'info'; hint: string } {
 	switch (reading.runtime) {
 		case 'api':
 			return {

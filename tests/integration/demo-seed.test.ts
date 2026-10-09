@@ -875,7 +875,7 @@ describe('the model parses of the demo seed (seeds/model-parses.json)', () => {
 		};
 		const models = () => {
 			calls.adapter++;
-			return { extract, extractModelKey: () => 'api:test-model' };
+			return { extract, extractModelKey: () => Promise.resolve('api:test-model') };
 		};
 		return { calls, models };
 	}

@@ -70,7 +70,11 @@ const needSchema = z
 						id: z.string().describe('Модель, ответившая на разбор'),
 						runtime: z
 							.enum(LLM_RUNTIMES)
-							.describe('`api` — внешняя модель по API (текст уходил провайдеру), `vllm` — своя модель платформы')
+							.describe('`api` — внешняя модель по API (текст уходил провайдеру), `vllm` — своя модель платформы'),
+						cached: z
+							.literal(true)
+							.optional()
+							.describe('Ответ модели на тот же текст взят из сохранённого разбора: модель на этот раз не вызывалась')
 					})
 					.nullable()
 					.describe('`null` — текст разобран правилами'),
