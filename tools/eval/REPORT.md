@@ -15,7 +15,10 @@ Dev-прогон методики v3 на правилах соответств�
 (1 025 резюме dev), слои `fsp-achievements-v3` и `synthetic-matching-v3`, без смысловой близости; отчёт —
 [`reports/synthetic-resumes-v3-dev-rules_only.json`](reports/synthetic-resumes-v3-dev-rules_only.json) (разбор правилами) и
 [`reports/synthetic-resumes-v3-dev-model.json`](reports/synthetic-resumes-v3-dev-model.json) (разбор моделью Gemini Flash
-через шлюз, все 1 025 документов прочитаны моделью, режим `model`). **Все пороги обоих прогонов пройдены**; числа подбора
+через шлюз, все 1 025 документов прочитаны моделью, режим `model`). Тот же прогон с разбором моделью Claude Haiku (модель стенда
+сейчас) — [`reports/synthetic-resumes-v3-dev-model-claude-haiku.json`](reports/synthetic-resumes-v3-dev-model-claude-haiku.json),
+2026-10-09, ревизия `cb6d84e4f65e`, правила соответствия 16: навыки F1 0,985 (Gemini Flash 0,986), извлечение p50 9,8 с, p95 13,7 с
+(Gemini Flash 8,2 и 20,4 с). **Все пороги трёх прогонов пройдены**; числа подбора
 ниже — прогона с разбором правилами. Файл правил в репозитории — повтор того же прогона на ревизии `bfb640e5363f` (правила
 соответствия 16), на которой открыт holdout: все метрики совпали до четвёртого знака, прогон на `8d81739a7109` — тот же файл в
 истории git. Это dev — часть, на которой продукт настраивается; итоговая мера — прогон на отложенной части (раздел «Обращения
