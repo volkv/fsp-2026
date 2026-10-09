@@ -398,7 +398,9 @@ export function blockTestPairs(specialization: SpecializationKey): { block: stri
 
 /**
  * The form of the next grade attempt: the one with fewer of the candidate's seen classes at this grade within the window
- * of forms; a tie — by the attempt's seed. A first attempt is therefore A or B by the seed, a retake the other one.
+ * of forms; a tie — by `seedBit`: of the attempt's seed for a first attempt, of the other form than the previous attempt's
+ * for a retake. A first attempt is A or B by the seed and takes the anchor of each family that has one, so a retake
+ * mostly ties and goes on the other form.
  */
 export function chooseForm(seen: { A: number; B: number }, seedBit: 0 | 1): 'A' | 'B' {
 	if (seen.A !== seen.B) return seen.A < seen.B ? 'A' : 'B';

@@ -196,7 +196,7 @@ export function gradeSampleChoices(
 	seed: string
 ): { form: AttemptForm; choices: (SlotChoice | null)[] } {
 	const seen = new Set<string>();
-	const form = attemptForm(families, grade, seen, seed);
+	const form = attemptForm(families, grade, seen, null, seed);
 	const used = new Set<string>();
 	const choices = slotsOf(specialization, grade).map((slot, index) => {
 		const choice = chooseForSlot({

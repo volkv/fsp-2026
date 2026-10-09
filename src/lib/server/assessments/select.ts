@@ -50,12 +50,15 @@ export function seededIndex(seed: string, label: string, n: number): number {
 
 /**
  * The form of a grade attempt (`chooseForm` of the contract): the form of fewer classes the candidate has seen at the
- * grade within the window, a tie by the attempt's seed. `seen` are `seenKey`s; their form is read from the release.
+ * grade within the window, a tie — the other form than the previous attempt at the grade within the window, a first
+ * attempt by its seed. A first attempt takes the anchor of each family that has one, so its retake mostly ties and
+ * takes the other form. `seen` are `seenKey`s; their form is read from the release.
  */
 export function attemptForm(
 	families: readonly FamilyDescriptor[],
 	grade: GradeKey,
 	seen: ReadonlySet<string>,
+	previous: AttemptForm | null,
 	attemptSeed: string
 ): AttemptForm {
 	const count = { A: 0, B: 0 };
@@ -65,7 +68,8 @@ export function attemptForm(
 			if ((cls.form === 'A' || cls.form === 'B') && seen.has(seenKey(family.key, grade, cls.id))) count[cls.form] += 1;
 		}
 	}
-	return chooseForm(count, seededIndex(attemptSeed, 'form', 2) === 0 ? 0 : 1);
+	const seedBit = previous === null ? seededIndex(attemptSeed, 'form', 2) : previous === 'A' ? 1 : 0;
+	return chooseForm(count, seedBit === 0 ? 0 : 1);
 }
 
 /** What classes a test takes: a grade attempt its form (anchor first), a block test or a recheck the reserve `X`. */
