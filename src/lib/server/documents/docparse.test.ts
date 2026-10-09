@@ -1,6 +1,7 @@
 // The client refuses an answer whose tables break the invariants of docs/contracts.md 4.2: cells on the grid without
 // overlapping, the text of a cell equal to its blocks, a block in one cell of its page, a continuation of a table of
-// the previous page with the same columns, repeated header rows only on a continuation.
+// the previous page with the same columns, repeated header rows only on a continuation. One client sends no more parses
+// at once than it is given slots: a parse beyond them waits for a slot instead of reaching the service.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DocparseClient, type ParseResponse } from './docparse';
 import { codePointLength } from '$lib/text/offsets';
@@ -65,7 +66,7 @@ async function parse(body: unknown) {
 		'fetch',
 		vi.fn(() => Promise.resolve(new Response(JSON.stringify(body), { status: 200 })))
 	);
-	return new DocparseClient('http://docparse.test').parse({
+	return new DocparseClient('http://docparse.test', 2).parse({
 		bytes: new Uint8Array(new ArrayBuffer(1)),
 		declaredName: 'protocol.pdf',
 		requestId: 'test'
@@ -156,5 +157,47 @@ describe('docparse tables', () => {
 		const all = answer();
 		tableOf(all, 1).repeatedHeaderRows = 2;
 		expect(await parse(all)).toMatchObject(refused);
+	});
+});
+
+describe('docparse slots', () => {
+	const request = (signal?: AbortSignal) => ({
+		bytes: new Uint8Array(new ArrayBuffer(1)),
+		declaredName: 'resume.pdf',
+		requestId: 'test',
+		...(signal ? { signal } : {})
+	});
+
+	it('sends a parse beyond its slots only when an earlier one is answered', async () => {
+		const answers: ((response: Response) => void)[] = [];
+		const fetch = vi.fn(() => new Promise<Response>((resolve) => answers.push(resolve)));
+		vi.stubGlobal('fetch', fetch);
+		const client = new DocparseClient('http://docparse.test', 1);
+		const first = client.parse(request());
+		const second = client.parse(request());
+		await vi.waitFor(() => {
+			expect(fetch).toHaveBeenCalledTimes(1);
+		});
+		await new Promise((resolve) => setTimeout(resolve, 10));
+		expect(fetch).toHaveBeenCalledTimes(1);
+		answers[0]?.(new Response(JSON.stringify(answer()), { status: 200 }));
+		expect((await first).ok).toBe(true);
+		await vi.waitFor(() => {
+			expect(fetch).toHaveBeenCalledTimes(2);
+		});
+		answers[1]?.(new Response(JSON.stringify(answer()), { status: 200 }));
+		expect((await second).ok).toBe(true);
+	});
+
+	it('gives up a waiting parse when its caller cancels it', async () => {
+		const fetch = vi.fn(() => new Promise<Response>(() => {}));
+		vi.stubGlobal('fetch', fetch);
+		const client = new DocparseClient('http://docparse.test', 1);
+		void client.parse(request());
+		const cancel = new AbortController();
+		const waiting = client.parse(request(cancel.signal));
+		cancel.abort();
+		expect(await waiting).toMatchObject({ ok: false, error: { code: 'cancelled', retryable: false } });
+		expect(fetch).toHaveBeenCalledTimes(1);
 	});
 });

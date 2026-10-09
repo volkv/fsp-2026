@@ -77,7 +77,7 @@ beforeAll(async () => {
 	const [started, created] = await Promise.all([build, createTestDatabase()]);
 	parser = started;
 	database = created;
-	docparse = new DocparseClient(`http://${parser.getHost()}:${parser.getMappedPort(8000)}`);
+	docparse = new DocparseClient(`http://${parser.getHost()}:${parser.getMappedPort(8000)}`, 2);
 	const client = postgres(database.url, { max: 1, onnotice: () => {} });
 	try {
 		await publishTaxonomy(client, buildRelease(await readTaxonomyDatasets(TAXONOMY_DIR)));
