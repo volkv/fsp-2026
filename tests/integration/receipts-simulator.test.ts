@@ -147,7 +147,7 @@ async function checkThroughApi(handle: string) {
 async function openPage(handle: string) {
 	const data = await verifyPage({
 		params: { handle },
-		locals: { requestId: 'req-test', actor: { kind: 'anonymous' }, rateLimited: false },
+		locals: { requestId: 'req-test', actor: { kind: 'anonymous' }, rateLimited: null },
 		getClientAddress: () => '127.0.0.1',
 		request: new Request(`http://localhost/verify/${handle}`),
 		setHeaders: () => {}
