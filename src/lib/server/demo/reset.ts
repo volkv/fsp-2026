@@ -334,6 +334,18 @@ async function clearTables(
 	journal: { requestId: string; trigger: DemoResetTrigger }
 ): Promise<Cleared> {
 	const order = resetOrder(await foreignKeys(tx));
+	// How long the last seed took, from the reset before it to its end: the journal goes, the estimate for visitors
+	// waiting for the next seed stays in the new reset's event (readiness.ts).
+	const [previous] = await tx.execute<{ ms: number }>(sql`
+		select round(extract(epoch from s.occurred_at - r.occurred_at) * 1000)::int as ms
+		from audit_events s
+		cross join lateral (
+			select occurred_at from audit_events
+			where action = 'demo.reset' and occurred_at <= s.occurred_at
+			order by occurred_at desc limit 1
+		) r
+		where s.action = 'demo.seeded'
+		order by s.occurred_at desc limit 1`);
 	// Keys of the objects whose rows go: read before the rows disappear.
 	const files = DEMO_RESET_PLAN.files;
 	if (files?.kind !== 'clear_except') throw new Error('the reset plan of files keeps the evaluation reports');
@@ -397,7 +409,8 @@ async function clearTables(
 			trigger: journal.trigger,
 			tables_cleared: tablesCleared,
 			rows_kept: rowsKept,
-			files_removed: keys.length
+			files_removed: keys.length,
+			previous_seed_ms: previous?.ms ?? null
 		}
 	});
 	return { tablesCleared, rowsKept, storageKeys: keys.map((row) => row.storage_key) };

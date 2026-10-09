@@ -9,16 +9,10 @@ import { fieldCrypto } from '$lib/server/crypto/fields';
 import { db } from '$lib/server/db';
 import { users } from '$lib/server/db/schema';
 import { idleEndOf, lastEndOf, nextStandReset, redisDemoActivity } from '$lib/server/demo/activity';
-import {
-	castOriginals,
-	castRoles,
-	cloneEmail,
-	DemoCastMissing,
-	heroCategories,
-	type CastRole
-} from '$lib/server/demo/cast';
+import { castRoles, cloneEmail, DemoCastMissing, heroCategories, type CastRole } from '$lib/server/demo/cast';
 import { MAX_LIVE_SESSIONS } from '$lib/server/demo/clone';
 import { readSeedData, seedsDirectory } from '$lib/server/demo/data';
+import { seededCast, seedRemainingSeconds } from '$lib/server/demo/readiness';
 import { productionGradePolicyOf, setProductionGradePolicy } from '$lib/server/demo/grade-policy';
 import { createNewcomer, DemoSessionEnded } from '$lib/server/demo/newcomer';
 import { demoTerms } from '$lib/server/demo/terms';
@@ -26,6 +20,8 @@ import {
 	DEMO_SESSION_COOKIE,
 	DEMO_SESSION_REFUSALS,
 	enterDemoRole,
+	refusalText,
+	seedWaitText,
 	sessionByToken,
 	setDemoCookie,
 	signInAsClone,
@@ -92,7 +88,8 @@ export const load: PageServerLoad = async (event) => {
 	let names: Map<string, string | null>;
 	let categoriesOf: Map<string, string[]>;
 	try {
-		const originals = await castOriginals(db(), fieldCrypto(), roles);
+		// A seed still running shows nothing of the cast: its heroes are there before their categories and needs.
+		const originals = await seededCast(db(), fieldCrypto(), roles);
 		names = new Map([...originals.users].map(([key, user]) => [key, user.displayName]));
 		categoriesOf = new Map(
 			[...(await heroCategories(db(), originals))].map(([key, held]) => [
@@ -102,7 +99,15 @@ export const load: PageServerLoad = async (event) => {
 		);
 	} catch (cause) {
 		if (!(cause instanceof DemoCastMissing)) throw cause;
-		return { seeded: false as const, roles: [], session: null, joining: null, fspNotice, resetAt };
+		return {
+			seeded: false as const,
+			wait: seedWaitText(await seedRemainingSeconds(db(), now)),
+			roles: [],
+			session: null,
+			joining: null,
+			fspNotice,
+			resetAt
+		};
 	}
 	const terms = await demoTerms(db());
 	const joining = event.url.searchParams.get('join');
@@ -177,7 +182,7 @@ export const actions: Actions = {
 			}
 		);
 		if (entry.kind === 'refused') {
-			return fail(entry.reason === 'address_budget' ? 429 : 503, { message: DEMO_SESSION_REFUSALS[entry.reason] });
+			return fail(entry.reason === 'address_budget' ? 429 : 503, { message: refusalText(entry) });
 		}
 		setDemoCookie(event.cookies, entry.token, entry.session.expiresAt, now);
 		setSessionCookie(event.cookies, entry.signInSessionId);

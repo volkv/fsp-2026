@@ -324,12 +324,14 @@ const SPECIFIC_DETAILS: Partial<Record<AuditAction, z.ZodType>> = {
 	}),
 	'external_profile.sync_failed': withKeys({ platform: EXTERNAL_PLATFORM, reason: SOURCE_FAILURE }),
 	// The demonstration stand was emptied except the reference data (domain 19.2), or filled by the demo seed. `trigger`
-	// — the job of a night, the start of the application with a batch not seeded yet, or the command line.
+	// — the job of a night, the start of the application with a batch not seeded yet, or the command line;
+	// `previous_seed_ms` — how long the seed the emptied journal recorded took (`null` — it recorded none).
 	'demo.reset': withKeys({
 		trigger: z.enum(['nightly', 'startup', 'manual']),
 		tables_cleared: z.int().nonnegative(),
 		rows_kept: z.int().nonnegative(),
-		files_removed: z.int().nonnegative()
+		files_removed: z.int().nonnegative(),
+		previous_seed_ms: z.int().nonnegative().nullable()
 	}),
 	// The job of the night `date` found `DEMO_NIGHTLY_RESET` off when it ran and reset nothing.
 	'demo.reset_skipped': withKeys({ date: z.iso.date(), reason: z.enum(['nightly_reset_off']) }),
