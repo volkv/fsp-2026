@@ -759,7 +759,8 @@ describe('demo seed', () => {
 		expect(store.objects.size).toBe(0);
 		expect((await census()).users).toBe(0);
 
-		// A worker of the stand runs the same types all through the seed: the seed's jobs are not its to take.
+		// A worker of the stand runs the same types all through the seed: the seed's jobs are not its to take. Its own
+		// schedule (the market snapshot of the day) is its own.
 		const chain: JobType[] = [
 			'fsp.sync',
 			'resume.parse',
@@ -774,7 +775,7 @@ describe('demo seed', () => {
 			type,
 			concurrency: 4,
 			run: ({ job }) => {
-				taken.push(`${job.type} ${job.id}`);
+				taken.push(job.id);
 				return Promise.resolve({ isCurrent: () => Promise.resolve(true), write: () => Promise.resolve() });
 			}
 		});
@@ -791,7 +792,11 @@ describe('demo seed', () => {
 		} finally {
 			await stand.stop();
 		}
-		expect(taken).toEqual([]);
+		const takenFromSeed = await database.db
+			.select({ type: jobs.type, createdBy: jobs.createdBy })
+			.from(jobs)
+			.where(and(inArray(jobs.id, taken), sql`${jobs.createdBy}->>'id' is distinct from 'scheduler'`));
+		expect(takenFromSeed).toEqual([]);
 		expect(again.status).toBe('seeded');
 		expect(again.batch).toBe(first.batch);
 		expect(await census()).toEqual(before);
