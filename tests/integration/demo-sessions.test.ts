@@ -690,7 +690,7 @@ describe('demo sessions', () => {
 				{ inputVersion: 'demo-sessions-test', createdBy: { kind: 'system' } }
 			)
 		);
-		await drainJobs(database.db, handlers, ['match.refresh'], { since: new Date(0), log, label: 'pairs' });
+		await drainJobs(database.db, handlers, ['match.refresh'], { owner: null, since: new Date(0), log, label: 'pairs' });
 		const pairs = await database.db
 			.select({ vacancyId: matchScores.vacancyId, candidateId: matchScores.candidateId })
 			.from(matchScores);
@@ -835,6 +835,7 @@ describe('demo sessions', () => {
 			expect(hidden?.visibility).toBe('hidden');
 
 			await drainJobs(database.db, handlers, ['resume.parse', 'resume.extract', 'evidence.compute', 'match.refresh'], {
+				owner: null,
 				since: new Date(Date.now() - 60_000),
 				log,
 				label: 'own resume'
