@@ -498,11 +498,11 @@ test('the operator resolves a conflict of the birth date by a document', async (
 async function seedStuckAttempt(): Promise<string> {
 	const release = await releaseInForce(db(), 'qa');
 	if (!release) throw new Error('the e2e stand has no QA release in force');
-	const family = release.families.find((f) => f.descriptor.format === 'qa_mutation');
-	if (!family) throw new Error(`no QA mutant family in the release ${release.id}`);
-	const level = family.descriptor.levels.find((l) => l.grade === 'intern');
-	const classId = level?.classes[0]?.id;
-	if (!classId) throw new Error(`the family ${family.descriptor.key} has no intern class`);
+	const family = release.families.find(
+		(f) => f.descriptor.format === 'qa_mutation' && f.descriptor.levels.some((l) => l.grade === 'intern')
+	);
+	const classId = family?.descriptor.levels.find((l) => l.grade === 'intern')?.classes[0]?.id;
+	if (!family || !classId) throw new Error(`no QA mutant family of Intern in the release ${release.id}`);
 	const instance = (await familyModule(family, release)).generate({ seed: 's', grade: 'intern', classId });
 	return db().transaction(async (tx) => {
 		const [user] = await tx
