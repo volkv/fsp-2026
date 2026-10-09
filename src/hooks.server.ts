@@ -23,6 +23,7 @@ import { rateLimitHandles, redisRateLimitStore } from '$lib/server/http/rate-lim
 import { newRequestId } from '$lib/server/http/request-id';
 import { applySecurityHeaders } from '$lib/server/http/security-headers';
 import { closeRedis, redis } from '$lib/server/redis';
+import { loggedError } from '$lib/server/db/errors';
 
 /**
  * Before the first request: attempts still running on a bank release whose code is no longer on disk are annulled
@@ -44,7 +45,7 @@ export const init: ServerInit = async () => {
 	process.on('sveltekit:shutdown', () => {
 		closeRedis();
 		closeDb().catch((error: unknown) => {
-			console.error('[shutdown] failed to close database connections', error);
+			console.error('[shutdown] failed to close database connections', loggedError(error));
 			process.exitCode = 1;
 		});
 	});
@@ -139,7 +140,7 @@ const authenticate: Handle = async ({ event, resolve }) => {
 			'session lookup'
 		);
 	} catch (cause) {
-		console.error(`[auth] request ${event.locals.requestId}: session store unavailable`, cause);
+		console.error(`[auth] request ${event.locals.requestId}: session store unavailable`, loggedError(cause));
 		return errorResponse(new ApiError('degraded', { cause, retryAfterSeconds: 5 }), event.locals.requestId);
 	}
 	if (actor) event.locals.actor = actor;
@@ -193,7 +194,7 @@ export const handle: Handle = sequence(
 export const handleError: HandleServerError = ({ error, event, status, message }) => {
 	const requestId = (event.locals as Partial<App.Locals>).requestId ?? 'unassigned';
 	if (status >= 500) {
-		console.error(`[server] request ${requestId} failed`, error);
+		console.error(`[server] request ${requestId} failed`, loggedError(error));
 		return { message: 'Внутренняя ошибка', requestId };
 	}
 	return { message, requestId };

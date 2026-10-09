@@ -11,6 +11,7 @@ import { ApiError } from '$lib/server/errors/api-error';
 import type { ModelMode, ModelModes } from '$lib/server/ml/modes';
 import { MODEL_OPERATIONS, type ModelOperation } from '$lib/server/ml/result';
 import { lacksApiKey, RUNTIME_PROFILES } from '$lib/server/ml/runtime';
+import { loggedError } from '$lib/server/db/errors';
 
 export interface ModelsDeps {
 	db: Executor;
@@ -221,7 +222,7 @@ export async function switchModelMode(
 		// Switched but not journaled and not restored: an inconsistent state that must reach the server errors as is.
 		if (error instanceof AggregateError) throw error;
 		// `set` leaves the mode as it was when the store or the journal fails: the administrator may simply retry.
-		console.error('[admin] model mode switch failed', error);
+		console.error('[admin] model mode switch failed', loggedError(error));
 		throw new ApiError('degraded', {
 			message: 'Хранилище режимов или журнал недоступны — режим не изменён, повторите позже',
 			cause: error

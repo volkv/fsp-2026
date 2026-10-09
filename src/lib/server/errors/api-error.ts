@@ -1,4 +1,5 @@
 import { API_ERRORS, POLICY_VIOLATION_CODES, type ApiErrorCode, type PolicyViolationCode } from './codes';
+import { loggedError } from '$lib/server/db/errors';
 
 export interface ErrorDetail {
 	/** Field path in the request, when the detail is about a field. */
@@ -64,7 +65,7 @@ export function errorEnvelope(error: ApiError, requestId: string): ErrorEnvelope
 export function errorResponse(error: unknown, requestId: string): Response {
 	const apiError = error instanceof ApiError ? error : new ApiError('internal', { cause: error });
 	if (apiError.code === 'internal') {
-		console.error(`[api] request ${requestId} failed`, error);
+		console.error(`[api] request ${requestId} failed`, loggedError(error));
 	}
 	const headers = new Headers({
 		'content-type': 'application/json',

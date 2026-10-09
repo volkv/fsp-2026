@@ -1,7 +1,7 @@
 // Structured log of the worker: one JSON object per line on stdout (errors on stderr), so that `docker compose logs`
 // can be filtered by `job_id`, `job_type` or `request_id`. Fields carry identifiers and codes, never personal data.
 
-import { databaseError } from '$lib/server/db/errors';
+import { loggedError } from '$lib/server/db/errors';
 
 export type LogLevel = 'info' | 'warn' | 'error';
 export type LogFields = Record<string, string | number | boolean | null | undefined>;
@@ -21,18 +21,15 @@ const consoleSink: LogSink = (level, line) => {
 	else console.log(line);
 };
 
-/** The error with, for a failed statement, what PostgreSQL said: the wrapper's own message is only the statement. */
+/** The error without the statement and parameters of a failed query, with what PostgreSQL said of it. */
 function describeError(error: unknown): LogFields {
-	if (error instanceof Error) {
-		const database = databaseError(error);
-		return {
-			error_name: error.name,
-			error_message: error.message,
-			error_stack: error.stack ?? null,
-			...(database && { db_code: database.code, db_message: database.message, db_constraint: database.constraint })
-		};
-	}
-	return { error_message: String(error) };
+	const { name, message, stack, database } = loggedError(error);
+	return {
+		error_name: name,
+		error_message: message,
+		error_stack: stack,
+		...(database && { db_code: database.code, db_message: database.message, db_constraint: database.constraint })
+	};
 }
 
 export function createLogger(base: LogFields = {}, sink: LogSink = consoleSink): JobLogger {

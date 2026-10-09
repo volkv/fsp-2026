@@ -237,6 +237,37 @@ describe('worker', () => {
 		expect(line).toMatchObject({ code: 'database_error', db_code: '40P01', db_message: 'deadlock detected' });
 	});
 
+	it('keeps the parameters of a failed statement out of the job and its log', async () => {
+		const { db } = database;
+		const email = 'ivan.petrov@example.org';
+		const id = await enqueue(db, 'profile.embed', { candidate_id: randomUUID() });
+		launch({
+			handlers: handlerRegistry([
+				{
+					type: 'profile.embed',
+					concurrency: 1,
+					run: async ({ db: executor }) => {
+						await executor.execute(sql`select 1 / 0 where ${email}::text is not null`);
+						throw new Error('the statement did not fail');
+					}
+				}
+			]),
+			types: ['profile.embed']
+		});
+		await waitFor(
+			'failure recorded',
+			async () => (await jobRow(id)).status === 'queued' && (await jobRow(id)).attempts === 1
+		);
+		expect(JSON.stringify((await jobRow(id)).lastError)).not.toContain(email);
+		const line = logLines.find((entry) => entry.line.includes(id) && entry.line.includes('job attempt failed'));
+		expect(line).toBeDefined();
+		expect(JSON.parse(line?.line ?? '{}')).toMatchObject({
+			db_code: '22012',
+			error_message: 'division by zero'
+		});
+		expect(line?.line).not.toContain(email);
+	});
+
 	it('returns a job whose lease expired in a crashed worker and runs it', async () => {
 		const { db } = database;
 		const id = await enqueue(db, 'profile.embed', { candidate_id: randomUUID() });

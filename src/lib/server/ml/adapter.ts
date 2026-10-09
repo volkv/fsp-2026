@@ -14,6 +14,7 @@ import { prepareResumeExtract, type ResumeItem } from './resume-extract';
 import { lacksApiKey, RUNTIME_PROFILES, type LlmRuntime } from './runtime';
 import { l2Normalize, type EmbeddingSpace, type SpaceLookup } from './spaces';
 import { prepareVacancyExtract, type VacancyItem, type VacancyLexicon } from './vacancy-extract';
+import { loggedError } from '$lib/server/db/errors';
 
 export interface CallOptions {
 	/**
@@ -500,7 +501,7 @@ export class ModelAdapter {
 		try {
 			space = await this.#deps.spaces(spaceId);
 		} catch (error) {
-			console.error('[ml] embedding space lookup failed', error);
+			console.error('[ml] embedding space lookup failed', loggedError(error));
 			return fail('unavailable', 'embed: embedding space cannot be read', { cause: 'space_store' });
 		}
 		if (!space) return fail('space_mismatch', 'embed: the space is not registered', { space_id: spaceId });

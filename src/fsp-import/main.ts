@@ -16,6 +16,7 @@ import { feedFor, type ResultsBatch } from '$lib/server/fsp/import/feed';
 import { parseProfile } from '$lib/server/fsp/import/profile';
 import { configuredReceiptSigner } from '$lib/server/fsp/receipts';
 import { closeRedis } from '$lib/server/redis';
+import { loggedError } from '$lib/server/db/errors';
 
 const USAGE = 'usage: fsp-import --profile <profile.json> [--complete] [--dry-run] [--allow-row-issues] <file>';
 
@@ -122,7 +123,7 @@ main()
 			console.error(`${error.message}\n${USAGE}`);
 			process.exitCode = 2;
 		} else {
-			console.error('[fsp-import]', error);
+			console.error('[fsp-import]', loggedError(error));
 			process.exitCode = 1;
 		}
 		closeRedis();
