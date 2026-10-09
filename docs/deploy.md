@@ -519,6 +519,33 @@ docker volume rm fsp-career_redis-data
 ssh ensi-new 'df -h /; docker system df; docker images | grep fsp-career'
 ```
 
+## Автодеплой
+
+**Пуш в `main` выкатывает стенд.** Workflow [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) на раннере
+GitHub `ubuntu-latest` ставит зависимости по lock-файлам, прогоняет `pnpm check:fast` и запускает тот же
+`scripts/deploy/deploy.sh` с `DEPLOY_HOST=root@109.172.6.211`: сборка, доставка, проверка `/api/health` и откат при провале —
+как в разделе «Выкатка». Красный `check:fast` до стенда не доходит. Выкатки идут по одной: пуш во время выкатки ждёт её
+конца (`concurrency: deploy`), а не прерывает её. Тайм-аут — 60 минут.
+
+- **Где смотреть** — вкладка Actions репозитория, workflow `deploy`; лог шага `Release` — вывод `deploy.sh` (`[deploy] …`).
+  Из терминала: `gh run list -w deploy`, `gh run watch`.
+- **Повторить без пуша** — `gh workflow run deploy` (или кнопка Run workflow в Actions): выкатывает текущий `main`.
+- **Отключить** — `gh workflow disable deploy`; включить — `gh workflow enable deploy`. Ручная выкатка
+  `scripts/deploy/deploy.sh` с машины разработчика работает и при отключённом автодеплое.
+- **Доступ раннера к серверу** — отдельный ключ ed25519, строка с комментарием `fsp-career-github-actions` в
+  `/root/.ssh/authorized_keys` на сервере; секреты репозитория: `DEPLOY_SSH_KEY` (приватный ключ) и `DEPLOY_KNOWN_HOSTS`
+  (`ssh-keyscan -p 22 109.172.6.211`, сверено с known_hosts машины разработчика). Вход на сервер по SSH открыт со всех
+  адресов, только по ключу.
+- **Отозвать ключ** — удалить строку `fsp-career-github-actions` из `/root/.ssh/authorized_keys` и секрет:
+  `gh secret delete DEPLOY_SSH_KEY`.
+- **Раннер собирает без кэша.** Слои образов на чистом раннере получают новые дайджесты, поэтому `sandbox` и `docparse`,
+  которые с машины разработчика только перетегируются (раздел «Выкатка», п. 2), из CI едут на сервер при каждой выкатке
+  (сколько это добавляет ко времени выкатки, не измерено).
+
+**Экспертиза 12–24.10.** Пуш в `main`, который меняет партию демо-данных (`seeds/`, код засева, банки заданий, правовой
+документ с `requires_reconsent` — раздел «Демо-данные»), сразу пересевает стенд и удаляет все демо-сессии жюри. На время
+экспертизы такие изменения не сливаются в `main`, либо автодеплой отключается (`gh workflow disable deploy`).
+
 ## Откат
 
 ```sh
