@@ -109,8 +109,10 @@ Integration-тесты песочницы собирают её образ; пе
 
 **Второй прогон рядом** (копия дерева, приёмка): свои `build/` и `.svelte-kit/` у копии и так свои; в её `.env` — своё
 `E2E_DATABASE` и `E2E_PORT=57185`. Порты прогона — слот из трёх (`tests/e2e/helpers/ports.ts`, одна точка для
-`playwright.config.ts` и спеков): сервер, подмена API Codeforces и GitHub, демо-стенд `demo.spec.ts` — 57175–57177 по
-умолчанию, 57185–57187 во втором слоте. Других слотов нет: имитатор `fsp-mock` из `compose.yaml` общий для копий и
+`playwright.config.ts` и спеков): сервер — 57175 по умолчанию, 57185 во втором слоте; подмена API Codeforces и GitHub и демо-стенд
+`demo.spec.ts` слушаются самими тестами и лежат ниже диапазона исходящих соединений ядра
+(`/proc/sys/net/ipv4/ip_local_port_range`, 32768–60999): порт внутри него в момент `listen` может занимать чьё-то
+соединение к PostgreSQL (`EADDRINUSE`) — 27176 и 27177 по умолчанию, 27186 и 27187 во втором слоте. Других слотов нет: имитатор `fsp-mock` из `compose.yaml` общий для копий и
 возвращает вход через ФСП ID только на колбэки обоих слотов (`FSP_MOCK_REDIRECT_URIS` — список, а не переменная: иначе
 каждый `compose up` из другой копии пересоздавал бы общий имитатор под себя); другой `E2E_PORT` — отказ конфига. Общими
 остаются серверы `make infra` (PostgreSQL, Valkey, хранилище, Mailpit, `fsp-mock`). Имя compose-проекта
@@ -126,9 +128,9 @@ Integration-тесты песочницы собирают её образ; пе
 | 57173 | Vite dev (`pnpm dev`) |
 | 57174 | `pnpm preview` |
 | 57175 | сервер для e2e (Playwright `webServer`) |
-| 57176 | заглушка API публичных профилей (Codeforces, GitHub) для e2e (`playwright.config.ts`, `tests/e2e/external-profiles.spec.ts`) |
-| 57177 | демо-стенд e2e (`tests/e2e/demo.spec.ts`: своя база, свой имитатор, `DEMO_MODE=true`) |
-| 57185–57187 | те же три порта e2e во втором слоте (`E2E_PORT=57185`, копия дерева; `tests/e2e/helpers/ports.ts`) |
+| 27176 | заглушка API публичных профилей (Codeforces, GitHub) для e2e (`playwright.config.ts`, `tests/e2e/external-profiles.spec.ts`) |
+| 27177 | демо-стенд e2e (`tests/e2e/demo.spec.ts`: своя база, свой имитатор, `DEMO_MODE=true`) |
+| 57185, 27186, 27187 | те же три порта e2e во втором слоте (`E2E_PORT=57185`, копия дерева; `tests/e2e/helpers/ports.ts`) |
 | 57300 | приложение в контейнере (`make up`) |
 | 57310 | состояние воркера `GET /health`, только loopback: у `make worker` — хоста, в compose — контейнера (не публикуется) |
 | 57432 | PostgreSQL |
