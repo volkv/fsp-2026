@@ -15,17 +15,12 @@ import { defineHandler, JobFailure, type JobHandler, type JobResult } from '$lib
 import { enqueueJob } from '$lib/server/jobs/queue';
 import { modelAdapter } from '$lib/server/ml';
 import { computeVacancyPool, hasPoolRequirements } from '$lib/server/vacancies/pool';
-import {
-	loadCandidateSnapshots,
-	loadGradeOrdinals,
-	matchableVacancy,
-	loadVacancySnapshot,
-	vacancySnapshot
-} from './evidence';
+import { loadCandidateSnapshots, matchableVacancy, loadVacancySnapshot, vacancySnapshot } from './evidence';
 import type { CandidateSnapshot, VacancySnapshot } from './evidence';
 import { loadActiveMatchRuleset, MatchRulesetError, type MatchRuleset } from './ruleset';
-import { matchScore, qualifiesForPool, type MatchResult } from './score';
-import { loadActiveSpace, pairKey, pairSimilarities, semanticSignal, type MatchingModels } from './semantic';
+import { candidateSideMatches } from './candidate-side';
+import { qualifiesForPool, type MatchResult } from './score';
+import type { MatchingModels } from './semantic';
 import {
 	clearVacancy,
 	isSignificant,
@@ -187,33 +182,10 @@ async function refreshCandidate(executor: Executor, candidateId: string, jobId: 
 				: undefined;
 	const rows = await executor.select().from(vacancies).where(and(matchableVacancy, reach));
 	const vacancyList = rows.map(vacancySnapshot);
-	const ordinals = await loadGradeOrdinals(
-		executor,
-		vacancyList.map((v) => v.taxonomyVersionId)
-	);
-	const space = await loadActiveSpace(executor);
-	const similarities =
-		space === null
-			? new Map<string, number>()
-			: await pairSimilarities(
-					executor,
-					space,
-					vacancyList.map((v) => v.id),
-					[candidateId]
-				);
-
+	const { results, space } = await candidateSideMatches(executor, snapshot, ruleset.params, vacancyList);
 	const pairs = vacancyList.map((vacancy) => {
-		const gradeOrdinals = ordinals.get(vacancy.taxonomyVersionId);
-		if (!gradeOrdinals) throw new Error('grade ordinals were not loaded');
-		const result = matchScore({
-			vacancy,
-			candidate: snapshot,
-			params: ruleset.params,
-			gradeOrdinals,
-			semantic: semanticSignal(space, similarities.get(pairKey(vacancy.id, candidateId)), 'pair_vector_missing'),
-			// One candidate against many vacancies would take a reranker call per vacancy (see recommendations).
-			reranker: { status: 'unavailable', reason: 'pair_not_reranked' }
-		});
+		const result = results.get(vacancy.id);
+		if (!result) throw new Error(`vacancy ${vacancy.id} was not scored`);
 		return computedPair(vacancy, snapshot, result, space?.id ?? null);
 	});
 

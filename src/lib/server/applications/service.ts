@@ -33,9 +33,10 @@ import { currentDisclosureDocument, effectiveDisclosure, emptyDisclosureFields }
 import { auditActor, channelOf, type RequestMeta } from '$lib/server/invitations/deps';
 import { invalid, refuse } from '$lib/server/invitations/errors';
 import { candidateSide, memberSide } from '$lib/server/invitations/records';
-import { loadCandidateSnapshots, loadGradeOrdinals, vacancySnapshot } from '$lib/server/matching/evidence';
+import { candidateSideMatches } from '$lib/server/matching/candidate-side';
+import { loadCandidateSnapshots, vacancySnapshot } from '$lib/server/matching/evidence';
 import { loadActiveMatchRuleset } from '$lib/server/matching/ruleset';
-import { matchScore, type MatchResult } from '$lib/server/matching/score';
+import type { MatchResult } from '$lib/server/matching/score';
 import { notify } from '$lib/server/notifications/notify';
 import { ageBand } from '$lib/server/visibility/age';
 
@@ -96,7 +97,10 @@ function matchSnapshot(result: MatchResult, rulesetVersion: number): Application
 	};
 }
 
-/** The match of the candidate with the vacancy now, by the rule set in force, without the models. */
+/**
+ * The match of the candidate with the vacancy now, by the rule set in force: the same path as the vacancies for the
+ * candidate, so the page of a vacancy, the application and the list show one number.
+ */
 async function pairMatch(
 	executor: Executor,
 	vacancy: VacancyRow,
@@ -105,16 +109,9 @@ async function pairMatch(
 	const snapshot = (await loadCandidateSnapshots(executor, [candidateId])).get(candidateId);
 	if (!snapshot) throw new Error(`candidate ${candidateId} has no snapshot`);
 	const ruleset = await loadActiveMatchRuleset(executor);
-	const ordinals = (await loadGradeOrdinals(executor, [vacancy.taxonomyVersionId])).get(vacancy.taxonomyVersionId);
-	if (!ordinals) throw new Error('grade ordinals were not loaded');
-	const result = matchScore({
-		vacancy: vacancySnapshot(vacancy),
-		candidate: snapshot,
-		params: ruleset.params,
-		gradeOrdinals: ordinals,
-		semantic: { status: 'unavailable', reason: 'application_snapshot' },
-		reranker: { status: 'unavailable', reason: 'application_snapshot' }
-	});
+	const { results } = await candidateSideMatches(executor, snapshot, ruleset.params, [vacancySnapshot(vacancy)]);
+	const result = results.get(vacancy.id);
+	if (!result) throw new Error(`vacancy ${vacancy.id} was not scored`);
 	return { result, rulesetVersion: ruleset.version };
 }
 
