@@ -1,8 +1,8 @@
 // Job queue over the `jobs` table (docs/domain.md, section 17.1): enqueue in the transaction of the change,
 // deduplication among waiting jobs, capture with a lease, conditional result write, retries and lease recovery.
-import { and, eq, inArray, lte, not, or, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNull, lte, not, or, sql, type SQL } from 'drizzle-orm';
 import type { Executor, Transaction } from '$lib/server/db';
-import { jobs } from '$lib/server/db/schema';
+import { jobs, type JobOwner } from '$lib/server/db/schema';
 import { insertJob, type EnqueueOptions, type EnqueueResult } from './insert';
 import { JOB_TYPES, isJobType, jobSpec, type JobPayload, type JobType } from './registry';
 
@@ -36,14 +36,21 @@ const registeredVersions = () =>
 		...Object.entries(JOB_TYPES).map(([type, spec]) => and(eq(jobs.type, type), eq(jobs.typeVersion, spec.typeVersion)))
 	);
 
+/** The line of the queue a worker of `owner` captures from: its own jobs, or, without an owner, the stand's jobs only. */
+export function ownedBy(owner: JobOwner | null): SQL {
+	return owner === null ? isNull(jobs.owner) : eq(jobs.owner, owner);
+}
+
 /**
- * Captures the next due job: `FOR UPDATE SKIP LOCKED` among queued jobs whose key has no running job, then sets
- * the lease. At most one job per key runs at a time; the database enforces it with a unique index as well.
+ * Captures the next due job of the worker's line (`ownedBy`): `FOR UPDATE SKIP LOCKED` among queued jobs whose key has
+ * no running job, then sets the lease. At most one job per key runs at a time; the database enforces it with a unique
+ * index as well.
  */
 export async function claimJob(
 	executor: Executor,
 	workerId: string,
-	types?: readonly JobType[]
+	types?: readonly JobType[],
+	owner: JobOwner | null = null
 ): Promise<ClaimedJob | null> {
 	return executor.transaction(async (tx) => {
 		const running = sql`exists (select 1 from ${jobs} r where r.status = 'running' and r.dedup_key = ${jobs.dedupKey})`;
@@ -53,6 +60,7 @@ export async function claimJob(
 			.where(
 				and(
 					eq(jobs.status, 'queued'),
+					ownedBy(owner),
 					lte(jobs.runAfter, sql`now()`),
 					registeredVersions(),
 					types ? inArray(jobs.type, [...types]) : undefined,

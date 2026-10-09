@@ -4,6 +4,7 @@
 import { hostname } from 'node:os';
 import { randomBytes } from 'node:crypto';
 import type { Database } from '$lib/server/db';
+import type { JobOwner } from '$lib/server/db/schema';
 import { JobFailure, type AnyJobHandler, type HandlerRegistry } from './handler';
 import { createLogger, type JobLogger } from './log';
 import {
@@ -25,6 +26,8 @@ export interface WorkerOptions {
 	handlers: HandlerRegistry;
 	/** Types this worker runs; each must be registered and have a handler, otherwise the worker does not start. */
 	types: readonly string[];
+	/** The line of the queue this worker captures from (`claimJob`); absent — the stand's jobs, those without an owner. */
+	owner?: JobOwner;
 	/** Per-type overrides of the handler's concurrency. */
 	concurrency?: Readonly<Record<string, number>>;
 	workerId?: string;
@@ -362,7 +365,7 @@ export function startWorker(options: WorkerOptions): Worker {
 			}
 			let job: ClaimedJob | null;
 			try {
-				job = await claimJob(db, workerId, free);
+				job = await claimJob(db, workerId, free, options.owner ?? null);
 				lastDatabaseOkAt = new Date();
 			} catch (error) {
 				log.error('job capture failed', {}, error);
@@ -428,6 +431,7 @@ export function startWorker(options: WorkerOptions): Worker {
 
 	const loop = captureLoop();
 	log.info('worker started', {
+		...(options.owner ? { owner: options.owner } : {}),
 		types: enabled.map((entry) => `${entry.type}=${entry.concurrency}`).join(','),
 		periodic: [...periodic, ...ticks].map((entry) => entry.type).join(',')
 	});

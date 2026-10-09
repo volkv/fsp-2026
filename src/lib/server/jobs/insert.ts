@@ -1,10 +1,13 @@
 // The one statement that puts a job into the queue (docs/domain.md, section 17.1): the row as the registry describes it,
-// `ON CONFLICT (dedup_key) WHERE status = 'queued' DO NOTHING` joining a job already waiting under the same key.
+// `ON CONFLICT (dedup_key) WHERE status = 'queued' DO NOTHING` joining a job already waiting under the same key, and the
+// owner of the line of the queue it goes to (`withJobOwner`).
 // Imported by plain Node (scripts/seed-taxonomy.ts through taxonomy/publish.ts): relative imports with extensions,
 // erasable syntax only, no application aliases.
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { sql, type SQL } from 'drizzle-orm';
 import { PgDialect } from 'drizzle-orm/pg-core';
 import type postgres from 'postgres';
+import type { JobOwner } from '../db/schema/jobs.ts';
 import { uuidv7 } from '../ids.ts';
 import { jobSpec, type JobPayload, type JobType } from './registry.ts';
 
@@ -24,6 +27,29 @@ export interface EnqueueResult {
 	jobId: string;
 	/** The change joined a job already waiting under the same key. */
 	joined: boolean;
+}
+
+interface OwnedLine {
+	owner: JobOwner;
+	types: ReadonlySet<JobType>;
+}
+
+const ownedLine = new AsyncLocalStorage<OwnedLine>();
+
+/**
+ * Runs `work` with the jobs of `types` it enqueues owned by `owner`: directly, through the product code it calls, and
+ * through the handlers of a worker it starts, whose loops continue its asynchronous context. Such jobs are captured
+ * only by a worker of the same owner (`claimJob`), never by the workers of the stand. A job of these types already
+ * waiting under the same key passes to the owner when the enqueue joins it. Jobs of other types go to the stand.
+ */
+export function withJobOwner<T>(owner: JobOwner, types: readonly JobType[], work: () => Promise<T>): Promise<T> {
+	return ownedLine.run({ owner, types: new Set(types) }, work);
+}
+
+/** The owner a job of `type` enqueued here gets; `null` — the stand's line. */
+export function jobOwnerFor(type: JobType): JobOwner | null {
+	const line = ownedLine.getStore();
+	return line?.types.has(type) ? line.owner : null;
 }
 
 /** Runs one statement in the caller's transaction and returns its rows. */
@@ -50,18 +76,24 @@ export async function insertJob<T extends JobType>(
 	const parsed = spec.payload.parse(payload) as Record<string, unknown>;
 	const dedupKey = spec.dedupKey(parsed);
 	const runAfter = options.runAfter ? sql`${options.runAfter.toISOString()}::timestamptz` : sql`now()`;
+	const owner = jobOwnerFor(type);
 	const [created] = await run(sql`
-		insert into jobs (id, type, type_version, payload, input_version, dedup_key, status, priority, run_after, max_attempts, created_by)
+		insert into jobs (id, type, type_version, payload, input_version, dedup_key, status, priority, run_after, max_attempts, created_by, owner)
 		values (
 			${uuidv7()}, ${type}, ${spec.typeVersion}, ${JSON.stringify(parsed)}::text::jsonb, ${options.inputVersion},
 			${dedupKey}, 'queued', ${spec.priority}, ${runAfter}, ${spec.maxAttempts},
-			${JSON.stringify(options.createdBy)}::text::jsonb
+			${JSON.stringify(options.createdBy)}::text::jsonb, ${owner}
 		)
 		on conflict (dedup_key) where status = 'queued' do nothing
 		returning id
 	`);
 	if (created) return { jobId: idOf(created), joined: false };
-	const [waiting] = await run(sql`select id from jobs where dedup_key = ${dedupKey} and status = 'queued'`);
+	// An owner takes over the waiting job it joins; an enqueue of the stand leaves the job with its owner.
+	const [waiting] = await run(
+		owner === null
+			? sql`select id from jobs where dedup_key = ${dedupKey} and status = 'queued'`
+			: sql`update jobs set owner = ${owner} where dedup_key = ${dedupKey} and status = 'queued' returning id`
+	);
 	if (!waiting) throw new Error(`job ${type} with key ${dedupKey} conflicted but no waiting job was found`);
 	return { jobId: idOf(waiting), joined: true };
 }

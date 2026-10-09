@@ -5,6 +5,14 @@ import { enumCheck, id, timestamps, ts } from './_columns';
 
 const JOB_STATUSES = ['queued', 'running', 'succeeded', 'discarded_stale', 'failed', 'cancelled'] as const;
 
+/**
+ * Owners of a separate line of the queue: a job with an owner is captured only by the worker of that owner, a job
+ * without one only by the workers of the stand. `demo_seed` — the jobs of the demo seed's chain, run by the seed's own
+ * worker with the seed's handlers (demo/queue.ts).
+ */
+export const JOB_OWNERS = ['demo_seed'] as const;
+export type JobOwner = (typeof JOB_OWNERS)[number];
+
 export const jobs = pgTable(
 	'jobs',
 	{
@@ -23,11 +31,13 @@ export const jobs = pgTable(
 		leaseExpiresAt: ts(),
 		lastError: jsonb(),
 		createdBy: jsonb().notNull(),
+		owner: text({ enum: JOB_OWNERS }),
 		finishedAt: ts(),
 		...timestamps()
 	},
 	(t) => [
 		enumCheck('jobs', 'status', t.status, JOB_STATUSES),
+		enumCheck('jobs', 'owner', t.owner, JOB_OWNERS),
 		check('jobs_type_version_positive', sql`${t.typeVersion} >= 1`),
 		check('jobs_attempts', sql`${t.maxAttempts} >= 1 and ${t.attempts} >= 0 and ${t.attempts} <= ${t.maxAttempts}`),
 		check(
