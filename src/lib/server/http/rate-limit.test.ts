@@ -13,6 +13,18 @@ import {
 /** A URL of the site with the path and the query. */
 const at = (path: string) => new URL(`http://localhost${path}`);
 
+/** The account rule of a request with the method, the path and the body. */
+function accountRuleOf(method: string, path: string, body?: { json: unknown } | { form: Record<string, string> }) {
+	const url = at(path);
+	let init: RequestInit = { method };
+	if (body !== undefined && 'json' in body) {
+		init = { method, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body.json) };
+	} else if (body !== undefined) {
+		init = { method, body: new URLSearchParams(body.form) };
+	}
+	return accountRuleFor(new Request(url, init), url);
+}
+
 function memoryStore(): RateLimitStore {
 	const counts = new Map<string, number>();
 	return {
@@ -64,7 +76,7 @@ describe('rate limit', () => {
 		expect(ruleFor('GET', '/auth/logout')).toBeNull();
 	});
 
-	it('limits the reads of the catalog per account, on the pages and in the API', () => {
+	it('limits the reads of the catalog per account, on the pages and in the API', async () => {
 		for (const path of [
 			'/company/candidates',
 			'/company/candidates/__data.json',
@@ -89,11 +101,11 @@ describe('rate limit', () => {
 			'/api/v1/shortlists/0194',
 			'/api/v1/shortlists/0194/what-if'
 		]) {
-			expect(accountRuleFor('GET', at(path)), path).toBe(RATE_LIMIT_RULES.catalog);
+			expect(await accountRuleOf('GET', path), path).toBe(RATE_LIMIT_RULES.catalog);
 		}
-		expect(accountRuleFor('HEAD', at('/company/candidates'))).toBe(RATE_LIMIT_RULES.catalog);
+		expect(await accountRuleOf('HEAD', '/company/candidates')).toBe(RATE_LIMIT_RULES.catalog);
 		// Posts of the card (an invitation) count as form posts of the address; other pages are not catalog reads.
-		expect(accountRuleFor('POST', at('/company/vacancies/0192/candidates/k-7f3a'))).toBeNull();
+		expect(await accountRuleOf('POST', '/company/vacancies/0192/candidates/k-7f3a')).toBeNull();
 		for (const path of [
 			'/company/vacancies',
 			'/company/vacancies/0192',
@@ -104,26 +116,42 @@ describe('rate limit', () => {
 			'/api/v1/partner-pools',
 			'/api/v1/me/matches'
 		]) {
-			expect(accountRuleFor('GET', at(path)), path).toBeNull();
+			expect(await accountRuleOf('GET', path), path).toBeNull();
 		}
 	});
 
-	it('limits the export of own data per account, on the page and in the API', () => {
-		expect(accountRuleFor('GET', at('/me/export/download'))).toBe(RATE_LIMIT_RULES.dataExport);
-		expect(accountRuleFor('GET', at('/api/v1/me/data'))).toBe(RATE_LIMIT_RULES.dataExport);
+	it('limits the export of own data per account, on the page and in the API', async () => {
+		expect(await accountRuleOf('GET', '/me/export/download')).toBe(RATE_LIMIT_RULES.dataExport);
+		expect(await accountRuleOf('GET', '/api/v1/me/data')).toBe(RATE_LIMIT_RULES.dataExport);
 		// The page that offers the file is not the export itself.
-		expect(accountRuleFor('GET', at('/me/export'))).toBeNull();
-		expect(accountRuleFor('GET', at('/me/export/__data.json'))).toBeNull();
+		expect(await accountRuleOf('GET', '/me/export')).toBeNull();
+		expect(await accountRuleOf('GET', '/me/export/__data.json')).toBeNull();
 	});
 
-	it('limits the parses of a pasted text per account, in the API and by the form actions that parse', () => {
-		for (const path of [
-			'/api/v1/needs',
-			'/api/v1/vacancies/drafts/from-text',
-			'/company/needs?/create',
-			'/company/vacancies/new?/parse'
-		]) {
-			expect(accountRuleFor('POST', at(path)), path).toBe(RATE_LIMIT_RULES.textParse);
+	it('limits the parses of a pasted text per account, in the API and by the form actions that parse', async () => {
+		const text = 'Ищем бэкенд-разработчика на Go';
+		for (const [path, body] of [
+			['/api/v1/needs', { json: { text } }],
+			['/api/v1/needs', { json: { text, form: { skill_keys: ['go'], nice_skill_keys: [] } } }],
+			['/api/v1/vacancies/drafts/from-text', { json: { text } }],
+			['/company/needs?/create', { form: { text, grade: 'middle' } }],
+			['/company/vacancies/new?/parse', { form: { text } }]
+		] as const) {
+			expect(await accountRuleOf('POST', path, body), path).toBe(RATE_LIMIT_RULES.textParse);
+		}
+		// A vacancy draft is counted whatever its body: its text is required, the route refuses an empty one.
+		expect(await accountRuleOf('POST', '/api/v1/vacancies/drafts/from-text')).toBe(RATE_LIMIT_RULES.textParse);
+		// A need from the form alone, with a blank text or a body that is not one parses nothing.
+		for (const [path, body] of [
+			['/api/v1/needs', { json: { form: { skill_keys: ['go'], nice_skill_keys: [] } } }],
+			['/api/v1/needs', { json: { text: '   ', form: { skill_keys: ['go'], nice_skill_keys: [] } } }],
+			['/api/v1/needs', { json: { text: null } }],
+			['/api/v1/needs', { json: [text] }],
+			['/api/v1/needs', undefined],
+			['/company/needs?/create', { form: { text: ' ', grade: 'middle' } }],
+			['/company/needs?/create', { form: { grade: 'middle' } }]
+		] as const) {
+			expect(await accountRuleOf('POST', path, body), `${path} ${JSON.stringify(body)}`).toBeNull();
 		}
 		// Other actions of the same pages and reads of the same paths parse nothing.
 		for (const [method, path] of [
@@ -133,7 +161,10 @@ describe('rate limit', () => {
 			['GET', '/api/v1/needs'],
 			['POST', '/api/v1/needs/0195/shortlists']
 		] as const) {
-			expect(accountRuleFor(method, at(path)), `${method} ${path}`).toBeNull();
+			expect(
+				await accountRuleOf(method, path, method === 'GET' ? undefined : { form: { text } }),
+				`${method} ${path}`
+			).toBeNull();
 		}
 		// The page refuses a parse over the limit in its form; the API answers the JSON error.
 		expect(refusedByPage('POST', at('/company/needs?/create'), RATE_LIMIT_RULES.textParse)).toBe(true);
