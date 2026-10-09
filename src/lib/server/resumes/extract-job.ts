@@ -246,7 +246,7 @@ export function createResumeExtractHandler(deps: ResumeExtractDeps): JobHandler<
 					producer: value.model.modelId,
 					items: value.items,
 					rejected: value.rejected,
-					model: extractModelEnvelope(value.model, value.stored === true),
+					model: extractModelEnvelope(value.model, value.stored === true ? 'stored' : null),
 					failure: null,
 					latencyMs: value.latencyMs
 				};

@@ -204,7 +204,7 @@ const RULES_ONLY: Pick<ModelAdapter, 'extract' | 'extractModelKey'> = {
 				reason: 'demo_seed_background'
 			})
 		),
-	extractModelKey: () => null
+	extractModelKey: () => Promise.resolve(null)
 };
 
 export interface NeedInput {

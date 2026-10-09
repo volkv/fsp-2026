@@ -293,6 +293,19 @@ describe('extract runtime profiles', () => {
 		return keys;
 	}
 
+	it('names the model answers are kept by only while extract would call it', async () => {
+		expect(await adapter().extractModelKey()).toBe('vllm:extractor-7b');
+		expect(await adapter({ extract: 'off' }).extractModelKey()).toBeNull();
+		expect(await withExtract({ runtime: 'api', apiKey: null }).extractModelKey()).toBeNull();
+		expect(await withExtract({ runtime: 'api', apiKey: 'key' }).extractModelKey()).toBe('api:extractor-7b');
+		const unreadable = new ModelAdapter({
+			models: { extract: extractConfig, embed: null, rerank: null },
+			modes: { current: () => Promise.resolve(fail('unavailable', 'mode store is unreadable')) },
+			spaces: () => Promise.resolve(null)
+		});
+		expect(await unreadable.extractModelKey()).toBeNull();
+	});
+
 	it('an external runtime without its key is off and is not called', async () => {
 		const result = await extract(withExtract({ runtime: 'api', apiKey: null }));
 		expect(result).toMatchObject({ ok: false, error: { code: 'disabled', details: { reason: 'no_api_key' } } });

@@ -71,7 +71,7 @@ const modelsOff = {
 	embed: () => Promise.resolve(fail('disabled', 'embed: switched off', { reason: 'switched_off' })),
 	rerank: () => Promise.resolve(fail('disabled', 'rerank: switched off', { reason: 'switched_off' })),
 	extract: () => Promise.resolve(fail('disabled', 'extract: switched off', { reason: 'switched_off' })),
-	extractModelKey: () => null
+	extractModelKey: () => Promise.resolve(null)
 };
 
 let database: TestDatabase;

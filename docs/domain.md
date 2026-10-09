@@ -3473,7 +3473,7 @@ API отдельного поля метки не даёт: имени для п
 | `input_version` | `text` | да | версия входа (номер загрузки резюме, `profile_revision`) |
 | `schema_version` | `text` | да | версия схемы ответа `extract` |
 | `taxonomy_version_id` | `id` | нет | для извлечения навыков |
-| `model` | `jsonb` | усл. | `{endpoint_profile, model_id, model_revision, runtime, params, origin?}`; `NULL` при `processing_mode = rules_only`. `origin = stored` — ответ модели дан ранее и выдан снова без вызова (засев демо-стенда, `seeds/model-parses.json`); без `origin` — ответ этого вызова |
+| `model` | `jsonb` | усл. | `{endpoint_profile, model_id, model_revision, runtime, params, origin?}`; `NULL` при `processing_mode = rules_only`. `origin` — ответ модели дан ранее и выдан снова без вызова: `stored` — засев демо-стенда (`seeds/model-parses.json`), `cached` — ответ на тот же вставленный текст, хранимый сутки (`vacancies/text-extract.ts`); без `origin` — ответ этого вызова |
 | `rules_version` | `text` | нет | версия детерминированного извлекателя |
 | `embedding_space_id` | `text` | усл. | для `embed` |
 | `processing_mode` | `enum` | да | `model` · `rules_only` · `partial` · `failed` |
