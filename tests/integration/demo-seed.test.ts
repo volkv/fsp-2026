@@ -450,9 +450,10 @@ describe('demo seed', () => {
 		expect(minorTerms).toEqual({ kind: 'minor_employment_terms', companyId: internship?.companyId, referred: true });
 
 		// The heroes' resumes are real PDF and DOCX files: parsed by docparse with their layout, read by the product's
-		// extraction with a quote behind every claim. The heroes get the model's stored answer — `seeds/model-parses.json`
-		// of the repository holds none for these texts here, so the rules read them under that reason and the seed names
-		// their keys (tests/integration/demo-seed-parses.test.ts); background resumes are read by the rules.
+		// extraction with a quote behind every claim. The heroes get the model's stored answer — this seed is given a copy
+		// of seeds/ without stored parses (`seedsWithParses([])`), so the rules read them under that reason and the seed
+		// names their keys, each of them stored in the repository's `seeds/model-parses.json` («reads a text without a
+		// stored parse by the rules» below); background resumes are read by the rules.
 		const stepan = await resumeOf('stepan.rodionov@fsp-career.example');
 		expect(stepan).toMatchObject({ mime: 'application/pdf', name: 'Резюме Родионов Степан.pdf' });
 		// Two columns: the sidebar and the experience are read column by column.
@@ -896,7 +897,7 @@ describe('the model parses of the demo seed (seeds/model-parses.json)', () => {
 			order by 1, m.input_sha256`;
 	}
 
-	it('reads a text without a stored parse by the rules, without the model, and names its key', () => {
+	it('reads a text without a stored parse by the rules, without the model, and names its key', async () => {
 		// The first seed of this file: the copy of seeds/ stores no parse. Three heroes have a resume; two scenario needs.
 		expect(first.parses).toMatchObject({ stored: 0, live: 0 });
 		expect(first.parses?.missing).toHaveLength(5);
@@ -904,6 +905,9 @@ describe('the model parses of the demo seed (seeds/model-parses.json)', () => {
 		// One line for the whole seed, naming every key.
 		expect(firstWarnings).toHaveLength(1);
 		for (const key of first.parses?.missing ?? []) expect(firstWarnings[0]).toContain(key);
+		// The repository's file stores every key this seed asked for: the stand gets the model's answer for each.
+		const stored = (await readSeedData(path('seeds'))).modelParses;
+		expect((first.parses?.missing ?? []).filter((key) => !stored.has(key))).toEqual([]);
 	});
 
 	let exported: StoredParseEntry[] = [];
