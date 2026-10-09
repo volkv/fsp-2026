@@ -131,7 +131,9 @@ async function stopServer(): Promise<void> {
 }
 
 test.beforeAll(async () => {
-	test.setTimeout(600_000);
+	// The demo seed of six released banks takes about 11 minutes alone (2026-10-09: 677 s, of them 643 s the sampled
+	// reach of every grade and outcome, `outcomeReach`); the start-up scripts, the build and the server add seconds.
+	test.setTimeout(1_200_000);
 	// A stand left by an interrupted run would take the port: the new one would die of EADDRINUSE and the tests would
 	// talk to the old one.
 	if (await portOpen()) {
