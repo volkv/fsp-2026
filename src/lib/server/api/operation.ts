@@ -13,6 +13,7 @@ import type { ApiErrorCode } from '$lib/server/errors/codes';
 import { canonicalJson } from '$lib/server/json/canonical';
 import type { Redis } from '$lib/server/redis';
 import type { ApiServices } from './services';
+import { loggedError } from '$lib/server/db/errors';
 
 export type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
 
@@ -197,7 +198,7 @@ async function connectedRedis(services: ApiServices, requestId: string): Promise
 	try {
 		return await withTimeout(services.redis(), REDIS_WAIT_MS, 'redis');
 	} catch (cause) {
-		console.error(`[api] request ${requestId}: redis unavailable`, cause);
+		console.error(`[api] request ${requestId}: redis unavailable`, loggedError(cause));
 		throw new ApiError('degraded', { cause, retryAfterSeconds: 5 });
 	}
 }
@@ -430,7 +431,7 @@ export async function runOperation(operation: Operation, services: ApiServices, 
 				expiration: { type: 'EX', value: IDEMPOTENCY_TTL_SECONDS }
 			});
 		} catch (cause) {
-			console.error(`[api] request ${requestId}: idempotent answer of ${operation.id} not stored`, cause);
+			console.error(`[api] request ${requestId}: idempotent answer of ${operation.id} not stored`, loggedError(cause));
 		}
 		return response;
 	};

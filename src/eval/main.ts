@@ -15,6 +15,7 @@ import { objectStore } from '$lib/server/storage/object-store';
 import { handle } from './bridge';
 import type { CatalogEmbedder } from './rank';
 import { loadEvalTaxonomy } from './taxonomy';
+import { loggedError } from '$lib/server/db/errors';
 
 /** The checkout relative to this bundle, set by the build (bundle.config.ts). */
 declare const __EVAL_CHECKOUT_DIR__: string;
@@ -55,7 +56,7 @@ main()
 		await closeDb();
 	})
 	.catch((error: unknown) => {
-		console.error('[eval-bridge]', error);
+		console.error('[eval-bridge]', loggedError(error));
 		process.exitCode = 1;
 		closeRedis();
 		return closeDb();

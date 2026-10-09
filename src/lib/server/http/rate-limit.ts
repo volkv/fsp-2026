@@ -3,6 +3,7 @@ import type { Actor } from '$lib/server/access/actor';
 import { withTimeout } from '$lib/server/async/timeout';
 import { ApiError, errorResponse } from '$lib/server/errors/api-error';
 import type { Redis } from '$lib/server/redis';
+import { loggedError } from '$lib/server/db/errors';
 
 export interface RateLimitRule {
 	/** Part of the Redis key; one counter per rule and subject. */
@@ -250,7 +251,7 @@ export function rateLimitHandles(deps: { store: () => Promise<RateLimitStore>; w
 			const store = await deps.store();
 			return { decision: await withTimeout(consume(store, rule, subject), deps.waitMs, 'rate limit counter') };
 		} catch (cause) {
-			console.error(`[rate-limit] request ${event.locals.requestId}: counter unavailable`, cause);
+			console.error(`[rate-limit] request ${event.locals.requestId}: counter unavailable`, loggedError(cause));
 			return {
 				refused: errorResponse(new ApiError('degraded', { cause, retryAfterSeconds: 5 }), event.locals.requestId)
 			};

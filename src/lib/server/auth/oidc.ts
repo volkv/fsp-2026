@@ -6,6 +6,7 @@ import * as oidc from 'openid-client';
 import { z } from 'zod';
 import type { Redis } from '$lib/server/redis';
 import { secretsEqual, sha256Hex } from './secrets';
+import { loggedError } from '$lib/server/db/errors';
 
 export interface FspIdSettings {
 	issuer: string;
@@ -186,7 +187,7 @@ export function createFspIdClient(settings: FspIdSettings, deps: { redis: Redis;
 			);
 		} catch (error) {
 			if (isNetworkFailure(error)) return fail('unavailable', 'FSP ID discovery is unreachable', true);
-			console.error('[fsp-id] discovery rejected', error);
+			console.error('[fsp-id] discovery rejected', loggedError(error));
 			return fail('provider_error', 'FSP ID discovery document is not acceptable');
 		}
 		const problems = metadataProblems(discovered.serverMetadata());

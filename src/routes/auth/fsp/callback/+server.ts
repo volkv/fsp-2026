@@ -14,6 +14,7 @@ import { config } from '$lib/server/config';
 import { visitorDemoSessionOf } from '$lib/server/demo/visit';
 import { objectStore } from '$lib/server/storage/object-store';
 import type { RequestHandler } from './$types';
+import { loggedError } from '$lib/server/db/errors';
 
 /** `redirect_uri` of FSP ID (contracts 2.1): completes the flow and signs in, registers or links. */
 export const GET: RequestHandler = async (event) => {
@@ -56,7 +57,10 @@ export const GET: RequestHandler = async (event) => {
 	} catch (cause) {
 		// The provider has answered, but the account could not be read or written: the browser goes back with an
 		// explanation, the cause stays in the log under the request id.
-		console.error(`[fsp-id] request ${event.locals.requestId}: sign-in not completed: storage failed`, cause);
+		console.error(
+			`[fsp-id] request ${event.locals.requestId}: sign-in not completed: storage failed`,
+			loggedError(cause)
+		);
 		if (current) redirect(303, '/account?fsp=failed');
 		redirect(303, '/login?error=fsp_failed');
 	}

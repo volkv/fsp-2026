@@ -1,5 +1,6 @@
 import { createClient } from 'redis';
 import { config } from '$lib/server/config';
+import { loggedError } from '$lib/server/db/errors';
 
 export type Redis = ReturnType<typeof createRedis>;
 
@@ -17,7 +18,7 @@ function createRedis() {
 		}
 	});
 	created.on('error', (error: unknown) => {
-		console.error('[redis] client error', error);
+		console.error('[redis] client error', loggedError(error));
 	});
 	return created;
 }

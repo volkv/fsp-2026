@@ -6,6 +6,7 @@ import { recordAuditEvent, type AuditActor } from '$lib/server/audit/record';
 import type { Database } from '$lib/server/db';
 import type { Redis } from '$lib/server/redis';
 import { MODEL_OPERATIONS, fail, ok, type ModelOperation, type ModelResult } from './result';
+import { loggedError } from '$lib/server/db/errors';
 
 export type ModelMode = 'on' | 'off';
 
@@ -82,7 +83,7 @@ export class ModelModes {
 			this.#cache = { modes, expiresAt: now() + cacheTtlMs };
 			return ok(modes);
 		} catch (error) {
-			console.error('[ml] model mode store unreadable', error);
+			console.error('[ml] model mode store unreadable', loggedError(error));
 			return fail('unavailable', 'model mode store is unreadable', { cause: 'mode_store' });
 		}
 	}

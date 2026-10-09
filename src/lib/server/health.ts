@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm';
 import { withTimeout } from '$lib/server/async/timeout';
 import { db } from '$lib/server/db';
 import { redis } from '$lib/server/redis';
+import { loggedError } from '$lib/server/db/errors';
 
 export type ProbeStatus = 'up' | 'down';
 
@@ -23,7 +24,7 @@ async function probe(name: string, check: () => Promise<unknown>): Promise<Probe
 		return 'up';
 	} catch (error) {
 		// Details stay in the server log; the response only says the dependency is down.
-		console.error(`[health] ${name} probe failed`, error);
+		console.error(`[health] ${name} probe failed`, loggedError(error));
 		return 'down';
 	}
 }

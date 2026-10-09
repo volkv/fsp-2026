@@ -9,6 +9,7 @@ import type { Config } from '$lib/server/config';
 import type { Executor } from '$lib/server/db';
 import { athleteLinks, inboundEvents, notificationChannels } from '$lib/server/db/schema';
 import type { HealthReport } from '$lib/server/health';
+import { loggedError } from '$lib/server/db/errors';
 
 const PROBE_TIMEOUT_MS = 2_000;
 
@@ -39,7 +40,7 @@ async function probe<T>(
 		if (!parsed.success) return { status: 'down', detail: 'ответ не по контракту' };
 		return { status: 'up', detail: describe(parsed.data) };
 	} catch (error) {
-		console.error(`[admin] ${name} probe failed`, error);
+		console.error(`[admin] ${name} probe failed`, loggedError(error));
 		if (error instanceof DOMException && error.name === 'TimeoutError') {
 			return { status: 'down', detail: `нет ответа за ${PROBE_TIMEOUT_MS / 1000} с` };
 		}
