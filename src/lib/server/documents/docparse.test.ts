@@ -175,12 +175,16 @@ describe('docparse slots', () => {
 		const client = new DocparseClient('http://docparse.test', 1);
 		const first = client.parse(request());
 		const second = client.parse(request());
-		await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+		await vi.waitFor(() => {
+			expect(fetch).toHaveBeenCalledTimes(1);
+		});
 		await new Promise((resolve) => setTimeout(resolve, 10));
 		expect(fetch).toHaveBeenCalledTimes(1);
 		answers[0]?.(new Response(JSON.stringify(answer()), { status: 200 }));
 		expect((await first).ok).toBe(true);
-		await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+		await vi.waitFor(() => {
+			expect(fetch).toHaveBeenCalledTimes(2);
+		});
 		answers[1]?.(new Response(JSON.stringify(answer()), { status: 200 }));
 		expect((await second).ok).toBe(true);
 	});

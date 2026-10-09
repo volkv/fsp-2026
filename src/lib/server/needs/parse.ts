@@ -88,6 +88,21 @@ function catalogRange(value: { min: string | null; max: string | null }, quote: 
 	};
 }
 
+/**
+ * The range a need suggests: both bounds, roubles per month. A text of a need on this platform names an amount without
+ * its currency or period as roubles per month («120–160 тысяч на руки»); a currency or a period stated otherwise gives
+ * none. The tax base the text does not state is the employer's to choose — the suggestion leaves the range out rather
+ * than guessing it.
+ */
+export function suggestedSalary(read: VacancyTextFields['salary']): NonNullable<NeedForm['salary']> | null {
+	const salary = read?.value;
+	if (!salary || salary.min === null || salary.max === null) return null;
+	if (salary.currency !== null && salary.currency !== 'RUB') return null;
+	if (salary.period !== null && salary.period !== 'month') return null;
+	if (salary.taxBase === 'unknown') return null;
+	return { min: salary.min, max: salary.max, currency: 'RUB', period: 'month', tax_base: salary.taxBase };
+}
+
 /** The suggested form of the read fields: only what the text states, the specialization only among the open ones. */
 async function suggestion(
 	fields: VacancyTextFields,
@@ -192,20 +207,10 @@ async function suggestion(
 		parsed.push({ path: 'region_code', value: place.code, quote: place.quote });
 	}
 
-	// A range is suggested only in roubles per month with both bounds; the tax base the text does not state is the
-	// employer's to choose — the suggestion leaves the range out rather than guessing it.
-	const salary = fields.salary?.value;
-	if (
-		fields.salary &&
-		salary &&
-		salary.min !== null &&
-		salary.max !== null &&
-		salary.currency === 'RUB' &&
-		(salary.period === 'month' || salary.period === null) &&
-		salary.taxBase !== 'unknown'
-	) {
-		form.salary = { min: salary.min, max: salary.max, currency: 'RUB', period: 'month', tax_base: salary.taxBase };
-		parsed.push({ path: 'salary', value: form.salary, quote: quoteText(fields.salary.quote) });
+	const salary = suggestedSalary(fields.salary);
+	if (fields.salary && salary) {
+		form.salary = salary;
+		parsed.push({ path: 'salary', value: salary, quote: quoteText(fields.salary.quote) });
 	}
 	return { form, parsed };
 }
