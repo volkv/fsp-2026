@@ -71,7 +71,7 @@ describe('specification of the test of a vacancy', () => {
 	it('draws the example set by the choice the engine serves: grade slots and block-test clusters', () => {
 		const families = banks.get('backend') ?? [];
 		const seed = 'sample-seed';
-		const form = attemptForm(families, 'middle', new Set(), seed);
+		const form = attemptForm(families, 'middle', new Set(), null, seed);
 		const used = new Set<string>();
 		const replay = slotsOf('backend', 'middle').map((slot, index) => {
 			const choice = chooseForSlot({

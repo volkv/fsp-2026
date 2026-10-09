@@ -15,7 +15,7 @@ import type { FamilyDescriptor, FamilyModule } from '$lib/server/assessments/con
 import { GRADE_KEYS, type GradeKey, type SpecializationKey } from '$lib/server/assessments/contract/catalog';
 import type { GradeDecision } from '$lib/server/assessments/contract/procedure';
 import { seededClusterScore } from '$lib/server/assessments/seeded';
-import { attemptForm } from '$lib/server/assessments/select';
+import { attemptForm, type AttemptForm } from '$lib/server/assessments/select';
 import { runAttempt } from '$lib/server/assessments/simulate';
 import type { Executor } from '$lib/server/db';
 import { TEST_OUTCOMES, type TestOutcome } from './data';
@@ -100,15 +100,22 @@ export async function openBanks(
 	return banks;
 }
 
-/**
- * How the seeded attempt of `draw` ends at `grade` for a candidate who has seen the classes `seen` (their `seenKey`s,
- * as the engine reads them at the start of the attempt).
- */
-export function foresee(bank: ReleasedBank, grade: GradeKey, seen: ReadonlySet<string>, draw: Draw): TestOutcome {
+/** What the engine reads at the start of an attempt: the classes seen (`seenKey`s) and the form of the previous one. */
+export interface AttemptHistory {
+	seen: ReadonlySet<string>;
+	previous: AttemptForm | null;
+}
+
+const NO_HISTORY: AttemptHistory = { seen: new Set(), previous: null };
+
+/** How the seeded attempt of `draw` ends at `grade` for a candidate with the history `history`. */
+export function foresee(bank: ReleasedBank, grade: GradeKey, history: AttemptHistory, draw: Draw): TestOutcome {
+	const { seen } = history;
 	const form = attemptForm(
 		bank.families.map((family) => family.descriptor),
 		grade,
 		seen,
+		history.previous,
 		draw.attemptSeed
 	);
 	const { decision } = runAttempt({
@@ -128,14 +135,14 @@ export function foresee(bank: ReleasedBank, grade: GradeKey, seen: ReadonlySet<s
 export async function findDraw(
 	bank: ReleasedBank,
 	grade: GradeKey,
-	seen: ReadonlySet<string>,
+	history: AttemptHistory,
 	outcome: TestOutcome,
 	labelOf: (trial: number) => string
 ): Promise<{ draw: Draw; trials: number } | null> {
 	for (let trial = 0; trial < SEARCH_TRIALS; trial += 1) {
 		if (trial % DRAWS_PER_TURN === DRAWS_PER_TURN - 1) await nextTurn();
 		const draw = drawOf(labelOf(trial), outcome);
-		if (foresee(bank, grade, seen, draw) === outcome) return { draw, trials: trial + 1 };
+		if (foresee(bank, grade, history, draw) === outcome) return { draw, trials: trial + 1 };
 	}
 	return null;
 }
@@ -150,7 +157,7 @@ export async function gradeReach(bank: ReleasedBank, batch: string): Promise<Gra
 			for (let i = 0; i < REACH_SAMPLE && hits < REACH_HITS; i += 1) {
 				if (i % DRAWS_PER_TURN === DRAWS_PER_TURN - 1) await nextTurn();
 				const label = `${batch}:reach:${bank.release.id}:${grade}:${outcome}:${i}`;
-				if (foresee(bank, grade, new Set(), drawOf(label, outcome)) === outcome) hits += 1;
+				if (foresee(bank, grade, NO_HISTORY, drawOf(label, outcome)) === outcome) hits += 1;
 			}
 			if (hits >= REACH_HITS) outcomes.add(outcome);
 		}

@@ -7,7 +7,7 @@
 // decision is still the procedure's own.
 import { and, asc, eq } from 'drizzle-orm';
 import { CATALOG, type SpecializationKey } from '$lib/server/assessments/contract/catalog';
-import { seenClasses } from '$lib/server/assessments/engine';
+import { previousForm, seenClasses } from '$lib/server/assessments/engine';
 import { runSeededAttempt } from '$lib/server/assessments/seed-attempt';
 import { OWNER_STANDING } from '$lib/server/assessments/standing';
 import { gradeDecisions, testAttempts } from '$lib/server/db/schema';
@@ -113,11 +113,14 @@ async function attemptWithOutcome(
 ): Promise<string> {
 	const { db } = ctx.services;
 	const specialization = bank.release.specialization;
-	const seen = await seenClasses(db, candidate.candidateId, ctx.now());
+	const history = {
+		seen: await seenClasses(db, candidate.candidateId, ctx.now()),
+		previous: await previousForm(db, candidate.candidateId, specialization, grade, ctx.now())
+	};
 	const found = await findDraw(
 		bank,
 		grade,
-		seen,
+		history,
 		outcome,
 		(trial) => `${ctx.batch}:${candidate.key}:test:${index}:${trial}`
 	);
