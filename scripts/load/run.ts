@@ -2,7 +2,12 @@
 // `/demo`, several to one demo session, each as its own account, and repeat mixed operations of employers and
 // candidates with a pause between them. The number of users grows in stages; the run stops early when the share of
 // failed requests of the last stage passes the limit. The report — p50/p95/p99 by operation, errors, 429, the share of
-// the extraction answered by the model — goes to stdout as a table and to `--out` as JSON.
+// 4xx by operation and reason, the share of the extraction answered by the model — goes to stdout as a table and to
+// `--out` as JSON.
+//
+// Users act as people do: an employer keeps one or two needs and refines their shortlists step by step (each new step
+// is ranked anew — a cold shortlist), a candidate starts the test of a grade the stand offers them now
+// (`GET /api/v1/me/grade-options`).
 //
 //   node scripts/load/run.ts --origin https://fsp-career.volkv.com [--stages 10,20,40] [--stage-seconds 120]
 //        [--users-per-session 5] [--specializations backend,data_ml,qa] [--model-parses 60] [--sandbox-parallel 8]
@@ -17,12 +22,13 @@
 // against the limits of one client address of the stand (`src/lib/server/http/rate-limit.ts`): 600 API requests a
 // minute and 60 new demo sessions a day; 40 users with `--think-ms 4000-8000` stay below the first (≈ 500 a minute).
 // Demo sessions of the run are ordinary ones: they end by their idle time or at the nightly reset of the stand.
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
 import { z } from 'zod';
 
 const { values: args } = parseArgs({
 	options: {
+		help: { type: 'boolean', default: false },
 		origin: { type: 'string' },
 		stages: { type: 'string', default: '10,20,40' },
 		'stage-seconds': { type: 'string', default: '120' },
@@ -42,6 +48,14 @@ function positiveInt(name: string, value: string | undefined): number {
 	const parsed = Number(value);
 	if (!Number.isInteger(parsed) || parsed < 1) throw new Error(`--${name} must be a positive integer, got ${value}`);
 	return parsed;
+}
+
+if (args.help) {
+	// The usage is the comment at the top of this file, up to the imports.
+	const source = readFileSync(new URL(import.meta.url), 'utf8');
+	const usage = source.slice(0, source.indexOf('\nimport ')).replace(/^\/\/ ?/gmu, '');
+	console.log(usage);
+	process.exit(0);
 }
 
 if (!args.origin) throw new Error('--origin is required, for example --origin https://fsp-career.volkv.com');
@@ -80,6 +94,8 @@ interface Sample {
 }
 
 const samples: Sample[] = [];
+/** Answers 4xx by `<status> <op> <reason>`: the code of the API error (and of its details), or `page` for a page. */
+const refusals = new Map<string, number>();
 let currentStage = 0;
 let stopping = false;
 /** Read through a call: the flag changes while a user awaits, which the narrowing of a plain read does not see. */
@@ -167,6 +183,10 @@ class Browser {
 		}
 		const outcome = outcomeOf(response.status);
 		record(op, ms, outcome, path);
+		if (response.status >= 400 && response.status < 500) {
+			const key = `${response.status} ${op} ${refusalReason(path, text)}`;
+			refusals.set(key, (refusals.get(key) ?? 0) + 1);
+		}
 		if (FAILED.has(outcome)) throw new StandFailure(`${op}: HTTP ${response.status}`);
 		return { status: response.status, location: response.headers.get('location'), text };
 	}
@@ -203,19 +223,27 @@ class Browser {
 		if (reply.status >= 200 && reply.status < 300) {
 			return { status: reply.status, data: schema.parse(JSON.parse(reply.text)), error: null };
 		}
-		let parsed: unknown = null;
-		try {
-			parsed = JSON.parse(reply.text);
-		} catch (cause) {
-			// A body that is not JSON (a proxy's page) is named below by its first characters.
-			if (!(cause instanceof SyntaxError)) throw cause;
-		}
-		const refusal = ApiRefusal.safeParse(parsed);
-		const error = refusal.success
-			? [refusal.data.error.code, ...(refusal.data.error.details ?? []).map((d) => d.code)].join('/')
-			: `unparsed body ${reply.text.slice(0, 120)}`;
-		return { status: reply.status, data: null, error };
+		return { status: reply.status, data: null, error: apiErrorCode(reply.text) };
 	}
+}
+
+/** The code of an API error body (`error.code`, then the `details[].code`), or its first characters when it is not one. */
+function apiErrorCode(text: string): string {
+	let parsed: unknown = null;
+	try {
+		parsed = JSON.parse(text);
+	} catch (cause) {
+		// A body that is not JSON (a proxy's page) is named below by its first characters.
+		if (!(cause instanceof SyntaxError)) throw cause;
+	}
+	const refusal = ApiRefusal.safeParse(parsed);
+	return refusal.success
+		? [refusal.data.error.code, ...(refusal.data.error.details ?? []).map((d) => d.code)].join('/')
+		: `unparsed body ${text.slice(0, 120)}`;
+}
+
+function refusalReason(path: string, text: string): string {
+	return path.startsWith('/api/') ? apiErrorCode(text) : 'page';
 }
 
 // --- Scenario data -------------------------------------------------------------------------------------------------
@@ -308,6 +336,10 @@ async function enter(browser: Browser, slot: number, role: string): Promise<void
 
 // Only the fields the run reads; the rest of each body is dropped by the parse.
 const Created = z.object({ id: z.string() });
+const Revised = z.object({ revision: z.number() });
+const GradeOptions = z.object({
+	options: z.array(z.object({ grade: z.enum(GRADES), available: z.boolean(), reason: z.string().nullable() }))
+});
 const ShortlistCreated = z.object({ shortlist_id: z.string() });
 const Shortlist = z.object({ items: z.array(z.object({ pseudonym: z.string() })) });
 const NeedWithParse = z.object({
@@ -339,10 +371,35 @@ function expect<T>(op: string, reply: { status: number; data: T | null; error: s
 	return reply.data;
 }
 
+/** What a shortlist step asks for, of the fields the run refines. */
+interface StepQuery {
+	skill_keys: string[];
+	work_format: (typeof WORK_FORMATS)[number];
+}
+
+/** A need of the employer with its shortlist and what the current step of the shortlist asks for. */
+interface OwnNeed {
+	specialization: Specialization;
+	shortlistId: string;
+	query: StepQuery;
+}
+
+const sameQuery = (a: StepQuery, b: StepQuery) =>
+	a.work_format === b.work_format && [...a.skill_keys].sort().join() === [...b.skill_keys].sort().join();
+
+function stepQuery(specialization: Specialization): StepQuery {
+	return {
+		skill_keys: sample(SKILLS[specialization], 1 + Math.floor(Math.random() * 3)),
+		work_format: pick(WORK_FORMATS)
+	};
+}
+
 class Employer {
 	readonly browser = new Browser();
-	needId: string | null = null;
-	shortlistId: string | null = null;
+	/** One or two needs, as an employer keeps them; a cold shortlist is a new step of one of them once they exist. */
+	readonly needsWanted = Math.random() < 0.5 ? 1 : 2;
+	readonly needs: OwnNeed[] = [];
+	current: OwnNeed | null = null;
 	pseudonyms: string[] = [];
 
 	async start(index: number): Promise<void> {
@@ -353,26 +410,22 @@ class Employer {
 	async step(): Promise<void> {
 		const roll = Math.random();
 		if (roll < 0.05 && modelParsesLeft > 0) return this.needFromText();
-		if (roll < 0.3 || this.shortlistId === null) return this.coldShortlist();
+		if (roll < 0.3 || this.current === null) return this.coldShortlist();
+		const shortlistId = this.current.shortlistId;
 		if (roll < 0.45) return this.catalogSearch();
 		if (roll < 0.6) return this.card();
 		if (roll < 0.7) {
-			await this.browser.page('page_shortlist', `/company/shortlists/${this.shortlistId}`);
+			await this.browser.page('page_shortlist', `/company/shortlists/${shortlistId}`);
 			return;
 		}
 		if (roll < 0.8) {
-			await this.browser.json('shortlist_warm', 'GET', `/api/v1/shortlists/${this.shortlistId}`, Shortlist);
+			await this.browser.json('shortlist_warm', 'GET', `/api/v1/shortlists/${shortlistId}`, Shortlist);
 			return;
 		}
 		if (roll < 0.85) {
 			const change = pick([{ work_format: 'remote' }, { grade: 'senior' }, { fsp_only: true }]);
 			const query = encodeURIComponent(JSON.stringify(change));
-			await this.browser.json(
-				'what_if',
-				'GET',
-				`/api/v1/shortlists/${this.shortlistId}/what-if?change=${query}`,
-				AnyBody
-			);
+			await this.browser.json('what_if', 'GET', `/api/v1/shortlists/${shortlistId}/what-if?change=${query}`, AnyBody);
 			return;
 		}
 		await this.browser.page(
@@ -381,36 +434,61 @@ class Employer {
 		);
 	}
 
-	/** A new need from the form (no model), its categories and its first shortlist: the ranking is never cached. */
+	/**
+	 * A shortlist ranked anew, never from a cache: a new need from the form (no model) with its categories and first
+	 * shortlist while the employer has fewer needs than they keep, then a new step of the shortlist of one of them.
+	 */
 	async coldShortlist(): Promise<void> {
+		const need = this.needs.length < this.needsWanted ? await this.newNeed() : await this.refine(pick(this.needs));
+		this.current = need;
+		const shortlist = expect(
+			'shortlist_cold',
+			await this.browser.json('shortlist_cold', 'GET', `/api/v1/shortlists/${need.shortlistId}`, Shortlist),
+			200
+		);
+		this.pseudonyms = shortlist.items.map((item) => item.pseudonym);
+	}
+
+	async newNeed(): Promise<OwnNeed> {
 		const specialization = pick(SPECIALIZATIONS);
 		const grade = pick(GRADES);
+		const query = stepQuery(specialization);
 		const form = {
 			specialization,
 			grade: { min: grade, max: grade },
-			skill_keys: sample(SKILLS[specialization], 1 + Math.floor(Math.random() * 3)),
+			skill_keys: query.skill_keys,
 			nice_skill_keys: sample(SKILLS[specialization], 1),
-			work_format: pick(WORK_FORMATS)
+			work_format: query.work_format
 		};
 		const need = expect(
 			'need_form',
 			await this.browser.json('need_form', 'POST', '/api/v1/needs', Created, { form }),
 			201
 		);
-		this.needId = need.id;
 		await this.browser.json('need_categories', 'GET', `/api/v1/needs/${need.id}/categories`, AnyBody);
 		const created = expect(
 			'shortlist_create',
 			await this.browser.json('shortlist_create', 'POST', `/api/v1/needs/${need.id}/shortlists`, ShortlistCreated, {}),
 			201
 		);
-		this.shortlistId = created.shortlist_id;
-		const shortlist = expect(
-			'shortlist_cold',
-			await this.browser.json('shortlist_cold', 'GET', `/api/v1/shortlists/${created.shortlist_id}`, Shortlist),
-			200
+		const own = { specialization, shortlistId: created.shortlist_id, query };
+		this.needs.push(own);
+		return own;
+	}
+
+	/** A new step of the shortlist: other skills or another work format, as the employer refines who they look for. */
+	async refine(need: OwnNeed): Promise<OwnNeed> {
+		let query = stepQuery(need.specialization);
+		while (sameQuery(query, need.query)) query = stepQuery(need.specialization);
+		expect(
+			'shortlist_revise',
+			await this.browser.json('shortlist_revise', 'POST', `/api/v1/shortlists/${need.shortlistId}/revisions`, Revised, {
+				change: query
+			}),
+			201
 		);
-		this.pseudonyms = shortlist.items.map((item) => item.pseudonym);
+		need.query = query;
+		return need;
 	}
 
 	/** A need from its text: the stand parses it with the model when it is on, by the rules otherwise. */
@@ -460,6 +538,8 @@ class Employer {
 }
 
 const practiceWaits: number[] = [];
+/** Steps where no test was open to the candidate, by the reasons of every grade. */
+const testsClosed = new Map<string, number>();
 /** How often a candidate of the mixed run waiting for the sandbox reads the attempt; every read counts against the API limit. */
 const PRACTICE_POLL_MS = 2000;
 /** The same for the practice burst: a finer reading of the wait, for a few seconds only. */
@@ -486,7 +566,10 @@ class Candidate {
 	async step(): Promise<void> {
 		if (this.attempt?.status === 'in_progress') return this.answer(PRACTICE_POLL_MS);
 		const roll = Math.random();
-		if (roll < 0.35) return this.startTest();
+		if (roll < 0.35) {
+			await this.startTest();
+			return;
+		}
 		if (roll < 0.55) {
 			await this.browser.json('me_categories', 'GET', '/api/v1/me/categories', AnyBody);
 			return;
@@ -498,14 +581,30 @@ class Candidate {
 		await this.browser.page('page_me', pick(['/me/profile', '/me/category', '/me/tests', '/me/invitations']));
 	}
 
-	/** A test of any grade: in a demo session the order of grades and the retake interval are off. */
-	async startTest(): Promise<void> {
-		const body = { specialization: 'backend', grade: pick(GRADES) };
+	/**
+	 * The test of a grade the stand offers the candidate now, as the screen of tests shows them; when none is open, the
+	 * candidate reads the screen instead and the reasons are counted.
+	 */
+	async startTest(): Promise<boolean> {
+		const { options } = expect(
+			'grade_options',
+			await this.browser.json('grade_options', 'GET', '/api/v1/me/grade-options?specialization=backend', GradeOptions),
+			200
+		);
+		const open = options.filter((option) => option.available).map((option) => option.grade);
+		if (open.length === 0) {
+			const key = options.map((option) => `${option.grade}:${option.reason ?? '?'}`).join(' ');
+			testsClosed.set(key, (testsClosed.get(key) ?? 0) + 1);
+			await this.browser.page('page_me', '/me/tests');
+			return false;
+		}
+		const body = { specialization: 'backend', grade: pick(open) };
 		this.attempt = expect(
 			'test_start',
 			await this.browser.json('test_start', 'POST', '/api/v1/me/tests', Attempt, body),
 			201
 		);
+		return true;
 	}
 
 	async state(attemptId: string): Promise<Attempt> {
@@ -581,11 +680,14 @@ class Candidate {
 
 	/** Starts an attempt and answers it up to its first practice task, which it leaves unanswered. */
 	async toPractice(): Promise<void> {
-		await this.startTest();
+		const startOpen = async () => {
+			if (!(await this.startTest())) throw new Error('practice burst: no test is open to the candidate');
+		};
+		await startOpen();
 		for (let answered = 0; answered < 40; answered++) {
 			const found = await this.current();
 			if (found?.item.practice === true && found.item.answers.length === 0) return;
-			if (this.attempt?.status !== 'in_progress') await this.startTest();
+			if (this.attempt?.status !== 'in_progress') await startOpen();
 			else await this.answer(BURST_POLL_MS);
 		}
 		throw new Error('practice burst: no practice task in 40 clusters');
@@ -683,6 +785,23 @@ const isRequest = (s: Sample) => s.request !== null;
 function errorRate(list: Sample[]): number {
 	const requests = list.filter(isRequest);
 	return requests.length === 0 ? 0 : requests.filter((s) => FAILED.has(s.outcome)).length / requests.length;
+}
+
+/** Answers 4xx by status, operation and reason, with their share of all requests of the stand; the most first. */
+function refusalShares(): { status: number; op: string; reason: string; count: number; share: number }[] {
+	const requests = samples.filter(isRequest).length;
+	return [...refusals]
+		.map(([key, count]) => {
+			const [status = '', op = '', ...reason] = key.split(' ');
+			return {
+				status: Number(status),
+				op,
+				reason: reason.join(' '),
+				count,
+				share: requests === 0 ? 0 : count / requests
+			};
+		})
+		.sort((a, b) => b.count - a.count);
 }
 
 function printTable(title: string, rows: OpReport[]): void {
@@ -798,7 +917,9 @@ const report = {
 	operations: summarize(samples),
 	byStage: STAGES.map((_, i) => ({ stage: i + 1, operations: summarize(samples.filter((s) => s.stage === i + 1)) })),
 	errorRate: errorRate(samples),
+	refusals: refusalShares(),
 	parse: { model: parseModes.model, rules: parseModes.rules, failures: Object.fromEntries(parseModes.failures) },
+	testsClosed: Object.fromEntries(testsClosed),
 	sandbox: { peakParallel: sandboxPeak, results: practiceWaits.length, waitsMs: practiceWaits.map(Math.round) },
 	userErrors: Object.fromEntries(userErrors)
 };
@@ -806,6 +927,17 @@ const report = {
 for (const stage of report.byStage) printTable(`stage ${stage.stage}`, stage.operations);
 printTable('whole run', report.operations);
 console.log(`\nfailed requests: ${(report.errorRate * 100).toFixed(2)} %; demo sessions: ${sessions.length}`);
+const refused = report.refusals.reduce((sum, r) => sum + r.count, 0);
+const requestCount = samples.filter(isRequest).length;
+console.log(
+	`4xx: ${refused} of ${requestCount} requests (${((refused / Math.max(1, requestCount)) * 100).toFixed(2)} %)`
+);
+for (const r of report.refusals) {
+	console.log(
+		`  ${String(r.status)} ${r.op.padEnd(18)} ${String(r.count).padStart(6)} ${(r.share * 100).toFixed(2).padStart(6)} %  ${r.reason}`
+	);
+}
+if (testsClosed.size > 0) console.log('no test open to the candidate:', report.testsClosed);
 console.log(`need text parses: model ${parseModes.model}, rules ${parseModes.rules}`, report.parse.failures);
 console.log(`sandbox: peak ${sandboxPeak} waiting at once, ${practiceWaits.length} results`);
 if (userErrors.size > 0) console.log('user errors:', report.userErrors);
