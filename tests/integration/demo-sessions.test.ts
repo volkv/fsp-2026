@@ -474,14 +474,34 @@ describe('demo sessions', () => {
 		try {
 			const sessionsBefore = await database.db.select({ id: demoSessions.id }).from(demoSessions);
 			await expect(openDemoSession(deps(), data, await demoTerms(database.db), meta)).rejects.toThrow(DemoCastMissing);
-			const entry = await enterDemoRole(
-				{ db: database.db, redis, crypto, store, now: () => now },
-				{ data, role: role('k1'), tokens: [], address: '203.0.113.71', previous: null, meta }
-			);
-			expect(entry).toEqual({ kind: 'refused', reason: 'not_seeded', retryAfterSeconds: 15 * 60 });
-			if (entry.kind !== 'refused') throw new Error('the session was opened');
-			expect(refusalText(entry)).toBe('Демо-данные стенда обновляются. Попробуйте через 15 мин.');
+			const address = '203.0.113.71';
+			const budgetKey = `ratelimit:${RATE_LIMIT_RULES.demoSession.name}:${address}`;
+			await redis.del(budgetKey);
+			const enter = () =>
+				enterDemoRole(
+					{ db: database.db, redis, crypto, store, now: () => now },
+					{ data, role: role('k1'), tokens: [], address, previous: null, meta }
+				);
+			// Reloads during the seed spend nothing of the daily budget of the address.
+			for (let attempt = 0; attempt < 3; attempt++) {
+				const entry = await enter();
+				expect(entry).toEqual({ kind: 'refused', reason: 'not_seeded', retryAfterSeconds: 15 * 60 });
+				if (entry.kind !== 'refused') throw new Error('the session was opened');
+				expect(refusalText(entry)).toBe('Демо-данные стенда обновляются. Попробуйте через 15 мин.');
+			}
+			expect(await redis.get(budgetKey)).toBeNull();
 			expect(await database.db.select({ id: demoSessions.id }).from(demoSessions)).toEqual(sessionsBefore);
+			// The seed has finished: the session opens and costs one hit.
+			await database.db.insert(auditEvents).values(finished);
+			const opened = await enter();
+			expect(opened.kind).toBe('entered');
+			expect(await redis.get(budgetKey)).toBe('1');
+			if (opened.kind !== 'entered') throw new Error('the session was not opened');
+			await purgeDemoSession({ db: database.db, redis, store }, opened.session.id, new Date(), meta.requestId);
+			await database.sql.begin(async (tx) => {
+				await tx`set local role fsp_retention`;
+				await tx`delete from audit_events where id = ${finished.id}`;
+			});
 		} finally {
 			await database.db.insert(auditEvents).values(finished);
 		}
