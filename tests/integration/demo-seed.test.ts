@@ -12,6 +12,7 @@ import { afterAll, beforeAll, describe, expect, inject, it, vi } from 'vitest';
 import { publishLegalDocuments, readLegalRelease } from '../../scripts/seed-legal';
 import { publishPolicies, readPolicyRelease } from '../../scripts/seed-policies';
 import { GRADE_DECISION_RESULTS } from '$lib/server/matching/test-results';
+import { recommendedVacancies } from '$lib/server/candidates/vacancies';
 import { loadAccessSubject } from '$lib/server/companies/subject';
 import { createFieldCrypto } from '$lib/server/crypto/fields';
 import {
@@ -629,12 +630,29 @@ describe('demo seed', () => {
 			'kafka'
 		);
 
-		// К-6, a Python Middle without offers, finds a published vacancy of her profile with the main employer.
+		// К-6, a Python Middle without offers, finds a published vacancy of her profile with the main employer on the
+		// first page of her vacancies: its requirements are covered by what her tests confirmed, not by her survey.
 		const [payouts] = await db
-			.select({ status: vacancies.status, required: vacancies.requiredSkillKeys })
+			.select({ id: vacancies.id, status: vacancies.status })
 			.from(vacancies)
 			.where(eq(vacancies.title, 'Middle Python-разработчик (сервис выплат партнёрам)'));
-		expect(payouts).toEqual({ status: 'published', required: ['python', 'postgresql'] });
+		expect(payouts?.status).toBe('published');
+		const anna = await userByEmail('anna.kovaleva@fsp-career.example');
+		const annaVacancies = await recommendedVacancies(
+			{ db },
+			await loadAccessSubject(db, {
+				kind: 'session',
+				userId: anna.id,
+				sessionHash: 'demo-seed-test',
+				authTime: new Date(),
+				authMethod: 'password',
+				csrfToken: ''
+			}),
+			{}
+		);
+		const payoutsMatch = annaVacancies.items.find((item) => item.vacancyId === payouts?.id)?.match;
+		expect(payoutsMatch?.components.required.value).toBe(1);
+		expect(payoutsMatch?.components.grade.value).toBe(1);
 		// The three written vacancies show their test: the block tests their texts add; Data Science is not released here.
 		const taxonomy = await loadVacancyTaxonomy(db);
 		const testOf = async (title: string) => {

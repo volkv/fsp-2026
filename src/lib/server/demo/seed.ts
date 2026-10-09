@@ -91,7 +91,7 @@ import { demoWorld, eligibleAthletes, heroAthlete, minorAthletes, type World } f
 import { syntheticName } from '../../../../services/fsp-mock/src/seed/names.ts';
 
 /** Bump when the seed code changes what it creates from the same inputs: a new version is a new batch. */
-const SEED_VERSION = 8;
+const SEED_VERSION = 9;
 
 /** Share of FSP athletes among the synthetic candidates; the rest have a resume and no FSP history. */
 const FSP_SHARE = 0.9;
