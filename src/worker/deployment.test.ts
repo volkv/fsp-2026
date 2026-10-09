@@ -5,7 +5,8 @@
 // its client comes in through `docker exec` on the server. On the stand only the services Caddy reaches share its
 // network with other projects, every network of the stand itself is internal, the services that call outside have a
 // network of their own for it, Valkey takes the password of the stand's environment, and the stand's worker runs no more
-// sandbox jobs at once than its sandbox client accepts.
+// sandbox jobs at once than its sandbox client accepts. The parser client of a process sends no more parses at once
+// than the parser has slots.
 import { readFile } from 'node:fs/promises';
 import { describe, expect, it, vi } from 'vitest';
 import { BGE_M3_Q8 } from '$lib/server/embeddings/definitions';
@@ -53,6 +54,31 @@ describe('worker deployment', () => {
 		expect(accepted).toBeDefined();
 		expect(runs).toBeLessThanOrEqual(Number(accepted));
 	});
+
+	it.each(['compose.yaml', 'docker-compose.prod.yml'])(
+		'%s sends the parser no more parses at once from a process than the parser has slots',
+		async (file) => {
+			const compose = await readFile(new URL(`../../${file}`, import.meta.url), 'utf8');
+			/** The value of a setting line: a quoted number, or an alias of a top-level extension holding one. */
+			const resolve = (line: RegExp): number => {
+				const value = line.exec(compose)?.[1];
+				if (value === undefined) throw new Error(`${file} has no line ${line.source}`);
+				const alias = /^\*([\w-]+)$/.exec(value)?.[1];
+				const literal = alias === undefined ? value : new RegExp(`^x-[\\w-]+: &${alias} (.+)$`, 'm').exec(compose)?.[1];
+				const slots = /^'(\d+)'$/.exec(literal ?? '')?.[1];
+				if (slots === undefined) throw new Error(`${file}: ${value} is not a quoted number`);
+				return Number(slots);
+			};
+			const shared = /^x-app-environment: &app-environment\n([\s\S]*?)^\S/m.exec(compose)?.[1];
+			const service = /^ {2}docparse:\n([\s\S]*?)^\n/m.exec(compose)?.[1];
+			if (shared === undefined || service === undefined) throw new Error(`${file} has no app environment or docparse`);
+			expect(shared).toMatch(/^ {2}DOCPARSE_MAX_CONCURRENT: \S+$/m);
+			expect(service).toMatch(/^ {6}DOCPARSE_MAX_CONCURRENT: \S+$/m);
+			const sent = resolve(/^ {2}DOCPARSE_MAX_CONCURRENT: (\S+)$/m);
+			const slots = resolve(/^ {6}DOCPARSE_MAX_CONCURRENT: (\S+)$/m);
+			expect(sent).toBeLessThanOrEqual(slots);
+		}
+	);
 
 	it.each(['compose.yaml', 'docker-compose.prod.yml'])(
 		'%s runs the embedder of the configured embedding space',

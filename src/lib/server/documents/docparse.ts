@@ -1,9 +1,11 @@
 // Client of the file parsing service `docparse` (docs/contracts.md, section 4): sends the bytes of a stored file and
 // returns the text with addressable blocks and the tables built of them, or the service's error code. The answer is
 // validated against the shape of `contracts/docparse/v1.schema.json` and its invariants before anything is stored;
-// exceptions do not cross the client.
+// exceptions do not cross the client. One process sends the service no more parses at once than it has slots: the rest
+// wait in the client instead of coming back `busy` (the worker's jobs and the demo seed's own queue share the client).
 import { z } from 'zod';
 import { config } from '$lib/server/config';
+import { ConcurrencyLimiter } from '$lib/server/ml/limiter';
 import { codePointLength, sliceByCodePoints } from '$lib/text/offsets';
 
 const DETECTED_FORMATS = ['pdf', 'docx', 'doc', 'rtf', 'odt', 'txt', 'png', 'jpeg'] as const;
@@ -234,12 +236,25 @@ async function readJson(response: Response): Promise<unknown> {
 
 export class DocparseClient implements Docparse {
 	readonly #url: string;
+	readonly #slots: ConcurrencyLimiter;
 
-	constructor(baseUrl: string) {
+	/** `maxConcurrentParses` — the service's `DOCPARSE_MAX_CONCURRENT`, or fewer. */
+	constructor(baseUrl: string, maxConcurrentParses: number) {
 		this.#url = `${baseUrl.replace(/\/+$/, '')}/v1/parse`;
+		this.#slots = new ConcurrencyLimiter(maxConcurrentParses);
 	}
 
 	async parse(request: ParseRequest): Promise<DocparseResult> {
+		const release = await this.#slots.acquire('background', request.signal ?? new AbortController().signal);
+		if (release === null) return failure('cancelled', false, 'the caller cancelled the parse');
+		try {
+			return await this.#send(request);
+		} finally {
+			release();
+		}
+	}
+
+	async #send(request: ParseRequest): Promise<DocparseResult> {
 		const form = new FormData();
 		form.append('file', new Blob([request.bytes]), 'upload');
 		form.append('declared_name', request.declaredName);
@@ -278,6 +293,6 @@ let client: Docparse | undefined;
 
 /** The configured parser, created on first use so that `vite build` does not need the environment. */
 export function docparse(): Docparse {
-	client ??= new DocparseClient(config().docparse.url);
+	client ??= new DocparseClient(config().docparse.url, config().docparse.maxConcurrentParses);
 	return client;
 }

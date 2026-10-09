@@ -113,6 +113,7 @@ const envSchema = z
 		MAIL_FROM: required(z.string().min(3)),
 
 		DOCPARSE_URL: required(httpUrl),
+		DOCPARSE_MAX_CONCURRENT: optional(positiveInt),
 
 		SANDBOX_URL: required(httpUrl),
 		SANDBOX_MAX_CONCURRENT_RUNS: optional(positiveInt),
@@ -377,7 +378,11 @@ export interface Config {
 	};
 	storage: { endpoint: string; region: string; accessKeyId: string; secretAccessKey: string; bucket: string };
 	mail: { smtpUrl: string; from: string };
-	docparse: { url: string };
+	/**
+	 * File parser through its gateway (contracts 4). `maxConcurrentParses` — parses one application process sends at
+	 * once, the rest wait for a slot: the service answers `busy` beyond its own `DOCPARSE_MAX_CONCURRENT` (contracts 4.4).
+	 */
+	docparse: { url: string; maxConcurrentParses: number };
 	/**
 	 * Code execution sandbox through its gateway (contracts 6). `maxConcurrentRuns` — runs one application process
 	 * sends at once; one more is `busy` (contracts 6.2).
@@ -467,7 +472,7 @@ function build(e: Env): Config {
 			bucket: e.S3_BUCKET
 		},
 		mail: { smtpUrl: e.SMTP_URL, from: e.MAIL_FROM },
-		docparse: { url: e.DOCPARSE_URL },
+		docparse: { url: e.DOCPARSE_URL, maxConcurrentParses: e.DOCPARSE_MAX_CONCURRENT ?? 2 },
 		sandbox: { url: e.SANDBOX_URL, maxConcurrentRuns: e.SANDBOX_MAX_CONCURRENT_RUNS ?? 2 },
 		fspId: e.FSP_ID_ISSUER
 			? {

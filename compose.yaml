@@ -3,6 +3,10 @@ name: fsp-career
 # Host ports live in the 57xxx range and are bound to 127.0.0.1 only; see docs/development.md.
 # Values come from .env (copy of .env.example).
 
+# Parses at a time: the docparse service has this many slots and answers `busy` beyond them, and the parser client of
+# each application process sends no more than this many at once (the worker's jobs and the demo seed's queue share it).
+x-docparse-slots: &docparse-slots '2'
+
 # Everything src/lib/server/config.ts reads, for the application and the worker. Addresses are the internal ones of
 # this network; secrets come from .env.
 x-app-environment: &app-environment
@@ -24,6 +28,7 @@ x-app-environment: &app-environment
   SMTP_URL: smtp://mailpit:1025
   MAIL_FROM: ${MAIL_FROM:?set in .env}
   DOCPARSE_URL: http://docparse-gateway:8080
+  DOCPARSE_MAX_CONCURRENT: *docparse-slots
   SANDBOX_URL: http://sandbox-gateway:8080
   SANDBOX_MAX_CONCURRENT_RUNS: ${SANDBOX_MAX_CONCURRENT_RUNS:-}
   # The simulator has the same address from the browser and from here (see the fsp-mock service).
@@ -168,6 +173,8 @@ services:
     build:
       context: services/docparse
       target: runtime
+    environment:
+      DOCPARSE_MAX_CONCURRENT: *docparse-slots
     read_only: true
     tmpfs:
       # Uploads and per-request scratch directories; LibreOffice profiles live here too.

@@ -17,6 +17,10 @@ name: fsp-career
 # simulator. Every network of the stand itself is internal — no way out of the server; the services that call outside
 # are also attached to `egress` and it holds nothing else.
 
+# Parses at a time: the docparse service has this many slots and answers `busy` beyond them, and the parser client of
+# each application process sends no more than this many at once (the worker's jobs and the demo seed's queue share it).
+x-docparse-slots: &docparse-slots '1'
+
 x-app-environment: &app-environment
   DATABASE_URL: postgres://${POSTGRES_USER:?}:${POSTGRES_PASSWORD:?}@fsp-career-postgres:5432/${POSTGRES_DB:?}
   REDIS_URL: redis://:${REDIS_PASSWORD:?}@fsp-career-redis:6379
@@ -41,6 +45,7 @@ x-app-environment: &app-environment
   SMTP_URL: smtp://fsp-career-mailpit:1025
   MAIL_FROM: ${MAIL_FROM:?}
   DOCPARSE_URL: http://fsp-career-docparse-gateway:8080
+  DOCPARSE_MAX_CONCURRENT: *docparse-slots
   SANDBOX_URL: http://fsp-career-sandbox-gateway:8080
   # One program at a time, as the sandbox service below is configured.
   SANDBOX_MAX_CONCURRENT_RUNS: '1'
@@ -218,7 +223,7 @@ services:
     pull_policy: never
     restart: unless-stopped
     environment:
-      DOCPARSE_MAX_CONCURRENT: '1'
+      DOCPARSE_MAX_CONCURRENT: *docparse-slots
     read_only: true
     tmpfs:
       - /tmp:size=512m,mode=1777

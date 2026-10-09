@@ -40,5 +40,7 @@ export async function startParser(): Promise<StartedParser> {
 		{ maxBuffer: 16 * 1024 * 1024 }
 	);
 	const container = await new ParserContainer().start();
-	return { container, client: new DocparseClient(`http://${container.getHost()}:${container.getMappedPort(8000)}`) };
+	// The container keeps the service's default of two parses at a time.
+	const url = `http://${container.getHost()}:${container.getMappedPort(8000)}`;
+	return { container, client: new DocparseClient(url, 2) };
 }
