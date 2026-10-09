@@ -2,6 +2,7 @@ import { and, eq, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Executor } from '$lib/server/db';
 import { candidates, jobs } from '$lib/server/db/schema';
+import { insertJob } from '$lib/server/jobs/insert';
 import { claimJob, completeJob, enqueueJob, failJob, recoverExpiredLeases } from '$lib/server/jobs/queue';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
 import { expectDbError, SQLSTATE } from '../helpers/errors';
@@ -133,6 +134,66 @@ describe('job queue', () => {
 				.where(and(eq(jobs.dedupKey, `evidence:${candidate.id}`), eq(jobs.status, 'queued'))),
 			SQLSTATE.uniqueViolation
 		);
+	});
+
+	it('keeps a joined job waiting for the change while a worker tries to capture it', async () => {
+		const { db } = database;
+		const candidate = await createCandidate(db);
+		await changeProfile(db, candidate.id);
+		// A worker tries to capture the waiting job after every statement of the next enqueue.
+		const captures: (string | null)[] = [];
+		const result = await db.transaction((tx) =>
+			insertJob(
+				async (statement) => {
+					const rows = await tx.execute(statement);
+					captures.push((await claimJob(db, 'worker-a', ['evidence.compute']))?.id ?? null);
+					return rows;
+				},
+				'evidence.compute',
+				{ candidate_id: candidate.id },
+				{ inputVersion: '2', createdBy: system }
+			)
+		);
+		expect(result.joined).toBe(true);
+		// The job the change joined was not taken before the change committed.
+		expect(captures.every((id) => id === null)).toBe(true);
+		const [row] = await db.select({ status: jobs.status }).from(jobs).where(eq(jobs.id, result.jobId));
+		expect(row?.status).toBe('queued');
+	});
+
+	it('enqueues a new job when the waiting one is captured during the enqueue', async () => {
+		const { db, sql: client } = database;
+		const candidate = await createCandidate(db);
+		const key = `evidence:${candidate.id}`;
+		await changeProfile(db, candidate.id);
+		let release!: () => void;
+		const released = new Promise<void>((resolve) => (release = resolve));
+		let captured!: () => void;
+		const capturedInTx = new Promise<void>((resolve) => (captured = resolve));
+		const capture = client.begin(async (tx) => {
+			await tx`update jobs set status = 'running', lease_owner = 'worker-a', lease_expires_at = now() + interval '1 minute'
+				where dedup_key = ${key} and status = 'queued'`;
+			captured();
+			await released;
+		});
+		await capturedInTx;
+		const enqueue = changeProfile(db, candidate.id);
+		// The enqueue waits on the row lock of the capture.
+		for (let attempt = 0; ; attempt++) {
+			const [waiting] = await client`select count(*)::int as n from pg_locks where not granted`;
+			if (waiting?.n) break;
+			if (attempt >= 200) throw new Error('the enqueue never waited on the capture');
+			await new Promise((resolve) => setTimeout(resolve, 10));
+		}
+		release();
+		await capture;
+		expect(await enqueue).toEqual({ revision: 2, joined: false });
+		const rows = await db
+			.select({ status: jobs.status })
+			.from(jobs)
+			.where(eq(jobs.dedupKey, key))
+			.orderBy(jobs.createdAt);
+		expect(rows.map((row) => row.status)).toEqual(['running', 'queued']);
 	});
 
 	it('returns a job of a crashed worker to the queue and retries it', async () => {
