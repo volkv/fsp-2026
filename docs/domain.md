@@ -686,7 +686,7 @@ draft | submitted ──(оператор)──▶ suspended ──(опера�
 | `purposes`, `data_categories`, `operations` | `text[]` | да | цели, перечень данных, действия — для машинной проверки области согласия |
 | `form` | `enum` | да | `electronic_separate_screen` · `electronic_signature` (письменная форма, ч. 4 ст. 9) |
 | `available` | `boolean` | да | можно ли выдавать согласие по этому виду; `false` — вид есть в справочнике, экрана нет |
-| `requires_reconsent` | `boolean` | да | при публикации версии прежние согласия этого вида перестают быть действующими |
+| `requires_reconsent` | `boolean` | да | при публикации версии прежние согласия этого вида перестают быть действующими. Ставится свойством вида в `legal/documents.json` или правилом получателей: у вида с `covers_processors` (согласие на передачу данных обработчикам — `pd_processing`, `demo_resume_upload`) версия требует нового согласия, если `processors_snapshot` отличается от снимка последней версии, которую принимали все заново (последней с `requires_reconsent`, иначе первой); правка текста при тех же обработчиках прежние согласия сохраняет (`scripts/seed-legal.ts`) |
 | `published_at` | `ts` | нет | после публикации запись неизменяема (триггер) |
 | `superseded_at` | `ts` | нет | |
 
@@ -3473,7 +3473,7 @@ API отдельного поля метки не даёт: имени для п
 | `input_version` | `text` | да | версия входа (номер загрузки резюме, `profile_revision`) |
 | `schema_version` | `text` | да | версия схемы ответа `extract` |
 | `taxonomy_version_id` | `id` | нет | для извлечения навыков |
-| `model` | `jsonb` | усл. | `{endpoint_profile, model_id, model_revision, runtime, params, origin?}`; `NULL` при `processing_mode = rules_only`. `origin = stored` — ответ модели дан ранее и выдан снова без вызова (засев демо-стенда, `seeds/model-parses.json`); без `origin` — ответ этого вызова |
+| `model` | `jsonb` | усл. | `{endpoint_profile, model_id, model_revision, runtime, params, origin?}`; `NULL` при `processing_mode = rules_only`. `origin` — ответ модели дан ранее и выдан снова без вызова: `stored` — засев демо-стенда (`seeds/model-parses.json`), `cached` — ответ на тот же вставленный текст, хранимый сутки (`vacancies/text-extract.ts`); без `origin` — ответ этого вызова |
 | `rules_version` | `text` | нет | версия детерминированного извлекателя |
 | `embedding_space_id` | `text` | усл. | для `embed` |
 | `processing_mode` | `enum` | да | `model` · `rules_only` · `partial` · `failed` |

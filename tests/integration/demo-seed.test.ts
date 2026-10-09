@@ -38,6 +38,8 @@ import {
 import { resetDemo } from '$lib/server/demo/reset';
 import { batchId, publishedReconsents, releasedBanks, seedDemo, type SeedSummary } from '$lib/server/demo/seed';
 import { readSeedData } from '$lib/server/demo/data';
+import { processingAllowedFor } from '$lib/server/consent/processing';
+import { ageBand } from '$lib/server/visibility/age';
 import type { DemoServices } from '$lib/server/demo/services';
 import { HttpAchievementsSource } from '$lib/server/fsp/adapter';
 import { ServiceGrantIssuer } from '$lib/server/fsp/grant';
@@ -131,7 +133,14 @@ beforeAll(async () => {
 	const client = postgres(database.url, { max: 1, onnotice: () => {} });
 	try {
 		await publishTaxonomy(client, buildRelease(await readTaxonomyDatasets(path('taxonomy'))));
-		await publishLegalDocuments(client, await readLegalRelease(path('legal')));
+		// The stand's documents have a history: the model that read the texts before was another recipient, so the
+		// current texts covering it ask for consent again, and the seed signs them.
+		const legal = await readLegalRelease(path('legal'));
+		await publishLegalDocuments(client, {
+			...legal,
+			processors: legal.processors.map((p) => ({ ...p, name: `${p.name} (прежний)` }))
+		});
+		await publishLegalDocuments(client, legal);
 		await publishPolicies(client, await readPolicyRelease(path('policies')));
 	} finally {
 		await client.end({ timeout: 5 });
@@ -339,6 +348,21 @@ describe('demo seed', () => {
 		);
 		expect(first.counts.candidates).toBe(40);
 		expect(first.counts.vacancies).toBeGreaterThanOrEqual(30);
+
+		// The seed signs the version that asked for consent again: every adult's data are processed by it.
+		expect(await publishedReconsents(services)).toContain('pd_processing@2');
+		const seeded = await db
+			.select({
+				id: candidates.id,
+				birthDate: candidates.birthDate,
+				precision: candidates.birthDatePrecision,
+				status: candidates.birthDateStatus
+			})
+			.from(candidates)
+			.where(isNotNull(candidates.seedBatchId));
+		const adults = seeded.filter((c) => ageBand(c, new Date()) === 'adult').map((c) => c.id);
+		expect(adults.length).toBeGreaterThan(30);
+		expect([...(await processingAllowedFor(db, adults, new Date()))].sort()).toEqual(adults.sort());
 
 		// Every seeded account, profile, company and vacancy carries the batch.
 		for (const table of [users, candidates, companies, vacancies]) {
@@ -875,7 +899,7 @@ describe('the model parses of the demo seed (seeds/model-parses.json)', () => {
 		};
 		const models = () => {
 			calls.adapter++;
-			return { extract, extractModelKey: () => 'api:test-model' };
+			return { extract, extractModelKey: () => Promise.resolve('api:test-model') };
 		};
 		return { calls, models };
 	}

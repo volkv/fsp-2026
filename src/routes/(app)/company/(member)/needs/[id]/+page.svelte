@@ -131,7 +131,13 @@
 				<Card.Content class="grid gap-4 text-sm">
 					{#if need.parse}
 						<ModelModeLabel
-							reading={need.parse.model ? { modelId: need.parse.model.id, runtime: need.parse.model.runtime } : null}
+							reading={need.parse.model
+								? {
+										modelId: need.parse.model.id,
+										runtime: need.parse.model.runtime,
+										cached: need.parse.model.cached === true
+									}
+								: null}
 						/>
 					{/if}
 					<p class="rounded-md border bg-muted/40 p-3 whitespace-pre-line">{need.text.trim()}</p>

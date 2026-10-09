@@ -672,7 +672,15 @@ describe('vacancy from pasted text', () => {
 		expect(again).toMatchObject({ mode: 'model', fields: draft.fields, missing: draft.missing });
 		expect(again.vacancyId).not.toBe(draft.vacancyId);
 		const [kept] = await database.db.select().from(mlResults).where(eq(mlResults.id, again.mlResultId));
-		expect(kept).toMatchObject({ processingMode: 'model', inputSha256: envelope?.inputSha256 });
+		expect(kept).toMatchObject({
+			processingMode: 'model',
+			inputSha256: envelope?.inputSha256,
+			model: { origin: 'cached' }
+		});
+		expect(envelope?.model).not.toHaveProperty('origin');
+		// Switched off, the same text over the same kept answers is read by the rules: the mode is what it says.
+		const switchedOff = await extractVacancyFromText({ ...textDeps, models: adapter(off) }, author, TEXT);
+		expect(switchedOff).toMatchObject({ mode: 'rules', modelFailure: 'disabled' });
 		// Another company's parse of the same text is its own call.
 		await extractVacancyFromText(textDeps, await employer(), TEXT);
 		expect(calls).toBe(2);

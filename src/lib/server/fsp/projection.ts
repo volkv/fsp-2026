@@ -16,6 +16,7 @@ import {
 	EVSK_RANKS,
 	QUALIFICATION_RANKS,
 	STAGES,
+	isTeamResult,
 	type AchievementsSnapshot,
 	type Competition,
 	type DisciplineCode,
@@ -337,7 +338,7 @@ export function factClaims(
 		if (result.status !== 'official' || result.place === null || !isDiscipline(competition.discipline)) return [];
 		const discipline = competition.discipline;
 		const team = result.team ?? null;
-		const isTeam = team !== null || competition.format === 'team';
+		const isTeam = isTeamResult(team !== null, competition.format ?? null);
 		const specialization = team?.specialization ?? null;
 		const applicable = taxonomy.rules.filter(
 			(rule) =>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { reasonText, type ReasonData } from './shortlist';
+import { fspResultText, reasonText, type ReasonData } from './shortlist';
 
 const NAMES = { skills: {}, roles: {}, specializations: {}, grades: {}, workFormats: {}, blocks: {} };
 const RECORD: ReasonData = {
@@ -23,5 +23,27 @@ describe('source of the FSP record', () => {
 		expect(reasonText(RECORD, NAMES, { fspSimulator: false }).source).toBe(
 			'официальные протоколы ФСП — квитанции в карточке'
 		);
+	});
+});
+
+describe('an FSP result in words', () => {
+	const generalized = {
+		resultGroup: 'prize',
+		competitionLevel: 'russian_cup',
+		discipline: 'algorithmic',
+		season: 2025
+	};
+	const exact = { competitionTitle: 'Кубок России', place: 3, placeOf: 40 };
+
+	it("marks a team's result shown exactly as the team's, with the team named when the source names it", () => {
+		const named = {
+			generalized: { ...generalized, teamResult: true },
+			exact: { ...exact, team: { name: 'Северный код' } }
+		};
+		expect(fspResultText(named)).toBe('3 место из 40 в составе команды «Северный код» · Кубок России');
+		const unnamed = { generalized: { ...generalized, teamResult: true }, exact: { ...exact, team: null } };
+		expect(fspResultText(unnamed)).toBe('3 место из 40 в составе команды · Кубок России');
+		const personal = { generalized: { ...generalized, teamResult: false }, exact: { ...exact, team: null } };
+		expect(fspResultText(personal)).toBe('3 место из 40 · Кубок России');
 	});
 });

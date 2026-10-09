@@ -1,6 +1,10 @@
 // Publishes the legal documents from `legal/` into the database from DATABASE_URL (docs/domain.md, section 6.2). Runs
 // with plain Node (type stripping), without the SvelteKit runtime. A kind whose text or properties changed gets a new
 // version and the previous one is marked superseded; repeating it with unchanged files is a no-op.
+//
+// A document that covers handing the data to the processors (`covers_processors`) is published with
+// `requires_reconsent` whenever the processors differ from those everybody last accepted: a consent names its
+// recipients, and a new recipient needs a new consent. A corrected wording with the same processors does not.
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -28,7 +32,8 @@ const manifestSchema = z.strictObject({
 			purposes: z.array(code).min(1),
 			data_categories: z.array(code).min(1),
 			operations: z.array(code).min(1),
-			requires_reconsent: z.boolean()
+			requires_reconsent: z.boolean(),
+			covers_processors: z.boolean()
 		})
 	)
 });
@@ -43,7 +48,10 @@ export interface LegalDocument {
 	operations: string[];
 	form: 'electronic_separate_screen' | 'electronic_signature';
 	available: boolean;
+	/** Every new version asks for consent again, whatever changed. */
 	requiresReconsent: boolean;
+	/** The document consents to handing the data to the processors of the release. */
+	coversProcessors: boolean;
 }
 
 export interface LegalRelease {
@@ -72,7 +80,8 @@ export async function readLegalRelease(directory: string): Promise<LegalRelease>
 			operations: entry.operations,
 			form: spec.form,
 			available: spec.availableByDefault,
-			requiresReconsent: entry.requires_reconsent
+			requiresReconsent: entry.requires_reconsent,
+			coversProcessors: entry.covers_processors
 		});
 	}
 	return { operator: manifest.operator, processors: manifest.processors, documents };
@@ -100,9 +109,32 @@ interface CurrentRow {
 	requires_reconsent: boolean;
 }
 
+/** A published version of the kind as the processors rule reads it. */
+interface VersionRow {
+	version: number;
+	requires_reconsent: boolean;
+	/** Its processors are those of the release. */
+	same_processors: boolean;
+}
+
 const sameList = (a: readonly string[], b: readonly string[]) => a.length === b.length && a.every((v, i) => v === b[i]);
 
-function unchanged(row: CurrentRow, document: LegalDocument, operatorId: string): boolean {
+/**
+ * Whether a version numbered after the published `versions` below `below` asks for consent again: always, when the
+ * manifest says so; for a document covering the processors, when the processors of the release differ from those of
+ * the last version everybody had to accept — the newest one with `requires_reconsent`, or else the first. Each later
+ * version kept its processors (a change would have asked for consent again), so a grant to any of them is a consent to
+ * these recipients. Comparing with the previous version alone would miss a change published without the flag.
+ */
+function requiresReconsent(document: LegalDocument, versions: readonly VersionRow[], below: number): boolean {
+	if (document.requiresReconsent) return true;
+	if (!document.coversProcessors) return false;
+	const earlier = versions.filter((v) => v.version < below);
+	const accepted = earlier.findLast((v) => v.requires_reconsent) ?? earlier[0];
+	return accepted !== undefined && !accepted.same_processors;
+}
+
+function unchanged(row: CurrentRow, document: LegalDocument, operatorId: string, reconsent: boolean): boolean {
 	return (
 		row.title === document.title &&
 		row.body_sha256 === document.bodySha256 &&
@@ -113,7 +145,7 @@ function unchanged(row: CurrentRow, document: LegalDocument, operatorId: string)
 		sameList(row.operations, document.operations) &&
 		row.form === document.form &&
 		row.available === document.available &&
-		row.requires_reconsent === document.requiresReconsent
+		row.requires_reconsent === reconsent
 	);
 }
 
@@ -145,7 +177,12 @@ export async function publishLegalDocuments(client: postgres.Sql, release: Legal
 				where kind = ${document.kind} and published_at is not null and superseded_at is null
 				order by version desc
 				limit 1`;
-			if (current && unchanged(current, document, operatorId)) {
+			const versions = await tx<VersionRow[]>`
+				select version, requires_reconsent, processors_snapshot = ${tx.json(release.processors)} as same_processors
+				from legal_documents
+				where kind = ${document.kind} and published_at is not null
+				order by version`;
+			if (current && unchanged(current, document, operatorId, requiresReconsent(document, versions, current.version))) {
 				outcomes.push({ kind: document.kind, version: current.version, outcome: 'unchanged' });
 				continue;
 			}
@@ -160,7 +197,7 @@ export async function publishLegalDocuments(client: postgres.Sql, release: Legal
 				values (${uuidv7()}, ${document.kind}, ${version}, ${document.title}, ${document.body}, ${document.bodySha256},
 					${operatorId}, ${tx.json(operator)}, ${tx.json(release.processors)}, ${document.purposes},
 					${document.dataCategories}, ${document.operations}, ${document.form}, ${document.available},
-					${document.requiresReconsent}, now())`;
+					${requiresReconsent(document, versions, version)}, now())`;
 			outcomes.push({ kind: document.kind, version, outcome: 'published' });
 		}
 		return outcomes;

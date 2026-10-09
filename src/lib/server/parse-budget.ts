@@ -72,14 +72,15 @@ async function charge(budget: StandParseBudget): Promise<{ ok: false; error: Mod
 }
 
 /**
- * The extraction of `models` behind the budget of the stand. A configuration without the model (`extractModelKey`
- * `null`) is passed through uncounted: the adapter answers `disabled` without a call.
+ * The extraction of `models` behind the budget of the stand. When `extract` would call no model now (`extractModelKey`
+ * `null`: not configured, no API key, switched off) the call is passed through uncounted: the adapter answers
+ * `disabled` without a call, and the parse says so rather than the budget.
  */
 export function budgetedExtractor(models: PaidExtractor, budget: StandParseBudget): PaidExtractor {
 	return {
 		extractModelKey: () => models.extractModelKey(),
 		extract: async (request, lexicon, options) => {
-			if (models.extractModelKey() !== null) {
+			if ((await models.extractModelKey()) !== null) {
 				const refused = await charge(budget);
 				if (refused) return refused;
 			}

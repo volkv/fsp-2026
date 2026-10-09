@@ -37,7 +37,7 @@ import {
 	type ReceiptSigner,
 	type ReceiptStatus
 } from '$lib/server/fsp/receipts';
-import type { Competition, Result } from '$lib/server/fsp/types';
+import { isTeamResult, type Competition, type Result } from '$lib/server/fsp/types';
 import type { MatchingDeps } from '$lib/server/matching/deps';
 import { scoreCandidatesForVacancy } from '$lib/server/matching/rank';
 import { officialFspResult, preliminaryFspResult } from '$lib/server/matching/fsp-results';
@@ -176,7 +176,7 @@ function competitionAchievement(
 			competitionLevel: competition.level,
 			season: Number(competition.startDate.slice(0, 4)),
 			resultGroup: result.award ?? 'unknown',
-			teamResult: result.team != null,
+			teamResult: isTeamResult(result.team != null, competition.format ?? null),
 			format: competition.online === undefined ? 'unknown' : competition.online ? 'online' : 'onsite',
 			computedIndicator: result.evskFulfilled ?? null
 		},

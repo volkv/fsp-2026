@@ -43,8 +43,12 @@ export interface NeedParse {
 	rules_version: string;
 	/** Why the rules read the text: the adapter error code (`disabled`, `timeout`, …). */
 	model_failure: string | null;
-	/** The model that read the text and its runtime profile (where the text went); `null` — the rules read it. */
-	model: { id: string; runtime: LlmRuntime } | null;
+	/**
+	 * The model that read the text and its runtime profile (where the text went); `null` — the rules read it. `cached` —
+	 * its answer to the same text was kept from an earlier parse, and the model was not called for this one; absent — it
+	 * was called (or the parse was written before this was recorded).
+	 */
+	model: { id: string; runtime: LlmRuntime; cached?: true } | null;
 	fields: ParsedField[];
 }
 
@@ -257,7 +261,7 @@ export async function parseNeedText(
 		fields = toFields(response.value.items);
 		values = {
 			...envelope,
-			model: extractModelEnvelope(response.value.model, response.value.stored),
+			model: extractModelEnvelope(response.value.model, response.value.origin),
 			processingMode: 'model',
 			rejectedItems: response.value.rejectedReasons.map((reason) => ({ reason })),
 			output: {
@@ -298,7 +302,13 @@ export async function parseNeedText(
 			ml_result_id: row.id,
 			rules_version: NEED_RULES_VERSION,
 			model_failure: response.ok ? null : response.error.code,
-			model: response.ok ? { id: response.value.model.modelId, runtime: response.value.model.runtime } : null,
+			model: response.ok
+				? {
+						id: response.value.model.modelId,
+						runtime: response.value.model.runtime,
+						...(response.value.origin === 'cached' ? { cached: true as const } : {})
+					}
+				: null,
 			fields: parsed
 		}
 	};

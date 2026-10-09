@@ -20,7 +20,14 @@ import {
 } from '$lib/server/db/schema';
 import { ApiError } from '$lib/server/errors/api-error';
 import { fromSimulator, receiptStatementSchema, receiptStatus, type ReceiptStatus } from '$lib/server/fsp/receipts';
-import type { Competition, NationalTeam, PlatformAccount, Qualification, Result } from '$lib/server/fsp/types';
+import {
+	isTeamResult,
+	type Competition,
+	type NationalTeam,
+	type PlatformAccount,
+	type Qualification,
+	type Result
+} from '$lib/server/fsp/types';
 import type { NamedKey } from '$lib/server/taxonomy/vocabulary';
 import { ageBand, isMinorBand } from '$lib/server/visibility/age';
 import {
@@ -65,6 +72,8 @@ export type FactDetail =
 			award: string;
 			place: number | null;
 			placeOf: number | null;
+			/** A team's result (`isTeamResult`), named or not: a team competition may come without its team. */
+			teamResult: boolean;
 			team: { name: string; role: string | null; specialization: string | null } | null;
 			evskIndicator: string | null;
 			resultStatus: string;
@@ -241,6 +250,7 @@ function detailOf(factType: string, payload: unknown): FactDetail {
 				award: result.award ?? 'unknown',
 				place: result.place,
 				placeOf: result.placeOf ?? null,
+				teamResult: isTeamResult(result.team != null, competition.format ?? null),
 				team: result.team
 					? {
 							name: result.team.name,

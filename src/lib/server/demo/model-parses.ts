@@ -113,7 +113,8 @@ export class SeedModels {
 		const inputSha256 = createHash('sha256').update(text).digest('hex');
 		return {
 			extract: (request, lexicon, options) => this.#extract(inputSha256, request, lexicon, options),
-			extractModelKey: () => (this.#deps.mode === 'live' ? this.#deps.models().extractModelKey() : null)
+			extractModelKey: () =>
+				this.#deps.mode === 'live' ? this.#deps.models().extractModelKey() : Promise.resolve(null)
 		};
 	}
 

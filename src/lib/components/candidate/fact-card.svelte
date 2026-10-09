@@ -47,7 +47,7 @@
 			award: asAward(detail.award),
 			format: detail.format,
 			season: detail.season,
-			team: detail.team !== null,
+			team: detail.teamResult,
 			evskIndicator: asEvsk(detail.evskIndicator),
 			exact: {
 				competition: detail.competition,

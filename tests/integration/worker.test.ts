@@ -237,7 +237,7 @@ describe('worker', () => {
 		expect(line).toMatchObject({ code: 'database_error', db_code: '40P01', db_message: 'deadlock detected' });
 	});
 
-	it('keeps the parameters of a failed statement out of the job and its log', async () => {
+	it('keeps the parameters of a failed statement and the value its message quotes out of the job and its log', async () => {
 		const { db } = database;
 		const email = 'ivan.petrov@example.org';
 		const id = await enqueue(db, 'profile.embed', { candidate_id: randomUUID() });
@@ -247,7 +247,8 @@ describe('worker', () => {
 					type: 'profile.embed',
 					concurrency: 1,
 					run: async ({ db: executor }) => {
-						await executor.execute(sql`select 1 / 0 where ${email}::text is not null`);
+						// PostgreSQL quotes the value it could not take in the message of a data exception.
+						await executor.execute(sql`select ${email}::uuid`);
 						throw new Error('the statement did not fail');
 					}
 				}
@@ -262,8 +263,8 @@ describe('worker', () => {
 		const line = logLines.find((entry) => entry.line.includes(id) && entry.line.includes('job attempt failed'));
 		expect(line).toBeDefined();
 		expect(JSON.parse(line?.line ?? '{}')).toMatchObject({
-			db_code: '22012',
-			error_message: 'division by zero'
+			db_code: '22P02',
+			error_message: 'SQLSTATE 22P02'
 		});
 		expect(line?.line).not.toContain(email);
 	});

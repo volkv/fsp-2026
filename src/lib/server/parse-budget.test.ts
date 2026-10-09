@@ -31,7 +31,7 @@ function model(configured = true): PaidExtractor & { calls: number } {
 				})
 			);
 		},
-		extractModelKey: () => (configured ? 'api:extractor-test' : null)
+		extractModelKey: () => Promise.resolve(configured ? 'api:extractor-test' : null)
 	};
 	return extractor;
 }
@@ -74,7 +74,7 @@ describe('the budget of the stand', () => {
 		expect(worker.calls).toBe(0);
 	});
 
-	it('does not count a configuration without the model, and refuses when the counter cannot be read', async () => {
+	it('does not count a call while the model is off, and refuses when the counter cannot be read', async () => {
 		const off = model(false);
 		const offBudget = budget(0);
 		await budgetedExtractor(off, offBudget).extract(request, lexicon);

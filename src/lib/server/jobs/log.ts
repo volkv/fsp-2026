@@ -28,7 +28,12 @@ function describeError(error: unknown): LogFields {
 		error_name: name,
 		error_message: message,
 		error_stack: stack,
-		...(database && { db_code: database.code, db_message: database.message, db_constraint: database.constraint })
+		...(database && {
+			db_code: database.code,
+			db_message: database.message,
+			db_constraint: database.constraint,
+			db_column: database.column
+		})
 	};
 }
 
