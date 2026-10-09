@@ -156,7 +156,7 @@ async function documentId(kind: 'pd_processing' | 'fsp_import') {
 }
 
 async function drain(types: readonly ('fsp.sync' | 'evidence.compute')[]) {
-	await drainJobs(database.db, pipeline, types, { since: new Date(0), log, label: 'revocation-test' });
+	await drainJobs(database.db, pipeline, types, { owner: null, since: new Date(0), log, label: 'revocation-test' });
 }
 
 /** An adult candidate with a verified birth date, the processing consent and a session signed in just now. */

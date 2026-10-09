@@ -323,6 +323,9 @@ describe('worker', () => {
 describe('owned line of the queue', () => {
 	const ownerOf = async (id: string) =>
 		(await database.db.select({ owner: jobs.owner }).from(jobs).where(eq(jobs.id, id)))[0]?.owner;
+	// The handler learns the id of its follow-up before the transaction that enqueues it commits.
+	const statusOf = async (id: string) =>
+		(await database.db.select({ status: jobs.status }).from(jobs).where(eq(jobs.id, id)))[0]?.status;
 
 	it("keeps the owner's jobs, their follow-ups included, away from a worker of the stand", async () => {
 		const { db } = database;
@@ -370,7 +373,7 @@ describe('owned line of the queue', () => {
 		});
 		await waitFor('the follow-up of the owned job', async () => {
 			const [followUp] = followUps;
-			return followUp !== undefined && (await jobRow(followUp)).status === 'succeeded';
+			return followUp !== undefined && (await statusOf(followUp)) === 'succeeded';
 		});
 		await waitFor('the job of the stand', async () => (await jobRow(standJob)).status === 'succeeded');
 		expect(standRuns).toEqual([standJob]);

@@ -2,8 +2,9 @@
 // matches» and the parse of resumes go through their handlers, captured from the queue by an in-process worker until
 // no job of those types is left. The jobs of the chain belong to the seed (`withJobOwner`, owner `demo_seed`): only its
 // worker captures them, with the seed's handlers, and a worker of the stand running at the same time leaves them alone.
+// The same wait runs the stand's line (owner `null`) where nothing else captures it: the test of a pipeline.
 import { randomUUID } from 'node:crypto';
-import { and, count, eq, gte, inArray, sql } from 'drizzle-orm';
+import { and, count, eq, gte, inArray, isNull, sql } from 'drizzle-orm';
 import type { Database } from '$lib/server/db';
 import { jobs, type JobOwner } from '$lib/server/db/schema';
 import type { HandlerRegistry } from '$lib/server/jobs/handler';
@@ -23,26 +24,29 @@ const POLL_MS = 500;
 const PROGRESS_MS = 15_000;
 
 /**
- * Runs the seed's queued jobs of `types` with the handlers of `registry` until none is queued or running, then checks
- * that none of them failed since `since`. A failed job of the chain is a broken seed, never a skipped one.
+ * Runs the queued jobs of `types` on the line of `owner` (`null` — the stand's) with the handlers of `registry` until
+ * none is queued or running, then checks that none of them failed since `since`. A failed job of the chain is a broken
+ * seed, never a skipped one.
  */
 export async function drainJobs(
 	db: Database,
 	registry: HandlerRegistry,
 	types: readonly JobType[],
-	options: { since: Date; log: JobLogger; label: string }
+	options: { owner: JobOwner | null; since: Date; log: JobLogger; label: string }
 ): Promise<void> {
-	const foreign = types.filter((type) => jobOwnerFor(type) !== SEED_JOBS);
+	const { owner } = options;
+	const foreign = types.filter((type) => jobOwnerFor(type) !== owner);
 	if (foreign.length > 0) {
-		// Their jobs would go to the stand's line: the stand's workers would run them and this wait would not see them.
-		throw new Error(`drainJobs runs outside the seed's line of the queue for ${foreign.join(', ')}`);
+		// Their jobs, enqueued here, would go to another line of the queue: this wait would not see them.
+		throw new Error(`drainJobs runs outside the ${owner ?? 'stand'}'s line of the queue for ${foreign.join(', ')}`);
 	}
+	const ofLine = owner === null ? isNull(jobs.owner) : eq(jobs.owner, owner);
 	const worker = startWorker({
 		db,
 		handlers: registry,
 		types,
-		owner: SEED_JOBS,
-		workerId: `demo-seed:${randomUUID().slice(0, 8)}`,
+		...(owner === null ? {} : { owner }),
+		workerId: `drain-${owner ?? 'stand'}:${randomUUID().slice(0, 8)}`,
 		pollIntervalMs: 200,
 		log: options.log
 	});
@@ -50,9 +54,7 @@ export async function drainJobs(
 		const [row] = await db
 			.select({ n: count() })
 			.from(jobs)
-			.where(
-				and(eq(jobs.owner, SEED_JOBS), inArray(jobs.type, [...types]), inArray(jobs.status, ['queued', 'running']))
-			);
+			.where(and(ofLine, inArray(jobs.type, [...types]), inArray(jobs.status, ['queued', 'running'])));
 		return row?.n ?? 0;
 	};
 	try {
@@ -70,14 +72,7 @@ export async function drainJobs(
 	const failed = await db
 		.select({ type: jobs.type, code: sql<string>`${jobs.lastError}->>'code'`, n: count() })
 		.from(jobs)
-		.where(
-			and(
-				eq(jobs.owner, SEED_JOBS),
-				inArray(jobs.type, [...types]),
-				eq(jobs.status, 'failed'),
-				gte(jobs.createdAt, options.since)
-			)
-		)
+		.where(and(ofLine, inArray(jobs.type, [...types]), eq(jobs.status, 'failed'), gte(jobs.createdAt, options.since)))
 		.groupBy(jobs.type, sql`${jobs.lastError}->>'code'`);
 	if (failed.length > 0) {
 		throw new DemoJobsFailed(

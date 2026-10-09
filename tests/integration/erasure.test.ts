@@ -391,7 +391,12 @@ async function employer(label: string) {
 
 /** Runs the queued jobs of the pipeline until none is left. */
 async function drain() {
-	await drainJobs(database.db, pipeline, [...pipeline.keys()], { since: new Date(0), log, label: 'erasure-test' });
+	await drainJobs(database.db, pipeline, [...pipeline.keys()], {
+		owner: null,
+		since: new Date(0),
+		log,
+		label: 'erasure-test'
+	});
 }
 
 /** One capture of `account.purge` as the worker does it: the result is written, or the failure is recorded. */

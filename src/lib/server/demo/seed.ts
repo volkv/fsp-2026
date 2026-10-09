@@ -565,7 +565,7 @@ async function seedBatch(services: DemoServices): Promise<SeedSummary> {
 	const models = new SeedModels({ db, parses: data.modelParses, mode: settings.seedModel, models: services.models });
 	const handlers = seedHandlers(services, new Set([...heroes.values()].map((hero) => hero.candidateId)), models);
 	const drain = (label: string, types: readonly JobType[] = CHAIN) =>
-		drainJobs(db, handlers, types, { since: new Date(started), log, label });
+		drainJobs(db, handlers, types, { owner: SEED_JOBS, since: new Date(started), log, label });
 	// The whole cast is seeded now: its profiles and companies are the originals the demo sessions clone.
 	await markCastOriginals(db, await castOriginals(db, services.crypto, castRoles(data)));
 	const minorPlanned = minorPlan(minor, batch);
