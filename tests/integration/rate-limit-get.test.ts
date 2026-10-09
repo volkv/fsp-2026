@@ -62,11 +62,22 @@ const apiKey = (userId: string): Actor => ({
 	permissions: []
 });
 
-function requestEvent(path: string, from: string, actor: Actor, method = 'GET'): RequestEvent {
+/** The body of a post: JSON of the API or the fields of a page form. */
+type Body = { json: unknown } | { form: Record<string, string> };
+
+function requestInit(method: string, body: Body | undefined): RequestInit {
+	if (body === undefined) return { method };
+	if ('json' in body) {
+		return { method, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body.json) };
+	}
+	return { method, body: new URLSearchParams(body.form) };
+}
+
+function requestEvent(path: string, from: string, actor: Actor, method = 'GET', body?: Body): RequestEvent {
 	const url = new URL(`http://localhost:57173${path}`);
 	return {
 		url,
-		request: new Request(url, { method }),
+		request: new Request(url, requestInit(method, body)),
 		locals: { requestId: `req-${randomUUID()}`, actor, rateLimited: false },
 		isDataRequest: url.pathname.endsWith('/__data.json'),
 		getClientAddress: () => from
@@ -87,8 +98,17 @@ const resolve = (event: RequestEvent) => {
 };
 
 /** The request through both hooks, in the order of the chain: the address, then the account. */
-function send(path: string, options: { from?: string; actor?: Actor; method?: string } = {}): Promise<Response> {
-	const event = requestEvent(path, options.from ?? address(), options.actor ?? { kind: 'anonymous' }, options.method);
+function send(
+	path: string,
+	options: { from?: string; actor?: Actor; method?: string; body?: Body } = {}
+): Promise<Response> {
+	const event = requestEvent(
+		path,
+		options.from ?? address(),
+		options.actor ?? { kind: 'anonymous' },
+		options.method,
+		options.body
+	);
 	const accountStep: Handle = ({ event }) => hooks.byAccount({ event, resolve });
 	return Promise.resolve(hooks.byAddress({ event, resolve: (next) => accountStep({ event: next, resolve }) }));
 }
@@ -200,6 +220,9 @@ describe('the export of own data', () => {
 
 describe('the parses of a pasted text', () => {
 	const { limit, message } = RATE_LIMIT_RULES.textParse;
+	const text = 'Ищем бэкенд-разработчика на Go в команду платежей';
+	/** A post of the path with a text to parse, in the body the path takes. */
+	const withText = (path: string): Body => (path.startsWith('/api/') ? { json: { text } } : { form: { text } });
 
 	it('share one budget per account between the API and the forms that parse, refused past it in words', async () => {
 		const actor = person();
@@ -212,20 +235,27 @@ describe('the parses of a pasted text', () => {
 		];
 		for (let hit = 1; hit <= limit; hit++) {
 			const path = paths[hit % paths.length] ?? '/api/v1/needs';
-			const response = await send(path, { actor, method: 'POST' });
+			const response = await send(path, { actor, method: 'POST', body: withText(path) });
 			expect(response.status, `hit ${String(hit)} ${path}`).toBe(200);
 			expect(response.headers.get('ratelimit-remaining')).toBe(String(limit - hit));
 		}
 		expect(resolved - before).toBe(limit);
 
-		const api = await send('/api/v1/vacancies/drafts/from-text', { actor, method: 'POST' });
+		const api = await send('/api/v1/vacancies/drafts/from-text', {
+			actor,
+			method: 'POST',
+			body: withText('/api/v1/vacancies/drafts/from-text')
+		});
 		expect(api.status).toBe(429);
 		expect(api.headers.get('retry-after')).toMatch(/^\d+$/u);
 		expect(await api.json()).toMatchObject({ error: { code: 'rate_limited', message } });
 
 		// The form is let through, marked, and answers in its own words before reading the session or the text.
 		const refusedBefore = refusedByRoute.length;
-		expectRefusedByRoute(await send('/company/needs?/create', { actor, method: 'POST' }), limit);
+		expectRefusedByRoute(
+			await send('/company/needs?/create', { actor, method: 'POST', body: withText('/company/needs?/create') }),
+			limit
+		);
 		const [marked] = refusedByRoute.slice(refusedBefore);
 		if (!marked) throw new Error('no marked event');
 		const refusal = await createNeedAction(marked);
@@ -233,8 +263,36 @@ describe('the parses of a pasted text', () => {
 		expect(resolved - before).toBe(limit);
 
 		// Another account keeps its own budget; other posts of this one are not parses.
-		expect((await send('/api/v1/needs', { actor: person(), method: 'POST' })).status).toBe(200);
+		expect(
+			(await send('/api/v1/needs', { actor: person(), method: 'POST', body: withText('/api/v1/needs') })).status
+		).toBe(200);
 		expect((await send('/company/vacancies/new?/create', { actor, method: 'POST' })).status).toBe(200);
+	});
+
+	it('do not count a need from the form alone, which calls no model', async () => {
+		const actor = person();
+		const form = { skill_keys: ['go'], nice_skill_keys: [] };
+		const before = resolved;
+		for (let hit = 1; hit <= limit + 1; hit++) {
+			const page = hit % 2 === 0;
+			const response = await send(page ? '/company/needs?/create' : '/api/v1/needs', {
+				actor,
+				method: 'POST',
+				body: page ? { form: { text: '', grade: 'middle' } } : { json: { form } }
+			});
+			expect(response.status, `hit ${String(hit)}`).toBe(200);
+			expect(response.headers.get('ratelimit-limit'), `hit ${String(hit)}`).not.toBe(String(limit));
+		}
+		expect(resolved - before).toBe(limit + 1);
+
+		// The same account still has its whole budget of parses: the text is refused on the hit past it.
+		for (let hit = 1; hit <= limit; hit++) {
+			const response = await send('/api/v1/needs', { actor, method: 'POST', body: { json: { text, form } } });
+			expect(response.status, `parse ${String(hit)}`).toBe(200);
+		}
+		const refused = await send('/api/v1/needs', { actor, method: 'POST', body: { json: { text, form } } });
+		expect(refused.status).toBe(429);
+		expect(await refused.json()).toMatchObject({ error: { code: 'rate_limited', message } });
 	});
 });
 

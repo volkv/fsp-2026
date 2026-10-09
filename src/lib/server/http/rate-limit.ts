@@ -62,7 +62,8 @@ export const RATE_LIMIT_RULES = {
 	 * Parses of a pasted text — a new hiring need with its text, a vacancy from text — on a page or in the API, counted
 	 * per account: each may call the extraction model, whose gateway is paid by the request. An employer parses a few
 	 * texts an hour; a loop does not get to spend the budget of the gateway. The same text again is answered from the
-	 * kept parse without the model, but it is still counted: the budget is of requests, not of the model's calls.
+	 * kept parse without the model, but it is still counted: the budget is of requests, not of the model's calls. A need
+	 * from the form alone parses nothing and is not counted.
 	 */
 	textParse: {
 		name: 'text-parse',
@@ -111,29 +112,70 @@ const CATALOG_API =
 /** The export of the candidate's own data: the file of the page and the same document in the API (contracts 5.5). */
 const DATA_EXPORT_PATHS = new Set(['/me/export/download', '/api/v1/me/data']);
 
-/** Posts that parse a pasted text in the API (contracts 3.2, 5.5): a new need, a vacancy draft from text. */
-const TEXT_PARSE_API = new Set(['/api/v1/needs', '/api/v1/vacancies/drafts/from-text']);
+/**
+ * Posts that parse a pasted text (contracts 3.2, 5.5): in the API and by the form actions of the cabinet (`action`, the
+ * named action of the page). A vacancy draft always has its text; a new need is a text, the form, or both (domain
+ * 13.10), and only its text goes to the parse — `optionalText` names the body that carries it, so a need from the form
+ * alone is not counted.
+ */
+const TEXT_PARSE_POSTS: readonly { path: string; action?: string; optionalText?: 'json' | 'form' }[] = [
+	{ path: '/api/v1/needs', optionalText: 'json' },
+	{ path: '/api/v1/vacancies/drafts/from-text' },
+	{ path: '/company/needs', action: 'create', optionalText: 'form' },
+	{ path: '/company/vacancies/new', action: 'parse' }
+];
 
-/** Form actions of the cabinet that parse a pasted text: the page path and the action. */
-const TEXT_PARSE_ACTIONS: ReadonlyMap<string, string> = new Map([
-	['/company/needs', 'create'],
-	['/company/vacancies/new', 'parse']
-]);
+function textParsePost(method: string, url: URL) {
+	if (method !== 'POST') return undefined;
+	return TEXT_PARSE_POSTS.find(
+		(post) => post.path === url.pathname && (post.action === undefined || url.searchParams.has(`/${post.action}`))
+	);
+}
 
 /** A form action of a page that parses a pasted text: it refuses over the limit itself, in the layout of the site. */
 function isTextParseAction(method: string, url: URL): boolean {
-	const action = TEXT_PARSE_ACTIONS.get(url.pathname);
-	return method === 'POST' && action !== undefined && url.searchParams.has(`/${action}`);
+	return textParsePost(method, url)?.action !== undefined;
+}
+
+/**
+ * Whether the body of a post carries a text to parse — a `text` that is not blank, as the need reads it. A body that is
+ * not JSON (or not a form) is refused by its route before any parse, so it carries none. Reads a copy of the body: the
+ * route reads its own.
+ */
+async function carriesText(request: Request, body: 'json' | 'form'): Promise<boolean> {
+	let text: unknown;
+	if (body === 'json') {
+		const raw = await request.clone().text();
+		let parsed: unknown;
+		try {
+			parsed = JSON.parse(raw);
+		} catch {
+			return false;
+		}
+		text = typeof parsed === 'object' && parsed !== null ? (parsed as Record<string, unknown>).text : undefined;
+	} else {
+		let form: FormData;
+		try {
+			form = await request.clone().formData();
+		} catch {
+			return false;
+		}
+		text = form.get('text');
+	}
+	return typeof text === 'string' && text.trim().length > 0;
 }
 
 /**
  * Picks the rule counted per account for a request (`accountSubject`), or `null`. It applies after authentication,
- * besides the rule of the address.
+ * besides the rule of the address. A post that may parse a text is counted only when it carries one.
  */
-export function accountRuleFor(method: string, url: URL): RateLimitRule | null {
+export async function accountRuleFor(request: Request, url: URL): Promise<RateLimitRule | null> {
+	const { method } = request;
 	const { pathname } = url;
 	if (!isRead(method)) {
-		const parses = (method === 'POST' && TEXT_PARSE_API.has(pathname)) || isTextParseAction(method, url);
+		const post = textParsePost(method, url);
+		if (post === undefined) return null;
+		const parses = post.optionalText === undefined || (await carriesText(request, post.optionalText));
 		return parses ? RATE_LIMIT_RULES.textParse : null;
 	}
 	if (DATA_EXPORT_PATHS.has(pathname)) return RATE_LIMIT_RULES.dataExport;
@@ -286,7 +328,7 @@ export function rateLimitHandles(deps: { store: () => Promise<RateLimitStore>; w
 			return limit(event, resolve, rule, event.getClientAddress());
 		},
 		byAccount: async ({ event, resolve }) => {
-			const rule = accountRuleFor(event.request.method, event.url);
+			const rule = await accountRuleFor(event.request, event.url);
 			if (!rule) return resolve(event);
 			return limit(event, resolve, rule, accountSubject(event.locals.actor, event.getClientAddress()));
 		}
