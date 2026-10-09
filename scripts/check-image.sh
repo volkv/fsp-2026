@@ -23,6 +23,17 @@ image_of() { # <service of docker-compose.prod.yml>
 }
 POSTGRES_IMAGE=$(image_of postgres)
 REDIS_IMAGE=$(image_of redis)
+# The client address of the stand: its server takes it from the header the proxy sets, so a request straight to it — the
+# health check of the container — has none, and a start that reads the address of such a request is not healthy.
+app_env() { # <variable of x-app-environment in docker-compose.prod.yml>
+	local value
+	value=$(sed -n "/^x-app-environment:/,/^[^ ]/s/^  $1: //p" docker-compose.prod.yml)
+	[[ -n $value ]] || { echo "check-image: no $1 in x-app-environment of docker-compose.prod.yml" >&2; exit 1; }
+	value=${value#\'}
+	printf '%s' "${value%\'}"
+}
+ADDRESS_HEADER=$(app_env ADDRESS_HEADER)
+XFF_DEPTH=$(app_env XFF_DEPTH)
 
 RUN=fsp-image-check-$(openssl rand -hex 4)
 NETWORK=$RUN
@@ -36,7 +47,8 @@ cleanup() {
 }
 trap cleanup EXIT
 
-docker network create --internal "$NETWORK" >/dev/null
+# CHECK_IMAGE_SUBNET — the subnet of the network, for a Docker whose default address pools are used up.
+docker network create --internal ${CHECK_IMAGE_SUBNET:+--subnet "$CHECK_IMAGE_SUBNET"} "$NETWORK" >/dev/null
 docker run -d --name "$RUN-postgres" --network "$NETWORK" --network-alias postgres \
 	--tmpfs /var/lib/postgresql/data --shm-size 128m \
 	-e POSTGRES_DB=fsp -e POSTGRES_USER=fsp -e POSTGRES_PASSWORD="$DB_PASSWORD" "$POSTGRES_IMAGE" >/dev/null
@@ -52,9 +64,9 @@ docker exec "$RUN-postgres" pg_isready -q -h 127.0.0.1 -U fsp -d fsp \
 	|| { log "PostgreSQL did not start"; docker logs "$RUN-postgres" 2>&1 | tail -20; exit 1; }
 
 # The settings of the local environment template (every required variable with a valid value), with the database and the
-# cache above, and every step of the start switched on: the embedding space, the bootstrap administrator and the
-# demonstration mode, as on the stand. The services the start does not reach (storage, mail, parser, sandbox, FSP) stay
-# at the template's addresses, unreachable from the internal network.
+# cache above, the header of the client address of the stand, and every step of the start switched on: the embedding
+# space, the bootstrap administrator and the demonstration mode, as on the stand. The services the start does not reach
+# (storage, mail, parser, sandbox, FSP) stay at the template's addresses, unreachable from the internal network.
 log "starting $IMAGE"
 docker run -d --name "$RUN-app" --network "$NETWORK" \
 	--cap-drop ALL --security-opt no-new-privileges \
@@ -65,6 +77,7 @@ docker run -d --name "$RUN-app" --network "$NETWORK" \
 	-e EMBED_SPACE_ID=bge-m3@aa473d51f451/q:none/d:none/cls/l2/1024/t512/sections-v1 \
 	-e BOOTSTRAP_ADMIN_EMAIL=admin@image-check.invalid -e BOOTSTRAP_ADMIN_PASSWORD="$(openssl rand -hex 12)" \
 	-e DEMO_MODE=true \
+	-e ADDRESS_HEADER="$ADDRESS_HEADER" -e XFF_DEPTH="$XFF_DEPTH" \
 	"$IMAGE" >/dev/null
 
 HEALTH="fetch('http://127.0.0.1:3000/api/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
