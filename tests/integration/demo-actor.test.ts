@@ -66,6 +66,7 @@ import { openFile, type FileAccessContext } from '$lib/server/storage/access';
 import type { ObjectStore, StoredObject } from '$lib/server/storage/object-store';
 import { insertAttempt, releaseFixtureBank } from '../helpers/bank';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
+import { recordSeeded } from '../helpers/demo-seeded';
 import { recordDecision } from '../helpers/categories';
 import { createCandidate, createCompany, createMember, createUser, randomSha256 } from '../helpers/factories';
 
@@ -319,7 +320,8 @@ async function place(session: string | null): Promise<Place> {
 
 /**
  * The originals of the scenario cast: one account per role of `seeds/demo.json` and the candidate profile of each hero,
- * as the demo seed leaves them — a session is cloned only from a cast whose heroes have their profiles.
+ * as the demo seed leaves them, and the end of the seed — a session is cloned only from a cast whose heroes have their
+ * profiles and whose seed has finished.
  */
 async function seedCast(): Promise<Map<string, string>> {
 	const accounts = new Map<string, string>();
@@ -333,6 +335,7 @@ async function seedCast(): Promise<Map<string, string>> {
 		if (role.group === 'candidate') await createCandidate(database.db, { userId: user.id });
 		accounts.set(role.key, user.id);
 	}
+	await recordSeeded(database.db, SEED_BATCH);
 	return accounts;
 }
 

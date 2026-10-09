@@ -17,6 +17,7 @@ import { auditEvents, demoSessions } from '$lib/server/db/schema';
 import type { Redis } from '$lib/server/redis';
 import type { ObjectStore } from '$lib/server/storage/object-store';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
+import { recordSeeded } from '../helpers/demo-seeded';
 import { createCandidate, createUser } from '../helpers/factories';
 import { testEnvironment } from '../helpers/environment';
 
@@ -85,8 +86,9 @@ beforeAll(async () => {
 		await client.end({ timeout: 5 });
 	}
 	// The route's `load` rejects with `DemoCastMissing` unless every role of the cast has an account outside sessions
-	// (`castOriginals`) and every hero has a candidate profile; a company or its membership are not needed to satisfy it,
-	// so this seeds the accounts and the heroes' profiles only, not the full demo cast.
+	// (`castOriginals`), every hero has a candidate profile and the seed of their batch has finished (`seededCast`); a
+	// company or its membership are not needed to satisfy it, so this seeds the accounts, the heroes' profiles and the
+	// end of the seed only, not the full demo cast.
 	const roles = castRoles(await readSeedData(seedsDirectory()));
 	const crypto = fieldCrypto();
 	for (const role of roles) {
@@ -98,6 +100,7 @@ beforeAll(async () => {
 		});
 		if (role.group === 'candidate') await createCandidate(database.db, { userId: user.id });
 	}
+	await recordSeeded(database.db, 'demo-1');
 });
 
 afterAll(async () => {

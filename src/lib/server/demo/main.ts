@@ -15,7 +15,8 @@ import { configuredDemoServices } from './configured';
 import { readSeedData } from './data';
 import { enqueueDemoReindex } from './job';
 import { resetDemo } from './reset';
-import { batchId, isSeeded, publishedReconsents, releasedBanks, seedDemo } from './seed';
+import { batchSeeded } from './readiness';
+import { batchId, publishedReconsents, releasedBanks, seedDemo } from './seed';
 import type { DemoServices } from './services';
 
 const log = createLogger({ component: 'demo' });
@@ -64,7 +65,7 @@ async function ensure(services: DemoServices): Promise<void> {
 		await releasedBanks(services),
 		await publishedReconsents(services)
 	);
-	if (await isSeeded(services, batch)) {
+	if (await batchSeeded(services.db, batch)) {
 		log.info('demo data of the current batch are seeded', { batch });
 		return;
 	}

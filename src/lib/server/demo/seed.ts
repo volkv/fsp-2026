@@ -19,7 +19,6 @@ import { companyRegistryLookup } from '$lib/server/companies/registry-check';
 import { registryNotConfigured } from '$lib/server/companies/registry';
 import type { DocumentKind } from '$lib/server/consent/kinds';
 import {
-	auditEvents,
 	bankReleases,
 	candidateCategories,
 	candidateSurveys,
@@ -63,6 +62,7 @@ import { castOriginals, castRoles, markCastOriginals } from './cast';
 import { ensureCompany, type SeededCompany } from './companies';
 import { readSeedData, type SeedData } from './data';
 import { SeedModels, type SeedParses } from './model-parses';
+import { batchSeeded } from './readiness';
 import {
 	athletePlan,
 	companyPlans,
@@ -311,14 +311,6 @@ async function seededBatches(services: DemoServices): Promise<string[]> {
 	return rows.map((row) => row.batch);
 }
 
-export async function isSeeded(services: DemoServices, batch: string): Promise<boolean> {
-	const [row] = await services.db
-		.select({ n: count() })
-		.from(auditEvents)
-		.where(and(eq(auditEvents.action, 'demo.seeded'), sql`${auditEvents.details}->>'batch' = ${batch}`));
-	return (row?.n ?? 0) > 0;
-}
-
 async function seedCounts(services: DemoServices, batch: string): Promise<SeedCounts> {
 	const { db } = services;
 	const one = async (query: Promise<{ n: number }[]>) => (await query)[0]?.n ?? 0;
@@ -477,7 +469,7 @@ async function seedBatch(services: DemoServices): Promise<SeedSummary> {
 	const now = () => new Date();
 	const data = await readSeedData(services.seedsDir);
 	const batch = batchId(data, settings, await releasedBanks(services), await publishedReconsents(services));
-	if (await isSeeded(services, batch)) {
+	if (await batchSeeded(db, batch)) {
 		return {
 			status: 'already_seeded',
 			batch,

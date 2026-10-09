@@ -20,6 +20,7 @@ import type { ObjectStore } from '$lib/server/storage/object-store';
 import { redisDemoActivity } from './activity';
 import { DemoCastMissing, cloneEmail, type CastRole } from './cast';
 import { DemoSessionsExhausted, openDemoSession } from './clone';
+import { seedRemainingSeconds } from './readiness';
 import { readSeedData, seedsDirectory, type SeedData } from './data';
 import { demoTerms, type DemoTerms } from './terms';
 
@@ -170,8 +171,22 @@ export const DEMO_SESSION_REFUSALS = {
 	address_budget:
 		'С этого адреса сегодня открыто слишком много демо-сессий. Войдите в роль своей сессии по её ссылке или попробуйте завтра.',
 	stand_full: 'Сейчас открыто слишком много демо-сессий. Попробуйте через несколько минут.',
-	not_seeded: 'Демо-данные стенда ещё засеваются. Попробуйте через несколько минут.'
+	not_seeded: 'Демо-данные стенда обновляются. Попробуйте через несколько минут.'
 } as const satisfies Record<DemoRefusal['reason'], string>;
+
+/** When the demo data are expected to be ready, for the visitor: whole minutes, `null` — not known. */
+export function seedWaitText(retryAfterSeconds: number | null): string {
+	return retryAfterSeconds === null
+		? DEMO_SESSION_REFUSALS.not_seeded
+		: `Демо-данные стенда обновляются. Попробуйте через ${Math.ceil(retryAfterSeconds / 60)} мин.`;
+}
+
+/** Why the visitor's demo session was not opened, with the wait when it is known. */
+export function refusalText(refusal: DemoRefusal): string {
+	return refusal.reason === 'not_seeded'
+		? seedWaitText(refusal.retryAfterSeconds)
+		: DEMO_SESSION_REFUSALS[refusal.reason];
+}
 
 export type DemoRefusal = {
 	kind: 'refused';
@@ -243,7 +258,9 @@ async function visitorSession(deps: EnterDeps, input: VisitorInput): Promise<Vis
 		} catch (cause) {
 			if (cause instanceof DemoSessionsExhausted)
 				return { kind: 'refused', reason: 'stand_full', retryAfterSeconds: null };
-			if (cause instanceof DemoCastMissing) return { kind: 'refused', reason: 'not_seeded', retryAfterSeconds: null };
+			if (cause instanceof DemoCastMissing) {
+				return { kind: 'refused', reason: 'not_seeded', retryAfterSeconds: await seedRemainingSeconds(deps.db, now) };
+			}
 			throw cause;
 		}
 	}
