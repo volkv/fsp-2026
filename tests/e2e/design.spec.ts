@@ -137,11 +137,25 @@ test('dialog opens, traps focus and closes with Escape', async ({ page }) => {
 	await expect(trigger).toBeFocused();
 });
 
-test('theme toggle switches to the dark theme and keeps contrast', async ({ page }) => {
+test('theme toggle switches to the dark theme, keeps contrast and follows the system again', async ({ page }) => {
 	const errors = watchErrors(page);
+	await page.emulateMedia({ colorScheme: 'light' });
 	await page.goto('/design');
-	await page.getByRole('button', { name: 'Переключить светлую и тёмную тему' }).first().click();
+	const chooseTheme = async (label: string) => {
+		const toggle = page.getByRole('button', { name: /^Тема оформления:/ }).first();
+		for (let step = 0; step < 3; step++) {
+			if ((await toggle.getAttribute('aria-label'))?.startsWith(`Тема оформления: ${label}.`)) return;
+			await toggle.click();
+		}
+		expect(await toggle.getAttribute('aria-label')).toContain(`Тема оформления: ${label}.`);
+	};
+	await chooseTheme('тёмная');
 	await expect(page.locator('html')).toHaveClass(/dark/);
+	await page.reload();
+	await expect(page.locator('html')).toHaveClass(/dark/);
+	await expectNoAxeViolations(page);
+	await chooseTheme('как в системе');
+	await expect(page.locator('html')).not.toHaveClass(/dark/);
 	await expectNoAxeViolations(page);
 	expect(errors).toEqual([]);
 });
