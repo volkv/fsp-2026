@@ -139,10 +139,15 @@
 </svelte:head>
 
 <!-- The first screen is a dark brand block in both themes, as the FSP carriers are: the dark tokens apply inside it. -->
-<section class="dark relative overflow-hidden border-b bg-background text-foreground" aria-labelledby="hero-title">
+<!-- The header lies over it and scrolls away with it; the framed header is pinned once it has left the window. -->
+<section
+	class="dark relative overflow-hidden border-b bg-background text-foreground"
+	aria-labelledby="hero-title"
+	data-under-header
+>
 	<PatternGraph class="[mask-image:linear-gradient(90deg,rgb(0_0_0/0.55),rgb(0_0_0/0.75)_40%,black_70%)]" />
 	<div
-		class="relative mx-auto grid max-w-7xl gap-10 px-4 pt-12 pb-14 sm:px-6 lg:grid-cols-[1.2fr_1fr] lg:pt-16 lg:pb-20"
+		class="relative mx-auto grid max-w-7xl gap-10 px-4 pt-[calc(var(--header-height)+3rem)] pb-14 sm:px-6 lg:grid-cols-[1.2fr_1fr] lg:pt-[calc(var(--header-height)+4rem)] lg:pb-20"
 	>
 		<div class="space-y-6">
 			<p class="font-mono text-label text-link uppercase">Федерация спортивного программирования России</p>

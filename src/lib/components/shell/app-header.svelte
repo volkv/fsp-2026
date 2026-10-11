@@ -51,11 +51,59 @@
 		workspace ? permittedItems(WORKSPACES[workspace].items, viewer?.permissions ?? []) : PUBLIC_NAV
 	);
 	const navLabel = $derived(workspace ? `Разделы: ${WORKSPACES[workspace].label.toLowerCase()}` : 'Основная навигация');
+
+	/**
+	 * On the landing page the header lies over the first screen (marked `data-under-header`) without a frame of its own
+	 * and scrolls away with it; once the bottom of that screen leaves the top of the window the framed bar slides in,
+	 * pinned. Out of the flow in both states, so the page does not jump; the first screen leaves room for the header by
+	 * `--header-height`, which the header keeps current (the stylesheet gives the value for the first paint).
+	 */
+	const underlaid = $derived(pathname === '/');
+	let pinned = $state(false);
+	let height = $state(0);
+
+	$effect(() => {
+		pinned = false;
+		const element = underlaid ? document.querySelector('[data-under-header]') : null;
+		if (!element) return;
+		const observer = new IntersectionObserver((entries) => {
+			for (const entry of entries) pinned = !entry.isIntersecting && entry.boundingClientRect.bottom <= 0;
+		});
+		observer.observe(element);
+		return () => {
+			observer.disconnect();
+		};
+	});
+
+	$effect(() => {
+		if (!underlaid || height === 0) return;
+		const root = document.documentElement;
+		root.style.setProperty('--header-height', `${height}px`);
+		return () => root.style.removeProperty('--header-height');
+	});
+
+	const overlay = $derived(underlaid && !pinned);
 </script>
 
 <header
-	class={cn('sticky top-0 z-40 border-b bg-header/95 backdrop-blur supports-backdrop-filter:bg-header/80', className)}
+	bind:offsetHeight={height}
+	data-rows={workspace ? 2 : 1}
+	class={cn(
+		'top-0 z-40 border-b',
+		overlay
+			? 'dark absolute inset-x-0 border-transparent text-foreground'
+			: 'bg-header/95 backdrop-blur supports-backdrop-filter:bg-header/80',
+		!underlaid && 'sticky',
+		pinned && 'fixed inset-x-0 animate-in duration-300 slide-in-from-top',
+		className
+	)}
 >
+	{#if overlay}
+		<div
+			class="pointer-events-none absolute inset-0 -z-10 bg-linear-to-b from-background/80 to-transparent"
+			aria-hidden="true"
+		></div>
+	{/if}
 	<div class="mx-auto flex h-16 max-w-7xl items-center gap-4 px-4 sm:px-6">
 		<BrandLockup />
 		{#if workspace}

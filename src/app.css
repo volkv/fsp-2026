@@ -407,6 +407,15 @@
 	html.dark {
 		color-scheme: dark;
 	}
+	/* Height of the sticky header for the first paint, border included; the header keeps the exact value current. */
+	:root {
+		--header-height: 4.0625rem;
+	}
+	@media (width >= 48rem) {
+		:root:has(header[data-rows='2']) {
+			--header-height: 7.125rem;
+		}
+	}
 	body {
 		@apply bg-background text-foreground antialiased;
 	}
