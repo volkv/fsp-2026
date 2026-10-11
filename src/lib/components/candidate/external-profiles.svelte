@@ -288,7 +288,7 @@
 		<form
 			method="POST"
 			action="?/linkProfile"
-			class="grid gap-3 rounded-xl border border-dashed p-4"
+			class="grid gap-3 rounded-xl border bg-card p-4 shadow-xs"
 			use:enhance={() => {
 				linking = true;
 				return async ({ update }) => {

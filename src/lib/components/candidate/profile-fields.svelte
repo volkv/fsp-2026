@@ -59,6 +59,7 @@
 <div class="grid" data-testid="profile-fields">
 	<SettingsSection
 		title="Основное"
+		panel
 		icon={UserIcon}
 		description="Как к вам обращаться и какую работу вы ищете. Заполните вручную или примите найденное в резюме. ФИО хранится зашифрованным: компания видит его только после вашего согласия на раскрытие."
 		testId="profile-basics"
@@ -134,6 +135,7 @@
 
 	<SettingsSection
 		title="Контакты"
+		panel
 		icon={ContactIcon}
 		description="Телефон и Telegram — для связи с работодателем. Хранятся зашифрованными и раскрываются компании только с вашего согласия. Почта — адрес входа в учётную запись."
 		testId="profile-contacts"
@@ -170,6 +172,7 @@
 
 	<SettingsSection
 		title="Мягкие навыки"
+		panel
 		icon={HandshakeIcon}
 		description="С ваших слов: тест их не проверяет, в подбор они не идут. Видны только в вашем PDF-профиле."
 		testId="profile-soft-skills"

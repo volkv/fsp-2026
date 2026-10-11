@@ -40,9 +40,9 @@
 <div class="grid gap-4" data-testid="manual-experience">
 	{#if months !== null}<p class="text-sm">Стаж по этим местам работы: <span class="font-medium">{months}</span></p>{/if}
 	{#if entries.length > 0}
-		<ul class="grid gap-3">
+		<ul class="grid">
 			{#each entries as entry (entry.id)}
-				<li class="grid gap-1 rounded-lg border p-3 text-sm">
+				<li class="grid gap-1 border-b py-3 text-sm first:pt-0">
 					<div class="flex flex-wrap items-center justify-between gap-2">
 						<span class="font-medium">
 							{entry.positionTitle}{entry.organizationName ? ` · ${entry.organizationName}` : ''}

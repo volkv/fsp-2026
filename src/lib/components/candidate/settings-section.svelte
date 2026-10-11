@@ -6,18 +6,20 @@
 	/**
 	 * A row of a settings-like page: on the left the title of the section and what it is about, on the right its
 	 * controls. On a narrow screen the description stands above the controls; the heading names the section for screen
-	 * readers.
+	 * readers. A section without cards of its own sets its controls on a panel.
 	 */
 	interface Props {
 		title: string;
 		description?: string;
 		icon?: typeof UserIcon;
 		children: Snippet;
+		/** Sets the controls on a rounded panel of the card colour. */
+		panel?: boolean;
 		class?: string;
 		testId?: string;
 	}
 
-	let { title, description, icon: Icon, children, class: className, testId }: Props = $props();
+	let { title, description, icon: Icon, children, panel = false, class: className, testId }: Props = $props();
 	const headingId = $props.id();
 </script>
 
@@ -33,7 +35,12 @@
 		</h2>
 		{#if description}<p class="text-sm text-pretty text-muted-foreground">{description}</p>{/if}
 	</div>
-	<div class="grid min-w-0 content-start gap-4">
+	<div
+		class={cn(
+			'grid min-w-0 content-start gap-4',
+			panel && 'rounded-xl border bg-card p-4 text-card-foreground shadow-xs sm:p-5'
+		)}
+	>
 		{@render children()}
 	</div>
 </section>

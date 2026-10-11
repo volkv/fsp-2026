@@ -89,13 +89,14 @@
 <div class="grid">
 	<SettingsSection
 		title="Статус"
+		panel
 		icon={ActivityIcon}
 		description="Готовность получать предложения. «Активно ищу» и «Открыт к предложениям» показывают профиль проверенным компаниям — они сами выходят на вас с вакансией и зарплатой."
 		class="border-t-0 pt-0"
 	>
 		<SearchStatus status={evidence.searchStatus} catalog={data.catalog} />
-		<dl class="grid gap-3" aria-label="Статус профиля">
-			<div class="flex flex-wrap items-center justify-between gap-3 rounded-lg border px-4 py-3">
+		<dl class="grid border-t" aria-label="Статус профиля">
+			<div class="flex flex-wrap items-center justify-between gap-3 border-b py-3 last:border-b-0 last:pb-0">
 				<div class="grid gap-0.5">
 					<dt class="text-xs text-muted-foreground">Кто видит профиль</dt>
 					<dd class="text-sm font-medium">Что видят компании, согласие на показ</dd>
@@ -103,7 +104,7 @@
 				<a href={resolve('/me/visibility')} class={buttonVariants({ variant: 'outline', size: 'sm' })}>Видимость</a>
 			</div>
 			<div
-				class="flex flex-wrap items-center justify-between gap-3 rounded-lg border px-4 py-3"
+				class="flex flex-wrap items-center justify-between gap-3 border-b py-3 last:border-b-0 last:pb-0"
 				data-testid="consent-state"
 				data-state={data.consent}
 			>
@@ -213,6 +214,7 @@
 
 	<SettingsSection
 		title="Тесты платформы"
+		panel
 		icon={ClipboardCheckIcon}
 		description="Навык, не покрытый результатами ФСП, подтверждается тестом платформы."
 	>
@@ -231,6 +233,7 @@
 
 	<SettingsSection
 		title="Опыт работы"
+		panel
 		icon={BriefcaseIcon}
 		description="Места работы с ваших слов — например, те, что не вошли в резюме. Попадают в PDF-профиль с пометкой «указано кандидатом»; подсказка грейда, категория и подбор опираются на резюме и тесты."
 		testId="manual-experience-section"
