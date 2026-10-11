@@ -30,14 +30,14 @@
 </script>
 
 <PageHeader
-	title="Вызовы"
+	title="Задания"
 	description="Короткая задача с видимой вилкой и целью. Платформа регулярно предлагает её кандидатам подходящих категорий; вы видите решения под псевдонимами и приглашаете по решению."
 />
 
 <div class="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
 	<Card.Root>
 		<Card.Header>
-			<Card.Title><h2 class="font-heading text-h3">Новый вызов</h2></Card.Title>
+			<Card.Title><h2 class="font-heading text-h3">Новое задание</h2></Card.Title>
 			<Card.Description>
 				Публикации нужен заполненный профиль компании. Опубликованные условия не меняются — только срок.
 			</Card.Description>
@@ -120,16 +120,16 @@
 					<input type="checkbox" name="publish" checked class="size-4 accent-primary" />
 					Опубликовать сразу
 				</label>
-				<Button type="submit" class="justify-self-start">Сохранить вызов</Button>
+				<Button type="submit" class="justify-self-start">Сохранить задание</Button>
 			</form>
 		</Card.Content>
 	</Card.Root>
 
 	<section class="grid content-start gap-3" aria-labelledby="challenges-heading">
-		<h2 id="challenges-heading" class="font-heading text-h3">Вызовы компании</h2>
+		<h2 id="challenges-heading" class="font-heading text-h3">Задания компании</h2>
 		{#if data.challenges.length === 0}
 			<p class="flex items-center gap-2 text-sm text-muted-foreground">
-				<SwordsIcon class="size-4" aria-hidden="true" /> Вызовов пока нет.
+				<SwordsIcon class="size-4" aria-hidden="true" /> Заданий пока нет.
 			</p>
 		{:else}
 			<ul class="grid gap-2" data-testid="challenge-list">

@@ -58,7 +58,7 @@ export const load: PageServerLoad = async (event) => {
 			}
 			for (const solution of await solutionsOfCandidate(database, pair)) {
 				options.push(
-					pointOption(`Решение вызова «${solution.challengeTitle}»`, { kind: 'challenge_solution', ref: solution.id })
+					pointOption(`Решение задания «${solution.challengeTitle}»`, { kind: 'challenge_solution', ref: solution.id })
 				);
 			}
 		}

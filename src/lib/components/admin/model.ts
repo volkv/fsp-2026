@@ -273,7 +273,7 @@ export const POLICY_KINDS: Record<string, string> = {
 	market_policy: 'Рынок категории',
 	assessment_policy: 'Тесты платформы',
 	retention_policy: 'Сроки хранения',
-	challenge_policy: 'Вызовы компаний'
+	challenge_policy: 'Задания компаний'
 };
 
 // --- People ---

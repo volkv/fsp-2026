@@ -228,7 +228,7 @@ async function checkSources(
 			case 'challenge_solution': {
 				// A solution of the candidate, not withdrawn, to a call of this company (domain 13.12).
 				if (!(await solutionOfPair(tx, point.source.ref, pair))) {
-					throw invalid(`${path}.ref`, 'Решение вызова не найдено или отозвано кандидатом');
+					throw invalid(`${path}.ref`, 'Решение задания не найдено или отозвано кандидатом');
 				}
 				break;
 			}

@@ -15,7 +15,7 @@ import type { Actions, PageServerLoad } from './$types';
 
 const deliveryIdOf = (value: string, requestId: string): string => {
 	const parsed = z.uuid().safeParse(value);
-	if (!parsed.success) error(404, { message: 'Вызов не найден', requestId });
+	if (!parsed.success) error(404, { message: 'Задание не найдено', requestId });
 	return parsed.data;
 };
 
@@ -29,7 +29,7 @@ export const load: PageServerLoad = async (event) => {
 	const deliveryId = deliveryIdOf(event.params.deliveryId, event.locals.requestId);
 	try {
 		const delivery = (await myChallenges(contactPageDeps(), subject)).find((item) => item.deliveryId === deliveryId);
-		if (!delivery) error(404, { message: 'Вызов не найден', requestId: event.locals.requestId });
+		if (!delivery) error(404, { message: 'Задание не найдено', requestId: event.locals.requestId });
 		return { delivery, names: catalogNames() };
 	} catch (cause) {
 		pageError(event, cause);

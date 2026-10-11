@@ -11,7 +11,7 @@ import type { Actions, PageServerLoad } from './$types';
 
 const challengeIdOf = (value: string, requestId: string): string => {
 	const parsed = z.uuid().safeParse(value);
-	if (!parsed.success) error(404, { message: 'Вызов не найден', requestId });
+	if (!parsed.success) error(404, { message: 'Задание не найдено', requestId });
 	return parsed.data;
 };
 

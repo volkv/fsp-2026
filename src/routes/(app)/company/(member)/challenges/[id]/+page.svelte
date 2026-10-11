@@ -26,7 +26,7 @@
 </script>
 
 <PageHeader title={challenge.title} description={challenge.goal}>
-	{#snippet eyebrow()}<a class="underline underline-offset-4" href={resolve('/company/challenges')}>Вызовы</a>{/snippet}
+	{#snippet eyebrow()}<a class="underline underline-offset-4" href={resolve('/company/challenges')}>Задания</a>{/snippet}
 	{#snippet actions()}
 		<StatusPill label={STATUS[challenge.status].label} tone={STATUS[challenge.status].tone} />
 		{#if data.demoClockSeconds !== null && challenge.status === 'active'}
@@ -47,7 +47,7 @@
 	<FormMessage
 		tone="success"
 		text={challenge.status === 'active'
-			? 'Вызов опубликован: первая доставка кандидатам — при ближайшем прогоне.'
+			? 'Задание опубликовано: первая доставка кандидатам — при ближайшем прогоне.'
 			: 'Черновик сохранён.'}
 	/>
 {:else if form && 'advanced' in form}
@@ -56,9 +56,9 @@
 		text={`Часы демо-сессии ушли на неделю вперёд: новых доставок — ${form.advanced}; неоткрытым ушло напоминание.`}
 	/>
 {:else if form && 'published' in form}
-	<FormMessage tone="success" text="Вызов опубликован." />
+	<FormMessage tone="success" text="Задание опубликовано." />
 {:else if form && 'closed' in form}
-	<FormMessage tone="success" text="Вызов закрыт: новые доставки и решения не принимаются." />
+	<FormMessage tone="success" text="Задание закрыто: новые доставки и решения не принимаются." />
 {:else if form && 'dismissed' in form}
 	<FormMessage tone="success" text="Решение отложено." />
 {/if}
@@ -99,7 +99,7 @@
 		{#if challenge.status !== 'closed'}
 			<form method="POST" action="?/close" use:enhance>
 				<CsrfInput />
-				<Button type="submit" size="sm" variant="outline">Закрыть вызов</Button>
+				<Button type="submit" size="sm" variant="outline">Закрыть задание</Button>
 			</form>
 		{/if}
 	</div>

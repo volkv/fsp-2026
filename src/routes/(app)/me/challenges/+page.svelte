@@ -27,7 +27,7 @@
 </script>
 
 <PageHeader
-	title="Вызовы компаний"
+	title="Задания компаний"
 	description="Короткие задачи компаний с видимой вилкой и целью. Решение или подход компания видит без вашего имени и может пригласить по нему; отправленное решение освежает профиль в выдаче."
 >
 	{#snippet eyebrow()}<a class="underline underline-offset-4" href={resolve('/me/profile')}>Профиль</a>{/snippet}
@@ -62,9 +62,9 @@
 	<Empty.Root class="border">
 		<Empty.Header>
 			<Empty.Media variant="icon"><SwordsIcon aria-hidden="true" /></Empty.Media>
-			<Empty.Title>Вызовов пока нет</Empty.Title>
+			<Empty.Title>Заданий пока нет</Empty.Title>
 			<Empty.Description>
-				Вызов приходит кандидатам категорий, на которые он рассчитан, не чаще раза в неделю. Категория подтверждается
+				Задание приходит кандидатам категорий, на которые оно рассчитано, не чаще раза в неделю. Категория подтверждается
 				тестом.
 			</Empty.Description>
 		</Empty.Header>

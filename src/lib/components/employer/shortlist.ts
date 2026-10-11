@@ -334,7 +334,7 @@ export const COMPONENT_REASONS: Record<string, string> = {
 	region_other: 'другой регион',
 	relocation: 'готов к переезду',
 	no_category: 'грейд не подтверждён тестом',
-	no_confirmed_action: 'нет подтверждённых действий: ни категории, ни блок-теста, ни решения вызова'
+	no_confirmed_action: 'нет подтверждённых действий: ни категории, ни блок-теста, ни решения задания'
 };
 
 /**

@@ -42,11 +42,11 @@
 </script>
 
 <PageHeader title={challenge.title} description={challenge.companyName}>
-	{#snippet eyebrow()}<a class="underline underline-offset-4" href={resolve('/me/challenges')}>Вызовы компаний</a
+	{#snippet eyebrow()}<a class="underline underline-offset-4" href={resolve('/me/challenges')}>Задания компаний</a
 		>{/snippet}
 	{#snippet actions()}
 		{#if !challenge.open}
-			<StatusPill label="Вызов закрыт" />
+			<StatusPill label="Задание закрыто" />
 		{:else}
 			<StatusPill label={`До ${formatDate(challenge.endsAt)}`} tone="info" />
 		{/if}
@@ -60,7 +60,7 @@
 {:else if form && 'withdrawn' in form}
 	<FormMessage tone="success" text="Отозвано: компания его больше не видит." />
 {:else if form && 'dismissed' in form}
-	<FormMessage tone="success" text="Вызов убран из новых." />
+	<FormMessage tone="success" text="Задание убрано из новых." />
 {/if}
 
 <SectionCard title="Задача" description={`Нужен ${kind}; на задачу — около ${challenge.timeLimitMinutes} мин.`}>

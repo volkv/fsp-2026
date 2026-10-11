@@ -364,12 +364,12 @@ function bodyOf(type: NotificationType, facts: NotificationFacts, payload: Paylo
 		case 'challenge.reminder':
 			if (facts.object !== 'challenge_delivery') unsupported(type, facts);
 			return {
-				subject: type === 'challenge.delivered' ? 'Новый вызов компании' : 'Напоминание о вызове компании',
+				subject: type === 'challenge.delivered' ? 'Новое задание компании' : 'Напоминание о задании компании',
 				paragraphs: [
 					`Компания «${facts.companyName}» предлагает короткую задачу «${facts.challengeTitle}» кандидатам вашей категории.`,
 					'Вилка и цель видны сразу; решение или подход видит компания без вашего имени и может пригласить по нему.'
 				],
-				action: 'Открыть вызов'
+				action: 'Открыть задание'
 			};
 		case 'application.received':
 			if (facts.object !== 'application' || facts.side !== 'company') unsupported(type, facts);

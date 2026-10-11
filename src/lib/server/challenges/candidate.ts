@@ -197,7 +197,7 @@ export async function openDelivery(
 
 function closedChallenge() {
 	return refuse('conflict', 'challenge_closed', [
-		{ code: 'challenge_closed', message: 'Вызов закрыт: решения больше не принимаются' }
+		{ code: 'challenge_closed', message: 'Задание закрыто: решения больше не принимаются' }
 	]);
 }
 
@@ -329,7 +329,7 @@ export async function dismissDelivery(deps: ChallengeDeps, subject: AccessSubjec
 	await deps.db.transaction(async (tx) => {
 		const row = await lockOwnDelivery(tx, side, deliveryId);
 		if (row.delivery.status !== 'delivered' && row.delivery.status !== 'opened') {
-			throw refuse('conflict', 'not_open', [{ code: 'not_open', message: 'Вызов уже решён или закрыт' }]);
+			throw refuse('conflict', 'not_open', [{ code: 'not_open', message: 'Задание уже решено или закрыто' }]);
 		}
 		await tx
 			.update(challengeDeliveries)

@@ -142,11 +142,11 @@ export const NOTIFICATION_TYPES = {
 		objectType: 'confirmation_request',
 		title: 'Результат по запросу подтверждения'
 	},
-	'challenge.delivered': { category: 'invitations', objectType: 'challenge_delivery', title: 'Новый вызов компании' },
+	'challenge.delivered': { category: 'invitations', objectType: 'challenge_delivery', title: 'Новое задание компании' },
 	'challenge.reminder': {
 		category: 'deadlines',
 		objectType: 'challenge_delivery',
-		title: 'Напоминание о вызове компании'
+		title: 'Напоминание о задании компании'
 	},
 	'application.received': { category: 'invitations', objectType: 'application', title: 'Новый отклик на вакансию' },
 	'application.decided': { category: 'invitations', objectType: 'application', title: 'Ответ компании на отклик' },

@@ -137,7 +137,7 @@ function validInput(
 	}
 	if (Number.isNaN(input.endsAt.getTime()) || input.endsAt <= now) throw invalid('ends_at', 'Окончание — в будущем');
 	if (input.endsAt.getTime() - now.getTime() > CHALLENGE_LIMITS.periodDaysMax * 86_400_000) {
-		throw invalid('ends_at', `Вызов идёт не дольше ${CHALLENGE_LIMITS.periodDaysMax} дней`);
+		throw invalid('ends_at', `Задание идёт не дольше ${CHALLENGE_LIMITS.periodDaysMax} дней`);
 	}
 	return {
 		title,
@@ -319,7 +319,7 @@ export async function updateChallenge(
 		const now = await companyNow(tx, member.companyId, deps.now());
 		const actor = auditActor(subject, meta, 'company');
 		if (row.status === 'closed')
-			throw refuse('conflict', 'challenge_closed', [{ code: 'challenge_closed', message: 'Вызов закрыт' }]);
+			throw refuse('conflict', 'challenge_closed', [{ code: 'challenge_closed', message: 'Задание закрыто' }]);
 		const { status, ...content } = patch;
 		const changesContent = Object.keys(content).length > 0;
 		let next: ChallengeRow = row;
@@ -328,7 +328,7 @@ export async function updateChallenge(
 				const onlyEnd = Object.keys(content).every((key) => key === 'endsAt');
 				if (!onlyEnd) {
 					throw refuse('conflict', 'challenge_published', [
-						{ code: 'challenge_published', message: 'У опубликованного вызова меняется только окончание' }
+						{ code: 'challenge_published', message: 'У опубликованного задания меняется только окончание' }
 					]);
 				}
 			}

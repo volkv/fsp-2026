@@ -99,7 +99,7 @@ export const load: PageServerLoad = async (event) => {
 				)
 			),
 			...solutions.map((solution) =>
-				pointOption(`Решение вызова «${solution.challengeTitle}»`, { kind: 'challenge_solution', ref: solution.id })
+				pointOption(`Решение задания «${solution.challengeTitle}»`, { kind: 'challenge_solution', ref: solution.id })
 			)
 		];
 		const fromSolution = event.url.searchParams.get('solution');

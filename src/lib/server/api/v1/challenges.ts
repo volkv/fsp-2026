@@ -28,7 +28,7 @@ import { dateTime, id, iso, isoOrNull, pseudonym } from '../schemas';
 import { contactDeps } from '../services';
 import { invitationMeta } from './context';
 
-const TAG = 'Вызовы компаний';
+const TAG = 'Задания компаний';
 
 const salary = z
 	.object({
@@ -58,7 +58,7 @@ const challengeSchema = z
 		created_at: dateTime,
 		counts: z.object({ delivered: z.int(), opened: z.int(), solutions: z.int() })
 	})
-	.meta({ id: 'CompanyChallenge', description: 'Вызов компании' });
+	.meta({ id: 'CompanyChallenge', description: 'Задание компании' });
 
 const challengeOut = (view: ChallengeView) => ({
 	id: view.id,
@@ -89,24 +89,24 @@ const challengeBody = {
 	statement: z.string().describe('Условие задачи, 50–5000 символов'),
 	answer_kind: z.enum(['solution', 'approach']),
 	specialization: z.enum(SPECIALIZATION_KEYS),
-	grades: z.array(z.enum(GRADE_KEYS)).describe('Грейды категорий, которым доставляется вызов'),
+	grades: z.array(z.enum(GRADE_KEYS)).describe('Грейды категорий, которым доставляется задание'),
 	salary_min: z.int(),
 	salary_max: z.int(),
 	salary_currency: z.string().describe('Только `RUB`; другая валюта — `422 salary_not_rub`'),
 	salary_tax_base: z.enum(['gross', 'net']),
-	goal: z.string().describe('Цель вызова, до 500 символов'),
+	goal: z.string().describe('Цель задания, до 500 символов'),
 	time_limit_minutes: z.int().describe('Время на задачу, 5–30 минут'),
 	ends_at: z.iso.datetime().describe('Окончание; не позже 60 дней от публикации')
 };
 
-const challengeParams = z.strictObject({ challenge_id: id('Вызов') });
+const challengeParams = z.strictObject({ challenge_id: id('Задание') });
 
 export const createCompanyChallenge = defineOperation({
 	id: 'createChallenge',
 	method: 'POST',
 	path: '/challenges',
 	tag: TAG,
-	summary: 'Создать вызов',
+	summary: 'Создать задание',
 	description:
 		'Черновик или сразу опубликованный (`publish: true`). Публикации нужен заполненный профиль компании ' +
 		'(`422 company_profile_incomplete`) и открытая специализация; недопустимое требование в тексте — ' +
@@ -135,7 +135,7 @@ export const createCompanyChallenge = defineOperation({
 		]
 	}),
 	errors: ['forbidden', 'policy_violation'],
-	response: { status: 201, description: 'Вызов создан', schema: challengeSchema },
+	response: { status: 201, description: 'Задание создано', schema: challengeSchema },
 	async handle(ctx) {
 		const body = ctx.body;
 		return challengeOut(
@@ -163,12 +163,12 @@ export const listCompanyChallenges = defineOperation({
 	method: 'GET',
 	path: '/challenges',
 	tag: TAG,
-	summary: 'Вызовы компании',
-	description: 'Вызовы своей компании, новые первыми, с числом доставок, открытий и решений.',
+	summary: 'Задания компании',
+	description: 'Задания своей компании, новые первыми, с числом доставок, открытий и решений.',
 	auth: 'account',
 	permission: 'challenge.manage',
 	errors: ['forbidden'],
-	response: { status: 200, description: 'Вызовы', schema: z.object({ items: z.array(challengeSchema) }) },
+	response: { status: 200, description: 'Задания', schema: z.object({ items: z.array(challengeSchema) }) },
 	async handle(ctx) {
 		return { items: (await listChallenges(contactDeps(ctx.services), await ctx.subject())).map(challengeOut) };
 	}
@@ -179,13 +179,13 @@ export const getCompanyChallenge = defineOperation({
 	method: 'GET',
 	path: '/challenges/{challenge_id}',
 	tag: TAG,
-	summary: 'Вызов',
-	description: 'Вызов своей компании; чужой — `404`.',
+	summary: 'Задание',
+	description: 'Задание своей компании; чужой — `404`.',
 	auth: 'account',
 	permission: 'challenge.manage',
 	params: challengeParams,
 	errors: ['forbidden', 'not_found'],
-	response: { status: 200, description: 'Вызов', schema: challengeSchema },
+	response: { status: 200, description: 'Задание', schema: challengeSchema },
 	async handle(ctx) {
 		return challengeOut(await getChallenge(contactDeps(ctx.services), await ctx.subject(), ctx.params.challenge_id));
 	}
@@ -212,7 +212,7 @@ export const updateCompanyChallenge = defineOperation({
 	method: 'PATCH',
 	path: '/challenges/{challenge_id}',
 	tag: TAG,
-	summary: 'Изменить, опубликовать или закрыть вызов',
+	summary: 'Изменить, опубликовать или закрыть задание',
 	description:
 		'Поля черновика меняются свободно; у опубликованного — только `ends_at` (кандидаты видели условия, иначе ' +
 		'`409 challenge_published`). Закрытый — `409 challenge_closed`.',
@@ -221,7 +221,7 @@ export const updateCompanyChallenge = defineOperation({
 	params: challengeParams,
 	body: patchBody,
 	errors: ['forbidden', 'not_found', 'conflict', 'policy_violation'],
-	response: { status: 200, description: 'Вызов', schema: challengeSchema },
+	response: { status: 200, description: 'Задание', schema: challengeSchema },
 	async handle(ctx) {
 		const body = ctx.body;
 		return challengeOut(
@@ -257,7 +257,7 @@ const solutionSchema = z
 		category: z
 			.object({ specialization: z.enum(SPECIALIZATION_KEYS), grade: z.enum(GRADE_KEYS) })
 			.nullable()
-			.describe('Категория кандидата в специализации вызова'),
+			.describe('Категория кандидата в специализации задания'),
 		content: z.string().describe('Текст или код; контакты в нём скрыты, пока компания не получила контакты кандидата'),
 		submitted_at: dateTime,
 		decision: z.enum(['invited', 'dismissed']).nullable(),
@@ -280,7 +280,7 @@ export const listChallengeSolutions = defineOperation({
 	method: 'GET',
 	path: '/challenges/{challenge_id}/solutions',
 	tag: TAG,
-	summary: 'Решения вызова',
+	summary: 'Решения задания',
 	description:
 		'Решения и подходы по псевдонимам компании; отозванные и решения кандидатов, которых компания больше не видит, ' +
 		'не показываются. Пригласить из решения — `POST /invitations` с пунктом «почему вы» ' +
@@ -309,7 +309,7 @@ export const dismissChallengeSolution = defineOperation({
 	description: 'Компания не продолжает по решению; уже решённое — `409`.',
 	auth: 'account',
 	permission: 'challenge.manage',
-	params: z.strictObject({ challenge_id: id('Вызов'), solution_id: id('Решение') }),
+	params: z.strictObject({ challenge_id: id('Задание'), solution_id: id('Решение') }),
 	errors: ['forbidden', 'not_found', 'conflict'],
 	response: { status: 204, description: 'Решение отложено' },
 	async handle(ctx) {
@@ -354,7 +354,7 @@ const deliverySchema = z
 			})
 			.nullable()
 	})
-	.meta({ id: 'DeliveredChallenge', description: 'Вызов, доставленный кандидату' });
+	.meta({ id: 'DeliveredChallenge', description: 'Задание, доставленное кандидату' });
 
 const deliveryOut = (view: DeliveredChallenge) => ({
 	delivery_id: view.deliveryId,
@@ -391,19 +391,19 @@ const deliveryOut = (view: DeliveredChallenge) => ({
 	}
 });
 
-const deliveryParams = z.strictObject({ delivery_id: id('Доставка вызова') });
+const deliveryParams = z.strictObject({ delivery_id: id('Доставка задания') });
 
 export const listMyChallenges = defineOperation({
 	id: 'listMyChallenges',
 	method: 'GET',
 	path: '/me/challenges',
 	tag: TAG,
-	summary: 'Мои вызовы',
-	description: 'Вызовы, доставленные кандидату, новые первыми, с его решениями.',
+	summary: 'Мои задания',
+	description: 'Задания, доставленные кандидату, новые первыми, с его решениями.',
 	auth: 'session',
 	permission: 'candidate.self.read',
 	errors: ['forbidden'],
-	response: { status: 200, description: 'Вызовы', schema: z.object({ items: z.array(deliverySchema) }) },
+	response: { status: 200, description: 'Задания', schema: z.object({ items: z.array(deliverySchema) }) },
 	async handle(ctx) {
 		return { items: (await myChallenges(contactDeps(ctx.services), await ctx.subject())).map(deliveryOut) };
 	}
@@ -414,13 +414,13 @@ export const markChallengeViewed = defineOperation({
 	method: 'POST',
 	path: '/me/challenges/{delivery_id}/viewed',
 	tag: TAG,
-	summary: 'Отметить вызов открытым',
-	description: 'Открытие вызова свежесть профиля не меняет; чужая доставка — `404`.',
+	summary: 'Отметить задание открытым',
+	description: 'Открытие задания свежесть профиля не меняет; чужая доставка — `404`.',
 	auth: 'session',
 	permission: 'candidate.self.read',
 	params: deliveryParams,
 	errors: ['forbidden', 'not_found'],
-	response: { status: 200, description: 'Вызов', schema: deliverySchema },
+	response: { status: 200, description: 'Задание', schema: deliverySchema },
 	async handle(ctx) {
 		return deliveryOut(await openDelivery(contactDeps(ctx.services), await ctx.subject(), ctx.params.delivery_id));
 	}
@@ -433,7 +433,7 @@ export const submitChallengeSolution = defineOperation({
 	tag: TAG,
 	summary: 'Отправить решение или подход',
 	description:
-		'Одно решение на доставку; отозванное можно отправить снова. Вызов закрыт или срок прошёл — ' +
+		'Одно решение на доставку; отозванное можно отправить снова. Задание закрыто или срок прошёл — ' +
 		'`409 challenge_closed`; решение уже отправлено — `409 already_submitted`. Отправленное решение освежает профиль.',
 	auth: 'session',
 	permission: 'candidate.self.write',
@@ -463,7 +463,7 @@ export const withdrawChallengeSolution = defineOperation({
 	description: 'Решение принадлежит кандидату: отозванное компания больше не видит, его текст стирается.',
 	auth: 'session',
 	permission: 'candidate.self.write',
-	params: z.strictObject({ delivery_id: id('Доставка вызова'), solution_id: id('Решение') }),
+	params: z.strictObject({ delivery_id: id('Доставка задания'), solution_id: id('Решение') }),
 	errors: ['forbidden', 'not_found'],
 	response: { status: 204, description: 'Решение отозвано' },
 	async handle(ctx) {
@@ -483,12 +483,12 @@ export const dismissMyChallenge = defineOperation({
 	path: '/me/challenges/{delivery_id}/dismissal',
 	tag: TAG,
 	summary: 'Не интересно',
-	description: 'Вызов уходит из новых; решённый или закрытый — `409`.',
+	description: 'Задание уходит из новых; решённый или закрытый — `409`.',
 	auth: 'session',
 	permission: 'candidate.self.write',
 	params: deliveryParams,
 	errors: ['forbidden', 'not_found', 'conflict'],
-	response: { status: 204, description: 'Вызов отклонён' },
+	response: { status: 204, description: 'Задание отклонено' },
 	async handle(ctx) {
 		await dismissDelivery(contactDeps(ctx.services), await ctx.subject(), ctx.params.delivery_id);
 	}
@@ -501,7 +501,7 @@ export const advanceDemoSessionClock = defineOperation({
 	tag: TAG,
 	summary: 'Промотать неделю в демо-сессии',
 	description:
-		'Только учётке демо-сессии: часы сессии сдвигаются на неделю, и доставка вызовов компаний сессии сразу ' +
+		'Только учётке демо-сессии: часы сессии сдвигаются на неделю, и доставка заданий компаний сессии сразу ' +
 		'проходит на новых часах — повторный цикл без ожидания; другие сессии и строки вне сессий не меняются. ' +
 		'Учётка вне демо-сессий — `403`.',
 	auth: 'session',

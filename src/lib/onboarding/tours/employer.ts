@@ -47,7 +47,7 @@ export const employerTour: WorkspaceTour = {
 		{
 			href: '/company/challenges',
 			target: navItem('/company/challenges'),
-			title: 'Вызовы',
+			title: 'Задания',
 			body: 'Короткие задачи от компании: по решениям вы находите сильных и приглашаете их.'
 		},
 		{
@@ -363,28 +363,28 @@ export const employerTour: WorkspaceTour = {
 		},
 		{
 			route: '/company/challenges',
-			title: 'Вызовы',
+			title: 'Задания',
 			steps: [
 				{
 					target: testId('challenge-create'),
-					title: 'Новый вызов',
-					body: 'Опишите задачу, специализацию и вилку и нажмите «Сохранить вызов».'
+					title: 'Новое задание',
+					body: 'Опишите задачу, специализацию и вилку и нажмите «Сохранить задание».'
 				},
 				{
 					target: testId('challenge-list'),
-					title: 'Вызовы компании',
-					body: 'Откройте вызов, чтобы опубликовать его и смотреть решения.'
+					title: 'Задания компании',
+					body: 'Откройте задание, чтобы опубликовать его и смотреть решения.'
 				}
 			]
 		},
 		{
 			route: '/company/challenges/[id]',
-			title: 'Вызов',
+			title: 'Задание',
 			steps: [
 				{
 					target: testId('challenge-counts'),
-					title: 'Отклик на вызов',
-					body: 'Сколько кандидатов получили вызов, открыли его и прислали решения.'
+					title: 'Отклик на задание',
+					body: 'Сколько кандидатов получили задание, открыли его и прислали решения.'
 				},
 				{
 					target: testId('challenge-solutions'),

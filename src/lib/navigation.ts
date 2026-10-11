@@ -69,7 +69,7 @@ export const WORKSPACES: Record<Workspace, WorkspaceNav> = {
 			{ label: 'Резюме', icon: FileUserIcon, href: resolve('/me/resume') },
 			{ label: 'Вакансии', icon: BriefcaseIcon, href: resolve('/me/vacancies') },
 			{ label: 'Приглашения', icon: InboxIcon, href: resolve('/me/invitations') },
-			{ label: 'Вызовы', icon: SwordsIcon, href: resolve('/me/challenges') },
+			{ label: 'Задания', icon: SwordsIcon, href: resolve('/me/challenges') },
 			{ label: 'Тесты', icon: ClipboardCheckIcon, href: resolve('/me/tests') }
 		]
 	},
@@ -81,7 +81,7 @@ export const WORKSPACES: Record<Workspace, WorkspaceNav> = {
 			{ label: 'Вакансии', icon: BriefcaseIcon, href: resolve('/company/vacancies') },
 			{ label: 'Приглашения', icon: InboxIcon, href: resolve('/company/invitations') },
 			{ label: 'Отклики', icon: SendIcon, href: resolve('/company/applications') },
-			{ label: 'Вызовы', icon: SwordsIcon, href: resolve('/company/challenges') },
+			{ label: 'Задания', icon: SwordsIcon, href: resolve('/company/challenges') },
 			{ label: 'Найм', icon: ListChecksIcon, href: resolve('/company/hiring') },
 			{
 				label: 'Пул партнёра',
