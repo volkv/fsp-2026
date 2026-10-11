@@ -19,7 +19,7 @@
 </svelte:head>
 
 <header class={cn('flex flex-wrap items-end justify-between gap-4', className)}>
-	<div class="grid min-w-0 gap-1">
+	<div class="grid min-w-0 flex-1 basis-md gap-1">
 		{#if eyebrow}
 			<div class="text-sm text-muted-foreground">{@render eyebrow()}</div>
 		{/if}

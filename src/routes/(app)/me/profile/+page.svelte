@@ -12,6 +12,7 @@
 	import ResumeSummary from '$lib/components/candidate/resume-summary.svelte';
 	import SectionCard from '$lib/components/candidate/section-card.svelte';
 	import SkillList from '$lib/components/candidate/skill-list.svelte';
+	import VisibilityToggle from '$lib/components/candidate/visibility-toggle.svelte';
 	import PageHeader from '$lib/components/forms/page-header.svelte';
 	import { InsufficientData } from '$lib/components/product/index.js';
 	import { buttonVariants } from '$lib/components/ui/button/index.js';
@@ -79,8 +80,14 @@
 >
 	{#snippet eyebrow()}{evidence.displayName}{/snippet}
 	{#snippet actions()}
-		<a href={resolve('/me/category')} class={buttonVariants({ variant: 'outline' })}>Категория</a>
-		<a href={resolve('/me/settings')} class={buttonVariants({ variant: 'outline' })}>Предпочтения</a>
+		<div class="flex w-full flex-col gap-3 sm:w-auto sm:items-end">
+			<VisibilityToggle visibility={data.visibility} />
+			<div class="flex flex-wrap gap-2">
+				<a href={resolve('/me/category')} class={buttonVariants({ variant: 'outline' })}>Категория</a>
+				<a href={resolve('/me/settings')} class={buttonVariants({ variant: 'outline' })}>Предпочтения</a>
+				<a href={resolve('/me/visibility')} class={buttonVariants({ variant: 'outline' })}>Видимость</a>
+			</div>
+		</div>
 	{/snippet}
 </PageHeader>
 
@@ -92,15 +99,7 @@
 			<a class="text-sm text-link underline underline-offset-4" href={resolve('/me/vacancies')}>изменить</a>
 		</dd>
 	</div>
-	<div class="rounded-lg border p-3">
-		<dt class="text-xs text-muted-foreground">Показ работодателям</dt>
-		<dd class="flex flex-wrap items-center justify-between gap-2">
-			<span class="font-medium">{evidence.visibility === 'catalog' ? 'Включён' : 'Выключен'}</span>
-			<a class="text-sm text-link underline underline-offset-4" href={resolve('/me/visibility')}>видимость и согласия</a
-			>
-		</dd>
-	</div>
-	<div class="rounded-lg border p-3 sm:col-span-2" data-testid="consent-state" data-state={data.consent}>
+	<div class="rounded-lg border p-3" data-testid="consent-state" data-state={data.consent}>
 		<dt class="text-xs text-muted-foreground">Согласие на обработку данных</dt>
 		<dd class="flex flex-wrap items-center justify-between gap-2">
 			<span class="font-medium">{CONSENT_STATES[data.consent]}</span>

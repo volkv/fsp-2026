@@ -77,6 +77,28 @@ async function lastSubjectEvent(executor: Executor, candidateId: string, kind: C
 	return row ?? null;
 }
 
+async function lastCatalogGrant(
+	executor: Executor,
+	candidateId: string
+): Promise<{ documentId: string; scopeFields: CatalogScopeField[] } | null> {
+	const [row] = await executor
+		.select({ documentId: consentEvents.documentId, scopeFields: consentEvents.scopeFields })
+		.from(consentEvents)
+		.where(
+			and(
+				eq(consentEvents.subjectCandidateId, candidateId),
+				eq(consentEvents.kind, 'catalog_visibility'),
+				eq(consentEvents.signerKind, 'subject'),
+				eq(consentEvents.action, 'grant')
+			)
+		)
+		.orderBy(desc(consentEvents.occurredAt), desc(consentEvents.id))
+		.limit(1);
+	if (!row) return null;
+	const stored = row.scopeFields ?? [];
+	return { documentId: row.documentId, scopeFields: CATALOG_SCOPE_FIELDS.filter((field) => stored.includes(field)) };
+}
+
 async function representativeVerified(executor: Executor, candidateId: string): Promise<boolean> {
 	const [row] = await executor
 		.select({ id: representations.id })
@@ -513,6 +535,11 @@ export interface ConsentOverview {
 		effective: boolean;
 		scopeFields: CatalogScopeField[];
 		grantedAt: Date | null;
+		/**
+		 * The candidate's last own grant, revoked since or not: the edition of the text agreed to and the blocks of the
+		 * card. Showing the profile again under the same edition needs no second reading of the text.
+		 */
+		lastGrant: { documentId: string; scopeFields: CatalogScopeField[] } | null;
 	};
 	hiddenReason: HiddenReason | null;
 	telegram: { subjectGranted: boolean; effective: boolean };
@@ -551,7 +578,8 @@ export async function consentOverview(db: Database, candidateId: string, now: Da
 			subjectGranted: catalogEvent?.action === 'grant',
 			effective: catalogGrant !== null,
 			scopeFields: catalogGrant ? [...catalogGrant.scopeFields] : [],
-			grantedAt: catalogEvent?.action === 'grant' ? catalogEvent.occurredAt : null
+			grantedAt: catalogEvent?.action === 'grant' ? catalogEvent.occurredAt : null,
+			lastGrant: await lastCatalogGrant(db, candidateId)
 		},
 		hiddenReason,
 		telegram: {

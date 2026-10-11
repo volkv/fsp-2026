@@ -90,9 +90,14 @@ export const candidateTour: WorkspaceTour = {
 			title: 'Профиль',
 			steps: [
 				{
+					target: testId('visibility-toggle'),
+					title: 'Показ работодателям',
+					body: 'Главный выключатель: включите — и проверенные компании найдут вас в каталоге; выключите — профиль скроется сразу.'
+				},
+				{
 					target: testId('profile-fields'),
 					title: 'Данные профиля',
-					body: 'Заполните имя и контакты — без них PDF-профиль не соберётся.'
+					body: 'Заполните имя и контакты — без них PDF-профиль внизу страницы не соберётся.'
 				},
 				{
 					target: testId('fsp-achievements'),
@@ -103,11 +108,6 @@ export const candidateTour: WorkspaceTour = {
 					target: testId('skills'),
 					title: 'Навыки',
 					body: 'Смотрите, чем подтверждён навык: тест и ФСП весят больше заявленного.'
-				},
-				{
-					target: testId('pdf-section'),
-					title: 'PDF-профиль',
-					body: 'Скачайте PDF-профиль — QR-код в нём подтверждает вашу категорию.'
 				}
 			]
 		},
