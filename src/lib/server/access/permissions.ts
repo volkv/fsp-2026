@@ -74,8 +74,9 @@ export const PERMISSIONS = {
 	// A candidate's complaint about an offer and its review by an operator (domain 13.14).
 	'complaint.create': { roles: ['candidate'], apiKey: false },
 	'complaint.review': { roles: ['operator'], apiKey: false },
-	// Subscriptions of the company to its outgoing events: they hold secrets, so never by a key (domain 5.7).
-	'company.events.manage': { roles: ['owner'], apiKey: false }
+	// Subscriptions of the company to its outgoing events (domain 5.7): the owner, or a key the owner granted it — the
+	// integration that receives the events registers itself and rotates its secret.
+	'company.events.manage': { roles: ['owner'], apiKey: true }
 } as const satisfies Record<string, PermissionSpec>;
 
 export type Permission = keyof typeof PERMISSIONS;

@@ -29,7 +29,10 @@ const applicationSchema = z
 		vacancy: z.object({ id: z.uuid(), title: z.string() }),
 		company: z.object({ id: z.uuid(), display_name: z.string() }),
 		candidate_pseudonym: pseudonym.nullable().describe('Кандидат для компании; кандидату — `null`'),
-		message: z.string().nullable(),
+		message: z
+			.string()
+			.nullable()
+			.describe('Сопроводительное сообщение; компании — с контактами, скрытыми до раскрытия ей контактов кандидата'),
 		match: z
 			.object({
 				score: z.number(),

@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { DOCS_CSP, DOCS_HTML, docsAsset } from '$lib/server/api/docs';
 import { openApiDocument, type OpenApiDocument } from '$lib/server/api/openapi';
+import { OUTGOING_WEBHOOKS } from '$lib/server/api/v1/event-webhooks';
 import type { Operation } from '$lib/server/api/operation';
 import * as v1 from '$lib/server/api/v1';
 import * as account from '$lib/server/api/v1/account';
@@ -40,7 +41,7 @@ import * as verify from '$lib/server/api/v1/verify';
 const ROUTES = fileURLToPath(new URL('../../src/routes/api/v1', import.meta.url));
 const METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as const;
 
-const document: OpenApiDocument = openApiDocument(v1.API_OPERATIONS, v1.EXTERNAL_ROUTES);
+const document: OpenApiDocument = openApiDocument(v1.API_OPERATIONS, v1.EXTERNAL_ROUTES, OUTGOING_WEBHOOKS);
 
 /** Operations by the name they are exported under: route files serve them by that name. */
 const exported = new Map<string, Operation>(

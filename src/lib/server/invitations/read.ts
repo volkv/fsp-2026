@@ -18,7 +18,9 @@ import type { DisclosureField } from '$lib/server/consent/kinds';
 import { companyInDemoScope, demoSessionOfUser, inDemoScope } from '$lib/server/demo/scope';
 import { loadCompanyProfile, type CompanyPublicProfile } from '$lib/server/companies/public-profile';
 import { companyTrust, type CompanyTrust } from '$lib/server/companies/trust';
+import { candidateTextForCompany } from '$lib/server/visibility/contact-mask';
 import type { InvitationDeps } from './deps';
+import { companyHoldsContacts } from './consent';
 import { refuse } from './errors';
 import { termsContent, termsHistory, termsSalary, type InvitationRow, type TermsRow } from './records';
 import { pendingRepresentativeDisclosure } from './respond';
@@ -172,7 +174,27 @@ export async function getInvitation(
 		.select({ id: hiringProcesses.id })
 		.from(hiringProcesses)
 		.where(eq(hiringProcesses.invitationId, invitation.id));
-	const versions = await versionsOf(executor, invitation.id);
+	const written = await versionsOf(executor, invitation.id);
+	// The reason of a declined version is the candidate's text: the company reads its contacts only once it holds them.
+	const holdsContacts =
+		viewer === 'candidate' ||
+		!written.some((version) => version.response?.reasonText) ||
+		(await companyHoldsContacts(
+			executor,
+			{ candidateId: invitation.candidateId, companyId: invitation.companyId },
+			deps.now()
+		));
+	const versions = written.map((version) =>
+		version.response?.reasonText
+			? {
+					...version,
+					response: {
+						...version.response,
+						reasonText: candidateTextForCompany(version.response.reasonText, holdsContacts)
+					}
+				}
+			: version
+	);
 	if (!versions.some((v) => v.id === invitation.currentTermsId)) {
 		throw new Error(`invitation ${invitation.id} lost its current terms`);
 	}

@@ -6,14 +6,20 @@ import { bytea, enumCheck, id, subsetOf, timestamps, ts } from './_columns';
 import { companies, companyMembers } from './companies';
 import { invitations } from './hiring';
 
-/** Events a subscription may ask for. `application.received` is emitted by the applications of candidates. */
+/** Events a subscription may ask for: the life of offers, applications and vacancies of the company. */
 export const COMPANY_EVENT_TYPES = [
+	'invitation.sent',
+	'invitation.viewed',
 	'invitation.accepted',
 	'invitation.declined',
 	'invitation.expired',
+	'invitation.withdrawn',
 	'contacts.disclosed',
 	'hiring.reported',
-	'application.received'
+	'application.received',
+	'application.status_changed',
+	'vacancy.published',
+	'vacancy.closed'
 ] as const;
 /** A delivery is one of the events above or the check the owner asks for. */
 export const DELIVERY_EVENT_TYPES = [...COMPANY_EVENT_TYPES, 'ping'] as const;
@@ -96,6 +102,8 @@ export const eventDeliveries = pgTable(
 		lastStatus: integer(),
 		/** Code and short reason of the last failure, without personal data. */
 		lastError: text(),
+		/** When the last attempt left; `null` — not attempted yet. */
+		lastAttemptAt: ts(),
 		deliveredAt: ts(),
 		...timestamps()
 	},

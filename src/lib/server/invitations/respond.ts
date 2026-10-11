@@ -66,10 +66,18 @@ export async function markInvitationViewed(
 		if (!invitation || invitation.candidateId !== side.candidateId) throw refuse('not_found', 'not_addressee');
 		await requireCompanyInReach(tx, side.userId, invitation.companyId);
 		if (invitation.status !== 'sent') return invitation.status;
+		const now = deps.now();
 		await tx
 			.update(invitations)
-			.set({ status: 'viewed', viewedAt: invitation.viewedAt ?? deps.now() })
+			.set({ status: 'viewed', viewedAt: invitation.viewedAt ?? now })
 			.where(eq(invitations.id, invitation.id));
+		await emitCompanyEvent(tx, {
+			companyId: invitation.companyId,
+			type: 'invitation.viewed',
+			invitationId: invitation.id,
+			data: { invitation_id: invitation.id, terms_id: invitation.currentTermsId },
+			occurredAt: now
+		});
 		return 'viewed';
 	});
 }

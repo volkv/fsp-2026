@@ -52,3 +52,38 @@ export function ageBand(info: BirthDateInfo, at: Date): AgeBand {
 export function isMinorBand(value: AgeBand): value is 14 | 15 | 16 | 17 {
 	return typeof value === 'number';
 }
+
+/**
+ * Age groups of the bias audit of the quality panel: the minors, adults by decade-like bands, and those whose age is
+ * not known. Never shown per person — only as counts of a group.
+ */
+export const AGE_GROUPS = ['minor', '18_24', '25_34', '35_44', '45_plus', 'unknown'] as const;
+export type AgeGroup = (typeof AGE_GROUPS)[number];
+
+const ADULT_BOUNDARIES = [25, 35, 45] as const;
+
+function adultGroup(age: number): AgeGroup {
+	if (age < 25) return '18_24';
+	if (age < 35) return '25_34';
+	if (age < 45) return '35_44';
+	return '45_plus';
+}
+
+/**
+ * The age group at `at`: the regime of `ageBand` first (unknown stays unknown, every band under 18 is `minor`); for an
+ * adult with year precision a range of possible ages that crosses a boundary of the groups is `unknown`.
+ */
+export function ageGroup(info: BirthDateInfo, at: Date): AgeGroup {
+	const regime = ageBand(info, at);
+	if (regime === 'unknown') return 'unknown';
+	if (regime !== 'adult') return 'minor';
+	if (info.birthDate === null) throw new Error('an adult band without a birth date');
+	const { year, month, day } = parseDate(info.birthDate);
+	if (info.precision === 'year') {
+		const youngest = fullYears(year, 12, 31, at);
+		const oldest = fullYears(year, 1, 1, at);
+		if (ADULT_BOUNDARIES.some((boundary) => youngest < boundary && boundary <= oldest)) return 'unknown';
+		return adultGroup(youngest);
+	}
+	return adultGroup(fullYears(year, month, day, at));
+}

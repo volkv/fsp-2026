@@ -1295,7 +1295,7 @@ interface ParseResponse {
 | `GET /api/v1/company/trust` | член компании (сессия или ключ) | факты доверия к своей компании (domain 5.6) |
 | `POST`, `GET /api/v1/invitations/{id}/complaint` | кандидат (сессия) | жалоба на предложение `{reason_code, text}` и её статус (domain 13.14) |
 | `GET /api/v1/operator/complaints`, `GET …/{complaint_id}`, `POST …/{complaint_id}/decision` | оператор (`complaint.review`, сессия) | очередь, дело, решение `{decision: no_action \| warning \| suspension, resolution}` |
-| `/api/v1/companies/{company_id}/event-subscriptions` (`GET`, `POST`), `…/huntflow`, `…/{id}` (`PATCH`, `DELETE`), `…/{id}/secret`, `…/{id}/ping`, `…/{id}/deliveries` | владелец (`company.events.manage`, сессия) | исходящие события, раздел 12 |
+| `/api/v1/companies/{company_id}/event-subscriptions` (`GET`, `POST`), `…/huntflow`, `…/{id}` (`PATCH`, `DELETE`), `…/{id}/secret`, `…/{id}/ping`, `…/{id}/deliveries`, `…/{id}/deliveries/{delivery_id}/retry` | владелец (`company.events.manage`, сессия или ключ с этим правом) | исходящие события, раздел 12 |
 | `POST /api/v1/integrations/fsp/webhooks` | ФСП (подпись) | раздел 1.5 |
 | `POST /api/v1/integrations/telegram/webhook` | Telegram (секрет) | раздел 7.2 |
 
@@ -1874,8 +1874,8 @@ Precision@10 обеих систем считается по одной разм
 
 ### 12.1. Подписка и тело события
 
-Подписку регистрирует владелец компании в кабинете («События для ATS») или по API в сессии
-(`/api/v1/companies/{company_id}/event-subscriptions…`, domain 5.7). Тело `POST` вебхука:
+Подписку регистрирует владелец компании в кабинете («События для ATS») или по API — в сессии либо ключом с правом
+`company.events.manage` (`/api/v1/companies/{company_id}/event-subscriptions…`, domain 5.7). Тело `POST` вебхука:
 
 ```json
 { "id": "<event id>", "type": "invitation.accepted", "occurred_at": "2026-10-05T12:00:00.000Z",
@@ -1883,23 +1883,41 @@ Precision@10 обеих систем считается по одной разм
   "reason_code": null, "by_representative": false, "candidate_pseudonym": "<псевдоним для компании>" } }
 ```
 
-`data` — только идентификаторы и коды: интеграция читает предложение и раскрытые контакты по API своим ключом, под теми же правами и
-согласием кандидата, что интерфейс. `contacts.disclosed` несёт `fields` (какие поля раскрыты), `hiring.reported` — `hiring_process_id`,
-`party`, `kind`, `value`, `start_date`, `outcome_state`; `ping` — проверочная доставка по кнопке.
+`data` — только идентификаторы, статусы, коды и моменты; схема `data` каждого типа — `src/lib/server/events/payloads.ts`, ею же
+типизирован код, создающий события, и из неё собран раздел `webhooks` документа OpenAPI. Контакты кандидата событие не переносит:
+`contacts.disclosed` и `application.received` называют раскрытые поля (`fields`), значения интеграция читает по API своим ключом, под
+теми же правами, согласием кандидата и журналом, что интерфейс. События о предложении (`invitation.*`, `contacts.disclosed`,
+`hiring.reported`) дополняются псевдонимом кандидата для компании при отправке; `ping` — проверочная доставка по кнопке или API.
+
+| Событие | Где создаётся | `data` сверх идентификаторов |
+|---|---|---|
+| `invitation.sent` | `createInvitation`, `sendVersion` (новая версия, переоткрытие) | `terms_version`, `vacancy_id`, `response_due_at`, `reopened` |
+| `invitation.viewed` | `markInvitationViewed` (`sent → viewed`) | — |
+| `invitation.accepted`, `invitation.declined` | ответ кандидата | `terms_version`, `reason_code`, `by_representative` |
+| `invitation.expired` | задание срока ответа | `terms_version` |
+| `invitation.withdrawn` | `closeAsWithdrawn`: компанией, закрытием вакансии, приостановкой или отказом компании; удаление учётной записи события не даёт | `cause` |
+| `contacts.disclosed` | раскрытие при принятии | `fields` |
+| `hiring.reported` | сообщение об этапе или исходе | `party`, `kind`, `value`, `start_date`, `outcome_state` |
+| `application.received` | отклик кандидата | `vacancy_id`, `fields` |
+| `application.status_changed` | просмотр компанией, отказ, приглашение, отзыв кандидатом | `status`, `previous_status`, `invitation_id` |
+| `vacancy.published`, `vacancy.closed` | `publishNow` (первая публикация, после модерации), возврат с паузы; закрытие владельцем или модератором | `revision`, `previous_status` |
 
 ### 12.2. Подпись, повторы, адреса
 
+Подпись — по спецификации Standard Webhooks (`src/lib/server/events/signature.ts`; эталонный вектор спецификации — в юнит-тесте):
+
 | Заголовок | Значение |
 |---|---|
-| `X-Event-Id` | id события, общий для всех подписок; получатель отвергает повтор |
-| `X-Event-Type` | тип события |
-| `X-Timestamp` | секунды Unix; получатель отвергает расхождение больше 5 минут |
-| `X-Signature` | `sha256=` HMAC-SHA-256 от `{timestamp}.{rawBody}` секретом подписки; сутки после ротации — две подписи через запятую (новым и прежним секретом) |
+| `webhook-id` | id события, общий для всех подписок и одинаковый при повторах и ручном повторе; получатель отбрасывает дубли |
+| `webhook-timestamp` | секунды Unix момента отправки; получатель отвергает расхождение больше 5 минут |
+| `webhook-signature` | `v1,<base64(HMAC-SHA-256(key, "{webhook-id}.{webhook-timestamp}.{rawBody}"))>`, `key` — байты base64-части секрета `whsec_<base64 32 байт>`; сутки после ротации — две подписи через пробел (новым и прежним секретом) |
 
 Доставка — задание `event.deliver` (до 8 попыток). `2xx` — `delivered`; сеть, таймаут 10 с, `429`, `5xx` — повтор через 1, 5, 15 минут,
 1, 2, 4, 6 часов, после последней попытки — `failed`; другой ответ — `failed` сразу. Адрес — `https://`; адреса частных, loopback и
 link-local сетей отвергаются при регистрации и ещё раз на адресе, в который имя разрешилось при соединении; редиректы не выполняются.
-Каждая попытка пишется в `event_deliveries` сразу; владелец видит журнал в кабинете и по `GET …/deliveries`.
+Каждая попытка пишется в `event_deliveries` сразу (`attempts`, `last_status`, `last_error`, `last_attempt_at`); владелец видит журнал в
+кабинете и по `GET …/deliveries`. Доставку `failed` или `skipped` владелец повторяет вручную (`POST …/deliveries/{id}/retry`): та же
+строка снова `queued` с тем же `webhook-id`, новое задание `event.deliver`; доставку в очереди или доставленную — `409`.
 
 ### 12.3. Адаптер Хантфлоу
 
