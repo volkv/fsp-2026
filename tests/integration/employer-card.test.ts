@@ -602,7 +602,7 @@ describe('catalog card: the signal totals of the test', () => {
 			{ at: new Date().toISOString(), stage: 'answer', seq: 3, client: null }
 		]
 	};
-	const totals = { entries: 3, pastes: 3, pastedChars: 200, departures: 4, silent: 1 };
+	const totals = { entries: 3, pastes: 3, pastedChars: 200, departures: 4, silent: 1, foreignAnswers: 0 };
 
 	/** A candidate of the catalog whose category was assigned by an attempt with the journal above. */
 	async function signalled() {
@@ -670,7 +670,7 @@ describe('catalog card: the signal totals of the test', () => {
 		expect(cardSchema.shape.categories.parse(api.categories)).toEqual([
 			expect.objectContaining({
 				specialization: 'backend',
-				test_signals: { entries: 3, pastes: 3, pasted_chars: 200, departures: 4, silent: 1 }
+				test_signals: { entries: 3, pastes: 3, pasted_chars: 200, departures: 4, silent: 1, foreign_answers: 0 }
 			})
 		]);
 		const shown = JSON.stringify([loaded, api]);

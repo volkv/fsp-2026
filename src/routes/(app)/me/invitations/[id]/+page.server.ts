@@ -5,6 +5,7 @@ import { candidateRequest } from '$lib/server/candidates/http';
 import { formFailure, pageError } from '$lib/server/http/page';
 import { candidateInvitationCard } from '$lib/server/candidates/invitations';
 import { complaintOfOffer, fileComplaint } from '$lib/server/complaints/service';
+import { candidateInterviewFeedback } from '$lib/server/hiring/interview-feedback';
 import { reportHiring, type HiringReportInput } from '$lib/server/hiring/process';
 import { OUTCOMES } from '$lib/server/hiring/state';
 import { HIRING_STAGES } from '$lib/server/consent/kinds';
@@ -26,8 +27,10 @@ export const load: PageServerLoad = async (event) => {
 	const { subject } = await candidateRequest(event);
 	try {
 		const deps = invitationDeps();
+		const card = await candidateInvitationCard(deps, subject, event.params.id);
 		return {
-			card: await candidateInvitationCard(deps, subject, event.params.id),
+			card,
+			interviewFeedback: card.process ? await candidateInterviewFeedback(deps, subject, card.process.id) : null,
 			complaint: await complaintOfOffer(deps, subject, event.params.id),
 			conversation: await getConversation(deps, subject, event.params.id)
 		};

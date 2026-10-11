@@ -52,6 +52,7 @@ import {
 	gradeDeclarations,
 	hiringProcesses,
 	hiringReports,
+	interviewFeedback,
 	invitationComplaints,
 	invitationMessages,
 	invitationResponses,
@@ -473,6 +474,10 @@ async function buildDataExport(
 						)
 					)
 					.orderBy(asc(hiringReports.reportedAt));
+	const feedback = await executor
+		.select()
+		.from(interviewFeedback)
+		.where(eq(interviewFeedback.candidateId, candidateId));
 
 	const attempts = await executor
 		.select()
@@ -993,6 +998,20 @@ async function buildDataExport(
 					start_date: report.startDate,
 					reason_code: report.reasonCode,
 					reported_at: iso(report.reportedAt)
+				})),
+			// The company's feedback on the interview against the confirmed grade: data about the person, all of it.
+			interview_feedback: feedback
+				.filter((row) => row.processId === process.id)
+				.map((row) => ({
+					specialization: row.specialization,
+					grade: row.grade,
+					bank_release_id: row.bankReleaseId,
+					level: row.level,
+					block_levels: row.blockLevels,
+					outcome: row.outcome,
+					comment: row.comment,
+					left_at: iso(row.createdAt),
+					updated_at: iso(row.updatedAt)
 				}))
 		})),
 		tests: attempts.map((attempt) => ({

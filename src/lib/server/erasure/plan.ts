@@ -67,6 +67,8 @@ export const ERASURE_PLAN: Readonly<Record<string, ErasureDecision>> = {
 	'test_attempts.candidate_id': erased,
 	'grade_decisions.candidate_id': erased,
 	'hiring_processes.candidate_id': erased,
+	// The employer's feedback on an interview against the confirmed grade (domain 13.7): about the person, so it goes.
+	'interview_feedback.candidate_id': erased,
 	'shortlist_marks.candidate_id': erased,
 	'representations.candidate_id': kept('a representation with an authority document inside its retention period'),
 	'consent_events.subject_candidate_id': kept('the events a disclosure refers to (domain 6.5), until its retention'),
@@ -86,7 +88,10 @@ export const ERASURE_PLAN: Readonly<Record<string, ErasureDecision>> = {
 	'invitation_complaints.candidate_id': kept(
 		'a decided complaint is a tombstone of company, reason, status and decision: the trust facts of the company count it'
 	),
-	'invitation_complaints.decided_by': actOfAnother
+	'invitation_complaints.decided_by': actOfAnother,
+	// Quarantine of a bank family by staff (domain 10.5): who put it there and who lifted it.
+	'bank_family_quarantines.quarantined_by': actOfAnother,
+	'bank_family_quarantines.lifted_by': actOfAnother
 };
 
 /** A single-column foreign key of the schema. */

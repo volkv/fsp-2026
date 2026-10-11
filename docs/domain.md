@@ -1622,6 +1622,22 @@ source}`: программу-обвязку с эталоном и мутант�
 Data Science / ML 20 / 23 / 22 / 19, QA 18 / 21 / 22 / 21, DevOps / SRE 19 / 23 / 21 / 19 (Intern вырос с двумя слотами плана sprt-3). Число 12 на грейд прежних оценок не действует:
 его не хватает даже на две попытки грейда.
 
+**Онлайн-контур утечки и карантин семейства** (`assessments/leak.ts`, `assessments/quarantine.ts`). Выпуск неизменен, но семейство
+можно вывести из подачи решением человека:
+- **сигнал решаемости** — по живым вычисляемым ответам за `LEAK_DETECTOR.windowDays` (30) дней, без засева демо: ожидаемый шанс ответа —
+  `clip(angoff + d)` модели симуляции траекторий (10.6), где сдвиг `d` кандидата измерен на остальных вычисляемых заданиях той же попытки
+  (нужно ≥ 4); остатки «верно − шанс» семейства проверяются односторонним t-критерием. Сигнал — при ≥ 40 ответах, превышении доли верных
+  ≥ 0,15 и хвосте ≤ α / m (α = 0,005, m — проверенные семейства специализации). Сигнал ничего не снимает сам;
+- **ответ чужого экземпляра** — неверный ответ на вычисляемое задание, который верен ровно для одного из 50 последних сохранённых
+  экземпляров того же семейства и грейда у других кандидатов (номер строки дефекта не сравнивается: мало значений), — запись журнала
+  сигналов попытки (10.7) `foreignAnswer {classId, sameClass}`; без идентификатора чужой попытки;
+- **карантин** (`bank_family_quarantines`: специализация, семейство, код причины `solve_rate_signal | foreign_answers | published |
+  other`, комментарий ≤ 500 символов, кто и когда поставил и снял) ставит и снимает администратор (`policy.manage`, не демо-актор) на
+  странице «Банк заданий», события `bank.family_quarantined` / `bank.family_restored`. Карантин действует на попытки, начатые после него
+  (выбор слота, форма, срок попытки, проверка блок-теста берут семейства без карантинных); начатые попытки и решения не меняются.
+  Карантин отклоняется (`409 bank_capacity_exhausted` с недостающими слотами), если без семейства и уже карантинных выпуск не проходит
+  проверку вместимости: замена семейства — новый выпуск.
+
 **Выпуск специализации к сроку.** Специализация открыта, когда в справочнике `availability = enabled` **и** у неё есть выпуск в статусе
 `released` (`specializationOpen`). Закрытая специализация отсутствует везде одним и тем же предикатом: в опросе, в API (выбор вне
 открытых — `422 policy_violation (specialization_closed)`), в поиске и фильтрах работодателя, в разборе потребности, в тесте из вакансии.
@@ -1761,7 +1777,7 @@ S₂₀ = Σ 20·sᵢ,   C₂₀ = Σ 20·p̄ᵢ   (целые двадцаты�
 | `status` | `enum` | да | `in_progress` · `decided` · `expired` · `annulled` |
 | `started_at`, `deadline_at`, `ended_at` | `ts` | да / да / нет | срок — сумма норм времени самой длинной траектории × 1,5 |
 | `confirmation_request_id` | `id` | усл. | для `vacancy_block` — запрос работодателя (13.11); единственная связь попытки и запроса |
-| `integrity_signals` | `jsonb` | нет | журнал браузерных сигналов (вставка, уход со страницы, тайминги) — целиком кандидату на экране его попытки и оператору ФСП при разборе попытки (12.5). Компании, которой карточка видна (`canShow`, проекция `catalog` и пул партнёра), — только сводка попытки, назначившей каждую действующую категорию: записей журнала, вставок и вставленных символов, уходов со страницы, записей без сигналов страницы; без записей и времени по заданиям. Ту же сводку кандидат видит на экране «Категория и грейд». Подпись везде: не приговор, повод уточнить на собеседовании; тест сигналы не учитывает. Не для автоматического решения и не обнаружение заимствованного кода |
+| `integrity_signals` | `jsonb` | нет | журнал браузерных сигналов (вставка, уход со страницы, тайминги) и «ответа чужого экземпляра» (10.5) — целиком кандидату на экране его попытки и оператору ФСП при разборе попытки (12.5). Компании, которой карточка видна (`canShow`, проекция `catalog` и пул партнёра), — только сводка попытки, назначившей каждую действующую категорию: записей журнала, вставок и вставленных символов, уходов со страницы, записей без сигналов страницы, ответов чужого экземпляра; без записей и времени по заданиям. Ту же сводку кандидат видит на экране «Категория и грейд». Подпись везде: не приговор, повод уточнить на собеседовании; тест сигналы не учитывает. Не для автоматического решения и не обнаружение заимствованного кода |
 | `seeded` | `boolean` | да | попытка засева (23.3): баллы — детерминированный вердикт, песочница не вызывалась; в отчётах — «синтетика» |
 | `annulled_by`, `annulled_at`, `annul_reason` | `id`, `ts`, `enum` | нет | `plagiarism` · `candidate_request` (засчитываются в попытки) · `technical_failure` · `version_defect` · `objection_upheld` (не засчитываются, `GRADE_POLICY.freeRetakeAnnulReasons`) |
 
@@ -2825,6 +2841,21 @@ accepted ──(пересмотр: новая версия)──▶ accepted  
 - Напоминания: `hiring.outcome_request` в `outcome_due_at` обеим сторонам, затем `hiring.outcome_reminder` по расписанию
   `hiring_policy` до максимума повторов (раздел 3.7).
 
+**`interview_feedback`** — отзыв компании о собеседовании относительно подтверждённого грейда; это внешний критерий валидности
+теста (`docs/submission/06-validation.md`). Отзыв один на процесс (`process_id` `UNIQUE`). Поля: `company_id`, `candidate_id`,
+`terms_id` — принятая версия условий; `category_id`, `specialization`, `grade`, `bank_release_id` — категория, которая действовала
+при отправке этой версии; `level` (`below` · `matches` · `above`); `block_levels` (`{код блока: level}` по `confirmed_blocks`
+категории, пусто — общий уровень без блоков); `outcome` (`advanced` · `offer` · `rejected` · `candidate_declined`); `comment`
+(1–500 символов, необязательный); `created_by_member_id`.
+- Отзыв оставляет только активный член компании процесса, и только когда в принятых условиях была подтверждённая категория.
+  Повтор — `409`. Правка допустима в течение 24 часов после создания, затем — `409`. Компания в `suspended` отзыв не оставляет.
+- Кандидат видит отзыв целиком, с комментарием: это данные о нём. Другие компании отзыв не видят. Оператор видит агрегат по
+  категории и выпуску банка с порогом малых чисел (раздел 13.9). Отзывы компаний демо-сессий в агрегат не входят.
+- Отзыв не входит ни в категорию, ни в ранжирование, ни в подборку. Перекалибровка порогов по агрегату — процесс оператора
+  (новый выпуск банка), не автоматика.
+- Журнал: `hiring.interview_feedback_left` и `hiring.interview_feedback_revised` — уровень, исход, выпуск банка, число блоков,
+  наличие комментария; текст комментария в журнал не попадает. При удалении аккаунта кандидата отзыв удаляется (раздел 19.2).
+
 ### 13.8. `product_policies`
 
 | Поле | Тип | Обяз. | Смысл |
@@ -3724,10 +3755,10 @@ Append-only, партиционирование по месяцу, срок хр
 | Компании | `company.created`, `company.updated`, `company.submitted`, `company.verified` (в том числе возврат из `suspended`), `company.rejected`, `company.info_requested`, `company.suspended` (код причины), `member.invited`, `member.joined`, `member.role_changed`, `member.removed` |
 | Согласия | `consent.granted`, `consent.revoked` (вид; от представителя по ссылке — `representation_id`, актор `anonymous`), `consent.lapsed`, `representation.invited`, `representation.contact_confirmed`, `representation.authority_checked`, `representation.letter_sent` (вид письма — согласия, в том числе письмо после изменения и по запросу представителя, или раскрытие; исход отправки), `representation.ended`, `age.verified` (способ проверки, вид документа, совпала ли дата с указанной, режим `adult` · `minor`; без даты), `age.conflict` |
 | ПДн | `catalog.searched` (фильтры, число результатов), `card.viewed` (псевдоним, проекция), `card.viewed_recipient`, `contacts.disclosed`, `file.downloaded`, `data.exported` (самим субъектом), `account.deletion_requested`, `account.purged`, `facts.purged` (число, источник) |
-| Подбор | `vacancy.published`, `vacancy.blocked_text_check`, `vacancy.moderation_decided` (решение, статус, правила), `vacancy.moderation_cleared`, `vacancy.closed`, `invitation.sent`, `invitation.terms_revised` (признак `salary_lowered`), `invitation.reopened`, `invitation.withdrawn`, `invitation.responded`, `invitation.message_sent` (сторона, сообщение — без текста), `hiring.reported` (сторона, вид), `match.viewed` (псевдоним, вакансия) |
+| Подбор | `vacancy.published`, `vacancy.blocked_text_check`, `vacancy.moderation_decided` (решение, статус, правила), `vacancy.moderation_cleared`, `vacancy.closed`, `invitation.sent`, `invitation.terms_revised` (признак `salary_lowered`), `invitation.reopened`, `invitation.withdrawn`, `invitation.responded`, `invitation.message_sent` (сторона, сообщение — без текста), `hiring.reported` (сторона, вид), `hiring.interview_feedback_left` и `hiring.interview_feedback_revised` (уровень, исход — без комментария), `match.viewed` (псевдоним, вакансия) |
 | Партнёры | `partnership.opened`, `partnership.ended`, `partner_pool.viewed` (компания, соревнование, число карточек) |
 | Уведомления | `notification.channel_linked`, `notification.channel_unlinked` |
-| Категории и тесты | `survey.submitted` (версия), `grade.declared` (специализация, грейд, подсказка — коды), `test.started` (специализация, грейд, форма, выпуск), `test.decided` (исход, причина, кластеров), `test.expired`, `category.assigned`, `category.superseded`, `category.revoked` (причина), `objection.opened`, `objection.assigned` (без деталей), `objection.resolved` (исход), `assessment.score_revised`, `assessment.annulled` (причина, прежний статус, число снятых фактов), `assessment.artifact_viewed` (оператор), `bank.released` (выпуск, хэш) |
+| Категории и тесты | `survey.submitted` (версия), `grade.declared` (специализация, грейд, подсказка — коды), `test.started` (специализация, грейд, форма, выпуск), `test.decided` (исход, причина, кластеров), `test.expired`, `category.assigned`, `category.superseded`, `category.revoked` (причина), `objection.opened`, `objection.assigned` (без деталей), `objection.resolved` (исход), `assessment.score_revised`, `assessment.annulled` (причина, прежний статус, число снятых фактов), `assessment.artifact_viewed` (оператор), `bank.released` (выпуск, хэш), `bank.family_quarantined` (выпуск, код причины, карантин), `bank.family_restored` (код причины, карантин) |
 | Контакт | `need.created`, `need.parsed` (режим), `shortlist.revised`, `invitation.sent` (без вакансии или с ней), `confirmation.requested`, `confirmation.completed` (вердикт), `challenge.published`, `challenge.delivered` (число), `challenge.solution_submitted`, `challenge.invited_from_solution` |
 | Квитанции | `receipt.verified` (идентификатор квитанции, результат; без данных проверяющего, кроме `ip` для ограничения частоты) |
 | Профиль кандидата | `profile.updated` (имена изменённых полей, без значений), `profile.suggestion_decided` (поле, решение), `profile.experience_changed` (`added` · `updated` · `removed`), `company_block.added`, `company_block.removed` (компания), `profile.pdf_issued` (идентификаторы подтверждений PDF и сколько выпущено впервые), `attestation.verified` (идентификатор подтверждения, результат), `attestation.holder_checked` (идентификатор, `matches` · `differs` · `not_found`; ни ФИО, ни код) |

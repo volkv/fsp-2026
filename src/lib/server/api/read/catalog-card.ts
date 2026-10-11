@@ -16,7 +16,10 @@ const testSignalsSchema = z
 		pastes: count.describe('Вставок из буфера обмена за попытку'),
 		pasted_chars: count.describe('Вставлено символов за попытку'),
 		departures: count.describe('Уходов со страницы теста за попытку'),
-		silent: count.describe('Записей, к которым страница не передала сигналы (скрипты отключены)')
+		silent: count.describe('Записей, к которым страница не передала сигналы (скрипты отключены)'),
+		foreign_answers: count.describe(
+			'Неверных ответов, которые верны для экземпляра того же семейства у другого кандидата'
+		)
 	})
 	.meta({
 		id: 'TestSignals',
@@ -31,7 +34,8 @@ function testSignalsView(summary: SignalSummary) {
 		pastes: summary.pastes,
 		pasted_chars: summary.pastedChars,
 		departures: summary.departures,
-		silent: summary.silent
+		silent: summary.silent,
+		foreign_answers: summary.foreignAnswers
 	};
 }
 

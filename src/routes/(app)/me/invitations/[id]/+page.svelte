@@ -23,7 +23,13 @@
 	import FormMessage from '$lib/components/forms/form-message.svelte';
 	import PageHeader from '$lib/components/forms/page-header.svelte';
 	import { InvitationStatus, ResponseDeadline, SalaryRange, TrustFacts } from '$lib/components/product/index.js';
-	import { categoryName, formatDate, formatDateTime } from '$lib/components/product/model.js';
+	import {
+		INTERVIEW_LEVEL_LABELS,
+		INTERVIEW_OUTCOME_LABELS,
+		categoryName,
+		formatDate,
+		formatDateTime
+	} from '$lib/components/product/model.js';
 	import { CSRF_FIELD, viewerFrom } from '$lib/components/shell/viewer.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
@@ -417,6 +423,47 @@
 			stages={card.hiringPolicy.stages}
 			outcomeReasonCodes={card.hiringPolicy.outcomeReasonCodes}
 		/>
+	</SectionCard>
+{/if}
+
+{#if data.interviewFeedback}
+	{@const feedback = data.interviewFeedback}
+	<SectionCard
+		title="Отзыв компании о собеседовании"
+		description="Компания отметила, совпал ли ваш подтверждённый тестом грейд с тем, что вы показали на собеседовании. Отзыв не меняет вашу категорию и место в подборках, другие компании его не видят; по сводке таких отзывов платформа проверяет сам тест."
+		testId="interview-feedback"
+	>
+		<dl class="grid gap-1 text-sm">
+			<div>
+				<dt class="inline text-muted-foreground">Грейд на момент предложения:</dt>
+				<dd class="inline">{categoryName(feedback, labels)}</dd>
+			</div>
+			<div>
+				<dt class="inline text-muted-foreground">Уровень на собеседовании:</dt>
+				<dd class="inline">{INTERVIEW_LEVEL_LABELS[feedback.level]}</dd>
+			</div>
+			{#each feedback.blocks as block (block.code)}
+				<div>
+					<dt class="inline text-muted-foreground">{block.title}:</dt>
+					<dd class="inline">{INTERVIEW_LEVEL_LABELS[block.level]}</dd>
+				</div>
+			{/each}
+			<div>
+				<dt class="inline text-muted-foreground">Исход:</dt>
+				<dd class="inline">{INTERVIEW_OUTCOME_LABELS[feedback.outcome]}</dd>
+			</div>
+			{#if feedback.comment}
+				<div>
+					<dt class="inline text-muted-foreground">Комментарий компании:</dt>
+					<dd class="inline">{feedback.comment}</dd>
+				</div>
+			{/if}
+			<div class="text-muted-foreground">
+				Оставлен {formatDateTime(feedback.createdAt)}{feedback.updatedAt.getTime() !== feedback.createdAt.getTime()
+					? `, исправлен ${formatDateTime(feedback.updatedAt)}`
+					: ''}
+			</div>
+		</dl>
 	</SectionCard>
 {/if}
 

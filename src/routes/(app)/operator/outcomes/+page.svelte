@@ -14,7 +14,10 @@
 		type FunnelNames,
 		type FunnelGroupView
 	} from '$lib/components/operator/model.js';
+	import CountCell from '$lib/components/operator/count-cell.svelte';
 	import SyntheticNote from '$lib/components/operator/synthetic-note.svelte';
+	import { shareText } from '$lib/components/operator/model.js';
+	import * as Table from '$lib/components/ui/table/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Field from '$lib/components/ui/field/index.js';
@@ -24,6 +27,7 @@
 	let { data }: PageProps = $props();
 
 	const funnel = $derived(data.funnel);
+	const calibration = $derived(data.calibration);
 	const threshold = $derived(funnel.threshold);
 	const [primary, inner] = $derived(funnel.dimensions);
 	const empty = $derived('value' in funnel.total.invited && funnel.total.invited.value === 0);
@@ -198,3 +202,69 @@
 </Card.Root>
 
 <CorrelationNotice />
+
+<Card.Root class="mt-6" data-testid="interview-calibration">
+	<Card.Header>
+		<Card.Title>
+			<h2 class="font-heading text-h3">Грейд теста и собеседования</h2>
+		</Card.Title>
+		<Card.Description class="grid gap-1">
+			<span>
+				Внешний критерий теста: после принятого предложения компания отмечает, показал ли кандидат на собеседовании
+				уровень ниже, на уровне или выше грейда, подтверждённого тестом. Строки — категория и выпуск банка заданий, по
+				которым грейд был подтверждён на момент предложения.
+			</span>
+			<span>
+				Сводка — сигнал для пересмотра порогов и заданий выпуска; категории кандидатов и подборки от отзывов не
+				меняются. Числа меньше {calibration.threshold} показаны как «&lt; {calibration.threshold}», доля согласия —
+				только когда отзывов не меньше {calibration.threshold}.
+			</span>
+		</Card.Description>
+		{#if calibration.synthetic}<SyntheticNote compact />{/if}
+	</Card.Header>
+	<Card.Content>
+		{#if calibration.rows.length === 0}
+			<p class="text-sm text-muted-foreground">Отзывов о собеседованиях пока нет.</p>
+		{:else}
+			<Table.Root label="Согласие грейда с собеседованиями" data-testid="interview-calibration-table">
+				<Table.Header>
+					<Table.Row>
+						<Table.Head>Категория</Table.Head>
+						<Table.Head>Выпуск банка</Table.Head>
+						<Table.Head class="text-right">Отзывов</Table.Head>
+						<Table.Head class="text-right">Ниже</Table.Head>
+						<Table.Head class="text-right">Соответствует</Table.Head>
+						<Table.Head class="text-right">Выше</Table.Head>
+						<Table.Head class="text-right">Согласие</Table.Head>
+					</Table.Row>
+				</Table.Header>
+				<Table.Body>
+					{#each calibration.rows as row (`${row.specialization}|${row.grade}|${row.bankReleaseId}`)}
+						<Table.Row>
+							<Table.Cell class="font-medium"
+								>{data.specializations[row.specialization] ?? row.specialization} · {data.grades[row.grade] ??
+									row.grade}</Table.Cell
+							>
+							<Table.Cell class="font-mono text-xs">{row.bankReleaseId}</Table.Cell>
+							<Table.Cell class="text-right"><CountCell cell={row.total} /></Table.Cell>
+							<Table.Cell class="text-right"><CountCell cell={row.below} /></Table.Cell>
+							<Table.Cell class="text-right"><CountCell cell={row.matches} /></Table.Cell>
+							<Table.Cell class="text-right"><CountCell cell={row.above} /></Table.Cell>
+							<Table.Cell class="text-right tabular-nums">{shareText(row.agreement)}</Table.Cell>
+						</Table.Row>
+						{#each row.blocks as block (block.code)}
+							<Table.Row class="text-muted-foreground">
+								<Table.Cell class="pl-6" colspan={2}>блок «{block.title}»</Table.Cell>
+								<Table.Cell class="text-right"><CountCell cell={block.total} /></Table.Cell>
+								<Table.Cell class="text-right"><CountCell cell={block.below} /></Table.Cell>
+								<Table.Cell class="text-right"><CountCell cell={block.matches} /></Table.Cell>
+								<Table.Cell class="text-right"><CountCell cell={block.above} /></Table.Cell>
+								<Table.Cell></Table.Cell>
+							</Table.Row>
+						{/each}
+					{/each}
+				</Table.Body>
+			</Table.Root>
+		{/if}
+	</Card.Content>
+</Card.Root>

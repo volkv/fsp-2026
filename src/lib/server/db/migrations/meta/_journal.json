@@ -295,6 +295,20 @@
       "when": 1791741207263,
       "tag": "0041_outgoing_events",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1791742832426,
+      "tag": "0042_family_quarantine",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1791743172190,
+      "tag": "0043_interview_feedback",
+      "breakpoints": true
     }
   ]
 }
