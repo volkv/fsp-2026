@@ -3,6 +3,7 @@
 	import { invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import type { SubmitFunction } from '@sveltejs/kit';
+	import { toast } from 'svelte-sonner';
 	import { tick } from 'svelte';
 	import {
 		CATALOG_SCOPE,
@@ -42,7 +43,8 @@
 	let selected = $derived<SearchStatus>(status);
 	let consentOpen = $state(false);
 	let pending = $state(false);
-	let outcome = $state<{ tone: 'error' | 'success'; text: string } | null>(null);
+	/** The refusal of the consent, shown in its dialog; other outcomes go to a toast. */
+	let consentProblem = $state<string | null>(null);
 	let statusForm = $state<HTMLFormElement>();
 
 	/** Showing the profile needs the consent the candidate can give now and has not. */
@@ -58,7 +60,7 @@
 
 	async function choose(choice: SearchStatus) {
 		selected = choice;
-		outcome = null;
+		consentProblem = null;
 		if (asksConsent(choice)) {
 			consentOpen = true;
 			return;
@@ -80,12 +82,16 @@
 			pending = false;
 			if (result.type === 'success') {
 				consentOpen = false;
-				outcome = { tone: 'success', text: 'Статус поиска сохранён.' };
+				toast.success('Статус поиска сохранён');
 				await invalidateAll();
 			} else if (result.type === 'failure') {
 				const failure = result.data?.problem as { message?: string } | undefined;
-				outcome = { tone: 'error', text: failure?.message ?? 'Не удалось сохранить. Повторите.' };
-				if (!consentOpen) selected = status;
+				const text = failure?.message ?? 'Не удалось сохранить. Повторите.';
+				if (consentOpen) consentProblem = text;
+				else {
+					toast.error(text);
+					selected = status;
+				}
 			} else {
 				await applyAction(result);
 			}
@@ -122,9 +128,6 @@
 		</fieldset>
 	</form>
 
-	{#if outcome && !consentOpen}
-		<FormMessage tone={outcome.tone} text={outcome.text} />
-	{/if}
 	{#if asksConsent(selected)}
 		<p class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
 			Профиль не виден работодателям: нет согласия на показ.
@@ -197,8 +200,8 @@
 						{catalog.text.body}
 					</div>
 				</details>
-				{#if outcome?.tone === 'error'}
-					<FormMessage text={outcome.text} />
+				{#if consentProblem}
+					<FormMessage text={consentProblem} />
 				{/if}
 				<Dialog.Footer>
 					<Button type="button" variant="outline" onclick={dismiss}>Отмена</Button>

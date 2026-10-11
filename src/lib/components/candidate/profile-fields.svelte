@@ -4,13 +4,13 @@
 	import UserIcon from '@lucide/svelte/icons/user';
 	import { enhance } from '$app/forms';
 	import type { SubmitFunction } from '@sveltejs/kit';
+	import { toast } from 'svelte-sonner';
 	import { resolve } from '$app/paths';
 	import CsrfInput from '$lib/components/forms/csrf-input.svelte';
-	import FormMessage from '$lib/components/forms/form-message.svelte';
 	import { buttonVariants } from '$lib/components/ui/button/index.js';
-	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import ProfileFound from './profile-found.svelte';
+	import AutosaveInput, { type SaveState } from './autosave-input.svelte';
 	import SaveStatus from './save-status.svelte';
 	import SettingsSection from './settings-section.svelte';
 	import type { ProfileSuggestionView } from './profile';
@@ -59,38 +59,45 @@
 	let chosenSoftSkills = $derived<string[]>([...profile.softSkillKeys]);
 	const softFull = $derived(chosenSoftSkills.length >= maxSoftSkills);
 
-	type Section = 'basics' | 'contacts' | 'soft';
-	type SaveState = 'idle' | 'saving' | 'saved' | 'error';
-	/** The section of each field, to show where a save or a field problem belongs. */
-	const SECTION_OF: Record<string, Section> = {
-		last_name: 'basics',
-		first_name: 'basics',
-		middle_name: 'basics',
-		headline: 'basics',
-		phone: 'contacts',
-		telegram: 'contacts',
-		soft_skill_keys: 'soft'
-	};
-	/** A refusal not tied to a field (fields show their own problems under them). */
-	const generalProblem = $derived(
-		fieldsResult?.problem && Object.keys(fieldsResult.problem.fields).length === 0 ? fieldsResult.problem.message : null
-	);
-	const SAVED_SHOWN_MS = 2500;
+	/** The fields saved on their own; the soft skills are one field of the form. */
+	type Field = 'last_name' | 'first_name' | 'middle_name' | 'headline' | 'phone' | 'telegram' | 'soft_skill_keys';
+	const FIELDS: readonly string[] = [
+		'last_name',
+		'first_name',
+		'middle_name',
+		'headline',
+		'phone',
+		'telegram',
+		'soft_skill_keys'
+	] satisfies Field[];
+	const isField = (name: string): name is Field => FIELDS.includes(name);
+	const NAME_FIELDS: Field[] = ['last_name', 'first_name', 'middle_name'];
+	const SAVED_SHOWN_MS = 2000;
+	/** A save faster than this still shows its spinner that long, so that it is seen. */
+	const SAVING_SHOWN_MS = 500;
 	const SOFT_SKILLS_DELAY_MS = 600;
 
-	let saveState = $state<Record<Section, SaveState>>({ basics: 'idle', contacts: 'idle', soft: 'idle' });
+	let fieldState = $state<Record<Field, SaveState>>({
+		last_name: 'idle',
+		first_name: 'idle',
+		middle_name: 'idle',
+		headline: 'idle',
+		phone: 'idle',
+		telegram: 'idle',
+		soft_skill_keys: 'idle'
+	});
 	let saveForm = $state<HTMLFormElement>();
 	let nameGroup = $state<HTMLFieldSetElement>();
 	// Bookkeeping of the queue, not shown: what changed since the last save and what the save in flight carries.
-	let queued: Section[] = [];
-	let inFlight: Section[] = [];
+	let queued: Field[] = [];
+	let inFlight: Field[] = [];
+	let nameChanged: Field[] = [];
 	let saving = false;
-	let nameChanged = false;
 	let timer: ReturnType<typeof setTimeout> | undefined;
-	const savedAt: Record<Section, number> = { basics: 0, contacts: 0, soft: 0 };
+	const savedAt: Partial<Record<Field, number>> = {};
 
-	function schedule(section: Section, delay: number) {
-		if (!queued.includes(section)) queued.push(section);
+	function schedule(fields: Field[], delay: number) {
+		for (const field of fields) if (!queued.includes(field)) queued.push(field);
 		clearTimeout(timer);
 		timer = setTimeout(flush, delay);
 	}
@@ -99,57 +106,74 @@
 		if (saving || queued.length === 0) return;
 		inFlight = queued;
 		queued = [];
-		for (const section of inFlight) saveState[section] = 'saving';
+		for (const field of inFlight) fieldState[field] = 'saving';
 		saveForm?.requestSubmit();
 	}
 
 	/** A field changed and lost focus, or a soft skill was picked; the name waits for the focus to leave its fields. */
 	function changed(event: Event) {
-		const field = event.target;
-		if (!(field instanceof HTMLInputElement)) return;
-		const section = SECTION_OF[field.name];
-		if (section === undefined) return;
-		if (nameGroup?.contains(field)) {
-			nameChanged = true;
+		const input = event.target;
+		if (!(input instanceof HTMLInputElement) || !isField(input.name)) return;
+		const field = input.name;
+		if (NAME_FIELDS.includes(field)) {
+			if (!nameChanged.includes(field)) nameChanged.push(field);
 			return;
 		}
-		schedule(section, field.type === 'checkbox' ? SOFT_SKILLS_DELAY_MS : 0);
+		schedule([field], input.type === 'checkbox' ? SOFT_SKILLS_DELAY_MS : 0);
 	}
 
 	function nameFocusOut(event: FocusEvent) {
-		if (!nameChanged || (event.relatedTarget instanceof Node && nameGroup?.contains(event.relatedTarget))) return;
-		nameChanged = false;
-		schedule('basics', 0);
+		if (nameChanged.length === 0) return;
+		if (event.relatedTarget instanceof Node && nameGroup?.contains(event.relatedTarget)) return;
+		const fields = nameChanged;
+		nameChanged = [];
+		schedule(fields, 0);
+	}
+
+	function showSaved(field: Field, now: number) {
+		fieldState[field] = 'saved';
+		savedAt[field] = now;
+		setTimeout(() => {
+			if (fieldState[field] === 'saved' && now === savedAt[field]) fieldState[field] = 'idle';
+		}, SAVED_SHOWN_MS);
 	}
 
 	const submit: SubmitFunction = () => {
 		saving = true;
-		// Enter in a field sends the form at once, past the queue: it saves the section of that field.
+		const started = Date.now();
+		// Enter in a field sends the form at once, past the queue: it saves that field.
 		if (inFlight.length === 0) {
 			const active = document.activeElement;
-			const section = active instanceof HTMLInputElement ? SECTION_OF[active.name] : undefined;
-			inFlight = section === undefined ? ['basics', 'contacts', 'soft'] : [section];
-			for (const each of inFlight) saveState[each] = 'saving';
+			const field = active instanceof HTMLInputElement && isField(active.name) ? active.name : null;
+			inFlight = field === null ? [] : NAME_FIELDS.includes(field) ? [...NAME_FIELDS] : [field];
+			for (const each of inFlight) fieldState[each] = 'saving';
 		}
 		return async ({ result: answer, update }) => {
 			await update({ reset: false, invalidateAll: true });
-			// A refused save keeps nothing: every section it carried stays unsaved.
-			const outcome = answer.type === 'success' ? 'saved' : 'error';
+			const shown = Date.now() - started;
+			if (shown < SAVING_SHOWN_MS) await new Promise((done) => setTimeout(done, SAVING_SHOWN_MS - shown));
 			const now = Date.now();
-			for (const section of inFlight) {
-				saveState[section] = outcome;
-				if (outcome === 'saved') {
-					savedAt[section] = now;
-					setTimeout(() => {
-						if (saveState[section] === 'saved' && Date.now() - savedAt[section] >= SAVED_SHOWN_MS) {
-							saveState[section] = 'idle';
-						}
-					}, SAVED_SHOWN_MS);
+			if (answer.type === 'success') {
+				for (const field of inFlight) showSaved(field, now);
+			} else {
+				// A refused save keeps nothing. A field with a problem shows it; the others go with the next save.
+				const problem =
+					answer.type === 'failure'
+						? (answer.data?.problem as { message: string; fields: Record<string, string> } | undefined)
+						: undefined;
+				const refused = Object.keys(problem?.fields ?? {}).filter(isField);
+				for (const field of inFlight) {
+					if (refused.length === 0 || refused.includes(field)) fieldState[field] = 'error';
+					else {
+						fieldState[field] = 'idle';
+						if (!queued.includes(field)) queued.push(field);
+					}
 				}
+				if (refused.length === 0) toast.error(problem?.message ?? 'Не удалось сохранить профиль. Повторите.');
 			}
 			inFlight = [];
 			saving = false;
-			flush();
+			if (answer.type === 'success') flush();
 		};
 	};
 </script>
@@ -162,41 +186,42 @@
 		description="Как к вам обращаться и какую работу вы ищете. Заполните вручную или примите найденное в резюме. ФИО хранится зашифрованным: компания видит его только после вашего согласия на раскрытие."
 		testId="profile-basics"
 	>
-		{#snippet status()}<SaveStatus status={saveState.basics} />{/snippet}
-		{#if saveState.basics === 'error' && generalProblem}<FormMessage text={generalProblem} />{/if}
 		<fieldset class="grid gap-3" bind:this={nameGroup} onfocusout={nameFocusOut}>
 			<legend class="sr-only">ФИО</legend>
 			<div class="grid gap-3 sm:grid-cols-3">
 				<div class="grid gap-1.5">
 					<Label for="last-name">Фамилия</Label>
-					<Input
+					<AutosaveInput
 						id="last-name"
 						name="last_name"
 						form={formId}
 						autocomplete="family-name"
 						value={profile.fullName?.last ?? ''}
+						status={fieldState.last_name}
 					/>
 					{#if fieldError('last_name')}<p class="text-sm text-destructive">{fieldError('last_name')}</p>{/if}
 				</div>
 				<div class="grid gap-1.5">
 					<Label for="first-name">Имя</Label>
-					<Input
+					<AutosaveInput
 						id="first-name"
 						name="first_name"
 						form={formId}
 						autocomplete="given-name"
 						value={profile.fullName?.first ?? ''}
+						status={fieldState.first_name}
 					/>
 					{#if fieldError('first_name')}<p class="text-sm text-destructive">{fieldError('first_name')}</p>{/if}
 				</div>
 				<div class="grid gap-1.5">
 					<Label for="middle-name">Отчество</Label>
-					<Input
+					<AutosaveInput
 						id="middle-name"
 						name="middle_name"
 						form={formId}
 						autocomplete="additional-name"
 						value={profile.fullName?.middle ?? ''}
+						status={fieldState.middle_name}
 					/>
 					{#if fieldError('middle_name')}<p class="text-sm text-destructive">{fieldError('middle_name')}</p>{/if}
 				</div>
@@ -205,13 +230,14 @@
 
 		<div class="grid gap-1.5">
 			<Label for="headline">Желаемая должность</Label>
-			<Input
+			<AutosaveInput
 				id="headline"
 				name="headline"
 				form={formId}
 				maxlength={200}
 				placeholder="Например, бэкенд-разработчик"
 				value={profile.headline ?? ''}
+				status={fieldState.headline}
 			/>
 			{#if fieldError('headline')}<p class="text-sm text-destructive">{fieldError('headline')}</p>{/if}
 		</div>
@@ -240,17 +266,30 @@
 		description="Телефон и Telegram — для связи с работодателем. Хранятся зашифрованными и раскрываются компании только с вашего согласия. Почта — адрес входа в учётную запись."
 		testId="profile-contacts"
 	>
-		{#snippet status()}<SaveStatus status={saveState.contacts} />{/snippet}
-		{#if saveState.contacts === 'error' && generalProblem}<FormMessage text={generalProblem} />{/if}
 		<div class="grid gap-3 sm:grid-cols-2">
 			<div class="grid gap-1.5">
 				<Label for="phone">Телефон</Label>
-				<Input id="phone" name="phone" form={formId} type="tel" autocomplete="tel" value={profile.phone ?? ''} />
+				<AutosaveInput
+					id="phone"
+					name="phone"
+					form={formId}
+					type="tel"
+					autocomplete="tel"
+					value={profile.phone ?? ''}
+					status={fieldState.phone}
+				/>
 				{#if fieldError('phone')}<p class="text-sm text-destructive">{fieldError('phone')}</p>{/if}
 			</div>
 			<div class="grid gap-1.5">
 				<Label for="telegram">Telegram</Label>
-				<Input id="telegram" name="telegram" form={formId} placeholder="@name" value={profile.telegram ?? ''} />
+				<AutosaveInput
+					id="telegram"
+					name="telegram"
+					form={formId}
+					placeholder="@name"
+					value={profile.telegram ?? ''}
+					status={fieldState.telegram}
+				/>
 				{#if fieldError('telegram')}<p class="text-sm text-destructive">{fieldError('telegram')}</p>{/if}
 			</div>
 		</div>
@@ -279,11 +318,12 @@
 		description="С ваших слов: тест их не проверяет, в подбор они не идут. Видны только в вашем PDF-профиле."
 		testId="profile-soft-skills"
 	>
-		{#snippet status()}<SaveStatus status={saveState.soft} />{/snippet}
-		{#if saveState.soft === 'error' && generalProblem}<FormMessage text={generalProblem} />{/if}
 		<fieldset class="grid gap-3">
 			<legend class="sr-only">Мягкие навыки</legend>
-			<p class="text-sm text-muted-foreground">Выбрано {chosenSoftSkills.length} из {maxSoftSkills}</p>
+			<p class="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+				Выбрано {chosenSoftSkills.length} из {maxSoftSkills}
+				<SaveStatus status={fieldState.soft_skill_keys} />
+			</p>
 			<div class="flex flex-wrap gap-2">
 				{#each softSkills as skill (skill.key)}
 					<label

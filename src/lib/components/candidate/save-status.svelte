@@ -4,7 +4,7 @@
 	import LoaderCircleIcon from '@lucide/svelte/icons/loader-circle';
 	import { fade } from 'svelte/transition';
 
-	/** The state of the autosave of a section: shown beside its title, the confirmation fades on its own. */
+	/** The state of an autosave shown as a short line; the confirmation fades on its own. */
 	let { status }: { status: 'idle' | 'saving' | 'saved' | 'error' } = $props();
 </script>
 

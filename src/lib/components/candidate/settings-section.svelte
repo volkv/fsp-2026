@@ -13,15 +13,13 @@
 		description?: string;
 		icon?: typeof UserIcon;
 		children: Snippet;
-		/** Beside the title: the state of what the section saves. */
-		status?: Snippet;
 		/** Sets the controls on a rounded panel of the card colour. */
 		panel?: boolean;
 		class?: string;
 		testId?: string;
 	}
 
-	let { title, description, icon: Icon, children, status, panel = false, class: className, testId }: Props = $props();
+	let { title, description, icon: Icon, children, panel = false, class: className, testId }: Props = $props();
 	const headingId = $props.id();
 </script>
 
@@ -31,13 +29,10 @@
 	data-testid={testId}
 >
 	<div class="grid content-start gap-1.5 lg:sticky lg:top-36 lg:self-start">
-		<div class="flex flex-wrap items-center gap-x-3 gap-y-1">
-			<h2 id={headingId} class="flex items-center gap-2 font-heading text-lg font-semibold">
-				{#if Icon}<Icon class="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />{/if}
-				{title}
-			</h2>
-			{@render status?.()}
-		</div>
+		<h2 id={headingId} class="flex items-center gap-2 font-heading text-lg font-semibold">
+			{#if Icon}<Icon class="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />{/if}
+			{title}
+		</h2>
 		{#if description}<p class="text-sm text-pretty text-muted-foreground">{description}</p>{/if}
 	</div>
 	<div

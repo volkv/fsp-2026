@@ -510,7 +510,9 @@ test('a candidate fills the profile, downloads the PDF and its QR leads to a val
 	await fields.getByLabel('Telegram').fill('t.me/maria_dev');
 	await fields.getByRole('checkbox', { name: 'Работа в команде' }).check();
 	await expect(fields.getByLabel('Telegram')).toHaveValue('@maria_dev');
-	await expect(page.getByTestId('profile-contacts').getByTestId('save-status')).toHaveAttribute('data-state', 'saved');
+	await expect(
+		page.getByTestId('profile-contacts').locator('[data-testid="field-save"][data-state="saved"]')
+	).toHaveCount(1);
 	await expect(page.getByTestId('profile-soft-skills').getByTestId('save-status')).toHaveAttribute(
 		'data-state',
 		'saved'
