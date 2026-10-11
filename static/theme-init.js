@@ -9,7 +9,10 @@
 	} catch (e) {
 		// Storage is unavailable (private mode, blocked cookies): follow the system.
 	}
-	var dark = mode === 'dark' || (mode !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+	if (mode !== 'light' && mode !== 'dark') mode = 'system';
+	var dark = mode === 'dark' || (mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+	// The chosen mode itself, for the theme toggle icon: the server cannot know it and renders all three.
+	root.dataset.themeMode = mode;
 	root.classList.toggle('dark', dark);
 	root.style.colorScheme = dark ? 'dark' : 'light';
 })();
