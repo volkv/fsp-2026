@@ -6,7 +6,7 @@
 	import LogInIcon from '@lucide/svelte/icons/log-in';
 	import TrophyIcon from '@lucide/svelte/icons/trophy';
 	import UserRoundIcon from '@lucide/svelte/icons/user-round';
-	import BrandStrip from '$lib/components/brand/brand-strip.svelte';
+	import PatternGraph from '$lib/components/brand/pattern-graph.svelte';
 	import { RecommendationNotice, TrustChip } from '$lib/components/product/index.js';
 	import { TRUST, pluralize, type TrustLevel } from '$lib/components/product/model.js';
 	import { buttonVariants } from '$lib/components/ui/button/index.js';
@@ -140,8 +140,10 @@
 
 <!-- The first screen is a dark brand block in both themes, as the FSP carriers are: the dark tokens apply inside it. -->
 <section class="dark relative overflow-hidden border-b bg-background text-foreground" aria-labelledby="hero-title">
-	<BrandStrip class="h-5 sm:h-6" />
-	<div class="mx-auto grid max-w-7xl gap-10 px-4 pt-12 pb-14 sm:px-6 lg:grid-cols-[1.2fr_1fr] lg:pt-16 lg:pb-20">
+	<PatternGraph class="[mask-image:linear-gradient(90deg,rgb(0_0_0/0.55),rgb(0_0_0/0.75)_40%,black_70%)]" />
+	<div
+		class="relative mx-auto grid max-w-7xl gap-10 px-4 pt-12 pb-14 sm:px-6 lg:grid-cols-[1.2fr_1fr] lg:pt-16 lg:pb-20"
+	>
 		<div class="space-y-6">
 			<p class="font-mono text-label text-link uppercase">Федерация спортивного программирования России</p>
 			<h1 id="hero-title" class="text-h1 sm:text-display">ФСП | Карьера</h1>
