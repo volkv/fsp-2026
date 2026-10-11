@@ -4,7 +4,6 @@
 	import LogInIcon from '@lucide/svelte/icons/log-in';
 	import TrophyIcon from '@lucide/svelte/icons/trophy';
 	import FspSign from '$lib/components/brand/fsp-sign.svelte';
-	import PatternGraph from '$lib/components/brand/pattern-graph.svelte';
 	import { RecommendationNotice, TrustChip, TrustSignal } from '$lib/components/product/index.js';
 	import { TRUST } from '$lib/components/product/model.js';
 	import { cn } from '$lib/components/utils.js';
@@ -13,6 +12,7 @@
 	import MarketFacts from './market-facts.svelte';
 	import ProfileSnapshot from './profile-snapshot.svelte';
 	import LedFigure from './led-figure.svelte';
+	import RadarGraph from './radar-graph.svelte';
 	import { reveal } from './reveal.js';
 	import {
 		AUDIENCES as audiences,
@@ -46,7 +46,7 @@
 		class="keynote-glow pointer-events-none absolute inset-x-0 bottom-0 -z-10 h-[70%] bg-[radial-gradient(ellipse_60%_50%_at_50%_85%,rgb(64_47_255/0.4),transparent_70%)]"
 		aria-hidden="true"
 	></div>
-	<PatternGraph class="[mask-image:radial-gradient(ellipse_42%_38%_at_50%_42%,rgb(0_0_0/0.2),black_75%)]" />
+	<RadarGraph class="[mask-image:radial-gradient(ellipse_42%_38%_at_50%_42%,rgb(0_0_0/0.2),black_75%)]" />
 	<div
 		class="relative mx-auto flex min-h-dvh max-w-6xl flex-col items-center justify-center px-4 pt-[calc(var(--header-height)+2rem)] pb-[clamp(12rem,32vh,20rem)] text-center sm:px-6"
 	>
