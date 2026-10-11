@@ -368,10 +368,6 @@ test('a candidate sees the achievement with its receipt, a category without a gr
 	await expect(receipt.getByText('Уровень соревнования: Кубок России')).toBeVisible();
 	await expect(receipt.getByText('коммерческий опыт')).toBeVisible();
 	await expect(page.getByTestId('skill-list')).toBeVisible();
-	await expect(page.getByTestId('resume').getByRole('link', { name: 'Открыть резюме' })).toHaveAttribute(
-		'href',
-		'/me/resume'
-	);
 	await expectNoAxeViolations(page);
 
 	// Category: without a survey, a declaration and a test there is none — the step to it starts with the survey.
@@ -449,11 +445,27 @@ test('a candidate states the search terms, sees vacancies with the match and wha
 	);
 	await expectNoAxeViolations(page);
 
+	await page.goto('/me/profile');
+	// Open to offers shows the profile: without the catalog consent the choice asks for it once and saves both.
+	await page.getByRole('radio', { name: /Открыт к предложениям/ }).check();
+	const consent = page.getByRole('dialog', { name: 'Показать профиль работодателям' });
+	await consent.getByRole('button', { name: 'Согласен, показать профиль' }).click();
+	await expect(page.getByText('Статус поиска сохранён.')).toBeVisible();
+	await expect(page.getByTestId('search-status')).toHaveAttribute('data-status', 'open_to_offers');
+	await expect(page.getByTestId('search-status')).toHaveAttribute('data-consented', 'true');
+	// «Не ищу» keeps the consent: it is withdrawn only on the page of consents.
+	await page.getByRole('radio', { name: /Не ищу/ }).check();
+	await expect(page.getByTestId('search-status')).toHaveAttribute('data-status', 'not_looking');
+	await expect(page.getByTestId('search-status')).toHaveAttribute('data-consented', 'true');
+	await page.getByRole('radio', { name: /Открыт к предложениям/ }).check();
+	await expect(page.getByTestId('search-status')).toHaveAttribute('data-status', 'open_to_offers');
+	await expect(consent).toHaveCount(0);
+	await expectNoAxeViolations(page);
+
 	await page.goto('/me/vacancies');
 	await expect(page.getByRole('heading', { level: 1 })).toHaveText('Вакансии для вас');
-	await page.getByRole('radio', { name: /Открыт к предложениям/ }).check();
-	await page.getByRole('button', { name: 'Сохранить статус' }).click();
-	await expect(page.getByText('Статус поиска сохранён.')).toBeVisible();
+	await expect(page.getByTestId('search-status')).toHaveCount(0);
+	await expect(page.getByRole('combobox', { name: 'Грейд' })).toBeVisible();
 	await expect(page.getByRole('button', { name: /Откликнуться/ })).toHaveCount(0);
 	await expectNoAxeViolations(page);
 
@@ -508,12 +520,15 @@ test('a candidate fills the profile, downloads the PDF and its QR leads to a val
 	const body = await pdf.body();
 	expect(body.subarray(0, 5).toString('latin1')).toBe('%PDF-');
 
-	await page.reload();
-	const attestation = page.getByTestId('attestation');
-	await expect(attestation).toHaveAttribute('data-status', 'valid');
-	const link = attestation.getByRole('link');
-	const href = await link.getAttribute('href');
-	if (href === null) throw new Error('the confirmation has no link');
+	// The confirmation the QR code leads to, with the holder code, as the profile gives it to its owner.
+	const own = await page.request.get('/api/v1/me/profile');
+	expect(own.status()).toBe(200);
+	const { attestations } = (await own.json()) as {
+		attestations: { handle: string; status: string; holder_code: string }[];
+	};
+	const attestation = attestations.find((item) => item.status === 'valid');
+	if (!attestation) throw new Error('the PDF issued no valid confirmation');
+	const href = `/verify/categories/${attestation.handle}`;
 
 	// Anyone opens the confirmation: the category in force, no name; the holder proves it with the name and the code.
 	const visitor = await page.context().browser()?.newPage();
@@ -522,9 +537,8 @@ test('a candidate fills the profile, downloads the PDF and its QR leads to a val
 	await expect(visitor.getByTestId('attestation-status')).toHaveAttribute('data-status', 'valid');
 	await expect(visitor.getByTestId('attestation-signature')).toHaveAttribute('data-signature', 'valid');
 	await expect(visitor.locator('body')).not.toContainText('Иванова');
-	const code = (await attestation.locator('.font-mono').first().textContent())?.trim() ?? '';
 	await visitor.getByLabel('ФИО').fill('Иванова Мария');
-	await visitor.getByLabel('Код владельца').fill(code);
+	await visitor.getByLabel('Код владельца').fill(attestation.holder_code);
 	await visitor.getByRole('button', { name: 'Проверить' }).click();
 	await expect(visitor.getByText('Совпадает: подтверждение выдано человеку с этим ФИО.')).toBeVisible();
 	await visitor.close();

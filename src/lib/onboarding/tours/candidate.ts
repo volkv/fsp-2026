@@ -90,14 +90,14 @@ export const candidateTour: WorkspaceTour = {
 			title: 'Профиль',
 			steps: [
 				{
-					target: testId('visibility-toggle'),
-					title: 'Показ работодателям',
-					body: 'Главный выключатель: включите — и проверенные компании найдут вас в каталоге; выключите — профиль скроется сразу.'
+					target: testId('search-status'),
+					title: 'Готовность получать предложения',
+					body: '«Активно ищу» и «Открыт к предложениям» показывают профиль проверенным компаниям — согласие на показ даётся один раз. «Не ищу» скрывает профиль.'
 				},
 				{
-					target: testId('profile-fields'),
-					title: 'Данные профиля',
-					body: 'Заполните имя и контакты — без них PDF-профиль внизу страницы не соберётся.'
+					target: testId('profile-basics'),
+					title: 'Основное',
+					body: 'Заполните ФИО и желаемую должность, ниже — контакты: без них PDF-профиль не соберётся.'
 				},
 				{
 					target: testId('fsp-achievements'),
@@ -242,14 +242,9 @@ export const candidateTour: WorkspaceTour = {
 			title: 'Вакансии для вас',
 			steps: [
 				{
-					target: testId('search-status'),
-					title: 'Готовность получать предложения',
-					body: 'Отметьте, насколько вы открыты к предложениям, — компании это видят.'
-				},
-				{
 					target: testId('vacancy-search'),
 					title: 'Поиск',
-					body: 'Отфильтруйте вакансии по названию, роли и формату работы.'
+					body: 'Отфильтруйте вакансии по названию, роли, грейду и формату работы.'
 				},
 				{
 					target: testId('vacancy-list'),

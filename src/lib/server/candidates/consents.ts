@@ -946,3 +946,31 @@ function listedPartners(grantId: string, choices: unknown): string[] {
 	if (!parsed.success) throw new Error(`partner_pool grant ${grantId} does not list the partners`);
 	return parsed.data.partner_company_ids;
 }
+
+/**
+ * The catalog consent as the choice of the search status needs it: searching or open to offers shows the profile to
+ * employers, so without a consent in force the choice asks for it once, over its text; it is withdrawn only on the
+ * page of consents.
+ */
+export interface CatalogSwitch {
+	/** The candidate's own consent is in force: the profile is in the catalog unless something else hides it. */
+	consented: boolean;
+	hiddenReason: HiddenReason | null;
+	adult: boolean;
+	/** A minor gives the consent only after the representative is verified. */
+	canGrant: boolean;
+	text: ConsentText | null;
+	scopeFields: CatalogScopeField[];
+}
+
+export function catalogSwitch(overview: ConsentOverview): CatalogSwitch {
+	const lastGrant = overview.catalog.lastGrant;
+	return {
+		consented: overview.visibility === 'catalog',
+		hiddenReason: overview.hiddenReason,
+		adult: overview.ageRegime === 'adult',
+		canGrant: overview.ageRegime === 'adult' || (overview.ageRegime === 'minor' && overview.representativeVerified),
+		text: overview.texts.catalog,
+		scopeFields: overview.catalog.effective ? overview.catalog.scopeFields : (lastGrant?.scopeFields ?? [])
+	};
+}

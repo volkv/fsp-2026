@@ -8,7 +8,8 @@ import { fspIdentityOf } from '$lib/server/auth/identities';
 import { candidateRequest } from '$lib/server/candidates/http';
 import { formFailure, pageError } from '$lib/server/http/page';
 import { loadSelfEvidence } from '$lib/server/candidates/profile';
-import { consentOverview } from '$lib/server/candidates/consents';
+import { catalogSwitch, consentOverview, grantCatalogVisibility } from '$lib/server/candidates/consents';
+import { SEARCH_STATUSES, setSearchStatus } from '$lib/server/candidates/settings';
 import { config } from '$lib/server/config';
 import { db } from '$lib/server/db';
 import { candidates } from '$lib/server/db/schema';
@@ -109,21 +110,11 @@ export const load: PageServerLoad = async (event) => {
 		const own = await ownProfileView({ db: db(), crypto: fieldCrypto(), now: () => now }, subject);
 		const vocabulary = await currentCandidateVocabulary(db());
 		const overview = await consentOverview(db(), candidateId, now);
-		const catalogText = overview.texts.catalog;
-		const lastGrant = overview.catalog.lastGrant;
 		return {
 			evidence,
-			// The main switch of the page: showing the profile to employers is the catalog consent, given over its text
-			// once per edition — the same edition agreed to before turns the profile back on at a click.
-			visibility: {
-				on: overview.visibility === 'catalog',
-				hiddenReason: overview.hiddenReason,
-				adult: overview.ageRegime === 'adult',
-				canGrant: overview.ageRegime === 'adult' || (overview.ageRegime === 'minor' && overview.representativeVerified),
-				text: catalogText,
-				agreed: catalogText !== null && lastGrant?.documentId === catalogText.id,
-				scopeFields: overview.catalog.effective ? overview.catalog.scopeFields : (lastGrant?.scopeFields ?? [])
-			},
+			// The search status is the one switch of showing the profile: searching or open to offers asks for the catalog
+			// consent once, over its text, if it is not in force.
+			catalog: catalogSwitch(overview),
 			fspStep,
 			consent: await consentState(candidateId, now),
 			externalProfiles: await readOwnExternalProfiles(db(), candidateId, now),
@@ -263,6 +254,34 @@ function experienceInput(form: FormData) {
 const profileDeps = () => ({ db: db(), crypto: fieldCrypto(), now: () => new Date() });
 
 export const actions: Actions = {
+	/**
+	 * The search status, with the catalog consent given over its text when the choice shows the profile and the
+	 * consent is not in force; the vacancies page posts here as well.
+	 */
+	searchStatus: async (event) => {
+		const { subject, meta } = await candidateRequest(event);
+		const form = await event.request.formData();
+		const status = SEARCH_STATUSES.find((value) => value === formText(form, 'search_status'));
+		try {
+			if (!status) {
+				throw new ApiError('validation_failed', {
+					details: [{ path: 'search_status', code: 'unknown', message: 'Выберите статус поиска' }]
+				});
+			}
+			const documentId = formText(form, 'documentId');
+			if (documentId !== '') {
+				await grantCatalogVisibility(db(), subject, meta, {
+					documentId,
+					scopeFields: form.getAll('scope_fields').filter((value): value is string => typeof value === 'string')
+				});
+			}
+			await setSearchStatus(db(), subject, status);
+			return { target: 'search-status', statusSaved: true };
+		} catch (cause) {
+			return targetFailure(cause, 'search-status');
+		}
+	},
+
 	saveProfile: async (event) => {
 		const { subject, meta } = await candidateRequest(event);
 		const form = await event.request.formData();

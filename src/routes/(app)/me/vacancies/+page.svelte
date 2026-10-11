@@ -1,15 +1,10 @@
 <script lang="ts">
 	import BriefcaseIcon from '@lucide/svelte/icons/briefcase';
-	import InboxIcon from '@lucide/svelte/icons/inbox';
 	import SearchIcon from '@lucide/svelte/icons/search';
-	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
 	import { candidateMatchView } from '$lib/components/candidate/match.js';
-	import { gradeName, SEARCH_STATUSES, skillName, type SearchStatus } from '$lib/components/candidate/model.js';
-	import SectionCard from '$lib/components/candidate/section-card.svelte';
+	import { gradeName, skillName } from '$lib/components/candidate/model.js';
 	import NativeSelect from '$lib/components/employer/native-select.svelte';
-	import CsrfInput from '$lib/components/forms/csrf-input.svelte';
-	import FormMessage from '$lib/components/forms/form-message.svelte';
 	import PageHeader from '$lib/components/forms/page-header.svelte';
 	import {
 		DegradedModeNotice,
@@ -25,12 +20,10 @@
 	import { Input } from '$lib/components/ui/input/index.js';
 	import type { PageProps } from './$types';
 
-	let { data, form }: PageProps = $props();
+	let { data }: PageProps = $props();
 
 	const labels = $derived(data.labels);
-	const statuses = Object.keys(SEARCH_STATUSES) as SearchStatus[];
 	const percent = new Intl.NumberFormat('ru-RU', { style: 'percent', maximumFractionDigits: 0 });
-	const problem = $derived(form && 'problem' in form ? form.problem : null);
 
 	function salaryOf(salary: (typeof data.page.items)[number]['salary']): SalaryView {
 		return {
@@ -43,8 +36,11 @@
 	}
 
 	const search = $derived(data.search);
-	const filtered = $derived(search.text !== '' || search.roleKey !== null || search.workFormats.length > 0);
+	const filtered = $derived(
+		search.text !== '' || search.roleKey !== null || search.gradeKey !== null || search.workFormats.length > 0
+	);
 	const roleOptions = $derived(Object.entries(labels.roles).sort(([, a], [, b]) => a.localeCompare(b, 'ru')));
+	const gradeOptions = $derived(Object.entries(labels.grades));
 	const formatOptions = $derived(Object.entries(labels.workFormats));
 
 	/** The address of the same search at `cursor` (the first page without it). */
@@ -52,6 +48,7 @@
 		const pairs: [string, string][] = [];
 		if (search.text !== '') pairs.push(['q', search.text]);
 		if (search.roleKey !== null) pairs.push(['role', search.roleKey]);
+		if (search.gradeKey !== null) pairs.push(['grade', search.gradeKey]);
 		for (const format of search.workFormats) pairs.push(['format', format]);
 		if (cursor !== null) pairs.push(['cursor', cursor]);
 		return pairs.map(([name, value]) => `${name}=${encodeURIComponent(value)}`).join('&');
@@ -70,54 +67,9 @@
 >
 	{#snippet eyebrow()}<a class="underline underline-offset-4" href={resolve('/me/profile')}>Профиль</a>{/snippet}
 	{#snippet actions()}
-		<a href={resolve('/me/invitations')} class={buttonVariants({ variant: 'outline' })}>
-			<InboxIcon aria-hidden="true" />
-			Приглашения
-		</a>
 		<a href={resolve('/me/applications')} class={buttonVariants({ variant: 'outline' })}>Мои отклики</a>
 	{/snippet}
 </PageHeader>
-
-<SectionCard
-	title="Готовность получать предложения"
-	description="Работодатели находят вас сами. Статус поиска виден в карточке; «Не ищу» убирает профиль из каталога."
-	testId="search-status"
->
-	{#if problem}
-		<FormMessage text={problem.message} />
-	{:else if form && 'statusSaved' in form}
-		<FormMessage tone="success" text="Статус поиска сохранён." />
-	{/if}
-	<form method="POST" action="?/status" use:enhance class="grid gap-3">
-		<CsrfInput />
-		<fieldset class="grid gap-2 sm:grid-cols-3">
-			<legend class="sr-only">Статус поиска</legend>
-			{#each statuses as status (status)}
-				<label
-					class="flex cursor-pointer gap-2 rounded-lg border p-3 text-sm has-checked:border-primary has-checked:bg-accent"
-				>
-					<input
-						type="radio"
-						name="search_status"
-						value={status}
-						class="mt-0.5 size-4 accent-primary"
-						checked={data.searchStatus === status}
-					/>
-					<span class="grid gap-0.5">
-						<span class="font-medium">{SEARCH_STATUSES[status].label}</span>
-						<span class="text-xs text-muted-foreground">{SEARCH_STATUSES[status].hint}</span>
-					</span>
-				</label>
-			{/each}
-		</fieldset>
-		<div class="flex flex-wrap items-center gap-3">
-			<Button type="submit" variant="outline">Сохранить статус</Button>
-			<a class="text-sm text-link underline underline-offset-4" href={resolve('/me/visibility')}>
-				Кто видит профиль — видимость и согласия
-			</a>
-		</div>
-	</form>
-</SectionCard>
 
 <RecommendationNotice compact />
 {#if data.page.mode.searchMode === 'fts_only'}
@@ -126,12 +78,12 @@
 
 <form
 	method="GET"
-	class="grid gap-4 rounded-xl border bg-card p-4 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]"
+	class="grid gap-4 rounded-xl border bg-card p-4 md:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]"
 	aria-label="Поиск вакансий"
 	data-testid="vacancy-search"
 	data-sveltekit-keepfocus
 >
-	<Field.Field>
+	<Field.Field class="md:col-span-2 lg:col-span-1">
 		<Field.Label for="{searchId}-q">Название, навыки, компания</Field.Label>
 		<Input id="{searchId}-q" name="q" type="search" value={search.text} placeholder="Например: Go, Kubernetes" />
 	</Field.Field>
@@ -144,7 +96,16 @@
 			{/each}
 		</NativeSelect>
 	</Field.Field>
-	<fieldset class="grid gap-2 md:col-span-2">
+	<Field.Field>
+		<Field.Label for="{searchId}-grade">Грейд</Field.Label>
+		<NativeSelect id="{searchId}-grade" name="grade" value={search.gradeKey ?? ''}>
+			<option value="">Любой</option>
+			{#each gradeOptions as [key, name] (key)}
+				<option value={key}>{name}</option>
+			{/each}
+		</NativeSelect>
+	</Field.Field>
+	<fieldset class="grid gap-2 md:col-span-2 lg:col-span-3">
 		<legend class="mb-1 text-sm font-medium">Формат работы</legend>
 		<div class="flex flex-wrap gap-x-4 gap-y-2">
 			{#each formatOptions as [key, name] (key)}

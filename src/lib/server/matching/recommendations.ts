@@ -4,12 +4,13 @@
 // of a demo session sees the vacancies of its session and those outside sessions.
 import { and, inArray, type SQL } from 'drizzle-orm';
 import { can, type AccessSubject } from '$lib/server/access/permissions';
+import type { Executor } from '$lib/server/db';
 import { vacancies } from '$lib/server/db/schema';
 import { demoSessionOfUser } from '$lib/server/demo/scope';
 import { ApiError } from '$lib/server/errors/api-error';
 import { vacancyDocuments } from './documents';
 import { candidateSideMatches } from './candidate-side';
-import { loadCandidateSnapshots, matchableVacancyFor, vacancySnapshot } from './evidence';
+import { loadCandidateSnapshots, loadGradeOrdinals, matchableVacancyFor, vacancySnapshot } from './evidence';
 import { paginate, queryFingerprint, type Page, type PageRequest } from './page';
 import { loadActiveMatchRuleset } from './ruleset';
 import type { MatchResult } from './score';
@@ -19,6 +20,8 @@ export interface VacancyRecommendationQuery extends PageRequest {
 	text?: string;
 	roleKeys?: string[];
 	workFormats?: string[];
+	/** Grades the vacancy's range must include (any of them). */
+	gradeKeys?: string[];
 }
 
 export interface VacancyRecommendation {
@@ -52,10 +55,11 @@ export async function recommendVacancies(
 	const conditions: SQL[] = [matchableVacancyFor(await demoSessionOfUser(executor, subject.userId))];
 	if (rest.roleKeys?.length) conditions.push(inArray(vacancies.roleKey, rest.roleKeys));
 	if (rest.workFormats?.length) conditions.push(inArray(vacancies.workFormat, rest.workFormats));
-	const rows = await executor
+	const found = await executor
 		.select()
 		.from(vacancies)
 		.where(and(...conditions));
+	const rows = rest.gradeKeys?.length ? await withinGrades(executor, found, rest.gradeKeys) : found;
 
 	const documents = await vacancyDocuments(
 		executor,
@@ -97,4 +101,26 @@ export async function recommendVacancies(
 			semanticReason: space === null ? 'no_active_space' : vectorPairs > 0 ? null : 'pair_vector_missing'
 		}
 	};
+}
+
+/** Vacancies whose grade range includes one of the grades, by the ordinals of each vacancy's taxonomy version. */
+async function withinGrades<T extends { taxonomyVersionId: string; gradeMin: string; gradeMax: string }>(
+	executor: Executor,
+	rows: T[],
+	gradeKeys: readonly string[]
+): Promise<T[]> {
+	const ordinals = await loadGradeOrdinals(
+		executor,
+		rows.map((row) => row.taxonomyVersionId)
+	);
+	return rows.filter((row) => {
+		const scale = ordinals.get(row.taxonomyVersionId);
+		const min = scale?.get(row.gradeMin);
+		const max = scale?.get(row.gradeMax);
+		if (scale === undefined || min === undefined || max === undefined) return false;
+		return gradeKeys.some((key) => {
+			const value = scale.get(key);
+			return value !== undefined && value >= min && value <= max;
+		});
+	});
 }
