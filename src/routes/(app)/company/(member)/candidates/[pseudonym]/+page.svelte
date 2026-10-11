@@ -65,7 +65,7 @@
 		{:else if data.invitation?.status !== 'accepted'}
 			<ContactsHidden />
 		{/if}
-		<Card.Root>
+		<Card.Root data-tour="candidate-offer">
 			<Card.Header>
 				<Card.Title><h2 class="font-heading text-h3">Предложить работу</h2></Card.Title>
 				<Card.Description>

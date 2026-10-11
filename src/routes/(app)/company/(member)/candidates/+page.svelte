@@ -51,7 +51,7 @@
 	</Empty.Root>
 {:else}
 	<div class="grid gap-6 lg:grid-cols-[18rem_minmax(0,1fr)]">
-		<aside class="lg:sticky lg:top-20 lg:self-start">
+		<aside class="lg:sticky lg:top-20 lg:self-start" data-tour="candidates-filters">
 			<CatalogFilters
 				values={catalog.query}
 				specializations={data.filters.specializations}
@@ -60,7 +60,7 @@
 				regions={data.filters.regions}
 			/>
 		</aside>
-		<div class="grid content-start gap-4">
+		<div class="grid content-start gap-4" data-tour="candidates-list">
 			{#if catalog.unknownStack.length > 0}
 				<FormMessage
 					text={`Нет в справочнике навыков, фильтр по ним не применён: ${catalog.unknownStack.join(', ')}`}

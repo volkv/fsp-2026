@@ -97,7 +97,7 @@
 			/>
 		</aside>
 
-		<div class="grid content-start gap-4">
+		<div class="grid content-start gap-4" data-tour="vacancy-candidates-list">
 			{#if catalog.unknownStack.length > 0}
 				<FormMessage
 					text={`Нет в справочнике навыков, фильтр по ним не применён: ${catalog.unknownStack.join(', ')}`}
@@ -128,7 +128,12 @@
 					</Empty.Header>
 				</Empty.Root>
 			{:else if catalog.page}
-				<form method="GET" id="compare-form" class="flex flex-wrap items-center justify-between gap-2">
+				<form
+					method="GET"
+					id="compare-form"
+					class="flex flex-wrap items-center justify-between gap-2"
+					data-tour="vacancy-compare"
+				>
 					{#each catalog.params as [name, value], index (index)}
 						<input type="hidden" {name} {value} />
 					{/each}

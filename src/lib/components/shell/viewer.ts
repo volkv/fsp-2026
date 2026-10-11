@@ -2,6 +2,8 @@ import { NAV_PERMISSIONS, type NavPermission, type Workspace } from '$lib/naviga
 
 /** The signed-in person as the interface shows them; built on the server for every page of the layout. */
 export interface Viewer {
+	/** Account id: the browser keeps what the person has seen of the tours per account. */
+	id: string;
 	displayName: string;
 	/** Workspace by role; `null` while the registration path has not given one. */
 	workspace: Workspace | null;
@@ -51,6 +53,7 @@ export function viewerFrom(data: Record<string, unknown>): Viewer | null {
 	if (typeof value !== 'object' || value === null) return null;
 	const candidate = value as Record<string, unknown>;
 	if (
+		typeof candidate.id !== 'string' ||
 		typeof candidate.displayName !== 'string' ||
 		typeof candidate.onboardingComplete !== 'boolean' ||
 		typeof candidate.csrfToken !== 'string' ||

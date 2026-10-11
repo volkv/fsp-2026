@@ -49,7 +49,7 @@
 
 <section aria-labelledby="search-heading" class="grid gap-4">
 	<h2 id="search-heading" class="font-heading text-h3">Найти пользователя</h2>
-	<form method="GET" class="flex flex-wrap items-end gap-3" role="search">
+	<form method="GET" class="flex flex-wrap items-end gap-3" role="search" data-tour="staff-search">
 		<Field.Field class="w-96 max-w-full" data-invalid={data.searchProblem ? true : undefined}>
 			<Field.Label for="user-q">Почта целиком или идентификатор аккаунта</Field.Label>
 			<Input

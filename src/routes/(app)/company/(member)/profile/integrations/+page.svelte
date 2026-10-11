@@ -84,7 +84,7 @@
 {/if}
 
 <div class="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-	<Card.Root>
+	<Card.Root data-tour="ats-subscriptions">
 		<Card.Header>
 			<Card.Title><h2 class="font-heading text-h3">Подписки</h2></Card.Title>
 		</Card.Header>
@@ -177,7 +177,7 @@
 	</Card.Root>
 
 	<div class="grid content-start gap-6">
-		<Card.Root>
+		<Card.Root data-tour="ats-webhook">
 			<Card.Header>
 				<Card.Title><h2 class="font-heading text-h3">Новый вебхук</h2></Card.Title>
 				<Card.Description>Адрес https:// вашей системы. Повторы при сбое — до 6 часов.</Card.Description>
@@ -211,7 +211,7 @@
 			</Card.Content>
 		</Card.Root>
 
-		<Card.Root>
+		<Card.Root data-tour="ats-huntflow">
 			<Card.Header>
 				<Card.Title><h2 class="font-heading text-h3">Хантфлоу</h2></Card.Title>
 				<Card.Description>

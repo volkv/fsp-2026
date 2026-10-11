@@ -12,7 +12,11 @@
 		title={data.title}
 		description="То, о чём это уведомление, больше недоступно: приглашение отозвано или удалено, вы больше не в команде компании либо доступа к нему больше нет."
 	/>
-	<a href={resolve('/notifications')} class="{buttonVariants({ variant: 'outline' })} justify-self-start">
+	<a
+		href={resolve('/notifications')}
+		class="{buttonVariants({ variant: 'outline' })} justify-self-start"
+		data-tour="notification-back"
+	>
 		Ко всем уведомлениям
 	</a>
 </div>

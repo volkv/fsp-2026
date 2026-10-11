@@ -58,6 +58,7 @@
 		{#if vacancy.status !== 'closed'}
 			<a
 				class={buttonVariants()}
+				data-tour="vacancy-candidates-link"
 				href={resolve('/(app)/company/(member)/vacancies/[id]/candidates', { id: vacancy.id })}
 			>
 				<SearchIcon aria-hidden="true" />
@@ -158,7 +159,7 @@
 	</Card.Root>
 
 	<div class="grid content-start gap-6">
-		<Card.Root>
+		<Card.Root data-tour="vacancy-publish">
 			<Card.Header>
 				<Card.Title><h2 class="font-heading text-h3">Публикация</h2></Card.Title>
 				{#if vacancy.publishedAt}

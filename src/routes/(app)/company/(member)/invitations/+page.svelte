@@ -29,7 +29,7 @@
 		</Empty.Header>
 	</Empty.Root>
 {:else}
-	<div class="overflow-x-auto rounded-xl border">
+	<div class="overflow-x-auto rounded-xl border" data-tour="invitations-list">
 		<Table.Root label="Приглашения">
 			<Table.Header>
 				<Table.Row>

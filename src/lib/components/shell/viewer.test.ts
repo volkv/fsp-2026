@@ -3,6 +3,7 @@ import { permittedItems, WORKSPACES } from '$lib/navigation';
 import { termText, timeLeft, viewerFrom } from './viewer';
 
 const viewer = {
+	id: '00000000-0000-4000-8000-000000000001',
 	displayName: 'Оператор',
 	workspace: 'operator',
 	onboardingComplete: true,

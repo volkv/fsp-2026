@@ -31,6 +31,7 @@
 					active ? 'bg-accent text-accent-foreground' : 'text-muted-foreground hover:text-foreground'
 				)}
 				aria-current={active ? 'page' : undefined}
+				data-tour="nav:{item.href}"
 				onclick={onnavigate}
 			>
 				<item.icon class="size-4" aria-hidden="true" />

@@ -14,8 +14,26 @@ export function visitorAddress(): string {
 	return `10.${randomInt(256)}.${randomInt(256)}.${randomInt(1, 255)}`;
 }
 
-export const test = base.extend({
+// The tours of the cabinets (src/lib/onboarding) open a one-time invitation on the first page of every cabinet; a spec
+// that is not about them sees every tour as already seen. The browser reads the marks through `localStorage`, so the
+// test answers for it, and the product keeps no switch of its own. A spec of the tours sets `test.use({ tours: true })`.
+export const test = base.extend<{ tours: boolean }>({
+	tours: [false, { option: true }],
 	extraHTTPHeaders: async ({ extraHTTPHeaders }, use) => {
 		await use({ ...extraHTTPHeaders, 'x-forwarded-for': visitorAddress() });
+	},
+	context: async ({ context, tours }, use) => {
+		if (!tours) {
+			await context.addInitScript(() => {
+				const getItem = Object.getOwnPropertyDescriptor(Storage.prototype, 'getItem')?.value as (
+					this: Storage,
+					key: string
+				) => string | null;
+				Storage.prototype.getItem = function (this: Storage, key: string) {
+					return key.startsWith('fsp:tour:') ? 'seen' : getItem.call(this, key);
+				};
+			});
+		}
+		await use(context);
 	}
 });

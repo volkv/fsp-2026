@@ -54,6 +54,7 @@ export async function loadViewer(
 		: null;
 	return {
 		viewer: {
+			id: actor.userId,
 			displayName: user.displayName ?? 'Без имени',
 			workspace: staff ?? onboarding.role,
 			onboardingComplete: staff !== null || onboarding.complete,

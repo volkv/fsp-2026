@@ -2,6 +2,7 @@
 	import '../app.css';
 	import { ModeWatcher } from 'mode-watcher';
 	import { page } from '$app/state';
+	import Onboarding from '$lib/components/onboarding/onboarding.svelte';
 	import { AppHeader, SiteFooter } from '$lib/components/shell/index.js';
 	import { Toaster } from '$lib/components/ui/sonner/index.js';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
@@ -40,4 +41,5 @@
 		<!-- The full footer closes the landing page; the pages of the application keep a single line. -->
 		<SiteFooter compact={page.url.pathname !== '/'} />
 	</div>
+	<Onboarding />
 </Tooltip.Provider>

@@ -36,7 +36,7 @@
 <div class="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
 	<div class="grid content-start gap-6">
 		{#if match}
-			<Card.Root>
+			<Card.Root data-tour="vacancy-match">
 				<Card.Content>
 					<MatchBreakdown {match} />
 				</Card.Content>
@@ -53,7 +53,7 @@
 
 	<aside class="grid content-start gap-4 lg:sticky lg:top-20 lg:self-start">
 		<RecommendationNotice compact />
-		<Card.Root>
+		<Card.Root data-tour="vacancy-offer">
 			<Card.Header>
 				<Card.Title><h2 class="font-heading text-h3">Предложить работу</h2></Card.Title>
 				<Card.Description>

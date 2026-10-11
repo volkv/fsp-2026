@@ -116,7 +116,7 @@
 		title={challenge.answerKind === 'solution' ? 'Отправить решение' : 'Отправить подход'}
 		description="Компания увидит текст под псевдонимом. Отправленное решение — подтверждённое действие: профиль становится свежее в выдаче."
 	>
-		<form method="POST" action="?/solve" use:enhance class="grid gap-3">
+		<form method="POST" action="?/solve" use:enhance class="grid gap-3" data-tour="challenge-solve">
 			<CsrfInput />
 			<Textarea name="content" rows={10} maxlength={20000} required aria-label="Решение или подход" />
 			<div class="flex flex-wrap gap-3">

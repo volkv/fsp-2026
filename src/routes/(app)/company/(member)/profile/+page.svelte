@@ -193,7 +193,7 @@
 			</Card.Content>
 		</Card.Root>
 
-		<Card.Root>
+		<Card.Root data-tour="profile-verification">
 			<Card.Header>
 				<Card.Title><h2 class="font-heading text-h3">Проверка оператором ФСП</h2></Card.Title>
 				<Card.Description>

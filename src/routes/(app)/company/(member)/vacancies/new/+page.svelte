@@ -94,7 +94,7 @@
 {/if}
 
 <div class="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-	<Card.Root class="self-start">
+	<Card.Root class="self-start" data-tour="vacancy-text">
 		<Card.Header>
 			<Card.Title><h2 class="font-heading text-h3">Вставить текст</h2></Card.Title>
 			<Card.Description>Из письма тимлида, с сайта компании — любой текст вакансии.</Card.Description>

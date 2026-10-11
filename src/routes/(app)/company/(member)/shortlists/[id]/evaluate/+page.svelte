@@ -106,7 +106,7 @@
 		<Button type="submit" class="justify-self-start">Сохранить оценку</Button>
 	</form>
 {:else}
-	<div class="grid gap-3 md:grid-cols-2">
+	<div class="grid gap-3 md:grid-cols-2" data-tour="evaluate-start">
 		{#each ['confirmed_pool', 'whole_catalog'] as const as scope (scope)}
 			<form method="POST" action="?/start" use:enhance class="grid gap-2 rounded-xl border bg-card p-4 text-sm">
 				<CsrfInput />

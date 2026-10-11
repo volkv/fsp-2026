@@ -27,7 +27,7 @@
 		</Empty.Header>
 	</Empty.Root>
 {:else}
-	<ul class="grid gap-4">
+	<ul class="grid gap-4" data-tour="hiring-list">
 		{#each data.processes as item (item.process.id)}
 			<li>
 				<Card.Root data-process={item.process.id}>

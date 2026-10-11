@@ -26,7 +26,7 @@
 	description="Вакансии компании: по каждой — кандидаты с объяснением соответствия и приглашения с вилкой."
 >
 	{#snippet actions()}
-		<a class={buttonVariants()} href={resolve('/company/vacancies/new')}>
+		<a class={buttonVariants()} href={resolve('/company/vacancies/new')} data-tour="vacancies-new">
 			<PlusIcon aria-hidden="true" />
 			Новая вакансия
 		</a>
@@ -45,7 +45,7 @@
 		</Empty.Content>
 	</Empty.Root>
 {:else}
-	<ul class="grid gap-4" aria-label="Вакансии компании">
+	<ul class="grid gap-4" aria-label="Вакансии компании" data-tour="vacancies-list">
 		{#each data.vacancies as vacancy (vacancy.id)}
 			<li>
 				<Card.Root data-vacancy={vacancy.id}>

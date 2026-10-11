@@ -121,7 +121,7 @@
 		</Card.Content>
 	</Card.Root>
 
-	<Card.Root>
+	<Card.Root data-tour="team-invite">
 		<Card.Header>
 			<Card.Title><h2 class="font-heading text-h3">Пригласить в команду</h2></Card.Title>
 			<Card.Description>Человек вступит по ссылке из письма под тем же адресом.</Card.Description>

@@ -16,6 +16,8 @@
 		type NavItem,
 		type Workspace
 	} from '$lib/navigation.js';
+	import TourButton from '$lib/components/onboarding/tour-button.svelte';
+	import { inCabinet } from '$lib/onboarding/routes.js';
 	import BrandLockup from './brand-lockup.svelte';
 	import DemoSessionBadge from './demo-session-badge.svelte';
 	import NavLinks from './nav-links.svelte';
@@ -145,6 +147,9 @@
 			</nav>
 		{/if}
 		<div class="ml-auto flex items-center gap-1">
+			{#if viewer?.workspace && viewer.onboardingComplete && inCabinet(viewer.workspace, pathname)}
+				<TourButton workspace={viewer.workspace} permissions={viewer.permissions} />
+			{/if}
 			<ThemeToggle />
 			{#if viewer}
 				<div class="hidden sm:block">

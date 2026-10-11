@@ -114,7 +114,7 @@
 						{#if c.resolution}<blockquote class="border-l-2 pl-3 whitespace-pre-line">{c.resolution}</blockquote>{/if}
 					</div>
 				{:else}
-					<form method="POST" action="?/decide" use:enhance class="grid gap-4">
+					<form method="POST" action="?/decide" use:enhance class="grid gap-4" data-tour="complaint-decision">
 						<CsrfInput />
 						<Field.Set>
 							<Field.Legend variant="label">Исход</Field.Legend>

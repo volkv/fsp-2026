@@ -119,7 +119,7 @@
 		</Card.Content>
 	</Card.Root>
 
-	<Card.Root>
+	<Card.Root data-tour="keys-create">
 		<Card.Header>
 			<Card.Title><h2 class="font-heading text-h3">Новый ключ</h2></Card.Title>
 			<Card.Description>Ключи закрыты приостановленной и отклонённой компании.</Card.Description>

@@ -223,7 +223,7 @@
 	</Card.Root>
 
 	<div class="grid gap-6 lg:grid-cols-2">
-		<Card.Root>
+		<Card.Root data-tour="candidate-confirmed">
 			<Card.Header>
 				<Card.Title><h2 class="font-heading text-h3">Что подтверждено</h2></Card.Title>
 				<Card.Description>Каждый навык — с уровнем доверия к его источнику.</Card.Description>
@@ -313,7 +313,7 @@
 		</Card.Root>
 	</div>
 
-	<section class="grid gap-4" aria-labelledby="achievements-heading">
+	<section class="grid gap-4" aria-labelledby="achievements-heading" data-tour="candidate-fsp">
 		<h2 id="achievements-heading" class="font-heading text-h3">Достижения ФСП</h2>
 		{#if (card.fspAchievements ?? []).length === 0}
 			<p class="text-sm text-muted-foreground">

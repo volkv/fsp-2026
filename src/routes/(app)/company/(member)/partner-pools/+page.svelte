@@ -24,7 +24,7 @@
 		</Empty.Header>
 	</Empty.Root>
 {:else}
-	<ul class="grid gap-3">
+	<ul class="grid gap-3" data-tour="pools-list">
 		{#each data.partnerships as partnership (partnership.id)}
 			<li class="grid gap-1 rounded-xl border bg-card p-4">
 				{#if partnership.open}
