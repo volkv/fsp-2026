@@ -18,10 +18,10 @@
 	/**
 	 * The fields the candidate keeps by hand, in three sections — the basics (the name and the headline), the contacts,
 	 * the soft skills — and in each, by field, what the reading of the resume found for it, with its quote and the
-	 * decision on it. A change is saved at once: a text field when it loses focus, the name when the focus leaves its
-	 * three fields (the surname goes only with the first name), the soft skills shortly after the last click; the title
-	 * of the section shows the saving and its outcome. The three sections are saved by one form: a decision on a found
-	 * value is a form of its own, and forms do not nest, so the fields belong to the form by its id.
+	 * decision on it. A change is saved at once: a text field when it loses focus, the soft skills shortly after the
+	 * last click; the field shows the saving and its outcome, and a toast says it. The three sections are saved by one
+	 * form: a decision on a found value is a form of its own, and forms do not nest, so the fields belong to the form by
+	 * its id.
 	 */
 	let {
 		profile,
@@ -71,7 +71,19 @@
 		'soft_skill_keys'
 	] satisfies Field[];
 	const isField = (name: string): name is Field => FIELDS.includes(name);
-	const NAME_FIELDS: Field[] = ['last_name', 'first_name', 'middle_name'];
+	const FIELD_LABELS: Record<Field, string> = {
+		last_name: 'Фамилия',
+		first_name: 'Имя',
+		middle_name: 'Отчество',
+		headline: 'Желаемая должность',
+		phone: 'Телефон',
+		telegram: 'Telegram',
+		soft_skill_keys: 'Мягкие навыки'
+	};
+	function savedText(fields: Field[]): string {
+		const [only] = fields;
+		return fields.length === 1 && only !== undefined ? `${FIELD_LABELS[only]}: сохранено` : 'Изменения сохранены';
+	}
 	const SAVED_SHOWN_MS = 2000;
 	/** A save faster than this still shows its spinner that long, so that it is seen. */
 	const SAVING_SHOWN_MS = 500;
@@ -87,11 +99,9 @@
 		soft_skill_keys: 'idle'
 	});
 	let saveForm = $state<HTMLFormElement>();
-	let nameGroup = $state<HTMLFieldSetElement>();
 	// Bookkeeping of the queue, not shown: what changed since the last save and what the save in flight carries.
 	let queued: Field[] = [];
 	let inFlight: Field[] = [];
-	let nameChanged: Field[] = [];
 	let saving = false;
 	let timer: ReturnType<typeof setTimeout> | undefined;
 	const savedAt: Partial<Record<Field, number>> = {};
@@ -110,24 +120,11 @@
 		saveForm?.requestSubmit();
 	}
 
-	/** A field changed and lost focus, or a soft skill was picked; the name waits for the focus to leave its fields. */
+	/** A field changed and lost focus, or a soft skill was picked. */
 	function changed(event: Event) {
 		const input = event.target;
 		if (!(input instanceof HTMLInputElement) || !isField(input.name)) return;
-		const field = input.name;
-		if (NAME_FIELDS.includes(field)) {
-			if (!nameChanged.includes(field)) nameChanged.push(field);
-			return;
-		}
-		schedule([field], input.type === 'checkbox' ? SOFT_SKILLS_DELAY_MS : 0);
-	}
-
-	function nameFocusOut(event: FocusEvent) {
-		if (nameChanged.length === 0) return;
-		if (event.relatedTarget instanceof Node && nameGroup?.contains(event.relatedTarget)) return;
-		const fields = nameChanged;
-		nameChanged = [];
-		schedule(fields, 0);
+		schedule([input.name], input.type === 'checkbox' ? SOFT_SKILLS_DELAY_MS : 0);
 	}
 
 	function showSaved(field: Field, now: number) {
@@ -145,7 +142,7 @@
 		if (inFlight.length === 0) {
 			const active = document.activeElement;
 			const field = active instanceof HTMLInputElement && isField(active.name) ? active.name : null;
-			inFlight = field === null ? [] : NAME_FIELDS.includes(field) ? [...NAME_FIELDS] : [field];
+			inFlight = field === null ? [] : [field];
 			for (const each of inFlight) fieldState[each] = 'saving';
 		}
 		return async ({ result: answer, update }) => {
@@ -155,6 +152,7 @@
 			const now = Date.now();
 			if (answer.type === 'success') {
 				for (const field of inFlight) showSaved(field, now);
+				if (inFlight.length > 0) toast.success(savedText(inFlight));
 			} else {
 				// A refused save keeps nothing. A field with a problem shows it; the others go with the next save.
 				const problem =
@@ -169,7 +167,7 @@
 						if (!queued.includes(field)) queued.push(field);
 					}
 				}
-				if (refused.length === 0) toast.error(problem?.message ?? 'Не удалось сохранить профиль. Повторите.');
+				toast.error(problem?.message ?? 'Не удалось сохранить профиль. Повторите.');
 			}
 			inFlight = [];
 			saving = false;
@@ -186,7 +184,7 @@
 		description="Как к вам обращаться и какую работу вы ищете. Заполните вручную или примите найденное в резюме. ФИО хранится зашифрованным: компания видит его только после вашего согласия на раскрытие."
 		testId="profile-basics"
 	>
-		<fieldset class="grid gap-3" bind:this={nameGroup} onfocusout={nameFocusOut}>
+		<fieldset class="grid gap-3">
 			<legend class="sr-only">ФИО</legend>
 			<div class="grid gap-3 sm:grid-cols-3">
 				<div class="grid gap-1.5">

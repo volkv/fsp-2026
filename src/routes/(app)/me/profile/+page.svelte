@@ -2,6 +2,7 @@
 	import ActivityIcon from '@lucide/svelte/icons/activity';
 	import BriefcaseIcon from '@lucide/svelte/icons/briefcase';
 	import ClipboardCheckIcon from '@lucide/svelte/icons/clipboard-check';
+	import FileUpIcon from '@lucide/svelte/icons/file-up';
 	import GlobeIcon from '@lucide/svelte/icons/globe';
 	import LinkIcon from '@lucide/svelte/icons/link';
 	import SparklesIcon from '@lucide/svelte/icons/sparkles';
@@ -76,7 +77,11 @@
 	{#snippet eyebrow()}{evidence.displayName}{/snippet}
 	{#snippet actions()}
 		<!-- In line with the title, below the line of the name above it. -->
-		<div class="sm:pt-6.5">
+		<div class="flex flex-wrap gap-2 sm:pt-6.5">
+			<a href={resolve('/me/resume')} class={buttonVariants({ variant: 'outline' })}>
+				<FileUpIcon aria-hidden="true" />
+				Загрузить резюме
+			</a>
 			<ProfilePdf
 				hasName={own.profile.fullName !== null}
 				hasPhone={own.profile.phone !== null}
