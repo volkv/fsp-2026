@@ -170,7 +170,10 @@ const versionSchema = z
 			.object({
 				decision: z.enum(['accept', 'decline']),
 				reason_code: z.string().nullable(),
-				reason_text: z.string().nullable(),
+				reason_text: z
+					.string()
+					.nullable()
+					.describe('Комментарий кандидата; компании — с контактами, скрытыми до раскрытия ей контактов кандидата'),
 				responded_at: dateTime
 			})
 			.nullable()

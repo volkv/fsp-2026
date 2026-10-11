@@ -31,9 +31,11 @@ import {
 	demoSessions,
 	notifications
 } from '$lib/server/db/schema';
+import { respondToInvitation } from '$lib/server/invitations/respond';
 import { createInvitation } from '$lib/server/invitations/send';
+import { CONTACT_MASK } from '$lib/server/visibility/contact-mask';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
-import { offerTerms } from '../helpers/factories';
+import { createPolicy, offerTerms } from '../helpers/factories';
 import {
 	DAY,
 	contactWorld,
@@ -265,6 +267,39 @@ describe('a solution of a call', () => {
 		expect((await refusal(openDelivery(deps(), stranger.subject, delivery.id))).code).toBe('not_found');
 		expect((await refusal(dismissDelivery(deps(), stranger.subject, delivery.id))).code).toBe('not_found');
 		expect(await myChallenges(deps(), stranger.subject)).toEqual([]);
+	});
+
+	it('reaches the company with its contacts masked until the candidate accepts its offer', async () => {
+		// Acceptance opens the hiring process under the policy in force.
+		await createPolicy(database.db, 'hiring_policy');
+		clock = new Date();
+		const company = await employer(database.db);
+		const candidate = await person(database.db, world, { category: { specialization: 'backend', grade: 'senior' } });
+		const challenge = await createChallenge(deps(), company.subject, meta, call({ grades: ['senior'] }));
+		await run();
+		const [delivery] = (await deliveriesOf(challenge.id)).filter((d) => d.candidateId === candidate.id);
+		if (!delivery) throw new Error('no delivery');
+		const text = 'Очередь и ключ идемпотентности на C++17. Детали — ivan@mail.ru, t.me/ivan_dev, +7 912 345-67-89.';
+		await submitSolution(deps(), candidate.subject, meta, delivery.id, text);
+		const companyText = async () =>
+			(await challengeSolutionsOf(deps(), company.subject, challenge.id)).solutions[0]?.content;
+		expect(await companyText()).toBe(
+			`Очередь и ключ идемпотентности на C++17. Детали — ${CONTACT_MASK}, ${CONTACT_MASK}, ${CONTACT_MASK}.`
+		);
+		const own = (await myChallenges(deps(), candidate.subject)).find((item) => item.deliveryId === delivery.id);
+		expect(own?.solution?.content).toBe(text);
+
+		const offer = await createInvitation(invitationDeps(), company.subject, meta, {
+			...offerTerms(),
+			candidateId: candidate.id
+		});
+		await respondToInvitation(invitationDeps(), candidate.subject, meta, offer.invitationId, {
+			termsId: offer.termsId,
+			decision: 'accept',
+			discloseFields: ['full_name', 'email'],
+			disclosureDocumentId: world.disclosureDocumentId
+		});
+		expect(await companyText()).toBe(text);
 	});
 
 	it('keeps the terms of a published call', async () => {

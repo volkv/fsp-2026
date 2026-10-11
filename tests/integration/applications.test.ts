@@ -34,6 +34,7 @@ import {
 } from '$lib/server/db/schema';
 import { createInvitation } from '$lib/server/invitations/send';
 import { recommendVacancies } from '$lib/server/matching/recommendations';
+import { CONTACT_MASK } from '$lib/server/visibility/contact-mask';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
 import { createOwnVacancy, offerTerms } from '../helpers/factories';
 import {
@@ -194,6 +195,29 @@ describe('an application', () => {
 			.from(consentEvents)
 			.where(eq(consentEvents.scopeApplicationId, sent.id));
 		expect(revoked.map((row) => row.action).sort()).toEqual(['grant', 'revoke']);
+	});
+
+	it('shows its message to the company as written while the contacts are disclosed, masked once withdrawn', async () => {
+		const company = await employer(database.db);
+		const vacancy = await vacancyOf(company);
+		const candidate = await person(database.db, world, { category: { specialization: 'backend', grade: 'middle' } });
+		const message = 'Три года платежей на Go 1.22. Связь: @ivan_dev, ivan@mail.ru';
+		const sent = await applyToVacancy(deps(), candidate.subject, meta, {
+			vacancyId: vacancy.id,
+			message,
+			discloseFields: ['full_name', 'email'],
+			disclosureDocumentId: world.disclosureDocumentId
+		});
+		const companyMessage = async () =>
+			(await companyApplications(deps(), company.subject)).find((application) => application.id === sent.id)?.message;
+		expect(await companyMessage()).toBe(message);
+
+		await withdrawApplication(deps(), candidate.subject, meta, sent.id);
+		const masked = `Три года платежей на Go 1.22. Связь: ${CONTACT_MASK}, ${CONTACT_MASK}`;
+		expect(await companyMessage()).toBe(masked);
+		expect((await getApplication(deps(), company.subject, meta, sent.id)).application.message).toBe(masked);
+		const own = await myApplications(deps(), candidate.subject);
+		expect(own.find((application) => application.id === sent.id)?.message).toBe(message);
 	});
 
 	it('shows its status to the candidate: an offer marks it invited, a refusal rejected', async () => {
