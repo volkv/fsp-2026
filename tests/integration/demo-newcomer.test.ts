@@ -3,7 +3,8 @@
 // there the candidate goes the whole way by the services of the product: the consent, the survey, the declared grade,
 // a test with its practice through the sandbox job, the category; an employer of the same session with a need of its
 // own finds the candidate in the shortlist, sends an offer, the candidate accepts it and the company receives the
-// contacts chosen. A session that is over takes no new candidate.
+// contacts chosen. Its first survey and grade start from the example answers, which, submitted unchanged, open the test;
+// a real candidate and a clone of the cast get none. A session that is over takes no new candidate.
 import { fileURLToPath } from 'node:url';
 import { createHash, randomUUID } from 'node:crypto';
 import { and, eq } from 'drizzle-orm';
@@ -17,6 +18,7 @@ import type { AuthDeps } from '$lib/server/auth/context';
 import { grantProfileConsent, onboardingState } from '$lib/server/auth/onboarding';
 import { createSession, sessionRef } from '$lib/server/auth/sessions';
 import { grantCatalogVisibility } from '$lib/server/candidates/consents';
+import { currentCandidateVocabulary } from '$lib/server/candidates/vocabulary';
 import { createFieldCrypto } from '$lib/server/crypto/fields';
 import {
 	auditEvents,
@@ -28,6 +30,7 @@ import {
 	users
 } from '$lib/server/db/schema';
 import { createdInSession, createNewcomer, DemoSessionEnded } from '$lib/server/demo/newcomer';
+import { GRADE_SAMPLE, onboardingSampleApplies, surveySample } from '$lib/server/demo/onboarding-sample';
 import { declareGrade } from '$lib/server/grades/declarations';
 import { gradeSources } from '$lib/server/grades/sources';
 import { submitSurvey } from '$lib/server/grades/surveys';
@@ -332,6 +335,62 @@ describe('a new candidate of a demo session', () => {
 		expect(answer).toMatchObject({ status: 'accepted', disclosedFields: ['full_name', 'email'] });
 		const contacts = await recipientContacts(invitationDeps(), employer, meta, sent.invitationId);
 		expect(contacts.email).toMatch(new RegExp(`\\+demo-${sessionId.slice(-12)}@`));
+	});
+
+	it('starts the survey and the grade from the example answers, which lead to the test; nobody else gets them', async () => {
+		const sessionId = await demoSession();
+		const newcomer = await createNewcomer({ db: database.db, crypto, now: new Date() }, sessionId, {
+			...meta,
+			requestId: randomUUID()
+		});
+		expect(await onboardingSampleApplies(database.db, newcomer.candidateId)).toBe(true);
+
+		// A real candidate and a clone of the cast answer on the forms as they are.
+		const real = await createCandidate(database.db);
+		const clone = await createCandidate(database.db, {
+			userId: (await createUser(database.db, { demoSessionId: sessionId, seedBatchId: 'demo-1' })).id,
+			demoSessionId: sessionId,
+			seedBatchId: 'demo-1'
+		});
+		expect(await onboardingSampleApplies(database.db, real.id)).toBe(false);
+		expect(await onboardingSampleApplies(database.db, clone.id)).toBe(false);
+
+		// The example survey and grade, submitted unchanged, open the test of the declared grade.
+		const vocabulary = await currentCandidateVocabulary(database.db);
+		if (!vocabulary) throw new Error('no taxonomy published');
+		const sample = surveySample(vocabulary, await gradeSources.releasedSpecializations(database.db));
+		if (!sample) throw new Error('no example survey with the backend bank released');
+		const { session } = await createSession(
+			redis,
+			{ userId: newcomer.userId, authMethod: 'password', authTime: new Date(), ip: null, ua: null },
+			new Date()
+		);
+		expect(await grantProfileConsent(authDeps(), meta, sessionRef(session), documents.pd)).toEqual({ ok: true });
+		const subject: AccessSubject = {
+			userId: newcomer.userId,
+			via: 'session',
+			candidate: { id: newcomer.candidateId, status: 'active' },
+			membership: null,
+			staff: { operator: false, admin: false, extraPermissions: [] }
+		};
+		await submitSurvey(database.db, gradeSources, subject, sample, meta);
+		await declareGrade(
+			database.db,
+			gradeSources,
+			subject,
+			{ specialization: sample.specialization, grade: GRADE_SAMPLE },
+			meta,
+			new Date()
+		);
+		expect((await onboardingState(authDeps(), newcomer.userId)).complete).toBe(true);
+		const { attempt } = await startAttempt(
+			database.db,
+			engineDeps(),
+			subject,
+			{ specialization: sample.specialization, grade: GRADE_SAMPLE },
+			{ now: new Date(), requestId: meta.requestId }
+		);
+		expect(attempt.status).toBe('in_progress');
 	});
 
 	it('is not written into a session that is over', async () => {

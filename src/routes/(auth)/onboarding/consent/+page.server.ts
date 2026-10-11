@@ -3,7 +3,7 @@ import { authDeps } from '$lib/server/auth/context';
 import { currentDocument } from '$lib/server/auth/documents';
 import { requestMeta, requireSession } from '$lib/server/auth/http';
 import { formText } from '$lib/server/http/form';
-import { grantProfileConsent, onboardingState } from '$lib/server/auth/onboarding';
+import { grantProfileConsent, onboardingState, stepAfterConsent } from '$lib/server/auth/onboarding';
 import type { Actions, PageServerLoad } from './$types';
 
 /** The personal-data consent on its own screen (domain 6.2, `pd_processing`: ч. 1 ст. 9 152-ФЗ). */
@@ -26,12 +26,8 @@ export const actions: Actions = {
 	default: async (event) => {
 		const session = requireSession(event);
 		const form = await event.request.formData();
-		const result = await grantProfileConsent(
-			await authDeps(),
-			requestMeta(event),
-			session,
-			formText(form, 'documentId')
-		);
+		const deps = await authDeps();
+		const result = await grantProfileConsent(deps, requestMeta(event), session, formText(form, 'documentId'));
 		if (!result.ok) {
 			return fail(409, {
 				message:
@@ -40,6 +36,6 @@ export const actions: Actions = {
 						: 'Согласие на этом шаге уже не требуется'
 			});
 		}
-		redirect(303, '/onboarding');
+		redirect(303, stepAfterConsent(await onboardingState(deps, session.userId)));
 	}
 };

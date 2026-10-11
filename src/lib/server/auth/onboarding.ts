@@ -58,6 +58,18 @@ export interface OnboardingState {
 	complete: boolean;
 }
 
+/**
+ * Where the registration goes once the processing consent is given: straight to the survey when it is the next step of an
+ * adult with a confirmed address; otherwise — a minor, whose representative comes first, an address to confirm, a
+ * consent that did not open the profile — back to the list of steps, which shows what is left.
+ */
+export function stepAfterConsent(state: OnboardingState): '/onboarding/survey' | '/onboarding' {
+	const candidate = state.candidate;
+	return state.emailVerified && candidate?.status === 'active' && !candidate.minor && candidate.survey === null
+		? '/onboarding/survey'
+		: '/onboarding';
+}
+
 export async function onboardingState(deps: AuthDeps, userId: string): Promise<OnboardingState> {
 	const now = deps.now();
 	const [user] = await deps.db.select({ verifiedAt: users.emailVerifiedAt }).from(users).where(eq(users.id, userId));

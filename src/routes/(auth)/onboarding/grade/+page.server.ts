@@ -3,6 +3,7 @@ import { CATALOG } from '$lib/server/assessments/contract/catalog';
 import { CATEGORY_GRADE_NAMES } from '$lib/server/categories/labels';
 import { formText } from '$lib/server/http/form';
 import { db } from '$lib/server/db';
+import { GRADE_SAMPLE, onboardingSampleApplies } from '$lib/server/demo/onboarding-sample';
 import { computeGradeHint, declareGrade } from '$lib/server/grades/declarations';
 import { gradeCandidate } from '$lib/server/grades/http';
 import { currentDeclaration } from '$lib/server/grades/policy';
@@ -13,7 +14,8 @@ import type { Actions, PageServerLoad } from './$types';
 
 /**
  * The grade hint and the declaration (domain 12.2): the hint advises with its grounds, the candidate chooses; each grade
- * shows its borderline candidate and what its test checks. After the declaration — the way to the test.
+ * shows its borderline candidate and what its test checks. After the declaration — straight to the test of the grade. A candidate
+ * created within a demo session, whom the hint gives no grounds, finds the example grade chosen.
  */
 export const load: PageServerLoad = async (event) => {
 	const { candidateId } = await gradeCandidate(event);
@@ -26,6 +28,10 @@ export const load: PageServerLoad = async (event) => {
 			computeGradeHint(executor, candidateId, survey.specialization, now),
 			currentDeclaration(executor, candidateId, survey.specialization)
 		]);
+		const sampleGrade =
+			declaration === null && hint.suggested === null && (await onboardingSampleApplies(executor, candidateId))
+				? GRADE_SAMPLE
+				: null;
 		const specialization = CATALOG.specializations.find((s) => s.key === survey.specialization);
 		if (!specialization) throw new Error(`survey ${survey.id} names a specialization outside the catalog`);
 		const blockTitle = new Map(CATALOG.blocks.map((b) => [b.code, b.title]));
@@ -33,7 +39,7 @@ export const load: PageServerLoad = async (event) => {
 			specialization: { key: specialization.key, title: specialization.title },
 			hint,
 			declared: declaration?.grade ?? null,
-			justDeclared: event.url.searchParams.has('declared'),
+			sampleGrade,
 			grades: CATALOG.grades.map((grade) => {
 				const definition = CATALOG.definitions.find(
 					(d) => d.specialization === survey.specialization && d.grade === grade.key
@@ -70,6 +76,6 @@ export const actions: Actions = {
 		} catch (cause) {
 			return formFailure(cause);
 		}
-		redirect(303, '/onboarding/grade?declared');
+		redirect(303, '/me/tests');
 	}
 };
