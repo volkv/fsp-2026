@@ -37,6 +37,7 @@
 		<main id="content" tabindex="-1" class="flex-1 focus:outline-none">
 			{@render children()}
 		</main>
-		<SiteFooter />
+		<!-- The full footer closes the landing page; the pages of the application keep a single line. -->
+		<SiteFooter compact={page.url.pathname !== '/'} />
 	</div>
 </Tooltip.Provider>

@@ -189,6 +189,7 @@
 	--color-ink-700: #3d3e42;
 	--color-ink-800: #2d2e37;
 	--color-ink-850: #24252c;
+	--color-ink-875: #202127;
 	--color-ink-900: #1b1c21;
 	--color-ink-1000: #131416;
 
@@ -275,10 +276,10 @@
 	--elevation-lg: 0 12px 40px rgb(27 28 33 / 0.16);
 }
 
-/* 2. Semantic roles — dark (mirrors fsp-russia.ru: #1B1C21 page, #24252C cards) */
+/* 2. Semantic roles — dark (after fsp-russia.ru: #24252C cards; the page a step lighter than its #1B1C21) */
 .dark,
 :root:not(.dark) [data-theme-inverse] {
-	--background: var(--color-ink-900);
+	--background: var(--color-ink-875);
 	--foreground: var(--color-ink-50);
 	--card: var(--color-ink-850);
 	--card-foreground: var(--color-ink-50);

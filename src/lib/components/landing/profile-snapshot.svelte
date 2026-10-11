@@ -17,7 +17,7 @@
 
 <figure
 	class={cn(
-		'dark rounded-[2rem] border border-white/12 bg-ink-1000/85 p-5 text-foreground shadow-[0_40px_120px_-30px_rgb(64_47_255/0.55)] backdrop-blur-2xl sm:p-9',
+		'rounded-[2rem] border bg-card p-5 text-card-foreground shadow-[0_40px_120px_-30px_rgb(64_47_255/0.45)] sm:p-9 dark:border-white/12',
 		className
 	)}
 	aria-label="Пример профиля кандидата и предложения работодателя"
@@ -31,7 +31,7 @@
 			<p class="truncate font-heading text-lg font-medium sm:text-xl">Анна К.</p>
 			<p class="text-sm text-muted-foreground">Пример профиля</p>
 		</div>
-		<div class="w-full rounded-2xl border border-white/12 px-4 py-2 sm:w-auto sm:text-right">
+		<div class="w-full rounded-2xl border px-4 py-2 sm:w-auto sm:text-right">
 			<p class="font-mono text-label text-muted-foreground uppercase">Категория по тесту</p>
 			<p class="font-heading text-base font-medium">Backend · Middle</p>
 		</div>
@@ -44,10 +44,10 @@
 	</ul>
 
 	<div
-		class="mt-7 flex flex-col gap-5 rounded-3xl border border-brand-400/40 bg-brand-950/70 p-5 sm:flex-row sm:items-end sm:justify-between sm:p-6"
+		class="mt-7 flex flex-col gap-5 rounded-3xl border border-primary/25 bg-accent p-5 sm:flex-row sm:items-end sm:justify-between sm:p-6 dark:border-brand-400/40"
 	>
 		<div class="space-y-2">
-			<p class="flex items-center gap-2 font-mono text-label text-brand-200 uppercase">
+			<p class="flex items-center gap-2 font-mono text-label text-accent-foreground uppercase">
 				<SendIcon class="size-3.5" aria-hidden="true" />
 				Работодатель пишет первым
 			</p>

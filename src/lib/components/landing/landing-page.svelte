@@ -36,14 +36,14 @@
 	const heading = 'text-[clamp(1.6rem,4vw,3.3rem)] leading-[1.02] font-bold tracking-[-0.04em] text-balance';
 </script>
 
-<!-- The first screen is black in both themes; the header lies over it and is pinned once it has left the window. -->
+<!-- The first screen is dark in both themes, edge to edge; the header lies over it and is pinned once it has left the window. -->
 <section
-	class="dark relative isolate overflow-hidden bg-black text-foreground"
+	class="dark relative isolate overflow-hidden bg-ink-900 text-foreground"
 	aria-labelledby="keynote-title"
 	data-under-header
 >
 	<div
-		class="keynote-glow pointer-events-none absolute inset-x-0 bottom-0 -z-10 h-[70%] bg-[radial-gradient(ellipse_60%_55%_at_50%_100%,rgb(64_47_255/0.45),transparent_70%)]"
+		class="keynote-glow pointer-events-none absolute inset-x-0 bottom-0 -z-10 h-[70%] bg-[radial-gradient(ellipse_60%_50%_at_50%_85%,rgb(64_47_255/0.4),transparent_70%)]"
 		aria-hidden="true"
 	></div>
 	<PatternGraph class="[mask-image:radial-gradient(ellipse_42%_38%_at_50%_42%,rgb(0_0_0/0.2),black_75%)]" />
@@ -86,7 +86,9 @@
 </section>
 
 <!-- The product shot overlaps the first screen and straightens as it scrolls in. -->
-<div class="relative z-10 -mt-[clamp(10rem,27vh,17rem)] overflow-x-clip px-4 pb-24 sm:px-6 lg:pb-32">
+<div
+	class="relative z-10 -mt-(--overlap) overflow-x-clip px-4 pb-24 [--overlap:clamp(10rem,27vh,17rem)] sm:px-6 lg:pb-32"
+>
 	<div class="keynote-stage mx-auto max-w-3xl">
 		<div class="keynote-tilt relative">
 			<div
@@ -125,7 +127,7 @@
 <!-- How it works: the four stages to a decision on a line that draws itself, dark as the first screen. -->
 <section
 	id="how"
-	class="dark relative scroll-mt-24 overflow-hidden bg-black text-foreground"
+	class="dark relative scroll-mt-24 overflow-hidden bg-ink-900 text-foreground"
 	aria-labelledby="keynote-how-title"
 >
 	<div
@@ -157,7 +159,7 @@
 				<li class="relative flex flex-col">
 					<span
 						class={cn(
-							'absolute top-5 right-5 z-10 flex size-10 items-center justify-center rounded-full border-2 bg-black accent-figure text-lg leading-none transition-all duration-500 ease-standard group-data-[reveal=pending]:scale-50 group-data-[reveal=pending]:opacity-0 lg:relative lg:top-auto lg:right-auto',
+							'absolute top-5 right-5 z-10 flex size-10 items-center justify-center rounded-full border-2 bg-ink-900 accent-figure text-lg leading-none transition-all duration-500 ease-standard group-data-[reveal=pending]:scale-50 group-data-[reveal=pending]:opacity-0 lg:relative lg:top-auto lg:right-auto',
 							final ? 'border-fsp-red-400 text-white' : 'border-brand-400 text-brand-200'
 						)}
 						style="transition-delay: {200 + index * 300}ms"
@@ -201,45 +203,41 @@
 
 <AudiencesScroll />
 
-<!-- Trust levels as a contest scoreboard. -->
-<section class="dark relative overflow-hidden bg-fsp-digital text-foreground" aria-labelledby="keynote-trust-title">
+<!-- Trust levels as a contest scoreboard, in the page theme. -->
+<section class="relative overflow-hidden border-y bg-card text-foreground" aria-labelledby="keynote-trust-title">
 	<div class="keynote-grid pointer-events-none absolute inset-0" aria-hidden="true"></div>
 	<div class="relative mx-auto max-w-6xl px-4 py-28 sm:px-6 lg:py-36">
-		<p class="font-mono text-label text-brand-200 uppercase">Доверие</p>
-		<h2 id="keynote-trust-title" class="{heading} mt-4 max-w-4xl text-ink-50">
-			У каждого навыка виден уровень доверия
-		</h2>
+		<p class="font-mono text-label text-link uppercase">Доверие</p>
+		<h2 id="keynote-trust-title" class="{heading} mt-4 max-w-4xl">У каждого навыка виден уровень доверия</h2>
 		<ol class="group mt-12 space-y-3 md:hidden" use:reveal={0.15}>
 			{#each trustLadder as level, index (level)}
 				<li
-					class="rounded-2xl border border-white/15 bg-ink-1000/70 p-5 backdrop-blur transition-all duration-700 ease-standard group-data-[reveal=pending]:translate-y-6 group-data-[reveal=pending]:opacity-0"
+					class="rounded-2xl border bg-background p-5 transition-all duration-700 ease-standard group-data-[reveal=pending]:translate-y-6 group-data-[reveal=pending]:opacity-0"
 					style="transition-delay: {index * 120}ms"
 				>
 					<div class="flex items-center justify-between gap-3">
 						<span class="flex items-center gap-3">
 							<span
-								class={cn('accent-figure text-3xl leading-none', index === 0 ? 'text-brand-300' : 'text-ink-50')}
+								class={cn('accent-figure text-3xl leading-none', index === 0 ? 'text-link' : 'text-foreground')}
 								aria-hidden="true">{index + 1}</span
 							>
 							<TrustChip {level} size="md" />
 						</span>
-						<span class="text-brand-200">
+						<span class="text-link">
 							<TrustSignal filled={TRUST[level].nodes} class="h-3 w-10" />
 						</span>
 					</div>
-					<p class="mt-3 text-sm leading-relaxed text-ink-250">
+					<p class="mt-3 text-sm leading-relaxed text-muted-foreground">
 						<span class="sr-only">Ранг {index + 1}. </span>{TRUST[level].asserts}
 					</p>
 				</li>
 			{/each}
 		</ol>
-		<div
-			class="mt-14 hidden overflow-x-auto rounded-2xl border border-white/15 bg-ink-1000/70 backdrop-blur md:block lg:mt-20"
-		>
+		<div class="mt-14 hidden overflow-x-auto rounded-2xl border bg-background md:block lg:mt-20">
 			<table class="w-full min-w-[40rem] border-collapse text-left">
 				<caption class="sr-only">Уровни доверия к навыку, от сильного к слабому</caption>
 				<thead>
-					<tr class="border-b border-white/10 font-mono text-xs text-ink-250 uppercase">
+					<tr class="border-b font-mono text-xs text-muted-foreground uppercase">
 						<th scope="col" class="w-20 px-6 py-4 font-medium">Ранг</th>
 						<th scope="col" class="px-4 py-4 font-medium">Источник</th>
 						<th scope="col" class="px-4 py-4 font-medium">Что подтверждает</th>
@@ -249,14 +247,14 @@
 				<tbody class="group" use:reveal={0.2}>
 					{#each trustLadder as level, index (level)}
 						<tr
-							class="border-b border-white/[0.06] transition-all duration-700 ease-standard group-data-[reveal=pending]:-translate-x-10 group-data-[reveal=pending]:opacity-0 last:border-0 hover:bg-white/[0.03]"
+							class="border-b transition-all duration-700 ease-standard group-data-[reveal=pending]:-translate-x-10 group-data-[reveal=pending]:opacity-0 last:border-0 hover:bg-muted/60"
 							style="transition-delay: {index * 140}ms"
 						>
 							<td class="px-6 py-7 align-top">
 								<span
 									class={cn(
 										'accent-figure text-[1.488rem] leading-none',
-										index === 0 ? 'text-brand-300' : 'text-ink-50'
+										index === 0 ? 'text-link' : 'text-foreground'
 									)}
 								>
 									{index + 1}
@@ -265,9 +263,9 @@
 							<td class="px-4 py-7 align-top">
 								<TrustChip {level} size="md" />
 							</td>
-							<td class="max-w-xl px-4 py-7 align-top text-ink-250">{TRUST[level].asserts}</td>
+							<td class="max-w-xl px-4 py-7 align-top text-muted-foreground">{TRUST[level].asserts}</td>
 							<td class="px-6 py-7 text-right align-top">
-								<span class="inline-flex pt-2 text-brand-200">
+								<span class="inline-flex pt-2 text-link">
 									<TrustSignal filled={TRUST[level].nodes} class="h-3 w-10" />
 								</span>
 							</td>
@@ -280,7 +278,7 @@
 </section>
 
 <!-- Closing call. -->
-<section class="dark relative isolate overflow-hidden bg-black text-foreground" aria-labelledby="keynote-final-title">
+<section class="dark relative isolate overflow-hidden bg-ink-900 text-foreground" aria-labelledby="keynote-final-title">
 	<div
 		class="keynote-glow pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_55%_45%_at_50%_45%,rgb(64_47_255/0.35),transparent_70%)]"
 		aria-hidden="true"
@@ -348,8 +346,7 @@
 
 	.keynote-grid {
 		background-image:
-			linear-gradient(rgb(255 255 255 / 0.05) 1px, transparent 1px),
-			linear-gradient(90deg, rgb(255 255 255 / 0.05) 1px, transparent 1px);
+			linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px);
 		background-size: 48px 48px;
 		mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, black, transparent);
 	}

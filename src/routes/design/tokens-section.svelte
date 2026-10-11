@@ -30,6 +30,7 @@
 		{ step: '700', swatch: 'bg-ink-700' },
 		{ step: '800', swatch: 'bg-ink-800' },
 		{ step: '850', swatch: 'bg-ink-850' },
+		{ step: '875', swatch: 'bg-ink-875' },
 		{ step: '900', swatch: 'bg-ink-900' }
 	];
 
