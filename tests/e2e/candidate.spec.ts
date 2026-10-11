@@ -506,11 +506,19 @@ test('a candidate fills the profile, downloads the PDF and its QR leads to a val
 	const fields = page.getByTestId('profile-fields');
 	await fields.getByLabel('Фамилия').fill('Иванова');
 	await fields.getByLabel('Имя', { exact: true }).fill('Мария');
+	// Each change is saved at once: the name when the focus leaves its fields, a contact on blur, a soft skill on click.
 	await fields.getByLabel('Telegram').fill('t.me/maria_dev');
 	await fields.getByRole('checkbox', { name: 'Работа в команде' }).check();
-	await fields.getByRole('button', { name: 'Сохранить' }).click();
-	await expect(fields.getByText('Профиль сохранён.')).toBeVisible();
 	await expect(fields.getByLabel('Telegram')).toHaveValue('@maria_dev');
+	await expect(page.getByTestId('profile-contacts').getByTestId('save-status')).toHaveAttribute('data-state', 'saved');
+	await expect(page.getByTestId('profile-soft-skills').getByTestId('save-status')).toHaveAttribute(
+		'data-state',
+		'saved'
+	);
+	await page.reload();
+	await expect(fields.getByLabel('Фамилия')).toHaveValue('Иванова');
+	await expect(fields.getByLabel('Telegram')).toHaveValue('@maria_dev');
+	await expect(fields.getByRole('checkbox', { name: 'Работа в команде' })).toBeChecked();
 	await expectNoAxeViolations(page);
 
 	// The PDF of the candidate's session, with the address of the confirmation as the link of its QR code.
