@@ -42,7 +42,7 @@ const profileSchema = z
 		middle_name: z.string().nullable(),
 		phone: z.string().nullable().describe('+<цифры>'),
 		telegram: z.string().nullable().describe('@name'),
-		email: z.string().describe('Почта аккаунта: контактная почта профиля, меняется в настройках аккаунта'),
+		email: z.string().describe('Почта аккаунта: контактная почта профиля, через API не меняется'),
 		headline: z.string().nullable(),
 		soft_skill_keys: z.array(key),
 		desired_role_keys: z.array(key).describe('Желаемые роли: меняются в предпочтениях'),

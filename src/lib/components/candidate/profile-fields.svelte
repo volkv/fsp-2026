@@ -98,9 +98,10 @@
 				{#if fieldError('telegram')}<p class="text-sm text-destructive">{fieldError('telegram')}</p>{/if}
 			</div>
 			<div class="grid gap-1.5">
-				<Label for="email">Почта</Label>
-				<Input id="email" value={profile.email} readonly aria-describedby="email-hint" />
-				<p id="email-hint" class="text-xs text-muted-foreground">Почта аккаунта: меняется в настройках аккаунта.</p>
+				<p class="text-sm leading-none font-medium">Почта</p>
+				<p class="flex h-9 min-w-0 items-center">
+					<span class="truncate text-sm" title={profile.email} data-testid="profile-email">{profile.email}</span>
+				</p>
 			</div>
 		</div>
 	</fieldset>

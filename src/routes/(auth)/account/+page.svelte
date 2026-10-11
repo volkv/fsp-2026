@@ -35,7 +35,9 @@
 				<Badge variant="destructive">не подтверждена</Badge>
 				<a class="text-link underline underline-offset-4" href={resolve('/onboarding')}>отправить письмо</a>
 			{/if}
+			<Button type="button" size="sm" variant="outline" disabled aria-describedby="account-email-hint">Изменить</Button>
 		</p>
+		<p id="account-email-hint" class="text-xs text-muted-foreground">В демо-режиме почту сменить нельзя.</p>
 	</section>
 
 	{#if data.viewer?.workspace === 'candidate'}

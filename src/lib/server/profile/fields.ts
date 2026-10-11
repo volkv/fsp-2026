@@ -312,7 +312,7 @@ function applySuggestion(
 		case 'email':
 			// The contact e-mail is the account's: the suggestion is shown to compare, accepting it changes nothing here.
 			throw new ApiError('conflict', {
-				message: 'Почта профиля — это почта входа: она меняется в настройках аккаунта',
+				message: 'Почта профиля — это почта входа: в демо-режиме её сменить нельзя',
 				details: [{ code: 'email_is_account', message: normalizeEmail(value) ?? value }]
 			});
 		case 'soft_skill': {
