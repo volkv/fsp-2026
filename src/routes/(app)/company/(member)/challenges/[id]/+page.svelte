@@ -26,7 +26,8 @@
 </script>
 
 <PageHeader title={challenge.title} description={challenge.goal}>
-	{#snippet eyebrow()}<a class="underline underline-offset-4" href={resolve('/company/challenges')}>Задания</a>{/snippet}
+	{#snippet eyebrow()}<a class="underline underline-offset-4" href={resolve('/company/challenges')}>Задания</a
+		>{/snippet}
 	{#snippet actions()}
 		<StatusPill label={STATUS[challenge.status].label} tone={STATUS[challenge.status].tone} />
 		{#if data.demoClockSeconds !== null && challenge.status === 'active'}

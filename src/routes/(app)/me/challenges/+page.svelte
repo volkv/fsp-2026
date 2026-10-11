@@ -64,8 +64,8 @@
 			<Empty.Media variant="icon"><SwordsIcon aria-hidden="true" /></Empty.Media>
 			<Empty.Title>Заданий пока нет</Empty.Title>
 			<Empty.Description>
-				Задание приходит кандидатам категорий, на которые оно рассчитано, не чаще раза в неделю. Категория подтверждается
-				тестом.
+				Задание приходит кандидатам категорий, на которые оно рассчитано, не чаще раза в неделю. Категория
+				подтверждается тестом.
 			</Empty.Description>
 		</Empty.Header>
 		<Empty.Content>
