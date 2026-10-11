@@ -1,4 +1,5 @@
 <script lang="ts">
+	import DownloadIcon from '@lucide/svelte/icons/download';
 	import LinkIcon from '@lucide/svelte/icons/link';
 	import TrophyIcon from '@lucide/svelte/icons/trophy';
 	import { enhance } from '$app/forms';
@@ -18,7 +19,7 @@
 	const dateFormat = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
 </script>
 
-<AuthPage title="Учётная запись" description="Вход, пароль и сеансы." width="wide">
+<AuthPage title="Учётная запись" description="Вход, пароль, сеансы и ваши данные." width="wide">
 	{#if data.notice}
 		<FormMessage tone={data.notice.tone} text={data.notice.text} />
 	{/if}
@@ -36,6 +37,31 @@
 			{/if}
 		</p>
 	</section>
+
+	{#if data.viewer?.workspace === 'candidate'}
+		<Separator />
+		<section aria-labelledby="account-data" class="grid gap-3" data-testid="account-data">
+			<h2 id="account-data" class="font-heading text-h3">Мои данные</h2>
+			<p class="text-sm text-muted-foreground">
+				Всё, что платформа хранит о вас, — списком и одним файлом. Что видно работодателям и на что дано согласие,
+				решаете вы.
+			</p>
+			<div class="flex flex-wrap gap-2">
+				<a
+					href={resolve('/me/export')}
+					class={buttonVariants({ variant: 'outline' })}
+					data-testid="account-data-export"
+				>
+					<DownloadIcon aria-hidden="true" />
+					Мои данные
+				</a>
+				<div class="flex flex-wrap gap-2" data-testid="account-data-manage">
+					<a href={resolve('/me/consents')} class={buttonVariants({ variant: 'outline' })}>Согласия</a>
+					<a href={resolve('/me/visibility')} class={buttonVariants({ variant: 'outline' })}>Видимость профиля</a>
+				</div>
+			</div>
+		</section>
+	{/if}
 
 	{#if data.fsp}
 		<Separator />
@@ -152,7 +178,7 @@
 	</section>
 
 	<Separator />
-	<section aria-labelledby="account-deletion" class="grid gap-3">
+	<section aria-labelledby="account-deletion" class="grid gap-3" data-testid="account-deletion">
 		<h2 id="account-deletion" class="font-heading text-h3">Удаление учётной записи</h2>
 		<p class="text-sm text-muted-foreground">
 			Вход закрывается сразу, данные стираются в течение 30 дней. Для кандидата это же — отзыв согласия на обработку

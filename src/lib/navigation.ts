@@ -5,7 +5,6 @@ import BookOpenCheckIcon from '@lucide/svelte/icons/book-open-check';
 import BriefcaseIcon from '@lucide/svelte/icons/briefcase';
 import ChartColumnIcon from '@lucide/svelte/icons/chart-column';
 import ClipboardCheckIcon from '@lucide/svelte/icons/clipboard-check';
-import DownloadIcon from '@lucide/svelte/icons/download';
 import FileTextIcon from '@lucide/svelte/icons/file-text';
 import FileUpIcon from '@lucide/svelte/icons/file-up';
 import FileUserIcon from '@lucide/svelte/icons/file-user';
@@ -26,7 +25,6 @@ import SlidersHorizontalIcon from '@lucide/svelte/icons/sliders-horizontal';
 import SwordsIcon from '@lucide/svelte/icons/swords';
 import TagIcon from '@lucide/svelte/icons/tag';
 import TargetIcon from '@lucide/svelte/icons/target';
-import Trash2Icon from '@lucide/svelte/icons/trash-2';
 import TrophyIcon from '@lucide/svelte/icons/trophy';
 import UserRoundIcon from '@lucide/svelte/icons/user-round';
 import UsersIcon from '@lucide/svelte/icons/users';
@@ -72,9 +70,7 @@ export const WORKSPACES: Record<Workspace, WorkspaceNav> = {
 			{ label: 'Вакансии', icon: BriefcaseIcon, href: resolve('/me/vacancies') },
 			{ label: 'Приглашения', icon: InboxIcon, href: resolve('/me/invitations') },
 			{ label: 'Вызовы', icon: SwordsIcon, href: resolve('/me/challenges') },
-			{ label: 'Тесты', icon: ClipboardCheckIcon, href: resolve('/me/tests') },
-			{ label: 'Мои данные', icon: DownloadIcon, href: resolve('/me/export') },
-			{ label: 'Удалить учётную запись', icon: Trash2Icon, href: resolve('/account/delete') }
+			{ label: 'Тесты', icon: ClipboardCheckIcon, href: resolve('/me/tests') }
 		]
 	},
 	employer: {

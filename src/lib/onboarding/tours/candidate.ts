@@ -1,6 +1,9 @@
 import { navItem, testId, TOUR_BUTTON, tourTarget, type WorkspaceTour } from '../types.js';
 
-/** Candidate cabinet: the sections in the order of the navigation, then a tour for every page of the cabinet. */
+/**
+ * Candidate cabinet: first where the person's data is kept and how to delete the account (the account page), then the
+ * sections in the order of the navigation, then a tour for every page of the cabinet.
+ */
 export const candidateTour: WorkspaceTour = {
 	workspace: 'candidate',
 	welcome: {
@@ -13,6 +16,30 @@ export const candidateTour: WorkspaceTour = {
 			target: TOUR_BUTTON,
 			title: 'Подсказки — здесь',
 			body: 'Этот туториал можно повторить здесь. А ещё у каждой страницы есть свой тур. Покажем, как пользоваться кабинетом.'
+		},
+		{
+			href: '/account',
+			target: testId('viewer-link'),
+			title: 'Ваши данные — здесь',
+			body: 'По вашему имени открывается учётная запись: вход, ФСП ID, сеансы и всё о ваших данных.'
+		},
+		{
+			href: '/account',
+			target: testId('account-data-export'),
+			title: 'Мои данные',
+			body: 'Всё, что платформа о вас собрала: посмотрите список и скачайте одним файлом.'
+		},
+		{
+			href: '/account',
+			target: testId('account-data-manage'),
+			title: 'Управление данными',
+			body: 'Здесь вы решаете, на что дано согласие и что видят работодатели.'
+		},
+		{
+			href: '/account',
+			target: testId('account-deletion'),
+			title: 'Удалить учётную запись',
+			body: 'Решите уйти — удаление здесь; до подтверждения видно, что сотрётся и что останется.'
 		},
 		{
 			href: '/me/profile',
@@ -55,24 +82,6 @@ export const candidateTour: WorkspaceTour = {
 			target: navItem('/me/tests'),
 			title: 'Тесты',
 			body: 'Здесь вы подтверждаете грейд — без теста категория остаётся заявленной.'
-		},
-		{
-			href: '/me/export',
-			target: navItem('/me/export'),
-			title: 'Мои данные',
-			body: 'Всё, что платформа хранит о вас, можно скачать одним файлом.'
-		},
-		{
-			href: '/account/delete',
-			target: navItem('/account/delete'),
-			title: 'Удалить учётную запись',
-			body: 'Если решите уйти, здесь видно, что сотрётся и что останется, ещё до подтверждения.'
-		},
-		{
-			href: null,
-			target: testId('viewer-link'),
-			title: 'Учётная запись',
-			body: 'По вашему имени открываются вход и пароль, ФСП ID, сеансы и удаление учётной записи.'
 		}
 	],
 	pages: [
@@ -419,6 +428,11 @@ export const candidateTour: WorkspaceTour = {
 			title: 'Учётная запись',
 			steps: [
 				{
+					target: testId('account-data'),
+					title: 'Мои данные',
+					body: 'Скачайте всё, что платформа о вас хранит, и настройте согласия и видимость.'
+				},
+				{
 					target: testId('fsp-section'),
 					title: 'ФСП ID',
 					body: 'Привяжите ФСП ID — достижения соревнований подтянутся в профиль сами.'
@@ -427,6 +441,11 @@ export const candidateTour: WorkspaceTour = {
 					target: testId('session-count'),
 					title: 'Сеансы',
 					body: 'Видите лишние сеансы — завершите их кнопкой «Выйти на всех устройствах».'
+				},
+				{
+					target: testId('account-deletion'),
+					title: 'Удаление учётной записи',
+					body: 'Удалить учётную запись можно здесь — сначала покажем, что сотрётся и что останется.'
 				}
 			]
 		},

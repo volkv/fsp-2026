@@ -5,7 +5,8 @@
 
 	/**
 	 * Sections of a workspace in one row under the header. A row wider than the container scrolls sideways; a faded edge
-	 * shows on the side where more sections are hidden, and the current section is scrolled into view.
+	 * shows on the side where more sections are hidden, and the current section is scrolled into view. A row that fits
+	 * stands in the middle.
 	 */
 	let { items, pathname, label }: { items: NavItem[]; pathname: string; label: string } = $props();
 
@@ -43,7 +44,7 @@
 		class="relative [scrollbar-width:thin] overflow-x-auto py-1.5"
 		data-testid="workspace-nav"
 	>
-		<nav aria-label={label} class="w-max">
+		<nav aria-label={label} class="mx-auto w-max">
 			<NavLinks {items} {pathname} />
 		</nav>
 	</div>

@@ -251,12 +251,18 @@ test('the last owner of a company is told to hand the ownership over first', asy
 	expect(account?.status).toBe('active');
 });
 
-test('the candidate sections with «Мои данные» and the deletion fit one row at 1280 px', async ({ page }) => {
-	await page.setViewportSize({ width: 1280, height: 900 });
-	await page.goto('/design');
-	const nav = page.getByRole('navigation', { name: 'Разделы: кандидат' });
-	await expect(nav.getByRole('link', { name: 'Мои данные' })).toHaveAttribute('href', '/me/export');
-	await expect(nav.getByRole('link', { name: 'Удалить учётную запись' })).toHaveAttribute('href', '/account/delete');
-	const row = page.getByTestId('workspace-nav').filter({ has: nav });
-	await expect(row.locator('..').locator('[data-edge="end"]')).toHaveAttribute('data-shown', 'false');
+test('«Мои данные» and the deletion live on the account page, not among the candidate sections', async ({ page }) => {
+	const person = await seedCandidate();
+	await signIn(page, person.email);
+
+	await page.goto('/me/profile');
+	const nav = page.getByRole('navigation', { name: 'Разделы: кандидат' }).first();
+	await expect(nav.getByRole('link', { name: 'Профиль' })).toHaveAttribute('href', '/me/profile');
+	await expect(nav.getByRole('link', { name: 'Мои данные' })).toHaveCount(0);
+	await expect(nav.getByRole('link', { name: 'Удалить учётную запись' })).toHaveCount(0);
+
+	await page.goto('/account');
+	await expect(page.getByTestId('account-data-export')).toHaveAttribute('href', '/me/export');
+	await expect(page.getByTestId('account-delete')).toHaveAttribute('href', '/account/delete');
+	await expectNoAxeViolations(page);
 });
