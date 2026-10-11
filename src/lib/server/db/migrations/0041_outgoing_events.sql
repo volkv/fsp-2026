@@ -1,0 +1,5 @@
+ALTER TABLE "event_deliveries" DROP CONSTRAINT "event_deliveries_event_type_values";--> statement-breakpoint
+ALTER TABLE "event_subscriptions" DROP CONSTRAINT "event_subscriptions_events_values";--> statement-breakpoint
+ALTER TABLE "event_deliveries" ADD COLUMN "last_attempt_at" timestamp with time zone;--> statement-breakpoint
+ALTER TABLE "event_deliveries" ADD CONSTRAINT "event_deliveries_event_type_values" CHECK ("event_deliveries"."event_type" in ('invitation.sent', 'invitation.viewed', 'invitation.accepted', 'invitation.declined', 'invitation.expired', 'invitation.withdrawn', 'contacts.disclosed', 'hiring.reported', 'application.received', 'application.status_changed', 'vacancy.published', 'vacancy.closed', 'ping'));--> statement-breakpoint
+ALTER TABLE "event_subscriptions" ADD CONSTRAINT "event_subscriptions_events_values" CHECK ("event_subscriptions"."events" <@ array['invitation.sent', 'invitation.viewed', 'invitation.accepted', 'invitation.declined', 'invitation.expired', 'invitation.withdrawn', 'contacts.disclosed', 'hiring.reported', 'application.received', 'application.status_changed', 'vacancy.published', 'vacancy.closed']::text[]);

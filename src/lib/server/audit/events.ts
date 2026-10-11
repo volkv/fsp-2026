@@ -189,7 +189,8 @@ const GROUPS = {
 		'event_subscription.created',
 		'event_subscription.updated',
 		'event_subscription.secret_rotated',
-		'event_subscription.deleted'
+		'event_subscription.deleted',
+		'event_subscription.redelivered'
 	]
 } as const;
 

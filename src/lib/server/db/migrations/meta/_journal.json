@@ -288,6 +288,13 @@
       "when": 1791516406509,
       "tag": "0040_job_owner",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1791741207263,
+      "tag": "0041_outgoing_events",
+      "breakpoints": true
     }
   ]
 }

@@ -34,7 +34,8 @@
 		'receipt.verify': 'Проверка квитанций',
 		'challenge.manage': 'Вызовы компании и решения',
 		'confirmation.request': 'Запросы подтверждения блоков',
-		'application.manage': 'Входящие отклики'
+		'application.manage': 'Входящие отклики',
+		'company.events.manage': 'Подписки на события для ATS и журнал доставок'
 	};
 
 	function keyState(key: (typeof data.keys)[number]): { label: string; tone: 'success' | 'neutral' | 'danger' } {
