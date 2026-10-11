@@ -37,6 +37,7 @@ import { createLogger } from '$lib/server/jobs/log';
 import type { JobPayload, JobType } from '$lib/server/jobs/registry';
 import { matchRulesetParamsSchema } from '$lib/server/matching/params';
 import { closeOwnVacancy } from '$lib/server/vacancies/own';
+import { CONTACT_MASK } from '$lib/server/visibility/contact-mask';
 import shippedMatchRuleset from '../../taxonomy/match-ruleset.json';
 import { decide } from '../helpers/categories';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
@@ -936,6 +937,26 @@ describe('disclosure', () => {
 		const revoked = await refusal(recipientContacts(deps, company.subject, meta, sent.invitationId));
 		expect([revoked.code, revoked.reason]).toEqual(['not_found', 'no_disclosure_consent']);
 		expect(await database.db.select().from(disclosures).where(eq(disclosures.candidateId, person.id))).toHaveLength(1);
+	});
+
+	it('shows the company the reason of a decline with its contacts masked, the candidate as written', async () => {
+		clock = new Date();
+		const company = await employer();
+		const person = await candidate();
+		const sent = await send(company, person);
+		const reasonText = 'Ожидаю больше на Go 1.22; пишите в телеграм @ivan_dev или на ivan@mail.ru';
+		await respondToInvitation(deps, person.subject, meta, sent.invitationId, {
+			termsId: sent.termsId,
+			decision: 'decline',
+			reasonCode: 'salary',
+			reasonText
+		});
+		const reasonFor = async (subject: AccessSubject) =>
+			(await getInvitation(deps, subject, sent.invitationId)).versions[0]?.response?.reasonText;
+		expect(await reasonFor(company.subject)).toBe(
+			`Ожидаю больше на Go 1.22; пишите в телеграм ${CONTACT_MASK} или на ${CONTACT_MASK}`
+		);
+		expect(await reasonFor(person.subject)).toBe(reasonText);
 	});
 });
 

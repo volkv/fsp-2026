@@ -258,7 +258,7 @@ const solutionSchema = z
 			.object({ specialization: z.enum(SPECIALIZATION_KEYS), grade: z.enum(GRADE_KEYS) })
 			.nullable()
 			.describe('Категория кандидата в специализации вызова'),
-		content: z.string(),
+		content: z.string().describe('Текст или код; контакты в нём скрыты, пока компания не получила контакты кандидата'),
 		submitted_at: dateTime,
 		decision: z.enum(['invited', 'dismissed']).nullable(),
 		decided_at: dateTime.nullable()

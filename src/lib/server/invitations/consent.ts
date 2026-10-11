@@ -1,11 +1,19 @@
 // `effectiveConsent(candidate, contact_disclosure, invitation | application, at)` (docs/domain.md, sections 6.3, 13.6):
 // the consent to hand identifying data to the company of one invitation or of one application of the candidate. Grants
 // of other invitations and applications give this company nothing.
-import { and, asc, desc, eq, inArray, isNotNull, isNull, lte } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNotNull, isNull, lte, ne } from 'drizzle-orm';
 import { effectiveConsent, type ConsentEventFacts } from '$lib/server/consent/effective';
 import { DISCLOSURE_FIELDS, type DisclosureField } from '$lib/server/consent/kinds';
 import type { Executor } from '$lib/server/db';
-import { candidates, consentEvents, legalDocuments, representations, resumeDocuments } from '$lib/server/db/schema';
+import {
+	applications,
+	candidates,
+	consentEvents,
+	invitations,
+	legalDocuments,
+	representations,
+	resumeDocuments
+} from '$lib/server/db/schema';
 import { ageBand, isMinorBand } from '$lib/server/visibility/age';
 
 interface DisclosureEvent extends ConsentEventFacts {
@@ -114,6 +122,48 @@ export async function effectiveDisclosure(
 		fields = fields.filter((field) => allowed.has(field));
 	}
 	return { consentEventId: grant.id, documentId: grant.documentId, fields };
+}
+
+/**
+ * The company holds the candidate's contacts at `at`: a disclosure consent is in effect for one of its offers to the
+ * candidate or for one of the candidate's applications to it not withdrawn. Until then the candidate's free text reaches
+ * the company with its contacts masked (`visibility/contact-mask.ts`).
+ */
+export async function companyHoldsContacts(
+	executor: Executor,
+	pair: { candidateId: string; companyId: string },
+	at: Date
+): Promise<boolean> {
+	const [offers, own] = await Promise.all([
+		executor
+			.select({ id: invitations.id })
+			.from(invitations)
+			.where(
+				and(
+					eq(invitations.candidateId, pair.candidateId),
+					eq(invitations.companyId, pair.companyId),
+					isNull(invitations.purgedAt)
+				)
+			),
+		executor
+			.select({ id: applications.id })
+			.from(applications)
+			.where(
+				and(
+					eq(applications.candidateId, pair.candidateId),
+					eq(applications.companyId, pair.companyId),
+					isNull(applications.purgedAt),
+					ne(applications.status, 'withdrawn')
+				)
+			)
+	]);
+	for (const offer of offers) {
+		if (await effectiveDisclosure(executor, pair.candidateId, { invitationId: offer.id }, at)) return true;
+	}
+	for (const application of own) {
+		if (await effectiveDisclosure(executor, pair.candidateId, { applicationId: application.id }, at)) return true;
+	}
+	return false;
 }
 
 /** The current published text of the disclosure consent; the candidate accepts this exact version. */

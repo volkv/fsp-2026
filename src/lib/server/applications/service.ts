@@ -29,7 +29,12 @@ import {
 import { demoSessionOfUser, inDemoScope } from '$lib/server/demo/scope';
 import { policyViolation } from '$lib/server/errors/api-error';
 import { emitCompanyEvent } from '$lib/server/events/emit';
-import { currentDisclosureDocument, effectiveDisclosure, emptyDisclosureFields } from '$lib/server/invitations/consent';
+import {
+	companyHoldsContacts,
+	currentDisclosureDocument,
+	effectiveDisclosure,
+	emptyDisclosureFields
+} from '$lib/server/invitations/consent';
 import { auditActor, channelOf, type RequestMeta } from '$lib/server/invitations/deps';
 import { invalid, refuse } from '$lib/server/invitations/errors';
 import { candidateSide, memberSide } from '$lib/server/invitations/records';
@@ -39,6 +44,7 @@ import { loadActiveMatchRuleset } from '$lib/server/matching/ruleset';
 import type { MatchResult } from '$lib/server/matching/score';
 import { notify } from '$lib/server/notifications/notify';
 import { ageBand } from '$lib/server/visibility/age';
+import { candidateTextForCompany } from '$lib/server/visibility/contact-mask';
 
 export interface ApplicationDeps {
 	db: Database;
@@ -395,7 +401,14 @@ async function viewsOf(
 			companyId: row.companyId,
 			companyName: vacancy.companyName,
 			candidatePseudonym: side === 'company' ? deps.crypto.pseudonym(row.candidateId, row.companyId) : null,
-			message: row.message,
+			message:
+				side === 'company' && row.message !== null
+					? candidateTextForCompany(
+							row.message,
+							disclosure !== null ||
+								(await companyHoldsContacts(executor, { candidateId: row.candidateId, companyId: row.companyId }, now))
+						)
+					: row.message,
 			match: row.match as ApplicationMatch,
 			invitationId: row.invitationId,
 			submittedAt: row.submittedAt,
