@@ -1,7 +1,7 @@
 // What the vacancy search shows: the cards of the page already worded for the candidate, the search of the address
 // and the options of its filters.
-import { candidateMatchView } from '$lib/components/candidate/match.js';
-import { gradeName, skillName } from '$lib/components/candidate/model.js';
+import { candidateMatchView, type MatchResultData } from '$lib/components/candidate/match.js';
+import { gradeName, skillName, type Labels } from '$lib/components/candidate/model.js';
 import {
 	MATCH_COMPONENTS,
 	SALARY_PERIODS,
@@ -86,7 +86,8 @@ export interface VacanciesView {
 
 const percent = new Intl.NumberFormat('ru-RU', { style: 'percent', maximumFractionDigits: 0 });
 
-function salaryText(salary: Item['salary']): string | null {
+/** «200 000 – 280 000 ₽», «от 150 000 ₽»; `null` when the range is not stated. */
+export function salaryText(salary: { min: number | null; max: number | null; currency: string | null }): string | null {
 	const { min, max, currency } = salary;
 	const format = new Intl.NumberFormat('ru-RU', {
 		style: 'currency',
@@ -99,9 +100,9 @@ function salaryText(salary: Item['salary']): string | null {
 	return null;
 }
 
-function card(item: Item, data: PageData, hrefOf: (id: string) => string, invitationHrefOf: (id: string) => string) {
-	const labels = data.labels;
-	const explanation = item.match.explanation;
+/** The skills of a vacancy as the match sees them: the required ones first, then the nice ones it compared. */
+export function skillViews(match: MatchResultData, requiredKeys: readonly string[], labels: Labels): SkillView[] {
+	const explanation = match.explanation;
 	const matched = new Set(explanation.matches.flatMap((entry) => (entry.kind === 'skill' ? [entry.skill_key] : [])));
 	const lacking = new Set(
 		explanation.gaps.flatMap((gap) =>
@@ -115,7 +116,7 @@ function card(item: Item, data: PageData, hrefOf: (id: string) => string, invita
 					entry.kind === 'skill' && entry.requirement === 'nice' ? [entry.skill_key] : []
 				),
 				...explanation.gaps.flatMap((gap) => (gap.code === 'nice_skill_missing' ? [gap.skill_key] : []))
-			].filter((key) => !item.requiredSkillKeys.includes(key))
+			].filter((key) => !requiredKeys.includes(key))
 		)
 	];
 	const skillOf = (key: string, required: boolean): SkillView => ({
@@ -124,21 +125,27 @@ function card(item: Item, data: PageData, hrefOf: (id: string) => string, invita
 		required,
 		have: matched.has(key) ? true : lacking.has(key) ? false : null
 	});
-	const skills = [
-		...item.requiredSkillKeys.map((key) => skillOf(key, true)),
-		...niceKeys.map((key) => skillOf(key, false))
-	];
-	const components = (Object.keys(MATCH_COMPONENTS) as MatchComponentKey[]).flatMap((key) => {
-		const component = item.match.components[key];
-		return [
-			{
-				key,
-				label: MATCH_COMPONENTS[key],
-				value: component.status === 'computed' ? component.value : null,
-				weight: component.weight
-			}
-		];
+	return [...requiredKeys.map((key) => skillOf(key, true)), ...niceKeys.map((key) => skillOf(key, false))];
+}
+
+/** Every component of the match with its weight; `value` is `null` when it was not computed. */
+export function componentViews(match: MatchResultData): ComponentView[] {
+	return (Object.keys(MATCH_COMPONENTS) as MatchComponentKey[]).map((key) => {
+		const component = match.components[key];
+		return {
+			key,
+			label: MATCH_COMPONENTS[key],
+			value: component.status === 'computed' ? component.value : null,
+			weight: component.weight
+		};
 	});
+}
+
+function card(item: Item, data: PageData, hrefOf: (id: string) => string, invitationHrefOf: (id: string) => string) {
+	const labels = data.labels;
+	const explanation = item.match.explanation;
+	const skills = skillViews(item.match, item.requiredSkillKeys, labels);
+	const components = componentViews(item.match);
 	const grade =
 		item.gradeMin === item.gradeMax
 			? gradeName(labels, item.gradeMin)
