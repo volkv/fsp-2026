@@ -247,7 +247,6 @@ async function upload(page: Page, name: string, content: string | Buffer): Promi
 		mimeType: 'application/octet-stream',
 		buffer: typeof content === 'string' ? Buffer.from(content, 'utf8') : content
 	});
-	await page.getByRole('button', { name: 'Загрузить резюме' }).click();
 }
 
 test('a candidate uploads a resume, sees where every field comes from, checks and corrects it, and deletes it', async ({

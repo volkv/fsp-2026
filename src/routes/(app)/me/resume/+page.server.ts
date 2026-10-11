@@ -17,6 +17,11 @@ import { resumeDeps } from '$lib/server/resumes/deps';
 import { readingFlags, readOwnResumes, resumeInProgress } from '$lib/server/resumes/read';
 import { correctExperienceEntry, reviewExperienceEntry, reviewResumeClaim } from '$lib/server/resumes/review';
 import { uploadResume } from '$lib/server/resumes/upload';
+import { currentDocument } from '$lib/server/auth/documents';
+import { ownResumeGate } from '$lib/server/demo/own-resume-gate';
+import { uploadOwnResume } from '$lib/server/demo/own-resume';
+import { demoTerms } from '$lib/server/demo/terms';
+import { sessionOfAccount } from '$lib/server/demo/visit';
 import { fieldCrypto } from '$lib/server/crypto/fields';
 import { decideSuggestion, readOwnProfile } from '$lib/server/profile/fields';
 import { readSuggestions } from '$lib/server/profile/suggestions';
@@ -34,10 +39,12 @@ export const load: PageServerLoad = async (event) => {
 	const { subject, candidateId } = await candidateRequest(event);
 	try {
 		const database = db();
-		const [own, vocabulary, refusal] = await Promise.all([
+		const now = new Date();
+		const [own, vocabulary, refusal, gate] = await Promise.all([
 			readOwnResumes(database, subject),
 			currentCandidateVocabulary(database),
-			processingRefusal(database, candidateId, new Date())
+			processingRefusal(database, candidateId, now),
+			ownResumeGate(database, candidateId, now)
 		]);
 		const current = own.current;
 		const document = current?.document ?? null;
@@ -53,6 +60,8 @@ export const load: PageServerLoad = async (event) => {
 		return {
 			/** Why a resume is not taken now; the upload form is replaced by the reason. */
 			processingRefusal: refusal?.message ?? null,
+			/** In a demo session an upload of one's own resume asks first for its separate consent (domain 19.3). */
+			ownResumeConsent: gate === 'consent_missing' ? await ownResumeConsent(database, now) : null,
 			uploads: own.uploads,
 			current:
 				current === null || fields === null
@@ -82,6 +91,19 @@ export const load: PageServerLoad = async (event) => {
 		pageError(event, cause);
 	}
 };
+
+async function ownResumeConsent(database: ReturnType<typeof db>, now: Date) {
+	const document = await currentDocument(database, 'demo_resume_upload', now);
+	if (!document?.available) throw new Error('the consent demo_resume_upload is not published');
+	const terms = await demoTerms(database);
+	return {
+		id: document.id,
+		title: document.title,
+		version: document.version,
+		body: document.body,
+		hours: terms.ownResumeHours
+	};
+}
 
 const DECISIONS = ['confirm', 'reject'] as const;
 
@@ -132,7 +154,7 @@ export const actions: Actions = {
 	upload: async (event) => {
 		// Over the limit of paid parses the hook lets the post through, for the form to say so in its own words.
 		if (event.locals.rateLimited) return targetFailure(rateLimitedError(event.locals.rateLimited), 'upload');
-		const { subject, meta } = await candidateRequest(event);
+		const { subject, candidateId, userId, meta } = await candidateRequest(event);
 		const form = await event.request.formData();
 		const file = form.get('file');
 		if (!(file instanceof File) || file.size === 0) {
@@ -144,7 +166,29 @@ export const actions: Actions = {
 		try {
 			assertResumeSize(file.size);
 			const bytes = new Uint8Array(await file.arrayBuffer());
-			await uploadResume(resumeDeps(), subject, { bytes, declaredName: file.name }, meta);
+			const now = new Date();
+			if ((await ownResumeGate(db(), candidateId, now)) === 'consent_missing') {
+				if (form.get('agree') !== 'on') {
+					throw new ApiError('validation_failed', { message: 'Отметьте согласие, чтобы загрузить резюме' });
+				}
+				const session = await sessionOfAccount(db(), userId, now);
+				if (!session) throw new ApiError('forbidden', { message: 'Демо-сессия закончилась: откройте демо заново' });
+				const documentId = form.get('document');
+				await uploadOwnResume(
+					resumeDeps(),
+					subject,
+					meta,
+					{
+						sessionId: session.id,
+						documentId: typeof documentId === 'string' ? documentId : '',
+						bytes,
+						declaredName: file.name
+					},
+					await demoTerms(db())
+				);
+			} else {
+				await uploadResume(resumeDeps(), subject, { bytes, declaredName: file.name }, meta);
+			}
 		} catch (cause) {
 			return targetFailure(cause, 'upload');
 		}

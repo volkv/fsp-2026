@@ -93,29 +93,24 @@
 	<FormMessage tone="success" text="Резюме удалено вместе со всем, что из него извлечено." />
 {/if}
 
-<SectionCard
-	title={current ? 'Загрузить новую версию' : 'Загрузить резюме'}
-	description="Сам файл работодатель получит, только если вы раскроете его, принимая приглашение."
->
-	{#if data.processingRefusal}
-		<div data-testid="resume-consent-required">
-			<FormMessage text={data.processingRefusal} />
-		</div>
-	{:else}
-		{#if data.viewer?.demoSession}
-			<p class="rounded-lg border border-warning/40 bg-warning-subtle p-3 text-sm" data-testid="demo-resume-warning">
-				Это демонстрационный стенд: загружайте синтетическое или обезличенное резюме — без настоящих имени, контактов и
-				других данных живого человека. Резюме удалится вместе с демо-сессией.
-			</p>
-		{/if}
-		<ResumeUpload
-			problem={problemOf('upload')}
-			uploaded={Boolean(form && 'uploaded' in form)}
-			hasCurrent={current !== null}
-			route={data.extractRoute}
-		/>
+{#if data.processingRefusal}
+	<div data-testid="resume-consent-required">
+		<FormMessage text={data.processingRefusal} />
+	</div>
+{:else}
+	{#if data.viewer?.demoSession}
+		<p class="rounded-lg border border-warning/40 bg-warning-subtle p-3 text-sm" data-testid="demo-resume-warning">
+			Это демонстрационный стенд: загружайте синтетическое или обезличенное резюме — без настоящих имени, контактов и
+			других данных живого человека. Резюме удалится вместе с демо-сессией.
+		</p>
 	{/if}
-</SectionCard>
+	<ResumeUpload
+		problem={problemOf('upload')}
+		uploaded={Boolean(form && 'uploaded' in form)}
+		hasCurrent={current !== null}
+		consent={data.ownResumeConsent}
+	/>
+{/if}
 
 {#if data.uploads.length > 0}
 	<SectionCard title="Мои файлы" testId="resume-files">
@@ -160,111 +155,11 @@
 		/>
 	{/if}
 
-	<div class="grid items-start gap-8 lg:grid-cols-2">
-		<div class="grid gap-8">
-			<SectionCard
-				title="Опыт работы"
-				description="Каждое место работы с должностью, компанией и периодом. Подтверждённый опыт с датами — основание грейда."
-				testId="resume-experience"
-			>
-				{#if current.experience.length > 0}
-					<div class="grid gap-4">
-						{#each current.experience as entry (entry.id)}
-							{@const target = `entry:${entry.id}`}
-							<ResumeEntry
-								{entry}
-								labels={data.labels}
-								roles={data.roles}
-								located={located.has(entry.sourceKey)}
-								selected={selected === entry.sourceKey}
-								{documentId}
-								problem={problemOf(target)}
-								correcting={failure?.target === target && 'correcting' in failure}
-								onshow={show}
-							>
-								{#if entryClaims(entry.id).length > 0}
-									<ul class="grid gap-2" aria-label="Другие поля этой работы">
-										{#each entryClaims(entry.id) as claim (claim.id)}
-											<li>
-												<ResumeClaim
-													{claim}
-													labels={data.labels}
-													located={located.has(claim.sourceKey)}
-													selected={selected === claim.sourceKey}
-													{documentId}
-													problem={problemOf(claim.sourceKey)?.message ?? null}
-													onshow={show}
-												/>
-											</li>
-										{/each}
-									</ul>
-								{/if}
-							</ResumeEntry>
-						{/each}
-					</div>
-				{:else}
-					<p class="text-sm text-muted-foreground">
-						Опыт работы в резюме не нашёлся. Если он там есть, проверьте, что у мест работы указаны должность и период —
-						например, «Март 2021 — настоящее время».
-					</p>
-				{/if}
-			</SectionCard>
-
-			<SectionCard
-				title="Навыки и другие поля"
-				description="Навыки из резюме отмечаются в профиле как заявленные: подтвердить их уровень помогут тесты и достижения ФСП."
-				testId="resume-claims"
-			>
-				{#if groups.length > 0}
-					{#each groups as group (group.title)}
-						<div class="grid gap-2">
-							<h3 class="text-sm font-medium">{group.title}</h3>
-							<ul class="grid gap-2">
-								{#each group.claims as claim (claim.id)}
-									<li>
-										<ResumeClaim
-											{claim}
-											labels={data.labels}
-											located={located.has(claim.sourceKey)}
-											selected={selected === claim.sourceKey}
-											{documentId}
-											problem={problemOf(claim.sourceKey)?.message ?? null}
-											onshow={show}
-										/>
-									</li>
-								{/each}
-							</ul>
-						</div>
-					{/each}
-				{:else}
-					<p class="text-sm text-muted-foreground">Других полей в резюме не нашлось.</p>
-				{/if}
-			</SectionCard>
-
-			{#if current.suggestions.length > 0}
-				<SectionCard
-					title="Для полей профиля"
-					description="ФИО, контакты и мягкие навыки, найденные в резюме. Принятое значение записывается в профиль; поправить его можно на странице профиля. В подбор и к работодателю эти поля из резюме не попадают."
-					testId="resume-profile-suggestions"
-				>
-					<ul class="grid gap-2">
-						{#each current.suggestions as suggestion (suggestion.id)}
-							<ProfileSuggestion
-								{suggestion}
-								accountEmail={data.accountEmail}
-								problem={problemOf(suggestion.sourceKey)?.message ?? null}
-								onshow={show}
-							/>
-						{/each}
-					</ul>
-				</SectionCard>
-			{/if}
-		</div>
-
+	<div class="grid gap-8">
 		<section
 			id={documentId}
 			aria-labelledby={documentHeadingId}
-			class="grid gap-3 rounded-xl border bg-card p-4 text-card-foreground shadow-xs sm:p-6 lg:sticky lg:top-4"
+			class="grid gap-3 rounded-xl border bg-card p-4 text-card-foreground shadow-xs sm:p-6"
 		>
 			<div class="grid gap-1">
 				<h2 id={documentHeadingId} class="font-heading text-h3">Текст резюме</h2>
@@ -280,5 +175,103 @@
 				labelledby={documentHeadingId}
 			/>
 		</section>
+
+		<SectionCard
+			title="Опыт работы"
+			description="Каждое место работы с должностью, компанией и периодом. Подтверждённый опыт с датами — основание грейда."
+			testId="resume-experience"
+		>
+			{#if current.experience.length > 0}
+				<div class="grid gap-4">
+					{#each current.experience as entry (entry.id)}
+						{@const target = `entry:${entry.id}`}
+						<ResumeEntry
+							{entry}
+							labels={data.labels}
+							roles={data.roles}
+							located={located.has(entry.sourceKey)}
+							selected={selected === entry.sourceKey}
+							{documentId}
+							problem={problemOf(target)}
+							correcting={failure?.target === target && 'correcting' in failure}
+							onshow={show}
+						>
+							{#if entryClaims(entry.id).length > 0}
+								<ul class="grid gap-2" aria-label="Другие поля этой работы">
+									{#each entryClaims(entry.id) as claim (claim.id)}
+										<li>
+											<ResumeClaim
+												{claim}
+												labels={data.labels}
+												located={located.has(claim.sourceKey)}
+												selected={selected === claim.sourceKey}
+												{documentId}
+												problem={problemOf(claim.sourceKey)?.message ?? null}
+												onshow={show}
+											/>
+										</li>
+									{/each}
+								</ul>
+							{/if}
+						</ResumeEntry>
+					{/each}
+				</div>
+			{:else}
+				<p class="text-sm text-muted-foreground">
+					Опыт работы в резюме не нашёлся. Если он там есть, проверьте, что у мест работы указаны должность и период —
+					например, «Март 2021 — настоящее время».
+				</p>
+			{/if}
+		</SectionCard>
+
+		<SectionCard
+			title="Навыки и другие поля"
+			description="Навыки из резюме отмечаются в профиле как заявленные: подтвердить их уровень помогут тесты и достижения ФСП."
+			testId="resume-claims"
+		>
+			{#if groups.length > 0}
+				{#each groups as group (group.title)}
+					<div class="grid gap-2">
+						<h3 class="text-sm font-medium">{group.title}</h3>
+						<ul class="grid gap-2">
+							{#each group.claims as claim (claim.id)}
+								<li>
+									<ResumeClaim
+										{claim}
+										labels={data.labels}
+										located={located.has(claim.sourceKey)}
+										selected={selected === claim.sourceKey}
+										{documentId}
+										problem={problemOf(claim.sourceKey)?.message ?? null}
+										onshow={show}
+									/>
+								</li>
+							{/each}
+						</ul>
+					</div>
+				{/each}
+			{:else}
+				<p class="text-sm text-muted-foreground">Других полей в резюме не нашлось.</p>
+			{/if}
+		</SectionCard>
+
+		{#if current.suggestions.length > 0}
+			<SectionCard
+				title="Для полей профиля"
+				description="ФИО, контакты и мягкие навыки, найденные в резюме. Принятое значение записывается в профиль; поправить его можно на странице профиля. В подбор и к работодателю эти поля из резюме не попадают."
+				testId="resume-profile-suggestions"
+			>
+				<ul class="grid gap-2">
+					{#each current.suggestions as suggestion (suggestion.id)}
+						<ProfileSuggestion
+							{suggestion}
+							accountEmail={data.accountEmail}
+							problem={problemOf(suggestion.sourceKey)?.message ?? null}
+							onshow={show}
+						/>
+					{/each}
+				</ul>
+			</SectionCard>
+		{/if}
 	</div>
 {/if}
