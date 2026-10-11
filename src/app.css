@@ -18,7 +18,8 @@
 @import 'tw-animate-css';
 @import 'shadcn-svelte/tailwind.css';
 
-@custom-variant dark (&:is(.dark *));
+/* `.light` scopes the light roles back in inside a dark page (the pinned landing header). */
+@custom-variant dark (&:is(.dark *):not(.light *));
 
 /* Fonts are served locally from /static/fonts (SIL OFL 1.1, licences next to the files). */
 @font-face {
@@ -202,7 +203,8 @@
 }
 
 /* 2. Semantic roles — light (default; mirrors the athlete cabinet: grey page, white cards) */
-:root {
+:root,
+.light {
 	--radius: 0.5rem;
 
 	--background: var(--color-ink-25);

@@ -2,6 +2,7 @@
 	import LogInIcon from '@lucide/svelte/icons/log-in';
 	import MailIcon from '@lucide/svelte/icons/mail';
 	import MenuIcon from '@lucide/svelte/icons/menu';
+	import { mode } from 'mode-watcher';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { buttonVariants } from '$lib/components/ui/button/index.js';
@@ -55,7 +56,8 @@
 	/**
 	 * On the landing page the header lies over the first screen (marked `data-under-header`) without a frame of its own
 	 * and scrolls away with it; once the bottom of that screen leaves the top of the window the framed bar slides in,
-	 * pinned. Out of the flow in both states, so the page does not jump; the first screen leaves room for the header by
+	 * pinned, as the plate of the FSP site: inset from the sides, bottom corners rounded, in the theme opposite to the
+	 * page's. Out of the flow in both states, so the page does not jump; the first screen leaves room for the header by
 	 * `--header-height`, which the header keeps current (the stylesheet gives the value for the first paint).
 	 */
 	const underlaid = $derived(pathname === '/');
@@ -91,16 +93,20 @@
 	class={cn(
 		'top-0 z-40 border-b',
 		overlay
-			? 'dark absolute inset-x-0 border-transparent text-foreground'
+			? 'dark absolute border-transparent text-foreground'
 			: 'bg-header/95 backdrop-blur supports-backdrop-filter:bg-header/80',
-		!underlaid && 'sticky',
-		pinned && 'fixed inset-x-0 animate-in duration-300 slide-in-from-top',
+		underlaid ? 'inset-x-2.5 rounded-b-xl' : 'sticky',
+		pinned && 'fixed animate-in border-x duration-300 slide-in-from-top',
+		pinned &&
+			(mode.current === 'dark'
+				? 'light bg-header/95 text-foreground supports-backdrop-filter:bg-header/95'
+				: 'dark text-foreground'),
 		className
 	)}
 >
 	{#if overlay}
 		<div
-			class="pointer-events-none absolute inset-0 -z-10 bg-linear-to-b from-background/80 to-transparent"
+			class="pointer-events-none absolute inset-0 -z-10 rounded-b-xl bg-linear-to-b from-background/80 to-transparent"
 			aria-hidden="true"
 		></div>
 	{/if}
@@ -134,12 +140,13 @@
 					<UserMenu {viewer} />
 				</div>
 			{:else if !workspace}
-				<a href={resolve(LOGIN_HREF)} class={cn(buttonVariants({ variant: 'outline' }), 'hidden sm:inline-flex')}>
+				<a href={resolve(LOGIN_HREF)} class={cn(buttonVariants({ variant: 'secondary' }), 'hidden sm:inline-flex')}>
+					<MailIcon aria-hidden="true" />
 					Войти
 				</a>
 				<a
 					href={resolve(SIGN_IN_HREF)}
-					class={cn(buttonVariants(), 'hidden sm:inline-flex')}
+					class={cn(buttonVariants({ variant: 'secondary' }), 'hidden sm:inline-flex')}
 					data-sveltekit-reload
 					data-sveltekit-preload-data="off"
 				>
@@ -189,6 +196,7 @@
 								Войти через ФСП ID
 							</a>
 							<a href={resolve(LOGIN_HREF)} class={cn(buttonVariants({ variant: 'outline' }), 'w-full')}>
+								<MailIcon aria-hidden="true" />
 								Войти по почте
 							</a>
 						{/if}
