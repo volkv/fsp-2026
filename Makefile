@@ -1,6 +1,6 @@
 # Requires Node 24 (see .nvmrc) with corepack-managed pnpm in PATH, and Docker with Compose v2.
 
-.PHONY: up down infra dev worker db-migrate db-seed-taxonomy db-seed-demo demo-reset check-fast check-all check-docparse docparse-lock check-fsp-mock check-sandbox
+.PHONY: up down local infra dev worker db-migrate db-seed-taxonomy db-seed-demo demo-reset check-fast check-all check-docparse docparse-lock check-fsp-mock check-sandbox
 
 # Local environment file; created once from the template and never overwritten. On Windows make may run recipes in
 # cmd.exe, which has no cp; git writes the template there with its LF line endings in either shell.
@@ -22,6 +22,18 @@ up: .env
 down:
 	docker compose --profile app down
 
+## Local development: infrastructure in Docker, migrations and reference data into its database, then the Vite dev
+## server (http://localhost:57173, picks up code changes) and the background worker side by side on the host; Ctrl+C
+## stops both. The bank of grade tests and demo data come from make up or their pnpm commands (docs/development.md).
+local: .env node_modules infra db-migrate db-seed-taxonomy
+	pnpm db:seed-legal
+	pnpm db:seed-policies
+	$(MAKE) --no-print-directory -j2 worker dev
+
+# Dependencies from the lock file; reinstalled when it changes.
+node_modules: pnpm-lock.yaml
+	pnpm install --frozen-lockfile
+
 ## Start infrastructure only: Postgres, Redis, the object storage (SeaweedFS), Mailpit, the FSP simulator (fsp-mock),
 ## docparse and the code sandbox with their gateways, and the embedder (llama.cpp, bge-m3; first start downloads the
 ## model, 635 MB). For pnpm dev and make worker on the host: EMBED_BASE_URL=http://localhost:57820/v1 in .env.
@@ -36,7 +48,7 @@ dev: .env
 ## job types read from the `worker` service of compose.yaml, so the two never drift apart. State:
 ## http://127.0.0.1:57310/health. Ctrl+C stops it gracefully.
 worker: .env
-	pnpm worker $$(grep -oE "'--types=[^']+'" compose.yaml | tr -d "'")
+	pnpm worker $(subst ',,$(filter '--types=%,$(file < compose.yaml)))
 
 ## Apply pending migrations to the database from .env.
 db-migrate: .env
