@@ -29,7 +29,11 @@ test('home page presents the product without errors', async ({ page }) => {
 	expect(response?.status()).toBe(200);
 
 	await expect(page.getByRole('heading', { level: 1 })).toHaveText('ФСП | Карьера');
-	await expect(page.getByText('Платформа ИТ-найма, где навыки подтверждены').first()).toBeVisible();
+	// The first screen speaks to the candidate first and turns to the employer on request.
+	await expect(page.getByText('напишет первым', { exact: true })).toBeVisible();
+	await page.getByRole('button', { name: 'Работодателям' }).click();
+	await expect(page.getByText('Проверено.', { exact: true })).toBeVisible();
+	await expect(page.getByText('напишет первым', { exact: true })).toBeHidden();
 	await expect(page.getByRole('link', { name: 'ФСП | Карьера — на главную' })).toBeVisible();
 	for (const id of ['employers', 'candidates', 'fsp', 'how']) {
 		await expect(page.locator(`#${id}`)).toBeAttached();

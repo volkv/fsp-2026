@@ -17,9 +17,9 @@
 	import {
 		AUDIENCES as audiences,
 		FACTS as facts,
+		HERO as hero,
 		PROMISE as promise,
 		STEPS as steps,
-		TAGLINE as tagline,
 		TITLE as title,
 		TRUST_LADDER as trustLadder,
 		type Metric
@@ -30,6 +30,43 @@
 
 	/** The closing statement is the candidates' lead; a heading carries no final full stop. */
 	const closing = (audiences.find((audience) => audience.id === 'candidates')?.lead ?? '').replace(/\.$/, '');
+
+	/**
+	 * The first screen turns between the sides on a timer that waits while the pointer or focus is on the statement.
+	 * A choice of the visitor stops the turning; with reduced motion it does not turn at all.
+	 */
+	const TURN_MS = 8000;
+	let active = $state(0);
+	let previous = $state(-1);
+	let held = $state(false);
+	let chosen = $state(false);
+
+	function show(index: number): void {
+		if (index === active) return;
+		previous = active;
+		active = index;
+	}
+
+	function choose(index: number): void {
+		chosen = true;
+		show(index);
+	}
+
+	$effect(() => {
+		if (chosen || held || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+		const next = (active + 1) % hero.length;
+		const timer = window.setTimeout(() => {
+			show(next);
+		}, TURN_MS);
+		return () => {
+			window.clearTimeout(timer);
+		};
+	});
+
+	function slideState(index: number): 'shown' | 'in' | 'out' | 'idle' {
+		if (index === active) return previous === -1 ? 'shown' : 'in';
+		return index === previous ? 'out' : 'idle';
+	}
 
 	const pill =
 		'inline-flex h-12 items-center justify-center gap-2 rounded-full px-7 text-base font-medium transition-colors duration-300 sm:h-14 sm:px-8';
@@ -46,6 +83,18 @@
 		class="keynote-glow pointer-events-none absolute inset-x-0 bottom-0 -z-10 h-[70%] bg-[radial-gradient(ellipse_60%_50%_at_50%_85%,rgb(64_47_255/0.4),transparent_70%)]"
 		aria-hidden="true"
 	></div>
+	<!-- To employers the glow warms toward the federation red. -->
+	<div
+		class={cn(
+			'pointer-events-none absolute inset-x-0 bottom-0 -z-10 h-[70%] transition-opacity duration-[1600ms] ease-standard',
+			hero[active]?.audience === 'employers' ? 'opacity-100' : 'opacity-0'
+		)}
+		aria-hidden="true"
+	>
+		<div
+			class="keynote-glow size-full bg-[radial-gradient(ellipse_45%_40%_at_70%_80%,rgb(236_29_53/0.3),transparent_70%)]"
+		></div>
+	</div>
 	<RadarGraph class="[mask-image:radial-gradient(ellipse_42%_38%_at_50%_42%,rgb(0_0_0/0.2),black_75%)]" />
 	<div
 		class="relative mx-auto flex min-h-dvh max-w-6xl flex-col items-center justify-center px-4 pt-[calc(var(--header-height)+2rem)] pb-[clamp(12rem,32vh,20rem)] text-center sm:px-6"
@@ -56,20 +105,74 @@
 				{title}
 			</h1>
 		</div>
-		<p
-			class="mt-10 font-heading text-[clamp(1.802rem,min(8.67vw,10.838vh),6.859rem)] leading-[0.95] font-bold tracking-[-0.05em]"
+		<div
+			class="flex w-full flex-col items-center"
+			role="presentation"
+			onpointerenter={() => (held = true)}
+			onpointerleave={() => (held = false)}
+			onfocusin={() => (held = true)}
+			onfocusout={() => (held = false)}
 		>
-			<span class="keynote-in block" style="--d: 120ms">Работодатель</span>
-			<span
-				class="keynote-in block bg-linear-to-r from-brand-300 via-brand-200 to-white bg-clip-text pb-[0.08em] text-transparent"
-				style="--d: 280ms"
+			<div
+				class="keynote-in relative mt-8 grid auto-cols-fr grid-flow-col rounded-full bg-white/[0.06] p-[3px] ring-1 ring-white/15 backdrop-blur-sm"
+				style="--d: 60ms"
+				role="group"
+				aria-label="Для кого"
 			>
-				напишет первым
-			</span>
-		</p>
-		<p class="keynote-in mt-8 max-w-2xl text-lg text-balance text-ink-150 sm:text-2xl" style="--d: 440ms">
-			{tagline}
-		</p>
+				<span
+					class="absolute inset-y-[3px] left-[3px] w-[calc(50%-3px)] rounded-full bg-white/15 transition-transform duration-500 ease-standard"
+					style="transform: translateX({active * 100}%)"
+					aria-hidden="true"
+				></span>
+				{#each hero as slide, index (slide.audience)}
+					<button
+						type="button"
+						class={cn(
+							'relative h-7.5 rounded-full px-3.5 text-xs font-medium transition-colors duration-300 sm:h-8 sm:px-5 sm:text-[0.8125rem]',
+							index === active ? 'text-white' : 'text-ink-250 hover:text-white'
+						)}
+						aria-pressed={index === active}
+						aria-controls="hero-{slide.audience}"
+						onclick={() => {
+							choose(index);
+						}}
+					>
+						{slide.label}
+					</button>
+				{/each}
+			</div>
+			<!-- The slides share one cell, so the screen keeps the height of the longest and nothing below it jumps. -->
+			<div class="mt-8 grid w-full justify-items-center" aria-live={chosen ? 'polite' : 'off'}>
+				{#each hero as slide, index (slide.audience)}
+					<div
+						id="hero-{slide.audience}"
+						class="hero-slide flex flex-col items-center [grid-area:1/1]"
+						data-state={slideState(index)}
+						aria-hidden={index !== active}
+						inert={index !== active}
+					>
+						<p
+							class="font-heading text-[clamp(1.802rem,min(8.67vw,10.838vh),6.859rem)] leading-[0.95] font-bold tracking-[-0.05em]"
+						>
+							<span class="keynote-in block" style="--d: 120ms">
+								<span class="hero-line block" style="--i: 0">{slide.lead}</span>
+							</span>
+							<span class="keynote-in block" style="--d: 280ms">
+								<span
+									class="hero-line block bg-linear-to-r from-brand-300 via-brand-200 to-white bg-clip-text pb-[0.08em] text-transparent"
+									style="--i: 1"
+								>
+									{slide.accent}
+								</span>
+							</span>
+						</p>
+						<p class="keynote-in mt-8 max-w-2xl text-lg text-balance text-ink-150 sm:text-2xl" style="--d: 440ms">
+							<span class="hero-line block" style="--i: 2">{slide.text}</span>
+						</p>
+					</div>
+				{/each}
+			</div>
+		</div>
 		<div class="keynote-in mt-10 flex flex-wrap items-center justify-center gap-4" style="--d: 560ms">
 			{#if SIGN_IN_HREF}
 				<a href={resolve(SIGN_IN_HREF)} class="{pill} bg-white text-ink-1000 hover:bg-brand-100">
@@ -349,6 +452,51 @@
 			linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px);
 		background-size: 48px 48px;
 		mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, black, transparent);
+	}
+
+	/* The turn between the sides: the leaving lines rise into a blur, the coming ones settle out of it, line after line. */
+	.hero-slide[data-state='idle'] .hero-line,
+	.hero-slide[data-state='out'] .hero-line {
+		visibility: hidden;
+		opacity: 0;
+	}
+	@media (prefers-reduced-motion: no-preference) {
+		.hero-slide[data-state='in'] .hero-line {
+			animation: hero-in 0.9s var(--ease-standard) both;
+			animation-delay: calc(0.3s + var(--i) * 90ms);
+		}
+		.hero-slide[data-state='out'] .hero-line {
+			animation: hero-out 0.5s var(--ease-standard) both;
+			animation-delay: calc(var(--i) * 60ms);
+		}
+	}
+
+	@keyframes hero-in {
+		from {
+			opacity: 0;
+			transform: translateY(0.5em);
+			filter: blur(14px);
+		}
+		to {
+			opacity: 1;
+			transform: none;
+			filter: none;
+		}
+	}
+
+	@keyframes hero-out {
+		from {
+			visibility: visible;
+			opacity: 1;
+			transform: none;
+			filter: none;
+		}
+		to {
+			visibility: hidden;
+			opacity: 0;
+			transform: translateY(-0.35em);
+			filter: blur(14px);
+		}
 	}
 
 	@keyframes keynote-in {

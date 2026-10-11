@@ -6,7 +6,34 @@ import { pluralize, type TrustLevel } from '$lib/components/product/model.js';
 import type { PlatformMetrics } from '$lib/server/landing/metrics';
 
 export const TITLE = 'ФСП | Карьера';
-export const TAGLINE = 'Платформа ИТ-найма, где навыки подтверждены';
+export interface HeroSlide {
+	/** Who the slide speaks to; the switch of the first screen names it with `label`. */
+	audience: 'candidates' | 'employers';
+	label: string;
+	/** The statement in two lines; the second carries the brand gradient. */
+	lead: string;
+	accent: string;
+	text: string;
+}
+
+/** The first screen speaks to each side in turn, the candidate first. */
+export const HERO: HeroSlide[] = [
+	{
+		audience: 'candidates',
+		label: 'Кандидатам',
+		lead: 'Работодатель',
+		accent: 'напишет первым',
+		text: 'Подтверждённые навыки и победы в соревнованиях ФСП работают за вас: компании видят их и сразу называют зарплату.'
+	},
+	{
+		audience: 'employers',
+		label: 'Работодателям',
+		lead: 'Нанимайте сильных.',
+		accent: 'Проверено.',
+		text: 'Без вакансии и разбора откликов: опишите, кого ищете, и пишите первым тем, кто подходит.'
+	}
+];
+
 export const DESCRIPTION =
 	'Работодатель сам находит ИТ-специалиста по проверенному профилю и первым предлагает работу с зарплатой. ' +
 	'Грейд подтверждает тест, достижения — Федерация спортивного программирования.';
