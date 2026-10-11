@@ -4,6 +4,7 @@
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
 	import DemandBlock from '$lib/components/candidate/demand-block.svelte';
+	import GrowthMap from '$lib/components/candidate/growth-map.svelte';
 	import NeedDemandBlock from '$lib/components/candidate/need-demand-block.svelte';
 	import { OBJECTION_OUTCOMES, OBJECTION_STATUSES } from '$lib/components/candidate/model.js';
 	import SectionCard from '$lib/components/candidate/section-card.svelte';
@@ -219,6 +220,7 @@
 	{/if}
 </SectionCard>
 
+<GrowthMap growth={data.growth} {labels} />
 <NeedDemandBlock demand={data.needs} {labels} />
 <DemandBlock demand={data.demand} {labels} />
 

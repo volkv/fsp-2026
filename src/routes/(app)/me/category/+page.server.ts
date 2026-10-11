@@ -5,6 +5,7 @@ import { categorySignals } from '$lib/server/assessments/signals';
 import type { GradeOffer } from '$lib/server/grades/policy';
 import { formText } from '$lib/server/http/form';
 import { candidateDemand } from '$lib/server/candidates/demand';
+import { skillGrowth } from '$lib/server/candidates/growth';
 import { needDemand } from '$lib/server/candidates/need-demand';
 import { candidateRequest, type CandidateRequest } from '$lib/server/candidates/http';
 import { currentCandidateVocabulary, vocabularyLabels } from '$lib/server/candidates/vocabulary';
@@ -35,12 +36,13 @@ export const load: PageServerLoad = async (event) => {
 	try {
 		const executor = db();
 		const now = new Date();
-		const [standing, categories, objections, demand, needs, vocabulary] = await Promise.all([
+		const [standing, categories, objections, demand, needs, growth, vocabulary] = await Promise.all([
 			loadGradeStanding(executor, gradeSources, candidateId, now),
 			categoryHistory(executor, candidateId),
 			candidateObjections(executor, candidateId),
 			candidateDemand(executor, subject, now),
 			needDemand(executor, subject, now),
+			skillGrowth(executor, subject),
 			currentCandidateVocabulary(executor)
 		]);
 		const next = standing.next;
@@ -108,6 +110,7 @@ export const load: PageServerLoad = async (event) => {
 			objections,
 			demand,
 			needs,
+			growth,
 			// Grades are named by the taxonomy, as the survey, the declaration, the tests and the companies name them.
 			labels: vocabularyLabels(vocabulary)
 		};
