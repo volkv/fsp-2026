@@ -88,7 +88,10 @@ export const ERASURE_PLAN: Readonly<Record<string, ErasureDecision>> = {
 	'invitation_complaints.candidate_id': kept(
 		'a decided complaint is a tombstone of company, reason, status and decision: the trust facts of the company count it'
 	),
-	'invitation_complaints.decided_by': actOfAnother
+	'invitation_complaints.decided_by': actOfAnother,
+	// Quarantine of a bank family by staff (domain 10.5): who put it there and who lifted it.
+	'bank_family_quarantines.quarantined_by': actOfAnother,
+	'bank_family_quarantines.lifted_by': actOfAnother
 };
 
 /** A single-column foreign key of the schema. */
