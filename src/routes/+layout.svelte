@@ -21,8 +21,8 @@
 	<meta name="twitter:card" content="summary_large_image" />
 </svelte:head>
 
-<!-- The inline theme script is disabled: the CSP allows only same-origin scripts. -->
-<ModeWatcher defaultMode="light" disableHeadScriptInjection />
+<!-- The inline theme script is disabled (the CSP allows only same-origin scripts): static/theme-init.js, loaded in app.html, sets the mode before the first paint. -->
+<ModeWatcher defaultMode="system" disableHeadScriptInjection />
 <Toaster position="bottom-right" />
 
 <Tooltip.Provider delayDuration={200}>
