@@ -53,6 +53,7 @@ import {
 	users
 } from '$lib/server/db/schema';
 import type { InvitationDeps } from '$lib/server/invitations/deps';
+import { leaveInterviewFeedback } from '$lib/server/hiring/interview-feedback';
 import { respondToInvitation } from '$lib/server/invitations/respond';
 import { createInvitation } from '$lib/server/invitations/send';
 import { sendMessage } from '$lib/server/messages/conversation';
@@ -634,6 +635,8 @@ describe('the export of own data', () => {
 			},
 			staff: { operator: false, admin: false, extraPermissions: [] }
 		};
+		// A grade confirmed before the offer: the terms carry it, and the interview feedback is about it.
+		await decide(db, anna.id, { specialization: 'backend', grade: 'junior' });
 		const sent = await createInvitation(deps(), companySubject, meta, {
 			...offerTerms({
 				vacancyId: vacancy.id,
@@ -643,11 +646,19 @@ describe('the export of own data', () => {
 			}),
 			candidateId: anna.id
 		});
-		await respondToInvitation(deps(), anna.subject, meta, sent.invitationId, {
+		const acceptance = await respondToInvitation(deps(), anna.subject, meta, sent.invitationId, {
 			termsId: sent.termsId,
 			decision: 'accept',
 			discloseFields: ['full_name', 'email'],
 			disclosureDocumentId: documents.disclosure.id
+		});
+		if (!acceptance.processId) throw new Error('the acceptance opened no hiring process');
+		// The company's feedback on the interview is data about the candidate: it is exported whole, with the comment.
+		await leaveInterviewFeedback(deps(), companySubject, meta, acceptance.processId, {
+			level: 'above',
+			blockLevels: {},
+			outcome: 'offer',
+			comment: 'Сильнее грейда'
 		});
 		await sendMessage(deps(), companySubject, meta, sent.invitationId, 'Когда удобно созвониться?');
 		await sendMessage(deps(), anna.subject, meta, sent.invitationId, 'Завтра после 15:00.');
@@ -736,6 +747,9 @@ describe('the export of own data', () => {
 			expect.objectContaining({ company: { id: company.id, name: 'Северный код' }, fields: ['full_name', 'email'] })
 		]);
 		expect(document.hiring).toHaveLength(1);
+		expect(document.hiring[0]?.interview_feedback).toEqual([
+			expect.objectContaining({ level: 'above', outcome: 'offer', comment: 'Сильнее грейда' })
+		]);
 		expect(document.journal).toContainEqual(
 			expect.objectContaining({ action: 'card.viewed', actor: { company: 'Северный код' } })
 		);

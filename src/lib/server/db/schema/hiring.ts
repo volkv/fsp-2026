@@ -1,8 +1,11 @@
 // Hiring needs, offers with immutable terms versions, responses and hiring processes (domain 13.5–13.10).
 import { sql } from 'drizzle-orm';
 import { check, date, index, integer, jsonb, pgTable, text, unique, uuid, type AnyPgColumn } from 'drizzle-orm/pg-core';
+import { GRADE_KEYS, SPECIALIZATION_KEYS } from '../../assessments/contract/catalog';
 import { enumCheck, fullSalary, id, salaryChecks, salaryColumns, timestamps, ts } from './_columns';
+import { bankReleases } from './assessments';
 import { candidates } from './candidates';
+import { candidateCategories } from './categories';
 import { companies, companyMembers } from './companies';
 import { consentEvents } from './consent';
 import { users } from './identity';
@@ -244,5 +247,67 @@ export const hiringReports = pgTable(
 		check('hiring_reports_start_date', sql`${t.startDate} is null or ${t.outcome} = 'hired'`),
 		unique('hiring_reports_supersedes').on(t.supersedesReportId),
 		index('hiring_reports_process').on(t.processId)
+	]
+);
+
+export const INTERVIEW_LEVELS = ['below', 'matches', 'above'] as const;
+export const INTERVIEW_FEEDBACK_OUTCOMES = ['advanced', 'offer', 'rejected', 'candidate_declined'] as const;
+/** The longest comment of an interview feedback, in characters. */
+export const INTERVIEW_COMMENT_MAX = 500;
+
+/**
+ * The employer's feedback after the interview of an accepted offer (domain 13.7): the level the candidate showed against
+ * the grade the test confirmed. One per hiring process. It is a calibration signal of the test for the operator — the
+ * category, the bank release and the grade are the ones in force at the accepted terms — never an input of ranking or of
+ * the category, which only a grade decision writes. `block_levels` is `{block code: level}` over the blocks of that
+ * category; empty — the company judged the whole only.
+ */
+export const interviewFeedback = pgTable(
+	'interview_feedback',
+	{
+		id: id(),
+		processId: uuid()
+			.notNull()
+			.unique('interview_feedback_process')
+			.references(() => hiringProcesses.id),
+		companyId: uuid()
+			.notNull()
+			.references(() => companies.id),
+		candidateId: uuid()
+			.notNull()
+			.references(() => candidates.id),
+		/** The accepted terms whose category snapshot the feedback is about. */
+		termsId: uuid()
+			.notNull()
+			.references(() => invitationTerms.id),
+		categoryId: uuid()
+			.notNull()
+			.references(() => candidateCategories.id),
+		specialization: text({ enum: SPECIALIZATION_KEYS }).notNull(),
+		grade: text({ enum: GRADE_KEYS }).notNull(),
+		bankReleaseId: text()
+			.notNull()
+			.references(() => bankReleases.id),
+		level: text({ enum: INTERVIEW_LEVELS }).notNull(),
+		blockLevels: jsonb().notNull(),
+		outcome: text({ enum: INTERVIEW_FEEDBACK_OUTCOMES }).notNull(),
+		comment: text(),
+		createdByMemberId: uuid()
+			.notNull()
+			.references(() => companyMembers.id),
+		...timestamps()
+	},
+	(t) => [
+		enumCheck('interview_feedback', 'specialization', t.specialization, SPECIALIZATION_KEYS),
+		enumCheck('interview_feedback', 'grade', t.grade, GRADE_KEYS),
+		enumCheck('interview_feedback', 'level', t.level, INTERVIEW_LEVELS),
+		enumCheck('interview_feedback', 'outcome', t.outcome, INTERVIEW_FEEDBACK_OUTCOMES),
+		check('interview_feedback_block_levels', sql`jsonb_typeof(${t.blockLevels}) = 'object'`),
+		check(
+			'interview_feedback_comment_length',
+			sql`char_length(${t.comment}) between 1 and ${sql.raw(String(INTERVIEW_COMMENT_MAX))}`
+		),
+		index('interview_feedback_candidate').on(t.candidateId),
+		index('interview_feedback_calibration').on(t.specialization, t.grade, t.bankReleaseId)
 	]
 );

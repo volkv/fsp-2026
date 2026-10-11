@@ -2822,6 +2822,21 @@ accepted ──(пересмотр: новая версия)──▶ accepted  
 - Напоминания: `hiring.outcome_request` в `outcome_due_at` обеим сторонам, затем `hiring.outcome_reminder` по расписанию
   `hiring_policy` до максимума повторов (раздел 3.7).
 
+**`interview_feedback`** — отзыв компании о собеседовании относительно подтверждённого грейда; это внешний критерий валидности
+теста (`docs/submission/06-validation.md`). Отзыв один на процесс (`process_id` `UNIQUE`). Поля: `company_id`, `candidate_id`,
+`terms_id` — принятая версия условий; `category_id`, `specialization`, `grade`, `bank_release_id` — категория, которая действовала
+при отправке этой версии; `level` (`below` · `matches` · `above`); `block_levels` (`{код блока: level}` по `confirmed_blocks`
+категории, пусто — общий уровень без блоков); `outcome` (`advanced` · `offer` · `rejected` · `candidate_declined`); `comment`
+(1–500 символов, необязательный); `created_by_member_id`.
+- Отзыв оставляет только активный член компании процесса, и только когда в принятых условиях была подтверждённая категория.
+  Повтор — `409`. Правка допустима в течение 24 часов после создания, затем — `409`. Компания в `suspended` отзыв не оставляет.
+- Кандидат видит отзыв целиком, с комментарием: это данные о нём. Другие компании отзыв не видят. Оператор видит агрегат по
+  категории и выпуску банка с порогом малых чисел (раздел 13.9). Отзывы компаний демо-сессий в агрегат не входят.
+- Отзыв не входит ни в категорию, ни в ранжирование, ни в подборку. Перекалибровка порогов по агрегату — процесс оператора
+  (новый выпуск банка), не автоматика.
+- Журнал: `hiring.interview_feedback_left` и `hiring.interview_feedback_revised` — уровень, исход, выпуск банка, число блоков,
+  наличие комментария; текст комментария в журнал не попадает. При удалении аккаунта кандидата отзыв удаляется (раздел 19.2).
+
 ### 13.8. `product_policies`
 
 | Поле | Тип | Обяз. | Смысл |
@@ -3721,7 +3736,7 @@ Append-only, партиционирование по месяцу, срок хр
 | Компании | `company.created`, `company.updated`, `company.submitted`, `company.verified` (в том числе возврат из `suspended`), `company.rejected`, `company.info_requested`, `company.suspended` (код причины), `member.invited`, `member.joined`, `member.role_changed`, `member.removed` |
 | Согласия | `consent.granted`, `consent.revoked` (вид; от представителя по ссылке — `representation_id`, актор `anonymous`), `consent.lapsed`, `representation.invited`, `representation.contact_confirmed`, `representation.authority_checked`, `representation.letter_sent` (вид письма — согласия, в том числе письмо после изменения и по запросу представителя, или раскрытие; исход отправки), `representation.ended`, `age.verified` (способ проверки, вид документа, совпала ли дата с указанной, режим `adult` · `minor`; без даты), `age.conflict` |
 | ПДн | `catalog.searched` (фильтры, число результатов), `card.viewed` (псевдоним, проекция), `card.viewed_recipient`, `contacts.disclosed`, `file.downloaded`, `data.exported` (самим субъектом), `account.deletion_requested`, `account.purged`, `facts.purged` (число, источник) |
-| Подбор | `vacancy.published`, `vacancy.blocked_text_check`, `vacancy.moderation_decided` (решение, статус, правила), `vacancy.moderation_cleared`, `vacancy.closed`, `invitation.sent`, `invitation.terms_revised` (признак `salary_lowered`), `invitation.reopened`, `invitation.withdrawn`, `invitation.responded`, `invitation.message_sent` (сторона, сообщение — без текста), `hiring.reported` (сторона, вид), `match.viewed` (псевдоним, вакансия) |
+| Подбор | `vacancy.published`, `vacancy.blocked_text_check`, `vacancy.moderation_decided` (решение, статус, правила), `vacancy.moderation_cleared`, `vacancy.closed`, `invitation.sent`, `invitation.terms_revised` (признак `salary_lowered`), `invitation.reopened`, `invitation.withdrawn`, `invitation.responded`, `invitation.message_sent` (сторона, сообщение — без текста), `hiring.reported` (сторона, вид), `hiring.interview_feedback_left` и `hiring.interview_feedback_revised` (уровень, исход — без комментария), `match.viewed` (псевдоним, вакансия) |
 | Партнёры | `partnership.opened`, `partnership.ended`, `partner_pool.viewed` (компания, соревнование, число карточек) |
 | Уведомления | `notification.channel_linked`, `notification.channel_unlinked` |
 | Категории и тесты | `survey.submitted` (версия), `grade.declared` (специализация, грейд, подсказка — коды), `test.started` (специализация, грейд, форма, выпуск), `test.decided` (исход, причина, кластеров), `test.expired`, `category.assigned`, `category.superseded`, `category.revoked` (причина), `objection.opened`, `objection.assigned` (без деталей), `objection.resolved` (исход), `assessment.score_revised`, `assessment.annulled` (причина, прежний статус, число снятых фактов), `assessment.artifact_viewed` (оператор), `bank.released` (выпуск, хэш) |

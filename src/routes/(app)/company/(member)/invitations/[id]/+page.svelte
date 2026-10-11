@@ -19,12 +19,20 @@
 	import FormMessage from '$lib/components/forms/form-message.svelte';
 	import PageHeader from '$lib/components/forms/page-header.svelte';
 	import { HiringStages, InvitationStatus, ResponseDeadline, SalaryRange } from '$lib/components/product/index.js';
-	import { HIRING_OUTCOMES, HIRING_STAGES, categoryName, formatDateTime } from '$lib/components/product/model.js';
+	import {
+		HIRING_OUTCOMES,
+		HIRING_STAGES,
+		INTERVIEW_LEVEL_LABELS,
+		INTERVIEW_OUTCOME_LABELS,
+		categoryName,
+		formatDateTime
+	} from '$lib/components/product/model.js';
 	import * as Alert from '$lib/components/ui/alert/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Field from '$lib/components/ui/field/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
+	import { Textarea } from '$lib/components/ui/textarea/index.js';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
@@ -34,6 +42,13 @@
 	const open = $derived(invitation.status === 'sent' || invitation.status === 'viewed');
 	const problem = $derived(form && 'problem' in form ? form.problem : null);
 	const process = $derived(data.process);
+	const interview = $derived(data.interview);
+	// The form is open until the feedback is left, and again while the company may still correct it.
+	const feedbackOpen = $derived(
+		interview !== null &&
+			interview.category !== null &&
+			(interview.feedback === null || interview.feedback.editableUntil !== null)
+	);
 	// The conversation opens with the acceptance; a closed offer without messages has none to show.
 	const showConversation = $derived(invitation.status === 'accepted' || data.conversation.messages.length > 0);
 	const stageLabel = (key: string) => HIRING_STAGES.find((stage) => stage.key === key)?.label ?? key;
@@ -82,6 +97,11 @@
 	<FormMessage tone="success" text="Приглашение отозвано." />
 {:else if form && 'reported' in form}
 	<FormMessage tone="success" text="Отметка сохранена." />
+{:else if form && 'interviewFeedback' in form}
+	<FormMessage
+		tone="success"
+		text={form.interviewFeedback === 'left' ? 'Отзыв о собеседовании сохранён.' : 'Отзыв о собеседовании исправлен.'}
+	/>
 {/if}
 
 {#if invitation.awaitingRepresentative}
@@ -362,6 +382,129 @@
 						<Button type="submit" variant="outline" class="justify-self-start">Сообщить исход</Button>
 					</form>
 				</Card.Content>
+			</Card.Root>
+		{/if}
+
+		{#if process && interview}
+			<Card.Root data-testid="interview-feedback">
+				<Card.Header>
+					<Card.Title><h2 class="font-heading text-h3">Отзыв о собеседовании</h2></Card.Title>
+					<Card.Description>
+						{#if interview.category}
+							Совпал ли подтверждённый тестом грейд «{categoryName(interview.category, data.labels)}» с тем, что
+							кандидат показал на собеседовании. Отзыв не меняет ни категорию кандидата, ни его место в подборках:
+							оператор использует сводку отзывов, чтобы проверять пороги теста. Кандидат видит ваш отзыв целиком, другие
+							компании — нет. Отзыв оставляется один раз; исправить его можно в течение суток.
+						{:else}
+							Когда вы отправляли предложение, у кандидата не было подтверждённого тестом грейда — сравнивать не с чем.
+						{/if}
+					</Card.Description>
+				</Card.Header>
+				{#if interview.category}
+					<Card.Content class="grid gap-4">
+						{#if interview.feedback}
+							{@const left = interview.feedback}
+							<dl class="grid gap-1 text-sm" data-testid="interview-feedback-left">
+								<div>
+									<dt class="inline text-muted-foreground">Уровень:</dt>
+									<dd class="inline">{INTERVIEW_LEVEL_LABELS[left.level]}</dd>
+								</div>
+								<div>
+									<dt class="inline text-muted-foreground">Исход:</dt>
+									<dd class="inline">{INTERVIEW_OUTCOME_LABELS[left.outcome]}</dd>
+								</div>
+								{#each interview.category.blocks as block (block.code)}
+									{@const blockLevel = left.blockLevels[block.code]}
+									{#if blockLevel}
+										<div>
+											<dt class="inline text-muted-foreground">{block.title}:</dt>
+											<dd class="inline">{INTERVIEW_LEVEL_LABELS[blockLevel]}</dd>
+										</div>
+									{/if}
+								{/each}
+								{#if left.comment}<div>
+										<dt class="inline text-muted-foreground">Комментарий:</dt>
+										<dd class="inline">{left.comment}</dd>
+									</div>{/if}
+								<div class="text-muted-foreground">
+									Оставлен {formatDateTime(left.createdAt)}{left.editableUntil
+										? ` · исправить можно до ${formatDateTime(left.editableUntil)}`
+										: ''}
+								</div>
+							</dl>
+						{/if}
+						{#if feedbackOpen}
+							{@const left = interview.feedback}
+							<form
+								method="POST"
+								action="?/interviewFeedback"
+								use:enhance
+								class="grid gap-3"
+								class:border-t={left !== null}
+								class:pt-4={left !== null}
+							>
+								<CsrfInput />
+								<input type="hidden" name="processId" value={process.id} />
+								<input type="hidden" name="mode" value={left === null ? 'leave' : 'revise'} />
+								<Field.Field>
+									<Field.Label for="interview-level"
+										>Уровень на собеседовании по сравнению с подтверждённым грейдом</Field.Label
+									>
+									<NativeSelect id="interview-level" name="level" value={left?.level ?? 'matches'}>
+										{#each data.interviewLevels as level (level)}
+											<option value={level}>{INTERVIEW_LEVEL_LABELS[level]}</option>
+										{/each}
+									</NativeSelect>
+								</Field.Field>
+								{#if interview.category.blocks.length > 0}
+									<fieldset class="grid gap-2">
+										<legend class="mb-1 text-sm font-medium">По блокам компетенций — по желанию</legend>
+										{#each interview.category.blocks as block (block.code)}
+											<Field.Field>
+												<Field.Label for={`interview-block-${block.code}`}>{block.title}</Field.Label>
+												<NativeSelect
+													id={`interview-block-${block.code}`}
+													name={`block:${block.code}`}
+													value={left?.blockLevels[block.code] ?? ''}
+												>
+													<option value="">Не оцениваю</option>
+													{#each data.interviewLevels as level (level)}
+														<option value={level}>{INTERVIEW_LEVEL_LABELS[level]}</option>
+													{/each}
+												</NativeSelect>
+											</Field.Field>
+										{/each}
+									</fieldset>
+								{/if}
+								<Field.Field>
+									<Field.Label for="interview-outcome">Чем закончилось собеседование</Field.Label>
+									<NativeSelect id="interview-outcome" name="outcome" value={left?.outcome ?? 'advanced'}>
+										{#each data.interviewOutcomes as outcome (outcome)}
+											<option value={outcome}>{INTERVIEW_OUTCOME_LABELS[outcome]}</option>
+										{/each}
+									</NativeSelect>
+								</Field.Field>
+								<Field.Field>
+									<Field.Label for="interview-comment">Комментарий — по желанию</Field.Label>
+									<Textarea
+										id="interview-comment"
+										name="comment"
+										rows={3}
+										maxlength={data.interviewCommentMax}
+										value={left?.comment ?? ''}
+									/>
+									<Field.Description
+										>До {data.interviewCommentMax} символов, о навыках, без имён, контактов и личных подробностей. Кандидат
+										его увидит.</Field.Description
+									>
+								</Field.Field>
+								<Button type="submit" variant="outline" class="justify-self-start">
+									{left === null ? 'Оставить отзыв' : 'Исправить отзыв'}
+								</Button>
+							</form>
+						{/if}
+					</Card.Content>
+				{/if}
 			</Card.Root>
 		{/if}
 

@@ -1,7 +1,7 @@
 // Catalog of journal events (docs/domain.md, section 18.2). `details` carries codes and identifiers only:
 // no resume text, contacts, free-text messages or profile field values (section 18.1).
 import { z } from 'zod';
-import { ANNUL_REASONS } from '$lib/server/db/schema';
+import { ANNUL_REASONS, INTERVIEW_FEEDBACK_OUTCOMES, INTERVIEW_LEVELS } from '$lib/server/db/schema';
 
 /** A code or an identifier: no spaces, so free text does not fit. */
 const token = z.string().regex(/^[A-Za-z0-9_.:@/+-]{1,128}$/, 'must be a code or an identifier');
@@ -106,6 +106,8 @@ const GROUPS = {
 		'invitation.responded',
 		'invitation.message_sent',
 		'hiring.reported',
+		'hiring.interview_feedback_left',
+		'hiring.interview_feedback_revised',
 		'match.viewed',
 		'need.created',
 		'need.updated',
@@ -226,6 +228,12 @@ export const FSP_BATCH_IMPORTED_DETAILS = {
 	refused: withKeys({ file_id: token, refused: z.enum(['row_issues', 'taxonomy_missing']) })
 };
 
+/** The employer's feedback on an interview against the confirmed grade (domain 13.7): codes, never the comment. */
+const interviewFeedbackDetails = withKeys({
+	level: z.enum(INTERVIEW_LEVELS),
+	outcome: z.enum(INTERVIEW_FEEDBACK_OUTCOMES)
+});
+
 /** Required keys of events whose details the model names; other events take any code details. */
 const SPECIFIC_DETAILS: Partial<Record<AuditAction, z.ZodType>> = {
 	'auth.registered': withKeys({ method: z.enum(['password', 'fsp_id', 'demo_newcomer']) }),
@@ -240,6 +248,8 @@ const SPECIFIC_DETAILS: Partial<Record<AuditAction, z.ZodType>> = {
 	'card.viewed': withKeys({ pseudonym: token, projection }),
 	'invitation.terms_revised': withKeys({ salary_lowered: z.boolean() }),
 	'hiring.reported': withKeys({ party: z.enum(['company', 'candidate']), kind: z.enum(['stage', 'outcome']) }),
+	'hiring.interview_feedback_left': interviewFeedbackDetails,
+	'hiring.interview_feedback_revised': interviewFeedbackDetails,
 	'match.viewed': withKeys({ pseudonym: token, vacancy_id: token }),
 	'facts.purged': withKeys({ count: z.int().nonnegative(), source: token }),
 	// A one-time link to the legal representative (domain 6.4): what it asks for; a failed send names the mail error.

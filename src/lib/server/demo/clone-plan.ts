@@ -329,6 +329,20 @@ export const DEMO_CLONE_PLAN: Readonly<Record<string, TableDecision>> = {
 		copy: true,
 		edges: { process_id: 'owner', reported_by_user_id: 'mention', supersedes_report_id: 'owner' }
 	},
+	// The employer's feedback on an interview against the confirmed grade (domain 13.7): the company's and the candidate's.
+	interview_feedback: {
+		kind: 'owned',
+		copy: true,
+		edges: {
+			process_id: 'owner',
+			company_id: 'owner',
+			candidate_id: 'owner',
+			terms_id: 'owner',
+			category_id: 'owner',
+			bank_release_id: 'reference',
+			created_by_member_id: 'owner'
+		}
+	},
 	// Shortlists of needs (domain 13.10, 23.2).
 	shortlists: {
 		kind: 'owned',

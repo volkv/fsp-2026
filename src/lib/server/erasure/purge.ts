@@ -49,6 +49,7 @@ import {
 	gradeDeclarations,
 	hiringProcesses,
 	hiringReports,
+	interviewFeedback,
 	invitationResponses,
 	invitations,
 	invitationTerms,
@@ -447,6 +448,19 @@ async function eraseEvidence(
 }
 
 /**
+ * The employers' feedback on the person's interviews goes first: it names the categories and the terms that go after it.
+ * Its calibration counts lose the person too — an aggregate is never kept beside the deleted rows.
+ */
+async function eraseInterviewFeedback(tx: Transaction, candidateId: string, removal: Removal): Promise<void> {
+	removal.add(
+		await tx
+			.delete(interviewFeedback)
+			.where(eq(interviewFeedback.candidateId, candidateId))
+			.returning({ id: interviewFeedback.id })
+	);
+}
+
+/**
  * Invitations become tombstones of id, company and status (disclosures refer to them); their terms, the answers, the
  * conversations and the hiring processes with the reports of both sides go.
  */
@@ -748,6 +762,7 @@ async function eraseAccount(
 	let evidenceKeptUntil: string | null = null;
 	const { candidateId } = ids;
 	if (candidateId !== null) {
+		await eraseInterviewFeedback(tx, candidateId, removal);
 		await eraseBlockResults(tx, candidateId, removal);
 		facts = await eraseEvidence(tx, candidateId, ids, removal);
 		await eraseGradeChoices(tx, candidateId, removal);

@@ -63,6 +63,7 @@ import { drainJobs } from '$lib/server/demo/queue';
 import { decideComplaint, fileComplaint } from '$lib/server/complaints/service';
 import { compareWithErasurePlan, erasedColumns, ERASURE_PLAN } from '$lib/server/erasure/plan';
 import { createAccountPurgeHandler } from '$lib/server/erasure/purge';
+import { leaveInterviewFeedback } from '$lib/server/hiring/interview-feedback';
 import { declareGrade } from '$lib/server/grades/declarations';
 import { gradeSources, type GradeSources } from '$lib/server/grades/sources';
 import { submitSurvey } from '$lib/server/grades/surveys';
@@ -576,11 +577,19 @@ describe('deleting a candidate with the whole pipeline behind the profile', () =
 			...offerTerms({ vacancyId: accepted.id, salaryMin: 260_000, salaryMax: 340_000, message: 'Приглашаем' }),
 			candidateId: hero.candidateId
 		});
-		await respondToInvitation(invitationDeps(), hero.subject, meta, sentAccepted.invitationId, {
+		const acceptance = await respondToInvitation(invitationDeps(), hero.subject, meta, sentAccepted.invitationId, {
 			termsId: sentAccepted.termsId,
 			decision: 'accept',
 			discloseFields: ['full_name', 'email'],
 			disclosureDocumentId: await documentId('contact_disclosure')
+		});
+		if (!acceptance.processId) throw new Error('the acceptance opened no hiring process');
+		// The company's feedback on the interview against the confirmed grade (domain 13.7): it is about the person.
+		const interview = await leaveInterviewFeedback(invitationDeps(), company.subject, meta, acceptance.processId, {
+			level: 'below',
+			blockLevels: {},
+			outcome: 'rejected',
+			comment: 'Ниже грейда по конкурентности'
 		});
 		const sentOpen = await createInvitation(invitationDeps(), second.subject, meta, {
 			...offerTerms({ vacancyId: open.id, salaryMin: 260_000, salaryMax: 340_000, message: 'И ещё одна' }),
@@ -747,6 +756,7 @@ describe('deleting a candidate with the whole pipeline behind the profile', () =
 		expect(await count('invitation_responses', 'invitation_id', invitationIds)).toBe(0);
 		expect(await count('invitation_messages', 'invitation_id', invitationIds)).toBe(0);
 		expect(await count('hiring_processes', 'invitation_id', invitationIds)).toBe(0);
+		expect(await count('interview_feedback', 'id', [interview.id])).toBe(0);
 		expect(await count('embeddings', 'owner_id', [hero.candidateId])).toBe(0);
 		expect(
 			await db

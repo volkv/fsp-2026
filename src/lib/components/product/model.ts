@@ -258,6 +258,21 @@ export const HIRING_OUTCOMES: Record<HiringOutcome, string> = {
 	no_contact: 'Связь не состоялась'
 };
 
+/** The level shown at the interview against the grade the test confirmed (the employer's interview feedback). */
+export const INTERVIEW_LEVEL_LABELS: Record<'below' | 'matches' | 'above', string> = {
+	below: 'Ниже подтверждённого грейда',
+	matches: 'Соответствует грейду',
+	above: 'Выше подтверждённого грейда'
+};
+
+/** Where the interview led, as the employer marks it in the interview feedback. */
+export const INTERVIEW_OUTCOME_LABELS: Record<'advanced' | 'offer' | 'rejected' | 'candidate_declined', string> = {
+	advanced: 'Прошёл дальше',
+	offer: 'Сделали оффер',
+	rejected: 'Отказ',
+	candidate_declined: 'Кандидат отказался'
+};
+
 export const HIRING_PARTIES: Record<HiringParty, string> = {
 	company: 'компания',
 	candidate: 'кандидат'

@@ -6,7 +6,16 @@ import { employerRequest, membershipOf, type EmployerRequest } from '$lib/server
 import { formFailure, pageError } from '$lib/server/http/page';
 import { currentVocabulary, labelsOf } from '$lib/server/employer/vocabulary';
 import { ApiError } from '$lib/server/errors/api-error';
+import {
+	companyInterviewFeedback,
+	leaveInterviewFeedback,
+	reviseInterviewFeedback,
+	type InterviewFeedbackInput,
+	type InterviewFeedbackOutcome,
+	type InterviewLevel
+} from '$lib/server/hiring/interview-feedback';
 import { getHiringProcess, reportHiring, type HiringReportInput } from '$lib/server/hiring/process';
+import { INTERVIEW_COMMENT_MAX, INTERVIEW_FEEDBACK_OUTCOMES, INTERVIEW_LEVELS } from '$lib/server/db/schema';
 import { OUTCOMES, type Outcome, type Stage } from '$lib/server/hiring/state';
 import { HIRING_STAGES } from '$lib/server/consent/kinds';
 import { invitationDeps } from '$lib/server/invitations/deps';
@@ -41,9 +50,10 @@ export const load: PageServerLoad = async (event) => {
 		const current = invitation.versions.find((version) => version.id === invitation.currentTermsId);
 		if (!current) throw new Error(`invitation ${invitation.id} lost its current terms`);
 		const vocabulary = await currentVocabulary(db());
-		const [offer, process, contacts, conversation, application] = await Promise.all([
+		const [offer, process, interview, contacts, conversation, application] = await Promise.all([
 			offerFormContext(db(), membership.companyId, vocabulary, now),
 			invitation.hiringProcessId === null ? null : getHiringProcess(deps, subject, invitation.hiringProcessId),
+			invitation.hiringProcessId === null ? null : companyInterviewFeedback(deps, subject, invitation.hiringProcessId),
 			accepted && invitation.status === 'accepted' ? contactsOf(request, invitation.id) : null,
 			getConversation(deps, subject, invitation.id),
 			invitation.status === 'accepted' ? null : disclosingApplicationOfInvitation(db(), invitation.id, now)
@@ -54,6 +64,10 @@ export const load: PageServerLoad = async (event) => {
 			offer,
 			whyYouOptions: optionsOfPoints(current.whyYou),
 			process,
+			interview,
+			interviewLevels: [...INTERVIEW_LEVELS],
+			interviewOutcomes: [...INTERVIEW_FEEDBACK_OUTCOMES],
+			interviewCommentMax: INTERVIEW_COMMENT_MAX,
 			contacts,
 			application,
 			conversation,
@@ -84,6 +98,28 @@ function reportInput(form: FormData, requestId: string): HiringReportInput {
 		return { party: 'company', kind, outcome, ...(startDate === '' ? {} : { startDate }) };
 	}
 	error(400, { message: 'Неизвестный вид сообщения', requestId });
+}
+
+const isLevel = (value: string): value is InterviewLevel => (INTERVIEW_LEVELS as readonly string[]).includes(value);
+const isFeedbackOutcome = (value: string): value is InterviewFeedbackOutcome =>
+	(INTERVIEW_FEEDBACK_OUTCOMES as readonly string[]).includes(value);
+/** Selects of the block levels are named `block:<code>`; an empty one is a block left unjudged. */
+const BLOCK_FIELD = 'block:';
+
+/** The interview feedback from the form; a value outside the vocabularies is a malformed post. */
+function feedbackInput(form: FormData, requestId: string): InterviewFeedbackInput {
+	const level = formText(form, 'level');
+	if (!isLevel(level)) error(400, { message: 'Неизвестный уровень', requestId });
+	const outcome = formText(form, 'outcome');
+	if (!isFeedbackOutcome(outcome)) error(400, { message: 'Неизвестный исход собеседования', requestId });
+	const blockLevels: Record<string, InterviewLevel> = {};
+	for (const [name, value] of form.entries()) {
+		if (!name.startsWith(BLOCK_FIELD) || value === '') continue;
+		if (typeof value !== 'string' || !isLevel(value)) error(400, { message: 'Неизвестный уровень блока', requestId });
+		blockLevels[name.slice(BLOCK_FIELD.length)] = value;
+	}
+	const comment = formText(form, 'comment');
+	return { level, outcome, blockLevels, comment: comment.trim() === '' ? null : comment };
 }
 
 export const actions: Actions = {
@@ -147,5 +183,25 @@ export const actions: Actions = {
 			return formFailure(cause);
 		}
 		return { reported: input.kind };
+	},
+
+	/** The feedback on the interview against the confirmed grade: left once, corrected within the window. */
+	interviewFeedback: async (event) => {
+		const { subject, meta, sessionHash } = await employerRequest(event);
+		const form = await event.request.formData();
+		const input = feedbackInput(form, event.locals.requestId);
+		const leave = formText(form, 'mode') === 'leave';
+		try {
+			await (leave ? leaveInterviewFeedback : reviseInterviewFeedback)(
+				invitationDeps(),
+				subject,
+				{ ...meta, sessionHash },
+				formText(form, 'processId'),
+				input
+			);
+		} catch (cause) {
+			return formFailure(cause);
+		}
+		return { interviewFeedback: leave ? 'left' : 'revised' };
 	}
 };

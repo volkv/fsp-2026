@@ -127,6 +127,7 @@ export const DEMO_RESET_PLAN: Readonly<Record<string, TableDecision>> = {
 	invitation_responses: clear,
 	hiring_processes: clear,
 	hiring_reports: clear,
+	interview_feedback: clear,
 	// Shortlists of needs (domain 13.10).
 	shortlists: clear,
 	shortlist_revisions: clear,
