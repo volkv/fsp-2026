@@ -4,7 +4,7 @@
 	import { resolve } from '$app/paths';
 	import CsrfField from '$lib/components/forms/csrf-input.svelte';
 	import FormMessage from '$lib/components/forms/form-message.svelte';
-	import { Button, buttonVariants } from '$lib/components/ui/button/index.js';
+	import { Button } from '$lib/components/ui/button/index.js';
 	import AuthPage from '../../auth-page.svelte';
 	import type { PageProps } from './$types';
 
@@ -12,8 +12,8 @@
 
 	const problem = $derived(form && 'problem' in form ? form.problem : null);
 	const titleOf = (key: string | null) => data.grades.find((g) => g.key === key)?.title ?? '';
-	// The declared grade, else the suggested one: the candidate changes it freely.
-	let chosen = $derived(data.declared ?? data.hint.suggested ?? '');
+	// The declared grade, else the suggested one, else the example grade of a demo session: the candidate changes it freely.
+	let chosen = $derived(data.declared ?? data.hint.suggested ?? data.sampleGrade ?? '');
 
 	const SOURCES = { resume: 'Резюме', fsp: 'ФСП', public_profile: 'Публичный профиль' } as const;
 	const optionClass =
@@ -26,13 +26,6 @@
 		.title}». Заявите грейд, который готовы подтвердить тестом: подсказка советует, решаете вы."
 	width="wide"
 >
-	{#if data.justDeclared && data.declared}
-		<FormMessage tone="success" text="Грейд {titleOf(data.declared)} заявлен. Дальше — тест на этот грейд." />
-		<div class="flex flex-wrap gap-3" data-testid="after-declaration">
-			<a href={resolve('/me/tests')} class={buttonVariants()}>Перейти к тесту</a>
-			<a href={resolve('/me/category')} class={buttonVariants({ variant: 'outline' })}>Категория и грейд</a>
-		</div>
-	{/if}
 	{#if problem}
 		<FormMessage tone="error" text={problem.message} />
 	{/if}
@@ -56,6 +49,13 @@
 		</ul>
 	</section>
 
+	{#if data.sampleGrade}
+		<p class="rounded-lg bg-info-subtle p-3 text-sm text-info" data-testid="demo-sample-note">
+			Заполнено примером для демо — можно изменить. Выбран грейд {titleOf(data.sampleGrade)}: нажмите «Заявить грейд», и
+			откроется тест.
+		</p>
+	{/if}
+
 	<form method="POST" use:enhance class="grid gap-4" data-testid="grade-form">
 		<CsrfField viewer={data.viewer} />
 		<fieldset class="grid gap-3">
@@ -75,7 +75,7 @@
 							{grade.title}{grade.key === data.hint.suggested ? ' — советует подсказка' : ''}{grade.key ===
 							data.declared
 								? ' — заявлен сейчас'
-								: ''}
+								: ''}{grade.key === data.sampleGrade ? ' — пример для демо' : ''}
 						</span>
 						<span class="text-muted-foreground">{grade.borderline}</span>
 						<span class="text-xs text-muted-foreground">Блоки теста: {grade.blocks.join(', ')}</span>

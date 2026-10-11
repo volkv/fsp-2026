@@ -65,8 +65,10 @@ test('a candidate registers, confirms the address, gives the consent and signs o
 	await page.getByRole('link', { name: 'Прочитать и дать согласие' }).click();
 	await expect(page.getByTestId('consent-text')).toBeVisible();
 	await page.getByRole('button', { name: 'Даю согласие' }).click();
-	// The registration goes on with the survey and the declared grade (domain 12.2): they open after the consent.
-	await expect(page).toHaveURL(/\/onboarding$/);
+	// The registration goes on with the survey and the declared grade (domain 12.2): the survey opens after the consent.
+	await expect(page).toHaveURL(/\/onboarding\/survey$/);
+	await expect(page.getByTestId('survey-form')).toBeVisible();
+	await page.goto('/onboarding');
 	await expect(page.locator('[data-step="consent"]')).toHaveAttribute('data-done', 'true');
 	await expect(page.locator('[data-step="survey"]')).toHaveAttribute('data-done', 'false');
 	await expect(page.getByRole('link', { name: 'Пройти опрос' })).toHaveAttribute('href', '/onboarding/survey');

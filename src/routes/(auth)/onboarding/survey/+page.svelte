@@ -14,10 +14,12 @@
 
 	const STEPS = ['Направление', 'Специализация', 'Стек', 'Формат и ожидания'] as const;
 	let step = $state(0);
-	// The answers in force are the starting point of a repeated survey; afterwards the candidate's choice rules.
-	let direction = $derived(data.current?.direction ?? '');
-	let specialization = $derived(data.current?.specialization ?? '');
-	let chosenSkills = $derived<string[]>([...(data.current?.declaredSkillKeys ?? [])]);
+	// The answers in force are the starting point of a repeated survey, the example answers that of the first survey in
+	// a demo session; afterwards the candidate's choice rules.
+	const start = $derived(data.current ?? data.sample);
+	let direction = $derived(start?.direction ?? '');
+	let specialization = $derived(start?.specialization ?? '');
+	let chosenSkills = $derived<string[]>([...(start?.declaredSkillKeys ?? [])]);
 	let query = $state('');
 
 	const problem = $derived(form && 'problem' in form ? form.problem : null);
@@ -63,6 +65,11 @@
 		<p class="rounded-lg bg-info-subtle p-3 text-sm text-info">
 			Новый опрос сохранится новой версией, прежние останутся в истории. Категория прежней специализации остаётся
 			действительной.
+		</p>
+	{/if}
+	{#if data.sample}
+		<p class="rounded-lg bg-info-subtle p-3 text-sm text-info" data-testid="demo-sample-note">
+			Заполнено примером для демо — можно изменить. Проверьте ответы на каждом шаге и нажмите «Дальше».
 		</p>
 	{/if}
 	{#if problem}

@@ -5,6 +5,7 @@ import { parsePreferences, type CandidatePreferences } from '$lib/server/candida
 import { currentCandidateVocabulary } from '$lib/server/candidates/vocabulary';
 import { db } from '$lib/server/db';
 import { candidates } from '$lib/server/db/schema';
+import { onboardingSampleApplies, surveySample } from '$lib/server/demo/onboarding-sample';
 import { gradeCandidate } from '$lib/server/grades/http';
 import { specializationSkills } from '$lib/server/grades/hint';
 import { gradeSources } from '$lib/server/grades/sources';
@@ -16,7 +17,8 @@ import type { Actions, PageServerLoad } from './$types';
 
 /**
  * The survey in four steps (domain 12.2): direction, specialization (open ones only), the declared stack, work terms and
- * expectations. A repeated survey starts from the answers in force; a new specialization is a new survey.
+ * expectations. A repeated survey starts from the answers in force; a new specialization is a new survey. The first
+ * survey of a candidate created within a demo session starts from the example answers (`demo/onboarding-sample.ts`).
  */
 export const load: PageServerLoad = async (event) => {
 	const { candidateId } = await gradeCandidate(event);
@@ -30,7 +32,12 @@ export const load: PageServerLoad = async (event) => {
 			executor.select({ preferences: candidates.preferences }).from(candidates).where(eq(candidates.id, candidateId))
 		]);
 		if (!vocabulary || !profile) redirect(303, '/onboarding');
-		const preferences: CandidatePreferences = survey?.preferences ?? parsePreferences(candidateId, profile.preferences);
+		const sample =
+			survey === null && (await onboardingSampleApplies(executor, candidateId))
+				? surveySample(vocabulary, released)
+				: null;
+		const preferences: CandidatePreferences =
+			survey?.preferences ?? sample?.preferences ?? parsePreferences(candidateId, profile.preferences);
 		return {
 			directions: CATALOG.directions.map((d) => ({ key: d.key, title: d.title })),
 			specializations: CATALOG.specializations.map((s) => ({
@@ -53,6 +60,11 @@ export const load: PageServerLoad = async (event) => {
 				direction: survey.direction,
 				specialization: survey.specialization,
 				declaredSkillKeys: survey.declaredSkillKeys
+			},
+			sample: sample && {
+				direction: sample.direction,
+				specialization: sample.specialization,
+				declaredSkillKeys: sample.declaredSkillKeys
 			},
 			preferences
 		};
