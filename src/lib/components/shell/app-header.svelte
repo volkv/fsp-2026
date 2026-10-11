@@ -56,7 +56,7 @@
 
 	/**
 	 * The header is a plate, as on the FSP site: inset from the sides, bottom corners rounded; sticky on every page. On
-	 * the pages of the application it is white and opaque in both themes, with a shadow on the light page; on the
+	 * the pages of the application it follows the page's theme: an opaque surface (`--header`, a step off the page) with a thin bottom border, plus a shadow on the light page; on the
 	 * landing page it takes the theme opposite to the page's. On the landing page it lies over the first screen (marked `data-under-header`)
 	 * without a frame of its own and scrolls away with it; once the bottom of that screen leaves the top of the window
 	 * the plate slides in, pinned, and slides out again when the page is scrolled back up. Out of the flow in both states, so the page does not jump; the first screen leaves
@@ -110,7 +110,7 @@
 			? 'dark absolute border-transparent'
 			: underlaid
 				? 'border-x bg-header/95 backdrop-blur-[6px] [.dark_&]:bg-header/98'
-				: 'light border-x bg-ink-0 shadow-[0_6px_24px_-8px_rgb(27_28_33/0.3)] [.dark_&]:shadow-none',
+				: 'border-x bg-header shadow-[0_6px_24px_-8px_rgb(27_28_33/0.3)] [.dark_&]:shadow-none',
 		underlaid ? 'inset-x-2.5' : 'sticky mx-2.5',
 		pinned && 'fixed animate-in duration-300 slide-in-from-top',
 		leaving && 'fixed animate-out duration-300 fill-mode-forwards slide-out-to-top',
