@@ -2,7 +2,6 @@
 	import LogInIcon from '@lucide/svelte/icons/log-in';
 	import MailIcon from '@lucide/svelte/icons/mail';
 	import MenuIcon from '@lucide/svelte/icons/menu';
-	import { mode } from 'mode-watcher';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { buttonVariants } from '$lib/components/ui/button/index.js';
@@ -54,22 +53,30 @@
 	const navLabel = $derived(workspace ? `Разделы: ${WORKSPACES[workspace].label.toLowerCase()}` : 'Основная навигация');
 
 	/**
-	 * On the landing page the header lies over the first screen (marked `data-under-header`) without a frame of its own
-	 * and scrolls away with it; once the bottom of that screen leaves the top of the window the framed bar slides in,
-	 * pinned, as the plate of the FSP site: inset from the sides, bottom corners rounded, in the theme opposite to the
-	 * page's. Out of the flow in both states, so the page does not jump; the first screen leaves room for the header by
-	 * `--header-height`, which the header keeps current (the stylesheet gives the value for the first paint).
+	 * The header is a plate, as on the FSP site: inset from the sides, bottom corners rounded, in the theme opposite to
+	 * the page's; sticky on every page. On the landing page it lies over the first screen (marked `data-under-header`)
+	 * without a frame of its own and scrolls away with it; once the bottom of that screen leaves the top of the window
+	 * the plate slides in, pinned, and slides out again when the page is scrolled back up. Out of the flow in both states, so the page does not jump; the first screen leaves
+	 * room for the header by `--header-height`, which the header keeps current (the stylesheet gives the value for the
+	 * first paint).
 	 */
 	const underlaid = $derived(pathname === '/');
 	let pinned = $state(false);
+	/** The plate is sliding out after unpinning; it turns back into the overlay once the animation ends. */
+	let leaving = $state(false);
 	let height = $state(0);
 
 	$effect(() => {
 		pinned = false;
+		leaving = false;
 		const element = underlaid ? document.querySelector('[data-under-header]') : null;
 		if (!element) return;
 		const observer = new IntersectionObserver((entries) => {
-			for (const entry of entries) pinned = !entry.isIntersecting && entry.boundingClientRect.bottom <= 0;
+			for (const entry of entries) {
+				const next = !entry.isIntersecting && entry.boundingClientRect.bottom <= 0;
+				leaving = pinned && !next;
+				pinned = next;
+			}
 		});
 		observer.observe(element);
 		return () => {
@@ -84,29 +91,28 @@
 		return () => root.style.removeProperty('--header-height');
 	});
 
-	const overlay = $derived(underlaid && !pinned);
+	const overlay = $derived(underlaid && !pinned && !leaving);
 </script>
 
 <header
 	bind:offsetHeight={height}
 	data-rows={workspace ? 2 : 1}
+	data-theme-inverse={overlay ? undefined : ''}
+	onanimationend={(event) => {
+		if (event.target === event.currentTarget) leaving = false;
+	}}
 	class={cn(
-		'top-0 z-40 border-b',
-		overlay
-			? 'dark absolute border-transparent text-foreground'
-			: 'bg-header/95 backdrop-blur supports-backdrop-filter:bg-header/80',
-		underlaid ? 'inset-x-2.5 rounded-b-xl' : 'sticky',
-		pinned && 'fixed animate-in border-x duration-300 slide-in-from-top',
-		pinned &&
-			(mode.current === 'dark'
-				? 'light bg-header/95 text-foreground supports-backdrop-filter:bg-header/95'
-				: 'dark text-foreground'),
+		'top-0 z-40 rounded-b-2xl border-b text-foreground',
+		overlay ? 'dark absolute border-transparent' : 'border-x bg-header/95 backdrop-blur-[6px] [.dark_&]:bg-header/85',
+		underlaid ? 'inset-x-2.5' : 'sticky mx-2.5',
+		pinned && 'fixed animate-in duration-300 slide-in-from-top',
+		leaving && 'fixed animate-out duration-300 fill-mode-forwards slide-out-to-top',
 		className
 	)}
 >
 	{#if overlay}
 		<div
-			class="pointer-events-none absolute inset-0 -z-10 rounded-b-xl bg-linear-to-b from-background/80 to-transparent"
+			class="pointer-events-none absolute inset-0 -z-10 rounded-b-2xl bg-linear-to-b from-background/80 to-transparent"
 			aria-hidden="true"
 		></div>
 	{/if}

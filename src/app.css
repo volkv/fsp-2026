@@ -18,8 +18,11 @@
 @import 'tw-animate-css';
 @import 'shadcn-svelte/tailwind.css';
 
-/* `.light` scopes the light roles back in inside a dark page (the pinned landing header). */
-@custom-variant dark (&:is(.dark *):not(.light *));
+/*
+ * `.light` scopes the light roles back in inside a dark page; `[data-theme-inverse]` takes the theme opposite to the
+ * page's (the header plate), resolved in CSS so the first paint already has it.
+ */
+@custom-variant dark (&:is(.dark *, :root:not(.dark) [data-theme-inverse] *):not(.light *, .dark [data-theme-inverse] *));
 
 /* Fonts are served locally from /static/fonts (SIL OFL 1.1, licences next to the files). */
 @font-face {
@@ -204,7 +207,8 @@
 
 /* 2. Semantic roles — light (default; mirrors the athlete cabinet: grey page, white cards) */
 :root,
-.light {
+.light,
+.dark [data-theme-inverse] {
 	--radius: 0.5rem;
 
 	--background: var(--color-ink-25);
@@ -272,7 +276,8 @@
 }
 
 /* 2. Semantic roles — dark (mirrors fsp-russia.ru: #1B1C21 page, #24252C cards) */
-.dark {
+.dark,
+:root:not(.dark) [data-theme-inverse] {
 	--background: var(--color-ink-900);
 	--foreground: var(--color-ink-50);
 	--card: var(--color-ink-850);
