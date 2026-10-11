@@ -6,7 +6,7 @@
 	var mode = 'system';
 	try {
 		mode = localStorage.getItem('mode-watcher-mode') || 'system';
-	} catch (e) {
+	} catch {
 		// Storage is unavailable (private mode, blocked cookies): follow the system.
 	}
 	if (mode !== 'light' && mode !== 'dark') mode = 'system';
