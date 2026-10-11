@@ -3,6 +3,7 @@
 import { z } from 'zod';
 import { defineOperation, type Operation } from '../operation';
 import { openApiDocument, type ExternalRoute, type OpenApiDocument } from '../openapi';
+import { OUTGOING_WEBHOOKS } from './event-webhooks';
 import * as account from './account';
 import * as applications from './applications';
 import * as catalog from './catalog';
@@ -49,7 +50,7 @@ export const getOpenApiDocument = defineOperation({
 		schema: z.looseObject({ openapi: z.literal('3.1.0') })
 	},
 	handle: () => {
-		document ??= openApiDocument(API_OPERATIONS, EXTERNAL_ROUTES);
+		document ??= openApiDocument(API_OPERATIONS, EXTERNAL_ROUTES, OUTGOING_WEBHOOKS);
 		return Promise.resolve(document);
 	}
 });

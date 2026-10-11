@@ -1,30 +1,31 @@
 // Outgoing events of a company (docs/domain.md, section 5.7; contracts 12): a change that matters to the company's own
 // systems emits an event in the transaction of the change. Every active subscription of the company asking for the
 // type gets a delivery row and a `event.deliver` job — the change, its deliveries and their jobs commit together.
-// The event carries identifiers and codes only: an ATS reads the data by the API with its own key, under the same
-// rights and consents as the interface.
+// The event carries identifiers and codes only (`payloads.ts`): an ATS reads the data by the API with its own key, under
+// the same rights and consents as the interface.
 import { and, arrayContains, eq } from 'drizzle-orm';
 import type { Transaction } from '$lib/server/db';
 import { COMPANY_EVENT_TYPES, eventDeliveries, eventSubscriptions } from '$lib/server/db/schema';
 import { uuidv7 } from '$lib/server/ids';
 import { enqueueJob } from '$lib/server/jobs/queue';
+import type { EventDataOf } from './payloads';
 
 export type CompanyEventType = (typeof COMPANY_EVENT_TYPES)[number];
 
-export type EventData = Record<string, string | number | boolean | null | string[]>;
-
-export interface CompanyEvent {
-	companyId: string;
-	type: CompanyEventType;
-	/** The offer the event is about: the purge of the candidate's account removes the deliveries with it. */
-	invitationId: string | null;
-	data: EventData;
-	occurredAt: Date;
-}
+export type CompanyEvent = {
+	[T in CompanyEventType]: {
+		companyId: string;
+		type: T;
+		/** The offer the event is about: the purge of the candidate's account removes the deliveries with it. */
+		invitationId: string | null;
+		data: EventDataOf<T>;
+		occurredAt: Date;
+	};
+}[CompanyEventType];
 
 /**
  * Emits the event to the subscriptions of the company in the caller's transaction; returns the event id, or `null` when
- * no subscription asks for it. The applications of candidates emit `application.received` through this function.
+ * no subscription asks for it.
  */
 export async function emitCompanyEvent(tx: Transaction, event: CompanyEvent): Promise<string | null> {
 	const subscriptions = await tx

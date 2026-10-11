@@ -12,6 +12,7 @@ import {
 	deleteSubscription,
 	listDeliveries,
 	listSubscriptions,
+	redeliver,
 	rotateSecret,
 	sendPing,
 	updateSubscription,
@@ -147,6 +148,16 @@ export const actions: Actions = {
 			return await act(event, async (ctx, companyId, form) => {
 				await sendPing(deps(), ctx, companyId, formText(form, 'subscriptionId'));
 				return { pinged: true };
+			});
+		} catch (cause) {
+			return formFailure(cause);
+		}
+	},
+	redeliver: async (event) => {
+		try {
+			return await act(event, async (ctx, companyId, form) => {
+				await redeliver(deps(), ctx, companyId, formText(form, 'subscriptionId'), formText(form, 'deliveryId'));
+				return { redelivered: true };
 			});
 		} catch (cause) {
 			return formFailure(cause);

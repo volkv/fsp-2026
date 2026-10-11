@@ -643,13 +643,16 @@ draft | submitted ──(оператор)──▶ suspended ──(опера�
 | Таблица | Поля | Смысл |
 |---|---|---|
 | `event_subscriptions` | `id`, `company_id`, `target` (`webhook` · `huntflow`), `name`, `url` (вебхук: `https://` во внешней сети; Хантфлоу — `NULL`), `events text[]` (подмножество `COMPANY_EVENT_TYPES`, не пусто), `status` (`active` · `paused`), `secret_enc` (секрет подписи вебхука или токен Хантфлоу, `enc`), `secret_hint`, `previous_secret_enc` + `previous_secret_until` (ротация), `settings` (Хантфлоу: `{account_id, vacancy_id, statuses}`), `created_by_member_id` | подписка |
-| `event_deliveries` | `id`, `subscription_id`, `company_id`, `event_id` (`X-Event-Id`, общий для всех подписок события), `event_type` (события + `ping`), `invitation_id` (для удаления), `payload` (только идентификаторы и коды), `occurred_at`, `status` (`queued` · `delivered` · `failed` · `skipped`), `attempts`, `last_status`, `last_error`, `delivered_at`; `UNIQUE (subscription_id, event_id)` | журнал доставок |
+| `event_deliveries` | `id`, `subscription_id`, `company_id`, `event_id` (`webhook-id`, общий для всех подписок события), `event_type` (события + `ping`), `invitation_id` (для удаления), `payload` (только идентификаторы, статусы и коды), `occurred_at`, `status` (`queued` · `delivered` · `failed` · `skipped`), `attempts`, `last_status`, `last_error`, `last_attempt_at`, `delivered_at`; `UNIQUE (subscription_id, event_id)` | журнал доставок |
 | `ats_links` | `id`, `subscription_id`, `invitation_id`, `external_id`; `UNIQUE (subscription_id, invitation_id)` | запись адаптера ATS (кандидат Хантфлоу) по предложению |
 
-События: `invitation.accepted`, `invitation.declined`, `invitation.expired`, `contacts.disclosed`, `hiring.reported`,
-`application.received` (задача откликов). Событие создаётся `emitCompanyEvent` в транзакции изменения: строка доставки и задание
-`event.deliver` на каждую активную подписку компании на этот тип. Псевдоним кандидата для компании добавляется в тело при отправке и не
-хранится. Подписками управляет владелец допущенной компании в сессии (`company.events.manage`), ключам API право не выдаётся. При отправке
+События: `invitation.sent`, `invitation.viewed`, `invitation.accepted`, `invitation.declined`, `invitation.expired`,
+`invitation.withdrawn`, `contacts.disclosed`, `hiring.reported`, `application.received`, `application.status_changed`,
+`vacancy.published`, `vacancy.closed` (где каждое создаётся и что несёт — contracts 12.1). Событие создаётся `emitCompanyEvent` в
+транзакции изменения: строка доставки и задание `event.deliver` на каждую активную подписку компании на этот тип; `data` типизирована
+схемами `events/payloads.ts`. Псевдоним кандидата для компании добавляется в тело при отправке и не хранится. Подписками управляет
+владелец допущенной компании в сессии или ключом API, которому он выдал `company.events.manage`: интеграция-получатель сама
+регистрирует адрес и меняет секрет. Недоставленное или пропущенное событие владелец отправляет снова с тем же id. При отправке
 доставка снова спрашивает политику допуска: приостановленной или отклонённой компании события не уходят (`skipped`), так же — подписке
 на паузе.
 

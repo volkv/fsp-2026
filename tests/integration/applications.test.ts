@@ -26,6 +26,8 @@ import {
 	demoSessions,
 	disclosures,
 	embeddings,
+	eventDeliveries,
+	eventSubscriptions,
 	embeddingSpaces,
 	notifications,
 	searchSettings,
@@ -225,6 +227,21 @@ describe('an application', () => {
 		const first = await vacancyOf(company);
 		const second = await vacancyOf(company, { title: 'Backend-разработчик на Python' });
 		const candidate = await person(database.db, world, { category: { specialization: 'backend', grade: 'middle' } });
+		const [subscription] = await database.db
+			.insert(eventSubscriptions)
+			.values({
+				companyId: company.company.id,
+				target: 'webhook',
+				name: 'ATS',
+				url: 'https://ats.example.org/hooks',
+				events: ['application.received', 'application.status_changed'],
+				status: 'active',
+				secretEnc: testCrypto.encrypt('whsec_c2VjcmV0', 'event_subscriptions.secret'),
+				secretHint: '…cmV0',
+				createdByMemberId: company.member.id
+			})
+			.returning();
+		if (!subscription) throw new Error('subscription not inserted');
 		const one = await apply(candidate, first.id);
 		await rejectApplication(deps(), company.subject, meta, one.id);
 		const two = await apply(candidate, second.id);
@@ -257,6 +274,30 @@ describe('an application', () => {
 			'invited',
 			'rejected'
 		]);
+		// The company's systems learn each change of status, with identifiers only.
+		const events = await database.db
+			.select({ type: eventDeliveries.eventType, payload: eventDeliveries.payload })
+			.from(eventDeliveries)
+			.where(eq(eventDeliveries.subscriptionId, subscription.id));
+		expect(events.filter((row) => row.type === 'application.status_changed').map((row) => row.payload)).toEqual(
+			expect.arrayContaining([
+				{
+					application_id: one.id,
+					vacancy_id: first.id,
+					status: 'rejected',
+					previous_status: 'submitted',
+					invitation_id: null
+				},
+				{
+					application_id: two.id,
+					vacancy_id: second.id,
+					status: 'invited',
+					previous_status: 'submitted',
+					invitation_id: offer.invitationId
+				}
+			])
+		);
+		expect(events.filter((row) => row.type === 'application.received')).toHaveLength(2);
 	});
 
 	it('lets the company it was sent to offer even to a profile hidden from the catalog, and no other', async () => {

@@ -20,12 +20,18 @@
 	const secret = $derived(form && 'secret' in form ? form.secret : null);
 
 	const EVENT_LABELS: Record<string, string> = {
+		'invitation.sent': 'Предложение отправлено',
+		'invitation.viewed': 'Кандидат открыл предложение',
 		'invitation.accepted': 'Кандидат принял предложение',
 		'invitation.declined': 'Кандидат отклонил предложение',
 		'invitation.expired': 'Срок ответа на предложение истёк',
+		'invitation.withdrawn': 'Предложение отозвано',
 		'contacts.disclosed': 'Кандидат раскрыл контакты',
 		'hiring.reported': 'Сообщён этап или исход найма',
 		'application.received': 'Получен отклик кандидата',
+		'application.status_changed': 'Отклик сменил статус',
+		'vacancy.published': 'Вакансия опубликована',
+		'vacancy.closed': 'Вакансия закрыта',
 		ping: 'Проверка'
 	};
 	const DELIVERY_STATUSES: Record<string, { label: string; tone: 'neutral' | 'info' | 'success' | 'danger' }> = {
@@ -47,7 +53,7 @@
 
 <PageHeader
 	title="События для ATS"
-	description="Платформа сама сообщает вашей системе найма о событиях: подписанный HMAC-SHA-256 вебхук или прямая передача в Хантфлоу. В событии только идентификаторы — данные интеграция читает по API своим ключом."
+	description="Платформа сама сообщает вашей системе найма о событиях: вебхук с подписью Standard Webhooks (HMAC-SHA-256) или прямая передача в Хантфлоу. В событии только идентификаторы и статусы — данные интеграция читает по API своим ключом."
 />
 
 <CompanyTabs role={data.role} />
@@ -61,6 +67,8 @@
 	/>
 {:else if form && 'connected' in form}
 	<FormMessage tone="success" text="Хантфлоу подключён." />
+{:else if form && 'redelivered' in form}
+	<FormMessage tone="success" text="Событие поставлено в очередь повторно — с тем же идентификатором." />
 {:else if form && 'removed' in form}
 	<FormMessage tone="success" text="Подписка удалена вместе с журналом доставок." />
 {:else if form && 'tokenReplaced' in form}
@@ -73,8 +81,10 @@
 		<Alert.Title>Секрет подписи «{secret.name}» — скопируйте его сейчас</Alert.Title>
 		<Alert.Description class="grid gap-2">
 			<p>
-				Показывается один раз. Проверяйте заголовок <code class="font-mono">X-Signature</code>: HMAC-SHA-256 этим
-				секретом от строки «X-Timestamp.тело запроса».
+				Показывается один раз. Проверяйте заголовок <code class="font-mono">webhook-signature</code> по спецификации
+				Standard Webhooks: <code class="font-mono">v1,</code> и base64 от HMAC-SHA-256 строки
+				«webhook-id.webhook-timestamp.тело запроса»; ключ — байты base64-части секрета после
+				<code class="font-mono">whsec_</code>. Пример проверки — в описании API, раздел «События для ATS».
 			</p>
 			<code class="block overflow-x-auto rounded-md border bg-background p-3 font-mono text-sm break-all select-all"
 				>{secret.value}</code
@@ -121,7 +131,7 @@
 								<form method="POST" action="?/ping" use:enhance>
 									<CsrfInput />
 									<input type="hidden" name="subscriptionId" value={subscription.id} />
-									<Button type="submit" size="sm" variant="outline">Проверить доставку</Button>
+									<Button type="submit" size="sm" variant="outline">Отправить тестовое событие</Button>
 								</form>
 								<form method="POST" action="?/toggle" use:enhance>
 									<CsrfInput />
@@ -162,8 +172,20 @@
 												<span>{EVENT_LABELS[delivery.eventType] ?? delivery.eventType}</span>
 												{#if status}<StatusPill label={status.label} tone={status.tone} />{/if}
 												<span class="text-xs text-muted-foreground"
-													>попыток {delivery.attempts}{delivery.lastError ? ` · ${delivery.lastError}` : ''}</span
+													>попыток {delivery.attempts}{delivery.lastAttemptAt
+														? ` · последняя ${formatDateTime(delivery.lastAttemptAt)}`
+														: ''}{delivery.lastStatus !== null
+														? ` · HTTP ${delivery.lastStatus}`
+														: ''}{delivery.lastError ? ` · ${delivery.lastError}` : ''}</span
 												>
+												{#if delivery.status === 'failed' || delivery.status === 'skipped'}
+													<form method="POST" action="?/redeliver" use:enhance>
+														<CsrfInput />
+														<input type="hidden" name="subscriptionId" value={subscription.id} />
+														<input type="hidden" name="deliveryId" value={delivery.id} />
+														<Button type="submit" size="sm" variant="ghost" class="h-7">Повторить</Button>
+													</form>
+												{/if}
 											</li>
 										{/each}
 									</ul>

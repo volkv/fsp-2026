@@ -23,6 +23,7 @@ import {
 import { applicationBasis, markApplicationsInvited } from '$lib/server/applications/service';
 import { markSolutionsInvited, solutionOfPair } from '$lib/server/challenges/company';
 import { resultsVisibleTo } from '$lib/server/confirmations/requests';
+import { emitCompanyEvent } from '$lib/server/events/emit';
 import { uuidv7 } from '$lib/server/ids';
 import { notify } from '$lib/server/notifications/notify';
 import { compareSalary } from '$lib/server/salary/compare';
@@ -509,6 +510,16 @@ export async function createInvitation(
 					objectId: invitationId,
 					payload: { invitation_id: invitationId, terms_id: termsId }
 				});
+				await emitSent(tx, {
+					companyId: member.companyId,
+					invitationId,
+					termsId,
+					version: 1,
+					vacancyId: content.vacancy?.id ?? null,
+					responseDueAt,
+					reopened: false,
+					now
+				});
 				await recordAuditEvent(tx, {
 					action: 'invitation.sent',
 					outcome: 'success',
@@ -638,6 +649,16 @@ async function sendVersion(
 			reopened
 		}
 	});
+	await emitSent(tx, {
+		companyId: invitation.companyId,
+		invitationId: invitation.id,
+		termsId,
+		version,
+		vacancyId: content.vacancy?.id ?? null,
+		responseDueAt,
+		reopened,
+		now
+	});
 	const journal = {
 		actor: auditActor(subject, meta, 'company'),
 		object: { type: 'invitation', id: invitation.id },
@@ -691,15 +712,56 @@ export async function reviseInvitation(
 	);
 }
 
+/** `invitation.sent` for the company's systems: a first offer, a revision or a reopening — a version to answer. */
+async function emitSent(
+	tx: Transaction,
+	sent: {
+		companyId: string;
+		invitationId: string;
+		termsId: string;
+		version: number;
+		vacancyId: string | null;
+		responseDueAt: Date;
+		reopened: boolean;
+		now: Date;
+	}
+): Promise<void> {
+	await emitCompanyEvent(tx, {
+		companyId: sent.companyId,
+		type: 'invitation.sent',
+		invitationId: sent.invitationId,
+		data: {
+			invitation_id: sent.invitationId,
+			terms_id: sent.termsId,
+			terms_version: sent.version,
+			vacancy_id: sent.vacancyId,
+			response_due_at: sent.responseDueAt.toISOString(),
+			reopened: sent.reopened
+		},
+		occurredAt: sent.now
+	});
+}
+
 /** Closes an unanswered offer and tells the candidate; the reason is journaled. */
 async function closeAsWithdrawn(
 	tx: Transaction,
 	invitation: InvitationRow,
 	now: Date,
-	journal: { actor: Parameters<typeof recordAuditEvent>[1]['actor']; requestId: string; cause: string }
+	journal: {
+		actor: Parameters<typeof recordAuditEvent>[1]['actor'];
+		requestId: string;
+		cause: 'company' | Exclude<WithdrawalCause, 'account_deleted'>;
+	}
 ): Promise<void> {
 	await tx.update(invitations).set({ status: 'withdrawn', closedAt: now }).where(eq(invitations.id, invitation.id));
 	if (invitation.currentTermsId !== null) await cancelTermsJobs(tx, invitation.currentTermsId);
+	await emitCompanyEvent(tx, {
+		companyId: invitation.companyId,
+		type: 'invitation.withdrawn',
+		invitationId: invitation.id,
+		data: { invitation_id: invitation.id, terms_id: invitation.currentTermsId, cause: journal.cause },
+		occurredAt: now
+	});
 	await notify(tx, {
 		userId: await candidateUserId(tx, invitation.candidateId),
 		type: 'invitation.withdrawn',
@@ -772,6 +834,7 @@ export async function withdrawOpenInvitations(
 		.where(and(where, inArray(invitations.status, [...OPEN_STATUSES]), sql`${invitations.purgedAt} is null`))
 		.for('update');
 	for (const invitation of open) {
+		// The account goes with its offers: no event, the purge removes the deliveries of the offer anyway.
 		if (cause === 'account_deleted') {
 			await tx
 				.update(invitations)

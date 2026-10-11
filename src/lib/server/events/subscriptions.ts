@@ -1,20 +1,14 @@
 // Subscriptions of a company to its outgoing events (docs/domain.md, section 5.7; contracts 12): the owner registers a
 // webhook — an HTTPS address, the events, a signing secret shown once — or connects Huntflow with the company's token.
 // The secret rotates with a day of overlap: the webhook is signed with both secrets meanwhile. The journal of deliveries
-// shows every attempt. Subscriptions are managed in a browser session by the owner of an admitted company, never by a
-// key: they hold secrets.
+// shows the last attempt of each delivery, and a failed or skipped one is sent again on request. Subscriptions are
+// managed by the owner of the company in a browser session, or by a key the owner granted `company.events.manage`.
 import { randomBytes } from 'node:crypto';
 import { and, desc, eq } from 'drizzle-orm';
 import { isIP } from 'node:net';
 import { z } from 'zod';
 import { recordAuditEvent } from '$lib/server/audit/record';
-import {
-	auditActorOf,
-	invalid,
-	requirePermission,
-	sessionUserId,
-	type ActionContext
-} from '$lib/server/companies/context';
+import { auditActorOf, invalid, requirePermission, type ActionContext } from '$lib/server/companies/context';
 import type { FieldCrypto } from '$lib/server/crypto/fields';
 import type { Database, Transaction } from '$lib/server/db';
 import {
@@ -26,6 +20,7 @@ import {
 } from '$lib/server/db/schema';
 import { ApiError, type ErrorDetail } from '$lib/server/errors/api-error';
 import { uuidv7 } from '$lib/server/ids';
+import { enqueueJob } from '$lib/server/jobs/queue';
 import { enqueueDelivery, type CompanyEventType } from './emit';
 import { isBlockedAddress } from './http';
 import { HUNTFLOW_EVENTS, huntflowSettingsSchema, type HuntflowSettings } from './huntflow';
@@ -69,6 +64,7 @@ export interface DeliveryView {
 	attempts: number;
 	lastStatus: number | null;
 	lastError: string | null;
+	lastAttemptAt: Date | null;
 	occurredAt: Date;
 	deliveredAt: Date | null;
 }
@@ -92,7 +88,7 @@ function summary(row: SubscriptionRow): SubscriptionSummary {
 }
 
 function newSigningSecret(): string {
-	return `whsec_${randomBytes(32).toString('base64url')}`;
+	return `whsec_${randomBytes(32).toString('base64')}`;
 }
 
 const hintOf = (secret: string) => `…${secret.slice(-4)}`;
@@ -150,7 +146,6 @@ function audit(ctx: ActionContext) {
 
 function creator(ctx: ActionContext, companyId: string): string {
 	requirePermission(ctx.subject, 'company.events.manage', { companyId });
-	sessionUserId(ctx.subject);
 	const membership = ctx.subject.membership;
 	if (membership === null) throw new Error('an events manager has no membership');
 	return membership.memberId;
@@ -438,6 +433,7 @@ export async function listDeliveries(
 			attempts: eventDeliveries.attempts,
 			lastStatus: eventDeliveries.lastStatus,
 			lastError: eventDeliveries.lastError,
+			lastAttemptAt: eventDeliveries.lastAttemptAt,
 			occurredAt: eventDeliveries.occurredAt,
 			deliveredAt: eventDeliveries.deliveredAt
 		})
@@ -445,4 +441,48 @@ export async function listDeliveries(
 		.where(eq(eventDeliveries.subscriptionId, subscriptionId))
 		.orderBy(desc(eventDeliveries.createdAt), desc(eventDeliveries.id))
 		.limit(DELIVERY_PAGE);
+}
+
+/**
+ * Sends a failed or skipped delivery again: the same event id, so a receiver that got it after all drops the repeat. The
+ * attempts go on counting; the job starts its schedule of pauses anew.
+ */
+export async function redeliver(
+	deps: SubscriptionDeps,
+	ctx: ActionContext,
+	companyId: string,
+	subscriptionId: string,
+	deliveryId: string
+): Promise<void> {
+	const memberId = creator(ctx, companyId);
+	if (!z.uuid().safeParse(deliveryId).success) throw new ApiError('not_found');
+	await deps.db.transaction(async (tx) => {
+		const subscription = await lockSubscription(tx, companyId, subscriptionId);
+		const [delivery] = await tx
+			.select({ id: eventDeliveries.id, status: eventDeliveries.status, eventType: eventDeliveries.eventType })
+			.from(eventDeliveries)
+			.where(and(eq(eventDeliveries.id, deliveryId), eq(eventDeliveries.subscriptionId, subscription.id)))
+			.for('update');
+		if (!delivery) throw new ApiError('not_found');
+		if (delivery.status !== 'failed' && delivery.status !== 'skipped') {
+			throw new ApiError('conflict', {
+				details: [
+					{ code: 'delivery_not_final', message: 'Повторить можно только недоставленное или пропущенное событие' }
+				]
+			});
+		}
+		await tx.update(eventDeliveries).set({ status: 'queued' }).where(eq(eventDeliveries.id, delivery.id));
+		await enqueueJob(
+			tx,
+			'event.deliver',
+			{ delivery_id: delivery.id },
+			{ inputVersion: delivery.id, createdBy: { kind: 'user', id: memberId } }
+		);
+		await recordAuditEvent(tx, {
+			...audit(ctx),
+			action: 'event_subscription.redelivered',
+			object: { type: 'event_subscription', id: subscription.id },
+			details: { company_id: companyId, delivery_id: delivery.id, event_type: delivery.eventType }
+		});
+	});
 }

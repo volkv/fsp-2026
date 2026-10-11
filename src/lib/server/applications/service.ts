@@ -564,6 +564,7 @@ export async function withdrawApplication(
 			.where(eq(applications.id, row.id))
 			.returning();
 		if (!closed) throw new Error(`application ${row.id} disappeared`);
+		await emitStatusChanged(tx, closed, row.status, now);
 		const [grant] = await tx
 			.select({ documentId: consentEvents.documentId, action: consentEvents.action })
 			.from(consentEvents)
@@ -732,6 +733,7 @@ export async function getApplication(
 				.returning();
 			if (!viewed) throw new Error(`application ${row.id} disappeared`);
 			current = viewed;
+			await emitStatusChanged(tx, viewed, row.status, now);
 			await recordAuditEvent(tx, {
 				action: 'application.decided',
 				outcome: 'success',
@@ -834,21 +836,43 @@ export async function rejectApplication(
 			.where(eq(applications.id, row.id))
 			.returning();
 		if (!rejected) throw new Error(`application ${row.id} disappeared`);
-		await decided(tx, rejected, 'rejected', auditActor(subject, meta, 'company'), meta.requestId, now);
+		await decided(tx, rejected, row.status, 'rejected', auditActor(subject, meta, 'company'), meta.requestId, now);
 		const [view] = await viewsOf(tx, deps, [rejected], 'company', now);
 		if (!view) throw new Error('view of an application was not built');
 		return view;
 	});
 }
 
+/**
+ * `application.status_changed` for the company's systems: the status the application has now. A withdrawal by the
+ * candidate comes with it too — the company learns the application is closed, not why.
+ */
+async function emitStatusChanged(tx: Transaction, row: ApplicationRow, previous: ApplicationRow['status'], now: Date) {
+	await emitCompanyEvent(tx, {
+		companyId: row.companyId,
+		type: 'application.status_changed',
+		invitationId: null,
+		data: {
+			application_id: row.id,
+			vacancy_id: row.vacancyId,
+			status: row.status,
+			previous_status: previous,
+			invitation_id: row.invitationId
+		},
+		occurredAt: now
+	});
+}
+
 async function decided(
 	tx: Transaction,
 	row: ApplicationRow,
+	previous: ApplicationRow['status'],
 	decision: 'invited' | 'rejected',
 	actor: AuditActor,
 	requestId: string,
 	now: Date
 ): Promise<void> {
+	await emitStatusChanged(tx, row, previous, now);
 	const [candidate] = await tx
 		.select({ userId: candidates.userId })
 		.from(candidates)
@@ -912,18 +936,27 @@ export async function markApplicationsInvited(
 	journal: { actor: AuditActor; requestId: string; now: Date }
 ): Promise<void> {
 	const { now } = journal;
+	const open = and(
+		eq(applications.candidateId, pair.candidateId),
+		eq(applications.companyId, pair.companyId),
+		inArray(applications.status, ['submitted', 'viewed'])
+	);
+	const before = new Map(
+		(
+			await tx.select({ id: applications.id, status: applications.status }).from(applications).where(open).for('update')
+		).map((row) => [row.id, row.status])
+	);
+	if (before.size === 0) return;
 	const invited = await tx
 		.update(applications)
 		.set({ status: 'invited', invitationId: pair.invitationId, decidedAt: now })
-		.where(
-			and(
-				eq(applications.candidateId, pair.candidateId),
-				eq(applications.companyId, pair.companyId),
-				inArray(applications.status, ['submitted', 'viewed'])
-			)
-		)
+		.where(and(open, inArray(applications.id, [...before.keys()])))
 		.returning();
-	for (const row of invited) await decided(tx, row, 'invited', journal.actor, journal.requestId, now);
+	for (const row of invited) {
+		const previous = before.get(row.id);
+		if (previous === undefined) throw new Error(`application ${row.id} was not locked before the update`);
+		await decided(tx, row, previous, 'invited', journal.actor, journal.requestId, now);
+	}
 }
 
 /**
