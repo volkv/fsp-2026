@@ -74,7 +74,7 @@
 		{ token: 'text-h3', sample: 'Квитанция проверки', font: 'font-heading' },
 		{ token: 'text-figure', sample: '228', font: 'accent-figure' },
 		{ token: 'text-metric', sample: '200 000 ₽', font: 'font-heading numeric' },
-		{ token: 'text-lg', sample: 'Работодатель пишет первым — сразу с зарплатой.', font: 'font-sans' },
+		{ token: 'text-lg', sample: 'Работодатель напишет первым — сразу с зарплатой.', font: 'font-sans' },
 		{ token: 'text-base', sample: 'Профиль собирается сам: достижения, резюме, публичные профили.', font: 'font-sans' },
 		{ token: 'text-sm', sample: 'Что подтверждено и чего это не доказывает.', font: 'font-sans' },
 		{ token: 'text-label', sample: 'АЛГОРИТМИЧЕСКОЕ · 2026', font: 'font-mono' }
