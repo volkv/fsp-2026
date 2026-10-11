@@ -6,6 +6,8 @@ import { configuredReceiptSigner } from '$lib/server/fsp/receipts';
 import { pageError } from '$lib/server/http/page';
 import regularFont from '$lib/server/profile/fonts/Inter-Regular.ttf';
 import semiboldFont from '$lib/server/profile/fonts/Inter-SemiBold.ttf';
+import monoBoldFont from '$lib/server/profile/fonts/JetBrainsMono-Bold.ttf';
+import monoFont from '$lib/server/profile/fonts/JetBrainsMono-Medium.ttf';
 import { renderProfilePdf } from '$lib/server/profile/pdf';
 import { buildProfilePdf } from '$lib/server/profile/pdf-input';
 import type { RequestHandler } from './$types';
@@ -25,8 +27,14 @@ export const GET: RequestHandler = async (event) => {
 			meta,
 			{ phone: chosen('phone'), email: chosen('email'), telegram: chosen('telegram') }
 		);
-		const [regular, semibold] = await Promise.all([read(regularFont).arrayBuffer(), read(semiboldFont).arrayBuffer()]);
-		const pdf = await renderProfilePdf(input, { regular: new Uint8Array(regular), semibold: new Uint8Array(semibold) });
+		const bytes = async (font: string) => new Uint8Array(await read(font).arrayBuffer());
+		const [regular, semibold, mono, monoBold] = await Promise.all([
+			bytes(regularFont),
+			bytes(semiboldFont),
+			bytes(monoFont),
+			bytes(monoBoldFont)
+		]);
+		const pdf = await renderProfilePdf(input, { regular, semibold, mono, monoBold });
 		return new Response(new Uint8Array(pdf), {
 			headers: {
 				'content-type': 'application/pdf',

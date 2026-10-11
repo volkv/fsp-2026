@@ -4,7 +4,9 @@ import { qrModules, renderProfilePdf, type ProfilePdfInput } from './pdf';
 
 const fonts = {
 	regular: readFileSync(new URL('./fonts/Inter-Regular.ttf', import.meta.url)),
-	semibold: readFileSync(new URL('./fonts/Inter-SemiBold.ttf', import.meta.url))
+	semibold: readFileSync(new URL('./fonts/Inter-SemiBold.ttf', import.meta.url)),
+	mono: readFileSync(new URL('./fonts/JetBrainsMono-Medium.ttf', import.meta.url)),
+	monoBold: readFileSync(new URL('./fonts/JetBrainsMono-Bold.ttf', import.meta.url))
 };
 
 const VERIFY_URL = 'https://career.example/verify/categories/abcdefghijklmnopqrstuvwxyz';
@@ -38,7 +40,7 @@ const input: ProfilePdfInput = {
 		}
 	],
 	experienceTotal: null,
-	achievements: [{ title: 'Чемпионат России, 2025', detail: 'Победитель', receiptUrl: null }],
+	achievements: [{ title: 'Чемпионат России, 2025', detail: 'Победитель', place: 1, receiptUrl: null }],
 	softSkills: ['Работа в команде'],
 	issuedOn: '5 октября 2026 г.',
 	origin: 'https://career.example'

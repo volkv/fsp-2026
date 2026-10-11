@@ -192,6 +192,7 @@ export async function buildProfilePdf(
 								.filter((part) => part !== null)
 								.join(', ')
 						: null,
+				place: detail.kind === 'competition_result' ? detail.place : null,
 				receiptUrl: fact.receipt === null ? null : `${deps.signer.issuer}/verify/${fact.receipt.handle}`
 			};
 		});
