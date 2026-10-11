@@ -90,6 +90,7 @@
 							<Table.Cell class="text-sm">
 								вставок {item.signals.pastes} ({item.signals.pastedChars} симв.), уходов {item.signals.departures}
 								{#if item.signals.silent > 0}· без сигналов {item.signals.silent}{/if}
+								{#if item.signals.foreignAnswers > 0}· ответов чужого экземпляра {item.signals.foreignAnswers}{/if}
 							</Table.Cell>
 						</Table.Row>
 					{/each}

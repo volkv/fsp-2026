@@ -22,6 +22,11 @@
 				? `, без сигналов страницы ${summary.silent}`
 				: ''}
 		</span>
+		{#if summary.foreignAnswers > 0}
+			<span data-testid="signals-foreign">
+				неверных ответов, совпавших с верным ответом чужого экземпляра того же задания, — {summary.foreignAnswers}
+			</span>
+		{/if}
 	{/if}
 	<span class="text-xs text-muted-foreground">{SIGNALS_SUMMARY_NOTE}</span>
 </div>

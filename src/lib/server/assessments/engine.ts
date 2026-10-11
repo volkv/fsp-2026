@@ -9,7 +9,7 @@
 //
 // The answers are the candidate's data: an attempt starts and takes answers only with `pd_processing` in effect.
 import { randomBytes } from 'node:crypto';
-import { and, asc, desc, eq, gt, inArray, lte, max, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, inArray, lte, max, ne, sql } from 'drizzle-orm';
 import { can, type AccessSubject } from '$lib/server/access/permissions';
 import { requireProcessingConsent } from '$lib/server/consent/processing';
 import type { Database, Executor, Transaction } from '$lib/server/db';
@@ -52,7 +52,9 @@ import { sha256Hex } from './families';
 import { assessmentPolicy, retentionUntil } from './policy';
 import { answerMatches, type CandidateAnswer, type QaCase } from './score';
 import { attemptDurationMs, attemptForm, chooseForSlot, seenKey, slotsOf, type AttemptForm } from './select';
-import { appendSignal, type ClientSignals } from './signals';
+import { FOREIGN_COMPARED, foreignInstance } from './leak';
+import { servingFamilies } from './quarantine';
+import { appendSignal, type ClientSignals, type SignalEntry } from './signals';
 import { admitGradeTest } from '$lib/server/grades/policy';
 import { gradeSources } from '$lib/server/grades/sources';
 import type { GradeStanding } from './standing';
@@ -280,7 +282,8 @@ async function writeDecision(
 
 /**
  * Serves slot `seq` of the plan — of the grade, or of the block test (`slot` given): the family-level by the rule of
- * 10.4, the instance generated and stored. `null` — nothing eligible.
+ * 10.4 among the families not in a quarantine begun by the attempt's start (10.5), the instance generated and stored.
+ * `null` — nothing eligible.
  */
 async function serveSlot(
 	tx: Transaction,
@@ -296,7 +299,7 @@ async function serveSlot(
 	const slot = blockSlot ?? slotsOf(release.specialization, grade)[seq - 1];
 	if (!slot) throw new Error(`no slot ${seq} of ${release.specialization} ${grade}`);
 	const choice = chooseForSlot({
-		families: release.families.map((f) => f.descriptor),
+		families: (await servingFamilies(tx, release, attempt.startedAt)).map((f) => f.descriptor),
 		grade,
 		slot,
 		want: attempt.form === null ? { kind: 'reserve' } : { kind: 'grade', form: attempt.form },
@@ -514,8 +517,9 @@ export async function startAttemptIn(
 		throw new Error('only a seeded attempt is started with a given seed');
 	}
 	const seed = options.attemptSeed ?? randomBytes(16).toString('hex');
+	const families = (await servingFamilies(tx, release, now)).map((f) => f.descriptor);
 	const form: AttemptForm = attemptForm(
-		release.families.map((f) => f.descriptor),
+		families,
 		input.grade,
 		await seenClasses(tx, candidateId, now),
 		await previousForm(tx, candidateId, input.specialization, input.grade, now),
@@ -537,14 +541,7 @@ export async function startAttemptIn(
 			seed,
 			status: 'in_progress',
 			startedAt: now,
-			deadlineAt: new Date(
-				now.getTime() +
-					attemptDurationMs(
-						release.families.map((f) => f.descriptor),
-						input.specialization,
-						input.grade
-					)
-			),
+			deadlineAt: new Date(now.getTime() + attemptDurationMs(families, input.specialization, input.grade)),
 			seeded: options.seeded ?? false
 		})
 		.returning();
@@ -599,7 +596,7 @@ export async function startBlockAttemptIn(
 	}
 	const release = await releaseInForce(tx, input.specialization);
 	if (!release) throw policyViolation('specialization_closed', 'block');
-	const families = release.families.map((f) => f.descriptor);
+	const families = (await servingFamilies(tx, release, now)).map((f) => f.descriptor);
 	const seed = randomBytes(16).toString('hex');
 	if (!blockTestServable(families, input.grade, input.block, await seenClasses(tx, candidateId, now), seed)) {
 		throw conflict('bank_capacity_exhausted', 'Для этого блока сейчас нет свободных заданий: попробуйте позже');
@@ -704,22 +701,19 @@ export async function answerItemIn(
 	const instance = current.instance as ItemInstance;
 	const stepStage = current.status === 'answered';
 	const context = { now, requestId: options.requestId, createdBy: { kind: 'user' as const, id: options.userId } };
-	await tx
-		.update(testAttempts)
-		.set({
-			integritySignals: appendSignal(attempt.integritySignals, {
-				at: now.toISOString(),
-				stage: stepStage ? 'change_step' : current.practice ? 'submission' : 'answer',
-				seq,
-				responseMs: Math.max(0, now.getTime() - (current.answeredAt ?? current.servedAt).getTime()),
-				client: signals
-			})
-		})
-		.where(eq(testAttempts.id, attempt.id));
+	const entry: SignalEntry = {
+		at: now.toISOString(),
+		stage: stepStage ? 'change_step' : current.practice ? 'submission' : 'answer',
+		seq,
+		responseMs: Math.max(0, now.getTime() - (current.answeredAt ?? current.servedAt).getTime()),
+		client: signals
+	};
 
 	if (!current.practice) {
 		if (payload.kind !== 'answer' || !instance.answer) throw invalidField('answer', 'Нужен ответ на задание');
 		const correct = answerMatches(instance.answer, payload.answer);
+		const foreign = correct ? null : await foreignAnswerOf(tx, attempt, current, payload.answer);
+		await writeSignal(tx, attempt, foreign === null ? entry : { ...entry, foreignAnswer: foreign });
 		await appendArtifacts(
 			tx,
 			attempt.id,
@@ -734,6 +728,7 @@ export async function answerItemIn(
 		return { attemptId: attempt.id, outcome: await advance(tx, deps, attempt, context) };
 	}
 
+	await writeSignal(tx, attempt, entry);
 	if (stepStage) {
 		const step = instance.changeStep;
 		if (!step) throw new Error(`item ${current.id} is answered without a change step`);
@@ -759,6 +754,46 @@ export async function answerItemIn(
 	if (!instance.qa) throw new Error(`practice item ${current.id} is neither a program nor QA`);
 	if (payload.kind !== 'cases') throw invalidField('cases', 'Нужны тест-кейсы');
 	return submitCases(tx, deps, attempt, current, 'task', instance.qa.budget, payload.cases, context);
+}
+
+async function writeSignal(tx: Transaction, attempt: AttemptRow, entry: SignalEntry): Promise<void> {
+	await tx
+		.update(testAttempts)
+		.set({ integritySignals: appendSignal(attempt.integritySignals, entry) })
+		.where(eq(testAttempts.id, attempt.id));
+}
+
+/**
+ * A wrong computed answer that is the right answer of another candidate's instance of the same family and grade
+ * (`foreignInstance` of `leak.ts`): compared with the `FOREIGN_COMPARED` newest such instances, read as stored — nothing
+ * is generated again. `null` — none.
+ */
+async function foreignAnswerOf(
+	tx: Transaction,
+	attempt: AttemptRow,
+	item: ItemRow,
+	given: CandidateAnswer
+): Promise<SignalEntry['foreignAnswer'] | null> {
+	const rows = await tx
+		.select({ classId: testItems.classId, instance: testItems.instance })
+		.from(testItems)
+		.innerJoin(testAttempts, eq(testAttempts.id, testItems.attemptId))
+		.where(
+			and(
+				eq(testItems.familyKey, item.familyKey),
+				eq(testItems.practice, false),
+				eq(testAttempts.grade, attempt.grade),
+				ne(testAttempts.candidateId, attempt.candidateId)
+			)
+		)
+		.orderBy(desc(testItems.servedAt))
+		.limit(FOREIGN_COMPARED);
+	const others = rows.flatMap((row) => {
+		const answer = (row.instance as ItemInstance).answer;
+		return answer === null ? [] : [{ classId: row.classId, answer }];
+	});
+	const match = foreignInstance(given, others);
+	return match === null ? null : { classId: match.classId, sameClass: match.classId === item.classId };
 }
 
 async function submitCases(

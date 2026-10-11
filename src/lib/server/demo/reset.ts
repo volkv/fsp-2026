@@ -56,6 +56,8 @@ export const DEMO_RESET_PLAN: Readonly<Record<string, TableDecision>> = {
 	legal_documents: reference,
 	product_policies: reference,
 	bank_releases: reference,
+	// A quarantine of a family is the bank's own decision, taken by real staff only (`requireStandChange`).
+	bank_family_quarantines: reference,
 	embedding_spaces: reference,
 	search_settings: reference,
 	eval_runs: reference,

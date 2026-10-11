@@ -61,6 +61,8 @@ export interface FixtureOptions {
 	practiceAngoff?: number;
 	/** Who approved the rubrics and rated the levels: models of two lineages (by default) or persons. */
 	signedBy?: 'models' | 'person';
+	/** Family-levels per block and grade beyond the fewest the capacity check accepts: a bank that can spare a family. */
+	spare?: number;
 }
 
 const signers = (options: FixtureOptions): readonly Reviewer[] => SIGNERS[options.signedBy ?? 'models'];
@@ -345,6 +347,7 @@ export function fixtureFamilies(specialization: SpecializationKey, options: Fixt
 		if (short.length === 0) break;
 		for (const key of new Set(short)) counts.set(key, (counts.get(key) ?? 0) + 1);
 	}
+	for (const [key, count] of counts) counts.set(key, count + (options.spare ?? 0));
 	return build(specialization, counts, options).map((family) => {
 		const sourceSha256 = familySourceSha256(family, generatorText(family));
 		return {

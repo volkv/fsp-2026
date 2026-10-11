@@ -378,7 +378,10 @@ export const listAttemptsForReview = defineOperation({
 							pastes: z.int(),
 							pasted_chars: z.int(),
 							departures: z.int(),
-							silent: z.int().describe('Записи, где страница не передала сигналы')
+							silent: z.int().describe('Записи, где страница не передала сигналы'),
+							foreign_answers: z
+								.int()
+								.describe('Неверные ответы, верные для экземпляра того же семейства у другого кандидата')
 						}),
 						stuck: z.boolean().describe('Кластер ждёт песочницу дольше 30 минут'),
 						annul_reason: annulReason.nullable()
@@ -409,7 +412,8 @@ export const listAttemptsForReview = defineOperation({
 					pastes: item.signals.pastes,
 					pasted_chars: item.signals.pastedChars,
 					departures: item.signals.departures,
-					silent: item.signals.silent
+					silent: item.signals.silent,
+					foreign_answers: item.signals.foreignAnswers
 				},
 				stuck: item.stuck,
 				annul_reason: item.annulReason
