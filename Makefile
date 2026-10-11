@@ -2,15 +2,21 @@
 
 .PHONY: up down infra dev worker db-migrate db-seed-taxonomy db-seed-demo demo-reset check-fast check-all check-docparse docparse-lock check-fsp-mock check-sandbox
 
-# Local environment file; created once from the template and never overwritten.
+# Local environment file; created once from the template and never overwritten. On Windows make may run recipes in
+# cmd.exe, which has no cp; git writes the template there with its LF line endings in either shell.
 .env:
+ifeq ($(OS),Windows_NT)
+	git show :.env.example > .env
+else
 	cp .env.example .env
-	@echo "Created .env from .env.example"
+endif
+	$(info Created .env from .env.example)
 
 ## Build the images and start the whole stack; the app container applies migrations and publishes the taxonomy
 ## before its server starts, the worker starts after it. Waits until every service is healthy.
+up: export APP_COMMIT := $(shell git rev-parse --short=12 HEAD)
 up: .env
-	APP_COMMIT=$$(git rev-parse --short=12 HEAD) docker compose --profile app up -d --build --wait
+	docker compose --profile app up -d --build --wait
 
 ## Stop the stack; volumes are kept (docker compose down -v removes them).
 down:

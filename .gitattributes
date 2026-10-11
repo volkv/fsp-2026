@@ -1,2 +1,6 @@
+# Text files are checked out with LF on every system: scripts and configs go into Linux containers as they are, and a
+# CRLF checkout (core.autocrlf=true on Windows) breaks shebangs and shell syntax there.
+* text=auto eol=lf
+
 # Test inputs of the assessment bank are byte-exact: line endings are part of the data.
 assessments/code/**/tests/** -text
