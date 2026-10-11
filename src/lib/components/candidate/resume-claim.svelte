@@ -70,32 +70,33 @@
 </script>
 
 <article
-	class={cn('grid gap-2 rounded-lg border p-3', review === 'rejected' && 'border-dashed')}
+	class={cn(
+		'flex h-full flex-col gap-2 rounded-xl border bg-card p-4',
+		review === 'rejected' && 'border-dashed opacity-80'
+	)}
 	aria-label="{CLAIM_TYPES[claim.claimType] ?? claim.claimType}: {title}"
 	data-testid="resume-claim"
 	data-claim-type={claim.claimType}
 	data-review={review}
 >
-	<div class="flex flex-wrap items-start justify-between gap-2">
-		<div class="grid gap-0.5">
-			<p class="text-xs text-muted-foreground">
-				{CLAIM_TYPES[claim.claimType] ?? claim.claimType} · {claim.extractor === 'model'
-					? 'нашла модель'
-					: 'нашли правила'}
-			</p>
-			<p class={cn('font-medium', review === 'rejected' && 'line-through')}>{title}</p>
-			{#if detail}<p class="text-sm text-muted-foreground">{detail}</p>{/if}
-			{#if polarity}<p class="text-sm text-warning">{polarity}</p>{/if}
-		</div>
+	<div class="flex items-center justify-between gap-2">
+		<p class="text-xs text-muted-foreground">
+			{CLAIM_TYPES[claim.claimType] ?? claim.claimType} · {claim.extractor === 'model'
+				? 'нашла модель'
+				: 'нашли правила'}
+		</p>
 		<StatusPill label={shownState.label} tone={shownState.tone} />
 	</div>
-	<p class="flex items-start gap-1.5 text-sm">
-		<QuoteIcon class="mt-1 size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+	<p class={cn('font-semibold', review === 'rejected' && 'line-through')}>{title}</p>
+	{#if detail}<p class="text-xs text-muted-foreground">{detail}</p>{/if}
+	{#if polarity}<p class="text-xs text-warning">{polarity}</p>{/if}
+	<p class="flex items-start gap-1.5 text-xs">
+		<QuoteIcon class="mt-0.5 size-3 shrink-0 text-muted-foreground" aria-hidden="true" />
 		{#if located}
 			<button
 				type="button"
 				class={cn(
-					'rounded-sm text-left text-link underline decoration-dotted underline-offset-4 outline-none hover:decoration-solid focus-visible:ring-3 focus-visible:ring-ring/50',
+					'line-clamp-3 rounded-sm text-left text-link underline decoration-dotted underline-offset-4 outline-none hover:decoration-solid focus-visible:ring-3 focus-visible:ring-ring/50',
 					selected && 'decoration-solid'
 				)}
 				aria-controls={documentId}
@@ -107,12 +108,13 @@
 				«{claim.quote.text}»<span class="sr-only"> — показать в тексте резюме</span>
 			</button>
 		{:else}
-			<span>
+			<span class="line-clamp-3" title="Из прежнего чтения файла, в тексте резюме не отмечено">
 				«{claim.quote.text}»
-				<span class="text-muted-foreground">— из прежнего чтения файла, в тексте резюме не отмечено</span>
 			</span>
 		{/if}
 	</p>
-	<ResumeReview action="?/reviewClaim" idField="claim_id" id={claim.id} {review} subject={title} />
+	<div class="mt-auto pt-1">
+		<ResumeReview action="?/reviewClaim" idField="claim_id" id={claim.id} {review} subject={title} />
+	</div>
 	{#if problem}<FormMessage text={problem} />{/if}
 </article>

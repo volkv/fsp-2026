@@ -14,6 +14,7 @@
 	import SectionCard from '$lib/components/candidate/section-card.svelte';
 	import FormMessage from '$lib/components/forms/form-message.svelte';
 	import PageHeader from '$lib/components/forms/page-header.svelte';
+	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import * as Empty from '$lib/components/ui/empty/index.js';
 	import { Spinner } from '$lib/components/ui/spinner/index.js';
 	import type { PageProps } from './$types';
@@ -67,12 +68,25 @@
 	const documentHeadingId = 'resume-document-heading';
 	let documentElement = $state<HTMLElement | null>(null);
 	let selected = $state<string | null>(null);
+	let textOpen = $state(false);
 
-	/** Shows the quotes of a field in the text: selects them, scrolls to the first one and moves focus there. */
+	/** The text of the resume opens in a dialog; waits the frames until it is mounted. */
+	async function openText(): Promise<HTMLElement> {
+		textOpen = true;
+		for (let frame = 0; frame < 30; frame += 1) {
+			await tick();
+			if (documentElement) return documentElement;
+			await new Promise((done) => requestAnimationFrame(done));
+		}
+		throw new Error('the text of the resume did not open');
+	}
+
+	/** Shows the quotes of a field in the text: opens it, selects them, scrolls to the first one and moves focus there. */
 	async function show(key: string) {
 		selected = key;
+		const text = await openText();
 		await tick();
-		const mark = documentElement?.querySelector<HTMLElement>(`mark[data-sources~="${CSS.escape(key)}"]`);
+		const mark = text.querySelector<HTMLElement>(`mark[data-sources~="${CSS.escape(key)}"]`);
 		if (!mark) throw new Error(`no quote of ${key} is marked in the document`);
 		const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 		mark.scrollIntoView({ block: 'center', behavior: reduced ? 'auto' : 'smooth' });
@@ -114,7 +128,16 @@
 
 {#if data.uploads.length > 0}
 	<SectionCard title="Мои файлы" testId="resume-files">
-		<ResumeUploads uploads={data.uploads} extracting={data.inProgress && current?.upload.parseStatus !== 'pending'} />
+		<ResumeUploads
+			uploads={data.uploads}
+			extracting={data.inProgress && current?.upload.parseStatus !== 'pending'}
+			ontext={resumeText && !data.inProgress
+				? () => {
+						selected = null;
+						void openText();
+					}
+				: null}
+		/>
 	</SectionCard>
 {/if}
 
@@ -156,26 +179,6 @@
 	{/if}
 
 	<div class="grid gap-8">
-		<section
-			id={documentId}
-			aria-labelledby={documentHeadingId}
-			class="grid gap-3 rounded-xl border bg-card p-4 text-card-foreground shadow-xs sm:p-6"
-		>
-			<div class="grid gap-1">
-				<h2 id={documentHeadingId} class="font-heading text-h3">Текст резюме</h2>
-				<p class="text-sm text-muted-foreground">
-					Так мы прочитали файл «{current.upload.declaredName}». Отмечены слова, на которые опираются поля; нажмите на
-					цитату у поля — она подсветится здесь.
-				</p>
-			</div>
-			<ResumeDocument
-				blocks={resumeText.blocks}
-				{selected}
-				bind:element={documentElement}
-				labelledby={documentHeadingId}
-			/>
-		</section>
-
 		<SectionCard
 			title="Опыт работы"
 			description="Каждое место работы с должностью, компанией и периодом. Подтверждённый опыт с датами — основание грейда."
@@ -197,7 +200,7 @@
 							onshow={show}
 						>
 							{#if entryClaims(entry.id).length > 0}
-								<ul class="grid gap-2" aria-label="Другие поля этой работы">
+								<ul class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3" aria-label="Другие поля этой работы">
 									{#each entryClaims(entry.id) as claim (claim.id)}
 										<li>
 											<ResumeClaim
@@ -233,7 +236,7 @@
 				{#each groups as group (group.title)}
 					<div class="grid gap-2">
 						<h3 class="text-sm font-medium">{group.title}</h3>
-						<ul class="grid gap-2">
+						<ul class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
 							{#each group.claims as claim (claim.id)}
 								<li>
 									<ResumeClaim
@@ -274,4 +277,29 @@
 			</SectionCard>
 		{/if}
 	</div>
+
+	<Dialog.Root bind:open={textOpen}>
+		<Dialog.Content
+			id={documentId}
+			class="max-h-[90vh] grid-rows-[auto_minmax(0,1fr)] sm:max-w-3xl"
+			aria-labelledby={documentHeadingId}
+			onOpenAutoFocus={(event: Event) => {
+				// A quote takes the focus itself once it is shown.
+				if (selected !== null) event.preventDefault();
+			}}
+		>
+			<Dialog.Header>
+				<Dialog.Title id={documentHeadingId}>Текст резюме</Dialog.Title>
+				<Dialog.Description>
+					Так мы прочитали файл «{current.upload.declaredName}». Отмечены слова, на которые опираются поля.
+				</Dialog.Description>
+			</Dialog.Header>
+			<ResumeDocument
+				blocks={resumeText.blocks}
+				{selected}
+				bind:element={documentElement}
+				labelledby={documentHeadingId}
+			/>
+		</Dialog.Content>
+	</Dialog.Root>
 {/if}

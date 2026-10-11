@@ -16,6 +16,7 @@
 <script lang="ts">
 	import FileTextIcon from '@lucide/svelte/icons/file-text';
 	import StatusPill from '$lib/components/forms/status-pill.svelte';
+	import { Button } from '$lib/components/ui/button/index.js';
 	import { formatDateTime } from '$lib/components/product/model.js';
 	import { Spinner } from '$lib/components/ui/spinner/index.js';
 	import { PARSE_STATUSES } from './quotes';
@@ -24,11 +25,14 @@
 	/** Every upload of the candidate, newest first, with where its reading stands. */
 	let {
 		uploads,
-		extracting
+		extracting,
+		ontext
 	}: {
 		uploads: ResumeUploadView[];
 		/** The current resume is parsed and its fields are still being extracted. */
 		extracting: boolean;
+		/** Opens the text of the current resume; `null` — there is no text to show yet. */
+		ontext: (() => void) | null;
 	} = $props();
 
 	const sizeFormat = new Intl.NumberFormat('ru', { maximumFractionDigits: 1 });
@@ -73,6 +77,12 @@
 						{/if}
 						<StatusPill label={shown.label} tone={shown.tone} />
 					</span>
+					{#if upload.isCurrent && ontext}
+						<Button size="sm" variant="ghost" onclick={ontext} data-testid="resume-text-open">
+							<FileTextIcon aria-hidden="true" />
+							Текст<span class="sr-only"> резюме «{upload.declaredName}»</span>
+						</Button>
+					{/if}
 					<ResumeDelete
 						resumeDocumentId={upload.resumeDocumentId}
 						name={upload.declaredName}
