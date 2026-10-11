@@ -159,3 +159,28 @@ ${searchResults}
 </body>
 </html>`;
 }
+
+/**
+ * The page of a login interaction the browser no longer has: opened again after the sign-in, from another browser or
+ * after its time ran out. Its client is not known any more, so the user goes back to the platform and starts again.
+ */
+export function expiredInteractionPage(): string {
+	return `<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Вход устарел — имитатор ФСП ID</title>
+<style>
+body { font-family: system-ui, sans-serif; max-width: 46rem; margin: 2rem auto; padding: 0 1rem; color: #1b1f24; }
+.banner { background: #fff3cd; border: 1px solid #e0c36a; padding: .75rem 1rem; border-radius: .5rem; }
+</style>
+</head>
+<body>
+<p class="banner">Имитатор ФСП ID для тестового стенда.</p>
+<h1>Ссылка входа устарела</h1>
+<p>Эта страница входа уже использована, открыта в другом браузере или ждала слишком долго.</p>
+<p>Вернитесь на сайт и снова нажмите «Войти через ФСП ID».</p>
+</body>
+</html>`;
+}

@@ -6,10 +6,10 @@ import { handleApi, type ApiContext } from './api/achievements.ts';
 import { handleControl } from './api/control.ts';
 import { Faults } from './api/faults.ts';
 import type { MockConfig } from './config.ts';
-import { HttpError, sendError, sendJson } from './http.ts';
-import { handleInteraction } from './oidc/interaction.ts';
+import { HttpError, sendError, sendHtml, sendJson } from './http.ts';
+import { expiredInteractionPage, handleInteraction } from './oidc/interaction.ts';
 import { ISSUER_PATH } from './oidc/parity.ts';
-import { createProvider } from './oidc/provider.ts';
+import { createProvider, INTERACTION_PATH } from './oidc/provider.ts';
 import { generateWorld } from './seed/generate.ts';
 import { Store } from './store.ts';
 import { WebhookDispatcher } from './webhooks.ts';
@@ -66,10 +66,13 @@ export function createMockApp(config: MockConfig, log: (line: string) => void = 
 				return;
 			}
 			if (error instanceof errors.OIDCProviderError && error.statusCode < 500) {
-				// E.g. an expired or foreign login interaction: the user starts the sign-in again from the platform.
-				if (!res.headersSent)
+				// E.g. an expired or foreign login interaction: the user starts the sign-in again from the platform. A browser
+				// on the login page gets a page saying so; other clients get the error as JSON.
+				if (res.headersSent) res.destroy();
+				else if ((req.url ?? '').startsWith(`${INTERACTION_PATH}/`))
+					sendHtml(res, error.statusCode, expiredInteractionPage());
+				else
 					sendError(res, new HttpError(error.statusCode, 'invalid_request', error.error_description ?? error.message));
-				else res.destroy();
 				return;
 			}
 			log(

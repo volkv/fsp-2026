@@ -2,12 +2,13 @@
 	import { resolve } from '$app/paths';
 	import ArrowRightIcon from '@lucide/svelte/icons/arrow-right';
 	import LogInIcon from '@lucide/svelte/icons/log-in';
+	import PlayIcon from '@lucide/svelte/icons/play';
 	import TrophyIcon from '@lucide/svelte/icons/trophy';
 	import FspSign from '$lib/components/brand/fsp-sign.svelte';
 	import { RecommendationNotice, TrustChip, TrustSignal } from '$lib/components/product/index.js';
 	import { TRUST } from '$lib/components/product/model.js';
 	import { cn } from '$lib/components/utils.js';
-	import { SIGN_IN_HREF } from '$lib/navigation.js';
+	import { DEMO_HREF, SIGN_IN_HREF } from '$lib/navigation.js';
 	import AudiencesScroll from './audiences-scroll.svelte';
 	import MarketFacts from './market-facts.svelte';
 	import ProfileSnapshot from './profile-snapshot.svelte';
@@ -174,8 +175,15 @@
 			</div>
 		</div>
 		<div class="keynote-in mt-10 flex flex-wrap items-center justify-center gap-4" style="--d: 560ms">
+			<a href={resolve(DEMO_HREF)} class="{pill} bg-white text-ink-1000 hover:bg-brand-100">
+				<PlayIcon class="size-5" aria-hidden="true" />
+				Демо: войти за героя
+			</a>
 			{#if SIGN_IN_HREF}
-				<a href={resolve(SIGN_IN_HREF)} class="{pill} bg-white text-ink-1000 hover:bg-brand-100">
+				<a
+					href={resolve(SIGN_IN_HREF)}
+					class="{pill} text-brand-300 ring-1 ring-white/20 hover:bg-white/10 hover:text-white"
+				>
 					<LogInIcon class="size-5" aria-hidden="true" />
 					Войти через ФСП ID
 				</a>
@@ -406,8 +414,15 @@
 		<div
 			class="mt-12 flex flex-wrap items-center justify-center gap-4 transition-all delay-500 duration-700 ease-standard group-data-[reveal=pending]:translate-y-6 group-data-[reveal=pending]:opacity-0"
 		>
+			<a href={resolve(DEMO_HREF)} class="{pill} bg-white text-ink-1000 hover:bg-brand-100">
+				<PlayIcon class="size-5" aria-hidden="true" />
+				Демо: войти за героя
+			</a>
 			{#if SIGN_IN_HREF}
-				<a href={resolve(SIGN_IN_HREF)} class="{pill} bg-white text-ink-1000 hover:bg-brand-100">
+				<a
+					href={resolve(SIGN_IN_HREF)}
+					class="{pill} text-brand-300 ring-1 ring-white/20 hover:bg-white/10 hover:text-white"
+				>
 					<LogInIcon class="size-5" aria-hidden="true" />
 					Войти через ФСП ID
 				</a>

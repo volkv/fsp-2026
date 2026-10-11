@@ -136,6 +136,9 @@ export const SIGN_IN_HREF = '/auth/fsp';
 /** Sign-in by password, with the FSP ID button and links to registration and recovery. */
 export const LOGIN_HREF = '/login';
 
+/** The demo screen: a visitor picks a hero of the scenario and enters without a password. */
+export const DEMO_HREF = '/demo';
+
 export const REGISTER_HREF = '/register';
 
 /** Remaining registration steps: address, consent, representative, company. */

@@ -2,12 +2,14 @@
 	import LogInIcon from '@lucide/svelte/icons/log-in';
 	import MailIcon from '@lucide/svelte/icons/mail';
 	import MenuIcon from '@lucide/svelte/icons/menu';
+	import PlayIcon from '@lucide/svelte/icons/play';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { buttonVariants } from '$lib/components/ui/button/index.js';
 	import * as Sheet from '$lib/components/ui/sheet/index.js';
 	import { cn } from '$lib/components/utils.js';
 	import {
+		DEMO_HREF,
 		LOGIN_HREF,
 		PUBLIC_NAV,
 		SIGN_IN_HREF,
@@ -156,6 +158,10 @@
 					<UserMenu {viewer} />
 				</div>
 			{:else if !workspace}
+				<a href={resolve(DEMO_HREF)} class={cn(buttonVariants(), 'hidden sm:inline-flex')}>
+					<PlayIcon aria-hidden="true" />
+					Демо
+				</a>
 				<a href={resolve(LOGIN_HREF)} class={cn(buttonVariants({ variant: 'secondary' }), 'hidden sm:inline-flex')}>
 					<MailIcon aria-hidden="true" />
 					Войти
@@ -202,6 +208,10 @@
 						{#if viewer}
 							<UserMenu {viewer} vertical />
 						{:else if !workspace}
+							<a href={resolve(DEMO_HREF)} class={cn(buttonVariants(), 'w-full')} onclick={closeMenu}>
+								<PlayIcon aria-hidden="true" />
+								Демо: войти за героя
+							</a>
 							<a
 								href={resolve(SIGN_IN_HREF)}
 								class={cn(buttonVariants(), 'w-full')}
