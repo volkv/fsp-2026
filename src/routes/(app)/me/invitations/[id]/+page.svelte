@@ -364,7 +364,10 @@
 				</label>
 				<label class="grid gap-1.5 text-sm">
 					<span>Комментарий</span>
-					<Textarea name="reason_text" maxlength={2000} rows={3} />
+					<Textarea name="reason_text" maxlength={2000} rows={3} aria-describedby="decline-contacts-hint" />
+					<span id="decline-contacts-hint" class="text-xs text-muted-foreground">
+						Почту, телефон, ссылки и @ник из комментария компания не увидит, пока не получит ваши контакты.
+					</span>
 				</label>
 				<Button type="submit" variant="outline" class="justify-self-start">
 					<XIcon aria-hidden="true" />

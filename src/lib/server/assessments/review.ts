@@ -1,5 +1,6 @@
 // The operator of FSP reviews attempts of the test (docs/domain.md, 10.7, 12.5; contracts 5.5). The list shows first
-// the attempts that ask for a person: a journal with pastes or departures from the page — a signal for a human, never a
+// the attempts that ask for a person: a journal with pastes, departures from the page or another candidate's answer — a
+// signal for a human, never a
 // verdict — and a cluster waiting for the sandbox longer than 30 minutes; the whole list shows the latest ones. The case
 // reads an attempt in full: the decision, the plan, every cluster with its instance whole (statement, key, hidden tests,
 // mutants), the candidate's answers and runs, the scores with their detail, the Angoff estimates, the release and the
@@ -44,11 +45,12 @@ export interface ReviewListItem {
 	annulReason: AttemptRow['annulReason'];
 }
 
-/** A pasted fragment or a departure from the page in any entry of the journal. */
+/** A pasted fragment, a departure from the page or another candidate's answer in any entry of the journal. */
 const signalled = sql`exists (
 	select 1 from jsonb_array_elements(coalesce(${testAttempts.integritySignals} -> 'entries', '[]'::jsonb)) entry
 	where coalesce((entry -> 'client' ->> 'pasteCount')::int, 0) > 0
 		or coalesce((entry -> 'client' ->> 'blurCount')::int, 0) > 0
+		or entry ? 'foreignAnswer'
 )`;
 
 /** A cluster awaiting the sandbox since before `stuckBefore`. */

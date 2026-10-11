@@ -482,7 +482,10 @@ function serve(
  * longest first attempt, the retake on the form `chooseForm` gives, a block test of every allowed block of the grade and
  * the rechecks of the window. Family-levels are units: a family serves a grade only by its level.
  */
-export function capacityChecks(release: BankRelease, params: ProcedureParams): CapacityCheck[] {
+export function capacityChecks(
+	release: Pick<BankRelease, 'specialization' | 'families'>,
+	params: ProcedureParams
+): CapacityCheck[] {
 	const checks: CapacityCheck[] = [];
 	for (const definition of CATALOG.definitions.filter((d) => d.specialization === release.specialization)) {
 		const grade = definition.grade;

@@ -9,6 +9,7 @@ import type { AuditActor } from '$lib/server/audit/record';
 import { recordAuditEvent } from '$lib/server/audit/record';
 import type { Database, Transaction } from '$lib/server/db';
 import { companyMembers, mlResults, vacancies } from '$lib/server/db/schema';
+import { emitCompanyEvent } from '$lib/server/events/emit';
 import { uuidv7 } from '$lib/server/ids';
 import { withdrawOpenInvitations } from '$lib/server/invitations/send';
 import { conflict } from '$lib/server/companies/context';
@@ -329,6 +330,23 @@ export type PublishOutcome =
 	| { status: 'published'; vacancy: VacancyRow }
 	| { status: 'pending_moderation'; vacancy: VacancyRow; textCheck: TextCheck };
 
+/** `vacancy.published` or `vacancy.closed` for the company's systems: the vacancy entered or left the listing for good. */
+async function emitVacancyEvent(
+	tx: Transaction,
+	vacancy: VacancyRow,
+	type: 'vacancy.published' | 'vacancy.closed',
+	previous: VacancyRow['status'],
+	now: Date
+): Promise<void> {
+	await emitCompanyEvent(tx, {
+		companyId: vacancy.companyId,
+		type,
+		invitationId: null,
+		data: { vacancy_id: vacancy.id, revision: vacancy.revision, previous_status: previous },
+		occurredAt: now
+	});
+}
+
 /**
  * Lists a vacancy leaving a draft or moderation: its moment, the journal and the matches of its revision.
  */
@@ -346,6 +364,7 @@ export async function publishNow(
 		.where(eq(vacancies.id, row.id))
 		.returning();
 	if (!published) throw new Error('vacancy disappeared while locked');
+	await emitVacancyEvent(tx, published, 'vacancy.published', row.status, now);
 	await recordAuditEvent(tx, {
 		action: 'vacancy.published',
 		outcome: 'success',
@@ -532,6 +551,7 @@ export async function decideVacancyModeration(
 		}
 		if (status === 'published') return publishNow(tx, decided, now, audit, decision.requestId, createdBy);
 		if (status === 'closed') {
+			await emitVacancyEvent(tx, decided, 'vacancy.closed', row.status, now);
 			await recordAuditEvent(tx, {
 				...journal,
 				action: 'vacancy.closed',
@@ -563,6 +583,9 @@ async function transition(
 			.where(eq(vacancies.id, vacancyId))
 			.returning();
 		if (!updated) throw new Error('vacancy disappeared while locked');
+		if (to !== 'paused') {
+			await emitVacancyEvent(tx, updated, to === 'closed' ? 'vacancy.closed' : 'vacancy.published', row.status, now);
+		}
 		if (to === 'closed') {
 			await recordAuditEvent(tx, {
 				action: 'vacancy.closed',

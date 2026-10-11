@@ -19,12 +19,14 @@ import type { FieldCrypto } from '$lib/server/crypto/fields';
 import type { Database, Executor, Transaction } from '$lib/server/db';
 import { challengeDeliveries, challengeSolutions, companyChallenges } from '$lib/server/db/schema';
 import { policyViolation } from '$lib/server/errors/api-error';
+import { companyHoldsContacts } from '$lib/server/invitations/consent';
 import { auditActor, type RequestMeta } from '$lib/server/invitations/deps';
 import { invalid, refuse } from '$lib/server/invitations/errors';
 import { memberSide, type MemberSide } from '$lib/server/invitations/records';
 import { loadCatalogViewer, loadVisibilityFacts, loadVisibilityPolicy } from '$lib/server/matching/visibility';
 import { checkVacancyText, textCheckSchema, type TextCheck } from '$lib/server/vacancies/text-check';
 import { canShow } from '$lib/server/visibility/can-show';
+import { candidateTextForCompany } from '$lib/server/visibility/contact-mask';
 import { companyNow } from './clock';
 
 export interface ChallengeDeps {
@@ -476,7 +478,11 @@ export async function challengeSolutionsOf(
 			id: row.id,
 			pseudonym: deps.crypto.pseudonym(row.candidateId, member.companyId),
 			category: category ? { specialization: category.specialization, grade: category.grade } : null,
-			content: row.content,
+			// The solution reaches the company with the contacts in it masked until it holds the contacts (domain 13.6).
+			content: candidateTextForCompany(
+				row.content,
+				await companyHoldsContacts(deps.db, { candidateId: row.candidateId, companyId: member.companyId }, now)
+			),
 			submittedAt: row.submittedAt,
 			decision: row.decision,
 			decidedAt: row.decidedAt

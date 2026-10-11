@@ -20,6 +20,7 @@ import * as catalog from '$lib/server/api/v1/catalog';
 import * as categories from '$lib/server/api/v1/categories';
 import * as companies from '$lib/server/api/v1/companies';
 import * as companyProfile from '$lib/server/api/v1/company-profile';
+import * as events from '$lib/server/api/v1/events';
 import * as invitations from '$lib/server/api/v1/invitations';
 import * as needs from '$lib/server/api/v1/needs';
 import * as me from '$lib/server/api/v1/me';
@@ -477,6 +478,41 @@ describe('authentication', () => {
 			'forbidden'
 		);
 		expectError(await call(categories.listMyCategories, { actor: key }), 403, 'forbidden');
+	});
+
+	it('lets a key granted company.events.manage register a webhook and read its journal; others are refused', async () => {
+		const { company, actor: owner } = await employer();
+		const key = await apiKey(owner, company.id, ['company.events.manage']);
+		const created = await call(events.createEventWebhook, {
+			actor: key,
+			params: { company_id: company.id },
+			body: { name: 'ATS', url: 'https://ats.example.org/hooks', events: ['invitation.sent', 'vacancy.closed'] }
+		});
+		expect(created.status, created.text).toBe(201);
+		expect(String(created.json.secret)).toMatch(/^whsec_[A-Za-z0-9+/]{43}=$/);
+		const subscriptionId = (created.json.subscription as { id: string }).id;
+		const pinged = await call(events.pingEventSubscription, {
+			actor: key,
+			params: { company_id: company.id, subscription_id: subscriptionId }
+		});
+		expect(pinged.status, pinged.text).toBe(202);
+		const journal = await call(events.listEventDeliveries, {
+			actor: key,
+			params: { company_id: company.id, subscription_id: subscriptionId }
+		});
+		expect(journal.status, journal.text).toBe(200);
+		expect(journal.json.items).toMatchObject([{ event_type: 'ping', status: 'queued', last_attempt_at: null }]);
+
+		const narrow = await apiKey(owner, company.id, ['catalog.search']);
+		const refused = await call(events.listEventSubscriptions, { actor: narrow, params: { company_id: company.id } });
+		expectError(refused, 403, 'forbidden');
+		expect(refused.json.error?.details?.[0]?.code).toBe('api_key_scope');
+		const { company: other } = await employer();
+		expectError(
+			await call(events.listEventSubscriptions, { actor: key, params: { company_id: other.id } }),
+			404,
+			'not_found'
+		);
 	});
 
 	it('loses the key with the membership of its creator', async () => {

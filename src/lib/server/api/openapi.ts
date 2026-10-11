@@ -15,6 +15,8 @@ export type OpenApiDocument = {
 	servers: { url: string }[];
 	tags: { name: string; description: string }[];
 	paths: Record<string, Record<string, JsonSchema>>;
+	/** Requests the platform sends to the receivers companies register (OpenAPI 3.1 `webhooks`). */
+	webhooks: Record<string, { post: JsonSchema }>;
 	components: { schemas: Record<string, JsonSchema>; securitySchemes: Record<string, JsonSchema> };
 };
 
@@ -32,6 +34,16 @@ export interface ExternalRoute {
 	security: 'fspSignature' | 'telegramSecret';
 	body: z.ZodType;
 	responses: Record<number, { description: string; schema?: z.ZodType }>;
+}
+
+/** A request the platform sends to an address a company registered: an outgoing event and its body. */
+export interface OutgoingWebhook {
+	name: string;
+	summary: string;
+	description: string;
+	/** Headers of the request, each with its meaning. */
+	headers: Record<string, string>;
+	body: z.ZodType;
 }
 
 const DEFS_PREFIX = '#/$defs/';
@@ -268,7 +280,8 @@ export const API_TAGS: { name: string; description: string }[] = [
 	{
 		name: 'События для ATS',
 		description:
-			'Исходящие события компании: вебхуки с подписью HMAC, адаптер Хантфлоу, ротация секрета, журнал доставок'
+			'Исходящие события компании: вебхуки с подписью Standard Webhooks (HMAC-SHA-256), адаптер Хантфлоу, ротация ' +
+			'секрета, журнал доставок и повтор доставки. Формат каждого события — раздел `webhooks` документа'
 	}
 ];
 
@@ -292,7 +305,8 @@ const DESCRIPTION = [
 
 export function openApiDocument(
 	operations: readonly Operation[],
-	externalRoutes: readonly ExternalRoute[]
+	externalRoutes: readonly ExternalRoute[],
+	outgoingWebhooks: readonly OutgoingWebhook[]
 ): OpenApiDocument {
 	const components = new Components();
 	const paths: OpenApiDocument['paths'] = {};
@@ -353,12 +367,39 @@ export function openApiDocument(
 			security: [{ [route.security]: [] }]
 		});
 	}
+	const webhooks: OpenApiDocument['webhooks'] = {};
+	for (const webhook of outgoingWebhooks) {
+		if (webhooks[webhook.name] !== undefined) throw new Error(`webhook ${webhook.name} is declared twice`);
+		webhooks[webhook.name] = {
+			post: {
+				summary: webhook.summary,
+				description: webhook.description,
+				parameters: Object.entries(webhook.headers).map(([name, description]) => ({
+					name,
+					in: 'header',
+					required: true,
+					description,
+					schema: { type: 'string' }
+				})),
+				requestBody: {
+					required: true,
+					content: { 'application/json': { schema: components.convert(webhook.body, 'output') } }
+				},
+				responses: {
+					'2XX': { description: 'Доставлено' },
+					'429': { description: 'Повтор по расписанию' },
+					'5XX': { description: 'Повтор по расписанию' }
+				}
+			}
+		};
+	}
 	return {
 		openapi: '3.1.0',
 		info: { title: 'ФСП Карьера — публичный API', version: '1', description: DESCRIPTION },
 		servers: [{ url: '/' }],
 		tags: API_TAGS,
 		paths,
+		webhooks,
 		components: {
 			schemas: components.schemas,
 			securitySchemes: {

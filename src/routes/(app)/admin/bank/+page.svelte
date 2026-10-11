@@ -1,12 +1,25 @@
 <script lang="ts">
-	import { points } from '$lib/components/assessments/model.js';
+	import { enhance } from '$app/forms';
+	import { points, share } from '$lib/components/assessments/model.js';
+	import CsrfInput from '$lib/components/forms/csrf-input.svelte';
+	import FormMessage from '$lib/components/forms/form-message.svelte';
 	import PageHeader from '$lib/components/forms/page-header.svelte';
 	import StatusPill from '$lib/components/forms/status-pill.svelte';
 	import { formatDateTime } from '$lib/components/product/model.js';
+	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import type { PageProps } from './$types';
 
-	let { data }: PageProps = $props();
+	let { data, form }: PageProps = $props();
+
+	const QUARANTINE_REASONS: Record<string, string> = {
+		solve_rate_signal: 'сигнал решаемости',
+		foreign_answers: 'ответы чужих экземпляров',
+		published: 'семейство опубликовано',
+		other: 'другое'
+	};
+	const pValue = (p: number) =>
+		p < 0.001 ? p.toExponential(1) : p.toLocaleString('ru-RU', { maximumFractionDigits: 4 });
 
 	type Release = (typeof data.releases)[number];
 	type Reviewer = Release['reviews'][number]['rubricReviews'][number]['reviewer'];
@@ -84,6 +97,155 @@
 			</div>
 		{:else}
 			<p class="text-muted-foreground">В дереве банка нет семейств.</p>
+		{/each}
+	</Card.Content>
+</Card.Root>
+
+<Card.Root id="leak" data-testid="bank-leak">
+	<Card.Header>
+		<Card.Title>Решаемость семейств и карантин</Card.Title>
+		<Card.Description>
+			Онлайн-контур утечки. Доля верных ответов семейства за {data.detector.windowDays} дней сравнивается с ожидаемой: шанс
+			кандидата на задании — оценка Angoff плюс его сдвиг на остальных вычисляемых заданиях той же попытки (модель симуляции
+			траекторий). Сигнал — только при {data.detector.minResponses}+ ответах, превышении доли не меньше
+			{points(data.detector.minExcess)} и одностороннем t-критерии с хвостом не выше α = {pValue(data.detector.alpha)},
+			делённого на число проверенных семейств. Засев демо не учитывается. Сигнал не снимает семейство сам: карантин
+			ставит администратор; он действует на попытки, начатые после него, — начатые попытки и выданные грейды не
+			меняются.
+		</Card.Description>
+	</Card.Header>
+	<Card.Content class="grid gap-4 text-sm">
+		{#if form?.problem}<FormMessage text={form.problem.message} />{/if}
+		{#if data.done === 'quarantined'}<p role="status">Семейство в карантине.</p>{/if}
+		{#if data.done === 'lifted'}<p role="status">Карантин снят.</p>{/if}
+		{#each data.leak as spec (spec.specialization)}
+			{@const signals = spec.findings.filter((f) => f.signal)}
+			{@const tested = spec.findings.filter((f) => f.pValue !== null)}
+			{@const active = spec.quarantines.filter((q) => q.liftedAt === null)}
+			<div class="grid gap-2" data-testid="bank-leak-specialization" data-key={spec.specialization}>
+				<p class="flex flex-wrap items-center gap-2">
+					<span class="font-medium">{spec.specialization}</span>
+					<span class="text-muted-foreground">
+						выпуск {spec.releaseId} · ответов за окно {spec.responses} · проверено семейств {tested.length} из
+						{spec.findings.length}
+					</span>
+					<StatusPill label={`сигналов ${signals.length}`} tone={signals.length > 0 ? 'danger' : 'success'} />
+					<StatusPill label={`в карантине ${active.length}`} tone={active.length > 0 ? 'warning' : 'neutral'} />
+				</p>
+				{#if signals.length > 0}
+					<ul class="grid gap-2">
+						{#each signals as finding (finding.familyKey)}
+							<li class="grid gap-1 rounded-lg border p-2" data-testid="bank-leak-signal" data-key={finding.familyKey}>
+								<span>
+									<span class="font-medium">{finding.familyKey}</span> — вероятная утечка: верно {finding.observed} из
+									{finding.n} ({share(finding.observedRate ?? 0)}), ожидалось {points(finding.expected)} ({share(
+										finding.expectedRate ?? 0
+									)}), хвост {pValue(finding.pValue ?? 1)} при пороге {pValue(finding.bar)}
+								</span>
+								{#if finding.quarantined}
+									<span class="text-muted-foreground">Уже в карантине.</span>
+								{:else if finding.shortages.length > 0}
+									<span class="text-destructive">
+										Карантин невозможен: без семейства выпуск не соберёт тест ({finding.shortages
+											.slice(0, 3)
+											.map((s) => `${s.step}: ${s.block}`)
+											.join('; ')}). Нужен новый выпуск с заменой семейства.
+									</span>
+								{:else}
+									<form method="POST" action="?/quarantine" use:enhance class="flex flex-wrap items-end gap-2">
+										<CsrfInput />
+										<input type="hidden" name="specialization" value={spec.specialization} />
+										<input type="hidden" name="family" value={finding.familyKey} />
+										<input type="hidden" name="reason" value="solve_rate_signal" />
+										<label class="grid gap-1">
+											<span class="text-xs text-muted-foreground">Комментарий</span>
+											<input name="note" maxlength="500" class="h-8 rounded border px-2" />
+										</label>
+										<Button type="submit" size="sm" variant="destructive">В карантин</Button>
+									</form>
+								{/if}
+							</li>
+						{/each}
+					</ul>
+				{/if}
+				{#if tested.length > 0}
+					<details>
+						<summary class="cursor-pointer">Проверенные семейства: {tested.length}</summary>
+						<ul class="mt-1 grid gap-0.5">
+							{#each tested as finding (finding.familyKey)}
+								<li>
+									{finding.familyKey}: верно {finding.observed} из {finding.n}, ожидалось {points(finding.expected)},
+									хвост {pValue(finding.pValue ?? 1)}
+								</li>
+							{/each}
+						</ul>
+					</details>
+				{/if}
+				{#if active.length > 0}
+					<ul class="grid gap-1">
+						{#each active as quarantine (quarantine.familyKey)}
+							<li
+								class="flex flex-wrap items-center gap-2"
+								data-testid="bank-quarantine"
+								data-key={quarantine.familyKey}
+							>
+								<span>
+									<span class="font-medium">{quarantine.familyKey}</span> в карантине с {formatDateTime(
+										quarantine.quarantinedAt
+									)}: {QUARANTINE_REASONS[quarantine.reason]}{quarantine.note ? ` — ${quarantine.note}` : ''}
+								</span>
+								<form method="POST" action="?/lift" use:enhance>
+									<CsrfInput />
+									<input type="hidden" name="specialization" value={spec.specialization} />
+									<input type="hidden" name="family" value={quarantine.familyKey} />
+									<Button type="submit" size="sm" variant="outline">Снять карантин</Button>
+								</form>
+							</li>
+						{/each}
+					</ul>
+				{/if}
+				<details>
+					<summary class="cursor-pointer">Карантин без сигнала (семейство опубликовано, жалоба)</summary>
+					<form method="POST" action="?/quarantine" use:enhance class="mt-2 flex flex-wrap items-end gap-2">
+						<CsrfInput />
+						<input type="hidden" name="specialization" value={spec.specialization} />
+						<label class="grid gap-1">
+							<span class="text-xs text-muted-foreground">Семейство</span>
+							<select name="family" class="h-8 rounded border px-2">
+								{#each spec.families as key (key)}<option value={key}>{key}</option>{/each}
+							</select>
+						</label>
+						<label class="grid gap-1">
+							<span class="text-xs text-muted-foreground">Причина</span>
+							<select name="reason" class="h-8 rounded border px-2">
+								{#each data.reasons as reason (reason)}<option value={reason}>{QUARANTINE_REASONS[reason]}</option
+									>{/each}
+							</select>
+						</label>
+						<label class="grid gap-1">
+							<span class="text-xs text-muted-foreground">Комментарий</span>
+							<input name="note" maxlength="500" class="h-8 rounded border px-2" />
+						</label>
+						<Button type="submit" size="sm" variant="destructive">В карантин</Button>
+					</form>
+				</details>
+				{#if spec.quarantines.some((q) => q.liftedAt !== null)}
+					<details>
+						<summary class="cursor-pointer">История карантина</summary>
+						<ul class="mt-1 grid gap-0.5">
+							{#each spec.quarantines.filter((q) => q.liftedAt !== null) as quarantine, index (index)}
+								<li>
+									{quarantine.familyKey}: {formatDateTime(quarantine.quarantinedAt)} — {formatDateTime(
+										quarantine.liftedAt ?? quarantine.quarantinedAt
+									)}, {QUARANTINE_REASONS[quarantine.reason]}
+								</li>
+							{/each}
+						</ul>
+					</details>
+				{/if}
+			</div>
+		{:else}
+			<p class="text-muted-foreground">Нет выпущенных банков.</p>
 		{/each}
 	</Card.Content>
 </Card.Root>

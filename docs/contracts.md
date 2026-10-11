@@ -1226,7 +1226,7 @@ interface ParseResponse {
   справочнику; оба `null`, если регион не указан. Название региона, которого справочник не знает, — ошибка засева, а не тихая потеря
   региона. `CardReceipt.source_simulator` — `true`, если факт получен от демонстрационного имитатора ФСП.
   `Category.test_signals` — сводка журнала сигналов попытки, назначившей категорию (domain 10.7): `entries`, `pastes`, `pasted_chars`,
-  `departures`, `silent`; записей журнала и времени по заданиям в API нет. Не приговор: тест сигналы не учитывает.
+  `departures`, `silent`, `foreign_answers` (неверные ответы, верные для экземпляра того же семейства у другого кандидата, domain 10.5); записей журнала и времени по заданиям в API нет. Не приговор: тест сигналы не учитывает.
 - **Режим поиска** в ответе каталога: `"search_mode": "hybrid" | "fts_only"` и `"embedding_space_id"` — чтобы клиент видел
   деградированный режим.
 - **Лимиты:** по ключу API и по адресу; заголовки `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset`. Вебхуки Telegram
@@ -1281,7 +1281,7 @@ interface ParseResponse {
 | `POST /api/v1/operator/moderation/vacancies/{vacancy_id}/decision` | оператор (`vacancy.moderate`, сессия) | `{ decision: publish \| return \| reject, revision, reason? }`: `revision` — версия вакансии, которую оператор прочитал в очереди; компания могла изменить текст, пока вакансия на модерации, и решение по другой версии — `409 conflict` (`vacancy_changed`), ничего не меняется; без `revision` или с нецелым — `400 validation_failed`. `publish` — вакансия в каталог или в паузу, из которой ушла; `return` — `draft`; `reject` — `closed`, неотвеченные приглашения отзываются. Причина (до 2000 символов) обязательна для `return` и `reject`, компания читает её на странице вакансии. `204`; вакансия уже не на модерации — `409 conflict` (`vacancy_not_in_moderation`); автор вакансии и владельцы компании получают `vacancy.moderation_decided` |
 | `GET /api/v1/operator/ages` | оператор (`age.review`, сессия) | очередь конфликтов даты рождения (domain 7.2): `candidate_id`, `opened_at` (последнее `age.conflict`; `null` — событие вне срока журнала), `declared_precision`; старые первыми, без дат и имён. Клон оператора демо-сессии видит кандидатов только своей сессии |
 | `POST /api/v1/operator/ages/{candidate_id}/decision` | оператор (`age.review`, сессия) | `{ birth_date, method: document_presented \| in_person, document_kind: passport \| birth_certificate \| international_passport \| foreign_identity_document }` — дата из документа становится `verified` (`operator_document`); ответ `200 { regime: adult \| minor, matches_declared, hidden }` (`hidden` — профиль подростка без подтверждённого представителя снят с показа в каталоге). Возраст, в котором профиль вести нельзя, — `409 conflict` (`ineligible_age`), ничего не меняется; расхождения уже нет — `409` (`not_in_conflict`); событие `age.verified` |
-| `GET /api/v1/operator/assessments/attempts` | оператор (`assessment.review`, сессия) | `?filter=attention \| all` (по умолчанию `attention`): попытки на пересмотр (domain 10.7) — с сигналами вставки или ухода со страницы, с кластером в `awaiting_sandbox` дольше 30 минут, с открытым возражением; `all` — последние, аннулированные тоже. Новые первыми, до 100: специализация, грейд, выпуск, статус, исход решения, итоги сигналов, `stuck`, `annul_reason` |
+| `GET /api/v1/operator/assessments/attempts` | оператор (`assessment.review`, сессия) | `?filter=attention \| all` (по умолчанию `attention`): попытки на пересмотр (domain 10.7) — с сигналами вставки, ухода со страницы или ответа чужого экземпляра, с кластером в `awaiting_sandbox` дольше 30 минут, с открытым возражением; `all` — последние, аннулированные тоже. Новые первыми, до 100: специализация, грейд, выпуск, статус, исход решения, итоги сигналов, `stuck`, `annul_reason` |
 | `POST /api/v1/operator/assessments/attempts/{attempt_id}/annulment` | оператор (`assessment.review`, сессия) | `{ reason: plagiarism \| technical_failure \| version_defect \| candidate_request }` — попытка `decided` или `expired` → `annulled`, решение → `annulled`, категория по нему отозвана (domain 12.4), факт теста → `annulled`; `200 { annulled, category_revoked }`, повтор — `annulled: false` без изменений; идущая попытка — `409 conflict` (`attempt_in_progress`); событие `assessment.annulled` |
 | `GET /api/v1/verify/{handle}` | все, без аутентификации | проверка квитанции: `{status, statement, source_simulator, signature, signing_key_id}`, без ПДн (domain 9.6); заявление демонстрационного стенда несёт `source_simulator: true` под подписью, ответ отдаёт его же отдельным полем; публичная страница показывает «Источник — имитатор ФСП»; ограничение частоты по адресу |
 | `GET /.well-known/receipt-keys.json` | все | открытые ключи подписи квитанций (JWKS, `OKP`/`Ed25519`) |
@@ -1295,7 +1295,7 @@ interface ParseResponse {
 | `GET /api/v1/company/trust` | член компании (сессия или ключ) | факты доверия к своей компании (domain 5.6) |
 | `POST`, `GET /api/v1/invitations/{id}/complaint` | кандидат (сессия) | жалоба на предложение `{reason_code, text}` и её статус (domain 13.14) |
 | `GET /api/v1/operator/complaints`, `GET …/{complaint_id}`, `POST …/{complaint_id}/decision` | оператор (`complaint.review`, сессия) | очередь, дело, решение `{decision: no_action \| warning \| suspension, resolution}` |
-| `/api/v1/companies/{company_id}/event-subscriptions` (`GET`, `POST`), `…/huntflow`, `…/{id}` (`PATCH`, `DELETE`), `…/{id}/secret`, `…/{id}/ping`, `…/{id}/deliveries` | владелец (`company.events.manage`, сессия) | исходящие события, раздел 12 |
+| `/api/v1/companies/{company_id}/event-subscriptions` (`GET`, `POST`), `…/huntflow`, `…/{id}` (`PATCH`, `DELETE`), `…/{id}/secret`, `…/{id}/ping`, `…/{id}/deliveries`, `…/{id}/deliveries/{delivery_id}/retry` | владелец (`company.events.manage`, сессия или ключ с этим правом) | исходящие события, раздел 12 |
 | `POST /api/v1/integrations/fsp/webhooks` | ФСП (подпись) | раздел 1.5 |
 | `POST /api/v1/integrations/telegram/webhook` | Telegram (секрет) | раздел 7.2 |
 
@@ -1874,8 +1874,8 @@ Precision@10 обеих систем считается по одной разм
 
 ### 12.1. Подписка и тело события
 
-Подписку регистрирует владелец компании в кабинете («События для ATS») или по API в сессии
-(`/api/v1/companies/{company_id}/event-subscriptions…`, domain 5.7). Тело `POST` вебхука:
+Подписку регистрирует владелец компании в кабинете («События для ATS») или по API — в сессии либо ключом с правом
+`company.events.manage` (`/api/v1/companies/{company_id}/event-subscriptions…`, domain 5.7). Тело `POST` вебхука:
 
 ```json
 { "id": "<event id>", "type": "invitation.accepted", "occurred_at": "2026-10-05T12:00:00.000Z",
@@ -1883,23 +1883,41 @@ Precision@10 обеих систем считается по одной разм
   "reason_code": null, "by_representative": false, "candidate_pseudonym": "<псевдоним для компании>" } }
 ```
 
-`data` — только идентификаторы и коды: интеграция читает предложение и раскрытые контакты по API своим ключом, под теми же правами и
-согласием кандидата, что интерфейс. `contacts.disclosed` несёт `fields` (какие поля раскрыты), `hiring.reported` — `hiring_process_id`,
-`party`, `kind`, `value`, `start_date`, `outcome_state`; `ping` — проверочная доставка по кнопке.
+`data` — только идентификаторы, статусы, коды и моменты; схема `data` каждого типа — `src/lib/server/events/payloads.ts`, ею же
+типизирован код, создающий события, и из неё собран раздел `webhooks` документа OpenAPI. Контакты кандидата событие не переносит:
+`contacts.disclosed` и `application.received` называют раскрытые поля (`fields`), значения интеграция читает по API своим ключом, под
+теми же правами, согласием кандидата и журналом, что интерфейс. События о предложении (`invitation.*`, `contacts.disclosed`,
+`hiring.reported`) дополняются псевдонимом кандидата для компании при отправке; `ping` — проверочная доставка по кнопке или API.
+
+| Событие | Где создаётся | `data` сверх идентификаторов |
+|---|---|---|
+| `invitation.sent` | `createInvitation`, `sendVersion` (новая версия, переоткрытие) | `terms_version`, `vacancy_id`, `response_due_at`, `reopened` |
+| `invitation.viewed` | `markInvitationViewed` (`sent → viewed`) | — |
+| `invitation.accepted`, `invitation.declined` | ответ кандидата | `terms_version`, `reason_code`, `by_representative` |
+| `invitation.expired` | задание срока ответа | `terms_version` |
+| `invitation.withdrawn` | `closeAsWithdrawn`: компанией, закрытием вакансии, приостановкой или отказом компании; удаление учётной записи события не даёт | `cause` |
+| `contacts.disclosed` | раскрытие при принятии | `fields` |
+| `hiring.reported` | сообщение об этапе или исходе | `party`, `kind`, `value`, `start_date`, `outcome_state` |
+| `application.received` | отклик кандидата | `vacancy_id`, `fields` |
+| `application.status_changed` | просмотр компанией, отказ, приглашение, отзыв кандидатом | `status`, `previous_status`, `invitation_id` |
+| `vacancy.published`, `vacancy.closed` | `publishNow` (первая публикация, после модерации), возврат с паузы; закрытие владельцем или модератором | `revision`, `previous_status` |
 
 ### 12.2. Подпись, повторы, адреса
 
+Подпись — по спецификации Standard Webhooks (`src/lib/server/events/signature.ts`; эталонный вектор спецификации — в юнит-тесте):
+
 | Заголовок | Значение |
 |---|---|
-| `X-Event-Id` | id события, общий для всех подписок; получатель отвергает повтор |
-| `X-Event-Type` | тип события |
-| `X-Timestamp` | секунды Unix; получатель отвергает расхождение больше 5 минут |
-| `X-Signature` | `sha256=` HMAC-SHA-256 от `{timestamp}.{rawBody}` секретом подписки; сутки после ротации — две подписи через запятую (новым и прежним секретом) |
+| `webhook-id` | id события, общий для всех подписок и одинаковый при повторах и ручном повторе; получатель отбрасывает дубли |
+| `webhook-timestamp` | секунды Unix момента отправки; получатель отвергает расхождение больше 5 минут |
+| `webhook-signature` | `v1,<base64(HMAC-SHA-256(key, "{webhook-id}.{webhook-timestamp}.{rawBody}"))>`, `key` — байты base64-части секрета `whsec_<base64 32 байт>`; сутки после ротации — две подписи через пробел (новым и прежним секретом) |
 
 Доставка — задание `event.deliver` (до 8 попыток). `2xx` — `delivered`; сеть, таймаут 10 с, `429`, `5xx` — повтор через 1, 5, 15 минут,
 1, 2, 4, 6 часов, после последней попытки — `failed`; другой ответ — `failed` сразу. Адрес — `https://`; адреса частных, loopback и
 link-local сетей отвергаются при регистрации и ещё раз на адресе, в который имя разрешилось при соединении; редиректы не выполняются.
-Каждая попытка пишется в `event_deliveries` сразу; владелец видит журнал в кабинете и по `GET …/deliveries`.
+Каждая попытка пишется в `event_deliveries` сразу (`attempts`, `last_status`, `last_error`, `last_attempt_at`); владелец видит журнал в
+кабинете и по `GET …/deliveries`. Доставку `failed` или `skipped` владелец повторяет вручную (`POST …/deliveries/{id}/retry`): та же
+строка снова `queued` с тем же `webhook-id`, новое задание `event.deliver`; доставку в очереди или доставленную — `409`.
 
 ### 12.3. Адаптер Хантфлоу
 

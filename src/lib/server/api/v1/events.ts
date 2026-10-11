@@ -1,6 +1,6 @@
-// Outgoing events of a company (domain 5.7; contracts 12): webhook subscriptions with HMAC signatures, the Huntflow
-// adapter, the rotation of secrets, a test delivery and the journal of deliveries. Operations of the owner in a browser
-// session: keys never manage subscriptions, which hold secrets.
+// Outgoing events of a company (domain 5.7; contracts 12): webhook subscriptions signed by the Standard Webhooks scheme,
+// the Huntflow adapter, the rotation of secrets, a test delivery, the journal of deliveries and a manual redelivery.
+// Operations of the owner, in a browser session or by a key granted `company.events.manage`.
 import { z } from 'zod';
 import { config } from '$lib/server/config';
 import { COMPANY_EVENT_TYPES } from '$lib/server/db/schema';
@@ -10,6 +10,7 @@ import {
 	deleteSubscription,
 	listDeliveries,
 	listSubscriptions,
+	redeliver,
 	rotateSecret,
 	sendPing,
 	updateSubscription,
@@ -21,17 +22,9 @@ import { defineOperation } from '../operation';
 import { dateTime, id, iso, isoOrNull } from '../schemas';
 import type { ApiServices } from '../services';
 import { actionContext } from './context';
+import { EVENT_MEANINGS, SIGNATURE_DESCRIPTION } from './event-webhooks';
 
 const TAG = 'События для ATS';
-
-const EVENT_MEANINGS = {
-	'invitation.accepted': 'кандидат принял версию условий предложения',
-	'invitation.declined': 'кандидат отклонил версию условий (с кодом причины)',
-	'invitation.expired': 'срок ответа на предложение истёк',
-	'contacts.disclosed': 'кандидат раскрыл компании контакты (поля — в событии, значения — по API)',
-	'hiring.reported': 'сторона сообщила этап или исход найма',
-	'application.received': 'кандидат откликнулся на вакансию компании'
-} as const satisfies Record<(typeof COMPANY_EVENT_TYPES)[number], string>;
 
 const eventType = z.enum(COMPANY_EVENT_TYPES).describe(
 	'Событие: ' +
@@ -102,7 +95,8 @@ const deliverySchema = z
 		status: z.enum(['queued', 'delivered', 'failed', 'skipped']),
 		attempts: z.int(),
 		last_status: z.int().nullable().describe('HTTP-статус последнего ответа'),
-		last_error: z.string().nullable(),
+		last_error: z.string().nullable().describe('Код и краткая причина последнего сбоя'),
+		last_attempt_at: dateTime.nullable().describe('Когда ушла последняя попытка'),
 		occurred_at: dateTime,
 		delivered_at: dateTime.nullable()
 	})
@@ -116,6 +110,7 @@ const deliveryView = (d: DeliveryView) => ({
 	attempts: d.attempts,
 	last_status: d.lastStatus,
 	last_error: d.lastError,
+	last_attempt_at: isoOrNull(d.lastAttemptAt),
 	occurred_at: iso(d.occurredAt),
 	delivered_at: isoOrNull(d.deliveredAt)
 });
@@ -129,7 +124,7 @@ export const listEventSubscriptions = defineOperation({
 	path: '/companies/{company_id}/event-subscriptions',
 	tag: TAG,
 	summary: 'Подписки на события',
-	auth: 'session',
+	auth: 'account',
 	permission: 'company.events.manage',
 	params: companyParams,
 	errors: ['not_found'],
@@ -147,13 +142,14 @@ export const createEventWebhook = defineOperation({
 	tag: TAG,
 	summary: 'Зарегистрировать вебхук',
 	description:
-		'Платформа отправляет `POST` с телом `{id, type, occurred_at, company_id, data}` — только идентификаторы и коды, ' +
-		'данные интеграция читает по API своим ключом. Заголовки: `X-Event-Id`, `X-Event-Type`, `X-Timestamp` (секунды ' +
-		'Unix), `X-Signature: sha256=<HMAC-SHA-256 секретом от "{timestamp}.{тело}">` — во время ротации через запятую ' +
-		'две подписи. Получатель отвергает расхождение времени больше 5 минут и повторный `X-Event-Id`. Ответ `2xx` — ' +
-		'доставлено; сеть, `429` и `5xx` — повторы через 1, 5, 15 минут, 1, 2, 4 и 6 часов; другой `4xx` — отказ. ' +
-		'Адрес — `https://` во внешней сети. Секрет возвращается один раз.',
-	auth: 'session',
+		'Платформа отправляет `POST` с телом `{id, type, occurred_at, company_id, data}` — идентификаторы, статусы и ' +
+		'моменты; формат каждого события — раздел `webhooks` документа. Ответ `2xx` — доставлено (таймаут 10 с, ' +
+		'редиректы не выполняются); сеть, таймаут, `429` и `5xx` — повторы через 1, 5, 15 минут, 1, 2, 4 и 6 часов, ' +
+		'всего до 8 попыток; другой `4xx` — отказ. Адрес — `https://` во внешней сети: частные, loopback и link-local ' +
+		'адреса отвергаются при регистрации и ещё раз при соединении, по адресу, в который разрешилось имя. Секрет ' +
+		'возвращается один раз.\n\n' +
+		SIGNATURE_DESCRIPTION,
+	auth: 'account',
 	permission: 'company.events.manage',
 	params: companyParams,
 	body: z.strictObject({ name: z.string(), url: z.string(), events: z.array(eventType).min(1) }),
@@ -183,7 +179,7 @@ export const connectEventHuntflow = defineOperation({
 		'ставит его на вакансию в статус `statuses.accepted`; по этапу или исходу, о котором сообщила компания, переводит в ' +
 		'сопоставленный статус. Токен API Хантфлоу хранится зашифрованным. Стенд без `HUNTFLOW_API_URL` — `409` ' +
 		'(`huntflow_disabled`).',
-	auth: 'session',
+	auth: 'account',
 	permission: 'company.events.manage',
 	params: companyParams,
 	body: z.strictObject({ name: z.string(), token: z.string(), settings: huntflowSettings }),
@@ -201,7 +197,7 @@ export const updateEventSubscription = defineOperation({
 	tag: TAG,
 	summary: 'Изменить подписку',
 	description: 'Название, пауза; у вебхука — адрес и события. На паузе события не отправляются (доставки — `skipped`).',
-	auth: 'session',
+	auth: 'account',
 	permission: 'company.events.manage',
 	params: subscriptionParams,
 	body: z.strictObject({
@@ -238,7 +234,7 @@ export const deleteEventSubscription = defineOperation({
 	tag: TAG,
 	summary: 'Удалить подписку',
 	description: 'Вместе с журналом доставок.',
-	auth: 'session',
+	auth: 'account',
 	permission: 'company.events.manage',
 	params: subscriptionParams,
 	errors: ['not_found'],
@@ -262,7 +258,7 @@ export const rotateEventSecret = defineOperation({
 	description:
 		'Вебхук получает новый секрет (возвращается один раз); прежний ещё сутки подписывает события вместе с новым. ' +
 		'Хантфлоу — новый токен в `token`, прежний перестаёт использоваться сразу.',
-	auth: 'session',
+	auth: 'account',
 	permission: 'company.events.manage',
 	params: subscriptionParams,
 	body: z.strictObject({ token: z.string().optional().describe('Новый токен Хантфлоу') }),
@@ -291,7 +287,7 @@ export const pingEventSubscription = defineOperation({
 	tag: TAG,
 	summary: 'Проверочная доставка',
 	description: 'Событие `ping` с той же подписью: результат — в журнале доставок.',
-	auth: 'session',
+	auth: 'account',
 	permission: 'company.events.manage',
 	params: subscriptionParams,
 	errors: ['not_found'],
@@ -315,7 +311,7 @@ export const listEventDeliveries = defineOperation({
 	tag: TAG,
 	summary: 'Журнал доставок',
 	description: 'Последние 50 доставок подписки: статус, число попыток, последний ответ.',
-	auth: 'session',
+	auth: 'account',
 	permission: 'company.events.manage',
 	params: subscriptionParams,
 	errors: ['not_found'],
@@ -328,5 +324,32 @@ export const listEventDeliveries = defineOperation({
 			ctx.params.subscription_id
 		);
 		return { items: items.map(deliveryView) };
+	}
+});
+
+export const redeliverEvent = defineOperation({
+	id: 'redeliverEvent',
+	method: 'POST',
+	path: '/companies/{company_id}/event-subscriptions/{subscription_id}/deliveries/{delivery_id}/retry',
+	tag: TAG,
+	summary: 'Повторить доставку',
+	description:
+		'Недоставленное (`failed`) или пропущенное (`skipped`) событие уходит снова — с тем же `webhook-id`, так что ' +
+		'получатель, который всё же принял его раньше, отбросит повтор. Попытки продолжают счёт; расписание повторов ' +
+		'начинается заново. Доставка в очереди или доставленная — `409` (`delivery_not_final`).',
+	auth: 'account',
+	permission: 'company.events.manage',
+	params: subscriptionParams.extend({ delivery_id: id('Доставка') }),
+	errors: ['not_found', 'conflict'],
+	response: { status: 202, description: 'Поставлено в очередь', schema: z.object({ delivery_id: z.uuid() }) },
+	async handle(ctx) {
+		await redeliver(
+			deps(ctx.services),
+			await actionContext(ctx),
+			ctx.params.company_id,
+			ctx.params.subscription_id,
+			ctx.params.delivery_id
+		);
+		return { delivery_id: ctx.params.delivery_id };
 	}
 });

@@ -1,9 +1,8 @@
 // `event.deliver` (docs/domain.md, section 5.7; contracts 12.2): one delivery of an event to one subscription. A webhook
-// gets the signed body; the Huntflow adapter turns the event into its API calls. A `2xx` delivers; a network failure,
-// a timeout, `429` and `5xx` go back to the queue on the schedule below until the attempts run out; any other answer
-// and a refused private address fail at once. Each attempt is recorded on the delivery at once — the request has
-// left, a lost lease must not hide it — so the owner reads the journal of deliveries as it happens.
-import { createHmac } from 'node:crypto';
+// gets the body signed by the Standard Webhooks scheme; the Huntflow adapter turns the event into its API calls. A `2xx`
+// delivers; a network failure, a timeout, `429` and `5xx` go back to the queue on the schedule below until the attempts
+// run out; any other answer and a refused private address fail at once. Each attempt is recorded on the delivery at
+// once — the request has left, a lost lease must not hide it — so the owner reads the journal of deliveries as it happens.
 import { eq, sql } from 'drizzle-orm';
 import { companyAdmission } from '$lib/server/access/permissions';
 import { config } from '$lib/server/config';
@@ -12,6 +11,7 @@ import type { Database } from '$lib/server/db';
 import { companies, eventDeliveries, eventSubscriptions, invitations } from '$lib/server/db/schema';
 import { defineHandler, JobFailure, type JobHandler, type JobResult } from '$lib/server/jobs/handler';
 import { postJson, type PostResult } from './http';
+import { webhookSignature } from './signature';
 import { deliverToHuntflow, huntflowSettingsSchema } from './huntflow';
 
 /** Pauses before the attempts after the first one, in seconds: a receiver down for hours still gets the event. */
@@ -26,11 +26,6 @@ export interface EventDeliverDeps {
 	/** Webhooks to private networks: tests and a local stand only. */
 	allowPrivateNetwork: boolean;
 	now: () => Date;
-}
-
-/** `sha256=<hex>` of `{timestamp}.{body}`: the value of `X-Signature`, one per secret in force. */
-export function signature(secret: string, timestamp: number, body: string): string {
-	return `sha256=${createHmac('sha256', secret).update(`${timestamp}.${body}`, 'utf8').digest('hex')}`;
 }
 
 /** The body a webhook receives. */
@@ -102,21 +97,21 @@ async function deliver(
 		if (subscription.url === null) throw new Error(`webhook subscription ${subscription.id} has no address`);
 		const body = webhookBody({ ...delivery, payload: await withPseudonym(db, deps.crypto, delivery) });
 		const timestamp = Math.floor(now.getTime() / 1000);
-		const signatures = [signature(secret, timestamp, body)];
+		const signatures = [webhookSignature(secret, delivery.eventId, timestamp, body)];
 		if (
 			subscription.previousSecretEnc !== null &&
 			subscription.previousSecretUntil !== null &&
 			subscription.previousSecretUntil > now
 		) {
 			const previous = deps.crypto.decrypt(subscription.previousSecretEnc, 'event_subscriptions.previous_secret');
-			signatures.push(signature(previous, timestamp, body));
+			signatures.push(webhookSignature(previous, delivery.eventId, timestamp, body));
 		}
 		result = await postJson(subscription.url, body, {
+			// The id is the event's: a retry and a manual redelivery carry the same one, so the receiver drops repeats.
 			headers: {
-				'x-event-id': delivery.eventId,
-				'x-event-type': delivery.eventType,
-				'x-timestamp': String(timestamp),
-				'x-signature': signatures.join(', '),
+				'webhook-id': delivery.eventId,
+				'webhook-timestamp': String(timestamp),
+				'webhook-signature': signatures.join(' '),
 				'user-agent': 'fsp-career-webhooks/1'
 			},
 			timeoutMs: TIMEOUT_MS,
@@ -158,7 +153,8 @@ async function deliver(
 			...(again ? {} : { status: 'failed' as const }),
 			attempts: sql`${eventDeliveries.attempts} + 1`,
 			lastStatus: failed.status,
-			lastError: failed.error
+			lastError: failed.error,
+			lastAttemptAt: now
 		})
 		.where(eq(eventDeliveries.id, delivery.id));
 	if (!again) return 'failed';
@@ -197,6 +193,7 @@ async function markDelivered(db: Database, deliveryId: string, status: number, a
 			attempts: sql`${eventDeliveries.attempts} + 1`,
 			lastStatus: status,
 			lastError: null,
+			lastAttemptAt: at,
 			deliveredAt: at
 		})
 		.where(eq(eventDeliveries.id, deliveryId));

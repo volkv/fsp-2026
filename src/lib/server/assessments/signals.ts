@@ -1,7 +1,7 @@
-// Journal of attempt signals (docs/domain.md, 10.7 `integrity_signals`): time spent, pastes, leaving the page. The FSP
-// operator who reviews the attempt reads the journal whole and the candidate sees it as it is; a company that sees the
-// candidate's card gets only its totals for the attempt that assigned each category in force (`SignalSummary`), never
-// the entries or the timings of single items. They never decide anything automatically — the test does not read them —
+// Journal of attempt signals (docs/domain.md, 10.7 `integrity_signals`): time spent, pastes, leaving the page, an answer
+// right for another candidate's instance (`leak.ts`). The FSP operator who reviews the attempt reads the journal whole
+// and the candidate sees it as it is; a company that sees the candidate's card gets only its totals for the attempt that
+// assigned each category in force (`SignalSummary`), never the entries or the timings of single items. They never decide anything automatically — the test does not read them —
 // and are not a detection of borrowed or generated code: the platform does not claim one.
 import { eq, inArray } from 'drizzle-orm';
 import { z } from 'zod';
@@ -28,7 +28,12 @@ const entrySchema = z.strictObject({
 	/** From showing the question to the answer, measured by the server. */
 	responseMs: z.int().min(0).optional(),
 	/** `null` — the page sent no signals (scripts off or an old page). */
-	client: clientSignalsSchema.nullable()
+	client: clientSignalsSchema.nullable(),
+	/**
+	 * The answer was wrong for the candidate's instance but right for exactly one instance of the same family served to
+	 * another candidate (`leak.ts`): its class, and whether it is the candidate's class. Never the other attempt.
+	 */
+	foreignAnswer: z.strictObject({ classId: z.string().min(1).max(64), sameClass: z.boolean() }).optional()
 });
 export type SignalEntry = z.infer<typeof entrySchema>;
 
@@ -66,11 +71,21 @@ export interface SignalSummary {
 	departures: number;
 	/** Entries whose page sent no signals (scripts off). */
 	silent: number;
+	/** Wrong answers that are the right answer of another candidate's instance. */
+	foreignAnswers: number;
 }
 
 export function summarizeSignals(log: SignalLog): SignalSummary {
-	const summary: SignalSummary = { entries: log.entries.length, pastes: 0, pastedChars: 0, departures: 0, silent: 0 };
+	const summary: SignalSummary = {
+		entries: log.entries.length,
+		pastes: 0,
+		pastedChars: 0,
+		departures: 0,
+		silent: 0,
+		foreignAnswers: 0
+	};
 	for (const entry of log.entries) {
+		if (entry.foreignAnswer) summary.foreignAnswers++;
 		if (entry.client === null) {
 			summary.silent++;
 			continue;

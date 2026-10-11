@@ -53,6 +53,39 @@ export const bankReleases = pgTable(
 	]
 );
 
+export const QUARANTINE_REASONS = ['solve_rate_signal', 'foreign_answers', 'published', 'other'] as const;
+
+/**
+ * A family taken out of serving by the decision of a person (domain 10.5): a new attempt of its specialization started
+ * while the quarantine is in force does not get it, an attempt started before keeps its plan and decisions stand. Lifting
+ * closes the row; the history stays.
+ */
+export const bankFamilyQuarantines = pgTable(
+	'bank_family_quarantines',
+	{
+		id: id(),
+		specialization: text().notNull(),
+		familyKey: text().notNull(),
+		reason: text({ enum: QUARANTINE_REASONS }).notNull(),
+		/** The words of the person who quarantined; the journal keeps only the reason code. */
+		note: text(),
+		quarantinedBy: uuid()
+			.notNull()
+			.references(() => users.id),
+		quarantinedAt: ts().notNull(),
+		liftedBy: uuid().references(() => users.id),
+		liftedAt: ts()
+	},
+	(t) => [
+		enumCheck('bank_family_quarantines', 'reason', t.reason, QUARANTINE_REASONS),
+		check('bank_family_quarantines_lifted', sql`(${t.liftedAt} is null) = (${t.liftedBy} is null)`),
+		check('bank_family_quarantines_note', sql`${t.note} is null or char_length(${t.note}) <= 500`),
+		uniqueIndex('bank_family_quarantines_one_active')
+			.on(t.specialization, t.familyKey)
+			.where(sql`${t.liftedAt} is null`)
+	]
+);
+
 export const ATTEMPT_PURPOSES = ['grade', 'vacancy_block', 'recheck'] as const;
 export const ATTEMPT_STATUSES = ['in_progress', 'decided', 'expired', 'annulled'] as const;
 export const ANNUL_REASONS = [
@@ -159,7 +192,9 @@ export const testItems = pgTable(
 			'test_items_score_range',
 			sql`${t.score} is null or (${t.score} >= 0 and ${t.score} <= 1 and mod(${t.score} * 20, 1) = 0)`
 		),
-		check('test_items_scored', sql`(${t.status} = 'scored') = (${t.score} is not null)`)
+		check('test_items_scored', sql`(${t.status} = 'scored') = (${t.score} is not null)`),
+		// The solve rate of a family and the instances an answer is compared with (`leak.ts`) are read by family.
+		index('test_items_family_served').on(t.familyKey, t.servedAt)
 	]
 );
 

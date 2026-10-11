@@ -1,4 +1,5 @@
 <script lang="ts">
+	import FairnessAudit from '$lib/components/admin/fairness-audit.svelte';
 	import QualityPanel from '$lib/components/admin/quality-panel.svelte';
 	import type { PageProps } from './$types';
 
@@ -6,3 +7,4 @@
 </script>
 
 <QualityPanel panel={data.panel} latest />
+<FairnessAudit audit={data.fairness} />

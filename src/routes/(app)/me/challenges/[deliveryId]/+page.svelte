@@ -118,7 +118,18 @@
 	>
 		<form method="POST" action="?/solve" use:enhance class="grid gap-3" data-tour="challenge-solve">
 			<CsrfInput />
-			<Textarea name="content" rows={10} maxlength={20000} required aria-label="Решение или подход" />
+			<Textarea
+				name="content"
+				rows={10}
+				maxlength={20000}
+				required
+				aria-label="Решение или подход"
+				aria-describedby="solution-contacts-hint"
+			/>
+			<p id="solution-contacts-hint" class="text-xs text-muted-foreground">
+				Почту, телефон, ссылки и @ник в тексте компания увидит только после того, как вы примете её предложение или
+				откликнетесь на её вакансию; до этого они скрыты.
+			</p>
 			<div class="flex flex-wrap gap-3">
 				<Button type="submit" class="justify-self-start">
 					<SendIcon aria-hidden="true" />

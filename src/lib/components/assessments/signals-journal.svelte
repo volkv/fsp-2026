@@ -27,6 +27,14 @@
 						{:else}
 							· страница не передала сигналы
 						{/if}
+						{#if entry.foreignAnswer}
+							· <span data-testid="signals-foreign-entry"
+								>ответ неверен для этого экземпляра, но совпал с верным ответом чужого экземпляра того же задания ({entry
+									.foreignAnswer.sameClass
+									? 'того же класса'
+									: `класс ${entry.foreignAnswer.classId}`})</span
+							>
+						{/if}
 					</li>
 				{/each}
 			</ul>

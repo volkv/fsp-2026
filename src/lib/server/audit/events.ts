@@ -1,7 +1,12 @@
 // Catalog of journal events (docs/domain.md, section 18.2). `details` carries codes and identifiers only:
 // no resume text, contacts, free-text messages or profile field values (section 18.1).
 import { z } from 'zod';
-import { ANNUL_REASONS, INTERVIEW_FEEDBACK_OUTCOMES, INTERVIEW_LEVELS } from '$lib/server/db/schema';
+import {
+	ANNUL_REASONS,
+	INTERVIEW_FEEDBACK_OUTCOMES,
+	INTERVIEW_LEVELS,
+	QUARANTINE_REASONS
+} from '$lib/server/db/schema';
 
 /** A code or an identifier: no spaces, so free text does not fit. */
 const token = z.string().regex(/^[A-Za-z0-9_.:@/+-]{1,128}$/, 'must be a code or an identifier');
@@ -130,7 +135,9 @@ const GROUPS = {
 		'objection.resolved',
 		'assessment.score_revised',
 		'assessment.annulled',
-		'assessment.artifact_viewed'
+		'assessment.artifact_viewed',
+		'bank.family_quarantined',
+		'bank.family_restored'
 	],
 	receipts: ['receipt.verified'],
 	profile: [
@@ -191,7 +198,8 @@ const GROUPS = {
 		'event_subscription.created',
 		'event_subscription.updated',
 		'event_subscription.secret_rotated',
-		'event_subscription.deleted'
+		'event_subscription.deleted',
+		'event_subscription.redelivered'
 	]
 } as const;
 
@@ -267,6 +275,10 @@ const SPECIFIC_DETAILS: Partial<Record<AuditAction, z.ZodType>> = {
 		reason: z.enum(ANNUL_REASONS),
 		previous_status: z.enum(['decided', 'expired', 'in_progress'])
 	}),
+	// A family of the bank taken out of serving or put back by the administrator (domain 10.5); the note stays with the
+	// quarantine, not in the journal.
+	'bank.family_quarantined': withKeys({ release_id: token, reason: z.enum(QUARANTINE_REASONS), quarantine_id: token }),
+	'bank.family_restored': withKeys({ reason: z.enum(QUARANTINE_REASONS), quarantine_id: token }),
 	// A review of an objection re-scored clusters and replaced a decision (domain 12.5).
 	'assessment.score_revised': withKeys({
 		superseded_decision_id: token,
