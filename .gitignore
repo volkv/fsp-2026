@@ -19,3 +19,6 @@ __pycache__/
 docs/submission/generated/
 # Evaluation runs: rendered documents and reports
 tools/eval/out/
+
+# IDE
+.idea/
