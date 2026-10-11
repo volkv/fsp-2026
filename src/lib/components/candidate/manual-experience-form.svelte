@@ -9,7 +9,7 @@
 	import type { ManualExperienceEntry } from './profile';
 	import SkillPicker from './skill-picker.svelte';
 
-	/** A place of work stated by hand: a new one (`entry` is `null`) or the edit of one. */
+	/** A place of work stated by hand: a new one (`entry` is `null`) or the edit of one; it is shown in a dialog. */
 	let {
 		entry,
 		target,
@@ -40,7 +40,7 @@
 			await update({ reset: entry === null });
 			if (answer.type === 'success') ondone();
 		}}
-	class="grid gap-3 rounded-lg border p-4"
+	class="grid gap-3"
 	data-testid={entry === null ? 'experience-add' : 'experience-edit'}
 >
 	<CsrfInput />
@@ -94,10 +94,8 @@
 		<Label for="{target}-description">Чем занимались</Label>
 		<Textarea id="{target}-description" name="description" maxlength={1000} rows={3} value={entry?.description ?? ''} />
 	</div>
-	<div class="flex flex-wrap gap-2">
-		<Button type="submit">{entry === null ? 'Добавить место работы' : 'Сохранить'}</Button>
-		{#if entry !== null}
-			<Button type="button" variant="outline" onclick={ondone}>Отмена</Button>
-		{/if}
+	<div class="flex flex-wrap justify-end gap-2">
+		<Button type="button" variant="outline" onclick={ondone}>Отмена</Button>
+		<Button type="submit">{entry === null ? 'Добавить' : 'Сохранить'}</Button>
 	</div>
 </form>
