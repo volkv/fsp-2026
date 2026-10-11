@@ -709,6 +709,12 @@ describe('PDF profile and the confirmation of the category', () => {
 			),
 			semibold: await import('node:fs/promises').then((fs) =>
 				fs.readFile(new URL('../../src/lib/server/profile/fonts/Inter-SemiBold.ttf', import.meta.url))
+			),
+			mono: await import('node:fs/promises').then((fs) =>
+				fs.readFile(new URL('../../src/lib/server/profile/fonts/JetBrainsMono-Medium.ttf', import.meta.url))
+			),
+			monoBold: await import('node:fs/promises').then((fs) =>
+				fs.readFile(new URL('../../src/lib/server/profile/fonts/JetBrainsMono-Bold.ttf', import.meta.url))
 			)
 		};
 		const pdf = (await renderProfilePdf(input, fonts, { compress: false })).toString('latin1');
