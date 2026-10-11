@@ -44,12 +44,19 @@ import {
 	whatIf,
 	type ShortlistDeps
 } from '$lib/server/shortlists/service';
+import { fairnessAudit } from '$lib/server/admin/fairness';
 import { publishTaxonomy } from '$lib/server/taxonomy/publish';
 import { buildRelease, readTaxonomyDatasets } from '$lib/server/taxonomy/release';
 import { declareGrade, releaseFixtureBank } from '../helpers/bank';
 import { decide } from '../helpers/categories';
 import { createTestDatabase, type TestDatabase } from '../helpers/database';
-import { createCandidate, createCompany, createMember, createPublishedDocument } from '../helpers/factories';
+import {
+	createCandidate,
+	createCompany,
+	createMember,
+	createPublishedDocument,
+	createUser
+} from '../helpers/factories';
 import { memoryTextParseCache } from '$lib/server/vacancies/text-extract';
 
 const TAXONOMY_DIR = fileURLToPath(new URL('../../taxonomy', import.meta.url));
@@ -843,5 +850,52 @@ describe('the group «грейд не подтверждён»', () => {
 		);
 		const [terms] = await db.select().from(invitationTerms).where(eq(invitationTerms.invitationId, sent.invitationId));
 		expect(terms?.category).toBeNull();
+	});
+});
+
+describe('the bias audit of the quality panel', () => {
+	it('counts the first ten of the open shortlists by groups, ranked as the company sees them now', async () => {
+		const { subject } = await employer();
+		const dataMiddle = { specialization: 'data_ml', grade: 'middle' } as const;
+		// The only candidates of 45 and older in this database: the group is theirs alone.
+		for (let i = 0; i < 12; i += 1) {
+			const row = await person({ category: dataMiddle, margin: i, fsp: i < 6 });
+			await database.db.execute(sql`update candidates set birth_date = '1970-03-01' where id = ${row.id}`);
+		}
+		const need = await createNeed(needDeps(), subject, meta, {
+			form: { specialization: 'data_ml', grade: { min: 'middle', max: 'middle' }, skill_keys: [], nice_skill_keys: [] }
+		});
+		await createShortlist(deps(), subject, meta, need.id, {});
+
+		const audit = await fairnessAudit(deps(), {
+			subject: {
+				userId: (await createUser(database.db)).id,
+				via: 'session',
+				candidate: null,
+				membership: null,
+				staff: { operator: false, admin: true, extraPermissions: [] }
+			},
+			meta
+		});
+		expect(audit.threshold).toBe(5);
+		expect(audit.shortlists.skipped).toBe(0);
+		expect(audit.shortlists.ranked).toBeGreaterThan(0);
+		const group = (outcome: string, key: string) =>
+			audit.outcomes
+				.find((o) => o.outcome === outcome)
+				?.dimensions.find((d) => d.dimension === 'age')
+				?.groups.find((g) => g.key === key);
+		expect(group('top10', '45_plus')).toMatchObject({
+			eligible: { value: 12 },
+			selected: { value: 10 },
+			rate: { exact: 10 / 12 }
+		});
+		// Listed, never offered: a zero stays a zero.
+		expect(group('offer', '45_plus')).toMatchObject({
+			eligible: { value: 12 },
+			selected: { value: 0 },
+			rate: { exact: 0 }
+		});
+		expect(audit.outcomes.every((o) => o.provenance !== 'synthetic')).toBe(true);
 	});
 });
